@@ -111,7 +111,7 @@ class LocalProxyRelayApi implements ProxyRelayApi {
     final String decoded;
     try {
       decoded = utf8.decode(base64.decode(credential));
-    } on Object {
+    } on FormatException {
       return null;
     }
     final split = decoded.indexOf(':');

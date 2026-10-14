@@ -84,10 +84,12 @@ class ShellStore {
     final loaded = <UserScriptConfig>[];
     for (var i = 0; i < json.length; i++) {
       try {
-        loaded.add(UserScriptConfig.fromJson(
-          jsonDecode(json[i]) as Map<String, dynamic>,
-        ));
-      } catch (e) {
+        final decoded = jsonDecode(json[i]);
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException('a script is not a JSON object');
+        }
+        loaded.add(UserScriptConfig.fromJson(decoded));
+      } on FormatException catch (e) {
         LogTag.boot.warning(
             'Skipped malformed global user script at index $i: $e');
       }
@@ -153,8 +155,12 @@ class ShellStore {
       final loadedWebspaces = <Webspace>[];
       for (var i = 0; i < webspacesJson.length; i++) {
         try {
-          loadedWebspaces.add(Webspace.fromJson(jsonDecode(webspacesJson[i])));
-        } catch (e) {
+          final decoded = jsonDecode(webspacesJson[i]);
+          if (decoded is! Map<String, dynamic>) {
+            throw const FormatException('a webspace is not a JSON object');
+          }
+          loadedWebspaces.add(Webspace.fromJson(decoded));
+        } on FormatException catch (e) {
           LogTag.boot.warning('Skipped malformed webspace at index $i: $e');
         }
       }

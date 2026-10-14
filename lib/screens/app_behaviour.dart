@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -85,12 +87,12 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   double? _tabWidthDrag;
 
   void _setTabStrip(TabStrip mode) {
-    AppPref.showTabStrip.set(mode == TabStrip.pinned);
-    AppPref.tabBarButton.set(mode == TabStrip.button);
+    unawaited(AppPref.showTabStrip.set(mode == TabStrip.pinned));
+    unawaited(AppPref.tabBarButton.set(mode == TabStrip.button));
     // "Keep in full screen" only applies to a pinned strip. Leaving it set
     // in button mode would pin the strip in full screen and hide the button
     // there; clear it whenever we leave the pinned mode.
-    if (mode != TabStrip.pinned) AppPref.tabStripInFullscreen.set(false);
+    if (mode != TabStrip.pinned) unawaited(AppPref.tabStripInFullscreen.set(false));
   }
 
   /// A title with its control at the end of the row.
@@ -214,7 +216,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             onChangeEnd: _tabStripCanShow
                 ? (value) {
                     _tabWidthDrag = null;
-                    AppPref.tabMaxWidth.set(value.round());
+                    unawaited(AppPref.tabMaxWidth.set(value.round()));
                   }
                 : null,
           ),

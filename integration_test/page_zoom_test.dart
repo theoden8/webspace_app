@@ -18,6 +18,8 @@
 // Runs on the Linux and macOS integration jobs by file discovery, and on
 // the Android emulator via scripts/run_android_page_zoom_tests.sh.
 
+import 'dart:async';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -99,7 +101,7 @@ void main() {
         ..write(request.uri.path == _kRulerPath
             ? _rulerPage()
             : '<!doctype html><html><body>404</body></html>');
-      request.response.close();
+      unawaited(request.response.close());
     });
     base = 'http://127.0.0.1:${server.port}';
   });
@@ -174,14 +176,14 @@ void main() {
           final decoded = jsonDecode(raw is String ? raw : '$raw');
           if (decoded is! Map<String, dynamic>) continue;
           if (decoded['error'] != null) continue;
-          if ((decoded['perRow'] as num?) == null ||
-              (decoded['perRow'] as num) <= 0) {
-            continue;
+          if (decoded['perRow'] case final num perRow when perRow > 0) {
+            result = decoded;
+            return;
           }
-          result = decoded;
-          return;
-        } catch (_) {
+        } on TimeoutException {
           // Engine not ready yet (or the bridge is still coming up).
+        } on FormatException {
+          // A result that is not the probe's JSON yet.
         }
       }
     });

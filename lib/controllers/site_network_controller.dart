@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:async';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -62,8 +63,8 @@ class SiteNetworkController {
   }
 
   void dispose() {
-    _untrustSub?.cancel();
-    _torStatusSub?.cancel();
+    unawaited(_untrustSub?.cancel());
+    unawaited(_torStatusSub?.cancel());
   }
 
   void _torStatusChanged(TorStatus s) {
@@ -120,15 +121,12 @@ class SiteNetworkController {
     }
     final preferred = matching ?? anyLive;
     if (preferred != null) {
-      try {
-        await preferred.nativeController.clearSslPreferences();
-        LogTag.tls.debug(
-            'clearSslPreferences() completed for ${entry.host}:${entry.port} '
-            '(via ${matching != null ? "matching-host" : "any-loaded"} controller)',
-            sensitive: true);
-      } catch (e) {
-        LogTag.tls.error('clearSslPreferences() failed: $e');
-      }
+      final cleared = await preferred.clearSslPreferences();
+      LogTag.tls.debug(
+          'clearSslPreferences() ${cleared ? 'completed' : 'not taken'} for '
+          '${entry.host}:${entry.port} '
+          '(via ${matching != null ? "matching-host" : "any-loaded"} controller)',
+          sensitive: true);
     } else {
       LogTag.tls.debug('no loaded controller to call clearSslPreferences() for '
           '${entry.host}:${entry.port} — SSL prefs table may retain stale '
@@ -140,7 +138,9 @@ class SiteNetworkController {
       await inapp.InAppWebViewController.clearAllCache(includeDiskFiles: true);
       LogTag.tls.debug('clearAllCache(disk=true) completed for revoke of '
           '${entry.host}:${entry.port}', sensitive: true);
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.tls.error('clearAllCache failed: $e');
+    } on MissingPluginException catch (e) {
       LogTag.tls.error('clearAllCache failed: $e');
     }
     if (!_host.mounted) return;
@@ -149,7 +149,7 @@ class SiteNetworkController {
     for (var i = 0; i < _sites.models.length; i++) {
       final model = _sites.models[i];
       if (!_pinnedBy(model, host: host, port: entry.port)) continue;
-      HtmlCacheService.instance.deleteCache(model.siteId);
+      unawaited(HtmlCacheService.instance.deleteCache(model.siteId));
       // Outside the unload funnel on purpose: the session is wiped so the
       // next load re-handshakes (BUG-026).
       if (_sites.loaded.contains(i)) {

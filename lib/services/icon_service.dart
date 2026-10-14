@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/engine_image.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
@@ -85,10 +86,16 @@ Future<String?> getSvgContent(
     );
     if (response.statusCode == 200) {
       _svgContentCache[svgUrl] = response.body;
-      if (persist) onSvgContentCached?.call(svgUrl, content: response.body);
+      if (persist) unawaited(onSvgContentCached?.call(svgUrl, content: response.body));
       return response.body;
     }
-  } catch (e) {
+  } on http.ClientException catch (e) {
+    LogTag.icon.error('Failed to fetch SVG content: $e');
+  } on IOException catch (e) {
+    LogTag.icon.error('Failed to fetch SVG content: $e');
+  } on FormatException catch (e) {
+    LogTag.icon.error('Failed to fetch SVG content: $e');
+  } on TimeoutException catch (e) {
     LogTag.icon.error('Failed to fetch SVG content: $e');
   } finally {
     client.close();
@@ -111,7 +118,13 @@ Future<Uint8List?> fetchIconBytes(String iconUrl, {UserProxySettings? proxy}) as
     if (response.statusCode == 200) {
       return response.bodyBytes;
     }
-  } catch (e) {
+  } on http.ClientException catch (e) {
+    LogTag.icon.error('Failed to fetch icon bytes: $e');
+  } on IOException catch (e) {
+    LogTag.icon.error('Failed to fetch icon bytes: $e');
+  } on FormatException catch (e) {
+    LogTag.icon.error('Failed to fetch icon bytes: $e');
+  } on TimeoutException catch (e) {
     LogTag.icon.error('Failed to fetch icon bytes: $e');
   } finally {
     client.close();
@@ -185,7 +198,16 @@ Future<Uint8List?> fetchPageLinkedBytes(
     return await _readPageLinked(client,
             first: first, permitted: permitted, maxBytes: maxBytes)
         .timeout(const Duration(seconds: 15));
-  } catch (e) {
+  } on http.ClientException catch (e) {
+    LogTag.icon.warning('Failed to fetch page link $url: $e', sensitive: true);
+    return null;
+  } on IOException catch (e) {
+    LogTag.icon.warning('Failed to fetch page link $url: $e', sensitive: true);
+    return null;
+  } on FormatException catch (e) {
+    LogTag.icon.warning('Failed to fetch page link $url: $e', sensitive: true);
+    return null;
+  } on TimeoutException catch (e) {
     LogTag.icon.warning('Failed to fetch page link $url: $e', sensitive: true);
     return null;
   } finally {
@@ -419,7 +441,11 @@ Future<bool> _verifyIconUrl(String iconUrl,
       _verifiedUrls.add(iconUrl);
     }
     return isValid;
-  } catch (e) {
+  } on http.ClientException {
+    return false;
+  } on IOException {
+    return false;
+  } on FormatException {
     return false;
   } finally {
     client.close();
@@ -467,6 +493,28 @@ bool svgHasRealColor(String lowerSvg) {
   return false;
 }
 
+/// [svg], a page's, compiled to a picture, or null when the compiler rejects
+/// it. It rejects bad input with errors as well as exceptions (an element it
+/// does not support is an [UnsupportedError], a `<use>` inside the element
+/// it names recurses until the stack overflows), so what a hostile icon can
+/// make it throw is named here, once.
+Future<PictureInfo?> loadUntrustedSvg(String svg) async {
+  try {
+    return await vg.loadPicture(SvgStringLoader(svg), null);
+  } on FormatException catch (e) {
+    LogTag.icon.warning('SVG rejected: $e');
+  } on UnsupportedError catch (e) {
+    LogTag.icon.warning('SVG rejected: $e');
+  } on StateError catch (e) {
+    LogTag.icon.warning('SVG rejected: $e');
+  } on ArgumentError catch (e) {
+    LogTag.icon.warning('SVG rejected: $e');
+  } on StackOverflowError catch (e) {
+    LogTag.icon.warning('SVG rejected: $e');
+  }
+  return null;
+}
+
 // Rasterize the SVG the way the app will and report whether it comes back
 // effectively empty. flutter_svg (vector_graphics) renders some valid SVGs
 // blank, e.g. nested <svg> viewports (duck.ai's favicon.svg), and such an icon
@@ -476,36 +524,33 @@ bool svgHasRealColor(String lowerSvg) {
 @visibleForTesting
 Future<bool> svgRendersBlank(String rawSvg) async {
   const n = 48;
+  final info = await loadUntrustedSvg(rawSvg);
+  if (info == null) return false;
   try {
-    final info = await vg.loadPicture(SvgStringLoader(rawSvg), null);
-    try {
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder);
-      final size = info.size;
-      if (size.width > 0 && size.height > 0) {
-        canvas.scale(n / size.width, n / size.height);
-      }
-      canvas.drawPicture(info.picture);
-      final image = await recorder.endRecording().toImage(n, n);
-      try {
-        final bytes =
-            await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-        if (bytes == null) return false;
-        final data = bytes.buffer.asUint8List();
-        var opaque = 0;
-        for (var i = 3; i < data.length; i += 4) {
-          if (data[i] > 16) opaque++;
-        }
-        return opaque / (n * n) < 0.01;
-      } finally {
-        image.dispose();
-      }
-    } finally {
-      info.picture.dispose();
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    final size = info.size;
+    if (size.width > 0 && size.height > 0) {
+      canvas.scale(n / size.width, n / size.height);
     }
-  } catch (e) {
-    LogTag.icon.warning('SVG render probe failed: $e');
-    return false;
+    canvas.drawPicture(info.picture);
+    final image =
+        await engineImage(() => recorder.endRecording().toImage(n, n));
+    try {
+      final bytes = await engineImage(
+          () => image.toByteData(format: ui.ImageByteFormat.rawRgba));
+      if (bytes == null) return false;
+      final data = bytes.buffer.asUint8List();
+      var opaque = 0;
+      for (var i = 3; i < data.length; i += 4) {
+        if (data[i] > 16) opaque++;
+      }
+      return opaque / (n * n) < 0.01;
+    } finally {
+      image.dispose();
+    }
+  } finally {
+    info.picture.dispose();
   }
 }
 
@@ -544,7 +589,19 @@ Future<bool> _isSvgColored(String svgUrl, {required UserProxySettings proxy}) as
     }
 
     return true;
-  } catch (e) {
+  } on http.ClientException catch (e) {
+    LogTag.icon.error('Failed to check SVG color: $e');
+    return false;
+  } on IOException catch (e) {
+    LogTag.icon.error('Failed to check SVG color: $e');
+    return false;
+  } on FormatException catch (e) {
+    LogTag.icon.error('Failed to check SVG color: $e');
+    return false;
+  } on TimeoutException catch (e) {
+    LogTag.icon.error('Failed to check SVG color: $e');
+    return false;
+  } on EngineImageFailure catch (e) {
     LogTag.icon.error('Failed to check SVG color: $e');
     return false;
   } finally {
@@ -685,32 +742,22 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
 
 Future<String?> _tryGoogleFavicon(String domain,
     {required int size, required UserProxySettings proxy}) async {
-  try {
-    final googleUrl =
-        'https://www.google.com/s2/favicons?domain=$domain&sz=$size';
-    if (await _verifyIconUrl(googleUrl, proxy: proxy)) {
-      LogTag.icon.debug('Found Google favicon at ${size}px for $domain',
-          sensitive: true);
-      return googleUrl;
-    }
-  } catch (e) {
-    LogTag.icon
-        .error('Google ${size}px failed for $domain: $e', sensitive: true);
+  final googleUrl =
+      'https://www.google.com/s2/favicons?domain=$domain&sz=$size';
+  if (await _verifyIconUrl(googleUrl, proxy: proxy)) {
+    LogTag.icon.debug('Found Google favicon at ${size}px for $domain',
+        sensitive: true);
+    return googleUrl;
   }
   return null;
 }
 
 Future<String?> _tryDuckDuckGo(String domain,
     {required UserProxySettings proxy}) async {
-  try {
-    final ddgUrl = 'https://icons.duckduckgo.com/ip3/$domain.ico';
-    if (await _verifyIconUrl(ddgUrl, proxy: proxy)) {
-      LogTag.icon
-          .debug('Found DuckDuckGo favicon for $domain', sensitive: true);
-      return ddgUrl;
-    }
-  } catch (e) {
-    LogTag.icon.error('DuckDuckGo failed for $domain: $e', sensitive: true);
+  final ddgUrl = 'https://icons.duckduckgo.com/ip3/$domain.ico';
+  if (await _verifyIconUrl(ddgUrl, proxy: proxy)) {
+    LogTag.icon.debug('Found DuckDuckGo favicon for $domain', sensitive: true);
+    return ddgUrl;
   }
   return null;
 }
@@ -764,7 +811,13 @@ Future<_IconCandidate?> _tryFaviconPackage(String url,
           sensitive: true);
       return _IconCandidate(best.url, quality: quality);
     }
-  } catch (e) {
+  } on http.ClientException catch (e) {
+    LogTag.icon.error('FaviconFinder failed for $url: $e', sensitive: true);
+  } on IOException catch (e) {
+    LogTag.icon.error('FaviconFinder failed for $url: $e', sensitive: true);
+  } on FormatException catch (e) {
+    LogTag.icon.error('FaviconFinder failed for $url: $e', sensitive: true);
+  } on TimeoutException catch (e) {
     LogTag.icon.error('FaviconFinder failed for $url: $e', sensitive: true);
   }
   return null;

@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:webspace/platform/host_platform.dart';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -111,15 +111,16 @@ class SettingsBackup {
     List<Map<String, dynamic>>? optionalMaps(Object? raw) => raw is List
         ? [for (final e in raw) if (e is Map) Map<String, dynamic>.from(e)]
         : null;
+    // A backup without these, or with an entry that is no object, is not one.
+    List<Map<String, dynamic>> requiredMaps(String key) => switch (json[key]) {
+          final List raw when raw.every((e) => e is Map) => optionalMaps(raw)!,
+          _ => throw FormatException('a backup needs a list of $key'),
+        };
     final exportedAt = json['exportedAt'];
     return SettingsBackup(
       version: json['version'] is int ? json['version'] as int : 1,
-      sites: (json['sites'] as List<dynamic>)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList(),
-      webspaces: (json['webspaces'] as List<dynamic>)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList(),
+      sites: requiredMaps('sites'),
+      webspaces: requiredMaps('webspaces'),
       themeMode: json['themeMode'] is int ? json['themeMode'] as int : 0,
       globalPrefs: prefs,
       selectedWebspaceId: WebspaceId.parse(json['selectedWebspaceId']),
@@ -229,6 +230,16 @@ class SettingsBackupService {
     BuildContext context, {
     required SettingsBackup backup,
   }) async {
+    bool failed(Exception e, {required StackTrace stack}) {
+      LogTag.settingsBackup.error('Export failed: $e\n$stack');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+      return false;
+    }
+
     try {
       final jsonString = exportToJson(backup);
       final bytes = utf8.encode(jsonString);
@@ -240,7 +251,7 @@ class SettingsBackupService {
       // On desktop (macOS/Linux/Windows): bytes not supported, write manually
       final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
 
-      final outputPath = await FilePicker.saveFile(
+      final outputPath = await FileDialog.saveFile(
         dialogTitle: 'Save Settings Backup',
         fileName: defaultFileName,
         bytes: isMobile ? bytes : null,
@@ -262,14 +273,10 @@ class SettingsBackupService {
         );
       }
       return true;
-    } catch (e, stack) {
-      LogTag.settingsBackup.error('Export failed: $e\n$stack');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
-        );
-      }
-      return false;
+    } on FileDialogFailure catch (e, stack) {
+      return failed(e, stack: stack);
+    } on IOException catch (e, stack) {
+      return failed(e, stack: stack);
     }
   }
 
@@ -280,26 +287,27 @@ class SettingsBackupService {
       final text = jsonString.startsWith('﻿')
           ? jsonString.substring(1)
           : jsonString;
-      final json = jsonDecode(text) as Map<String, dynamic>;
+      final json = jsonDecode(text);
+      if (json is! Map<String, dynamic>) return null;
       return SettingsBackup.fromJson(json);
-    } catch (e) {
+    } on FormatException {
       return null;
     }
   }
 
   static Future<SettingsBackup?> pickAndImport(BuildContext context) async {
-    try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-        allowMultiple: false,
-      );
-
-      if (result == null || result.files.isEmpty) {
-        return null;
+    SettingsBackup? failed(Exception e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import failed: $e')),
+        );
       }
+      return null;
+    }
 
-      final file = result.files.first;
+    try {
+      final file = await FileDialog.pickFile(extensions: ['json']);
+      if (file == null) return null;
       String jsonString;
 
       if (file.bytes != null) {
@@ -327,13 +335,12 @@ class SettingsBackupService {
       }
 
       return backup;
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import failed: $e')),
-        );
-      }
-      return null;
+    } on FileDialogFailure catch (e) {
+      return failed(e);
+    } on FormatException catch (e) {
+      return failed(e);
+    } on IOException catch (e) {
+      return failed(e);
     }
   }
 

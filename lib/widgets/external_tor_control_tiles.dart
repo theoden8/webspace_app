@@ -35,7 +35,7 @@ class _ExternalTorControlTilesState extends State<ExternalTorControlTiles> {
 
   @override
   void dispose() {
-    _sub?.cancel();
+    unawaited(_sub?.cancel());
     super.dispose();
   }
 

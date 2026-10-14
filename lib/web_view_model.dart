@@ -1062,7 +1062,7 @@ class WebViewModel implements MediaGrantRecord {
       _containerProxyToRelease = null;
       if (release != null) await proxyManager.releaseContainerProxy(release);
       return true;
-    } catch (e) {
+    } on ProxyRefused catch (e) {
       // Exception text can include proxy host / username / scheme, which
       // are per-site identifiers for any site with a custom proxy (including
       // archive-tier sites). Keep in the memory ring.
@@ -1188,7 +1188,7 @@ bool dispatch(NavigationDecision decision,
           }
           return false;
         case NavigationDecision.blockOpenExternal:
-          if (!takenOver()) hooks.openInBrowser(url);
+          if (!takenOver()) unawaited(hooks.openInBrowser(url));
           return false;
         case NavigationDecision.blockOutbound:
           takenOver();
@@ -1401,7 +1401,7 @@ bool dispatch(NavigationDecision decision,
               // dying frame when chromium tears down between our request
               // and its dispatch. The theme call doesn't gate any
               // subsequent work — saveFunc below is Dart-only.
-              controller?.setThemePreference(_currentTheme);
+              unawaited(controller?.setThemePreference(_currentTheme));
             }
             await hooks.save();
             lastSavedUrl = currentNotifyUrl;
@@ -1493,7 +1493,7 @@ bool dispatch(NavigationDecision decision,
               'onControllerCreated for "$name" (siteId: $siteId)',
               sensitive: true);
           controller = ctrl;
-          setController();
+          unawaited(setController());
           unawaited(_pushPendingArchiveCookies(ctrl));
           // Apply any state queued by the activation flow when this
           // model came back from SavedForRestore. The InAppWebView's
@@ -1558,7 +1558,7 @@ bool dispatch(NavigationDecision decision,
   WebViewController? getController(WebViewHostHooks hooks) {
     if (webview == null) getWebView(hooks);
     if (controller != null) {
-      setController();
+      unawaited(setController());
     }
     return controller;
   }
@@ -1986,15 +1986,15 @@ bool dispatch(NavigationDecision decision,
   /// What an archive seals for this site (ARCH-012).
   Map<String, dynamic> toArchiveJson() => toArchiveJsonMap();
 
-  /// Only `initUrl` is required. Every other field of the wrong type reads
-  /// as absent: the startup loader drops a site whose JSON throws and the
-  /// next save deletes it, so one odd value (a hand-edited backup, a partial
-  /// QR payload, a field a later build retyped) must not cost the whole site.
+  /// Only `initUrl` is required: without one this throws a
+  /// [FormatException]. Every other field of the wrong type reads as absent:
+  /// the startup loader drops a site whose JSON throws and the next save
+  /// deletes it, so one odd value (a hand-edited backup, a partial QR
+  /// payload, a field a later build retyped) must not cost the whole site.
   factory WebViewModel.fromJson(
     Map<String, dynamic> json, {
     required Function? stateSetterF,
     bool isArchiveTier = false,
-  }) =>
-      webViewModelFromJson(json,
-          stateSetterF: stateSetterF, isArchiveTier: isArchiveTier);
+  }) => webViewModelFromJson(json,
+      stateSetterF: stateSetterF, isArchiveTier: isArchiveTier);
 }

@@ -1835,15 +1835,6 @@
   "@devToolsNoHtmlContent": {
     "description": "Snackbar shown when the page has no HTML content to export."
   },
-  "devToolsHtmlFetchFailed": "Failed to get HTML: {error}",
-  "@devToolsHtmlFetchFailed": {
-    "description": "Snackbar shown when fetching the page HTML fails.",
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "devToolsSaveHtmlDialogTitle": "Save HTML",
   "@devToolsSaveHtmlDialogTitle": {
     "description": "Title of the file-save dialog when saving page HTML."
@@ -2816,15 +2807,6 @@
   "@siteSettingsSavedSnack": {
     "description": "Snackbar shown after settings are saved."
   },
-  "siteSettingsSaveError": "Error saving settings: {error}",
-  "@siteSettingsSaveError": {
-    "description": "Snackbar shown when saving settings throws.",
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "userScriptsDeleteDialogTitle": "Delete Script?",
   "@userScriptsDeleteDialogTitle": {
     "description": "Title of the dialog confirming deletion of a user script"
@@ -2909,15 +2891,6 @@
   "userScriptsRunning": "Running...",
   "@userScriptsRunning": {
     "description": "Placeholder output text shown while a user script is being executed"
-  },
-  "userScriptsRunError": "Error: {detail}",
-  "@userScriptsRunError": {
-    "description": "Output text shown when running a user script throws an error",
-    "placeholders": {
-      "detail": {
-        "type": "String"
-      }
-    }
   },
   "userScriptsEditTitle": "Edit Script",
   "@userScriptsEditTitle": {

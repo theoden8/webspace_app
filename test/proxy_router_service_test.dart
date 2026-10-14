@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
@@ -539,7 +540,7 @@ void main() {
     test('refuses when the probe itself throws', () async {
       final port = await service.activate(
         perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
-        probe: (_) async => throw StateError('no webview'),
+        probe: (_) async => throw PlatformException(code: 'no webview'),
       );
       expect(port, isNull);
       expect(service.isActive, isFalse);

@@ -216,8 +216,8 @@ void main() {
     });
 
     test('throws on network error', () async {
-      final client =
-          MockClient((request) async => throw const SocketExceptionStub());
+      final client = MockClient((request) async =>
+          throw http.ClientException('Connection refused', request.url));
       expect(
         () => DownloadEngine(client: client)
             .fetch(url: 'https://example.com/x'),
@@ -512,10 +512,4 @@ void main() {
       expect(utf8.decode(result.bytes), 'small');
     });
   });
-}
-
-class SocketExceptionStub implements Exception {
-  const SocketExceptionStub();
-  @override
-  String toString() => 'SocketException: connection refused';
 }

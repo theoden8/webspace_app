@@ -114,7 +114,7 @@ abstract final class WebViewTls {
           'untrusted cert on an https upgrade for $host:$port — cancelling '
           'silently and falling back to ${upgradeCert.load} (no prompt, '
           'no pin)', sensitive: true);
-      view?.loadUrl(upgradeCert.load!);
+      unawaited(view?.loadUrl(upgradeCert.load!));
     }
     if (upgradeCert.cancel) {
       return inapp.ServerTrustAuthResponse(
@@ -157,9 +157,9 @@ abstract final class WebViewTls {
     // paints. Reload re-issues the failed nav; this PROCEED arm
     // short-circuits via the now-matching pin synchronously on the
     // new attempt.
-    Future.microtask(() async {
+    unawaited(Future.microtask(() async {
       await view?.reload();
-    });
+    }));
     return inapp.ServerTrustAuthResponse(
         action: inapp.ServerTrustAuthResponseAction.PROCEED);
   }
@@ -302,9 +302,9 @@ abstract final class WebViewTls {
           'pin matches but iOS reported error for $host:$port — reloading once '
           '(os: $hostOperatingSystem $hostOperatingSystemVersion)',
           sensitive: true);
-      Future.microtask(() async {
+      unawaited(Future.microtask(() async {
         await view?.loadUrl(url);
-      });
+      }));
       return true;
     }
     if (prompt == null) return false;

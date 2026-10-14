@@ -168,7 +168,7 @@ String _region(String path, {required String from, required String to}) {
 
 /// A key read out of a JSON map, in any of the spellings the parsers use.
 const _readPattern =
-    r"(?:\b(?:json|e|values|raw|entry)\[\s*'(\w+)'\s*\]|\b(?:field<[\w<>, ?]*>|finite|text)\(\s*'(\w+)')";
+    r"(?:\b(?:json|e|values|raw|entry)\[\s*'(\w+)'\s*\]|\b(?:field<[\w<>, ?]*>|finite|text|requiredMaps)\(\s*'(\w+)')";
 
 Set<String> _readKeys(String text) => {
       for (final m in RegExp(_readPattern).allMatches(text))

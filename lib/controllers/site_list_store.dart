@@ -42,7 +42,10 @@ class SiteListStore {
     for (var i = 0; i < webViewModelsJson.length; i++) {
       final raw = webViewModelsJson[i];
       try {
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final decoded = jsonDecode(raw);
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException('a site is not a JSON object');
+        }
         final proxy = decoded['proxySettings'];
         if (proxy is Map<String, dynamic>) {
           final pwd = proxy['password'];
@@ -62,7 +65,7 @@ class SiteListStore {
           }
         }
         cleanedJsonStrings.add(jsonEncode(decoded));
-      } catch (e) {
+      } on FormatException catch (e) {
         // The exception text can echo the malformed site JSON, which
         // includes initUrl / name — per-site identifiers. Memory ring.
         LogTag.boot.warning('Dropped unparseable site JSON at index $i: $e',
@@ -88,7 +91,7 @@ class SiteListStore {
           WebViewModel.fromJson(jsonDecode(cleanedJsonStrings[i]),
               stateSetterF: onChange),
         );
-      } catch (e) {
+      } on FormatException catch (e) {
         // Exception text can echo site JSON (initUrl / name). Memory ring.
         LogTag.boot.warning('Skipped malformed site at index $i: $e',
             sensitive: true);

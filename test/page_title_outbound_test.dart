@@ -55,6 +55,32 @@ void main() {
     expect(factory.queries.single.address, equals('127.0.0.1:9050'));
   });
 
+  test('a URL the client cannot request has no title and asks for nothing',
+      () async {
+    // Answers as dart:io does: anything but http(s) with a host is an
+    // ArgumentError (_http/http_impl.dart:2983-2990).
+    final factory = FakeOutbound(responder: (req) {
+      final url = req.url;
+      if (url.host.isEmpty || !(url.isScheme('http') || url.isScheme('https'))) {
+        throw ArgumentError('No host specified in URI $url');
+      }
+      return http.Response('<title>Fetched Title</title>', 200);
+    });
+    outboundHttp = factory;
+
+    for (final url in [
+      'about:blank',
+      'chrome://settings',
+      'file:///imported.html',
+      'view-source:https://example.com/',
+      'https://',
+      'example.com',
+    ]) {
+      expect(await getPageTitle(url), isNull, reason: url);
+    }
+    expect(factory.queries, isEmpty);
+  });
+
   test('a blocked client aborts the fetch instead of going direct', () async {
     final factory = _titleFactory(block: true);
     outboundHttp = factory;

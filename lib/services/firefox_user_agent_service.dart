@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -135,7 +137,11 @@ class FirefoxUserAgentService {
       _major = max(kDefaultFirefoxMajorVersion, cached);
       final ts = prefs.getString(_lastCheckedKey);
       if (ts != null) _lastChecked = DateTime.tryParse(ts);
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.firefoxUa.error('init error: $e');
+    } on IOException catch (e) {
+      LogTag.firefoxUa.error('init error: $e');
+    } on FormatException catch (e) {
       LogTag.firefoxUa.error('init error: $e');
     }
   }
@@ -177,7 +183,7 @@ class FirefoxUserAgentService {
       final prefs = await SharedPreferences.getInstance();
       if (isNewer) await prefs.setInt(_versionKey, _major);
       await prefs.setString(_lastCheckedKey, _lastChecked!.toIso8601String());
-    } catch (e) {
+    } on PlatformException catch (e) {
       LogTag.firefoxUa.error('persist error: $e');
     }
     if (isNewer) {

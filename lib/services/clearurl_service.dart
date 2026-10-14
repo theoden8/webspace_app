@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
@@ -49,12 +51,17 @@ class ClearUrlService {
     try {
       final contents = await hostReadDocumentText(_rulesFileName);
       if (contents != null) {
-        final json = jsonDecode(contents) as Map<String, dynamic>;
+        final json = jsonDecode(contents);
+        if (json is! Map<String, dynamic>) {
+          throw const FormatException('the rules are not a JSON object');
+        }
         _parseRules(json);
         LogTag.clearUrls.info(
             'Loaded ${_providers.length} providers from cache');
       }
-    } catch (e) {
+    } on FormatException catch (e) {
+      LogTag.clearUrls.error('Error loading cached rules: $e');
+    } on IOException catch (e) {
       LogTag.clearUrls.error('Error loading cached rules: $e');
     }
   }
@@ -83,7 +90,13 @@ class ClearUrlService {
       LogTag.clearUrls.info(
           'Downloaded and parsed ${_providers.length} providers');
       return true;
-    } on Exception catch (e) {
+    } on FormatException catch (e) {
+      LogTag.clearUrls.error('Download error: $e');
+      return false;
+    } on IOException catch (e) {
+      LogTag.clearUrls.error('Download error: $e');
+      return false;
+    } on PlatformException catch (e) {
       LogTag.clearUrls.error('Download error: $e');
       return false;
     }
@@ -214,34 +227,25 @@ class ClearUrlService {
     }
     final providersJson = Map<String, dynamic>.from(providersRaw);
 
-    for (final entry in providersJson.entries) {
-      if (entry.value is! Map) continue;
-      final data = Map<String, dynamic>.from(entry.value as Map);
-
-
-      final urlPatternStr = data['urlPattern'] as String?;
-      if (urlPatternStr == null || urlPatternStr.isEmpty) continue;
-
+    for (final MapEntry(:key, :value) in providersJson.entries) {
+      if (value is! Map) continue;
+      final urlPatternStr = value['urlPattern'];
+      if (urlPatternStr is! String || urlPatternStr.isEmpty) continue;
+      final RegExp urlPattern;
       try {
-        final urlPattern = RegExp(urlPatternStr, caseSensitive: false);
-        final completeProvider = data['completeProvider'] as bool? ?? false;
-
-        final rules = _parseRegexList(data['rules'] as List<dynamic>?);
-        final rawRules = _parseRegexList(data['rawRules'] as List<dynamic>?);
-        final exceptions = _parseRegexList(data['exceptions'] as List<dynamic>?);
-        final redirections = _parseRegexList(data['redirections'] as List<dynamic>?);
-
-        providers.add(ClearUrlProvider(
-          urlPattern: urlPattern,
-          completeProvider: completeProvider,
-          rules: rules,
-          rawRules: rawRules,
-          exceptions: exceptions,
-          redirections: redirections,
-        ));
-      } catch (e) {
-        LogTag.clearUrls.error('Error parsing provider "${entry.key}": $e');
+        urlPattern = RegExp(urlPatternStr, caseSensitive: false);
+      } on FormatException catch (e) {
+        LogTag.clearUrls.error('Error parsing provider "$key": $e');
+        continue;
       }
+      providers.add(ClearUrlProvider(
+        urlPattern: urlPattern,
+        completeProvider: value['completeProvider'] == true,
+        rules: _parseRegexList(value['rules']),
+        rawRules: _parseRegexList(value['rawRules']),
+        exceptions: _parseRegexList(value['exceptions']),
+        redirections: _parseRegexList(value['redirections']),
+      ));
     }
 
     _providers = providers;
@@ -301,14 +305,14 @@ class ClearUrlService {
     ];
   }
 
-  List<RegExp> _parseRegexList(List<dynamic>? list) {
-    if (list == null) return [];
+  List<RegExp> _parseRegexList(Object? list) {
+    if (list is! List) return [];
     final result = <RegExp>[];
     for (final item in list) {
       if (item is String && item.isNotEmpty) {
         try {
           result.add(RegExp(item, caseSensitive: false));
-        } catch (e) {
+        } on FormatException catch (e) {
           LogTag.clearUrls.error('Invalid regex "$item": $e');
         }
       }

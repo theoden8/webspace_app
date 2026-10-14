@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -152,7 +154,7 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
                         tooltip: loc.trustedCertCopyTooltip,
                         icon: const Icon(Icons.copy, size: 18),
                         onPressed: () {
-                          Clipboard.setData(ClipboardData(text: formatted));
+                          unawaited(Clipboard.setData(ClipboardData(text: formatted)));
                           ScaffoldMessenger.of(context).toast(
                             loc.trustedCertCopied,
                             duration: const Duration(seconds: 2),

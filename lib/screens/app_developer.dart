@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -121,7 +123,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
             hint: loc.appSettingsDeveloperModeHint,
             lock: _turningOff ? const Lock.because(null) : null,
             control: Toggle(!_turningOff, onChanged: (value) {
-              if (!value) _turnOff();
+              if (!value) unawaited(_turnOff());
             }),
           ),
           SettingsSection(loc.devToolsTabLogs),

@@ -107,7 +107,7 @@ void main() {
     test('an unreachable service is its own failure kind', () async {
       // On a censored network this is the expected outcome, and the UI must
       // not report it as "the service is down".
-      final fake = _FakeClient((_) => throw Exception('no route'));
+      final fake = _FakeClient((_) => throw http.ClientException('no route'));
       await expectLater(
         MoatClient(client: fake).fetchChallenge(TorTransport.obfs4),
         throwsA(isA<MoatException>()
@@ -273,7 +273,7 @@ void main() {
             ]
           });
         }
-        throw Exception('no route');
+        throw http.ClientException('no route');
       });
       await expectLater(
         MoatClient(client: fake).obtainBridges(TorTransport.obfs4),

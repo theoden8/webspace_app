@@ -77,14 +77,14 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
     if (_service.isFresh(widget.proxy)) return;
     if (!immediately) {
       _pending = Timer(_settle, () {
-        if (mounted) _service.check(widget.proxy);
+        if (mounted) unawaited(_service.check(widget.proxy));
       });
       return;
     }
     // After the frame: `check` notifies synchronously, and a listener may
     // not rebuild a widget during build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _service.check(widget.proxy);
+      if (mounted) unawaited(_service.check(widget.proxy));
     });
   }
 

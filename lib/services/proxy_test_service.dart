@@ -3,6 +3,7 @@ import 'package:webspace/settings/site_ids.dart';
 
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -129,7 +130,13 @@ Future<ProxyTestResult> _probe(
           ProxyTestOutcome.reachable,
           statusCode: response.statusCode,
         );
-      } on Exception catch (e) {
+      } on TimeoutException {
+        return const ProxyTestResult(ProxyTestOutcome.timedOut);
+      } on SocksHandshakeFailure catch (e) {
+        return _classify(e);
+      } on http.ClientException catch (e) {
+        return _classify(e);
+      } on IOException catch (e) {
         return _classify(e);
       } finally {
         probe.close();
@@ -137,18 +144,16 @@ Future<ProxyTestResult> _probe(
   }
 }
 
-/// Sort a thrown error into an outcome without importing `dart:io`.
+/// Sort a transport failure into an outcome without importing `dart:io`.
 ///
 /// This file sits under the settings screens' import closure, so it has to
 /// compile for the web target (DESIGN-001) and cannot name `SocketException`
 /// or `HandshakeException`. The distinctions that matter to the user survive
 /// in the message: dart:io reports a refused CONNECT as
-/// "Proxy failed to establish tunnel (407 ...)", and the SOCKS5 client
-/// reports a rejected username/password as an authentication failure.
+/// "Proxy failed to establish tunnel (407 ...)", and a SOCKS5 proxy that
+/// rejects the username/password fails the handshake with an authentication
+/// failure.
 ProxyTestResult _classify(Exception error) {
-  if (error is TimeoutException) {
-    return const ProxyTestResult(ProxyTestOutcome.timedOut);
-  }
   final text = error.toString();
   final lower = text.toLowerCase();
   if (lower.contains('407') ||

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/webview_config.dart';
@@ -71,7 +73,7 @@ class _FindToolbarState extends State<FindToolbar> {
             icon: Icon(Icons.close),
             onPressed: () {
               _searchController.clear();
-              controller?.clearMatches();
+              unawaited(controller?.clearMatches());
               setState(() {
                 widget.matches.numberOfMatches = 0;
                 widget.matches.activeMatchOrdinal = 0;

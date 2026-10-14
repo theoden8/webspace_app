@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/add_site.dart'
     show FaviconUrlCache, UnifiedFaviconImage;
 import 'package:webspace/services/custom_icon.dart';
+import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/utils/url_utils.dart';
@@ -49,16 +49,20 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
   }
 
   Future<void> _pickIcon() => _iconPick.run(() async {
-    final picked = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico'],
-      allowMultiple: false,
-    );
-    if (picked == null || picked.files.isEmpty) return;
-    final file = picked.files.first;
-    Uint8List? raw = file.bytes;
-    if (raw == null && file.path != null) {
-      raw = await hostReadFileBytes(file.path!);
+    Uint8List? raw;
+    try {
+      final file = await FileDialog.pickFile(
+        extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico'],
+      );
+      if (file == null) return;
+      raw = file.bytes;
+      if (raw == null && file.path != null) {
+        raw = await hostReadFileBytes(file.path!);
+      }
+    } on FileDialogFailure {
+      raw = null;
+    } on IOException {
+      raw = null;
     }
     final processed = raw == null
         ? null

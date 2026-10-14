@@ -63,6 +63,8 @@ class BackgroundTaskService {
               message:
                   'background refresh fired (app $lifecycle) — reloading notif sites');
           final watch = Stopwatch()..start();
+          var success = false;
+          var recorded = false;
           try {
             final cb = onBackgroundRefresh;
             if (cb != null) {
@@ -71,8 +73,8 @@ class BackgroundTaskService {
             BackgroundLog.instance.record(LogTag.backgroundTask,
                 message:
                     'background refresh handled in ${watch.elapsedMilliseconds}ms');
-            await bgRefreshDidComplete(success: true);
-          } catch (e, st) {
+            success = true;
+          } on Exception catch (e, st) {
             // The message can quote a page URL; only its type is kept on disk.
             BackgroundLog.instance.record(
               LogTag.backgroundTask,
@@ -80,7 +82,17 @@ class BackgroundTaskService {
               level: LogLevel.error,
               sensitive: 'background refresh handler threw: $e\n$st',
             );
-            await bgRefreshDidComplete(success: false);
+            recorded = true;
+          } finally {
+            // An Error the catch leaves to the channel, which drops it.
+            if (!success && !recorded) {
+              BackgroundLog.instance.record(LogTag.backgroundTask,
+                  message: 'background refresh handler did not finish',
+                  level: LogLevel.error);
+            }
+            // Whatever the handler did, the OS task completes, or iOS ends
+            // the app for holding it.
+            await bgRefreshDidComplete(success: success);
           }
           return null;
       }

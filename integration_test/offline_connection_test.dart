@@ -36,6 +36,7 @@
 // tester.runAsync() and frames are pumped only to mount widgets.
 
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -142,7 +143,9 @@ void main() {
               '<!doctype html><html><body><p>partial');
           try {
             await socket.flush();
-          } catch (_) {}
+          } on SocketException {
+            // The client hung up first; the socket goes either way.
+          }
           socket.destroy();
           return;
       }
@@ -227,7 +230,9 @@ Future<String> htmlOf(WidgetTester tester,
               ?.getHtml()
               .timeout(const Duration(seconds: 5)) ??
           '';
-    } catch (_) {}
+    } on TimeoutException {
+      // A page that never answers reads as empty.
+    }
   });
   return html;
 }

@@ -6,6 +6,8 @@ import 'package:webspace/services/custom_icon.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/broken_images.dart';
+
 Uint8List _pngOfSize(int w, {required int h}) {
   final im = img.Image(width: w, height: h);
   img.fill(im, color: img.ColorRgb8(30, 120, 200));
@@ -36,6 +38,11 @@ void main() {
     test('returns null for undecodable bytes', () {
       final garbage = Uint8List.fromList(List<int>.filled(64, 7));
       expect(processCustomIconImage(garbage), isNull);
+    });
+
+    test('returns null for a TIFF whose strip does not inflate', () {
+      expect(processCustomIconImage(tiffThatDoesNotInflate()), isNull);
+      expect(processCustomIconImage(truncatedPng), isNull);
     });
   });
 

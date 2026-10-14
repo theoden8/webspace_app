@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -99,13 +100,20 @@ Future<AppProxyFetch> fetchViaAppProxy(
     case OutboundClientReady(client: final ready):
       client = ready;
   }
+  // The transport's failures: package:http's own, the I/O failures it
+  // passes through unwrapped (a TLS handshake, a SOCKS refusal), and a body
+  // its declared encoding does not decode.
   try {
     return await _fetch(client,
             url: url, tag: tag, maxBytes: maxBytes, headers: headers)
         .timeout(timeout);
-  } on Exception catch (e) {
-    // A timeout, or the proxy's, socket's or TLS layer's own failure, whose
-    // types differ by platform. Errors are bugs and still reach the caller.
+  } on http.ClientException catch (e) {
+    return _fetchFailed(tag, url: url, reason: '$e');
+  } on IOException catch (e) {
+    return _fetchFailed(tag, url: url, reason: '$e');
+  } on TimeoutException catch (e) {
+    return _fetchFailed(tag, url: url, reason: '$e');
+  } on FormatException catch (e) {
     return _fetchFailed(tag, url: url, reason: '$e');
   } finally {
     client.close();

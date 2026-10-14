@@ -106,6 +106,11 @@ abstract class WebViewController {
   /// roughly 10-50 MB per webview depending on what was cached.
   Future<void> clearCache();
 
+  /// Forget the certificate errors the user proceeded past. False where the
+  /// platform keeps no such table (only Android and Windows have one) or
+  /// refused the call.
+  Future<bool> clearSslPreferences();
+
   /// Capture the WebView's navigation state into a serializable byte
   /// blob. Pair with [restoreState] on a freshly-created controller
   /// to re-hydrate the back/forward stack and (on iOS 15+ / macOS
@@ -473,6 +478,9 @@ class PlatformWebViewController implements WebViewController {
 
   @override
   Future<void> clearCache() => _native(_c.clearCache);
+
+  @override
+  Future<bool> clearSslPreferences() => _issued(_c.clearSslPreferences);
 
   @override
   Future<Uint8List?> saveState() async => await _native(_c.saveState);

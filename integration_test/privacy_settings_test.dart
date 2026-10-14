@@ -76,7 +76,7 @@ void main() {
       final res = req.response..headers.contentType = ContentType.html;
       res.write('<!doctype html><html><head><title>fixture</title></head>'
           '<body>fixture ${req.uri.path}</body></html>');
-      res.close();
+      unawaited(res.close());
     });
   });
 

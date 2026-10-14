@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:webspace/services/proxy_test_service.dart';
@@ -19,6 +21,8 @@ class ProxyHealth {
   final String? detail;
 }
 
+/// Asks [settings] to carry a request. A failure is an answer, never a
+/// throw: [testProxyConnection] reports each as its [ProxyTestOutcome].
 typedef ProxyProbe = Future<ProxyTestResult> Function(
     UserProxySettings settings);
 
@@ -84,36 +88,28 @@ class ProxyHealthService extends ChangeNotifier {
     final probe = _probes.run(key, call: () => _probeHealth(settings));
     if (starting) {
       notifyListeners();
-      probe.then((health) {
+      unawaited(probe.then((health) {
         _results[key] = health;
         notifyListeners();
-      });
+      }));
     }
     return probe;
   }
 
   Future<ProxyHealth> _probeHealth(UserProxySettings settings) async {
-    try {
-      final result = await _probe(settings);
-      logProxyTest(settings, result: result);
-      return ProxyHealth(
-        switch (result.outcome) {
-          ProxyTestOutcome.reachable => ProxyHealthState.reachable,
-          ProxyTestOutcome.authRejected => ProxyHealthState.authRejected,
-          ProxyTestOutcome.unreachable ||
-          ProxyTestOutcome.timedOut ||
-          ProxyTestOutcome.blocked =>
-            ProxyHealthState.unreachable,
-        },
-        checkedAt: _now(),
-        detail: result.detail,
-      );
-    } on Exception catch (e) {
-      return ProxyHealth(
-        ProxyHealthState.unreachable,
-        checkedAt: _now(),
-        detail: '$e',
-      );
-    }
+    final result = await _probe(settings);
+    logProxyTest(settings, result: result);
+    return ProxyHealth(
+      switch (result.outcome) {
+        ProxyTestOutcome.reachable => ProxyHealthState.reachable,
+        ProxyTestOutcome.authRejected => ProxyHealthState.authRejected,
+        ProxyTestOutcome.unreachable ||
+        ProxyTestOutcome.timedOut ||
+        ProxyTestOutcome.blocked =>
+          ProxyHealthState.unreachable,
+      },
+      checkedAt: _now(),
+      detail: result.detail,
+    );
   }
 }

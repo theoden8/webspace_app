@@ -57,14 +57,13 @@ void main() {
       if (req.uri.path == '/beacon') {
         beacons.add(_Beacon(DateTime.now(),
             ticks: int.tryParse(req.uri.queryParameters['ticks'] ?? '') ?? -1));
-        req.response
-          ..statusCode = 204
-          ..close();
+        req.response.statusCode = 204;
+        unawaited(req.response.close());
         return;
       }
       final res = req.response..headers.contentType = ContentType.html;
       res.write(backgroundAudioFixtureHtml);
-      res.close();
+      unawaited(res.close());
     });
 
     isDemoMode = true;

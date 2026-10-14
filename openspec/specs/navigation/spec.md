@@ -388,11 +388,11 @@ Returning to the webspace list SHALL take effect on the user's tap, independentl
 That teardown is best-effort and SHALL be funnelled through `SiteTeardownEngine.quiesceOutgoing` (also used by the site-switch path and the defensive sweep of background sites), which:
 
 - keeps the caller's step order (camera stop and media pause ahead of the pause — CAM-012 / BGAUDIO-009);
-- treats a step that throws as best-effort and runs the ones behind it anyway;
+- takes each step's failure from its result: a step owns its failure and reports it rather than throwing it, and a step that answers failure is recorded and the ones behind it run anyway. Nothing to capture is not a failure. A step that throws is a bug the teardown does not catch;
 - gives the whole sequence one budget (`SiteTeardownEngine.defaultBudget`) and returns when it expires, abandoning — not cancelling — the stalled step;
 - re-checks the `SiteRuntime.activationVersion` guard before each remaining step, including after the budget expired, so an abandoned sequence whose native reply lands late cannot pause a webview a newer activation has since resumed (PAUSE-005).
 
-Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateStorage` swallows an initialization failure, degrades save/load to no-ops, and clears its memoized in-flight init so a later call retries instead of replaying the failure for the rest of the run.
+Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateStorage` swallows an initialization failure, degrades save/load to no-ops, and clears its memoized in-flight init so a later call retries instead of replaying the failure for the rest of the run. A save it could not make answers false, which the capture step reports as its failure.
 
 **Rationale:** each teardown step is a native round-trip, and the commit used to sit behind all four. Any of them throwing (a state-storage init that failed once and then re-threw its memoized failure forever), being superseded (a version bump from a concurrent delete, archive close, or activation), or never answering at all left `_sites.current` on the site the user asked to leave — "back to webspaces" did nothing, silently, with nothing to retry against. The never-answering case is reachable: on iOS the per-instance pause freezes the page's JS thread (the plugin's withheld-`alert()` hack), so a site left paused by a race-cancelled switch never answers the `evaluateJavascript` that the next teardown opens with.
 
@@ -410,7 +410,7 @@ Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateSto
 **Given** site A is active
 **And** the state storage fails to initialize
 **When** the user returns to the webspace list
-**Then** the capture step is recorded as failed
+**Then** the capture step answers failure and is recorded as failed
 **And** the camera stop, media pause and webview pause still run
 **And** the return to the list is unaffected
 

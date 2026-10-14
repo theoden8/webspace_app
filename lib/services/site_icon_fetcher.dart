@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/engine_image.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 
@@ -65,29 +66,35 @@ Future<SiteIcon?> decodeSiteIcon(Uint8List bytes) async {
   ui.Codec? codec;
   ui.Image? image;
   try {
-    buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-    descriptor = await ui.ImageDescriptor.encoded(buffer);
-    final width = descriptor.width;
-    final height = descriptor.height;
+    final buffered =
+        await engineImage(() => ui.ImmutableBuffer.fromUint8List(bytes));
+    buffer = buffered;
+    final described =
+        await engineImage(() => ui.ImageDescriptor.encoded(buffered));
+    descriptor = described;
+    final width = described.width;
+    final height = described.height;
     if (math.min(width, height) < kMinSiteIconEdge ||
         math.max(width, height) > kMaxSiteIconDecodeEdge) {
       return null;
     }
     final scale = math.min(1.0, kMaxSiteIconEdge / math.max(width, height));
-    codec = await descriptor.instantiateCodec(
-      targetWidth: math.max(1, (width * scale).round()),
-      targetHeight: math.max(1, (height * scale).round()),
-    );
-    image = (await codec.getNextFrame()).image;
-    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    final frames = await engineImage(() => described.instantiateCodec(
+          targetWidth: math.max(1, (width * scale).round()),
+          targetHeight: math.max(1, (height * scale).round()),
+        ));
+    codec = frames;
+    final frame = (await engineImage(frames.getNextFrame)).image;
+    image = frame;
+    final png = await engineImage(
+        () => frame.toByteData(format: ui.ImageByteFormat.png));
     if (png == null) return null;
     return SiteIcon(
       png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes),
-      width: image.width,
-      height: image.height,
+      width: frame.width,
+      height: frame.height,
     );
-  } on Exception {
-    // The engine reports undecodable bytes as a plain Exception.
+  } on EngineImageFailure {
     return null;
   } finally {
     image?.dispose();
@@ -127,10 +134,13 @@ class SiteIconFetcher {
     if (known != null) return _icons[url] = known;
     late final Future<SiteIcon?> loading;
     loading = _load(url, documentUrl: documentUrl, forget: () {
+      // A cached future dropped, not one started.
+      // ignore: discarded_futures
       if (identical(_icons[url], loading)) _icons.remove(url);
     });
     _icons[url] = loading;
     while (_icons.length > _maxCachedIcons) {
+      // ignore: discarded_futures
       _icons.remove(_icons.keys.first);
     }
     return loading;

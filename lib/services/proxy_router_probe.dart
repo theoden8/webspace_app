@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:webspace/services/container_names.dart';
 import 'package:webspace/settings/site_ids.dart';
 
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/services/log_service.dart';
@@ -27,6 +29,9 @@ import 'package:webspace/services/webview_proxy.dart'
 /// The probe cannot leak: the relay answers probe hosts itself and never
 /// opens an upstream, and `.invalid` is RFC 2606 reserved so the name
 /// cannot resolve even if something did forward it.
+///
+/// Fails with the webview plugin's [PlatformException] or
+/// [MissingPluginException] when a headless view cannot be torn down.
 Future<void> runAttributionProbe(Map<SiteId, String> siteIdToProbeUrl) async {
   for (final entry in siteIdToProbeUrl.entries) {
     await _probeOne(entry.key, probeUrl: entry.value);
@@ -73,7 +78,10 @@ Future<void> _probeOne(SiteId siteId, {required String probeUrl}) async {
       LogTag.proxy.error(
           'Attribution probe timed out for $siteId', sensitive: true);
     });
-  } catch (e) {
+  } on PlatformException catch (e) {
+    LogTag.proxy.error(
+        'Attribution probe error for $siteId: $e', sensitive: true);
+  } on MissingPluginException catch (e) {
     LogTag.proxy.error(
         'Attribution probe error for $siteId: $e', sensitive: true);
   } finally {

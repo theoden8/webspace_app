@@ -261,10 +261,10 @@ class BackgroundSitesController {
       final m = _sites.models[i];
       final c = m.controller;
       if (!m.effectiveNotificationsEnabled || c == null) continue;
+      // A refused read is already null: the controller owns that failure.
       reads.add(c
           .getTitle()
-          .then((t) => _wakeEngine.noteBaseline(m.siteId, title: t))
-          .catchError((_) {}));
+          .then((t) => _wakeEngine.noteBaseline(m.siteId, title: t)));
     }
     unawaited(Future.wait(reads).then((_) => _persistBaselines()));
   }
@@ -291,9 +291,7 @@ class BackgroundSitesController {
       // wake reads that page's title itself before closing it.
       final c = _sites.byId(siteId)?.controller;
       if (c == null) return;
-      try {
-        _wakeEngine.noteBaseline(siteId, title: await c.getTitle());
-      } catch (_) {}
+      _wakeEngine.noteBaseline(siteId, title: await c.getTitle());
       unawaited(_persistBaselines());
     });
   }
@@ -448,7 +446,7 @@ class _WakeHost implements BackgroundWakeHost {
         if (!await _torUpWithin(_torPinDeadline)) return false;
       }
       return true;
-    } on Exception catch (e) {
+    } on ProxyRefused catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
         message:
@@ -534,11 +532,7 @@ class _WakeHost implements BackgroundWakeHost {
         return null;
       }
     }
-    try {
-      return await _sites.byId(siteId)?.controller?.getTitle();
-    } catch (_) {
-      return null;
-    }
+    return _sites.byId(siteId)?.controller?.getTitle();
   }
 
   @override

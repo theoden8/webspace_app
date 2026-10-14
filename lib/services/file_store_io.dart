@@ -7,6 +7,17 @@ import 'package:webspace/services/file_store.dart';
 
 FileStore createFileStore(String directoryName) => IoFileStore(directoryName);
 
+/// The app documents directory, failing with an [IOException] only:
+/// path_provider's own exception for a platform with none (Linux without
+/// xdg-user-dir) becomes a [FileSystemException].
+Future<Directory> documentsDirectory() async {
+  try {
+    return await getApplicationDocumentsDirectory();
+  } on MissingPlatformDirectoryException catch (e) {
+    throw FileSystemException(e.message);
+  }
+}
+
 /// [FileStore] over a real directory under the app documents directory.
 /// [overrideRoot] exists so tests can point it at a temp directory.
 class IoFileStore implements FileStore {
@@ -20,7 +31,7 @@ class IoFileStore implements FileStore {
   Future<Directory> _directory() async {
     final cached = _dir;
     if (cached != null) return cached;
-    final root = _overrideRoot ?? await getApplicationDocumentsDirectory();
+    final root = _overrideRoot ?? await documentsDirectory();
     return _dir = Directory('${root.path}/$directoryName');
   }
 

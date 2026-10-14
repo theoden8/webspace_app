@@ -30,12 +30,7 @@ class ContainerIsolationEngine {
   /// store. Safe to call on every site activation.
   Future<void> ensureContainer(ContainerKey key) async {
     if (!await containerNative.isSupported()) return;
-    try {
-      await containerNative.getOrCreateContainer(key);
-    } catch (e) {
-      LogTag.container.error(
-          'ensureContainer($key) failed: $e', sensitive: true);
-    }
+    await containerNative.getOrCreateContainer(key);
   }
 
 

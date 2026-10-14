@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:html/dom.dart' as html_dom;
 import 'package:html/parser.dart' as html_parser;
+import 'package:http/http.dart' as http;
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 
 final Map<String, String?> _pageTitleCache = {};
@@ -21,6 +24,9 @@ Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
   if (_pageTitleCache.containsKey(url)) {
     return _pageTitleCache[url];
   }
+  // dart:io refuses anything but http(s) with a host with an ArgumentError:
+  // about:blank, a file: import, chrome://, an address typed without a scheme.
+  if (Host.ofWebUrl(url) == null) return null;
 
   final clientResult = outboundHttp.clientFor(
     resolveEffectiveProxy(
@@ -51,7 +57,13 @@ Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
         }
       }
     }
-  } catch (e) {
+  } on http.ClientException {
+    // Silently handle errors
+  } on IOException {
+    // Silently handle errors
+  } on FormatException {
+    // Silently handle errors
+  } on TimeoutException {
     // Silently handle errors
   } finally {
     client.close();

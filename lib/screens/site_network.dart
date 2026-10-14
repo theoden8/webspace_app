@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -411,7 +413,7 @@ class _SavedSignInsTileState extends State<SavedSignInsTile> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {

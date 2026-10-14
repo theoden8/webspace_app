@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/container_names.dart';
 import 'package:webspace/services/container_proxy_ledger.dart';
+import 'package:webspace/services/proxy_refused.dart';
 
 /// Models the fork's container proxy table (privacy-v12): a build naming a
 /// proxy writes the container's entry, a build naming none leaves it, and
@@ -114,8 +115,9 @@ void main() {
     test('a failed clear is asked for again on the next build', () async {
       final ledger = ContainerProxyLedger()..noteBuild(_a, proxy: proxy);
       await expectLater(
-        ledger.release(_a, clear: (_) async => throw Exception('channel')),
-        throwsException,
+        ledger.release(_a,
+            clear: (_) async => throw const ProxyRefused('channel')),
+        throwsA(isA<ProxyRefused>()),
       );
       expect(ledger.holds(_a), isTrue);
       expect(mustRelease(ledger), isTrue);

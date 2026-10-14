@@ -317,7 +317,9 @@ class AppLifecycleController {
   void textScaleChanged() {
     final zoom = WebViewFactory.systemTextZoomPercent();
     for (final i in _sites.loaded) {
-      if (i < _sites.models.length) _sites.models[i].controller?.setTextZoom(zoom);
+      if (i < _sites.models.length) {
+        unawaited(_sites.models[i].controller?.setTextZoom(zoom));
+      }
     }
   }
 }

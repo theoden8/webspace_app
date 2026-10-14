@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -310,7 +312,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                       _outboundProxy.credentialsId = null;
                     }
                   });
-                  _saveOutboundProxy();
+                  unawaited(_saveOutboundProxy());
                 },
               )),
             ),
@@ -345,7 +347,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                 addressHelper: loc.appSettingsProxyAddressHelper,
                 onCredentialsChanged: (id) {
                   setState(() => _outboundProxy.credentialsId = id);
-                  _saveOutboundProxy();
+                  unawaited(_saveOutboundProxy());
                 },
                 onEditingComplete: _saveOutboundProxy,
               ),

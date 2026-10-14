@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'package:webspace/services/untrusted_image.dart';
+
 /// Strips what a user-picked file says about the user before it is inlined
 /// onto a site model as a `data:` URL. The virtual camera, microphone and
 /// screen shims hand those bytes to page script, so EXIF GPS, device model
@@ -20,15 +22,7 @@ import 'package:image/image.dart' as img;
   Uint8List raw, {
   required bool jpeg,
 }) {
-  img.Image? decoded;
-  try {
-    decoded = img.decodeImage(raw);
-  } on img.ImageException {
-    return null;
-  } on RangeError {
-    // The decoders read past the end of truncated input instead of failing.
-    return null;
-  }
+  final decoded = decodeUntrustedImage(raw);
   if (decoded == null) return null;
   decoded.exif = img.ExifData();
   decoded.iccProfile = null;

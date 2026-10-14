@@ -1,6 +1,8 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -163,7 +165,11 @@ Future<({String? source, String? error})> fetchUserScriptSource(
       return (source: null, error: 'HTTP ${response.statusCode}');
     }
     return (source: response.body, error: null);
-  } catch (e) {
+  } on http.ClientException catch (e) {
+    return (source: null, error: e.toString());
+  } on IOException catch (e) {
+    return (source: null, error: e.toString());
+  } on FormatException catch (e) {
     return (source: null, error: e.toString());
   } finally {
     client.close();
@@ -178,7 +184,9 @@ Future<void> _safeEval(inapp.InAppWebViewController c,
     {required String source}) async {
   try {
     await c.evaluateJavascript(source: '$source\n;null;');
-  } catch (e) {
+  } on PlatformException catch (e) {
+    LogTag.userScript.debug('evaluateJavascript non-fatal: $e');
+  } on MissingPluginException catch (e) {
     LogTag.userScript.debug('evaluateJavascript non-fatal: $e');
   }
 }
@@ -396,7 +404,11 @@ class UserScriptService {
             return true;
           }
           LogTag.userScript.debug('Fetch failed: HTTP ${response.statusCode}');
-        } catch (e) {
+        } on http.ClientException catch (e) {
+          LogTag.userScript.debug('Fetch failed: $e');
+        } on IOException catch (e) {
+          LogTag.userScript.debug('Fetch failed: $e');
+        } on FormatException catch (e) {
           LogTag.userScript.debug('Fetch failed: $e');
         } finally {
           client.close();
@@ -465,7 +477,13 @@ class UserScriptService {
             'body': response.body,
             'contentType': contentType,
           };
-        } catch (e) {
+        } on http.ClientException catch (e) {
+          LogTag.userScript.debug('Resource fetch failed: $e');
+          return {'status': 500};
+        } on IOException catch (e) {
+          LogTag.userScript.debug('Resource fetch failed: $e');
+          return {'status': 500};
+        } on FormatException catch (e) {
           LogTag.userScript.debug('Resource fetch failed: $e');
           return {'status': 500};
         } finally {

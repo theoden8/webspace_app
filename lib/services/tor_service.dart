@@ -94,22 +94,34 @@ class MethodChannelTorRuntime implements TorRuntime {
   // `receiveBroadcastStream()` invokes `listen` eagerly, throwing
   // MissingPluginException on every platform that has no plugin.
 
+  /// [method] on the plugin's channel. The plugin refusing it, or no plugin
+  /// answering, is the runtime's failure.
+  Future<T?> _invoke<T>(String method, {Object? arguments}) async {
+    try {
+      return await _channel.invokeMethod<T>(method, arguments);
+    } on PlatformException catch (e) {
+      throw TorRuntimeFailure('$e');
+    } on MissingPluginException catch (e) {
+      throw TorRuntimeFailure('$e');
+    }
+  }
+
   @override
   Future<void> start() async {
     if (!isAvailable) return;
-    await _channel.invokeMethod<void>('start');
+    await _invoke<void>('start');
   }
 
   @override
   Future<void> stop() async {
     if (!isAvailable) return;
-    await _channel.invokeMethod<void>('stop');
+    await _invoke<void>('stop');
   }
 
   @override
   Future<void> rebuildCircuits() async {
     if (!isAvailable) return;
-    await _channel.invokeMethod<void>('rebuildCircuits');
+    await _invoke<void>('rebuildCircuits');
   }
 
   @override
@@ -124,7 +136,9 @@ class MethodChannelTorRuntime implements TorRuntime {
       if (e.code == 'exit_country_empty') {
         throw TorExitCountryEmpty(e.message ?? 'No exit relay in that country.');
       }
-      rethrow;
+      throw TorRuntimeFailure('$e');
+    } on MissingPluginException catch (e) {
+      throw TorRuntimeFailure('$e');
     }
   }
 
@@ -135,9 +149,9 @@ class MethodChannelTorRuntime implements TorRuntime {
     // plugin that failed must read as failure rather than crash the start
     // path — the engine turns 0 into "no bridge options" and tor comes up
     // without bridges instead of dialling a dead port.
-    final port =
-        await _channel.invokeMethod<int>('startTransport', {'transport': transport});
-    return port ?? 0;
+    final port = await _invoke<Object?>('startTransport',
+        arguments: {'transport': transport});
+    return port is int ? port : 0;
   }
 
   @override
@@ -146,7 +160,7 @@ class MethodChannelTorRuntime implements TorRuntime {
     // Sent as a flat list of pairs rather than a map: torrc allows the same
     // key more than once, and `Bridge` in particular is repeated per line,
     // so a map would silently keep only the last bridge.
-    await _channel.invokeMethod<void>('setTorrcOptions', {
+    await _invoke<void>('setTorrcOptions', arguments: {
       'options': [
         for (final (key, value) in options) [key, value],
       ],
@@ -156,7 +170,7 @@ class MethodChannelTorRuntime implements TorRuntime {
   @override
   Future<void> reopenListeners() async {
     if (!isAvailable) return;
-    await _channel.invokeMethod<void>('reopenListeners');
+    await _invoke<void>('reopenListeners');
   }
 
   @override
@@ -444,7 +458,7 @@ class TorService {
 
   void _cancelSubs() {
     for (final sub in _engineSubs) {
-      sub.cancel();
+      unawaited(sub.cancel());
     }
     _engineSubs.clear();
   }

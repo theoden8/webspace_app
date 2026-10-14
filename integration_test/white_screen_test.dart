@@ -46,6 +46,8 @@
 // 127.0.0.2 — two hosts, one server: a cross-domain navigation (which opens
 // the nested screen) that still cannot fail on the network.
 
+import 'dart:async';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -122,7 +124,7 @@ void main() {
       request.response
         ..headers.contentType = ContentType.html
         ..write(page);
-      request.response.close();
+      unawaited(request.response.close());
     });
     final base = 'http://127.0.0.1:$port';
 

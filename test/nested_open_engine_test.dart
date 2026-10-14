@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/nested_open_engine.dart';
+import 'package:webspace/services/proxy_refused.dart';
 
 /// Models the app around a nested open: a site list, the loaded set, one
 /// process-global proxy, and the active site. Records every step, and fails
@@ -65,7 +66,7 @@ class _FakeHost implements NestedOpenHost<String> {
 
   @override
   Future<void> applyProxyOf(String target) async {
-    if (failApply) throw StateError('proxy refused');
+    if (failApply) throw const ProxyRefused('proxy refused');
     events.add('apply ${proxyOf[target]}');
     applied = proxyOf[target];
     _checkNoLeak();

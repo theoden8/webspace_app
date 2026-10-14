@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -133,9 +135,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   @override
   void initState() {
     super.initState();
-    PackageInfo.fromPlatform().then((info) {
+    unawaited(PackageInfo.fromPlatform().then((info) {
       if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
-    });
+    }));
   }
 
   /// One tap on the version row: the Android developer-options gesture, which

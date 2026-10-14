@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -301,7 +302,7 @@ class LocalCdnService {
     for (final path in _cache.values) {
       try {
         total += await hostFileLength(path);
-      } on Exception {
+      } on IOException {
         // An unreadable file counts as nothing.
       }
     }
@@ -337,12 +338,14 @@ class LocalCdnService {
 
     try {
       if (await hostFileExists(filePath)) {
-        return hostReadFileBytes(filePath);
+        return await hostReadFileBytes(filePath);
       }
       _cache.remove(key);
       await _saveCacheIndex();
       return null;
-    } on Exception {
+    } on IOException {
+      return null;
+    } on PlatformException {
       return null;
     }
   }
@@ -377,7 +380,10 @@ class LocalCdnService {
       _cache[key] = filePath;
       await _saveCacheIndex();
       return bytes;
-    } catch (e) {
+    } on IOException catch (e) {
+      LogTag.localCdn.error('Cache write error for $key: $e');
+      return null;
+    } on PlatformException catch (e) {
       LogTag.localCdn.error('Cache write error for $key: $e');
       return null;
     }
@@ -430,7 +436,7 @@ class LocalCdnService {
     try {
       await hostDeleteDirectory(_cacheDir!);
       await hostEnsureDirectory(_cacheDir!);
-    } on Exception {
+    } on IOException {
       // The index below is what serves; files it no longer names are inert.
     }
 
@@ -458,7 +464,11 @@ class LocalCdnService {
         if (_cache.length != index.length) {
           await _saveCacheIndex();
         }
-      } on Exception {
+      } on FormatException {
+        _cache.clear();
+      } on IOException {
+        _cache.clear();
+      } on PlatformException {
         _cache.clear();
       }
     }

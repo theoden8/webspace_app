@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
@@ -93,6 +95,11 @@ class SiteSearchListService {
       FetchRefused() || FetchFailed() => null,
     };
     if (response == null) return false;
+    bool failed(Exception e) {
+      LogTag.searchList.error('Download error: $e');
+      return false;
+    }
+
     try {
       final table = await compute(_reduce, response.body);
       if (table.isEmpty) {
@@ -108,11 +115,14 @@ class SiteSearchListService {
       LogTag.searchList.debug('Downloaded ${table.length} site searches');
       _notify();
       return true;
-    } on Exception catch (e) {
-      // A body that is not JSON, or the store's own failure. Errors are bugs
-      // and still reach the caller.
-      LogTag.searchList.error('Download error: $e');
-      return false;
+    } on FormatException catch (e) {
+      return failed(e);
+    } on IOException catch (e) {
+      return failed(e);
+    } on PlatformException catch (e) {
+      return failed(e);
+    } on MissingPluginException catch (e) {
+      return failed(e);
     }
   }
 

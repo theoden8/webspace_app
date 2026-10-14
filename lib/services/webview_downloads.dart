@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'package:webspace/platform/host_platform.dart';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
+import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -104,9 +105,14 @@ abstract final class WebViewDownloads {
       }
     } on DownloadException catch (e) {
       DownloadsService.instance.fail(task.id, message: e.message);
-    } catch (e, stack) {
-      LogTag.download.error('Download error: $e\n$stack', sensitive: true);
-      DownloadsService.instance.fail(task.id, message: e.toString());
+    } on PlatformException catch (e, stack) {
+      _failed(task.id, what: 'Download error', error: e, stack: stack);
+    } on MissingPluginException catch (e, stack) {
+      _failed(task.id, what: 'Download error', error: e, stack: stack);
+    } on FileDialogFailure catch (e, stack) {
+      _failed(task.id, what: 'Download error', error: e, stack: stack);
+    } on IOException catch (e, stack) {
+      _failed(task.id, what: 'Download error', error: e, stack: stack);
     }
   }
 
@@ -133,10 +139,12 @@ abstract final class WebViewDownloads {
       }
     } on DownloadException catch (e) {
       DownloadsService.instance.fail(task.id, message: e.message);
-    } catch (e, stack) {
-      LogTag.download.error(
-          'Data-URI download error: $e\n$stack', sensitive: true);
-      DownloadsService.instance.fail(task.id, message: e.toString());
+    } on FormatException catch (e, stack) {
+      _failed(task.id, what: 'Data-URI download error', error: e, stack: stack);
+    } on FileDialogFailure catch (e, stack) {
+      _failed(task.id, what: 'Data-URI download error', error: e, stack: stack);
+    } on IOException catch (e, stack) {
+      _failed(task.id, what: 'Data-URI download error', error: e, stack: stack);
     }
   }
 
@@ -158,16 +166,24 @@ abstract final class WebViewDownloads {
     );
     try {
       await controller.evaluateJavascript(source: script);
-    } catch (e, stack) {
-      LogTag.download.error(
-          'Blob download eval error: $e\n$stack', sensitive: true);
-      DownloadsService.instance.fail(task.id, message: e.toString());
+    } on PlatformException catch (e, stack) {
+      _failed(task.id, what: 'Blob download eval error', error: e, stack: stack);
+    } on MissingPluginException catch (e, stack) {
+      _failed(task.id, what: 'Blob download eval error', error: e, stack: stack);
     }
+  }
+
+  static void _failed(String taskId,
+      {required String what,
+      required Exception error,
+      required StackTrace stack}) {
+    LogTag.download.error('$what: $error\n$stack', sensitive: true);
+    DownloadsService.instance.fail(taskId, message: error.toString());
   }
 
   static Future<String?> saveViaPicker(DownloadResult result) async {
     final isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
-    final outputPath = await FilePicker.saveFile(
+    final outputPath = await FileDialog.saveFile(
       dialogTitle: 'Save download',
       fileName: result.filename,
       bytes: isMobile ? result.bytes : null,

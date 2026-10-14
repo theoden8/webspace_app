@@ -77,14 +77,13 @@ void main() {
           ticks: int.tryParse(req.uri.queryParameters['ticks'] ?? '') ?? -1,
           audioState: req.uri.queryParameters['audio'] ?? '?',
         ));
-        req.response
-          ..statusCode = 204
-          ..close();
+        req.response.statusCode = 204;
+        unawaited(req.response.close());
         return;
       }
       final res = req.response..headers.contentType = ContentType.html;
       res.write(fixtureHtml);
-      res.close();
+      unawaited(res.close());
     });
 
     isDemoMode = true;

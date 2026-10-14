@@ -46,8 +46,10 @@ test('the backgrounded branch runs the wake that waits for the pages', () => {
   assert.match(wake[1], /await _wakeEngine\.wake\(/,
     'wake must await the engine, or it returns before the pages settle');
   const service = read('lib/services/background_task_service.dart');
-  // Only a background-log line may sit between the two: it is recorded while
-  // the OS task is still open, so it lands before iOS can suspend the app.
-  assert.match(service, /await cb\(\);\s*\n\s*}\s*\n(?:\s*BackgroundLog\.instance\.record\([^;]*\);\s*\n)?\s*await bgRefreshDidComplete\(success: true\);/,
+  // The task completes once, in the finally of the try that awaits the
+  // handler, so it never ends before the handler has returned.
+  assert.match(service, /try \{[\s\S]*?await cb\(\);[\s\S]*?\} finally \{[\s\S]*?await bgRefreshDidComplete\(success: success\);/,
     'the OS task must be completed only after the Dart handler has returned');
+  assert.equal(service.match(/bgRefreshDidComplete\(success:/g).length, 1,
+    'the OS task is completed in one place');
 });

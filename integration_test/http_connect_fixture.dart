@@ -108,14 +108,14 @@ class HttpConnectFixture {
     _clients.add(client);
     client.setOption(SocketOption.tcpNoDelay, true);
     final header = _HeaderBuffer();
-    final incoming = client.listen(
-      header.add,
-      onError: (Object _) => header.close(),
-      onDone: header.close,
-    );
+    final incoming = client
+        .handleError((Object _) => header.close(),
+            test: (e) => e is SocketException)
+        .listen(header.add, onDone: header.close);
     // Unawaited `done` on a socket whose peer vanishes is an uncaught async
     // error, which `flutter_test` charges to whichever test finished last.
-    unawaited(client.done.catchError((Object _) => client));
+    unawaited(client.done
+        .catchError((Object _) => client, test: (e) => e is SocketException));
     Socket? upstream;
     try {
       final request = await header.readHeader();
@@ -161,8 +161,10 @@ class HttpConnectFixture {
             bufferedData: [...request.rest, ...header.drain()],
           );
           final inner = _HeaderBuffer();
-          final reading = secure.listen(inner.add,
-              onError: (Object _) => inner.close(), onDone: inner.close);
+          final reading = secure
+              .handleError((Object _) => inner.close(),
+                  test: (e) => e is IOException)
+              .listen(inner.add, onDone: inner.close);
           final head = await inner.readHeader();
           final path = head == null
               ? '/'
@@ -207,7 +209,8 @@ class HttpConnectFixture {
       _upstreams.add(upstream);
       relayedPorts.add(upstream.port);
       upstream.setOption(SocketOption.tcpNoDelay, true);
-      unawaited(upstream.done.catchError((Object _) => upstream!));
+      unawaited(upstream.done.catchError((Object _) => upstream!,
+          test: (e) => e is SocketException));
 
       if (parsed.tunnel) {
         client.add('HTTP/1.1 200 Connection Established\r\n\r\n'.codeUnits);
@@ -223,7 +226,12 @@ class HttpConnectFixture {
         await relaySockets(client,
             incoming: incoming, upstream: upstream, pending: request.rest);
       }
-    } on Object {
+    } on IOException {
+      client.destroy();
+      upstream?.destroy();
+    } on OSError {
+      // setOption and port ask the OS, which fails them with a bare OSError
+      // once the peer has reset the socket.
       client.destroy();
       upstream?.destroy();
     }

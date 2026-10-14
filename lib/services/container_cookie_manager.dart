@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -54,7 +55,11 @@ class ContainerCookieManager {
                 isHttpOnly: c.isHttpOnly,
               ))
           .toList(growable: false);
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.containerCookieManager.error(
+          'getCookies($siteId, ${url.host}) failed: $e', sensitive: true);
+      return const [];
+    } on MissingPluginException catch (e) {
       LogTag.containerCookieManager.error(
           'getCookies($siteId, ${url.host}) failed: $e', sensitive: true);
       return const [];
@@ -84,7 +89,11 @@ class ContainerCookieManager {
         path: path ?? '/',
         webViewController: controller.nativeController,
       );
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.containerCookieManager.error(
+          'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
+          'failed: $e', sensitive: true);
+    } on MissingPluginException catch (e) {
       LogTag.containerCookieManager.error(
           'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
           'failed: $e', sensitive: true);

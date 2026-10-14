@@ -150,7 +150,9 @@ Future<void> _loadRoboto() async {
       if (res.statusCode != 200) continue;
       loader.addFont(Future.value(ByteData.sublistView(res.bodyBytes)));
       loaded++;
-    } catch (_) {}
+    } on http.ClientException {
+      // The face is missing from this build; the rest still load.
+    }
   }
   if (loaded > 0) await loader.load();
 }

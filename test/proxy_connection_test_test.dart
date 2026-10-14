@@ -95,7 +95,8 @@ void main() {
     test('a SOCKS5 authentication failure is an auth rejection', () async {
       outboundHttp = FakeOutbound(
           client: () => _ScriptedClient(
-              (_) async => throw Exception('Authentication failed.')));
+              (_) async => throw const SocksHandshakeFailure(
+                  'Exception: Authentication failed.')));
 
       final result = await testProxyConnection(
         _socks5(username: 'u', password: 'wrong'),

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/epoch_millis.dart';
 
 /// The iOS and Android half of the background log: a file the native plugins
 /// write to themselves, so a step the OS runs while no Dart is alive (an
@@ -102,13 +103,13 @@ LogEntry? parseBackgroundLogLine(String line) {
     return null;
   }
   if (decoded is! Map) return null;
-  final t = decoded['t'];
   final g = decoded['g'];
   final m = decoded['m'];
-  if (t is! int || g is! String || m is! String) return null;
+  final timestamp = timeAtEpochMillis(decoded['t']);
+  if (timestamp == null || g is! String || m is! String) return null;
   final l = decoded['l'];
   return LogEntry(
-    timestamp: DateTime.fromMillisecondsSinceEpoch(t),
+    timestamp: timestamp,
     tag: g,
     message: m,
     level: LogLevel.values.firstWhere((v) => v.name == l,

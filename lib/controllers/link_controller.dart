@@ -198,7 +198,7 @@ class LinkController {
           return;
         }
         await dispatchInbound(InboundUrl(parsed));
-      } catch (e, st) {
+      } on Exception catch (e, st) {
         LogTag.linkIntent.error(
             'share intent handler threw: $e\n$st', sensitive: true);
       }

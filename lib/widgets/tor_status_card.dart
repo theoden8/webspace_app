@@ -132,7 +132,7 @@ class _TorStatusCardState extends State<TorStatusCard> {
 
   @override
   void dispose() {
-    _sub?.cancel();
+    unawaited(_sub?.cancel());
     super.dispose();
   }
 

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/widgets/toast.dart';
 
@@ -66,7 +66,7 @@ Future<void> saveLogText(
   final fileName = '${fileNamePrefix}_$timestamp.txt';
 
   final isMobile = hostIsIOS || hostIsAndroid;
-  final outputPath = await FilePicker.saveFile(
+  final outputPath = await FileDialog.saveFile(
     dialogTitle: loc.devToolsExportLogsDialogTitle,
     fileName: fileName,
     bytes: isMobile ? bytes : null,

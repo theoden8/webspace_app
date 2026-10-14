@@ -101,14 +101,14 @@ class _AccentLogoState extends State<AccentLogo> {
   @override
   void initState() {
     super.initState();
-    _loadAndProcess();
+    unawaited(_loadAndProcess());
   }
 
   @override
   void didUpdateWidget(AccentLogo old) {
     super.didUpdateWidget(old);
     if (old.accentColor != widget.accentColor || old.brightness != widget.brightness) {
-      _loadAndProcess();
+      unawaited(_loadAndProcess());
     }
   }
 

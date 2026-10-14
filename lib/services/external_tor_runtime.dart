@@ -131,22 +131,32 @@ class ExternalTorRuntime implements TorRuntime {
   Stream<TorStatus> get events => _events.stream;
 
   @override
-  Future<void> start() => _connect();
+  Future<void> start() => _orFailure(_connect);
 
   /// Asked again after the address or the control port changes, or when the
   /// engine finds the listener gone after the app was away.
-  Future<void> reconnect() => _connect();
+  Future<void> reconnect() => _orFailure(_connect);
 
   @override
-  Future<void> reopenListeners() => _connect();
+  Future<void> reopenListeners() => _orFailure(_connect);
 
   /// Puts back any exit pin and lets the control channel go. The engine
   /// starts the runtime again when it is next wanted.
   @override
   Future<void> stop() async {
     _attempt++;
-    await _dropLink();
+    await _orFailure(_dropLink);
     _events.add(const TorStopped());
+  }
+
+  /// [call], with a control reply the link could not read reported as the
+  /// runtime's failure.
+  static Future<void> _orFailure(Future<void> Function() call) async {
+    try {
+      await call();
+    } on FormatException catch (e) {
+      throw TorRuntimeFailure('$e');
+    }
   }
 
   @override
@@ -161,6 +171,8 @@ class ExternalTorRuntime implements TorRuntime {
       LogTag.tor.debug('New circuits: the control port did not answer');
     } on TorControlRejected catch (e) {
       LogTag.tor.debug('New circuits refused: $e');
+    } on FormatException catch (e) {
+      throw TorRuntimeFailure('$e');
     }
   }
 
@@ -178,9 +190,15 @@ class ExternalTorRuntime implements TorRuntime {
     _pinned ??= exitNodes;
     try {
       await link.pin(exitNodes);
-    } on Exception {
+    } on TorExitPinUnsupported {
       if (identical(_link, link)) _pinned = previous;
       rethrow;
+    } on TorExitCountryEmpty {
+      if (identical(_link, link)) _pinned = previous;
+      rethrow;
+    } on FormatException catch (e) {
+      if (identical(_link, link)) _pinned = previous;
+      throw TorRuntimeFailure('$e');
     }
     if (!identical(_link, link)) {
       throw const TorExitPinUnsupported(

@@ -522,7 +522,7 @@ Future<void> _openDrawer(WidgetTester tester) async {
             drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
             print('Drawer opened via Scaffold $i: $drawerOpened');
           }
-        } catch (e) {
+        } on StateError catch (e) {
           print('Failed to open drawer via Scaffold $i: $e');
         }
       }
@@ -537,7 +537,7 @@ Future<void> _openDrawer(WidgetTester tester) async {
     print('Drawer opened: $drawerVisible');
 
     await Future.delayed(const Duration(seconds: 2));
-  } catch (e) {
+  } on StateError catch (e) {
     print('Error opening drawer: $e');
   }
 }
@@ -545,16 +545,12 @@ Future<void> _openDrawer(WidgetTester tester) async {
 /// Close the navigation drawer by tapping outside of it
 Future<void> _closeDrawerByTappingOutside(WidgetTester tester) async {
   print('Closing drawer by tapping outside...');
-  try {
-    final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
-    // Tap on the right side of the screen (outside the drawer)
-    await tester.tapAt(Offset(screenSize.width * 0.9, screenSize.height / 2));
-    await tester.pump();
-    await Future.delayed(const Duration(milliseconds: 500));
-    await tester.pump();
-  } catch (e) {
-    print('Error closing drawer by tapping outside: $e');
-  }
+  final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
+  // Tap on the right side of the screen (outside the drawer)
+  await tester.tapAt(Offset(screenSize.width * 0.9, screenSize.height / 2));
+  await tester.pump();
+  await Future.delayed(const Duration(milliseconds: 500));
+  await tester.pump();
 }
 
 /// Close the navigation drawer
@@ -585,7 +581,9 @@ Future<void> _closeDrawer(WidgetTester tester) async {
               break;
             }
           }
-        } catch (e) {
+        } on StateError catch (e) {
+          print('Failed to close drawer via Scaffold $i: $e');
+        } on FlutterError catch (e) {
           print('Failed to close drawer via Scaffold $i: $e');
         }
       }
@@ -597,35 +595,31 @@ Future<void> _closeDrawer(WidgetTester tester) async {
     await tester.pump();
 
     print('Drawer closed');
-  } catch (e) {
+  } on StateError catch (e) {
     print('Error closing drawer: $e');
   }
 }
 
 /// Debug helper to print visible widgets
 void _debugPrintWidgets(WidgetTester tester) {
-  try {
-    // Check for common widgets
-    print('--- Widget Debug Info ---');
-    print('AppBar found: ${find.byType(AppBar).evaluate().isNotEmpty}');
-    print('Scaffold found: ${find.byType(Scaffold).evaluate().isNotEmpty}');
-    print('Drawer found: ${find.byType(Drawer).evaluate().isNotEmpty}');
-    print('IconButton count: ${find.byType(IconButton).evaluate().length}');
-    print('Menu icon found: ${find.byIcon(Icons.menu).evaluate().isNotEmpty}');
+  // Check for common widgets
+  print('--- Widget Debug Info ---');
+  print('AppBar found: ${find.byType(AppBar).evaluate().isNotEmpty}');
+  print('Scaffold found: ${find.byType(Scaffold).evaluate().isNotEmpty}');
+  print('Drawer found: ${find.byType(Drawer).evaluate().isNotEmpty}');
+  print('IconButton count: ${find.byType(IconButton).evaluate().length}');
+  print('Menu icon found: ${find.byIcon(Icons.menu).evaluate().isNotEmpty}');
 
-    // Try to find any text widgets
-    final textWidgets = find.byType(Text);
-    print('Text widgets found: ${textWidgets.evaluate().length}');
-    if (textWidgets.evaluate().length <= 10) {
-      for (final element in textWidgets.evaluate()) {
-        final widget = element.widget as Text;
-        if (widget.data != null) {
-          print('  Text: "${widget.data}"');
-        }
+  // Try to find any text widgets
+  final textWidgets = find.byType(Text);
+  print('Text widgets found: ${textWidgets.evaluate().length}');
+  if (textWidgets.evaluate().length <= 10) {
+    for (final element in textWidgets.evaluate()) {
+      final widget = element.widget as Text;
+      if (widget.data != null) {
+        print('  Text: "${widget.data}"');
       }
     }
-    print('--- End Debug Info ---');
-  } catch (e) {
-    print('Debug info error: $e');
   }
+  print('--- End Debug Info ---');
 }

@@ -222,7 +222,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           setState(() => _webView = _createNestedInappWebView());
         }
       });
-      TorService.instance.maybeStart(TorNestedHolder(widget.posture.siteId));
+      unawaited(TorService.instance.maybeStart(TorNestedHolder(widget.posture.siteId)));
     } else {
       _webView = _createNestedInappWebView();
     }
@@ -351,7 +351,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             case NavigationDecision.blockSuppressed:
               return false;
             case NavigationDecision.blockOpenExternal:
-              widget.hooks.openInBrowser(url);
+              unawaited(widget.hooks.openInBrowser(url));
               return false;
             case NavigationDecision.blockOutbound:
               if (result.hadGesture) showExternalLinkBlocked(url);
@@ -374,7 +374,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // it routinely settles after this nudge drains (PAUSE-025).
         _surface.armCommitLatch();
         _surface.nudge('controller-attach');
-        controller.evaluateJavascript(PageJs.expirePageCookies.script);
+        unawaited(controller.evaluateJavascript(PageJs.expirePageCookies.script));
       },
     );
   }
@@ -398,7 +398,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   @override
   void dispose() {
     _surface.dispose();
-    _torStatusSub?.cancel();
+    unawaited(_torStatusSub?.cancel());
     if (widget.posture.container.proxy.type == ProxyType.TOR) {
       TorService.instance.release(TorNestedHolder(widget.posture.siteId));
     }
@@ -409,7 +409,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   @override
   void didChangeTextScaleFactor() {
-    _controller?.setTextZoom(WebViewFactory.systemTextZoomPercent());
+    unawaited(_controller?.setTextZoom(WebViewFactory.systemTextZoomPercent()));
   }
 
   /// This screen runs as the site that opened it, or as the one outbound
@@ -417,7 +417,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// binds, by the rule the factory bound it with.
   void _showSiteInfo() {
     final p = widget.posture;
-    showSiteInfoSheet(
+    unawaited(showSiteInfoSheet(
       context,
       info: SiteInfo(
         siteName: widget.homeTitle ?? extractDomain(widget.url),
@@ -431,7 +431,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         proxy: PlatformInfo.isProxySupported ? p.container.proxy : null,
         siteId: p.siteId,
       ),
-    );
+    ));
   }
 
   void _toggleFind() => setState(() => _isFindVisible = !_isFindVisible);
@@ -484,11 +484,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         _resumeReload.noteRetryIssued();
         _surface.armCommitLatch();
         _surface.nudge('resume-reissue');
-        try {
-          await controller.loadUrl(plan.url!, language: widget.posture.page.language);
-        } catch (_) {
-          // Controller may have been disposed while the retry was in flight.
-        }
+        await controller.loadUrl(plan.url!, language: widget.posture.page.language);
         await Future.delayed(ResumeReloadEngine.retryBackoff);
         if (!mounted || _controller == null) return;
       }
@@ -528,7 +524,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     if (state == AppLifecycleState.paused) {
       _resumeReload.noteAppBackgrounded();
     } else if (state == AppLifecycleState.resumed) {
-      _probeNestedRenderer();
+      unawaited(_probeNestedRenderer());
       // A warm start destroys and re-creates this screen's SurfaceView exactly
       // as it does the main page's, and the main page's nudge cannot reach it:
       // that one toggles the inset around an IndexedStack sitting under this
@@ -674,12 +670,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 case _NestedMenuAction.share:
                   final url = await _controller?.getUrl();
                   if (url != null) {
-                    SharePlus.instance.share(ShareParams(uri: Uri.parse(url.toString())));
+                    unawaited(SharePlus.instance.share(ShareParams(uri: Uri.parse(url.toString()))));
                   }
                 case _NestedMenuAction.openBrowser:
                   final url = await _controller?.getUrl();
                   if (url == null) return;
-                  launchExternalUrl(url.toString());
+                  unawaited(launchExternalUrl(url.toString()));
                   if (mounted) Navigator.pop(context);
                 case _NestedMenuAction.search:
                   _toggleFind();
@@ -689,7 +685,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 case _NestedMenuAction.refresh:
                   await _reloadAndRepaint();
                 case _NestedMenuAction.devTools:
-                  Navigator.push(
+                  unawaited(Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => DevToolsScreen(
@@ -697,7 +693,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                         cookieManager: CookieManager(),
                       ),
                     ),
-                  );
+                  ));
               }
             },
           ),
@@ -751,7 +747,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 currentUrl: _currentUrl,
                 onSiteInfo: _showSiteInfo,
                 onUrlSubmitted: (url) {
-                  _controller?.loadUrl(url, language: widget.posture.page.language);
+                  unawaited(_controller?.loadUrl(url, language: widget.posture.page.language));
                 },
               ),
             ),

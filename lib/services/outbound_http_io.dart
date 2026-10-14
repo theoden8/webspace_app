@@ -5,13 +5,12 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
-import 'package:socks5_proxy/socks_client.dart' as socks5;
-
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
+import 'package:webspace/services/socks_connect.dart';
 
 /// Default factory backed by `dart:io`'s [HttpClient].
 ///
@@ -200,48 +199,29 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     String? password,
   }) {
     final inner = _newHttpClient();
+    final SocksProxy via =
+        (host: host, port: port, username: username, password: password);
     inner.connectionFactory = (uri, proxyHost, proxyPort) async {
-      final InternetAddress proxyAddr;
-      if (_isIpLiteral(host)) {
-        proxyAddr = InternetAddress(host);
-      } else {
-        // Hostname: do a one-time lookup. The SOCKS5 server itself is
-        // reached via plain DNS — only the user's *destination* hostnames
-        // are tunneled through SOCKS5. For the typical Tor setup
-        // (`127.0.0.1:9050`) this branch is never taken.
-        final addrs = await InternetAddress.lookup(host);
-        if (addrs.isEmpty) {
-          throw const SocketException('SOCKS5 proxy host did not resolve');
-        }
-        proxyAddr = addrs.first;
-      }
-      final proxies = [
-        socks5.ProxySettings(proxyAddr, port,
-            username: username, password: password),
-      ];
-      final socket = socks5.SocksTCPClient.connect(
-        proxies,
-        InternetAddress(uri.host, type: InternetAddressType.unix),
-        uri.port,
-      );
       if (uri.scheme == 'https') {
         // The SOCKS5 path bypasses HttpClient's TLS handshake (the
-        // secure() call below is on the raw socket), so the trust list
+        // session is made on the tunnel), so the trust list
         // has to be re-checked here too — otherwise self-signed sites
         // accessible only through a SOCKS5 tunnel (Tor onion services
         // talking to the user's self-hosted backend) get a hard
         // HandshakeException despite the user trusting the cert.
-        final secure = (await socket).secure(
-          uri.host,
+        return _cancellableConnect(socksConnectSecure(
+          via: via,
+          host: uri.host,
+          port: uri.port,
           onBadCertificate: (cert) => TrustedHostsService.instance.isTrusted(
             host: uri.host,
             port: uri.port,
             fingerprint: fingerprintFromX509(cert),
           ),
-        );
-        return _cancellableConnect(secure);
+        ));
       }
-      return _cancellableConnect(socket);
+      return _cancellableConnect(
+          socksConnect(via: via, host: uri.host, port: uri.port));
     };
     return OutboundClientReady(IOClient(inner));
   }
@@ -260,10 +240,6 @@ ConnectionTask<S> _cancellableConnect<S extends Socket>(Future<S> connect) {
   });
   return ConnectionTask.fromSocket(socket, () => cancelled = true);
 }
-
-/// Whether [host] looks like an IPv4 / IPv6 literal — i.e. safe to pass
-/// directly to [InternetAddress] without a DNS lookup.
-bool _isIpLiteral(String host) => InternetAddress.tryParse(host) != null;
 
 bool _isLocalhost(String host) {
   return host == 'localhost' || host == '127.0.0.1' || host == '::1';

@@ -1,3 +1,7 @@
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
+
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/services/block_stats_service.dart';
@@ -95,6 +99,8 @@ class PageOrphanSweep implements OrphanSweepTargets {
     Set<SiteId> activeSiteIds, {
     required Set<SiteId> nonIncognitoSiteIds,
   }) async {
+    void failed(Exception e) =>
+        LogTag.startup.error('Deferred startup GC failed: $e');
     try {
       await OrphanSweepEngine.sweep(
         targets: this,
@@ -113,8 +119,14 @@ class PageOrphanSweep implements OrphanSweepTargets {
         globalLevel: DnsBlockService.instance.level,
         siteLevels: [for (final m in _sites.models) m.effectiveDnsBlockLevel],
       ));
-    } catch (e) {
-      LogTag.startup.error('Deferred startup GC failed: $e');
+    } on PlatformException catch (e) {
+      failed(e);
+    } on MissingPluginException catch (e) {
+      failed(e);
+    } on IOException catch (e) {
+      failed(e);
+    } on FormatException catch (e) {
+      failed(e);
     }
   }
 }

@@ -88,8 +88,10 @@ void main() {
     expect(health.state, ProxyHealthState.reachable);
   });
 
-  test('a probe that throws reads as unreachable, with the error', () async {
-    final service = ProxyHealthService(probe: (_) => throw TimeoutException('boom'));
+  test('a failed probe reads as unreachable, with the error', () async {
+    final service = ProxyHealthService(
+        probe: (_) async => const ProxyTestResult(ProxyTestOutcome.timedOut,
+            detail: 'TimeoutException: boom'));
     final health = await service.check(_socks());
     expect(health.state, ProxyHealthState.unreachable);
     expect(health.detail, contains('boom'));

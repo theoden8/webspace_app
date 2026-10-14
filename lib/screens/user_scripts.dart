@@ -514,12 +514,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
     ).fullSource;
     if (src.isEmpty) return;
     setState(() => _runOutput = loc.userScriptsRunning);
-    String output;
-    try {
-      output = await widget.onRun!(src);
-    } catch (e) {
-      output = loc.userScriptsRunError(e.toString());
-    }
+    final output = await widget.onRun!(src);
     if (mounted) setState(() => _runOutput = output);
   }
 

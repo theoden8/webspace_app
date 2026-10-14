@@ -47,8 +47,8 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
 
   @override
   void dispose() {
-    _sub?.cancel();
-    _controlSub?.cancel();
+    unawaited(_sub?.cancel());
+    unawaited(_controlSub?.cancel());
     super.dispose();
   }
 

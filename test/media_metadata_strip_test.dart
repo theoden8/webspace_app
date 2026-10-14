@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:webspace/services/media_metadata_strip.dart';
 
+import 'helpers/broken_images.dart';
+
 List<int> box(List<int> type, {required List<int> payload}) {
   final size = 8 + payload.length;
   return [
@@ -126,6 +128,12 @@ void main() {
     test('bytes that are not an image are refused', () {
       expect(stripImageMetadata(Uint8List.fromList([1, 2, 3]), jpeg: false),
           isNull);
+    });
+
+    test('a picked TIFF whose strip does not inflate is refused', () {
+      expect(stripImageMetadata(tiffThatDoesNotInflate(), jpeg: false),
+          isNull);
+      expect(stripImageMetadata(truncatedPng, jpeg: false), isNull);
     });
   });
 

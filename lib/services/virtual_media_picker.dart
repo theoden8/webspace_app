@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show compute;
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/media_metadata_strip.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/setting_labels.dart';
@@ -131,14 +131,13 @@ abstract final class VirtualMediaPicker {
     })
   >
   _read(List<String> extensions, {required int maxBytes}) async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: extensions,
-      allowMultiple: false,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return (raw: null, error: null);
-    final file = result.files.first;
+    final PlatformFile? file;
+    try {
+      file = await FileDialog.pickFile(extensions: extensions, withData: true);
+    } on FileDialogFailure {
+      return (raw: null, error: VirtualMediaPickError.read);
+    }
+    if (file == null) return (raw: null, error: null);
     final ext = (file.extension ?? '').toLowerCase();
     if (!extensions.contains(ext)) {
       return (raw: null, error: VirtualMediaPickError.type);
@@ -147,7 +146,7 @@ abstract final class VirtualMediaPicker {
     if (bytes == null && file.path != null) {
       try {
         bytes = await hostReadFileBytes(file.path!);
-      } on Exception {
+      } on IOException {
         return (raw: null, error: VirtualMediaPickError.read);
       }
     }

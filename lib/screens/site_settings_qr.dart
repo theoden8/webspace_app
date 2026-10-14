@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -81,7 +83,7 @@ Future<void> showSiteSettingsQrShareDialog(
           icon: const Icon(Icons.share),
           label: Text(loc.commonShare),
           onPressed: () {
-            SharePlus.instance.share(ShareParams(text: encoded));
+            unawaited(SharePlus.instance.share(ShareParams(text: encoded)));
             Navigator.of(ctx).pop();
           },
         ),

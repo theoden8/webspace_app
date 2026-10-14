@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -63,7 +64,11 @@ String _stripTrackingFromIntent(String intentUrl) {
     String decoded;
     try {
       decoded = Uri.decodeComponent(rawValue);
-    } catch (_) {
+    } on ArgumentError {
+      // A truncated or invalid %-escape.
+      continue;
+    } on FormatException {
+      // Escapes that decode to no UTF-8.
       continue;
     }
     final cleanedFallback = ClearUrlService.instance.cleanUrl(decoded);
@@ -197,14 +202,7 @@ Future<void> confirmAndLaunchExternalUrl(
           return;
         }
         if (loadInWebView != null) {
-          try {
-            await loadInWebView.loadUrl(cleanedFallback);
-          } catch (e) {
-            LogTag.externalUrl.debug(
-                'in-app loadUrl failed ($e), falling back to external launch',
-                sensitive: true);
-            await _launchExternally(cleanedFallback, label: 'browser fallback');
-          }
+          await loadInWebView.loadUrl(cleanedFallback);
         } else {
           await _launchExternally(cleanedFallback, label: 'browser');
         }
@@ -265,7 +263,13 @@ Future<bool> _launchExternally(String url, {required String label}) async {
           fallback: 'No app available to open: $url');
     }
     return launched;
-  } catch (e) {
+  } on PlatformException catch (e) {
+    LogTag.externalUrl.debug(
+        '$label: external launch threw — $e', sensitive: true);
+    _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url),
+        fallback: 'Could not open: $url');
+    return false;
+  } on MissingPluginException catch (e) {
     LogTag.externalUrl.debug(
         '$label: external launch threw — $e', sensitive: true);
     _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url),

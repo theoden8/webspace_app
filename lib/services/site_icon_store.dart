@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
@@ -139,7 +140,7 @@ class SiteIconStore {
   Future<void> _disk(Future<void> Function() task) => _io.run(() async {
         try {
           await task();
-        } on Exception catch (e) {
+        } on IOException catch (e) {
           LogTag.siteIcon.warning('Icon store I/O failed: $e');
         }
       });

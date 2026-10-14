@@ -13,6 +13,8 @@
 // Runs on the Linux and macOS integration jobs by file discovery, and on the
 // Android emulator via scripts/run_android_http_auth_tests.sh.
 
+import 'dart:async';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -82,7 +84,7 @@ void main() {
       final response = request.response;
       if (!path.startsWith('/a/') && !path.startsWith('/b/')) {
         response.statusCode = HttpStatus.notFound;
-        response.close();
+        unawaited(response.close());
         return;
       }
       final folder = path.substring(0, 3);
@@ -93,7 +95,7 @@ void main() {
           ..headers.set('WWW-Authenticate', 'Basic realm="${_realmFor(path)}"')
           ..headers.contentType = ContentType.html
           ..write('<html><body>401 Authorization Required</body></html>');
-        response.close();
+        unawaited(response.close());
         return;
       }
       authorized[path] = (authorized[path] ?? 0) + 1;
@@ -110,7 +112,7 @@ void main() {
           ..headers.contentType = ContentType.html
           ..write(_page);
       }
-      response.close();
+      unawaited(response.close());
     });
     base = 'http://127.0.0.1:${server.port}';
   });
@@ -182,13 +184,14 @@ void main() {
           final decoded = jsonDecode(raw is String ? raw : '$raw');
           if (decoded is! Map<String, dynamic>) continue;
           last = decoded;
-          if (decoded['ok'] == true &&
-              (decoded['img'] as num? ?? 0) > 0 &&
-              decoded['xhr'] != 'pending') {
+          if (decoded case {'ok': true, 'img': final num img}
+              when img > 0 && decoded['xhr'] != 'pending') {
             return;
           }
-        } catch (_) {
+        } on TimeoutException {
           // Engine or bridge still coming up.
+        } on FormatException {
+          // A result that is not the probe's JSON yet.
         }
       }
     });

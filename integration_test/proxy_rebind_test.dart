@@ -15,6 +15,8 @@
 // rather than inferred from a failed load. Destinations are synthetic
 // (`syntheticOrigin`), which only a fixture can answer.
 
+import 'dart:async';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -71,7 +73,7 @@ void main() {
       request.response
         ..headers.contentType = ContentType.html
         ..write('<!doctype html><html><body><p>direct</p></body></html>');
-      request.response.close();
+      unawaited(request.response.close());
     });
     log('before=${before.port} after=${after.port} '
         'loopback=${loopback!.port} containers=$containers');

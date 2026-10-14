@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show ServiceWorkerController;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,7 +111,9 @@ void main([List<String> args = const []]) async {
           .setServiceWorkerClient(null);
       LogTag.webView.debug(
           'Service worker network loads blocked at WebView layer');
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.webView.error('Failed to block service worker network loads: $e');
+    } on MissingPluginException catch (e) {
       LogTag.webView.error('Failed to block service worker network loads: $e');
     }
   }
@@ -175,7 +178,8 @@ void main([List<String> args = const []]) async {
   // changes. (Android's native interceptor consumes the raw domains;
   // the iOS/macOS JS prefilter consumes the merged bloom below.)
   DnsBlockService.instance.addBlocklistChangedListener(() {
-    WebInterceptNative.sendDnsLevelGroups(DnsBlockService.instance.levelGroups);
+    unawaited(WebInterceptNative.sendDnsLevelGroups(
+        DnsBlockService.instance.levelGroups));
   });
   ContentBlockerService.instance.addRulesChangedListener(() {
     // Feed the ABP `||host^` block hosts into the merged prefilter Bloom
@@ -199,8 +203,8 @@ void main([List<String> args = const []]) async {
             LocalCdnService.instance.cacheIndexSnapshot);
       });
   LocalCdnService.instance.addCacheChangeListener(() {
-    WebInterceptNative.sendCdnCacheIndex(
-        LocalCdnService.instance.cacheIndexSnapshot);
+    unawaited(WebInterceptNative.sendCdnCacheIndex(
+        LocalCdnService.instance.cacheIndexSnapshot));
   });
 
   registerLicenses();

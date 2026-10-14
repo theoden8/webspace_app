@@ -316,8 +316,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
     AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
     debugStartupRestore = _startup.restore();
-    _shortcuts.refreshPinned();
-    _shortcuts.probeAppIntents();
+    unawaited(_shortcuts.refreshPinned());
+    unawaited(_shortcuts.probeAppIntents());
     _shortcuts.start();
     _network.start();
     _fullscreen.start();
@@ -359,7 +359,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             globalUserScripts: _shell.globalUserScripts,
             onGlobalUserScriptsChanged: (scripts) {
               _shell.globalUserScripts = scripts;
-              _shell.saveGlobalUserScripts();
+              unawaited(_shell.saveGlobalUserScripts());
               _resets.resetAll();
             },
             onScriptsChanged: _resets.resetShown,
@@ -671,7 +671,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _openLinkHandlingSettings() {
-    Navigator.push(
+    unawaited(Navigator.push(
       context,
       MaterialPageRoute(
         builder: (ctx) => LinkHandlingSettingsScreen(
@@ -688,7 +688,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           },
         ),
       ),
-    );
+    ));
   }
 
   late final DialogWebViewPrompts _prompts = DialogWebViewPrompts(context);
@@ -1082,7 +1082,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           globalUserScripts: _shell.globalUserScripts,
           onGlobalUserScriptsChanged: (scripts) {
             _shell.globalUserScripts = scripts;
-            _shell.saveGlobalUserScripts();
+            unawaited(_shell.saveGlobalUserScripts());
             _resets.resetAll();
           },
           onOutboundProxyChanged: _resets.resetAll,
@@ -1242,7 +1242,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         setState(() {
           _fullscreen.tabBarOverlayVisible = false;
         });
-        _shell.saveCurrentIndex();
+        await _shell.saveCurrentIndex();
       },
       onShowTabs: () => unawaited(_showTabsSheet()),
       onReorder: _webspaces.canReorderView
@@ -1313,8 +1313,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           home: _resets.goHome,
           share: () {
             if (_sites.shown case final model?) {
-              SharePlus.instance
-                  .share(ShareParams(uri: Uri.parse(model.currentUrl)));
+              unawaited(SharePlus.instance
+                  .share(ShareParams(uri: Uri.parse(model.currentUrl))));
             }
           },
           reload: () => unawaited(_resets.refreshShown()),
@@ -1905,8 +1905,8 @@ class _PageHost
   }
 
   @override
-  Future<bool> captureNavState(WebViewModel model) =>
-      _s._activation.captureStateBytes(model);
+  Future<bool> captureNavState(WebViewModel model) async =>
+      await _s._activation.captureStateBytes(model) == CaptureOutcome.saved;
 
   @override
   Future<void> handleShareIntent() => _s._links.handleShareIntent();

@@ -154,15 +154,15 @@ class Socks5Fixture {
     _clients.add(client);
     client.setOption(SocketOption.tcpNoDelay, true);
     final buffer = _ByteBuffer();
-    final incoming = client.listen(
-      buffer.add,
-      onError: (Object _) => buffer.close(),
-      onDone: buffer.close,
-    );
+    final incoming = client
+        .handleError((Object _) => buffer.close(),
+            test: (e) => e is SocketException)
+        .listen(buffer.add, onDone: buffer.close);
     // A socket whose peer vanishes reports it on `done`, and nothing else
     // here awaits that; unawaited it is an uncaught async error, which
     // `flutter_test` charges to whichever test finished last.
-    unawaited(client.done.catchError((Object _) => client));
+    unawaited(client.done
+        .catchError((Object _) => client, test: (e) => e is SocketException));
     Socket? upstream;
     try {
       final greeting = await buffer.read(2);
@@ -258,8 +258,10 @@ Future<void> answer(Socket sink,
           final secure = await SecureSocket.secureServer(client, tls,
               bufferedData: buffer.drain());
           final inner = _ByteBuffer();
-          final reading = secure.listen(inner.add,
-              onError: (Object _) => inner.close(), onDone: inner.close);
+          final reading = secure
+              .handleError((Object _) => inner.close(),
+                  test: (e) => e is IOException)
+              .listen(inner.add, onDone: inner.close);
           await answer(secure, read: () => inner.read(1));
           await reading.cancel();
           await secure.close();
@@ -275,13 +277,19 @@ Future<void> answer(Socket sink,
       _upstreams.add(upstream);
       relayedPorts.add(upstream.port);
       upstream.setOption(SocketOption.tcpNoDelay, true);
-      unawaited(upstream.done.catchError((Object _) => upstream!));
+      unawaited(upstream.done.catchError((Object _) => upstream!,
+          test: (e) => e is SocketException));
       client.add(const [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
 
       final pending = buffer.drain();
       await relaySockets(client,
           incoming: incoming, upstream: upstream, pending: pending);
-    } on Object {
+    } on IOException {
+      client.destroy();
+      upstream?.destroy();
+    } on OSError {
+      // setOption and port ask the OS, which fails them with a bare OSError
+      // once the peer has reset the socket.
       client.destroy();
       upstream?.destroy();
     }

@@ -14,7 +14,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:socks5_proxy/exceptions.dart';
 import 'package:webspace/services/outbound_http_io.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -98,7 +97,7 @@ Future<List<Object>> _closeWhileConnecting(_StallingSocks5 proxy) async {
         // itself, the granted one as a closed socket.
         .catchError((Object e) => e,
             test: (e) =>
-                e is SocksClientException || e is http.ClientException)
+                e is SocksHandshakeFailure || e is http.ClientException)
         .timeout(const Duration(seconds: 2), onTimeout: () => null);
     await proxy.connectSeen;
     client.close();
@@ -135,9 +134,10 @@ void main() {
     // The cancel path must not have broken the ordinary one: a request that
     // is not cancelled gets its CONNECT answered and reads the response.
     final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    origin.listen((req) => req.response
-      ..write('ok')
-      ..close());
+    origin.listen((req) {
+      req.response.write('ok');
+      unawaited(req.response.close());
+    });
     final relay = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     relay.listen((client) async {
       var stage = 0;

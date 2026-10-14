@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -54,7 +56,7 @@ class _FaviconBytesImageState extends State<_FaviconBytesImage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   @override
@@ -63,7 +65,7 @@ class _FaviconBytesImageState extends State<_FaviconBytesImage> {
     if (oldWidget.url != widget.url) {
       _bytes = null;
       _loading = true;
-      _load();
+      unawaited(_load());
     }
   }
 

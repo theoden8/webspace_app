@@ -3,6 +3,10 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+/// dart:io's family of I/O failures, so a catch names it on both targets;
+/// nothing throws it on web.
+abstract interface class IOException implements Exception {}
+
 // Web has no host platform in the dart:io sense: nothing here is Android, iOS
 // or macOS, so every per-OS branch takes its non-native path.
 bool get hostIsAndroid => false;
