@@ -143,7 +143,7 @@ class LocalProxyRelay {
           // Answered here, never dialled: the probe's whole purpose is to
           // name the credential that carried it, and a probe that could
           // reach the network would be a request the user did not make.
-          _probeResults[nonce] = route.siteId;
+          _probeResults[nonce] = route.identity;
           client.add(utf8.encode('HTTP/1.1 200 OK\r\n'
               'Content-Type: text/plain\r\n'
               'Content-Length: 2\r\n'
@@ -389,13 +389,13 @@ class LocalProxyRelay {
 /// One site's entry in the relay's table.
 class LocalProxyRoute {
   const LocalProxyRoute({
-    required this.siteId,
+    required this.identity,
     required this.token,
     required this.upstream,
     this.upstreamPassword,
   });
 
-  final String siteId;
+  final RouterIdentity identity;
 
   /// The password half the WebView presents. Never persisted and never
   /// serialised: it is minted per run, like Android's relay token.

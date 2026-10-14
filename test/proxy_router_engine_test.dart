@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -47,14 +48,16 @@ void main() {
 
     test('credential encodes the ws-<siteId>:<token> pair', () {
       final credential =
-          ProxyRouterEngine.credentialFor(siteId: 'acme', token: 'tok');
+          ProxyRouterEngine.credentialFor(
+              identity: RouterIdentity.ofSite(SiteId('acme')), token: 'tok');
       expect(utf8.decode(base64.decode(credential)), 'ws-acme:tok');
     });
 
     test('two sites never share a credential', () {
       final state = ProxyRouterState();
       final credentials = {
-        for (var i = 0; i < 50; i++) state.credentialFor('site-$i')
+        for (var i = 0; i < 50; i++)
+          state.credentialFor(RouterIdentity.ofSite(SiteId('site-$i')))
       };
       expect(credentials, hasLength(50));
     });
@@ -202,16 +205,16 @@ void main() {
       final state = ProxyRouterState();
       final routes = ProxyRouterEngine.buildRoutes(
         perSiteProxies: {
-          'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
-          'b': proxy(ProxyType.HTTP, address: 'proxy.example.com:8080'),
+          RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
+          RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: 'proxy.example.com:8080'),
         },
-        tokens: {'a': state.tokenFor('a'), 'b': state.tokenFor('b')},
+        tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a'))), RouterIdentity.ofSite(SiteId('b')): state.tokenFor(RouterIdentity.ofSite(SiteId('b')))},
       );
 
       expect(routes, hasLength(2));
-      final a = routes[state.credentialFor('a')]!;
-      final b = routes[state.credentialFor('b')]!;
-      expect(a.siteId, 'a');
+      final a = routes[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!;
+      final b = routes[state.credentialFor(RouterIdentity.ofSite(SiteId('b')))]!;
+      expect(a.identity, 'a');
       expect(a.upstream.type, ProxyType.SOCKS5);
       expect(b.upstream.address, 'proxy.example.com:8080');
     });
@@ -224,13 +227,13 @@ void main() {
       final state = ProxyRouterState();
       final routes = ProxyRouterEngine.buildRoutes(
         perSiteProxies: {
-          'a': proxy(ProxyType.TOR, address: null),
-          'b': proxy(ProxyType.TOR, address: null),
+          RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.TOR, address: null),
+          RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.TOR, address: null),
         },
-        tokens: {'a': state.tokenFor('a'), 'b': state.tokenFor('b')},
+        tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a'))), RouterIdentity.ofSite(SiteId('b')): state.tokenFor(RouterIdentity.ofSite(SiteId('b')))},
       );
-      expect(routes[state.credentialFor('a')]!.upstream.username, 'a');
-      expect(routes[state.credentialFor('b')]!.upstream.username, 'b');
+      expect(routes[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!.upstream.username, 'a');
+      expect(routes[state.credentialFor(RouterIdentity.ofSite(SiteId('b')))]!.upstream.username, 'b');
     });
 
     test('a DEFAULT site gets a direct route, not an absent one', () {
@@ -240,11 +243,11 @@ void main() {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, address: null)},
-          tokens: {'plain': state.tokenFor('plain')},
+          perSiteProxies: {RouterIdentity.ofSite(SiteId('plain')): proxy(ProxyType.DEFAULT, address: null)},
+          tokens: {RouterIdentity.ofSite(SiteId('plain')): state.tokenFor(RouterIdentity.ofSite(SiteId('plain')))},
         ),
       );
-      expect(wire[state.credentialFor('plain')]!['type'], 'direct');
+      expect(wire[state.credentialFor(RouterIdentity.ofSite(SiteId('plain')))]!['type'], 'direct');
     });
 
     test('a DEFAULT site inherits the app-global proxy (PROXY-009)', () {
@@ -254,11 +257,11 @@ void main() {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, address: null)},
-          tokens: {'plain': state.tokenFor('plain')},
+          perSiteProxies: {RouterIdentity.ofSite(SiteId('plain')): proxy(ProxyType.DEFAULT, address: null)},
+          tokens: {RouterIdentity.ofSite(SiteId('plain')): state.tokenFor(RouterIdentity.ofSite(SiteId('plain')))},
         ),
       );
-      final entry = wire[state.credentialFor('plain')]!;
+      final entry = wire[state.credentialFor(RouterIdentity.ofSite(SiteId('plain')))]!;
       expect(entry['type'], 'http');
       expect(entry['host'], '10.0.0.1');
       expect(entry['port'], 8080);
@@ -266,7 +269,7 @@ void main() {
 
     test('a site with no token gets no route', () {
       final routes = ProxyRouterEngine.buildRoutes(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: 'p:1')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: 'p:1')},
         tokens: const {},
       );
       expect(routes, isEmpty);
@@ -280,8 +283,8 @@ void main() {
       for (final bad in ['proxy.example.com', 'host:notaport', ':8080', 'h:0']) {
         final wire = ProxyRouterEngine.toWire(
           ProxyRouterEngine.buildRoutes(
-            perSiteProxies: {'a': proxy(ProxyType.HTTP, address: bad)},
-            tokens: {'a': state.tokenFor('a')},
+            perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: bad)},
+            tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
           ),
         );
         expect(wire, isEmpty, reason: '"$bad" must not produce a route');
@@ -293,13 +296,13 @@ void main() {
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
           perSiteProxies: {
-            'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050',
+            RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050',
                 username: 'alice', password: 's3cret'),
           },
-          tokens: {'a': state.tokenFor('a')},
+          tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
         ),
       );
-      final entry = wire[state.credentialFor('a')]!;
+      final entry = wire[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!;
       expect(entry['type'], 'socks5');
       expect(entry['username'], 'alice');
       expect(entry['password'], 's3cret');
@@ -314,9 +317,9 @@ void main() {
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
           perSiteProxies: {
-            'a': proxy(ProxyType.TOR, address: '203.0.113.9:9050'),
+            RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.TOR, address: '203.0.113.9:9050'),
           },
-          tokens: {'a': state.tokenFor('a')},
+          tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
         ),
       );
       expect(wire, isEmpty);
@@ -329,8 +332,8 @@ void main() {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, address: null)},
-          tokens: {'plain': state.tokenFor('plain')},
+          perSiteProxies: {RouterIdentity.ofSite(SiteId('plain')): proxy(ProxyType.DEFAULT, address: null)},
+          tokens: {RouterIdentity.ofSite(SiteId('plain')): state.tokenFor(RouterIdentity.ofSite(SiteId('plain')))},
         ),
       );
       expect(wire, isEmpty);
@@ -340,11 +343,11 @@ void main() {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '[::1]:8080')},
-          tokens: {'a': state.tokenFor('a')},
+          perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '[::1]:8080')},
+          tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
         ),
       );
-      expect(wire[state.credentialFor('a')]!['host'], '[::1]');
+      expect(wire[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!['host'], '[::1]');
     });
   });
 
@@ -358,14 +361,14 @@ void main() {
     // misattribution waiting for the first site to unload.
     test('a container-bound site is its own identity', () {
       expect(
-        ProxyRouterEngine.identityFor(siteId: 'a', ownsContainer: true),
+        ProxyRouterEngine.identityFor(siteId: SiteId('a'), ownsContainer: true),
         'a',
       );
     });
 
     test('container-less sites collapse onto one identity', () {
-      final a = ProxyRouterEngine.identityFor(siteId: 'a', ownsContainer: false);
-      final b = ProxyRouterEngine.identityFor(siteId: 'b', ownsContainer: false);
+      final a = ProxyRouterEngine.identityFor(siteId: SiteId('a'), ownsContainer: false);
+      final b = ProxyRouterEngine.identityFor(siteId: SiteId('b'), ownsContainer: false);
       expect(a, ProxyRouterEngine.sharedProfileIdentity);
       expect(b, a,
           reason: 'two sites in one network session must present one '
@@ -385,11 +388,11 @@ void main() {
       final table = ProxyRouterEngine.routeTable(
         sites: [
           RouterSite(
-              siteId: 'a',
+              siteId: SiteId('a'),
               proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
               ownsContainer: true),
           RouterSite(
-              siteId: 'b',
+              siteId: SiteId('b'),
               proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: true),
         ],
@@ -402,11 +405,11 @@ void main() {
       final table = ProxyRouterEngine.routeTable(
         sites: [
           RouterSite(
-              siteId: 'incog-a',
+              siteId: SiteId('incog-a'),
               proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
               ownsContainer: false),
           RouterSite(
-              siteId: 'incog-b',
+              siteId: SiteId('incog-b'),
               proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
@@ -420,11 +423,11 @@ void main() {
     test('the shared upstream follows the site being activated', () {
       final sites = [
         RouterSite(
-            siteId: 'incog-a',
+            siteId: SiteId('incog-a'),
             proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
             ownsContainer: false),
         RouterSite(
-            siteId: 'incog-b',
+            siteId: SiteId('incog-b'),
             proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
             ownsContainer: false),
       ];
@@ -451,11 +454,11 @@ void main() {
       final table = ProxyRouterEngine.routeTable(
         sites: [
           RouterSite(
-              siteId: 'a',
+              siteId: SiteId('a'),
               proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
               ownsContainer: true),
           RouterSite(
-              siteId: 'incog',
+              siteId: SiteId('incog'),
               proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
@@ -473,7 +476,7 @@ void main() {
       final table = ProxyRouterEngine.routeTable(
         sites: [
           RouterSite(
-              siteId: 'incog',
+              siteId: SiteId('incog'),
               proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
@@ -488,7 +491,7 @@ void main() {
       final table = ProxyRouterEngine.routeTable(
         sites: [
           RouterSite(
-              siteId: 'incog',
+              siteId: SiteId('incog'),
               proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
@@ -510,7 +513,7 @@ void main() {
       // nothing would ever ask the app to authenticate again.
       final state = ProxyRouterState(rng: Random(7));
       final before = state.tokenFor(ProxyRouterEngine.sharedProfileIdentity);
-      state.retainOnly(['a', 'b']);
+      state.retainOnly([RouterIdentity.ofSite(SiteId('a')), RouterIdentity.ofSite(SiteId('b'))]);
       expect(
         state.tokenFor(ProxyRouterEngine.sharedProfileIdentity),
         before,
@@ -519,36 +522,36 @@ void main() {
 
     test('a deleted site still loses its token', () {
       final state = ProxyRouterState(rng: Random(7));
-      state.tokenFor('gone');
-      state.retainOnly(['a']);
+      state.tokenFor(RouterIdentity.ofSite(SiteId('gone')));
+      state.retainOnly([RouterIdentity.ofSite(SiteId('a'))]);
       expect(state.tokens.containsKey('gone'), isFalse);
     });
 
     test('a token is stable for a site across calls', () {
       final state = ProxyRouterState();
-      expect(state.tokenFor('a'), state.tokenFor('a'));
+      expect(state.tokenFor(RouterIdentity.ofSite(SiteId('a'))), state.tokenFor(RouterIdentity.ofSite(SiteId('a'))));
     });
 
     test('retainOnly revokes a deleted site', () {
       final state = ProxyRouterState();
-      state.tokenFor('a');
-      state.tokenFor('b');
-      state.retainOnly(['a']);
+      state.tokenFor(RouterIdentity.ofSite(SiteId('a')));
+      state.tokenFor(RouterIdentity.ofSite(SiteId('b')));
+      state.retainOnly([RouterIdentity.ofSite(SiteId('a'))]);
       expect(state.tokens.keys, ['a']);
     });
 
     test('a revoked site gets a fresh token if it comes back', () {
       final state = ProxyRouterState();
-      final first = state.tokenFor('a');
+      final first = state.tokenFor(RouterIdentity.ofSite(SiteId('a')));
       state.retainOnly(const []);
-      expect(state.tokenFor('a'), isNot(first));
+      expect(state.tokenFor(RouterIdentity.ofSite(SiteId('a'))), isNot(first));
     });
 
     test('the realm is independent of every site token', () {
       final state = ProxyRouterState(rng: Random(1));
       final realm = state.realm;
       expect(state.tokens.values, isNot(contains(realm)));
-      expect(state.tokenFor('a'), isNot(realm));
+      expect(state.tokenFor(RouterIdentity.ofSite(SiteId('a'))), isNot(realm));
     });
   });
 

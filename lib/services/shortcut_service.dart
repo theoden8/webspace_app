@@ -1,4 +1,5 @@
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/startup_restore_engine.dart'
@@ -10,7 +11,7 @@ import 'package:webspace/services/startup_restore_engine.dart'
 /// carry the site address so an orphaned Shortcut (a tile bound to a deleted
 /// site, resolved via the tombstone list) can route by domain (HS-011).
 class ShortcutSite {
-  final String siteId;
+  final SiteId siteId;
   final String label;
   final String? url;
   final String? iconUrl;
@@ -35,7 +36,7 @@ class ShortcutSite {
 /// Android the launch intent is siteId-only and `url` is null — the caller
 /// supplies it from the Android-side url ledger instead.
 class ShortcutLaunch {
-  final String siteId;
+  final SiteId siteId;
   final String? url;
 
   const ShortcutLaunch({required this.siteId, this.url});
@@ -76,7 +77,7 @@ class ShortcutService {
   /// only a fallback the native side downloads if no bytes were supplied. With
   /// neither, the shortcut uses the WebSpace app icon.
   static Future<PinShortcutResult> pinShortcut({
-    required String siteId,
+    required SiteId siteId,
     required String label,
     Uint8List? iconBytes,
     String? iconUrl,
@@ -105,7 +106,7 @@ class ShortcutService {
   /// to create), which only works if the launcher still launches the app.
   /// On iOS the App Intents site list is rebuilt from the user's actual sites
   /// by `syncSites`, so a deletion drops out of the picker implicitly.
-  static Future<void> removeShortcut(String siteId) async {
+  static Future<void> removeShortcut(SiteId siteId) async {
     if (!hostIsAndroid) return;
     try {
       await _channel.invokeMethod('removeShortcut', {'siteId': siteId});
@@ -129,11 +130,13 @@ class ShortcutService {
     try {
       final res = await _channel.invokeMethod('getLaunchSiteId');
       if (res is String) {
-        return res.isEmpty ? null : ShortcutLaunch(siteId: res);
+        return switch (SiteId.parse(res)) {
+          final id? => ShortcutLaunch(siteId: id),
+          null => null,
+        };
       }
       if (res is Map) {
-        final id = res['siteId'];
-        if (id is String && id.isNotEmpty) {
+        if (SiteId.parse(res['siteId']) case final id?) {
           final url = res['url'];
           return ShortcutLaunch(
             siteId: id,
@@ -156,16 +159,16 @@ class ShortcutService {
   /// would hide the menu item that re-enables it (HS-015).
   /// Android-only — iOS has no public API to enumerate home-screen tiles, so
   /// this always returns an empty set on iOS.
-  static Future<Set<String>> getPinnedSiteIds() async {
-    if (!hostIsAndroid) return const <String>{};
+  static Future<Set<SiteId>> getPinnedSiteIds() async {
+    if (!hostIsAndroid) return const <SiteId>{};
     try {
       final result = await _channel.invokeMethod('getPinnedSiteIds');
       if (result is List) {
-        return result.whereType<String>().toSet();
+        return result.map(SiteId.parse).nonNulls.toSet();
       }
-      return const <String>{};
+      return const <SiteId>{};
     } on PlatformException {
-      return const <String>{};
+      return const <SiteId>{};
     }
   }
 
@@ -194,7 +197,7 @@ class ShortcutService {
   /// off the home screen. Used only when the user explicitly opts to kill a
   /// deleted site's shortcut (HS-011); the default leaves the tile tappable so
   /// it can re-route via the url ledger.
-  static Future<void> disableShortcut(String siteId) async {
+  static Future<void> disableShortcut(SiteId siteId) async {
     if (!hostIsAndroid) return;
     try {
       await _channel.invokeMethod('disableShortcut', {'siteId': siteId});

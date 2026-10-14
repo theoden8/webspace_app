@@ -86,7 +86,7 @@ class SettingsImportPlan {
   /// Every `AppPref` key with a value of its declared type.
   final Map<String, Object> appPrefs;
 
-  final String selectedWebspaceId;
+  final WebspaceId selectedWebspaceId;
   final int? currentIndex;
 
   /// Null when the backup has no such section, which leaves the device's
@@ -134,7 +134,7 @@ SettingsImportPlan planSettingsImport(
   final seenIds = <String>{};
   for (final raw in backup.sites) {
     var json = raw;
-    final id = sanitizedSiteId(json['siteId']);
+    final id = SiteId.parse(json['siteId']);
     // Two sites sharing a siteId would share one container: one cookie jar,
     // one storage partition. The first keeps the id, later ones get fresh.
     if (id != null && !seenIds.add(id)) {
@@ -199,7 +199,7 @@ SettingsImportPlan planSettingsImport(
     selectedWebspaceId:
         selected != null && webspaces.any((ws) => ws.id == selected)
             ? selected
-            : kAllWebspaceId,
+            : WebspaceId.all,
     currentIndex:
         current != null && current >= 0 && current < sites.length
             ? current

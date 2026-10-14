@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
@@ -123,12 +124,12 @@ class CookieSecureStorage {
   }
 
   /// Returns an empty list if no cookies are stored for this site.
-  Future<List<Cookie>> loadCookiesForSite(String siteId) async {
+  Future<List<Cookie>> loadCookiesForSite(SiteId siteId) async {
     final allCookies = await loadCookies();
     return allCookies[siteId] ?? [];
   }
 
-  Future<void> saveCookiesForSite(String siteId,
+  Future<void> saveCookiesForSite(SiteId siteId,
       {required List<Cookie> cookies}) {
     if (isDemoMode) return Future.value();
     return _writes.run(() async {
@@ -144,7 +145,7 @@ class CookieSecureStorage {
 
   /// Removes cookies for siteIds not in the provided set of active siteIds.
   /// This cleans up orphaned cookies after sites are deleted or settings are imported.
-  Future<void> removeOrphanedCookies(Set<String> activeSiteIds) async {
+  Future<void> removeOrphanedCookies(Set<SiteId> activeSiteIds) async {
     if (isDemoMode) return;
     final siteIdsToRemove = <String>[];
     await _writes.run(() async {

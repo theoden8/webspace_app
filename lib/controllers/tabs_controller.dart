@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:webspace/webspace_model.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_route.dart';
@@ -23,10 +25,10 @@ abstract interface class TabsHost implements PageHost {
 
   /// Drops a debounced capture queued for [siteId]: the webview it would
   /// read is about to go.
-  void cancelPendingCapture(String siteId);
+  void cancelPendingCapture(SiteId siteId);
 
   /// Drops [siteId]'s cached HTML snapshot while online.
-  void evictCache(String siteId);
+  void evictCache(SiteId siteId);
 
   void enterFullscreen();
 
@@ -41,7 +43,7 @@ abstract interface class TabsHost implements PageHost {
   Future<void> revealSite(WebViewModel model, {required int index});
 
   /// Tells the user a tab opened in the background, with a way to it.
-  void offerOpenTab(WebViewModel model, {required String tabId});
+  void offerOpenTab(WebViewModel model, {required TabId tabId});
 
   /// The sites that can run a link of [opener]'s as a tab in [owner]'s tree
   /// (LIR-032).
@@ -178,7 +180,7 @@ class TabsController {
   /// installed it first would leave the closed tab's host unseen.
   Future<void> switchActiveTab(
     WebViewModel model, {
-    required String targetTabId,
+    required TabId targetTabId,
     List<SiteTab>? tabs,
     bool captureOutgoing = true,
   }) async {
@@ -345,7 +347,7 @@ class TabsController {
 
   /// Show [tabId] of the site at [index]. Used by the tab list, and by Back
   /// going back along the trail of jumps it made (TAB-019).
-  Future<void> openTab(int index, {required String tabId}) async {
+  Future<void> openTab(int index, {required TabId tabId}) async {
     await _gate.run(() async {
       if (index < 0 || index >= _sites.models.length) return;
       final model = _sites.models[index];
@@ -399,7 +401,7 @@ class TabsController {
 
   /// TAB-019: the way back from a jump restores the webspace the jump left
   /// when that still shows [model]; otherwise WEBSPACE-012 decides.
-  Future<void> _returnToWebspace(String? webspaceId,
+  Future<void> _returnToWebspace(WebspaceId? webspaceId,
       {required WebViewModel model, required int index}) async {
     final ws = _sites.webspaces.where((w) => w.id == webspaceId).firstOrNull;
     if (ws == null ||
@@ -447,10 +449,10 @@ class TabsController {
   /// missing) or may no longer host, re-binding an owner whose active tab
   /// closed. Runs at startup, after an import, before a delete, after a
   /// site's settings change and after a move across the archive boundary.
-  Future<void> closeIneligibleHostedTabs({String? goneSiteId}) =>
+  Future<void> closeIneligibleHostedTabs({SiteId? goneSiteId}) =>
       _gate.runWhenIdle(() => _closeIneligibleHostedTabsHeld(goneSiteId));
 
-  Future<void> _closeIneligibleHostedTabsHeld(String? goneSiteId) async {
+  Future<void> _closeIneligibleHostedTabsHeld(SiteId? goneSiteId) async {
     for (var i = 0; i < _sites.models.length; i++) {
       final model = _sites.models[i];
       if (!model.tabs.any((t) => t.hostSiteId != null)) continue;
@@ -505,9 +507,9 @@ class TabsController {
   Future<void> openChildTab(
     WebViewModel owner, {
     required String url,
-    String? hostSiteId,
-    String? parentTabId,
-    String? openerSiteId,
+    SiteId? hostSiteId,
+    TabId? parentTabId,
+    SiteId? openerSiteId,
     String? homeUrl,
   }) async {
     if (!owner.effectiveTabsEnabled) return;
@@ -583,8 +585,8 @@ class TabsController {
   Future<void> openLinkInNewTab(
     int index, {
     required String url,
-    required String? hostSiteId,
-    String? openerSiteId,
+    required SiteId? hostSiteId,
+    SiteId? openerSiteId,
     String? homeUrl,
   }) async {
     if (index < 0 || index >= _sites.models.length) return;
@@ -653,7 +655,7 @@ class TabsController {
   }
 
   Future<void> closeTab(int index,
-      {required String tabId, bool subtree = false}) async {
+      {required TabId tabId, bool subtree = false}) async {
     await _gate.run(() async {
       if (index < 0 || index >= _sites.models.length) return;
       final model = _sites.models[index];
@@ -668,7 +670,7 @@ class TabsController {
 
   /// A tab and its subtree dragged to another place in its site's tree
   /// (TAB-015). Only the tree changes: no webview, host or state key does.
-  bool moveTab(int index, {required String tabId, required TabDrop drop}) {
+  bool moveTab(int index, {required TabId tabId, required TabDrop drop}) {
     if (_gate.busy || !enabledAt(index)) return false;
     final model = _sites.models[index];
     final moved = TabLifecycleEngine.drop(model.tabs, tabId: tabId, drop: drop);

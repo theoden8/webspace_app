@@ -1,6 +1,7 @@
 import 'dart:convert' show base64Decode, base64Encode;
 import 'dart:typed_data';
 
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/outbound_preference.dart';
@@ -158,7 +159,7 @@ WebViewModel webViewModelFromJson(
     // Validate against path-safe format: a crafted backup could otherwise
     // set siteId to `../…` and escape the cache/import/storage keyspace.
     // null (missing or unsafe) auto-generates a fresh id.
-    siteId: sanitizedSiteId(json['siteId']),
+    siteId: SiteId.parse(json['siteId']),
     initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
     currentUrl: dropUrl || currentUrl == null
         ? null
@@ -210,8 +211,7 @@ WebViewModel webViewModelFromJson(
     dnsBlockEnabled: field<bool>('dnsBlockEnabled') ?? true,
     dnsBlockLevel: _readDnsBlockLevel(json['dnsBlockLevel']),
     disabledFilterLists: {
-      for (final id in field<List>('disabledFilterLists') ?? const [])
-        if (id is String) id
+      ...?field<List>('disabledFilterLists')?.map(FilterListId.parse).nonNulls,
     },
     contentBlockEnabled: field<bool>('contentBlockEnabled') ?? true,
     trackingProtectionEnabled:
@@ -241,8 +241,9 @@ WebViewModel webViewModelFromJson(
     userScripts:
         _jsonEntries(json['userScripts'], parse: UserScriptConfig.fromJson),
     enabledGlobalScriptIds: {
-      for (final id in field<List>('enabledGlobalScriptIds') ?? const [])
-        if (id is String) id
+      ...?field<List>('enabledGlobalScriptIds')
+          ?.map(UserScriptId.parse)
+          .nonNulls,
     },
     blockedCookies:
         _jsonEntries(json['blockedCookies'], parse: BlockedCookie.tryFromJson).toSet(),
@@ -287,10 +288,9 @@ WebViewModel webViewModelFromJson(
     discoveredSearchAddress: field<String>('discoveredSearchAddress'),
     discoveredSearchesWeb: field<bool>('discoveredSearchesWeb') ?? false,
     searchSites: [
-      for (final id in field<List<dynamic>>('searchSites') ?? const [])
-        if (sanitizedSiteId(id) case final String safe) safe,
+      ...?field<List<dynamic>>('searchSites')?.map(SiteId.parse).nonNulls,
     ],
-    searchDefault: sanitizedSiteId(json['searchDefault']),
+    searchDefault: SiteId.parse(json['searchDefault']),
     stateSetterF: stateSetterF,
     isArchiveTier: isArchiveTier,
   )..pageTitle ??= dropUrl ? null : field<String>('pageTitle');

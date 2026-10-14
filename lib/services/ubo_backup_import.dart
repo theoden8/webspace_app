@@ -10,6 +10,7 @@
 library;
 
 import 'dart:convert';
+import 'package:webspace/settings/filter_list_id.dart';
 
 /// uBO's asset registry lives here; list keys in a backup resolve through it.
 const String kUboAssetRegistryUrl =
@@ -141,7 +142,7 @@ Map<String, UboAsset> parseUboAssetRegistry(String text) {
 /// What the app already has, as far as planning needs. A local list has
 /// an empty URL.
 class ExistingFilterList {
-  final String id;
+  final FilterListId id;
   final String url;
   const ExistingFilterList(this.id, {required this.url});
 }
@@ -154,7 +155,7 @@ class PlannedList {
 
 class UboImportPlan {
   /// Lists the app already has that the backup selects.
-  final List<String> enableIds;
+  final List<FilterListId> enableIds;
   final List<PlannedList> addLists;
 
   /// Keys the registry could not resolve (offline, or retired by uBO).
@@ -201,7 +202,7 @@ UboImportPlan planUboImport(
     for (final l in existing)
       if (l.url.isNotEmpty) l.url: l
   };
-  final enable = <String>[];
+  final enable = <FilterListId>[];
   final add = <PlannedList>[];
   final addedUrls = <String>{};
   final unresolved = <String>[];

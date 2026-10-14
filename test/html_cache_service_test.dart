@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_cache_service.dart';
 
@@ -57,70 +58,70 @@ void main() {
   group('evictInMemory', () {
     test('drops in-memory snapshot synchronously', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1',
+      await svc.saveHtml(SiteId('site-1'),
           html: '<p>cached</p>', url: 'https://example.com/');
-      expect(svc.getHtmlSync('site-1'), '<p>cached</p>');
+      expect(svc.getHtmlSync(SiteId('site-1')), '<p>cached</p>');
 
-      svc.evictInMemory('site-1');
+      svc.evictInMemory(SiteId('site-1'));
 
       // No await between evict and read - this is the contract `goHome`
       // depends on. A rebuilt webview's `getHtmlSync` runs in the same
       // event-loop turn; it must see the eviction.
-      expect(svc.getHtmlSync('site-1'), isNull);
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
     });
 
     test('resets the debounce window so the next save is allowed', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1',
+      await svc.saveHtml(SiteId('site-1'),
           html: '<p>cached</p>', url: 'https://example.com/');
       // Just-saved: shouldSave is false within the 10s debounce.
-      expect(svc.shouldSave('site-1'), isFalse);
+      expect(svc.shouldSave(SiteId('site-1')), isFalse);
 
-      svc.evictInMemory('site-1');
+      svc.evictInMemory(SiteId('site-1'));
 
       // After eviction the rebuilt webview's first onLoadStop must be
       // allowed to save - the cache for this site is now empty, the
       // debounce no longer protects useful state.
-      expect(svc.shouldSave('site-1'), isTrue);
+      expect(svc.shouldSave(SiteId('site-1')), isTrue);
     });
 
     test('bumps the eviction generation per call', () async {
       final svc = HtmlCacheService.instance;
       // Two evictions in a row both bump the gen, so any save that
       // captured a gen between them is also rejected.
-      await svc.saveHtml('site-1',
+      await svc.saveHtml(SiteId('site-1'),
           html: '<p>v1</p>', url: 'https://example.com/');
-      svc.evictInMemory('site-1');
-      svc.evictInMemory('site-1');
+      svc.evictInMemory(SiteId('site-1'));
+      svc.evictInMemory(SiteId('site-1'));
       // The visible effect: getHtmlSync still returns null, and a
       // saveHtml that started before either eviction would still be
       // rejected (verified in the saveHtml race test below).
-      expect(svc.getHtmlSync('site-1'), isNull);
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
     });
   });
 
   group('saveHtml gen check', () {
     test('rejects a save whose gen was invalidated mid-flight', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1',
+      await svc.saveHtml(SiteId('site-1'),
           html: '<p>baseline</p>', url: 'https://example.com/');
-      expect(svc.getHtmlSync('site-1'), '<p>baseline</p>');
+      expect(svc.getHtmlSync(SiteId('site-1')), '<p>baseline</p>');
 
       // Race: schedule a save. Synchronously evict before the save's
       // first await resumes - simulating `goHome` running between when
       // the disposed webview's onLoadStop fired its `getHtml()` IPC and
       // when saveHtml lands.
       final saving = svc.saveHtml(
-        'site-1',
+        SiteId('site-1'),
         html: '<p>stale-from-pre-home</p>',
         url: 'https://example.com/deep',
       );
-      svc.evictInMemory('site-1');
+      svc.evictInMemory(SiteId('site-1'));
       await saving;
 
       // saveHtml must observe the gen change and drop the write so the
       // stale snapshot can't resurrect itself over the eviction.
-      expect(svc.getHtmlSync('site-1'), isNull);
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
       // On disk: rolled back. No file should remain for site-1.
       final cacheFile = File('${tempDir.path}/html_cache/site-1.enc');
       expect(await cacheFile.exists(), isFalse);
@@ -128,36 +129,36 @@ void main() {
 
     test('a save started after eviction is allowed', () async {
       final svc = HtmlCacheService.instance;
-      svc.evictInMemory('site-1');
-      await svc.saveHtml('site-1',
+      svc.evictInMemory(SiteId('site-1'));
+      await svc.saveHtml(SiteId('site-1'),
           html: '<p>fresh</p>', url: 'https://example.com/');
-      expect(svc.getHtmlSync('site-1'), '<p>fresh</p>');
+      expect(svc.getHtmlSync(SiteId('site-1')), '<p>fresh</p>');
     });
   });
 
   group('deleteCache', () {
     test('drops in-memory entry synchronously even before disk delete completes', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1',
+      await svc.saveHtml(SiteId('site-1'),
           html: '<p>cached</p>', url: 'https://example.com/');
-      expect(svc.getHtmlSync('site-1'), '<p>cached</p>');
+      expect(svc.getHtmlSync(SiteId('site-1')), '<p>cached</p>');
 
       // Don't await - check the in-memory state in the same turn.
-      final pending = svc.deleteCache('site-1');
-      expect(svc.getHtmlSync('site-1'), isNull);
+      final pending = svc.deleteCache(SiteId('site-1'));
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
       await pending;
-      expect(svc.getHtmlSync('site-1'), isNull);
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
     });
 
     test('rejects an in-flight save scheduled before the delete', () async {
       final svc = HtmlCacheService.instance;
       // Stale save in flight when delete fires - same shape as a
       // disposed-webview onLoadStop racing an explicit deletion.
-      final saving = svc.saveHtml('site-1',
+      final saving = svc.saveHtml(SiteId('site-1'),
           html: '<p>stale</p>', url: 'https://example.com/');
-      final deleting = svc.deleteCache('site-1');
+      final deleting = svc.deleteCache(SiteId('site-1'));
       await Future.wait([saving, deleting]);
-      expect(svc.getHtmlSync('site-1'), isNull);
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
       final cacheFile = File('${tempDir.path}/html_cache/site-1.enc');
       expect(await cacheFile.exists(), isFalse);
     });

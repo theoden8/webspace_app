@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -48,7 +49,7 @@ class _Host implements BackgroundWakeHost {
   List<WakeCandidate> wakeCandidates() => [
         for (final id in pages.keys)
           WakeCandidate(
-            site: WakeSite(siteId: id, name: 'Site $id'),
+            site: WakeSite(siteId: SiteId(id), name: 'Site $id'),
             notificationsEnabled: !notificationsOff.contains(id),
             live: live.contains(id),
             headlessBlocked: blocked[id],
@@ -225,7 +226,7 @@ void main() {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(2) Chat');
+        ..noteBaseline(SiteId('a'), title: '(2) Chat');
       expect((await engine.wake(host)).posted, 1);
       expect(host.posts, ['Site a: (5) Chat']);
     });
@@ -235,7 +236,7 @@ void main() {
           postsOnLoad: true);
       final host = _Host({'a': page});
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(2) Chat');
+        ..noteBaseline(SiteId('a'), title: '(2) Chat');
       expect((await engine.wake(host)).posted, 0);
     });
 
@@ -243,7 +244,7 @@ void main() {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(2) Chat');
+        ..noteBaseline(SiteId('a'), title: '(2) Chat');
       await engine.wake(host);
       await engine.wake(host);
       expect(host.posts, hasLength(1));
@@ -255,16 +256,16 @@ void main() {
       final host = _Host({'a': page});
       final engine = BackgroundWakeEngine();
       expect((await engine.wake(host)).posted, 0);
-      expect(engine.baseline('a'), 5);
+      expect(engine.baseline(SiteId('a')), 5);
     });
 
     test('forget drops sites that are gone', () {
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(1) A')
-        ..noteBaseline('b', title: '(1) B');
-      engine.forget({'a'});
-      expect(engine.baseline('a'), 1);
-      expect(engine.baseline('b'), isNull);
+        ..noteBaseline(SiteId('a'), title: '(1) A')
+        ..noteBaseline(SiteId('b'), title: '(1) B');
+      engine.forget({SiteId('a')});
+      expect(engine.baseline(SiteId('a')), 1);
+      expect(engine.baseline(SiteId('b')), isNull);
     });
   });
 
@@ -273,7 +274,7 @@ void main() {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');
       final host = _Host({'a': page}, live: {});
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(2) Chat');
+        ..noteBaseline(SiteId('a'), title: '(2) Chat');
       final report = await engine.wake(host);
       expect(report.sites.single.mode, WakeMode.headless,
           reason: 'the wake used to check only sites with a live webview, '
@@ -428,7 +429,7 @@ void main() {
       final plan = BackgroundWakeEngine.plan([
         for (final id in ['a', 'b'])
           WakeCandidate(
-            site: WakeSite(siteId: id, name: id),
+            site: WakeSite(siteId: SiteId(id), name: id),
             notificationsEnabled: true,
             live: false,
           ),
@@ -442,8 +443,8 @@ void main() {
     test('a restored baseline posts on the first wake after a relaunch',
         () async {
       final before = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(2) Chat');
-      final kept = before.baselinesOf({'a'});
+        ..noteBaseline(SiteId('a'), title: '(2) Chat');
+      final kept = before.baselinesOf({SiteId('a')});
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: '(4) Chat')},
           live: {});
       final after = BackgroundWakeEngine()..restoreBaselines(kept);
@@ -453,16 +454,16 @@ void main() {
 
     test('only the sites asked for are handed to the store', () {
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(1) A')
-        ..noteBaseline('incognito', title: '(3) B');
-      expect(engine.baselinesOf({'a'}), {'a': 1});
+        ..noteBaseline(SiteId('a'), title: '(1) A')
+        ..noteBaseline(SiteId('incognito'), title: '(3) B');
+      expect(engine.baselinesOf({SiteId('a')}), {'a': 1});
     });
 
     test('a baseline taken in this process beats a restored one', () {
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', title: '(7) A')
-        ..restoreBaselines({'a': 2});
-      expect(engine.baseline('a'), 7);
+        ..noteBaseline(SiteId('a'), title: '(7) A')
+        ..restoreBaselines({SiteId('a'): 2});
+      expect(engine.baseline(SiteId('a')), 7);
     });
   });
 
@@ -474,7 +475,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null, loadTicks: 0),
         'c': _Page(titleBefore: null, titleAfter: null)..gone = true,
       });
-      final engine = BackgroundWakeEngine()..noteBaseline('a', title: '(2) A');
+      final engine = BackgroundWakeEngine()..noteBaseline(SiteId('a'), title: '(2) A');
       final report = await engine.wake(host);
       final byId = {for (final o in report.sites) o.site.siteId: o};
       expect(byId['a']!.settle!.kind, WakeSettleKind.loaded);
@@ -509,7 +510,7 @@ void main() {
         'secret-id': _Page(titleBefore: '(1) Inbox', titleAfter: '(3) Inbox'),
       });
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('secret-id', title: '(1) Inbox');
+        ..noteBaseline(SiteId('secret-id'), title: '(1) Inbox');
       final report = await engine.wake(host);
       final line = describeWakeSite(report.sites.single, position: 1, count: 1);
       expect(line.normal, contains('wake site 1/1 (live)'));

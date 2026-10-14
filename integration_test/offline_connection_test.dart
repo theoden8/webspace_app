@@ -41,6 +41,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/webview.dart';
@@ -197,7 +198,7 @@ void main() {
                 key: UniqueKey(),
                 // Keep the surface to the network path under test: no
                 // blocker lists, no ETP shim.
-                posture: barePosture(initialUrl, siteId: 'offline-connection'),
+                posture: barePosture(initialUrl, siteId: SiteId('offline-connection')),
                 initialUrl: initialUrl,
                 initialHtml: initialHtml,
                 onReloadIssued: () => observed.reloadsIssued++,

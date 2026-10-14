@@ -270,7 +270,7 @@ SettingsImportPlan _planFromJson(Object json) => planSettingsImport(
 void _expectSanitised(SettingsImportPlan plan, {required String reason}) {
   final siteIds = <String>{};
   for (final site in plan.sites) {
-    expect(sanitizedSiteId(site.siteId), isNotNull, reason: reason);
+    expect(SiteId.parse(site.siteId), isNotNull, reason: reason);
     expect(siteIds.add(site.siteId), isTrue,
         reason: '$reason: siteId ${site.siteId} shared by two sites');
     expect(site.proxySettings.password, isNull, reason: reason);
@@ -551,7 +551,7 @@ void main() {
         expect(minimal.appPrefs, resolveExportedAppPrefs(const {}));
         expect(minimal.themeStorageIndex, 0);
         expect(minimal.webspaces.single.isAll, isTrue);
-        expect(minimal.selectedWebspaceId, kAllWebspaceId);
+        expect(minimal.selectedWebspaceId, WebspaceId.all);
       });
 
       if (_has(tag, name: 'qr_maximal.txt')) {
@@ -773,7 +773,7 @@ void main() {
       }));
       expect(p.themeStorageIndex, 0);
       expect(p.currentIndex, isNull);
-      expect(p.selectedWebspaceId, kAllWebspaceId);
+      expect(p.selectedWebspaceId, WebspaceId.all);
       expect(p.appPrefs, resolveExportedAppPrefs(const {}));
       expect(p.suggestedSites, isNull);
       expect(p.globalUserScripts, isNull);
@@ -801,7 +801,7 @@ void main() {
             isNull, reason: 'dnsBlockLevel $level');
       }
       expect(plan(backupOf(extra: {'selectedWebspaceId': 'gone'}))
-          .selectedWebspaceId, kAllWebspaceId);
+          .selectedWebspaceId, WebspaceId.all);
     });
 
     test('a legacy theme index is told apart from the current encoding', () {
@@ -905,7 +905,7 @@ void main() {
       ], webspaces: [
         {'id': 'ws', 'name': 'Ids', 'siteIds': ['a', 'gone', 'a', 7, 'b']},
         {'id': 'ws', 'name': 'Same id'},
-        {'id': kAllWebspaceId, 'name': 'All again', 'siteIds': ['a']},
+        {'id': WebspaceId.all, 'name': 'All again', 'siteIds': ['a']},
         {'id': 'legacy', 'name': 'Indices', 'siteIndices': [1, -1, 5, 'x', 0]},
         {'id': 'unnamed', 'siteIds': ['b']},
       ]));

@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/container_native.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 
 import 'helpers/mock_container_native.dart';
@@ -10,10 +12,10 @@ void main() {
       final native = MockContainerNative(supported: false);
       final engine = ContainerIsolationEngine(containerNative: native);
 
-      await engine.ensureContainer('site-A');
-      await engine.onSiteDeleted('site-A');
-      final cleared = await engine.clearForSite('site-A');
-      final gced = await engine.garbageCollectOrphans({'site-A'});
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await engine.onSiteDeleted(ContainerKey.ofSite(SiteId('site-A')));
+      final cleared = await engine.clearForSite(ContainerKey.ofSite(SiteId('site-A')));
+      final gced = await engine.garbageCollectOrphans({ContainerKey.ofSite(SiteId('site-A'))});
 
       expect(cleared, isFalse);
       expect(gced, 0);
@@ -31,9 +33,9 @@ void main() {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
 
-      await engine.ensureContainer('site-A');
-      await engine.ensureContainer('site-A');
-      await engine.ensureContainer('site-A');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
 
       expect(native.profiles, {'site-A': 'ws-site-A'});
     });
@@ -43,10 +45,10 @@ void main() {
     test('drops only the named site\'s profile', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.ensureContainer('site-A');
-      await engine.ensureContainer('site-B');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-B')));
 
-      await engine.onSiteDeleted('site-A');
+      await engine.onSiteDeleted(ContainerKey.ofSite(SiteId('site-A')));
 
       expect(native.profiles.keys, ['site-B']);
     });
@@ -55,7 +57,7 @@ void main() {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
 
-      await engine.onSiteDeleted('site-A');
+      await engine.onSiteDeleted(ContainerKey.ofSite(SiteId('site-A')));
 
       expect(native.profiles, isEmpty);
     });
@@ -71,10 +73,10 @@ void main() {
       // is documented as safe while a WKWebView is bound.
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.ensureContainer('site-A');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
       native.dataByContainer['site-A'] = ['cookie-1', 'localStorage-foo'];
 
-      final ok = await engine.clearForSite('site-A');
+      final ok = await engine.clearForSite(ContainerKey.ofSite(SiteId('site-A')));
 
       expect(ok, isTrue);
       expect(native.profiles.keys, ['site-A'],
@@ -86,10 +88,10 @@ void main() {
         () async {
       final native = MockContainerNative()..refuseClearFor = {'site-A'};
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.ensureContainer('site-A');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
       native.dataByContainer['site-A'] = ['cookie-1'];
 
-      final ok = await engine.clearForSite('site-A');
+      final ok = await engine.clearForSite(ContainerKey.ofSite(SiteId('site-A')));
 
       expect(ok, isFalse);
       expect(native.dataByContainer['site-A'], ['cookie-1'],
@@ -100,7 +102,7 @@ void main() {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
 
-      final ok = await engine.clearForSite('ghost');
+      final ok = await engine.clearForSite(ContainerKey.ofSite(SiteId('ghost')));
 
       expect(ok, isFalse);
     });
@@ -110,12 +112,12 @@ void main() {
     test('deletes profiles whose owning site no longer exists', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.ensureContainer('site-A');
-      await engine.ensureContainer('site-B');
-      await engine.ensureContainer('site-C');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-B')));
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-C')));
 
       final deleted =
-          await engine.garbageCollectOrphans({'site-A', 'site-C'});
+          await engine.garbageCollectOrphans({ContainerKey.ofSite(SiteId('site-A')), ContainerKey.ofSite(SiteId('site-C'))});
 
       expect(deleted, 1);
       expect(native.profiles.keys, unorderedEquals(['site-A', 'site-C']));
@@ -131,12 +133,12 @@ void main() {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
       // Live container under the current scheme.
-      await engine.ensureContainer('site-A');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
       // Leftover from the abandoned workaround — name happens to be
       // `<siteId>_r1` which used to be a real key.
       native.profiles['site-A_r1'] = 'ws-site-A_r1';
 
-      final deleted = await engine.garbageCollectOrphans({'site-A'});
+      final deleted = await engine.garbageCollectOrphans({ContainerKey.ofSite(SiteId('site-A'))});
 
       expect(deleted, 1);
       expect(native.profiles.keys, ['site-A']);
@@ -145,11 +147,11 @@ void main() {
     test('returns 0 when every profile has a live owner', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.ensureContainer('site-A');
-      await engine.ensureContainer('site-B');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-B')));
 
       final deleted =
-          await engine.garbageCollectOrphans({'site-A', 'site-B'});
+          await engine.garbageCollectOrphans({ContainerKey.ofSite(SiteId('site-A')), ContainerKey.ofSite(SiteId('site-B'))});
 
       expect(deleted, 0);
       expect(native.profiles.keys, unorderedEquals(['site-A', 'site-B']));
@@ -158,8 +160,8 @@ void main() {
     test('sweeps every profile when the active set is empty', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.ensureContainer('site-A');
-      await engine.ensureContainer('site-B');
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-B')));
 
       final deleted = await engine.garbageCollectOrphans({});
 

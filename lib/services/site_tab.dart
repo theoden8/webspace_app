@@ -18,29 +18,40 @@ library;
 import 'dart:math';
 import 'package:webspace/settings/site_ids.dart';
 
+/// A tab id is concatenated into a state-storage file name, so it takes the
+/// same path-safe shape as a siteId — minus `.`, which separates the two
+/// halves of a state key.
+final RegExp _kTabIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
+
+/// A tab's identity within its site's list. Made by [TabId.mint] for a new
+/// tab, [TabId.parse] for one read from outside, or [TabId.new] for one
+/// already in hand; never a bare [String].
+extension type const TabId._(String raw) implements String {
+  /// A tab id the app made or handed out before.
+  factory TabId(String raw) {
+    assert(_kTabIdPattern.hasMatch(raw), 'a tab id is path-safe: $raw');
+    return TabId._(raw);
+  }
+
+  /// A fresh id for a new tab.
+  factory TabId.mint() {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final random = Random().nextInt(999999);
+    return TabId('t${now.toRadixString(36)}-${random.toRadixString(36)}');
+  }
+
+  /// [raw] when it is a path-safe token; null otherwise.
+  static TabId? parse(Object? raw) =>
+      raw is String && _kTabIdPattern.hasMatch(raw) ? TabId._(raw) : null;
+}
+
 /// Id of the tab a site starts with, and of the one synthesised when legacy
 /// JSON (no `tabs` key) is rehydrated.
 ///
 /// Fixed rather than generated so the single-tab case round-trips: its
 /// navigation-state file keeps the same name across restarts even though
 /// serialisation omits the tab list entirely.
-const String kPrimaryTabId = 'main';
-
-/// A tab id is concatenated into a state-storage file name, so it takes the
-/// same path-safe shape as a siteId — minus `.`, which separates the two
-/// halves of a state key.
-final RegExp _kTabIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
-
-String? sanitizedTabId(Object? raw) {
-  if (raw is! String) return null;
-  return _kTabIdPattern.hasMatch(raw) ? raw : null;
-}
-
-String generateTabId() {
-  final now = DateTime.now().microsecondsSinceEpoch;
-  final random = Random().nextInt(999999);
-  return 't${now.toRadixString(36)}-${random.toRadixString(36)}';
-}
+const TabId kPrimaryTabId = TabId._('main');
 
 /// Storage key for one tab's `controller.saveState()` bytes.
 ///
@@ -48,12 +59,12 @@ String generateTabId() {
 /// `[A-Za-z0-9_-]`. That keeps `<siteId>.` a sound prefix for "every state
 /// file this site owns", which is what site deletion and archive close sweep
 /// on.
-String webViewStateKey(String siteId, {required String tabId}) =>
+String webViewStateKey(SiteId siteId, {required TabId tabId}) =>
     '$siteId.$tabId';
 
 class SiteTab {
   SiteTab({
-    String? id,
+    TabId? id,
     required this.url,
     this.title,
     this.parentId,
@@ -62,7 +73,7 @@ class SiteTab {
     this.homeUrl,
     DateTime? createdAt,
     DateTime? lastActiveAt,
-  })  : id = id ?? generateTabId(),
+  })  : id = id ?? TabId.mint(),
         createdAt = createdAt ?? DateTime.now(),
         lastActiveAt = lastActiveAt ?? createdAt ?? DateTime.now();
 
@@ -70,25 +81,25 @@ class SiteTab {
   SiteTab.primary({required String url, String? title})
       : this(id: kPrimaryTabId, url: url, title: title);
 
-  final String id;
+  final TabId id;
   String url;
   String? title;
 
   /// The tab this one was opened from, or null for a root tab. Always another
   /// tab of the same site's list, though it may run in another container.
-  String? parentId;
+  TabId? parentId;
 
   /// The site this tab runs as when it is not its owner (LIR-018): its
   /// container, posture and navigation rules. Null means the owner. The owner
   /// normalises its own id to null, so a value always names another site.
-  String? hostSiteId;
+  SiteId? hostSiteId;
 
   /// The site whose page opened this tab from a link into one of the user's
   /// sites (LIR-034), or null for a tab nothing routes: one the user opened
   /// by hand, a search's results, a link inside the page's own domain. Its
   /// routing switch decides the container: on, the tab runs as the site the
   /// link leads to; off, as the opener. May name the owner.
-  String? openerSiteId;
+  SiteId? openerSiteId;
 
   /// The link such a tab was opened at. The tab navigates inside this URL's
   /// domain whatever it runs as, which is what lets a flip of the opener's
@@ -119,16 +130,16 @@ class SiteTab {
   static SiteTab? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final json = raw.cast<dynamic, dynamic>();
-    final id = sanitizedTabId(json['id']);
+    final id = TabId.parse(json['id']);
     final url = json['url'];
     if (id == null || url is! String || url.isEmpty) return null;
     return SiteTab(
       id: id,
       url: url,
       title: json['title'] is String ? json['title'] as String : null,
-      parentId: sanitizedTabId(json['parentId']),
-      hostSiteId: sanitizedSiteId(json['hostSiteId']),
-      openerSiteId: sanitizedSiteId(json['openerSiteId']),
+      parentId: TabId.parse(json['parentId']),
+      hostSiteId: SiteId.parse(json['hostSiteId']),
+      openerSiteId: SiteId.parse(json['openerSiteId']),
       homeUrl: _webUrl(json['homeUrl']),
       createdAt: _time(json['createdAt']),
       lastActiveAt: _time(json['lastActiveAt']),
@@ -138,10 +149,10 @@ class SiteTab {
   /// The id of the entry a serialised tab list marks `active`, if any. The
   /// mark lives in the list rather than beside it, so a list that is dropped
   /// on load takes its active tab with it and leaves no other key changed.
-  static String? activeIdIn(List<dynamic>? raw) {
+  static TabId? activeIdIn(List<dynamic>? raw) {
     for (final entry in raw ?? const <dynamic>[]) {
       if (entry is Map && entry['active'] == true) {
-        return sanitizedTabId(entry['id']);
+        return TabId.parse(entry['id']);
       }
     }
     return null;

@@ -58,7 +58,7 @@ Future<void> prepareRealApp(
       jsonEncode(Webspace.all().toJson()),
       for (final w in webspaces) jsonEncode(w.toJson()),
     ],
-    'selectedWebspaceId': kAllWebspaceId,
+    'selectedWebspaceId': WebspaceId.all,
     'currentIndex': 10000,
     ...prefs,
   });

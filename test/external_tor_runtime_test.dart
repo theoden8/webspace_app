@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -61,7 +62,7 @@ void main() {
   }
 
   test('an external tor that answers comes up at its own address', () async {
-    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    final s = await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     expect(s, isA<TorUp>());
     expect((s as TorUp).host, '127.0.0.1');
     expect(s.port, 9050);
@@ -69,10 +70,10 @@ void main() {
   });
 
   test('each site presents its own credential to that tor', () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
-    final a = engine.socksFor('site-a')!;
-    final b = engine.socksFor('site-b')!;
-    final global = engine.socksFor(kTorAppGlobalTag)!;
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
+    final a = engine.socksFor(TorTag.fromWire('site-a'))!;
+    final b = engine.socksFor(TorTag.fromWire('site-b'))!;
+    final global = engine.socksFor(TorTag.app)!;
     for (final s in [a, b, global]) {
       expect(s.type, ProxyType.SOCKS5);
       expect(s.address, '127.0.0.1:9050');
@@ -85,45 +86,45 @@ void main() {
 
   test('nothing answering fails closed', () async {
     answers.answer = ExternalTorAnswer.unreachable;
-    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    final s = await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     expect(s, isA<TorErrored>());
     expect((s as TorErrored).kind, TorFailureKind.externalUnreachable);
-    expect(engine.socksFor('site-a'), isNull);
+    expect(engine.socksFor(TorTag.fromWire('site-a')), isNull);
   });
 
   test('a SOCKS proxy that is not tor is never called Tor', () async {
     answers.answer = ExternalTorAnswer.notTor;
-    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    final s = await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     expect((s as TorErrored).kind, TorFailureKind.externalUnreachable);
-    expect(engine.socksFor('site-a'), isNull);
+    expect(engine.socksFor(TorTag.fromWire('site-a')), isNull);
   });
 
   test('a malformed address is never dialled', () async {
     address = 'localhost';
-    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    final s = await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     expect((s as TorErrored).kind, TorFailureKind.externalUnreachable);
     expect(answers.asked, isEmpty);
   });
 
   test('an exit pin holds the sites rather than leave from any country',
       () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     final pinned = await settled(() => engine.setExitCountry('{de}'));
     expect((pinned as TorErrored).kind, TorFailureKind.externalExitPin);
-    expect(engine.socksFor('site-a'), isNull);
+    expect(engine.socksFor(TorTag.fromWire('site-a')), isNull);
 
     final cleared = await settled(() => engine.setExitCountry(null));
     expect(cleared, isA<TorUp>());
-    expect(engine.socksFor('site-a'), isNotNull);
+    expect(engine.socksFor(TorTag.fromWire('site-a')), isNotNull);
   });
 
   test('a changed address is asked again and its endpoint published',
       () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     address = '127.0.0.1:9150';
     final s = await settled(runtime.reconnect);
     expect((s as TorUp).port, 9150);
-    expect(engine.socksFor('site-a')!.address, '127.0.0.1:9150');
+    expect(engine.socksFor(TorTag.fromWire('site-a'))!.address, '127.0.0.1:9150');
   });
 
   test('an answer for an address since replaced is dropped', () async {
@@ -150,45 +151,45 @@ void main() {
 
   test('a tor that went away while the app was out fails closed on return',
       () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     listenerAlive = false;
     answers.answer = ExternalTorAnswer.unreachable;
     final s = await settled(engine.revive);
     expect((s as TorErrored).kind, TorFailureKind.externalUnreachable);
-    expect(engine.socksFor('site-a'), isNull);
+    expect(engine.socksFor(TorTag.fromWire('site-a')), isNull);
   });
 
   test('a tor that was not answering says so where a request is blocked',
       () async {
     answers.answer = ExternalTorAnswer.unreachable;
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
-    final route = engine.routeFor('site-a');
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
+    final route = engine.routeFor(TorTag.ofSite(SiteId('site-a')));
     expect((route as TorRouteBlocked).reason,
         'Nothing answers at 127.0.0.1:9050.');
   });
 
   test('a tor started while the app was away is found on return', () async {
     answers.answer = ExternalTorAnswer.unreachable;
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     answers.answer = ExternalTorAnswer.tor;
     final s = await settled(engine.revive);
     expect(s, isA<TorUp>());
-    expect(engine.socksFor('site-a'), isNotNull);
+    expect(engine.socksFor(TorTag.ofSite(SiteId('site-a'))), isNotNull);
   });
 
   test('a new claim asks a tor that was not answering again', () async {
     answers.answer = ExternalTorAnswer.unreachable;
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     answers.answer = ExternalTorAnswer.tor;
-    final s = await settled(() => engine.acquire(TorSiteHolder('site-b')));
+    final s = await settled(() => engine.acquire(TorSiteHolder(SiteId('site-b'))));
     expect(s, isA<TorUp>());
     expect(answers.asked, hasLength(2));
   });
 
   test('a claim already counted asks nothing', () async {
     answers.answer = ExternalTorAnswer.unreachable;
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
-    await engine.acquire(TorSiteHolder('site-a'));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
+    await engine.acquire(TorSiteHolder(SiteId('site-a')));
     expect(answers.asked, hasLength(1));
   });
 
@@ -202,7 +203,7 @@ void main() {
       final route = await TorService.instance.whileHeld(
         TorTestHolder(owner),
         within: const Duration(seconds: 5),
-        use: () async => TorService.instance.routeFor(siteId: 'site-a'),
+        use: () async => TorService.instance.routeFor(siteId: SiteId('site-a')),
       );
       expect((route as TorRouteUp).socks.username, 'site-a');
       expect(TorService.instance.holders, isEmpty);
@@ -213,23 +214,23 @@ void main() {
       TorService.overrideEngine(engine, external: runtime);
       answers.answer = ExternalTorAnswer.unreachable;
       await settled(
-          () => TorService.instance.maybeStart(TorSiteHolder('site-a')));
+          () => TorService.instance.maybeStart(TorSiteHolder(SiteId('site-a'))));
       answers.answer = ExternalTorAnswer.tor;
       final route = await TorService.instance.whileHeld(
         TorTestHolder(Object()),
         within: const Duration(seconds: 5),
-        use: () async => TorService.instance.routeFor(siteId: 'site-a'),
+        use: () async => TorService.instance.routeFor(siteId: SiteId('site-a')),
       );
       expect(route, isA<TorRouteUp>());
-      expect(TorService.instance.holders, {TorSiteHolder('site-a')});
+      expect(TorService.instance.holders, {TorSiteHolder(SiteId('site-a'))});
     });
 
     test('offers Tor and says it is an existing one', () async {
       TorService.overrideEngine(engine, external: runtime);
       expect(TorService.instance.isAvailable, isTrue);
       expect(TorService.instance.isExternal, isTrue);
-      await settled(() => TorService.instance.maybeStart(TorSiteHolder('site-a')));
-      final s = TorService.instance.socksFor(siteId: 'site-a')!;
+      await settled(() => TorService.instance.maybeStart(TorSiteHolder(SiteId('site-a'))));
+      final s = TorService.instance.socksFor(siteId: SiteId('site-a'))!;
       expect(s.username, 'site-a');
     });
 
@@ -259,24 +260,24 @@ void main() {
 
     test('the sites move to the external tor and back', () async {
       final tor = TorService.instance;
-      await tor.syncHolders({TorSiteHolder('site-a'), TorSiteHolder('site-b')});
+      await tor.syncHolders({TorSiteHolder(SiteId('site-a')), TorSiteHolder(SiteId('site-b'))});
       await _settle();
       expect(tor.isExternal, isFalse);
-      expect(tor.socksFor(siteId: 'site-a')!.address, '127.0.0.1:39999');
+      expect(tor.socksFor(siteId: SiteId('site-a'))!.address, '127.0.0.1:39999');
 
       wantExternal = true;
       await tor.runtimeChoiceChanged();
       await _settle();
       expect(tor.isExternal, isTrue);
-      expect(tor.socksFor(siteId: 'site-a')!.address, '127.0.0.1:9050');
-      expect(engine.holders, {TorSiteHolder('site-a'), TorSiteHolder('site-b')});
+      expect(tor.socksFor(siteId: SiteId('site-a'))!.address, '127.0.0.1:9050');
+      expect(engine.holders, {TorSiteHolder(SiteId('site-a')), TorSiteHolder(SiteId('site-b'))});
       expect(embedded.holders, isEmpty);
 
       wantExternal = false;
       await tor.runtimeChoiceChanged();
       await _settle();
-      expect(tor.socksFor(siteId: 'site-a')!.address, '127.0.0.1:39999');
-      expect(embedded.holders, {TorSiteHolder('site-a'), TorSiteHolder('site-b')});
+      expect(tor.socksFor(siteId: SiteId('site-a'))!.address, '127.0.0.1:39999');
+      expect(embedded.holders, {TorSiteHolder(SiteId('site-a')), TorSiteHolder(SiteId('site-b'))});
       expect(embeddedRuntime.stopCalls, 0,
           reason: 'TOR-020: the built-in tor runs once per process');
       expect(embeddedRuntime.startCalls, 1,
@@ -287,7 +288,7 @@ void main() {
       final tor = TorService.instance;
       final heard = <TorStatus>[];
       final sub = tor.statusStream.listen(heard.add);
-      await engine.acquire(TorSiteHolder('not-through-the-service'));
+      await engine.acquire(TorSiteHolder(SiteId('not-through-the-service')));
       await _settle();
       expect(heard, isEmpty, reason: 'the external tor is not chosen');
 
@@ -302,7 +303,7 @@ void main() {
     test('a pin asked of the built-in tor holds the sites on the external one',
         () async {
       final tor = TorService.instance;
-      await tor.syncHolders({TorSiteHolder('site-a')});
+      await tor.syncHolders({TorSiteHolder(SiteId('site-a'))});
       await tor.setExitCountry('{de}');
       await _settle();
       expect(embeddedRuntime.appliedExitNodes, ['{de}']);
@@ -311,12 +312,12 @@ void main() {
       await tor.runtimeChoiceChanged();
       await _settle();
       expect((tor.status as TorErrored).kind, TorFailureKind.externalExitPin);
-      expect(tor.socksFor(siteId: 'site-a'), isNull);
+      expect(tor.socksFor(siteId: SiteId('site-a')), isNull);
     });
 
     test('a flip during a flip lands on the last one', () async {
       final tor = TorService.instance;
-      await tor.syncHolders({TorSiteHolder('site-a')});
+      await tor.syncHolders({TorSiteHolder(SiteId('site-a'))});
       await _settle();
 
       wantExternal = true;
@@ -326,7 +327,7 @@ void main() {
       await Future.wait([first, second]);
       await _settle();
       expect(tor.isExternal, isFalse);
-      expect(embedded.holders, {TorSiteHolder('site-a')});
+      expect(embedded.holders, {TorSiteHolder(SiteId('site-a'))});
       expect(engine.holders, isEmpty);
     });
   });

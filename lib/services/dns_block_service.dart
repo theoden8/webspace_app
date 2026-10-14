@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -429,7 +430,7 @@ class DnsBlockService {
     return _mergedBloomFilter!;
   }
 
-  DnsStats statsForSite(String siteId) {
+  DnsStats statsForSite(SiteId siteId) {
     return _siteStats.putIfAbsent(siteId, () => DnsStats());
   }
 
@@ -441,7 +442,7 @@ class DnsBlockService {
   /// blocked-or-not bit — the DNS vs ABP distinction is recovered on the
   /// next request because both services can answer independently.
   void recordVerdict(
-    String siteId, {
+    SiteId siteId, {
     required BlockQuery query,
     required BlockVerdict verdict,
     int count = 1,
@@ -473,7 +474,7 @@ class DnsBlockService {
     _scheduleNotifyDnsLogListeners();
   }
 
-  void clearStatsForSite(String siteId) {
+  void clearStatsForSite(SiteId siteId) {
     _siteStats[siteId]?.clear();
     _scheduleNotifyDnsLogListeners();
   }

@@ -4,6 +4,7 @@ import 'dart:ui' show AppLifecycleState;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/notification_service.dart';
 
 void main() {
@@ -81,7 +82,7 @@ void main() {
   group('Notification identity (NOTIF-002)', () {
 NotificationTarget target(String siteId,
         {required String? tag, required int seq}) =>
-    NotificationTarget.resolve(siteId: siteId, tag: tag, sequence: seq);
+    NotificationTarget.resolve(siteId: SiteId(siteId), tag: tag, sequence: seq);
 
     test('same page tag from the same site replaces the earlier post', () {
       final a = target('site-a', tag: 'chat-42', seq: 1);
@@ -127,7 +128,7 @@ NotificationTarget target(String siteId,
       for (final t in [
         target('site-a', tag: 'chat-42', seq: 1),
         target('site-a', tag: null, seq: DateTime.now().microsecondsSinceEpoch),
-        target('', tag: null, seq: -1),
+        target('z', tag: null, seq: -1),
       ]) {
         expect(t.id, greaterThanOrEqualTo(0));
         expect(t.id, lessThanOrEqualTo(0x7fffffff));

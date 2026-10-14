@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -33,7 +34,7 @@ void main() {
     test('legacy JSON with currentUrl and no tabs migrates to one tab', () {
       // A site as an older build wrote it: one URL, no tab list.
       final json = WebViewModel(
-        siteId: 'abc123',
+        siteId: SiteId('abc123'),
         initUrl: 'https://github.com/',
         name: 'GitHub',
       ).toJson()
@@ -137,19 +138,19 @@ void main() {
 
   group('TAB-002 — state keys are per tab', () {
     test('the key is siteId and tabId, separated unambiguously', () {
-      final m = WebViewModel(initUrl: 'https://github.com/', siteId: 'site_1');
+      final m = WebViewModel(initUrl: 'https://github.com/', siteId: SiteId('site_1'));
       expect(m.activeStateKey, 'site_1.main');
-      expect(m.stateKeyForTab('t9'), 'site_1.t9');
+      expect(m.stateKeyForTab(TabId('t9')), 'site_1.t9');
       // The separator cannot occur inside either half, so "everything this
       // site owns" is a sound prefix match.
       expect(m.activeStateKey.startsWith('${m.siteId}.'), isTrue);
     });
 
     test('the key follows the active tab', () {
-      final m = WebViewModel(initUrl: 'https://github.com/', siteId: 'site_1');
-      final second = SiteTab(id: 'tb', url: 'https://github.com/pulls');
+      final m = WebViewModel(initUrl: 'https://github.com/', siteId: SiteId('site_1'));
+      final second = SiteTab(id: TabId('tb'), url: 'https://github.com/pulls');
       m.tabs = [...m.tabs, second];
-      m.activeTabId = 'tb';
+      m.activeTabId = TabId('tb');
       expect(m.activeStateKey, 'site_1.tb');
     });
   });
@@ -175,7 +176,7 @@ void main() {
 
     test('an incognito site\'s tab list comes back on rehydrate', () {
       final json = WebViewModel(
-        siteId: 'abc123',
+        siteId: SiteId('abc123'),
         initUrl: 'https://en.wikipedia.org/',
         name: 'Wikipedia',
       ).toJson()

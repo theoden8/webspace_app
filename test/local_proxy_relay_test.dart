@@ -10,6 +10,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/local_proxy_relay.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -138,7 +140,7 @@ void main() {
   test('a credential the relay does not know is challenged', () async {
     relay.setRoutes({
       'ws-site-a': LocalProxyRoute(
-        siteId: 'site-a',
+        identity: RouterIdentity.ofSite(SiteId('site-a')),
         token: 'token-a',
         upstream: UserProxySettings(type: ProxyType.DEFAULT),
       ),
@@ -157,7 +159,7 @@ void main() {
   test('the right username with the wrong token is challenged', () async {
     relay.setRoutes({
       'ws-site-a': LocalProxyRoute(
-        siteId: 'site-a',
+        identity: RouterIdentity.ofSite(SiteId('site-a')),
         token: 'token-a',
         upstream: UserProxySettings(type: ProxyType.DEFAULT),
       ),
@@ -181,7 +183,7 @@ void main() {
   test('a known credential on a direct route tunnels to the origin', () async {
     relay.setRoutes({
       'ws-site-a': LocalProxyRoute(
-        siteId: 'site-a',
+        identity: RouterIdentity.ofSite(SiteId('site-a')),
         token: 'token-a',
         upstream: UserProxySettings(type: ProxyType.DEFAULT),
       ),
@@ -204,7 +206,7 @@ void main() {
     addTearDown(socks.close);
     relay.setRoutes({
       'ws-site-tor': LocalProxyRoute(
-        siteId: 'site-tor',
+        identity: RouterIdentity.ofSite(SiteId('site-tor')),
         token: 'token-tor',
         upstream: UserProxySettings(
           type: ProxyType.SOCKS5,
@@ -239,7 +241,7 @@ void main() {
 
     relay.setRoutes({
       'ws-site-a': LocalProxyRoute(
-        siteId: 'site-a',
+        identity: RouterIdentity.ofSite(SiteId('site-a')),
         token: 'token-a',
         upstream: UserProxySettings(
           type: ProxyType.SOCKS5,
@@ -273,7 +275,7 @@ void main() {
     addTearDown(socksB.close);
     relay.setRoutes({
       'ws-a': LocalProxyRoute(
-        siteId: 'a',
+        identity: RouterIdentity.ofSite(SiteId('a')),
         token: 'ta',
         upstream: UserProxySettings(
           type: ProxyType.SOCKS5,
@@ -281,7 +283,7 @@ void main() {
         ),
       ),
       'ws-b': LocalProxyRoute(
-        siteId: 'b',
+        identity: RouterIdentity.ofSite(SiteId('b')),
         token: 'tb',
         upstream: UserProxySettings(
           type: ProxyType.SOCKS5,
@@ -340,7 +342,7 @@ void main() {
     addTearDown(socks.close);
     relay.setRoutes({
       'ws-tls': LocalProxyRoute(
-        siteId: 'tls',
+        identity: RouterIdentity.ofSite(SiteId('tls')),
         token: 'token-tls',
         upstream: UserProxySettings(
           type: ProxyType.SOCKS5,
@@ -384,7 +386,7 @@ void main() {
   test('a challenged client may retry on the same connection', () async {
     relay.setRoutes({
       'ws-site-a': LocalProxyRoute(
-        siteId: 'site-a',
+        identity: RouterIdentity.ofSite(SiteId('site-a')),
         token: 'token-a',
         upstream: UserProxySettings(type: ProxyType.DEFAULT),
       ),
@@ -433,12 +435,12 @@ void main() {
     setUp(() {
       relay.setRoutes({
         'ws-site-a': LocalProxyRoute(
-          siteId: 'site-a',
+          identity: RouterIdentity.ofSite(SiteId('site-a')),
           token: 'tok-a',
           upstream: UserProxySettings(type: ProxyType.DEFAULT),
         ),
         'ws-site-b': LocalProxyRoute(
-          siteId: 'site-b',
+          identity: RouterIdentity.ofSite(SiteId('site-b')),
           token: 'tok-b',
           upstream: UserProxySettings(type: ProxyType.DEFAULT),
         ),

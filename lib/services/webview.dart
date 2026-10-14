@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:math' as math;
+import 'package:webspace/services/container_names.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
@@ -65,7 +66,7 @@ import 'package:webspace/services/page_js.dart';
 /// process gave it and the site no longer names one, so it has to be
 /// cleared ([ProxyManager.releaseContainerProxy]) before the first load.
 typedef StoreBinding = ({
-  String? containerId,
+  ContainerName? containerId,
   inapp.ProxySettings? proxy,
   bool proxyUnavailable,
   bool proxyConfigured,
@@ -213,7 +214,7 @@ class WebViewFactory {
     // already platform-aware (Windows / web fall through to the stub
     // which returns false); no extra Platform gate needed.
     // Archive-tier sites (ARCH-007) pass an opaque
-    // [archiveContainerId] derived from `HMAC(archiveKey, "container:" +
+    // [archiveContainerKey] derived from `HMAC(archiveKey, "container:" +
     // siteId)`, so directory listings under the native container roots
     // expose neither the cleartext archive siteId nor a count delta
     // that correlates 1:1 with archive contents.
@@ -228,8 +229,7 @@ class WebViewFactory {
     // profile and relies on the existing teardown: incognito ids are deleted
     // at startup and archive container ids at close.
     final containerId = containerIdFor(
-      siteId: siteId,
-      archiveContainerId: posture.container.archiveContainerId,
+      key: posture.container.containerKey,
       incognito: posture.container.incognito,
     );
 

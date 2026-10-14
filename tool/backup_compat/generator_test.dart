@@ -118,7 +118,9 @@ void main() {
 
     final theme = _map(superset['theme']);
     final allWebspace = Webspace.fromJson({
-      'id': kAllWebspaceId,
+      // The persisted id, the same in every release; the constant that names
+      // it changed type.
+      'id': '__all_webspace__',
       'name': 'All',
       'siteIndices': <int>[],
       'siteIds': <String>[],

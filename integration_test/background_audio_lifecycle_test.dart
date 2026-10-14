@@ -32,6 +32,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
@@ -88,7 +89,7 @@ void main() {
 
     isDemoMode = true;
     final audioSite = WebViewModel(
-      siteId: 'bg-audio',
+      siteId: SiteId('bg-audio'),
       // ?media=none: the fixture creates no media element. WPE in the
       // headless CI container (GStreamer base only, no plugin sets or audio
       // sink) crash-loops the web process on media-pipeline init, and this
@@ -137,7 +138,7 @@ void main() {
     }
 
     // Activate the site through the drawer, same as lazy_webview_loading.
-    await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+    await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
     await tester.pumpAndSettle(const Duration(seconds: 5));
     final tile = find.text('BG Audio');
     expect(tile, findsOneWidget, reason: 'site should appear in the drawer');

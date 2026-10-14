@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -108,18 +109,18 @@ void main() {
   group('activation', () {
     test('installs one route per site and reports the relay port', () async {
       final port = await service.activate(perSiteProxies: {
-        'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
-        'b': proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
+        RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
       });
 
       expect(port, 43210);
       expect(service.isActive, isTrue);
       expect(relay.installed, hasLength(2));
       expect(
-        relay.resolve(service.credentialFor('a')!)!['type'],
+        relay.resolve(service.credentialFor(RouterIdentity.ofSite(SiteId('a')))!)!['type'],
         'socks5',
       );
-      expect(relay.resolve(service.credentialFor('b')!)!['host'], '10.0.0.1');
+      expect(relay.resolve(service.credentialFor(RouterIdentity.ofSite(SiteId('b')))!)!['host'], '10.0.0.1');
     });
 
     test('the override is bound before the probe runs (PROXY-015)', () async {
@@ -129,7 +130,7 @@ void main() {
       // router mode then can never activate anywhere.
       final order = <String>[];
       final port = await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
         bindOverride: (h, {required port}) async {
           order.add('bind');
           return true;
@@ -149,7 +150,7 @@ void main() {
 
     test('a failed override bind leaves the service inactive', () async {
       final port = await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
         bindOverride: (h, {required port}) async => false,
       );
 
@@ -160,20 +161,20 @@ void main() {
     test('a bind failure leaves the service inactive', () async {
       relay.canBind = false;
       final port = await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
       );
 
       // Null means "fall back to the PROXY-008 unload", never "clear the
       // override" — an inactive router must not look active.
       expect(port, isNull);
       expect(service.isActive, isFalse);
-      expect(service.credentialFor('a'), isNull);
+      expect(service.credentialFor(RouterIdentity.ofSite(SiteId('a'))), isNull);
     });
 
     test('a rejected route table leaves the service inactive', () async {
       relay.acceptsRoutes = false;
       final port = await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
       );
 
       expect(port, isNull);
@@ -209,7 +210,7 @@ void main() {
 
     test("refuses a site's own 401 once active", () async {
       await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
       );
       expect(
         service.ownsChallenge(host: 'bank.example.com', realm: service.realm),
@@ -231,13 +232,13 @@ void main() {
   group('route refresh', () {
     test('a deleted site loses its route', () async {
       await service.activate(perSiteProxies: {
-        'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
-        'b': proxy(ProxyType.HTTP, address: '10.0.0.2:8080'),
+        RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.2:8080'),
       });
-      final credentialB = service.credentialFor('b')!;
+      final credentialB = service.credentialFor(RouterIdentity.ofSite(SiteId('b')))!;
 
       await service.refreshRoutes(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
       );
 
       expect(relay.installed, hasLength(1));
@@ -250,17 +251,17 @@ void main() {
 
     test('a changed proxy repoints the same credential', () async {
       await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
       );
-      final credential = service.credentialFor('a')!;
+      final credential = service.credentialFor(RouterIdentity.ofSite(SiteId('a')))!;
 
       await service.refreshRoutes(
         perSiteProxies: {
-          'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050')
+          RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050')
         },
       );
 
-      expect(service.credentialFor('a'), credential);
+      expect(service.credentialFor(RouterIdentity.ofSite(SiteId('a'))), credential);
       expect(relay.resolve(credential)!['type'], 'socks5');
       expect(relay.resolve(credential)!['port'], 9050);
     });
@@ -268,13 +269,13 @@ void main() {
     test('a site with a malformed proxy is dropped, never sent direct',
         () async {
       await service.activate(perSiteProxies: {
-        'good': proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
-        'broken': proxy(ProxyType.HTTP, address: 'no-port-here'),
+        RouterIdentity.ofSite(SiteId('good')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        RouterIdentity.ofSite(SiteId('broken')): proxy(ProxyType.HTTP, address: 'no-port-here'),
       });
 
-      expect(relay.resolve(service.credentialFor('good')!), isNotNull);
+      expect(relay.resolve(service.credentialFor(RouterIdentity.ofSite(SiteId('good')))!), isNotNull);
       expect(
-        relay.resolve(service.credentialFor('broken')!),
+        relay.resolve(service.credentialFor(RouterIdentity.ofSite(SiteId('broken')))!),
         isNull,
         reason: 'a site whose proxy will not parse must fail closed',
       );
@@ -288,7 +289,7 @@ void main() {
       expect(
         await service.refreshRoutes(
           perSiteProxies: {
-            'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')
+            RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')
           },
         ),
         isFalse,
@@ -301,16 +302,17 @@ void main() {
     test('a credential is never reused across sites', () async {
       await service.activate(perSiteProxies: {
         for (var i = 0; i < 25; i++)
-          'site-$i': proxy(ProxyType.DEFAULT, address: null),
+          RouterIdentity.ofSite(SiteId('site-$i')):
+              proxy(ProxyType.DEFAULT, address: null),
       });
       expect(relay.installed.keys.toSet(), hasLength(25));
     });
 
     test('the wire table carries no token beyond the map key', () async {
       await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
       );
-      final credential = service.credentialFor('a')!;
+      final credential = service.credentialFor(RouterIdentity.ofSite(SiteId('a')))!;
       final entry = relay.resolve(credential)!;
       // The upstream half of the entry is the user's own proxy config.
       // The site's token must not be duplicated into it, or an upstream
@@ -444,9 +446,9 @@ void main() {
 
   test('the credential the service issues is the relay map key', () async {
     await service.activate(
-      perSiteProxies: {'acme': proxy(ProxyType.DEFAULT, address: null)},
+      perSiteProxies: {RouterIdentity.ofSite(SiteId('acme')): proxy(ProxyType.DEFAULT, address: null)},
     );
-    final credential = service.credentialFor('acme')!;
+    final credential = service.credentialFor(RouterIdentity.ofSite(SiteId('acme')))!;
     expect(relay.installed.containsKey(credential), isTrue);
 
     final decoded = utf8.decode(base64.decode(credential));
@@ -454,7 +456,8 @@ void main() {
     final token = decoded.substring('ws-acme:'.length);
     expect(token, hasLength(32));
     expect(
-      ProxyRouterEngine.credentialFor(siteId: 'acme', token: token),
+      ProxyRouterEngine.credentialFor(
+          identity: RouterIdentity.ofSite(SiteId('acme')), token: token),
       credential,
     );
   });
@@ -483,8 +486,8 @@ void main() {
         () async {
       final port = await service.activate(
         perSiteProxies: {
-          'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
-          'b': proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+          RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
+          RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
         },
         probe: honestDevice(),
       );
@@ -501,8 +504,8 @@ void main() {
       // exactly like success: routes installed, relay bound, pages load.
       final port = await service.activate(
         perSiteProxies: {
-          'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
-          'b': proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+          RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
+          RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
         },
         probe: sharedAuthCacheDevice('a'),
       );
@@ -510,7 +513,7 @@ void main() {
       expect(port, isNull);
       expect(service.isActive, isFalse,
           reason: 'a device that cannot attribute must fall back to PROXY-008');
-      expect(service.credentialFor('a'), isNull);
+      expect(service.credentialFor(RouterIdentity.ofSite(SiteId('a'))), isNull);
       expect(relay.stopCalls, greaterThan(0),
           reason: 'the relay must not be left listening after a failed check');
     });
@@ -518,8 +521,8 @@ void main() {
     test('refuses when any site fails to report at all', () async {
       final port = await service.activate(
         perSiteProxies: {
-          'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
-          'b': proxy(ProxyType.HTTP, address: '10.0.0.2:8080'),
+          RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+          RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.2:8080'),
         },
         // Only site a probes; b never arrives.
         probe: (siteIdToProbeUrl) async {
@@ -535,7 +538,7 @@ void main() {
 
     test('refuses when the probe itself throws', () async {
       final port = await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
         probe: (_) async => throw StateError('no webview'),
       );
       expect(port, isNull);
@@ -548,7 +551,8 @@ void main() {
       await service.activate(
         perSiteProxies: {
           for (var i = 0; i < 5; i++)
-            'site-$i': proxy(ProxyType.DEFAULT, address: null),
+            RouterIdentity.ofSite(SiteId('site-$i')):
+              proxy(ProxyType.DEFAULT, address: null),
         },
         probe: (siteIdToProbeUrl) async {
           urls.addAll(siteIdToProbeUrl.values);
@@ -566,7 +570,7 @@ void main() {
 
     test('no probe supplied means no check (the test-only path)', () async {
       final port = await service.activate(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
       );
       expect(port, 43210);
       expect(relay.clearProbeCalls, 0);

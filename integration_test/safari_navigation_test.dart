@@ -40,6 +40,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/app.dart';
 import 'package:webspace/screens/webspace_page.dart';
@@ -51,7 +52,7 @@ import 'fixture_server.dart';
 import 'helpers/ui.dart';
 import 'package:webspace/services/webview_controller.dart';
 
-const String _siteId = 'safari-nav';
+final _siteId = SiteId('safari-nav');
 const String _siteName = 'Safari Nav';
 
 void main() {
@@ -189,7 +190,7 @@ void main() {
       // Drawer opens over the lazy IndexedStack placeholder (no live webview
       // yet), so pumping to animate it is safe.
       log('activate: open drawer');
-      await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+      await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
       await pumpFor(tester, total: const Duration(seconds: 2));
       final tile = find.text(_siteName);
       expect(tile, findsOneWidget,

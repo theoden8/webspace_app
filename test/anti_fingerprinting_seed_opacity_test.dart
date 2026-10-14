@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 
 void main() {
   group('the page never sees the record behind the seed (SEC-006)', () {
-    String source({String siteId = 'site-A', String nonce = 'nonce-1'}) =>
+    String source({SiteId? siteId, String nonce = 'nonce-1'}) =>
         buildAntiFingerprintingScriptSource(
-          siteId: siteId,
+          siteId: siteId ?? SiteId('site-A'),
           trackingProtectionEnabled: true,
           incognito: true,
           launchNonce: nonce,
@@ -36,8 +37,8 @@ void main() {
     });
 
     test('two incognito sites in one launch share no seed material', () {
-      final a = RegExp(r'"seed":"([0-9a-f]+)"').firstMatch(source(siteId: 'site-A'))!.group(1)!;
-      final b = RegExp(r'"seed":"([0-9a-f]+)"').firstMatch(source(siteId: 'site-B'))!.group(1)!;
+      final a = RegExp(r'"seed":"([0-9a-f]+)"').firstMatch(source(siteId: SiteId('site-A')))!.group(1)!;
+      final b = RegExp(r'"seed":"([0-9a-f]+)"').firstMatch(source(siteId: SiteId('site-B')))!.group(1)!;
       expect(a, isNot(equals(b)));
       expect(a.substring(0, 8), isNot(equals(b.substring(0, 8))));
     });

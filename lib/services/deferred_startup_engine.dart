@@ -1,4 +1,5 @@
 import 'package:webspace/services/timezone_spoof_policy.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// The per-site fields the deferred-startup orchestration reads. `siteId` is the
 /// stable identity used across `await`s; list position is never used, which is
@@ -15,7 +16,7 @@ class DeferredSite {
     required this.spoofLongitude,
   });
 
-  final String siteId;
+  final SiteId siteId;
   final bool notificationsEnabled;
   final bool spoofTimezoneFromLocation;
   final bool trackingProtectionEnabled;
@@ -36,38 +37,38 @@ abstract class DeferredStartupHost {
   bool get isMounted;
 
   /// Site still present — the engine skips it after an await when false.
-  bool isLive(String siteId);
+  bool isLive(SiteId siteId);
 
-  bool isLoaded(String siteId);
-  void markLoaded(String siteId);
+  bool isLoaded(SiteId siteId);
+  void markLoaded(SiteId siteId);
 
-  Future<void> preloadHtml(String siteId);
-  Future<void> applyTheme(String siteId);
+  Future<void> preloadHtml(SiteId siteId);
+  Future<void> applyTheme(SiteId siteId);
 
   /// Queue the site's saved nav-state bytes (if any) on its model so the
   /// first webview build applies `restoreState` — the cross-restart
   /// back/forward restore for sites loaded outside `setCurrentIndex`
   /// (PAUSE-019). No-op when nothing is saved or a controller already
   /// exists.
-  Future<void> queueNavStateRestore(String siteId);
+  Future<void> queueNavStateRestore(SiteId siteId);
   void requestRebuild();
 
   Future<bool> loadTimezoneDataset();
   String? resolveTimezone(double latitude, {required double longitude});
 
   /// Apply the resolved zone; returns true iff the stored value changed.
-  bool setSpoofTimezone(String siteId, {required String timezone});
+  bool setSpoofTimezone(SiteId siteId, {required String timezone});
   Future<void> persist();
 
   /// Live site sets, read fresh (not a startup snapshot) — so a site added
   /// post-paint is treated as live, not swept as an orphan.
-  Set<String> liveSiteIds();
-  Set<String> liveNonIncognitoSiteIds();
+  Set<SiteId> liveSiteIds();
+  Set<SiteId> liveNonIncognitoSiteIds();
 
   /// Remove on-disk storage for sites NOT in the given live sets (cookies,
   /// proxy passwords, HTML caches/imports, webview state, global cookie jar).
   Future<void> sweepOrphanStorage(
-      Set<String> activeSiteIds, {required Set<String> nonIncognitoSiteIds});
+      Set<SiteId> activeSiteIds, {required Set<SiteId> nonIncognitoSiteIds});
 }
 
 /// Orchestration that runs *after* first paint (so the UI is interactive and
@@ -115,7 +116,7 @@ class DeferredStartupEngine {
   /// `siteId`, so a delete/reorder during the load can't bake a zone onto the
   /// wrong site.
   static Future<void> refreshLocationTimezones(DeferredStartupHost host) async {
-    final targets = <({String siteId, double lat, double lng})>[];
+    final targets = <({SiteId siteId, double lat, double lng})>[];
     for (final s in host.currentSites()) {
       if (derivesTimezoneFromLocation(
         spoofTimezoneFromLocation: s.spoofTimezoneFromLocation,
@@ -149,7 +150,7 @@ class DeferredStartupEngine {
   /// the sweep reads LIVE site sets so a site added post-paint isn't reclaimed.
   static Future<void> runPostPaintMaintenance(
     DeferredStartupHost host, {
-    required Set<String> alreadyThemedSiteIds,
+    required Set<SiteId> alreadyThemedSiteIds,
     required bool needsResave,
   }) async {
     final ids = [for (final s in host.currentSites()) s.siteId];

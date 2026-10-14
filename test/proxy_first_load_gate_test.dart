@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -13,23 +14,23 @@ void main() {
     final torSite = UserProxySettings(type: ProxyType.TOR);
 
     test('explicit Tor site waits while Tor is down', () {
-      expect(waitsForTor(torSite, siteId: 's', torUp: false), isTrue);
-      expect(waitsForTor(torSite, siteId: 's', torUp: true), isFalse);
+      expect(waitsForTor(torSite, siteId: SiteId('s'), torUp: false), isTrue);
+      expect(waitsForTor(torSite, siteId: SiteId('s'), torUp: true), isFalse);
     });
 
     test('DEFAULT site under a global Tor waits exactly like an explicit one', () {
       GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.TOR));
-      expect(waitsForTor(defaultSite, siteId: 's', torUp: false), isTrue);
-      expect(waitsForTor(defaultSite, siteId: 's', torUp: true), isFalse);
+      expect(waitsForTor(defaultSite, siteId: SiteId('s'), torUp: false), isTrue);
+      expect(waitsForTor(defaultSite, siteId: SiteId('s'), torUp: true), isFalse);
     });
 
     test('DEFAULT site with no global Tor never waits', () {
-      expect(waitsForTor(defaultSite, siteId: 's', torUp: false), isFalse);
+      expect(waitsForTor(defaultSite, siteId: SiteId('s'), torUp: false), isFalse);
       GlobalOutboundProxy.setForTest(UserProxySettings(
         type: ProxyType.SOCKS5,
         address: 'p:1080',
       ));
-      expect(waitsForTor(defaultSite, siteId: 's', torUp: false), isFalse);
+      expect(waitsForTor(defaultSite, siteId: SiteId('s'), torUp: false), isFalse);
     });
   });
 

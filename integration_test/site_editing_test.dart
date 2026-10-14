@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
@@ -28,7 +29,7 @@ void main() {
     isDemoMode = true;
 
     final site = WebViewModel(
-      siteId: 'edit-1',
+      siteId: SiteId('edit-1'),
       initUrl: 'http://example.invalid/',
       name: 'Old Name',
     );
@@ -54,7 +55,7 @@ void main() {
     // Open the drawer by tapping the All-webspace tile (already
     // selected by default, so the same-id branch in
     // `WebspacesController.select` calls openDrawer()).
-    final allTile = find.byKey(const ValueKey(kAllWebspaceId));
+    final allTile = find.byKey(const ValueKey(WebspaceId.all));
     expect(allTile, findsOneWidget);
     await tester.tap(allTile);
     await tester.pumpAndSettle(const Duration(seconds: 5));
@@ -110,7 +111,7 @@ void main() {
     // now read 'New Name'. The drawer may have closed itself after
     // the dialog; reopen if so.
     if (find.text('New Name').evaluate().isEmpty) {
-      await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+      await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
       await tester.pumpAndSettle(const Duration(seconds: 3));
     }
     if (find.text('New Name').evaluate().isEmpty) {

@@ -43,9 +43,9 @@ class MockContainerNative implements ContainerNative {
   }
 
   @override
-  Future<String> getOrCreateContainer(String siteId) async {
+  Future<ContainerName> getOrCreateContainer(ContainerKey siteId) async {
     calls.add('getOrCreateContainer($siteId)');
-    final name = 'ws-$siteId';
+    final name = ContainerName.of(siteId);
     containers[siteId] = name;
     cookiesByContainer.putIfAbsent(name, () => <String, String>{});
     return name;
@@ -53,25 +53,25 @@ class MockContainerNative implements ContainerNative {
 
 
   @override
-  Future<bool> deleteContainer(String siteId) async {
+  Future<bool> deleteContainer(ContainerKey siteId) async {
     calls.add('deleteContainer($siteId)');
     final existed = containers.remove(siteId) != null;
-    cookiesByContainer.remove('ws-$siteId');
+    cookiesByContainer.remove(ContainerName.of(siteId));
     return existed;
   }
 
   @override
-  Future<bool> clearContainerData(String siteId) async {
+  Future<bool> clearContainerData(ContainerKey siteId) async {
     calls.add('clearContainerData($siteId)');
     if (!containers.containsKey(siteId)) return false;
-    cookiesByContainer['ws-$siteId'] = {};
+    cookiesByContainer[ContainerName.of(siteId)] = {};
     return true;
   }
 
   @override
-  Future<List<String>> listContainers() async {
+  Future<List<ContainerKey>> listContainers() async {
     calls.add('listContainers');
-    return containers.keys.toList();
+    return [for (final name in containers.keys) ContainerKey.named(name)];
   }
 
   /// Inject an orphan profile to simulate state left behind by a previous
@@ -80,8 +80,8 @@ class MockContainerNative implements ContainerNative {
   /// must drop both the profile name and its data.
   void seedOrphanContainer(String siteId,
       {required Map<String, String> cookies}) {
-    containers[siteId] = 'ws-$siteId';
-    cookiesByContainer['ws-$siteId'] = Map.of(cookies);
+    containers[siteId] = ContainerName.of(ContainerKey.named(siteId));
+    cookiesByContainer[ContainerName.of(ContainerKey.named(siteId))] = Map.of(cookies);
   }
 }
 
@@ -97,7 +97,7 @@ class SimWebView {
 
   SimWebView(this.siteId, {required this.native});
 
-  String get _profileName => 'ws-$siteId';
+  String get _profileName => ContainerName.of(ContainerKey.named(siteId));
 
   Future<void> setCookie(String name, {required String value}) async {
     final jar = native.cookiesByContainer.putIfAbsent(
@@ -148,7 +148,7 @@ class ContainerIsolationTestHarness with SiteListState {
     if (index < 0 || index >= sites.length) return;
 
     final target = sites[index];
-    await engine.ensureContainer(target.siteId);
+    await engine.ensureContainer(target.containerKey);
 
     currentIndex = index;
     loadedIndices.add(index);
@@ -166,7 +166,7 @@ class ContainerIsolationTestHarness with SiteListState {
   Future<void> deleteSite(int index) async {
     final deleted = sites[index];
     _webViewsBySiteId.remove(deleted.siteId);
-    await engine.onSiteDeleted(deleted.siteId);
+    await engine.onSiteDeleted(deleted.containerKey);
     removeSiteAt(index);
   }
 
@@ -175,7 +175,7 @@ class ContainerIsolationTestHarness with SiteListState {
   /// profiles to verify they don't survive.
   Future<int> simulateAppStartupGc() async {
     return engine.garbageCollectOrphans(
-      sites.map((s) => s.siteId).toSet(),
+      sites.map((s) => s.containerKey).toSet(),
     );
   }
 }
@@ -392,8 +392,8 @@ void main() {
       // the user deleted one before profile mode could clean up. Two
       // of the seeded profiles match the current siteIds; the third is
       // an orphan.
-      await h.engine.ensureContainer(h.sites[0].siteId);
-      await h.engine.ensureContainer(h.sites[1].siteId);
+      await h.engine.ensureContainer(h.sites[0].containerKey);
+      await h.engine.ensureContainer(h.sites[1].containerKey);
       h.native.seedOrphanContainer('deleted-in-prev-session', cookies: {
         'still-here': 'leaks-without-gc',
       });
@@ -413,8 +413,8 @@ void main() {
       final h = ContainerIsolationTestHarness();
       h.addSite('https://a.com');
       h.addSite('https://b.com');
-      await h.engine.ensureContainer(h.sites[0].siteId);
-      await h.engine.ensureContainer(h.sites[1].siteId);
+      await h.engine.ensureContainer(h.sites[0].containerKey);
+      await h.engine.ensureContainer(h.sites[1].containerKey);
 
       final deleted = await h.simulateAppStartupGc();
 

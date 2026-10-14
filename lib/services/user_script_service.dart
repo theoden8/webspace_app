@@ -311,7 +311,7 @@ class UserScriptService {
   /// never need explicit resetting. SPA re-injection (where `window`
   /// persists) deliberately bypasses this helper so that scripts can
   /// re-initialize on route changes.
-  static String _guarded(String scriptId, {required String source}) {
+  static String _guarded(UserScriptId scriptId, {required String source}) {
     final safeId = scriptId.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_');
     return 'if (!window.__wsRan_$safeId) { window.__wsRan_$safeId = true;\n$source\n}';
   }

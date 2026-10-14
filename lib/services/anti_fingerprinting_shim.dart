@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -24,7 +25,7 @@ import 'package:webspace/services/page_js.dart';
 /// null/empty the seed is unchanged, so sites stored before this field
 /// existed keep their fingerprint until the user resets them.
 String computeAntiFingerprintingSeed({
-  required String siteId,
+  required SiteId siteId,
   required bool incognito,
   required String launchNonce,
   String? resetNonce,
@@ -42,7 +43,7 @@ String computeAntiFingerprintingSeed({
 /// gate → seed derivation → shim text — is exercisable from `flutter test`
 /// without standing up `WebViewFactory.createWebView`.
 String? buildAntiFingerprintingScriptSource({
-  required String? siteId,
+  required SiteId? siteId,
   required bool trackingProtectionEnabled,
   required bool incognito,
   required String launchNonce,

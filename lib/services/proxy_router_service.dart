@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 // Conditional so a UI file that reaches this service still compiles for
@@ -17,7 +18,7 @@ import 'package:webspace/settings/proxy.dart';
 /// without a WebView; `main.dart` supplies the real one, which opens a
 /// short-lived headless WebView bound to that site's container.
 typedef ProxyAttributionProbe = Future<void> Function(
-  Map<String, String> siteIdToProbeUrl,
+  Map<SiteId, String> siteIdToProbeUrl,
 );
 
 /// Points the process-wide WebView proxy at the relay on [host]:[port].
@@ -177,17 +178,18 @@ class ProxyRouterService {
   /// The credential a site presents to the relay, or null when router
   /// mode is not running (in which case the WebView must not answer any
   /// proxy challenge at all). This is the relay's map key.
-  String? credentialFor(String siteId) =>
-      isActive ? _state!.credentialFor(siteId) : null;
+  String? credentialFor(RouterIdentity identity) =>
+      isActive ? _state!.credentialFor(identity) : null;
 
   /// The raw token half, for `HttpAuthResponse.password`. Chromium does
   /// its own base64, so the challenge answer carries the parts and the
   /// route table carries the encoded blob; both come from one token.
-  String? tokenFor(String siteId) => isActive ? _state!.tokenFor(siteId) : null;
+  String? tokenFor(RouterIdentity identity) =>
+      isActive ? _state!.tokenFor(identity) : null;
 
   /// The username half. Carries no secret.
-  String usernameFor(String siteId) =>
-      '${ProxyRouterEngine.usernamePrefix}$siteId';
+  String usernameFor(RouterIdentity identity) =>
+      '${ProxyRouterEngine.usernamePrefix}$identity';
 
   /// Whether an `onReceivedHttpAuthRequest` challenge belongs to the
   /// relay. Delegates the policy to the engine so it stays testable
@@ -212,7 +214,7 @@ class ProxyRouterService {
   /// the proxy override: the caller must fall back to the PROXY-008 path,
   /// which still honours the user's per-site choice.
   Future<int?> activate({
-    required Map<String, UserProxySettings> perSiteProxies,
+    required Map<RouterIdentity, UserProxySettings> perSiteProxies,
     ProxyRouterOverrideBinder? bindOverride,
     ProxyAttributionProbe? probe,
   }) async {
@@ -278,16 +280,14 @@ class ProxyRouterService {
   /// a challenge itself, as `AwHttpAuthHandler` cancels with no
   /// `WebContents` — already has a credential to send.
   Future<bool> _verifyAttribution(
-    Iterable<String> siteIds, {
+    Iterable<RouterIdentity> identities, {
     required ProxyAttributionProbe probe,
   }) async {
     if (_state == null) return false;
     // The shared-profile identity has no container to drive, and nothing
     // to prove: it exists precisely because those sites share one
     // session. What the probe certifies is the per-container boundary.
-    final sites = siteIds
-        .where((s) => s != ProxyRouterEngine.sharedProfileIdentity)
-        .toList();
+    final sites = [for (final identity in identities) ?identity.site];
     if (sites.isEmpty) return true;
 
     await _relay.clearProbeResults();
@@ -331,20 +331,21 @@ class ProxyRouterService {
   /// Credentials of sites that disappeared are revoked, so a deleted
   /// site's token stops routing without restarting the relay.
   Future<bool> refreshRoutes({
-    required Map<String, UserProxySettings> perSiteProxies,
+    required Map<RouterIdentity, UserProxySettings> perSiteProxies,
   }) async {
     if (!isActive) return false;
     return _installRoutes(perSiteProxies);
   }
 
   Future<bool> _installRoutes(
-    Map<String, UserProxySettings> perSiteProxies,
+    Map<RouterIdentity, UserProxySettings> perSiteProxies,
   ) async {
     final state = _state;
     if (state == null) return false;
     state.retainOnly(perSiteProxies.keys);
     final tokens = {
-      for (final siteId in perSiteProxies.keys) siteId: state.tokenFor(siteId)
+      for (final identity in perSiteProxies.keys)
+        identity: state.tokenFor(identity)
     };
     final routes = ProxyRouterEngine.buildRoutes(
       perSiteProxies: perSiteProxies,

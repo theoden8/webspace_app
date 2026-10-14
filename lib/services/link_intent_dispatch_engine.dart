@@ -7,6 +7,7 @@
 library;
 
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/navigation_decision_engine.dart'
     show NavigationDecision;
 import 'package:webspace/services/outbound_preference.dart';
@@ -82,7 +83,7 @@ class DispatchUnsupported extends DispatchAction {
 /// can't be loaded into an existing webview that's mid-session — a
 /// defence against IP / session leakage across share boundaries.
 class DispatchOpenInMain extends DispatchAction {
-  final String siteId;
+  final SiteId siteId;
   final String url;
   final bool disposeBeforeLoad;
   final bool wipeContainer;
@@ -106,7 +107,7 @@ class DispatchOpenInMain extends DispatchAction {
 /// privacy settings. Used for cross-domain shares (LIR-011) so a site's
 /// main session is not clobbered, and for outbound routing (LIR-015).
 class DispatchOpenNested extends DispatchAction {
-  final String siteId;
+  final SiteId siteId;
   final String url;
 
   /// The screen opens over a site the user is browsing (outbound routing),
@@ -124,7 +125,7 @@ class DispatchOpenNested extends DispatchAction {
 /// A link into one of the user's sites, where the site on screen has tabs:
 /// open it as a child tab of the tab it came from, run as [siteId] (LIR-032).
 class DispatchOpenInTab extends DispatchAction {
-  final String siteId;
+  final SiteId siteId;
   final String url;
   const DispatchOpenInTab({required this.siteId, required this.url});
 }
@@ -166,7 +167,7 @@ class DispatchCreateSiteFromHtml extends DispatchAction {
 /// back into `LinkIntentDispatchEngine.openInChosen`,
 /// `bindToSite`, or `createNew` to get the follow-up action.
 class DispatchShowPicker extends DispatchAction {
-  final List<String> winnerSiteIds;
+  final List<SiteId> winnerSiteIds;
   final bool offerBind;
   final bool offerCreate;
 
@@ -193,7 +194,7 @@ class DispatchShowPicker extends DispatchAction {
 /// computes "what comes after binding" on its own — that decision is
 /// fully owned by the engine.
 class DispatchBindAndOpen extends DispatchAction {
-  final String chosenSiteId;
+  final SiteId chosenSiteId;
   final List<DomainClaim> claimAdditions;
   final DispatchAction followUp;
   const DispatchBindAndOpen({
@@ -329,7 +330,7 @@ class LinkIntentDispatchEngine {
   /// sites can, [current] is kept if it is one of them, since the user picked
   /// it, else the tab stays with the opener rather than being put in one of
   /// them silently.
-  static String linkTabRunsAs({
+  static SiteId linkTabRunsAs({
     required Uri homeUrl,
     required String homeNavigationDomain,
     required bool routeOutboundLinks,
@@ -337,7 +338,7 @@ class LinkIntentDispatchEngine {
     required DispatchableSite opener,
     required List<OutboundPreference> openerPrefs,
     required List<DispatchableSite> Function() hosts,
-    required String current,
+    required SiteId current,
   }) {
     if (!routeOutboundLinks || !containersActive) return opener.siteId;
     final able = _tabHosts(homeNavigationDomain,
@@ -351,7 +352,7 @@ class LinkIntentDispatchEngine {
 
   static List<DispatchableSite> _tabHosts(
     String navigationDomain, {
-    required String sourceSiteId,
+    required SiteId sourceSiteId,
     required List<DispatchableSite> hosts,
   }) =>
       [
@@ -364,7 +365,7 @@ class LinkIntentDispatchEngine {
   /// preferences first, then claim specificity. More than one means ask.
   static List<RoutableSite> _tabHostChoice(
     Uri url, {
-    required String sourceSiteId,
+    required SiteId sourceSiteId,
     required List<OutboundPreference> sourcePrefs,
     required List<DispatchableSite> able,
   }) {
@@ -462,7 +463,7 @@ class LinkIntentDispatchEngine {
   /// that claim's current target.
   static List<OutboundPreference> preferencesToRemember({
     required Uri url,
-    required String targetSiteId,
+    required SiteId targetSiteId,
     required List<OutboundPreference> existing,
   }) {
     final held = {for (final p in existing) p.claim};

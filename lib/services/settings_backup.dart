@@ -23,7 +23,7 @@ class SettingsBackup {
   final List<Map<String, dynamic>> webspaces;
   final int themeMode;
   final Map<String, dynamic> globalPrefs;
-  final String? selectedWebspaceId;
+  final WebspaceId? selectedWebspaceId;
   final int? currentIndex;
   final DateTime exportedAt;
   final List<Map<String, dynamic>>? suggestedSites;
@@ -122,9 +122,7 @@ class SettingsBackup {
           .toList(),
       themeMode: json['themeMode'] is int ? json['themeMode'] as int : 0,
       globalPrefs: prefs,
-      selectedWebspaceId: json['selectedWebspaceId'] is String
-          ? json['selectedWebspaceId'] as String
-          : null,
+      selectedWebspaceId: WebspaceId.parse(json['selectedWebspaceId']),
       currentIndex:
           json['currentIndex'] is int ? json['currentIndex'] as int : null,
       exportedAt: (exportedAt is String ? DateTime.tryParse(exportedAt) : null) ??
@@ -177,7 +175,7 @@ class SettingsBackupService {
     bool? showUrlBar,
     bool? showTabStrip,
     bool? showStatsBanner,
-    String? selectedWebspaceId,
+    WebspaceId? selectedWebspaceId,
     int? currentIndex,
     List<Map<String, dynamic>>? suggestedSites,
     List<Map<String, dynamic>>? globalUserScripts,
@@ -197,7 +195,7 @@ class SettingsBackupService {
     }).toList();
 
     final webspacesJson = webspaces
-        .where((ws) => ws.id != kAllWebspaceId)
+        .where((ws) => ws.id != WebspaceId.all)
         .map((ws) => ws.toJson())
         .toList();
 
@@ -353,7 +351,7 @@ class SettingsBackupService {
     final webspaces = <Webspace>[Webspace.all()];
     for (final json in backup.webspaces) {
       final ws = Webspace.fromJson(json);
-      if (ws.id != kAllWebspaceId) {
+      if (ws.id != WebspaceId.all) {
         webspaces.add(ws);
       }
     }

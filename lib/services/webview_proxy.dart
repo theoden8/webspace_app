@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 
@@ -91,7 +92,7 @@ inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
 /// `URL.host` and `URL.port` alone, so userinfo never reaches
 /// `applyCredential` (PROXY-025).
 inapp.ProxySettings? routerRelayProxyFor({
-  required String? siteId,
+  required SiteId? siteId,
   required bool ownsContainer,
 }) {
   // Only where the proxy is bound per store (PROXY-027). Under the
@@ -147,7 +148,7 @@ inapp.ProxySettings? routerRelayProxyFor({
 /// Where router mode is not active, [ProxyRouterService.ownsChallenge] is
 /// false and this returns null.
 Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
-  String? identity, {
+  RouterIdentity? identity, {
   required inapp.HttpAuthenticationChallenge challenge,
 }) async {
   if (identity == null) return null;
@@ -171,23 +172,21 @@ Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
 /// Sites without a container profile share the default profile's cached
 /// proxy credential, so they share one identity; see
 /// [ProxyRouterEngine.sharedProfileIdentity].
-String routerIdentityForSite({
-  required String siteId,
-  String? archiveContainerId,
+RouterIdentity routerIdentityForSite({
+  required SiteId siteId,
   required bool incognito,
 }) =>
     ProxyRouterEngine.identityFor(
       siteId: siteId,
       ownsContainer: siteOwnsContainerProfile(
         containersSupported: ContainerNative.instance.cachedSupported,
-        containerSiteIdentifier: archiveContainerId ?? siteId,
         incognito: incognito,
       ),
     );
 
-String routerIdentityForConfig(WebViewConfig config) => routerIdentityForSite(
+RouterIdentity routerIdentityForConfig(WebViewConfig config) =>
+    routerIdentityForSite(
       siteId: config.posture.siteId,
-      archiveContainerId: config.posture.container.archiveContainerId,
       incognito: config.posture.container.incognito,
     );
 
@@ -202,11 +201,9 @@ String routerIdentityForConfig(WebViewConfig config) => routerIdentityForSite(
 /// such site.
 bool siteOwnsContainerProfile({
   required bool containersSupported,
-  required String? containerSiteIdentifier,
   required bool incognito,
 }) =>
     containersSupported &&
-    containerSiteIdentifier != null &&
     // Android binds one even under incognito: it has no ephemeral profile,
     // so an unbound site would share the default store with every other
     // such site and leave its storage behind (ARCH-006/ARCH-007). The other
@@ -214,25 +211,20 @@ bool siteOwnsContainerProfile({
     // session of its own and needs no name.
     (!incognito || hostIsAndroid);
 
-/// The native container a site's webview binds (`ws-<id>`), or null when it
+/// The native container a site's webview binds (`ws-<key>`), or null when it
 /// binds none: the legacy engine, or an incognito site off Android, which gets
-/// an ephemeral store. [archiveContainerId] stands in for [siteId] for an
-/// archive-tier site. The one rule [WebViewFactory.createWebView] binds by and
+/// an ephemeral store. The one rule [WebViewFactory.createWebView] binds by and
 /// the site info sheet reports.
-String? containerIdFor({
-  required String? siteId,
-  String? archiveContainerId,
+ContainerName? containerIdFor({
+  required ContainerKey key,
   required bool incognito,
-}) {
-  final containerSiteIdentifier = archiveContainerId ?? siteId;
-  return siteOwnsContainerProfile(
-    containersSupported: ContainerNative.instance.cachedSupported,
-    containerSiteIdentifier: containerSiteIdentifier,
-    incognito: incognito,
-  )
-      ? 'ws-$containerSiteIdentifier'
-      : null;
-}
+}) =>
+    siteOwnsContainerProfile(
+      containersSupported: ContainerNative.instance.cachedSupported,
+      incognito: incognito,
+    )
+        ? ContainerName.of(key)
+        : null;
 
 /// Two delivery paths coexist behind a single API:
 ///
@@ -282,7 +274,7 @@ class ProxyManager {
   static final ContainerProxyLedger containerProxies = ContainerProxyLedger();
 
   /// Called wherever a WebView is built with [proxy] on [containerId].
-  static void noteStoreProxy(String? containerId,
+  static void noteStoreProxy(ContainerName? containerId,
           {required inapp.ProxySettings? proxy}) =>
       containerProxies.noteBuild(containerId, proxy: proxy);
 
@@ -290,7 +282,7 @@ class ProxyManager {
   /// WebViews back to the app-wide override or to no proxy. Throws if the
   /// clear fails; the caller keeps the page blank rather than loading it
   /// through the proxy the site gave up.
-  Future<void> releaseContainerProxy(String containerId) async {
+  Future<void> releaseContainerProxy(ContainerName containerId) async {
     await containerProxies.release(
       containerId,
       clear: (id) =>
@@ -304,7 +296,7 @@ class ProxyManager {
   /// it every Tor site would present the app-global credential, and the one
   /// rule in force would put them all on one circuit.
   Future<void> setProxySettings(UserProxySettings settings,
-      {required String siteId}) async {
+      {required SiteId siteId}) async {
     if (!PlatformInfo.isProxySupported) {
       LogTag.proxy.debug(
           'setProxySettings: platform does not support proxy override; no-op',

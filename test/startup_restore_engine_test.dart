@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -32,10 +33,10 @@ void main() {
     });
 
     test('the first match wins if siteIds collide (hand-edited backup)', () {
-      final a = WebViewModel(initUrl: 'https://a.com', siteId: 'dup');
-      final b = WebViewModel(initUrl: 'https://b.com', siteId: 'dup');
+      final a = WebViewModel(initUrl: 'https://a.com', siteId: SiteId('dup'));
+      final b = WebViewModel(initUrl: 'https://b.com', siteId: SiteId('dup'));
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'dup',
+        shortcutSiteId: SiteId('dup'),
         shortcutUrl: 'https://b.com',
         models: [a, b],
         rememberedRemap: const {},
@@ -47,10 +48,10 @@ void main() {
       final a = _site('https://a.com');
       final b = _site('https://b.com');
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'stale-id',
+        shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: 'https://b.com',
         models: [a, b],
-        rememberedRemap: {'stale-id': b.siteId},
+        rememberedRemap: {SiteId('stale-id'): b.siteId},
       );
       expect(r, isA<LaunchOpenSite>());
       expect((r as LaunchOpenSite).index, 1);
@@ -61,10 +62,10 @@ void main() {
       final b = _site('https://b.com');
       // url points at a.com, but the user previously rebound to b.
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'stale-id',
+        shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: 'https://a.com',
         models: [a, b],
-        rememberedRemap: {'stale-id': b.siteId},
+        rememberedRemap: {SiteId('stale-id'): b.siteId},
       );
       expect((r as LaunchOpenSite).index, 1);
     });
@@ -72,10 +73,10 @@ void main() {
     test('stale remap (target deleted) falls through to domain match', () {
       final a = _site('https://mail.example.com/inbox');
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'stale-id',
+        shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: 'https://www.example.com/',
         models: [a],
-        rememberedRemap: const {'stale-id': 'also-gone'},
+        rememberedRemap: {SiteId('stale-id'): SiteId('also-gone')},
       );
       expect(r, isA<LaunchConfirmExisting>());
       expect((r as LaunchConfirmExisting).index, 0);
@@ -86,7 +87,7 @@ void main() {
       final a = _site('https://a.com');
       final b = _site('https://mail.example.com/inbox');
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'stale-id',
+        shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: 'https://calendar.example.com/day',
         models: [a, b],
         rememberedRemap: const {},
@@ -98,7 +99,7 @@ void main() {
     test('siteId gone, no domain match -> LaunchOfferCreate', () {
       final a = _site('https://a.com');
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'stale-id',
+        shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: 'https://newsite.example/',
         models: [a],
         rememberedRemap: const {},
@@ -112,7 +113,7 @@ void main() {
         () {
       final a = _site('https://a.com');
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'stale-id',
+        shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: null,
         models: [a],
         rememberedRemap: const {},
@@ -124,7 +125,7 @@ void main() {
     test('placeholder handle (siteId gone, no url) with no sites -> LaunchNone',
         () {
       final r = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: 'stale-id',
+        shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: null,
         models: const [],
         rememberedRemap: const {},
@@ -137,8 +138,8 @@ void main() {
     test('records url for a pinned site that still exists', () {
       final next = ShortcutUrlLedger.reconcile(
         ledger: const {},
-        currentSiteUrls: const {'s1': 'https://a.com'},
-        pinnedSiteIds: const {'s1'},
+        currentSiteUrls: {SiteId('s1'): 'https://a.com'},
+        pinnedSiteIds: {SiteId('s1')},
       );
       expect(next, {'s1': 'https://a.com'});
     });
@@ -147,18 +148,18 @@ void main() {
       // s1 was pinned and its url recorded; the site is since gone but the
       // launcher tile remains, so we must keep the url to route the next tap.
       final next = ShortcutUrlLedger.reconcile(
-        ledger: const {'s1': 'https://a.com'},
+        ledger: {SiteId('s1'): 'https://a.com'},
         currentSiteUrls: const {},
-        pinnedSiteIds: const {'s1'},
+        pinnedSiteIds: {SiteId('s1')},
       );
       expect(next, {'s1': 'https://a.com'});
     });
 
     test('prunes entries that are neither current nor pinned', () {
       final next = ShortcutUrlLedger.reconcile(
-        ledger: const {'gone': 'https://gone.com', 's1': 'https://a.com'},
-        currentSiteUrls: const {'s1': 'https://a.com'},
-        pinnedSiteIds: const {'s1'},
+        ledger: {SiteId('gone'): 'https://gone.com', SiteId('s1'): 'https://a.com'},
+        currentSiteUrls: {SiteId('s1'): 'https://a.com'},
+        pinnedSiteIds: {SiteId('s1')},
       );
       expect(next, {'s1': 'https://a.com'});
     });
@@ -169,15 +170,15 @@ void main() {
       final next = ShortcutUrlLedger.reconcile(
         ledger: const {},
         currentSiteUrls: const {},
-        pinnedSiteIds: const {'s1'},
+        pinnedSiteIds: {SiteId('s1')},
       );
       expect(next, isEmpty);
     });
 
     test('current sites are kept even when not pinned', () {
       final next = ShortcutUrlLedger.reconcile(
-        ledger: const {'s1': 'https://a.com'},
-        currentSiteUrls: const {'s1': 'https://a.com'},
+        ledger: {SiteId('s1'): 'https://a.com'},
+        currentSiteUrls: {SiteId('s1'): 'https://a.com'},
         pinnedSiteIds: const {},
       );
       expect(next, {'s1': 'https://a.com'});
@@ -185,7 +186,7 @@ void main() {
 
     test('an orphan with no pinned tile is pruned (Android getPinnedSiteIds)', () {
       final next = ShortcutUrlLedger.reconcile(
-        ledger: const {'gone': 'https://gone.com'},
+        ledger: {SiteId('gone'): 'https://gone.com'},
         currentSiteUrls: const {},
         pinnedSiteIds: const {},
       );
@@ -194,8 +195,8 @@ void main() {
   });
 
   group('ShortcutTombstones.add (iOS HS-011)', () {
-    Map<String, String> tomb(String id, {required String url}) =>
-        {'siteId': id, 'label': id, 'url': url};
+    ShortcutTombstone tomb(String id, {required String url}) =>
+        (siteId: SiteId(id), label: id, url: url);
 
     test('appends a new tombstone', () {
       final next = ShortcutTombstones.add(
@@ -228,21 +229,13 @@ void main() {
         entry: tomb('s3', url: 'https://3.com'),
         cap: 3,
       );
-      expect(next.map((t) => t['siteId']), ['s1', 's2', 's3']);
-    });
-
-    test('ignores an entry with an empty siteId', () {
-      final next = ShortcutTombstones.add(
-        tombstones: [tomb('s1', url: 'https://a.com')],
-        entry: tomb('', url: 'https://x.com'),
-      );
-      expect(next, [tomb('s1', url: 'https://a.com')]);
+      expect(next.map((t) => t.siteId), ['s1', 's2', 's3']);
     });
 
     test('pruneLive drops tombstones whose id is now live', () {
       final next = ShortcutTombstones.pruneLive(
         [tomb('s1', url: 'https://a.com'), tomb('s2', url: 'https://b.com')],
-        liveSiteIds: {'s1'},
+        liveSiteIds: {SiteId('s1')},
       );
       expect(next, [tomb('s2', url: 'https://b.com')]);
     });
@@ -252,7 +245,7 @@ void main() {
     test('returns the pinned set when there is no remap', () {
       expect(
         ShortcutPinState.effectivePinnedSiteIds(
-          pinnedSiteIds: {'a', 'b'},
+          pinnedSiteIds: {SiteId('a'), SiteId('b')},
           rememberedRemap: const {},
         ),
         {'a', 'b'},
@@ -263,8 +256,8 @@ void main() {
       // Tile "old" (pinned) was rebound to "new"; "new" is now reachable.
       expect(
         ShortcutPinState.effectivePinnedSiteIds(
-          pinnedSiteIds: {'old'},
-          rememberedRemap: const {'old': 'new'},
+          pinnedSiteIds: {SiteId('old')},
+          rememberedRemap: {SiteId('old'): SiteId('new')},
         ),
         {'old', 'new'},
       );
@@ -275,8 +268,8 @@ void main() {
       // its target as pinned.
       expect(
         ShortcutPinState.effectivePinnedSiteIds(
-          pinnedSiteIds: {'a'},
-          rememberedRemap: const {'removed': 'target'},
+          pinnedSiteIds: {SiteId('a')},
+          rememberedRemap: {SiteId('removed'): SiteId('target')},
         ),
         {'a'},
       );
@@ -287,8 +280,8 @@ void main() {
     test('finds the directly-pinned tile', () {
       expect(
         ShortcutPinState.tilesReaching(
-          siteId: 'a',
-          pinnedSiteIds: {'a', 'b'},
+          siteId: SiteId('a'),
+          pinnedSiteIds: {SiteId('a'), SiteId('b')},
           rememberedRemap: const {},
         ),
         {'a'},
@@ -300,9 +293,9 @@ void main() {
       // surface "old" so the prompt can manage that tile.
       expect(
         ShortcutPinState.tilesReaching(
-          siteId: 'new',
-          pinnedSiteIds: {'old'},
-          rememberedRemap: const {'old': 'new'},
+          siteId: SiteId('new'),
+          pinnedSiteIds: {SiteId('old')},
+          rememberedRemap: {SiteId('old'): SiteId('new')},
         ),
         {'old'},
       );
@@ -311,9 +304,9 @@ void main() {
     test('finds both a direct tile and rebound tiles', () {
       expect(
         ShortcutPinState.tilesReaching(
-          siteId: 's',
-          pinnedSiteIds: {'s', 'x', 'y'},
-          rememberedRemap: const {'x': 's', 'y': 'other'},
+          siteId: SiteId('s'),
+          pinnedSiteIds: {SiteId('s'), SiteId('x'), SiteId('y')},
+          rememberedRemap: {SiteId('x'): SiteId('s'), SiteId('y'): SiteId('other')},
         ),
         {'s', 'x'},
       );
@@ -322,9 +315,9 @@ void main() {
     test('returns empty when nothing reaches the site', () {
       expect(
         ShortcutPinState.tilesReaching(
-          siteId: 'z',
-          pinnedSiteIds: {'a'},
-          rememberedRemap: const {'a': 'b'},
+          siteId: SiteId('z'),
+          pinnedSiteIds: {SiteId('a')},
+          rememberedRemap: {SiteId('a'): SiteId('b')},
         ),
         isEmpty,
       );
@@ -333,12 +326,12 @@ void main() {
 
   group('ShortcutPinState.sitesOfTiles (HS-016)', () {
     test('a tile opens its own site, else the site it was rebound to', () {
-      final a = WebViewModel(initUrl: 'https://a.com', siteId: 'a');
-      final b = WebViewModel(initUrl: 'https://b.com', siteId: 'b');
+      final a = WebViewModel(initUrl: 'https://a.com', siteId: SiteId('a'));
+      final b = WebViewModel(initUrl: 'https://b.com', siteId: SiteId('b'));
       expect(
         ShortcutPinState.sitesOfTiles(
-          pinnedSiteIds: {'a', 'gone'},
-          rememberedRemap: const {'gone': 'b'},
+          pinnedSiteIds: {SiteId('a'), SiteId('gone')},
+          rememberedRemap: {SiteId('gone'): SiteId('b')},
           models: [a, b],
         ),
         {'a': a, 'gone': b},
@@ -346,12 +339,12 @@ void main() {
     });
 
     test('the own site wins over a rebind, as a tap resolves it', () {
-      final a = WebViewModel(initUrl: 'https://a.com', siteId: 'a');
-      final b = WebViewModel(initUrl: 'https://b.com', siteId: 'b');
+      final a = WebViewModel(initUrl: 'https://a.com', siteId: SiteId('a'));
+      final b = WebViewModel(initUrl: 'https://b.com', siteId: SiteId('b'));
       expect(
         ShortcutPinState.sitesOfTiles(
-          pinnedSiteIds: {'a'},
-          rememberedRemap: const {'a': 'b'},
+          pinnedSiteIds: {SiteId('a')},
+          rememberedRemap: {SiteId('a'): SiteId('b')},
           models: [a, b],
         ),
         {'a': a},
@@ -361,20 +354,20 @@ void main() {
     test('leaves out a tile that opens no site', () {
       expect(
         ShortcutPinState.sitesOfTiles(
-          pinnedSiteIds: {'gone'},
-          rememberedRemap: const {'gone': 'also-gone'},
-          models: [WebViewModel(initUrl: 'https://a.com', siteId: 'a')],
+          pinnedSiteIds: {SiteId('gone')},
+          rememberedRemap: {SiteId('gone'): SiteId('also-gone')},
+          models: [WebViewModel(initUrl: 'https://a.com', siteId: SiteId('a'))],
         ),
         isEmpty,
       );
     });
 
     test('leaves out an archive-tier site (ARCH-006)', () {
-      final archived = WebViewModel(initUrl: 'https://a.com', siteId: 'a')
+      final archived = WebViewModel(initUrl: 'https://a.com', siteId: SiteId('a'))
         ..isArchiveTier = true;
       expect(
         ShortcutPinState.sitesOfTiles(
-          pinnedSiteIds: {'a'},
+          pinnedSiteIds: {SiteId('a')},
           rememberedRemap: const {},
           models: [archived],
         ),
@@ -389,7 +382,7 @@ void main() {
 
     test('a tile never written this launch is rewritten', () {
       final plan = ShortcutPinState.staleTiles(
-        want: {'a': (label: 'Mail', icon: png1)},
+        want: {SiteId('a'): (label: 'Mail', icon: png1)},
         shown: const {},
       );
       expect(plan.updates, [(tile: 'a', label: 'Mail', icon: png1)]);
@@ -398,16 +391,16 @@ void main() {
 
     test('a matching tile is left alone', () {
       final plan = ShortcutPinState.staleTiles(
-        want: {'a': (label: 'Mail', icon: Uint8List.fromList([1, 2, 3]))},
-        shown: {'a': (label: 'Mail', icon: png1)},
+        want: {SiteId('a'): (label: 'Mail', icon: Uint8List.fromList([1, 2, 3]))},
+        shown: {SiteId('a'): (label: 'Mail', icon: png1)},
       );
       expect(plan.updates, isEmpty);
     });
 
     test('a rename rewrites the label and keeps the icon', () {
       final plan = ShortcutPinState.staleTiles(
-        want: {'a': (label: 'Inbox', icon: png1)},
-        shown: {'a': (label: 'Mail', icon: png1)},
+        want: {SiteId('a'): (label: 'Inbox', icon: png1)},
+        shown: {SiteId('a'): (label: 'Mail', icon: png1)},
       );
       expect(plan.updates, [(tile: 'a', label: 'Inbox', icon: null)]);
       expect(plan.shown['a'], (label: 'Inbox', icon: png1));
@@ -415,22 +408,22 @@ void main() {
 
     test('a new icon is sent', () {
       final plan = ShortcutPinState.staleTiles(
-        want: {'a': (label: 'Mail', icon: png2)},
-        shown: {'a': (label: 'Mail', icon: png1)},
+        want: {SiteId('a'): (label: 'Mail', icon: png2)},
+        shown: {SiteId('a'): (label: 'Mail', icon: png1)},
       );
       expect(plan.updates, [(tile: 'a', label: 'Mail', icon: png2)]);
     });
 
     test('an icon not known yet never replaces the one a tile has', () {
       final plan = ShortcutPinState.staleTiles(
-        want: {'a': (label: 'Mail', icon: null)},
-        shown: {'a': (label: 'Mail', icon: png1)},
+        want: {SiteId('a'): (label: 'Mail', icon: null)},
+        shown: {SiteId('a'): (label: 'Mail', icon: png1)},
       );
       expect(plan.updates, isEmpty);
 
       final renamed = ShortcutPinState.staleTiles(
-        want: {'a': (label: 'Inbox', icon: null)},
-        shown: {'a': (label: 'Mail', icon: png1)},
+        want: {SiteId('a'): (label: 'Inbox', icon: null)},
+        shown: {SiteId('a'): (label: 'Mail', icon: png1)},
       );
       expect(renamed.updates, [(tile: 'a', label: 'Inbox', icon: null)]);
       expect(renamed.shown['a'], (label: 'Inbox', icon: png1));
@@ -438,10 +431,10 @@ void main() {
 
     test('a tile not wanted keeps its record', () {
       final plan = ShortcutPinState.staleTiles(
-        want: {'a': (label: 'Inbox', icon: null)},
+        want: {SiteId('a'): (label: 'Inbox', icon: null)},
         shown: {
-          'a': (label: 'Mail', icon: null),
-          'b': (label: 'News', icon: png2),
+          SiteId('a'): (label: 'Mail', icon: null),
+          SiteId('b'): (label: 'News', icon: png2),
         },
       );
       expect(plan.updates.map((u) => u.tile), ['a']);

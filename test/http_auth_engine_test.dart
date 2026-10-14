@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/url_host.dart';
 
@@ -9,25 +10,25 @@ class _MemoryStore implements HttpAuthCredentialStore {
   final Map<String, HttpAuthCredential> entries = {};
   int lookups = 0;
 
-  static String _key(String siteId,
+  static String _key(SiteId siteId,
           {required String host, required String realm}) =>
       '$siteId|$host|$realm';
 
   @override
   Future<HttpAuthCredential?> lookup(
-      String siteId, {required Host host, required String realm}) async {
+      SiteId siteId, {required Host host, required String realm}) async {
     lookups++;
     return entries[_key(siteId, host: host, realm: realm)];
   }
 
   @override
-  Future<void> save(String siteId, {required Host host, required String realm,
+  Future<void> save(SiteId siteId, {required Host host, required String realm,
       required HttpAuthCredential credential}) async {
     entries[_key(siteId, host: host, realm: realm)] = credential;
   }
 
   @override
-  Future<void> remove(String siteId,
+  Future<void> remove(SiteId siteId,
       {required Host host, required String realm}) async {
     entries.remove(_key(siteId, host: host, realm: realm));
   }
@@ -51,11 +52,11 @@ HttpAuthSession _session({
   required _MemoryStore store,
   HttpAuthPrompt? prompt,
   HttpAuthMemory memory = HttpAuthMemory.readWrite,
-  String? siteId = 'site-1',
+  SiteId? siteId,
   String siteUrl = 'https://nas.example.com/files/',
 }) =>
     HttpAuthSession(
-      siteId: siteId,
+      siteId: siteId ?? SiteId('site-1'),
       siteUrl: siteUrl,
       memory: memory,
       store: store,
@@ -369,8 +370,13 @@ void main() {
         const HttpAuthPromptResult(
             username: 'bob', password: 'x', remember: true),
       ]);
-      final session =
-          _session(store: store, prompt: prompt.call, siteId: null);
+      final session = HttpAuthSession(
+        siteId: null,
+        siteUrl: 'https://nas.example.com/files/',
+        memory: HttpAuthMemory.readWrite,
+        store: store,
+        prompt: prompt.call,
+      );
 
       await session.answer(_challenge());
       expect(store.lookups, 0);

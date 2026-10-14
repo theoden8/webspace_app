@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -9,6 +10,7 @@ import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -46,14 +48,14 @@ class _ArchiveSlice {
   _ArchiveSlice({
     required this.siteIds,
     required this.webspaceIds,
-    required this.containerIds,
+    required this.containerKeys,
   });
-  final Set<String> siteIds;
-  final Set<String> webspaceIds;
+  final Set<SiteId> siteIds;
+  final Set<WebspaceId> webspaceIds;
 
-  /// Opaque container ids of the archive's sites, deleted on close so no
+  /// Opaque container keys of the archive's sites, deleted on close so no
   /// archive-tier container directory outlives it (ARCH-007).
-  final Set<String> containerIds;
+  final Set<ContainerKey> containerKeys;
 }
 
 /// Passphrase-gated archives on the page (spec `archive`): opening one puts
@@ -121,8 +123,8 @@ class ArchiveController {
         stateSetterF: _host.rebuild,
         isArchiveTier: true,
       );
-      model.archiveContainerId =
-          await _containerIdFor(handle.key, siteId: model.siteId);
+      model.archiveContainerKey =
+          await _containerKeyFor(handle.key, siteId: model.siteId);
       final cookieList = handle.state.cookies[model.siteId];
       if (cookieList != null && cookieList.isNotEmpty) {
         model.setPendingArchiveCookies([
@@ -140,7 +142,7 @@ class ArchiveController {
     _slices[handle] = _ArchiveSlice(
       siteIds: {for (final m in sites) m.siteId},
       webspaceIds: {for (final w in webspaces) w.id},
-      containerIds: {for (final m in sites) m.archiveContainerId!},
+      containerKeys: {for (final m in sites) m.archiveContainerKey!},
     );
     await _host.commitSites(ArchiveOpened(
       sites: sites,
@@ -152,16 +154,17 @@ class ArchiveController {
   /// ARCH-007: an HMAC of the archive key and the site id, shaped like an
   /// app-tier siteId (radix-36-dash-radix-36) so directory listings look
   /// uniform.
-  static Future<String> _containerIdFor(
+  static Future<ContainerKey> _containerKeyFor(
     Uint8List archiveKey, {
-    required String siteId,
+    required SiteId siteId,
   }) async {
     final mac = await ArchiveCrypto.hmac(archiveKey, info: 'container:$siteId');
     final bd = ByteData.view(mac.buffer, mac.offsetInBytes);
     final v1 =
         (bd.getUint16(0) * 0x100000000) + bd.getUint32(2); // 48-bit group
     final v2 = bd.getUint32(6);
-    return '${v1.toRadixString(36)}-${v2.toRadixString(36)}';
+    return ContainerKey.named(
+        '${v1.toRadixString(36)}-${v2.toRadixString(36)}');
   }
 
   /// Seals [handle]: its sites, cookies and collections back into its state,
@@ -225,8 +228,8 @@ class ArchiveController {
       m.disposeWebView();
     }
     // ARCH-007, best-effort: filesystems may retain freed blocks.
-    for (final cid in slice.containerIds) {
-      await containers.containerNative.deleteContainer(cid);
+    for (final key in slice.containerKeys) {
+      await containers.containerNative.deleteContainer(key);
     }
     // A `ws-<siteId>` for an archived site means some path bound one without
     // the opaque id; it would otherwise name the site on disk until the next
@@ -238,7 +241,9 @@ class ArchiveController {
           if (!m.isArchiveTier) m.siteId,
       };
       for (final sid in slice.siteIds) {
-        if (!appTier.contains(sid)) await containers.onSiteDeleted(sid);
+        if (!appTier.contains(sid)) {
+          await containers.onSiteDeleted(ContainerKey.ofSite(sid));
+        }
       }
     }
     // Defensive back-erasure of per-siteId app-tier state: the ARCH-006
@@ -254,7 +259,7 @@ class ArchiveController {
     }
     await proxyPasswords.mutate((draft) {
       for (final sid in slice.siteIds) {
-        draft[sid] = null;
+        draft[ProxyPasswordKey.site(sid)] = null;
       }
     });
     await _host.commitSites(ArchiveClosed(
@@ -333,8 +338,8 @@ class ArchiveController {
     }
     // Derived before the flip so it is atomic: an archive-tier model with no
     // opaque id would rebuild against the cleartext `ws-<siteId>` container.
-    final archiveContainerId =
-        await _containerIdFor(target.key, siteId: model.siteId);
+    final archiveContainerKey =
+        await _containerKeyFor(target.key, siteId: model.siteId);
 
     // The tier flips before the app-tier stores drop the site (ARCH-001): a
     // concurrent persist filters on `!isArchiveTier` when it rebuilds the
@@ -342,16 +347,18 @@ class ArchiveController {
     // the flip and landed after the clears would re-persist it.
     model.disposeWebView();
     model.isArchiveTier = true;
-    model.archiveContainerId = archiveContainerId;
+    model.archiveContainerKey = archiveContainerKey;
     model.setPendingArchiveCookies(capturedCookies);
     await cookieStore.saveCookiesForSite(model.siteId, cookies: const []);
     await proxyPasswords.mutate((draft) {
-      draft[model.siteId] = null;
+      draft[ProxyPasswordKey.site(model.siteId)] = null;
     });
-    if (_sites.useContainers) await containers.onSiteDeleted(model.siteId);
+    if (_sites.useContainers) {
+      await containers.onSiteDeleted(ContainerKey.ofSite(model.siteId));
+    }
 
     _slices[target]!.siteIds.add(model.siteId);
-    _slices[target]!.containerIds.add(archiveContainerId);
+    _slices[target]!.containerKeys.add(archiveContainerKey);
     target.state.cookies[model.siteId] =
         capturedCookies.map((c) => c.toJson()).toList();
     await _host.commitSites(SiteArchived(model, into: target));
@@ -386,22 +393,22 @@ class ArchiveController {
     final slice = _slices[handle]!;
 
     final capturedCookies = await _host.captureCookies(model);
-    final containerId = model.archiveContainerId;
-    if (containerId != null) {
-      await containers.containerNative.deleteContainer(containerId);
+    final containerKey = model.archiveContainerKey;
+    if (containerKey != null) {
+      await containers.containerNative.deleteContainer(containerKey);
     }
     handle.state.sites.removeWhere((s) => s['siteId'] == model.siteId);
     handle.state.cookies.remove(model.siteId);
     ArchiveMembershipEngine.forget(handle.state.appTierMembership,
         siteId: model.siteId);
     slice.siteIds.remove(model.siteId);
-    if (containerId != null) slice.containerIds.remove(containerId);
+    if (containerKey != null) slice.containerKeys.remove(containerKey);
     await _archive.save(handle);
 
     // Back on the standard `ws-<siteId>` container.
     model.disposeWebView();
     model.isArchiveTier = false;
-    model.archiveContainerId = null;
+    model.archiveContainerKey = null;
     model.cookies = capturedCookies;
     // TAB-018: back with the colour it kept in the archive, unless an
     // app-tier site took that colour meanwhile.

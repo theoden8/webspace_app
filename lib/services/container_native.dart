@@ -4,11 +4,15 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/services/container_names.dart';
 import 'package:webspace/services/log_service.dart';
 
+export 'package:webspace/services/container_names.dart';
+
+
 /// Cross-platform Dart-side bridge to the native per-site container API.
-/// Maps each [WebViewModel.siteId] 1:1 to a named native container
-/// (`ws-<siteId>`) that owns its own cookies, localStorage, IndexedDB,
+/// Maps each [ContainerKey] 1:1 to a named native container
+/// (`ws-<key>`) that owns its own cookies, localStorage, IndexedDB,
 /// ServiceWorkers, and HTTP cache:
 ///
 ///   - Android (System WebView reporting `MULTI_PROFILE`):
@@ -61,7 +65,7 @@ abstract class ContainerNative {
   /// is materialized lazily on the native side when a WebView binds to
   /// it via [`inapp.InAppWebViewSettings.containerId`]; this method is
   /// pure-Dart and synchronous in practice.
-  Future<String> getOrCreateContainer(String siteId);
+  Future<ContainerName> getOrCreateContainer(ContainerKey key);
 
 
   /// Deletes the named container outright. Use for site deletion and
@@ -69,7 +73,7 @@ abstract class ContainerNative {
   /// `WKWebsiteDataStore.remove(forIdentifier:)` silently no-ops while
   /// any live WKWebView still references the store, and the silent
   /// no-op was the root cause of #360 in app-side mode.
-  Future<bool> deleteContainer(String siteId);
+  Future<bool> deleteContainer(ContainerKey key);
 
   /// Clears the container's data (cookies, localStorage, IndexedDB,
   /// ServiceWorkers, HTTP cache) while leaving the container itself
@@ -95,13 +99,13 @@ abstract class ContainerNative {
   ///     scoped to `WEBKIT_WEBSITE_DATA_ALL` since epoch. Returns
   ///     false if no WebView has materialized the container's
   ///     `WebKitNetworkSession` this process.
-  Future<bool> clearContainerData(String siteId);
+  Future<bool> clearContainerData(ContainerKey key);
 
   /// Lists every site whose container currently exists in the native
-  /// store. Result entries are bare siteIds (the `ws-` prefix is
+  /// store. Result entries are bare keys (the `ws-` prefix is
   /// stripped). Used by orphan GC to detect containers whose owning
   /// site no longer exists.
-  Future<List<String>> listContainers();
+  Future<List<ContainerKey>> listContainers();
 
   /// Synchronous, cached copy of the most recent [isSupported] result.
   /// Defaults to `false` until the first async resolution completes.
@@ -173,40 +177,41 @@ class _ContainerNative implements ContainerNative {
   }
 
   @override
-  Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
+  Future<ContainerName> getOrCreateContainer(ContainerKey key) async =>
+      ContainerName.of(key);
 
   @override
-  Future<bool> deleteContainer(String siteId) async {
+  Future<bool> deleteContainer(ContainerKey key) async {
     try {
       return await inapp.ContainerController.instance()
-          .deleteContainer('ws-$siteId');
+          .deleteContainer(ContainerName.of(key));
     } catch (e) {
       LogTag.container.error(
-          'deleteContainer($siteId) failed: $e', sensitive: true);
+          'deleteContainer($key) failed: $e', sensitive: true);
       return false;
     }
   }
 
   @override
-  Future<bool> clearContainerData(String siteId) async {
+  Future<bool> clearContainerData(ContainerKey key) async {
     try {
       return await inapp.ContainerController.instance()
-          .clearContainerData('ws-$siteId');
+          .clearContainerData(ContainerName.of(key));
     } catch (e) {
       LogTag.container.error(
-          'clearContainerData($siteId) failed: $e', sensitive: true);
+          'clearContainerData($key) failed: $e', sensitive: true);
       return false;
     }
   }
 
   @override
-  Future<List<String>> listContainers() async {
+  Future<List<ContainerKey>> listContainers() async {
     try {
       final names =
           await inapp.ContainerController.instance().getAllContainerNames();
       return [
         for (final name in names)
-          if (name.startsWith('ws-')) name.substring(3),
+          ?ContainerName.parse(name)?.key,
       ];
     } catch (e) {
       LogTag.container.error('listContainers() failed: $e');
@@ -227,14 +232,15 @@ class _StubContainerNative implements ContainerNative {
   Future<bool> isSupported() async => false;
 
   @override
-  Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
+  Future<ContainerName> getOrCreateContainer(ContainerKey key) async =>
+      ContainerName.of(key);
 
   @override
-  Future<bool> deleteContainer(String siteId) async => false;
+  Future<bool> deleteContainer(ContainerKey key) async => false;
 
   @override
-  Future<bool> clearContainerData(String siteId) async => false;
+  Future<bool> clearContainerData(ContainerKey key) async => false;
 
   @override
-  Future<List<String>> listContainers() async => const [];
+  Future<List<ContainerKey>> listContainers() async => const [];
 }

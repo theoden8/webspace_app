@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -33,13 +34,13 @@ class ContentBlockerSettingsScreen extends StatefulWidget {
 
 class _ContentBlockerSettingsScreenState
     extends State<ContentBlockerSettingsScreen> with SettingsOpenGuard {
-  String? _downloadingListId;
+  _Download? _download;
 
-  Future<void> _downloadContentList(String id) async {
-    setState(() => _downloadingListId = id);
+  Future<void> _downloadContentList(FilterListId id) async {
+    setState(() => _download = _OneList(id));
     final success = await ContentBlockerService.instance.downloadList(id);
     if (!mounted) return;
-    setState(() => _downloadingListId = null);
+    setState(() => _download = null);
     final loc = AppLocalizations.of(context);
     if (!success) {
       ScaffoldMessenger.of(context).toast(loc.appSettingsFilterListDownloadFailed);
@@ -52,10 +53,10 @@ class _ContentBlockerSettingsScreenState
   }
 
   Future<void> _downloadAllContentLists() async {
-    setState(() => _downloadingListId = '__all__');
+    setState(() => _download = const _AllLists());
     final count = await ContentBlockerService.instance.downloadAllLists();
     if (!mounted) return;
-    setState(() => _downloadingListId = null);
+    setState(() => _download = null);
     ScaffoldMessenger.of(context)
         .toast(AppLocalizations.of(context).appSettingsFilterListsUpdated(count));
   }
@@ -188,7 +189,7 @@ class _ContentBlockerSettingsScreenState
     }
     if (!mounted) return;
 
-    setState(() => _downloadingListId = '__all__');
+    setState(() => _download = const _AllLists());
     final service = ContentBlockerService.instance;
     final registry = await service.fetchUboAssetRegistry();
     final plan = planUboImport(backup,
@@ -197,7 +198,7 @@ class _ContentBlockerSettingsScreenState
         ? const <UboTrustedSite>[]
         : await widget.onTrustUboHosts!(plan.trustedHosts, apply: false);
     if (!mounted) return;
-    setState(() => _downloadingListId = null);
+    setState(() => _download = null);
 
     if (plan.isEmpty) {
       messenger.toast(loc.appSettingsUboImportNothing);
@@ -261,7 +262,7 @@ class _ContentBlockerSettingsScreenState
     );
     if (!confirmed || !mounted) return;
 
-    setState(() => _downloadingListId = '__all__');
+    setState(() => _download = const _AllLists());
     final toDownload = await service.applyUboImport(plan,
         userFiltersName: loc.appSettingsUboUserFiltersName);
     if (sites.isNotEmpty) {
@@ -272,7 +273,7 @@ class _ContentBlockerSettingsScreenState
       if (await service.downloadList(id)) downloaded++;
     }
     if (!mounted) return;
-    setState(() => _downloadingListId = null);
+    setState(() => _download = null);
     messenger.toast(
       loc.appSettingsUboImportDone(downloaded, toDownload.length),
     );
@@ -281,7 +282,7 @@ class _ContentBlockerSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final busy = _downloadingListId != null;
+    final busy = _download != null;
     const spinner = SizedBox(
       width: 24,
       height: 24,
@@ -293,7 +294,7 @@ class _ContentBlockerSettingsScreenState
         title: Text(loc.appSettingsContentBlocker),
         actions: [
           if (service.lists.any((l) => l.enabled))
-            _downloadingListId == '__all__'
+            _download is _AllLists
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: spinner,
@@ -308,8 +309,11 @@ class _ContentBlockerSettingsScreenState
       body: ListView(
         children: [
           ...service.lists.map((list) {
-            final isDownloading = _downloadingListId == list.id ||
-                _downloadingListId == '__all__';
+            final isDownloading = switch (_download) {
+              _AllLists() => true,
+              _OneList(:final id) => id == list.id,
+              null => false,
+            };
             return ListTile(
               leading: Switch(
                 value: list.enabled,
@@ -404,4 +408,18 @@ class _ContentBlockerSettingsScreenState
       ),
     );
   }
+}
+
+/// What the screen is downloading: one list, or every enabled one.
+sealed class _Download {
+  const _Download();
+}
+
+final class _OneList extends _Download {
+  const _OneList(this.id);
+  final FilterListId id;
+}
+
+final class _AllLists extends _Download {
+  const _AllLists();
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/controllers/site_list_store.dart';
@@ -54,8 +55,11 @@ void main() {
         .getStringList('webViewModels')!;
     expect(json, hasLength(1));
     expect(json.single, isNot(contains('secret')));
-    expect(await passwords.loadPassword(kept.siteId), 'secret');
-    expect(await passwords.loadPassword(archived.siteId), isNull);
+    expect(await passwords.loadPassword(ProxyPasswordKey.site(kept.siteId)),
+        'secret');
+    expect(
+        await passwords.loadPassword(ProxyPasswordKey.site(archived.siteId)),
+        isNull);
 
     final loaded = await store.load(onChange: () {});
     expect(loaded.needsResave, isTrue);
@@ -78,11 +82,30 @@ void main() {
 
     final loaded = await store.load(onChange: () {});
     expect(loaded.sites, hasLength(1));
-    final siteId = legacy['siteId'] as String;
-    expect(await passwords.loadPassword(siteId), 'legacy');
+    final siteId = SiteId(legacy['siteId'] as String);
+    expect(await passwords.loadPassword(ProxyPasswordKey.site(siteId)),
+        'legacy');
     final rewritten = (await SharedPreferences.getInstance())
         .getStringList('webViewModels')!;
     expect(rewritten.join(), isNot(contains('legacy')),
         reason: 'the plaintext copy is stripped from prefs');
+  });
+
+  test('a site stored under a reserved key is no site: its legacy password '
+      'never reaches the app-wide proxy (PWD-008, SEC-028)', () async {
+    final legacy = WebViewModel(initUrl: 'https://a.example.com').toJson()
+      ..['siteId'] = ProxyPasswordKey.global
+      ..['proxySettings'] = {
+        'type': ProxyType.HTTP.index,
+        'address': 'proxy.example:8080',
+        'password': 'planted',
+      };
+    SharedPreferences.setMockInitialValues({
+      'webViewModels': [jsonEncode(legacy)],
+    });
+
+    final loaded = await store.load(onChange: () {});
+    expect(loaded.sites.single.siteId, isNot(ProxyPasswordKey.global));
+    expect(await passwords.loadPassword(ProxyPasswordKey.global), isNull);
   });
 }

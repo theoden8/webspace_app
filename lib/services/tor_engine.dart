@@ -7,6 +7,7 @@
 // isolation, TOR-008 fail-closed).
 
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -27,6 +28,23 @@ export 'package:webspace/services/tor_failure.dart'
 /// downloads, filter lists, map tiles). Never a real `siteId`, so app-global
 /// fetches can't be correlated with any site's circuit (TOR-003).
 const String kTorAppGlobalTag = '__webspace_app_global__';
+
+/// The SOCKS5 username a Tor connection carries, which picks its circuit: a
+/// site's own id, so each site's traffic gets circuits of its own, or the
+/// app's, for app-global fetches (TOR-003).
+extension type const TorTag._(String raw) implements String {
+  TorTag.ofSite(SiteId site) : raw = site;
+
+  static const app = TorTag._(kTorAppGlobalTag);
+
+  /// The tag a proxy settings object carries as its username, as it is:
+  /// any username picks a circuit of its own.
+  factory TorTag.fromWire(String raw) => TorTag._(raw);
+
+  /// The site this tag isolates, or null for the app's or a username that
+  /// names no site.
+  SiteId? get site => raw == kTorAppGlobalTag ? null : SiteId.parse(raw);
+}
 
 /// How long a released runtime is still treated as claimed, so a webspace
 /// switch or a quick toggle-off-toggle-on does not look like an idle
@@ -804,7 +822,7 @@ class TorEngine {
   /// is doing instead of being up: callers must fail closed rather than fall
   /// through to a direct connection. The username is the isolation tag, so
   /// two reasons never share a circuit.
-  TorRoute routeFor(String reason) => switch (_status) {
+  TorRoute routeFor(TorTag reason) => switch (_status) {
         TorUp up => TorRouteUp(_socksAt(up, reason: reason)),
         TorStopped() => const TorRouteBlocked('Tor is not running.'),
         TorStarting() => const TorRouteBlocked('Tor is starting.'),
@@ -818,7 +836,7 @@ class TorEngine {
       };
 
   /// [routeFor]'s settings, or null when the runtime is not up.
-  UserProxySettings? socksFor(String reason) => switch (routeFor(reason)) {
+  UserProxySettings? socksFor(TorTag reason) => switch (routeFor(reason)) {
         TorRouteUp(:final socks) => socks,
         TorRouteBlocked() => null,
       };
@@ -854,8 +872,8 @@ class TorEngine {
 
   /// Isolation tag for a site, or the app-global tag when [siteId] is
   /// absent. Kept here so call sites can't invent their own tag scheme.
-  static String tagFor(String? siteId) =>
-      (siteId == null || siteId.isEmpty) ? kTorAppGlobalTag : siteId;
+  static TorTag tagFor(SiteId? siteId) =>
+      siteId == null ? TorTag.app : TorTag.ofSite(siteId);
 
   void _onRuntimeStatus(TorStatus s) {
     if (s is TorUp || s is TorErrored) _cancelBootstrapTimeout();

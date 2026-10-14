@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
@@ -89,7 +90,7 @@ void main() {
     // same element surface and playing/currentTime predicate the shim watches,
     // without depending on an audio device — the CI emulator boots -noaudio.
     final audioSite = WebViewModel(
-      siteId: 'bg-audio-notif',
+      siteId: SiteId('bg-audio-notif'),
       initUrl: 'http://127.0.0.1:$port/?media=stream',
       name: 'BG Audio Notif',
       backgroundAudioEnabled: true,
@@ -144,7 +145,7 @@ void main() {
         .map((e) => e.message)
         .toList();
 
-    await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+    await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
     await tester.pumpAndSettle(const Duration(seconds: 5));
     final tile = find.text('BG Audio Notif');
     expect(tile, findsOneWidget, reason: 'site should appear in the drawer');

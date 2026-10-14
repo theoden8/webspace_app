@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -247,7 +248,7 @@ class SurfaceRepaintController {
   Future<bool> rendererGone(
     WebViewController controller, {
     required String trigger,
-    required String siteId,
+    required SiteId siteId,
   }) async {
     if (RepaintSuppression.suppresses(trigger)) {
       LogTag.surfaceDiag.debug('trigger=$trigger probe suppressed');

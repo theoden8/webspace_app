@@ -1,5 +1,6 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
 
@@ -34,7 +35,7 @@ class ContainerCookieManager {
   /// from the platform side.
   Future<List<Cookie>> getCookies({
     required WebViewController controller,
-    required String siteId,
+    required SiteId siteId,
     required Uri url,
   }) async {
     try {
@@ -68,7 +69,7 @@ class ContainerCookieManager {
   /// re-activates the site).
   Future<void> deleteCookie({
     WebViewController? controller,
-    required String siteId,
+    required SiteId siteId,
     required Uri url,
     required String name,
     String? domain,

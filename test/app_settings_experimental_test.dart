@@ -15,6 +15,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/widgets/search_site_picker.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/app_settings.dart';
@@ -44,7 +46,7 @@ void main() {
     bool routerRunsHere = false,
     bool externalTorRunsHere = false,
     Map<String, String> siteNames = const {},
-    List<({String siteId, String name, int? containerColor})> webSearchSites =
+    List<PickableSearchSite> webSearchSites =
         const [],
   }) =>
       MaterialApp(
@@ -173,7 +175,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     testWidgets('the card appears once something starts Tor', (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
+      await TorService.instance.maybeStart(TorSiteHolder(SiteId('site-a')));
       runtime.emit(const TorUp('127.0.0.1', port: 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);
@@ -185,7 +187,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
         (tester) async {
       await tester.pumpWidget(host(siteNames: const {'site-a': 'Mail'}));
       await tester.pumpAndSettle();
-      await TorService.instance.syncHolders({TorSiteHolder('site-a')});
+      await TorService.instance.syncHolders({TorSiteHolder(SiteId('site-a'))});
       runtime.emit(const TorUp('127.0.0.1', port: 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);
@@ -345,8 +347,8 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
         '(LIR-029, TAB-018)', (tester) async {
       DeveloperModeService.instance.debugSet(on: false);
       await tester.pumpWidget(host(webSearchSites: [
-        (siteId: 'ddg-work', name: 'DuckDuckGo', containerColor: 2),
-        (siteId: 'ddg-home', name: 'DuckDuckGo', containerColor: 5),
+        (siteId: SiteId('ddg-work'), name: 'DuckDuckGo', containerColor: 2),
+        (siteId: SiteId('ddg-home'), name: 'DuckDuckGo', containerColor: 5),
       ]));
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Behaviour');
@@ -357,7 +359,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.tap(row);
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(RadioListTile<String>, 'DuckDuckGo'),
+      expect(find.widgetWithText(RadioListTile<SiteId?>, 'DuckDuckGo'),
           findsNWidgets(2));
       expect(find.text('ddg-work'), findsOneWidget);
       expect(find.text('ddg-home'), findsOneWidget);

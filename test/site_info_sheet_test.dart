@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
@@ -13,7 +15,7 @@ Widget _host(Widget child, {TextDirection? direction}) => localizedApp(Scaffold(
 ));
 
 SiteInfo _info({
-  String? containerId,
+  ContainerName? containerId,
   bool incognito = false,
   String? tabOf,
   String? openedFrom,
@@ -32,8 +34,8 @@ SiteInfo _info({
 void main() {
   group('SiteInfo.containerKind', () {
     test('a bound container is the site\'s own', () {
-      expect(_info(containerId: 'ws-gh').containerKind, SiteContainerKind.own);
-      expect(_info(containerId: 'ws-gh', incognito: true).containerKind,
+      expect(_info(containerId: ContainerName.of(ContainerKey.named('gh'))).containerKind, SiteContainerKind.own);
+      expect(_info(containerId: ContainerName.of(ContainerKey.named('gh')), incognito: true).containerKind,
           SiteContainerKind.own,
           reason: 'Android binds a named profile even under incognito');
     });
@@ -50,24 +52,11 @@ void main() {
   group('the container rule', () {
     test('a site owns a profile only where containers exist', () {
       expect(
-        siteOwnsContainerProfile(
-            containersSupported: true,
-            containerSiteIdentifier: 'gh',
-            incognito: false),
+        siteOwnsContainerProfile(containersSupported: true, incognito: false),
         isTrue,
       );
       expect(
-        siteOwnsContainerProfile(
-            containersSupported: false,
-            containerSiteIdentifier: 'gh',
-            incognito: false),
-        isFalse,
-      );
-      expect(
-        siteOwnsContainerProfile(
-            containersSupported: true,
-            containerSiteIdentifier: null,
-            incognito: false),
+        siteOwnsContainerProfile(containersSupported: false, incognito: false),
         isFalse,
       );
     });
@@ -75,14 +64,17 @@ void main() {
     test('containerIdFor binds nothing before containers are known', () {
       // cachedSupported is false until the startup probe resolves, which a
       // unit test never runs.
-      expect(containerIdFor(siteId: 'gh', incognito: false), isNull);
+      expect(
+          containerIdFor(
+              key: ContainerKey.ofSite(SiteId('gh')), incognito: false),
+          isNull);
     });
   });
 
   group('SiteInfoSheet', () {
     testWidgets('names the site, the page and the container', (tester) async {
       await tester.pumpWidget(_host(SiteInfoSheet(
-        info: _info(containerId: 'ws-gh'),
+        info: _info(containerId: ContainerName.of(ContainerKey.named('gh'))),
       )));
       expect(find.text('Site info'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
@@ -96,7 +88,7 @@ void main() {
 
     testWidgets('a hosted tab names the site whose tab it is', (tester) async {
       await tester.pumpWidget(_host(SiteInfoSheet(
-        info: _info(containerId: 'ws-gh', tabOf: 'DuckDuckGo'),
+        info: _info(containerId: ContainerName.of(ContainerKey.named('gh')), tabOf: 'DuckDuckGo'),
       )));
       expect(find.text('Tab of'), findsOneWidget);
       expect(find.text('DuckDuckGo'), findsOneWidget);
@@ -106,7 +98,7 @@ void main() {
     testWidgets('a nested screen names the site it was opened from',
         (tester) async {
       await tester.pumpWidget(_host(SiteInfoSheet(
-        info: _info(containerId: 'ws-gh', openedFrom: 'DuckDuckGo'),
+        info: _info(containerId: ContainerName.of(ContainerKey.named('gh')), openedFrom: 'DuckDuckGo'),
       )));
       expect(find.text('Opened from'), findsOneWidget);
       expect(find.text('DuckDuckGo'), findsOneWidget);
@@ -114,7 +106,7 @@ void main() {
 
     testWidgets('the same site twice is said once', (tester) async {
       await tester.pumpWidget(_host(SiteInfoSheet(
-        info: _info(containerId: 'ws-gh', tabOf: 'GitHub', openedFrom: 'GitHub'),
+        info: _info(containerId: ContainerName.of(ContainerKey.named('gh')), tabOf: 'GitHub', openedFrom: 'GitHub'),
       )));
       expect(find.text('Tab of'), findsNothing);
       expect(find.text('Opened from'), findsNothing);
@@ -146,12 +138,12 @@ void main() {
           .map((d) => d.color);
 
       await tester.pumpWidget(_host(SiteInfoSheet(
-        info: _info(containerId: 'ws-gh', containerColor: 2),
+        info: _info(containerId: ContainerName.of(ContainerKey.named('gh')), containerColor: 2),
       )));
       expect(dots(), [ContainerColors.of(2, brightness: Brightness.light)]);
 
       await tester.pumpWidget(_host(SiteInfoSheet(
-        info: _info(containerId: 'ws-gh'),
+        info: _info(containerId: ContainerName.of(ContainerKey.named('gh'))),
       )));
       expect(dots(), isEmpty, reason: 'no colour where none was given');
     });

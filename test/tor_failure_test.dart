@@ -8,6 +8,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_holders.dart';
 import 'helpers/fake_tor_runtime.dart';
@@ -172,7 +173,7 @@ void _authTests() {
     tearDown(() async => engine.dispose());
 
     Future<void> bringUp() async {
-      await engine.acquire(TorSiteHolder('holder'));
+      await engine.acquire(TorSiteHolder(SiteId('holder')));
       runtime.emit(const TorUp('127.0.0.1', port: 9999));
       await Future<void>.delayed(Duration.zero);
     }
@@ -180,8 +181,8 @@ void _authTests() {
     test('two sites get different usernames AND different passwords',
         () async {
       await bringUp();
-      final a = engine.socksFor('site-a')!;
-      final b = engine.socksFor('site-b')!;
+      final a = engine.socksFor(TorTag.fromWire('site-a'))!;
+      final b = engine.socksFor(TorTag.fromWire('site-b'))!;
       expect(a.username, isNot(b.username));
       expect(a.password, isNot(b.password),
           reason: 'a leaked password must not unlock another site’s circuit');
@@ -189,30 +190,30 @@ void _authTests() {
 
     test('the same site is stable within a launch', () async {
       await bringUp();
-      expect(engine.socksFor('site-a')!.password,
-          engine.socksFor('site-a')!.password,
+      expect(engine.socksFor(TorTag.fromWire('site-a'))!.password,
+          engine.socksFor(TorTag.fromWire('site-a'))!.password,
           reason: 'an unstable password would rebuild the circuit per request');
     });
 
     test('a new launch secret changes every password', () async {
       await bringUp();
-      final first = engine.socksFor('site-a')!.password;
+      final first = engine.socksFor(TorTag.fromWire('site-a'))!.password;
       final other = TorEngine(runtime: FakeTorRuntime(), sessionSecret: 'other');
-      await other.acquire(TorSiteHolder('holder'));
+      await other.acquire(TorSiteHolder(SiteId('holder')));
       // Not up, so socksFor is null: assert via a fresh engine that reaches up.
       await other.dispose();
       final second = TorEngine(runtime: runtime, sessionSecret: 'other');
-      await second.acquire(TorSiteHolder('h2'));
+      await second.acquire(TorSiteHolder(SiteId('h2')));
       runtime.emit(const TorUp('127.0.0.1', port: 9999));
       await Future<void>.delayed(Duration.zero);
-      expect(second.socksFor('site-a')!.password, isNot(first),
+      expect(second.socksFor(TorTag.fromWire('site-a'))!.password, isNot(first),
           reason: 'circuits must not outlive the process');
       await second.dispose();
     });
 
     test('the launch secret is never handed out verbatim', () async {
       await bringUp();
-      expect(engine.socksFor('site-a')!.password, isNot('launch-secret'));
+      expect(engine.socksFor(TorTag.fromWire('site-a'))!.password, isNot('launch-secret'));
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -221,7 +222,7 @@ class _SiteRouteAdapter implements RoutableSite {
   const _SiteRouteAdapter(this.model);
 
   @override
-  String get siteId => model.siteId;
+  SiteId get siteId => model.siteId;
 
   @override
   String get initUrl => model.initUrl;
@@ -446,7 +447,7 @@ class _AddClaimDialog extends StatefulWidget {
 class _AddClaimDialogState extends State<_AddClaimDialog> {
   DomainClaimKind _kind = DomainClaimKind.exactHost;
   final _controller = TextEditingController();
-  late String? _targetId = widget.targets?.firstOrNull?.siteId;
+  late SiteId? _targetId = widget.targets?.firstOrNull?.siteId;
   String? _takenBy;
 
   void _submit() {
@@ -528,7 +529,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
           ),
           if (targets != null) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField<SiteId>(
               initialValue: _targetId,
               isExpanded: true,
               decoration: InputDecoration(

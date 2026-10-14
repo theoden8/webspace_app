@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -16,7 +17,7 @@ import 'package:webspace/services/webview_config.dart';
 
 class _StubHost implements DevToolsHost {
   @override
-  final String? siteId;
+  final SiteId? siteId;
   _StubHost(this.siteId);
 
   @override
@@ -44,7 +45,7 @@ class _StubHost implements DevToolsHost {
   @override
   List<UserScriptConfig>? get siteUserScripts => const [];
   @override
-  Set<String> get enabledGlobalScriptIds => const {};
+  Set<UserScriptId> get enabledGlobalScriptIds => const {};
   @override
   void reload() {}
 }
@@ -165,14 +166,14 @@ void main() {
     testWidgets('copies only the entries the blocked/allowed filter leaves',
         (tester) async {
       DnsBlockService.instance.loadDomainsFromString('tracker.net');
-      DnsBlockService.instance.recordVerdict('site-1',
+      DnsBlockService.instance.recordVerdict(SiteId('site-1'),
           query: const HostQuery('tracker.net'),
           verdict: const Blocked(BlockSource.dns));
-      DnsBlockService.instance.recordVerdict('site-1',
+      DnsBlockService.instance.recordVerdict(SiteId('site-1'),
           query: const HostQuery('example.com'), verdict: const Allowed());
-      addTearDown(() => DnsBlockService.instance.clearStatsForSite('site-1'));
+      addTearDown(() => DnsBlockService.instance.clearStatsForSite(SiteId('site-1')));
 
-      await pumpDevTools(tester, host: _StubHost('site-1'));
+      await pumpDevTools(tester, host: _StubHost(SiteId('site-1')));
       await tester.tap(find.text('DNS'));
       await tester.pumpAndSettle();
 

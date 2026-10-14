@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/webspace_model.dart';
 
 void main() {
@@ -15,9 +16,9 @@ void main() {
 
     test('constructor accepts explicit id, siteIds, and siteIndices', () {
       final webspace = Webspace(
-        id: 'custom-id-123',
+        id: WebspaceId('custom-id-123'),
         name: 'Test Workspace',
-        siteIds: ['s0', 's1', 's2'],
+        siteIds: [SiteId('s0'), SiteId('s1'), SiteId('s2')],
         siteIndices: [0, 1, 2],
       );
       expect(webspace.id, 'custom-id-123');
@@ -27,9 +28,9 @@ void main() {
 
     test('toJson persists siteIds, not siteIndices', () {
       final webspace = Webspace(
-        id: 'test-id',
+        id: WebspaceId('test-id'),
         name: 'My Workspace',
-        siteIds: ['siteA', 'siteB', 'siteC'],
+        siteIds: [SiteId('siteA'), SiteId('siteB'), SiteId('siteC')],
         siteIndices: [0, 2, 5],
       );
       final json = webspace.toJson();
@@ -69,7 +70,7 @@ void main() {
     test('JSON round-trip preserves siteIds', () {
       final original = Webspace(
         name: 'Test Workspace',
-        siteIds: ['a', 'b', 'c', 'd'],
+        siteIds: [SiteId('a'), SiteId('b'), SiteId('c'), SiteId('d')],
       );
       final decoded = Webspace.fromJson(jsonDecode(jsonEncode(original.toJson())));
       expect(decoded.id, original.id);
@@ -87,14 +88,14 @@ void main() {
 
     test('copyWith updates fields without aliasing the source lists', () {
       final original = Webspace(
-        id: 'original-id',
+        id: WebspaceId('original-id'),
         name: 'Original',
-        siteIds: ['a', 'b'],
+        siteIds: [SiteId('a'), SiteId('b')],
         siteIndices: [0, 1],
       );
       final updated = original.copyWith(
         name: 'Updated',
-        siteIds: ['c', 'd', 'e'],
+        siteIds: [SiteId('c'), SiteId('d'), SiteId('e')],
         siteIndices: [2, 3, 4],
       );
       expect(updated.id, 'original-id');
@@ -108,7 +109,7 @@ void main() {
     test('copyWith with partial update keeps untouched fields', () {
       final original = Webspace(
         name: 'Original',
-        siteIds: ['a', 'b'],
+        siteIds: [SiteId('a'), SiteId('b')],
       );
       final updated = original.copyWith(name: 'Updated Name Only');
       expect(updated.name, 'Updated Name Only');
@@ -125,7 +126,7 @@ void main() {
     test('special characters in name round-trip', () {
       final webspace = Webspace(
         name: 'Test!@#\$%^&*()_+-=[]{}|;:\'",.<>?/`~',
-        siteIds: ['s0'],
+        siteIds: [SiteId('s0')],
       );
       final restored = Webspace.fromJson(webspace.toJson());
       expect(restored.name, webspace.name);
@@ -134,14 +135,14 @@ void main() {
     test('unicode in name round-trips through JSON', () {
       final webspace = Webspace(
         name: '工作区 🚀 Espace de travail',
-        siteIds: ['s0', 's1'],
+        siteIds: [SiteId('s0'), SiteId('s1')],
       );
       final restored = Webspace.fromJson(jsonDecode(jsonEncode(webspace.toJson())));
       expect(restored.name, webspace.name);
     });
 
     test('large siteIds list round-trips', () {
-      final large = List<String>.generate(100, (i) => 'site-$i');
+      final large = List<SiteId>.generate(100, (i) => SiteId('site-$i'));
       final webspace = Webspace(name: 'Large Workspace', siteIds: large);
       final restored = Webspace.fromJson(webspace.toJson());
       expect(restored.siteIds.length, 100);
@@ -150,7 +151,7 @@ void main() {
 
     test('Webspace.all yields the synthetic All webspace', () {
       final all = Webspace.all();
-      expect(all.id, kAllWebspaceId);
+      expect(all.id, WebspaceId.all);
       expect(all.isAll, isTrue);
       expect(all.siteIds, isEmpty);
     });
@@ -161,12 +162,12 @@ void main() {
       });
 
       test('toJson never serialises it', () {
-        final ws = Webspace(name: 'W', siteIds: ['a'])..isArchiveTier = true;
+        final ws = Webspace(name: 'W', siteIds: [SiteId('a')])..isArchiveTier = true;
         expect(ws.toJson().containsKey('isArchiveTier'), isFalse);
       });
 
       test('fromJson always restores it as false', () {
-        final ws = Webspace(name: 'W', siteIds: ['a'])..isArchiveTier = true;
+        final ws = Webspace(name: 'W', siteIds: [SiteId('a')])..isArchiveTier = true;
         final restored = Webspace.fromJson(ws.toJson());
         expect(restored.isArchiveTier, isFalse);
       });
@@ -180,9 +181,9 @@ void main() {
       test('persistence filter drops archive-tier collections', () {
         // Mirror of the filter in `ShellStore.saveWebspaces`.
         final spaces = [
-          Webspace(name: 'App A', siteIds: ['a']),
-          Webspace(name: 'Arch', siteIds: ['x'])..isArchiveTier = true,
-          Webspace(name: 'App B', siteIds: ['b']),
+          Webspace(name: 'App A', siteIds: [SiteId('a')]),
+          Webspace(name: 'Arch', siteIds: [SiteId('x')])..isArchiveTier = true,
+          Webspace(name: 'App B', siteIds: [SiteId('b')]),
         ];
         final persisted = spaces
             .where((w) => !w.isArchiveTier)

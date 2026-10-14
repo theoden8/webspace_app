@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 
-SiteTab tab(String id, {String? parent, String? url, int? activeAt}) => SiteTab(
+SiteTab tab(TabId id, {TabId? parent, String? url, int? activeAt}) => SiteTab(
       id: id,
       url: url ?? 'https://example.org/$id',
       parentId: parent,
@@ -18,17 +19,17 @@ void main() {
     test('accepts a tree', () {
       expect(
           TabLifecycleEngine.wellFormed(
-              [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'b')]),
+              [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'), parent: TabId('b'))]),
           isTrue);
     });
 
     test('rejects each shape normalize repairs', () {
       for (final (name, tabs) in [
         ('empty', <SiteTab>[]),
-        ('duplicate id', [tab('a'), tab('a')]),
-        ('missing parent', [tab('a', parent: 'ghost')]),
-        ('own parent', [tab('a', parent: 'a')]),
-        ('cycle', [tab('r'), tab('a', parent: 'b'), tab('b', parent: 'a')]),
+        ('duplicate id', [tab(TabId('a')), tab(TabId('a'))]),
+        ('missing parent', [tab(TabId('a'), parent: TabId('ghost'))]),
+        ('own parent', [tab(TabId('a'), parent: TabId('a'))]),
+        ('cycle', [tab(TabId('r')), tab(TabId('a'), parent: TabId('b')), tab(TabId('b'), parent: TabId('a'))]),
       ]) {
         expect(TabLifecycleEngine.wellFormed(tabs), isFalse, reason: name);
       }
@@ -47,24 +48,24 @@ void main() {
 
     test('duplicate ids collapse to the first occurrence', () {
       final r = TabLifecycleEngine.normalize(
-          [tab('a'), tab('a', url: 'https://other.test/'), tab('b')],
-          activeTabId: 'b',
+          [tab(TabId('a')), tab(TabId('a'), url: 'https://other.test/'), tab(TabId('b'))],
+          activeTabId: TabId('b'),
           fallbackUrl: 'https://site.test/');
       expect(ids(r.tabs), ['a', 'b']);
       expect(r.tabs.first.url, 'https://example.org/a');
     });
 
     test('a parent that is not in the list is dropped, the tab is kept', () {
-      final r = TabLifecycleEngine.normalize([tab('a', parent: 'ghost')],
-          activeTabId: 'a', fallbackUrl: 'https://site.test/');
+      final r = TabLifecycleEngine.normalize([tab(TabId('a'), parent: TabId('ghost'))],
+          activeTabId: TabId('a'), fallbackUrl: 'https://site.test/');
       expect(ids(r.tabs), ['a']);
       expect(r.tabs.single.parentId, isNull);
     });
 
     test('a parent cycle is broken without losing a tab', () {
       final r = TabLifecycleEngine.normalize(
-          [tab('a', parent: 'b'), tab('b', parent: 'a')],
-          activeTabId: 'a',
+          [tab(TabId('a'), parent: TabId('b')), tab(TabId('b'), parent: TabId('a'))],
+          activeTabId: TabId('a'),
           fallbackUrl: 'https://site.test/');
       expect(ids(r.tabs), ['a', 'b']);
       // Whichever way the cycle is cut, walking parents must terminate.
@@ -72,14 +73,14 @@ void main() {
     });
 
     test('a tab that is its own parent is rooted', () {
-      final r = TabLifecycleEngine.normalize([tab('a', parent: 'a')],
-          activeTabId: 'a', fallbackUrl: 'https://site.test/');
+      final r = TabLifecycleEngine.normalize([tab(TabId('a'), parent: TabId('a'))],
+          activeTabId: TabId('a'), fallbackUrl: 'https://site.test/');
       expect(r.tabs.single.parentId, isNull);
     });
 
     test('an activeTabId naming nothing falls back to the first tab', () {
-      final r = TabLifecycleEngine.normalize([tab('a'), tab('b')],
-          activeTabId: 'ghost', fallbackUrl: 'https://site.test/');
+      final r = TabLifecycleEngine.normalize([tab(TabId('a')), tab(TabId('b'))],
+          activeTabId: TabId('ghost'), fallbackUrl: 'https://site.test/');
       expect(r.activeTabId, 'a');
     });
   });
@@ -87,10 +88,10 @@ void main() {
   group('treeOrder (TAB-008)', () {
     test('children follow their parent, indented by depth', () {
       final tabs = [
-        tab('a'),
-        tab('b', parent: 'a'),
-        tab('c', parent: 'b'),
-        tab('d'),
+        tab(TabId('a')),
+        tab(TabId('b'), parent: TabId('a')),
+        tab(TabId('c'), parent: TabId('b')),
+        tab(TabId('d')),
       ];
       final rows = TabLifecycleEngine.treeOrder(tabs);
       expect(rows.map((r) => r.tab.id).toList(), ['a', 'b', 'c', 'd']);
@@ -99,10 +100,10 @@ void main() {
 
     test('childCount counts direct children only', () {
       final rows = TabLifecycleEngine.treeOrder([
-        tab('a'),
-        tab('b', parent: 'a'),
-        tab('c', parent: 'a'),
-        tab('d', parent: 'b'),
+        tab(TabId('a')),
+        tab(TabId('b'), parent: TabId('a')),
+        tab(TabId('c'), parent: TabId('a')),
+        tab(TabId('d'), parent: TabId('b')),
       ]);
       expect(rows.firstWhere((r) => r.tab.id == 'a').childCount, 2);
       expect(rows.firstWhere((r) => r.tab.id == 'b').childCount, 1);
@@ -110,9 +111,9 @@ void main() {
 
     test('every tab appears exactly once', () {
       final tabs = [
-        tab('a'),
-        tab('b', parent: 'a'),
-        tab('c', parent: 'ghost'),
+        tab(TabId('a')),
+        tab(TabId('b'), parent: TabId('a')),
+        tab(TabId('c'), parent: TabId('ghost')),
       ];
       final rows = TabLifecycleEngine.treeOrder(tabs);
       expect(rows, hasLength(3));
@@ -122,17 +123,17 @@ void main() {
 
   group('insertChild', () {
     test('a child lands directly after its parent', () {
-      final tabs = [tab('a'), tab('b')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'))];
       final out =
-          TabLifecycleEngine.insertChild(tabs, tab: tab('c', parent: 'a'));
+          TabLifecycleEngine.insertChild(tabs, tab: tab(TabId('c'), parent: TabId('a')));
       expect(ids(out), ['a', 'c', 'b']);
     });
 
     test('a second child lands after the first subtree, not inside it', () {
-      var tabs = [tab('a'), tab('b')];
-      tabs = TabLifecycleEngine.insertChild(tabs, tab: tab('c', parent: 'a'));
-      tabs = TabLifecycleEngine.insertChild(tabs, tab: tab('d', parent: 'c'));
-      tabs = TabLifecycleEngine.insertChild(tabs, tab: tab('e', parent: 'a'));
+      var tabs = [tab(TabId('a')), tab(TabId('b'))];
+      tabs = TabLifecycleEngine.insertChild(tabs, tab: tab(TabId('c'), parent: TabId('a')));
+      tabs = TabLifecycleEngine.insertChild(tabs, tab: tab(TabId('d'), parent: TabId('c')));
+      tabs = TabLifecycleEngine.insertChild(tabs, tab: tab(TabId('e'), parent: TabId('a')));
       expect(ids(tabs), ['a', 'c', 'd', 'e', 'b']);
       expect(
         TabLifecycleEngine.treeOrder(tabs).map((r) => r.depth).toList(),
@@ -141,15 +142,15 @@ void main() {
     });
 
     test('insertAfter lands after the anchor\'s whole subtree', () {
-      var tabs = [tab('a'), tab('b', parent: 'a'), tab('c')];
-      tabs = TabLifecycleEngine.insertAfter(tabs, anchorId: 'a', tab: tab('d'));
+      var tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'))];
+      tabs = TabLifecycleEngine.insertAfter(tabs, anchorId: TabId('a'), tab: tab(TabId('d')));
       expect(ids(tabs), ['a', 'b', 'd', 'c']);
     });
 
     test('a duplicate of a child stays a sibling under the same parent', () {
-      var tabs = [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'a')];
+      var tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'), parent: TabId('a'))];
       tabs = TabLifecycleEngine.insertAfter(tabs,
-          anchorId: 'b', tab: tab('b2', parent: 'a'));
+          anchorId: TabId('b'), tab: tab(TabId('b2'), parent: TabId('a')));
       expect(ids(tabs), ['a', 'b', 'b2', 'c']);
       expect(
         TabLifecycleEngine.treeOrder(tabs).map((r) => r.depth).toList(),
@@ -158,7 +159,7 @@ void main() {
     });
 
     test('a root tab goes to the end', () {
-      final out = TabLifecycleEngine.insertChild([tab('a')], tab: tab('z'));
+      final out = TabLifecycleEngine.insertChild([tab(TabId('a'))], tab: tab(TabId('z')));
       expect(ids(out), ['a', 'z']);
     });
   });
@@ -169,39 +170,39 @@ void main() {
 
     test('re-parenting lands the tab directly under the new parent\'s subtree',
         () {
-      final tabs = [tab('a'), tab('b'), tab('c')];
+      final tabs = [tab(TabId('a')), tab(TabId('b')), tab(TabId('c'))];
       final out =
-          TabLifecycleEngine.reparent(tabs, tabId: 'c', newParentId: 'a')!;
+          TabLifecycleEngine.reparent(tabs, tabId: TabId('c'), newParentId: TabId('a'))!;
       expect(ids(out), ['a', 'c', 'b']);
       expect(out.firstWhere((t) => t.id == 'c').parentId, 'a');
     });
 
     test('a tab cannot move under its own descendant', () {
-      final tabs = [tab('a'), tab('b', parent: 'a')];
-      expect(TabLifecycleEngine.reparent(tabs, tabId: 'a', newParentId: 'b'),
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a'))];
+      expect(TabLifecycleEngine.reparent(tabs, tabId: TabId('a'), newParentId: TabId('b')),
           isNull);
       expect(
           TabLifecycleEngine.drop(tabs,
-              tabId: 'a',
-              drop: const TabDrop.onto('b', zone: TabDropZone.into)),
+              tabId: TabId('a'),
+              drop: TabDrop.onto(TabId('b'), zone: TabDropZone.into)),
           isNull);
-      expect(TabLifecycleEngine.drop(tabs, tabId: 'a',
-          drop: const TabDrop.onto('a', zone: TabDropZone.before)), isNull);
+      expect(TabLifecycleEngine.drop(tabs, tabId: TabId('a'),
+          drop: TabDrop.onto(TabId('a'), zone: TabDropZone.before)), isNull);
       expect(tabs.first.parentId, isNull, reason: 'a refusal changes nothing');
     });
 
     test('before a row makes a sibling in front of it', () {
-      final tabs = [tab('a'), tab('b'), tab('c')];
+      final tabs = [tab(TabId('a')), tab(TabId('b')), tab(TabId('c'))];
       final out = TabLifecycleEngine.drop(tabs,
-          tabId: 'c', drop: const TabDrop.onto('a', zone: TabDropZone.before))!;
+          tabId: TabId('c'), drop: TabDrop.onto(TabId('a'), zone: TabDropZone.before))!;
       expect(ids(out), ['c', 'a', 'b']);
     });
 
     test('into a row makes the last child, and the subtree comes along', () {
-      final tabs = [tab('a'), tab('x', parent: 'a'), tab('b'),
-          tab('c', parent: 'b')];
+      final tabs = [tab(TabId('a')), tab(TabId('x'), parent: TabId('a')), tab(TabId('b')),
+          tab(TabId('c'), parent: TabId('b'))];
       final out = TabLifecycleEngine.drop(tabs,
-          tabId: 'b', drop: const TabDrop.onto('a', zone: TabDropZone.into))!;
+          tabId: TabId('b'), drop: TabDrop.onto(TabId('a'), zone: TabDropZone.into))!;
       expect(ids(out), ['a', 'x', 'b', 'c']);
       expect(out.firstWhere((t) => t.id == 'b').parentId, 'a');
       expect(out.firstWhere((t) => t.id == 'c').parentId, 'b');
@@ -209,56 +210,56 @@ void main() {
     });
 
     test('below an expanded parent is its first child', () {
-      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'))];
       final out = TabLifecycleEngine.drop(tabs,
-          tabId: 'c', drop: const TabDrop.onto('a', zone: TabDropZone.after))!;
+          tabId: TabId('c'), drop: TabDrop.onto(TabId('a'), zone: TabDropZone.after))!;
       expect(ids(out), ['a', 'c', 'b']);
       expect(out.firstWhere((t) => t.id == 'c').parentId, 'a');
       expect(depths(out), [0, 1, 1]);
     });
 
     test('below a collapsed parent is its sibling after the whole subtree', () {
-      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c'), tab('d')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c')), tab(TabId('d'))];
       final out = TabLifecycleEngine.drop(tabs,
-          tabId: 'd',
-          drop: const TabDrop.onto('a',
+          tabId: TabId('d'),
+          drop: TabDrop.onto(TabId('a'),
               zone: TabDropZone.after, targetExpanded: false))!;
       expect(ids(out), ['a', 'b', 'd', 'c']);
       expect(out.firstWhere((t) => t.id == 'd').parentId, isNull);
     });
 
     test('a child dropped just below its parent stays where it is', () {
-      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'a')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'), parent: TabId('a'))];
       final out = TabLifecycleEngine.drop(tabs,
-          tabId: 'b', drop: const TabDrop.onto('a', zone: TabDropZone.after))!;
+          tabId: TabId('b'), drop: TabDrop.onto(TabId('a'), zone: TabDropZone.after))!;
       expect(ids(out), ['a', 'b', 'c']);
     });
 
     test('past the last row the tab becomes the last root', () {
-      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'))];
       final out = TabLifecycleEngine.drop(tabs,
-          tabId: 'b', drop: const TabDrop.toEnd())!;
+          tabId: TabId('b'), drop: const TabDrop.toEnd())!;
       expect(ids(out), ['a', 'c', 'b']);
       expect(out.last.parentId, isNull);
     });
 
     test('a subtree that is not contiguous in the list is still passed', () {
-      final tabs = [tab('a'), tab('c'), tab('b', parent: 'a')];
+      final tabs = [tab(TabId('a')), tab(TabId('c')), tab(TabId('b'), parent: TabId('a'))];
       final out =
-          TabLifecycleEngine.reparent(tabs, tabId: 'c', newParentId: 'a')!;
+          TabLifecycleEngine.reparent(tabs, tabId: TabId('c'), newParentId: TabId('a'))!;
       expect(ids(out), ['a', 'b', 'c']);
       expect(TabLifecycleEngine.treeOrder(out).map((r) => r.tab.id),
           ['a', 'b', 'c']);
     });
 
     test('hosts, urls and the active tab are left alone', () {
-      final hosted = SiteTab(id: 'h', url: 'https://duckduckgo.com/?q=x',
-          hostSiteId: 'ddg');
-      final tabs = [tab('a'), hosted];
+      final hosted = SiteTab(id: TabId('h'), url: 'https://duckduckgo.com/?q=x',
+          hostSiteId: SiteId('ddg'));
+      final tabs = [tab(TabId('a')), hosted];
       final normalized = TabLifecycleEngine.normalize(tabs,
-          activeTabId: 'h', fallbackUrl: 'https://x');
+          activeTabId: TabId('h'), fallbackUrl: 'https://x');
       final out = TabLifecycleEngine.reparent(normalized.tabs,
-          tabId: 'h', newParentId: 'a')!;
+          tabId: TabId('h'), newParentId: TabId('a'))!;
       final moved = out.firstWhere((t) => t.id == 'h');
       expect(moved.hostSiteId, 'ddg');
       expect(moved.url, 'https://duckduckgo.com/?q=x');
@@ -268,26 +269,26 @@ void main() {
 
   group('closeTab (TAB-007)', () {
     test('children move up to the closed tab\'s parent', () {
-      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'b')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'), parent: TabId('b'))];
       final r =
-          TabLifecycleEngine.closeTab(tabs, activeTabId: 'a', closeId: 'b');
+          TabLifecycleEngine.closeTab(tabs, activeTabId: TabId('a'), closeId: TabId('b'));
       expect(ids(r.tabs), ['a', 'c']);
       expect(r.tabs.last.parentId, 'a');
       expect(r.closedIds, ['b']);
     });
 
     test('closing a parked tab leaves the active one bound', () {
-      final tabs = [tab('a'), tab('b')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'))];
       final r =
-          TabLifecycleEngine.closeTab(tabs, activeTabId: 'a', closeId: 'b');
+          TabLifecycleEngine.closeTab(tabs, activeTabId: TabId('a'), closeId: TabId('b'));
       expect(r.nextActiveId, 'a');
       expect(r.activeChanged, isFalse);
     });
 
     test('closing the active child hands over to its parent', () {
-      final tabs = [tab('a'), tab('b', parent: 'a')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a'))];
       final r =
-          TabLifecycleEngine.closeTab(tabs, activeTabId: 'b', closeId: 'b');
+          TabLifecycleEngine.closeTab(tabs, activeTabId: TabId('b'), closeId: TabId('b'));
       expect(r.nextActiveId, 'a');
       expect(r.activeChanged, isTrue);
     });
@@ -295,28 +296,28 @@ void main() {
     test('closing the active root picks the most recently active survivor',
         () {
       final tabs = [
-        tab('a', activeAt: 3000),
-        tab('b', activeAt: 1000),
-        tab('c', activeAt: 2000),
+        tab(TabId('a'), activeAt: 3000),
+        tab(TabId('b'), activeAt: 1000),
+        tab(TabId('c'), activeAt: 2000),
       ];
       final r =
-          TabLifecycleEngine.closeTab(tabs, activeTabId: 'a', closeId: 'a');
+          TabLifecycleEngine.closeTab(tabs, activeTabId: TabId('a'), closeId: TabId('a'));
       expect(r.nextActiveId, 'c');
     });
 
     test('closing the only tab reports an empty list for the caller to seed',
         () {
-      final r = TabLifecycleEngine.closeTab([tab('a')],
-          activeTabId: 'a', closeId: 'a');
+      final r = TabLifecycleEngine.closeTab([tab(TabId('a'))],
+          activeTabId: TabId('a'), closeId: TabId('a'));
       expect(r.tabs, isEmpty);
       expect(r.nextActiveId, isNull);
       expect(r.activeChanged, isTrue);
     });
 
     test('closing a tab that is not there changes nothing', () {
-      final tabs = [tab('a')];
+      final tabs = [tab(TabId('a'))];
       final r =
-          TabLifecycleEngine.closeTab(tabs, activeTabId: 'a', closeId: 'ghost');
+          TabLifecycleEngine.closeTab(tabs, activeTabId: TabId('a'), closeId: TabId('ghost'));
       expect(ids(r.tabs), ['a']);
       expect(r.closedIds, isEmpty);
       expect(r.activeChanged, isFalse);
@@ -326,21 +327,21 @@ void main() {
   group('closeSubtree', () {
     test('removes the tab and everything under it', () {
       final tabs = [
-        tab('a'),
-        tab('b', parent: 'a'),
-        tab('c', parent: 'b'),
-        tab('d'),
+        tab(TabId('a')),
+        tab(TabId('b'), parent: TabId('a')),
+        tab(TabId('c'), parent: TabId('b')),
+        tab(TabId('d')),
       ];
       final r =
-          TabLifecycleEngine.closeSubtree(tabs, activeTabId: 'd', closeId: 'b');
+          TabLifecycleEngine.closeSubtree(tabs, activeTabId: TabId('d'), closeId: TabId('b'));
       expect(ids(r.tabs), ['a', 'd']);
       expect(r.closedIds.toSet(), {'b', 'c'});
     });
 
     test('closing the subtree holding the active tab re-binds', () {
-      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'b')];
+      final tabs = [tab(TabId('a')), tab(TabId('b'), parent: TabId('a')), tab(TabId('c'), parent: TabId('b'))];
       final r =
-          TabLifecycleEngine.closeSubtree(tabs, activeTabId: 'c', closeId: 'b');
+          TabLifecycleEngine.closeSubtree(tabs, activeTabId: TabId('c'), closeId: TabId('b'));
       expect(ids(r.tabs), ['a']);
       expect(r.nextActiveId, 'a');
       expect(r.activeChanged, isTrue);
@@ -350,7 +351,7 @@ void main() {
   group('backAtHistoryStart (TAB-007)', () {
     test('a root tab keeps the NAV-001 no-op', () {
       expect(
-        TabLifecycleEngine.backAtHistoryStart([tab('a')], activeTabId: 'a'),
+        TabLifecycleEngine.backAtHistoryStart([tab(TabId('a'))], activeTabId: TabId('a')),
         TabBackAction.ignore,
       );
     });
@@ -358,15 +359,15 @@ void main() {
     test('a child tab closes and hands back to its parent', () {
       expect(
         TabLifecycleEngine.backAtHistoryStart(
-            [tab('a'), tab('b', parent: 'a')], activeTabId: 'b'),
+            [tab(TabId('a')), tab(TabId('b'), parent: TabId('a'))], activeTabId: TabId('b')),
         TabBackAction.closeAndActivateParent,
       );
     });
 
     test('a child whose parent is gone is treated as a root', () {
       expect(
-        TabLifecycleEngine.backAtHistoryStart([tab('b', parent: 'a')],
-            activeTabId: 'b'),
+        TabLifecycleEngine.backAtHistoryStart([tab(TabId('b'), parent: TabId('a'))],
+            activeTabId: TabId('b')),
         TabBackAction.ignore,
       );
     });
@@ -375,17 +376,17 @@ void main() {
   group('descendants', () {
     test('walks the whole subtree', () {
       final tabs = [
-        tab('a'),
-        tab('b', parent: 'a'),
-        tab('c', parent: 'b'),
-        tab('d', parent: 'a'),
-        tab('e'),
+        tab(TabId('a')),
+        tab(TabId('b'), parent: TabId('a')),
+        tab(TabId('c'), parent: TabId('b')),
+        tab(TabId('d'), parent: TabId('a')),
+        tab(TabId('e')),
       ];
       expect(
-        TabLifecycleEngine.descendants(tabs, id: 'a').map((t) => t.id).toSet(),
+        TabLifecycleEngine.descendants(tabs, id: TabId('a')).map((t) => t.id).toSet(),
         {'b', 'c', 'd'},
       );
-      expect(TabLifecycleEngine.descendants(tabs, id: 'e'), isEmpty);
+      expect(TabLifecycleEngine.descendants(tabs, id: TabId('e')), isEmpty);
     });
   });
 
@@ -416,17 +417,17 @@ void main() {
     });
 
     test('a site already at home stays on its tab', () {
-      final tabs = [tab('a', url: 'https://bank.test')];
+      final tabs = [tab(TabId('a'), url: 'https://bank.test')];
       expect(
-          TabLifecycleEngine.homeLanding(tabs, activeTabId: 'a', initUrl: home),
+          TabLifecycleEngine.homeLanding(tabs, activeTabId: TabId('a'), initUrl: home),
           isNull);
     });
 
     test('a site away from home gets a new root tab there, keeping its own',
         () {
-      final tabs = [tab('a', url: 'https://bank.test/account/1')];
+      final tabs = [tab(TabId('a'), url: 'https://bank.test/account/1')];
       final r = TabLifecycleEngine.homeLanding(tabs,
-          activeTabId: 'a', initUrl: home)!;
+          activeTabId: TabId('a'), initUrl: home)!;
       expect(r.tabs, hasLength(2));
       expect(r.tabs.first.url, 'https://bank.test/account/1');
       final landed = r.tabs.firstWhere((t) => t.id == r.activeTabId);
@@ -437,12 +438,12 @@ void main() {
 
     test('a parked tab already at home is reused rather than duplicated', () {
       final tabs = [
-        tab('old', url: home, activeAt: 1),
-        tab('a', url: 'https://bank.test/account/1', activeAt: 3),
-        tab('recent', url: 'https://bank.test/', activeAt: 2),
+        tab(TabId('old'), url: home, activeAt: 1),
+        tab(TabId('a'), url: 'https://bank.test/account/1', activeAt: 3),
+        tab(TabId('recent'), url: 'https://bank.test/', activeAt: 2),
       ];
       final r = TabLifecycleEngine.homeLanding(tabs,
-          activeTabId: 'a', initUrl: home)!;
+          activeTabId: TabId('a'), initUrl: home)!;
       expect(ids(r.tabs), ['old', 'a', 'recent']);
       expect(r.activeTabId, 'recent');
     });

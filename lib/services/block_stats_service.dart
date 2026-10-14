@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -54,7 +55,7 @@ class BlockStatsService {
   BlockStatsEngine _engine = BlockStatsEngine();
   final BlockStatsDetail _detail = BlockStatsDetail();
   BlockStatsDetailStore? _detailStore;
-  final Set<String> _contributingSiteIds = <String>{};
+  final Set<SiteId> _contributingSiteIds = <SiteId>{};
   final Set<VoidCallback> _listeners = <VoidCallback>{};
   Timer? _idleFlushTimer;
   Timer? _maxFlushTimer;
@@ -122,7 +123,7 @@ class BlockStatsService {
 
   /// Drop per-site detail rows for sites that no longer exist. Called from
   /// the orphan sweep alongside every other per-`siteId` store.
-  Future<void> removeOrphanedSites(Set<String> liveSiteIds) async {
+  Future<void> removeOrphanedSites(Set<SiteId> liveSiteIds) async {
     if (_detail.retainSites(liveSiteIds) == 0) return;
     await flush();
   }
@@ -130,7 +131,7 @@ class BlockStatsService {
   /// Declare whether [siteId]'s block events roll into the app-wide report.
   /// Called from the webview factory for every webview built, so the answer
   /// always arrives before the first block event for that site.
-  void setSiteContributes(String siteId, {required bool contributes}) {
+  void setSiteContributes(SiteId siteId, {required bool contributes}) {
     if (siteId.isEmpty) return;
     if (contributes) {
       _contributingSiteIds.add(siteId);
@@ -143,7 +144,7 @@ class BlockStatsService {
   /// Ignored for sites that have not been declared app-tier. [label] names
   /// what was stopped (a host, the stripped parameters) and only ever reaches
   /// the in-memory [detail].
-  void record(String siteId, {required BlockCategory category,
+  void record(SiteId siteId, {required BlockCategory category,
      int count = 1, String? label}) {
     if (count < 1) return;
     if (!_contributingSiteIds.contains(siteId)) return;

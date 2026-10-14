@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/proxy_health_service.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -100,7 +101,7 @@ void main() {
         isFalse);
     expect(
         ProxyHealthService.probeable(
-            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'x')),
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('x'))),
         isFalse);
     expect(ProxyHealthService.probeable(_socks()), isTrue);
   });

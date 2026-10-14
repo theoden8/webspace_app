@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/proxy_test_service.dart';
@@ -27,7 +28,7 @@ class ProxyTestTile extends StatefulWidget {
   final Uri target;
 
   /// Tor stream-isolation tag, so a per-site test rides the site's circuit.
-  final String? siteId;
+  final SiteId? siteId;
 
   @override
   State<ProxyTestTile> createState() => _ProxyTestTileState();

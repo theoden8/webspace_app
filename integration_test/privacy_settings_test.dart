@@ -31,6 +31,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'bare_site.dart';
@@ -111,7 +112,7 @@ void main() {
                 hooks: bareHooks(),
                 posture: barePosture(
                   url(path),
-                  siteId: 'privacy-settings',
+                  siteId: SiteId('privacy-settings'),
                   adjust: (site) => site
                     ..clearUrlEnabled = true
                     ..dnsBlockEnabled = true

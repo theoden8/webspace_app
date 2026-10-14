@@ -182,15 +182,16 @@ final class SecureJsonStore<T> {
       });
 }
 
-extension SecureJsonMapStore<V> on SecureJsonStore<Map<String, V>> {
+extension SecureJsonMapStore<K extends String, V>
+    on SecureJsonStore<Map<K, V>> {
   /// Drop every entry whose key is not in [activeKeys] and that [pinned]
   /// does not claim, logging the keys dropped as [what].
   Future<void> removeOrphans(
     Set<String> activeKeys, {
     required String what,
-    bool Function(String key)? pinned,
+    bool Function(K key)? pinned,
   }) async {
-    final removed = <String>[];
+    final removed = <K>[];
     await update((map) {
       for (final key in map.keys.toList()) {
         if (activeKeys.contains(key) || (pinned?.call(key) ?? false)) {

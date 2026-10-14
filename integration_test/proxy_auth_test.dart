@@ -22,6 +22,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -50,7 +51,7 @@ void main() {
     await installInMemoryKeychainIfUnavailable();
 
     final site = WebViewModel(
-      siteId: 'proxy-1',
+      siteId: SiteId('proxy-1'),
       // RFC 5737 reserved test address; the WebView won't connect, but
       // it doesn't need to — the assertion is on the captured proxy
       // method call, not on page load.
@@ -104,7 +105,7 @@ void main() {
     // Open the drawer via the All-webspace tile (the same-id branch in
     // WebspacesController.select calls openDrawer when tapping the already-active
     // webspace).
-    final allTile = find.byKey(const ValueKey(kAllWebspaceId));
+    final allTile = find.byKey(const ValueKey(WebspaceId.all));
     expect(allTile, findsOneWidget);
     await tester.tap(allTile);
     await tester.pumpAndSettle(const Duration(seconds: 5));

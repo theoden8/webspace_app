@@ -6,6 +6,7 @@
 library;
 
 import 'package:webspace/services/url_host.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// The token a search address carries where the query goes.
 const String kSearchQueryToken = '%s';
@@ -272,7 +273,7 @@ List<KnownSearchHost> get kAddableSearchEngines => [
 
 /// One of the user's sites, as the search engine needs to see it.
 class SearchSite {
-  final String siteId;
+  final SiteId siteId;
   final String name;
   final String initUrl;
   final SearchCapability? capability;
@@ -297,7 +298,7 @@ class SearchOption {
 
 /// The sites a search involves, by siteId: the one that searches, the one
 /// whose slot it starts from, and the one that slot is running as.
-typedef SearchParties = ({String search, String owner, String identity});
+typedef SearchParties = ({SiteId search, SiteId owner, SiteId identity});
 
 /// Where a search's results open.
 enum SearchLanding {
@@ -460,7 +461,7 @@ class WebSearchEngine {
     required SearchScope scope,
     required SearchSite identity,
     required List<SearchSite> candidates,
-    required List<String> declared,
+    required List<SiteId> declared,
   }) {
     bool allowed(SearchSite s) =>
         declared.isEmpty || declared.contains(s.siteId);
@@ -486,8 +487,8 @@ class WebSearchEngine {
   /// default, else the first.
   static int preselect(
     List<SearchOption> options, {
-    String? declaredDefault,
-    String? appDefault,
+    SiteId? declaredDefault,
+    SiteId? appDefault,
   }) {
     for (final id in [declaredDefault, appDefault]) {
       if (id == null) continue;
@@ -504,9 +505,9 @@ class WebSearchEngine {
   static ({List<SearchOption> options, int preselected}) barOptions({
     required SearchSite identity,
     required List<SearchSite> candidates,
-    required List<String> declared,
-    String? declaredDefault,
-    String? appDefault,
+    required List<SiteId> declared,
+    SiteId? declaredDefault,
+    SiteId? appDefault,
   }) {
     final web = options(
       scope: SearchScope.web,

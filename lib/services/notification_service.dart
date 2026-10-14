@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
@@ -32,7 +33,7 @@ class NotificationTarget {
   ///
   /// [sequence] is only read for untagged posts and must differ per post.
   static NotificationTarget resolve({
-    required String siteId,
+    required SiteId siteId,
     required String? tag,
     required int sequence,
   }) {
@@ -62,13 +63,13 @@ class NotificationService {
   /// When [siteId] last had a notification posted, this process. A
   /// background wake reads it to tell a site that notified on its own from
   /// one that stayed silent (NOTIF-014).
-  DateTime? lastPostedAt(String siteId) => _lastPostedAt[siteId];
+  DateTime? lastPostedAt(SiteId siteId) => _lastPostedAt[siteId];
 
   /// Called with the siteId after each notification is shown.
-  void Function(String siteId)? onPosted;
+  void Function(SiteId siteId)? onPosted;
   bool _initialized = false;
   final SingleFlight<(), void> _init = SingleFlight();
-  void Function(String siteId)? onNotificationTapped;
+  void Function(SiteId siteId)? onNotificationTapped;
 
   /// Listeners are invoked whenever [permissionGranted] changes (e.g.
   /// after a `requestPermission()` call). Used by the per-site settings
@@ -160,7 +161,7 @@ class NotificationService {
   /// The site a posted notification belongs to, from the payload [show]
   /// wrote; null for anything else.
   @visibleForTesting
-  static String? siteIdOfPayload(String? payload) {
+  static SiteId? siteIdOfPayload(String? payload) {
     if (payload == null) return null;
     final Object? data;
     try {
@@ -169,16 +170,14 @@ class NotificationService {
       LogTag.notification.error('Failed to parse tap payload: $e');
       return null;
     }
-    return data is Map && data['siteId'] is String
-        ? data['siteId'] as String
-        : null;
+    return data is Map ? SiteId.parse(data['siteId']) : null;
   }
 
   /// The site whose notification the user tapped to start this process.
   /// [onNotificationTapped] only hears taps while the app runs: a tap that
   /// launches it reaches no callback on Android, and on iOS one that lands
   /// before [init] is held back the same way, so a cold start reads it here.
-  Future<String?> launchSiteId() async {
+  Future<SiteId?> launchSiteId() async {
     await init();
     // Only these report what launched the app; Linux's implementation throws
     // UnimplementedError for the call.
@@ -261,7 +260,7 @@ class NotificationService {
   }
 
   Future<void> show({
-    required String siteId,
+    required SiteId siteId,
     required String title,
     String body = '',
     String? tag,

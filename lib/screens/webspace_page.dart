@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -373,7 +375,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// [_openSiteSettings] for the site [siteId] names, for call sites that
   /// carry the id rather than the index (the nested webview screen).
-  Future<void> _openSiteSettingsById(String? siteId) async {
+  Future<void> _openSiteSettingsById(SiteId? siteId) async {
     if (siteId == null) return;
     final index = _sites.models.indexWhere((m) => m.siteId == siteId);
     if (index == -1) return;
@@ -793,7 +795,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     ));
   }
 
-  void _toastOpenedInNewTab(WebViewModel model, {required String tabId}) =>
+  void _toastOpenedInNewTab(WebViewModel model, {required TabId tabId}) =>
       _toast(
         (loc) => loc.tabsOpenedInNewTab,
         action: (loc) => SnackBarAction(
@@ -847,7 +849,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
 
     if (plan.clearContainer) {
-      await _containerIsolation.clearForSite(model.siteId);
+      await _containerIsolation.clearForSite(model.containerKey);
     }
 
     if (plan.disposeWebView || plan.clearInModelCookies) {
@@ -944,8 +946,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
   /// reorder the drawer grid and the tab strip make. Returns the sheet's sites
   /// afresh, since reordering "All" renumbers them.
-  List<TabsSheetSite>? _moveSiteInTabsSheet(String siteId,
-      {required String ontoSiteId}) {
+  List<TabsSheetSite>? _moveSiteInTabsSheet(SiteId siteId,
+      {required SiteId ontoSiteId}) {
     if (_tabs.busy || !_webspaces.canReorderView) return null;
     final order = _sites.filteredIndices();
     int at(String id) => order.indexWhere((i) =>
@@ -1431,7 +1433,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await ShortcutService.removeShortcut(site.siteId);
     if (!mounted) return;
     if (_sites.useContainers) {
-      await _containerIsolation.onSiteDeleted(site.siteId);
+      await _containerIsolation.onSiteDeleted(site.containerKey);
     } else {
       // The legacy jar is shared: a loaded same-base-domain site's session
       // is captured and restored around clearing the deleted site's cookies,
@@ -1939,8 +1941,8 @@ class _PageHost
       _s._activation.unload(index, reason: reason);
 
   @override
-  Future<void> wipeContainer(String siteId) async {
-    await _s._containerIsolation.clearForSite(siteId);
+  Future<void> wipeContainer(ContainerKey key) async {
+    await _s._containerIsolation.clearForSite(key);
   }
 
   @override
@@ -1948,11 +1950,11 @@ class _PageHost
       _s._archives.archiveOf(model);
 
   @override
-  void cancelPendingCapture(String siteId) =>
+  void cancelPendingCapture(SiteId siteId) =>
       _s._navStateDebouncer.cancel(siteId);
 
   @override
-  void evictCache(String siteId) => _s._resets.evictCacheIfOnline(siteId);
+  void evictCache(SiteId siteId) => _s._resets.evictCacheIfOnline(siteId);
 
   @override
   Future<void> saveCurrentIndex() => _s._shell.saveCurrentIndex();
@@ -1965,7 +1967,7 @@ class _PageHost
       _s._webspaces.revealSite(model, index: index);
 
   @override
-  void offerOpenTab(WebViewModel model, {required String tabId}) =>
+  void offerOpenTab(WebViewModel model, {required TabId tabId}) =>
       _s._toastOpenedInNewTab(model, tabId: tabId);
 
   @override

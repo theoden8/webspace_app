@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 /// Per-site trailing-edge debounce for navigation-driven
 /// `controller.saveState()` captures (PAUSE-009).
@@ -20,7 +21,7 @@ class NavStateCaptureDebouncer {
   /// [delay] elapses with no further [schedule] call for the same site.
   /// The callback must do its own liveness checks (site deleted,
   /// widget unmounted) — the debouncer only owns the timing.
-  void schedule(String siteId, {required void Function() capture}) {
+  void schedule(SiteId siteId, {required void Function() capture}) {
     _timers[siteId]?.cancel();
     _timers[siteId] = Timer(delay, () {
       _timers.remove(siteId);
@@ -29,7 +30,7 @@ class NavStateCaptureDebouncer {
   }
 
   /// Drop any pending capture for [siteId] without running it.
-  void cancel(String siteId) {
+  void cancel(SiteId siteId) {
     _timers.remove(siteId)?.cancel();
   }
 

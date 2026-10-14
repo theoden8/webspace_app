@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -134,17 +135,19 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   /// every archive are offered, so the pref never names an archived site.
   Future<void> _pickWebSearchDefault() async {
     final loc = AppLocalizations.of(context);
-    final picked = await showDialog<String>(
+    final picked = await showDialog<SearchSitePick>(
       context: context,
       builder: (ctx) => SearchSiteChoiceDialog(
         title: loc.webSearchDefaultTitle,
         sites: widget.webSearchSites,
-        selected: AppPref.webSearchDefaultSite.value,
+        selected: SiteId.parse(AppPref.webSearchDefaultSite.value),
         emptyText: loc.webSearchNoWebSites,
         cancelLabel: loc.commonCancel,
       ),
     );
-    if (picked != null) await AppPref.webSearchDefaultSite.set(picked);
+    if (picked case (site: final id?)) {
+      await AppPref.webSearchDefaultSite.set(id);
+    }
   }
 
   @override

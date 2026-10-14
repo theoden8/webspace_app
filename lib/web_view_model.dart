@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
@@ -49,6 +50,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/web_view_model_json.dart';
@@ -66,7 +68,7 @@ export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
 class WebViewModel implements MediaGrantRecord {
-  final String siteId;
+  final SiteId siteId;
   String initUrl;
 
   /// This site's tabs, in tree order (a child follows its parent). Never
@@ -76,7 +78,7 @@ class WebViewModel implements MediaGrantRecord {
   late List<SiteTab> tabs;
 
   /// The tab the site's webview is showing. Always names a member of [tabs].
-  late String activeTabId;
+  late TabId activeTabId;
 
   SiteTab get activeTab {
     final tab = tabs.where((t) => t.id == activeTabId).firstOrNull;
@@ -95,7 +97,7 @@ class WebViewModel implements MediaGrantRecord {
 
   /// Resolves a siteId to its model, so a tab hosted by another site can find
   /// that site (LIR-018). Set once by the page that owns the site list.
-  static WebViewModel? Function(String siteId)? siteLookup;
+  static WebViewModel? Function(SiteId siteId)? siteLookup;
 
   /// Set by the page: a link in a hosted tab that leads back into this site's
   /// own domain opens as this site's child tab (S6 of the web search design).
@@ -147,7 +149,7 @@ class WebViewModel implements MediaGrantRecord {
   /// tab runs as (LIR-022), so wiping that site drops them.
   String get activeStateKey => stateKeyForTab(activeTabId);
 
-  String stateKeyForTab(String tabId) {
+  String stateKeyForTab(TabId tabId) {
     final tab = tabs.where((t) => t.id == tabId).firstOrNull;
     return webViewStateKey(tab?.hostSiteId ?? siteId, tabId: tabId);
   }
@@ -280,7 +282,7 @@ class WebViewModel implements MediaGrantRecord {
   /// Filter lists this site opts out of, by list id. A mask over the
   /// app-wide selection: a list not enabled globally is not in the engine at
   /// all, so naming it here does nothing.
-  Set<String> disabledFilterLists;
+  Set<FilterListId> disabledFilterLists;
 
   /// Both blocker masks are dropped for archive-tier sites (ARCH-006). Each
   /// leaves a trace outside the archive's keyspace whose presence would
@@ -290,7 +292,7 @@ class WebViewModel implements MediaGrantRecord {
   int? get effectiveDnsBlockLevel =>
       ArchiveFold.dnsBlockLevel(dnsBlockLevel, archived: isArchiveTier);
 
-  Set<String> get effectiveDisabledFilterLists => ArchiveFold.disabledFilterLists(
+  Set<FilterListId> get effectiveDisabledFilterLists => ArchiveFold.disabledFilterLists(
       disabledFilterLists, archived: isArchiveTier);
   /// Umbrella per-site Enhanced Tracking Protection: when true, applies
   /// the anti-fingerprinting JS shim (Canvas/WebGL/audio/fonts/screen/
@@ -356,7 +358,7 @@ class WebViewModel implements MediaGrantRecord {
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
   /// independently enables which ones to inject.
-  Set<String> enabledGlobalScriptIds;
+  Set<UserScriptId> enabledGlobalScriptIds;
   Set<BlockedCookie> blockedCookies;
   LocationMode locationMode;
   double? spoofLatitude;
@@ -472,15 +474,15 @@ class WebViewModel implements MediaGrantRecord {
   }
 
   /// The search sites a search from this site offers; empty offers them all.
-  List<String> searchSites;
+  List<SiteId> searchSites;
 
   /// The search site a search from this site starts with; null falls back to
   /// the app default.
-  String? searchDefault;
+  SiteId? searchDefault;
 
   /// Drop the [searchSites] and [searchDefault] entries that name no
   /// candidate (LIR-031). True when anything was dropped.
-  bool pruneSearchReferences(bool Function(String siteId) isCandidate) {
+  bool pruneSearchReferences(bool Function(SiteId siteId) isCandidate) {
     final kept = [
       for (final id in searchSites)
         if (isCandidate(id)) id,
@@ -738,7 +740,7 @@ class WebViewModel implements MediaGrantRecord {
     return SitePosture(
       siteId: siteId,
       container: (
-        archiveContainerId: archiveContainerId,
+        containerKey: containerKey,
         incognito: effectiveIncognito,
         proxy: outboundProxySettings,
         thirdPartyCookies: effectiveThirdPartyCookiesEnabled,
@@ -869,11 +871,11 @@ class WebViewModel implements MediaGrantRecord {
   }
 
   WebViewModel({
-    String? siteId,
+    SiteId? siteId,
     required this.initUrl,
     String? currentUrl,
     List<SiteTab>? tabs,
-    String? activeTabId,
+    TabId? activeTabId,
     String? name,
     this.cookies = const [],
     UserProxySettings? proxySettings,
@@ -893,7 +895,7 @@ class WebViewModel implements MediaGrantRecord {
     this.dnsBlockEnabled = true,
     this.dnsBlockLevel,
     this.contentBlockEnabled = true,
-    this.disabledFilterLists = const <String>{},
+    this.disabledFilterLists = const <FilterListId>{},
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
     this.externalLinkMode = ExternalLinkMode.inApp,
@@ -906,7 +908,7 @@ class WebViewModel implements MediaGrantRecord {
     this.protectedContentAllowed,
     this.captures = CaptureGrants.none,
     List<UserScriptConfig>? userScripts,
-    Set<String>? enabledGlobalScriptIds,
+    Set<UserScriptId>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -928,7 +930,7 @@ class WebViewModel implements MediaGrantRecord {
     this.searchesWeb = false,
     this.discoveredSearchAddress,
     this.discoveredSearchesWeb = false,
-    List<String>? searchSites,
+    List<SiteId>? searchSites,
     this.searchDefault,
     this.stateSetterF,
     this.isArchiveTier = false,
@@ -939,7 +941,7 @@ class WebViewModel implements MediaGrantRecord {
         searchSites = searchSites ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
-        siteId = siteId ?? generateSiteId(),
+        siteId = siteId ?? SiteId.mint(),
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT) {
     // A site always has at least one tab, so `currentUrl` always has somewhere
@@ -1006,7 +1008,7 @@ class WebViewModel implements MediaGrantRecord {
 
   /// Set by [getWebView] to the container whose proxy the site no longer
   /// names (PROXY-029). One-shot: [_applyProxySettings] clears it.
-  String? _containerProxyToRelease;
+  ContainerName? _containerProxyToRelease;
 
   Future<void> setController() async {
     if (controller == null) {
@@ -1907,13 +1909,11 @@ bool dispatch(NavigationDecision decision,
   /// `restoreState` call land in the same render cycle.
   Uint8List? _pendingRestoreState;
 
-  /// Opaque per-site container identifier for archive-tier sites
-  /// (ARCH-007). Format mirrors [siteId] (radix-36-dash-radix-36) so a
-  /// listing of the on-disk container directory shows uniform-looking
-  /// names; the value itself is HMAC-derived from the archive key and
-  /// the original siteId. Null for app-tier sites — the normal
-  /// `ws-<siteId>` naming continues.
-  String? archiveContainerId;
+  /// An archive-tier site's opaque container key (ARCH-007), HMAC-derived
+  /// from the archive key; null on the app tier, keyed by [siteId] instead.
+  ContainerKey? archiveContainerKey;
+  ContainerKey get containerKey =>
+      archiveContainerKey ?? ContainerKey.ofSite(siteId);
 
   /// Cookies queued by the archive open flow to be pushed into the
   /// per-site container as soon as the WebView controller exists.

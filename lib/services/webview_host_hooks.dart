@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/external_url_engine.dart';
@@ -65,7 +66,7 @@ final class WebViewHostHooks {
 
   /// A long-press on a link in [source]'s webview (TAB-006).
   final void Function(WebViewModel source, {required String url}) linkMenu;
-  final void Function(String siteId) openSiteSettings;
+  final void Function(SiteId siteId) openSiteSettings;
   final Future<void> Function(int windowId, {required String url}) showPopup;
 
   /// Confirms and launches a URL no webview renders (`intent://`, `tel:`),

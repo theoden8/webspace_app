@@ -6,6 +6,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -33,19 +34,19 @@ void main() {
   test('developer mode does not gate Tor', () async {
     DeveloperModeService.instance.debugSet(on: false);
     expect(TorService.instance.isAvailable, isTrue);
-    await TorService.instance.syncHolders({TorSiteHolder('site-a')});
+    await TorService.instance.syncHolders({TorSiteHolder(SiteId('site-a'))});
     expect(runtime.startCalls, 1,
         reason: 'a site pinned to Tor starts it with developer mode off');
   });
 
   test('turning developer mode off keeps Tor sites routed', () async {
     DeveloperModeService.instance.debugSet(on: true);
-    await TorService.instance.syncHolders({TorSiteHolder('site-a')});
+    await TorService.instance.syncHolders({TorSiteHolder(SiteId('site-a'))});
     runtime.emit(const TorUp('127.0.0.1', port: 41337));
     await Future<void>.delayed(Duration.zero);
 
     DeveloperModeService.instance.debugSet(on: false);
-    expect(TorService.instance.socksFor(siteId: 'site-a'), isNotNull);
+    expect(TorService.instance.socksFor(siteId: SiteId('site-a')), isNotNull);
   });
 
   group('a platform without the runtime', () {
@@ -60,8 +61,8 @@ void main() {
     });
 
     test('never spawns tor', () async {
-      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
-      await TorService.instance.syncHolders({TorSiteHolder('site-a'), TorSiteHolder('site-b')});
+      await TorService.instance.maybeStart(TorSiteHolder(SiteId('site-a')));
+      await TorService.instance.syncHolders({TorSiteHolder(SiteId('site-a')), TorSiteHolder(SiteId('site-b'))});
       await TorService.instance.restart();
       expect(runtime.startCalls, 0);
     });
@@ -74,16 +75,16 @@ void main() {
     test('socksFor fails closed rather than falling back to direct', () {
       // A site carrying ProxyType.TOR imported from an Apple device must be
       // blocked, never quietly sent out over the device IP.
-      expect(TorService.instance.socksFor(siteId: 'site-a'), isNull);
+      expect(TorService.instance.socksFor(siteId: SiteId('site-a')), isNull);
     });
   });
 
   test('the SOCKS settings carry the isolation tag', () async {
-    await TorService.instance.syncHolders({TorSiteHolder('site-a')});
+    await TorService.instance.syncHolders({TorSiteHolder(SiteId('site-a'))});
     runtime.emit(const TorUp('127.0.0.1', port: 41337));
     await Future<void>.delayed(Duration.zero);
 
-    final resolved = TorService.instance.socksFor(siteId: 'site-a')!;
+    final resolved = TorService.instance.socksFor(siteId: SiteId('site-a'))!;
     expect(resolved.type, ProxyType.SOCKS5);
     expect(resolved.username, 'site-a');
   });

@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
@@ -71,7 +72,7 @@ void main() {
     // the fixture off the media stack (WPE CI has no audio sink) — the claim
     // here is purely JS-timer freeze.
     final plainSite = WebViewModel(
-      siteId: 'plain',
+      siteId: SiteId('plain'),
       initUrl: 'http://127.0.0.1:$port/?media=none',
       name: 'Plain Site',
     );
@@ -106,7 +107,7 @@ void main() {
           'Timed out after ${timeout.inSeconds}s waiting for: $description');
     }
 
-    await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+    await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
     await tester.pumpAndSettle(const Duration(seconds: 5));
     final tile = find.text('Plain Site');
     expect(tile, findsOneWidget, reason: 'site should appear in the drawer');

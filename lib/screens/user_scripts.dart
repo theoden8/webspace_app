@@ -52,11 +52,11 @@ class UserScriptsScreen extends StatefulWidget {
   /// Per-site opt-in set for global scripts. Non-null in per-site mode;
   /// the global tile switch toggles membership in this set. Null in
   /// App Settings (global library) mode.
-  final Set<String>? enabledGlobalScriptIds;
+  final Set<UserScriptId>? enabledGlobalScriptIds;
 
   /// Callback when the per-site opt-in set changes. Required in per-site
   /// mode.
-  final void Function(Set<String>)? onEnabledGlobalScriptIdsChanged;
+  final void Function(Set<UserScriptId>)? onEnabledGlobalScriptIdsChanged;
 
   /// When true, the [userScripts] list IS the global library: tiles are
   /// rendered with the "Global" badge and have no enabled toggle (globals
@@ -100,7 +100,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   late final List<UserScriptConfig> _scripts = _copy(widget.userScripts);
   late final List<UserScriptConfig> _globalScripts =
       _copy(widget.globalUserScripts);
-  late final Set<String> _enabledGlobalIds = {
+  late final Set<UserScriptId> _enabledGlobalIds = {
     ...?widget.enabledGlobalScriptIds,
   };
 

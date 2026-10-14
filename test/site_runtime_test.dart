@@ -5,13 +5,14 @@ import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'helpers/mock_secure_storage.dart';
 
 WebViewModel _site(String id, {bool archive = false}) => WebViewModel(
-      siteId: id,
+      siteId: SiteId(id),
       initUrl: 'https://$id.test',
       isArchiveTier: archive,
     );
@@ -74,7 +75,7 @@ void main() {
         loaded: ['x', 'c', 'b'],
         shown: 'c',
       );
-      r.apply(const ArchiveClosed(siteIds: {'x'}, webspaceIds: {}));
+      r.apply(ArchiveClosed(siteIds: {SiteId('x')}, webspaceIds: {}));
       expect([for (final m in r.models) m.siteId], ['a', 'b', 'c']);
       expect(_loadedIds(r), ['c', 'b']);
       expect(r.shown?.siteId, 'c');
@@ -83,27 +84,31 @@ void main() {
     test('closing the archive of the shown site leaves nothing shown', () {
       final r = _runtime([_site('a'), _site('x', archive: true)],
           loaded: ['a', 'x'], shown: 'x');
-      r.apply(const ArchiveClosed(siteIds: {'x'}, webspaceIds: {}));
+      r.apply(ArchiveClosed(siteIds: {SiteId('x')}, webspaceIds: {}));
       expect(r.current, isNull);
       expect(_loadedIds(r), ['a']);
     });
 
     test('closing an archive drops its collections and leaves its view', () {
       final r = _runtime([_site('a'), _site('x', archive: true)]);
-      r.webspaces.add(Webspace(id: 'arch', name: 'arch', siteIds: ['x'])
+      r.webspaces.add(Webspace(
+          id: WebspaceId('arch'), name: 'arch', siteIds: [SiteId('x')])
         ..isArchiveTier = true);
-      r.selectedWebspaceId = 'arch';
-      r.apply(const ArchiveClosed(siteIds: {'x'}, webspaceIds: {'arch'}));
+      r.selectedWebspaceId = WebspaceId('arch');
+      r.apply(ArchiveClosed(
+          siteIds: {SiteId('x')}, webspaceIds: {WebspaceId('arch')}));
       expect(r.webspaces, isEmpty);
-      expect(r.selectedWebspaceId, kAllWebspaceId);
+      expect(r.selectedWebspaceId, WebspaceId.all);
     });
 
     test('an import replaces every row and loads nothing', () {
       final r = _runtime([_site('a'), _site('b')], loaded: ['a'], shown: 'a');
       r.apply(SitesReplaced(
         sites: [_site('c')],
-        webspaces: [Webspace(id: 'w', name: 'w', siteIds: ['c'])],
-        selectedWebspaceId: 'w',
+        webspaces: [
+          Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('c')])
+        ],
+        selectedWebspaceId: WebspaceId('w'),
       ));
       expect(r.loaded, isEmpty);
       expect(r.current, isNull);
@@ -112,8 +117,9 @@ void main() {
 
     test('a new site joins the selected named webspace', () {
       final r = _runtime([_site('a')]);
-      r.webspaces.add(Webspace(id: 'w', name: 'w', siteIds: ['a']));
-      r.selectedWebspaceId = 'w';
+      r.webspaces
+          .add(Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('a')]));
+      r.selectedWebspaceId = WebspaceId('w');
       r.apply(SiteAdded(_site('b')));
       expect(r.webspaces.single.siteIds, ['a', 'b']);
       expect(r.filteredIndices(), [0, 1]);
@@ -121,12 +127,13 @@ void main() {
 
     test('an opened archive appends and rejoins the collections it left', () {
       final r = _runtime([_site('a')]);
-      r.webspaces.add(Webspace(id: 'w', name: 'w', siteIds: ['a']));
+      r.webspaces
+          .add(Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('a')]));
       r.apply(ArchiveOpened(
         sites: [_site('x', archive: true)],
         webspaces: const [],
-        appTierMembership: const {
-          'w': ['x'],
+        appTierMembership: {
+          WebspaceId('w'): [SiteId('x')],
         },
       ));
       expect(r.models.last.siteId, 'x');

@@ -7,6 +7,7 @@
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
@@ -41,36 +42,38 @@ export 'package:webspace/services/tor_engine.dart'
 /// (`WebViewModel.outboundProxySettings`).
 UserProxySettings resolveEffectiveProxy(
   UserProxySettings perSite, {
-  required String? siteId,
+  required SiteId? siteId,
 }) {
   if (perSite.type == ProxyType.DEFAULT) {
     final global = resolveLibraryProxy(GlobalOutboundProxy.current);
     return global.type == ProxyType.TOR
-        ? _torTagged(global, siteId: kTorAppGlobalTag)
+        ? _torTagged(global, tag: TorTag.app)
         : global;
   }
-  if (perSite.type == ProxyType.TOR) return _torTagged(perSite, siteId: siteId);
+  if (perSite.type == ProxyType.TOR) {
+    return _torTagged(perSite,
+        tag: siteId == null ? null : TorTag.ofSite(siteId));
+  }
   return resolveLibraryProxy(perSite);
 }
 
 /// Stamp the isolation tag into `username`, where the SOCKS5 expansion later
 /// reads it. Carrying the tag on the settings object keeps `clientFor` a
 /// one-argument function all the way down.
-/// Precedence: an explicit [siteId] from the call site, else a tag the
+/// Precedence: an explicit [tag] from the call site, else a tag the
 /// settings object already carries (WebViewModel stamps its `siteId` there
 /// so the ~15 places that pass `model.proxySettings` straight through don't
 /// each have to thread an id), else app-global.
-UserProxySettings _torTagged(UserProxySettings s, {required String? siteId}) {
+UserProxySettings _torTagged(UserProxySettings s, {required TorTag? tag}) {
   final existing = s.username;
-  final tag = (siteId != null && siteId.isNotEmpty)
-      ? siteId
-      : (existing != null && existing.isNotEmpty)
-          ? existing
-          : kTorAppGlobalTag;
+  final stamped = tag ??
+      ((existing != null && existing.isNotEmpty)
+          ? TorTag.fromWire(existing)
+          : TorTag.app);
   return UserProxySettings(
     type: ProxyType.TOR,
     address: s.address,
-    username: tag,
+    username: stamped,
     password: null,
     // The pin rides the effective settings so a site left on DEFAULT that
     // inherits a global Tor inherits the global's country too, rather than
@@ -98,7 +101,7 @@ UserProxySettings _torTagged(UserProxySettings s, {required String? siteId}) {
 
 /// Expands a tagged [ProxyType.TOR] into live SOCKS5 settings, or says why
 /// the runtime is not up.
-typedef TorProxyResolver = TorRoute Function(String isolationTag);
+typedef TorProxyResolver = TorRoute Function(TorTag tag);
 
 /// Installed once at startup from `TorService`. Left null, every TOR request
 /// blocks — which is the correct default: a missing resolver must never mean
@@ -109,14 +112,14 @@ TorProxyResolver? torProxyResolver;
 /// webview). Anything but [TorRouteUp] means block.
 TorRoute expandTorProxy(UserProxySettings settings) {
   assert(settings.type == ProxyType.TOR, 'only a TOR setting expands');
-  final tag = (settings.username == null || settings.username!.isEmpty)
-      ? kTorAppGlobalTag
-      : settings.username!;
+  final username = settings.username;
   final resolver = torProxyResolver;
   if (resolver == null) {
     return const TorRouteBlocked('Tor is not set up yet in this launch.');
   }
-  return resolver(tag);
+  return resolver(username == null || username.isEmpty
+      ? TorTag.app
+      : TorTag.fromWire(username));
 }
 
 /// Result of asking the [OutboundHttpFactory] to build a client honoring a
@@ -188,7 +191,7 @@ abstract class OutboundHttpFactory {
 /// global Tor is gated exactly like one that opted into Tor itself.
 bool waitsForTor(
   UserProxySettings perSite, {
-  String? siteId,
+  SiteId? siteId,
   required bool torUp,
 }) =>
     !torUp && resolveEffectiveProxy(perSite, siteId: siteId).type == ProxyType.TOR;

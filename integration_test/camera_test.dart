@@ -40,6 +40,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
@@ -229,13 +230,13 @@ void main() {
     );
 
     final virtual = WebViewModel(
-      siteId: 'ws-cam-virtual',
+      siteId: SiteId('ws-cam-virtual'),
       initUrl: '$base/probe.html?site=virtual',
       name: 'CamVirtual',
       captures: _camera(CameraAccessMode.virtual, source: source),
     );
     final video = WebViewModel(
-      siteId: 'ws-cam-video',
+      siteId: SiteId('ws-cam-video'),
       initUrl: '$base/probe.html?site=video',
       name: 'CamVideo',
       captures: _camera(
@@ -248,13 +249,13 @@ void main() {
       ),
     );
     final blocked = WebViewModel(
-      siteId: 'ws-cam-block',
+      siteId: SiteId('ws-cam-block'),
       initUrl: '$base/probe.html?site=block',
       name: 'CamBlock',
       captures: _camera(CameraAccessMode.block),
     );
     final real = WebViewModel(
-      siteId: 'ws-cam-real',
+      siteId: SiteId('ws-cam-real'),
       initUrl: '$base/probe.html?site=real',
       name: 'CamReal',
       captures: _camera(CameraAccessMode.real),
@@ -308,7 +309,7 @@ void main() {
       (tester) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 30));
-    await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+    await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
     // --- Scenario 1: virtual mode serves the picked image ------------------

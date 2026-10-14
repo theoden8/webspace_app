@@ -14,6 +14,7 @@ import 'package:webspace/services/tor_control_io.dart';
 import 'package:webspace/services/tor_control_link.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'helpers/fake_tor_control.dart';
 import 'helpers/fake_tor_runtime.dart';
@@ -64,7 +65,7 @@ void main() {
   test('the control port is attached before Tor is reported up', () async {
     final states = <ExternalTorControlState>[];
     runtime.controlStates.listen(states.add);
-    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    final s = await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     expect(s, isA<TorUp>());
     expect(states.map((s) => s.runtimeType),
         [TorControlAsking, TorControlAttached]);
@@ -74,7 +75,7 @@ void main() {
   test('no control port named: as before, Tor up and no exit country',
       () async {
     endpoint = '';
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     expect(runtime.controlState, isA<TorControlIdle>());
     final pinned = await settled(() => engine.setExitCountry('{de}'));
     expect((pinned as TorErrored).kind, TorFailureKind.externalExitPin);
@@ -82,18 +83,18 @@ void main() {
 
   test('a control port that refuses leaves Tor up and says why', () async {
     tor = FakeTorControl(methods: {TorAuthMethod.hashedPassword}, password: 'p');
-    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    final s = await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     expect(s, isA<TorUp>());
     expect((runtime.controlState as TorControlNotAttached).refusal,
         TorControlRefusal.needsPassword);
   });
 
   test('an exit country goes through the control port', () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     final pinned = await settled(() => engine.setExitCountry('{de}'));
     expect(pinned, isA<TorUp>());
     expect(tor.config['ExitNodes'], ['{de}']);
-    expect(engine.socksFor('site-a'), isNotNull);
+    expect(engine.socksFor(TorTag.ofSite(SiteId('site-a'))), isNotNull);
 
     final cleared = await settled(() => engine.setExitCountry(null));
     expect(cleared, isA<TorUp>());
@@ -102,7 +103,7 @@ void main() {
 
   test('a reload that drops the pin holds the sites until it is back',
       () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     await settled(() => engine.setExitCountry('{de}'));
     final seen = <TorStatus>[];
     engine.statusStream.listen(seen.add);
@@ -117,7 +118,7 @@ void main() {
 
   test('a control channel lost with no pin is opened again quietly',
       () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     final seen = <TorStatus>[];
     engine.statusStream.listen(seen.add);
     tor.hangUp();
@@ -127,13 +128,13 @@ void main() {
   });
 
   test('NEWNYM reaches that tor', () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     await engine.rebuildCircuits();
     expect(tor.newnyms, 1);
   });
 
   test('posture changes are published', () async {
-    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
     final states = <ExternalTorControlState>[];
     runtime.controlStates.listen(states.add);
     tor.torrc['SocksPort'] = ['9050 NoIsolateSOCKSAuth'];
@@ -163,7 +164,7 @@ void main() {
     test('offers exit countries and new circuits once attached', () async {
       final service = TorService.instance;
       expect(service.hasControlPort, isFalse);
-      await service.syncHolders({TorSiteHolder('site-a')});
+      await service.syncHolders({TorSiteHolder(SiteId('site-a'))});
       await _settle();
       expect(service.hasControlPort, isTrue);
       endpoint = '';
@@ -174,7 +175,7 @@ void main() {
 
     test("leaving the external tor gives it back its own exits", () async {
       final service = TorService.instance;
-      await service.syncHolders({TorSiteHolder('site-a')});
+      await service.syncHolders({TorSiteHolder(SiteId('site-a'))});
       await service.setExitCountry('{de}');
       await _settle();
       expect(tor.config['ExitNodes'], ['{de}']);
@@ -190,7 +191,7 @@ void main() {
       await _settle();
       expect(tor.config['ExitNodes'], ['{de}'],
           reason: 'the pin is asked of the tor switched back to');
-      expect(service.socksFor(siteId: 'site-a'), isNotNull);
+      expect(service.socksFor(siteId: SiteId('site-a')), isNotNull);
     });
   });
 

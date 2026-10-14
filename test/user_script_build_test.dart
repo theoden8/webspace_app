@@ -26,7 +26,7 @@ void main() {
         final svc = UserScriptService(
           scripts: [
             UserScriptConfig(
-              id: 'abc',
+              id: UserScriptId('abc'),
               name: 't',
               source: 'MARK_A();',
               injectionTime: UserScriptInjectionTime.atDocumentStart,
@@ -61,7 +61,7 @@ void main() {
       final svc = UserScriptService(
         scripts: [
           UserScriptConfig(
-            id: 'abc',
+            id: UserScriptId('abc'),
             name: 't',
             source: 'MARK_A();',
             injectionTime: UserScriptInjectionTime.atDocumentStart,
@@ -124,7 +124,7 @@ void main() {
 
     test('guard sanitizes non-alphanumeric characters in the script id', () {
       final svc = UserScriptService(
-        scripts: [UserScriptConfig(id: 'a-b.c', name: 't', source: 'X();')],
+        scripts: [UserScriptConfig(id: UserScriptId('a-b.c'), name: 't', source: 'X();')],
       );
       final user = svc.buildInitialUserScripts().firstWhere(
         (s) => s.groupName == 'user_scripts',

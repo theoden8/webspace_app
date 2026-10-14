@@ -28,6 +28,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/platform/host_platform.dart';
@@ -60,7 +61,7 @@ void main() {
     // Two accounts on one service, each meant to be seen from its own
     // exit IP. This is the pair PROXY-008 could not keep loaded together.
     final siteA = WebViewModel(
-      siteId: 'router-a',
+      siteId: SiteId('router-a'),
       initUrl: 'http://192.0.2.1/',
       name: 'Router A',
       proxySettings: UserProxySettings(
@@ -69,7 +70,7 @@ void main() {
       ),
     );
     final siteB = WebViewModel(
-      siteId: 'router-b',
+      siteId: SiteId('router-b'),
       initUrl: 'http://192.0.2.2/',
       name: 'Router B',
       proxySettings: UserProxySettings(

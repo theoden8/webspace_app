@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/tor_holders.dart';
 
 Set<TorHolder> _sites(List<String> ids) => {
-  for (final id in ids) TorSiteHolder(id),
+  for (final id in ids) TorSiteHolder(SiteId(id)),
 };
 
 void main() {
@@ -29,9 +30,9 @@ void main() {
 
   test('a nested browser counts as the site that opened it, once', () {
     final s = summarizeTorHolders({
-      const TorSiteHolder('a1'),
-      const TorNestedHolder('a1'),
-      const TorNestedHolder('b2'),
+      TorSiteHolder(SiteId('a1')),
+      TorNestedHolder(SiteId('a1')),
+      TorNestedHolder(SiteId('b2')),
     }, siteNames: names);
     expect(s.sites, ['bank', 'Mail']);
   });
@@ -55,6 +56,6 @@ void main() {
   });
 
   test('holders of different kinds for one site are distinct', () {
-    expect(const TorSiteHolder('a1'), isNot(const TorNestedHolder('a1')));
+    expect(TorSiteHolder(SiteId('a1')), isNot(TorNestedHolder(SiteId('a1'))));
   });
 }

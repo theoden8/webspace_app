@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/services/container_names.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
@@ -62,7 +64,7 @@ class SiteInfo {
 
   /// The native container the webview binds, from `containerIdFor`; null when
   /// it binds none.
-  final String? containerId;
+  final ContainerName? containerId;
   final bool incognito;
 
   /// The container's colour as a palette index (TAB-018), or null where the
@@ -76,7 +78,7 @@ class SiteInfo {
 
   /// The Tor stream-isolation tag, so a Tor route is checked on the site's
   /// own circuit.
-  final String? siteId;
+  final SiteId? siteId;
 
   SiteContainerKind get containerKind {
     if (containerId != null) return SiteContainerKind.own;
@@ -103,8 +105,7 @@ Future<void> showSiteInfoFor(
       proxy: PlatformInfo.isProxySupported ? id.proxySettings : null,
       siteId: id.siteId,
       containerId: containerIdFor(
-        siteId: id.siteId,
-        archiveContainerId: id.archiveContainerId,
+        key: id.containerKey,
         incognito: id.effectiveIncognito,
       ),
       incognito: id.effectiveIncognito,
@@ -209,7 +210,7 @@ class SiteInfoSheet extends StatelessWidget {
 Widget _connection(
   AppLocalizations loc, {
   required UserProxySettings configured,
-  required String? siteId,
+  required SiteId? siteId,
 }) {
   final route = resolveEffectiveProxy(configured, siteId: siteId);
   final uses = configured.type == ProxyType.DEFAULT

@@ -6,6 +6,7 @@ import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -144,7 +145,7 @@ class SiteNetworkController {
     }
     if (!_host.mounted) return;
     var changed = false;
-    final wipedSiteIds = <String>[];
+    final wiped = <ContainerKey>[];
     for (var i = 0; i < _sites.models.length; i++) {
       final model = _sites.models[i];
       if (!_pinnedBy(model, host: host, port: entry.port)) continue;
@@ -157,7 +158,7 @@ class SiteNetworkController {
         background.noteUnloaded(model, reason: 'certificate trust revoked');
         changed = true;
       }
-      wipedSiteIds.add(model.siteId);
+      wiped.add(model.containerKey);
     }
     // `WebView.clearSslPreferences()` clears the app-level table of
     // user "proceed" decisions but does NOT clear the network
@@ -170,13 +171,13 @@ class SiteNetworkController {
     // cookies/localStorage/IndexedDB — acceptable for self-signed
     // hosts where the user has no meaningful session, and the in-app
     // pin had to be approved again for the site to load anyway.
-    if (wipedSiteIds.isNotEmpty) {
+    if (wiped.isNotEmpty) {
       var cleared = 0;
-      for (final siteId in wipedSiteIds) {
-        if (await containers.clearForSite(siteId)) cleared++;
+      for (final key in wiped) {
+        if (await containers.clearForSite(key)) cleared++;
       }
       LogTag.tls.debug(
-          'cleared $cleared of ${wipedSiteIds.length} container(s) after '
+          'cleared $cleared of ${wiped.length} container(s) after '
           'revoke of ${entry.host}:${entry.port}', sensitive: true);
     }
     if (changed && _host.mounted) _host.rebuild();
@@ -255,7 +256,6 @@ class SiteNetworkController {
   /// session, of its own.
   bool ownsContainerProfile(WebViewModel model) => siteOwnsContainerProfile(
         containersSupported: _sites.useContainers,
-        containerSiteIdentifier: model.archiveContainerId ?? model.siteId,
         incognito: model.effectiveIncognito,
       );
 
@@ -274,7 +274,7 @@ class SiteNetworkController {
   /// and their traffic still has to reach the right upstream. Only their
   /// *persistence* is partitioned (ARCH-001), and no route is written to
   /// disk.
-  Map<String, UserProxySettings> _routeTable({int? activeIndex}) =>
+  Map<RouterIdentity, UserProxySettings> _routeTable({int? activeIndex}) =>
       ProxyRouterEngine.routeTable(
         sites: [
           for (final m in _sites.models)

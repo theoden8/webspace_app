@@ -1,4 +1,5 @@
 import 'package:webspace/services/block_stats_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// One thing the blockers stopped, folded across the retention window: a
 /// blocked host, the set of tracking parameters stripped from a URL, or the
@@ -80,7 +81,7 @@ class BlockStatsDetail {
   /// category that cannot name what it stopped is still worth attributing.
   void record(
     BlockCategory category, {
-    required String siteId,
+    required SiteId siteId,
     String? label,
     int count = 1,
     DateTime? now,
@@ -130,7 +131,7 @@ class BlockStatsDetail {
   /// Drop per-site rows for sites that no longer exist. Item labels are hosts
   /// rather than sites, so they are untouched — the same split the orphan
   /// sweep makes everywhere else.
-  int retainSites(Set<String> liveSiteIds) {
+  int retainSites(Set<SiteId> liveSiteIds) {
     var dropped = 0;
     for (final table in _sites.values) {
       final stale =

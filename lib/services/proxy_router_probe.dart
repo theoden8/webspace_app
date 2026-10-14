@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'package:webspace/services/container_names.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/services/webview_proxy.dart'
     show ProxyManager, answerProxyRouterChallenge, routerRelayProxyFor;
@@ -24,19 +27,19 @@ import 'package:webspace/services/webview_proxy.dart'
 /// The probe cannot leak: the relay answers probe hosts itself and never
 /// opens an upstream, and `.invalid` is RFC 2606 reserved so the name
 /// cannot resolve even if something did forward it.
-Future<void> runAttributionProbe(Map<String, String> siteIdToProbeUrl) async {
+Future<void> runAttributionProbe(Map<SiteId, String> siteIdToProbeUrl) async {
   for (final entry in siteIdToProbeUrl.entries) {
     await _probeOne(entry.key, probeUrl: entry.value);
   }
 }
 
-Future<void> _probeOne(String siteId, {required String probeUrl}) async {
+Future<void> _probeOne(SiteId siteId, {required String probeUrl}) async {
   final done = Completer<void>();
   void finish() {
     if (!done.isCompleted) done.complete();
   }
 
-  final containerId = 'ws-$siteId';
+  final containerId = ContainerName.of(ContainerKey.ofSite(siteId));
   // Apple has no process-wide rule to carry the probe, so the headless view
   // names the relay itself with this site's credential -- the same thing its
   // real WebView does. Null on Android, where the override already covers it.
@@ -55,7 +58,8 @@ Future<void> _probeOne(String siteId, {required String probeUrl}) async {
       useHybridComposition: WebViewFactory.hybridComposition,
     ),
     onReceivedHttpAuthRequest: (controller, challenge) =>
-        answerProxyRouterChallenge(siteId, challenge: challenge),
+        answerProxyRouterChallenge(RouterIdentity.ofSite(siteId),
+            challenge: challenge),
     onLoadStop: (controller, url) => finish(),
     // An error still ends the probe: the relay either recorded the pair
     // before the failure or it did not, and "did not" is a failed check.

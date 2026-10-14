@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
@@ -29,13 +30,13 @@ void main() {
       (tester) async {
     final service = BlockStatsService.instance;
     await service.initialize(detailStore: MemoryBlockStatsDetailStore());
-    service.setSiteContributes('site-a', contributes: true);
-    service.setSiteContributes('site-b', contributes: true);
-    service.record('site-a', category: BlockCategory.dnsBlocklist,
+    service.setSiteContributes(SiteId('site-a'), contributes: true);
+    service.setSiteContributes(SiteId('site-b'), contributes: true);
+    service.record(SiteId('site-a'), category: BlockCategory.dnsBlocklist,
         count: 4, label: 'ads.example');
-    service.record('site-b',
+    service.record(SiteId('site-b'),
         category: BlockCategory.dnsBlocklist, label: 'beacon.example');
-    service.record('site-a',
+    service.record(SiteId('site-a'),
         category: BlockCategory.trackingParam, label: 'utm_source');
     // Settle the debounced write; a pending timer fails the widget binding.
     await service.flush();
@@ -58,8 +59,8 @@ void main() {
       (tester) async {
     final service = BlockStatsService.instance;
     await service.initialize(detailStore: MemoryBlockStatsDetailStore());
-    service.setSiteContributes('deleted-site', contributes: true);
-    service.record('deleted-site', category: BlockCategory.filterList,
+    service.setSiteContributes(SiteId('deleted-site'), contributes: true);
+    service.record(SiteId('deleted-site'), category: BlockCategory.filterList,
         label: 'tracker.example');
     await service.flush();
 
@@ -75,8 +76,8 @@ void main() {
       (tester) async {
     final service = BlockStatsService.instance;
     await service.initialize(detailStore: MemoryBlockStatsDetailStore());
-    service.setSiteContributes('site-a', contributes: true);
-    service.record('site-a',
+    service.setSiteContributes(SiteId('site-a'), contributes: true);
+    service.record(SiteId('site-a'),
         category: BlockCategory.filterList, label: 'tracker.example');
     await service.flush();
 

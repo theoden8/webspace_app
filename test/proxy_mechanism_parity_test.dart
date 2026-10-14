@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -40,7 +41,7 @@ void main() {
     UserProxySettings perSite,
   ) {
     final settings = userProxyToInappProxy(
-      resolveEffectiveProxy(perSite, siteId: 'parity'),
+      resolveEffectiveProxy(perSite, siteId: SiteId('parity')),
     );
     if (settings == null) return null;
     final uri = Uri.parse(settings.proxyRules.first.url);
@@ -55,11 +56,11 @@ void main() {
     final state = ProxyRouterState();
     final wire = ProxyRouterEngine.toWire(
       ProxyRouterEngine.buildRoutes(
-        perSiteProxies: {'parity': perSite},
-        tokens: {'parity': state.tokenFor('parity')},
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('parity')): perSite},
+        tokens: {RouterIdentity.ofSite(SiteId('parity')): state.tokenFor(RouterIdentity.ofSite(SiteId('parity')))},
       ),
     );
-    final entry = wire[state.credentialFor('parity')];
+    final entry = wire[state.credentialFor(RouterIdentity.ofSite(SiteId('parity')))];
     if (entry == null) return null;
     if (entry['type'] == 'direct') return null;
     return (

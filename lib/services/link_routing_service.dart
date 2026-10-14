@@ -1,11 +1,12 @@
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/url_host.dart';
 
 export 'package:webspace/services/domain_claim.dart' show DomainClaim, DomainClaimKind;
 
 abstract class RoutableSite {
-  String get siteId;
+  SiteId get siteId;
   String get initUrl;
   List<DomainClaim> get domainClaims;
 }
@@ -60,7 +61,7 @@ enum ClaimConflictKind { hijack, overlap }
 
 class ClaimConflict {
   final DomainClaim claim;
-  final String otherSiteId;
+  final SiteId otherSiteId;
   final ClaimConflictKind kind;
 
   const ClaimConflict({
@@ -178,7 +179,7 @@ class LinkRoutingService {
   /// source collapses to [OutboundResolution.selfMatch].
   static OutboundResolution resolveOutbound(
     Uri url, {
-    required String sourceSiteId,
+    required SiteId sourceSiteId,
     required List<OutboundPreference> sourcePrefs,
     required List<RoutableSite> candidates,
   }) {
@@ -294,7 +295,7 @@ class LinkRoutingService {
   }
 
   static List<ClaimConflict> validateClaims(
-    String editedSiteId, {
+    SiteId editedSiteId, {
     required List<DomainClaim> editedClaims,
     required List<RoutableSite> others,
   }) {

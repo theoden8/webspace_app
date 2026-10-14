@@ -1,3 +1,4 @@
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/site_posture.dart';
@@ -11,7 +12,7 @@ import 'package:webspace/services/cookie_manager.dart';
 /// so it is a posture a real site can have; [adjust] sets anything else.
 SitePosture barePosture(
   String url, {
-  required String siteId,
+  required SiteId siteId,
   UserProxySettings? proxy,
   void Function(WebViewModel site)? adjust,
 }) {

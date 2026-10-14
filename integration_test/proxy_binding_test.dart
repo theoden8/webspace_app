@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
@@ -103,7 +104,7 @@ String? body(String host, {required String path}) =>
 
   Future<void> mount(
     WidgetTester tester, {
-    required String siteId,
+    required SiteId siteId,
     required int dest,
     required String path,
     UserProxySettings? proxySettings,
@@ -155,7 +156,7 @@ String? body(String host, {required String path}) =>
     if (!usable()) return;
 
     await mount(tester,
-        siteId: 'proxy-binding-landing',
+        siteId: SiteId('proxy-binding-landing'),
         dest: landingDest,
         path: '/landing',
         proxySettings: liveProxy());
@@ -198,12 +199,12 @@ String? body(String host, {required String path}) =>
     if (!usable()) return;
 
     await mount(tester,
-        siteId: 'proxy-binding-pair-a',
+        siteId: SiteId('proxy-binding-pair-a'),
         dest: pairADest,
         path: '/pair-a',
         proxySettings: liveProxy());
     await mount(tester,
-        siteId: 'proxy-binding-pair-b',
+        siteId: SiteId('proxy-binding-pair-b'),
         dest: pairBDest,
         path: '/pair-b',
         proxySettings: altProxy());
@@ -240,7 +241,7 @@ String? body(String host, {required String path}) =>
     // applied. Different bugs.
     if (!usable()) return;
     await mount(tester,
-        siteId: 'proxy-binding-seam',
+        siteId: SiteId('proxy-binding-seam'),
         dest: seamDest,
         path: '/seam',
         proxySettings: liveProxy());
@@ -262,7 +263,7 @@ String? body(String host, {required String path}) =>
     // page fails to load, which is most of them: an unproxied site must reach
     // no fixture, and a proxied one must.
     if (!usable()) return;
-    await mount(tester, siteId: 'proxy-binding-control', dest: controlDest,
+    await mount(tester, siteId: SiteId('proxy-binding-control'), dest: controlDest,
         path: '/control');
     await waitReal(tester, done: () => false,
         label: 'unproxied settle window',

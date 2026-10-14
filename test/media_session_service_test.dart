@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
@@ -33,7 +34,7 @@ void main() {
       calls.where((c) => c.method != 'isNotificationActive').toList();
 
   Future<void> reportPlaying(
-    String siteId, {
+    SiteId siteId, {
     bool playing = true,
     String title = 'Track',
     String artworkUrl = '',
@@ -87,8 +88,8 @@ void main() {
   test(
     'first playing report starts the service, later ones update it',
     () async {
-      await reportPlaying('a', title: 'One');
-      await reportPlaying('a', title: 'Two');
+      await reportPlaying(SiteId('a'), title: 'One');
+      await reportPlaying(SiteId('a'), title: 'Two');
 
       expect(controlCalls().map((c) => c.method), ['start', 'update']);
       expect(controlCalls().first.arguments, {
@@ -105,8 +106,8 @@ void main() {
   test(
     'the owner pausing flips the notification without tearing it down',
     () async {
-      await reportPlaying('a');
-      await reportPlaying('a', playing: false);
+      await reportPlaying(SiteId('a'));
+      await reportPlaying(SiteId('a'), playing: false);
 
       expect(controlCalls().map((c) => c.method), ['start', 'update']);
       expect((controlCalls().last.arguments as Map)['playing'], isFalse);
@@ -131,8 +132,8 @@ void main() {
   });
 
   test('a non-owner reporting not-playing cannot clobber the owner', () async {
-    await reportPlaying('a');
-    await reportPlaying('b', playing: false);
+    await reportPlaying(SiteId('a'));
+    await reportPlaying(SiteId('b'), playing: false);
 
     expect(
       controlCalls().map((c) => c.method),
@@ -150,8 +151,8 @@ void main() {
       // an ad / comments iframe reports `playing:false` for the same siteId
       // moments after the main frame raised the notification. Without the frame
       // guard that flips it to a paused, dismissible state while audio plays.
-      await reportPlaying('a', frame: 'main');
-      await reportPlaying('a', frame: 'ad-iframe', playing: false);
+      await reportPlaying(SiteId('a'), frame: 'main');
+      await reportPlaying(SiteId('a'), frame: 'ad-iframe', playing: false);
 
       expect(controlCalls().map((c) => c.method), ['start']);
       expect(service.isActive, isTrue);
@@ -159,9 +160,9 @@ void main() {
   );
 
   test('playback moving to another frame transfers ownership', () async {
-    await reportPlaying('a', frame: 'main');
-    await reportPlaying('a', frame: 'player-iframe');
-    await reportPlaying('a', frame: 'player-iframe', playing: false);
+    await reportPlaying(SiteId('a'), frame: 'main');
+    await reportPlaying(SiteId('a'), frame: 'player-iframe');
+    await reportPlaying(SiteId('a'), frame: 'player-iframe', playing: false);
 
     expect(controlCalls().map((c) => c.method), ['start', 'update', 'update']);
     expect((controlCalls().last.arguments as Map)['playing'], isFalse);
@@ -172,9 +173,9 @@ void main() {
     // by the shim, which runs in an ad iframe too, so without the main-frame
     // rule any frame that reports `playing:true` retitles what the user is
     // listening to — and inherits the transport controls with it.
-    await reportPlaying('a', frame: 'main', title: 'Real Track');
+    await reportPlaying(SiteId('a'), frame: 'main', title: 'Real Track');
     await reportPlaying(
-      'a',
+      SiteId('a'),
       frame: 'ad-iframe',
       isMainFrame: false,
       title: 'Buy Now',
@@ -190,13 +191,13 @@ void main() {
       // The common embedded-player case: the top document never plays anything,
       // so the iframe that does is the only candidate and must not be locked out.
       await reportPlaying(
-        'a',
+        SiteId('a'),
         frame: 'player-iframe',
         isMainFrame: false,
         title: 'Embedded',
       );
       await reportPlaying(
-        'a',
+        SiteId('a'),
         frame: 'player-iframe',
         isMainFrame: false,
         playing: false,
@@ -218,7 +219,7 @@ void main() {
     addTearDown(() => MediaSessionService.debugArtworkFetchOverride = null);
 
     final parked = reportPlaying(
-      'a',
+      SiteId('a'),
       frame: 'ad-iframe',
       isMainFrame: false,
       title: 'Buy Now',
@@ -226,7 +227,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     MediaSessionService.debugArtworkFetchOverride = null;
-    await reportPlaying('a', frame: 'main', title: 'Real Track');
+    await reportPlaying(SiteId('a'), frame: 'main', title: 'Real Track');
 
     gate.complete(null);
     await parked;
@@ -236,17 +237,17 @@ void main() {
   });
 
   test('not-playing before anything was raised is a no-op', () async {
-    await reportPlaying('a', playing: false);
+    await reportPlaying(SiteId('a'), playing: false);
     expect(controlCalls(), isEmpty);
     expect(service.isActive, isFalse);
   });
 
   test('stopForSite only fires for the owner', () async {
-    await reportPlaying('a');
-    await service.stopForSite('b');
+    await reportPlaying(SiteId('a'));
+    await service.stopForSite(SiteId('b'));
     expect(controlCalls().map((c) => c.method), ['start']);
 
-    await service.stopForSite('a');
+    await service.stopForSite(SiteId('a'));
     expect(controlCalls().map((c) => c.method), ['start', 'stop']);
     expect(service.isActive, isFalse);
   });
@@ -255,16 +256,16 @@ void main() {
     await service.stopAll();
     expect(controlCalls(), isEmpty);
 
-    await reportPlaying('a');
+    await reportPlaying(SiteId('a'));
     await service.stopAll();
     expect(controlCalls().map((c) => c.method), ['start', 'stop']);
   });
 
   test('ownership transfers to whichever site is playing', () async {
-    await reportPlaying('a');
-    await reportPlaying('b');
+    await reportPlaying(SiteId('a'));
+    await reportPlaying(SiteId('b'));
     // 'a' is no longer the owner, so its teardown must not kill b's notification.
-    await service.stopForSite('a');
+    await service.stopForSite(SiteId('a'));
     expect(controlCalls().map((c) => c.method), ['start', 'update']);
   });
 
@@ -285,7 +286,7 @@ void main() {
     });
 
     test('a non-http artwork URL is dropped without a fetch', () async {
-      await reportPlaying('a', artworkUrl: 'data:image/png;base64,AAAA');
+      await reportPlaying(SiteId('a'), artworkUrl: 'data:image/png;base64,AAAA');
       expect((controlCalls().single.arguments as Map)['artwork'], isNull);
       expect(fake.queries, isEmpty);
     });
@@ -293,7 +294,7 @@ void main() {
     test('an unreachable artwork URL still raises the notification', () async {
       fake.responder = (_) => throw http.ClientException('refused');
 
-      await reportPlaying('a', artworkUrl: 'https://art.example/art.png');
+      await reportPlaying(SiteId('a'), artworkUrl: 'https://art.example/art.png');
 
       expect(controlCalls().map((c) => c.method), ['start']);
       expect((controlCalls().single.arguments as Map)['artwork'], isNull);
@@ -302,7 +303,7 @@ void main() {
     test('artwork bytes are forwarded as a byte buffer', () async {
       fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
 
-      await reportPlaying('a', artworkUrl: 'https://art.example/art.png');
+      await reportPlaying(SiteId('a'), artworkUrl: 'https://art.example/art.png');
 
       final artwork = (controlCalls().single.arguments as Map)['artwork'];
       expect(
@@ -319,7 +320,7 @@ void main() {
       fake.responder = (_) => http.Response.bytes(<int>[9], 200);
 
       await reportPlaying(
-        'a',
+        SiteId('a'),
         artworkUrl: 'https://art.example/art.png',
         proxy: UserProxySettings(
           type: ProxyType.HTTP,
@@ -340,7 +341,7 @@ void main() {
         fake.responder = (_) => http.Response.bytes(<int>[9], 200);
 
         await reportPlaying(
-          'a',
+          SiteId('a'),
           artworkUrl: 'https://art.example/art.png',
           proxy: UserProxySettings(type: ProxyType.DEFAULT),
         );
@@ -356,7 +357,7 @@ void main() {
         fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
 
         await reportPlaying(
-          'a',
+          SiteId('a'),
           artworkUrl: 'https://art.example/art.png',
           proxy: UserProxySettings(type: ProxyType.SOCKS5, address: 'nonsense'),
         );
@@ -386,7 +387,7 @@ void main() {
         ]) {
           service.debugReset();
           calls.clear();
-          await reportPlaying('a', artworkUrl: url);
+          await reportPlaying(SiteId('a'), artworkUrl: url);
           expect(
             (controlCalls().single.arguments as Map)['artwork'],
             isNull,
@@ -412,7 +413,7 @@ void main() {
       _stubLookup({'art.evil.example': const ['192.168.1.5']});
       fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
 
-      await reportPlaying('a', artworkUrl: 'http://art.evil.example/art.png');
+      await reportPlaying(SiteId('a'), artworkUrl: 'http://art.evil.example/art.png');
 
       expect((controlCalls().single.arguments as Map)['artwork'], isNull);
       expect(fake.queries, isEmpty);
@@ -421,7 +422,7 @@ void main() {
     test('an artwork host on a routable address is still fetched', () async {
       fake.responder = (_) => http.Response.bytes(<int>[1, 2, 3, 4], 200);
 
-      await reportPlaying('a', artworkUrl: 'https://art.example/art.png');
+      await reportPlaying(SiteId('a'), artworkUrl: 'https://art.example/art.png');
 
       expect((controlCalls().single.arguments as Map)['artwork'], isNotNull);
     });
@@ -429,7 +430,7 @@ void main() {
 
   test('a raised-but-unposted notification is logged as a warning', () async {
     osPostedNotification = false;
-    await reportPlaying('a');
+    await reportPlaying(SiteId('a'));
     // The visibility probe is unawaited; the zero delay lands it on the next
     // microtask drain.
     await Future<void>.delayed(Duration.zero);
@@ -448,7 +449,7 @@ void main() {
   });
 
   test('a posted notification logs no warning', () async {
-    await reportPlaying('a');
+    await reportPlaying(SiteId('a'));
     await Future<void>.delayed(Duration.zero);
 
     final warnings = LogService.instance.allEntriesMerged.where(
@@ -462,7 +463,7 @@ void main() {
     () async {
       service.initialize();
       final js = <String>[];
-      await reportPlaying('a', js: js);
+      await reportPlaying(SiteId('a'), js: js);
 
       for (final action in ['play', 'pause', 'stop']) {
         await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -529,7 +530,7 @@ void main() {
   test('an empty transport action is ignored', () async {
     service.initialize();
     final js = <String>[];
-    await reportPlaying('a', js: js);
+    await reportPlaying(SiteId('a'), js: js);
 
     await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
@@ -582,7 +583,7 @@ void main() {
     });
 
     test('tears our own surface down when we do own it', () async {
-      await reportPlaying('a');
+      await reportPlaying(SiteId('a'));
       calls.clear();
       await service.clearOsMediaSurface();
       expect(controlCalls().map((c) => c.method), ['stop', 'stop']);
@@ -600,7 +601,7 @@ void main() {
   test('a missing native side does not throw', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
-    await expectLater(reportPlaying('a'), completes);
+    await expectLater(reportPlaying(SiteId('a')), completes);
   });
 
   test(
@@ -609,7 +610,7 @@ void main() {
       MediaSessionService.debugEnabledOverride = false;
       service.debugReset();
 
-      await reportPlaying('a');
+      await reportPlaying(SiteId('a'));
       await service.stopAll();
       expect(calls, isEmpty);
       expect(await service.notificationPosted(), isFalse);

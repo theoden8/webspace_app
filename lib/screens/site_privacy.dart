@@ -1,4 +1,6 @@
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/material.dart';
 
@@ -32,7 +34,7 @@ class SitePrivacyValues {
     required this.dnsBlockEnabled,
     this.dnsBlockLevel = const FollowApp(),
     required this.contentBlockEnabled,
-    this.disabledFilterLists = const <String>{},
+    this.disabledFilterLists = const <FilterListId>{},
     required this.localCdnEnabled,
     required this.thirdPartyCookiesEnabled,
     this.httpsUpgrade = const FollowApp(),
@@ -51,7 +53,7 @@ class SitePrivacyValues {
   final bool contentBlockEnabled;
 
   /// Filter list ids this site opts out of.
-  final Set<String> disabledFilterLists;
+  final Set<FilterListId> disabledFilterLists;
   final bool localCdnEnabled;
   final bool thirdPartyCookiesEnabled;
   final Scoped<bool> httpsUpgrade;
@@ -66,7 +68,7 @@ class SitePrivacyValues {
     Scoped<int>? dnsBlockLevel,
     Scoped<bool>? httpsUpgrade,
     bool? contentBlockEnabled,
-    Set<String>? disabledFilterLists,
+    Set<FilterListId>? disabledFilterLists,
     bool? localCdnEnabled,
     bool? thirdPartyCookiesEnabled,
     bool? letterboxEnabled,
@@ -135,7 +137,7 @@ class SitePrivacyScreen extends StatefulWidget {
   final String host;
 
   /// Keys the per-site DNS counters shown under the blocklist row.
-  final String siteId;
+  final SiteId siteId;
 
   final SitePrivacyValues values;
   final ValueChanged<SitePrivacyValues> onChanged;

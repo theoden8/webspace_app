@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -44,7 +45,7 @@ typedef VoidAsyncCallback = Future<void> Function();
 /// hides the Cookies, Scripts, and DNS surfaces.
 abstract class DevToolsHost {
   String get name;
-  String? get siteId;
+  SiteId? get siteId;
   String get currentUrl;
   /// URL used as the favicon cache key for this host (the site's stable
   /// `initUrl` for top-level sites; the current URL for nested webviews).
@@ -60,7 +61,7 @@ abstract class DevToolsHost {
   set cookies(List<Cookie> value);
   Set<BlockedCookie>? get blockedCookies;
   List<UserScriptConfig>? get siteUserScripts;
-  Set<String> get enabledGlobalScriptIds;
+  Set<UserScriptId> get enabledGlobalScriptIds;
   void reload();
 }
 
@@ -71,7 +72,7 @@ class WebViewModelDevToolsHost implements DevToolsHost {
   @override
   String get name => model.name;
   @override
-  String? get siteId => model.siteId;
+  SiteId? get siteId => model.siteId;
   @override
   String get currentUrl => model.currentUrl;
   @override
@@ -95,7 +96,7 @@ class WebViewModelDevToolsHost implements DevToolsHost {
   @override
   List<UserScriptConfig>? get siteUserScripts => model.userScripts;
   @override
-  Set<String> get enabledGlobalScriptIds => model.enabledGlobalScriptIds;
+  Set<UserScriptId> get enabledGlobalScriptIds => model.enabledGlobalScriptIds;
   @override
   void reload() => model.controller?.reload();
 }
@@ -108,7 +109,7 @@ class NestedDevToolsHost implements DevToolsHost {
   @override
   final String name;
   @override
-  final String? siteId;
+  final SiteId? siteId;
   @override
   String currentUrl;
   @override
@@ -152,7 +153,7 @@ class NestedDevToolsHost implements DevToolsHost {
   @override
   List<UserScriptConfig>? get siteUserScripts => null;
   @override
-  Set<String> get enabledGlobalScriptIds => const {};
+  Set<UserScriptId> get enabledGlobalScriptIds => const {};
   @override
   void reload() => controller?.reload();
 }

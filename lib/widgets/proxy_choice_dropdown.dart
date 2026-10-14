@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
@@ -38,8 +39,8 @@ class ProxyChoice {
   const ProxyChoice(this.type, {this.savedProxyId, this.gatewayId});
 
   final ProxyType type;
-  final String? savedProxyId;
-  final String? gatewayId;
+  final SavedProxyId? savedProxyId;
+  final GatewayId? gatewayId;
 }
 
 /// The label a library entry goes by: its name, or what it holds when it has
@@ -146,8 +147,8 @@ class ProxyChoiceDropdown extends StatelessWidget {
   });
 
   final ProxyType type;
-  final String? savedProxyId;
-  final String? gatewayId;
+  final SavedProxyId? savedProxyId;
+  final GatewayId? gatewayId;
   final ProxyLibraryData library;
 
   /// TOR is only offerable where a Tor runtime exists (TOR-007).
@@ -224,11 +225,11 @@ class ProxyChoiceDropdown extends StatelessWidget {
         if (key.startsWith(_savedPrefix)) {
           final id = key.substring(_savedPrefix.length);
           onChanged(ProxyChoice(ProxyType.SAVED,
-              savedProxyId: id.isEmpty ? null : id));
+              savedProxyId: SavedProxyId.parse(id)));
         } else if (key.startsWith(_gatewayPrefix)) {
           final id = key.substring(_gatewayPrefix.length);
           onChanged(ProxyChoice(ProxyType.GATEWAY,
-              gatewayId: id.isEmpty ? null : id));
+              gatewayId: GatewayId.parse(id)));
         } else {
           onChanged(ProxyChoice(ProxyType.values.byName(key)));
         }
@@ -250,10 +251,10 @@ class ProxyCredentialsDropdown extends StatelessWidget {
     required this.onChanged,
   });
 
-  final String? gatewayId;
-  final String? credentialsId;
+  final GatewayId? gatewayId;
+  final CredentialsId? credentialsId;
   final ProxyLibraryData library;
-  final ValueChanged<String?> onChanged;
+  final ValueChanged<CredentialsId?> onChanged;
 
   static const String _typed = 'typed';
   static const String _prefix = 'credentials:';
@@ -280,7 +281,9 @@ class ProxyCredentialsDropdown extends StatelessWidget {
       isDense: true,
       onChanged: (key) {
         if (key == null) return;
-        onChanged(key == _typed ? null : key.substring(_prefix.length));
+        onChanged(key == _typed
+            ? null
+            : CredentialsId.parse(key.substring(_prefix.length)));
       },
       items: items,
     );
@@ -311,14 +314,14 @@ class ProxyRouteFields extends StatelessWidget {
 
   /// HTTP, HTTPS or SOCKS5 for a typed gateway, GATEWAY for a saved one.
   final ProxyType type;
-  final String? gatewayId;
-  final String? credentialsId;
+  final GatewayId? gatewayId;
+  final CredentialsId? credentialsId;
   final ProxyLibraryData library;
   final TextEditingController addressController;
   final TextEditingController usernameController;
   final TextEditingController passwordController;
   final FormFieldValidator<String> addressValidator;
-  final ValueChanged<String?> onCredentialsChanged;
+  final ValueChanged<CredentialsId?> onCredentialsChanged;
 
   /// For a form that saves as each field is left rather than on a button.
   final VoidCallback? onEditingComplete;

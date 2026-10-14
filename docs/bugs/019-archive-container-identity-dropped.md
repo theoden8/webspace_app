@@ -2,8 +2,9 @@
 
 Status: **closed.** Every webview that runs as a site binds through
 `WebViewFactory.storeBinding(SitePosture)`, and a `SitePosture` cannot be built
-without the opaque id: it is a required field of the posture's container group,
-filled only by `WebViewModel.sitePosture` (attempt 4). The close still sweeps
+without the site's container key: it is a required field of the posture's
+container group, filled only by `WebViewModel.sitePosture` (attempt 4). Every
+operation on a container takes a `ContainerKey`, never a `SiteId` (attempt 5). The close still sweeps
 any `ws-<siteId>` an earlier build left behind.
 
 **Spec:** [archive](../../openspec/specs/archive/spec.md) ARCH-006, ARCH-007
@@ -38,7 +39,8 @@ because incognito binds no container there. On Android it binds a persistent
 named profile.
 
 **Invariant:** a webview that runs as an archive-tier site binds by
-`archiveContainerId`, whichever surface builds it.
+its opaque key, whichever surface builds it, and every operation on its
+container addresses that key.
 
 ## Fix attempts
 
@@ -78,6 +80,24 @@ named profile.
    without it, and nothing but `WebViewModel.sitePosture` fills it in. *Why
    it closes the class:* the id is no longer a field a surface threads, so no
    surface can leave it out.
+
+5. **2026-10-14, #718.** *What:* native containers are named by a
+   `ContainerKey`, never a `SiteId`; `ContainerIsolationEngine` and
+   `ContainerNative` take only that type, and a site's model gives its own
+   as `containerKey` (the opaque key on the archive tier, renamed from
+   `archiveContainerId` to `archiveContainerKey`). Clearing site data, the
+   wipe before a link opens in a site (LIR-023), the TLS-revoke wipe and the
+   site delete now pass `model.containerKey`. *Why:* attempt 4 closed the
+   binding, but every operation on the container still took the cleartext
+   `siteId`: "Clear site data" on an archive-tier site cleared `ws-<siteId>`,
+   a container it does not bind, and left its own data in place, and the
+   other three did the same. The posture's container group now carries the
+   site's `containerKey` in place of the nullable `archiveContainerId`, so the
+   rule that picks the opaque key has one owner. *Why it
+   closes the class:* a container operation cannot be called with a
+   `SiteId`, so the cleartext name is reachable only through
+   `ContainerKey.ofSite`, which the two archive paths that mean it
+   (moving a site in, the close-time sweep) spell out.
 
 ## Known open gaps
 

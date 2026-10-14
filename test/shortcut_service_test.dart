@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/shortcut_service.dart';
 
 void main() {
@@ -31,13 +32,13 @@ void main() {
 
   group('ShortcutSite', () {
     test('toMap omits iconUrl when null', () {
-      final m = const ShortcutSite(siteId: 'abc', label: 'Site A').toMap();
+      final m = ShortcutSite(siteId: SiteId('abc'), label: 'Site A').toMap();
       expect(m, {'siteId': 'abc', 'label': 'Site A'});
     });
 
     test('toMap includes iconUrl when present', () {
-      final m = const ShortcutSite(
-        siteId: 'abc',
+      final m = ShortcutSite(
+        siteId: SiteId('abc'),
         label: 'Site A',
         iconUrl: 'https://example.com/favicon.png',
       ).toMap();
@@ -49,8 +50,8 @@ void main() {
     });
 
     test('toMap includes url when present', () {
-      final m = const ShortcutSite(
-        siteId: 'abc',
+      final m = ShortcutSite(
+        siteId: SiteId('abc'),
         label: 'Site A',
         url: 'https://example.com/',
       ).toMap();
@@ -72,8 +73,8 @@ void main() {
     final isAppIntentsHost = Platform.isIOS || Platform.isMacOS;
 
     test('syncSites is a no-op off iOS/macOS', () async {
-      await ShortcutService.syncSites(const [
-        ShortcutSite(siteId: 'a', label: 'A'),
+      await ShortcutService.syncSites([
+        ShortcutSite(siteId: SiteId('a'), label: 'A'),
       ]);
       if (!isAppIntentsHost) {
         expect(calls, isEmpty);
@@ -90,7 +91,7 @@ void main() {
 
     test('pinShortcut fails off a shortcut host', () async {
       final result = await ShortcutService.pinShortcut(
-        siteId: 'a',
+        siteId: SiteId('a'),
         label: 'A',
       );
       if (!isShortcutHost) {
@@ -116,22 +117,22 @@ void main() {
     });
 
     test('removeShortcut is a no-op off Android', () async {
-      await ShortcutService.removeShortcut('a');
+      await ShortcutService.removeShortcut(SiteId('a'));
       if (!Platform.isAndroid) {
         expect(calls, isEmpty);
       }
     });
 
     test('disableShortcut is a no-op off Android', () async {
-      await ShortcutService.disableShortcut('a');
+      await ShortcutService.disableShortcut(SiteId('a'));
       if (!Platform.isAndroid) {
         expect(calls, isEmpty);
       }
     });
 
     test('updateTiles writes nothing off Android', () async {
-      final written = await ShortcutService.updateTiles(const [
-        (tile: 'a', label: 'A', icon: null),
+      final written = await ShortcutService.updateTiles([
+        (tile: SiteId('a'), label: 'A', icon: null),
       ]);
       if (!Platform.isAndroid) {
         expect(written, isFalse);
@@ -149,14 +150,14 @@ void main() {
       // On a non-mobile host these all short-circuit before touching the
       // channel; this case really exercises mobile hosts. Still: the calls
       // must never throw a PlatformException out of the service.
-      expect(await ShortcutService.pinShortcut(siteId: 'a', label: 'A'),
+      expect(await ShortcutService.pinShortcut(siteId: SiteId('a'), label: 'A'),
           PinShortcutResult.failed);
       expect(await ShortcutService.getLaunch(), isNull);
       expect(await ShortcutService.getPinnedSiteIds(), isEmpty);
       expect(await ShortcutService.isAppIntentsSupported(), isFalse);
       expect(await ShortcutService.updateTiles(const []), isFalse);
       await ShortcutService.syncSites(const []);
-      await ShortcutService.removeShortcut('a');
+      await ShortcutService.removeShortcut(SiteId('a'));
     });
   });
 

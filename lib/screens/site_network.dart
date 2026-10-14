@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/settings/proxy_ids.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
@@ -38,9 +40,9 @@ class SiteNetworkValues {
   /// The library entries picked: the saved proxy under [ProxyType.SAVED],
   /// the saved gateway under [ProxyType.GATEWAY], and saved credentials
   /// (null meaning the typed ones).
-  final String? savedProxyId;
-  final String? gatewayId;
-  final String? credentialsId;
+  final SavedProxyId? savedProxyId;
+  final GatewayId? gatewayId;
+  final CredentialsId? credentialsId;
 
   /// Country the Tor exit is pinned to, or null for any.
   final String? torExitCountry;
@@ -58,8 +60,8 @@ class SiteNetworkValues {
     Object? credentialsId = _keep,
     WebRtcPolicy? webRtcPolicy,
   }) {
-    String? or(Object? next, {required String? kept}) =>
-        identical(next, _keep) ? kept : next as String?;
+    T? or<T>(Object? next, {required T? kept}) =>
+        identical(next, _keep) ? kept : next as T?;
     return SiteNetworkValues(
       proxyType: proxyType ?? this.proxyType,
       torExitCountry: or(torExitCountry, kept: this.torExitCountry),
@@ -117,7 +119,7 @@ class SiteNetworkScreen extends StatefulWidget {
   final String host;
 
   /// Keys the saved sign-ins row.
-  final String siteId;
+  final SiteId siteId;
 
   final SiteNetworkValues values;
   final ValueChanged<SiteNetworkValues> onChanged;
@@ -390,7 +392,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
 class SavedSignInsTile extends StatefulWidget {
   const SavedSignInsTile({super.key, required this.siteId, this.storage});
 
-  final String siteId;
+  final SiteId siteId;
 
   /// Defaults to the app's store.
   final HttpAuthSecureStorage? storage;

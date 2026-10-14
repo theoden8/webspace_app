@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
@@ -17,7 +18,7 @@ WebViewModel siteWithChain(String name, {required List<String> urls}) {
   final m = WebViewModel(initUrl: urls.first, name: name);
   var parent = m.activeTabId;
   for (final url in urls.skip(1)) {
-    final t = SiteTab(id: 'tab${m.tabs.length}', url: url, parentId: parent);
+    final t = SiteTab(id: TabId('tab${m.tabs.length}'), url: url, parentId: parent);
     m.tabs = [...m.tabs, t];
     parent = t.id;
   }
@@ -27,13 +28,13 @@ WebViewModel siteWithChain(String name, {required List<String> urls}) {
 Future<void> pumpSheet(
   WidgetTester tester, {
   required List<TabsSheetSite> sites,
-  void Function(int siteIndex, {required String tabId})? onOpenTab,
+  void Function(int siteIndex, {required TabId tabId})? onOpenTab,
   void Function(int)? onNewTab,
   VoidCallback? onWebSearch,
-  void Function(int siteIndex, {required String tabId})? onCloseTab,
-  void Function(int siteIndex, {required String tabId})? onCloseSubtree,
+  void Function(int siteIndex, {required TabId tabId})? onCloseTab,
+  void Function(int siteIndex, {required TabId tabId})? onCloseSubtree,
   bool Function(int siteIndex,
-      {required String tabId, required TabDrop drop})? onMoveTab,
+      {required TabId tabId, required TabDrop drop})? onMoveTab,
   List<TabsSheetSite>? Function(String siteId,
       {required String ontoSiteId})? onMoveSite,
   TabReturn? wayBack,
@@ -78,7 +79,7 @@ bool isHighlighted(String text) => find
 WebViewModel siteWithRoots(String name, {required List<String> urls}) {
   final m = WebViewModel(initUrl: urls.first, name: name);
   for (final url in urls.skip(1)) {
-    m.tabs = [...m.tabs, SiteTab(id: 'tab${m.tabs.length}', url: url)];
+    m.tabs = [...m.tabs, SiteTab(id: TabId('tab${m.tabs.length}'), url: url)];
   }
   return m;
 }
@@ -216,7 +217,7 @@ void main() {
 Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
     WidgetTester tester,
     {bool refuse = false,
-    void Function(int siteIndex, {required String tabId})? onOpenTab}) async {
+    void Function(int siteIndex, {required TabId tabId})? onOpenTab}) async {
       final models = [
         siteWithChain('GitHub', urls: ['https://github.com/']),
         siteWithChain('Mastodon', urls: ['https://mastodon.social/']),
@@ -611,36 +612,36 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       // GitHub page opened below it, and one a link opened while GitHub's
       // routing was off, which runs as GitHub in DuckDuckGo's domain.
       gh = WebViewModel(
-        siteId: 'gh',
+        siteId: SiteId('gh'),
         initUrl: 'https://github.com/',
         name: 'GitHub',
         containerColor: 0,
         tabs: [
           SiteTab.primary(url: 'https://github.com/'),
           SiteTab(
-              id: 'h',
+              id: TabId('h'),
               url: hosted,
               parentId: kPrimaryTabId,
-              hostSiteId: 'ddg',
-              openerSiteId: 'gh',
+              hostSiteId: SiteId('ddg'),
+              openerSiteId: SiteId('gh'),
               homeUrl: hosted),
-          SiteTab(id: 'h1', url: below, parentId: 'h'),
+          SiteTab(id: TabId('h1'), url: below, parentId: TabId('h')),
           SiteTab(
-              id: 'f',
+              id: TabId('f'),
               url: foreign,
               parentId: kPrimaryTabId,
-              openerSiteId: 'gh',
+              openerSiteId: SiteId('gh'),
               homeUrl: foreign),
         ],
       );
       ddg = WebViewModel(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: ddgHome,
         name: 'DuckDuckGo',
         containerColor: 1,
         tabs: [
           SiteTab.primary(url: ddgHome),
-          SiteTab(id: 'own', url: ddgChild, parentId: kPrimaryTabId),
+          SiteTab(id: TabId('own'), url: ddgChild, parentId: kPrimaryTabId),
         ],
       );
       final byId = {'gh': gh, 'ddg': ddg};
@@ -706,7 +707,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
 
     testWidgets('on a tab GitHub runs as DuckDuckGo, GitHub\'s tree is first',
         (tester) async {
-      gh.activeTabId = 'h';
+      gh.activeTabId = TabId('h');
       final newTabs = <int>[];
       await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
@@ -732,21 +733,21 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
     testWidgets('where the user was is marked and its tree listed',
         (tester) async {
       final wiki = WebViewModel(
-        siteId: 'wiki',
+        siteId: SiteId('wiki'),
         initUrl: 'https://wikipedia.org/',
         name: 'Wikipedia',
         tabs: [
           SiteTab.primary(url: 'https://wikipedia.org/'),
-          SiteTab(id: 'w', url: 'https://wikipedia.org/w', parentId: kPrimaryTabId),
-          SiteTab(id: 'x', url: 'https://wikipedia.org/x', parentId: kPrimaryTabId),
+          SiteTab(id: TabId('w'), url: 'https://wikipedia.org/w', parentId: kPrimaryTabId),
+          SiteTab(id: TabId('x'), url: 'https://wikipedia.org/x', parentId: kPrimaryTabId),
         ],
       );
       WebViewModel.siteLookup = (id) => {'gh': gh, 'ddg': ddg, 'wiki': wiki}[id];
       await pumpSheet(tester, sites: [
         ...sites(),
         TabsSheetSite(index: 2, model: wiki, isCurrent: false, isLoaded: true),
-      ], wayBack: const TabReturn(
-          fromSiteId: 'wiki', fromTabId: 'w', toSiteId: 'ddg', toTabId: kPrimaryTabId));
+      ], wayBack: TabReturn(
+          fromSiteId: SiteId('wiki'), fromTabId: TabId('w'), toSiteId: SiteId('ddg'), toTabId: kPrimaryTabId));
       expect(find.text('In Wikipedia'), findsOneWidget,
           reason: 'nothing there runs as DuckDuckGo, but the way back is there');
       expect(find.text('wikipedia.org · where you were'), findsOneWidget);
@@ -774,7 +775,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
     testWidgets('All sites heads only the sites the webspace shows',
         (tester) async {
       final other = WebViewModel(
-          siteId: 'wiki',
+          siteId: SiteId('wiki'),
           initUrl: 'https://wikipedia.org/',
           name: 'Wikipedia');
       await pumpSheet(tester, sites: [
@@ -798,7 +799,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         (tester) async {
       // GitHub on the tab it opened in DuckDuckGo's domain while its routing
       // was off: that tab and its root both run as GitHub.
-      gh.activeTabId = 'f';
+      gh.activeTabId = TabId('f');
       await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),

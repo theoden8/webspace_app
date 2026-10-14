@@ -34,16 +34,16 @@ class MockContainerNative implements ContainerNative {
   }
 
   @override
-  Future<String> getOrCreateContainer(String siteId) async {
+  Future<ContainerName> getOrCreateContainer(ContainerKey siteId) async {
     calls.add('getOrCreateContainer($siteId)');
-    final name = 'ws-$siteId';
+    final name = ContainerName.of(siteId);
     profiles[siteId] = name;
     dataByContainer.putIfAbsent(siteId, () => []);
     return name;
   }
 
   @override
-  Future<bool> deleteContainer(String siteId) async {
+  Future<bool> deleteContainer(ContainerKey siteId) async {
     calls.add('deleteContainer($siteId)');
     final existed = profiles.remove(siteId) != null;
     dataByContainer.remove(siteId);
@@ -51,7 +51,7 @@ class MockContainerNative implements ContainerNative {
   }
 
   @override
-  Future<bool> clearContainerData(String siteId) async {
+  Future<bool> clearContainerData(ContainerKey siteId) async {
     calls.add('clearContainerData($siteId)');
     if (refuseClearFor?.contains(siteId) ?? false) return false;
     if (!profiles.containsKey(siteId)) return false;
@@ -60,8 +60,8 @@ class MockContainerNative implements ContainerNative {
   }
 
   @override
-  Future<List<String>> listContainers() async {
+  Future<List<ContainerKey>> listContainers() async {
     calls.add('listContainers');
-    return profiles.keys.toList();
+    return [for (final name in profiles.keys) ContainerKey.named(name)];
   }
 }

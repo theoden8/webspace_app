@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
@@ -53,8 +54,8 @@ class SiteBehaviourValues {
   /// LIR-028: how to search this site, and what a search from it offers.
   final String? searchAddress;
   final bool searchesWeb;
-  final List<String> searchSites;
-  final Scoped<String> searchDefault;
+  final List<SiteId> searchSites;
+  final Scoped<SiteId> searchDefault;
 
   static const Object _keep = Object();
 
@@ -69,8 +70,8 @@ class SiteBehaviourValues {
     List<OutboundPreference>? outboundPreferences,
     Object? searchAddress = _keep,
     bool? searchesWeb,
-    List<String>? searchSites,
-    Scoped<String>? searchDefault,
+    List<SiteId>? searchSites,
+    Scoped<SiteId>? searchDefault,
   }) =>
       SiteBehaviourValues(
         archived: archived,
@@ -262,7 +263,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
   Widget _idLine(WebViewModel site) =>
       SiteIdLine(siteId: site.siteId, colorIndex: _colorIndexOf(site));
 
-  String? _nameOf(String? siteId) {
+  String? _nameOf(SiteId? siteId) {
     final site = siteId == null
         ? null
         : widget.routingTargets.where((m) => m.siteId == siteId).firstOrNull;
@@ -324,13 +325,12 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
       hint: loc.webSearchFromSiteHint,
       subtitle: name ?? loc.webSearchUseAppDefault,
       control: Opens(() async {
-        const appDefault = '';
-        final picked = await showDialog<String>(
+        final picked = await showDialog<SearchSitePick>(
           context: context,
           builder: (ctx) => SearchSiteChoiceDialog(
             title: loc.webSearchFromSiteTitle,
             noneLabel: loc.webSearchUseAppDefault,
-            selected: _values.searchDefault.resolve(appDefault),
+            selected: _values.searchDefault.stored,
             sites: [
               for (final m in _webSearchSites)
                 (
@@ -343,7 +343,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         );
         if (picked == null) return;
         _update(_values.copyWith(
-          searchDefault: picked == appDefault ? const FollowApp() : Own(picked),
+          searchDefault: Scoped.fromStored(picked.site),
         ));
       }),
     );
@@ -360,7 +360,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
       hint: loc.webSearchOfferedHint,
       subtitle: names.isEmpty ? loc.webSearchOfferedAll : summary,
       control: Opens(() async {
-        final picked = await showDialog<List<String>>(
+        final picked = await showDialog<List<SiteId>>(
           context: context,
           builder: (ctx) => _SearchSitesDialog(
             sites: _webSearchSites,
@@ -546,7 +546,7 @@ class _SearchSitesDialog extends StatefulWidget {
   });
 
   final List<WebViewModel> sites;
-  final List<String> selected;
+  final List<SiteId> selected;
   final Widget Function(WebViewModel site) idLine;
 
   @override
@@ -554,7 +554,7 @@ class _SearchSitesDialog extends StatefulWidget {
 }
 
 class _SearchSitesDialogState extends State<_SearchSitesDialog> {
-  late final Set<String> _picked = {...widget.selected};
+  late final Set<SiteId> _picked = {...widget.selected};
 
   @override
   Widget build(BuildContext context) {

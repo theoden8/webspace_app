@@ -1,3 +1,5 @@
+import 'package:webspace/settings/proxy_ids.dart';
+
 /// Proxy transports a site (or the app) can be pointed at.
 ///
 /// [TOR] is resolved late: it carries no address of its own and
@@ -48,16 +50,16 @@ class UserProxySettings {
   /// The saved proxy this setting names. Meaningful only under
   /// [ProxyType.SAVED]; kept across a switch to another type for the same
   /// reason the manual fields are (PROXY-010).
-  String? savedProxyId;
+  SavedProxyId? savedProxyId;
 
   /// The saved gateway this setting connects to. Meaningful only under
   /// [ProxyType.GATEWAY].
-  String? gatewayId;
+  GatewayId? gatewayId;
 
   /// Saved credentials to sign in with instead of [username] and
   /// [password]. Only a saved gateway the credentials list can take them;
   /// any other pairing fails closed.
-  String? credentialsId;
+  CredentialsId? credentialsId;
 
   UserProxySettings({
     required this.type,
@@ -124,9 +126,9 @@ class UserProxySettings {
       username: text('username'),
       password: text('password'),
       torExitCountry: text('torExitCountry'),
-      savedProxyId: text('savedProxyId'),
-      gatewayId: text('gatewayId'),
-      credentialsId: text('credentialsId'),
+      savedProxyId: SavedProxyId.parse(json['savedProxyId']),
+      gatewayId: GatewayId.parse(json['gatewayId']),
+      credentialsId: CredentialsId.parse(json['credentialsId']),
     );
   }
 

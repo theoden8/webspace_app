@@ -1,11 +1,12 @@
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// One outbound routing rule of a site (LIR-013): a link the site opens that
 /// [claim] covers goes to the site [targetSiteId]. Lives beside
 /// `domain_claim.dart` for the same import-cycle reason that file does.
 class OutboundPreference {
   final DomainClaim claim;
-  final String targetSiteId;
+  final SiteId targetSiteId;
 
   const OutboundPreference({required this.claim, required this.targetSiteId});
 
@@ -23,8 +24,8 @@ class OutboundPreference {
   static OutboundPreference? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final claimRaw = raw['claim'];
-    final target = raw['targetSiteId'];
-    if (claimRaw is! Map || target is! String || target.isEmpty) return null;
+    final target = SiteId.parse(raw['targetSiteId']);
+    if (claimRaw is! Map || target == null) return null;
     final kindName = claimRaw['kind'];
     final value = claimRaw['value'];
     if (kindName is! String || value is! String) return null;
@@ -102,7 +103,7 @@ class OutboundPreferenceGc {
   /// when nothing would be dropped, so a caller persists only on a change.
   static List<OutboundPreference>? pruned(
     List<OutboundPreference> prefs, {
-    required bool Function(String targetSiteId) isCandidate,
+    required bool Function(SiteId targetSiteId) isCandidate,
   }) {
     if (prefs.every((p) => isCandidate(p.targetSiteId))) return null;
     return [
@@ -147,7 +148,7 @@ class OutboundPreferenceGc {
     required List<OutboundPreference> Function(T site) prefsOf,
     required void Function(T site, {required List<OutboundPreference> prefs})
         setPrefs,
-    required bool Function(T source, {required String targetSiteId})
+    required bool Function(T source, {required SiteId targetSiteId})
         isCandidate,
   }) {
     var changed = false;

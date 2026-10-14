@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
@@ -70,7 +71,7 @@ class ContainerDot extends StatelessWidget {
 class SiteIdLine extends StatelessWidget {
   const SiteIdLine({super.key, required this.siteId, this.colorIndex});
 
-  final String siteId;
+  final SiteId siteId;
   final int? colorIndex;
 
   @override

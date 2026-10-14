@@ -1,3 +1,5 @@
+import 'package:webspace/settings/site_ids.dart';
+
 /// Which live set a store's entries are measured against.
 enum OrphanScope {
   /// Session residue: an incognito site's entries are orphans too, so
@@ -42,7 +44,7 @@ enum SweepOccasion {
 abstract interface class OrphanSweepTargets {
   /// Drops everything [store] keeps for a siteId outside [liveSiteIds].
   Future<void> removeOrphans(OrphanStore store,
-      {required Set<String> liveSiteIds});
+      {required Set<SiteId> liveSiteIds});
 
   /// Empties the single shared cookie jar the legacy engine partitions by
   /// hand.
@@ -67,8 +69,8 @@ class OrphanSweepEngine {
   /// class of mistake unreachable from here rather than merely fixed once.
   static Future<void> sweep({
     required OrphanSweepTargets targets,
-    required Set<String> activeSiteIds,
-    required Set<String> nonIncognitoSiteIds,
+    required Set<SiteId> activeSiteIds,
+    required Set<SiteId> nonIncognitoSiteIds,
     required bool useContainers,
     required SweepOccasion occasion,
   }) async {

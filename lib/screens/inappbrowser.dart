@@ -424,8 +424,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         openedFrom: widget.openedFrom,
         pageUrl: _currentUrl,
         containerId: containerIdFor(
-          siteId: p.siteId,
-          archiveContainerId: p.container.archiveContainerId,
+          key: p.container.containerKey,
           incognito: p.container.incognito,
         ),
         incognito: p.container.incognito,

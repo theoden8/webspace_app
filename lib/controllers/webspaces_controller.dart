@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
@@ -61,7 +62,7 @@ class WebspacesController {
   /// isn't a member of the current named webspace, with a snackbar.
   Future<void> revealSite(WebViewModel model, {required int index}) async {
     if (_sites.selectedWebspaceId == null ||
-        _sites.selectedWebspaceId == kAllWebspaceId) {
+        _sites.selectedWebspaceId == WebspaceId.all) {
       return;
     }
     final ws = _sites.webspaces.firstWhere(
@@ -69,7 +70,7 @@ class WebspacesController {
       orElse: () => _sites.webspaces.first,
     );
     if (ws.siteIndices.contains(index)) return;
-    _sites.selectedWebspaceId = kAllWebspaceId;
+    _sites.selectedWebspaceId = WebspaceId.all;
     _host.rebuild();
     await _shell.saveSelectedWebspaceId();
     _host.toast((loc) => loc.homeSwitchedToAllToOpen(model.getDisplayName()));
@@ -84,7 +85,7 @@ class WebspacesController {
       onSave: (updatedWebspace) {
         // The editor returns positional siteIndices; translate to
         // siteIds (the persisted source of truth) before storing.
-        final selectedSiteIds = <String>[
+        final selectedSiteIds = <SiteId>[
           for (final i in updatedWebspace.siteIndices)
             if (i >= 0 && i < _sites.models.length) _sites.models[i].siteId,
         ];
@@ -102,9 +103,9 @@ class WebspacesController {
     // For "All" webspace, show all sites as selected but read-only.
     // The synthetic projection has to populate BOTH siteIds and
     // siteIndices so the editor's "selected" state matches.
-    final webspaceToEdit = webspace.id == kAllWebspaceId
+    final webspaceToEdit = webspace.id == WebspaceId.all
         ? Webspace(
-            id: kAllWebspaceId,
+            id: WebspaceId.all,
             name: 'All',
             siteIds: [for (final m in _sites.models) m.siteId],
             siteIndices: List<int>.generate(
@@ -117,13 +118,13 @@ class WebspacesController {
     await _prompts.edit(
       webspaceToEdit,
       sites: _sites.models,
-      readOnly: webspace.id == kAllWebspaceId,
+      readOnly: webspace.id == WebspaceId.all,
       onSave: (updatedWebspace) {
-        if (updatedWebspace.id == kAllWebspaceId) return;
+        if (updatedWebspace.id == WebspaceId.all) return;
 
         // Translate the editor's index-based selection back into
         // the siteId-keyed persisted membership.
-        final selectedSiteIds = <String>[
+        final selectedSiteIds = <SiteId>[
           for (final i in updatedWebspace.siteIndices)
             if (i >= 0 && i < _sites.models.length) _sites.models[i].siteId,
         ];
@@ -143,7 +144,7 @@ class WebspacesController {
   }
 
   Future<void> delete(Webspace webspace) async {
-    if (webspace.id == kAllWebspaceId) {
+    if (webspace.id == WebspaceId.all) {
       _host.toast((loc) => loc.homeCannotDeleteAllWebspace);
       return;
     }
@@ -155,7 +156,7 @@ class WebspacesController {
     final wasSelected = _sites.selectedWebspaceId == webspace.id;
     _sites.webspaces.removeWhere((ws) => ws.id == webspace.id);
     if (wasSelected) {
-      _sites.selectedWebspaceId = kAllWebspaceId;
+      _sites.selectedWebspaceId = WebspaceId.all;
     }
     _host.rebuild();
     if (wasSelected) {
@@ -252,7 +253,7 @@ class WebspacesController {
     if (oldListIndex < 0 || oldListIndex >= filtered.length) return;
     if (newListIndex < 0 || newListIndex >= filtered.length) return;
     if (oldListIndex == newListIndex) return;
-    if (_sites.selectedWebspaceId == kAllWebspaceId) {
+    if (_sites.selectedWebspaceId == WebspaceId.all) {
       unawaited(
         _reorderAllSites(
           filtered[oldListIndex],

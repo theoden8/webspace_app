@@ -12,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_stats_detail_storage.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/file_store.dart';
@@ -174,7 +175,7 @@ void main() {
       HtmlCacheService.resetForTesting();
       await HtmlCacheService.instance
           .initialize(store: store, secureStorage: keychain);
-      expect(await HtmlCacheService.instance.loadHtml('s1'),
+      expect(await HtmlCacheService.instance.loadHtml(SiteId('s1')),
           ('https://a', '<p>a</p>'));
     });
 
@@ -186,7 +187,7 @@ void main() {
           contents: _oldSeal(_key, plaintext: 'file:///a\n<p>a</p>'));
       final imports = HtmlImportStorage(secureStorage: keychain, store: store);
       await imports.initialize();
-      expect(await imports.loadHtml('s1'), ('file:///a', '<p>a</p>'));
+      expect(await imports.loadHtml(SiteId('s1')), ('file:///a', '<p>a</p>'));
     });
 
     test('webview state', () async {
@@ -218,22 +219,22 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'proxy_passwords', value: '{"a":"old"}');
       final store = ProxyPasswordSecureStorage(secureStorage: keychain);
-      await store.savePassword('b', password: 'pw');
+      await store.savePassword(ProxyPasswordKey.site(SiteId('b')), password: 'pw');
       expect(keychain.storage['proxy_passwords'], '{"a":"old","b":"pw"}');
       await store.mutate((draft) => draft
-        ..['a'] = null
-        ..['b'] = '');
+        ..[ProxyPasswordKey.site(SiteId('a'))] = null
+        ..[ProxyPasswordKey.site(SiteId('b'))] = '');
       expect(keychain.storage.containsKey('proxy_passwords'), isFalse);
     });
 
     test('saved sign-ins', () async {
       final keychain = MockFlutterSecureStorage();
       final store = HttpAuthSecureStorage(secureStorage: keychain);
-      await store.save('s1', host: Host('h.example'), realm: 'r',
+      await store.save(SiteId('s1'), host: Host('h.example'), realm: 'r',
           credential: const HttpAuthCredential(username: 'u', password: 'p'));
       expect(keychain.storage['http_auth_credentials'],
           '{"s1":[{"host":"h.example","realm":"r","username":"u","password":"p"}]}');
-      await store.removeSite('s1');
+      await store.removeSite(SiteId('s1'));
       expect(keychain.storage.containsKey('http_auth_credentials'), isFalse);
     });
 
@@ -250,7 +251,7 @@ void main() {
     test('cookies split by isSecure between keystore and prefs', () async {
       final keychain = MockFlutterSecureStorage();
       final store = CookieSecureStorage(secureStorage: keychain);
-      await store.saveCookiesForSite('s1', cookies: [
+      await store.saveCookiesForSite(SiteId('s1'), cookies: [
         inapp.Cookie(name: 'sid', value: 'x', domain: 'a.com', isSecure: true),
         inapp.Cookie(name: 'pref', value: 'y', domain: 'a.com'),
       ]);

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:webspace/services/local_proxy_relay.dart';
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// [ProxyRelayApi] over the in-process [LocalProxyRelay], so the router
@@ -119,8 +120,8 @@ class LocalProxyRelayApi implements ProxyRelayApi {
     final token = decoded.substring(split + 1);
     if (token.isEmpty) return null;
 
-    final siteId = wire['siteId'];
-    if (siteId is! String) return null;
+    final identity = RouterIdentity.parse(wire['siteId']);
+    if (identity == null) return null;
     final type = switch (wire['type']) {
       'direct' => ProxyType.DEFAULT,
       'socks5' => ProxyType.SOCKS5,
@@ -143,7 +144,7 @@ class LocalProxyRelayApi implements ProxyRelayApi {
     return (
       username: username,
       route: LocalProxyRoute(
-        siteId: siteId,
+        identity: identity,
         token: token,
         upstream: UserProxySettings(
           type: type,

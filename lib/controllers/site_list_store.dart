@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
@@ -36,7 +37,7 @@ class SiteListStore {
     // strip from the in-memory JSON before constructing models, so the
     // post-migration save writes the cleaned form back.
     final secureProxyPasswords = await proxyPasswords.loadAll();
-    final legacyMigrations = <String, String>{};
+    final legacyMigrations = <ProxyPasswordKey, String>{};
     final cleanedJsonStrings = <String>[];
     for (var i = 0; i < webViewModelsJson.length; i++) {
       final raw = webViewModelsJson[i];
@@ -46,12 +47,15 @@ class SiteListStore {
         if (proxy is Map<String, dynamic>) {
           final pwd = proxy['password'];
           if (pwd is String && pwd.isNotEmpty) {
-            final siteId = decoded['siteId'];
-            if (siteId is String && siteId.isNotEmpty) {
+            // An id that is no SiteId is re-minted on load, so its
+            // password would name no site: only a reserved key (PWD-008).
+            final siteId = SiteId.parse(decoded['siteId']);
+            if (siteId != null) {
+              final key = ProxyPasswordKey.site(siteId);
               // Don't overwrite an existing secure-storage entry — the
               // secure value wins on conflict (it's newer by definition).
-              if (!(secureProxyPasswords[siteId]?.isNotEmpty ?? false)) {
-                legacyMigrations[siteId] = pwd;
+              if (!(secureProxyPasswords[key]?.isNotEmpty ?? false)) {
+                legacyMigrations[key] = pwd;
               }
               proxy.remove('password');
             }
@@ -97,7 +101,7 @@ class SiteListStore {
       if (m.proxySettings.type != ProxyType.DEFAULT) {
         sitesWithCustomProxy++;
       }
-      final pwd = secureProxyPasswords[m.siteId];
+      final pwd = secureProxyPasswords[ProxyPasswordKey.site(m.siteId)];
       if (pwd != null && pwd.isNotEmpty) {
         m.proxySettings.password = pwd;
         hydratedCount++;
@@ -153,7 +157,7 @@ class SiteListStore {
     // the password, which lives in secure storage.
     await proxyPasswords.mutate((draft) {
       for (final m in appTierModels) {
-        draft[m.siteId] = m.proxySettings.password;
+        draft[ProxyPasswordKey.site(m.siteId)] = m.proxySettings.password;
       }
     });
 

@@ -135,7 +135,7 @@ void main() {
         initUrl: 'https://example.com',
         userScripts: [
           UserScriptConfig(
-            id: 'script-1',
+            id: UserScriptId('script-1'),
             name: 'Custom Script',
             source: 'console.log("hello world");',
             enabled: true,

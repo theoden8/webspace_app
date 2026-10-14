@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -38,7 +39,7 @@ abstract interface class ShortcutPrompts {
   Future<ShortcutFate?> deletedSiteTiles();
 
   /// A site to point an orphaned shortcut at, as its siteId.
-  Future<String?> pickSite(List<WebViewModel> candidates);
+  Future<SiteId?> pickSite(List<WebViewModel> candidates);
 
   /// HS-008 on iOS: how to add the site through Shortcuts.app.
   Future<void> explainIosShortcut(String siteName);
@@ -87,7 +88,7 @@ class ShortcutController {
 
   /// Sites that already have a pinned shortcut, so the menu item hides for
   /// them (HS-005).
-  Set<String> _pinnedSiteIds = const <String>{};
+  Set<SiteId> _pinnedSiteIds = const <SiteId>{};
 
   /// HS-006/007: iOS 16+ / macOS 13+ expose shortcuts via App Intents.
   /// Probed once so the menu renders synchronously.
@@ -97,23 +98,23 @@ class ShortcutController {
   /// siteId, which is opaque once its site is deleted, so `siteId -> url` is
   /// kept for pinned sites, pruned to the pinned/current set, to drive the
   /// domain fallback.
-  Map<String, String> _urlLedger = {};
+  Map<SiteId, String> _urlLedger = {};
 
   /// HS-011 (iOS): iOS cannot enumerate home-screen tiles, so a bounded list
   /// of deleted `{siteId, label, url}` is synced to the App Group:
   /// `entities(for:)` resolves a deleted-site Shortcut from live ∪ tombstones
   /// while the picker stays live-only (HS-009).
-  List<Map<String, String>> _tombstones = [];
+  List<ShortcutTombstone> _tombstones = [];
 
   /// A confirmed rebind (stale siteId -> live siteId), so later taps of the
   /// same shortcut resolve silently. Machine state, not a user setting:
   /// excluded from backups.
-  Map<String, String> _remap = {};
+  Map<SiteId, SiteId> _remap = {};
 
   /// What each pinned Android tile was last given (HS-016). Held in memory
   /// only, so a launch's first sync rewrites every tile once, which also
   /// brings a tile pinned by an earlier version up to date.
-  Map<String, TileFace> _tileFaces = const {};
+  Map<SiteId, TileFace> _tileFaces = const {};
   StreamSubscription<String?>? _siteIconChanges;
 
   /// A cold-launch resolution that needs a prompt, parked until the first
@@ -133,8 +134,18 @@ class ShortcutController {
   }
 
   void load(SharedPreferences prefs) {
-    _remap = _decodeStringMap(prefs.getString(_kRemapKey));
-    _urlLedger = _decodeStringMap(prefs.getString(_kUrlLedgerKey));
+    _remap = {
+      for (final MapEntry(:key, :value)
+          in _decodeStringMap(prefs.getString(_kRemapKey)).entries)
+        if ((SiteId.parse(key), SiteId.parse(value))
+            case (final tile?, final site?))
+          tile: site,
+    };
+    _urlLedger = {
+      for (final MapEntry(:key, :value)
+          in _decodeStringMap(prefs.getString(_kUrlLedgerKey)).entries)
+        ?SiteId.parse(key): value,
+    };
     _tombstones = _decodeTombstones(prefs.getString(_kTombstonesKey));
   }
 
@@ -223,7 +234,7 @@ class ShortcutController {
   /// Drops remembered state naming sites that no longer exist: a remap whose
   /// target is gone would never resolve (a fresh tap re-prompts), and a
   /// tombstone whose site is live again (only a backup can do that).
-  Future<void> pruneAgainst(Set<String> liveSiteIds) async {
+  Future<void> pruneAgainst(Set<SiteId> liveSiteIds) async {
     final prefs = await SharedPreferences.getInstance();
     final remapBefore = _remap.length;
     _remap.removeWhere((_, resolved) => !liveSiteIds.contains(resolved));
@@ -234,7 +245,7 @@ class ShortcutController {
     _tombstones =
         ShortcutTombstones.pruneLive(_tombstones, liveSiteIds: liveSiteIds);
     if (_tombstones.length != tombstonesBefore) {
-      await prefs.setString(_kTombstonesKey, jsonEncode(_tombstones));
+      await prefs.setString(_kTombstonesKey, _encodeTombstones(_tombstones));
     }
   }
 
@@ -299,9 +310,9 @@ class ShortcutController {
     );
   }
 
-  String? _tombstoneUrlFor(String siteId) {
+  String? _tombstoneUrlFor(SiteId siteId) {
     for (final t in _tombstones) {
-      if (t['siteId'] == siteId) return t['url'];
+      if (t.siteId == siteId) return t.url;
     }
     return null;
   }
@@ -376,7 +387,7 @@ class ShortcutController {
     });
   }
 
-  Future<void> _reroute(String shortcutSiteId) async {
+  Future<void> _reroute(SiteId shortcutSiteId) async {
     final targetSiteId = await _pickSite();
     if (targetSiteId == null || !_host.mounted) return;
     await _rememberRemap(shortcutSiteId, resolvedSiteId: targetSiteId);
@@ -384,7 +395,7 @@ class ShortcutController {
     if (i >= 0) await _openIndex(i);
   }
 
-  Future<String?> _pickSite() async {
+  Future<SiteId?> _pickSite() async {
     final candidates = [
       for (final m in _sites.models)
         if (!m.isArchiveTier) m,
@@ -396,7 +407,7 @@ class ShortcutController {
   /// HS-013: the launcher tiles that reach [model], directly or through an
   /// HS-011 rebind, read fresh from the launcher before the delete. Android
   /// only; elsewhere no tile can be enumerated.
-  Future<Set<String>> tilesReaching(WebViewModel model) async {
+  Future<Set<SiteId>> tilesReaching(WebViewModel model) async {
     if (!hostIsAndroid) return const {};
     final pinnedNow = await ShortcutService.getPinnedSiteIds();
     final tiles = ShortcutPinState.tilesReaching(
@@ -416,7 +427,7 @@ class ShortcutController {
   /// no way to tell whether a tile exists, so a prompt there would fire on
   /// every delete.
   Future<void> siteDeleted(WebViewModel deleted,
-      {required Set<String> tiles}) async {
+      {required Set<SiteId> tiles}) async {
     if (tiles.isNotEmpty && _host.mounted) await _decideTileFate(tiles);
     if ((hostIsIOS || hostIsMacOS) && !deleted.isArchiveTier) {
       await _recordTombstone(deleted.siteId,
@@ -426,7 +437,7 @@ class ShortcutController {
 
   /// Keep the tiles (a tap re-routes), point them at another site, or
   /// disable them; Android cannot remove a tile for the user.
-  Future<void> _decideTileFate(Set<String> tileIds) async {
+  Future<void> _decideTileFate(Set<SiteId> tileIds) async {
     final choice = await _prompts.deletedSiteTiles();
     if (!_host.mounted) return;
     switch (choice) {
@@ -475,11 +486,7 @@ class ShortcutController {
     ];
     final tombstones = [
       for (final t in _tombstones)
-        ShortcutSite(
-          siteId: t['siteId'] ?? '',
-          label: t['label'] ?? '',
-          url: t['url'],
-        ),
+        ShortcutSite(siteId: t.siteId, label: t.label, url: t.url),
     ];
     unawaited(ShortcutService.syncSites(sites, tombstones: tombstones));
   }
@@ -510,8 +517,8 @@ class ShortcutController {
   }
 
   Future<void> _rememberRemap(
-    String shortcutSiteId, {
-    required String resolvedSiteId,
+    SiteId shortcutSiteId, {
+    required SiteId resolvedSiteId,
   }) async {
     if (_remap[shortcutSiteId] == resolvedSiteId) return;
     _remap[shortcutSiteId] = resolvedSiteId;
@@ -521,18 +528,18 @@ class ShortcutController {
     await prefs.setString(_kRemapKey, jsonEncode(_remap));
   }
 
-  Future<void> _recordTombstone(String siteId,
+  Future<void> _recordTombstone(SiteId siteId,
       {required String label, required String url}) async {
     _tombstones = ShortcutTombstones.add(
       tombstones: _tombstones,
-      entry: {'siteId': siteId, 'label': label, 'url': url},
+      entry: (siteId: siteId, label: label, url: url),
     );
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kTombstonesKey, jsonEncode(_tombstones));
+    await prefs.setString(_kTombstonesKey, _encodeTombstones(_tombstones));
     syncSites();
   }
 
-  Future<void> _recordLedger(String siteId, {required String url}) async {
+  Future<void> _recordLedger(SiteId siteId, {required String url}) async {
     if (url.isEmpty || _urlLedger[siteId] == url) return;
     _urlLedger[siteId] = url;
     final prefs = await SharedPreferences.getInstance();
@@ -540,7 +547,7 @@ class ShortcutController {
   }
 
   /// HS-011: urls for pinned sites that still exist; unreachable entries go.
-  Future<void> _reconcileLedger(Set<String> pinnedSiteIds) async {
+  Future<void> _reconcileLedger(Set<SiteId> pinnedSiteIds) async {
     final next = ShortcutUrlLedger.reconcile(
       ledger: _urlLedger,
       currentSiteUrls: {
@@ -563,16 +570,27 @@ class ShortcutController {
     return {for (final e in decoded.entries) e.key.toString(): e.value.toString()};
   }
 
-  static List<Map<String, String>> _decodeTombstones(String? raw) {
+  static List<ShortcutTombstone> _decodeTombstones(String? raw) {
     if (raw == null) return [];
     final decoded = _tryJson(raw);
     if (decoded is! List) return [];
     return [
       for (final e in decoded)
         if (e is Map)
-          {for (final kv in e.entries) kv.key.toString(): kv.value.toString()},
+          if (SiteId.parse(e['siteId']) case final siteId?)
+            (
+              siteId: siteId,
+              label: e['label']?.toString() ?? '',
+              url: e['url']?.toString() ?? '',
+            ),
     ];
   }
+
+  static String _encodeTombstones(List<ShortcutTombstone> tombstones) =>
+      jsonEncode([
+        for (final t in tombstones)
+          {'siteId': t.siteId, 'label': t.label, 'url': t.url},
+      ]);
 
   static Object? _tryJson(String raw) {
     try {

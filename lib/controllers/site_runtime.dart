@@ -1,3 +1,5 @@
+import 'package:webspace/settings/site_ids.dart';
+
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
@@ -37,7 +39,7 @@ class SiteRuntime {
   bool useContainers = false;
 
   final List<Webspace> webspaces = [];
-  String? selectedWebspaceId;
+  WebspaceId? selectedWebspaceId;
 
   /// The site on screen, or null.
   WebViewModel? get shown {
@@ -45,7 +47,7 @@ class SiteRuntime {
     return i != null && i >= 0 && i < models.length ? models[i] : null;
   }
 
-  WebViewModel? byId(String siteId) {
+  WebViewModel? byId(SiteId siteId) {
     for (final m in models) {
       if (m.siteId == siteId) return m;
     }
@@ -54,11 +56,11 @@ class SiteRuntime {
 
   bool isLoaded(WebViewModel model) => loaded.contains(models.indexOf(model));
 
-  Set<String> get siteIds => {for (final m in models) m.siteId};
+  Set<SiteId> get siteIds => {for (final m in models) m.siteId};
 
   /// The sites whose stored state outlives the session: an incognito site's
   /// does not (#298).
-  Set<String> get nonIncognitoSiteIds => {
+  Set<SiteId> get nonIncognitoSiteIds => {
         for (final m in models)
           if (!m.incognito) m.siteId,
       };
@@ -68,7 +70,7 @@ class SiteRuntime {
   /// still has: closing a tab makes its file an orphan, and deleting a site
   /// makes all of them orphans. The sweep speaks in sites; expanding a site to
   /// its keys belongs here, where the models are.
-  Set<String> liveStateKeys(Set<String> siteIds) => <String>{
+  Set<String> liveStateKeys(Set<SiteId> siteIds) => <String>{
         for (final m in models)
           if (siteIds.contains(m.siteId))
             for (final t in m.tabs) m.stateKeyForTab(t.id),
@@ -149,7 +151,7 @@ class SiteRuntime {
           if (siteIds.contains(models[i].siteId)) _removeAt(i);
         }
         if (webspaceIds.contains(selectedWebspaceId)) {
-          selectedWebspaceId = kAllWebspaceId;
+          selectedWebspaceId = WebspaceId.all;
         }
         webspaces.removeWhere((w) => webspaceIds.contains(w.id));
     }

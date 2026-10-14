@@ -1,3 +1,5 @@
+import 'package:webspace/services/container_names.dart';
+
 /// The containers this process gave a proxy of their own (PROXY-029).
 ///
 /// The fork keeps a container's proxy for the rest of the process once a
@@ -12,13 +14,13 @@ class ContainerProxyLedger {
   /// Builds with a proxy per container. A count rather than a flag so a
   /// build that lands while a clear is in flight is not forgotten when the
   /// clear returns.
-  final Map<String, int> _builds = {};
+  final Map<ContainerName, int> _builds = {};
 
-  bool holds(String containerId) => _builds.containsKey(containerId);
+  bool holds(ContainerName containerId) => _builds.containsKey(containerId);
 
   /// A WebView is being built on [containerId] with a proxy of the site's
   /// own. Either null records nothing.
-  void noteBuild(String? containerId, {required Object? proxy}) {
+  void noteBuild(ContainerName? containerId, {required Object? proxy}) {
     if (containerId == null || proxy == null) return;
     _builds.update(containerId, (n) => n + 1, ifAbsent: () => 1);
   }
@@ -26,8 +28,8 @@ class ContainerProxyLedger {
   /// Take [containerId]'s proxy off through [clear]. A failed clear keeps
   /// the entry, so the next build of the site asks again.
   Future<void> release(
-    String containerId, {
-    required Future<void> Function(String containerId) clear,
+    ContainerName containerId, {
+    required Future<void> Function(ContainerName containerId) clear,
   }) async {
     final buildsAtEntry = _builds[containerId];
     await clear(containerId);
@@ -44,7 +46,7 @@ class ContainerProxyLedger {
   /// proxy, so nothing is cleared.
   bool mustRelease({
     required bool bindsProxyPerSite,
-    required String? containerId,
+    required ContainerName? containerId,
     required bool siteNamesProxy,
     required bool boundProxy,
     required bool proxyUnavailable,

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/url_host.dart';
@@ -28,84 +29,84 @@ void main() {
 
   group('HttpAuthSecureStorage', () {
     test('save + lookup round-trip per (site, host, realm)', () async {
-      await store.save('site-1',
+      await store.save(SiteId('site-1'),
           host: Host('nas.example.com'), realm: 'R', credential: alice);
 
       expect(
-          await store.lookup('site-1',
+          await store.lookup(SiteId('site-1'),
               host: Host('nas.example.com'), realm: 'R'),
           alice);
       expect(
-          await store.lookup('site-2',
+          await store.lookup(SiteId('site-2'),
               host: Host('nas.example.com'), realm: 'R'),
           isNull);
       expect(
-          await store.lookup('site-1',
+          await store.lookup(SiteId('site-1'),
               host: Host('other.example.com'), realm: 'R'),
           isNull);
       expect(
-          await store.lookup('site-1',
+          await store.lookup(SiteId('site-1'),
               host: Host('nas.example.com'), realm: 'Other'),
           isNull);
     });
 
     test('saving the same space again replaces the credential', () async {
-      await store.save('site-1',
+      await store.save(SiteId('site-1'),
           host: Host('h'), realm: 'R', credential: alice);
-      await store.save('site-1',
+      await store.save(SiteId('site-1'),
           host: Host('h'),
           realm: 'R',
           credential:
               const HttpAuthCredential(username: 'alice', password: 'n3w'));
 
       expect(
-          (await store.lookup('site-1', host: Host('h'), realm: 'R'))?.password,
+          (await store.lookup(SiteId('site-1'), host: Host('h'), realm: 'R'))?.password,
           'n3w');
-      expect(await store.countForSite('site-1'), 1);
+      expect(await store.countForSite(SiteId('site-1')), 1);
     });
 
     test('remove drops one space and deletes the entry when empty', () async {
-      await store.save('site-1',
+      await store.save(SiteId('site-1'),
           host: Host('h'), realm: 'A', credential: alice);
-      await store.save('site-1',
+      await store.save(SiteId('site-1'),
           host: Host('h'), realm: 'B', credential: alice);
-      await store.remove('site-1', host: Host('h'), realm: 'A');
+      await store.remove(SiteId('site-1'), host: Host('h'), realm: 'A');
 
-      expect(await store.countForSite('site-1'), 1);
-      await store.remove('site-1', host: Host('h'), realm: 'B');
+      expect(await store.countForSite(SiteId('site-1')), 1);
+      await store.remove(SiteId('site-1'), host: Host('h'), realm: 'B');
       expect(secure.storage.containsKey('http_auth_credentials'), isFalse);
     });
 
     test('removeSite forgets every space of one site only', () async {
-      await store.save('site-1',
+      await store.save(SiteId('site-1'),
           host: Host('h'), realm: 'A', credential: alice);
-      await store.save('site-1',
+      await store.save(SiteId('site-1'),
           host: Host('h'), realm: 'B', credential: alice);
-      await store.save('site-2',
+      await store.save(SiteId('site-2'),
           host: Host('h'), realm: 'A', credential: alice);
-      await store.removeSite('site-1');
+      await store.removeSite(SiteId('site-1'));
 
-      expect(await store.countForSite('site-1'), 0);
-      expect(await store.countForSite('site-2'), 1);
+      expect(await store.countForSite(SiteId('site-1')), 0);
+      expect(await store.countForSite(SiteId('site-2')), 1);
     });
 
     test('removeOrphaned keeps only live sites', () async {
-      await store.save('live', host: Host('h'), realm: 'R', credential: alice);
-      await store.save('gone', host: Host('h'), realm: 'R', credential: alice);
-      await store.removeOrphaned({'live'});
+      await store.save(SiteId('live'), host: Host('h'), realm: 'R', credential: alice);
+      await store.save(SiteId('gone'), host: Host('h'), realm: 'R', credential: alice);
+      await store.removeOrphaned({SiteId('live')});
 
-      expect(await store.countForSite('live'), 1);
-      expect(await store.countForSite('gone'), 0);
+      expect(await store.countForSite(SiteId('live')), 1);
+      expect(await store.countForSite(SiteId('gone')), 0);
     });
 
     test('concurrent saves from two webviews both land', () async {
       await Future.wait([
-        store.save('site-1', host: Host('a'), realm: 'R', credential: alice),
-        store.save('site-2', host: Host('b'), realm: 'R', credential: alice),
+        store.save(SiteId('site-1'), host: Host('a'), realm: 'R', credential: alice),
+        store.save(SiteId('site-2'), host: Host('b'), realm: 'R', credential: alice),
       ]);
 
-      expect(await store.countForSite('site-1'), 1);
-      expect(await store.countForSite('site-2'), 1);
+      expect(await store.countForSite(SiteId('site-1')), 1);
+      expect(await store.countForSite(SiteId('site-2')), 1);
     });
 
     test('a malformed entry is skipped, not thrown', () async {
@@ -120,11 +121,11 @@ void main() {
         }),
       );
 
-      expect(await store.lookup('site-1', host: Host('h'), realm: 'R'), isNull);
+      expect(await store.lookup(SiteId('site-1'), host: Host('h'), realm: 'R'), isNull);
       expect(
-          (await store.lookup('site-1', host: Host('h'), realm: 'S'))?.username,
+          (await store.lookup(SiteId('site-1'), host: Host('h'), realm: 'S'))?.username,
           'bob');
-      expect(await store.countForSite('site-2'), 0);
+      expect(await store.countForSite(SiteId('site-2')), 0);
     });
   });
 

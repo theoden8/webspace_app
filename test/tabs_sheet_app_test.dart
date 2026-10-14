@@ -190,7 +190,7 @@ void main() {
     final hosted = await onDuckDuckGoWithItsList(
       tester,
       webspaces: [
-        Webspace(id: 'ws_search', name: 'Search', siteIds: [ddg.siteId]),
+        Webspace(id: WebspaceId('ws_search'), name: 'Search', siteIds: [ddg.siteId]),
       ],
       webspace: 'Search',
     );
@@ -198,7 +198,7 @@ void main() {
     await settleRealApp(tester);
     await attachWebViews(tester);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('selectedWebspaceId'), kAllWebspaceId);
+    expect(prefs.getString('selectedWebspaceId'), WebspaceId.all);
 
     await pressBack(tester);
     expect(prefs.getInt('currentIndex'), 1, reason: 'back on DuckDuckGo');
@@ -261,7 +261,7 @@ void main() {
       tester,
       sites: [github, ddg],
       webspaces: [
-        Webspace(id: 'ws_search', name: 'Search', siteIds: [ddg.siteId]),
+        Webspace(id: WebspaceId('ws_search'), name: 'Search', siteIds: [ddg.siteId]),
       ],
     );
     await openWebspace(tester, name: 'Search');
@@ -274,7 +274,7 @@ void main() {
     await tester.tap(find.text('https://duckduckgo.com/?q=webspace'));
     await settleRealApp(tester);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('selectedWebspaceId'), kAllWebspaceId,
+    expect(prefs.getString('selectedWebspaceId'), WebspaceId.all,
         reason: 'GitHub is not in Search (WEBSPACE-012)');
     expect(prefs.getInt('currentIndex'), 0, reason: 'GitHub is on screen');
     expect(appSite('GitHub').activeTabId, tab.id);

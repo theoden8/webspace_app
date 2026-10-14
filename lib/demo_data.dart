@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -88,17 +89,17 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   final webspaces = <Webspace>[
     Webspace.all(),
     Webspace(
-      id: 'webspace_work',
+      id: WebspaceId('webspace_work'),
       name: 'Work',
       siteIds: [sites[4].siteId, sites[5].siteId, sites[6].siteId],
     ),
     Webspace(
-      id: 'webspace_privacy',
+      id: WebspaceId('webspace_privacy'),
       name: 'Privacy',
       siteIds: [sites[0].siteId, sites[1].siteId, sites[2].siteId],
     ),
     Webspace(
-      id: 'webspace_social',
+      id: WebspaceId('webspace_social'),
       name: 'Social',
       siteIds: [sites[2].siteId, sites[3].siteId, sites[7].siteId],
     ),
@@ -116,7 +117,7 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
 
   await prefs.setStringList('webViewModels', sitesJson);
   await prefs.setStringList('webspaces', webspacesJson);
-  await prefs.setString('selectedWebspaceId', kAllWebspaceId);
+  await prefs.setString('selectedWebspaceId', WebspaceId.all);
   await prefs.setInt('currentIndex', 10000); // No site selected
   // Map theme string to themeSettings storage index
   // Format: themeMode.index * 10 + accentColor.index
@@ -217,12 +218,13 @@ void seedDemoBlockStats({DateTime? now}) {
   };
   items.forEach((category, byLabel) {
     byLabel.forEach((label, count) {
-      detail.record(category, siteId: 'demo', label: label, count: count);
+      detail.record(category,
+          siteId: SiteId('demo'), label: label, count: count);
     });
   });
   sites.forEach((category, bySite) {
     bySite.forEach((siteId, count) {
-      detail.record(category, siteId: siteId, count: count);
+      detail.record(category, siteId: SiteId(siteId), count: count);
     });
   });
 }

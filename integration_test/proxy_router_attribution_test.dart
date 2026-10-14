@@ -34,6 +34,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/platform/host_platform.dart';
@@ -116,7 +118,7 @@ void main() {
     // straight out; they never need to resolve, because the upstream
     // answers on their behalf.
     final siteA = WebViewModel(
-      siteId: 'attr-a',
+      siteId: SiteId('attr-a'),
       initUrl: 'http://a.example.test/',
       name: 'Attribution A',
       proxySettings: UserProxySettings(
@@ -125,7 +127,7 @@ void main() {
       ),
     );
     final siteB = WebViewModel(
-      siteId: 'attr-b',
+      siteId: SiteId('attr-b'),
       initUrl: 'http://b.example.test/',
       name: 'Attribution B',
       proxySettings: UserProxySettings(
@@ -202,7 +204,7 @@ void main() {
           find.descendant(of: drawer, matching: find.text(name))
               .evaluate()
               .isEmpty) {
-        final allTile = find.byKey(const ValueKey(kAllWebspaceId));
+        final allTile = find.byKey(const ValueKey(WebspaceId.all));
         if (allTile.evaluate().isNotEmpty) {
           await tester.tap(allTile);
           for (var i = 0; i < 6; i++) {
@@ -259,8 +261,8 @@ void main() {
     // The relay authenticates to each upstream with the user's own proxy
     // credentials, never with the site's router token.
     final routerTokens = [
-      ProxyRouterService.instance.credentialFor('attr-a'),
-      ProxyRouterService.instance.credentialFor('attr-b'),
+      ProxyRouterService.instance.credentialFor(RouterIdentity.ofSite(SiteId('attr-a'))),
+      ProxyRouterService.instance.credentialFor(RouterIdentity.ofSite(SiteId('attr-b'))),
     ].whereType<String>();
     for (final seen in [...upstreamA.credentials, ...upstreamB.credentials]) {
       for (final token in routerTokens) {

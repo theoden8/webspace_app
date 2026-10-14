@@ -17,7 +17,7 @@ import 'package:webspace/settings/proxy.dart';
 /// [UserProxySettings] (the non-secret fields only), so they round-trip
 /// through the settings backup format. The password lives in
 /// `flutter_secure_storage` via [ProxyPasswordSecureStorage], keyed by
-/// [ProxyPasswordSecureStorage.globalProxyKey], and is hydrated into the
+/// [ProxyPasswordKey.global], and is hydrated into the
 /// in-memory [_current] at app startup; it is intentionally NOT included in
 /// the export (PWD-005) — same contract as `isSecure=true` cookies, see
 /// `openspec/specs/proxy-password-secure-storage/spec.md`.
@@ -50,11 +50,11 @@ class GlobalOutboundProxy {
     await _passwordStore.migrateLegacyPassword(
       prefs: prefs,
       prefsKey: AppPref.globalOutboundProxy.key,
-      secureKey: ProxyPasswordSecureStorage.globalProxyKey,
+      secureKey: ProxyPasswordKey.global,
     );
     _current = readGlobalOutboundProxy(prefs);
     final pwd = await _passwordStore
-        .loadPassword(ProxyPasswordSecureStorage.globalProxyKey);
+        .loadPassword(ProxyPasswordKey.global);
     if (pwd != null && pwd.isNotEmpty) {
       _current.password = pwd;
     }
@@ -69,7 +69,7 @@ class GlobalOutboundProxy {
     // toJson carries no password: that goes to secure storage below.
     await AppPref.globalOutboundProxy.set(jsonEncode(settings.toJson()));
     await _passwordStore.savePassword(
-      ProxyPasswordSecureStorage.globalProxyKey,
+      ProxyPasswordKey.global,
       password: settings.password,
     );
     LogTag.proxy.info(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
@@ -281,7 +282,7 @@ class BackgroundSitesController {
   /// A post from the background told the user what the site's title now
   /// counts, so the next wake measures from there (NOTIF-014). Read a beat
   /// later: the page may update its title after posting.
-  void _noteBaselineAfterPost(String siteId) {
+  void _noteBaselineAfterPost(SiteId siteId) {
     if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       return;
     }
@@ -297,7 +298,7 @@ class BackgroundSitesController {
     });
   }
 
-  void _onNotificationTapped(String siteId) {
+  void _onNotificationTapped(SiteId siteId) {
     final index = _indexOfTapped(siteId);
     if (index == null) return;
     _host.popToRoot();
@@ -305,7 +306,7 @@ class BackgroundSitesController {
     _host.rebuild();
   }
 
-  int? _indexOfTapped(String siteId) {
+  int? _indexOfTapped(SiteId siteId) {
     final index = _sites.models.indexWhere((m) => m.siteId == siteId);
     if (index < 0) {
       LogTag.notification.warning(
@@ -428,11 +429,11 @@ class _WakeHost implements BackgroundWakeHost {
   // Funnelled like refreshSites: a wake can land on the visible site, and a
   // raw reload blanks it (PAUSE-021).
   @override
-  Future<void> reload(String siteId) async =>
+  Future<void> reload(SiteId siteId) async =>
       _sites.byId(siteId)?.reloadAndRepaint();
 
   @override
-  Future<bool> applyRoute(String siteId) async {
+  Future<bool> applyRoute(SiteId siteId) async {
     final m = _sites.byId(siteId);
     if (m == null) return false;
     try {
@@ -486,7 +487,7 @@ class _WakeHost implements BackgroundWakeHost {
   }
 
   @override
-  Future<WakeSkip?> openHeadless(String siteId) async {
+  Future<WakeSkip?> openHeadless(SiteId siteId) async {
     final m = _sites.byId(siteId);
     if (m == null) return WakeSkip.headlessFailed;
     if (_foreground) return WakeSkip.appInForeground;
@@ -502,7 +503,7 @@ class _WakeHost implements BackgroundWakeHost {
   }
 
   @override
-  Future<void> closeHeadless(String siteId) async {
+  Future<void> closeHeadless(SiteId siteId) async {
     await _headless.remove(siteId)?.dispose();
   }
 
@@ -516,7 +517,7 @@ class _WakeHost implements BackgroundWakeHost {
   }
 
   @override
-  bool? isLoading(String siteId) {
+  bool? isLoading(SiteId siteId) {
     final headless = _headless[siteId];
     if (headless != null) return headless.isLoading;
     final m = _sites.byId(siteId);
@@ -524,7 +525,7 @@ class _WakeHost implements BackgroundWakeHost {
   }
 
   @override
-  Future<String?> title(String siteId) async {
+  Future<String?> title(SiteId siteId) async {
     final headless = _headless[siteId];
     if (headless != null) {
       try {
@@ -541,14 +542,14 @@ class _WakeHost implements BackgroundWakeHost {
   }
 
   @override
-  bool postedSince(String siteId, {required DateTime since}) {
+  bool postedSince(SiteId siteId, {required DateTime since}) {
     final at = NotificationService.instance.lastPostedAt(siteId);
     return at != null && !at.isBefore(since);
   }
 
   @override
   Future<void> post({
-    required String siteId,
+    required SiteId siteId,
     required String siteName,
     required String body,
   }) =>

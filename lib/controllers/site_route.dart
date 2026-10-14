@@ -1,3 +1,4 @@
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/web_view_model.dart';
@@ -9,7 +10,7 @@ final class SiteRoute implements DispatchableSite {
   final WebViewModel model;
 
   @override
-  String get siteId => model.siteId;
+  SiteId get siteId => model.siteId;
 
   @override
   String get initUrl => model.initUrl;

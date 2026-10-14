@@ -21,6 +21,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'bare_site.dart';
@@ -69,7 +70,7 @@ void main() {
   WebViewController? controller;
 
   Future<void> mount(WidgetTester tester,
-      {required String siteId,
+      {required SiteId siteId,
       required String path,
       UserProxySettings? proxySettings}) async {
     final key = ValueKey('failclosed-${generation++}');
@@ -139,7 +140,7 @@ void main() {
     // Control 1: the origin is reachable at all. Without this a refused proxy
     // that reached nothing would be indistinguishable from an origin that was
     // never up, which is the shape gap 5 warns about.
-    await mount(tester, siteId: 'fc-direct', path: '/direct');
+    await mount(tester, siteId: SiteId('fc-direct'), path: '/direct');
     final direct = await pageArrived(tester);
     verdict.add('direct=${direct ? "arrived" : "absent"}');
     expect(direct, isTrue,
@@ -150,7 +151,7 @@ void main() {
     // Control 2: the origin is proxyable. If the stack refuses to proxy this
     // destination, "no leak" below is free and means nothing.
     await mount(tester,
-        siteId: 'fc-proxied',
+        siteId: SiteId('fc-proxied'),
         path: '/proxied',
         proxySettings: UserProxySettings(
           type: ProxyType.SOCKS5,
@@ -166,7 +167,7 @@ void main() {
 
     // The question. A refused proxy must fail the load, not quietly go round.
     await mount(tester,
-        siteId: 'fc-refused',
+        siteId: SiteId('fc-refused'),
         path: '/leak-probe',
         proxySettings: UserProxySettings(
           type: ProxyType.SOCKS5,

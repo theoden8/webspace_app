@@ -10,6 +10,9 @@
 // Workflow and constraints: tool/design_gallery/CLAUDE.md
 
 import 'package:flutter/material.dart';
+import 'package:webspace/services/container_names.dart';
+import 'package:webspace/settings/proxy_ids.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -174,41 +177,41 @@ Future<void> main() async {
 ProxyLibraryData _demoLibrary() => ProxyLibraryData(
       gateways: [
         SavedGateway(
-            id: 'gw-us',
+            id: GatewayId('gw-us'),
             name: 'Work VPN US',
             type: ProxyType.SOCKS5,
             address: 'us.gw.example:1080'),
         SavedGateway(
-            id: 'gw-de',
+            id: GatewayId('gw-de'),
             name: 'Work VPN DE',
             type: ProxyType.SOCKS5,
             address: 'de.gw.example:1080'),
       ],
       credentials: [
         SavedCredentials(
-            id: 'cr-alice',
+            id: CredentialsId('cr-alice'),
             name: 'Alice',
             username: 'alice',
             password: 'hunter2',
-            gatewayIds: {'gw-us', 'gw-de'}),
+            gatewayIds: {GatewayId('gw-us'), GatewayId('gw-de')}),
         SavedCredentials(
-            id: 'cr-mail',
+            id: CredentialsId('cr-mail'),
             name: 'Mail session',
             username: 'alice-session-mail',
             password: 'hunter2',
-            gatewayIds: {'gw-de'}),
+            gatewayIds: {GatewayId('gw-de')}),
       ],
       proxies: [
         SavedProxy(
-          id: 'px-work',
+          id: SavedProxyId('px-work'),
           name: 'Work VPN',
           settings: UserProxySettings(
               type: ProxyType.GATEWAY,
-              gatewayId: 'gw-us',
-              credentialsId: 'cr-alice'),
+              gatewayId: GatewayId('gw-us'),
+              credentialsId: CredentialsId('cr-alice')),
         ),
         SavedProxy(
-          id: 'px-office',
+          id: SavedProxyId('px-office'),
           name: 'Office proxy',
           settings: UserProxySettings(
               type: ProxyType.HTTP,
@@ -216,7 +219,7 @@ ProxyLibraryData _demoLibrary() => ProxyLibraryData(
               username: 'alice'),
         ),
         SavedProxy(
-          id: 'px-home',
+          id: SavedProxyId('px-home'),
           name: 'Home router',
           settings: UserProxySettings(
               type: ProxyType.HTTPS, address: '203.0.113.7:8443'),
@@ -253,15 +256,15 @@ class _DemoLibraryStore extends ProxyLibraryStore {
 Widget _savedProxies(BuildContext _) => ProxyLibraryScreen(
       siteProxies: () => [
         for (var i = 0; i < 3; i++)
-          UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'px-work'),
+          UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('px-work')),
         UserProxySettings(
             type: ProxyType.GATEWAY,
-            gatewayId: 'gw-de',
-            credentialsId: 'cr-mail'),
-        UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'px-office'),
+            gatewayId: GatewayId('gw-de'),
+            credentialsId: CredentialsId('cr-mail')),
+        UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('px-office')),
       ],
       appWideProxy: () =>
-          UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'px-work'),
+          UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('px-work')),
       onChanged: () {},
       store: const _DemoLibraryStore(),
     );
@@ -317,10 +320,10 @@ class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
   Widget build(BuildContext context) => SiteNetworkScreen(
         host: 'mail.example.com',
         siteId: model.siteId,
-        values: const SiteNetworkValues(
+        values: SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
-          gatewayId: 'gw-de',
-          credentialsId: 'cr-mail',
+          gatewayId: GatewayId('gw-de'),
+          credentialsId: CredentialsId('cr-mail'),
           webRtcPolicy: WebRtcPolicy.relayOnly,
         ),
         onChanged: (_) {},
@@ -546,9 +549,9 @@ Widget _urlBar(BuildContext _) => Column(
       currentUrl: 'https://codeberg.org/theoden8/webspace',
       onUrlSubmitted: (_) {},
       onSiteInfo: () {},
-      searchSites: const [
-        UrlBarSearchSite('ddg', name: 'DuckDuckGo'),
-        UrlBarSearchSite('kagi', name: 'Kagi'),
+      searchSites: [
+        UrlBarSearchSite(SiteId('ddg'), name: 'DuckDuckGo'),
+        UrlBarSearchSite(SiteId('kagi'), name: 'Kagi'),
       ],
       onSearch: (_, {required siteId}) {},
     ),
@@ -579,12 +582,12 @@ class _SiteInfoCard extends StatelessWidget {
             siteName: 'GitHub',
             tabOf: 'DuckDuckGo',
             pageUrl: 'https://github.com/theoden8/webspace_app',
-            containerId: 'ws-3f9c2a7e',
+            containerId: ContainerName.of(ContainerKey.named('3f9c2a7e')),
             containerColor: 0,
             incognito: false,
             proxy: UserProxySettings(
               type: ProxyType.SAVED,
-              savedProxyId: 'px-work',
+              savedProxyId: SavedProxyId('px-work'),
             ),
           ),
         ),
@@ -655,9 +658,9 @@ class _UserScriptsCardState extends State<_UserScriptsCard> {
 }
 
 List<Webspace> _demoWebspaces() => [
-      Webspace(name: 'Work', siteIds: ['a', 'b', 'c'], siteIndices: [0, 1, 2]),
-      Webspace(name: 'Reading', siteIds: ['d', 'e'], siteIndices: [3, 4]),
-      Webspace(name: 'Banking', siteIds: ['f'], siteIndices: [5]),
+      Webspace(name: 'Work', siteIds: [SiteId('a'), SiteId('b'), SiteId('c')], siteIndices: [0, 1, 2]),
+      Webspace(name: 'Reading', siteIds: [SiteId('d'), SiteId('e')], siteIndices: [3, 4]),
+      Webspace(name: 'Banking', siteIds: [SiteId('f')], siteIndices: [5]),
     ];
 
 /// The real WebspacesListScreen: the collections a user switches between,
@@ -671,7 +674,7 @@ class _WebspacesCard extends StatefulWidget {
 
 class _WebspacesCardState extends State<_WebspacesCard> {
   final List<Webspace> _webspaces = _demoWebspaces();
-  String? _selected;
+  WebspaceId? _selected;
 
   @override
   Widget build(BuildContext context) => WebspacesListScreen(
@@ -1009,8 +1012,8 @@ class _BrowserChromeCard extends StatelessWidget {
 WebViewModel _siteWithTabs(String name,
     {required String initUrl,
     required List<SiteTab> tabs,
-    required String active,
-    String? siteId,
+    required TabId active,
+    SiteId? siteId,
     int? containerColor}) {
   final m = WebViewModel(
       initUrl: initUrl,
@@ -1022,7 +1025,7 @@ WebViewModel _siteWithTabs(String name,
   return m;
 }
 
-SearchSite _site(String id, {required String name, required String url}) =>
+SearchSite _site(SiteId id, {required String name, required String url}) =>
     SearchSite(
       siteId: id,
       name: name,
@@ -1034,27 +1037,27 @@ Widget _webSearchSheet(BuildContext _) => _SheetOver(
       title: 'GitHub',
       top: Spacing.lg,
       sheet: WebSearchSheet(
-        identity: _site('gh', name: 'GitHub', url: 'https://github.com/'),
+        identity: _site(SiteId('gh'), name: 'GitHub', url: 'https://github.com/'),
         candidates: [
-          _site('ddg', name: 'DuckDuckGo', url: 'https://duckduckgo.com/'),
-          _site('kagi', name: 'Kagi', url: 'https://kagi.com/'),
-          _site('pplx', name: 'Perplexity', url: 'https://www.perplexity.ai/'),
+          _site(SiteId('ddg'), name: 'DuckDuckGo', url: 'https://duckduckgo.com/'),
+          _site(SiteId('kagi'), name: 'Kagi', url: 'https://kagi.com/'),
+          _site(SiteId('pplx'), name: 'Perplexity', url: 'https://www.perplexity.ai/'),
         ],
-        containerColors: const {'gh': 0, 'ddg': 6, 'kagi': 2, 'pplx': 4},
+        containerColors: {SiteId('gh'): 0, SiteId('ddg'): 6, SiteId('kagi'): 2, SiteId('pplx'): 4},
       ),
     );
 
 /// Default search with a work and a personal DuckDuckGo: the name alone
 /// cannot tell them apart, the id and its container colour can (LIR-029).
-Widget _webSearchDefault(BuildContext _) => const SearchSiteChoiceDialog(
+Widget _webSearchDefault(BuildContext _) => SearchSiteChoiceDialog(
       title: 'Default search',
-      selected: 'ddg-work',
+      selected: SiteId('ddg-work'),
       cancelLabel: 'Cancel',
       sites: [
-        (siteId: 'ddg-work', name: 'DuckDuckGo', containerColor: 0),
-        (siteId: 'ddg-home', name: 'DuckDuckGo', containerColor: 6),
-        (siteId: 'kagi', name: 'Kagi', containerColor: 2),
-        (siteId: 'searx-lan', name: 'SearXNG', containerColor: 4),
+        (siteId: SiteId('ddg-work'), name: 'DuckDuckGo', containerColor: 0),
+        (siteId: SiteId('ddg-home'), name: 'DuckDuckGo', containerColor: 6),
+        (siteId: SiteId('kagi'), name: 'Kagi', containerColor: 2),
+        (siteId: SiteId('searx-lan'), name: 'SearXNG', containerColor: 4),
       ],
     );
 
@@ -1095,7 +1098,7 @@ class _SiteSearchListCardState extends State<_SiteSearchListCard> {
 Widget _siteBehaviourSearch(BuildContext _) => SiteBehaviourScreen(
       host: 'searx.lan',
       incognito: false,
-      values: const SiteBehaviourValues(
+      values: SiteBehaviourValues(
         archived: false,
         alwaysOpenHome: false,
         kioskMode: false,
@@ -1103,7 +1106,7 @@ Widget _siteBehaviourSearch(BuildContext _) => SiteBehaviourScreen(
         htmlCachingEnabled: false,
         externalLinkMode: ExternalLinkMode.inApp,
         routeOutboundLinks: false,
-        searchSites: ['ddg-work', 'ddg-home'],
+        searchSites: [SiteId('ddg-work'), SiteId('ddg-home')],
       ),
       onChanged: (_) {},
       initUrl: 'https://searx.lan/',
@@ -1111,24 +1114,24 @@ Widget _siteBehaviourSearch(BuildContext _) => SiteBehaviourScreen(
       discoveredSearchesWeb: true,
       routingTargets: [
         WebViewModel(
-            siteId: 'ddg-work',
+            siteId: SiteId('ddg-work'),
             initUrl: 'https://duckduckgo.com/',
             name: 'DuckDuckGo',
             containerColor: 0),
         WebViewModel(
-            siteId: 'ddg-home',
+            siteId: SiteId('ddg-home'),
             initUrl: 'https://duckduckgo.com/',
             name: 'DuckDuckGo',
             containerColor: 6),
       ],
     );
 
-Widget _webSearchEmpty(BuildContext _) => const _SheetOver(
+Widget _webSearchEmpty(BuildContext _) => _SheetOver(
       title: 'Blog',
       top: Spacing.lg,
       sheet: WebSearchSheet(
         identity: SearchSite(
-          siteId: 'blog',
+          siteId: SiteId('blog'),
           name: 'Blog',
           initUrl: 'https://blog.example/',
           capability: null,
@@ -1184,36 +1187,36 @@ abstract final class _TabsDemo {
             url: 'https://github.com/theoden8/webspace_app',
             title: 'theoden8/webspace_app'),
         SiteTab(
-            id: 'pulls',
+            id: TabId('pulls'),
             url: 'https://github.com/theoden8/webspace_app/pulls',
             title: 'Pull requests',
             parentId: kPrimaryTabId),
         SiteTab(
-            id: 'pr659',
+            id: TabId('pr659'),
             url: 'https://github.com/theoden8/webspace_app/pull/659',
             title: 'Let the routing switch pick the site #659',
-            parentId: 'pulls'),
+            parentId: TabId('pulls')),
         SiteTab(
-            id: 'search',
+            id: TabId('search'),
             url: 'https://duckduckgo.com/?q=flutter+inappwebview',
             title: 'flutter inappwebview at DuckDuckGo',
             parentId: kPrimaryTabId,
-            hostSiteId: 'ddg'),
+            hostSiteId: SiteId('ddg')),
         SiteTab(
-            id: 'result',
+            id: TabId('result'),
             url: 'https://github.com/pichillilorenzo/flutter_inappwebview',
             title: 'flutter_inappwebview',
-            parentId: 'search'),
+            parentId: TabId('search')),
         SiteTab(
-            id: 'wiki',
+            id: TabId('wiki'),
             url: 'https://en.wikipedia.org/wiki/Tree_(data_structure)',
             title: 'Tree (data structure)',
-            parentId: 'pr659',
-            openerSiteId: 'gh',
+            parentId: TabId('pr659'),
+            openerSiteId: SiteId('gh'),
             homeUrl: 'https://en.wikipedia.org/wiki/Tree_(data_structure)'),
       ],
-      active: 'pr659',
-      siteId: 'gh',
+      active: TabId('pr659'),
+      siteId: SiteId('gh'),
       containerColor: 0);
 
   static final WebViewModel mastodon = _siteWithTabs('Mastodon',
@@ -1221,13 +1224,13 @@ abstract final class _TabsDemo {
       tabs: [
         SiteTab.primary(url: 'https://mastodon.social/home', title: 'Home'),
         SiteTab(
-            id: 'thread',
+            id: TabId('thread'),
             url: 'https://mastodon.social/@flutter/113',
             title: 'Thread by @flutter',
             parentId: kPrimaryTabId),
       ],
-      active: 'thread',
-      siteId: 'mastodon',
+      active: TabId('thread'),
+      siteId: SiteId('mastodon'),
       containerColor: 6);
 
   static final WebViewModel wikipedia = _siteWithTabs('Wikipedia',
@@ -1238,7 +1241,7 @@ abstract final class _TabsDemo {
             title: 'Tab (interface)'),
       ],
       active: kPrimaryTabId,
-      siteId: 'wiki',
+      siteId: SiteId('wiki'),
       containerColor: 2);
 
   static final WebViewModel duckduckgo = _siteWithTabs('DuckDuckGo',
@@ -1248,21 +1251,21 @@ abstract final class _TabsDemo {
             url: 'https://duckduckgo.com/?q=webview+containers',
             title: 'webview containers at DuckDuckGo'),
         SiteTab(
-            id: 'own',
+            id: TabId('own'),
             url: 'https://duckduckgo.com/?q=tab+trees',
             title: 'tab trees at DuckDuckGo',
             parentId: kPrimaryTabId),
         SiteTab(
-            id: 'issue',
+            id: TabId('issue'),
             url: 'https://github.com/theoden8/webspace_app/issues/422',
             title: 'Web search #422',
-            parentId: 'own',
-            hostSiteId: 'gh',
-            openerSiteId: 'ddg',
+            parentId: TabId('own'),
+            hostSiteId: SiteId('gh'),
+            openerSiteId: SiteId('ddg'),
             homeUrl: 'https://github.com/theoden8/webspace_app/issues/422'),
       ],
       active: kPrimaryTabId,
-      siteId: 'ddg',
+      siteId: SiteId('ddg'),
       containerColor: 4);
 
   static final List<WebViewModel> all = [github, mastodon, wikipedia, duckduckgo];
@@ -1323,8 +1326,8 @@ Widget _tabsSheetWayBack(BuildContext _) {
   final github = _siteWithTabs('GitHub',
       initUrl: 'https://github.com/',
       tabs: _TabsDemo.github.tabs,
-      active: 'search',
-      siteId: 'gh',
+      active: TabId('search'),
+      siteId: SiteId('gh'),
       containerColor: 0);
   return _tabsSheetOver(
     'GitHub',
@@ -1334,7 +1337,7 @@ Widget _tabsSheetWayBack(BuildContext _) {
       for (final (i, m) in _TabsDemo.all.skip(1).indexed)
         TabsSheetSite(index: i + 1, model: m, isCurrent: false, isLoaded: identical(m, _TabsDemo.duckduckgo)),
     ],
-    wayBack: const TabReturn(
-        fromSiteId: 'ddg', fromTabId: kPrimaryTabId, toSiteId: 'gh', toTabId: 'search'),
+    wayBack: TabReturn(
+        fromSiteId: SiteId('ddg'), fromTabId: kPrimaryTabId, toSiteId: SiteId('gh'), toTabId: TabId('search')),
   );
 }

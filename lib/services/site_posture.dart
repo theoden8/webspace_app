@@ -9,6 +9,8 @@
 library;
 
 import 'package:meta/meta.dart';
+import 'package:webspace/services/container_names.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/settings/blocked_cookie.dart';
 import 'package:webspace/settings/capture.dart';
@@ -20,8 +22,9 @@ import 'package:webspace/settings/user_script.dart';
 
 /// The store the site binds and what it keeps there.
 typedef SiteContainer = ({
-  // Stands in for the siteId in the on-disk container name (ARCH-007).
-  String? archiveContainerId,
+  // What the on-disk container is named by: the siteId, or an archive-tier
+  // site's opaque key (ARCH-007).
+  ContainerKey containerKey,
   bool incognito,
   // Outbound form: a Tor proxy carries the siteId as its isolation tag.
   UserProxySettings proxy,
@@ -80,7 +83,7 @@ final class SitePosture {
     required this.page,
   });
 
-  final String siteId;
+  final SiteId siteId;
   final SiteContainer container;
   final SiteBlocking blocking;
   final SiteFingerprint fingerprint;

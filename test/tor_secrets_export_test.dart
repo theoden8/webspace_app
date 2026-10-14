@@ -20,6 +20,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/external_tor_control_password_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
@@ -55,13 +56,13 @@ void main() {
   });
 
   test('Tor secrets never appear in exports (TOR-009)', () async {
-    await TorService.instance.syncHolders({TorSiteHolder('tor-site')});
+    await TorService.instance.syncHolders({TorSiteHolder(SiteId('tor-site'))});
     runtime.emit(const TorUp('127.0.0.1', port: socksPort));
     await Future<void>.delayed(Duration.zero);
 
     // The needle, proved real: this is what a site's traffic actually
     // authenticates with, and what a leak would carry.
-    final live = TorService.instance.socksFor(siteId: 'tor-site');
+    final live = TorService.instance.socksFor(siteId: SiteId('tor-site'));
     expect(live, isNotNull,
         reason: 'the runtime is up and the gate is open, so a site must '
             'resolve to SOCKS5 settings; without them this test looks for '
@@ -77,7 +78,7 @@ void main() {
     final backup = SettingsBackupService.createBackup(
       webViewModels: [
         WebViewModel(
-          siteId: 'tor-site',
+          siteId: SiteId('tor-site'),
           initUrl: 'https://a.com',
           proxySettings: UserProxySettings(type: ProxyType.TOR),
         ),

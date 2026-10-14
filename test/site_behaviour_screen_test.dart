@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_behaviour.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/developer_mode_service.dart';
@@ -23,8 +24,8 @@ SiteBehaviourValues _values({
   List<OutboundPreference> outboundPreferences = const [],
   String? searchAddress,
   bool searchesWeb = false,
-  List<String> searchSites = const [],
-  String? searchDefault,
+  List<SiteId> searchSites = const [],
+  SiteId? searchDefault,
 }) =>
     SiteBehaviourValues(
       archived: archived,
@@ -323,13 +324,13 @@ void main() {
 
   group('outbound routing (BEHAV-003)', () {
     final gh = WebViewModel(
-      siteId: 'gh',
+      siteId: SiteId('gh'),
       initUrl: 'https://github.com/',
       name: 'Work GitHub',
     );
     final pref = OutboundPreference(
       claim: DomainClaim.exactHost('github.com'),
-      targetSiteId: 'gh',
+      targetSiteId: SiteId('gh'),
     );
 
     testWidgets('the switch is an option of opening links in the app',
@@ -482,9 +483,9 @@ void main() {
 
   group('BEHAV-006 search group', () {
     final ddg = WebViewModel(
-        siteId: 'ddg', initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo');
+        siteId: SiteId('ddg'), initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo');
     final kagi =
-        WebViewModel(siteId: 'kagi', initUrl: 'https://kagi.com/', name: 'Kagi');
+        WebViewModel(siteId: SiteId('kagi'), initUrl: 'https://kagi.com/', name: 'Kagi');
 
     testWidgets('the group needs no developer mode (LIR-029)', (tester) async {
       await _pump(tester, values: _values(), initUrl: 'https://github.com/');
@@ -556,17 +557,17 @@ void main() {
     testWidgets('pickers tell same-named sites apart by id (LIR-029)',
         (tester) async {
       final work = WebViewModel(
-          siteId: 'ddg-work',
+          siteId: SiteId('ddg-work'),
           initUrl: 'https://duckduckgo.com/',
           name: 'DuckDuckGo')
         ..containerColor = 1;
       final home = WebViewModel(
-          siteId: 'ddg-home',
+          siteId: SiteId('ddg-home'),
           initUrl: 'https://duckduckgo.com/',
           name: 'DuckDuckGo')
         ..containerColor = 6;
       await _pump(tester,
-          values: _values(searchSites: ['ddg-work', 'ddg-home']),
+          values: _values(searchSites: [SiteId('ddg-work'), SiteId('ddg-home')]),
           routingTargets: [work, home]);
       expect(find.text('DuckDuckGo (ddg-work), DuckDuckGo (ddg-home)'),
           findsOneWidget,
@@ -594,7 +595,7 @@ void main() {
     testWidgets('the legacy engine shows ids without container colours',
         (tester) async {
       final ddg = WebViewModel(
-          siteId: 'ddg', initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo')
+          siteId: SiteId('ddg'), initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo')
         ..containerColor = 1;
       await _pump(tester,
           containersActive: false,
@@ -615,7 +616,7 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
-        values: _values(searchDefault: 'kagi'),
+        values: _values(searchDefault: SiteId('kagi')),
         routingTargets: [ddg, kagi],
         onChanged: (v) => seen = v,
       );

@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
@@ -105,7 +106,7 @@ void main() {
 
   Future<void> mount(
     WidgetTester tester, {
-    required String siteId,
+    required SiteId siteId,
     required String url,
     UserProxySettings? proxySettings,
   }) async {
@@ -155,7 +156,7 @@ List<String> served(Socks5Fixture f,
   testWidgets('after a proxy change, nothing rides a connection from the old route',
       (tester) async {
     if (!usable()) return;
-    const site = 'proxy-rebind-same-host';
+    final site = SiteId('proxy-rebind-same-host');
 
     await mount(tester,
         siteId: site,
@@ -231,7 +232,7 @@ List<String> served(Socks5Fixture f,
   testWidgets('a site that first loaded direct uses the proxy it is given',
       (tester) async {
     if (!usable()) return;
-    const site = 'proxy-rebind-after-direct';
+    final site = SiteId('proxy-rebind-after-direct');
 
     // Loopback is never proxied, so this is the direct load a site makes
     // before the user moves it to a proxy, and it gives the container a live

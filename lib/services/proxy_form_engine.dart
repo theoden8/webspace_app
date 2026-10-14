@@ -1,3 +1,4 @@
+import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// What the proxy form currently holds. Plain strings, because a text field's
@@ -22,9 +23,9 @@ class ProxyFormFields {
   /// What the library pickers hold: the saved proxy under
   /// [ProxyType.SAVED], the saved gateway under [ProxyType.GATEWAY], and the
   /// saved credentials, null meaning the typed ones.
-  final String? savedProxyId;
-  final String? gatewayId;
-  final String? credentialsId;
+  final SavedProxyId? savedProxyId;
+  final GatewayId? gatewayId;
+  final CredentialsId? credentialsId;
 }
 
 /// Fold the form into the settings to store (PROXY-019).

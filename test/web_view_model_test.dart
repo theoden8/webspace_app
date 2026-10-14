@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
@@ -114,7 +115,7 @@ void main() {
       test('round-trip through JSON', () {
         final m = WebViewModel(initUrl: 'https://example.com')
           ..dnsBlockLevel = 2
-          ..disabledFilterLists = {'easylist', 'fanboy-social'};
+          ..disabledFilterLists = {FilterListId('easylist'), FilterListId('fanboy-social')};
         final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
         expect(back.dnsBlockLevel, 2);
         expect(back.disabledFilterLists, {'easylist', 'fanboy-social'});
@@ -165,9 +166,9 @@ void main() {
 
       test('the stored list selection is order-stable', () {
         final a = WebViewModel(initUrl: 'https://example.com')
-          ..disabledFilterLists = {'b', 'a'};
+          ..disabledFilterLists = {FilterListId('b'), FilterListId('a')};
         final b = WebViewModel(initUrl: 'https://example.com')
-          ..disabledFilterLists = {'a', 'b'};
+          ..disabledFilterLists = {FilterListId('a'), FilterListId('b')};
         expect(a.toJson()['disabledFilterLists'],
             b.toJson()['disabledFilterLists'],
             reason: 'set iteration order must not churn the persisted JSON');
@@ -176,7 +177,7 @@ void main() {
       test('archive-tier sites carry neither mask (ARCH-006)', () {
         final m = WebViewModel(initUrl: 'https://example.com')
           ..dnsBlockLevel = 1
-          ..disabledFilterLists = {'easylist'}
+          ..disabledFilterLists = {FilterListId('easylist')}
           ..isArchiveTier = true;
         expect(m.effectiveDnsBlockLevel, isNull);
         expect(m.effectiveDisabledFilterLists, isEmpty);
@@ -1181,12 +1182,12 @@ int zoomOf(int zoom) =>
       }
     });
 
-    test('sanitizedSiteId helper', () {
-      expect(sanitizedSiteId('good-id_1'), equals('good-id_1'));
-      expect(sanitizedSiteId('../x'), isNull);
-      expect(sanitizedSiteId('a.b'), isNull);
-      expect(sanitizedSiteId(42), isNull);
-      expect(sanitizedSiteId(null), isNull);
+    test('SiteId.parse', () {
+      expect(SiteId.parse('good-id_1'), equals('good-id_1'));
+      expect(SiteId.parse('../x'), isNull);
+      expect(SiteId.parse('a.b'), isNull);
+      expect(SiteId.parse(42), isNull);
+      expect(SiteId.parse(null), isNull);
     });
   });
 

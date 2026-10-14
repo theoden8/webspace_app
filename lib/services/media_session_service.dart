@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -82,7 +83,7 @@ class MediaSessionService {
   /// Site whose playback currently owns the notification, and the closure that
   /// runs JS on its webview. Updated on every "playing" report so a transport
   /// tap drives the right page.
-  String? _ownerSiteId;
+  SiteId? _ownerSiteId;
   Future<void> Function(String js)? _ownerRunJs;
 
   /// Frame token (from the shim) that last reported playback. The shim runs in
@@ -171,7 +172,7 @@ class MediaSessionService {
 
   /// Called from the `wsMediaSession` JS handler for a background-audio site.
   Future<void> report(
-    String siteId, {
+    SiteId siteId, {
     required MediaSessionReport page,
     required Future<void> Function(String js) runJs,
     required UserProxySettings? proxy,
@@ -289,7 +290,7 @@ class MediaSessionService {
 
   /// Tear the notification down when [siteId] owns it. Called when the site is
   /// unloaded/disposed or its background-audio toggle goes off.
-  Future<void> stopForSite(String siteId) async {
+  Future<void> stopForSite(SiteId siteId) async {
     if (!_enabled) return;
     if (!_active || _ownerSiteId != siteId) return;
     await _stop();
