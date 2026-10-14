@@ -971,6 +971,74 @@ the body is parsed
 
 ---
 
+### Requirement: CB-020 - WebKit content rule lists (experimental, iOS and macOS)
+
+With the `contentRuleLists` experiment on (DEVTOOLS-011: developer mode and
+its own switch), iOS and macOS webviews SHALL attach the network rules of the
+enabled filter lists as compiled WebKit content rule lists, so WebKit blocks a
+request before it is sent, including the requests the page's own HTML starts
+before the page interceptor sees them. The lists are converted by
+adblock-rust (`ws_filters_to_content_rule_lists`) from the same rules text the
+engine parses, compiled once per rule set into WebKit's default store, and
+found again by name on later launches; a webview only names them
+(`contentRuleListIdentifiers`, a setting of the webview fork). The page
+interceptor and the cosmetic pass keep running: the lists carry no cosmetic
+rules, redirects, `$csp`, `$removeparam` or scriptlets, and WebKit reports no
+match back. With the experiment off, nothing changes.
+
+The rule set is named by the head of the engine inputs key, so a change of
+enabled lists, of their per-site masks, or of the app build names a new set.
+Implementation: `planRuleLists` (`content_rule_list_engine.dart`) decides,
+`ContentRuleLists` (`content_rule_lists.dart`) runs the plan against the
+Runner's `ContentRuleListPlugin`.
+
+#### Scenario: Only network rules, under WebKit's cap
+
+**Given** enabled lists whose network rules convert to more than 150,000 WebKit rules
+**When** the rules are converted
+**Then** they are split into lists of at most 150,000 rules
+**And** each list holds a slice of the block rules followed by every exception rule
+**And** no list holds a cosmetic rule
+**And** no list holds a `$method` rule (a WebKit rule without a method trigger blocks every method, and WebKit before 7622 ignores that trigger)
+
+#### Scenario: Warm launch reads no rules
+
+**Given** WebKit's store holds every list of the current rule set
+**When** the engine is rebuilt at launch
+**Then** the lists are attached by name
+**And** the rules text is neither read nor converted
+
+#### Scenario: A new rule set compiles once, off the page's way
+
+**Given** the store lacks a list of the current rule set
+**When** the engine is rebuilt
+**Then** the rules are converted on a background isolate and each list compiled into the store
+**And** webviews created during the compile attach no list
+**And** webviews created after it attach every list of the set
+**And** our lists of other rule sets are removed from the store, and lists we did not name are left alone
+
+#### Scenario: A refused list leaves nothing half attached
+
+**Given** WebKit refuses to compile one list of a set
+**When** the compile fails
+**Then** the lists of the set already compiled are removed
+**And** webviews attach no list
+
+#### Scenario: Per-site off, or experiment off
+
+**Given** a site with the content blocker off, or the experiment off
+**When** its webview is created
+**Then** its `contentRuleListIdentifiers` is empty
+**And** turning the experiment off removes our lists from the store
+
+#### Scenario: Settings updates keep the lists
+
+**Given** a webview with lists attached by name
+**When** the app updates its settings (JavaScript switch, text zoom) with the same identifiers and no `contentBlockers`
+**Then** the webview keeps its lists
+
+---
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker
@@ -1060,6 +1128,9 @@ Late-added or class-flipped elements hide reactively without any JS sweep.
 - `lib/services/content_blocker_shim.dart` — Pure-Dart builders for the early-CSS and cosmetic JS shims
 - `lib/services/generic_cosmetic_shim.dart` — Page-side class/id scanner
 - `lib/services/procedural_cosmetic_shim.dart` — Page-side runner for engine-emitted procedural actions
+- `lib/services/content_rule_list_engine.dart` — CB-020: which compiled WebKit content rule lists to attach, compile or drop
+- `lib/services/content_rule_lists.dart` — CB-020: runs that plan against the Runner's `ContentRuleListPlugin`
+- `ios/Runner/ContentRuleListPlugin.swift` — CB-020: compiles, lists and removes rule lists in WebKit's default store; both Apple Runners compile it
 - `openspec/specs/content-blocker/spec.md` — This specification
 
 ### Modified

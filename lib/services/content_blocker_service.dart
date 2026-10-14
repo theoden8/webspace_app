@@ -15,6 +15,9 @@ import 'package:webspace/services/filter_list_mask.dart';
 import 'package:webspace/services/filter_list_preparser.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
+import 'package:webspace/services/content_rule_list_engine.dart';
+import 'package:webspace/services/content_rule_lists.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
@@ -696,6 +699,11 @@ class ContentBlockerService {
     try {
       final prefs = await SharedPreferences.getInstance();
       AppPref.useUboResources.load(prefs);
+      // The first engine build runs before developer mode and the
+      // Experimental switches load; reading them unloaded would drop the
+      // compiled rule lists and recompile them on every launch (CB-020).
+      AppPref.developerMode.load(prefs);
+      ExperimentalFeature.contentRuleLists.pref.load(prefs);
       if (hostIsAndroid) {
         _rustEngineSupported =
             await WebInterceptNative.isAdblockEngineSupported();
@@ -722,6 +730,12 @@ class ContentBlockerService {
       }
 
       await _rebuildEngine();
+      if ((hostIsIOS || hostIsMacOS) && !_watchingRuleListSwitch) {
+        _watchingRuleListSwitch = true;
+        ExperimentalFeature.contentRuleLists.pref.listenable
+            .addListener(_onRuleListSwitch);
+        AppPref.developerMode.listenable.addListener(_onRuleListSwitch);
+      }
 
       LogTag.contentBlocker.info(
           'Initialized: ${_lists.length} list(s), engine '
@@ -948,6 +962,34 @@ class ContentBlockerService {
   // of sync with the live engine. Chaining makes the freshest `_lists` win.
   final SerialQueue _rebuilds = SerialQueue();
 
+  /// The compiled WebKit content rule lists new webviews attach (CB-020).
+  final ContentRuleLists _ruleLists = ContentRuleLists(
+      store: MethodChannelContentRuleListStore(),
+      convert: AdblockEngine.contentRuleLists);
+  bool _watchingRuleListSwitch = false;
+
+  /// What a webview created now names in `contentRuleListIdentifiers`: empty
+  /// off iOS and macOS, while the experiment is off, and until a set is in
+  /// WebKit's store.
+  List<String> get contentRuleListIdentifiers => _ruleLists.identifiers;
+
+  /// Points new webviews at the rule lists for the rule set [key] names, or
+  /// at none. Reads [rulesText] only when the set has to be compiled.
+  Future<void> _syncRuleLists(
+      {required String? key, required Future<String> Function() rulesText}) {
+    if (!hostIsIOS && !hostIsMacOS) return Future<void>.value();
+    final on = ExperimentalFeaturesService.instance
+        .isEnabled(ExperimentalFeature.contentRuleLists);
+    return _ruleLists.sync(
+        wanted: on && key != null ? RuleSetKey.of(key) : null,
+        rulesText: rulesText);
+  }
+
+  void _onRuleListSwitch() => unawaited(_rebuilds.run(() async =>
+      _syncRuleLists(
+          key: await _engineInputsKey(),
+          rulesText: () async => (await _rulesFromLists()).rulesText)));
+
   Future<void> _rebuildEngine() => _rebuilds.run(_rebuildEngineInner);
 
   Future<void> _rebuildEngineInner() async {
@@ -960,6 +1002,9 @@ class ContentBlockerService {
     // text (below) is several hundred ms on a phone, on the UI thread.
     final key = await _engineInputsKey();
     if (key != null && await _loadCachedEngine(key)) {
+      await _syncRuleLists(
+          key: key,
+          rulesText: () async => (await _rulesFromLists()).rulesText);
       _notifyRulesChanged();
       return;
     }
@@ -968,6 +1013,7 @@ class ContentBlockerService {
     _applyPrefilter(built.prefilter);
     if (built.rulesText.isEmpty) {
       await _pushToNative(Uint8List(0), rulesText: () async => '');
+      await _syncRuleLists(key: null, rulesText: () async => '');
       _notifyRulesChanged();
       return;
     }
@@ -980,6 +1026,7 @@ class ContentBlockerService {
           'Engine library is not loadable on this platform — '
           'adblock decisions will all return "allowed".');
       await _pushToNative(Uint8List(0), rulesText: () async => '');
+      await _syncRuleLists(key: null, rulesText: () async => '');
       _notifyRulesChanged();
       return;
     }
@@ -993,6 +1040,7 @@ class ContentBlockerService {
           _writeEngineCache(key, blob: blob, prefilter: built.prefilter));
     }
     await _pushToNative(blob, rulesText: () async => built.rulesText);
+    await _syncRuleLists(key: key, rulesText: () async => built.rulesText);
     _notifyRulesChanged();
   }
 

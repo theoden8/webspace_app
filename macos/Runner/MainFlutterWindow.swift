@@ -12,6 +12,7 @@ class MainFlutterWindow: NSWindow {
   /// is where the engine is known to exist -- the generated plugins register
   /// on the line above.
   private var torControllerPlugin: TorControllerPlugin?
+  private var contentRuleListPlugin: ContentRuleListPlugin?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -21,6 +22,8 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     torControllerPlugin = TorControllerPlugin(
+      messenger: flutterViewController.engine.binaryMessenger)
+    contentRuleListPlugin = ContentRuleListPlugin(
       messenger: flutterViewController.engine.binaryMessenger)
     HostBrowserPlugin.attach(to: flutterViewController.engine.binaryMessenger)
 

@@ -1,8 +1,11 @@
-// Stand-in for the WebKit symbols the proxy probe uses.
+// Stand-in for the WebKit symbols the proxy probe and the content rule list
+// plugin use.
 //
-// Transcribed from WKWebsiteDataStore.h, WKWebView.h, WKWebViewConfiguration.h
-// and WKNavigationDelegate.h. Two details are load-bearing and were read from
-// the headers rather than assumed:
+// Transcribed from WKWebsiteDataStore.h, WKWebView.h, WKWebViewConfiguration.h,
+// WKNavigationDelegate.h, WKContentRuleListStore.h and WKContentRuleList.h.
+// WKContentRuleListStore.h carries no nullability annotations, so Swift sees
+// every completion argument as optional. Two details were read from the
+// headers rather than assumed:
 //
 //   - `proxyConfigurations` is NS_REFINED_FOR_SWIFT, so Swift sees a
 //     non-optional [ProxyConfiguration] whatever the ObjC nullability says.
@@ -45,4 +48,24 @@ public class WKWebView: NSView {
   public weak var navigationDelegate: WKNavigationDelegate?
   @discardableResult
   public func load(_ request: URLRequest) -> WKNavigation? { return nil }
+}
+
+public class WKContentRuleList: NSObject {
+  public var identifier: String! { return "" }
+}
+
+public class WKContentRuleListStore: NSObject {
+  public class func `default`() -> WKContentRuleListStore! { return WKContentRuleListStore() }
+  public func compileContentRuleList(
+    forIdentifier identifier: String!,
+    encodedContentRuleList: String!,
+    completionHandler: @escaping (WKContentRuleList?, Error?) -> Void
+  ) {}
+  public func removeContentRuleList(
+    forIdentifier identifier: String!,
+    completionHandler: @escaping (Error?) -> Void
+  ) {}
+  public func getAvailableContentRuleListIdentifiers(
+    _ completionHandler: @escaping ([String]?) -> Void
+  ) {}
 }

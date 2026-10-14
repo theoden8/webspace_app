@@ -21,7 +21,11 @@ enum ExperimentalFeature {
 
   /// Android's texture-layer webview composition (PAUSE-032). Off by
   /// default: every release before it drew pages with hybrid composition.
-  textureRendering(AppPref.experimentalTextureRendering);
+  textureRendering(AppPref.experimentalTextureRendering),
+
+  /// iOS and macOS: the filter lists' network rules compiled into WebKit
+  /// content rule lists (content-blocker CB-020). New, so off by default.
+  contentRuleLists(AppPref.experimentalContentRuleLists);
 
   const ExperimentalFeature(this.pref);
 

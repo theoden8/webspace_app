@@ -625,7 +625,12 @@ class WebViewFactory {
       // navigates to a downloadable response (Content-Disposition:
       // attachment, or an unrecognized MIME type). Without this, the
       // webview silently drops the navigation and the user sees nothing.
-      ..useOnDownloadStart = true;
+      ..useOnDownloadStart = true
+      // CB-020: WebKit content rule lists compiled once and attached by
+      // name. The page interceptor stays, for what they cannot carry.
+      ..contentRuleListIdentifiers = config.posture.blocking.contentBlock
+          ? ContentBlockerService.instance.contentRuleListIdentifiers
+          : const [];
 
     // Android honours the viewport meta's layout width (and thus the page
     // zoom) only when useWideViewPort is on: with it off, Chromium's

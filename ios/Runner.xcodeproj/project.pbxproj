@@ -29,6 +29,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A11C0DE100000000000000P2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A11C0DE100000000000000P1 /* PrivacyInfo.xcprivacy */; };
 		A11C0DE100000000000000T2 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11C0DE100000000000000T1 /* TorControllerPlugin.swift */; };
+		C0471E5100000000000000C2 /* ContentRuleListPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000C1 /* ContentRuleListPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +106,7 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A11C0DE100000000000000P1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A11C0DE100000000000000T1 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TorControllerPlugin.swift; sourceTree = "<group>"; };
+		C0471E5100000000000000C1 /* ContentRuleListPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContentRuleListPlugin.swift; sourceTree = "<group>"; };
 		A873FC68CB535DFAC8A0FA03 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		AF0440126314710B9355C1DF /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		BEB686F40D1F327FFB98EB57 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -231,6 +233,7 @@
 				7AC100022ED2DC5600515813 /* BackgroundTaskPlugin.swift */,
 				7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */,
 				A11C0DE100000000000000T1 /* TorControllerPlugin.swift */,
+				C0471E5100000000000000C1 /* ContentRuleListPlugin.swift */,
 				7AC200002ED2DC5600515820 /* ShortcutsPlugin.swift */,
 				7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */,
 				7AC200042ED2DC5600515822 /* AppGroup.swift */,
@@ -500,6 +503,7 @@
 				7AC100032ED2DC5600515813 /* BackgroundTaskPlugin.swift in Sources */,
 				7AC300012ED2DC5600515830 /* MediaSessionPlugin.swift in Sources */,
 				A11C0DE100000000000000T2 /* TorControllerPlugin.swift in Sources */,
+				C0471E5100000000000000C2 /* ContentRuleListPlugin.swift in Sources */,
 				7AC200012ED2DC5600515820 /* ShortcutsPlugin.swift in Sources */,
 				7AC200032ED2DC5600515821 /* WebSpaceAppIntents.swift in Sources */,
 				7AC200052ED2DC5600515822 /* AppGroup.swift in Sources */,
