@@ -36,10 +36,15 @@ rm -rf "$work"
 mkdir -p "$work"
 cp "$root"/linux/flatpak/* "$work"/
 
-# The committed manifest builds master; point it at $commit instead.
-"$tool/.venv/bin/python" - "$work/flatpak-flutter.yml" "$commit" <<'PY'
-import sys, yaml
-path, commit = sys.argv[1:]
+# The committed manifest builds master; point it at $commit instead. The
+# Rust toolchain is rust-toolchain.toml's: flatpak-flutter provides the
+# version a rustup-<version> module names, and RUSTUP_TOOLCHAIN overrides the
+# file, whose Android targets rustup would otherwise try to download.
+"$tool/.venv/bin/python" - "$work/flatpak-flutter.yml" "$commit" "$root/rust-toolchain.toml" <<'PY'
+import sys, tomllib, yaml
+path, commit, toolchain = sys.argv[1:]
+with open(toolchain, 'rb') as f:
+    rust = tomllib.load(f)['toolchain']['channel']
 with open(path) as f:
     manifest = yaml.safe_load(f)
 module = manifest['id'].split('.')[-1]
@@ -47,6 +52,8 @@ app = next(m for m in manifest['modules'] if isinstance(m, dict) and m['name'] =
 source = next(s for s in app['sources'] if s.get('url', '').endswith('/webspace_app.git'))
 del source['branch']
 source['commit'] = commit
+app.setdefault('modules', []).append(f'generated/modules/rustup-{rust}.json')
+app['build-options']['env']['RUSTUP_TOOLCHAIN'] = rust
 with open(path, 'w') as f:
     yaml.safe_dump(manifest, f, sort_keys=False)
 PY
