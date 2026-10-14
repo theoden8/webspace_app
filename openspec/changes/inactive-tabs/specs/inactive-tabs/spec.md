@@ -160,6 +160,10 @@ on (LIR-013) SHALL route it first, as it routes a tap (LIR-014). It SHALL NOT lo
 Android does not run `shouldOverrideUrlLoading` for a programmatic `loadUrl`,
 so a bare load there would put the foreign page inside the site's container.
 
+The menu SHALL also offer "Copy", which puts the link on the clipboard, and
+"Share", which hands the link to the platform share sheet. Neither loads the
+link, and both are enabled whatever the new-tab row says.
+
 The long press is delivered by the plugin's `onLongPressHitTestResult`
 (`View.setOnLongClickListener` on Android, `UILongPressGestureRecognizer` on
 iOS) filtered to `SRC_ANCHOR_TYPE` / `SRC_IMAGE_ANCHOR_TYPE` and to http(s)
@@ -195,6 +199,13 @@ handler: it has no tab list of its own to add to.
 - **GIVEN** a DuckDuckGo site with outbound routing on, and a GitHub site that is the single match for `github.com`
 - **WHEN** the user long-presses a `github.com` result and chooses "Open"
 - **THEN** the link opens nested with the GitHub site's posture, as a tap on it would (LIR-015)
+
+#### Scenario: Share a link from the menu
+
+- **GIVEN** a GitHub page links to `wpewebkit.org`
+- **WHEN** the user long-presses that link and chooses "Share"
+- **THEN** the platform share sheet opens with `https://wpewebkit.org/`
+- **AND** GitHub's webview stays on the page it was showing
 
 ---
 

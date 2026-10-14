@@ -1019,6 +1019,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         unawaited(_links.openLinkAsTapped(index, url: url));
       case LinkMenuChoice.copy:
         await Clipboard.setData(ClipboardData(text: url));
+      case LinkMenuChoice.share:
+        unawaited(SharePlus.instance.share(ShareParams(uri: uri)));
     }
   }
 

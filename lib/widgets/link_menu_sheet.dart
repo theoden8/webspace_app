@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 
 /// What the user picked in [showLinkMenu].
-enum LinkMenuChoice { newTab, open, copy }
+enum LinkMenuChoice { newTab, open, copy, share }
 
 /// The sheet a long press on a link opens: the link, then open it in a new
-/// tab, open it as a tap would, or copy it. [newTabNote] is what the new-tab
+/// tab, open it as a tap would, copy it, or share it. [newTabNote] is what the new-tab
 /// row says under itself: the site the tab would run as, or why it is off.
 Future<LinkMenuChoice?> showLinkMenu(
   BuildContext context, {
@@ -47,6 +47,11 @@ Future<LinkMenuChoice?> showLinkMenu(
             leading: const Icon(Icons.copy),
             title: Text(loc.commonCopy),
             onTap: () => Navigator.of(ctx).pop(LinkMenuChoice.copy),
+          ),
+          ListTile(
+            leading: const Icon(Icons.share),
+            title: Text(loc.commonShare),
+            onTap: () => Navigator.of(ctx).pop(LinkMenuChoice.share),
           ),
         ],
       ),
