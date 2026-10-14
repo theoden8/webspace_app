@@ -74,40 +74,6 @@ typedef StoreBinding = ({
   bool releasesContainerProxy,
 });
 
-/// Pick the WKContentRuleList payload for this WebView config. iOS
-/// and macOS only — Android, Linux, web fall through to an empty
-/// list (the field exists on every platform but only Apple's
-/// WKContentRuleListStore acts on it). Empty list when the per-site
-/// `contentBlockEnabled` is off OR no list has been built yet,
-/// which signals the fork's [ContentRuleListCache] to drop any
-/// previously-installed rule list.
-List<inapp.ContentBlocker> _appleContentBlockersFor(WebViewConfig config) {
-  if (!Platform.isIOS && !Platform.isMacOS) return const [];
-  if (!config.contentBlockEnabled) {
-    LogService.instance.log('ContentBlocker/WKCRL',
-        'webview siteId=${config.siteId} url=${config.initialUrl}: '
-        'contentBlockEnabled=false → empty list (fork removes any cached '
-        'rule list on this webview)',
-        level: LogLevel.debug);
-    return const [];
-  }
-  final payload = ContentBlockerService.instance.appleContentBlockers;
-  if (payload == null || payload.isEmpty) {
-    LogService.instance.log('ContentBlocker/WKCRL',
-        'webview siteId=${config.siteId} url=${config.initialUrl}: '
-        'no payload built yet → empty list. WebView gets JS-bridge only.',
-        level: LogLevel.info);
-    return const [];
-  }
-  final hash = ContentBlockerService.instance.appleContentBlockersHashShort;
-  LogService.instance.log('ContentBlocker/WKCRL',
-      'webview siteId=${config.siteId} url=${config.initialUrl}: '
-      'attaching ${payload.length} rules (id=iaw-rl-$hash…). fork will '
-      'lookup → install (cache hit) or compile-once (cache miss).',
-      level: LogLevel.info);
-  return payload;
-}
-
 class WebViewFactory {
   /// How Android draws a webview (PAUSE-032). True, the default, is hybrid
   /// composition: the WebView sits in the Android view hierarchy and Flutter
@@ -659,8 +625,7 @@ class WebViewFactory {
       // navigates to a downloadable response (Content-Disposition:
       // attachment, or an unrecognized MIME type). Without this, the
       // webview silently drops the navigation and the user sees nothing.
-      ..useOnDownloadStart = true
-      ..contentBlockers = _appleContentBlockersFor(config);
+      ..useOnDownloadStart = true;
 
     // Android honours the viewport meta's layout width (and thus the page
     // zoom) only when useWideViewPort is on: with it off, Chromium's

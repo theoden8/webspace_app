@@ -22,6 +22,7 @@
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -79,9 +80,9 @@ typedef _EngineHiddenClassIdDart = ffi.Pointer<Utf8> Function(
   int,
 );
 
-typedef _FiltersToContentBlockingC = ffi.Pointer<Utf8> Function(
+typedef _FiltersToContentRuleListsC = ffi.Pointer<Utf8> Function(
     ffi.Pointer<Utf8>, ffi.UintPtr);
-typedef _FiltersToContentBlockingDart = ffi.Pointer<Utf8> Function(
+typedef _FiltersToContentRuleListsDart = ffi.Pointer<Utf8> Function(
     ffi.Pointer<Utf8>, int);
 
 typedef _EngineRedirectForC = ffi.Pointer<Utf8> Function(
@@ -172,7 +173,7 @@ class _Bindings {
   final _EngineCheckUrlDart engineCheckUrl;
   final _EngineCosmeticDart engineCosmetic;
   final _EngineHiddenClassIdDart engineHiddenClassId;
-  final _FiltersToContentBlockingDart filtersToContentBlocking;
+  final _FiltersToContentRuleListsDart filtersToContentRuleLists;
   final _EngineRedirectForDart engineRedirectFor;
   final _EngineRewrittenUrlDart engineRewrittenUrl;
   final _EngineCspForDart engineCspFor;
@@ -189,7 +190,7 @@ class _Bindings {
     required this.engineCheckUrl,
     required this.engineCosmetic,
     required this.engineHiddenClassId,
-    required this.filtersToContentBlocking,
+    required this.filtersToContentRuleLists,
     required this.engineRedirectFor,
     required this.engineRewrittenUrl,
     required this.engineCspFor,
@@ -217,9 +218,9 @@ class _Bindings {
       engineHiddenClassId: lib.lookupFunction<_EngineHiddenClassIdC,
               _EngineHiddenClassIdDart>(
           'ws_engine_hidden_class_id_selectors_json'),
-      filtersToContentBlocking: lib.lookupFunction<_FiltersToContentBlockingC,
-              _FiltersToContentBlockingDart>(
-          'ws_filters_to_content_blocking_json'),
+      filtersToContentRuleLists: lib.lookupFunction<_FiltersToContentRuleListsC,
+              _FiltersToContentRuleListsDart>(
+          'ws_filters_to_content_rule_lists'),
       engineRedirectFor: lib.lookupFunction<_EngineRedirectForC,
               _EngineRedirectForDart>(
           'ws_engine_redirect_for'),
@@ -638,40 +639,12 @@ class AdblockEngine implements AdblockEngineApi {
     }
   }
 
-  /// Convert an ABP filter list to Apple's WKContentRuleListStore
-  /// JSON format. Static — needs no engine instance (this is a
-  /// pure parse+convert pass through the underlying crate).
-  ///
-  /// The result is suitable for
-  /// `WKContentRuleListStore.compileContentRuleList`. Returns null
-  /// when the native library isn't loadable on this platform, or
-  /// when the filter list fails to parse.
-  ///
-  /// Heads-up: WebKit doesn't fire any callback when a content rule
-  /// matches. Use this for the speedup (native sub-resource blocking
-  /// without a JS bridge round-trip per request), but keep the JS
-  /// bridge installed if you want per-request stats.
-  static String? filterListToAppleContentBlockingJson(String rulesText) {
-    final lib = _tryOpenLibrary();
-    if (lib == null) return null;
-    final bindings = _tryBindings(lib);
-    if (bindings == null) return null;
-    final bytes = utf8.encode(rulesText);
-    final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
-    try {
-      ptr.asTypedList(bytes.length).setAll(0, bytes);
-      final resultPtr = bindings.filtersToContentBlocking(
-        ptr.cast<Utf8>(),
-        bytes.length,
-      );
-      if (resultPtr == ffi.nullptr) return null;
-      final json = resultPtr.toDartString();
-      bindings.stringFree(resultPtr);
-      return json;
-    } finally {
-      malloc.free(ptr);
-    }
-  }
+  /// The network rules of [rulesText] as WebKit content rule lists, each a
+  /// JSON array under WebKit's rule cap, converted on a background isolate
+  /// (a few hundred ms for the default lists). Null when the library is not
+  /// loadable or the conversion failed; empty when no network rule converts.
+  static Future<List<String>?> contentRuleLists(String rulesText) =>
+      Isolate.run(() => _contentRuleLists(rulesText));
 
   /// Release the engine. Safe to call multiple times.
   @override
@@ -679,6 +652,26 @@ class AdblockEngine implements AdblockEngineApi {
     if (_handle == ffi.nullptr) return;
     _b.engineFree(_handle);
     _handle = ffi.nullptr;
+  }
+}
+
+List<String>? _contentRuleLists(String rulesText) {
+  final lib = _tryOpenLibrary();
+  if (lib == null) return null;
+  final bindings = _tryBindings(lib);
+  if (bindings == null) return null;
+  final bytes = utf8.encode(rulesText);
+  final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
+  try {
+    ptr.asTypedList(bytes.length).setAll(0, bytes);
+    final resultPtr =
+        bindings.filtersToContentRuleLists(ptr.cast<Utf8>(), bytes.length);
+    if (resultPtr == ffi.nullptr) return null;
+    final lines = resultPtr.toDartString();
+    bindings.stringFree(resultPtr);
+    return const LineSplitter().convert(lines);
+  } finally {
+    malloc.free(ptr);
   }
 }
 

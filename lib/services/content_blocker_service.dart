@@ -9,7 +9,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/filter_list_mask.dart';
@@ -89,67 +88,6 @@ class FilterList {
     );
   }
 }
-
-/// Convert ABP filter text to a list of `inapp.ContentBlocker`
-/// objects via adblock-rust's `into_content_blocking()` exporter.
-///
-/// Runs synchronously on the caller's isolate — the FFI call dives
-/// into the Rust crate, parses the rules, and returns a JSON string;
-/// crossing isolate boundaries with an FFI-loaded library is
-/// brittle and the conversion is fast enough on a modern phone
-/// (single-digit milliseconds for ~30K rules) that the main-thread
-/// cost is acceptable. Matches the pattern `_rebuildEngine` uses
-/// when it parses the same rules text into the runtime engine.
-///
-/// Returns null when the native library isn't loadable or the
-/// parser rejects the input.
-List<inapp.ContentBlocker>? _appleContentBlockersFromText(String rulesText) {
-  final json = AdblockEngine.filterListToAppleContentBlockingJson(rulesText);
-  if (json == null) return null;
-  final decoded = jsonDecode(json);
-  if (decoded is! List) return null;
-  final out = <inapp.ContentBlocker>[];
-  var skipped = 0;
-  for (final entry in decoded) {
-    if (entry is! Map) {
-      skipped++;
-      continue;
-    }
-    final trigger = entry['trigger'];
-    final action = entry['action'];
-    if (trigger is! Map || action is! Map) {
-      skipped++;
-      continue;
-    }
-    try {
-      out.add(inapp.ContentBlocker.fromMap(<dynamic, Map<dynamic, dynamic>>{
-        'trigger': Map<dynamic, dynamic>.from(trigger),
-        'action': Map<dynamic, dynamic>.from(action),
-      }));
-    } catch (_) {
-      // One malformed rule (e.g. an unexpected null where the
-      // upstream fromMap doesn't default) must not kill the batch.
-      // The fork's ContentBlockerTrigger.fromMap defaults the known
-      // optional fields, but new platform-interface fields may slip
-      // through without defaults — swallow and skip.
-      skipped++;
-    }
-  }
-  if (skipped > 0) {
-    // Surface in the service rebuild log via the side-channel below
-    // — top-level helpers can't reach LogService directly without
-    // importing it from a worker isolate.
-    _appleContentBlockersSkipped = skipped;
-  } else {
-    _appleContentBlockersSkipped = 0;
-  }
-  return out;
-}
-
-/// Side-channel from [_appleContentBlockersFromText] (top-level) to
-/// the service so the rebuild log can report how many rules the
-/// Dart-object wrapping rejected. Reset on each call.
-int _appleContentBlockersSkipped = 0;
 
 /// Default filter lists added on first initialization.
 const List<Map<String, String>> _defaultLists = [
@@ -322,22 +260,6 @@ class ContentBlockerService {
   /// incremental update API).
   AdblockEngine? _rustEngine;
 
-  /// Pre-built WKContentRuleList payload for iOS/macOS, derived from
-  /// the merged enabled-lists raw text via
-  /// [AdblockEngine.filterListToAppleContentBlockingJson]. Cached
-  /// across WebView creations so each new WebView passes the same
-  /// list ref to InAppWebViewSettings.contentBlockers; the fork's
-  /// [ContentRuleListCache] then hits WKContentRuleListStore by
-  /// hashed identifier on every WebView but compiles only once per
-  /// rule set. null when the library isn't loadable on the platform
-  /// or no lists have rules yet.
-  List<inapp.ContentBlocker>? _appleContentBlockers;
-
-  /// Source-text hash the cached [_appleContentBlockers] was built
-  /// from. Used to short-circuit rebuilds when the merged ruleset
-  /// hasn't actually changed (e.g. toggling an empty / disabled list).
-  String? _appleContentBlockersHash;
-
   /// True when the engine is loaded and parsing succeeded. Used by
   /// callers that need to gate engine-specific JS shims (generic
   /// cosmetic scanner, procedural runner) on the engine being live.
@@ -457,23 +379,6 @@ class ContentBlockerService {
 
   /// Whether the engine is loaded and ready to answer queries.
   bool get hasRules => _rustEngine != null;
-
-  /// Pre-built WKContentRuleList payload for iOS/macOS. Caller pipes
-  /// this through `InAppWebViewSettings.contentBlockers`; the fork's
-  /// hash-keyed cache compiles once per ruleset and reuses the
-  /// WKContentRuleListStore disk cache across launches. Null when no
-  /// rules have been built yet (no enabled lists, or the platform
-  /// doesn't ship the adblock-rust library).
-  List<inapp.ContentBlocker>? get appleContentBlockers =>
-      _appleContentBlockers;
-
-  /// First 12 hex chars of the source-text hash that produced the
-  /// cached [appleContentBlockers]. Echoed in webview logs so the
-  /// Dart-side payload build and the fork's WKContentRuleListStore
-  /// install can be cross-referenced. Empty string when no payload
-  /// is cached.
-  String get appleContentBlockersHashShort =>
-      _appleContentBlockersHash?.substring(0, 12) ?? '';
 
   /// Listeners invoked when the engine is rebuilt (download, toggle,
   /// remove, re-init). main.dart uses this to invalidate caches that
@@ -1063,7 +968,6 @@ class ContentBlockerService {
     _applyPrefilter(built.prefilter);
     if (built.rulesText.isEmpty) {
       await _pushToNative(Uint8List(0), rulesText: () async => '');
-      await _maybeRebuildAppleContentBlockers(rulesText: null);
       _notifyRulesChanged();
       return;
     }
@@ -1076,7 +980,6 @@ class ContentBlockerService {
           'Engine library is not loadable on this platform — '
           'adblock decisions will all return "allowed".');
       await _pushToNative(Uint8List(0), rulesText: () async => '');
-      await _maybeRebuildAppleContentBlockers(rulesText: null);
       _notifyRulesChanged();
       return;
     }
@@ -1090,8 +993,6 @@ class ContentBlockerService {
           _writeEngineCache(key, blob: blob, prefilter: built.prefilter));
     }
     await _pushToNative(blob, rulesText: () async => built.rulesText);
-    await _maybeRebuildAppleContentBlockers(
-        rulesText: built.rulesText, rulesHash: key);
     _notifyRulesChanged();
   }
 
@@ -1313,87 +1214,6 @@ class ContentBlockerService {
     _lists = restored;
     await _saveLists();
     await _rebuildEngine();
-  }
-
-  /// Build the WKContentRuleList payload from the same merged filter
-  /// text the engine consumed in [_rebuildEngine]. iOS/macOS only —
-  /// bails silently on other platforms. Caches by content hash so
-  /// repeat rebuilds with identical rules no-op. The FFI conversion
-  /// (`ws_filters_to_content_blocking_json`) runs synchronously here;
-  /// it's CPU-bound for ~30K-rule lists but cheap enough not to need
-  /// a worker isolate, and `_rebuildEngine` has already done the
-  /// disk read + hash before calling us.
-  ///
-  /// Pass `rulesText: null` from the engine's "no enabled lists" or
-  /// "engine unloadable" paths to clear any prior payload — new
-  /// webviews then get an empty list and the fork's
-  /// [ContentRuleListCache] removes any installed rule list.
-  Future<void> _maybeRebuildAppleContentBlockers(
-      {required String? rulesText, String? rulesHash}) async {
-    if (!(Platform.isIOS || Platform.isMacOS)) {
-      LogService.instance.log('ContentBlocker/WKCRL',
-          'skip rebuild — non-Apple platform',
-          level: LogLevel.debug);
-      return;
-    }
-    if (rulesText == null || rulesText.isEmpty) {
-      _appleContentBlockers = null;
-      _appleContentBlockersHash = null;
-      LogService.instance.log('ContentBlocker/WKCRL',
-          'skip rebuild — no enabled-list content. new webviews on '
-          'iOS/macOS will get an empty contentBlockers list.',
-          level: LogLevel.info);
-      return;
-    }
-    final hash =
-        rulesHash ?? sha256.convert(utf8.encode(rulesText)).toString();
-    if (hash == _appleContentBlockersHash &&
-        _appleContentBlockers != null) {
-      LogService.instance.log('ContentBlocker/WKCRL',
-          'skip rebuild — hash unchanged ($hash). cached payload has '
-          '${_appleContentBlockers!.length} rules.',
-          level: LogLevel.debug);
-      return;
-    }
-    LogService.instance.log('ContentBlocker/WKCRL',
-        'building payload from ${rulesText.length}B merged source, hash=$hash',
-        level: LogLevel.info);
-    final sw = Stopwatch()..start();
-    final blockers = _appleContentBlockersFromText(rulesText);
-    sw.stop();
-    if (blockers == null) {
-      LogService.instance.log('ContentBlocker/WKCRL',
-          'export FAILED — filterListToAppleContentBlockingJson returned '
-          'null. adblock-rust library missing or parser rejected the input. '
-          'iOS/macOS will fall back to the JS-bridge interceptor only.',
-          level: LogLevel.warning);
-      return;
-    }
-    _appleContentBlockers = blockers;
-    _appleContentBlockersHash = hash;
-    final skipped = _appleContentBlockersSkipped;
-    final total = blockers.length + skipped;
-    // Loud warning when nothing (or almost nothing) made it through —
-    // most likely cause is a stale fork pin missing the
-    // ContentBlockerTrigger.fromMap null-default fix. Without this
-    // signal, "payload ready: 0 rules" was easy to miss in an info-
-    // level firehose.
-    final skipRatio = total == 0 ? 0.0 : skipped / total;
-    final level = (blockers.isEmpty && skipped > 0)
-        ? LogLevel.error
-        : (skipRatio > 0.5 ? LogLevel.warning : LogLevel.info);
-    final skippedDetail = skipped > 0
-        ? ' ($skipped/$total skipped by Dart-object wrap — usually a '
-            'stale flutter_inappwebview_platform_interface pin; run '
-            '`flutter pub upgrade flutter_inappwebview_platform_interface`)'
-        : '';
-    LogService.instance.log('ContentBlocker/WKCRL',
-        'payload ready: ${blockers.length} rules built in '
-        '${sw.elapsedMilliseconds}ms (${rulesText.length}B source)'
-        '$skippedDetail. '
-        'identifier prefix sent to fork: iaw-rl-${hash.substring(0, 12)}…. '
-        'new webviews on iOS/macOS will attach this list on creation.',
-        level: level);
   }
 
   Future<void> _saveLists() async {

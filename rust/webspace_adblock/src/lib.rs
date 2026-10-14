@@ -28,8 +28,10 @@ use std::ffi::CStr;
 mod jni;
 use std::slice;
 
+use adblock::content_blocking::{CbRule, CbType};
+use adblock::filters::network::{NetworkFilter, NetworkFilterMask};
 use adblock::Engine as AdblockEngine;
-use adblock::lists::{FilterSet, ParseOptions};
+use adblock::lists::{FilterSet, ParseOptions, RuleTypes};
 use adblock::request::Request;
 use adblock::resources::Resource;
 
@@ -508,22 +510,65 @@ pub extern "C" fn ws_engine_hidden_class_id_selectors_json(
     }
 }
 
-/// Apple WKContentRuleList JSON export. Converts an ABP filter list
-/// into the JSON format that `WKContentRuleListStore.compileContentRuleList`
-/// accepts. The Pod hook on iOS/macOS compiles the result into WebKit
-/// bytecode at install time, giving native sub-resource blocking
-/// without a JS bridge round-trip.
+/// WebKit refuses a content rule list longer than this (`maxRuleCount` in
+/// WebCore's `ContentExtensionParser.cpp`).
+const WEBKIT_MAX_RULES: usize = 150_000;
+
+/// The network rules in `text` as WebKit content rule lists, each at most
+/// `max_rules` long, or `None` when the exceptions alone fill a list.
 ///
-/// Trade-off: WebKit fires NO callback when a rule matches (Apple's
-/// privacy design), so per-request stats stay on the JS-bridge path
-/// — the content rule list is an additive accelerator, not a
-/// replacement for the existing pipeline.
+/// adblock-rust emits every block rule before every exception, and an
+/// exception cancels only earlier rules of its own list, so each list is a
+/// slice of the block rules followed by all of the exceptions. Cosmetic
+/// rules are left to the page's cosmetic pass. `$method` rules are left out:
+/// a WebKit rule without a `request-method` trigger blocks every method, and
+/// WebKit before 7622 (iOS/macOS 26) ignores that trigger.
+fn content_rule_lists(text: &str, max_rules: usize) -> Option<Vec<Vec<CbRule>>> {
+    let kept: String = text
+        .lines()
+        .filter(|line| !restricts_method(line))
+        .flat_map(|line| [line, "\n"])
+        .collect();
+    let mut filter_set = FilterSet::new(true);
+    filter_set.add_filter_list(
+        kept,
+        ParseOptions { rule_types: RuleTypes::NetworkOnly, ..Default::default() },
+    );
+    let (rules, _used) = filter_set.into_content_blocking().ok()?;
+    let first_exception = rules
+        .iter()
+        .position(|r| matches!(r.action.typ, CbType::IgnorePreviousRules))
+        .unwrap_or(rules.len());
+    let (blocks, exceptions) = rules.split_at(first_exception);
+    debug_assert!(
+        exceptions.iter().all(|r| matches!(r.action.typ, CbType::IgnorePreviousRules)),
+        "adblock-rust emits exceptions after every block rule"
+    );
+    let room = max_rules.checked_sub(exceptions.len()).filter(|&n| n > 0)?;
+    Some(
+        blocks
+            .chunks(room)
+            .map(|chunk| [chunk, exceptions].concat())
+            .collect(),
+    )
+}
+
+fn restricts_method(line: &str) -> bool {
+    line.to_ascii_lowercase().contains("method=")
+        && NetworkFilter::parse(line, false, ParseOptions::default())
+            .is_ok_and(|f| f.mask.intersects(NetworkFilterMask::FROM_ANY_METHODS))
+}
+
+/// WebKit content rule lists for a UTF-8 filter list (same input as
+/// `ws_engine_new`), one compact JSON array per line, each ready for
+/// `WKContentRuleListStore.compileContentRuleList`. An empty string when no
+/// network rule converts. WebKit reports no match back, so blocking stats
+/// stay with the page's interceptor; these lists only stop requests sooner.
 ///
-/// Takes a UTF-8 filter list (same input as `ws_engine_new`) and
-/// returns a JSON string. Caller must free with [`ws_string_free`].
-/// Returns null on UTF-8 / parser failure.
+/// Caller must free with [`ws_string_free`]. Null on invalid UTF-8, a parser
+/// failure, or exceptions that alone exceed WebKit's rule cap.
 #[no_mangle]
-pub extern "C" fn ws_filters_to_content_blocking_json(
+pub extern "C" fn ws_filters_to_content_rule_lists(
     rules_text: *const c_char,
     len: usize,
 ) -> *mut c_char {
@@ -531,29 +576,24 @@ pub extern "C" fn ws_filters_to_content_blocking_json(
         return std::ptr::null_mut();
     }
     let bytes = unsafe { std::slice::from_raw_parts(rules_text as *const u8, len) };
-    let text = match std::str::from_utf8(bytes) {
-        Ok(s) => s,
-        Err(_) => return std::ptr::null_mut(),
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return std::ptr::null_mut();
     };
-
-    // `into_content_blocking` requires the FilterSet to be in debug
-    // mode (carries source filter strings) so it can emit them in
-    // the JSON action payload. Build a fresh FilterSet for the
-    // conversion rather than reusing the runtime engine's optimised
-    // (non-debug) one.
-    let mut filter_set = FilterSet::new(true);
-    filter_set.add_filter_list(text.to_string(), ParseOptions::default());
-    let rules = match filter_set.into_content_blocking() {
-        Ok((rules, _used)) => rules,
-        Err(_) => return std::ptr::null_mut(),
+    let Some(lists) = content_rule_lists(text, WEBKIT_MAX_RULES) else {
+        return std::ptr::null_mut();
     };
-    match serde_json::to_string(&rules) {
-        Ok(s) => CString::new(s)
-            .ok()
-            .map(|c| c.into_raw())
-            .unwrap_or(std::ptr::null_mut()),
-        Err(_) => std::ptr::null_mut(),
+    let mut out = String::new();
+    for list in &lists {
+        let Ok(json) = serde_json::to_string(list) else {
+            return std::ptr::null_mut();
+        };
+        out.push_str(&json);
+        out.push('\n');
     }
+    CString::new(out)
+        .ok()
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
 }
 
 /// Free a string returned by this library. Safe with null.
@@ -725,26 +765,55 @@ mod tests {
         ws_engine_free(engine_ptr);
     }
 
-    #[test]
-    fn content_blocking_json_export() {
-        // Mirrors `WKContentRuleListStore.compileContentRuleList`'s
-        // expected JSON shape: array of {action, trigger} objects.
-        let rules = "||doubleclick.net^\n||tracker.com^$third-party\n##.ad\n";
-        let ptr = ws_filters_to_content_blocking_json(
+    fn rule_lists_json(rules: &str) -> String {
+        let ptr = ws_filters_to_content_rule_lists(
             rules.as_ptr() as *const c_char,
             rules.len(),
         );
-        assert!(!ptr.is_null(), "content_blocking conversion returned null");
+        assert!(!ptr.is_null(), "content rule list conversion returned null");
         let json = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_owned();
         ws_string_free(ptr);
+        json
+    }
 
-        // It IS a JSON array.
-        assert!(json.starts_with('['), "payload: {}", json);
-        // The Apple format wraps every rule in `{"action": ..., "trigger": ...}`.
-        assert!(json.contains("\"action\""), "payload: {}", json);
-        assert!(json.contains("\"trigger\""), "payload: {}", json);
-        // doubleclick should map to a block action.
-        assert!(json.contains("doubleclick"), "payload: {}", json);
+    #[test]
+    fn content_rule_lists_carry_network_rules_only() {
+        let json = rule_lists_json(
+            "||doubleclick.net^\n||tracker.com^$third-party\n##.ad\nexample.com##.banner\n");
+        let lists: Vec<Vec<serde_json::Value>> =
+            json.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+        assert_eq!(lists.len(), 1, "payload: {json}");
+        assert!(json.contains("doubleclick"), "payload: {json}");
+        assert!(!json.contains("css-display-none"), "cosmetic rules leaked: {json}");
+    }
+
+    #[test]
+    fn content_rule_lists_leave_out_method_rules() {
+        let json = rule_lists_json("||post.example^$method=post\n||get.example^\n");
+        assert!(json.contains("get"), "payload: {json}");
+        assert!(!json.contains("post"), "a method rule blocks every method in WebKit: {json}");
+    }
+
+    #[test]
+    fn content_rule_lists_split_under_the_cap_with_every_exception() {
+        let rules = "||a.example^\n||b.example^\n||c.example^\n@@||a.example/ok^\n";
+        let lists = content_rule_lists(rules, 3).unwrap();
+        let exceptions = |list: &Vec<CbRule>| list.iter()
+            .filter(|r| matches!(r.action.typ, CbType::IgnorePreviousRules)).count();
+        // One exception from the list plus the first-party document one.
+        assert_eq!(exceptions(&lists[0]), 2);
+        assert_eq!(lists.len(), 3, "one block rule per list: {lists:?}");
+        for list in &lists {
+            assert!(list.len() <= 3);
+            assert_eq!(exceptions(list), 2, "every list carries every exception");
+            assert!(matches!(list[0].action.typ, CbType::Block), "blocks come first");
+        }
+        assert!(content_rule_lists(rules, 2).is_none(), "exceptions alone fill a list of 2");
+    }
+
+    #[test]
+    fn content_rule_lists_empty_without_network_rules() {
+        assert_eq!(rule_lists_json("##.ad\n! comment\n"), "");
     }
 
     #[test]

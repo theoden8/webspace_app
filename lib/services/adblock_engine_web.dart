@@ -25,7 +25,8 @@ class AdblockEngine implements AdblockEngineApi {
 
   static List<Map<String, dynamic>> depLicenses() => const [];
 
-  static String? filterListToAppleContentBlockingJson(String rulesText) => null;
+  static Future<List<String>?> contentRuleLists(String rulesText) async =>
+      null;
 
   Never _unavailable() =>
       throw UnsupportedError('the adblock engine is unavailable on web');

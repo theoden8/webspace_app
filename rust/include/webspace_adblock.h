@@ -103,22 +103,16 @@ char *ws_engine_hidden_class_id_selectors_json(struct WsEngine *engine,
                                                uintptr_t exceptions_len);
 
 /**
- * Apple WKContentRuleList JSON export. Converts an ABP filter list
- * into the JSON format that `WKContentRuleListStore.compileContentRuleList`
- * accepts. The Pod hook on iOS/macOS compiles the result into WebKit
- * bytecode at install time, giving native sub-resource blocking
- * without a JS bridge round-trip.
+ * WebKit content rule lists for a UTF-8 filter list (same input as
+ * `ws_engine_new`), one compact JSON array per line, each ready for
+ * `WKContentRuleListStore.compileContentRuleList`. An empty string when no
+ * network rule converts. WebKit reports no match back, so blocking stats
+ * stay with the page's interceptor; these lists only stop requests sooner.
  *
- * Trade-off: WebKit fires NO callback when a rule matches (Apple's
- * privacy design), so per-request stats stay on the JS-bridge path
- * — the content rule list is an additive accelerator, not a
- * replacement for the existing pipeline.
- *
- * Takes a UTF-8 filter list (same input as `ws_engine_new`) and
- * returns a JSON string. Caller must free with [`ws_string_free`].
- * Returns null on UTF-8 / parser failure.
+ * Caller must free with [`ws_string_free`]. Null on invalid UTF-8, a parser
+ * failure, or exceptions that alone exceed WebKit's rule cap.
  */
-char *ws_filters_to_content_blocking_json(const char *rules_text, uintptr_t len);
+char *ws_filters_to_content_rule_lists(const char *rules_text, uintptr_t len);
 
 /**
  * Free a string returned by this library. Safe with null.
