@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/local_proxy_relay_api.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -15,7 +16,8 @@ import 'package:webspace/settings/proxy.dart';
 /// rather than left to the one tier that can run a real WebView.
 void main() {
   String credential(String siteId, {required String token}) =>
-      ProxyRouterEngine.credentialFor(siteId: siteId, token: token);
+      ProxyRouterEngine.credentialFor(
+          identity: RouterIdentity.ofSite(SiteId(siteId)), token: token);
 
   Map<String, Object?> wire({
     String siteId = 'site-a',
@@ -42,7 +44,7 @@ void main() {
       expect(decoded, isNotNull);
       expect(decoded!.username, 'ws-site-a');
       expect(decoded.route.token, 'tok');
-      expect(decoded.route.siteId, 'site-a');
+      expect(decoded.route.identity, 'site-a');
       expect(decoded.route.upstream.type, ProxyType.SOCKS5);
       expect(decoded.route.upstream.address, '127.0.0.1:9050');
     });

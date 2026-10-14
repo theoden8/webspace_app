@@ -10,6 +10,7 @@
 // replaced: revert the engine to index-based and the "delete during await"
 // cases below fail (wrong-site markLoaded / RangeError).
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
 
 class _FakeSite {
@@ -21,7 +22,7 @@ class _FakeSite {
       this.lat,
       this.lng,
       this.tz});
-  final String siteId;
+  final SiteId siteId;
   bool notif;
   bool fromLoc;
   bool tp;
@@ -46,15 +47,15 @@ class _FakeHost implements DeferredStartupHost {
   final List<String> markedLoaded = [];
   final List<String> tzSet = [];
   final List<String> themed = [];
-  final List<({Set<String> active, Set<String> nonIncognito})> sweeps = [];
+  final List<({Set<SiteId> active, Set<SiteId> nonIncognito})> sweeps = [];
   final List<String> opLog = []; // 'persist' / 'sweep' — to assert ordering
 
   final List<String> restoreQueued = [];
 
   // Await-point hooks: run *inside* the awaited call, i.e. "during the await".
-  void Function(String siteId)? onPreloadHtml;
-  void Function(String siteId)? onApplyTheme;
-  void Function(String siteId)? onQueueNavStateRestore;
+  void Function(SiteId siteId)? onPreloadHtml;
+  void Function(SiteId siteId)? onApplyTheme;
+  void Function(SiteId siteId)? onQueueNavStateRestore;
   void Function()? onLoadDataset;
 
   _FakeSite? _find(String id) {
@@ -83,13 +84,13 @@ class _FakeHost implements DeferredStartupHost {
   bool get isMounted => mountedFlag;
 
   @override
-  bool isLive(String siteId) => _find(siteId) != null;
+  bool isLive(SiteId siteId) => _find(siteId) != null;
 
   @override
-  bool isLoaded(String siteId) => loaded.contains(siteId);
+  bool isLoaded(SiteId siteId) => loaded.contains(siteId);
 
   @override
-  void markLoaded(String siteId) {
+  void markLoaded(SiteId siteId) {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: markLoaded on dead site $siteId');
     loaded.add(siteId);
@@ -97,14 +98,14 @@ class _FakeHost implements DeferredStartupHost {
   }
 
   @override
-  Future<void> preloadHtml(String siteId) async {
+  Future<void> preloadHtml(SiteId siteId) async {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: preloadHtml on dead site $siteId');
     onPreloadHtml?.call(siteId);
   }
 
   @override
-  Future<void> applyTheme(String siteId) async {
+  Future<void> applyTheme(SiteId siteId) async {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: applyTheme on dead site $siteId');
     themed.add(siteId);
@@ -112,7 +113,7 @@ class _FakeHost implements DeferredStartupHost {
   }
 
   @override
-  Future<void> queueNavStateRestore(String siteId) async {
+  Future<void> queueNavStateRestore(SiteId siteId) async {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: queueNavStateRestore on dead site $siteId');
     expect(isLoaded(siteId), isFalse,
@@ -137,7 +138,7 @@ class _FakeHost implements DeferredStartupHost {
       lookupFn(latitude, longitude: longitude);
 
   @override
-  bool setSpoofTimezone(String siteId, {required String timezone}) {
+  bool setSpoofTimezone(SiteId siteId, {required String timezone}) {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: setSpoofTimezone on dead site $siteId');
     final s = _find(siteId)!;
@@ -156,15 +157,15 @@ class _FakeHost implements DeferredStartupHost {
   }
 
   @override
-  Set<String> liveSiteIds() => {for (final s in sites) s.siteId};
+  Set<SiteId> liveSiteIds() => {for (final s in sites) s.siteId};
 
   @override
-  Set<String> liveNonIncognitoSiteIds() =>
+  Set<SiteId> liveNonIncognitoSiteIds() =>
       {for (final s in sites) if (!s.incognito) s.siteId};
 
   @override
   Future<void> sweepOrphanStorage(
-      Set<String> active, {required Set<String> nonIncognitoSiteIds}) async {
+      Set<SiteId> active, {required Set<SiteId> nonIncognitoSiteIds}) async {
     sweeps.add((active: active, nonIncognito: nonIncognitoSiteIds));
     opLog.add('sweep');
   }
@@ -174,21 +175,21 @@ void main() {
   group('autoLoadNotificationSites', () {
     test('loads every notification site; skips non-notif', () async {
       final host = _FakeHost([
-        _FakeSite('a', notif: true),
-        _FakeSite('plain'),
-        _FakeSite('b', notif: true),
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('plain')),
+        _FakeSite(SiteId('b'), notif: true),
       ]);
       await DeferredStartupEngine.autoLoadNotificationSites(host);
       expect(host.markedLoaded.toSet(), {'a', 'b'});
-      expect(host.isLoaded('plain'), isFalse);
+      expect(host.isLoaded(SiteId('plain')), isFalse);
       expect(host.rebuilds, 1);
     });
 
     test('queues nav-state restore before marking loaded (PAUSE-019)',
         () async {
       final host = _FakeHost([
-        _FakeSite('a', notif: true),
-        _FakeSite('b', notif: true),
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('b'), notif: true),
       ]);
       await DeferredStartupEngine.autoLoadNotificationSites(host);
       // The fake host's queueNavStateRestore asserts !isLoaded at call
@@ -199,38 +200,38 @@ void main() {
     test('site deleted during its restore queue is not loaded (no throw)',
         () async {
       final host = _FakeHost([
-        _FakeSite('a', notif: true),
-        _FakeSite('b', notif: true),
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('b'), notif: true),
       ]);
       host.onQueueNavStateRestore = (siteId) {
         if (siteId == 'a') host.delete('a');
       };
       await DeferredStartupEngine.autoLoadNotificationSites(host);
-      expect(host.isLoaded('a'), isFalse, reason: 'deleted mid-flight');
-      expect(host.isLoaded('b'), isTrue);
+      expect(host.isLoaded(SiteId('a')), isFalse, reason: 'deleted mid-flight');
+      expect(host.isLoaded(SiteId('b')), isTrue);
     });
 
     test('site deleted during its own HTML preload is not loaded (no throw)',
         () async {
       final host = _FakeHost([
-        _FakeSite('a', notif: true),
-        _FakeSite('b', notif: true),
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('b'), notif: true),
       ]);
       // Delete 'a' while 'a' is mid-preload — the classic stale-index window.
       host.onPreloadHtml = (siteId) {
         if (siteId == 'a') host.delete('a');
       };
       await DeferredStartupEngine.autoLoadNotificationSites(host);
-      expect(host.isLoaded('a'), isFalse, reason: 'deleted mid-flight');
-      expect(host.isLoaded('b'), isTrue);
+      expect(host.isLoaded(SiteId('a')), isFalse, reason: 'deleted mid-flight');
+      expect(host.isLoaded(SiteId('b')), isTrue);
     });
 
     test('a different site deleted mid-loop is skipped, not mis-targeted',
         () async {
       final host = _FakeHost([
-        _FakeSite('a', notif: true),
-        _FakeSite('b', notif: true),
-        _FakeSite('c', notif: true),
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('b'), notif: true),
+        _FakeSite(SiteId('c'), notif: true),
       ]);
       // While loading 'a', delete the not-yet-processed 'c' (a reorder/delete
       // would shift indices; siteId-keying must just skip it).
@@ -239,13 +240,13 @@ void main() {
       };
       await DeferredStartupEngine.autoLoadNotificationSites(host);
       expect(host.markedLoaded.toSet(), {'a', 'b'});
-      expect(host.isLive('c'), isFalse);
+      expect(host.isLive(SiteId('c')), isFalse);
     });
 
     test('unmount mid-flight stops further loads', () async {
       final host = _FakeHost([
-        _FakeSite('a', notif: true),
-        _FakeSite('b', notif: true),
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('b'), notif: true),
       ]);
       host.onPreloadHtml = (siteId) {
         if (siteId == 'a') host.mountedFlag = false;
@@ -261,9 +262,9 @@ void main() {
   group('refreshLocationTimezones', () {
     test('resolves + persists every from-location site', () async {
       final host = _FakeHost([
-        _FakeSite('geo', fromLoc: true, lat: 51.5, lng: -0.1),
-        _FakeSite('plain'),
-        _FakeSite('tp', tp: true, lat: 35.6, lng: 139.7),
+        _FakeSite(SiteId('geo'), fromLoc: true, lat: 51.5, lng: -0.1),
+        _FakeSite(SiteId('plain')),
+        _FakeSite(SiteId('tp'), tp: true, lat: 35.6, lng: 139.7),
       ]);
       host.lookupFn = (lat, {required longitude}) =>
           lat > 40 ? 'Europe/London' : 'Asia/Tokyo';
@@ -273,7 +274,7 @@ void main() {
     });
 
     test('does not load the dataset when no site uses the feature', () async {
-      final host = _FakeHost([_FakeSite('plain'), _FakeSite('manualtz')]);
+      final host = _FakeHost([_FakeSite(SiteId('plain')), _FakeSite(SiteId('manualtz'))]);
       await DeferredStartupEngine.refreshLocationTimezones(host);
       expect(host.datasetLoads, 0, reason: 'non-users never pay for the load');
       expect(host.persists, 0);
@@ -282,8 +283,8 @@ void main() {
     test('site deleted during dataset load is not written (no throw)',
         () async {
       final host = _FakeHost([
-        _FakeSite('keep', fromLoc: true, lat: 10, lng: 10),
-        _FakeSite('gone', fromLoc: true, lat: 20, lng: 20),
+        _FakeSite(SiteId('keep'), fromLoc: true, lat: 10, lng: 10),
+        _FakeSite(SiteId('gone'), fromLoc: true, lat: 20, lng: 20),
       ]);
       host.onLoadDataset = () => host.delete('gone');
       await DeferredStartupEngine.refreshLocationTimezones(host);
@@ -293,8 +294,8 @@ void main() {
     test('writes back by siteId even if the list reorders during load',
         () async {
       final host = _FakeHost([
-        _FakeSite('first', fromLoc: true, lat: 51.5, lng: -0.1),
-        _FakeSite('second', fromLoc: true, lat: 35.6, lng: 139.7),
+        _FakeSite(SiteId('first'), fromLoc: true, lat: 51.5, lng: -0.1),
+        _FakeSite(SiteId('second'), fromLoc: true, lat: 35.6, lng: 139.7),
       ]);
       host.lookupFn = (lat, {required longitude}) =>
           lat > 40 ? 'Europe/London' : 'Asia/Tokyo';
@@ -309,7 +310,7 @@ void main() {
     });
 
     test('no persist when the dataset is unavailable', () async {
-      final host = _FakeHost([_FakeSite('geo', fromLoc: true, lat: 1, lng: 2)]);
+      final host = _FakeHost([_FakeSite(SiteId('geo'), fromLoc: true, lat: 1, lng: 2)]);
       host.datasetReady = false;
       await DeferredStartupEngine.refreshLocationTimezones(host);
       expect(host.tzSet, isEmpty);
@@ -321,10 +322,10 @@ void main() {
     test('themes the not-pre-themed live sites, persists, then sweeps',
         () async {
       final host = _FakeHost(
-          [_FakeSite('a'), _FakeSite('b'), _FakeSite('c', incognito: true)]);
+          [_FakeSite(SiteId('a')), _FakeSite(SiteId('b')), _FakeSite(SiteId('c'), incognito: true)]);
       await DeferredStartupEngine.runPostPaintMaintenance(
         host,
-        alreadyThemedSiteIds: {'a'}, // a was themed pre-paint
+        alreadyThemedSiteIds: {SiteId('a')}, // a was themed pre-paint
         needsResave: true,
       );
       expect(host.themed.toSet(), {'b', 'c'}, reason: 'a already themed');
@@ -338,11 +339,11 @@ void main() {
 
     test('orphan sweep reads LIVE sets — a site added post-paint is kept',
         () async {
-      final host = _FakeHost([_FakeSite('a'), _FakeSite('b')]);
+      final host = _FakeHost([_FakeSite(SiteId('a')), _FakeSite(SiteId('b'))]);
       // Simulate the user adding a site while theming is in flight.
       host.onApplyTheme = (siteId) {
-        if (siteId == 'a' && host.isLive('added') == false) {
-          host.sites.add(_FakeSite('added'));
+        if (siteId == 'a' && host.isLive(SiteId('added')) == false) {
+          host.sites.add(_FakeSite(SiteId('added')));
         }
       };
       await DeferredStartupEngine.runPostPaintMaintenance(
@@ -357,7 +358,7 @@ void main() {
     });
 
     test('site deleted during theming is skipped, not themed', () async {
-      final host = _FakeHost([_FakeSite('a'), _FakeSite('b')]);
+      final host = _FakeHost([_FakeSite(SiteId('a')), _FakeSite(SiteId('b'))]);
       host.onApplyTheme = (siteId) {
         if (siteId == 'a') host.delete('b');
       };
@@ -370,7 +371,7 @@ void main() {
     });
 
     test('unmount mid-theming stops before persist/sweep', () async {
-      final host = _FakeHost([_FakeSite('a'), _FakeSite('b')]);
+      final host = _FakeHost([_FakeSite(SiteId('a')), _FakeSite(SiteId('b'))]);
       host.onApplyTheme = (siteId) {
         if (siteId == 'a') host.mountedFlag = false;
       };

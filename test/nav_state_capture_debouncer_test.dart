@@ -1,5 +1,6 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/nav_state_capture_debouncer.dart';
 
 void main() {
@@ -11,7 +12,7 @@ void main() {
       var captures = 0;
       // 8 SPA pseudo-navigations 100ms apart (the LinkedIn storm shape).
       for (var i = 0; i < 8; i++) {
-        d.schedule('a', capture: () => captures++);
+        d.schedule(SiteId('a'), capture: () => captures++);
         async.elapse(const Duration(milliseconds: 100));
       }
       expect(captures, 0, reason: 'window still open during the burst');
@@ -24,9 +25,9 @@ void main() {
     fakeAsync((async) {
       final d = NavStateCaptureDebouncer(delay: delay);
       var captures = 0;
-      d.schedule('a', capture: () => captures++);
+      d.schedule(SiteId('a'), capture: () => captures++);
       async.elapse(const Duration(seconds: 2));
-      d.schedule('a', capture: () => captures++);
+      d.schedule(SiteId('a'), capture: () => captures++);
       // 3s since the first schedule but only 1s since the second: a
       // leading-edge throttle would have fired; trailing must not.
       async.elapse(const Duration(seconds: 1));
@@ -40,10 +41,10 @@ void main() {
     fakeAsync((async) {
       final d = NavStateCaptureDebouncer(delay: delay);
       final fired = <String>[];
-      d.schedule('a', capture: () => fired.add('a'));
+      d.schedule(SiteId('a'), capture: () => fired.add('a'));
       async.elapse(const Duration(seconds: 2));
       // b's navigation must not push back a's already-elapsing window.
-      d.schedule('b', capture: () => fired.add('b'));
+      d.schedule(SiteId('b'), capture: () => fired.add('b'));
       async.elapse(const Duration(seconds: 1));
       expect(fired, ['a']);
       async.elapse(const Duration(seconds: 2));
@@ -55,10 +56,10 @@ void main() {
     fakeAsync((async) {
       final d = NavStateCaptureDebouncer(delay: delay);
       var captures = 0;
-      d.schedule('a', capture: () => captures++);
+      d.schedule(SiteId('a'), capture: () => captures++);
       async.elapse(delay);
       expect(captures, 1);
-      d.schedule('a', capture: () => captures++);
+      d.schedule(SiteId('a'), capture: () => captures++);
       async.elapse(delay);
       expect(captures, 2);
     });
@@ -68,8 +69,8 @@ void main() {
     fakeAsync((async) {
       final d = NavStateCaptureDebouncer(delay: delay);
       var captures = 0;
-      d.schedule('a', capture: () => captures++);
-      d.cancel('a');
+      d.schedule(SiteId('a'), capture: () => captures++);
+      d.cancel(SiteId('a'));
       async.elapse(delay * 2);
       expect(captures, 0);
     });
@@ -79,8 +80,8 @@ void main() {
     fakeAsync((async) {
       final d = NavStateCaptureDebouncer(delay: delay);
       var captures = 0;
-      d.schedule('a', capture: () => captures++);
-      d.schedule('b', capture: () => captures++);
+      d.schedule(SiteId('a'), capture: () => captures++);
+      d.schedule(SiteId('b'), capture: () => captures++);
       d.dispose();
       async.elapse(delay * 2);
       expect(captures, 0);

@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/container_native.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/settings/capture.dart';
@@ -24,7 +26,7 @@ const _micSrc = VirtualAudioSource(
 WebViewModel _site({required bool tp, required bool archived}) {
   final m = WebViewModel(
     initUrl: 'https://bank.example',
-    siteId: 'site-a',
+    siteId: SiteId('site-a'),
     trackingProtectionEnabled: tp,
     isArchiveTier: archived,
     clearUrlEnabled: false,
@@ -53,7 +55,7 @@ WebViewModel _site({required bool tp, required bool archived}) {
     language: 'de',
     zoomPercent: 125,
   );
-  if (archived) m.archiveContainerId = 'opaque-a';
+  if (archived) m.archiveContainerKey = ContainerKey.named('opaque-a');
   return m;
 }
 
@@ -80,13 +82,11 @@ void main() {
         test(
           '$cell: container follows tier and TP (ETP-024, ARCH-006/007)',
           () {
-            final c = _posture(_site(tp: tp, archived: archived)).container;
+            final m = _site(tp: tp, archived: archived);
+            final c = _posture(m).container;
             expect(c.incognito, archived, reason: cell);
-            expect(
-              c.archiveContainerId,
-              archived ? 'opaque-a' : isNull,
-              reason: cell,
-            );
+            expect(c.containerKey, archived ? 'opaque-a' : m.siteId,
+                reason: cell);
             expect(c.thirdPartyCookies, !tp, reason: cell);
             expect(
               c.httpAuthMemory,
@@ -200,13 +200,13 @@ void main() {
 
     test('an opted-in global script reaches the nested screen too', () {
       final global = UserScriptConfig(
-        id: 'g1',
+        id: UserScriptId('g1'),
         name: 'global',
         source: 'void 0',
         enabled: false,
       );
       final m = WebViewModel(initUrl: 'https://a.example')
-        ..enabledGlobalScriptIds = {'g1'};
+        ..enabledGlobalScriptIds = {UserScriptId('g1')};
       final scripts = m
           .sitePosture(globalUserScripts: [global])
           .forNested()
@@ -220,7 +220,7 @@ void main() {
       // A field-by-field copy dropped bypassSitePolicy, so a global script
       // that needs the privileged bridge ran without it on every site.
       final global = UserScriptConfig(
-        id: 'g1',
+        id: UserScriptId('g1'),
         name: 'global',
         source: 'void 0',
         url: 'https://cdn.example/lib.js',
@@ -230,7 +230,7 @@ void main() {
         bypassSitePolicy: true,
       );
       final m = WebViewModel(initUrl: 'https://a.example')
-        ..enabledGlobalScriptIds = {'g1'};
+        ..enabledGlobalScriptIds = {UserScriptId('g1')};
       final script =
           m.sitePosture(globalUserScripts: [global]).page.userScripts.single;
       expect(script.toJson(), {...global.toJson(), 'enabled': true});

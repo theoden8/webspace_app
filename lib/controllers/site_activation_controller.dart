@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -244,7 +245,7 @@ class SiteActivationController {
       // Container path: ensure the named container is recorded.
       // Materialization happens lazily on the native side when the
       // WebView binds via `InAppWebViewSettings.containerId`.
-      await _containers.ensureContainer(target.siteId);
+      await _containers.ensureContainer(target.containerKey);
       if (version != _sites.activationVersion) return;
     } else {
       await _restoreCookiesForSite(index);
@@ -353,7 +354,7 @@ class SiteActivationController {
   /// `setCurrentIndex` (auto-loaded notification sites). Once it's in
   /// the set, the activation path skips its restore fetch, so a queue
   /// here is the only chance the bytes get applied on this run.
-  Future<void> queueRestoreFor(String siteId) async {
+  Future<void> queueRestoreFor(SiteId siteId) async {
     final model = _sites.byId(siteId);
     if (model == null) return;
     // A live controller can't consume queued bytes — restoreState only

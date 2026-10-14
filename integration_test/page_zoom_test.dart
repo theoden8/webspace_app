@@ -24,6 +24,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
@@ -144,7 +145,7 @@ void main() {
                 // Keep the surface to the zoom path: no blocker lists, no
                 // ETP shim (which also spoofs screen.*).
                 posture: barePosture('$base$_kRulerPath',
-                    siteId: 'page-zoom',
+                    siteId: SiteId('page-zoom'),
                     adjust: (site) => site.zoomPercent = zoomPercent),
                 initialUrl: '$base$_kRulerPath',
               ),

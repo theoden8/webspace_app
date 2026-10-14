@@ -10,24 +10,25 @@
 library;
 
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 
 /// One site's tree as the list sees it.
 class TabTree {
   const TabTree(this.siteId, {required this.tabs, required this.runsAs});
 
-  final String siteId;
+  final SiteId siteId;
   final List<SiteTab> tabs;
 
   /// The site [tab] runs as.
-  final String Function(SiteTab tab) runsAs;
+  final SiteId Function(SiteTab tab) runsAs;
 }
 
 /// A tree the list shows, folded to [rows].
 class ListedTree {
   const ListedTree(this.siteId, {required this.rows});
 
-  final String siteId;
+  final SiteId siteId;
   final List<TabRow> rows;
 }
 
@@ -38,20 +39,20 @@ abstract final class TabListEngine {
 
   /// The sites the branch through [activeTabId] runs as, each once: its
   /// ancestors from the root, the tab itself, then what was opened below it.
-  static List<String> branchContainers(TabTree tree,
-      {required String activeTabId}) {
+  static List<SiteId> branchContainers(TabTree tree,
+      {required TabId activeTabId}) {
     final byId = {for (final t in tree.tabs) t.id: t};
     final active = byId[activeTabId];
     if (active == null) return const [];
     final up = <SiteTab>[];
-    final seen = <String>{};
+    final seen = <TabId>{};
     for (var t = active; seen.add(t.id);) {
       up.add(t);
       final parent = byId[t.parentId];
       if (parent == null) break;
       t = parent;
     }
-    final out = <String>[];
+    final out = <SiteId>[];
     for (final t in [
       ...up.reversed,
       ...TabLifecycleEngine.descendants(tree.tabs, id: activeTabId),
@@ -68,10 +69,10 @@ abstract final class TabListEngine {
   /// than [maxBranches] branches in all, only [selected] is followed. A tab
   /// [keep] accepts is listed whatever it runs as, and is not counted.
   static List<ListedTree> otherTrees({
-    required List<String> containers,
-    required String selected,
+    required List<SiteId> containers,
+    required SiteId selected,
     required List<TabTree> others,
-    bool Function(String siteId, {required SiteTab tab})? keep,
+    bool Function(SiteId siteId, {required SiteTab tab})? keep,
   }) {
     var followed = containers.toSet();
     if (branchCount(others, followed: followed) > maxBranches) {
@@ -99,7 +100,7 @@ abstract final class TabListEngine {
 
   /// How many branches [trees] hold for [followed]: tabs running as one of
   /// them with no such tab above them, since a branch is listed whole.
-  static int branchCount(List<TabTree> trees, {required Set<String> followed}) {
+  static int branchCount(List<TabTree> trees, {required Set<SiteId> followed}) {
     var n = 0;
     for (final tree in trees) {
       int? inside;

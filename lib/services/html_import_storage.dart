@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
@@ -46,7 +47,7 @@ class HtmlImportStorage {
 
   /// In-memory mirror used by [getHtmlSync] so [InAppWebViewInitialData]
   /// can be constructed without an awaited disk read at build time.
-  final Map<String, String> _memoryStore = {};
+  final Map<SiteId, String> _memoryStore = {};
 
   Future<void> initialize() async {
     _store = _overrideStore ?? defaultFileStore(_storageDir);
@@ -66,7 +67,7 @@ class HtmlImportStorage {
   /// [getHtmlSync] hits without the bulk [preloadAll] pass. Idempotent; a
   /// no-op when the site has no import on disk. Lets the cold-start path load
   /// only the imports for sites that actually build, instead of every import.
-  Future<void> preloadOne(String siteId) async {
+  Future<void> preloadOne(SiteId siteId) async {
     if (_memoryStore.containsKey(siteId)) return;
     final res = await loadHtml(siteId);
     if (res != null) _memoryStore[siteId] = res.$2;
@@ -90,7 +91,7 @@ class HtmlImportStorage {
 
   /// Rewrites a legacy AES-CBC blob under GCM. Best-effort: a failure leaves
   /// the readable legacy file in place.
-  Future<void> _upgradeBlob(String siteId, {required String plaintext}) async {
+  Future<void> _upgradeBlob(SiteId siteId, {required String plaintext}) async {
     final store = _store;
     final aead = _aead;
     if (store == null || aead == null) return;
@@ -118,11 +119,14 @@ class HtmlImportStorage {
             if (decrypted != null) {
               final newlineIndex = decrypted.plaintext.indexOf('\n');
               if (newlineIndex != -1) {
-                final siteId = name.replaceAll('.enc', '');
+                // A name no site can hold is no site's import.
+                final siteId = SiteId.parse(name.replaceAll('.enc', ''));
                 final html = decrypted.plaintext.substring(newlineIndex + 1);
-                _memoryStore[siteId] = html;
-                if (decrypted.legacy) {
-                  await _upgradeBlob(siteId, plaintext: decrypted.plaintext);
+                if (siteId != null) {
+                  _memoryStore[siteId] = html;
+                  if (decrypted.legacy) {
+                    await _upgradeBlob(siteId, plaintext: decrypted.plaintext);
+                  }
                 }
               } else {
                 // Imports are the only copy of user-supplied data — never
@@ -157,18 +161,18 @@ class HtmlImportStorage {
     }
   }
 
-  String? getHtmlSync(String siteId) {
+  String? getHtmlSync(SiteId siteId) {
     return _memoryStore[siteId];
   }
 
-  String _importFileName(String siteId) => '$siteId.enc';
+  String _importFileName(SiteId siteId) => '$siteId.enc';
 
   /// Per-site upper bound. Imports are user-supplied so this is a sanity
   /// gate, not a deduplication-or-eviction policy — the legacy cache used
   /// the same 10 MB ceiling.
   static const int _maxHtmlSize = 10 * 1024 * 1024;
 
-  Future<void> saveHtml(String siteId,
+  Future<void> saveHtml(SiteId siteId,
       {required String html, required String url}) async {
     final store = _store;
     final aead = _aead;
@@ -195,7 +199,7 @@ class HtmlImportStorage {
     }
   }
 
-  Future<(String, String)?> loadHtml(String siteId) async {
+  Future<(String, String)?> loadHtml(SiteId siteId) async {
     final store = _store;
     if (store == null || _aead == null) return null;
 
@@ -224,20 +228,20 @@ class HtmlImportStorage {
     }
   }
 
-  Future<bool> hasImport(String siteId) async {
+  Future<bool> hasImport(SiteId siteId) async {
     final store = _store;
     if (store == null) return false;
     return store.exists(_importFileName(siteId));
   }
 
-  Future<void> deleteImport(String siteId) async {
+  Future<void> deleteImport(SiteId siteId) async {
     final store = _store;
     if (store == null) return;
     await store.delete(_importFileName(siteId));
     _memoryStore.remove(siteId);
   }
 
-  Future<void> removeOrphanedImports(Set<String> activeSiteIds) async {
+  Future<void> removeOrphanedImports(Set<SiteId> activeSiteIds) async {
     final store = _store;
     if (store == null) return;
 
@@ -278,8 +282,8 @@ class HtmlImportStorage {
           final m = jsonDecode(entry) as Map<String, dynamic>;
           final initUrl = m['initUrl'] as String? ?? '';
           if (!initUrl.startsWith('file://')) continue;
-          final siteId = m['siteId'] as String?;
-          if (siteId == null || siteId.isEmpty) continue;
+          final siteId = SiteId.parse(m['siteId']);
+          if (siteId == null) continue;
 
           if (await HtmlImportStorage.instance.hasImport(siteId)) continue;
           final cached = await HtmlCacheService.instance.loadHtml(siteId);

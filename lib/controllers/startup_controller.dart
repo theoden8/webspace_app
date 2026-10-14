@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -136,13 +137,12 @@ class StartupController implements DeferredStartupHost {
     // (cookies, html cache, navigation state, container) so on-disk
     // remnants don't outlive the process — see issue #298. Their config
     // (proxy passwords, imported HTML for file:// sites) stays put.
-    final nonIncognitoSiteIds = {
-      for (final m in _sites.models)
-        if (!m.incognito) m.siteId,
-    };
     await _sweep.containersBeforeBind(
-      activeSiteIdsAtStartup,
-      nonIncognitoSiteIds: nonIncognitoSiteIds,
+      {for (final m in _sites.models) m.containerKey},
+      nonIncognito: {
+        for (final m in _sites.models)
+          if (!m.incognito) m.containerKey,
+      },
     );
     // Left uninitialised in demo mode, which keeps the store memory-only
     // there.
@@ -274,7 +274,7 @@ class StartupController implements DeferredStartupHost {
     // the siteId-keyed DeferredStartupEngine so a post-paint add/delete can't
     // race it (see test/deferred_startup_engine_test.dart). The launched site
     // waits on none of it.
-    final preThemeSiteIds = <String>{
+    final preThemeSiteIds = <SiteId>{
       for (final i in preThemeIndices)
         if (i >= 0 && i < _sites.models.length) _sites.models[i].siteId,
     };
@@ -333,28 +333,28 @@ class StartupController implements DeferredStartupHost {
   bool get isMounted => _host.mounted;
 
   @override
-  bool isLive(String siteId) => _sites.byId(siteId) != null;
+  bool isLive(SiteId siteId) => _sites.byId(siteId) != null;
 
   @override
-  bool isLoaded(String siteId) {
+  bool isLoaded(SiteId siteId) {
     final i = _sites.models.indexWhere((m) => m.siteId == siteId);
     return i >= 0 && _sites.loaded.contains(i);
   }
 
   @override
-  void markLoaded(String siteId) {
+  void markLoaded(SiteId siteId) {
     final i = _sites.models.indexWhere((m) => m.siteId == siteId);
     if (i >= 0) _sites.loaded.add(i);
   }
 
   @override
-  Future<void> preloadHtml(String siteId) async {
+  Future<void> preloadHtml(SiteId siteId) async {
     final m = _sites.byId(siteId);
     if (m != null) await _activation.ensureSiteHtmlForModel(m);
   }
 
   @override
-  Future<void> applyTheme(String siteId) async {
+  Future<void> applyTheme(SiteId siteId) async {
     final m = _sites.byId(siteId);
     if (m != null) {
       await m.setTheme(_shell.theme.themeMode.webViewTheme);
@@ -363,7 +363,7 @@ class StartupController implements DeferredStartupHost {
 
   /// PAUSE-019: see [SiteActivationController.queueRestoreFor].
   @override
-  Future<void> queueNavStateRestore(String siteId) =>
+  Future<void> queueNavStateRestore(SiteId siteId) =>
       _activation.queueRestoreFor(siteId);
 
   @override
@@ -378,7 +378,7 @@ class StartupController implements DeferredStartupHost {
       TimezoneLocationService.instance.lookup(latitude, longitude: longitude);
 
   @override
-  bool setSpoofTimezone(String siteId, {required String timezone}) {
+  bool setSpoofTimezone(SiteId siteId, {required String timezone}) {
     final m = _sites.byId(siteId);
     if (m != null && m.spoofTimezone != timezone) {
       m.spoofTimezone = timezone;
@@ -391,15 +391,15 @@ class StartupController implements DeferredStartupHost {
   Future<void> persist() => _host.commitSites(const SitesEdited());
 
   @override
-  Set<String> liveSiteIds() => _sites.siteIds;
+  Set<SiteId> liveSiteIds() => _sites.siteIds;
 
   @override
-  Set<String> liveNonIncognitoSiteIds() => _sites.nonIncognitoSiteIds;
+  Set<SiteId> liveNonIncognitoSiteIds() => _sites.nonIncognitoSiteIds;
 
   @override
   Future<void> sweepOrphanStorage(
-    Set<String> activeSiteIds, {
-    required Set<String> nonIncognitoSiteIds,
+    Set<SiteId> activeSiteIds, {
+    required Set<SiteId> nonIncognitoSiteIds,
   }) =>
       _sweep.atLaunch(activeSiteIds, nonIncognitoSiteIds: nonIncognitoSiteIds);
 }

@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -40,7 +41,7 @@ void main() {
       (t) async {
     install();
     await TorService.instance
-        .syncHolders({TorSiteHolder('a1'), TorSiteHolder('b2'), TorSiteHolder('archived'), const TorAppWideHolder()});
+        .syncHolders({TorSiteHolder(SiteId('a1')), TorSiteHolder(SiteId('b2')), TorSiteHolder(SiteId('archived')), const TorAppWideHolder()});
     await t.pumpWidget(host());
     runtime.emit(const TorUp('127.0.0.1', port: 41337));
     await settle(t);
@@ -58,7 +59,7 @@ void main() {
 
   testWidgets('shows the runtime-wide settings', (t) async {
     install();
-    await TorService.instance.syncHolders({TorSiteHolder('a1')});
+    await TorService.instance.syncHolders({TorSiteHolder(SiteId('a1'))});
     await TorService.instance.setExitCountry('{de}');
     await t.pumpWidget(host());
     runtime.emit(const TorBootstrapping(50));

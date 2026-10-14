@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
@@ -135,21 +136,21 @@ void main() {
       // Use isSecure: true so cookies go to secure storage (COOKIE-006)
       isDemoMode = false;
       await cookieSecureStorage.saveCookies({
-        'example.com': [
+        'example': [
           Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
         ],
-        'other.com': [
+        'other': [
           Cookie(name: 'token', value: 'xyz', domain: 'other.com', isSecure: true),
         ],
       });
 
       // Now enable demo mode and try to remove orphaned cookies
       isDemoMode = true;
-      await cookieSecureStorage.removeOrphanedCookies({'example.com'});
+      await cookieSecureStorage.removeOrphanedCookies({SiteId('example')});
 
       // Both cookies should still be there
       final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded.keys, contains('other.com'));
+      expect(loaded.keys, contains('other'));
     });
   });
 

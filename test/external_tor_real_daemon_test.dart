@@ -32,6 +32,7 @@ import 'package:webspace/services/tor_control_link.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_socks_probe_io.dart';
 import 'package:webspace/services/tor_service.dart' show TorSiteHolder;
+import 'package:webspace/settings/site_ids.dart';
 
 final String? _torBinary = _which('tor');
 final bool _torRequired = Platform.environment['WS_REAL_TOR'] == '1';
@@ -427,7 +428,7 @@ void main() {
       return action().then((_) => next);
     }
 
-    final up = await settled(() => engine.acquire(TorSiteHolder('mail')));
+    final up = await settled(() => engine.acquire(TorSiteHolder(SiteId('mail'))));
     expect(up, isA<TorUp>(), reason: '$up');
     expect(runtime.controlState, isA<TorControlAttached>());
 

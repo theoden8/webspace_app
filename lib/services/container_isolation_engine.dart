@@ -15,7 +15,7 @@ import 'package:webspace/services/log_service.dart';
 /// 3. Containers are deleted when their owning site is deleted.
 /// 4. Orphaned containers (whose owning site no longer exists — e.g.
 ///    a site deleted in a previous session) are swept on app startup
-///    against the live siteId set.
+///    against the live key set.
 ///
 /// The engine is stateless beyond [containerNative]; tests inject a mock
 /// that models per-container cookie partitioning, the same pattern as
@@ -26,32 +26,32 @@ class ContainerIsolationEngine {
 
   ContainerIsolationEngine({required this.containerNative});
 
-  /// Idempotent: ensures [siteId]'s container exists in the native
+  /// Idempotent: ensures [key]'s container exists in the native
   /// store. Safe to call on every site activation.
-  Future<void> ensureContainer(String siteId) async {
+  Future<void> ensureContainer(ContainerKey key) async {
     if (!await containerNative.isSupported()) return;
     try {
-      await containerNative.getOrCreateContainer(siteId);
+      await containerNative.getOrCreateContainer(key);
     } catch (e) {
       LogTag.container.error(
-          'ensureContainer($siteId) failed: $e', sensitive: true);
+          'ensureContainer($key) failed: $e', sensitive: true);
     }
   }
 
 
-  /// Deletes [siteId]'s container outright. Caller MUST have already
+  /// Deletes [key]'s container outright. Caller MUST have already
   /// disposed the site's webview — `deleteContainer` no-ops on iOS /
   /// macOS if the data store is still bound. Use [clearForSite] for
   /// the live-container clear path; this is for site deletion and
   /// orphan GC.
-  Future<void> onSiteDeleted(String siteId) async {
+  Future<void> onSiteDeleted(ContainerKey key) async {
     if (!await containerNative.isSupported()) return;
-    final deleted = await containerNative.deleteContainer(siteId);
+    final deleted = await containerNative.deleteContainer(key);
     LogTag.container.debug(
-        'Deleted container ws-$siteId (success=$deleted)', sensitive: true);
+        'Deleted container ws-$key (success=$deleted)', sensitive: true);
   }
 
-  /// Wipes [siteId]'s container data (cookies, localStorage, IndexedDB,
+  /// Wipes [key]'s container data (cookies, localStorage, IndexedDB,
   /// ServiceWorkers, HTTP cache) without removing the container itself.
   /// Safe to call on a live, bound container — that's what the fork's
   /// `WKWebsiteDataStore.removeData(...)` (iOS/macOS) is for. Returns
@@ -60,14 +60,14 @@ class ContainerIsolationEngine {
   /// expects to see a fresh page) and to drop any in-memory state the
   /// platform clear didn't reach (notably Android's per-WebView HTTP
   /// cache).
-  Future<bool> clearForSite(String siteId) async {
+  Future<bool> clearForSite(ContainerKey key) async {
     if (!await containerNative.isSupported()) return false;
-    final ok = await containerNative.clearContainerData(siteId);
+    final ok = await containerNative.clearContainerData(key);
     LogService.instance.log(
       LogTag.container,
       message: ok
-          ? 'Cleared container ws-$siteId'
-          : 'clearContainerData(ws-$siteId) reported failure',
+          ? 'Cleared container ws-$key'
+          : 'clearContainerData(ws-$key) reported failure',
       level: ok ? LogLevel.debug : LogLevel.error,
       sensitivity: LogSensitivity.sensitive,
     );
@@ -75,16 +75,16 @@ class ContainerIsolationEngine {
   }
 
   /// Sweeps containers whose owning site no longer exists in
-  /// [activeSiteIds]. Returns the number of containers deleted. Run at
+  /// [active]. Returns the number of containers deleted. Run at
   /// app startup, after the active site set is known but before any
   /// site is activated.
-  Future<int> garbageCollectOrphans(Set<String> activeSiteIds) async {
+  Future<int> garbageCollectOrphans(Set<ContainerKey> active) async {
     if (!await containerNative.isSupported()) return 0;
     final stored = await containerNative.listContainers();
     int deleted = 0;
-    for (final siteId in stored) {
-      if (!activeSiteIds.contains(siteId)) {
-        await containerNative.deleteContainer(siteId);
+    for (final key in stored) {
+      if (!active.contains(key)) {
+        await containerNative.deleteContainer(key);
         deleted++;
       }
     }

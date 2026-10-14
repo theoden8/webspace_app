@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
@@ -81,7 +82,7 @@ void main() {
   /// copy ran. Null when the page never answered.
   Future<String?> scriptSource(
     WidgetTester tester, {
-    required String siteId,
+    required SiteId siteId,
     required bool enabled,
     required String version,
   }) async {
@@ -137,7 +138,7 @@ void main() {
       (tester) async {
     expect(
       await scriptSource(tester,
-          siteId: 'localcdn-on', enabled: true, version: '1.0.0'),
+          siteId: SiteId('localcdn-on'), enabled: true, version: '1.0.0'),
       'cache',
     );
   }, skip: !Platform.isAndroid);
@@ -146,7 +147,7 @@ void main() {
       (tester) async {
     expect(
       await scriptSource(tester,
-          siteId: 'localcdn-off', enabled: false, version: '1.0.1'),
+          siteId: SiteId('localcdn-off'), enabled: false, version: '1.0.1'),
       'network',
     );
   }, skip: !Platform.isAndroid);

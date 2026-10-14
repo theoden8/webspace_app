@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -258,7 +259,7 @@ class LocalCdnService {
   /// Record that a CDN request was replaced with a local copy for [siteId].
   /// [url] is the CDN request that was served locally; only its host reaches
   /// the report, and only the session-scoped detail.
-  void recordReplacement(String siteId, {String? url}) {
+  void recordReplacement(SiteId siteId, {String? url}) {
     BlockStatsService.instance.record(
       siteId,
       category: BlockCategory.localCdn,

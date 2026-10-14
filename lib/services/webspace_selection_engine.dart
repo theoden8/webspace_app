@@ -30,18 +30,18 @@ class WebspaceSelectionEngine {
   /// The indices displayed for `selectedWebspaceId`:
   ///
   ///   * `null`                        → empty list (home screen shows nothing)
-  ///   * [kAllWebspaceId]              → every index `0..siteCount-1`
+  ///   * [WebspaceId.all]              → every index `0..siteCount-1`
   ///   * any other webspace id         → that webspace's `siteIndices`,
   ///                                     filtered to in-bounds of `siteCount`
   ///                                     (order preserved)
   ///   * unknown id                    → empty list
   static List<int> filteredSiteIndices({
-    required String? selectedWebspaceId,
+    required WebspaceId? selectedWebspaceId,
     required List<Webspace> webspaces,
     required int siteCount,
   }) {
     if (selectedWebspaceId == null) return const [];
-    if (selectedWebspaceId == kAllWebspaceId) {
+    if (selectedWebspaceId == WebspaceId.all) {
       return List<int>.generate(siteCount, (i) => i);
     }
     for (final ws in webspaces) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
@@ -51,7 +52,7 @@ class DiagSeed {
     final sites = <WebViewModel>[
       for (final raw in rawSites)
         WebViewModel(
-          siteId: (raw as Map<String, dynamic>)['siteId'] as String?,
+          siteId: SiteId.parse((raw as Map<String, dynamic>)['siteId']),
           initUrl: raw['url'] as String,
           name: raw['name'] as String? ?? 'Diag',
           notificationsEnabled: raw['notificationsEnabled'] as bool? ?? false,
@@ -131,7 +132,7 @@ class DiagSeed {
     await prefs.setStringList('webViewModels',
         seed.sites.map((s) => jsonEncode(s.toJson())).toList());
     await prefs.remove('webspaces');
-    await prefs.setString('selectedWebspaceId', kAllWebspaceId);
+    await prefs.setString('selectedWebspaceId', WebspaceId.all);
     await prefs.setBool(AppPref.showUrlBar.key, false);
     // The harness activates sites through the shortcut path, which enters
     // fullscreen by default; the first immersive entry pops Android's

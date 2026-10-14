@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
@@ -25,12 +26,12 @@ void main() {
     isDemoMode = true;
 
     final siteA = WebViewModel(
-      siteId: 'site-a',
+      siteId: SiteId('site-a'),
       initUrl: 'http://example-a.invalid/',
       name: 'Site Alpha',
     );
     final siteB = WebViewModel(
-      siteId: 'site-b',
+      siteId: SiteId('site-b'),
       initUrl: 'http://example-b.invalid/',
       name: 'Site Beta',
     );

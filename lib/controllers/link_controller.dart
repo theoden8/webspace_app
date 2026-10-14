@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/container_native.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_route.dart';
@@ -41,16 +44,16 @@ typedef WebSearchAsk = ({
 
   /// The user's sites a search from here may use.
   List<SearchSite> candidates,
-  List<String> declared,
-  String? declaredDefault,
-  String? appDefault,
+  List<SiteId> declared,
+  SiteId? declaredDefault,
+  SiteId? appDefault,
 
   /// False inside an archive (S15).
   bool canAddSites,
   String initialQuery,
 
   /// Container colours by siteId, empty on the legacy engine (TAB-018).
-  Map<String, int> containerColors,
+  Map<SiteId, int> containerColors,
 });
 
 /// What a site picker is asked: LIR-010's for an inbound link, LIR-016's
@@ -84,7 +87,7 @@ abstract interface class LinkHost implements PageHost {
   Future<void> saveCurrentIndex();
 
   /// Drops [siteId]'s cached HTML snapshot while online.
-  void evictCache(String siteId);
+  void evictCache(SiteId siteId);
 
   /// WEBSPACE-012: switches to "All" when the selected webspace hides
   /// [model].
@@ -108,7 +111,7 @@ abstract interface class LinkHost implements PageHost {
 
   Future<void> unloadSite(int index, {required UnloadReason reason});
 
-  Future<void> wipeContainer(String siteId);
+  Future<void> wipeContainer(ContainerKey key);
 
   ArchiveHandle? archiveOf(WebViewModel model);
 }
@@ -251,7 +254,7 @@ class LinkController {
         candidates: candidates,
         declared: owner.searchSites,
         declaredDefault: owner.searchDefault,
-        appDefault: appDefault.isEmpty ? null : appDefault,
+        appDefault: SiteId.parse(appDefault),
         canAddSites: !owner.isArchiveTier,
         initialQuery: initialQuery,
         containerColors: {
@@ -293,7 +296,7 @@ class LinkController {
   }
 
   /// What the URL bar on [owner]'s slot searches with (LIR-033).
-  ({List<UrlBarSearchSite> sites, String? defaultId}) urlBarSearchFor(
+  ({List<UrlBarSearchSite> sites, SiteId? defaultId}) urlBarSearchFor(
       WebViewModel owner) {
     final identity = owner.runningIdentity;
     final appDefault = AppPref.webSearchDefaultSite.value;
@@ -305,7 +308,7 @@ class LinkController {
       ],
       declared: owner.searchSites,
       declaredDefault: owner.searchDefault,
-      appDefault: appDefault.isEmpty ? null : appDefault,
+      appDefault: SiteId.parse(appDefault),
     );
     return (
       sites: [
@@ -324,7 +327,7 @@ class LinkController {
   Future<void> searchFromUrlBar(
     WebViewModel owner, {
     required String query,
-    required String? siteId,
+    required SiteId? siteId,
   }) async {
     if (_host.kioskLocked || _webSearchGuard.busy) return;
     if (!_sites.models.contains(owner)) return;
@@ -352,7 +355,7 @@ class LinkController {
   /// [WebSearchEngine.land] says.
   Future<void> _runSearch(
     WebViewModel owner, {
-    required String searchSiteId,
+    required SiteId searchSiteId,
     required Uri url,
   }) async {
     final searchSite = _sites.byId(searchSiteId);
@@ -493,8 +496,8 @@ class LinkController {
   }
 
   void _pruneSearchDefaultPref() {
-    final id = AppPref.webSearchDefaultSite.value;
-    if (id.isEmpty) return;
+    final id = SiteId.parse(AppPref.webSearchDefaultSite.value);
+    if (id == null) return;
     final site = _sites.byId(id);
     if (site == null || site.isArchiveTier) {
       unawaited(AppPref.webSearchDefaultSite.set(''));
@@ -601,7 +604,7 @@ class LinkController {
   Future<void> executeTabRoute(
     WebViewModel owner, {
     required WebViewModel source,
-    required String? parentTabId,
+    required TabId? parentTabId,
     required DispatchAction action,
     required Uri url,
   }) async {
@@ -655,7 +658,7 @@ class LinkController {
     required WebViewModel source,
     required DispatchShowPicker action,
     required Uri url,
-    String? parentTabId,
+    TabId? parentTabId,
     bool parked = false,
   }) async {
     final winners = [
@@ -789,7 +792,7 @@ class LinkController {
       model.currentUrl = model.initUrl;
     }
     if (a.wipeContainer) {
-      await _host.wipeContainer(model.siteId);
+      await _host.wipeContainer(model.containerKey);
     }
     if (a.clearInMemoryCookies) {
       model.cookies = const [];

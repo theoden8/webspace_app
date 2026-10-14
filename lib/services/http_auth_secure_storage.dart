@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/keystore.dart';
@@ -75,7 +76,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
 
   @override
   Future<HttpAuthCredential?> lookup(
-    String siteId, {
+    SiteId siteId, {
     required Host host,
     required String realm,
   }) async {
@@ -87,7 +88,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
 
   @override
   Future<void> save(
-    String siteId, {
+    SiteId siteId, {
     required Host host,
     required String realm,
     required HttpAuthCredential credential,
@@ -100,7 +101,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
   }
 
   @override
-  Future<void> remove(String siteId,
+  Future<void> remove(SiteId siteId,
       {required Host host, required String realm}) {
     return _mutate((draft) {
       draft[siteId]?.removeWhere((e) => e.covers(host, realm: realm));
@@ -108,16 +109,16 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
   }
 
   /// How many protection spaces [siteId] has a saved credential for.
-  Future<int> countForSite(String siteId) async =>
+  Future<int> countForSite(SiteId siteId) async =>
       (await _store.read())[siteId]?.length ?? 0;
 
-  Future<void> removeSite(String siteId) =>
+  Future<void> removeSite(SiteId siteId) =>
       _mutate((draft) => draft.remove(siteId));
 
   /// Drop entries for sites not in [activeSiteIds]. Saved sign-ins are
   /// configuration, so they are measured against every live site, incognito
   /// ones included.
-  Future<void> removeOrphaned(Set<String> activeSiteIds) =>
+  Future<void> removeOrphaned(Set<SiteId> activeSiteIds) =>
       _store.removeOrphans(activeSiteIds, what: 'saved sign-ins');
 }
 

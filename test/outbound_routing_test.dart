@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
@@ -9,7 +10,7 @@ import 'package:webspace/web_view_model.dart';
 
 class _Site implements DispatchableSite {
   @override
-  final String siteId;
+  final SiteId siteId;
   @override
   final String initUrl;
   @override
@@ -25,15 +26,15 @@ class _Site implements DispatchableSite {
   String get navigationDomain => getNormalizedDomain(initUrl);
 }
 
-OutboundPreference pref(DomainClaim claim, {required String target}) =>
+OutboundPreference pref(DomainClaim claim, {required SiteId target}) =>
     OutboundPreference(claim: claim, targetSiteId: target);
 
-final ddg = _Site('ddg', initUrl: 'https://duckduckgo.com/',
+final ddg = _Site(SiteId('ddg'), initUrl: 'https://duckduckgo.com/',
     domainClaims: [DomainClaim.baseDomain('duckduckgo.com')]);
-final workGh = _Site('work-gh',
+final workGh = _Site(SiteId('work-gh'),
     initUrl: 'https://github.com/',
     domainClaims: [DomainClaim.exactHost('github.com')]);
-final personalGh = _Site('personal-gh', initUrl: 'https://github.com/?personal',
+final personalGh = _Site(SiteId('personal-gh'), initUrl: 'https://github.com/?personal',
     domainClaims: [DomainClaim.baseDomain('github.com')]);
 
 void main() {
@@ -43,9 +44,9 @@ void main() {
     test('a source preference beats a global single match', () {
       final r = LinkRoutingService.resolveOutbound(
         gh,
-        sourceSiteId: 'ddg',
+        sourceSiteId: SiteId('ddg'),
         sourcePrefs: [
-          pref(DomainClaim.exactHost('github.com'), target: 'work-gh')
+          pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh'))
         ],
         candidates: [ddg, personalGh, workGh],
       );
@@ -56,9 +57,9 @@ void main() {
     test('even a weaker preference beats a stronger global claim', () {
       final r = LinkRoutingService.resolveOutbound(
         gh,
-        sourceSiteId: 'ddg',
+        sourceSiteId: SiteId('ddg'),
         sourcePrefs: [
-          pref(DomainClaim.baseDomain('github.com'), target: 'personal-gh')
+          pref(DomainClaim.baseDomain('github.com'), target: SiteId('personal-gh'))
         ],
         candidates: [ddg, personalGh, workGh],
       );
@@ -68,9 +69,9 @@ void main() {
     test('a preference whose target is not a candidate is skipped', () {
       final r = LinkRoutingService.resolveOutbound(
         gh,
-        sourceSiteId: 'ddg',
+        sourceSiteId: SiteId('ddg'),
         sourcePrefs: [
-          pref(DomainClaim.exactHost('github.com'), target: 'work-gh')
+          pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh'))
         ],
         candidates: [ddg, personalGh],
       );
@@ -83,10 +84,10 @@ void main() {
       final gist = Uri.parse('https://gist.github.com/abc');
       final specific = LinkRoutingService.resolveOutbound(
         gist,
-        sourceSiteId: 'ddg',
+        sourceSiteId: SiteId('ddg'),
         sourcePrefs: [
-          pref(DomainClaim.baseDomain('github.com'), target: 'personal-gh'),
-          pref(DomainClaim.exactHost('gist.github.com'), target: 'work-gh'),
+          pref(DomainClaim.baseDomain('github.com'), target: SiteId('personal-gh')),
+          pref(DomainClaim.exactHost('gist.github.com'), target: SiteId('work-gh')),
         ],
         candidates: [ddg, personalGh, workGh],
       );
@@ -94,11 +95,11 @@ void main() {
 
       final tie = LinkRoutingService.resolveOutbound(
         gist,
-        sourceSiteId: 'ddg',
+        sourceSiteId: SiteId('ddg'),
         sourcePrefs: [
           pref(DomainClaim.wildcardSubdomain('github.com'),
-              target: 'personal-gh'),
-          pref(DomainClaim.wildcardSubdomain('github.com'), target: 'work-gh'),
+              target: SiteId('personal-gh')),
+          pref(DomainClaim.wildcardSubdomain('github.com'), target: SiteId('work-gh')),
         ],
         candidates: [ddg, personalGh, workGh],
       );
@@ -106,10 +107,10 @@ void main() {
     });
 
     test('ambiguity passes through when no preference matches', () {
-      final twin = _Site('twin-gh', initUrl: 'https://github.com/?twin',
+      final twin = _Site(SiteId('twin-gh'), initUrl: 'https://github.com/?twin',
           domainClaims: [DomainClaim.exactHost('github.com')]);
       final r = LinkRoutingService.resolveOutbound(gh,
-          sourceSiteId: 'ddg',
+          sourceSiteId: SiteId('ddg'),
           sourcePrefs: const [],
           candidates: [ddg, workGh, twin]);
       final m = (r as OutboundByClaims).match;
@@ -118,21 +119,21 @@ void main() {
 
     test('a result naming the source collapses to selfMatch', () {
       final masto =
-          _Site('masto', initUrl: 'https://mastodon.social/', domainClaims: [
+          _Site(SiteId('masto'), initUrl: 'https://mastodon.social/', domainClaims: [
         DomainClaim.baseDomain('mastodon.social'),
         DomainClaim.exactHost('joinmastodon.org'),
       ]);
       final viaClaim = LinkRoutingService.resolveOutbound(
           Uri.parse('https://joinmastodon.org/apps'),
-          sourceSiteId: 'masto',
+          sourceSiteId: SiteId('masto'),
           sourcePrefs: const [],
           candidates: [masto, workGh]);
       expect(viaClaim, isA<OutboundSelfMatch>());
 
       final viaPref = LinkRoutingService.resolveOutbound(gh,
-          sourceSiteId: 'ddg',
+          sourceSiteId: SiteId('ddg'),
           sourcePrefs: [
-            pref(DomainClaim.exactHost('github.com'), target: 'ddg')
+            pref(DomainClaim.exactHost('github.com'), target: SiteId('ddg'))
           ],
           candidates: [
             ddg,
@@ -142,18 +143,18 @@ void main() {
     });
 
     test('a port-bearing URL scores like resolve', () {
-      final local = _Site('local', initUrl: 'http://localhost:8080/',
+      final local = _Site(SiteId('local'), initUrl: 'http://localhost:8080/',
           domainClaims: [DomainClaim.exactHost('localhost:8080')]);
       final r = LinkRoutingService.resolveOutbound(
           Uri.parse('http://localhost:8080/app'),
-          sourceSiteId: 'ddg',
+          sourceSiteId: SiteId('ddg'),
           sourcePrefs: const [],
           candidates: [ddg, local]);
       expect(((r as OutboundByClaims).match as RoutingSingle).site.siteId,
           'local');
       final wrongPort = LinkRoutingService.resolveOutbound(
           Uri.parse('http://localhost:9090/app'),
-          sourceSiteId: 'ddg',
+          sourceSiteId: SiteId('ddg'),
           sourcePrefs: const [],
           candidates: [ddg, local]);
       expect((wrongPort as OutboundByClaims).match, isA<RoutingNone>());
@@ -189,7 +190,7 @@ void main() {
     test('a preference opens its target', () {
       final a = run(
         prefs: [
-          pref(DomainClaim.exactHost('github.com'), target: 'personal-gh')
+          pref(DomainClaim.exactHost('github.com'), target: SiteId('personal-gh'))
         ],
         candidates: [ddg, workGh, personalGh],
       ) as DispatchOpenNested;
@@ -197,7 +198,7 @@ void main() {
     });
 
     test('ambiguity shows the outbound picker', () {
-      final twin = _Site('twin-gh', initUrl: 'https://github.com/?twin',
+      final twin = _Site(SiteId('twin-gh'), initUrl: 'https://github.com/?twin',
           domainClaims: [DomainClaim.exactHost('github.com')]);
       final a = run(candidates: [ddg, workGh, twin]) as DispatchShowPicker;
       expect(a.winnerSiteIds, ['work-gh', 'twin-gh']);
@@ -221,7 +222,7 @@ void main() {
 
     test('a self-match keeps the fallback', () {
       final a = run(
-        prefs: [pref(DomainClaim.exactHost('github.com'), target: 'ddg')],
+        prefs: [pref(DomainClaim.exactHost('github.com'), target: SiteId('ddg'))],
       );
       expect(a, isA<DispatchNestedFallback>());
     });
@@ -298,12 +299,12 @@ void main() {
         url: gh,
         site: workGh,
         remember: true,
-        existing: [pref(DomainClaim.exactHost('gitlab.com'), target: 'lab')],
+        existing: [pref(DomainClaim.exactHost('gitlab.com'), target: SiteId('lab'))],
       );
       expect(pick.preferences, [
-        pref(DomainClaim.exactHost('gitlab.com'), target: 'lab'),
-        pref(DomainClaim.exactHost('github.com'), target: 'work-gh'),
-        pref(DomainClaim.wildcardSubdomain('github.com'), target: 'work-gh'),
+        pref(DomainClaim.exactHost('gitlab.com'), target: SiteId('lab')),
+        pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh')),
+        pref(DomainClaim.wildcardSubdomain('github.com'), target: SiteId('work-gh')),
       ]);
       expect(pick.action.siteId, 'work-gh');
       expect(pick.action.url, gh.toString());
@@ -321,9 +322,9 @@ void main() {
         isNull,
       );
       final held = [
-        pref(DomainClaim.exactHost('github.com'), target: 'personal-gh'),
+        pref(DomainClaim.exactHost('github.com'), target: SiteId('personal-gh')),
         pref(DomainClaim.wildcardSubdomain('github.com'),
-            target: 'personal-gh'),
+            target: SiteId('personal-gh')),
       ];
       final pick = LinkIntentDispatchEngine.pickOutbound(
         url: gh,
@@ -340,36 +341,36 @@ void main() {
     test('adds one entry per claim of the URL', () {
       final added = LinkIntentDispatchEngine.preferencesToRemember(
         url: Uri.parse('https://github.com/x'),
-        targetSiteId: 'work-gh',
+        targetSiteId: SiteId('work-gh'),
         existing: const [],
       );
       expect(added, [
-        pref(DomainClaim.exactHost('github.com'), target: 'work-gh'),
-        pref(DomainClaim.wildcardSubdomain('github.com'), target: 'work-gh'),
+        pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh')),
+        pref(DomainClaim.wildcardSubdomain('github.com'), target: SiteId('work-gh')),
       ]);
     });
 
     test('skips a claim already held, whatever its target', () {
       final added = LinkIntentDispatchEngine.preferencesToRemember(
         url: Uri.parse('https://github.com/x'),
-        targetSiteId: 'work-gh',
+        targetSiteId: SiteId('work-gh'),
         existing: [
           pref(DomainClaim.wildcardSubdomain('github.com'),
-              target: 'personal-gh'),
+              target: SiteId('personal-gh')),
         ],
       );
       expect(added,
-          [pref(DomainClaim.exactHost('github.com'), target: 'work-gh')]);
+          [pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh'))]);
     });
 
     test('a port-bearing URL yields its one exact claim', () {
       final added = LinkIntentDispatchEngine.preferencesToRemember(
         url: Uri.parse('http://localhost:8080/x'),
-        targetSiteId: 'local',
+        targetSiteId: SiteId('local'),
         existing: const [],
       );
       expect(added,
-          [pref(DomainClaim.exactHost('localhost:8080'), target: 'local')]);
+          [pref(DomainClaim.exactHost('localhost:8080'), target: SiteId('local'))]);
     });
   });
 
@@ -448,8 +449,8 @@ void main() {
         initUrl: 'https://duckduckgo.com/',
         routeOutboundLinks: true,
         outboundPreferences: [
-          pref(DomainClaim.exactHost('github.com'), target: 'work-gh'),
-          pref(DomainClaim.wildcardSubdomain('github.com'), target: 'work-gh'),
+          pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh')),
+          pref(DomainClaim.wildcardSubdomain('github.com'), target: SiteId('work-gh')),
         ],
       );
       final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
@@ -477,15 +478,15 @@ void main() {
       final m = WebViewModel.fromJson(json, stateSetterF: null);
       expect(m.routeOutboundLinks, isFalse);
       expect(m.outboundPreferences,
-          [pref(DomainClaim.exactHost('github.com'), target: 'work-gh')]);
+          [pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh'))]);
     });
   });
 
   group('LIR-017 OutboundPreferenceGc', () {
     test('drops entries whose target is not a candidate, keeps the rest', () {
       final prefs = [
-        pref(DomainClaim.exactHost('github.com'), target: 'work-gh'),
-        pref(DomainClaim.exactHost('gitlab.com'), target: 'gone'),
+        pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh')),
+        pref(DomainClaim.exactHost('gitlab.com'), target: SiteId('gone')),
       ];
       final next =
           OutboundPreferenceGc.pruned(prefs, isCandidate: (id) => id != 'gone');
@@ -498,7 +499,7 @@ void main() {
       final a = WebViewModel(
         initUrl: 'https://duckduckgo.com/',
         outboundPreferences: [
-          pref(DomainClaim.exactHost('github.com'), target: 'work-gh'),
+          pref(DomainClaim.exactHost('github.com'), target: SiteId('work-gh')),
         ],
       );
       final b = WebViewModel(initUrl: 'https://example.org/');
@@ -515,16 +516,16 @@ bool prune(Set<String> live) => OutboundPreferenceGc.pruneAll(
     });
 
     test('candidates stay on the source side of the archive boundary', () {
-      final app1 = WebViewModel(siteId: 'app1', initUrl: 'https://a.test');
-      final app2 = WebViewModel(siteId: 'app2', initUrl: 'https://b.test');
+      final app1 = WebViewModel(siteId: SiteId('app1'), initUrl: 'https://a.test');
+      final app2 = WebViewModel(siteId: SiteId('app2'), initUrl: 'https://b.test');
       final x1 = WebViewModel(
-          siteId: 'x1', initUrl: 'https://x.test', isArchiveTier: true);
+          siteId: SiteId('x1'), initUrl: 'https://x.test', isArchiveTier: true);
       final x2 = WebViewModel(
-          siteId: 'x2', initUrl: 'https://y.test', isArchiveTier: true);
+          siteId: SiteId('x2'), initUrl: 'https://y.test', isArchiveTier: true);
       final y1 = WebViewModel(
-          siteId: 'y1', initUrl: 'https://z.test', isArchiveTier: true);
+          siteId: SiteId('y1'), initUrl: 'https://z.test', isArchiveTier: true);
       final lost = WebViewModel(
-          siteId: 'lost', initUrl: 'https://w.test', isArchiveTier: true);
+          siteId: SiteId('lost'), initUrl: 'https://w.test', isArchiveTier: true);
       final archives = {'x1': 'X', 'x2': 'X', 'y1': 'Y'};
       final all = [app1, x1, app2, x2, y1, lost];
       List<String> of(WebViewModel source) => OutboundBoundary.candidatesOf(
@@ -568,7 +569,7 @@ bool prune(Set<String> live) => OutboundPreferenceGc.pruneAll(
       final ddg = plan.sites.firstWhere((s) => s.siteId == 'ddg');
       expect(ddg.routeOutboundLinks, isTrue);
       expect(ddg.outboundPreferences, [
-        pref(DomainClaim.exactHost('github.com'), target: 'gh'),
+        pref(DomainClaim.exactHost('github.com'), target: SiteId('gh')),
       ]);
     });
   });

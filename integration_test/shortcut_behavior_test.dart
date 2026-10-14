@@ -44,6 +44,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/screens/webspace_page.dart';
@@ -146,11 +147,11 @@ void main() {
     String? currentUrl,
     bool tabsEnabled = true,
     List<SiteTab>? tabs,
-    String? activeTabId,
+    TabId? activeTabId,
     bool alwaysOpenHome = false,
   }) =>
       WebViewModel(
-        siteId: 'ws-hs-a',
+        siteId: SiteId('ws-hs-a'),
         initUrl: '$hostA/a.html',
         currentUrl: currentUrl,
         name: 'Site A',
@@ -160,7 +161,7 @@ void main() {
         alwaysOpenHome: alwaysOpenHome,
       );
   WebViewModel siteB() =>
-      WebViewModel(siteId: 'ws-hs-b', initUrl: '$hostB/b.html', name: 'Site B');
+      WebViewModel(siteId: SiteId('ws-hs-b'), initUrl: '$hostB/b.html', name: 'Site B');
 
   /// Seed the app's persisted state plus the mock launcher's pin set. Called
   /// before every `app.main()`; `setMockInitialValues` nullifies the
@@ -327,7 +328,7 @@ void main() {
     if (drawerIsOpen()) return;
     // Tapping the already-selected webspace tile opens the drawer (the
     // same-id branch of WebspacesController.select).
-    await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+    await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
     await pumpFor(tester, total: const Duration(seconds: 2));
     expect(
       find.byType(Drawer),
@@ -423,10 +424,10 @@ Future<void> tapDialogButton(WidgetTester tester,
           siteA(
             alwaysOpenHome: true,
             tabs: [
-              SiteTab(id: 'deep', url: '$hostA/deep.html'),
-              SiteTab(id: 'other', url: '$hostA/other.html'),
+              SiteTab(id: TabId('deep'), url: '$hostA/deep.html'),
+              SiteTab(id: TabId('other'), url: '$hostA/other.html'),
             ],
-            activeTabId: 'deep',
+            activeTabId: TabId('deep'),
           ),
           siteB(),
         ],

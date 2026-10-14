@@ -24,6 +24,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
@@ -43,8 +45,8 @@ void main() {
 
   final applies = hostIsIOS || hostIsMacOS;
 
-  const siteA = 'parity-a';
-  const siteB = 'parity-b';
+  final siteA = SiteId('parity-a');
+  final siteB = SiteId('parity-b');
   const destA = 0;
   const destB = 1;
 
@@ -112,11 +114,11 @@ void main() {
     // self-check, and a probe here would assert the thing under test.
     final port = await tester.runAsync(() => ProxyRouterService.instance.activate(
           perSiteProxies: {
-            siteA: UserProxySettings(
+            RouterIdentity.ofSite(siteA): UserProxySettings(
               type: ProxyType.SOCKS5,
               address: '127.0.0.1:${upstreamA.port}',
             ),
-            siteB: UserProxySettings(
+            RouterIdentity.ofSite(siteB): UserProxySettings(
               type: ProxyType.SOCKS5,
               address: '127.0.0.1:${upstreamB.port}',
             ),
@@ -127,7 +129,7 @@ void main() {
     expect(ProxyRouterService.instance.isActive, isTrue);
     log('relay on ${ProxyRouterService.instance.host}:$port');
 
-    Widget pane(String siteId, {required int dest}) {
+    Widget pane(SiteId siteId, {required int dest}) {
       final url = 'http://${syntheticOrigin(dest)}/$siteId';
       return SizedBox(
         width: 200,

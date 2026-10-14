@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'helpers/localized.dart';
 
-const _ddg = UrlBarSearchSite('ddg', name: 'DuckDuckGo');
-const _kagi = UrlBarSearchSite('kagi', name: 'Kagi');
+final _ddg = UrlBarSearchSite(SiteId('ddg'), name: 'DuckDuckGo');
+final _kagi = UrlBarSearchSite(SiteId('kagi'), name: 'Kagi');
 
 /// LIR-033: the magnifier turns the URL bar into a search field, and words
 /// typed as an address search too.
@@ -14,8 +15,8 @@ void main() {
 
   Future<void> pumpBar(
     WidgetTester tester, {
-    List<UrlBarSearchSite> sites = const [_ddg, _kagi],
-    String? defaultId,
+    List<UrlBarSearchSite>? sites,
+    SiteId? defaultId,
     bool canSearch = true,
   }) async {
     searches = [];
@@ -28,7 +29,7 @@ void main() {
             currentUrl: 'https://github.com/theoden8',
             onUrlSubmitted: (url) => opened.add(url),
             onSiteInfo: () {},
-            searchSites: sites,
+            searchSites: sites ?? [_ddg, _kagi],
             defaultSearchSiteId: defaultId,
             onSearch: canSearch
                 ? (query, {required siteId}) => searches.add((query, siteId))
@@ -49,7 +50,7 @@ void main() {
 
   testWidgets('the magnifier turns the bar into a search field on the default',
       (tester) async {
-    await pumpBar(tester, defaultId: 'kagi');
+    await pumpBar(tester, defaultId: SiteId('kagi'));
     expect(magnifier(), findsOneWidget);
     await tester.tap(magnifier());
     await tester.pump();
@@ -147,7 +148,7 @@ void main() {
   });
 
   testWidgets('one search site needs no picker', (tester) async {
-    await pumpBar(tester, sites: const [_ddg]);
+    await pumpBar(tester, sites: [_ddg]);
     await tester.tap(magnifier());
     await tester.pump();
     expect(find.byTooltip('Choose search site'), findsNothing);

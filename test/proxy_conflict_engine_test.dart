@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -221,21 +222,21 @@ void main() {
 
     test('sites naming different saved proxies conflict', () {
       ProxyLibrary.setInMemory(ProxyLibraryData(proxies: [
-        SavedProxy(id: 'p1', name: 'one', settings: _socks('a:1')),
-        SavedProxy(id: 'p2', name: 'two', settings: _socks('b:2')),
+        SavedProxy(id: SavedProxyId('p1'), name: 'one', settings: _socks('a:1')),
+        SavedProxy(id: SavedProxyId('p2'), name: 'two', settings: _socks('b:2')),
       ]));
-      UserProxySettings saved(String id) =>
+      UserProxySettings saved(SavedProxyId id) =>
           UserProxySettings(type: ProxyType.SAVED, savedProxyId: id);
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: saved('p1'),
-          otherEnabledProxies: [saved('p2')],
+          targetProxy: saved(SavedProxyId('p1')),
+          otherEnabledProxies: [saved(SavedProxyId('p2'))],
         ),
         isFalse,
       );
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: saved('p1'),
+          targetProxy: saved(SavedProxyId('p1')),
           otherEnabledProxies: [_socks('a:1')],
         ),
         isTrue,

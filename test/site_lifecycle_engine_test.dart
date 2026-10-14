@@ -41,7 +41,7 @@ void main() {
     });
 
     test('drops deleted index from webspace siteIndices and shifts larger ones down', () {
-      final ws = Webspace(id: 'w1', name: 'Work', siteIndices: [0, 2, 3]);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'Work', siteIndices: [0, 2, 3]);
       final patch = SiteLifecycleEngine.computeDeletionPatch(
         deletedIndex: 2,
         siteCountBeforeRemoval: 5,
@@ -54,7 +54,7 @@ void main() {
     });
 
     test('leaves webspace entries absent from map when unchanged', () {
-      final ws = Webspace(id: 'w1', name: 'Work', siteIndices: [0, 1]);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'Work', siteIndices: [0, 1]);
       final patch = SiteLifecycleEngine.computeDeletionPatch(
         deletedIndex: 4,
         siteCountBeforeRemoval: 5,
@@ -67,9 +67,9 @@ void main() {
     });
 
     test('deleting a site from multiple webspaces rewrites each', () {
-      final ws1 = Webspace(id: 'w1', name: 'A', siteIndices: [0, 1, 2]);
-      final ws2 = Webspace(id: 'w2', name: 'B', siteIndices: [1, 2]);
-      final ws3 = Webspace(id: 'w3', name: 'C', siteIndices: [3]);
+      final ws1 = Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [0, 1, 2]);
+      final ws2 = Webspace(id: WebspaceId('w2'), name: 'B', siteIndices: [1, 2]);
+      final ws3 = Webspace(id: WebspaceId('w3'), name: 'C', siteIndices: [3]);
       final patch = SiteLifecycleEngine.computeDeletionPatch(
         deletedIndex: 1,
         siteCountBeforeRemoval: 4,
@@ -84,7 +84,7 @@ void main() {
     });
 
     test('strips out-of-bounds webspace indices defensively', () {
-      final ws = Webspace(id: 'w1', name: 'A', siteIndices: [0, 99, 1]);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [0, 99, 1]);
       final patch = SiteLifecycleEngine.computeDeletionPatch(
         deletedIndex: 0,
         siteCountBeforeRemoval: 2,
@@ -149,7 +149,7 @@ void main() {
     });
 
     test('deleting the only site produces empty state', () {
-      final ws = Webspace(id: 'w1', name: 'A', siteIndices: [0]);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [0]);
       final patch = SiteLifecycleEngine.computeDeletionPatch(
         deletedIndex: 0,
         siteCountBeforeRemoval: 1,

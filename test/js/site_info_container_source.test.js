@@ -4,7 +4,7 @@
 // is computed by the rule the factory binds by, from the posture that webview's
 // WebViewConfig was given. A sheet built from other inputs (the raw
 // `incognito` where the config reads `effectiveIncognito`, or the siteId where
-// an archive site binds its archiveContainerId) names a container the page
+// an archive site binds its opaque container key) names a container the page
 // does not use, which is worse than no sheet.
 
 const test = require('node:test');
@@ -24,9 +24,8 @@ test('the factory binds through containerIdFor', () => {
   const at = create.indexOf('final containerId = containerIdFor(');
   assert.notEqual(at, -1, 'the binding must follow the rule the sheet reports');
   const args = callArgs(create, at);
-  assert.match(args, /siteId: siteId/);
+  assert.match(args, /key: posture\.container\.containerKey/);
   assert.match(create, /final siteId = posture\.siteId;/);
-  assert.match(args, /archiveContainerId: posture\.container\.archiveContainerId/);
   assert.match(args, /incognito: posture\.container\.incognito/);
 });
 
@@ -65,7 +64,7 @@ test('the main sheet reads the inputs of the site webview posture', () => {
   assert.match(model, /final WebViewModel id = runningIdentity;/);
   const resolver = blockAfter(model, 'SitePosture sitePosture({', '}) {', 'web_view_model.dart');
   assert.match(resolver, /siteId: siteId,/);
-  assert.match(resolver, /archiveContainerId: archiveContainerId,/);
+  assert.match(resolver, /containerKey: containerKey,/);
   assert.match(resolver, /incognito: effectiveIncognito,/);
   const bar = callArgs(main, main.search(/\bUrlBar\(/));
   assert.match(bar, /onSiteInfo: \(\) => showSiteInfoFor\(context,\s*site: model,/);
@@ -73,8 +72,7 @@ test('the main sheet reads the inputs of the site webview posture', () => {
   const sheet = blockAfter(read(sheetRel), 'Future<void> showSiteInfoFor(', '}) {', sheetRel);
   assert.match(sheet, /final id = site\.runningIdentity;/);
   const rule = callArgs(sheet, sheet.indexOf('containerIdFor('));
-  assert.match(rule, /siteId: id\.siteId/);
-  assert.match(rule, /archiveContainerId: id\.archiveContainerId/);
+  assert.match(rule, /key: id\.containerKey/);
   assert.match(rule, /incognito: id\.effectiveIncognito/);
 });
 
@@ -85,8 +83,7 @@ test('the nested sheet reads the posture of the nested webview config', () => {
   const show = blockAfter(nested, '  void _showSiteInfo() {', null, 'inappbrowser.dart');
   assert.match(show, /final p = widget\.posture;/);
   const rule = callArgs(show, show.indexOf('containerIdFor('));
-  assert.match(rule, /siteId: p\.siteId/);
-  assert.match(rule, /archiveContainerId: p\.container\.archiveContainerId/,
+  assert.match(rule, /key: p\.container\.containerKey/,
     'an archived site\'s nested screen binds its opaque container (ARCH-007)');
   assert.match(rule, /incognito: p\.container\.incognito/);
 });

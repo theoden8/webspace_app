@@ -1,3 +1,5 @@
+import 'package:webspace/webspace_model.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -14,13 +16,14 @@ class ArchiveState {
     List<Map<String, dynamic>>? webspaces,
     List<Map<String, dynamic>>? sites,
     Map<String, List<Map<String, dynamic>>>? cookies,
-    Map<String, List<String>>? appTierMembership,
+    Map<WebspaceId, List<SiteId>>? appTierMembership,
     this.selectedWebspaceId,
   })  : createdAt = createdAt ?? DateTime.now().toUtc(),
         webspaces = webspaces ?? <Map<String, dynamic>>[],
         sites = sites ?? <Map<String, dynamic>>[],
         cookies = cookies ?? <String, List<Map<String, dynamic>>>{},
-        appTierMembership = appTierMembership ?? <String, List<String>>{};
+        appTierMembership =
+            appTierMembership ?? <WebspaceId, List<SiteId>>{};
 
   final int version;
   final DateTime createdAt;
@@ -31,8 +34,8 @@ class ArchiveState {
   /// archived (`{webspaceId: [siteId]}`). Lives here, not in the plaintext
   /// `webspaces` pref, so a closed archive leaves no dangling ids behind
   /// (ARCH-001); reopening re-attaches the sites to their collections.
-  final Map<String, List<String>> appTierMembership;
-  String? selectedWebspaceId;
+  final Map<WebspaceId, List<SiteId>> appTierMembership;
+  WebspaceId? selectedWebspaceId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'version': version,
@@ -51,7 +54,7 @@ class ArchiveState {
     List<Map<String, dynamic>>? sites,
     Map<String, List<Map<String, dynamic>>>? cookies,
     List<Map<String, dynamic>>? webspaces,
-    Map<String, List<String>>? appTierMembership,
+    Map<WebspaceId, List<SiteId>>? appTierMembership,
   }) =>
       ArchiveState(
         version: version,
@@ -94,10 +97,10 @@ class ArchiveState {
             in (json['appTierMembership'] as Map<String, dynamic>? ??
                     const <String, dynamic>{})
                 .entries)
-          if (e.value is List)
-            e.key: (e.value as List).whereType<String>().toList(),
+          if ((WebspaceId.parse(e.key), e.value) case (final id?, final List ids))
+            id: ids.map(SiteId.parse).nonNulls.toList(),
       },
-      selectedWebspaceId: json['selectedWebspaceId'] as String?,
+      selectedWebspaceId: WebspaceId.parse(json['selectedWebspaceId']),
     );
   }
 }

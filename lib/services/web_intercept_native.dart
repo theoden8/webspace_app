@@ -1,4 +1,5 @@
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -29,10 +30,10 @@ class WebInterceptNative {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'blockEventsReady':
-          await _drainBlockEvents(call.arguments as String?);
+          await _drainBlockEvents(SiteId.parse(call.arguments));
           break;
         case 'cdnEventsReady':
-          await _drainCdnEvents(call.arguments as String?);
+          await _drainCdnEvents(SiteId.parse(call.arguments));
           break;
         case 'log':
           final args = call.arguments;
@@ -47,7 +48,7 @@ class WebInterceptNative {
     });
   }
 
-  static Future<void> _drainBlockEvents(String? siteId) async {
+  static Future<void> _drainBlockEvents(SiteId? siteId) async {
     if (siteId == null) return;
     try {
       final list =
@@ -66,7 +67,7 @@ class WebInterceptNative {
   /// with `source` absent for allowed requests) is testable without an
   /// Android device: the fetch is platform-gated, the accounting is not.
   @visibleForTesting
-  static void applyBlockEvents(String siteId, {required List<dynamic> list}) {
+  static void applyBlockEvents(SiteId siteId, {required List<dynamic> list}) {
     for (final entry in list) {
       if (entry is! Map) continue;
       final host = entry['host'];
@@ -94,7 +95,7 @@ class WebInterceptNative {
     }
   }
 
-  static Future<void> _drainCdnEvents(String? siteId) async {
+  static Future<void> _drainCdnEvents(SiteId? siteId) async {
     if (siteId == null) return;
     try {
       final list =
@@ -236,7 +237,7 @@ class WebInterceptNative {
   /// running, which is where [attachToWebViews] looks. True once attached.
   static Future<bool> attachToHeadless({
     required String headlessId,
-    required String siteId,
+    required SiteId siteId,
     required int dnsLevel,
     required bool localCdn,
   }) async {
@@ -264,7 +265,7 @@ class WebInterceptNative {
   /// blocklist itself is app-wide. [localCdn] is whether this site's
   /// sub-resources may be served from the app-wide LocalCDN cache (LCDN-007).
   static Future<int> attachToWebViews({
-    String? siteId,
+    SiteId? siteId,
     int? dnsLevel,
     bool? localCdn,
   }) async {

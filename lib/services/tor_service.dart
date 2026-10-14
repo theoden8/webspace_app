@@ -8,6 +8,7 @@
 // `defaultTargetPlatform`, not `Platform.isIOS`.
 
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -48,7 +49,8 @@ export 'package:webspace/services/tor_engine.dart'
         TorRoute,
         TorRouteUp,
         TorRouteBlocked,
-        kTorAppGlobalTag;
+        kTorAppGlobalTag,
+        TorTag;
 
 const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
 const String _kEvents = 'org.codeberg.theoden8.webspace/tor/events';
@@ -637,13 +639,13 @@ class TorService {
   /// Blocked on a platform with no runtime, which is the fail-closed answer:
   /// a site carrying `ProxyType.TOR` imported from an Apple device is
   /// blocked, never quietly sent out over the device IP.
-  TorRoute routeFor({String? siteId}) => isAvailable
+  TorRoute routeFor({SiteId? siteId}) => isAvailable
       ? _engine.routeFor(TorEngine.tagFor(siteId))
       : const TorRouteBlocked(
           'This build has no Tor of its own, and no external tor is chosen.');
 
   /// [routeFor]'s settings, or null when Tor is not routable.
-  UserProxySettings? socksFor({String? siteId}) =>
+  UserProxySettings? socksFor({SiteId? siteId}) =>
       switch (routeFor(siteId: siteId)) {
         TorRouteUp(:final socks) => socks,
         TorRouteBlocked() => null,

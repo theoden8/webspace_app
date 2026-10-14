@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
@@ -30,14 +31,14 @@ void main() {
     isDemoMode = true;
 
     final siteA = WebViewModel(
-      siteId: 'lazy-a',
+      siteId: SiteId('lazy-a'),
       // RFC 5737 reserved test addresses — won't connect, the
       // assertion is on widget tree shape.
       initUrl: 'http://192.0.2.1/',
       name: 'Lazy A',
     );
     final siteB = WebViewModel(
-      siteId: 'lazy-b',
+      siteId: SiteId('lazy-b'),
       initUrl: 'http://192.0.2.2/',
       name: 'Lazy B',
     );
@@ -76,7 +77,7 @@ void main() {
         reason: 'no site has been visited; site B slot must not exist yet');
 
     Future<void> openDrawer() async {
-      await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+      await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
       await tester.pumpAndSettle(const Duration(seconds: 5));
     }
 

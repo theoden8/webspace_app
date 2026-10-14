@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 
@@ -9,7 +10,7 @@ void main() {
   group('FilterList', () {
     test('serializes to JSON correctly', () {
       final list = FilterList(
-        id: 'test-list',
+        id: FilterListId('test-list'),
         name: 'Test List',
         url: 'https://example.com/list.txt',
         enabled: true,
@@ -68,7 +69,7 @@ void main() {
 
     test('round-trips through JSON correctly', () {
       final original = FilterList(
-        id: 'roundtrip',
+        id: FilterListId('roundtrip'),
         name: 'Round Trip',
         url: 'https://example.com/rules.txt',
         enabled: true,
@@ -90,9 +91,9 @@ void main() {
 
     test('serializes list of FilterLists to JSON string', () {
       final lists = [
-        FilterList(id: 'a', name: 'List A', url: 'https://a.com/list.txt'),
+        FilterList(id: FilterListId('a'), name: 'List A', url: 'https://a.com/list.txt'),
         FilterList(
-            id: 'b',
+            id: FilterListId('b'),
             name: 'List B',
             url: 'https://b.com/list.txt',
             enabled: true,
@@ -130,21 +131,21 @@ void main() {
       service.reset();
       service.setLists([
         FilterList(
-          id: 'a',
+          id: FilterListId('a'),
           name: 'A',
           url: 'https://a.com',
           enabled: true,
           ruleCount: 100,
         ),
         FilterList(
-          id: 'b',
+          id: FilterListId('b'),
           name: 'B',
           url: 'https://b.com',
           enabled: false,
           ruleCount: 200,
         ),
         FilterList(
-          id: 'c',
+          id: FilterListId('c'),
           name: 'C',
           url: 'https://c.com',
           enabled: true,
@@ -158,9 +159,9 @@ void main() {
       final service = ContentBlockerService.instance;
       service.reset();
       service.setLists([
-        FilterList(id: 'x', name: 'X', url: 'https://x.com'),
+        FilterList(id: FilterListId('x'), name: 'X', url: 'https://x.com'),
       ]);
-      expect(() => service.lists.add(FilterList(id: 'y', name: 'Y', url: 'https://y.com')),
+      expect(() => service.lists.add(FilterList(id: FilterListId('y'), name: 'Y', url: 'https://y.com')),
           throwsUnsupportedError);
     });
 

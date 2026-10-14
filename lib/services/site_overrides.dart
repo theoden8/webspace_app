@@ -4,6 +4,7 @@
 /// the webview runs with, and each rule is stated once.
 library;
 
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 
@@ -67,9 +68,9 @@ abstract final class ArchiveFold {
   static int? dnsBlockLevel(int? stored, {required bool archived}) =>
       archived ? null : stored;
 
-  static Set<String> disabledFilterLists(Set<String> stored,
+  static Set<FilterListId> disabledFilterLists(Set<FilterListId> stored,
           {required bool archived}) =>
-      archived ? const <String>{} : stored;
+      archived ? const <FilterListId>{} : stored;
 
   /// Launching the system browser crosses the archive's isolation boundary;
   /// blocking crosses nothing and stays.

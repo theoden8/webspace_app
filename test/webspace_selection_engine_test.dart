@@ -7,7 +7,7 @@ void main() {
     test('returns empty when no webspace is selected', () {
       final result = WebspaceSelectionEngine.filteredSiteIndices(
         selectedWebspaceId: null,
-        webspaces: [Webspace(id: 'w1', name: 'A', siteIndices: [0, 1])],
+        webspaces: [Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [0, 1])],
         siteCount: 2,
       );
       expect(result, isEmpty);
@@ -15,7 +15,7 @@ void main() {
 
     test('returns every index for the All webspace', () {
       final result = WebspaceSelectionEngine.filteredSiteIndices(
-        selectedWebspaceId: kAllWebspaceId,
+        selectedWebspaceId: WebspaceId.all,
         webspaces: const [],
         siteCount: 3,
       );
@@ -24,7 +24,7 @@ void main() {
 
     test('returns empty for All webspace when no sites', () {
       final result = WebspaceSelectionEngine.filteredSiteIndices(
-        selectedWebspaceId: kAllWebspaceId,
+        selectedWebspaceId: WebspaceId.all,
         webspaces: const [],
         siteCount: 0,
       );
@@ -32,9 +32,9 @@ void main() {
     });
 
     test('returns the webspace siteIndices when selected', () {
-      final ws = Webspace(id: 'w1', name: 'A', siteIndices: [2, 0, 1]);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [2, 0, 1]);
       final result = WebspaceSelectionEngine.filteredSiteIndices(
-        selectedWebspaceId: 'w1',
+        selectedWebspaceId: WebspaceId('w1'),
         webspaces: [ws],
         siteCount: 3,
       );
@@ -42,9 +42,9 @@ void main() {
     });
 
     test('filters out-of-bounds entries without reordering', () {
-      final ws = Webspace(id: 'w1', name: 'A', siteIndices: [2, 99, 0, -1, 1]);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [2, 99, 0, -1, 1]);
       final result = WebspaceSelectionEngine.filteredSiteIndices(
-        selectedWebspaceId: 'w1',
+        selectedWebspaceId: WebspaceId('w1'),
         webspaces: [ws],
         siteCount: 3,
       );
@@ -53,8 +53,8 @@ void main() {
 
     test('returns empty list for unknown webspace id', () {
       final result = WebspaceSelectionEngine.filteredSiteIndices(
-        selectedWebspaceId: 'does-not-exist',
-        webspaces: [Webspace(id: 'w1', name: 'A', siteIndices: [0])],
+        selectedWebspaceId: WebspaceId('does-not-exist'),
+        webspaces: [Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [0])],
         siteCount: 1,
       );
       expect(result, isEmpty);
@@ -115,8 +115,8 @@ void main() {
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
         launchedIndex: 0,
         webspaces: [
-          Webspace(id: 'banking', name: 'Banking', siteIndices: [0, 1]),
-          Webspace(id: 'mail', name: 'Mail', siteIndices: [2]),
+          Webspace(id: WebspaceId('banking'), name: 'Banking', siteIndices: [0, 1]),
+          Webspace(id: WebspaceId('mail'), name: 'Mail', siteIndices: [2]),
         ],
         flag: (i) => i == 1 || i == 2,
       );
@@ -127,7 +127,7 @@ void main() {
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
         launchedIndex: 0,
         webspaces: [
-          Webspace(id: 'banking', name: 'Banking', siteIndices: [0]),
+          Webspace(id: WebspaceId('banking'), name: 'Banking', siteIndices: [0]),
         ],
         flag: (i) => true,
       );
@@ -141,7 +141,7 @@ void main() {
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
         launchedIndex: 0,
         webspaces: [
-          Webspace(id: 'mixed', name: 'Mixed', siteIndices: [0, 1]),
+          Webspace(id: WebspaceId('mixed'), name: 'Mixed', siteIndices: [0, 1]),
         ],
         flag: (i) => i == 1,
       );
@@ -156,7 +156,7 @@ void main() {
         launchedIndex: 0,
         webspaces: [
           Webspace.all()..siteIndices = [0, 1, 2, 3],
-          Webspace(id: 'banking', name: 'Banking', siteIndices: [0, 2]),
+          Webspace(id: WebspaceId('banking'), name: 'Banking', siteIndices: [0, 2]),
         ],
         flag: (i) => true,
       );
@@ -166,7 +166,7 @@ void main() {
     test('returns empty when launchedIndex is negative', () {
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
         launchedIndex: -1,
-        webspaces: [Webspace(id: 'w', name: 'W', siteIndices: [0])],
+        webspaces: [Webspace(id: WebspaceId('w'), name: 'W', siteIndices: [0])],
         flag: (i) => true,
       );
       expect(result, isEmpty);
@@ -179,7 +179,7 @@ void main() {
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
         launchedIndex: 0,
         webspaces: [
-          Webspace(id: 'other', name: 'Other', siteIndices: [1, 2]),
+          Webspace(id: WebspaceId('other'), name: 'Other', siteIndices: [1, 2]),
         ],
         flag: (i) => true,
       );
@@ -190,9 +190,9 @@ void main() {
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
         launchedIndex: 0,
         webspaces: [
-          Webspace(id: 'banking', name: 'Banking', siteIndices: [0, 1]),
-          Webspace(id: 'work', name: 'Work', siteIndices: [0, 2, 3]),
-          Webspace(id: 'misc', name: 'Misc', siteIndices: [4]),
+          Webspace(id: WebspaceId('banking'), name: 'Banking', siteIndices: [0, 1]),
+          Webspace(id: WebspaceId('work'), name: 'Work', siteIndices: [0, 2, 3]),
+          Webspace(id: WebspaceId('misc'), name: 'Misc', siteIndices: [4]),
         ],
         flag: (i) => i == 1 || i == 3 || i == 4,
       );

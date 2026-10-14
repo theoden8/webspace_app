@@ -1,4 +1,5 @@
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// Moves the membership of archived sites between app-tier webspaces and
 /// the archive's own encrypted state, so no archived `siteId` ever reaches
@@ -13,14 +14,14 @@ class ArchiveMembershipEngine {
   /// Which app-tier webspaces currently contain each id in [siteIds], as
   /// `{webspaceId: [siteIds]}`, merged into [existing] when given. Does not
   /// mutate the webspaces.
-  static Map<String, List<String>> record(
+  static Map<WebspaceId, List<SiteId>> record(
     List<Webspace> webspaces, {
-    required Set<String> siteIds,
-    Map<String, List<String>>? existing,
+    required Set<SiteId> siteIds,
+    Map<WebspaceId, List<SiteId>>? existing,
   }) {
-    final out = <String, List<String>>{
+    final out = <WebspaceId, List<SiteId>>{
       if (existing != null)
-        for (final e in existing.entries) e.key: List<String>.from(e.value),
+        for (final e in existing.entries) e.key: List<SiteId>.of(e.value),
     };
     for (final ws in webspaces) {
       if (ws.isArchiveTier || ws.isAll) continue;
@@ -29,7 +30,7 @@ class ArchiveMembershipEngine {
           if (siteIds.contains(sid)) sid,
       ];
       if (members.isEmpty) continue;
-      final bucket = out.putIfAbsent(ws.id, () => <String>[]);
+      final bucket = out.putIfAbsent(ws.id, () => <SiteId>[]);
       for (final sid in members) {
         if (!bucket.contains(sid)) bucket.add(sid);
       }
@@ -40,10 +41,10 @@ class ArchiveMembershipEngine {
   /// [record] followed by stripping [siteIds] from every app-tier
   /// webspace's runtime list. Used when the archived sites leave the
   /// runtime list (archive close).
-  static Map<String, List<String>> detach(
+  static Map<WebspaceId, List<SiteId>> detach(
     List<Webspace> webspaces, {
-    required Set<String> siteIds,
-    Map<String, List<String>>? existing,
+    required Set<SiteId> siteIds,
+    Map<WebspaceId, List<SiteId>>? existing,
   }) {
     final out = record(webspaces, siteIds: siteIds, existing: existing);
     for (final ws in webspaces) {
@@ -58,7 +59,7 @@ class ArchiveMembershipEngine {
   /// duplicated; webspaces that no longer exist are skipped.
   static void attach(
     List<Webspace> webspaces, {
-    required Map<String, List<String>> membership,
+    required Map<WebspaceId, List<SiteId>> membership,
   }) {
     for (final ws in webspaces) {
       if (ws.isArchiveTier || ws.isAll) continue;
@@ -72,8 +73,8 @@ class ArchiveMembershipEngine {
 
   /// Drops [siteId] from every bucket of [membership], removing buckets
   /// that become empty. Used when a site is moved back out of an archive.
-  static void forget(Map<String, List<String>> membership,
-      {required String siteId}) {
+  static void forget(Map<WebspaceId, List<SiteId>> membership,
+      {required SiteId siteId}) {
     for (final ids in membership.values) {
       ids.remove(siteId);
     }
@@ -85,7 +86,7 @@ class ArchiveMembershipEngine {
   /// [archivedSiteIds] stripped from the remaining membership lists.
   static List<Webspace> persistable(
     List<Webspace> webspaces, {
-    required Set<String> archivedSiteIds,
+    required Set<SiteId> archivedSiteIds,
   }) {
     return [
       for (final ws in webspaces)

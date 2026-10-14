@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/container_mark.dart';
@@ -48,9 +49,9 @@ class WebSearchSheet extends StatefulWidget {
   final List<SearchSite> candidates;
 
   /// The owner's list of search sites; empty offers every one.
-  final List<String> declared;
-  final String? declaredDefault;
-  final String? appDefault;
+  final List<SiteId> declared;
+  final SiteId? declaredDefault;
+  final SiteId? appDefault;
 
   /// False inside an archive: an engine added here would be an app-tier site,
   /// and the search would leave the archive with it (S15).
@@ -62,7 +63,7 @@ class WebSearchSheet extends StatefulWidget {
 
   /// Each candidate's container colour by siteId, empty on the legacy engine:
   /// what tells two chips with the same name apart (TAB-018).
-  final Map<String, int> containerColors;
+  final Map<SiteId, int> containerColors;
 
   @override
   State<WebSearchSheet> createState() => _WebSearchSheetState();

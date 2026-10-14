@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 
@@ -189,7 +190,7 @@ void main() {
 
     test('non-incognito returns siteId verbatim', () {
       final seed = computeAntiFingerprintingSeed(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         incognito: false,
         launchNonce: 'nonce-1',
       );
@@ -200,17 +201,17 @@ void main() {
       // Stable per-site fingerprint across launches: same siteId, two
       // different launches, same seed.
       final s1 = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: false, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: false, launchNonce: 'nonce-1',
       );
       final s2 = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: false, launchNonce: 'nonce-2',
+        siteId: SiteId('site-A'), incognito: false, launchNonce: 'nonce-2',
       );
       expect(s1, equals(s2));
     });
 
     test('incognito mixes in the nonce', () {
       final seed = computeAntiFingerprintingSeed(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         incognito: true,
         launchNonce: 'nonce-1',
       );
@@ -224,10 +225,10 @@ void main() {
       // Same fingerprint across iframe re-injection within one app
       // session — flicker would itself be a fingerprintable signal.
       final s1 = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: true, launchNonce: 'nonce-1',
       );
       final s2 = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: true, launchNonce: 'nonce-1',
       );
       expect(s1, equals(s2));
     });
@@ -235,10 +236,10 @@ void main() {
     test('incognito + different nonces -> different seeds (per-launch reroll)',
         () {
       final s1 = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: true, launchNonce: 'nonce-1',
       );
       final s2 = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: true, launchNonce: 'nonce-2',
+        siteId: SiteId('site-A'), incognito: true, launchNonce: 'nonce-2',
       );
       expect(s1, isNot(equals(s2)));
     });
@@ -247,10 +248,10 @@ void main() {
       // Two incognito tabs in the same launch must still see distinct
       // fingerprints (cross-site uniqueness, ETP-004).
       final a = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: true, launchNonce: 'nonce-1',
       );
       final b = computeAntiFingerprintingSeed(
-        siteId: 'site-B', incognito: true, launchNonce: 'nonce-1',
+        siteId: SiteId('site-B'), incognito: true, launchNonce: 'nonce-1',
       );
       expect(a, isNot(equals(b)));
     });
@@ -260,17 +261,17 @@ void main() {
       // out of the stable identity, so the seed MUST differ from the
       // non-incognito case.
       final stable = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: false, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: false, launchNonce: 'nonce-1',
       );
       final ephemeral = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: true, launchNonce: 'nonce-1',
       );
       expect(ephemeral, isNot(equals(stable)));
     });
 
     test('resetNonce folds into the seed (non-incognito) — ETP-022', () {
       final seed = computeAntiFingerprintingSeed(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         incognito: false,
         launchNonce: 'nonce-1',
         resetNonce: 'reset-xyz',
@@ -280,7 +281,7 @@ void main() {
 
     test('resetNonce folds in alongside the launch nonce (incognito)', () {
       final seed = computeAntiFingerprintingSeed(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         incognito: true,
         launchNonce: 'nonce-1',
         resetNonce: 'reset-xyz',
@@ -291,18 +292,18 @@ void main() {
     test('null/empty resetNonce leaves the seed unchanged (backward compat)',
         () {
       final bare = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: false, launchNonce: 'n',
+        siteId: SiteId('site-A'), incognito: false, launchNonce: 'n',
       );
       expect(bare, equals('site-A'));
       expect(
         computeAntiFingerprintingSeed(
-          siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: null,
+          siteId: SiteId('site-A'), incognito: false, launchNonce: 'n', resetNonce: null,
         ),
         equals('site-A'),
       );
       expect(
         computeAntiFingerprintingSeed(
-          siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: '',
+          siteId: SiteId('site-A'), incognito: false, launchNonce: 'n', resetNonce: '',
         ),
         equals('site-A'),
       );
@@ -310,10 +311,10 @@ void main() {
 
     test('a new resetNonce rerolls the seed (data-clear reroll)', () {
       final before = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: 'r1',
+        siteId: SiteId('site-A'), incognito: false, launchNonce: 'n', resetNonce: 'r1',
       );
       final after = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: 'r2',
+        siteId: SiteId('site-A'), incognito: false, launchNonce: 'n', resetNonce: 'r2',
       );
       expect(after, isNot(equals(before)));
     });
@@ -321,14 +322,14 @@ void main() {
     test('resetNonce threads through the script source and rerolls the shim',
         () {
       final r1 = buildAntiFingerprintingScriptSource(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         trackingProtectionEnabled: true,
         incognito: false,
         launchNonce: LaunchNonce.value,
         resetNonce: 'r1',
       );
       final r2 = buildAntiFingerprintingScriptSource(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         trackingProtectionEnabled: true,
         incognito: false,
         launchNonce: LaunchNonce.value,
@@ -346,7 +347,7 @@ void main() {
       // Sanity: the seed string we compute appears in the generated
       // shim source, so the JS-side PRNG is keyed off the right value.
       final seed = computeAntiFingerprintingSeed(
-        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+        siteId: SiteId('site-A'), incognito: true, launchNonce: 'nonce-1',
       );
       final shim = buildAntiFingerprintingShim(seed);
       expect(shim, contains('"site-A:nonce-1"'));
@@ -364,7 +365,7 @@ void main() {
     tearDown(LaunchNonce.resetForTesting);
 
     String? scriptFor({
-      required String siteId,
+      required SiteId siteId,
       required bool trackingProtectionEnabled,
       required bool incognito,
     }) {
@@ -378,11 +379,11 @@ void main() {
 
     test('TP off -> no shim regardless of incognito', () {
       expect(
-        scriptFor(siteId: 's1', trackingProtectionEnabled: false, incognito: false),
+        scriptFor(siteId: SiteId('s1'), trackingProtectionEnabled: false, incognito: false),
         isNull,
       );
       expect(
-        scriptFor(siteId: 's1', trackingProtectionEnabled: false, incognito: true),
+        scriptFor(siteId: SiteId('s1'), trackingProtectionEnabled: false, incognito: true),
         isNull,
       );
     });
@@ -403,12 +404,12 @@ void main() {
     test('non-incognito: fingerprint identical across launches (ETP-004)', () {
       // Simulate launch 1.
       final launch1 = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: false,
       );
       // Simulate launch 2 by tearing down the process-lifetime nonce.
       LaunchNonce.resetForTesting();
       final launch2 = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: false,
       );
       expect(launch1, isNotNull);
       expect(launch2, equals(launch1),
@@ -421,11 +422,11 @@ void main() {
       // both TP and Incognito on, the fingerprint persisted across
       // launches because the seed was siteId-only.
       final launch1 = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: true,
       );
       LaunchNonce.resetForTesting();
       final launch2 = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: true,
       );
       expect(launch1, isNotNull);
       expect(launch2, isNot(equals(launch1)),
@@ -439,10 +440,10 @@ void main() {
       // switches within one app session.
       LaunchNonce.overrideForTesting('pinned-nonce');
       final first = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: true,
       );
       final second = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: true,
       );
       expect(second, equals(first));
     });
@@ -450,10 +451,10 @@ void main() {
     test('two incognito sites in one launch keep cross-site uniqueness', () {
       LaunchNonce.overrideForTesting('pinned-nonce');
       final a = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: true,
       );
       final b = scriptFor(
-        siteId: 'site-B', trackingProtectionEnabled: true, incognito: true,
+        siteId: SiteId('site-B'), trackingProtectionEnabled: true, incognito: true,
       );
       expect(a, isNotNull);
       expect(b, isNot(equals(a)),
@@ -464,10 +465,10 @@ void main() {
     test('toggling incognito changes the fingerprint for the same site', () {
       LaunchNonce.overrideForTesting('pinned-nonce');
       final stable = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: false,
       );
       final ephemeral = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+        siteId: SiteId('site-A'), trackingProtectionEnabled: true, incognito: true,
       );
       expect(ephemeral, isNot(equals(stable)),
           reason: 'enabling incognito is the user opt-out from the stable '
@@ -476,14 +477,14 @@ void main() {
 
     test('letterbox flag threads through the script source (ETP-020)', () {
       final lb = buildAntiFingerprintingScriptSource(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         trackingProtectionEnabled: true,
         incognito: false,
         launchNonce: LaunchNonce.value,
         letterbox: true,
       );
       final normal = buildAntiFingerprintingScriptSource(
-        siteId: 'site-A',
+        siteId: SiteId('site-A'),
         trackingProtectionEnabled: true,
         incognito: false,
         launchNonce: LaunchNonce.value,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/material.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -9,7 +10,7 @@ import '../utils/url_utils.dart';
 class UrlBarSearchSite {
   const UrlBarSearchSite(this.id, {required this.name});
 
-  final String id;
+  final SiteId id;
   final String name;
 }
 
@@ -27,12 +28,12 @@ class UrlBar extends StatefulWidget {
   final List<UrlBarSearchSite> searchSites;
 
   /// The one a search starts with; null means the first of [searchSites].
-  final String? defaultSearchSiteId;
+  final SiteId? defaultSearchSiteId;
 
   /// Runs a search for [query] with the search site [siteId], or, when there
   /// is none, lets the host offer one. Null leaves the bar an address field:
   /// no magnifier, and typed words are an address.
-  final FutureOr<void> Function(String query, {required String? siteId})?
+  final FutureOr<void> Function(String query, {required SiteId? siteId})?
       onSearch;
 
   const UrlBar({
@@ -56,7 +57,7 @@ class _UrlBarState extends State<UrlBar> {
 
   /// The magnifier turned the field into a search box.
   bool _searchMode = false;
-  String? _searchSiteId;
+  SiteId? _searchSiteId;
 
   /// The search site picker has the focus; losing it to the menu is not the
   /// user leaving the field.
@@ -96,7 +97,7 @@ class _UrlBarState extends State<UrlBar> {
 
   bool get _canSearch => widget.onSearch != null;
 
-  String? get _defaultSiteId {
+  SiteId? get _defaultSiteId {
     final sites = widget.searchSites;
     final id = widget.defaultSearchSiteId;
     if (id != null && sites.any((s) => s.id == id)) return id;
@@ -133,7 +134,7 @@ class _UrlBarState extends State<UrlBar> {
     if (box == null || overlay == null) return;
     final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
     _picking = true;
-    final picked = await showMenu<String>(
+    final picked = await showMenu<SiteId>(
       context: context,
       position: RelativeRect.fromRect(
         topLeft & box.size,
@@ -141,7 +142,7 @@ class _UrlBarState extends State<UrlBar> {
       ),
       items: [
         for (final s in widget.searchSites)
-          CheckedPopupMenuItem<String>(
+          CheckedPopupMenuItem<SiteId>(
             value: s.id,
             checked: s.id == _searchSiteId,
             child: Text(s.name),

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,6 +6,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 
 /// The types a gateway may have. Tor is one built-in route with per-site
 /// circuits, not an endpoint to share, and DEFAULT, SAVED and GATEWAY name
@@ -16,11 +16,6 @@ const Set<ProxyType> kGatewayTypes = {
   ProxyType.HTTPS,
   ProxyType.SOCKS5,
 };
-
-String _newId() {
-  final random = Random.secure();
-  return List.generate(16, (_) => random.nextInt(16).toRadixString(16)).join();
-}
 
 String? _text(Object? v) => v is String ? v : null;
 
@@ -34,7 +29,7 @@ class SavedGateway {
     this.address,
   });
 
-  final String id;
+  final GatewayId id;
   String name;
 
   /// One of [kGatewayTypes].
@@ -50,8 +45,8 @@ class SavedGateway {
 
   static SavedGateway? fromJson(Object? json) {
     if (json is! Map) return null;
-    final id = _text(json['id']);
-    if (id == null || id.isEmpty) return null;
+    final id = GatewayId.parse(json['id']);
+    if (id == null) return null;
     final type = UserProxySettings.fromJson({'type': json['type']}).type;
     if (!kGatewayTypes.contains(type)) return null;
     return SavedGateway(
@@ -64,8 +59,6 @@ class SavedGateway {
 
   SavedGateway copy() =>
       SavedGateway(id: id, name: name, type: type, address: address);
-
-  static String newId() => _newId();
 }
 
 /// A username and password, and the saved gateways they are valid on. A site
@@ -76,18 +69,18 @@ class SavedCredentials {
     required this.name,
     this.username,
     this.password,
-    Set<String>? gatewayIds,
+    Set<GatewayId>? gatewayIds,
   }) : gatewayIds = gatewayIds ?? {};
 
-  final String id;
+  final CredentialsId id;
   String name;
   String? username;
 
   /// Hydrated from secure storage; never serialized.
   String? password;
-  Set<String> gatewayIds;
+  Set<GatewayId> gatewayIds;
 
-  bool fits(String? gatewayId) =>
+  bool fits(GatewayId? gatewayId) =>
       gatewayId != null && gatewayIds.contains(gatewayId);
 
   Map<String, dynamic> toJson() => {
@@ -103,17 +96,15 @@ class SavedCredentials {
   /// (BACKUP-011).
   static SavedCredentials? fromJson(Object? json) {
     if (json is! Map) return null;
-    final id = _text(json['id']);
-    if (id == null || id.isEmpty) return null;
+    final id = CredentialsId.parse(json['id']);
+    if (id == null) return null;
     final ids = json['gatewayIds'];
     return SavedCredentials(
       id: id,
       name: _text(json['name']) ?? '',
       username: _text(json['username']),
       gatewayIds: {
-        if (ids is List)
-          for (final g in ids)
-            if (g is String && g.isNotEmpty) g,
+        if (ids is List) ...ids.map(GatewayId.parse).nonNulls,
       },
     );
   }
@@ -125,8 +116,6 @@ class SavedCredentials {
         password: password,
         gatewayIds: {...gatewayIds},
       );
-
-  static String newId() => _newId();
 }
 
 /// A named route: a gateway (typed, or a saved one) and credentials (typed,
@@ -142,7 +131,7 @@ class SavedProxy {
 
   /// Stable, random, never shown. Sites store this, so a rename does not
   /// break them.
-  final String id;
+  final SavedProxyId id;
   String name;
 
   /// One of [kGatewayTypes] with a typed address, or [ProxyType.GATEWAY];
@@ -164,9 +153,9 @@ class SavedProxy {
   /// which fails closed. A password is never read, as for credentials.
   static SavedProxy? fromJson(Object? json) {
     if (json is! Map) return null;
-    final id = _text(json['id']);
+    final id = SavedProxyId.parse(json['id']);
     final proxy = json['proxy'];
-    if (id == null || id.isEmpty || proxy is! Map) return null;
+    if (id == null || proxy is! Map) return null;
     final settings =
         UserProxySettings.fromJson(Map<String, dynamic>.from(proxy));
     if (!validType(settings.type)) return null;
@@ -193,8 +182,6 @@ class SavedProxy {
           credentialsId: settings.credentialsId,
         ),
       );
-
-  static String newId() => _newId();
 }
 
 /// The whole library, as it is stored and edited.
@@ -214,14 +201,15 @@ class ProxyLibraryData {
   bool get isEmpty => gateways.isEmpty && credentials.isEmpty && proxies.isEmpty;
   int get length => gateways.length + credentials.length + proxies.length;
 
-  SavedGateway? gateway(String? id) =>
+  SavedGateway? gateway(GatewayId? id) =>
       _find(gateways, id: id, idOf: (g) => g.id);
-  SavedCredentials? credentialsById(String? id) =>
+  SavedCredentials? credentialsById(CredentialsId? id) =>
       _find(credentials, id: id, idOf: (c) => c.id);
-  SavedProxy? proxy(String? id) => _find(proxies, id: id, idOf: (p) => p.id);
+  SavedProxy? proxy(SavedProxyId? id) =>
+      _find(proxies, id: id, idOf: (p) => p.id);
 
-  static T? _find<T>(List<T> list,
-      {required String? id, required String Function(T) idOf}) {
+  static T? _find<T, I extends String>(List<T> list,
+      {required I? id, required I Function(T) idOf}) {
     if (id == null) return null;
     for (final e in list) {
       if (idOf(e) == id) return e;
@@ -230,7 +218,7 @@ class ProxyLibraryData {
   }
 
   /// Credentials that can sign in on [gatewayId].
-  List<SavedCredentials> credentialsFor(String? gatewayId) =>
+  List<SavedCredentials> credentialsFor(GatewayId? gatewayId) =>
       [for (final c in credentials) if (c.fits(gatewayId)) c];
 
   ProxyLibraryData copy() => ProxyLibraryData(
@@ -241,7 +229,7 @@ class ProxyLibraryData {
 
   /// Remove a gateway, and with it from every credentials entry's list.
   /// What still names it (saved proxies, sites) fails closed.
-  void removeGateway(String id) {
+  void removeGateway(GatewayId id) {
     gateways.removeWhere((g) => g.id == id);
     for (final c in credentials) {
       c.gatewayIds.remove(id);
@@ -307,9 +295,9 @@ class ProxyLibrary {
   static List<SavedCredentials> get credentials =>
       List.unmodifiable(_data.credentials);
 
-  static SavedProxy? proxy(String? id) => _data.proxy(id);
-  static SavedGateway? gateway(String? id) => _data.gateway(id);
-  static SavedCredentials? credentialsById(String? id) =>
+  static SavedProxy? proxy(SavedProxyId? id) => _data.proxy(id);
+  static SavedGateway? gateway(GatewayId? id) => _data.gateway(id);
+  static SavedCredentials? credentialsById(CredentialsId? id) =>
       _data.credentialsById(id);
 
   static ProxyPasswordSecureStorage _passwordStore =
@@ -327,11 +315,11 @@ class ProxyLibrary {
     final passwords = await _passwordStore.loadAll();
     for (final c in loaded.credentials) {
       c.password =
-          passwords[ProxyPasswordSecureStorage.savedCredentialsKey(c.id)];
+          passwords[ProxyPasswordKey.credentials(c.id)];
     }
     for (final p in loaded.proxies) {
       p.settings.password =
-          passwords[ProxyPasswordSecureStorage.savedProxyKey(p.id)];
+          passwords[ProxyPasswordKey.savedProxy(p.id)];
     }
     _data = loaded;
     await _writePasswords();
@@ -365,18 +353,17 @@ class ProxyLibrary {
   /// also collects the orphans of entries deleted before a crash.
   static Future<void> _writePasswords() async {
     await _passwordStore.mutate((draft) {
-      draft.removeWhere(
-          (key, _) => ProxyPasswordSecureStorage.isLibraryKey(key));
+      draft.removeWhere((key, _) => key.isLibrary);
       for (final c in _data.credentials) {
         final pwd = c.password;
         if (pwd != null && pwd.isNotEmpty) {
-          draft[ProxyPasswordSecureStorage.savedCredentialsKey(c.id)] = pwd;
+          draft[ProxyPasswordKey.credentials(c.id)] = pwd;
         }
       }
       for (final p in _data.proxies) {
         final pwd = p.settings.password;
         if (pwd != null && pwd.isNotEmpty) {
-          draft[ProxyPasswordSecureStorage.savedProxyKey(p.id)] = pwd;
+          draft[ProxyPasswordKey.savedProxy(p.id)] = pwd;
         }
       }
     });
@@ -491,29 +478,46 @@ LibraryResolution _resolveChoices(
 UserProxySettings resolveLibraryProxy(UserProxySettings settings) =>
     resolveLibrary(settings).route;
 
-/// Whether [settings] uses the library entry [id] of [kind], directly or
-/// through a saved proxy. What deleting that entry would block.
+/// Whether [settings] uses [entry], directly or through a saved proxy. What
+/// deleting that entry would block.
 bool usesLibraryEntry(
   UserProxySettings settings, {
-  required LibraryEntryKind kind,
-  required String id,
+  required LibraryEntry entry,
   required ProxyLibraryData lib,
 }) {
   if (settings.type == ProxyType.SAVED) {
-    if (kind == LibraryEntryKind.proxy) return settings.savedProxyId == id;
+    if (entry case ProxyEntry(:final id)) return settings.savedProxyId == id;
     final proxy = lib.proxy(settings.savedProxyId);
     return proxy != null &&
-        usesLibraryEntry(proxy.settings, kind: kind, id: id, lib: lib);
+        usesLibraryEntry(proxy.settings, entry: entry, lib: lib);
   }
-  return switch (kind) {
-    LibraryEntryKind.proxy => false,
-    LibraryEntryKind.gateway =>
+  return switch (entry) {
+    ProxyEntry() => false,
+    GatewayEntry(:final id) =>
       settings.type == ProxyType.GATEWAY && settings.gatewayId == id,
-    LibraryEntryKind.credentials =>
+    CredentialsEntry(:final id) =>
       settings.credentialsId == id &&
           (settings.type == ProxyType.GATEWAY ||
               kGatewayTypes.contains(settings.type)),
   };
 }
 
-enum LibraryEntryKind { proxy, gateway, credentials }
+/// One entry of the library, by its kind and an id of that kind.
+sealed class LibraryEntry {
+  const LibraryEntry();
+}
+
+final class ProxyEntry extends LibraryEntry {
+  const ProxyEntry(this.id);
+  final SavedProxyId id;
+}
+
+final class GatewayEntry extends LibraryEntry {
+  const GatewayEntry(this.id);
+  final GatewayId id;
+}
+
+final class CredentialsEntry extends LibraryEntry {
+  const CredentialsEntry(this.id);
+  final CredentialsId id;
+}

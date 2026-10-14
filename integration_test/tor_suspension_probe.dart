@@ -24,6 +24,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:socks5_proxy/exceptions.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -175,7 +176,7 @@ Future<bool> _waitFor(bool Function() done, {required Duration budget}) async {
 
 /// The address check.torproject.org saw a request through tor come from, or
 /// why there is none: which step failed is the first thing a red run needs.
-Future<({String? ip, String detail})> _exitAddress(String reason) async {
+Future<({String? ip, String detail})> _exitAddress(SiteId reason) async {
   final via = TorService.instance.socksFor(siteId: reason);
   if (via == null) return (ip: null, detail: 'no SOCKS route');
   final route = outboundHttp.clientFor(via);
@@ -224,8 +225,8 @@ Future<bool> _run() async {
     check(passed: false, what: 'the Tor runtime is available on this build');
     return false;
   }
-  const reason = 'suspend-probe';
-  await TorService.instance.maybeStart(const TorSiteHolder(reason));
+  final reason = SiteId('suspend-probe');
+  await TorService.instance.maybeStart(TorSiteHolder(reason));
   final up = await _waitFor(() => TorService.instance.status is TorUp,
       budget: const Duration(minutes: 4));
   check(passed: up, what: 'tor bootstrapped (${TorService.instance.status})');

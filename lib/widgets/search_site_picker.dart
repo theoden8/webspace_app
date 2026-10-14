@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/container_mark.dart';
@@ -10,7 +11,7 @@ import 'package:webspace/widgets/container_mark.dart';
 /// A search site as a picker lists it: two sites can share a name, never an
 /// id. [containerColor] is null on the legacy engine.
 typedef PickableSearchSite = ({
-  String siteId,
+  SiteId siteId,
   String name,
   int? containerColor,
 });
@@ -19,10 +20,14 @@ typedef PickableSearchSite = ({
 /// of [names] is the same, so "DuckDuckGo, DuckDuckGo" never stands for two
 /// sites. Data, not copy (LOC-002).
 String searchSiteSummaryName(String name,
-        {required String siteId, required Iterable<String> names}) =>
+        {required SiteId siteId, required Iterable<String> names}) =>
     names.where((n) => n == name).length > 1 ? '$name ($siteId)' : name;
 
-/// Pops the picked siteId, or `''` for [noneLabel]'s entry.
+/// What [SearchSiteChoiceDialog] pops: [site] is null for its `noneLabel`
+/// entry. A dismissed dialog pops nothing.
+typedef SearchSitePick = ({SiteId? site});
+
+/// Pops a [SearchSitePick].
 class SearchSiteChoiceDialog extends StatelessWidget {
   const SearchSiteChoiceDialog({
     super.key,
@@ -37,8 +42,8 @@ class SearchSiteChoiceDialog extends StatelessWidget {
   final String title;
   final List<PickableSearchSite> sites;
 
-  /// The siteId picked now, `''` for [noneLabel]'s entry.
-  final String selected;
+  /// The site picked now, null for [noneLabel]'s entry.
+  final SiteId? selected;
 
   /// A first entry that names no site, such as "App default".
   final String? noneLabel;
@@ -61,16 +66,17 @@ class SearchSiteChoiceDialog extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.xl),
                 child: Text(empty),
               )
-            : RadioGroup<String>(
+            : RadioGroup<SiteId?>(
                 groupValue: selected,
-                onChanged: (v) => Navigator.pop(context, v),
+                onChanged: (v) =>
+                    Navigator.pop<SearchSitePick>(context, (site: v)),
                 child: ListView(
                   shrinkWrap: true,
                   children: [
                     if (none != null)
-                      RadioListTile<String>(value: '', title: Text(none)),
+                      RadioListTile<SiteId?>(value: null, title: Text(none)),
                     for (final site in sites)
-                      RadioListTile<String>(
+                      RadioListTile<SiteId?>(
                         value: site.siteId,
                         title: Text(site.name),
                         subtitle: SiteIdLine(

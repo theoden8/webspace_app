@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -74,10 +75,10 @@ final registry = parseUboAssetRegistry(jsonEncode({
   },
 }));
 
-const existing = [
-  ExistingFilterList('easylist',
+final existing = [
+  ExistingFilterList(FilterListId('easylist'),
       url: 'https://easylist.to/easylist/easylist.txt'),
-  ExistingFilterList('easyprivacy',
+  ExistingFilterList(FilterListId('easyprivacy'),
       url: 'https://easylist.to/easylist/easyprivacy.txt'),
 ];
 
@@ -184,7 +185,7 @@ void main() {
       service.store = MemoryFileStore();
       service.setLists([
         FilterList(
-            id: 'easylist',
+            id: FilterListId('easylist'),
             name: 'EasyList',
             url: 'https://easylist.to/easylist/easylist.txt'),
       ]);

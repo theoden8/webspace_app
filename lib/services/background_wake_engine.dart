@@ -1,4 +1,5 @@
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// The process-wide route a site needs (NOTIF-016): Android's proxy override
 /// outside router mode, and Tor's exit country, one setting of the runtime on
@@ -8,7 +9,7 @@ typedef WakeRoute = ({ProxyRouteKey? proxy, String? torExit});
 
 /// One notification site as the background wake sees it.
 class WakeSite {
-  final String siteId;
+  final SiteId siteId;
   final String name;
 
   const WakeSite({required this.siteId, required this.name});
@@ -79,7 +80,7 @@ class WakePlan {
 
   /// The site whose process-wide route the wake applies before any headless
   /// load, or null when the route in force already serves every check.
-  final String? routeOwner;
+  final SiteId? routeOwner;
 
   const WakePlan(this.entries, {this.routeOwner});
 }
@@ -90,32 +91,32 @@ abstract class BackgroundWakeHost {
   /// ([BackgroundWakeEngine.plan]); the host only reports.
   List<WakeCandidate> wakeCandidates();
 
-  Future<void> reload(String siteId);
+  Future<void> reload(SiteId siteId);
 
   /// Points the process-wide route (Android's proxy override, Tor's exit
   /// country) at [siteId]'s. False when it could not be applied, in which
   /// case no headless check may start.
-  Future<bool> applyRoute(String siteId);
+  Future<bool> applyRoute(SiteId siteId);
 
   /// Puts back the route the loaded sites need, after [applyRoute].
   Future<void> releaseRoute();
 
   /// Opens [siteId] in a headless webview and starts its load. Null when it
   /// is loading, otherwise why it is not.
-  Future<WakeSkip?> openHeadless(String siteId);
+  Future<WakeSkip?> openHeadless(SiteId siteId);
 
-  Future<void> closeHeadless(String siteId);
+  Future<void> closeHeadless(SiteId siteId);
 
   /// Null once the site's webview, live or headless, is gone.
-  bool? isLoading(String siteId);
+  bool? isLoading(SiteId siteId);
 
-  Future<String?> title(String siteId);
+  Future<String?> title(SiteId siteId);
 
   /// Whether the site's own page posted a notification at or after [since].
-  bool postedSince(String siteId, {required DateTime since});
+  bool postedSince(SiteId siteId, {required DateTime since});
 
   Future<void> post({
-    required String siteId,
+    required SiteId siteId,
     required String siteName,
     required String body,
   });
@@ -273,11 +274,11 @@ class BackgroundWakeEngine {
 
   final Duration poll;
 
-  final Map<String, int> _baselines = {};
+  final Map<SiteId, int> _baselines = {};
 
   /// Record what the user could see. Called when the app leaves the screen,
   /// and after every wake so one rise posts once.
-  void noteBaseline(String siteId, {required String? title}) {
+  void noteBaseline(SiteId siteId, {required String? title}) {
     final count = unreadCountFromTitle(title);
     if (count == null) {
       _baselines.remove(siteId);
@@ -286,21 +287,21 @@ class BackgroundWakeEngine {
     }
   }
 
-  int? baseline(String siteId) => _baselines[siteId];
+  int? baseline(SiteId siteId) => _baselines[siteId];
 
-  void forget(Set<String> liveSiteIds) =>
+  void forget(Set<SiteId> liveSiteIds) =>
       _baselines.removeWhere((id, _) => !liveSiteIds.contains(id));
 
   /// The baselines of [siteIds], for a store that keeps them past the
   /// process.
-  Map<String, int> baselinesOf(Set<String> siteIds) => {
+  Map<SiteId, int> baselinesOf(Set<SiteId> siteIds) => {
         for (final e in _baselines.entries)
           if (siteIds.contains(e.key)) e.key: e.value,
       };
 
   /// Restores what a store kept. A baseline already taken in this process is
   /// newer and wins.
-  void restoreBaselines(Map<String, int> kept) {
+  void restoreBaselines(Map<SiteId, int> kept) {
     for (final e in kept.entries) {
       _baselines.putIfAbsent(e.key, () => e.value);
     }
@@ -318,7 +319,7 @@ class BackgroundWakeEngine {
         break;
       }
     }
-    String? routeOwner;
+    SiteId? routeOwner;
     if (routeInForce == null) {
       for (final c in sites) {
         if (c.headlessBlocked == null && c.route != null) {
@@ -356,10 +357,10 @@ class BackgroundWakeEngine {
     final routeApplied =
         routeOwner == null ? true : await host.applyRoute(routeOwner);
 
-    final skipped = <String, WakeSkip>{};
+    final skipped = <SiteId, WakeSkip>{};
     final checked = <WakePlanEntry>[];
-    final issuedAt = <String, DateTime>{};
-    final opened = <String>[];
+    final issuedAt = <SiteId, DateTime>{};
+    final opened = <SiteId>[];
     try {
       for (final e in plan.entries) {
         final id = e.site.siteId;
@@ -432,19 +433,19 @@ class BackgroundWakeEngine {
   /// A load is settled once it has been seen to start and then stop, or once
   /// it never started within a second of being issued (a reload the engine
   /// refused, or one that finished before the first poll).
-  Future<Map<String, WakeSettle>> _awaitSettled(
+  Future<Map<SiteId, WakeSettle>> _awaitSettled(
     BackgroundWakeHost host, {
     required List<WakePlanEntry> sites,
     required DateTime started,
-    required Map<String, DateTime> issuedAt,
+    required Map<SiteId, DateTime> issuedAt,
   }) async {
-    final seenLoading = <String>{};
-    final settledAt = <String, Duration>{};
+    final seenLoading = <SiteId>{};
+    final settledAt = <SiteId, Duration>{};
     final deadline = started.add(settleDeadline);
     while (true) {
       var pending = false;
       final now = host.now();
-      final state = <String, WakeSettle>{};
+      final state = <SiteId, WakeSettle>{};
       for (final s in sites) {
         final id = s.site.siteId;
         final loading = host.isLoading(id);

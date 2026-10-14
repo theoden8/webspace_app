@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
@@ -48,9 +49,9 @@ class DialogShortcutPrompts implements ShortcutPrompts {
   );
 
   @override
-  Future<String?> pickSite(List<WebViewModel> candidates) {
+  Future<SiteId?> pickSite(List<WebViewModel> candidates) {
     final loc = _loc;
-    return showDialog<String>(
+    return showDialog<SiteId>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(loc.homeShortcutPickTitle),

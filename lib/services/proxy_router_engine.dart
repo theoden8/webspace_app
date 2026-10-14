@@ -1,8 +1,32 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:webspace/settings/site_ids.dart';
+
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/proxy.dart';
+
+/// What a site presents to the relay: its own id when it owns a container
+/// profile, else the one identity every site without one shares, since they
+/// share one cached credential (PROXY-013). Keys the route table and the
+/// tokens; it is a [String] on the wire.
+extension type const RouterIdentity._(String raw) implements String {
+  RouterIdentity.ofSite(SiteId site) : raw = site;
+
+  /// The identity of every site without a container profile of its own.
+  static const shared = RouterIdentity._('__ws_shared_profile__');
+
+  /// One read back off the wire; null for anything that is neither.
+  static RouterIdentity? parse(Object? raw) => raw == shared
+      ? shared
+      : switch (SiteId.parse(raw)) {
+          final site? => RouterIdentity.ofSite(site),
+          null => null,
+        };
+
+  /// The site this identity is, or null for the shared profile.
+  SiteId? get site => this == shared ? null : SiteId(raw);
+}
 
 /// Pure-Dart policy for the Android per-site proxy router (PROXY-013).
 ///
@@ -55,14 +79,14 @@ class ProxyRouterEngine {
   /// every site. The eviction that keeps that unambiguous is
   /// `SiteUnloadEngine.indicesToUnloadForProxyMismatch`, which still
   /// serialises this group under router mode.
-  static const String sharedProfileIdentity = '__ws_shared_profile__';
+  static const RouterIdentity sharedProfileIdentity = RouterIdentity.shared;
 
   /// The identity [siteId] presents to the relay.
-  static String identityFor({
-    required String siteId,
+  static RouterIdentity identityFor({
+    required SiteId siteId,
     required bool ownsContainer,
   }) =>
-      ownsContainer ? siteId : sharedProfileIdentity;
+      ownsContainer ? RouterIdentity.ofSite(siteId) : sharedProfileIdentity;
 
   /// Suffix of the attribution self-test hostnames (PROXY-015). Mirrors
   /// `ProxyRelay.PROBE_SUFFIX`. `.invalid` is RFC 2606 reserved, so a
@@ -116,10 +140,10 @@ class ProxyRouterEngine {
   /// The relay compares this blob and never decodes it, so this is the
   /// single place the credential's shape is defined.
   static String credentialFor({
-    required String siteId,
+    required RouterIdentity identity,
     required String token,
   }) =>
-      base64.encode(utf8.encode('$usernamePrefix$siteId:$token'));
+      base64.encode(utf8.encode('$usernamePrefix$identity:$token'));
 
   /// Whether an `onReceivedHttpAuthRequest` challenge is the relay's.
   ///
@@ -153,17 +177,17 @@ class ProxyRouterEngine {
   /// no entry cannot reach the network at all, which is the fail-closed
   /// direction.
   static Map<String, ProxyRoute> buildRoutes({
-    required Map<String, UserProxySettings> perSiteProxies,
-    required Map<String, String> tokens,
+    required Map<RouterIdentity, UserProxySettings> perSiteProxies,
+    required Map<RouterIdentity, String> tokens,
   }) {
     final routes = <String, ProxyRoute>{};
     for (final entry in perSiteProxies.entries) {
-      final siteId = entry.key;
-      final token = tokens[siteId];
+      final identity = entry.key;
+      final token = tokens[identity];
       if (token == null) continue;
-      routes[credentialFor(siteId: siteId, token: token)] = ProxyRoute(
-        siteId: siteId,
-        upstream: resolveEffectiveProxy(entry.value, siteId: siteId),
+      routes[credentialFor(identity: identity, token: token)] = ProxyRoute(
+        identity: identity,
+        upstream: resolveEffectiveProxy(entry.value, siteId: identity.site),
       );
     }
     return routes;
@@ -182,13 +206,15 @@ class ProxyRouterEngine {
   /// When no shared-profile site is in play the identity gets no entry at
   /// all, so the relay answers 502 rather than sending the next such site
   /// out through a stale upstream.
-  static Map<String, UserProxySettings> routeTable({
+  static Map<RouterIdentity, UserProxySettings> routeTable({
     required List<RouterSite> sites,
     List<int> sharedProfilePriority = const [],
   }) {
-    final table = <String, UserProxySettings>{};
+    final table = <RouterIdentity, UserProxySettings>{};
     for (final site in sites) {
-      if (site.ownsContainer) table[site.siteId] = site.proxy;
+      if (site.ownsContainer) {
+        table[RouterIdentity.ofSite(site.siteId)] = site.proxy;
+      }
     }
     for (final i in sharedProfilePriority) {
       if (i < 0 || i >= sites.length) continue;
@@ -220,7 +246,7 @@ class ProxyRouterEngine {
     final proxy = route.upstream;
     if (proxy.type == ProxyType.DEFAULT) {
       return {
-        'siteId': route.siteId,
+        'siteId': route.identity,
         'type': 'direct',
         'host': '',
         'port': 0,
@@ -235,8 +261,9 @@ class ProxyRouterEngine {
     // than send the site anywhere else (TOR-008).
     if (proxy.type == ProxyType.TOR) {
       return switch (expandTorProxy(proxy)) {
-        TorRouteUp(:final socks) =>
-          _encodeUpstream(ProxyRoute(siteId: route.siteId, upstream: socks)),
+        TorRouteUp(:final socks) => _encodeUpstream(
+          ProxyRoute(identity: route.identity, upstream: socks),
+        ),
         TorRouteBlocked() => null,
       };
     }
@@ -252,7 +279,7 @@ class ProxyRouterEngine {
     final host = parsed.host;
     final port = parsed.port;
     return {
-      'siteId': route.siteId,
+      'siteId': route.identity,
       'type': switch (proxy.type) {
         ProxyType.HTTPS => 'https',
         ProxyType.SOCKS5 => 'socks5',
@@ -268,10 +295,10 @@ class ProxyRouterEngine {
 
 /// One site's resolved upstream, keyed in the relay by its credential.
 class ProxyRoute {
-  final String siteId;
+  final RouterIdentity identity;
   final UserProxySettings upstream;
 
-  const ProxyRoute({required this.siteId, required this.upstream});
+  const ProxyRoute({required this.identity, required this.upstream});
 }
 
 /// In-memory token registry for one app run.
@@ -281,21 +308,22 @@ class ProxyRoute {
 /// so a leaked token from a previous run admits its bearer to nothing.
 class ProxyRouterState {
   final String realm;
-  final Map<String, String> _tokens = {};
+  final Map<RouterIdentity, String> _tokens = {};
   final Random? _rng;
 
   ProxyRouterState({String? realm, Random? rng})
       : realm = realm ?? ProxyRouterEngine.mintNonce(rng: rng),
         _rng = rng;
 
-  Map<String, String> get tokens => Map.unmodifiable(_tokens);
+  Map<RouterIdentity, String> get tokens => Map.unmodifiable(_tokens);
 
-  String tokenFor(String siteId) =>
-      _tokens.putIfAbsent(siteId, () => ProxyRouterEngine.mintNonce(rng: _rng));
+  String tokenFor(RouterIdentity identity) => _tokens.putIfAbsent(
+      identity, () => ProxyRouterEngine.mintNonce(rng: _rng));
 
-  String credentialFor(String siteId) => ProxyRouterEngine.credentialFor(
-        siteId: siteId,
-        token: tokenFor(siteId),
+  String credentialFor(RouterIdentity identity) =>
+      ProxyRouterEngine.credentialFor(
+        identity: identity,
+        token: tokenFor(identity),
       );
 
   /// Drop tokens for sites that no longer exist, so a deleted site's
@@ -308,16 +336,16 @@ class ProxyRouterState {
   /// draw a 502, which is a response rather than a challenge, so nothing
   /// would ask the app to authenticate again. One token per run, whose
   /// route comes and goes.
-  void retainOnly(Iterable<String> siteIds) {
-    final keep = siteIds.toSet()
+  void retainOnly(Iterable<RouterIdentity> identities) {
+    final keep = identities.toSet()
       ..add(ProxyRouterEngine.sharedProfileIdentity);
-    _tokens.removeWhere((siteId, _) => !keep.contains(siteId));
+    _tokens.removeWhere((identity, _) => !keep.contains(identity));
   }
 }
 
 /// One site as the router's route table sees it.
 class RouterSite {
-  final String siteId;
+  final SiteId siteId;
   final UserProxySettings proxy;
 
   /// Whether the site is bound to a container profile of its own, and so

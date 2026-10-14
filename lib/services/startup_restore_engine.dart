@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/web_view_model.dart';
 
@@ -28,7 +29,7 @@ class LaunchOpenSite extends LaunchResolution {
 /// remembers `shortcutSiteId -> that site` so the next tap resolves directly.
 class LaunchConfirmExisting extends LaunchResolution {
   final int index;
-  final String shortcutSiteId;
+  final SiteId shortcutSiteId;
   const LaunchConfirmExisting({
     required this.index,
     required this.shortcutSiteId,
@@ -40,7 +41,7 @@ class LaunchConfirmExisting extends LaunchResolution {
 /// remembers `shortcutSiteId -> new site`.
 class LaunchOfferCreate extends LaunchResolution {
   final String url;
-  final String shortcutSiteId;
+  final SiteId shortcutSiteId;
   const LaunchOfferCreate({
     required this.url,
     required this.shortcutSiteId,
@@ -53,7 +54,7 @@ class LaunchOfferCreate extends LaunchResolution {
 /// reading "no longer available". Caller offers to reroute the handle to an
 /// existing site; on confirm, remembers `shortcutSiteId -> chosen site`.
 class LaunchOfferReroute extends LaunchResolution {
-  final String shortcutSiteId;
+  final SiteId shortcutSiteId;
   const LaunchOfferReroute({required this.shortcutSiteId});
 }
 
@@ -75,10 +76,10 @@ class StartupRestoreEngine {
   /// Falls back to [LaunchNone] when there's no intent, or the siteId is
   /// gone with no url and no sites to reroute to.
   static LaunchResolution resolveLaunch({
-    required String? shortcutSiteId,
+    required SiteId? shortcutSiteId,
     required String? shortcutUrl,
     required List<WebViewModel> models,
-    required Map<String, String> rememberedRemap,
+    required Map<SiteId, SiteId> rememberedRemap,
   }) {
     if (shortcutSiteId == null) return const LaunchNone();
 
@@ -162,12 +163,12 @@ class ShortcutUrlLedger {
   /// (the site is gone and no launcher tile points at it) and is pruned.
   ///
   /// Caller compares against the input and persists only when it changed.
-  static Map<String, String> reconcile({
-    required Map<String, String> ledger,
-    required Map<String, String> currentSiteUrls,
-    required Set<String> pinnedSiteIds,
+  static Map<SiteId, String> reconcile({
+    required Map<SiteId, String> ledger,
+    required Map<SiteId, String> currentSiteUrls,
+    required Set<SiteId> pinnedSiteIds,
   }) {
-    final next = Map<String, String>.from(ledger);
+    final next = Map<SiteId, String>.of(ledger);
     for (final id in pinnedSiteIds) {
       final url = currentSiteUrls[id];
       if (url != null && url.isNotEmpty) next[id] = url;
@@ -185,11 +186,11 @@ class ShortcutPinState {
   /// tiles themselves, plus any site a pinned tile has been rebound to via the
   /// HS-011 remap. Without folding in remap targets, a site an orphaned tile
   /// now routes to would still offer to create a second, redundant tile.
-  static Set<String> effectivePinnedSiteIds({
-    required Set<String> pinnedSiteIds,
-    required Map<String, String> rememberedRemap,
+  static Set<SiteId> effectivePinnedSiteIds({
+    required Set<SiteId> pinnedSiteIds,
+    required Map<SiteId, SiteId> rememberedRemap,
   }) {
-    final result = Set<String>.from(pinnedSiteIds);
+    final result = Set<SiteId>.of(pinnedSiteIds);
     for (final pinned in pinnedSiteIds) {
       final target = rememberedRemap[pinned];
       if (target != null) result.add(target);
@@ -202,10 +203,10 @@ class ShortcutPinState {
   /// siteId`). Used by the delete-time prompt (HS-013) so deleting a site an
   /// orphaned tile was rebound to still prompts about that tile, not just the
   /// site that was originally pinned.
-  static Set<String> tilesReaching({
-    required String siteId,
-    required Set<String> pinnedSiteIds,
-    required Map<String, String> rememberedRemap,
+  static Set<SiteId> tilesReaching({
+    required SiteId siteId,
+    required Set<SiteId> pinnedSiteIds,
+    required Map<SiteId, SiteId> rememberedRemap,
   }) {
     return {
       for (final tile in pinnedSiteIds)
@@ -217,12 +218,12 @@ class ShortcutPinState {
   /// [StartupRestoreEngine.resolveLaunch] applies. A tile that opens no site
   /// is left out, as is one opening an archive-tier site, whose name and
   /// icon never reach an OS surface (ARCH-006).
-  static Map<String, WebViewModel> sitesOfTiles({
-    required Set<String> pinnedSiteIds,
-    required Map<String, String> rememberedRemap,
+  static Map<SiteId, WebViewModel> sitesOfTiles({
+    required Set<SiteId> pinnedSiteIds,
+    required Map<SiteId, SiteId> rememberedRemap,
     required List<WebViewModel> models,
   }) {
-    final result = <String, WebViewModel>{};
+    final result = <SiteId, WebViewModel>{};
     for (final tile in pinnedSiteIds) {
       final opens = StartupRestoreEngine.resolveLaunch(
         shortcutSiteId: tile,
@@ -241,12 +242,12 @@ class ShortcutPinState {
   /// they were last given, and what every tile shows once those are
   /// rewritten. A wanted face with no icon leaves the tile's icon as it is,
   /// so an icon not known yet never replaces the one a tile has.
-  static ({List<TileUpdate> updates, Map<String, TileFace> shown}) staleTiles({
-    required Map<String, TileFace> want,
-    required Map<String, TileFace> shown,
+  static ({List<TileUpdate> updates, Map<SiteId, TileFace> shown}) staleTiles({
+    required Map<SiteId, TileFace> want,
+    required Map<SiteId, TileFace> shown,
   }) {
     final updates = <TileUpdate>[];
-    final next = Map<String, TileFace>.of(shown);
+    final next = Map<SiteId, TileFace>.of(shown);
     for (final MapEntry(key: tile, value: face) in want.entries) {
       final last = shown[tile];
       final icon = face.icon;
@@ -272,7 +273,10 @@ class ShortcutPinState {
 typedef TileFace = ({String label, Uint8List? icon});
 
 /// A pinned tile to rewrite; a null [icon] leaves the tile's icon as it is.
-typedef TileUpdate = ({String tile, String label, Uint8List? icon});
+typedef TileUpdate = ({SiteId tile, String label, Uint8List? icon});
+
+/// A deleted site a Shortcuts tile may still be bound to (HS-011).
+typedef ShortcutTombstone = ({SiteId siteId, String label, String url});
 
 /// iOS-only tombstone list backing HS-011 parity. iOS can't enumerate
 /// home-screen Shortcut tiles, so when a site is deleted we keep a small
@@ -283,19 +287,17 @@ typedef TileUpdate = ({String tile, String label, Uint8List? icon});
 /// outlive any number of deletes and iOS gives no pin introspection to GC
 /// against, the list is bounded by a cap (oldest evicted).
 class ShortcutTombstones {
-  /// Append [entry] (`{siteId, label, url}`), de-duped by siteId and moved to
-  /// the most-recent end, capping the list at [cap] (oldest dropped). Returns
-  /// the new list; the caller persists it.
-  static List<Map<String, String>> add({
-    required List<Map<String, String>> tombstones,
-    required Map<String, String> entry,
+  /// Append [entry], de-duped by siteId and moved to the most-recent end,
+  /// capping the list at [cap] (oldest dropped). Returns the new list; the
+  /// caller persists it.
+  static List<ShortcutTombstone> add({
+    required List<ShortcutTombstone> tombstones,
+    required ShortcutTombstone entry,
     int cap = 64,
   }) {
-    final id = entry['siteId'];
-    if (id == null || id.isEmpty) return tombstones;
-    final next = <Map<String, String>>[
+    final next = [
       for (final t in tombstones)
-        if (t['siteId'] != id) t,
+        if (t.siteId != entry.siteId) t,
       entry,
     ];
     if (next.length > cap) return next.sublist(next.length - cap);
@@ -304,13 +306,13 @@ class ShortcutTombstones {
 
   /// Drop tombstones whose siteId is now a live site (defensive: ids are
   /// unique per create, so this only fires if a backup reintroduces one).
-  static List<Map<String, String>> pruneLive(
-    List<Map<String, String>> tombstones, {
-    required Set<String> liveSiteIds,
+  static List<ShortcutTombstone> pruneLive(
+    List<ShortcutTombstone> tombstones, {
+    required Set<SiteId> liveSiteIds,
   }) {
     return [
       for (final t in tombstones)
-        if (!liveSiteIds.contains(t['siteId'])) t,
+        if (!liveSiteIds.contains(t.siteId)) t,
     ];
   }
 }

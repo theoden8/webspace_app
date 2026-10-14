@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -78,7 +79,7 @@ void main() {
 
   test('an archive with no room left stays open and unchanged', () async {
     final h = _Harness();
-    final site = _tree('big', active: 'c');
+    final site = _tree(SiteId('big'), active: TabId('c'));
     h.load([site]);
     await h.archives.moveIn(site);
     await h.archives.closeArchiveOf(site);
@@ -105,7 +106,7 @@ void main() {
 
   test('closing every archive reports the one left open', () async {
     final h = _Harness();
-    final site = _tree('big', active: 'c');
+    final site = _tree(SiteId('big'), active: TabId('c'));
     h.load([site]);
     await h.archives.moveIn(site);
     site.tabs = [...site.tabs, ..._filler()];
@@ -117,8 +118,8 @@ void main() {
 
   test('a site that does not fit an archive stays where it is', () async {
     final h = _Harness();
-    final small = _tree('small', active: 'c');
-    final big = _tree('big', active: 'c')
+    final small = _tree(SiteId('small'), active: TabId('c'));
+    final big = _tree(SiteId('big'), active: TabId('c'))
       ..cookies = [Cookie(name: 'sid', value: 'kept', domain: 'big.test')];
     big.tabs = [...big.tabs, ..._filler()];
     h.load([small, big]);
@@ -129,7 +130,7 @@ void main() {
 
     expect(h.toasts.last(en), en.homeArchiveFull);
     expect(big.isArchiveTier, isFalse);
-    expect(big.archiveContainerId, isNull);
+    expect(big.archiveContainerKey, isNull);
     expect(big.cookies.single.value, 'kept');
     expect(_shape(big), before);
     expect(h.archives.archiveOf(big), isNull);
@@ -145,32 +146,32 @@ const _passphrase = 'correct horse';
 /// incognito (each with a tree, and alone on a page away from home), kiosk
 /// and tabs off. Every tree has its active tab past the first.
 List<WebViewModel> _everyKind() => [
-      _tree('plain', active: 'c'),
-      _tree('home', active: 'c')..alwaysOpenHome = true,
-      _away('home-one')..alwaysOpenHome = true,
-      _tree('private', active: 'c')..incognito = true,
-      _away('private-one')..incognito = true,
-      _tree('kiosk', active: 'b')..kioskMode = true,
-      _tree('no-tabs', active: 'b')..tabsEnabled = false,
+      _tree(SiteId('plain'), active: TabId('c')),
+      _tree(SiteId('home'), active: TabId('c'))..alwaysOpenHome = true,
+      _away(SiteId('home-one'))..alwaysOpenHome = true,
+      _tree(SiteId('private'), active: TabId('c'))..incognito = true,
+      _away(SiteId('private-one'))..incognito = true,
+      _tree(SiteId('kiosk'), active: TabId('b'))..kioskMode = true,
+      _tree(SiteId('no-tabs'), active: TabId('b'))..tabsEnabled = false,
     ];
 
-WebViewModel _tree(String id, {required String active}) {
+WebViewModel _tree(SiteId id, {required TabId active}) {
   final at = DateTime.fromMillisecondsSinceEpoch(1700000000000);
   return WebViewModel(
     siteId: id,
     initUrl: 'https://$id.test/',
     tabs: [
       SiteTab(
-          id: 'a', url: 'https://$id.test/a', title: 'A',
+          id: TabId('a'), url: 'https://$id.test/a', title: 'A',
           createdAt: at, lastActiveAt: at),
       SiteTab(
-          id: 'b', url: 'https://$id.test/a/1', parentId: 'a',
+          id: TabId('b'), url: 'https://$id.test/a/1', parentId: TabId('a'),
           createdAt: at, lastActiveAt: at),
       SiteTab(
-          id: 'c', url: 'https://$id.test/a/1/x', title: 'X', parentId: 'b',
+          id: TabId('c'), url: 'https://$id.test/a/1/x', title: 'X', parentId: TabId('b'),
           createdAt: at, lastActiveAt: at),
       SiteTab(
-          id: 'd', url: 'https://$id.test/b', homeUrl: 'https://$id.test/',
+          id: TabId('d'), url: 'https://$id.test/b', homeUrl: 'https://$id.test/',
           createdAt: at, lastActiveAt: at),
     ],
     activeTabId: active,
@@ -178,7 +179,7 @@ WebViewModel _tree(String id, {required String active}) {
 }
 
 /// One tab, on a page other than home.
-WebViewModel _away(String id) =>
+WebViewModel _away(SiteId id) =>
     WebViewModel(siteId: id, initUrl: 'https://$id.test/')
       ..currentUrl = 'https://$id.test/deep/page'
       ..pageTitle = 'Deep page';
@@ -187,7 +188,7 @@ WebViewModel _away(String id) =>
 List<SiteTab> _filler() => [
       for (var i = 0; i < 600; i++)
         SiteTab(
-          id: 'f$i',
+          id: TabId('f$i'),
           url: 'https://big.test/${'x' * 200}/$i',
           title: 'Filler $i',
         ),

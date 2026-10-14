@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
@@ -49,7 +50,7 @@ Future<_Form> _pump(
     supportedLocales: AppLocalizations.supportedLocales,
     home: SiteNetworkScreen(
       host: 'example.com',
-      siteId: 'site-1',
+      siteId: SiteId('site-1'),
       values: values,
       onChanged: onChanged ?? (_) {},
       proxyAddressController: form.address,
@@ -310,9 +311,9 @@ void main() {
           HttpAuthSecureStorage(secureStorage: MockFlutterSecureStorage());
       const c = HttpAuthCredential(username: 'alice', password: 's3cret');
       await tester.runAsync(() async {
-        await store.save('site-1',
+        await store.save(SiteId('site-1'),
             host: Host('nas.example.com'), realm: 'Files', credential: c);
-        await store.save('site-1',
+        await store.save(SiteId('site-1'),
             host: Host('nas.example.com'), realm: 'Admin', credential: c);
       });
 
@@ -320,7 +321,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: SavedSignInsTile(siteId: 'site-1', storage: store),
+          body: SavedSignInsTile(siteId: SiteId('site-1'), storage: store),
         ),
       ));
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
@@ -333,7 +334,7 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       expect(find.text('None'), findsOneWidget);
-      expect(await tester.runAsync(() => store.countForSite('site-1')), 0);
+      expect(await tester.runAsync(() => store.countForSite(SiteId('site-1'))), 0);
     });
   });
 }

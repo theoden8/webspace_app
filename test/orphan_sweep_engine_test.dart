@@ -10,6 +10,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
 
 class _FakeTargets implements OrphanSweepTargets {
@@ -28,8 +29,8 @@ class _FakeTargets implements OrphanSweepTargets {
 }
 
 void main() {
-  const active = {'a', 'b', 'incog'};
-  const nonIncognito = {'a', 'b'};
+  final active = {SiteId('a'), SiteId('b'), SiteId('incog')};
+  final nonIncognito = {SiteId('a'), SiteId('b')};
 
   Future<_FakeTargets> sweep({
     required bool useContainers,

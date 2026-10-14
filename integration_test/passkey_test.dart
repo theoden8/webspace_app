@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
 import 'package:webspace/services/webview.dart';
@@ -142,7 +143,7 @@ Future<Map<String, dynamic>> ceremony(WidgetTester tester,
   fail('$kind for $name never finished');
 }
 
-WebViewConfig config(String siteId, {required PasskeyBackend backend}) =>
+WebViewConfig config(SiteId siteId, {required PasskeyBackend backend}) =>
     WebViewConfig(
       hooks: bareHooks(),
       key: ValueKey('passkey-$siteId'),
@@ -199,7 +200,7 @@ WebViewConfig config(String siteId, {required PasskeyBackend backend}) =>
       await tester.pumpWidget(host([
         (
           config:
-              config('passkey-a', backend: PasskeyBackend.credentialManager),
+              config(SiteId('passkey-a'), backend: PasskeyBackend.credentialManager),
           onController: (x) => c = x
         ),
       ]));
@@ -238,12 +239,12 @@ WebViewConfig config(String siteId, {required PasskeyBackend backend}) =>
       await tester.pumpWidget(host([
         (
           config:
-              config('passkey-tab1', backend: PasskeyBackend.credentialManager),
+              config(SiteId('passkey-tab1'), backend: PasskeyBackend.credentialManager),
           onController: (x) => a = x
         ),
         (
           config:
-              config('passkey-tab2', backend: PasskeyBackend.credentialManager),
+              config(SiteId('passkey-tab2'), backend: PasskeyBackend.credentialManager),
           onController: (x) => b = x
         ),
       ]));
@@ -269,7 +270,7 @@ WebViewConfig config(String siteId, {required PasskeyBackend backend}) =>
       WebViewController? c;
       await tester.pumpWidget(host([
         (
-          config: config('passkey-refused',
+          config: config(SiteId('passkey-refused'),
               backend: PasskeyBackend.credentialManager),
           onController: (x) => c = x
         ),
@@ -300,7 +301,7 @@ WebViewConfig config(String siteId, {required PasskeyBackend backend}) =>
       WebViewController? c;
       await tester.pumpWidget(host([
         (
-          config: config('passkey-webview', backend: PasskeyBackend.webView),
+          config: config(SiteId('passkey-webview'), backend: PasskeyBackend.webView),
           onController: (x) => c = x
         ),
       ]));

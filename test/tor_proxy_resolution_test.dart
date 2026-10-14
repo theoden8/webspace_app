@@ -4,6 +4,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -39,7 +40,7 @@ void main() {
 
   group('isolation tag selection', () {
     test('an explicit per-site TOR is tagged with the siteId', () {
-      final resolved = resolveEffectiveProxy(_tor(), siteId: 'site-a');
+      final resolved = resolveEffectiveProxy(_tor(), siteId: SiteId('site-a'));
       expect(resolved.type, ProxyType.TOR);
       expect(resolved.username, 'site-a');
 
@@ -53,7 +54,7 @@ void main() {
       // own; handing it one would give every uncustomized site its own exit.
       final resolved = resolveEffectiveProxy(
         UserProxySettings(type: ProxyType.DEFAULT),
-        siteId: 'site-a',
+        siteId: SiteId('site-a'),
       );
       expect(resolved.username, kTorAppGlobalTag);
       expect(resolved.username, isNot('site-a'));
@@ -61,7 +62,7 @@ void main() {
 
     test('an explicit per-site TOR beats an inherited global TOR', () {
       GlobalOutboundProxy.setForTest(_tor());
-      final resolved = resolveEffectiveProxy(_tor(), siteId: 'site-a');
+      final resolved = resolveEffectiveProxy(_tor(), siteId: SiteId('site-a'));
       expect(resolved.username, 'site-a');
     });
 
@@ -75,8 +76,8 @@ void main() {
     });
 
     test('two sites never share an isolation tag', () {
-      final a = _socks(expandTorProxy(resolveEffectiveProxy(_tor(), siteId: 'a1')));
-      final b = _socks(expandTorProxy(resolveEffectiveProxy(_tor(), siteId: 'b2')));
+      final a = _socks(expandTorProxy(resolveEffectiveProxy(_tor(), siteId: SiteId('a1'))));
+      final b = _socks(expandTorProxy(resolveEffectiveProxy(_tor(), siteId: SiteId('b2'))));
       expect(a.username, isNot(b.username));
       expect(a.address, b.address);
     });
@@ -87,7 +88,7 @@ void main() {
         address: '192.0.2.1:1080',
         username: 'bob',
       );
-      final resolved = resolveEffectiveProxy(socks, siteId: 'site-a');
+      final resolved = resolveEffectiveProxy(socks, siteId: SiteId('site-a'));
       expect(identical(resolved, socks), isTrue);
       expect(resolved.username, 'bob', reason: 'not overwritten by the tag');
     });
@@ -135,7 +136,7 @@ void main() {
           (_) => const TorRouteBlocked('Nothing answers at 127.0.0.1:9050.');
 
       final result = outboundHttp
-          .clientFor(resolveEffectiveProxy(_tor(), siteId: 'site-a'));
+          .clientFor(resolveEffectiveProxy(_tor(), siteId: SiteId('site-a')));
 
       expect(result, isA<OutboundClientBlocked>());
       expect((result as OutboundClientBlocked).reason,
@@ -148,13 +149,13 @@ void main() {
       torProxyResolver = null;
 
       final result = outboundHttp
-          .clientFor(resolveEffectiveProxy(_tor(), siteId: 'site-a'));
+          .clientFor(resolveEffectiveProxy(_tor(), siteId: SiteId('site-a')));
       expect(result, isA<OutboundClientBlocked>());
     });
 
     test('clientFor is ready once the runtime is up', () {
       final result = outboundHttp
-          .clientFor(resolveEffectiveProxy(_tor(), siteId: 'site-a'));
+          .clientFor(resolveEffectiveProxy(_tor(), siteId: SiteId('site-a')));
       expect(result, isA<OutboundClientReady>());
       (result as OutboundClientReady).client.close();
     });
@@ -221,9 +222,9 @@ void main() {
       expect(TorService.instance.isAvailable, isFalse);
       expect(TorService.instance.status, isA<TorStopped>());
       expect(TorService.instance.socksEndpoint, isNull);
-      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
-      await TorService.instance.syncHolders({TorSiteHolder('site-a'), TorSiteHolder('site-b')});
-      expect(TorService.instance.socksFor(siteId: 'site-a'), isNull);
+      await TorService.instance.maybeStart(TorSiteHolder(SiteId('site-a')));
+      await TorService.instance.syncHolders({TorSiteHolder(SiteId('site-a')), TorSiteHolder(SiteId('site-b'))});
+      expect(TorService.instance.socksFor(siteId: SiteId('site-a')), isNull);
     });
 
     test('decodeStatus never throws on a malformed payload', () {

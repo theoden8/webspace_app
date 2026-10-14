@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
@@ -24,33 +26,33 @@ import 'package:webspace/services/webview_proxy.dart';
 ProxyLibraryData _library() => ProxyLibraryData(
       gateways: [
         SavedGateway(
-            id: 'us', name: 'US', type: ProxyType.SOCKS5, address: 'us.gw:1080'),
+            id: GatewayId('us'), name: 'US', type: ProxyType.SOCKS5, address: 'us.gw:1080'),
         SavedGateway(
-            id: 'de', name: 'DE', type: ProxyType.SOCKS5, address: 'de.gw:1080'),
+            id: GatewayId('de'), name: 'DE', type: ProxyType.SOCKS5, address: 'de.gw:1080'),
       ],
       credentials: [
         SavedCredentials(
-            id: 'alice',
+            id: CredentialsId('alice'),
             name: 'Alice',
             username: 'alice',
             password: 'alice-secret',
-            gatewayIds: {'us', 'de'}),
+            gatewayIds: {GatewayId('us'), GatewayId('de')}),
         SavedCredentials(
-            id: 'mail',
+            id: CredentialsId('mail'),
             name: 'Mail session',
             username: 'alice-session-mail',
             password: 'mail-secret',
-            gatewayIds: {'de'}),
+            gatewayIds: {GatewayId('de')}),
       ],
       proxies: [
         SavedProxy(
-          id: 'work',
+          id: SavedProxyId('work'),
           name: 'Work VPN',
           settings: UserProxySettings(
-              type: ProxyType.GATEWAY, gatewayId: 'us', credentialsId: 'alice'),
+              type: ProxyType.GATEWAY, gatewayId: GatewayId('us'), credentialsId: CredentialsId('alice')),
         ),
         SavedProxy(
-          id: 'plain',
+          id: SavedProxyId('plain'),
           name: 'Plain',
           settings: UserProxySettings(
             type: ProxyType.HTTP,
@@ -62,10 +64,10 @@ ProxyLibraryData _library() => ProxyLibraryData(
       ],
     );
 
-UserProxySettings _proxy(String id) =>
+UserProxySettings _proxy(SavedProxyId id) =>
     UserProxySettings(type: ProxyType.SAVED, savedProxyId: id);
 
-UserProxySettings _gateway(String id, {String? credentialsId}) =>
+UserProxySettings _gateway(GatewayId id, {CredentialsId? credentialsId}) =>
     UserProxySettings(
         type: ProxyType.GATEWAY, gatewayId: id, credentialsId: credentialsId);
 
@@ -84,7 +86,7 @@ void main() {
 
   group('resolution (PROXY-030)', () {
     test('a saved proxy of shared entries takes both', () {
-      final route = resolveEffectiveProxy(_proxy('work'), siteId: null);
+      final route = resolveEffectiveProxy(_proxy(SavedProxyId('work')), siteId: null);
       expect(route.type, ProxyType.SOCKS5);
       expect(route.address, 'us.gw:1080');
       expect(route.username, 'alice');
@@ -92,7 +94,7 @@ void main() {
     });
 
     test('a plain saved proxy is just its fields', () {
-      final route = resolveEffectiveProxy(_proxy('plain'), siteId: null);
+      final route = resolveEffectiveProxy(_proxy(SavedProxyId('plain')), siteId: null);
       expect(route.type, ProxyType.HTTP);
       expect(route.address, '10.0.0.1:3128');
       expect(route.password, 'plain-secret');
@@ -100,7 +102,7 @@ void main() {
 
     test('a site picks a gateway and credentials that list it', () {
       final route = resolveEffectiveProxy(
-        _gateway('de', credentialsId: 'mail'),
+        _gateway(GatewayId('de'), credentialsId: CredentialsId('mail')),
         siteId: null,
       );
       expect(route.address, 'de.gw:1080');
@@ -110,7 +112,7 @@ void main() {
     test('a site on a saved gateway can type its own credentials', () {
       final route = resolveEffectiveProxy(UserProxySettings(
         type: ProxyType.GATEWAY,
-        gatewayId: 'de',
+        gatewayId: GatewayId('de'),
         username: 'typed',
         password: 'typed-secret',
       ), siteId: null);
@@ -125,16 +127,16 @@ void main() {
 
     test('an edit to a shared entry reaches everything that uses it', () {
       final lib = _library();
-      lib.gateway('us')!.address = 'us2.gw:1080';
-      lib.credentialsById('alice')!.password = 'rotated';
+      lib.gateway(GatewayId('us'))!.address = 'us2.gw:1080';
+      lib.credentialsById(CredentialsId('alice'))!.password = 'rotated';
       ProxyLibrary.setInMemory(lib);
-      final route = resolveEffectiveProxy(_proxy('work'), siteId: null);
+      final route = resolveEffectiveProxy(_proxy(SavedProxyId('work')), siteId: null);
       expect(route.address, 'us2.gw:1080');
       expect(route.password, 'rotated');
     });
 
     test('a DEFAULT site inherits an app-wide proxy from the library', () {
-      GlobalOutboundProxy.setForTest(_gateway('de', credentialsId: 'mail'));
+      GlobalOutboundProxy.setForTest(_gateway(GatewayId('de'), credentialsId: CredentialsId('mail')));
       final route =
           resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT),
               siteId: null);
@@ -163,40 +165,40 @@ void main() {
     }
 
     test('a missing saved proxy', () {
-      blocked(_proxy('gone'), problem: LibraryProblem.proxyMissing);
+      blocked(_proxy(SavedProxyId('gone')), problem: LibraryProblem.proxyMissing);
     });
 
     test('a missing gateway', () {
-      blocked(_gateway('gone'), problem: LibraryProblem.gatewayMissing);
+      blocked(_gateway(GatewayId('gone')), problem: LibraryProblem.gatewayMissing);
     });
 
     test('missing credentials', () {
-      blocked(_gateway('de', credentialsId: 'gone'),
+      blocked(_gateway(GatewayId('de'), credentialsId: CredentialsId('gone')),
           problem: LibraryProblem.credentialsMissing);
     });
 
     test('credentials paired with a gateway they do not list', () {
-      blocked(_gateway('us', credentialsId: 'mail'),
+      blocked(_gateway(GatewayId('us'), credentialsId: CredentialsId('mail')),
           problem: LibraryProblem.credentialsMismatch);
     });
 
     test('saved credentials on a typed gateway', () {
       blocked(
         UserProxySettings(
-            type: ProxyType.SOCKS5, address: 'x:1', credentialsId: 'alice'),
+            type: ProxyType.SOCKS5, address: 'x:1', credentialsId: CredentialsId('alice')),
         problem: LibraryProblem.credentialsMismatch,
       );
     });
 
     test('a saved proxy whose gateway was deleted', () {
-      final lib = _library()..removeGateway('us');
+      final lib = _library()..removeGateway(GatewayId('us'));
       ProxyLibrary.setInMemory(lib);
-      blocked(_proxy('work'), problem: LibraryProblem.gatewayMissing);
-      expect(lib.credentialsById('alice')!.gatewayIds, {'de'});
+      blocked(_proxy(SavedProxyId('work')), problem: LibraryProblem.gatewayMissing);
+      expect(lib.credentialsById(CredentialsId('alice'))!.gatewayIds, {'de'});
     });
 
     test('a reference keeps no leftover manual address', () {
-      final s = _gateway('gone')..address = '9.9.9.9:1080';
+      final s = _gateway(GatewayId('gone'))..address = '9.9.9.9:1080';
       expect(resolveEffectiveProxy(s, siteId: null).address, isNull);
     });
   });
@@ -216,20 +218,20 @@ void main() {
         );
 
     test('sites on one saved proxy load together', () {
-      expect(unload([_proxy('work'), _proxy('work')]), isEmpty);
+      expect(unload([_proxy(SavedProxyId('work')), _proxy(SavedProxyId('work'))]), isEmpty);
     });
 
     test('a saved proxy and its own entries picked directly are one route', () {
       expect(
-          unload([_proxy('work'), _gateway('us', credentialsId: 'alice')]),
+          unload([_proxy(SavedProxyId('work')), _gateway(GatewayId('us'), credentialsId: CredentialsId('alice'))]),
           isEmpty);
     });
 
     test('one gateway with different credentials is two routes', () {
       expect(
           unload([
-            _gateway('de', credentialsId: 'mail'),
-            _gateway('de', credentialsId: 'alice'),
+            _gateway(GatewayId('de'), credentialsId: CredentialsId('mail')),
+            _gateway(GatewayId('de'), credentialsId: CredentialsId('alice')),
           ]),
           {1});
     });
@@ -238,7 +240,7 @@ void main() {
   group('serialisation', () {
     test('site references round-trip', () {
       final back = UserProxySettings.fromJson(
-          _gateway('de', credentialsId: 'mail').toJson());
+          _gateway(GatewayId('de'), credentialsId: CredentialsId('mail')).toJson());
       expect(back.type, ProxyType.GATEWAY);
       expect(back.gatewayId, 'de');
       expect(back.credentialsId, 'mail');
@@ -310,15 +312,15 @@ void main() {
       ProxyLibrary.setPasswordStoreForTest(passwords);
     });
 
-    Future<String?> stored(String key) => passwords.loadPassword(key);
+    Future<String?> stored(ProxyPasswordKey key) => passwords.loadPassword(key);
 
     test('passwords go to secure storage, the rest to prefs', () async {
       await ProxyLibrary.update(_library());
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString(AppPref.proxyLibrary.key), isNot(contains('secret')));
-      expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('alice')),
+      expect(await stored(ProxyPasswordKey.credentials(CredentialsId('alice'))),
           'alice-secret');
-      expect(await stored(ProxyPasswordSecureStorage.savedProxyKey('plain')),
+      expect(await stored(ProxyPasswordKey.savedProxy(SavedProxyId('plain'))),
           'plain-secret');
     });
 
@@ -326,43 +328,43 @@ void main() {
       await ProxyLibrary.update(_library());
       ProxyLibrary.resetForTest();
       await ProxyLibrary.initialize();
-      expect(ProxyLibrary.credentialsById('mail')!.password, 'mail-secret');
-      expect(ProxyLibrary.proxy('plain')!.settings.password, 'plain-secret');
+      expect(ProxyLibrary.credentialsById(CredentialsId('mail'))!.password, 'mail-secret');
+      expect(ProxyLibrary.proxy(SavedProxyId('plain'))!.settings.password, 'plain-secret');
     });
 
     test('deleting an entry deletes its password', () async {
       await ProxyLibrary.update(_library());
       final lib = ProxyLibrary.data..credentials.removeWhere((c) => c.id == 'mail');
       await ProxyLibrary.update(lib);
-      expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('mail')),
+      expect(await stored(ProxyPasswordKey.credentials(CredentialsId('mail'))),
           isNull);
-      expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('alice')),
+      expect(await stored(ProxyPasswordKey.credentials(CredentialsId('alice'))),
           'alice-secret');
     });
 
     test('an orphaned password is collected on startup', () async {
       await passwords.savePassword(
-          ProxyPasswordSecureStorage.savedCredentialsKey('stale'),
+          ProxyPasswordKey.credentials(CredentialsId('stale')),
           password: 'x');
       await ProxyLibrary.initialize();
-      expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('stale')),
+      expect(await stored(ProxyPasswordKey.credentials(CredentialsId('stale'))),
           isNull);
     });
 
     test('site orphan cleanup leaves library passwords alone', () async {
       await ProxyLibrary.update(_library());
-      await passwords.removeOrphaned({'some-site'});
-      expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('alice')),
+      await passwords.removeOrphaned({SiteId('some-site')});
+      expect(await stored(ProxyPasswordKey.credentials(CredentialsId('alice'))),
           'alice-secret');
-      expect(await stored(ProxyPasswordSecureStorage.savedProxyKey('plain')),
+      expect(await stored(ProxyPasswordKey.savedProxy(SavedProxyId('plain'))),
           'plain-secret');
     });
 
     test('an import drops every library password', () async {
       await ProxyLibrary.update(_library());
       await ProxyLibrary.reloadAfterImport();
-      expect(ProxyLibrary.credentialsById('alice')!.password, isNull);
-      expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('alice')),
+      expect(ProxyLibrary.credentialsById(CredentialsId('alice'))!.password, isNull);
+      expect(await stored(ProxyPasswordKey.credentials(CredentialsId('alice'))),
           isNull);
     });
   });
@@ -378,9 +380,9 @@ void main() {
     test('a saved gateway hides the address, typed credentials are shown', () {
       final out = applyProxyForm(
         stored: stored,
-        fields: const ProxyFormFields(
+        fields: ProxyFormFields(
           type: ProxyType.GATEWAY,
-          gatewayId: 'de',
+          gatewayId: GatewayId('de'),
           address: 'hidden:1',
           username: 'new-user',
         ),
@@ -394,10 +396,10 @@ void main() {
     test('saved credentials hide the typed ones', () {
       final out = applyProxyForm(
         stored: stored,
-        fields: const ProxyFormFields(
+        fields: ProxyFormFields(
           type: ProxyType.GATEWAY,
-          gatewayId: 'de',
-          credentialsId: 'mail',
+          gatewayId: GatewayId('de'),
+          credentialsId: CredentialsId('mail'),
           username: 'hidden',
         ),
       );
@@ -408,7 +410,7 @@ void main() {
 
     test('a typed gateway drops saved credentials', () {
       final out = applyProxyForm(
-        stored: _gateway('de', credentialsId: 'mail'),
+        stored: _gateway(GatewayId('de'), credentialsId: CredentialsId('mail')),
         fields: const ProxyFormFields(type: ProxyType.SOCKS5, address: 'a:1'),
       );
       expect(out.credentialsId, isNull);
@@ -417,8 +419,8 @@ void main() {
 
     test('a saved proxy keeps everything else for the way back', () {
       final out = applyProxyForm(
-        stored: _gateway('de', credentialsId: 'mail'),
-        fields: const ProxyFormFields(type: ProxyType.SAVED, savedProxyId: 'work'),
+        stored: _gateway(GatewayId('de'), credentialsId: CredentialsId('mail')),
+        fields: ProxyFormFields(type: ProxyType.SAVED, savedProxyId: SavedProxyId('work')),
       );
       expect(out.savedProxyId, 'work');
       expect(out.gatewayId, 'de');
@@ -433,7 +435,7 @@ void main() {
                 .toJson());
 
     test('a library route travels resolved, without ids or passwords', () {
-      final out = shared(_gateway('de', credentialsId: 'mail'));
+      final out = shared(_gateway(GatewayId('de'), credentialsId: CredentialsId('mail')));
       final proxy = out['proxySettings'] as Map<String, dynamic>;
       expect(proxy['type'], ProxyType.SOCKS5.index);
       expect(proxy['address'], 'de.gw:1080');
@@ -444,7 +446,7 @@ void main() {
     });
 
     test('an unresolved route shares no proxy', () {
-      expect(shared(_proxy('gone')).containsKey('proxySettings'), isFalse);
+      expect(shared(_proxy(SavedProxyId('gone'))).containsKey('proxySettings'), isFalse);
     });
 
     test('a received payload naming the library is refused', () {
@@ -470,7 +472,7 @@ void main() {
 
     test('an app-wide proxy from the library shows its address', () {
       final b = backup({
-        AppPref.globalOutboundProxy.key: jsonEncode(_proxy('work').toJson()),
+        AppPref.globalOutboundProxy.key: jsonEncode(_proxy(SavedProxyId('work')).toJson()),
         AppPref.proxyLibrary.key: _library().encode(),
       });
       expect(backupGlobalProxyAddress(b), 'us.gw:1080');
@@ -481,20 +483,20 @@ void main() {
     test('counts use through a saved proxy', () {
       final lib = _library();
       expect(
-          usesLibraryEntry(_proxy('work'),
-              kind: LibraryEntryKind.gateway, id: 'us', lib: lib),
+          usesLibraryEntry(_proxy(SavedProxyId('work')),
+              entry: GatewayEntry(GatewayId('us')), lib: lib),
           isTrue);
       expect(
-          usesLibraryEntry(_proxy('work'),
-              kind: LibraryEntryKind.credentials, id: 'alice', lib: lib),
+          usesLibraryEntry(_proxy(SavedProxyId('work')),
+              entry: CredentialsEntry(CredentialsId('alice')), lib: lib),
           isTrue);
       expect(
-          usesLibraryEntry(_proxy('work'),
-              kind: LibraryEntryKind.gateway, id: 'de', lib: lib),
+          usesLibraryEntry(_proxy(SavedProxyId('work')),
+              entry: GatewayEntry(GatewayId('de')), lib: lib),
           isFalse);
       expect(
-          usesLibraryEntry(_gateway('de', credentialsId: 'mail'),
-              kind: LibraryEntryKind.credentials, id: 'mail', lib: lib),
+          usesLibraryEntry(_gateway(GatewayId('de'), credentialsId: CredentialsId('mail')),
+              entry: CredentialsEntry(CredentialsId('mail')), lib: lib),
           isTrue);
     });
   });

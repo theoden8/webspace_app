@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
@@ -6,7 +7,7 @@ import 'package:webspace/web_view_model.dart' show getNormalizedDomain;
 
 class _Site implements DispatchableSite {
   @override
-  final String siteId;
+  final SiteId siteId;
   @override
   final String initUrl;
   @override
@@ -40,7 +41,7 @@ void main() {
 
     test('webspace:// wraps unwrap to inner http(s) target', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.exactHost('duckduckgo.com')],
       );
@@ -56,7 +57,7 @@ void main() {
 
     test('single resolver match + in-domain + regular site -> open-in-main', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
       );
@@ -74,7 +75,7 @@ void main() {
 
     test('incognito site triggers full reset flags on in-domain share', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
         incognito: true,
@@ -90,7 +91,7 @@ void main() {
 
     test('alwaysOpenHome triggers dispose only (cookies preserved)', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
         alwaysOpenHome: true,
@@ -106,12 +107,12 @@ void main() {
 
     test('ambiguous resolver -> picker with two winners', () {
       final a = _Site(
-        siteId: 'A',
+        siteId: SiteId('A'),
         initUrl: 'https://reddit.com/',
         domainClaims: [DomainClaim.exactHost('reddit.com')],
       );
       final b = _Site(
-        siteId: 'B',
+        siteId: SiteId('B'),
         initUrl: 'https://reddit.com/',
         domainClaims: [DomainClaim.exactHost('reddit.com')],
       );
@@ -128,7 +129,7 @@ void main() {
 
     test('no resolver match -> picker with no winners', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
       );
@@ -158,7 +159,7 @@ void main() {
   group('LinkIntentDispatchEngine.openInChosen — LIR-011 main vs nested', () {
     test('cross-domain user pick -> nested (not main webview)', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
       );
@@ -173,7 +174,7 @@ void main() {
 
     test('in-domain user pick on regular site -> main webview', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
       );
@@ -189,7 +190,7 @@ void main() {
   group('LinkIntentDispatchEngine.bindToSite — LIR-010 option 2', () {
     test('cross-domain bind: claim additions returned + nested follow-up', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
       );
@@ -211,7 +212,7 @@ void main() {
 
     test('same-domain bind: follow-up is main-webview load', () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [],
       );
@@ -226,7 +227,7 @@ void main() {
 
   group('LinkIntentDispatchEngine.sendToSite — discussion #439 opt-in', () {
     final ddg = _Site(
-      siteId: 'ddg',
+      siteId: SiteId('ddg'),
       initUrl: 'https://duckduckgo.com/',
       domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
     );
@@ -303,7 +304,7 @@ void main() {
     test('HTML payload short-circuits to create-from-html, ignoring sites',
         () {
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
       );
@@ -334,7 +335,7 @@ void main() {
       // payload never goes through the resolver — there is no URL to
       // route. Sanity check via direct kind checks.
       final ddg = _Site(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://example.org/',
         domainClaims: [DomainClaim.exactHost('example.org')],
       );
@@ -352,7 +353,7 @@ void main() {
 
   group('LinkIntentDispatchEngine.openInChosen — search origin (LIR-030)', () {
     _Site ddg({bool incognito = false, bool alwaysOpenHome = false}) => _Site(
-          siteId: 'ddg',
+          siteId: SiteId('ddg'),
           initUrl: 'https://duckduckgo.com/',
           domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
           incognito: incognito,
@@ -401,7 +402,7 @@ void main() {
 
     test('a search address off the site\'s domain nests with its posture', () {
       final searx = _Site(
-        siteId: 'searx',
+        siteId: SiteId('searx'),
         initUrl: 'https://searx.example/',
         domainClaims: const [],
       );
@@ -417,22 +418,22 @@ void main() {
 
   group('LinkIntentDispatchEngine.routeToTab (LIR-032, LIR-034)', () {
     final ddg = _Site(
-      siteId: 'ddg',
+      siteId: SiteId('ddg'),
       initUrl: 'https://duckduckgo.com/',
       domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
     );
     final gh = _Site(
-      siteId: 'gh',
+      siteId: SiteId('gh'),
       initUrl: 'https://github.com/',
       domainClaims: [DomainClaim.baseDomain('github.com')],
     );
     final workGh = _Site(
-      siteId: 'work-gh',
+      siteId: SiteId('work-gh'),
       initUrl: 'https://github.com/work',
       domainClaims: [DomainClaim.baseDomain('github.com')],
     );
     final pages = _Site(
-      siteId: 'cb',
+      siteId: SiteId('cb'),
       initUrl: 'https://codeberg.org/',
       domainClaims: [DomainClaim.baseDomain('codeberg.page')],
     );
@@ -539,7 +540,7 @@ void main() {
         prefs: [
           OutboundPreference(
             claim: DomainClaim.baseDomain('github.com'),
-            targetSiteId: 'work-gh',
+            targetSiteId: SiteId('work-gh'),
           ),
         ],
       );
@@ -549,24 +550,24 @@ void main() {
 
   group('LinkIntentDispatchEngine.linkTabRunsAs (LIR-034)', () {
     final ddg = _Site(
-      siteId: 'ddg',
+      siteId: SiteId('ddg'),
       initUrl: 'https://duckduckgo.com/',
       domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
     );
     final gh = _Site(
-      siteId: 'gh',
+      siteId: SiteId('gh'),
       initUrl: 'https://github.com/',
       domainClaims: [DomainClaim.baseDomain('github.com')],
     );
     final workGh = _Site(
-      siteId: 'work-gh',
+      siteId: SiteId('work-gh'),
       initUrl: 'https://github.com/work',
       domainClaims: [DomainClaim.baseDomain('github.com')],
     );
 
-    String runsAs({
+    SiteId runsAs({
       required bool routing,
-      required String current,
+      required SiteId current,
       List<_Site>? hosts,
       List<OutboundPreference> prefs = const [],
       bool containers = true,
@@ -584,35 +585,35 @@ void main() {
         );
 
     test('off: the opener, whatever the tab ran as before', () {
-      for (final current in ['ddg', 'gh', 'work-gh']) {
+      for (final current in [SiteId('ddg'), SiteId('gh'), SiteId('work-gh')]) {
         expect(runsAs(routing: false, current: current), 'ddg',
             reason: current);
       }
     });
 
     test('on: the site the link leads to, whatever the tab ran as before', () {
-      for (final current in ['ddg', 'gh']) {
+      for (final current in [SiteId('ddg'), SiteId('gh')]) {
         expect(runsAs(routing: true, current: current), 'gh', reason: current);
       }
     });
 
     test('on, with no site left that can run it: the opener', () {
-      expect(runsAs(routing: true, current: 'gh', hosts: [ddg]), 'ddg');
+      expect(runsAs(routing: true, current: SiteId('gh'), hosts: [ddg]), 'ddg');
     });
 
     test('on, without containers: the opener', () {
-      expect(runsAs(routing: true, current: 'ddg', containers: false), 'ddg');
+      expect(runsAs(routing: true, current: SiteId('ddg'), containers: false), 'ddg');
     });
 
     test('on, several candidates: the one the user picked is kept', () {
       expect(
-          runsAs(routing: true, current: 'work-gh', hosts: [ddg, gh, workGh]),
+          runsAs(routing: true, current: SiteId('work-gh'), hosts: [ddg, gh, workGh]),
           'work-gh');
     });
 
     test('on, several candidates and none picked: stays with the opener', () {
       // Putting it in one of them would be the silent pick LIR-016 forbids.
-      expect(runsAs(routing: true, current: 'ddg', hosts: [ddg, gh, workGh]),
+      expect(runsAs(routing: true, current: SiteId('ddg'), hosts: [ddg, gh, workGh]),
           'ddg');
     });
 
@@ -620,12 +621,12 @@ void main() {
       expect(
         runsAs(
           routing: true,
-          current: 'ddg',
+          current: SiteId('ddg'),
           hosts: [ddg, gh, workGh],
           prefs: [
             OutboundPreference(
               claim: DomainClaim.baseDomain('github.com'),
-              targetSiteId: 'work-gh',
+              targetSiteId: SiteId('work-gh'),
             ),
           ],
         ),
@@ -634,7 +635,7 @@ void main() {
     });
 
     test('flipping twice comes back where it started', () {
-      final on = runsAs(routing: true, current: 'ddg');
+      final on = runsAs(routing: true, current: SiteId('ddg'));
       final off = runsAs(routing: false, current: on);
       final again = runsAs(routing: true, current: off);
       expect([on, off, again], ['gh', 'ddg', 'gh']);

@@ -30,7 +30,7 @@ void main() {
 
     test('explicit id is preserved and survives JSON roundtrip', () {
       final original = UserScriptConfig(
-        id: 'us-fixed-id',
+        id: UserScriptId('us-fixed-id'),
         name: 'Test',
         source: 'x',
       );
@@ -213,7 +213,7 @@ void main() {
     test('enabledGlobalScriptIds survives JSON roundtrip', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
-        enabledGlobalScriptIds: {'us-aaa', 'us-bbb'},
+        enabledGlobalScriptIds: {UserScriptId('us-aaa'), UserScriptId('us-bbb')},
       );
       final restored =
           WebViewModel.fromJson(model.toJson(), stateSetterF: null);

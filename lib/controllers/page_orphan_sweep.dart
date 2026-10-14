@@ -1,6 +1,8 @@
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -36,7 +38,7 @@ class PageOrphanSweep implements OrphanSweepTargets {
 
   @override
   Future<void> removeOrphans(OrphanStore store,
-          {required Set<String> liveSiteIds}) =>
+          {required Set<SiteId> liveSiteIds}) =>
       switch (store) {
         OrphanStore.cookies => cookieStore.removeOrphanedCookies(liveSiteIds),
         OrphanStore.proxyPasswords => proxyPasswords.removeOrphaned(liveSiteIds),
@@ -65,12 +67,12 @@ class PageOrphanSweep implements OrphanSweepTargets {
   /// site's container goes too, so its directory does not grow across
   /// sessions; the next bind makes a fresh one (#298).
   Future<void> containersBeforeBind(
-    Set<String> activeSiteIds, {
-    required Set<String> nonIncognitoSiteIds,
+    Set<ContainerKey> active, {
+    required Set<ContainerKey> nonIncognito,
   }) async {
-    await containers.garbageCollectOrphans(activeSiteIds);
-    for (final siteId in activeSiteIds.difference(nonIncognitoSiteIds)) {
-      await containers.onSiteDeleted(siteId);
+    await containers.garbageCollectOrphans(active);
+    for (final key in active.difference(nonIncognito)) {
+      await containers.onSiteDeleted(key);
     }
   }
 
@@ -90,8 +92,8 @@ class PageOrphanSweep implements OrphanSweepTargets {
   /// sees, only when the disk reclaim happens. The live-set args are read fresh
   /// by the engine at sweep time so a site added post-paint isn't reclaimed.
   Future<void> atLaunch(
-    Set<String> activeSiteIds, {
-    required Set<String> nonIncognitoSiteIds,
+    Set<SiteId> activeSiteIds, {
+    required Set<SiteId> nonIncognitoSiteIds,
   }) async {
     try {
       await OrphanSweepEngine.sweep(

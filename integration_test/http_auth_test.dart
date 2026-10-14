@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/url_host.dart';
@@ -221,7 +222,7 @@ void main() {
       );
 
   WebViewConfig configFor({
-    required String siteId,
+    required SiteId siteId,
     required String url,
     required HttpAuthPrompt prompt,
   }) =>
@@ -234,7 +235,7 @@ void main() {
 
   testWidgets('a saved sign-in answers the challenge without a prompt',
       (tester) async {
-    const siteId = 'http-auth-saved';
+    final siteId = SiteId('http-auth-saved');
     await HttpAuthSecureStorage.instance.save(
       siteId,
       host: Host('127.0.0.1'),
@@ -275,7 +276,7 @@ void main() {
   testWidgets(
       'the prompt signs in, says when a password is refused, and remembers',
       (tester) async {
-    const siteId = 'http-auth-typed';
+    final siteId = SiteId('http-auth-typed');
     await HttpAuthSecureStorage.instance.removeSite(siteId);
     final navigator = GlobalKey<NavigatorState>();
     WebViewController? controller;

@@ -41,17 +41,30 @@ const Set<String> scriptFetchWhitelist = {
   'ga.jspm.io',
 };
 
-String _generateUserScriptId() {
-  final now = DateTime.now().microsecondsSinceEpoch;
-  final random = Random().nextInt(999999);
-  return 'us-${now.toRadixString(36)}-${random.toRadixString(36)}';
+/// A user script's identity: a site opts into a global script by it.
+extension type const UserScriptId._(String raw) implements String {
+  /// An id the app made or handed out before.
+  factory UserScriptId(String raw) {
+    assert(raw.isNotEmpty, 'a user script id is not empty');
+    return UserScriptId._(raw);
+  }
+
+  factory UserScriptId.mint() {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final random = Random().nextInt(999999);
+    return UserScriptId._(
+        'us-${now.toRadixString(36)}-${random.toRadixString(36)}');
+  }
+
+  static UserScriptId? parse(Object? raw) =>
+      raw is String && raw.isNotEmpty ? UserScriptId._(raw) : null;
 }
 
 class UserScriptConfig {
   /// Stable unique identifier. For global scripts this is used to track
   /// which sites have opted into the script. Auto-generated if omitted;
   /// preserved across JSON roundtrips.
-  final String id;
+  final UserScriptId id;
   String name;
   String source;
 
@@ -81,7 +94,7 @@ class UserScriptConfig {
   bool bypassSitePolicy;
 
   UserScriptConfig({
-    String? id,
+    UserScriptId? id,
     required this.name,
     required this.source,
     this.url,
@@ -89,7 +102,7 @@ class UserScriptConfig {
     this.injectionTime = UserScriptInjectionTime.atDocumentEnd,
     this.enabled = true,
     this.bypassSitePolicy = false,
-  }) : id = id ?? _generateUserScriptId();
+  }) : id = id ?? UserScriptId.mint();
 
   /// The full script to inject: URL source (if any) followed by user source.
   String get fullSource {
@@ -129,7 +142,7 @@ class UserScriptConfig {
     final url = field<String>('url');
     final urlSource = field<String>('urlSource');
     return UserScriptConfig(
-      id: field<String>('id'),
+      id: UserScriptId.parse(json['id']),
       name: field<String>('name') ?? 'Untitled',
       source: field<String>('source') ?? '',
       url: url,

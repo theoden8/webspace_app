@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -23,38 +24,38 @@ void main() {
 
   group('ProxyPasswordSecureStorage', () {
     test('savePassword + loadPassword round-trip', () async {
-      await store.savePassword('site-1', password: 'shh');
-      expect(await store.loadPassword('site-1'), equals('shh'));
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-1')), password: 'shh');
+      expect(await store.loadPassword(ProxyPasswordKey.site(SiteId('site-1'))), equals('shh'));
     });
 
     test('savePassword(null) deletes the entry', () async {
-      await store.savePassword('site-1', password: 'shh');
-      await store.savePassword('site-1', password: null);
-      expect(await store.loadPassword('site-1'), isNull);
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-1')), password: 'shh');
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-1')), password: null);
+      expect(await store.loadPassword(ProxyPasswordKey.site(SiteId('site-1'))), isNull);
     });
 
     test('savePassword("") deletes the entry', () async {
-      await store.savePassword('site-1', password: 'shh');
-      await store.savePassword('site-1', password: '');
-      expect(await store.loadPassword('site-1'), isNull);
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-1')), password: 'shh');
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-1')), password: '');
+      expect(await store.loadPassword(ProxyPasswordKey.site(SiteId('site-1'))), isNull);
     });
 
     test('removeOrphaned drops site keys not in the active set', () async {
-      await store.savePassword('site-1', password: 'a');
-      await store.savePassword('site-2', password: 'b');
-      await store.savePassword('site-3', password: 'c');
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-1')), password: 'a');
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-2')), password: 'b');
+      await store.savePassword(ProxyPasswordKey.site(SiteId('site-3')), password: 'c');
       await store.savePassword(
-          ProxyPasswordSecureStorage.globalProxyKey, password: 'global');
+          ProxyPasswordKey.global, password: 'global');
 
-      await store.removeOrphaned({'site-1', 'site-3'});
+      await store.removeOrphaned({SiteId('site-1'), SiteId('site-3')});
 
-      expect(await store.loadPassword('site-1'), equals('a'));
-      expect(await store.loadPassword('site-2'), isNull);
-      expect(await store.loadPassword('site-3'), equals('c'));
+      expect(await store.loadPassword(ProxyPasswordKey.site(SiteId('site-1'))), equals('a'));
+      expect(await store.loadPassword(ProxyPasswordKey.site(SiteId('site-2'))), isNull);
+      expect(await store.loadPassword(ProxyPasswordKey.site(SiteId('site-3'))), equals('c'));
       // The reserved global key is preserved across orphan sweeps.
       expect(
           await store
-              .loadPassword(ProxyPasswordSecureStorage.globalProxyKey),
+              .loadPassword(ProxyPasswordKey.global),
           equals('global'));
     });
 
@@ -81,7 +82,7 @@ void main() {
         () async {
       final prefs = await SharedPreferences.getInstance();
       const prefsKey = 'someProxyKey';
-      const secureKey = 'site-x';
+      final secureKey = ProxyPasswordKey.site(SiteId('site-x'));
       await prefs.setString(
         prefsKey,
         jsonEncode({
@@ -111,7 +112,7 @@ void main() {
     test('idempotent — second invocation is a no-op', () async {
       final prefs = await SharedPreferences.getInstance();
       const prefsKey = 'someProxyKey';
-      const secureKey = 'site-x';
+      final secureKey = ProxyPasswordKey.site(SiteId('site-x'));
       await prefs.setString(
         prefsKey,
         jsonEncode({
@@ -137,7 +138,7 @@ void main() {
       final migrated = await store.migrateLegacyPassword(
         prefs: prefs,
         prefsKey: 'nope',
-        secureKey: 'site-x',
+        secureKey: ProxyPasswordKey.site(SiteId('site-x')),
       );
       expect(migrated, isFalse);
     });
@@ -148,7 +149,7 @@ void main() {
       final migrated = await store.migrateLegacyPassword(
         prefs: prefs,
         prefsKey: 'bad',
-        secureKey: 'site-x',
+        secureKey: ProxyPasswordKey.site(SiteId('site-x')),
       );
       expect(migrated, isFalse);
       // Malformed value is preserved as-is — we don't risk corrupting state
@@ -171,7 +172,7 @@ void main() {
       final migrated = await store.migrateLegacyPassword(
         prefs: prefs,
         prefsKey: prefsKey,
-        secureKey: 'site-x',
+        secureKey: ProxyPasswordKey.site(SiteId('site-x')),
       );
       expect(migrated, isFalse);
     });
@@ -209,7 +210,7 @@ void main() {
       // Secure storage holds it.
       expect(
           await store
-              .loadPassword(ProxyPasswordSecureStorage.globalProxyKey),
+              .loadPassword(ProxyPasswordKey.global),
           equals('onion'));
     });
 
@@ -233,7 +234,7 @@ void main() {
       // Password is in secure storage.
       expect(
           await store
-              .loadPassword(ProxyPasswordSecureStorage.globalProxyKey),
+              .loadPassword(ProxyPasswordKey.global),
           equals('hunter2'));
     });
 
@@ -254,7 +255,7 @@ void main() {
       ));
       expect(
           await store
-              .loadPassword(ProxyPasswordSecureStorage.globalProxyKey),
+              .loadPassword(ProxyPasswordKey.global),
           isNull);
     });
   });

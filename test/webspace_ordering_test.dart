@@ -7,9 +7,9 @@ void main() {
     test('Webspace order is preserved after serialization', () {
       // Create webspaces in a specific order
       final webspaces = [
-        Webspace(id: 'id1', name: 'Work', siteIndices: [0, 1]),
-        Webspace(id: 'id2', name: 'Personal', siteIndices: [2, 3]),
-        Webspace(id: 'id3', name: 'Research', siteIndices: [4]),
+        Webspace(id: WebspaceId('id1'), name: 'Work', siteIndices: [0, 1]),
+        Webspace(id: WebspaceId('id2'), name: 'Personal', siteIndices: [2, 3]),
+        Webspace(id: WebspaceId('id3'), name: 'Research', siteIndices: [4]),
       ];
 
       // Serialize to JSON (simulating save to SharedPreferences)
@@ -32,10 +32,10 @@ void main() {
 
     test('Webspace reordering is correctly applied', () {
       final webspaces = [
-        Webspace(id: '__all_webspace__', name: 'All', siteIndices: []),
-        Webspace(id: 'id1', name: 'Work', siteIndices: [0, 1]),
-        Webspace(id: 'id2', name: 'Personal', siteIndices: [2, 3]),
-        Webspace(id: 'id3', name: 'Research', siteIndices: [4]),
+        Webspace(id: WebspaceId('__all_webspace__'), name: 'All', siteIndices: []),
+        Webspace(id: WebspaceId('id1'), name: 'Work', siteIndices: [0, 1]),
+        Webspace(id: WebspaceId('id2'), name: 'Personal', siteIndices: [2, 3]),
+        Webspace(id: WebspaceId('id3'), name: 'Research', siteIndices: [4]),
       ];
 
       // Simulate reordering: move "Research" (index 3) to position 1
@@ -59,9 +59,9 @@ void main() {
 
     test('Cannot reorder "All" webspace from position 0', () {
       final webspaces = [
-        Webspace(id: '__all_webspace__', name: 'All', siteIndices: []),
-        Webspace(id: 'id1', name: 'Work', siteIndices: [0, 1]),
-        Webspace(id: 'id2', name: 'Personal', siteIndices: [2, 3]),
+        Webspace(id: WebspaceId('__all_webspace__'), name: 'All', siteIndices: []),
+        Webspace(id: WebspaceId('id1'), name: 'Work', siteIndices: [0, 1]),
+        Webspace(id: WebspaceId('id2'), name: 'Personal', siteIndices: [2, 3]),
       ];
 
       // Try to move "All" (index 0) - should be blocked by if (oldIndex == 0) check
@@ -83,9 +83,9 @@ void main() {
 
     test('Cannot reorder other webspaces to position 0', () {
       final webspaces = [
-        Webspace(id: '__all_webspace__', name: 'All', siteIndices: []),
-        Webspace(id: 'id1', name: 'Work', siteIndices: [0, 1]),
-        Webspace(id: 'id2', name: 'Personal', siteIndices: [2, 3]),
+        Webspace(id: WebspaceId('__all_webspace__'), name: 'All', siteIndices: []),
+        Webspace(id: WebspaceId('id1'), name: 'Work', siteIndices: [0, 1]),
+        Webspace(id: WebspaceId('id2'), name: 'Personal', siteIndices: [2, 3]),
       ];
 
       // Try to move "Work" (index 1) to position 0 - should be blocked
@@ -106,11 +106,11 @@ void main() {
 
     test('Multiple reorder operations preserve correct order', () {
       final webspaces = [
-        Webspace(id: '__all_webspace__', name: 'All', siteIndices: []),
-        Webspace(id: 'id1', name: 'A', siteIndices: [0]),
-        Webspace(id: 'id2', name: 'B', siteIndices: [1]),
-        Webspace(id: 'id3', name: 'C', siteIndices: [2]),
-        Webspace(id: 'id4', name: 'D', siteIndices: [3]),
+        Webspace(id: WebspaceId('__all_webspace__'), name: 'All', siteIndices: []),
+        Webspace(id: WebspaceId('id1'), name: 'A', siteIndices: [0]),
+        Webspace(id: WebspaceId('id2'), name: 'B', siteIndices: [1]),
+        Webspace(id: WebspaceId('id3'), name: 'C', siteIndices: [2]),
+        Webspace(id: WebspaceId('id4'), name: 'D', siteIndices: [3]),
       ];
 
       // Operation 1: Move D (index 4) to position 1
@@ -134,15 +134,15 @@ void main() {
       expect(webspaces.map((ws) => ws.name).toList(), ['All', 'D', 'B', 'C', 'A']);
 
       // Verify "All" never moved
-      expect(webspaces[0].id, kAllWebspaceId);
+      expect(webspaces[0].id, WebspaceId.all);
     });
 
     test('Reordering and then serialization preserves new order', () {
       var webspaces = [
-        Webspace(id: '__all_webspace__', name: 'All', siteIndices: []),
-        Webspace(id: 'id1', name: 'Work', siteIndices: [0]),
-        Webspace(id: 'id2', name: 'Personal', siteIndices: [1]),
-        Webspace(id: 'id3', name: 'Research', siteIndices: [2]),
+        Webspace(id: WebspaceId('__all_webspace__'), name: 'All', siteIndices: []),
+        Webspace(id: WebspaceId('id1'), name: 'Work', siteIndices: [0]),
+        Webspace(id: WebspaceId('id2'), name: 'Personal', siteIndices: [1]),
+        Webspace(id: WebspaceId('id3'), name: 'Research', siteIndices: [2]),
       ];
 
       // Reorder: Move Research to position 1

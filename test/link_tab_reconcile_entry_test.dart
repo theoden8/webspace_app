@@ -183,7 +183,7 @@ void main() {
         'Future<void> openLinkInNewTab(',
       ]) {
         final body = tabsBody(signature);
-        expect(body, contains('String? openerSiteId,'), reason: signature);
+        expect(body, contains('SiteId? openerSiteId,'), reason: signature);
         expect(body, contains('openerSiteId: openerSiteId,'), reason: signature);
         expect(body, contains('homeUrl: homeUrl,'), reason: signature);
       }

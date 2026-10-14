@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_import_storage.dart';
 
@@ -46,9 +47,9 @@ void main() {
       final s = await newStorage();
       const html = '<html><body>hello</body></html>';
       const url = 'file:///hello.html';
-      await s.saveHtml('site-1', html: html, url: url);
+      await s.saveHtml(SiteId('site-1'), html: html, url: url);
 
-      final loaded = await s.loadHtml('site-1');
+      final loaded = await s.loadHtml(SiteId('site-1'));
       expect(loaded, isNotNull);
       expect(loaded!.$1, url);
       expect(loaded.$2, html);
@@ -56,37 +57,37 @@ void main() {
 
     test('getHtmlSync returns the bytes after saveHtml', () async {
       final s = await newStorage();
-      await s.saveHtml('site-1', html: '<p>hi</p>', url: 'file:///x.html');
-      expect(s.getHtmlSync('site-1'), '<p>hi</p>');
+      await s.saveHtml(SiteId('site-1'), html: '<p>hi</p>', url: 'file:///x.html');
+      expect(s.getHtmlSync(SiteId('site-1')), '<p>hi</p>');
     });
 
     test('getHtmlSync returns null for unknown siteId', () async {
       final s = await newStorage();
-      expect(s.getHtmlSync('does-not-exist'), isNull);
+      expect(s.getHtmlSync(SiteId('does-not-exist')), isNull);
     });
 
     test('loadHtml returns null for unknown siteId', () async {
       final s = await newStorage();
-      expect(await s.loadHtml('does-not-exist'), isNull);
+      expect(await s.loadHtml(SiteId('does-not-exist')), isNull);
     });
 
     test('overwrite replaces the previous bytes', () async {
       final s = await newStorage();
-      await s.saveHtml('site-1', html: '<old>', url: 'file:///page.html');
-      await s.saveHtml('site-1', html: '<new>', url: 'file:///page.html');
+      await s.saveHtml(SiteId('site-1'), html: '<old>', url: 'file:///page.html');
+      await s.saveHtml(SiteId('site-1'), html: '<new>', url: 'file:///page.html');
 
-      final loaded = await s.loadHtml('site-1');
+      final loaded = await s.loadHtml(SiteId('site-1'));
       expect(loaded!.$2, '<new>');
-      expect(s.getHtmlSync('site-1'), '<new>');
+      expect(s.getHtmlSync(SiteId('site-1')), '<new>');
     });
 
     test('hasImport reflects on-disk presence', () async {
       final s = await newStorage();
-      expect(await s.hasImport('site-1'), isFalse);
-      await s.saveHtml('site-1', html: '<p>hi</p>', url: 'file:///x.html');
-      expect(await s.hasImport('site-1'), isTrue);
-      await s.deleteImport('site-1');
-      expect(await s.hasImport('site-1'), isFalse);
+      expect(await s.hasImport(SiteId('site-1')), isFalse);
+      await s.saveHtml(SiteId('site-1'), html: '<p>hi</p>', url: 'file:///x.html');
+      expect(await s.hasImport(SiteId('site-1')), isTrue);
+      await s.deleteImport(SiteId('site-1'));
+      expect(await s.hasImport(SiteId('site-1')), isFalse);
     });
   });
 
@@ -97,78 +98,78 @@ void main() {
       // defining property: unlike HtmlCacheService, no version-based
       // wipe happens.
       final first = await newStorage();
-      await first.saveHtml('persist',
+      await first.saveHtml(SiteId('persist'),
           html: '<p>kept</p>', url: 'file:///kept.html');
 
       final second = await newStorage();
       await second.preloadAll();
 
-      expect(second.getHtmlSync('persist'), '<p>kept</p>');
-      final loaded = await second.loadHtml('persist');
+      expect(second.getHtmlSync(SiteId('persist')), '<p>kept</p>');
+      final loaded = await second.loadHtml(SiteId('persist'));
       expect(loaded!.$1, 'file:///kept.html');
       expect(loaded.$2, '<p>kept</p>');
     });
 
     test('preloadAll populates memory store from disk', () async {
       final first = await newStorage();
-      await first.saveHtml('a', html: '<a>', url: 'file:///a.html');
-      await first.saveHtml('b', html: '<b>', url: 'file:///b.html');
+      await first.saveHtml(SiteId('a'), html: '<a>', url: 'file:///a.html');
+      await first.saveHtml(SiteId('b'), html: '<b>', url: 'file:///b.html');
 
       final second = await newStorage();
       // Before preload, memory store is empty for sites it never saw.
-      expect(second.getHtmlSync('a'), isNull);
-      expect(second.getHtmlSync('b'), isNull);
+      expect(second.getHtmlSync(SiteId('a')), isNull);
+      expect(second.getHtmlSync(SiteId('b')), isNull);
 
       await second.preloadAll();
-      expect(second.getHtmlSync('a'), '<a>');
-      expect(second.getHtmlSync('b'), '<b>');
+      expect(second.getHtmlSync(SiteId('a')), '<a>');
+      expect(second.getHtmlSync(SiteId('b')), '<b>');
     });
   });
 
   group('HtmlImportStorage delete + orphans', () {
     test('deleteImport removes file and clears memory store', () async {
       final s = await newStorage();
-      await s.saveHtml('site-1', html: '<p>hi</p>', url: 'file:///x.html');
-      expect(s.getHtmlSync('site-1'), isNotNull);
+      await s.saveHtml(SiteId('site-1'), html: '<p>hi</p>', url: 'file:///x.html');
+      expect(s.getHtmlSync(SiteId('site-1')), isNotNull);
 
-      await s.deleteImport('site-1');
-      expect(s.getHtmlSync('site-1'), isNull);
-      expect(await s.loadHtml('site-1'), isNull);
-      expect(await s.hasImport('site-1'), isFalse);
+      await s.deleteImport(SiteId('site-1'));
+      expect(s.getHtmlSync(SiteId('site-1')), isNull);
+      expect(await s.loadHtml(SiteId('site-1')), isNull);
+      expect(await s.hasImport(SiteId('site-1')), isFalse);
     });
 
     test('deleteImport on missing siteId is a no-op (does not throw)',
         () async {
       final s = await newStorage();
-      await s.deleteImport('never-existed');
-      expect(s.getHtmlSync('never-existed'), isNull);
+      await s.deleteImport(SiteId('never-existed'));
+      expect(s.getHtmlSync(SiteId('never-existed')), isNull);
     });
 
     test('removeOrphanedImports keeps active siteIds, removes the rest',
         () async {
       final s = await newStorage();
-      await s.saveHtml('a', html: '<a>', url: 'file:///a.html');
-      await s.saveHtml('b', html: '<b>', url: 'file:///b.html');
-      await s.saveHtml('c', html: '<c>', url: 'file:///c.html');
+      await s.saveHtml(SiteId('a'), html: '<a>', url: 'file:///a.html');
+      await s.saveHtml(SiteId('b'), html: '<b>', url: 'file:///b.html');
+      await s.saveHtml(SiteId('c'), html: '<c>', url: 'file:///c.html');
 
-      await s.removeOrphanedImports({'a', 'c'});
+      await s.removeOrphanedImports({SiteId('a'), SiteId('c')});
 
-      expect(await s.hasImport('a'), isTrue);
-      expect(await s.hasImport('b'), isFalse);
-      expect(await s.hasImport('c'), isTrue);
-      expect(s.getHtmlSync('b'), isNull);
+      expect(await s.hasImport(SiteId('a')), isTrue);
+      expect(await s.hasImport(SiteId('b')), isFalse);
+      expect(await s.hasImport(SiteId('c')), isTrue);
+      expect(s.getHtmlSync(SiteId('b')), isNull);
     });
 
     test('removeOrphanedImports with empty active set clears everything',
         () async {
       final s = await newStorage();
-      await s.saveHtml('a', html: '<a>', url: 'file:///a.html');
-      await s.saveHtml('b', html: '<b>', url: 'file:///b.html');
+      await s.saveHtml(SiteId('a'), html: '<a>', url: 'file:///a.html');
+      await s.saveHtml(SiteId('b'), html: '<b>', url: 'file:///b.html');
 
       await s.removeOrphanedImports(const {});
 
-      expect(await s.hasImport('a'), isFalse);
-      expect(await s.hasImport('b'), isFalse);
+      expect(await s.hasImport(SiteId('a')), isFalse);
+      expect(await s.hasImport(SiteId('b')), isFalse);
     });
   });
 
@@ -180,14 +181,14 @@ void main() {
       // the encrypted bytes stay in case the AES key recovers later
       // (e.g. transient Android Keystore read failure on next launch).
       final s = await newStorage();
-      await s.saveHtml('s', html: '<p>orig</p>', url: 'file:///s.html');
+      await s.saveHtml(SiteId('s'), html: '<p>orig</p>', url: 'file:///s.html');
       final filePath = '${tempDir.path}/html_imports/s.enc';
       await File(filePath).writeAsString('not valid base64!!!');
 
       final s2 = await newStorage();
       await s2.preloadAll();
 
-      expect(s2.getHtmlSync('s'), isNull);
+      expect(s2.getHtmlSync(SiteId('s')), isNull);
       expect(await File(filePath).exists(), isTrue);
     });
 
@@ -198,7 +199,7 @@ void main() {
       // delete them — wiping the user's only copy of data they imported
       // by hand. The bytes must survive.
       final first = await newStorage();
-      await first.saveHtml('a', html: '<p>kept</p>', url: 'file:///a.html');
+      await first.saveHtml(SiteId('a'), html: '<p>kept</p>', url: 'file:///a.html');
       final filePath = '${tempDir.path}/html_imports/a.enc';
       expect(await File(filePath).exists(), isTrue);
 
@@ -209,7 +210,7 @@ void main() {
 
       // In-memory load is empty (decrypt failed under the new key),
       // but the encrypted file MUST remain on disk.
-      expect(second.getHtmlSync('a'), isNull);
+      expect(second.getHtmlSync(SiteId('a')), isNull);
       expect(await File(filePath).exists(), isTrue);
     });
 
@@ -218,22 +219,22 @@ void main() {
       // 10MB + 1 byte. Built deterministically without allocating a real
       // 10MB string for round-trip.
       final bigHtml = 'a' * (10 * 1024 * 1024 + 1);
-      await s.saveHtml('big', html: bigHtml, url: 'file:///big.html');
-      expect(await s.hasImport('big'), isFalse);
-      expect(s.getHtmlSync('big'), isNull);
+      await s.saveHtml(SiteId('big'), html: bigHtml, url: 'file:///big.html');
+      expect(await s.hasImport(SiteId('big')), isFalse);
+      expect(s.getHtmlSync(SiteId('big')), isNull);
     });
 
     test('different siteIds with identical bytes stay independent', () async {
       // The siteId-keyed filename is what disambiguates; under GCM the two
       // ciphertexts also differ (see the at-rest group below).
       final s = await newStorage();
-      await s.saveHtml('a', html: '<same>', url: 'file:///x.html');
-      await s.saveHtml('b', html: '<same>', url: 'file:///x.html');
+      await s.saveHtml(SiteId('a'), html: '<same>', url: 'file:///x.html');
+      await s.saveHtml(SiteId('b'), html: '<same>', url: 'file:///x.html');
 
-      await s.deleteImport('a');
-      expect(await s.hasImport('a'), isFalse);
-      expect(await s.hasImport('b'), isTrue);
-      expect(s.getHtmlSync('b'), '<same>');
+      await s.deleteImport(SiteId('a'));
+      expect(await s.hasImport(SiteId('a')), isFalse);
+      expect(await s.hasImport(SiteId('b')), isTrue);
+      expect(s.getHtmlSync(SiteId('b')), '<same>');
     });
   });
 
@@ -263,17 +264,17 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
 
     test('identical imports do not produce identical ciphertext', () async {
       final s = await newStorage();
-      await s.saveHtml('a', html: '<same>', url: 'file:///x.html');
-      await s.saveHtml('b', html: '<same>', url: 'file:///x.html');
+      await s.saveHtml(SiteId('a'), html: '<same>', url: 'file:///x.html');
+      await s.saveHtml(SiteId('b'), html: '<same>', url: 'file:///x.html');
       expect(await fileContents('a'), isNot(equals(await fileContents('b'))));
     });
 
     test('rewriting the same import shares no prefix with the previous bytes',
         () async {
       final s = await newStorage();
-      await s.saveHtml('a', html: '<p>one</p>', url: 'file:///x.html');
+      await s.saveHtml(SiteId('a'), html: '<p>one</p>', url: 'file:///x.html');
       final first = await fileContents('a');
-      await s.saveHtml('a', html: '<p>one</p>', url: 'file:///x.html');
+      await s.saveHtml(SiteId('a'), html: '<p>one</p>', url: 'file:///x.html');
       final second = await fileContents('a');
       expect(second, isNot(equals(first)));
       expect(second.substring(0, 8), isNot(equals(first.substring(0, 8))),
@@ -282,12 +283,12 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
 
     test('a legacy AES-CBC blob still reads', () async {
       final s = await newStorage();
-      await s.saveHtml('a', html: '<p>seed</p>', url: 'file:///a.html');
+      await s.saveHtml(SiteId('a'), html: '<p>seed</p>', url: 'file:///a.html');
       await writeLegacyBlob('a',
           plaintext: 'file:///legacy.html\n<p>legacy</p>');
 
       final reopened = await newStorage();
-      final loaded = await reopened.loadHtml('a');
+      final loaded = await reopened.loadHtml(SiteId('a'));
       expect(loaded, isNotNull);
       expect(loaded!.$1, 'file:///legacy.html');
       expect(loaded.$2, '<p>legacy</p>');
@@ -295,7 +296,7 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
 
     test('a legacy blob is rewritten under GCM on first read', () async {
       final s = await newStorage();
-      await s.saveHtml('a', html: '<p>seed</p>', url: 'file:///a.html');
+      await s.saveHtml(SiteId('a'), html: '<p>seed</p>', url: 'file:///a.html');
       await writeLegacyBlob('a',
           plaintext: 'file:///legacy.html\n<p>legacy</p>');
       final before = await fileContents('a');
@@ -306,18 +307,18 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
       final after = await fileContents('a');
       expect(after, isNot(equals(before)),
           reason: 'the CBC blob must not survive the first successful read');
-      expect(reopened.getHtmlSync('a'), '<p>legacy</p>');
+      expect(reopened.getHtmlSync(SiteId('a')), '<p>legacy</p>');
 
       // And the rewritten bytes are readable by an instance with no legacy
       // path taken: a plain GCM round-trip.
       final third = await newStorage();
-      expect((await third.loadHtml('a'))!.$2, '<p>legacy</p>');
+      expect((await third.loadHtml(SiteId('a')))!.$2, '<p>legacy</p>');
     });
 
     test('a tampered blob reads as absent, not as attacker-chosen HTML',
         () async {
       final s = await newStorage();
-      await s.saveHtml('a', html: '<p>real</p>', url: 'file:///a.html');
+      await s.saveHtml(SiteId('a'), html: '<p>real</p>', url: 'file:///a.html');
       final wire = base64.decode(await fileContents('a'));
       // Flip a ciphertext byte, past the 12-byte nonce.
       wire[wire.length - 20] ^= 0x01;
@@ -325,9 +326,9 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
           .writeText('a.enc', contents: base64.encode(wire));
 
       final reopened = await newStorage();
-      expect(await reopened.loadHtml('a'), isNull);
+      expect(await reopened.loadHtml(SiteId('a')), isNull);
       await reopened.preloadAll();
-      expect(reopened.getHtmlSync('a'), isNull);
+      expect(reopened.getHtmlSync(SiteId('a')), isNull);
       // Never deleted: imports are the user's only copy (see the robustness
       // group above).
       expect(await File('${tempDir.path}/html_imports/a.enc').exists(), isTrue);

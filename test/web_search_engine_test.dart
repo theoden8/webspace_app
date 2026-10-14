@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/web_search_engine.dart';
 
-SearchSite site(String id,
+SearchSite site(SiteId id,
         {required String url, String? address, bool web = false}) =>
     SearchSite(
       siteId: id,
@@ -228,13 +229,13 @@ void main() {
     });
 
     test('a scoped option searches site:<host>', () {
-      final option = SearchOption(site('ddg', url: 'https://duckduckgo.com/'),
+      final option = SearchOption(site(SiteId('ddg'), url: 'https://duckduckgo.com/'),
           scoped: true);
       final url = WebSearchEngine.urlFor(option,
           query: 'tabs', scopeHost: 'github.com')!;
       expect(url.queryParameters['q'], 'site:github.com tabs');
       final plain = WebSearchEngine.urlFor(
-          SearchOption(site('ddg', url: 'https://duckduckgo.com/'),
+          SearchOption(site(SiteId('ddg'), url: 'https://duckduckgo.com/'),
               scoped: false),
           query: 'tabs',
           scopeHost: 'github.com')!;
@@ -243,10 +244,10 @@ void main() {
   });
 
   group('barOptions (LIR-033)', () {
-    final gh = site('gh', url: 'https://github.com/');
-    final blog = site('blog', url: 'https://blog.example/');
-    final ddg = site('ddg', url: 'https://duckduckgo.com/');
-    final kagi = site('kagi', url: 'https://kagi.com/');
+    final gh = site(SiteId('gh'), url: 'https://github.com/');
+    final blog = site(SiteId('blog'), url: 'https://blog.example/');
+    final ddg = site(SiteId('ddg'), url: 'https://duckduckgo.com/');
+    final kagi = site(SiteId('kagi'), url: 'https://kagi.com/');
     final all = [gh, blog, ddg, kagi];
 
     List<String> ids(List<SearchOption> o) => [for (final x in o) x.site.siteId];
@@ -265,15 +266,15 @@ void main() {
                   identity: blog,
                   candidates: all,
                   declared: const [],
-                  appDefault: 'kagi')
+                  appDefault: SiteId('kagi'))
               .preselected,
           1);
       final bar = WebSearchEngine.barOptions(
           identity: blog,
           candidates: all,
           declared: const [],
-          declaredDefault: 'ddg',
-          appDefault: 'kagi');
+          declaredDefault: SiteId('ddg'),
+          appDefault: SiteId('kagi'));
       expect(ids(bar.options), ['ddg', 'kagi']);
       expect(bar.preselected, 0);
     });
@@ -295,12 +296,12 @@ void main() {
   });
 
   group('options', () {
-    final gh = site('gh', url: 'https://github.com/');
-    final blog = site('blog', url: 'https://blog.example/');
-    final ddg = site('ddg', url: 'https://duckduckgo.com/');
-    final kagi = site('kagi', url: 'https://kagi.com/');
-    final pplx = site('pplx', url: 'https://www.perplexity.ai/');
-    final mg = site('mg', url: 'https://metager.org/');
+    final gh = site(SiteId('gh'), url: 'https://github.com/');
+    final blog = site(SiteId('blog'), url: 'https://blog.example/');
+    final ddg = site(SiteId('ddg'), url: 'https://duckduckgo.com/');
+    final kagi = site(SiteId('kagi'), url: 'https://kagi.com/');
+    final pplx = site(SiteId('pplx'), url: 'https://www.perplexity.ai/');
+    final mg = site(SiteId('mg'), url: 'https://metager.org/');
     final all = [gh, blog, ddg, kagi, pplx, mg];
 
     List<String> ids(List<SearchOption> o) => [for (final x in o) x.site.siteId];
@@ -335,7 +336,7 @@ void main() {
             scope: SearchScope.thisSite,
             identity: gh,
             candidates: all,
-            declared: ['kagi'])),
+            declared: [SiteId('kagi')])),
         ['gh', 'kagi'],
       );
       expect(
@@ -343,7 +344,7 @@ void main() {
             scope: SearchScope.web,
             identity: gh,
             candidates: all,
-            declared: ['kagi', 'pplx'])),
+            declared: [SiteId('kagi'), SiteId('pplx')])),
         ['kagi', 'pplx'],
       );
     });
@@ -358,9 +359,9 @@ void main() {
     test('preselect: the site default, then the app default, then the first', () {
       final o = WebSearchEngine.options(
           scope: SearchScope.web, identity: gh, candidates: all, declared: []);
-      expect(WebSearchEngine.preselect(o, declaredDefault: 'pplx', appDefault: 'kagi'), 2);
-      expect(WebSearchEngine.preselect(o, appDefault: 'kagi'), 1);
-      expect(WebSearchEngine.preselect(o, declaredDefault: 'gone'), 0);
+      expect(WebSearchEngine.preselect(o, declaredDefault: SiteId('pplx'), appDefault: SiteId('kagi')), 2);
+      expect(WebSearchEngine.preselect(o, appDefault: SiteId('kagi')), 1);
+      expect(WebSearchEngine.preselect(o, declaredDefault: SiteId('gone')), 0);
     });
   });
 
@@ -374,7 +375,11 @@ void main() {
       bool inDomain = true,
     }) =>
         WebSearchEngine.land(
-          (search: search, owner: owner, identity: identity),
+          (
+            search: SiteId(search),
+            owner: SiteId(owner),
+            identity: SiteId(identity),
+          ),
           tabsEnabled: tabs,
           canHost: canHost,
           urlInSearchSiteDomain: inDomain,
@@ -424,9 +429,9 @@ void main() {
 
     test('never offers a second site for an engine the user has', () {
       final mine = [
-        site('blog', url: 'https://blog.example/'),
-        site('ddg', url: 'https://start.duckduckgo.com/'),
-        site('g', url: 'https://www.google.de/'),
+        site(SiteId('blog'), url: 'https://blog.example/'),
+        site(SiteId('ddg'), url: 'https://start.duckduckgo.com/'),
+        site(SiteId('g'), url: 'https://www.google.de/'),
       ];
       expect(names(WebSearchEngine.addable(SearchScope.web, candidates: mine)),
           ['Brave Search', 'Kagi', 'Perplexity']);

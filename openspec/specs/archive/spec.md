@@ -31,7 +31,8 @@ ARCH-001 through ARCH-009 are wired end-to-end:
   recurring failure — the legacy cookie engine and the nested-webview
   launch both did.
 - **ARCH-007 (opaque container ids):** HMAC-derived
-  `archiveContainerId` plumbed through `WebViewConfig`; teardown on
+  `archiveContainerKey`, the site's `containerKey`, bound through its
+  `SitePosture` and named by every container operation; teardown on
   close via `ContainerNative.deleteContainer`.
 - **ARCH-008 (settings entry point):** Restore archive / Close all
   archives tiles in the Data section of `AppSettingsScreen`; per-site
@@ -359,7 +360,9 @@ nothing reaches `NotificationService`
 
 For archive-tier sites on container-capable platforms, per-site containers SHALL use opaque, key-derived identifiers and SHALL be torn down on archive close. The archive feature is unavailable on platforms without container support.
 
-Every webview that runs as an archive-tier site SHALL bind by that opaque identifier: the site's own webview, and a nested `InAppWebViewScreen` opened from its links, from its URL bar, or routed to it (link-intent-routing LIR-015). `archiveContainerId` is therefore part of the nested chain (`LaunchUrlFunc`, `launchUrl`, `InAppWebViewScreen`), like any posture field (NESTED-010). A nested screen that bound `ws-<siteId>` instead would, on Android, where incognito sites still bind a named profile, run in a persistent profile named after the archived site's cleartext id, signed out of the site, and left on disk by the close.
+Every webview that runs as an archive-tier site SHALL bind by that opaque identifier: the site's own webview, and a nested `InAppWebViewScreen` opened from its links, from its URL bar, or routed to it (link-intent-routing LIR-015). The site's container key is therefore part of its `SitePosture` (`container.containerKey`), which the nested chain (`LaunchUrlFunc`, `launchUrl`, `InAppWebViewScreen`) carries whole (NESTED-010). A nested screen that bound `ws-<siteId>` instead would, on Android, where incognito sites still bind a named profile, run in a persistent profile named after the archived site's cleartext id, signed out of the site, and left on disk by the close.
+
+Every operation on an archive-tier site's container (clearing its data, wiping it before a link opens in it, deleting the site) SHALL address the same opaque container its webviews bind. Native containers are named by a `ContainerKey`, which a site's model gives as `containerKey`: its `SiteId` on the app tier, the opaque key on the archive tier; no container operation takes a `SiteId`.
 
 On close, after deleting the archive's opaque containers, `_closeArchive` SHALL also delete `ws-<siteId>` for each of the archive's sites whose id no app-tier site holds, so a path that ever binds one without the opaque id leaves nothing behind. An id an app-tier site also holds (a backup can bring one back) is skipped: that container is the app-tier site's own.
 
@@ -392,6 +395,13 @@ On close, after deleting the archive's opaque containers, `_closeArchive` SHALL 
 **And** no app-tier site has id S
 **When** the archive is closed
 **Then** `ws-<S>` is deleted with the archive's opaque containers
+
+#### Scenario: Clearing an archive site's data clears its opaque container
+
+**Given** an open archive holding site S, whose container is `ws-<X>`
+**When** the user clears S's site data
+**Then** `ws-<X>` is cleared
+**And** no operation addresses `ws-<S>`
 
 #### Scenario: Close leaves an app-tier site's container alone
 

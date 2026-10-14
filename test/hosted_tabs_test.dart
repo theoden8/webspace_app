@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';
@@ -20,8 +21,8 @@ void main() {
   });
   tearDown(() => WebViewModel.siteLookup = null);
 
-  WebViewModel owner({List<SiteTab>? tabs, String? active}) => add(WebViewModel(
-        siteId: 'gh',
+  WebViewModel owner({List<SiteTab>? tabs, TabId? active}) => add(WebViewModel(
+        siteId: SiteId('gh'),
         initUrl: 'https://github.com/',
         tabs: tabs,
         activeTabId: active,
@@ -29,7 +30,7 @@ void main() {
 
   group('SiteTab.hostSiteId', () {
     test('round-trips, and an unsafe id is dropped', () {
-      final tab = SiteTab(url: 'https://duckduckgo.com/?q=x', hostSiteId: 'ddg');
+      final tab = SiteTab(url: 'https://duckduckgo.com/?q=x', hostSiteId: SiteId('ddg'));
       expect(SiteTab.fromJson(tab.toJson())!.hostSiteId, 'ddg');
       final bad = {...tab.toJson(), 'hostSiteId': '../ddg'};
       expect(SiteTab.fromJson(bad)!.hostSiteId, isNull);
@@ -40,7 +41,7 @@ void main() {
     test('a host equal to the owner is the owner', () {
       final m = owner(tabs: [
         SiteTab.primary(url: 'https://github.com/'),
-        SiteTab(id: 't1', url: 'https://github.com/x', hostSiteId: 'gh'),
+        SiteTab(id: TabId('t1'), url: 'https://github.com/x', hostSiteId: SiteId('gh')),
       ]);
       expect(m.tabs[1].hostSiteId, isNull);
     });
@@ -49,15 +50,15 @@ void main() {
   group('running identity (LIR-018)', () {
     test('the active tab\'s host is what the slot runs as', () {
       final ddg = add(WebViewModel(
-          siteId: 'ddg', initUrl: 'https://duckduckgo.com/'));
+          siteId: SiteId('ddg'), initUrl: 'https://duckduckgo.com/'));
       final m = owner(tabs: [
         SiteTab.primary(url: 'https://github.com/'),
         SiteTab(
-            id: 't1',
+            id: TabId('t1'),
             url: 'https://duckduckgo.com/?q=x',
             parentId: kPrimaryTabId,
-            hostSiteId: 'ddg'),
-      ], active: 't1');
+            hostSiteId: SiteId('ddg')),
+      ], active: TabId('t1'));
       expect(identical(m.runningIdentity, ddg), isTrue);
       expect(m.runsHostedTab, isTrue);
       expect(m.activeHostMissing, isFalse);
@@ -67,34 +68,34 @@ void main() {
 
     test('a missing host never runs the tab as the owner', () {
       final m = owner(tabs: [
-        SiteTab(id: 't1', url: 'https://duckduckgo.com/', hostSiteId: 'gone'),
-      ], active: 't1');
+        SiteTab(id: TabId('t1'), url: 'https://duckduckgo.com/', hostSiteId: SiteId('gone')),
+      ], active: TabId('t1'));
       expect(m.activeHostMissing, isTrue);
     });
   });
 
   group('persistence (LIR-022)', () {
     test('state bytes are keyed by the identity that made them', () {
-      add(WebViewModel(siteId: 'ddg', initUrl: 'https://duckduckgo.com/'));
+      add(WebViewModel(siteId: SiteId('ddg'), initUrl: 'https://duckduckgo.com/'));
       final m = owner(tabs: [
         SiteTab.primary(url: 'https://github.com/'),
-        SiteTab(id: 't1', url: 'https://duckduckgo.com/', hostSiteId: 'ddg'),
+        SiteTab(id: TabId('t1'), url: 'https://duckduckgo.com/', hostSiteId: SiteId('ddg')),
       ]);
       expect(m.stateKeyForTab(kPrimaryTabId), 'gh.$kPrimaryTabId');
-      expect(m.stateKeyForTab('t1'), 'ddg.t1');
+      expect(m.stateKeyForTab(TabId('t1')), 'ddg.t1');
     });
 
     test('an incognito owner keeps its hosted tabs, not their back stacks', () {
-      add(WebViewModel(siteId: 'ddg', initUrl: 'https://duckduckgo.com/'));
+      add(WebViewModel(siteId: SiteId('ddg'), initUrl: 'https://duckduckgo.com/'));
       final m = add(WebViewModel(
-        siteId: 'gh',
+        siteId: SiteId('gh'),
         initUrl: 'https://github.com/',
         incognito: true,
         tabs: [
           SiteTab.primary(url: 'https://github.com/'),
-          SiteTab(id: 't1', url: 'https://duckduckgo.com/?q=secret', hostSiteId: 'ddg'),
+          SiteTab(id: TabId('t1'), url: 'https://duckduckgo.com/?q=secret', hostSiteId: SiteId('ddg')),
         ],
-        activeTabId: 't1',
+        activeTabId: TabId('t1'),
       ));
       expect(m.toJson()['tabs'], hasLength(2));
       expect(m.activeTabPersistsNavState, isFalse);
@@ -102,24 +103,24 @@ void main() {
 
     test('an Always open Home host adds no condition (TAB-014)', () {
       add(WebViewModel(
-          siteId: 'ddg',
+          siteId: SiteId('ddg'),
           initUrl: 'https://duckduckgo.com/',
           alwaysOpenHome: true));
       final m = owner(tabs: [
         SiteTab.primary(url: 'https://github.com/'),
-        SiteTab(id: 't1', url: 'https://duckduckgo.com/?q=x', hostSiteId: 'ddg'),
-      ], active: 't1');
+        SiteTab(id: TabId('t1'), url: 'https://duckduckgo.com/?q=x', hostSiteId: SiteId('ddg')),
+      ], active: TabId('t1'));
       final ids = [for (final t in m.toJson()['tabs'] as List) (t as Map)['id']];
       expect(ids, [kPrimaryTabId, 't1']);
       expect(m.activeTabPersistsNavState, isTrue);
     });
 
     test('an ordinary host persists the tab and its back stack', () {
-      add(WebViewModel(siteId: 'ddg', initUrl: 'https://duckduckgo.com/'));
+      add(WebViewModel(siteId: SiteId('ddg'), initUrl: 'https://duckduckgo.com/'));
       final m = owner(tabs: [
         SiteTab.primary(url: 'https://github.com/'),
-        SiteTab(id: 't1', url: 'https://duckduckgo.com/?q=x', hostSiteId: 'ddg'),
-      ], active: 't1');
+        SiteTab(id: TabId('t1'), url: 'https://duckduckgo.com/?q=x', hostSiteId: SiteId('ddg')),
+      ], active: TabId('t1'));
       final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs.last.hostSiteId, 'ddg');
       expect(back.activeTabId, 't1');
@@ -130,15 +131,15 @@ void main() {
   group('TabLifecycleEngine', () {
     List<SiteTab> tree() => [
           SiteTab.primary(url: 'https://github.com/'),
-          SiteTab(id: 'h', url: 'https://duckduckgo.com/', parentId: kPrimaryTabId, hostSiteId: 'ddg'),
-          SiteTab(id: 'c', url: 'https://github.com/x', parentId: 'h'),
-          SiteTab(id: 'hh', url: 'https://duckduckgo.com/2', parentId: 'h', hostSiteId: 'ddg'),
+          SiteTab(id: TabId('h'), url: 'https://duckduckgo.com/', parentId: kPrimaryTabId, hostSiteId: SiteId('ddg')),
+          SiteTab(id: TabId('c'), url: 'https://github.com/x', parentId: TabId('h')),
+          SiteTab(id: TabId('hh'), url: 'https://duckduckgo.com/2', parentId: TabId('h'), hostSiteId: SiteId('ddg')),
         ];
 
     test('closeWhere closes a host\'s tabs and re-parents the rest (LIR-023)',
         () {
       final result = TabLifecycleEngine.closeWhere(
-          tree(), activeTabId: 'hh', shouldClose: (t) => t.hostSiteId == 'ddg');
+          tree(), activeTabId: TabId('hh'), shouldClose: (t) => t.hostSiteId == 'ddg');
       expect(result.closedIds.toSet(), {'h', 'hh'});
       expect(result.tabs.map((t) => t.id), [kPrimaryTabId, 'c']);
       expect(result.tabs.last.parentId, kPrimaryTabId);
@@ -147,27 +148,27 @@ void main() {
 
     test('ownerRunTab walks up to a tab the owner runs', () {
       final tabs = tree();
-      expect(TabLifecycleEngine.ownerRunTab(tabs, activeTabId: 'hh'),
+      expect(TabLifecycleEngine.ownerRunTab(tabs, activeTabId: TabId('hh')),
           kPrimaryTabId);
-      expect(TabLifecycleEngine.ownerRunTab(tabs, activeTabId: 'c'), 'c');
+      expect(TabLifecycleEngine.ownerRunTab(tabs, activeTabId: TabId('c')), 'c');
       expect(
         TabLifecycleEngine.ownerRunTab(
-            [SiteTab(id: 'x', url: 'https://duckduckgo.com/', hostSiteId: 'ddg')],
-            activeTabId: 'x'),
+            [SiteTab(id: TabId('x'), url: 'https://duckduckgo.com/', hostSiteId: SiteId('ddg'))],
+            activeTabId: TabId('x')),
         isNull,
       );
     });
 
     test('a home landing never lands on a hosted tab (TAB-014)', () {
       final hostedHome = SiteTab(
-          id: 'h', url: 'https://github.com/', hostSiteId: 'ddg');
+          id: TabId('h'), url: 'https://github.com/', hostSiteId: SiteId('ddg'));
       final tabs = [SiteTab.primary(url: 'https://github.com/x'), hostedHome];
       final parked = TabLifecycleEngine.homeLanding(tabs,
           activeTabId: kPrimaryTabId, initUrl: 'https://github.com/')!;
       expect(parked.activeTabId, isNot('h'));
       expect(parked.tabs, hasLength(3));
       final active = TabLifecycleEngine.homeLanding(tabs,
-          activeTabId: 'h', initUrl: 'https://github.com/')!;
+          activeTabId: TabId('h'), initUrl: 'https://github.com/')!;
       expect(active.activeTabId, isNot('h'));
     });
 
@@ -175,11 +176,11 @@ void main() {
       final m = owner(tabs: [
         SiteTab.primary(url: 'https://github.com/x'),
         SiteTab(
-            id: 'h',
+            id: TabId('h'),
             url: 'https://duckduckgo.com/?q=x',
             parentId: kPrimaryTabId,
-            hostSiteId: 'ddg'),
-      ], active: 'h');
+            hostSiteId: SiteId('ddg')),
+      ], active: TabId('h'));
       m
         ..tabsEnabled = false
         ..landAtHome();
@@ -191,18 +192,18 @@ void main() {
 
   group('per-site search fields (LIR-028)', () {
     test('round-trip, omitted at their defaults', () {
-      final plain = WebViewModel(siteId: 'a', initUrl: 'https://a.example/');
+      final plain = WebViewModel(siteId: SiteId('a'), initUrl: 'https://a.example/');
       final json = plain.toJson();
       for (final k in ['searchAddress', 'searchesWeb', 'searchSites', 'searchDefault']) {
         expect(json, isNot(contains(k)));
       }
       final set = WebViewModel(
-        siteId: 'b',
+        siteId: SiteId('b'),
         initUrl: 'https://b.example/',
         searchAddress: 'https://b.example/?s=%s',
         searchesWeb: true,
-        searchSites: ['ddg', 'kagi'],
-        searchDefault: 'kagi',
+        searchSites: [SiteId('ddg'), SiteId('kagi')],
+        searchDefault: SiteId('kagi'),
       );
       final back = WebViewModel.fromJson(set.toJson(), stateSetterF: null);
       expect(back.searchAddress, 'https://b.example/?s=%s');
@@ -255,7 +256,7 @@ void main() {
         address: 'https://searx.lan/search?q=%s', web: true);
 
     test('round-trips, omitted until something was found', () {
-      final m = WebViewModel(siteId: 's', initUrl: 'https://searx.lan/');
+      final m = WebViewModel(siteId: SiteId('s'), initUrl: 'https://searx.lan/');
       expect(m.toJson(), isNot(contains('discoveredSearchAddress')));
       expect(m.toJson(), isNot(contains('discoveredSearchesWeb')));
       expect(m.searchCapability, isNull);
@@ -270,7 +271,7 @@ void main() {
 
     test('an incognito site keeps what it found in memory only', () {
       final m = WebViewModel(
-          siteId: 's', initUrl: 'https://searx.lan/', incognito: true)
+          siteId: SiteId('s'), initUrl: 'https://searx.lan/', incognito: true)
         ..offerDiscoveredSearch(searx);
       expect(m.searchCapability?.template, 'https://searx.lan/search?q=%s');
       final json = m.toJson();

@@ -34,6 +34,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:socks5_proxy/socks_client.dart' as socks5;
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -420,7 +421,7 @@ void main() {
 
   tearDownAll(() async {
     await sub.cancel();
-    TorService.instance.release(TorSiteHolder('integration'));
+    TorService.instance.release(TorSiteHolder(SiteId('integration')));
   });
 
   /// Poll until [done] or [budget] runs out. A plain `await for` on the
@@ -455,7 +456,7 @@ void main() {
       return;
     }
 
-    await TorService.instance.maybeStart(TorSiteHolder('integration'));
+    await TorService.instance.maybeStart(TorSiteHolder(SiteId('integration')));
 
     // The plugin answering at all. A build where it never registered lands
     // here as an error naming the missing runtime rather than as a hang.
@@ -525,7 +526,7 @@ void main() {
     final outcome = TorService.instance.status;
     if (outcome is TorUp) {
       expect(TorService.instance.socksEndpoint, isNotNull);
-      expect(TorService.instance.socksFor(siteId: 'site-1'), isNotNull,
+      expect(TorService.instance.socksFor(siteId: SiteId('site-1')), isNotNull,
           reason: 'a connected runtime must hand a site its SOCKS settings');
     } else if (controlChannelFailure(outcome) != null) {
       // Never a skip, on any run: nothing here depends on the network.
@@ -646,7 +647,7 @@ void main() {
 
     // Read while up: a pending pin withholds SOCKS settings, and a tag keeps
     // its credentials for the whole launch.
-    final via = TorService.instance.socksFor(siteId: 'exit-pin')!;
+    final via = TorService.instance.socksFor(siteId: SiteId('exit-pin'))!;
     final route = outboundHttp.clientFor(via);
     if (route is! OutboundClientReady) fail('no route through Tor: $route');
     // One client throughout, the way a webview keeps one pool.
@@ -862,7 +863,7 @@ void main() {
     await probe.watchStreams();
     final streams = <Socket>[];
     try {
-      for (final site in ['site-a', 'site-b']) {
+      for (final site in [SiteId('site-a'), SiteId('site-b')]) {
         streams.add(await openStream(
             TorService.instance.socksFor(siteId: site)!, to: target)
             .timeout(const Duration(seconds: 150)));
@@ -958,7 +959,7 @@ void main() {
       expect((status as TorErrored).kind, TorFailureKind.exitPolicy,
           reason: 'the failure is the country\'s, and the card has to say '
               'so: ${status.message}');
-      expect(TorService.instance.socksFor(siteId: 'nowhere'), isNull,
+      expect(TorService.instance.socksFor(siteId: SiteId('nowhere')), isNull,
           reason: 'a site pinned to a country with no exit was handed a '
               'SOCKS route');
       expect(config, isNot(contains('ExitNodes={$nowhere}')),
@@ -976,7 +977,7 @@ void main() {
     // judging its directory unusable after it was cleared, and the next
     // scenario's page timed out behind it.
     final route =
-        outboundHttp.clientFor(TorService.instance.socksFor(siteId: 'after-nowhere')!);
+        outboundHttp.clientFor(TorService.instance.socksFor(siteId: SiteId('after-nowhere'))!);
     if (route is! OutboundClientReady) fail('no route through Tor: $route');
     final since = Stopwatch()..start();
     Future<http.Response> ask() =>
@@ -1029,7 +1030,7 @@ void main() {
       return;
     }
 
-    const site = 'tor-after-direct';
+    final site = SiteId('tor-after-direct');
     // Cloudflare keeps its connections alive and speaks h2 and h3, like the
     // page that showed the leak; the Tor Project's check closes each one.
     final whereFrom = Uri.parse('https://www.cloudflare.com/cdn-cgi/trace');

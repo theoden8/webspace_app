@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/link_routing_service.dart';
 
 class _Site implements RoutableSite {
   @override
-  final String siteId;
+  final SiteId siteId;
   @override
   final String initUrl;
   @override
@@ -56,11 +57,11 @@ void main() {
 
   group('LinkRoutingService.resolve - LIR-002', () {
     test('exactHost beats wildcardSubdomain on same domain', () {
-      final a = _Site('A', initUrl: 'https://mastodon.social/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://mastodon.social/', domainClaims: [
         DomainClaim.wildcardSubdomain('mastodon.social'),
       ]);
       final b =
-          _Site('B', initUrl: 'https://mastodon.social/@me', domainClaims: [
+          _Site(SiteId('B'), initUrl: 'https://mastodon.social/@me', domainClaims: [
         DomainClaim.exactHost('mastodon.social'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -72,10 +73,10 @@ void main() {
     });
 
     test('wildcardSubdomain matches sub but not the bare base host', () {
-      final a = _Site('A', initUrl: 'https://mastodon.social/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://mastodon.social/', domainClaims: [
         DomainClaim.wildcardSubdomain('mastodon.social'),
       ]);
-      final b = _Site('B', initUrl: 'https://other.example/', domainClaims: [
+      final b = _Site(SiteId('B'), initUrl: 'https://other.example/', domainClaims: [
         DomainClaim.baseDomain('mastodon.social'),
       ]);
       final sub = LinkRoutingService.resolve(
@@ -91,7 +92,7 @@ void main() {
     });
 
     test('baseDomain matches multi-part TLD via getBaseDomain', () {
-      final a = _Site('A', initUrl: 'https://www.google.co.uk/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://www.google.co.uk/', domainClaims: [
         DomainClaim.baseDomain('google.co.uk'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -103,7 +104,7 @@ void main() {
     });
 
     test('IP host: baseDomain match works for raw IPv4 literal', () {
-      final a = _Site('A', initUrl: 'http://192.168.1.1/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'http://192.168.1.1/', domainClaims: [
         DomainClaim.baseDomain('192.168.1.1'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -114,10 +115,10 @@ void main() {
     });
 
     test('tie at top score returns RoutingAmbiguous with all winners', () {
-      final a = _Site('A', initUrl: 'https://reddit.com/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://reddit.com/', domainClaims: [
         DomainClaim.exactHost('reddit.com'),
       ]);
-      final b = _Site('B', initUrl: 'https://reddit.com/r/x', domainClaims: [
+      final b = _Site(SiteId('B'), initUrl: 'https://reddit.com/r/x', domainClaims: [
         DomainClaim.exactHost('reddit.com'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -130,7 +131,7 @@ void main() {
     });
 
     test('no match returns RoutingNone', () {
-      final a = _Site('A', initUrl: 'https://github.com/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://github.com/', domainClaims: [
         DomainClaim.exactHost('github.com'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -141,7 +142,7 @@ void main() {
     });
 
     test('non-http(s) scheme returns RoutingNone', () {
-      final a = _Site('A', initUrl: 'https://example.org/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://example.org/', domainClaims: [
         DomainClaim.exactHost('example.org'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -152,7 +153,7 @@ void main() {
     });
 
     test('uppercase host in inbound URL is matched case-insensitively', () {
-      final a = _Site('A', initUrl: 'https://twitter.com/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://twitter.com/', domainClaims: [
         DomainClaim.exactHost('twitter.com'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -163,7 +164,7 @@ void main() {
     });
 
     test('exactHost with port matches host:port URL', () {
-      final a = _Site('A', initUrl: 'http://localhost:8080/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'http://localhost:8080/', domainClaims: [
         DomainClaim.exactHost('localhost:8080'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -175,7 +176,7 @@ void main() {
     });
 
     test('exactHost without port does NOT match a port-bearing URL', () {
-      final a = _Site('A', initUrl: 'http://localhost/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'http://localhost/', domainClaims: [
         DomainClaim.exactHost('localhost'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -188,7 +189,7 @@ void main() {
     test(
         'wildcardSubdomain and baseDomain do NOT match URLs with non-default port',
         () {
-      final a = _Site('A', initUrl: 'http://localhost/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'http://localhost/', domainClaims: [
         DomainClaim.wildcardSubdomain('localhost'),
         DomainClaim.baseDomain('localhost'),
       ]);
@@ -200,7 +201,7 @@ void main() {
     });
 
     test('default https port (443) is treated as no port', () {
-      final a = _Site('A', initUrl: 'https://example.org/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://example.org/', domainClaims: [
         DomainClaim.wildcardSubdomain('example.org'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -212,10 +213,10 @@ void main() {
     });
 
     test('mismatched ports do not collide on exact host', () {
-      final a = _Site('A', initUrl: 'http://localhost:8080/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'http://localhost:8080/', domainClaims: [
         DomainClaim.exactHost('localhost:8080'),
       ]);
-      final b = _Site('B', initUrl: 'http://localhost:9090/', domainClaims: [
+      final b = _Site(SiteId('B'), initUrl: 'http://localhost:9090/', domainClaims: [
         DomainClaim.exactHost('localhost:9090'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -227,11 +228,11 @@ void main() {
 
     test('per-site best-claim wins; lower-score claim on same site ignored',
         () {
-      final a = _Site('A', initUrl: 'https://google.com/', domainClaims: [
+      final a = _Site(SiteId('A'), initUrl: 'https://google.com/', domainClaims: [
         DomainClaim.baseDomain('google.com'),
         DomainClaim.exactHost('mail.google.com'),
       ]);
-      final b = _Site('B', initUrl: 'https://drive.google.com/', domainClaims: [
+      final b = _Site(SiteId('B'), initUrl: 'https://drive.google.com/', domainClaims: [
         DomainClaim.baseDomain('google.com'),
       ]);
       final r = LinkRoutingService.resolve(
@@ -534,10 +535,10 @@ void main() {
 
   group('LinkRoutingService.validateClaims - LIR-003', () {
     test('hijack: claim base equals another site initUrl base', () {
-      final github = _Site('github', initUrl: 'https://github.com/alice',
+      final github = _Site(SiteId('github'), initUrl: 'https://github.com/alice',
           domainClaims: [DomainClaim.baseDomain('github.com')]);
       final conflicts = LinkRoutingService.validateClaims(
-        'attacker',
+        SiteId('attacker'),
         editedClaims: [DomainClaim.exactHost('github.com')],
         others: [github],
       );
@@ -548,10 +549,10 @@ void main() {
 
     test('hijack via subdomain claim still triggers (base-domain compare)',
         () {
-      final github = _Site('github', initUrl: 'https://github.com/',
+      final github = _Site(SiteId('github'), initUrl: 'https://github.com/',
           domainClaims: [DomainClaim.baseDomain('github.com')]);
       final conflicts = LinkRoutingService.validateClaims(
-        'attacker',
+        SiteId('attacker'),
         editedClaims: [DomainClaim.exactHost('docs.github.com')],
         others: [github],
       );
@@ -561,11 +562,11 @@ void main() {
 
     test('overlap: wildcard vs exact subdomain on different initUrl base', () {
       final wildcard =
-          _Site('wild', initUrl: 'https://other.example/', domainClaims: [
+          _Site(SiteId('wild'), initUrl: 'https://other.example/', domainClaims: [
         DomainClaim.wildcardSubdomain('example.com'),
       ]);
       final conflicts = LinkRoutingService.validateClaims(
-        'edited',
+        SiteId('edited'),
         editedClaims: [DomainClaim.exactHost('blog.example.com')],
         others: [wildcard],
       );
@@ -574,10 +575,10 @@ void main() {
     });
 
     test('no conflict when bases differ and claims do not overlap', () {
-      final a = _Site('A', initUrl: 'https://example.org/',
+      final a = _Site(SiteId('A'), initUrl: 'https://example.org/',
           domainClaims: [DomainClaim.baseDomain('example.org')]);
       final conflicts = LinkRoutingService.validateClaims(
-        'edited',
+        SiteId('edited'),
         editedClaims: [DomainClaim.exactHost('twitter.com')],
         others: [a],
       );
@@ -585,10 +586,10 @@ void main() {
     });
 
     test('does not flag the edited site against itself', () {
-      final self = _Site('self', initUrl: 'https://example.org/',
+      final self = _Site(SiteId('self'), initUrl: 'https://example.org/',
           domainClaims: [DomainClaim.baseDomain('example.org')]);
       final conflicts = LinkRoutingService.validateClaims(
-        'self',
+        SiteId('self'),
         editedClaims: [DomainClaim.exactHost('example.org')],
         others: [self],
       );
@@ -598,7 +599,7 @@ void main() {
 
   group('Three-option dispatch end-to-end shape - LIR-010', () {
     test('option 1 (router default) on single match', () {
-      final a = _Site('twitter', initUrl: 'https://twitter.com/',
+      final a = _Site(SiteId('twitter'), initUrl: 'https://twitter.com/',
           domainClaims: [DomainClaim.exactHost('twitter.com')]);
       final r = LinkRoutingService.resolve(
         Uri.parse('https://twitter.com/anyone'),
@@ -608,7 +609,7 @@ void main() {
     });
 
     test('option 2 (bind to existing) updates a chosen site idempotently', () {
-      final original = _Site('A', initUrl: 'https://existing.example/',
+      final original = _Site(SiteId('A'), initUrl: 'https://existing.example/',
           domainClaims: [DomainClaim.baseDomain('existing.example')]);
       final inboundHost =
           Uri.parse('https://forum.invalid/thread/42').host;
@@ -639,7 +640,7 @@ void main() {
       expect(home, 'https://forum.invalid/');
 
       final newSite = _Site(
-        'new',
+        SiteId('new'),
         initUrl: home!,
         domainClaims: [DomainClaim.baseDomain('forum.invalid')],
       );

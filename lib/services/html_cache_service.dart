@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
@@ -93,7 +94,7 @@ class HtmlCacheService {
   /// [getHtmlSync] hits without the bulk [preloadCache] pass. Idempotent; a
   /// no-op when the site has no cache file. Lets the cold-start path load only
   /// the pages for sites that actually build, instead of every cached page.
-  Future<void> preloadOne(String siteId) async {
+  Future<void> preloadOne(SiteId siteId) async {
     if (_memoryCache.containsKey(siteId)) return;
     final store = _store;
     if (store == null) return;
@@ -154,7 +155,7 @@ class HtmlCacheService {
     }
   }
 
-  String? getHtmlSync(String siteId) {
+  String? getHtmlSync(SiteId siteId) {
     return _memoryCache[siteId];
   }
 
@@ -180,7 +181,7 @@ class HtmlCacheService {
     await prefs.setString(_versionKey, currentVersion);
   }
 
-  String _cacheFileName(String siteId) => '$siteId.enc';
+  String _cacheFileName(SiteId siteId) => '$siteId.enc';
 
   static const int _maxHtmlSize = 10 * 1024 * 1024;
 
@@ -224,7 +225,7 @@ class HtmlCacheService {
   /// at next launch and overwritten by the cached-then-live path on
   /// first webview rebuild. Use [deleteCache] when the disk file must
   /// also go (orphan cleanup, explicit site deletion).
-  void evictInMemory(String siteId) {
+  void evictInMemory(SiteId siteId) {
     _evictionGen[siteId] = (_evictionGen[siteId] ?? 0) + 1;
     _memoryCache.remove(siteId);
     _lastSaveAt.remove(siteId);
@@ -237,7 +238,7 @@ class HtmlCacheService {
   ///
   /// Callers pattern: gate the snapshot call itself on this, not
   /// just the save — the IPC is the expensive part.
-  bool shouldSave(String siteId) {
+  bool shouldSave(SiteId siteId) {
     final last = _lastSaveAt[siteId];
     if (last == null) return true;
     return DateTime.now().difference(last) >= _minSaveInterval;
@@ -271,7 +272,7 @@ class HtmlCacheService {
     return '$_darkCachePrelude$html';
   }
 
-  Future<void> saveHtml(String siteId,
+  Future<void> saveHtml(SiteId siteId,
       {required String html, required String url}) async {
     final store = _store;
     final aead = _aead;
@@ -328,7 +329,7 @@ class HtmlCacheService {
   }
 
   /// Returns (url, html) tuple or null if not cached
-  Future<(String, String)?> loadHtml(String siteId) async {
+  Future<(String, String)?> loadHtml(SiteId siteId) async {
     final store = _store;
     final aead = _aead;
     if (store == null || aead == null) return null;
@@ -358,7 +359,7 @@ class HtmlCacheService {
     }
   }
 
-  Future<bool> hasCache(String siteId) async {
+  Future<bool> hasCache(SiteId siteId) async {
     final store = _store;
     if (store == null) return false;
     return store.exists(_cacheFileName(siteId));
@@ -370,26 +371,26 @@ class HtmlCacheService {
   /// before awaiting the file delete, so an in-flight [saveHtml] for
   /// the same site cannot land on the cleared entry while the disk
   /// delete is in progress.
-  Future<void> deleteCache(String siteId) async {
+  Future<void> deleteCache(SiteId siteId) async {
     evictInMemory(siteId);
     final store = _store;
     if (store == null) return;
     await store.delete(_cacheFileName(siteId));
   }
 
-  Future<void> removeOrphanedCaches(Set<String> activeSiteIds) async {
+  Future<void> removeOrphanedCaches(Set<SiteId> activeSiteIds) async {
     final store = _store;
     if (store == null) return;
 
     final files = await store.list();
     for (final name in files) {
       if (name.endsWith('.enc')) {
-        final siteId = name.replaceAll('.enc', '');
-        if (!activeSiteIds.contains(siteId)) {
-          evictInMemory(siteId);
+        final siteId = SiteId.parse(name.replaceAll('.enc', ''));
+        if (siteId == null || !activeSiteIds.contains(siteId)) {
+          if (siteId != null) evictInMemory(siteId);
           await store.delete(name);
           LogTag.htmlCache.info(
-              'Removed orphaned cache for $siteId', sensitive: true);
+              'Removed orphaned cache $name', sensitive: true);
         }
       }
     }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
 import 'helpers/localized.dart';
 
-SearchSite site(String id, {required String name, required String url}) =>
+SearchSite site(SiteId id, {required String name, required String url}) =>
     SearchSite(
       siteId: id,
       name: name,
@@ -12,10 +13,10 @@ SearchSite site(String id, {required String name, required String url}) =>
       capability: WebSearchEngine.capabilityOf(initUrl: url),
     );
 
-final gh = site('gh', name: 'GitHub', url: 'https://github.com/');
-final blog = site('blog', name: 'Blog', url: 'https://blog.example/');
-final ddg = site('ddg', name: 'DuckDuckGo', url: 'https://duckduckgo.com/');
-final kagi = site('kagi', name: 'Kagi', url: 'https://kagi.com/');
+final gh = site(SiteId('gh'), name: 'GitHub', url: 'https://github.com/');
+final blog = site(SiteId('blog'), name: 'Blog', url: 'https://blog.example/');
+final ddg = site(SiteId('ddg'), name: 'DuckDuckGo', url: 'https://duckduckgo.com/');
+final kagi = site(SiteId('kagi'), name: 'Kagi', url: 'https://kagi.com/');
 
 void main() {
   /// Opens the sheet from a button, as the page menu does, and records what it
@@ -24,11 +25,11 @@ void main() {
     WidgetTester tester, {
     required SearchSite identity,
     List<SearchSite> candidates = const [],
-    List<String> declared = const [],
-    String? declaredDefault,
-    String? appDefault,
+    List<SiteId> declared = const [],
+    SiteId? declaredDefault,
+    SiteId? appDefault,
     bool canAddSites = true,
-    Map<String, int> containerColors = const {},
+    Map<SiteId, int> containerColors = const {},
   }) async {
     final results = <WebSearchRequest?>[];
     await pumpLocalized(tester, home: Scaffold(
@@ -79,7 +80,7 @@ void main() {
 
   testWidgets('the web scope starts on the app default (S2)', (tester) async {
     final results = await openSheet(tester,
-        identity: gh, candidates: [gh, ddg, kagi], appDefault: 'kagi');
+        identity: gh, candidates: [gh, ddg, kagi], appDefault: SiteId('kagi'));
     await tester.tap(find.text('The web'));
     await tester.pumpAndSettle();
     expect(find.text('GitHub'), findsOneWidget,
@@ -107,8 +108,8 @@ void main() {
     await openSheet(tester,
         identity: blog,
         candidates: [blog, ddg, kagi],
-        declared: ['kagi'],
-        declaredDefault: 'kagi');
+        declared: [SiteId('kagi')],
+        declaredDefault: SiteId('kagi'));
     expect(find.widgetWithText(ChoiceChip, 'Kagi'), findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'DuckDuckGo'), findsNothing);
   });
@@ -136,7 +137,7 @@ void main() {
     // DuckDuckGo is the user's, but this site's list leaves it out, so no
     // chip exists and the empty state shows.
     await openSheet(tester,
-        identity: blog, candidates: [blog, ddg], declared: ['gone']);
+        identity: blog, candidates: [blog, ddg], declared: [SiteId('gone')]);
     expect(find.text('None of your sites can run this search. Add one:'),
         findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'DuckDuckGo'), findsNothing);
@@ -147,7 +148,7 @@ void main() {
     await openSheet(tester,
         identity: ddg,
         candidates: [ddg, kagi],
-        containerColors: {'ddg': 3});
+        containerColors: {SiteId('ddg'): 3});
     final ddgChip = tester.widget<ChoiceChip>(
         find.widgetWithText(ChoiceChip, 'DuckDuckGo'));
     expect(ddgChip.avatar, isNotNull);

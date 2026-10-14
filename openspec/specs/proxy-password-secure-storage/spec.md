@@ -288,6 +288,26 @@ library names a username.
 - **WHEN** the user deletes them
 - **THEN** secure storage holds no `__saved_credentials__:` entry for them
 
+### Requirement: PWD-008 - A site id is never a reserved key
+
+The password map is keyed by site id beside the reserved keys
+(`__global_outbound__`, `__saved_proxy__:<id>`, `__saved_credentials__:<id>`),
+and site ids share their namespace with the proxy router's shared-profile
+identity (`__ws_shared_profile__`) and Tor's app-wide tags
+(`__webspace_app_global__`, `__webspace_tor_geoip__`). A site id SHALL NOT
+begin with `__`, the prefix every reserved key carries, so none can equal one.
+An id read from storage, a backup or a link that begins with `__` SHALL be
+treated as no id: the site gets a fresh one.
+
+#### Scenario: A backup cannot name a site after the global proxy key
+
+**Given** a backup whose site has `siteId = "__global_outbound__"` and a proxy
+with a username on a host the backup chose
+**And** the app-wide proxy has a stored password
+**When** the backup is imported and the app restarts
+**Then** the site holds a freshly minted id
+**And** the app-wide proxy's password is not hydrated into the site's proxy
+
 ## Storage Flow
 
 ### Loading (App Start)

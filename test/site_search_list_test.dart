@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_search_list_engine.dart';
 import 'package:webspace/services/site_search_list_service.dart';
@@ -167,7 +168,7 @@ void main() {
       await SiteSearchListService.instance.initialize();
       expect(SiteSearchListService.instance.addressFor('https://www.imdb.com/'),
           'https://www.imdb.com/find?s=all&q=%s');
-      final model = WebViewModel(siteId: 'i', initUrl: 'https://www.imdb.com/');
+      final model = WebViewModel(siteId: SiteId('i'), initUrl: 'https://www.imdb.com/');
       expect(model.searchCapability!.template,
           'https://www.imdb.com/find?s=all&q=%s');
 

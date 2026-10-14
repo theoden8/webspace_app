@@ -236,9 +236,7 @@ void main([List<String> args = const []]) async {
   // installed every TOR request blocks rather than connecting directly,
   // which is the right failure but a useless one, so install it early —
   // before any site can build a webview or fetch a favicon.
-  torProxyResolver = (tag) => TorService.instance.routeFor(
-        siteId: tag == kTorAppGlobalTag ? null : tag,
-      );
+  torProxyResolver = (tag) => TorService.instance.routeFor(siteId: tag.site);
   // Hydrate user-approved TLS exceptions so a self-signed site the user
   // already trusted in a previous session loads without a prompt — and
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart';
 import 'helpers/localized.dart';
 
 final _work = WebViewModel(
-  siteId: 'work',
+  siteId: SiteId('work'),
   initUrl: 'https://work.example/',
   name: 'Work GitHub',
 );
 final _personal = WebViewModel(
-  siteId: 'personal',
+  siteId: SiteId('personal'),
   initUrl: 'https://personal.example/',
   name: 'Personal GitHub',
 );

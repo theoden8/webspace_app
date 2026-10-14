@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
@@ -87,7 +88,7 @@ void main() {
     // predicate as real audio, with no audio device (the emulator boots
     // -noaudio).
     final plainSite = WebViewModel(
-      siteId: 'bg-media-stop',
+      siteId: SiteId('bg-media-stop'),
       initUrl: 'http://127.0.0.1:$port/?media=stream',
       name: 'Plain Media Site',
     );
@@ -130,7 +131,7 @@ void main() {
           'Timed out after ${timeout.inSeconds}s waiting for: $description');
     }
 
-    await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+    await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
     await tester.pumpAndSettle(const Duration(seconds: 5));
     final tile = find.text('Plain Media Site');
     expect(tile, findsOneWidget, reason: 'site should appear in the drawer');

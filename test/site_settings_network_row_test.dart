@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/settings/capture.dart';
@@ -131,11 +132,11 @@ void main() {
     ProxyLibrary.setInMemory(ProxyLibraryData(
       gateways: [
         SavedGateway(
-            id: 'de', name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1'),
+            id: GatewayId('de'), name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1'),
       ],
       proxies: [
         SavedProxy(
-          id: 'vpn',
+          id: SavedProxyId('vpn'),
           name: 'Work VPN',
           settings: UserProxySettings(
               type: ProxyType.SOCKS5, address: '10.8.0.1:1080'),
@@ -148,7 +149,7 @@ void main() {
       model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
-            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'vpn'),
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('vpn')),
         // The entry's name is the point here; ETP-031's WebRTC entry has
         // its own test.
         trackingProtectionEnabled: false,
@@ -160,7 +161,7 @@ void main() {
   testWidgets('a saved gateway goes by its name', (tester) async {
     ProxyLibrary.setInMemory(ProxyLibraryData(gateways: [
       SavedGateway(
-          id: 'de', name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1'),
+          id: GatewayId('de'), name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1'),
     ]));
     addTearDown(ProxyLibrary.resetForTest);
     await _pump(
@@ -168,7 +169,7 @@ void main() {
       model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
-            UserProxySettings(type: ProxyType.GATEWAY, gatewayId: 'de'),
+            UserProxySettings(type: ProxyType.GATEWAY, gatewayId: GatewayId('de')),
         // The entry's name is the point here; ETP-031's WebRTC entry has
         // its own test.
         trackingProtectionEnabled: false,
@@ -183,7 +184,7 @@ void main() {
       model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
-            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'gone'),
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('gone')),
         // The entry's name is the point here; ETP-031's WebRTC entry has
         // its own test.
         trackingProtectionEnabled: false,

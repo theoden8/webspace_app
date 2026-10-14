@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 
@@ -15,11 +16,11 @@ void main() {
       final detail = BlockStatsDetail();
 
       detail.record(BlockCategory.dnsBlocklist,
-          siteId: 'a', label: 'ads.example', count: 3);
+          siteId: SiteId('a'), label: 'ads.example', count: 3);
       detail.record(BlockCategory.dnsBlocklist,
-          siteId: 'a', label: 'ads.example', count: 2);
+          siteId: SiteId('a'), label: 'ads.example', count: 2);
       detail.record(BlockCategory.dnsBlocklist,
-          siteId: 'a', label: 'beacon.example');
+          siteId: SiteId('a'), label: 'beacon.example');
 
       final items = detail.topItems(BlockCategory.dnsBlocklist);
       expect(items.map((i) => i.label).toList(), ['ads.example', 'beacon.example']);
@@ -29,8 +30,8 @@ void main() {
     test('labels are case-folded so one host is one row', () {
       final detail = BlockStatsDetail();
 
-      detail.record(BlockCategory.filterList, siteId: 'a', label: 'CDN.Example');
-      detail.record(BlockCategory.filterList, siteId: 'a', label: 'cdn.example');
+      detail.record(BlockCategory.filterList, siteId: SiteId('a'), label: 'CDN.Example');
+      detail.record(BlockCategory.filterList, siteId: SiteId('a'), label: 'cdn.example');
 
       final items = detail.topItems(BlockCategory.filterList);
       expect(items.length, 1);
@@ -41,8 +42,8 @@ void main() {
     test('categories do not mix', () {
       final detail = BlockStatsDetail();
 
-      detail.record(BlockCategory.dnsBlocklist, siteId: 'a', label: 'x.example');
-      detail.record(BlockCategory.trackingParam, siteId: 'a', label: 'utm_source');
+      detail.record(BlockCategory.dnsBlocklist, siteId: SiteId('a'), label: 'x.example');
+      detail.record(BlockCategory.trackingParam, siteId: SiteId('a'), label: 'utm_source');
 
       expect(detail.topItems(BlockCategory.dnsBlocklist).single.label, 'x.example');
       expect(detail.topItems(BlockCategory.trackingParam).single.label, 'utm_source');
@@ -52,10 +53,10 @@ void main() {
     test('per-site counts are kept per category, most blocked first', () {
       final detail = BlockStatsDetail();
 
-      detail.record(BlockCategory.filterList, siteId: 'quiet', label: 'a.example');
+      detail.record(BlockCategory.filterList, siteId: SiteId('quiet'), label: 'a.example');
       detail.record(BlockCategory.filterList,
-          siteId: 'noisy', label: 'b.example', count: 9);
-      detail.record(BlockCategory.dnsBlocklist, siteId: 'quiet', label: 'c.example');
+          siteId: SiteId('noisy'), label: 'b.example', count: 9);
+      detail.record(BlockCategory.dnsBlocklist, siteId: SiteId('quiet'), label: 'c.example');
 
       expect(_pairs(detail.siteCounts(BlockCategory.filterList)),
           [['noisy', 9], ['quiet', 1]]);
@@ -66,7 +67,7 @@ void main() {
     test('an unlabelled event still attributes to its site', () {
       final detail = BlockStatsDetail();
 
-      detail.record(BlockCategory.localCdn, siteId: 'a', count: 4);
+      detail.record(BlockCategory.localCdn, siteId: SiteId('a'), count: 4);
 
       expect(detail.topItems(BlockCategory.localCdn), isEmpty);
       expect(_pairs(detail.siteCounts(BlockCategory.localCdn)), [['a', 4]]);
@@ -77,10 +78,10 @@ void main() {
       const cap = BlockStatsDetail.maxItemsPerCategory;
 
       detail.record(BlockCategory.filterList,
-          siteId: 'a', label: 'persistent.example', count: 500);
+          siteId: SiteId('a'), label: 'persistent.example', count: 500);
       for (var i = 0; i < cap * 2; i++) {
         detail.record(BlockCategory.filterList,
-            siteId: 'a', label: 'one-off-$i.example');
+            siteId: SiteId('a'), label: 'one-off-$i.example');
       }
 
       final items = detail.topItems(BlockCategory.filterList, limit: cap);
@@ -92,9 +93,9 @@ void main() {
     test('a table round-trips through its stored form', () {
       final detail = BlockStatsDetail();
       detail.record(BlockCategory.dnsBlocklist,
-          siteId: 'site-a', label: 'ads.example', count: 3);
+          siteId: SiteId('site-a'), label: 'ads.example', count: 3);
       detail.record(BlockCategory.dnsBlocklist,
-          siteId: 'site-b', label: 'beacon.example');
+          siteId: SiteId('site-b'), label: 'beacon.example');
 
       final restored = BlockStatsDetail()
         ..mergeFromJson(jsonDecode(jsonEncode(detail.toJson())));
@@ -134,9 +135,9 @@ void main() {
       final now = DateTime(2026, 3, 1);
 
       detail.record(BlockCategory.filterList,
-          siteId: 'stale', label: 'old.example', now: DateTime(2025, 10, 1));
+          siteId: SiteId('stale'), label: 'old.example', now: DateTime(2025, 10, 1));
       detail.record(BlockCategory.filterList,
-          siteId: 'fresh', label: 'new.example', now: now);
+          siteId: SiteId('fresh'), label: 'new.example', now: now);
 
       expect(detail.prune(now: now), 2);
       expect(detail.topItems(BlockCategory.filterList).map((i) => i.label),
@@ -149,11 +150,11 @@ void main() {
         () {
       final detail = BlockStatsDetail();
       detail.record(BlockCategory.filterList,
-          siteId: 'kept', label: 'ads.example');
+          siteId: SiteId('kept'), label: 'ads.example');
       detail.record(BlockCategory.filterList,
-          siteId: 'deleted', label: 'ads.example');
+          siteId: SiteId('deleted'), label: 'ads.example');
 
-      expect(detail.retainSites({'kept'}), 1);
+      expect(detail.retainSites({SiteId('kept')}), 1);
       expect(_pairs(detail.siteCounts(BlockCategory.filterList)),
           [['kept', 1]]);
       expect(detail.topItems(BlockCategory.filterList).single.count, 2);
@@ -183,7 +184,7 @@ void main() {
 
     test('clear drops every item and site', () {
       final detail = BlockStatsDetail();
-      detail.record(BlockCategory.filterList, siteId: 'a', label: 'x.example');
+      detail.record(BlockCategory.filterList, siteId: SiteId('a'), label: 'x.example');
 
       detail.clear();
 

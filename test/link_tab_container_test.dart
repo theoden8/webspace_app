@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';
@@ -26,9 +27,9 @@ void main() {
 
   const ddgLink = 'https://duckduckgo.com/?q=flutter';
 
-  WebViewModel github({List<SiteTab>? tabs, String? active}) => add(
+  WebViewModel github({List<SiteTab>? tabs, TabId? active}) => add(
         WebViewModel(
-          siteId: 'gh',
+          siteId: SiteId('gh'),
           initUrl: 'https://github.com/',
           name: 'GitHub',
           tabs: tabs,
@@ -37,7 +38,7 @@ void main() {
       );
 
   WebViewModel ddg() => add(WebViewModel(
-        siteId: 'ddg',
+        siteId: SiteId('ddg'),
         initUrl: 'https://duckduckgo.com/',
         name: 'DuckDuckGo',
       ));
@@ -45,18 +46,18 @@ void main() {
   /// A link from GitHub's page into DuckDuckGo, opened as a tab of GitHub's
   /// list. [host] is what it runs as: 'ddg' with GitHub's routing on, null
   /// (GitHub itself) with it off.
-  SiteTab linkTab({String? host, String id = 'l', String? parent}) => SiteTab(
-        id: id,
+  SiteTab linkTab({SiteId? host, TabId? id, TabId? parent}) => SiteTab(
+        id: id ?? TabId('l'),
         url: ddgLink,
         parentId: parent ?? kPrimaryTabId,
         hostSiteId: host,
-        openerSiteId: 'gh',
+        openerSiteId: SiteId('gh'),
         homeUrl: ddgLink,
       );
 
   group('SiteTab opener and home (LIR-034)', () {
     test('round-trip, and are omitted when absent', () {
-      final tab = linkTab(host: 'ddg');
+      final tab = linkTab(host: SiteId('ddg'));
       final back = SiteTab.fromJson(tab.toJson())!;
       expect(back.openerSiteId, 'gh');
       expect(back.homeUrl, ddgLink);
@@ -97,7 +98,7 @@ void main() {
     });
 
     test('a tab follows its opener only with both fields', () {
-      expect(SiteTab(url: ddgLink, openerSiteId: 'gh').followsOpener, isFalse);
+      expect(SiteTab(url: ddgLink, openerSiteId: SiteId('gh')).followsOpener, isFalse);
       expect(SiteTab(url: ddgLink, homeUrl: ddgLink).followsOpener, isFalse);
       expect(linkTab().followsOpener, isTrue);
     });
@@ -120,7 +121,7 @@ void main() {
       ddg();
       final m = github(
         tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab()],
-        active: 'l',
+        active: TabId('l'),
       );
       expect(m.runningIdentity, same(m));
       expect(m.runsHostedTab, isFalse);
@@ -134,7 +135,7 @@ void main() {
       ddg();
       final m = github(
         tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab()],
-        active: 'l',
+        active: TabId('l'),
       );
       expect(m.navigationMatchesClaim('https://github.com/x'), isFalse);
       NavigationDecision tap(String url) => m.runningIdentity
@@ -155,12 +156,12 @@ void main() {
       ddg();
       final m = github(
         tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab()],
-        active: 'l',
+        active: TabId('l'),
       );
       final asOpener = m.activeStateKey;
-      expect(asOpener, webViewStateKey('gh', tabId: 'l'));
-      m.activeTab.hostSiteId = 'ddg';
-      expect(m.activeStateKey, webViewStateKey('ddg', tabId: 'l'));
+      expect(asOpener, webViewStateKey(SiteId('gh'), tabId: TabId('l')));
+      m.activeTab.hostSiteId = SiteId('ddg');
+      expect(m.activeStateKey, webViewStateKey(SiteId('ddg'), tabId: TabId('l')));
       expect(m.activeStateKey, isNot(asOpener));
     });
   });
@@ -169,8 +170,8 @@ void main() {
     test('is a hosted tab in its own domain, not a foreign one', () {
       final d = ddg();
       final m = github(
-        tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab(host: 'ddg')],
-        active: 'l',
+        tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab(host: SiteId('ddg'))],
+        active: TabId('l'),
       );
       expect(m.runningIdentity, same(d));
       expect(m.runsForeignTab, isFalse);
@@ -182,8 +183,8 @@ void main() {
     test('a flip back to the opener makes it foreign again', () {
       ddg();
       final m = github(
-        tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab(host: 'ddg')],
-        active: 'l',
+        tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab(host: SiteId('ddg'))],
+        active: TabId('l'),
       );
       m.activeTab.hostSiteId = null;
       expect(m.runningIdentity, same(m));
@@ -197,12 +198,12 @@ void main() {
       final m = github(tabs: [
         SiteTab.primary(url: 'https://github.com/'),
         SiteTab(
-          id: 'own',
+          id: TabId('own'),
           url: 'https://github.com/x',
-          openerSiteId: 'ddg',
+          openerSiteId: SiteId('ddg'),
           homeUrl: 'https://github.com/x',
         ),
-      ], active: 'own');
+      ], active: TabId('own'));
       expect(m.runsForeignTab, isFalse);
       expect(m.navigationHomeUrl, m.initUrl);
     });
@@ -220,13 +221,13 @@ void main() {
       final m = github(tabs: [
         SiteTab.primary(url: 'https://github.com/'),
         linkTab(),
-        linkTab(id: 'l2', parent: 'l'),
-      ], active: 'l2');
-      expect(TabLifecycleEngine.ownerRunTab(m.tabs, activeTabId: 'l2'), 'l2',
+        linkTab(id: TabId('l2'), parent: TabId('l')),
+      ], active: TabId('l2'));
+      expect(TabLifecycleEngine.ownerRunTab(m.tabs, activeTabId: TabId('l2')), 'l2',
           reason: 'without the predicate a foreign tab looks owner-run');
       expect(
         TabLifecycleEngine.ownerRunTab(m.tabs,
-            activeTabId: 'l2', isForeign: m.isForeignTab),
+            activeTabId: TabId('l2'), isForeign: m.isForeignTab),
         kPrimaryTabId,
       );
     });
@@ -236,7 +237,7 @@ void main() {
       final m = github(tabs: [
         SiteTab.primary(url: 'https://github.com/x'),
         linkTab(),
-      ], active: 'l');
+      ], active: TabId('l'));
       m.bindOwnerRunTab();
       expect(m.activeTabId, kPrimaryTabId);
       expect(m.tabs, hasLength(2));
@@ -246,12 +247,12 @@ void main() {
       ddg();
       final m = github(tabs: [
         SiteTab(
-          id: 'only',
+          id: TabId('only'),
           url: ddgLink,
-          openerSiteId: 'gh',
+          openerSiteId: SiteId('gh'),
           homeUrl: ddgLink,
         ),
-      ], active: 'only');
+      ], active: TabId('only'));
       m.bindOwnerRunTab();
       expect(m.activeTabId, isNot('only'));
       expect(m.activeTab.url, m.initUrl);
@@ -264,7 +265,7 @@ void main() {
       final m = github(tabs: [
         SiteTab.primary(url: 'https://github.com/x'),
         linkTab(),
-      ], active: 'l');
+      ], active: TabId('l'));
       m
         ..tabsEnabled = false
         ..landAtHome();
@@ -286,13 +287,13 @@ void main() {
     //   └─ c   other            folded away
     List<SiteTab> tree() => [
           SiteTab.primary(url: 'https://github.com/'),
-          SiteTab(id: 'a', url: ddgLink, parentId: kPrimaryTabId, hostSiteId: 'ddg'),
-          SiteTab(id: 'a1', url: ddgLink, parentId: 'a', hostSiteId: 'ddg'),
-          SiteTab(id: 'a11', url: 'https://github.com/1', parentId: 'a1'),
-          SiteTab(id: 'a2', url: 'https://github.com/2', parentId: 'a'),
-          SiteTab(id: 'b', url: 'https://github.com/b', parentId: kPrimaryTabId),
-          SiteTab(id: 'b1', url: ddgLink, parentId: 'b', hostSiteId: 'ddg'),
-          SiteTab(id: 'c', url: 'https://x.example/', parentId: kPrimaryTabId, hostSiteId: 'x'),
+          SiteTab(id: TabId('a'), url: ddgLink, parentId: kPrimaryTabId, hostSiteId: SiteId('ddg')),
+          SiteTab(id: TabId('a1'), url: ddgLink, parentId: TabId('a'), hostSiteId: SiteId('ddg')),
+          SiteTab(id: TabId('a11'), url: 'https://github.com/1', parentId: TabId('a1')),
+          SiteTab(id: TabId('a2'), url: 'https://github.com/2', parentId: TabId('a')),
+          SiteTab(id: TabId('b'), url: 'https://github.com/b', parentId: kPrimaryTabId),
+          SiteTab(id: TabId('b1'), url: ddgLink, parentId: TabId('b'), hostSiteId: SiteId('ddg')),
+          SiteTab(id: TabId('c'), url: 'https://x.example/', parentId: kPrimaryTabId, hostSiteId: SiteId('x')),
         ];
 
     bool asDdg(SiteTab t) => t.hostSiteId == 'ddg';
@@ -352,11 +353,11 @@ void main() {
 
     test('an orphan and a parent cycle show up when kept', () {
       final tabs = [
-        SiteTab(id: 'o', url: ddgLink, parentId: 'gone', hostSiteId: 'ddg'),
-        SiteTab(id: 's', url: ddgLink, parentId: 's', hostSiteId: 'ddg'),
-        SiteTab(id: 'x', url: ddgLink, parentId: 'y', hostSiteId: 'ddg'),
-        SiteTab(id: 'y', url: ddgLink, parentId: 'x', hostSiteId: 'ddg'),
-        SiteTab(id: 'n', url: 'https://github.com/n', parentId: 'gone'),
+        SiteTab(id: TabId('o'), url: ddgLink, parentId: TabId('gone'), hostSiteId: SiteId('ddg')),
+        SiteTab(id: TabId('s'), url: ddgLink, parentId: TabId('s'), hostSiteId: SiteId('ddg')),
+        SiteTab(id: TabId('x'), url: ddgLink, parentId: TabId('y'), hostSiteId: SiteId('ddg')),
+        SiteTab(id: TabId('y'), url: ddgLink, parentId: TabId('x'), hostSiteId: SiteId('ddg')),
+        SiteTab(id: TabId('n'), url: 'https://github.com/n', parentId: TabId('gone')),
       ];
       final rows = TabLifecycleEngine.rowsAround(tabs, keep: asDdg);
       expect(rows.map((r) => r.tab.id).toSet(), {'o', 's', 'x', 'y'});
@@ -443,11 +444,12 @@ void main() {
     });
 
     test('the fallback is stable, in range and spread', () {
-      expect(ContainerColorEngine.fallback('gh', paletteSize: 8),
-          ContainerColorEngine.fallback('gh', paletteSize: 8));
+      expect(ContainerColorEngine.fallback(SiteId('gh'), paletteSize: 8),
+          ContainerColorEngine.fallback(SiteId('gh'), paletteSize: 8));
       final seen = <int>{};
       for (var i = 0; i < 200; i++) {
-        final c = ContainerColorEngine.fallback('site$i', paletteSize: 8);
+        final c =
+            ContainerColorEngine.fallback(SiteId('site$i'), paletteSize: 8);
         expect(c, inInclusiveRange(0, 7));
         seen.add(c);
       }
@@ -506,7 +508,7 @@ void main() {
 
   group('WebViewModel.containerColor (TAB-018)', () {
     test('round-trips and is omitted until given', () {
-      final m = WebViewModel(siteId: 'a', initUrl: 'https://a.example/');
+      final m = WebViewModel(siteId: SiteId('a'), initUrl: 'https://a.example/');
       expect(m.toJson(), isNot(contains('containerColor')));
       m.containerColor = 5;
       expect(
@@ -515,7 +517,7 @@ void main() {
     });
 
     test('a wrong-typed or negative value reads as none, keeping the site', () {
-      final base = WebViewModel(siteId: 'a', initUrl: 'https://a.example/')
+      final base = WebViewModel(siteId: SiteId('a'), initUrl: 'https://a.example/')
           .toJson();
       for (final bad in ['3', -1, 2.5, true, <int>[]]) {
         final m = WebViewModel.fromJson({...base, 'containerColor': bad},

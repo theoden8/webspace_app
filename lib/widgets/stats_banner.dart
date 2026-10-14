@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -9,7 +10,7 @@ import 'package:webspace/services/dns_block_service.dart';
 /// block activity per site (DNS + ABP merged). Taps expand/collapse the
 /// banner. Automatically hides when there's no activity to report.
 class StatsBanner extends StatefulWidget {
-  final String siteId;
+  final SiteId siteId;
   final bool dnsBlockEnabled;
 
   const StatsBanner({

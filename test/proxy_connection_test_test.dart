@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -143,7 +144,7 @@ void main() {
         UserProxySettings(type: ProxyType.TOR),
         target: target,
         holdTor: null,
-        siteId: 'site-1',
+        siteId: SiteId('site-1'),
       );
 
       expect(result.outcome, ProxyTestOutcome.blocked);
@@ -159,7 +160,7 @@ void main() {
         UserProxySettings(type: ProxyType.TOR),
         target: target,
         holdTor: null,
-        siteId: 'site-42',
+        siteId: SiteId('site-42'),
       );
 
       expect(factory.lastQuery!.username, 'site-42');
@@ -183,7 +184,7 @@ void main() {
         UserProxySettings(type: ProxyType.TOR),
         target: target,
         holdTor: hold,
-        siteId: 'site-1',
+        siteId: SiteId('site-1'),
         timeout: const Duration(seconds: 7),
       );
       expect(holds, [const Duration(seconds: 7)]);

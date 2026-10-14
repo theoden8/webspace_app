@@ -161,8 +161,9 @@ void main() {
       final delete = main.indexOf(
           'await _tabs.closeIneligibleHostedTabs(goneSiteId: site.siteId);');
       final container =
-          main.indexOf('await _containerIsolation.onSiteDeleted(site.siteId);');
+          main.indexOf('await _containerIsolation.onSiteDeleted(site.containerKey);');
       expect(delete, isNot(-1));
+      expect(container, isNot(-1));
       expect(delete, lessThan(container),
           reason: 'hosted tabs close before the host\'s container goes');
     });

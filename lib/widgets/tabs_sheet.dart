@@ -21,6 +21,8 @@
 library;
 
 import 'dart:async';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/material.dart';
 
@@ -83,24 +85,24 @@ class TabsSheet extends StatefulWidget {
   /// Index into [sites] of the site whose tabs open first.
   final int currentIndex;
 
-  final void Function(int siteIndex, {required String tabId}) onOpenTab;
+  final void Function(int siteIndex, {required TabId tabId}) onOpenTab;
   final void Function(int siteIndex) onNewTab;
 
   /// Opens web search for the site on screen (LIR-029); null hides it.
   final VoidCallback? onWebSearch;
-  final void Function(int siteIndex, {required String tabId}) onCloseTab;
-  final void Function(int siteIndex, {required String tabId}) onCloseSubtree;
+  final void Function(int siteIndex, {required TabId tabId}) onCloseTab;
+  final void Function(int siteIndex, {required TabId tabId}) onCloseSubtree;
 
   /// A tab dragged onto a row or past the last row (TAB-015). Returns whether
   /// the move was made. Null leaves the rows where they are.
   final bool Function(int siteIndex,
-      {required String tabId, required TabDrop drop})? onMoveTab;
+      {required TabId tabId, required TabDrop drop})? onMoveTab;
 
   /// A site's heading dropped on another's in the All sites view (TAB-016):
   /// the site takes the other's place. Returns every site in its new order,
   /// or null when the move was refused. Null leaves the headings in place.
-  final List<TabsSheetSite>? Function(String siteId,
-      {required String ontoSiteId})? onMoveSite;
+  final List<TabsSheetSite>? Function(SiteId siteId,
+      {required SiteId ontoSiteId})? onMoveSite;
 
   /// The jump Back would undo from the tab on screen (TAB-019): the tab it
   /// came from is marked as where the user was, and its tree is listed.
@@ -115,7 +117,7 @@ class _DraggedTab {
   const _DraggedTab(this.siteIndex, {required this.tabId, required this.subtree});
 
   final int siteIndex;
-  final String tabId;
+  final TabId tabId;
   final Set<String> subtree;
 }
 
@@ -123,7 +125,7 @@ class _DraggedTab {
 class _DraggedSite {
   const _DraggedSite(this.siteId);
 
-  final String siteId;
+  final SiteId siteId;
 }
 
 class _TabsSheetState extends State<TabsSheet> {
@@ -133,7 +135,7 @@ class _TabsSheetState extends State<TabsSheet> {
   /// so the host hands back the whole list.
   late List<TabsSheetSite> _sites = widget.sites;
 
-  late final String? _currentId = widget.currentIndex >= 0 &&
+  late final SiteId? _currentId = widget.currentIndex >= 0 &&
           widget.currentIndex < widget.sites.length
       ? widget.sites[widget.currentIndex].model.siteId
       : null;
@@ -432,7 +434,7 @@ class _TabsSheetState extends State<TabsSheet> {
       required ThemeData theme}) {
     final id = site.model.siteId;
     final key = 'site:$id';
-    int position(String siteId) =>
+    int position(SiteId siteId) =>
         _shown.indexWhere((s) => s.model.siteId == siteId);
 
     return DragTarget<_DraggedSite>(
@@ -494,7 +496,7 @@ class _TabsSheetState extends State<TabsSheet> {
         action();
       };
 
-  void _dropSite(String siteId, {required String ontoSiteId}) {
+  void _dropSite(SiteId siteId, {required SiteId ontoSiteId}) {
     _stopAutoScroll();
     final moved = widget.onMoveSite?.call(siteId, ontoSiteId: ontoSiteId);
     setState(() {
@@ -563,7 +565,7 @@ class _TabsSheetState extends State<TabsSheet> {
     final collapsed = _collapsed.contains(collapseKey);
     final shape = BorderRadius.circular(Radii.lg);
     Widget close(String tooltip, {required IconData icon,
-            required void Function(int siteIndex, {required String tabId}) onClose}) =>
+            required void Function(int siteIndex, {required TabId tabId}) onClose}) =>
         IconButton(
           visualDensity: VisualDensity.compact,
           iconSize: IconSizes.action,
@@ -670,7 +672,7 @@ class _TabsSheetState extends State<TabsSheet> {
     return _dragAndDrop(site, row: row, drawn: drawn, theme: theme);
   }
 
-  String _keyOf(TabsSheetSite site, {required String tabId}) =>
+  String _keyOf(TabsSheetSite site, {required TabId tabId}) =>
       '${site.model.siteId}/$tabId';
 
   /// A long press lifts the row with its subtree; a drop in the top or

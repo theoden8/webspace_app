@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
@@ -146,32 +147,32 @@ void main() {
   group('DnsBlockService.recordVerdict', () {
     setUp(() {
       DnsBlockService.instance.loadDomainsFromString('');
-      DnsBlockService.instance.clearStatsForSite('site-A');
+      DnsBlockService.instance.clearStatsForSite(SiteId('site-A'));
     });
 
     test('skips empty host', () {
-      DnsBlockService.instance.recordVerdict('site-A',
+      DnsBlockService.instance.recordVerdict(SiteId('site-A'),
           query: const HostQuery(''), verdict: const Allowed());
-      final stats = DnsBlockService.instance.statsForSite('site-A');
+      final stats = DnsBlockService.instance.statsForSite(SiteId('site-A'));
       expect(stats.total, equals(0));
     });
 
     test('records with count', () {
-      DnsBlockService.instance.recordVerdict('site-A',
+      DnsBlockService.instance.recordVerdict(SiteId('site-A'),
           query: const HostQuery('cdn.example.com'),
           verdict: const Allowed(),
           count: 25);
-      final stats = DnsBlockService.instance.statsForSite('site-A');
+      final stats = DnsBlockService.instance.statsForSite(SiteId('site-A'));
       expect(stats.allowed, equals(25));
       expect(stats.log, hasLength(1));
     });
 
     test('records source-attributed block with count', () {
-      DnsBlockService.instance.recordVerdict('site-A',
+      DnsBlockService.instance.recordVerdict(SiteId('site-A'),
           query: const HostQuery('ad.example.com'),
           verdict: const Blocked(BlockSource.abp),
           count: 7);
-      final stats = DnsBlockService.instance.statsForSite('site-A');
+      final stats = DnsBlockService.instance.statsForSite(SiteId('site-A'));
       expect(stats.blocked, equals(7));
       expect(stats.blockedByAbp, equals(7));
     });
@@ -180,7 +181,7 @@ void main() {
   group('DnsBlockService coalesced log listener notification', () {
     setUp(() {
       DnsBlockService.instance.loadDomainsFromString('');
-      DnsBlockService.instance.clearStatsForSite('site-N');
+      DnsBlockService.instance.clearStatsForSite(SiteId('site-N'));
     });
 
     test('many recordVerdict calls fire one listener per microtask', () async {
@@ -194,7 +195,7 @@ void main() {
         // Burst of recordings — the listener must fire exactly once per
         // microtask flush, not once per recorded request.
         for (var i = 0; i < 50; i++) {
-          DnsBlockService.instance.recordVerdict('site-N',
+          DnsBlockService.instance.recordVerdict(SiteId('site-N'),
               query: HostQuery('h$i.com'), verdict: const Allowed());
         }
         expect(notifications, equals(0),
@@ -206,7 +207,7 @@ void main() {
 
         // A second burst after the flush goes into a fresh microtask.
         for (var i = 0; i < 10; i++) {
-          DnsBlockService.instance.recordVerdict('site-N',
+          DnsBlockService.instance.recordVerdict(SiteId('site-N'),
               query: HostQuery('x$i.com'), verdict: const Allowed());
         }
         await Future<void>.delayed(Duration.zero);
@@ -219,7 +220,7 @@ void main() {
     test('listener registration with no prior listener does not retroactively notify', () async {
       // Record before any listener is attached — these should not fire.
       for (var i = 0; i < 5; i++) {
-        DnsBlockService.instance.recordVerdict('site-N',
+        DnsBlockService.instance.recordVerdict(SiteId('site-N'),
             query: HostQuery('pre$i.com'), verdict: const Allowed());
       }
       var notifications = 0;

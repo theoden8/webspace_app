@@ -6,6 +6,7 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 
@@ -19,7 +20,7 @@ import 'package:webspace/services/webview_proxy.dart';
 /// challenge is never shown to the user and never answered from saved
 /// credentials, whatever [session] would say.
 Future<inapp.HttpAuthResponse?> answerHttpAuthChallenge({
-  required String? routerIdentity,
+  required RouterIdentity? routerIdentity,
   required HttpAuthSession? session,
   required inapp.HttpAuthenticationChallenge challenge,
 }) async {

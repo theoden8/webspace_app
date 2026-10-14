@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/screens/site_network.dart' show validateProxyAddress;
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_health_service.dart';
@@ -60,25 +61,24 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     widget.onChanged();
   }
 
-  int _sites(LibraryEntryKind kind, {required String id}) => widget
+  int _sites(LibraryEntry entry) => widget
       .siteProxies()
-      .where((s) => usesLibraryEntry(s, kind: kind, id: id, lib: _lib))
+      .where((s) => usesLibraryEntry(s, entry: entry, lib: _lib))
       .length;
 
-  bool _appWide(LibraryEntryKind kind, {required String id}) =>
-      usesLibraryEntry(widget.appWideProxy(), kind: kind, id: id, lib: _lib);
+  bool _appWide(LibraryEntry entry) =>
+      usesLibraryEntry(widget.appWideProxy(), entry: entry, lib: _lib);
 
-  String _usage(AppLocalizations loc,
-      {required LibraryEntryKind kind, required String id}) {
-    final n = _sites(kind, id: id);
-    return _appWide(kind, id: id)
+  String _usage(AppLocalizations loc, {required LibraryEntry entry}) {
+    final n = _sites(entry);
+    return _appWide(entry)
         ? loc.savedProxyUsageWithAppWide(n)
         : loc.savedProxyUsage(n);
   }
 
-  Future<void> _open<E>(Widget screen,
-      {required void Function(_Edit<E>) apply}) async {
-    final result = await Navigator.push<_Edit<E>>(
+  Future<void> _open<E, I extends String>(Widget screen,
+      {required void Function(_Edit<E, I>) apply}) async {
+    final result = await Navigator.push<_Edit<E, I>>(
       context,
       MaterialPageRoute(builder: (_) => screen),
     );
@@ -97,13 +97,12 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     }
   }
 
-  Future<void> _editProxy(SavedProxy? p) => _open<SavedProxy>(
+  Future<void> _editProxy(SavedProxy? p) => _open<SavedProxy, SavedProxyId>(
         SavedProxyEditScreen(
           initial: p,
           library: _lib,
-          usageCount: p == null ? 0 : _sites(LibraryEntryKind.proxy, id: p.id),
-          usedByAppWide:
-              p != null && _appWide(LibraryEntryKind.proxy, id: p.id),
+          usageCount: p == null ? 0 : _sites(ProxyEntry(p.id)),
+          usedByAppWide: p != null && _appWide(ProxyEntry(p.id)),
         ),
         apply: (r) => r.deleted
             ? _lib.proxies.removeWhere((e) => e.id == r.id)
@@ -111,13 +110,12 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
                 entry: r.entry!, same: (e) => e.id == r.id),
       );
 
-  Future<void> _editGateway(SavedGateway? g) => _open<SavedGateway>(
+  Future<void> _editGateway(SavedGateway? g) =>
+      _open<SavedGateway, GatewayId>(
         SavedGatewayEditScreen(
           initial: g,
-          usageCount:
-              g == null ? 0 : _sites(LibraryEntryKind.gateway, id: g.id),
-          usedByAppWide:
-              g != null && _appWide(LibraryEntryKind.gateway, id: g.id),
+          usageCount: g == null ? 0 : _sites(GatewayEntry(g.id)),
+          usedByAppWide: g != null && _appWide(GatewayEntry(g.id)),
         ),
         apply: (r) => r.deleted
             ? _lib.removeGateway(r.id)
@@ -125,14 +123,13 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
                 entry: r.entry!, same: (e) => e.id == r.id),
       );
 
-  Future<void> _editCredentials(SavedCredentials? c) => _open<SavedCredentials>(
+  Future<void> _editCredentials(SavedCredentials? c) =>
+      _open<SavedCredentials, CredentialsId>(
         SavedCredentialsEditScreen(
           initial: c,
           gateways: _lib.gateways,
-          usageCount:
-              c == null ? 0 : _sites(LibraryEntryKind.credentials, id: c.id),
-          usedByAppWide:
-              c != null && _appWide(LibraryEntryKind.credentials, id: c.id),
+          usageCount: c == null ? 0 : _sites(CredentialsEntry(c.id)),
+          usedByAppWide: c != null && _appWide(CredentialsEntry(c.id)),
         ),
         apply: (r) => r.deleted
             ? _lib.credentials.removeWhere((e) => e.id == r.id)
@@ -216,7 +213,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (problem == null) Text(madeOf),
-          Text(_usage(loc, kind: LibraryEntryKind.proxy, id: p.id)),
+          Text(_usage(loc, entry: ProxyEntry(p.id))),
           ProxyStatusIndicator(proxy: resolved.route, problem: problem),
         ],
       ),
@@ -234,7 +231,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(route),
-          Text(_usage(loc, kind: LibraryEntryKind.gateway, id: g.id)),
+          Text(_usage(loc, entry: GatewayEntry(g.id))),
         ],
       ),
       trailing: const Icon(Icons.chevron_right),
@@ -257,7 +254,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         children: [
           if (username.isNotEmpty) Text(username),
           Text(loc.proxyLibraryWorksOnList(gateways)),
-          Text(_usage(loc, kind: LibraryEntryKind.credentials, id: c.id)),
+          Text(_usage(loc, entry: CredentialsEntry(c.id))),
         ],
       ),
       trailing: const Icon(Icons.chevron_right),
@@ -307,13 +304,13 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
 }
 
 /// What an editor hands back: the saved entry, or that it was deleted.
-class _Edit<E> {
+class _Edit<E, I extends String> {
   const _Edit.saved(this.id, {required E this.entry}) : deleted = false;
   const _Edit.deleted(this.id)
       : entry = null,
         deleted = true;
 
-  final String id;
+  final I id;
   final E? entry;
   final bool deleted;
 }
@@ -335,12 +332,12 @@ abstract class _LibraryEditor<E> extends StatefulWidget {
 
 /// Shared by the three editors: the name field, the save and delete actions,
 /// the delete confirmation and the guard against losing unsaved edits.
-abstract class _EditorState<W extends _LibraryEditor<E>, E> extends State<W>
-    with DirtyGuard<W> {
+abstract class _EditorState<W extends _LibraryEditor<E>, E,
+    I extends String> extends State<W> with DirtyGuard<W> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
 
-  String get entryId;
+  I get entryId;
   String? get initialName;
   bool get isNew => widget.initial == null;
   String newTitle(AppLocalizations loc);
@@ -388,7 +385,7 @@ abstract class _EditorState<W extends _LibraryEditor<E>, E> extends State<W>
       setState(() {});
       return;
     }
-    Navigator.pop(context, _Edit<E>.saved(entryId, entry: entry()));
+    Navigator.pop(context, _Edit<E, I>.saved(entryId, entry: entry()));
   }
 
   Future<void> _delete() async {
@@ -405,7 +402,7 @@ abstract class _EditorState<W extends _LibraryEditor<E>, E> extends State<W>
       destructive: true,
     );
     if (confirmed && mounted) {
-      Navigator.pop(context, _Edit<E>.deleted(entryId));
+      Navigator.pop(context, _Edit<E, I>.deleted(entryId));
     }
   }
 
@@ -474,10 +471,10 @@ class SavedProxyEditScreen extends _LibraryEditor<SavedProxy> {
 }
 
 class _SavedProxyEditScreenState
-    extends _EditorState<SavedProxyEditScreen, SavedProxy> {
+    extends _EditorState<SavedProxyEditScreen, SavedProxy, SavedProxyId> {
   late ProxyType _type = widget.initial?.settings.type ?? ProxyType.SOCKS5;
-  late String? _gatewayId = widget.initial?.settings.gatewayId;
-  late String? _credentialsId = widget.initial?.settings.credentialsId;
+  late GatewayId? _gatewayId = widget.initial?.settings.gatewayId;
+  late CredentialsId? _credentialsId = widget.initial?.settings.credentialsId;
   late final TextEditingController _address =
       TextEditingController(text: widget.initial?.settings.address ?? '');
   late final TextEditingController _username =
@@ -486,7 +483,7 @@ class _SavedProxyEditScreenState
       TextEditingController(text: widget.initial?.settings.password ?? '');
 
   @override
-  late final String entryId = widget.initial?.id ?? SavedProxy.newId();
+  late final SavedProxyId entryId = widget.initial?.id ?? SavedProxyId.mint();
   @override
   String? get initialName => widget.initial?.name;
   @override
@@ -577,13 +574,13 @@ class SavedGatewayEditScreen extends _LibraryEditor<SavedGateway> {
 }
 
 class _SavedGatewayEditScreenState
-    extends _EditorState<SavedGatewayEditScreen, SavedGateway> {
+    extends _EditorState<SavedGatewayEditScreen, SavedGateway, GatewayId> {
   late ProxyType _type = widget.initial?.type ?? ProxyType.SOCKS5;
   late final TextEditingController _address =
       TextEditingController(text: widget.initial?.address ?? '');
 
   @override
-  late final String entryId = widget.initial?.id ?? SavedGateway.newId();
+  late final GatewayId entryId = widget.initial?.id ?? GatewayId.mint();
   @override
   String? get initialName => widget.initial?.name;
   @override
@@ -654,19 +651,21 @@ class SavedCredentialsEditScreen extends _LibraryEditor<SavedCredentials> {
 }
 
 class _SavedCredentialsEditScreenState
-    extends _EditorState<SavedCredentialsEditScreen, SavedCredentials> {
+    extends _EditorState<SavedCredentialsEditScreen, SavedCredentials,
+        CredentialsId> {
   late final TextEditingController _username =
       TextEditingController(text: widget.initial?.username ?? '');
   late final TextEditingController _password =
       TextEditingController(text: widget.initial?.password ?? '');
-  late final Set<String> _gatewayIds = {
-    for (final g in widget.initial?.gatewayIds ?? const <String>{})
+  late final Set<GatewayId> _gatewayIds = {
+    for (final g in widget.initial?.gatewayIds ?? const <GatewayId>{})
       if (widget.gateways.any((e) => e.id == g)) g,
   };
   bool _showGatewayError = false;
 
   @override
-  late final String entryId = widget.initial?.id ?? SavedCredentials.newId();
+  late final CredentialsId entryId =
+      widget.initial?.id ?? CredentialsId.mint();
   @override
   String? get initialName => widget.initial?.name;
   @override

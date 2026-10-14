@@ -2,7 +2,7 @@
 ///
 /// Spec: `openspec/changes/inactive-tabs/specs/inactive-tabs/spec.md`
 /// (TAB-001..TAB-008). Mirrors the engine pattern in `cookie_isolation.dart` /
-/// `site_lifecycle_engine.dart`: the engine owns the graph arithmetic — tree
+/// `site_unload_engine.dart`: the engine owns the graph arithmetic — tree
 /// order, re-parenting on close, which tab takes over, what the back gesture
 /// means — and returns a plan. `_WebSpacePageState` performs the IO
 /// (`captureNavigationState`, `disposeWebView`, `schedulePendingRestoreState`,
@@ -36,10 +36,10 @@ class TabCloseResult {
             'a close names the next tab exactly when one survives');
 
   final List<SiteTab> tabs;
-  final String? nextActiveId;
+  final TabId? nextActiveId;
 
   /// Every tab removed, so the caller can drop each one's saved state bytes.
-  final List<String> closedIds;
+  final List<TabId> closedIds;
 
   /// Whether the webview has to be re-bound. False when the closed tabs were
   /// all parked: nothing on screen changed, so no capture/dispose/restore.
@@ -62,7 +62,7 @@ enum TabDropZone {
 /// A drop in the tab list: on a row, or past the last row.
 class TabDrop {
   const TabDrop.onto(
-    String this.targetId, {
+    TabId this.targetId, {
     required this.zone,
     this.targetExpanded = true,
   });
@@ -73,7 +73,7 @@ class TabDrop {
         zone = TabDropZone.after,
         targetExpanded = false;
 
-  final String? targetId;
+  final TabId? targetId;
   final TabDropZone zone;
 
   /// Whether the target's children are showing, which decides what "just
@@ -102,7 +102,7 @@ class TabLifecycleEngine {
     final byId = {for (final t in tabs) t.id: t};
     if (tabs.isEmpty || byId.length != tabs.length) return false;
     for (final t in tabs) {
-      final seen = <String>{t.id};
+      final seen = <TabId>{t.id};
       for (var p = t.parentId; p != null; p = byId[p]!.parentId) {
         if (!byId.containsKey(p) || !seen.add(p)) return false;
       }
@@ -112,7 +112,7 @@ class TabLifecycleEngine {
 
   /// [tabs] is [wellFormed] and [activeTabId] names one of them.
   static bool _wellFormedWith(List<SiteTab> tabs,
-          {required String activeTabId}) =>
+          {required TabId activeTabId}) =>
       wellFormed(tabs) && tabs.any((t) => t.id == activeTabId);
 
   /// An operation keeps the shape: only a malformed input may come out
@@ -128,13 +128,13 @@ class TabLifecycleEngine {
   /// broken by rooting the tab that closes it rather than dropping it: a tab
   /// the user can still see in the list is recoverable, one silently deleted
   /// is not.
-  static ({List<SiteTab> tabs, String activeTabId}) normalize(
+  static ({List<SiteTab> tabs, TabId activeTabId}) normalize(
     List<SiteTab>? tabs, {
-    required String? activeTabId,
+    required TabId? activeTabId,
     required String fallbackUrl,
   }) {
     final out = <SiteTab>[];
-    final seen = <String>{};
+    final seen = <TabId>{};
     for (final t in tabs ?? const <SiteTab>[]) {
       if (!seen.add(t.id)) continue;
       out.add(t);
@@ -152,7 +152,7 @@ class TabLifecycleEngine {
         continue;
       }
       // Walk up; a chain that comes back to this tab is a cycle.
-      final path = <String>{t.id};
+      final path = <TabId>{t.id};
       var cursor = byId[parent];
       while (cursor != null) {
         if (!path.add(cursor.id)) {
@@ -175,7 +175,7 @@ class TabLifecycleEngine {
   /// Depth-first tree order: roots in list order, each followed by its
   /// children in list order.
   static List<TabRow> treeOrder(List<SiteTab> tabs) {
-    final childrenOf = <String, List<SiteTab>>{};
+    final childrenOf = <TabId, List<SiteTab>>{};
     final roots = <SiteTab>[];
     final ids = {for (final t in tabs) t.id};
     for (final t in tabs) {
@@ -187,7 +187,7 @@ class TabLifecycleEngine {
       }
     }
     final out = <TabRow>[];
-    final visited = <String>{};
+    final visited = <TabId>{};
     void walk(SiteTab t, {required int depth}) {
       if (!visited.add(t.id)) return;
       final kids = childrenOf[t.id] ?? const <SiteTab>[];
@@ -247,15 +247,15 @@ class TabLifecycleEngine {
   }
 
   /// Every tab below [id], depth-first.
-  static List<SiteTab> descendants(List<SiteTab> tabs, {required String id}) {
-    final childrenOf = <String, List<SiteTab>>{};
+  static List<SiteTab> descendants(List<SiteTab> tabs, {required TabId id}) {
+    final childrenOf = <TabId, List<SiteTab>>{};
     for (final t in tabs) {
       final parent = t.parentId;
       if (parent != null) childrenOf.putIfAbsent(parent, () => []).add(t);
     }
     final out = <SiteTab>[];
-    final seen = <String>{id};
-    void walk(String from) {
+    final seen = <TabId>{id};
+    void walk(TabId from) {
       for (final c in childrenOf[from] ?? const <SiteTab>[]) {
         if (!seen.add(c.id)) continue;
         out.add(c);
@@ -283,7 +283,7 @@ class TabLifecycleEngine {
   /// where a duplicate of the anchor belongs: its next sibling (TAB-010).
   static List<SiteTab> insertAfter(
     List<SiteTab> tabs, {
-    required String anchorId,
+    required TabId anchorId,
     required SiteTab tab,
   }) {
     final anchorIndex = tabs.indexWhere((t) => t.id == anchorId);
@@ -311,10 +311,10 @@ class TabLifecycleEngine {
   /// subtree, or an anchor that is not a child of the new parent.
   static List<SiteTab>? move(
     List<SiteTab> tabs, {
-    required String tabId,
-    required String? newParentId,
-    String? beforeId,
-    String? afterId,
+    required TabId tabId,
+    required TabId? newParentId,
+    TabId? beforeId,
+    TabId? afterId,
   }) {
     final byId = {for (final t in tabs) t.id: t};
     final moving = byId[tabId];
@@ -335,7 +335,7 @@ class TabLifecycleEngine {
     final rest = [for (final t in tabs) if (!block.contains(t.id)) t];
     // Siblings are ordered by list position alone, so a subtree need not be
     // contiguous; landing after its last member puts the block after it.
-    int after(String id) {
+    int after(TabId id) {
       final members = {id, ...descendants(rest, id: id).map((t) => t.id)};
       var last = -1;
       for (var i = 0; i < rest.length; i++) {
@@ -366,15 +366,15 @@ class TabLifecycleEngine {
   /// children of [newParentId], or the last root.
   static List<SiteTab>? reparent(
     List<SiteTab> tabs, {
-    required String tabId,
-    required String? newParentId,
+    required TabId tabId,
+    required TabId? newParentId,
   }) =>
       move(tabs, tabId: tabId, newParentId: newParentId);
 
   /// [tabId] dropped in the tab list (TAB-015). Null when refused, which is a
   /// drop on the dragged tab or inside its own subtree.
   static List<SiteTab>? drop(List<SiteTab> tabs,
-      {required String tabId, required TabDrop drop}) {
+      {required TabId tabId, required TabDrop drop}) {
     final targetId = drop.targetId;
     if (targetId == null) return move(tabs, tabId: tabId, newParentId: null);
     if (targetId == tabId) return null;
@@ -405,16 +405,16 @@ class TabLifecycleEngine {
   /// had one, else the most recently active survivor.
   static TabCloseResult closeTab(
     List<SiteTab> tabs, {
-    required String activeTabId,
-    required String closeId,
+    required TabId activeTabId,
+    required TabId closeId,
   }) =>
       _close(tabs,
           activeTabId: activeTabId, closeIds: {closeId}, reparent: true);
 
   static TabCloseResult closeSubtree(
     List<SiteTab> tabs, {
-    required String activeTabId,
-    required String closeId,
+    required TabId activeTabId,
+    required TabId closeId,
   }) =>
       _close(
         tabs,
@@ -425,8 +425,8 @@ class TabLifecycleEngine {
 
   static TabCloseResult _close(
     List<SiteTab> tabs, {
-    required String activeTabId,
-    required Set<String> closeIds,
+    required TabId activeTabId,
+    required Set<TabId> closeIds,
    required bool reparent}) {
     final doomed = closeIds.where((id) => tabs.any((t) => t.id == id)).toSet();
     if (doomed.isEmpty) {
@@ -445,7 +445,7 @@ class TabLifecycleEngine {
         var parent = t.parentId;
         // Walk past any closed ancestor, so a chain of closes still lands the
         // survivor on a tab that exists.
-        final guard = <String>{t.id};
+        final guard = <TabId>{t.id};
         while (parent != null && doomed.contains(parent)) {
           if (!guard.add(parent)) {
             parent = null;
@@ -482,7 +482,7 @@ class TabLifecycleEngine {
       );
     }
     final parentId = byId[activeTabId]?.parentId;
-    String next;
+    TabId next;
     if (parentId != null && survivors.any((t) => t.id == parentId)) {
       next = parentId;
     } else {
@@ -502,7 +502,7 @@ class TabLifecycleEngine {
   /// for hosted tabs whose host is gone or may no longer host (LIR-023).
   static TabCloseResult closeWhere(
     List<SiteTab> tabs, {
-    required String activeTabId,
+    required TabId activeTabId,
     required bool Function(SiteTab tab) shouldClose,
   }) =>
       _close(
@@ -517,14 +517,14 @@ class TabLifecycleEngine {
   /// ancestor, else null (the caller opens a new root tab at the owner's
   /// home). [isForeign] marks a tab the owner runs in another domain
   /// (LIR-034), which an owner URL must not load into either.
-  static String? ownerRunTab(
+  static TabId? ownerRunTab(
     List<SiteTab> tabs, {
-    required String activeTabId,
+    required TabId activeTabId,
     bool Function(SiteTab tab)? isForeign,
   }) {
     final byId = {for (final t in tabs) t.id: t};
-    final seen = <String>{};
-    String? id = activeTabId;
+    final seen = <TabId>{};
+    TabId? id = activeTabId;
     while (id != null && seen.add(id)) {
       final tab = byId[id];
       if (tab == null) return null;
@@ -544,7 +544,7 @@ class TabLifecycleEngine {
   /// never opens the drawer.
   static TabBackAction backAtHistoryStart(
     List<SiteTab> tabs, {
-    required String activeTabId,
+    required TabId activeTabId,
   }) {
     final active = tabs.where((t) => t.id == activeTabId).firstOrNull;
     final parentId = active?.parentId;
@@ -581,9 +581,9 @@ class TabLifecycleEngine {
   /// Null when the active tab is already there. Otherwise the most recently
   /// used parked tab at home, or failing that a new root tab at [initUrl],
   /// appended. Either way the tab the site was on is kept.
-  static ({List<SiteTab> tabs, String activeTabId})? homeLanding(
+  static ({List<SiteTab> tabs, TabId activeTabId})? homeLanding(
     List<SiteTab> tabs, {
-    required String activeTabId,
+    required TabId activeTabId,
     required String initUrl,
   }) {
     bool ownHome(SiteTab t) =>
@@ -595,7 +595,7 @@ class TabLifecycleEngine {
       if (t.id == activeTabId || !ownHome(t)) continue;
       if (home == null || t.lastActiveAt.isAfter(home.lastActiveAt)) home = t;
     }
-    final ({List<SiteTab> tabs, String activeTabId}) landing;
+    final ({List<SiteTab> tabs, TabId activeTabId}) landing;
     if (home != null) {
       landing = (tabs: tabs, activeTabId: home.id);
     } else {

@@ -54,6 +54,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
@@ -126,27 +127,27 @@ void main() {
     final base = 'http://127.0.0.1:$port';
 
     final dark = WebViewModel(
-      siteId: 'ws-dark',
+      siteId: SiteId('ws-dark'),
       initUrl: '$base/dark.html',
       name: 'Dark',
     );
     final white = WebViewModel(
-      siteId: 'ws-white',
+      siteId: SiteId('ws-white'),
       initUrl: '$base/white.html',
       name: 'White',
     );
     final magenta = WebViewModel(
-      siteId: 'ws-magenta',
+      siteId: SiteId('ws-magenta'),
       initUrl: '$base/magenta.html',
       name: 'Magenta',
     );
     final slow = WebViewModel(
-      siteId: 'ws-slow',
+      siteId: SiteId('ws-slow'),
       initUrl: '$base/slow-blue.html',
       name: 'Slow',
     );
     final opener = WebViewModel(
-      siteId: 'ws-opener',
+      siteId: SiteId('ws-opener'),
       initUrl: '$base/opener.html',
       name: 'Opener',
     );
@@ -335,7 +336,7 @@ Future<WindowRegionSample> pollSite(
       // controller-attach nudges drain before the initial document commits,
       // and no settled-side nudge exists for a first load. The window must
       // still end up showing the page.
-      await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+      await tester.tap(find.byKey(const ValueKey(WebspaceId.all)));
       await tester.pumpAndSettle(const Duration(seconds: 5));
       await tapSite(tester, siteName: 'Dark',
           diagnose: (c) => dumpDiagnostics(tester, context: c));

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/container_names.dart';
+import 'package:webspace/settings/proxy_ids.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/saved_proxies.dart';
 import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/developer_mode_service.dart';
@@ -34,30 +37,30 @@ class _MemoryStore extends ProxyLibraryStore {
 ProxyLibraryData _library() => ProxyLibraryData(
       gateways: [
         SavedGateway(
-            id: 'us', name: 'VPN US', type: ProxyType.SOCKS5, address: 'us.gw:1080'),
+            id: GatewayId('us'), name: 'VPN US', type: ProxyType.SOCKS5, address: 'us.gw:1080'),
         SavedGateway(
-            id: 'de', name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1080'),
+            id: GatewayId('de'), name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1080'),
       ],
       credentials: [
         SavedCredentials(
-            id: 'alice',
+            id: CredentialsId('alice'),
             name: 'Alice',
             username: 'alice',
             password: 'p',
-            gatewayIds: {'us', 'de'}),
+            gatewayIds: {GatewayId('us'), GatewayId('de')}),
         SavedCredentials(
-            id: 'mail',
+            id: CredentialsId('mail'),
             name: 'Mail session',
             username: 'alice-session-mail',
             password: 'p',
-            gatewayIds: {'de'}),
+            gatewayIds: {GatewayId('de')}),
       ],
       proxies: [
         SavedProxy(
-          id: 'work',
+          id: SavedProxyId('work'),
           name: 'Work VPN',
           settings: UserProxySettings(
-              type: ProxyType.GATEWAY, gatewayId: 'us', credentialsId: 'alice'),
+              type: ProxyType.GATEWAY, gatewayId: GatewayId('us'), credentialsId: CredentialsId('alice')),
         ),
       ],
     );
@@ -114,9 +117,9 @@ void main() {
       await _pump(
         tester,
         home: screen(_MemoryStore(_library()), sites: [
-          UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'work'),
+          UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('work')),
           UserProxySettings(
-              type: ProxyType.GATEWAY, gatewayId: 'de', credentialsId: 'mail'),
+              type: ProxyType.GATEWAY, gatewayId: GatewayId('de'), credentialsId: CredentialsId('mail')),
         ]),
       );
       expect(find.text('Work VPN'), findsOneWidget);
@@ -225,8 +228,8 @@ void main() {
       await _pump(
         tester,
         home: screen(store, sites: [
-          UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'work'),
-          UserProxySettings(type: ProxyType.GATEWAY, gatewayId: 'us'),
+          UserProxySettings(type: ProxyType.SAVED, savedProxyId: SavedProxyId('work')),
+          UserProxySettings(type: ProxyType.GATEWAY, gatewayId: GatewayId('us')),
         ]),
       );
       await tester.tap(find.text('VPN US').last);
@@ -236,8 +239,8 @@ void main() {
       expect(find.text(loc.savedProxyDeleteBody(2)), findsOneWidget);
       await tester.tap(find.widgetWithText(TextButton, loc.commonDelete));
       await tester.pumpAndSettle();
-      expect(store.data.gateway('us'), isNull);
-      expect(store.data.credentialsById('alice')!.gatewayIds, {'de'});
+      expect(store.data.gateway(GatewayId('us')), isNull);
+      expect(store.data.credentialsById(CredentialsId('alice'))!.gatewayIds, {'de'});
       // Work VPN now names a gateway that is gone, and says so.
       expect(find.text(loc.proxyLibraryGatewayMissing), findsOneWidget);
     });
@@ -290,7 +293,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         home: Scaffold(
           body: Center(
             child: ProxyCredentialsDropdown(
-              gatewayId: 'us',
+              gatewayId: GatewayId('us'),
               credentialsId: null,
               library: _library(),
               onChanged: (_) {},
@@ -310,8 +313,8 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         home: Scaffold(
           body: Center(
             child: ProxyCredentialsDropdown(
-              gatewayId: 'us',
-              credentialsId: 'mail',
+              gatewayId: GatewayId('us'),
+              credentialsId: CredentialsId('mail'),
               library: _library(),
               onChanged: (_) {},
             ),
@@ -333,7 +336,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         tester,
         home: SiteNetworkScreen(
           host: 'example.com',
-          siteId: 'site-1',
+          siteId: SiteId('site-1'),
           values: values,
           onChanged: reported.add,
           proxyAddressController: TextEditingController(),
@@ -351,9 +354,9 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       await pumpNetwork(
         tester,
-        values: const SiteNetworkValues(
+        values: SiteNetworkValues(
           proxyType: ProxyType.SAVED,
-          savedProxyId: 'work',
+          savedProxyId: SavedProxyId('work'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),
       );
@@ -368,9 +371,9 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        values: const SiteNetworkValues(
+        values: SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
-          gatewayId: 'de',
+          gatewayId: GatewayId('de'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),
       );
@@ -387,10 +390,10 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        values: const SiteNetworkValues(
+        values: SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
-          gatewayId: 'de',
-          credentialsId: 'mail',
+          gatewayId: GatewayId('de'),
+          credentialsId: CredentialsId('mail'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),
       );
@@ -404,10 +407,10 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        values: const SiteNetworkValues(
+        values: SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
-          gatewayId: 'de',
-          credentialsId: 'alice',
+          gatewayId: GatewayId('de'),
+          credentialsId: CredentialsId('alice'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),
       );
@@ -421,9 +424,9 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
       final username = TextEditingController();
       await pumpNetwork(
         tester,
-        values: const SiteNetworkValues(
+        values: SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
-          gatewayId: 'de',
+          gatewayId: GatewayId('de'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),
         username: username,
@@ -443,7 +446,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
       tester,
       home: SiteNetworkScreen(
         host: 'example.com',
-        siteId: 'site-1',
+        siteId: SiteId('site-1'),
         values: const SiteNetworkValues(
           proxyType: ProxyType.DEFAULT,
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
@@ -495,10 +498,10 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
     SiteInfo info(UserProxySettings? proxy) => SiteInfo(
           siteName: 'Mail',
           pageUrl: 'https://mail.example.com/',
-          containerId: 'ws-1',
+          containerId: ContainerName.of(ContainerKey.named('1')),
           incognito: false,
           proxy: proxy,
-          siteId: 'site-1',
+          siteId: SiteId('site-1'),
         );
 
     testWidgets('names a saved proxy and shows whether it answers',
@@ -508,7 +511,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         home: Scaffold(
           body: SiteInfoSheet(
             info: info(UserProxySettings(
-                type: ProxyType.SAVED, savedProxyId: 'work')),
+                type: ProxyType.SAVED, savedProxyId: SavedProxyId('work'))),
           ),
         ),
       );
@@ -524,7 +527,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         home: Scaffold(
           body: SiteInfoSheet(
             info: info(UserProxySettings(
-                type: ProxyType.GATEWAY, gatewayId: 'de', credentialsId: 'mail')),
+                type: ProxyType.GATEWAY, gatewayId: GatewayId('de'), credentialsId: CredentialsId('mail'))),
           ),
         ),
       );
@@ -550,7 +553,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         home: Scaffold(
           body: SiteInfoSheet(
             info: info(UserProxySettings(
-                type: ProxyType.GATEWAY, gatewayId: 'us', credentialsId: 'mail')),
+                type: ProxyType.GATEWAY, gatewayId: GatewayId('us'), credentialsId: CredentialsId('mail'))),
           ),
         ),
       );

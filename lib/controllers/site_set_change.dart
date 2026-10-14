@@ -1,3 +1,4 @@
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -191,7 +192,7 @@ final class SitesReplaced extends SiteSetChange {
   });
   final List<WebViewModel> sites;
   final List<Webspace> webspaces;
-  final String? selectedWebspaceId;
+  final WebspaceId? selectedWebspaceId;
 }
 
 /// An open archive's sites and collections, materialised at the end of the
@@ -204,14 +205,14 @@ final class ArchiveOpened extends SiteSetChange {
   });
   final List<WebViewModel> sites;
   final List<Webspace> webspaces;
-  final Map<String, List<String>> appTierMembership;
+  final Map<WebspaceId, List<SiteId>> appTierMembership;
 }
 
 /// A sealed archive's rows leave the lists.
 final class ArchiveClosed extends SiteSetChange {
   const ArchiveClosed({required this.siteIds, required this.webspaceIds});
-  final Set<String> siteIds;
-  final Set<String> webspaceIds;
+  final Set<SiteId> siteIds;
+  final Set<WebspaceId> webspaceIds;
 }
 
 /// An app-tier site moved into the open archive [into]; its row stays

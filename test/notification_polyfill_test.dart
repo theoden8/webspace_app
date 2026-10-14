@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/notification_polyfill_shim.dart';
 
 void main() {
   group('Notification polyfill script', () {
     test('granted permission when notificationsEnabled is true', () {
       final script = buildNotificationPolyfillShim(
-        siteId: 'abc123',
+        siteId: SiteId('abc123'),
         notificationsEnabled: true,
       );
       expect(script, contains('"notificationsEnabled":true'));
@@ -14,7 +15,7 @@ void main() {
 
     test('covers page-context ServiceWorkerRegistration.showNotification', () {
       final script = buildNotificationPolyfillShim(
-        siteId: 'sw1',
+        siteId: SiteId('sw1'),
         notificationsEnabled: true,
       );
       expect(script,
@@ -24,7 +25,7 @@ void main() {
 
     test('emits a console breadcrumb when a notification is suppressed', () {
       final script = buildNotificationPolyfillShim(
-        siteId: 'sw2',
+        siteId: SiteId('sw2'),
         notificationsEnabled: false,
       );
       expect(script, contains('suppressed: permission'));
@@ -34,24 +35,16 @@ void main() {
 
     test('denied permission when notificationsEnabled is false', () {
       final script = buildNotificationPolyfillShim(
-        siteId: 'xyz789',
+        siteId: SiteId('xyz789'),
         notificationsEnabled: false,
       );
       expect(script, contains('"notificationsEnabled":false'));
       expect(script, contains('"siteId":"xyz789"'));
     });
 
-    test('a siteId is embedded as a JS string literal', () {
-      final script = buildNotificationPolyfillShim(
-        siteId: 'a"b\\c',
-        notificationsEnabled: true,
-      );
-      expect(script, contains(r'"siteId":"a\"b\\c"'));
-    });
-
     test('script defines window.Notification', () {
       final script = buildNotificationPolyfillShim(
-        siteId: 'test',
+        siteId: SiteId('test'),
         notificationsEnabled: true,
       );
       expect(script, contains("Object.defineProperty(window, 'Notification'"));

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
@@ -51,7 +52,7 @@ Future<void> _pump(
     supportedLocales: AppLocalizations.supportedLocales,
     home: SitePrivacyScreen(
       host: 'example.com',
-      siteId: 'site-1',
+      siteId: SiteId('site-1'),
       values: values,
       onChanged: onChanged ?? (_) {},
     ),

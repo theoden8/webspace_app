@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/archive_storage.dart';
@@ -83,7 +84,7 @@ void main() {
       final handle = await archive.createWithKey(_testKey(4));
       handle.state.webspaces.add({'id': 'ws-1', 'name': 'My archived space'});
       handle.state.sites.add({'siteId': 's-1', 'initUrl': 'https://example.com'});
-      handle.state.selectedWebspaceId = 'ws-1';
+      handle.state.selectedWebspaceId = WebspaceId('ws-1');
       await archive.save(handle);
       await archive.close(handle);
 

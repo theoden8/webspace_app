@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -90,7 +91,7 @@ Future<ProxyTestResult> testProxyConnection(
   UserProxySettings settings, {
   required Uri target,
   required TorTestHold? holdTor,
-  String? siteId,
+  SiteId? siteId,
   Duration timeout = const Duration(seconds: 15),
 }) {
   final effective = resolveEffectiveProxy(settings, siteId: siteId);

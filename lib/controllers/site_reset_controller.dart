@@ -1,4 +1,5 @@
 import 'package:webspace/controllers/page_host.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -60,7 +61,7 @@ class SiteResetController {
   /// next launch and the cached-then-live rebuild path heals it on first
   /// webview load. Use [HtmlCacheService.deleteCache] when the disk file
   /// must also go (orphan cleanup, explicit site deletion).
-  void evictCacheIfOnline(String siteId) {
+  void evictCacheIfOnline(SiteId siteId) {
     if (ConnectivityService.instance.lastKnownOnline ?? true) {
       HtmlCacheService.instance.evictInMemory(siteId);
     }

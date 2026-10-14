@@ -49,6 +49,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
@@ -101,7 +102,7 @@ void main() {
   // view on Apple rather than echoed.
   const sentUserAgent =
       'Mozilla/5.0 (X11; CPU OS 0) WebspaceSeamProbe/1.0 (BUG-014 caution 7)';
-  const siteId = 'settings-seam';
+  final siteId = SiteId('settings-seam');
   const proxyAddress = '127.0.0.1:1080';
 
   var containers = false;

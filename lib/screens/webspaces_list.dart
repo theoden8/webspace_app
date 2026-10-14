@@ -6,7 +6,7 @@ import 'package:webspace/widgets/accent_logo.dart';
 
 class WebspacesListScreen extends StatelessWidget {
   final List<Webspace> webspaces;
-  final String? selectedWebspaceId;
+  final WebspaceId? selectedWebspaceId;
   final int totalSitesCount;
   final AccentColor accentColor;
   final Function(Webspace) onSelectWebspace;
@@ -82,7 +82,7 @@ class WebspacesListScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final webspace = webspaces[index];
                   final isSelected = selectedWebspaceId == webspace.id;
-                  final isAll = webspace.id == kAllWebspaceId;
+                  final isAll = webspace.id == WebspaceId.all;
                   final siteCount = isAll ? totalSitesCount : webspace.siteIndices.length;
 Widget action(IconData icon, {required VoidCallback onPressed}) => IconButton(
       icon: Icon(icon, size: 20),

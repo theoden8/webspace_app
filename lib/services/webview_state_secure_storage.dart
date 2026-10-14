@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -194,7 +195,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   }
 
   @override
-  Future<int> removeStatesForSite(String siteId) async {
+  Future<int> removeStatesForSite(SiteId siteId) async {
     if (!_initialized) await initialize();
     final store = _store;
     if (store == null) return 0;

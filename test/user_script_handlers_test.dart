@@ -147,7 +147,7 @@ void main() {
   group('re-injection orchestration', () {
     List<UserScriptConfig> mixed() => [
       UserScriptConfig(
-        id: 's1',
+        id: UserScriptId('s1'),
         name: 'start',
         source: 'START();',
         // Arms the bridge for this site, so the shim is part of what
@@ -156,20 +156,20 @@ void main() {
         injectionTime: UserScriptInjectionTime.atDocumentStart,
       ),
       UserScriptConfig(
-        id: 's2',
+        id: UserScriptId('s2'),
         name: 'end',
         source: 'END();',
         injectionTime: UserScriptInjectionTime.atDocumentEnd,
       ),
       UserScriptConfig(
-        id: 's3',
+        id: UserScriptId('s3'),
         name: 'lib',
         source: 'INIT();',
         urlSource: 'LIB();',
         injectionTime: UserScriptInjectionTime.atDocumentStart,
       ),
       UserScriptConfig(
-        id: 's4',
+        id: UserScriptId('s4'),
         name: 'off',
         source: 'OFF();',
         injectionTime: UserScriptInjectionTime.atDocumentStart,

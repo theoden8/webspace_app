@@ -15,7 +15,7 @@ class SiteDeletionPatch {
 
   /// Per-webspace updated `siteIndices` keyed by `Webspace.id`. Entries absent
   /// from this map were unaffected.
-  final Map<String, List<int>> newSiteIndicesByWebspaceId;
+  final Map<WebspaceId, List<int>> newSiteIndicesByWebspaceId;
 
   /// Updated value for `_currentIndex`. Semantics mirror `SiteEditingController.deleteSite`:
   ///   * deletedIndex == currentIndex       → null (cleared; caller must
@@ -117,7 +117,7 @@ class SiteLifecycleEngine {
       newLoadedIndices.add(shifted);
     }
 
-    final newSiteIndicesByWebspaceId = <String, List<int>>{};
+    final newSiteIndicesByWebspaceId = <WebspaceId, List<int>>{};
     for (final webspace in webspaces) {
       final rewritten = <int>[];
       var changed = false;

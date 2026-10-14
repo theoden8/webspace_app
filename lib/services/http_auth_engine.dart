@@ -12,6 +12,7 @@
 library;
 
 import 'package:webspace/services/url_host.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/http_auth_memory.dart';
 import 'package:webspace/utils/concurrency.dart';
 
@@ -45,15 +46,15 @@ class HttpAuthCredential {
 /// no port and no scheme (`AwHttpAuthHandler` forwards only host and realm),
 /// so anything finer would never match there.
 abstract class HttpAuthCredentialStore {
-  Future<HttpAuthCredential?> lookup(String siteId,
+  Future<HttpAuthCredential?> lookup(SiteId siteId,
       {required Host host, required String realm});
   Future<void> save(
-    String siteId, {
+    SiteId siteId, {
     required Host host,
     required String realm,
     required HttpAuthCredential credential,
   });
-  Future<void> remove(String siteId,
+  Future<void> remove(SiteId siteId,
       {required Host host, required String realm});
 }
 
@@ -134,7 +135,7 @@ class HttpAuthSession {
 
   /// Owner of saved credentials; null for a webview that belongs to no
   /// site, which therefore neither reads nor saves any.
-  final String? siteId;
+  final SiteId? siteId;
 
   /// The page the webview was opened for. Challenges are answered only for
   /// hosts on its base domain (HTTPAUTH-002).

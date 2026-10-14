@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/wake_baseline_store.dart';
 
 /// NOTIF-014: a baseline written before the process dies is read back by the
@@ -8,7 +9,7 @@ import 'package:webspace/services/wake_baseline_store.dart';
 void main() {
   test('round trip', () async {
     SharedPreferences.setMockInitialValues({});
-    await WakeBaselineStore.write({'a': 2, 'b': 0});
+    await WakeBaselineStore.write({SiteId('a'): 2, SiteId('b'): 0});
     expect(await WakeBaselineStore.read(), {'a': 2, 'b': 0});
   });
 

@@ -1,3 +1,5 @@
+import 'package:webspace/settings/site_ids.dart';
+
 /// Something keeping the Tor runtime up.
 sealed class TorHolder {
   const TorHolder();
@@ -26,7 +28,7 @@ final class TorAppWideHolder extends TorHolder {
 final class TorSiteHolder extends TorHolder {
   const TorSiteHolder(this.siteId);
 
-  final String siteId;
+  final SiteId siteId;
 
   @override
   Object? get _id => siteId;
@@ -36,7 +38,7 @@ final class TorSiteHolder extends TorHolder {
 final class TorNestedHolder extends TorHolder {
   const TorNestedHolder(this.siteId);
 
-  final String siteId;
+  final SiteId siteId;
 
   @override
   Object? get _id => siteId;
@@ -93,7 +95,7 @@ TorHolderSummary summarizeTorHolders(
   required Map<String, String> siteNames,
 }) {
   var appWide = false;
-  final siteIds = <String>{};
+  final siteIds = <SiteId>{};
   for (final holder in holders) {
     switch (holder) {
       case TorAppWideHolder():

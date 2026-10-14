@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 
 void main() {
@@ -86,7 +87,7 @@ void main() {
       await storage.saveState('a.t1', state: Uint8List.fromList([2]));
       // A site whose id merely starts with "a" is a different site.
       await storage.saveState('ab.main', state: Uint8List.fromList([3]));
-      expect(await storage.removeStatesForSite('a'), 2);
+      expect(await storage.removeStatesForSite(SiteId('a')), 2);
       expect(await storage.siteIds(), {'ab.main'});
     });
 

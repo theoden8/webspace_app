@@ -13,7 +13,7 @@ import 'helpers/localized.dart';
 // the ones the backup ran, so the user can turn them back on as they were.
 
 UserScriptConfig _script(String id, {bool enabled = true}) => UserScriptConfig(
-    id: id, name: 'script $id', source: '/* $id */', enabled: enabled);
+    id: UserScriptId(id), name: 'script $id', source: '/* $id */', enabled: enabled);
 
 /// Two sites as a device had them: A runs its own `s1` (its `s2` is off)
 /// and the global `g1`; B runs `g1` and names a global the library lost.
@@ -23,12 +23,12 @@ SettingsImportPlan _planOfDevice() {
     initUrl: 'https://a.example',
     name: 'Site A',
     userScripts: [_script('s1'), _script('s2', enabled: false)],
-    enabledGlobalScriptIds: {'g1'},
+    enabledGlobalScriptIds: {UserScriptId('g1')},
   );
   final b = WebViewModel(
     initUrl: 'https://b.example',
     name: 'Site B',
-    enabledGlobalScriptIds: {'g1', 'gone'},
+    enabledGlobalScriptIds: {UserScriptId('g1'), UserScriptId('gone')},
   );
   final backup = SettingsBackupService.createBackup(
     webViewModels: [a, b],

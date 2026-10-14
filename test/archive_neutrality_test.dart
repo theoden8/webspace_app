@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/outbound_preference.dart';
@@ -210,7 +211,7 @@ void main() {
           reason: 'only the fixed pool exists after init');
 
       final handle = await archive.createWithKey(_testKey(7));
-      handle.state.sites.add(_tabbedSite('arch-site').toArchiveJson());
+      handle.state.sites.add(_tabbedSite(SiteId('arch-site')).toArchiveJson());
       handle.state.cookies['arch-site'] = [
         {'name': 'sid', 'value': 'super-secret-session'},
       ];
@@ -249,7 +250,7 @@ void main() {
       for (var i = 0; i < 3; i++) {
         final handle = await archive.createWithKey(_testKey(20 + i));
         // TAB-009: holding tabs changes nothing outside the slots either.
-        handle.state.sites.add(_tabbedSite('s$i').toArchiveJson());
+        handle.state.sites.add(_tabbedSite(SiteId('s$i')).toArchiveJson());
         await archive.save(handle);
         await archive.close(handle);
       }
@@ -371,13 +372,13 @@ void main() {
 
     test('an app-tier site routes to no archive-tier site (LIR-017)', () {
       WebViewModel ddg() => WebViewModel(
-            siteId: 'ddg',
+            siteId: SiteId('ddg'),
             initUrl: 'https://duckduckgo.com',
             routeOutboundLinks: true,
             outboundPreferences: [
               OutboundPreference(
                 claim: DomainClaim.exactHost('github.com'),
-                targetSiteId: 'gh',
+                targetSiteId: SiteId('gh'),
               ),
             ],
           );
@@ -397,7 +398,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
         prune([
           open,
           WebViewModel(
-              siteId: 'gh', initUrl: 'https://github.com', isArchiveTier: true),
+              siteId: SiteId('gh'), initUrl: 'https://github.com', isArchiveTier: true),
         ], archives: {'gh': 'slot'}),
         isTrue,
       );
@@ -429,7 +430,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
     test('unloadSiteForDomainSwitch persists nothing for an archive site',
         () async {
       final archived = WebViewModel(
-        siteId: 'arch-1',
+        siteId: SiteId('arch-1'),
         initUrl: 'https://secret.test',
         isArchiveTier: true,
       );
@@ -453,11 +454,11 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
     test('restoreCookiesForSite skips an archive target and archive siblings',
         () async {
       final appSite = WebViewModel(
-        siteId: 'app-1',
+        siteId: SiteId('app-1'),
         initUrl: 'https://public.test',
       );
       final archived = WebViewModel(
-        siteId: 'arch-1',
+        siteId: SiteId('arch-1'),
         initUrl: 'https://secret.test',
         isArchiveTier: true,
       );
@@ -498,7 +499,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
     test('preDeleteCookieCleanup only erases the archive site entry',
         () async {
       final archived = WebViewModel(
-        siteId: 'arch-1',
+        siteId: SiteId('arch-1'),
         initUrl: 'https://secret.test',
         isArchiveTier: true,
       );
@@ -528,8 +529,8 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
   // and assert webspace persistence is unchanged across the cycle.
   group('Webspace persistence is invariant across move-to-archive cycle', () {
     test('runtime membership keeps an archived site while the archive is open', () {
-      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
-      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      final models = [_siteWithId(SiteId('a')), _siteWithId(SiteId('b')), _siteWithId(SiteId('c'))];
+      final ws = Webspace(name: 'Work', siteIds: [SiteId('a'), SiteId('b'), SiteId('c')]);
       _resolveWebspaceIndices([ws], models: models);
       models[1].isArchiveTier = true;
       _resolveWebspaceIndices([ws], models: models);
@@ -539,11 +540,11 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
 
     test('persisted form never names an archived site (ARCH-001)', () {
       final models = [
-        _siteWithId('a'),
-        _siteWithId('b', archive: true),
-        _siteWithId('c'),
+        _siteWithId(SiteId('a')),
+        _siteWithId(SiteId('b'), archive: true),
+        _siteWithId(SiteId('c')),
       ];
-      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      final ws = Webspace(name: 'Work', siteIds: [SiteId('a'), SiteId('b'), SiteId('c')]);
       final archived = {
         for (final m in models)
           if (m.isArchiveTier) m.siteId,
@@ -551,7 +552,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
       final persisted =
           ArchiveMembershipEngine.persistable([ws], archivedSiteIds: archived);
       final neverArchived =
-          Webspace(id: ws.id, name: 'Work', siteIds: ['a', 'c']);
+          Webspace(id: ws.id, name: 'Work', siteIds: [SiteId('a'), SiteId('c')]);
       expect(
         jsonEncode(persisted.map((w) => w.toJson()).toList()),
         equals(jsonEncode([neverArchived.toJson()])),
@@ -563,25 +564,25 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
     });
 
     test('archive-tier collections never enter the persisted form', () {
-      final app = Webspace(name: 'Work', siteIds: ['a']);
-      final arch = Webspace(name: 'Hidden', siteIds: ['b'])
+      final app = Webspace(name: 'Work', siteIds: [SiteId('a')]);
+      final arch = Webspace(name: 'Hidden', siteIds: [SiteId('b')])
         ..isArchiveTier = true;
       final persisted = ArchiveMembershipEngine.persistable([app, arch],
-          archivedSiteIds: {'b'});
+          archivedSiteIds: {SiteId('b')});
       expect(persisted.map((w) => w.id), equals([app.id]));
     });
 
     test('archive close detaches membership into archive state; reopen re-attaches', () {
-      final a = _siteWithId('a');
-      final b = _siteWithId('b', archive: true);
-      final c = _siteWithId('c');
+      final a = _siteWithId(SiteId('a'));
+      final b = _siteWithId(SiteId('b'), archive: true);
+      final c = _siteWithId(SiteId('c'));
       final models = [a, b, c];
-      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      final ws = Webspace(name: 'Work', siteIds: [SiteId('a'), SiteId('b'), SiteId('c')]);
       _resolveWebspaceIndices([ws], models: models);
 
       // Close: the archived site leaves the runtime list and its
       // membership moves into the archive's own encrypted state.
-      final membership = ArchiveMembershipEngine.detach([ws], siteIds: {'b'});
+      final membership = ArchiveMembershipEngine.detach([ws], siteIds: {SiteId('b')});
       models.removeWhere((m) => m.isArchiveTier);
       _resolveWebspaceIndices([ws], models: models);
       expect(membership, equals({ws.id: ['b']}));
@@ -590,7 +591,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
       expect(
         jsonEncode(ws.toJson()),
         equals(jsonEncode(
-            Webspace(id: ws.id, name: 'Work', siteIds: ['a', 'c']).toJson())),
+            Webspace(id: ws.id, name: 'Work', siteIds: [SiteId('a'), SiteId('c')]).toJson())),
         reason: 'post-close JSON equals a webspace that never held b',
       );
 
@@ -604,22 +605,22 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
     });
 
     test('attach skips ids already present and webspaces that are gone', () {
-      final ws = Webspace(id: 'w1', name: 'Work', siteIds: ['a', 'b']);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'Work', siteIds: [SiteId('a'), SiteId('b')]);
       ArchiveMembershipEngine.attach([ws], membership: {
-        'w1': ['b', 'c'],
-        'gone': ['z'],
+        WebspaceId('w1'): [SiteId('b'), SiteId('c')],
+        WebspaceId('gone'): [SiteId('z')],
       });
       expect(ws.siteIds, equals(['a', 'b', 'c']));
     });
 
     test('record merges into existing membership without duplicates', () {
-      final ws = Webspace(id: 'w1', name: 'Work', siteIds: ['a', 'b']);
+      final ws = Webspace(id: WebspaceId('w1'), name: 'Work', siteIds: [SiteId('a'), SiteId('b')]);
       final m = ArchiveMembershipEngine.record(
         [ws],
-        siteIds: {'b'},
+        siteIds: {SiteId('b')},
         existing: {
-          'w1': ['b'],
-          'w9': ['z'],
+          WebspaceId('w1'): [SiteId('b')],
+          WebspaceId('w9'): [SiteId('z')],
         },
       );
       expect(m, equals({'w1': ['b'], 'w9': ['z']}));
@@ -628,24 +629,24 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
 
     test('moving a site back out forgets it in the archive state', () {
       final membership = {
-        'w1': ['b', 'x'],
-        'w2': ['b'],
+        WebspaceId('w1'): [SiteId('b'), SiteId('x')],
+        WebspaceId('w2'): [SiteId('b')],
       };
-      ArchiveMembershipEngine.forget(membership, siteId: 'b');
+      ArchiveMembershipEngine.forget(membership, siteId: SiteId('b'));
       expect(membership, equals({'w1': ['x']}));
     });
 
     test('closing an archive updates webspace.siteIndices.length (regression: stale per-webspace site counts after close)', () {
-      final a = _siteWithId('a');
-      final b = _siteWithId('b', archive: true);
-      final c = _siteWithId('c');
+      final a = _siteWithId(SiteId('a'));
+      final b = _siteWithId(SiteId('b'), archive: true);
+      final c = _siteWithId(SiteId('c'));
       final models = [a, b, c];
-      final work = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      final work = Webspace(name: 'Work', siteIds: [SiteId('a'), SiteId('b'), SiteId('c')]);
       _resolveWebspaceIndices([work], models: models);
       expect(work.siteIndices.length, equals(3),
           reason: 'three members visible while archive is open');
 
-      ArchiveMembershipEngine.detach([work], siteIds: {'b'});
+      ArchiveMembershipEngine.detach([work], siteIds: {SiteId('b')});
       models.removeWhere((m) => m.isArchiveTier);
       _resolveWebspaceIndices([work], models: models);
 
@@ -673,7 +674,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
       expect(ws.siteIds, isEmpty);
       expect(ws.siteIndices, equals([0, 2]));
 
-      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
+      final models = [_siteWithId(SiteId('a')), _siteWithId(SiteId('b')), _siteWithId(SiteId('c'))];
       promoteLegacySiteIndices([ws], sites: models);
       _resolveWebspaceIndices([ws], models: models);
 
@@ -692,7 +693,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
         'siteIds': ['a', 'b'],
       });
       final beforeIds = List<String>.from(ws.siteIds);
-      final models = [_siteWithId('a'), _siteWithId('b')];
+      final models = [_siteWithId(SiteId('a')), _siteWithId(SiteId('b'))];
       // Migration short-circuits when siteIds is already populated.
       promoteLegacySiteIndices([ws], sites: models);
       expect(ws.siteIds, equals(beforeIds));
@@ -707,7 +708,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
         'name': 'Work',
         'siteIndices': [0, 5, 10],
       });
-      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
+      final models = [_siteWithId(SiteId('a')), _siteWithId(SiteId('b')), _siteWithId(SiteId('c'))];
       promoteLegacySiteIndices([ws], sites: models);
       expect(ws.siteIds, equals(['a']));
     });
@@ -742,7 +743,7 @@ void _resolveWebspaceIndices(
     WebspaceSelectionEngine.resolveIndices(
         webspaces, siteIdsByPosition: [for (final m in models) m.siteId]);
 
-WebViewModel _siteWithId(String siteId, {bool archive = false}) {
+WebViewModel _siteWithId(SiteId siteId, {bool archive = false}) {
   return WebViewModel(
     siteId: siteId,
     initUrl: 'https://$siteId.test',
@@ -751,15 +752,15 @@ WebViewModel _siteWithId(String siteId, {bool archive = false}) {
 }
 
 /// An archive-tier site with a tab tree, its active tab not the first.
-WebViewModel _tabbedSite(String siteId) => WebViewModel(
+WebViewModel _tabbedSite(SiteId siteId) => WebViewModel(
       siteId: siteId,
       initUrl: 'https://$siteId.test/',
       isArchiveTier: true,
       tabs: [
-        SiteTab(id: 'root', url: 'https://$siteId.test/a', title: 'A'),
+        SiteTab(id: TabId('root'), url: 'https://$siteId.test/a', title: 'A'),
         SiteTab(
-            id: 'child', url: 'https://$siteId.test/a/1', parentId: 'root'),
-        SiteTab(id: 'other', url: 'https://$siteId.test/b'),
+            id: TabId('child'), url: 'https://$siteId.test/a/1', parentId: TabId('root')),
+        SiteTab(id: TabId('other'), url: 'https://$siteId.test/b'),
       ],
-      activeTabId: 'child',
+      activeTabId: TabId('child'),
     );

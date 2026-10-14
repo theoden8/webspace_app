@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/settings_backup.dart';
@@ -46,7 +47,7 @@ void main() {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
 
-      service.record('undeclared-site',
+      service.record(SiteId('undeclared-site'),
           category: BlockCategory.filterList, count: 5);
 
       expect(service.engine.allTimeTotal, 0);
@@ -55,9 +56,9 @@ void main() {
     test('an app-tier site contributes once declared', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('app-site', contributes: true);
+      service.setSiteContributes(SiteId('app-site'), contributes: true);
 
-      service.record('app-site', category: BlockCategory.filterList, count: 5);
+      service.record(SiteId('app-site'), category: BlockCategory.filterList, count: 5);
 
       expect(service.engine.allTimeTotal, 5);
     });
@@ -66,11 +67,11 @@ void main() {
         () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('archive-site', contributes: false);
+      service.setSiteContributes(SiteId('archive-site'), contributes: false);
 
-      service.record('archive-site',
+      service.record(SiteId('archive-site'),
           category: BlockCategory.filterList, count: 12);
-      service.record('archive-site',
+      service.record(SiteId('archive-site'),
           category: BlockCategory.dnsBlocklist, count: 3);
       await service.flush();
 
@@ -82,12 +83,12 @@ void main() {
     test('moving a site into the archive stops its contributions', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('moving-site', contributes: true);
-      service.record('moving-site',
+      service.setSiteContributes(SiteId('moving-site'), contributes: true);
+      service.record(SiteId('moving-site'),
           category: BlockCategory.filterList, count: 2);
 
-      service.setSiteContributes('moving-site', contributes: false);
-      service.record('moving-site',
+      service.setSiteContributes(SiteId('moving-site'), contributes: false);
+      service.record(SiteId('moving-site'),
           category: BlockCategory.filterList, count: 40);
 
       expect(service.engine.allTimeTotal, 2);
@@ -98,9 +99,9 @@ void main() {
     test('counters survive a restart', () async {
       final first = BlockStatsService.instance;
       await first.initialize(detailStore: detailStore);
-      first.setSiteContributes('site', contributes: true);
-      first.record('site', category: BlockCategory.filterList, count: 8);
-      first.record('site', category: BlockCategory.trackingParam, count: 2);
+      first.setSiteContributes(SiteId('site'), contributes: true);
+      first.record(SiteId('site'), category: BlockCategory.filterList, count: 8);
+      first.record(SiteId('site'), category: BlockCategory.trackingParam, count: 2);
       await first.flush();
 
       BlockStatsService.resetInstanceForTest();
@@ -126,8 +127,8 @@ void main() {
     test('reset zeroes the persisted payload', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site', contributes: true);
-      service.record('site', category: BlockCategory.filterList, count: 4);
+      service.setSiteContributes(SiteId('site'), contributes: true);
+      service.record(SiteId('site'), category: BlockCategory.filterList, count: 4);
       await service.flush();
 
       await service.reset();
@@ -141,8 +142,8 @@ void main() {
     test('the counters never reach a settings export (STATS-006)', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site', contributes: true);
-      service.record('site', category: BlockCategory.filterList, count: 4242);
+      service.setSiteContributes(SiteId('site'), contributes: true);
+      service.record(SiteId('site'), category: BlockCategory.filterList, count: 4242);
       await service.flush();
 
       final prefs = await SharedPreferences.getInstance();
@@ -163,8 +164,8 @@ void main() {
     test('initialize is idempotent and does not discard live counts', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site', contributes: true);
-      service.record('site', category: BlockCategory.dnsBlocklist, count: 3);
+      service.setSiteContributes(SiteId('site'), contributes: true);
+      service.record(SiteId('site'), category: BlockCategory.dnsBlocklist, count: 3);
 
       await service.initialize(detailStore: detailStore);
 
@@ -176,9 +177,9 @@ void main() {
     test('a label reaches the detail but never the plaintext blob', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site', contributes: true);
+      service.setSiteContributes(SiteId('site'), contributes: true);
 
-      service.record('site', category: BlockCategory.dnsBlocklist,
+      service.record(SiteId('site'), category: BlockCategory.dnsBlocklist,
           count: 2, label: 'ads.example');
       await service.flush();
 
@@ -194,7 +195,7 @@ void main() {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
 
-      service.record('archive-site', category: BlockCategory.filterList,
+      service.record(SiteId('archive-site'), category: BlockCategory.filterList,
           label: 'tracker.example');
 
       expect(service.detail.isEmpty, isTrue);
@@ -204,8 +205,8 @@ void main() {
     test('reset clears the detail with the counters', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site', contributes: true);
-      service.record('site',
+      service.setSiteContributes(SiteId('site'), contributes: true);
+      service.record(SiteId('site'),
           category: BlockCategory.localCdn, label: 'cdn.example');
 
       await service.reset();
@@ -219,10 +220,10 @@ void main() {
     test('items and per-site counts survive a restart', () async {
       final first = BlockStatsService.instance;
       await first.initialize(detailStore: detailStore);
-      first.setSiteContributes('site-a', contributes: true);
-      first.record('site-a', category: BlockCategory.dnsBlocklist,
+      first.setSiteContributes(SiteId('site-a'), contributes: true);
+      first.record(SiteId('site-a'), category: BlockCategory.dnsBlocklist,
           count: 3, label: 'ads.example');
-      first.record('site-a', category: BlockCategory.dnsBlocklist,
+      first.record(SiteId('site-a'), category: BlockCategory.dnsBlocklist,
           label: 'beacon.example');
       await first.flush();
 
@@ -252,9 +253,9 @@ void main() {
       });
 
       final service = BlockStatsService.instance;
-      service.setSiteContributes('site-a', contributes: true);
+      service.setSiteContributes(SiteId('site-a'), contributes: true);
       final loading = service.initialize(detailStore: detailStore);
-      service.record('site-a', category: BlockCategory.dnsBlocklist,
+      service.record(SiteId('site-a'), category: BlockCategory.dnsBlocklist,
           label: 'ads.example');
       await loading;
 
@@ -265,8 +266,8 @@ void main() {
     test('a reset is not undone by the next launch', () async {
       final first = BlockStatsService.instance;
       await first.initialize(detailStore: detailStore);
-      first.setSiteContributes('site-a', contributes: true);
-      first.record('site-a',
+      first.setSiteContributes(SiteId('site-a'), contributes: true);
+      first.record(SiteId('site-a'),
           category: BlockCategory.filterList, label: 'ads.example');
       await first.flush();
 
@@ -283,8 +284,8 @@ void main() {
         () async {
       final first = BlockStatsService.instance;
       await first.initialize(detailStore: detailStore);
-      first.setSiteContributes('site-a', contributes: true);
-      first.record('site-a', category: BlockCategory.filterList,
+      first.setSiteContributes(SiteId('site-a'), contributes: true);
+      first.record(SiteId('site-a'), category: BlockCategory.filterList,
           count: 7, label: 'ads.example');
       await first.flush();
       detailStore.payload = 'not json at all';
@@ -300,14 +301,14 @@ void main() {
     test('a deleted site loses its row on the next orphan sweep', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('kept', contributes: true);
-      service.setSiteContributes('deleted', contributes: true);
-      service.record('kept',
+      service.setSiteContributes(SiteId('kept'), contributes: true);
+      service.setSiteContributes(SiteId('deleted'), contributes: true);
+      service.record(SiteId('kept'),
           category: BlockCategory.filterList, label: 'ads.example');
-      service.record('deleted', category: BlockCategory.filterList,
+      service.record(SiteId('deleted'), category: BlockCategory.filterList,
           label: 'ads.example');
 
-      await service.removeOrphanedSites({'kept'});
+      await service.removeOrphanedSites({SiteId('kept')});
 
       expect(
           service.detail
@@ -324,10 +325,10 @@ void main() {
         () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site-a', contributes: true);
+      service.setSiteContributes(SiteId('site-a'), contributes: true);
 
       for (var i = 0; i < 50; i++) {
-        service.record('site-a', category: BlockCategory.filterList,
+        service.record(SiteId('site-a'), category: BlockCategory.filterList,
             label: 'ads-$i.example');
       }
       await service.flush();
@@ -352,10 +353,10 @@ void main() {
     test('a burst costs one write, shortly after the page goes quiet', () {
       fakeAsync((async) {
         final service = _bootInFakeZone(async, detailStore: detailStore);
-        service.setSiteContributes('site', contributes: true);
+        service.setSiteContributes(SiteId('site'), contributes: true);
 
         for (var i = 0; i < 200; i++) {
-          service.record('site', category: BlockCategory.filterList,
+          service.record(SiteId('site'), category: BlockCategory.filterList,
               label: 'ads-$i.example');
         }
 
@@ -374,7 +375,7 @@ void main() {
     test('a page that never goes quiet is persisted at the ceiling', () {
       fakeAsync((async) {
         final service = _bootInFakeZone(async, detailStore: detailStore);
-        service.setSiteContributes('site', contributes: true);
+        service.setSiteContributes(SiteId('site'), contributes: true);
 
         // One block a second: the idle debounce is restarted before it can
         // expire, so only the ceiling can get this batch onto disk.
@@ -382,7 +383,7 @@ void main() {
         for (var elapsed = Duration.zero;
             elapsed < BlockStatsService.maxFlushDelay;
             elapsed += step) {
-          service.record('site', category: BlockCategory.filterList,
+          service.record(SiteId('site'), category: BlockCategory.filterList,
               label: 'ads.example');
           expect(detailStore.writes, 0,
               reason: 'ceiling not reached at $elapsed');
@@ -400,8 +401,8 @@ void main() {
     test('a detail write that cannot land leaves the rows pending', () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site', contributes: true);
-      service.record('site',
+      service.setSiteContributes(SiteId('site'), contributes: true);
+      service.record(SiteId('site'),
           category: BlockCategory.filterList, label: 'ads.example');
 
       detailStore.writable = false;
@@ -421,15 +422,15 @@ void main() {
         () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);
-      service.setSiteContributes('site', contributes: true);
-      service.record('site',
+      service.setSiteContributes(SiteId('site'), contributes: true);
+      service.record(SiteId('site'),
           category: BlockCategory.filterList, label: 'first.example');
 
       final gate = Completer<void>();
       detailStore.writeGate = gate;
       final flushing = service.flush();
       await Future<void>.delayed(Duration.zero);
-      service.record('site',
+      service.record(SiteId('site'),
           category: BlockCategory.filterList, label: 'second.example');
       detailStore.writeGate = null;
       gate.complete();

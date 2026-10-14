@@ -129,7 +129,7 @@ void main() {
     // this round-trips through pass-secret-service backed by pass+gpg.
     final pwdStore = ProxyPasswordSecureStorage();
     await pwdStore.savePassword(
-      ProxyPasswordSecureStorage.globalProxyKey,
+      ProxyPasswordKey.global,
       password: secretPwd,
     );
 

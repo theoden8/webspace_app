@@ -1,3 +1,4 @@
+import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart' show ThemeMode;
@@ -115,7 +116,7 @@ class ShellStore {
     return true;
   }
 
-  Set<String> get archivedSiteIds => {
+  Set<SiteId> get archivedSiteIds => {
         for (final m in _sites.models)
           if (m.isArchiveTier) m.siteId,
       };
@@ -163,21 +164,22 @@ class ShellStore {
 
     _ensureAllWebspaceExists();
 
-    _sites.selectedWebspaceId = prefs.getString('selectedWebspaceId');
+    _sites.selectedWebspaceId =
+        WebspaceId.parse(prefs.getString('selectedWebspaceId'));
 
     if (_sites.selectedWebspaceId == null) {
-      _sites.selectedWebspaceId = kAllWebspaceId;
+      _sites.selectedWebspaceId = WebspaceId.all;
     }
   }
 
   void _ensureAllWebspaceExists() {
-    final hasAll = _sites.webspaces.any((ws) => ws.id == kAllWebspaceId);
+    final hasAll = _sites.webspaces.any((ws) => ws.id == WebspaceId.all);
 
     if (!hasAll) {
       _sites.webspaces.insert(0, Webspace.all());
     } else {
       // Ensure "All" is at the beginning
-      final allIndex = _sites.webspaces.indexWhere((ws) => ws.id == kAllWebspaceId);
+      final allIndex = _sites.webspaces.indexWhere((ws) => ws.id == WebspaceId.all);
       if (allIndex > 0) {
         final allWebspace = _sites.webspaces.removeAt(allIndex);
         _sites.webspaces.insert(0, allWebspace);

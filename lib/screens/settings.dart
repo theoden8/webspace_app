@@ -1,3 +1,5 @@
+import 'package:webspace/settings/filter_list_id.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
@@ -146,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   late bool _dnsBlockEnabled;
   late int? _dnsBlockLevel;
   late bool _contentBlockEnabled;
-  late Set<String> _disabledFilterLists;
+  late Set<FilterListId> _disabledFilterLists;
   late bool _trackingProtectionEnabled;
   late bool _letterboxEnabled;
   late bool _blockScreenshots;
@@ -156,8 +158,8 @@ class _SettingsScreenState extends State<SettingsScreen>
   late List<OutboundPreference> _outboundPreferences;
   String? _searchAddress;
   late bool _searchesWeb;
-  late List<String> _searchSites;
-  String? _searchDefault;
+  late List<SiteId> _searchSites;
+  SiteId? _searchDefault;
   late bool _fullscreenMode;
   late bool _tabsEnabled;
   late bool _htmlCachingEnabled;

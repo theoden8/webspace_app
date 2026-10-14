@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:webspace/settings/site_ids.dart';
 
 /// Storage abstraction for `WKWebView.interactionState` /
 /// `WebView.saveState` bytes, keyed by *state key* — `<siteId>.<tabId>`, built
@@ -35,7 +36,7 @@ abstract class WebViewStateStorage {
   /// Removes every key this site owns — one per tab. Used by site deletion,
   /// the per-site data wipe and archive close, none of which can enumerate
   /// the tabs of a site that is already gone.
-  Future<int> removeStatesForSite(String siteId);
+  Future<int> removeStatesForSite(SiteId siteId);
 
   /// Removes every entry whose key is not in [activeKeys].
   /// Returns the count removed. Run on app startup to reap state
@@ -71,7 +72,7 @@ class InMemoryWebViewStateStorage implements WebViewStateStorage {
   }
 
   @override
-  Future<int> removeStatesForSite(String siteId) async {
+  Future<int> removeStatesForSite(SiteId siteId) async {
     final prefix = '$siteId.';
     final doomed = _store.keys.where((k) => k.startsWith(prefix)).toList();
     for (final k in doomed) {

@@ -99,7 +99,7 @@ test('a return to the foreground closes the wake headless checks', () => {
     /background\.noteResumed\(\)/);
   assert.match(blockAfter(background, 'void noteResumed() {', null, 'background_sites_controller.dart'),
     /_activeWake\?\.closeAllHeadless\(\)/);
-  const body = blockAfter(background, 'Future<WakeSkip?> openHeadless(String siteId) async {', null,
+  const body = blockAfter(background, 'Future<WakeSkip?> openHeadless(SiteId siteId) async {', null,
     'background_sites_controller.dart');
   assert.equal((body.match(/if \(_foreground\)/g) || []).length, 2,
     'openHeadless must refuse before building a check and drop one finished after the app came back');

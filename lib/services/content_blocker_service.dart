@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'
     show MissingPluginException, PlatformException;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/adblock_engine.dart';
@@ -25,7 +26,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/utils/concurrency.dart';
 
 class FilterList {
-  final String id;
+  final FilterListId id;
   String name;
   String url;
   bool enabled;
@@ -63,7 +64,7 @@ class FilterList {
       };
 
   factory FilterList.fromJson(Map<String, dynamic> json) => FilterList(
-        id: json['id'],
+        id: FilterListId(json['id'] as String),
         name: json['name'],
         url: json['url'],
         enabled: json['enabled'] ?? false,
@@ -75,12 +76,6 @@ class FilterList {
         rules: json['rules'] is String ? json['rules'] as String : null,
       );
 }
-
-/// A filter-list id is concatenated into the cache filename (`<id>.txt`), so
-/// an imported backup must not smuggle path metacharacters. Same shape as
-/// `sanitizedSiteId`: minted ids (`custom_<base36>`) and the built-in ids all
-/// match; anything else is dropped on import.
-final RegExp _kListIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
 /// Default filter lists added on first initialization.
 const List<Map<String, String>> _defaultLists = [
@@ -704,7 +699,7 @@ class ContentBlockerService {
       } else {
         _lists = _defaultLists
             .map((d) => FilterList(
-                  id: d['id']!,
+                  id: FilterListId(d['id']!),
                   name: d['name']!,
                   url: d['url']!,
                 ))
@@ -722,7 +717,7 @@ class ContentBlockerService {
     }
   }
 
-  Future<bool> downloadList(String id) async {
+  Future<bool> downloadList(FilterListId id) async {
     final list = _lists.firstWhere((l) => l.id == id,
         orElse: () => throw Exception('List not found: $id'));
     if (list.isLocal) return false;
@@ -788,24 +783,24 @@ class ContentBlockerService {
   }
 
   /// Add a custom filter list. Returns the new list's ID.
-  Future<String> addCustomList(String name, {required String url}) async {
+  Future<FilterListId> addCustomList(String name, {required String url}) async {
     final id = _newCustomId();
     _lists.add(FilterList(id: id, name: name, url: url));
     await _saveLists();
     return id;
   }
 
-  String _newCustomId() {
+  FilterListId _newCustomId() {
     var stamp = DateTime.now().millisecondsSinceEpoch;
     while (_lists.any((l) => l.id == 'custom_${stamp.toRadixString(36)}')) {
       stamp++;
     }
-    return 'custom_${stamp.toRadixString(36)}';
+    return FilterListId('custom_${stamp.toRadixString(36)}');
   }
 
   /// Add a list whose rules the user writes in the app. It is enabled and
   /// compiled into the engine immediately. Returns the new list's ID.
-  Future<String> addLocalList(String name, {required String rules}) async {
+  Future<FilterListId> addLocalList(String name, {required String rules}) async {
     final id = _newCustomId();
     _lists.add(FilterList(
       id: id,
@@ -821,7 +816,7 @@ class ContentBlockerService {
     return id;
   }
 
-  Future<void> updateLocalList(String id,
+  Future<void> updateLocalList(FilterListId id,
       {required String name, required String rules}) async {
     final list = _lists.firstWhere((l) => l.id == id && l.isLocal);
     list.name = name;
@@ -847,13 +842,13 @@ class ContentBlockerService {
   /// list named [userFiltersName] (replacing one of that name, so a second
   /// import does not duplicate it). Returns the ids that still need a
   /// download.
-  Future<List<String>> applyUboImport(UboImportPlan plan,
+  Future<List<FilterListId>> applyUboImport(UboImportPlan plan,
       {required String userFiltersName}) async {
     for (final id in plan.enableIds) {
       final list = _lists.where((l) => l.id == id).firstOrNull;
       if (list != null) list.enabled = true;
     }
-    final added = <String>[];
+    final added = <FilterListId>[];
     for (final planned in plan.addLists) {
       final id = _newCustomId();
       _lists.add(FilterList(
@@ -895,7 +890,7 @@ class ContentBlockerService {
   List<ExistingFilterList> get existingForImport =>
       [for (final l in _lists) ExistingFilterList(l.id, url: l.url)];
 
-  Future<void> removeList(String id) async {
+  Future<void> removeList(FilterListId id) async {
     _lists.removeWhere((l) => l.id == id);
 
     try {
@@ -908,7 +903,7 @@ class ContentBlockerService {
     await _rebuildEngine();
   }
 
-  Future<void> toggleList(String id, {required bool enabled}) async {
+  Future<void> toggleList(FilterListId id, {required bool enabled}) async {
     final list = _lists.firstWhere((l) => l.id == id);
     list.enabled = enabled;
     await _saveLists();
@@ -1157,11 +1152,12 @@ class ContentBlockerService {
     final priorById = {for (final l in _lists) l.id: l};
     final restored = <FilterList>[];
     for (final e in entries) {
-      final id = e['id'] as String?;
+      final rawId = e['id'];
+      final id = FilterListId.parse(rawId);
       final name = e['name'] as String?;
       final url = e['url'] as String?;
-      if (id == null || name == null || url == null) continue;
-      if (!_kListIdPattern.hasMatch(id)) {
+      if (rawId == null || name == null || url == null) continue;
+      if (id == null) {
         LogTag.contentBlocker.warning('Skipped imported list with unsafe id');
         continue;
       }
@@ -1213,7 +1209,7 @@ class ContentBlockerService {
   static const String _engineCachePrefilterName = '.engine.prefilter';
   static const String _engineCacheMetaName = '.engine.meta';
 
-  String _cacheName(String id) => '$id.txt';
+  String _cacheName(FilterListId id) => '$id.txt';
 
   /// The meta file names the inputs and is written last, so a cache whose
   /// write was cut short never matches.

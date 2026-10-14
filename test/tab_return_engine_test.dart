@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/webspace_model.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_return_engine.dart';
 
 /// The way back through jumps the Tabs sheet makes between sites (TAB-019).
@@ -7,27 +10,29 @@ void main() {
     List<TabReturn> trail, {
     required String from,
     required String to,
-    String? webspaceId,
+    WebspaceId? webspaceId,
   }) {
     final [fs, ft] = from.split('/');
     final [ts, tt] = to.split('/');
     return TabReturnEngine.afterOpen(trail,
-        fromSiteId: fs,
-        fromTabId: ft,
-        toSiteId: ts,
-        toTabId: tt,
+        fromSiteId: SiteId(fs),
+        fromTabId: TabId(ft),
+        toSiteId: SiteId(ts),
+        toTabId: TabId(tt),
         webspaceId: webspaceId);
   }
 
   String? backFrom(List<TabReturn> trail, {required String at}) {
     final [s, t] = at.split('/');
-    final back = TabReturnEngine.wayBack(trail, siteId: s, activeTabId: t);
+    final back =
+        TabReturnEngine.wayBack(trail,
+            siteId: SiteId(s), activeTabId: TabId(t));
     return back == null ? null : '${back.fromSiteId}/${back.fromTabId}';
   }
 
   test('a jump to another site leads back where it came from', () {
     final trail =
-        open(const [], from: 'ddg/t1', to: 'gh/h', webspaceId: 'search');
+        open(const [], from: 'ddg/t1', to: 'gh/h', webspaceId: WebspaceId('search'));
     expect(backFrom(trail, at: 'gh/h'), 'ddg/t1');
     expect(trail.single.webspaceId, 'search');
   });

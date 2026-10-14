@@ -7,6 +7,10 @@
 /// screen stays where the last jump put it.
 library;
 
+import 'package:webspace/webspace_model.dart';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/site_ids.dart';
+
 /// One jump from [fromTabId] in [fromSiteId]'s slot to [toTabId] in
 /// [toSiteId]'s.
 class TabReturn {
@@ -18,16 +22,16 @@ class TabReturn {
     this.webspaceId,
   });
 
-  final String fromSiteId;
-  final String fromTabId;
-  final String toSiteId;
-  final String toTabId;
+  final SiteId fromSiteId;
+  final TabId fromTabId;
+  final SiteId toSiteId;
+  final TabId toTabId;
 
   /// The webspace selected before the jump, which may have switched to All
   /// to show the site it went to (WEBSPACE-012).
-  final String? webspaceId;
+  final WebspaceId? webspaceId;
 
-  bool leadsBackTo(String siteId, {required String tabId}) =>
+  bool leadsBackTo(SiteId siteId, {required TabId tabId}) =>
       fromSiteId == siteId && fromTabId == tabId;
 }
 
@@ -39,8 +43,8 @@ abstract final class TabReturnEngine {
   /// null when that is not where the last jump landed.
   static TabReturn? wayBack(
     List<TabReturn> trail, {
-    required String siteId,
-    required String activeTabId,
+    required SiteId siteId,
+    required TabId activeTabId,
   }) {
     if (trail.isEmpty) return null;
     final last = trail.last;
@@ -53,11 +57,11 @@ abstract final class TabReturnEngine {
   /// and another tab of the same site leaves the trail behind.
   static List<TabReturn> afterOpen(
     List<TabReturn> trail, {
-    required String fromSiteId,
-    required String fromTabId,
-    required String toSiteId,
-    required String toTabId,
-    String? webspaceId,
+    required SiteId fromSiteId,
+    required TabId fromTabId,
+    required SiteId toSiteId,
+    required TabId toTabId,
+    WebspaceId? webspaceId,
   }) {
     final back = wayBack(trail, siteId: fromSiteId, activeTabId: fromTabId);
     if (back != null && back.leadsBackTo(toSiteId, tabId: toTabId)) {

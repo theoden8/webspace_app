@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
@@ -220,41 +221,41 @@ void main() {
     test('should remove orphaned cookies from both storages', () async {
       // Save cookies with mixed secure flags (COOKIE-006)
       await cookieSecureStorage.saveCookies({
-        'github.com': [
+        'github': [
           Cookie(name: 'session', value: 'abc', domain: 'github.com', isSecure: true),
           Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
         ],
-        'gitlab.com': [
+        'gitlab': [
           Cookie(name: 'session', value: 'def', domain: 'gitlab.com', isSecure: true),
         ],
-        'bitbucket.org': [
+        'bitbucket': [
           Cookie(name: 'prefs', value: 'ghi', domain: 'bitbucket.org', isSecure: false),
         ],
       });
 
       // Remove orphaned cookies - only github.com and bitbucket.org are active
-      await cookieSecureStorage.removeOrphanedCookies({'github.com', 'bitbucket.org'});
+      await cookieSecureStorage.removeOrphanedCookies({SiteId('github'), SiteId('bitbucket')});
 
       final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded.keys, containsAll(['github.com', 'bitbucket.org']));
-      expect(loaded.keys, isNot(contains('gitlab.com')));
+      expect(loaded.keys, containsAll(['github', 'bitbucket']));
+      expect(loaded.keys, isNot(contains('gitlab')));
       // github.com should have 2 cookies (both secure and non-secure preserved)
-      expect(loaded['github.com'], hasLength(2));
-      expect(loaded['bitbucket.org'], hasLength(1));
+      expect(loaded['github'], hasLength(2));
+      expect(loaded['bitbucket'], hasLength(1));
     });
 
     test('should not remove anything when all domains are active', () async {
       // Mix of secure and non-secure (COOKIE-006)
       await cookieSecureStorage.saveCookies({
-        'github.com': [
+        'github': [
           Cookie(name: 'session', value: 'abc', domain: 'github.com', isSecure: true),
         ],
-        'gitlab.com': [
+        'gitlab': [
           Cookie(name: 'theme', value: 'def', domain: 'gitlab.com', isSecure: false),
         ],
       });
 
-      await cookieSecureStorage.removeOrphanedCookies({'github.com', 'gitlab.com'});
+      await cookieSecureStorage.removeOrphanedCookies({SiteId('github'), SiteId('gitlab')});
 
       final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded.length, equals(2));
@@ -359,9 +360,9 @@ void main() {
         ],
       });
 
-      final site1Cookies = await cookieSecureStorage.loadCookiesForSite('site-id-1');
-      final site2Cookies = await cookieSecureStorage.loadCookiesForSite('site-id-2');
-      final unknownSiteCookies = await cookieSecureStorage.loadCookiesForSite('unknown-site');
+      final site1Cookies = await cookieSecureStorage.loadCookiesForSite(SiteId('site-id-1'));
+      final site2Cookies = await cookieSecureStorage.loadCookiesForSite(SiteId('site-id-2'));
+      final unknownSiteCookies = await cookieSecureStorage.loadCookiesForSite(SiteId('unknown-site'));
 
       expect(site1Cookies, hasLength(2));
       expect(site1Cookies.map((c) => c.name).toSet(), equals({'session1', 'theme1'}));
@@ -373,10 +374,10 @@ void main() {
     });
 
     test('should save cookies for specific siteId with mixed secure flags', () async {
-      await cookieSecureStorage.saveCookiesForSite('site-id-1', cookies: [
+      await cookieSecureStorage.saveCookiesForSite(SiteId('site-id-1'), cookies: [
         Cookie(name: 'session1', value: 'value1', domain: 'github.com', isSecure: true),
       ]);
-      await cookieSecureStorage.saveCookiesForSite('site-id-2', cookies: [
+      await cookieSecureStorage.saveCookiesForSite(SiteId('site-id-2'), cookies: [
         Cookie(name: 'theme2', value: 'value2', domain: 'github.com', isSecure: false),
       ]);
 
@@ -393,18 +394,18 @@ void main() {
 
     test('should remove cookies when saving empty list for siteId', () async {
       // Save cookies with mixed secure flags (COOKIE-006)
-      await cookieSecureStorage.saveCookiesForSite('site-id-1', cookies: [
+      await cookieSecureStorage.saveCookiesForSite(SiteId('site-id-1'), cookies: [
         Cookie(name: 'session', value: 'value1', domain: 'github.com', isSecure: true),
         Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
       ]);
 
-      var loaded = await cookieSecureStorage.loadCookiesForSite('site-id-1');
+      var loaded = await cookieSecureStorage.loadCookiesForSite(SiteId('site-id-1'));
       expect(loaded, hasLength(2));
 
       // Save empty list - should remove from both storages
-      await cookieSecureStorage.saveCookiesForSite('site-id-1', cookies: []);
+      await cookieSecureStorage.saveCookiesForSite(SiteId('site-id-1'), cookies: []);
 
-      loaded = await cookieSecureStorage.loadCookiesForSite('site-id-1');
+      loaded = await cookieSecureStorage.loadCookiesForSite(SiteId('site-id-1'));
       expect(loaded, isEmpty);
     });
 
@@ -424,7 +425,7 @@ void main() {
       });
 
       // Remove orphaned cookies - only site-id-1 and site-id-3 are active
-      await cookieSecureStorage.removeOrphanedCookies({'site-id-1', 'site-id-3'});
+      await cookieSecureStorage.removeOrphanedCookies({SiteId('site-id-1'), SiteId('site-id-3')});
 
       final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded.keys, containsAll(['site-id-1', 'site-id-3']));

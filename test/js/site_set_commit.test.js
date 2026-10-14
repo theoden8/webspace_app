@@ -56,7 +56,7 @@ test('removals and imports prepare before anything moves', () => {
 test('a deleted site\'s hosted tabs close before its container goes (LIR-023)', () => {
   inOrder(methodBody('_retireSite'), [
     '_tabs.closeIneligibleHostedTabs(goneSiteId: site.siteId)',
-    '_containerIsolation.onSiteDeleted(site.siteId)',
+    '_containerIsolation.onSiteDeleted(site.containerKey)',
   ], '_retireSite');
 });
 

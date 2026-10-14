@@ -9,6 +9,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_failure.dart';
@@ -325,7 +326,7 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
       expect(runtime.startedTransports, ['obfs4'],
           reason: 'the transport must start before tor, to allocate its port');
@@ -362,7 +363,7 @@ void main() {
       );
 
       // No setBridges anywhere: this is a launch, not an edit.
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
       expect(loads, 1);
       expect(runtime.startedTransports, ['obfs4']);
@@ -387,7 +388,7 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
       expect(runtime.torrcOptions, contains(('Bridge', _obfs4)));
       await engine.dispose();
@@ -414,7 +415,7 @@ void main() {
         },
       );
 
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
       expect(runtime.startCalls, 1, reason: 'tor still starts');
       expect(runtime.torrcOptions, isEmpty);
 
@@ -428,7 +429,7 @@ void main() {
         () async {
       final runtime = FakeTorRuntime();
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
       expect(runtime.torrcOptions, isEmpty);
       expect(runtime.startedTransports, isEmpty,
@@ -449,7 +450,7 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
       expect(runtime.torrcOptions, isEmpty);
       expect(runtime.startCalls, 1, reason: 'tor still starts, without bridges');
@@ -465,7 +466,7 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
       expect(runtime.torrcOptions, isEmpty);
       expect(runtime.startCalls, 1);
@@ -478,7 +479,7 @@ void main() {
         () async {
       final runtime = FakeTorRuntime()..transportPort = 47000;
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
       expect(runtime.torrcOptions, isEmpty);
 
       // Edited while running: the change must not silently do nothing.
@@ -501,7 +502,7 @@ void main() {
         () async {
       final runtime = FakeTorRuntime()..transportPort = 47000;
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
-      await engine.acquire(TorSiteHolder('site-a'));
+      await engine.acquire(TorSiteHolder(SiteId('site-a')));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
