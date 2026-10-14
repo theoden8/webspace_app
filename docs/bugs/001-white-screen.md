@@ -556,6 +556,11 @@ about. The sampler now fills transparent window pixels from the
    ("the read alone fixes the blank surface") open. Deciding gap #5, and the fork
    pin with it, needs a device that actually goes white.
 
+   **Off in CI again (2026-10-14).** #576, the change that found B2 green by
+   nature, also set `WS_RUN_NATIVE_REPAINT_PROBE=1` in CI, so from then on every
+   push ran it and it could only confirm that the suppression armed. CI no
+   longer sets it; B2 runs on a device that reproduces, beside B3-A.
+
    **The reload path answers the same way (2026-09-04, PR #576).** Gap #5's
    warm start was one route; refresh is another. Refresh is not *the* trigger:
    the reporter's words are that it happens on "many things", without naming
@@ -599,13 +604,13 @@ about. The sampler now fills transparent window pixels from the
     TLHC-or-HC fallback is in play; that logic belongs to
     `initSurfaceAndroidView`, which is the `false` branch. So the emulator runs
     the same mode as the reporting devices, and this tier's negative results
-    stand as evidence. The lifecycle tier still dumps `dumpsys SurfaceFlinger
-    --list`, the per-layer composition types and the platform-view logcat
-    chatter on every run (`build/white_screen_adb/composition-mode.txt`,
-    uploaded on green runs too) as the runtime witness — it does not decide the
-    mode, and a first cut of it that tried to read the mode off the layer count
-    got the reading backwards, which is why it now prints layer names and no
-    verdict. What it prints on the emulator, with the webview on screen:
+    stand as evidence. Until 2026-10-14 the lifecycle tier dumped `dumpsys
+    SurfaceFlinger --list`, the per-layer composition types and the
+    platform-view logcat chatter on every run
+    (`build/white_screen_adb/composition-mode.txt`, uploaded on green runs too)
+    as the runtime witness — it did not decide the mode, and a first cut of it
+    that tried to read the mode off the layer count got the reading backwards,
+    which is why it came to print layer names and no verdict. What it prints on the emulator, with the webview on screen:
     `SurfaceView[<pkg>/.MainActivity]#402`, its `(BLAST)#403` buffer-queue
     child, `Background for` that same SurfaceView, and the activity's own
     window layers. One SurfaceView, which is `FlutterSurfaceView`, and no layer
@@ -614,7 +619,11 @@ about. The sampler now fills transparent window pixels from the
     are added above the platform view, and an overlay is a View inside the
     window layer, not a layer of its own. So a layer list cannot separate the
     two modes in either direction, and the Dart-level determination above is
-    the only sound one. Do not re-derive a verdict from this dump.
+    the only sound one. Do not re-derive a verdict from a layer dump: the tier
+    dropped this one on 2026-10-14 for that reason, and its failure artifacts
+    are uploaded only when the step fails. The host summary (renderer, WebView
+    version, API level, build mode) is still printed and written to the run's
+    step summary.
 
 13. **Why the device reproduces and this tier does not.** The tier's negatives
     are real (gap #12), which makes this the live question, and it has one
@@ -826,8 +835,9 @@ about. The sampler now fills transparent window pixels from the
     for: the report it answers is "if I hit refresh often it's still there ...
     hitting refresh again helps", and a one-shot latch is exactly what makes
     rapid refreshing fail while a single later refresh succeeds. Meanwhile
-    **Scenario B3-B, the tier's rapid-reload scenario, is the regression guard
-    for `PAUSE-027`** — it asserts behaviour the shipped build does not contain.
+    **Scenario B3-B, the tier's rapid-reload scenario, was the regression guard
+    for `PAUSE-027`** (removed 2026-10-14, see gap #16) — it asserted behaviour
+    the shipped build does not contain.
     Before reaching for host or artifact differences, that is the first-order
     answer to "why is CI green and the device not": CI is running the fix.
 
@@ -944,6 +954,16 @@ about. The sampler now fills transparent window pixels from the
    distinguishes nothing. B3-B guards the latch's *ordering*, read from the
    app's trace. Whether that ordering saves a real screen is untested here and
    needs a device.
+
+   **Correction, and removal (2026-10-14).** B3-B never asserted that ordering.
+   It checked pixels, which cannot fail on this host, and printed the trace for
+   a reader; no line of the script read `commit-settled`. So in CI it could go
+   red only in setup. The ordering is held where it can fail: the rapid-refresh
+   group in `test/surface_repaint_engine_test.dart` and `formal/reloadlatch.tla`,
+   with the wiring held by scenario 4 of `integration_test/white_screen_test.dart`,
+   which requires `trigger=commit-settled` after a reload. B3-B is gone from the
+   tier; `ws_diag_reload` still takes a count, so a device that reproduces can
+   drive the five-reload shape by hand.
 
    **Forcing GPU composition was tried and could not be tried (2026-09-05).**
    The one cheap hypothesis for why the emulator repaints unasked is hardware

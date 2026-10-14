@@ -414,42 +414,16 @@ wait_for_logcat() { # $1 = slug, $2 = deadline secs, $3 = literal pattern
   done
 }
 
-# Which composition mode the engine picked for the platform view decides
-# whether this tier can observe BUG-001 at all: if Flutter composites the
-# webview into its own frames, its frame loop redraws it and the gap cannot
-# occur here by construction, which would make every negative result this
-# tier produced a statement about the emulator rather than about the bug.
-# The mode itself is settled in Dart: hybrid composition by default
-# (`useHybridComposition: true`, routed to `initExpensiveAndroidView`), texture
-# layer only with the PAUSE-032 experiment on, which this tier never turns on.
-# So this dump is the runtime witness for it, not the decision. Never fail on
-# it: the layer list is the fact.
-dump_composition_mode() {
-  local out="$artifacts/composition-mode.txt" layers
-  layers="$(adb shell dumpsys SurfaceFlinger --list 2>/dev/null | tr -d '\r' || true)"
+# The host facts that decide whether a green here means anything. Every one
+# of these differs between this emulator and a phone, and each is a candidate
+# explanation for why the emulator repaints a surface nothing asked it to.
+# Recorded, not asserted: the tier must not go red because a runner image
+# changed, but a bug report that cites a green run should be able to say what
+# it ran on. See docs/bugs/001-white-screen.md gap #13.
+record_host() {
   {
-    echo "# dumpsys SurfaceFlinger --list"
-    printf '%s\n' "$layers"
-    echo
-    echo "# SurfaceFlinger layer records mentioning $pkg, with composition types"
-    adb shell dumpsys SurfaceFlinger 2>/dev/null | tr -d '\r' \
-      | grep -E "$pkg|composition type" | tail -80
-    echo
-    echo "# platform-view chatter in logcat"
-    adb logcat -d 2>/dev/null | tr -d '\r' \
-      | grep -iE 'platformview|hybrid composition|FlutterImageView|virtual display' \
-      | tail -40
-  } > "$out" 2>&1 || true
-  # The host facts that decide whether a green here means anything. Every one
-  # of these differs between this emulator and a phone, and each is a candidate
-  # explanation for why the emulator repaints a surface nothing asked it to.
-  # Recorded, not asserted: the tier must not go red because a runner image
-  # changed, but a bug report that cites a green run should be able to say what
-  # it ran on. See docs/bugs/001-white-screen.md gap #13.
-  # Matched nothing on the first run: the engine's banner is not the phrase this
-  # guessed at, or it never reaches logcat here. Dump the candidate lines rather
-  # than pattern-match a message whose wording is unverified.
-  {
+    # Candidate lines, not a matched banner: the phrase first guessed at never
+    # reached logcat here, and the engine's wording is unverified.
     echo "  host: renderer lines: $(adb logcat -d 2>/dev/null | tr -d '\r' \
       | grep -iE 'impeller|vulkan|opengl|angle|swiftshader' | tail -3 \
       | tr '\n' '|' || true)"
@@ -466,15 +440,6 @@ $(adb shell settings get global animator_duration_scale 2>/dev/null | tr -d '\r'
 api $(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r') \
 $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
   } | tee "$artifacts/host-summary.txt"
-  # Outside the summary: nine lines of layer names would swamp the six facts
-  # the replay exists to carry, and they are already in $out. An
-  # android.webkit.WebView draws through a functor into whatever surface
-  # contains it and never owns a layer here, in either mode, so these names say
-  # which surfaces the app has, not which one the page renders into.
-  echo "  composition: SurfaceFlinger layers naming $pkg"
-  printf '%s\n' "$layers" | grep -F "$pkg" | head -12 | sed 's/^/    /' \
-    || echo "    (none)"
-  echo "    full dump: $out"
 }
 
 # The pixel assertions below are close to vacuous on this host. Scenario B3-A
@@ -539,7 +504,7 @@ adb shell am start -W -n "$component" \
   --es ws_diag_seed "$(seed_b64 dark.html "$dark_site_id")" \
   --es siteId "$dark_site_id"
 wait_for_pixels cold-start-dark 180 --expect-dominant "$dark"
-dump_composition_mode
+record_host
 
 echo "== Scenario B: warm start repaints the re-attached surface (PAUSE-020)"
 adb shell input keyevent 3
@@ -1096,15 +1061,16 @@ wait_for_pixels shortcut-warm-preserves-session 90 --expect-dominant "$magenta"
 # layer does on its own. Modeled as `Fix="proxy"` vs `Fix="attach"` in
 # formal/warmstart.tla.
 #
-# EXPECTED RED against a fork with no native attach/visibility repaint hook.
-# That red IS the reproduction: evidence that the surface depends on a Dart
-# proxy nobody has confirmed fires. It turns green when the fork gains the hook
-# (upstream starship-s 643cf23 + 1a8ed58 add exactly that), at which point this
-# becomes its regression guard.
+# On a device that goes white, expected red against a fork with no native
+# attach/visibility repaint hook. That red IS the reproduction: evidence that
+# the surface depends on a Dart proxy nobody has confirmed fires. It turns green
+# when the fork gains the hook (upstream starship-s 643cf23 + 1a8ed58 add
+# exactly that), at which point it guards it.
 #
-# OPT-IN, because a scenario that is red by design would drown the signal from
-# every other scenario in this tier. Set WS_RUN_NATIVE_REPAINT_PROBE=1 to run
-# it — the PR that bumps the fork pin turns it on for good.
+# OPT-IN, and off in CI: the emulator repaints the surface with both paths
+# dropped (BUG-001 gap #13), so there it is green by nature and says only that
+# the suppression armed. Set WS_RUN_NATIVE_REPAINT_PROBE=1 on a device that
+# reproduces.
 if [ "${WS_RUN_NATIVE_REPAINT_PROBE:-0}" != "1" ]; then
   echo "== Scenario B2: SKIPPED (set WS_RUN_NATIVE_REPAINT_PROBE=1 to run)"
 else
@@ -1149,44 +1115,17 @@ else
   sed 's/^/     /' "$artifacts/b2-surfacediag.txt" || true
 fi
 
-# Scenario B3 adds refresh to the entry paths this tier drives. Refresh is one
-# of many -- the report says "many things" without naming them -- but it is the
-# one no scenario could reach, because
-# it lives in the overflow menu and adb cannot drive it; `ws_diag_reload` calls
-# the same `reloadAndRepaint` funnel. B2 found the emulator repaints a
-# warm-started surface on its own, and a warm start carries a window visibility
-# change that a reload does not, so a reload is the entry path where nothing
-# below Dart has an obvious reason to repaint.
+# Scenario B3-A adds refresh to the entry paths this tier drives. Refresh lives
+# in the overflow menu and adb cannot drive it; `ws_diag_reload` calls the same
+# `reloadAndRepaint` funnel. A warm start carries a window visibility change
+# that a reload does not, so a reload is the entry path where nothing below Dart
+# has an obvious reason to repaint.
 #
-# Both arms load `slow.html`, which stalls 5s before its first byte. The first
-# attempt used the instant localhost page and proved nothing: the replacement
-# committed inside a single sampler tick, so the blank window the bug is about
-# never existed to be photographed. A slow commit is the regime the bug was
-# reported in and the one Attempts 9/10/11 all address.
+# It loads `slow.html`, which stalls 5s before its first byte. With the instant
+# localhost page the replacement committed inside a single sampler tick, so the
+# blank window the bug is about never existed to be photographed. A slow commit
+# is the regime the bug was reported in and the one Attempts 9/10/11 address.
 #
-# The live test runs FIRST so a failing control cannot abort it -- it is the arm
-# that can find a real bug, and it is the user's reported symptom.
-echo "== Scenario B3-B: rapid reloads of a slow page stay painted (PAUSE-027)"
-adb shell am force-stop "$pkg"
-capped_start -n "$component" \
-  --es ws_diag_seed "$(seed_b64 slow.html "$b3_site_id")" \
-  --es siteId "$b3_site_id"
-wait_for_pixels b3b-cold-start-dark 180 --expect-dominant "$dark"
-adb shell input keyevent 3
-sleep 3
-adb logcat -c 2>/dev/null || true
-# Five reloads 120ms apart against a 5s page: each lands while the previous is
-# still in flight, so four commits are aborted before the fifth lands. That is
-# the shape that spent the old one-shot latch on an aborted load and left the
-# surface blank (BUG-001 / PAUSE-027).
-capped_start -n "$component" --es ws_diag_reload "5"
-sleep 20
-wait_for_pixels b3b-rapid-reload-stays-painted 60 --expect-dominant "$dark"
-adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' \
-  > "$artifacts/b3b-surfacediag.txt" || true
-echo "   SurfaceDiag trace across the rapid reloads:"
-sed 's/^/     /' "$artifacts/b3b-surfacediag.txt" || true
-
 # The blank control, OPT-IN and not run in CI. With all fourteen repaint
 # triggers suppressed and the trace showing nothing else fired, the surface
 # still came back painted after a commit that landed 5s behind the reload
