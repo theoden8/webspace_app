@@ -311,8 +311,8 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: "claude/content-rule-list-ids"
-      resolved-ref: "702fbd8bf6964b09b501e7c11ab017af31c45962"
+      ref: "v6.2.0-beta.3-privacy-v13.3"
+      resolved-ref: "e495b45ec208f8a043b7918da45104f824a02c03"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -320,8 +320,8 @@ packages:
     dependency: "direct dev"
     description:
       path: flutter_inappwebview_android
-      ref: "claude/content-rule-list-ids"
-      resolved-ref: "702fbd8bf6964b09b501e7c11ab017af31c45962"
+      ref: "v6.2.0-beta.3-privacy-v13.3"
+      resolved-ref: "e495b45ec208f8a043b7918da45104f824a02c03"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -337,8 +337,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: "claude/content-rule-list-ids"
-      resolved-ref: "702fbd8bf6964b09b501e7c11ab017af31c45962"
+      ref: "v6.2.0-beta.3-privacy-v13.3"
+      resolved-ref: "e495b45ec208f8a043b7918da45104f824a02c03"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -346,8 +346,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_linux
-      ref: "claude/content-rule-list-ids"
-      resolved-ref: "702fbd8bf6964b09b501e7c11ab017af31c45962"
+      ref: "v6.2.0-beta.3-privacy-v13.3"
+      resolved-ref: "e495b45ec208f8a043b7918da45104f824a02c03"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "0.1.0-beta.2"
@@ -355,8 +355,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: "claude/content-rule-list-ids"
-      resolved-ref: "702fbd8bf6964b09b501e7c11ab017af31c45962"
+      ref: "v6.2.0-beta.3-privacy-v13.3"
+      resolved-ref: "e495b45ec208f8a043b7918da45104f824a02c03"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -364,8 +364,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: "claude/content-rule-list-ids"
-      resolved-ref: "702fbd8bf6964b09b501e7c11ab017af31c45962"
+      ref: "v6.2.0-beta.3-privacy-v13.3"
+      resolved-ref: "e495b45ec208f8a043b7918da45104f824a02c03"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
