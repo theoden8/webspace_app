@@ -261,6 +261,20 @@ tasks.register("buildRustAdblock", Exec) {
     }
 }
 
+// Localizations (LOC-012): tool/gen_l10n.dart writes the AppLocalizations API
+// that Dart compiles against (the translations ship as the ARB assets). It
+// runs before every Flutter compile and rewrites nothing when the ARBs are
+// unchanged.
+tasks.register("generateL10n", Exec) {
+    description = "Generate lib/l10n/gen/localizations.dart from lib/l10n/*.arb"
+    group = "build"
+    workingDir rootProject.projectDir.parentFile
+    commandLine "${localProperties.getProperty('flutter.sdk')}/bin/dart", "tool/gen_l10n.dart"
+}
+tasks.matching { it.name.startsWith("compileFlutterBuild") }.configureEach {
+    dependsOn "generateL10n"
+}
+
 // Hook so any APK/AAB assembly waits for the .so to exist. mergeJniLibs
 // is the moment Gradle copies jniLibs/<abi>/ into the assembled output;
 // running our task before that ensures the file is present to merge.

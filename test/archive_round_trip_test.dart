@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/archive_storage.dart';
@@ -33,7 +33,8 @@ import 'helpers/mock_secure_storage.dart';
 /// pool; only the platform (keychain, native containers) is faked.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final en = lookupAppLocalizations(const Locale('en'));
+  late final AppLocalizations en;
+  setUpAll(() async => en = await AppLocalizations.delegate.load(const Locale('en')));
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

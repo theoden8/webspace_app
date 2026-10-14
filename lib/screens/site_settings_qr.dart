@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/site_settings_qr_scanner.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/widgets/root_messenger.dart';

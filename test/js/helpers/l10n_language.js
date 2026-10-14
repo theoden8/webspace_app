@@ -192,9 +192,9 @@ function hanVariant(text) {
 }
 
 // The locale an ARB declares for itself. Authoritative over the filename:
-// gen_l10n demands a base `app_zh.arb` exist whenever `app_zh_Hant.arb` does,
-// so the base is a symlink to the Traditional file and its declared locale is
-// what says which variant it must be written in.
+// tool/gen_l10n.dart requires a base `app_zh.arb` whenever `app_zh_Hant.arb`
+// ships, so the base can hold the Traditional strings and its declared locale
+// is what says which variant it must be written in.
 function declaredLocale(file) {
   const json = JSON.parse(fs.readFileSync(path.join(arbDir, file), 'utf8'));
   return typeof json['@@locale'] === 'string' ? json['@@locale'] : null;
@@ -202,13 +202,13 @@ function declaredLocale(file) {
 
 // The app ships exactly one Chinese locale and it is Traditional.
 //
-// gen_l10n allows only two shapes here: a lone `app_zh.arb`, or `app_zh.arb`
-// plus `app_zh_Hant.arb` -- it demands a base file whenever a script-qualified
-// one exists (gen_l10n_types.dart:751) and demands @@locale match the filename
-// (:661), so "zh_Hant only" cannot be expressed. `zh` is BCP-47 for Chinese,
-// not for Simplified, so the base file carries the Traditional strings and the
-// picker labels it 繁體中文. Simplified is not shipped; a zh file containing
-// Simplified characters means someone reintroduced it.
+// Only two shapes ship: a lone `app_zh.arb`, or `app_zh.arb` plus
+// `app_zh_Hant.arb`. tool/gen_l10n.dart requires a base file beside any
+// script-qualified one, because a device locale the app does not ship falls
+// back to its language, so "zh_Hant only" cannot be expressed. `zh` is BCP-47
+// for Chinese, not for Simplified, so the base file carries the Traditional
+// strings and the picker labels it 繁體中文. Simplified is not shipped; a zh
+// file containing Simplified characters means someone reintroduced it.
 const SHIPPED_HAN_VARIANT = 'traditional';
 
 // Which Han variant a locale code must be written in, or null when the code

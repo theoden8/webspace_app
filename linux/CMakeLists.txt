@@ -79,6 +79,14 @@ target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
 
+# Localizations (LOC-012): write the AppLocalizations API before Flutter
+# compiles Dart; the translations ship as the ARB assets.
+get_directory_property(FLUTTER_ROOT DIRECTORY ${FLUTTER_MANAGED_DIR} DEFINITION FLUTTER_ROOT)
+add_custom_target(webspace_l10n
+  COMMAND "${FLUTTER_ROOT}/bin/dart" "${CMAKE_CURRENT_SOURCE_DIR}/../tool/gen_l10n.dart"
+  VERBATIM)
+add_dependencies(flutter_assemble webspace_l10n)
+
 # Only the install-generated bundle's copy of the executable will launch
 # correctly, since the resources must in the right relative locations. To avoid
 # people trying to run the unbundled copy, put it in a subdirectory instead of

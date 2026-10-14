@@ -31,7 +31,7 @@ function files(dir, re) {
   return out.sort();
 }
 
-// lib/l10n/gen is gitignored gen_l10n output, present only after a build.
+// lib/l10n/gen is gitignored tool/gen_l10n.dart output, present only after it runs.
 const dartFiles = (dir = 'lib') =>
   files(dir, /\.dart$/).filter((f) => !f.startsWith('lib/l10n/gen/'));
 

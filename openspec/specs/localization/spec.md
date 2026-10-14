@@ -27,10 +27,12 @@ localization infrastructure (`generate: true` in pubspec belonged to
 
 ## Solution
 
-Standard Flutter `gen_l10n`: ARB files under `lib/l10n/`, with `app_en.arb` as
-the template and code generated into `lib/l10n/gen/` (gitignored; regenerated
-by `generate: true`). The `MaterialApp` wires `AppLocalizations` delegates and
-`supportedLocales`. Every key carries a `description` so a translator (human or
+ARB files under `lib/l10n/`, with `app_en.arb` as the template. The
+translations ship as data: the app reads the active locale's ARB from its
+assets at run time (LOC-012). `tool/gen_l10n.dart` generates only the typed
+`AppLocalizations` API into `lib/l10n/gen/` (gitignored), with the signatures
+Flutter's `gen_l10n` produced. The `MaterialApp` wires `AppLocalizations`
+delegates and `supportedLocales`. Every key carries a `description` so a translator (human or
 a general-purpose model) has the context to translate it; there is no committed
 translation script, API key, or vendored prompt. Coverage and placeholder
 parity are enforced in CI by Dart tests. Migration is phased behind a guard
@@ -48,10 +50,9 @@ generated localization code SHALL NOT be committed.
 #### Scenario: English template drives generation
 
 - **Given** `lib/l10n/app_en.arb` with `@@locale: "en"` and one entry per UI string
-- **And** `l10n.yaml` setting `template-arb-file: app_en.arb`, `output-dir: lib/l10n/gen`
-- **When** `flutter gen-l10n` (or any build, via `generate: true`) runs
+- **When** `tool/gen_l10n.dart` runs (Gradle, Xcode and CMake run it before Dart is compiled; CI and `scripts/test_all.sh` run it after `pub get`)
 - **Then** `AppLocalizations` is produced under `lib/l10n/gen/`
-- **And** that directory is gitignored, reproducible by one command from a clean clone
+- **And** that directory is gitignored, reproducible by one command from a clean clone (`fvm dart tool/gen_l10n.dart`)
 
 #### Scenario: Every key is documented
 
@@ -94,13 +95,12 @@ matching placeholder tokens and no empty values.
 - **When** the locale translation drops or renames a `{token}`
 - **Then** the coverage test fails (interpolation would break)
 
-#### Scenario: gen-l10n untranslated report is empty
+#### Scenario: A translation that does not parse fails the build
 
-- **Given** `untranslated-messages-file: l10n_untranslated.json` in `l10n.yaml`
-- **When** the report is generated during a build
-- **Then** it is `{}` (no untranslated messages), guaranteed by key parity in
-  `test/js/l10n_coverage.test.js` (a locale missing a template key fails there
-  first); the report itself is an advisory build artifact
+- **Given** a locale ARB whose message for a template key is missing, has unbalanced braces or an invalid plural case, or reads a placeholder the template does not declare
+- **Or** a script- or region-qualified ARB (`app_zh_Hant.arb`) without its base language file, which a device locale the app does not ship falls back to
+- **When** `tool/gen_l10n.dart` runs
+- **Then** it exits non-zero naming the file and key, so the build stops before a screen could show the message
 
 #### Scenario: English-verbatim values are flagged as never-translated
 
@@ -160,11 +160,40 @@ locales.
 - **And** `supportedLocales: AppLocalizations.supportedLocales`
 - **And** the OS window title resolves via `onGenerateTitle` -> `appTitle`
 
+### Requirement: LOC-012 - Translations ship as data
+
+The app SHALL read each locale's messages from its ARB file at run time, so the
+compiled code carries one copy of the localization API rather than one class
+per locale. Formatting SHALL match what `gen_l10n` compiled in: placeholders by
+name, and plurals through `Intl.pluralLogic` with `=0`/`=1`/`=2` folded into
+`zero`/`one`/`two` and a later case overriding an earlier one.
+
+#### Scenario: Only the active locale is read
+
+- **Given** the ARB files declared as assets under `lib/l10n/`
+- **When** `AppLocalizations.delegate.load(locale)` runs
+- **Then** it reads the ARB of the most specific shipped locale (language, script and country, then fewer), decodes it once and caches it, parsing each message the first time it is formatted
+- **And** `main()` reads the ARB of the locale the first frame resolves to before `runApp`, so the first frame's load completes synchronously
+- **And** a later locale (the in-app override, a system change) is read asynchronously while the previous locale's text stays on screen
+
+#### Scenario: Output matches the compiled classes
+
+- **Given** a template message with placeholders or a plural
+- **When** it is formatted for any shipped locale and count
+- **Then** the text equals what `gen_l10n`'s generated class returned (compared for every message, every locale
+  and plural counts 0 to 1001 when the runtime replaced it)
+- **And** `test/icu_message_test.dart` holds the case folding, CLDR forms and locale fallback
+
+#### Scenario: Tests read the checkout synchronously
+
+- **Given** `test/flutter_test_config.dart`
+- **Then** `ArbMessages.read` reads `lib/l10n/` from disk synchronously, so a widget test's first pump already has its text
+
 ---
 
 ## Implementation Notes
 
-- Config: [l10n.yaml](../../../l10n.yaml), template [lib/l10n/app_en.arb](../../../lib/l10n/app_en.arb).
+- Template [lib/l10n/app_en.arb](../../../lib/l10n/app_en.arb); API generator [tool/gen_l10n.dart](../../../tool/gen_l10n.dart); runtime [lib/l10n/runtime/](../../../lib/l10n/runtime/).
 - Wiring: `MaterialApp` in [lib/main.dart](../../../lib/main.dart).
 - Translations: hand `app_en.arb` (values + descriptions) to any general model, keep `{placeholder}` tokens, save as `app_<locale>.arb`. No script or credential.
 - Guards: [test/js/l10n_no_hardcoded_text.test.js](../../../test/js/l10n_no_hardcoded_text.test.js), [test/js/l10n_coverage.test.js](../../../test/js/l10n_coverage.test.js).

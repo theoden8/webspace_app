@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:webspace/theme/design_tokens.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import '../utils/url_utils.dart';
 
 /// One of the user's search sites, as the URL bar offers it (LIR-033).

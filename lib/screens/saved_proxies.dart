@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/site_network.dart' show validateProxyAddress;
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_health_service.dart';

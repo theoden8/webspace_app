@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/controllers/link_controller.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';

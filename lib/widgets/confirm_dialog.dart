@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 
 /// Asks before an action. True only when the user picked [confirmLabel];
 /// dismissing the dialog counts as no.

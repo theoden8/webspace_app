@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show SslCertificate;
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';

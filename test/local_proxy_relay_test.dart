@@ -5,6 +5,7 @@
 // direct dial here is the device IP reaching the origin the user picked a
 // proxy to hide it from, and it would look exactly like success.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,7 +18,9 @@ import '../integration_test/socks5_fixture.dart';
 
 /// One CONNECT through the relay, optionally presenting a credential.
 /// Returns everything the relay sent back, so the caller can tell a 200 from
-/// a 407 from a 502.
+/// a 407 from a 502. [request] goes through the tunnel once the relay opens
+/// it, as a browser's would: written after a refusal, it meets a closed
+/// socket, and the reset can fail the call before the reply is read.
 Future<String> connectThroughRelay({
   required String host,
   required int port,
@@ -30,7 +33,14 @@ Future<String> connectThroughRelay({
   final socket = await Socket.connect(host, port);
   socket.setOption(SocketOption.tcpNoDelay, true);
   final seen = <int>[];
-  final done = socket.listen(seen.addAll).asFuture<void>();
+  final replied = Completer<void>();
+  final done = socket.listen((bytes) {
+    seen.addAll(bytes);
+    if (!replied.isCompleted &&
+        String.fromCharCodes(seen).contains('\r\n\r\n')) {
+      replied.complete();
+    }
+  }).asFuture<void>();
 
   final auth = username == null
       ? ''
@@ -40,9 +50,12 @@ Future<String> connectThroughRelay({
       'Host: $targetHost:$targetPort\r\n$auth\r\n'));
   await socket.flush();
   if (request.isNotEmpty) {
-    await Future<void>.delayed(const Duration(milliseconds: 60));
-    socket.add(utf8.encode(request));
-    await socket.flush();
+    await Future.any([replied.future, done])
+        .timeout(const Duration(seconds: 6));
+    if (String.fromCharCodes(seen).startsWith('HTTP/1.1 200 ')) {
+      socket.add(utf8.encode(request));
+      await socket.flush();
+    }
   }
   await done.timeout(
     const Duration(seconds: 6),

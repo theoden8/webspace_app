@@ -4,7 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/settings/user_script.dart';

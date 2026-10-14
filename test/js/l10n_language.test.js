@@ -39,8 +39,9 @@ test('locale files are written in their claimed language', async () => {
 // neither the language check above nor SCRIPTS can tell them apart. Without
 // this, a Traditional file shipped as Simplified passes every gate - which is
 // how a Traditional app_zh.arb sat in the repo claiming to be Simplified.
-// Keyed on the ARB's declared @@locale, not its filename: app_zh.arb exists
-// only because gen_l10n demands a base for zh_Hant, and is a symlink to it.
+// Keyed on the ARB's declared @@locale, not its filename: tool/gen_l10n.dart
+// requires a base app_zh.arb beside any app_zh_Hant.arb, and it may hold the
+// Traditional strings.
 test('Chinese locales use the character variant they declare', () => {
   for (const file of localeFiles()) {
     const want = expectedHanVariant(declaredLocale(file) || stemOf(file));

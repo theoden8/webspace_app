@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/block_stats_service.dart';
 
 /// Shield + the week's block count, the way into the protection report.

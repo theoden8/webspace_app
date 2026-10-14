@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/site_behaviour.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/developer_mode_service.dart';
