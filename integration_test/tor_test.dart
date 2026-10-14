@@ -552,6 +552,20 @@ void main() {
     expect(settled, isTrue,
         reason: 'bootstrap neither finished nor failed:\n${torTranscript()}');
 
+    // The deadline is a report, not a teardown: tor keeps fetching and the
+    // status comes back `up` when it finishes. A cold start on a slow
+    // directory mirror has sat at 52% for minutes on a CI runner whose
+    // network was fine, so a required run waits that out.
+    if (torRequired &&
+        TorService.instance.status is TorErrored &&
+        controlChannelFailure(TorService.instance.status) == null) {
+      trace('deadline reported; waiting for tor to finish on its own');
+      await waitFor(
+        () => TorService.instance.status is TorUp,
+        budget: const Duration(minutes: 6),
+      );
+    }
+
     final outcome = TorService.instance.status;
     if (outcome is TorUp) {
       expect(TorService.instance.socksEndpoint, isNotNull);
@@ -561,8 +575,13 @@ void main() {
       // Never a skip, on any run: nothing here depends on the network.
       fail('Tor never answered on its control port:\n${torTranscript()}');
     } else if (torRequired) {
-      fail('Tor did not connect on a run that required it:\n'
-          '${torTranscript()}');
+      final torFinished = LogService.instance.allEntriesMerged.any(
+          (e) => e.tag == 'TorLog' && e.message.contains('Bootstrapped 100%'));
+      fail(torFinished
+          ? 'tor finished bootstrapping and the app never reported up '
+              '(TOR-019):\n${torTranscript()}'
+          : 'Tor did not connect on a run that required it:\n'
+              '${torTranscript()}');
     } else {
       markTestSkipped('Tor did not reach the network here; '
           'handshake assertions still ran');
@@ -600,7 +619,7 @@ void main() {
       reason: 'a Retry tried to launch a second tor:\n${torTranscript()}',
     );
     trace('scenario 1 done');
-  }, timeout: const Timeout(Duration(minutes: 8)));
+  }, timeout: const Timeout(Duration(minutes: 12)));
 
   testWidgets('repeated Retries never take the runtime down', (tester) async {
     trace('scenario 2 start');
