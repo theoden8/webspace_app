@@ -1,0 +1,128 @@
+# Input to flatpak-flutter, which writes the offline manifest
+# (org.codeberg.theoden8.webspace.yml) beside it. Build through
+# scripts/build_flatpak.sh; nothing here reaches the network at build time.
+id: org.codeberg.theoden8.webspace
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.llvm22
+command: webspace_app
+separate-locales: false
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.freedesktop.Notifications
+
+cleanup:
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - /share/cmake
+  - /share/pkgconfig
+  - /share/doc
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: libwpe
+    buildsystem: meson
+    config-opts:
+      - -Dbuild-docs=false
+    sources:
+      - type: archive
+        url: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz
+        sha256: c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420
+
+  # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
+  # first released in 2.56); the plugin reads it through weak symbols.
+  - name: wpewebkit
+    buildsystem: cmake-ninja
+    builddir: true
+    build-options:
+      append-path: /usr/lib/sdk/llvm22/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
+      no-debuginfo: true
+      # Debug info makes WebKit's link outgrow a CI runner's memory and disk.
+      cflags: -g0
+      cxxflags: -g0
+      env:
+        CC: clang
+        CXX: clang++
+    config-opts:
+      - -DPORT=WPE
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DENABLE_DOCUMENTATION=OFF
+      - -DENABLE_INTROSPECTION=OFF
+      - -DENABLE_MINIBROWSER=OFF
+      - -DENABLE_WEBDRIVER=OFF
+      - -DENABLE_SPEECH_SYNTHESIS=OFF
+      # Inside a flatpak WebKit sandboxes its processes with flatpak-spawn,
+      # which does not depend on this option.
+      - -DENABLE_BUBBLEWRAP_SANDBOX=OFF
+      - -DENABLE_WPE_PLATFORM_DRM=OFF
+      - -DUSE_LIBBACKTRACE=OFF
+      - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
+      - -DUSE_SYSTEM_UNIFDEF=OFF
+    sources:
+      - type: git
+        url: https://github.com/WebKit/WebKit.git
+        commit: c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
+
+  - name: nlohmann-json
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DJSON_BuildTests=OFF
+    sources:
+      - type: archive
+        url: https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+        sha256: d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+
+  - name: webspace
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/llvm22/bin:/run/build/webspace/flutter/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
+      arch:
+        x86_64:
+          env:
+            BUNDLE: build/linux/x64/release/bundle
+        aarch64:
+          env:
+            BUNDLE: build/linux/arm64/release/bundle
+      env:
+        PUB_CACHE: /run/build/webspace/.pub-cache
+        WEBSPACE_UBO_SOURCE: /run/build/webspace/flatpak-sources/ubo
+    build-commands:
+      - flutter build linux --release --no-pub
+      - bash scripts/verify_adblock_shipped.sh linux
+      # The plugin copies WPE into the bundle; the copy in /app is the one
+      # it was built against.
+      - rm -f "$BUNDLE"/lib/libWPEWebKit-*.so* "$BUNDLE"/lib/libwpe-*.so*
+      - mkdir -p /app/webspace /app/bin
+      - cp -a "$BUNDLE"/. /app/webspace/
+      - ln -s /app/webspace/webspace_app /app/bin/webspace_app
+      - install -Dm644 linux/${FLATPAK_ID}.desktop -t /app/share/applications
+      - install -Dm644 linux/${FLATPAK_ID}.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 assets/webspace_icon_round.png /app/share/icons/hicolor/512x512/apps/${FLATPAK_ID}.png
+    sources:
+      - type: git
+        url: https://github.com/theoden8/webspace_app.git
+        branch: master
+      - type: git
+        url: https://github.com/flutter/flutter.git
+        tag: 3.44.9
+        dest: flutter
+      # UBO_COMMIT in rust/webspace_adblock/build.rs.
+      - type: git
+        url: https://github.com/gorhill/uBlock.git
+        commit: a0de43aba933bc7bd79a32a2f2b6b87bf2ca5f18
+        disable-submodules: true
+        dest: flatpak-sources/ubo
