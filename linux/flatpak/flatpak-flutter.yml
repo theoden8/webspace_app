@@ -9,6 +9,10 @@ sdk-extensions:
   - org.freedesktop.Sdk.Extension.llvm22
 command: webspace_app
 separate-locales: false
+build-options:
+  # meson and CMake pick lib64 here, which the SDK's pkg-config does not
+  # search; flatpak-builder passes this to both.
+  libdir: lib
 
 finish-args:
   - --share=ipc
@@ -34,8 +38,6 @@ modules:
   - name: libwpe
     buildsystem: meson
     config-opts:
-      # meson picks lib64 here, which the SDK's pkg-config does not search.
-      - --libdir=lib
       - -Dbuild-docs=false
     sources:
       - type: archive
