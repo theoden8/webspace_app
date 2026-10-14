@@ -50,7 +50,7 @@ jobs:
       - name: Install flatpak-builder
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder python3-venv
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils python3-venv
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           # Ubuntu 24.04 confines unprivileged user namespaces, which
           # flatpak-builder's bubblewrap needs.
