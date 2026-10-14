@@ -1,0 +1,86 @@
+name: Flatpak
+
+# Builds the flatpak through scripts/build_flatpak.sh, with no network inside
+# the build. Kept out of build-and-test.yml because a cold WPE WebKit build
+# takes hours: this runs only when a packaging input changes, and restores the
+# finished WPE module from the cache when its definition has not.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/flatpak.yml
+      - flatpak/**
+      - scripts/build_flatpak.sh
+      - linux/**
+      - pubspec.lock
+      - rust/webspace_adblock/**
+  pull_request:
+    paths:
+      - .github/workflows/flatpak.yml
+      - flatpak/**
+      - scripts/build_flatpak.sh
+      - linux/**
+      - pubspec.lock
+      - rust/webspace_adblock/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flatpak:
+    name: Build flatpak
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # WebKit's checkout and build tree do not fit beside the preinstalled
+      # toolchains.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder python3-venv
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          # Ubuntu 24.04 confines unprivileged user namespaces, which
+          # flatpak-builder's bubblewrap needs.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Restore flatpak-builder cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/flatpak/state/cache
+          key: flatpak-${{ hashFiles('flatpak/flatpak-flutter.yml') }}-${{ github.sha }}
+          restore-keys: |
+            flatpak-${{ hashFiles('flatpak/flatpak-flutter.yml') }}-
+            flatpak-
+
+      - name: Build
+        run: bash scripts/build_flatpak.sh "${{ github.event.pull_request.head.sha || github.sha }}"
+
+      # Saved even when the app module fails, so the next run starts from a
+      # built WPE.
+      - name: Save flatpak-builder cache
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/flatpak/state/cache
+          key: flatpak-${{ hashFiles('flatpak/flatpak-flutter.yml') }}-${{ github.sha }}
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: webspace-flatpak
+          path: build/flatpak/*.flatpak
+          if-no-files-found: error
