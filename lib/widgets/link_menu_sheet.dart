@@ -2,19 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 
 /// What the user picked in [showLinkMenu].
-enum LinkMenuChoice { newTab, open, copy }
+enum LinkMenuChoice { newTab, open, copy, share }
+
+/// The sheet's "Open in new tab" row: whether it is enabled, and what it says
+/// under itself (the site the tab would run as, or why it is off).
+typedef LinkMenuNewTab = ({
+  bool enabled,
+  String? Function(AppLocalizations loc) note,
+});
 
 /// The sheet a long press on a link opens: the link, then open it in a new
-/// tab, open it as a tap would, or copy it. [newTabNote] is what the new-tab
-/// row says under itself: the site the tab would run as, or why it is off.
+/// tab, open it as a tap would, copy it, or share it. A site without tabs
+/// passes no [newTab] and the sheet has no such row.
 Future<LinkMenuChoice?> showLinkMenu(
   BuildContext context, {
   required String url,
-  required bool newTabEnabled,
-  required String? Function(AppLocalizations loc) newTabNote,
+  required LinkMenuNewTab? newTab,
 }) {
   final loc = AppLocalizations.of(context);
-  final note = newTabNote(loc);
+  final note = newTab?.note(loc);
   return showModalBottomSheet<LinkMenuChoice>(
     context: context,
     showDragHandle: true,
@@ -31,13 +37,14 @@ Future<LinkMenuChoice?> showLinkMenu(
               style: Theme.of(ctx).textTheme.bodySmall,
             ),
           ),
-          ListTile(
-            enabled: newTabEnabled,
-            leading: const Icon(Icons.tab),
-            title: Text(loc.tabsOpenInNewTab),
-            subtitle: note == null ? null : Text(note),
-            onTap: () => Navigator.of(ctx).pop(LinkMenuChoice.newTab),
-          ),
+          if (newTab != null)
+            ListTile(
+              enabled: newTab.enabled,
+              leading: const Icon(Icons.tab),
+              title: Text(loc.tabsOpenInNewTab),
+              subtitle: note == null ? null : Text(note),
+              onTap: () => Navigator.of(ctx).pop(LinkMenuChoice.newTab),
+            ),
           ListTile(
             leading: const Icon(Icons.open_in_new),
             title: Text(loc.commonOpen),
@@ -47,6 +54,11 @@ Future<LinkMenuChoice?> showLinkMenu(
             leading: const Icon(Icons.copy),
             title: Text(loc.commonCopy),
             onTap: () => Navigator.of(ctx).pop(LinkMenuChoice.copy),
+          ),
+          ListTile(
+            leading: const Icon(Icons.share),
+            title: Text(loc.commonShare),
+            onTap: () => Navigator.of(ctx).pop(LinkMenuChoice.share),
           ),
         ],
       ),
