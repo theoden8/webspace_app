@@ -961,11 +961,16 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// A long press that landed on a link. In-domain links can become a tab of
   /// this site; anything else keeps today's behaviour, and the sheet says why
-  /// rather than silently offering nothing.
+  /// rather than silently offering nothing. A site without tabs gets the sheet
+  /// without its New tab row.
   Future<void> _showLinkLongPressMenu(int index, {required String url}) async {
-    if (_kioskLocked || !_tabs.enabledAt(index)) return;
+    if (_kioskLocked) return;
     if (index < 0 || index >= _sites.models.length) return;
     if (index != _sites.current) return;
+    final tabs = _tabs.enabledAt(index);
+    // WebKit shows its own link menu, with Share, where the app shows none;
+    // Android's WebView has none to fall back to.
+    if (!tabs && hostIsIOS) return;
     final model = _sites.models[index];
     final uri = Uri.tryParse(url);
     if (uri == null) return;
@@ -974,7 +979,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         getNormalizedDomain(url) == getNormalizedDomain(model.navigationHomeUrl);
     // A link into another of the user's sites becomes that site's tab, as a
     // tap would open it (LIR-032).
-    final tabRoute = inDomain
+    final tabRoute = !tabs || inDomain
         ? null
         : _links.tabRouteFor(model,
             source: identity, url: url, hadGesture: true);
@@ -985,14 +990,18 @@ class _WebSpacePageState extends State<WebSpacePage>
     final choice = await showLinkMenu(
       context,
       url: url,
-      newTabEnabled: inDomain || tabRoute != null,
-      newTabNote: (loc) => inDomain
+      newTab: !tabs
           ? null
-          : tabHost != null
-              ? loc.tabsRunsAs(tabHost.getDisplayName())
-              : tabRoute == null
-                  ? loc.tabsLinkOutsideSite(uri.host)
-                  : null,
+          : (
+              enabled: inDomain || tabRoute != null,
+              note: (loc) => inDomain
+                  ? null
+                  : tabHost != null
+                      ? loc.tabsRunsAs(tabHost.getDisplayName())
+                      : tabRoute == null
+                          ? loc.tabsLinkOutsideSite(uri.host)
+                          : null,
+            ),
     );
     switch (choice) {
       case null:

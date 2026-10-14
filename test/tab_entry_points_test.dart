@@ -90,7 +90,6 @@ void main() {
         (tabs, 'Future<bool> _closeChildTabOnBack(', '!enabledAt(_sites.current)'),
         (tabs, 'Future<bool> _returnFromJumpOnBack(', '!enabledAt(_sites.current)'),
         (source, 'Future<void> _showTabsSheet(', '!_tabs.enabledAt(_sites.current)'),
-        (source, 'Future<void> _showLinkLongPressMenu(', '!_tabs.enabledAt(index)'),
         (tabs, 'Future<void> openChildTab(', '!owner.effectiveTabsEnabled'),
         (tabs, 'bool moveTab(', '!enabledAt(index)'),
       ]) {
@@ -98,6 +97,17 @@ void main() {
             reason: '$signature must return before doing anything while '
                 'the site it acts on has no tabs');
       }
+    });
+
+    test('the link menu offers New tab only while the site has tabs', () {
+      final start = source.indexOf('Future<void> _showLinkLongPressMenu(');
+      expect(start, isNot(-1));
+      final menu = source.substring(start, source.indexOf('\n  }\n', start));
+      expect(menu, contains('final tabs = _tabs.enabledAt(index);'));
+      expect(RegExp(r'newTab: !tabs\s*\?\s*null').hasMatch(menu), isTrue,
+          reason: 'the New tab row is the menu\'s one way into tabs');
+      expect(menu, contains('tabRoute = !tabs ||'),
+          reason: 'a site without tabs looks for no site to host its link');
     });
 
     test('a hosted tab returns links to its owner only while it has tabs',

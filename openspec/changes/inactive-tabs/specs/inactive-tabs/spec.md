@@ -162,7 +162,8 @@ so a bare load there would put the foreign page inside the site's container.
 
 The menu SHALL also offer "Copy", which puts the link on the clipboard, and
 "Share", which hands the link to the platform share sheet. Neither loads the
-link, and both are enabled whatever the new-tab row says.
+link, and both are enabled whatever the new-tab row says. On Android a site
+without tabs keeps the menu with these rows (TAB-012).
 
 The long press is delivered by the plugin's `onLongPressHitTestResult`
 (`View.setOnLongClickListener` on Android, `UILongPressGestureRecognizer` on
@@ -373,10 +374,15 @@ v0.3.3 to v0.3.5 and no longer read) went with it.
 While a site's tabs are off, it SHALL behave as it did before tabs existed: the app
 bar SHALL show no tab count, a tap on the active site's chip SHALL do nothing,
 the overflow menus SHALL NOT offer "New tab", a long press on a refresh button
-SHALL do nothing, a long press on a link SHALL open no link menu, system back at
-the start of a page SHALL keep NAV-001 even in a tab opened from another, and no
-chip or tile SHALL show a count pill. Every way into tabs SHALL return before
-acting, not only hide its button.
+SHALL do nothing, a long press on a link SHALL offer no "Open in new tab" row,
+system back at the start of a page SHALL keep NAV-001 even in a tab opened from
+another, and no chip or tile SHALL show a count pill. Every way into tabs SHALL
+return before acting, not only hide its button.
+
+The link menu itself stays on Android, without that row: Android's WebView has
+no link menu of its own, so without the app's there would be no way to open,
+copy or share a link from a long press. On iOS the app SHALL show no link menu
+for such a site, and WebKit's own link menu shows instead.
 
 Turning a site's tabs off SHALL NOT delete or rewrite them. The site keeps
 showing its active tab, its other tabs stay stored under TAB-009's rules, and
@@ -394,6 +400,12 @@ turning tabs back on shows them again.
 - **GIVEN** a device that stored `experimentalSiteTabs` off, and a site with Tabs on
 - **WHEN** the app starts
 - **THEN** the site has tabs
+
+#### Scenario: A site without tabs still shares a link on Android
+
+- **GIVEN** GitHub's Tabs switch is off, on Android
+- **WHEN** the user long-presses a link
+- **THEN** the link menu offers Open, Copy and Share, and no "Open in new tab"
 
 #### Scenario: Turning tabs off keeps them
 
@@ -433,7 +445,7 @@ tabs off SHALL delete or rewrite them (TAB-012).
 
 - **GIVEN** GitHub has three tabs and Kiosk mode on, and Mastodon has two tabs
 - **WHEN** WebSpace is opened normally and GitHub is shown
-- **THEN** GitHub shows no tab count, no "New tab", no count pill, and a long press on a link opens no menu
+- **THEN** GitHub shows no tab count, no "New tab", no count pill, and a long press on a link offers no "Open in new tab"
 - **AND** Mastodon's "All sites" tab list does not list GitHub
 - **AND** Mastodon's tabs work as before
 
