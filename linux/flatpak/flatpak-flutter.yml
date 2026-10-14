@@ -23,6 +23,10 @@ finish-args:
   - --device=dri
   - --talk-name=org.freedesktop.secrets
   - --talk-name=org.freedesktop.Notifications
+  # flatpak's default PS1 carries an emoji, and WebKit hands the whole
+  # environment to flatpak-spawn, which cannot convert it under a non-UTF-8
+  # locale and so never starts the web process.
+  - '--env=PS1=[$FLATPAK_ID \W]\$ '
 
 cleanup:
   - /include
