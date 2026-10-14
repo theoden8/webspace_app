@@ -8,7 +8,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, exists } = require('./helpers/source');
 
-const MANIFEST = 'flatpak/flatpak-flutter.yml';
+const MANIFEST = 'linux/flatpak/flatpak-flutter.yml';
 const manifest = read(MANIFEST);
 
 // The `key:` of the source list item whose `url:` is `url`; the item ends at

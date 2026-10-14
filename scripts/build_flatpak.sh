@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds the flatpak with no network inside the build: flatpak-flutter
-# (pinned below) turns flatpak/flatpak-flutter.yml into an offline manifest
-# under build/flatpak/manifest/, and flatpak-builder --sandbox builds that.
+# (pinned below) turns linux/flatpak/flatpak-flutter.yml into an offline
+# manifest under build/flatpak/manifest/, and flatpak-builder --sandbox
+# builds that.
 #
 #   scripts/build_flatpak.sh [--generate-only] [commit]
 #
@@ -19,7 +20,7 @@ fi
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 commit="${1:-$(git -C "$root" rev-parse HEAD)}"
-app_id="$(sed -n 's/^id: //p' "$root/flatpak/flatpak-flutter.yml")"
+app_id="$(sed -n 's/^id: //p' "$root/linux/flatpak/flatpak-flutter.yml")"
 out="$root/build/flatpak"
 tool="$out/flatpak-flutter"
 work="$out/manifest"
@@ -33,7 +34,7 @@ fi
 
 rm -rf "$work"
 mkdir -p "$work"
-cp "$root"/flatpak/* "$work"/
+cp "$root"/linux/flatpak/* "$work"/
 
 # The committed manifest builds master; point it at $commit instead.
 "$tool/.venv/bin/python" - "$work/flatpak-flutter.yml" "$commit" <<'PY'
