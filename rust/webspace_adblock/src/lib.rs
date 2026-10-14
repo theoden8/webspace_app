@@ -102,8 +102,8 @@ pub extern "C" fn ws_engine_new(
     // Test builds let the panic surface as a failure, which is what
     // we want.
     let mut filter_set = FilterSet::new(false);
-    filter_set.add_filter_list(text, ParseOptions::default());
-    let mut engine = AdblockEngine::from_filter_set(filter_set, true);
+    filter_set.add_filter_list(text.to_string(), ParseOptions::default());
+    let mut engine = AdblockEngine::new_with_filter_set(filter_set);
     // `enable_ubo_resources` gates the uBO web_accessible_resources pool
     // embedded at build time (see build.rs). When off, $redirect= rules
     // become drop-the-request (engine.redirect_for returns None for every
@@ -143,7 +143,7 @@ pub extern "C" fn ws_engine_new_from_serialized(
     // Build a fresh empty engine then deserialize into it — matches the
     // adblock-rust API shape (`Engine::deserialize(&mut self, ...)`).
     let mut engine =
-        AdblockEngine::from_filter_set(FilterSet::new(false), true);
+        AdblockEngine::new_with_filter_set(FilterSet::new(false));
     if engine.deserialize(blob).is_err() {
         return std::ptr::null_mut();
     }
@@ -246,12 +246,12 @@ pub extern "C" fn ws_engine_check_url(
     let src_s = read_utf8(source_url, source_url_len).unwrap_or("");
     let typ_s = read_utf8(request_type, request_type_len).unwrap_or("other");
 
-    let request = match Request::new(url_s, src_s, typ_s) {
+    let request = match Request::new(url_s, src_s, typ_s, "") {
         Ok(r) => r,
         Err(_) => return -1,
     };
     let res = engine_ref.check_network_request(&request);
-    if res.matched && res.exception.is_none() {
+    if res.should_block() {
         1
     } else {
         0
@@ -293,7 +293,7 @@ pub extern "C" fn ws_engine_rewritten_url(
     let typ_raw = read_utf8(request_type, request_type_len).unwrap_or("other");
     let typ_s: &str = if typ_raw.is_empty() { "other" } else { typ_raw };
 
-    let request = match Request::new(url_s, src_s, typ_s) {
+    let request = match Request::new(url_s, src_s, typ_s, "") {
         Ok(r) => r,
         Err(_) => return std::ptr::null_mut(),
     };
@@ -337,7 +337,7 @@ pub extern "C" fn ws_engine_csp_for(
     let typ_raw = read_utf8(request_type, request_type_len).unwrap_or("other");
     let typ_s: &str = if typ_raw.is_empty() { "other" } else { typ_raw };
 
-    let request = match Request::new(url_s, src_s, typ_s) {
+    let request = match Request::new(url_s, src_s, typ_s, "") {
         Ok(r) => r,
         Err(_) => return std::ptr::null_mut(),
     };
@@ -388,7 +388,7 @@ pub extern "C" fn ws_engine_redirect_for(
     let typ_raw = read_utf8(request_type, request_type_len).unwrap_or("other");
     let typ_s: &str = if typ_raw.is_empty() { "other" } else { typ_raw };
 
-    let request = match Request::new(url_s, src_s, typ_s) {
+    let request = match Request::new(url_s, src_s, typ_s, "") {
         Ok(r) => r,
         Err(_) => return std::ptr::null_mut(),
     };
@@ -542,7 +542,7 @@ pub extern "C" fn ws_filters_to_content_blocking_json(
     // conversion rather than reusing the runtime engine's optimised
     // (non-debug) one.
     let mut filter_set = FilterSet::new(true);
-    filter_set.add_filter_list(text, ParseOptions::default());
+    filter_set.add_filter_list(text.to_string(), ParseOptions::default());
     let rules = match filter_set.into_content_blocking() {
         Ok((rules, _used)) => rules,
         Err(_) => return std::ptr::null_mut(),
@@ -691,9 +691,10 @@ mod tests {
             "https://tracker.example.com/foo.js",
             "https://news.com/",
             "script",
+            "",
         ).unwrap();
         let result = engine.check_network_request(&request);
-        assert!(result.matched, "rule must match");
+        assert!(result.should_block(), "rule must match");
         assert!(result.redirect.is_some(),
             "engine.use_resources(...) must populate the resource pool — \
              redirect was None despite ubo_resources.json being included. \
@@ -702,6 +703,25 @@ mod tests {
         assert!(redirect.starts_with("data:"),
             "redirect must be a data: URL; got: {}",
             &redirect[..redirect.len().min(80)]);
+        ws_engine_free(engine_ptr);
+    }
+
+    #[test]
+    fn abp_rewrite_serves_the_aliased_redirect_resource() {
+        // ABP lists write `$rewrite=abp-resource:<name>`; uBO ships the
+        // `abp-resource:` names as aliases of its own resources.
+        let engine_ptr = rules_to_engine_with_resources(
+            "||tracker.example.com^$rewrite=abp-resource:blank-js\n", true);
+        let engine = unsafe { &(*engine_ptr).inner };
+        let request = adblock::request::Request::new(
+            "https://tracker.example.com/foo.js",
+            "https://news.com/",
+            "script",
+            "",
+        ).unwrap();
+        let redirect = engine.check_network_request(&request).redirect;
+        assert!(redirect.is_some_and(|r| r.starts_with("data:")),
+            "$rewrite= must resolve through the bundled uBO aliases");
         ws_engine_free(engine_ptr);
     }
 

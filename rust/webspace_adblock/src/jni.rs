@@ -133,8 +133,8 @@ pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_n
         return 0;
     }
     let mut filter_set = FilterSet::new(false);
-    filter_set.add_filter_list(&text, ParseOptions::default());
-    let mut engine = AdblockEngine::from_filter_set(filter_set, true);
+    filter_set.add_filter_list(text.to_string(), ParseOptions::default());
+    let mut engine = AdblockEngine::new_with_filter_set(filter_set);
     if enable_ubo_resources != 0 {
         let resources = crate::load_ubo_resources();
         if !resources.is_empty() {
@@ -194,12 +194,12 @@ pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_n
     let typ_s: &str = if typ_raw.is_empty() { "other" } else { &typ_raw };
 
     let engine = unsafe { &(*(handle as *mut Engine)).inner };
-    let request = match Request::new(&url_s, &src_s, typ_s) {
+    let request = match Request::new(&url_s, &src_s, typ_s, "") {
         Ok(r) => r,
         Err(_) => return JNI_FALSE,
     };
     let res = engine.check_network_request(&request);
-    if res.matched && res.exception.is_none() {
+    if res.should_block() {
         JNI_TRUE
     } else {
         JNI_FALSE
@@ -253,7 +253,7 @@ pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_n
     let typ_s: &str = if typ_raw.is_empty() { "other" } else { &typ_raw };
 
     let engine = unsafe { &(*(handle as *mut Engine)).inner };
-    let request = match Request::new(&url_s, &src_s, typ_s) {
+    let request = match Request::new(&url_s, &src_s, typ_s, "") {
         Ok(r) => r,
         Err(_) => return null_ret,
     };

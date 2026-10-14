@@ -6,7 +6,7 @@
 /// cosmetic ones), so the engine answers each site correctly with one copy
 /// of the data and no per-request work.
 ///
-/// Rule classification mirrors adblock-rust 0.12's `detect_filter_type`
+/// Rule classification mirrors adblock-rust 0.13's `detect_filter_type`
 /// (`lists.rs`) and its option split (the LAST `$` opens the option list,
 /// options split on `,`). Diverging from the parser is how a rewrite
 /// silently turns a blocking rule into a dropped one.

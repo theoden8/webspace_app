@@ -16,8 +16,8 @@ use adblock::lists::{FilterSet, ParseOptions};
 
 fn engine(rules: &str) -> Engine {
     let mut set = FilterSet::new(false);
-    set.add_filter_list(rules, ParseOptions::default());
-    Engine::from_filter_set(set, false)
+    set.add_filter_list(rules.to_string(), ParseOptions::default());
+    Engine::new_with_filter_set(set)
 }
 
 fn procedurals(eng: &Engine, url: &str) -> Vec<String> {

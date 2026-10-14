@@ -673,7 +673,7 @@ scoping by
 - cosmetic rules gain `~<host>` in their domain list.
 
 One engine therefore answers every site, and no per-request work consults the
-mask. The rewrite MUST classify rules the way adblock-rust 0.12 does — the
+mask. The rewrite MUST classify rules the way adblock-rust 0.13 does — the
 LAST `$` opens the option list, options split on `,`, and
 `detect_filter_type`'s comment and cosmetic tests decide the shape — because a
 rule the rewrite mis-parses is silently dropped rather than visibly wrong.
@@ -821,7 +821,7 @@ would otherwise share an id and one cache file.
 
 ### Requirement: CB-017 - uBO Pre-Parser Directives
 
-adblock-rust 0.12 reads every line starting with `!` as a comment, so it
+adblock-rust 0.13 reads every line starting with `!` as a comment, so it
 implements neither `!#include` nor `!#if`. uBlock Origin's own lists depend
 on both: `filters.txt` holds a quarter of its rules and pulls the rest in from
 ten sublists. The app SHALL resolve both directives before the engine sees a

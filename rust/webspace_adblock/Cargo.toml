@@ -22,7 +22,7 @@ crate-type = ["cdylib", "staticlib"]
 # than the one that built the engine. Without disabling defaults,
 # `nativeCheckUrl` would race; with defaults disabled, all reads on
 # the engine are safe across threads (we never take `&mut`).
-adblock = { version = "0.12", default-features = false, features = [
+adblock = { version = "0.13.3", default-features = false, features = [
   "embedded-domain-resolver",
   "full-regex-handling",
   # Apple WKContentRuleList JSON export — see
@@ -48,7 +48,7 @@ adblock = { version = "0.12", default-features = false, features = [
   "resource-assembler",
   # Pulls in `cssparser` + `selectors` so the crate validates the CSS
   # half of procedural rules at parse time instead of silently
-  # dropping them. Without this flag adblock-rust 0.12 fails to
+  # dropping them. Without this flag adblock-rust 0.13 fails to
   # recognise `:has-text()`, `:upward()`, `:remove()`, `:style()` on
   # class/id-anchored generic selectors — see
   # https://github.com/brave/adblock-rust/issues/537 and the
@@ -65,7 +65,7 @@ serde_json = "1"
 # dependency above does NOT enable resource-assembler (no need at
 # runtime — we already have the JSON baked in).
 [build-dependencies]
-adblock = { version = "0.12", default-features = false, features = [
+adblock = { version = "0.13.3", default-features = false, features = [
   "embedded-domain-resolver",
   "resource-assembler",
 ] }

@@ -1,5 +1,5 @@
-// Bypass for adblock-rust 0.12's parse-time rejection of generic
-// procedural rules (cosmetic.rs:444 — `if sharp_index == 0 &&
+// Bypass for adblock-rust 0.13's parse-time rejection of generic
+// procedural rules (cosmetic.rs — `if sharp_index == 0 &&
 // action.is_some() { return Err(GenericAction) }`).
 //
 // Generic rules like `##.foo:remove()`, `##.bar:style(...)`,
