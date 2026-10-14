@@ -24,9 +24,11 @@ on:
       - pubspec.lock
       - rust/webspace_adblock/**
 
+# A run in progress is left to finish: it is the one that fills the cache the
+# queued run then builds from; cancelling one loses the WPE it was compiling.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   flatpak:
