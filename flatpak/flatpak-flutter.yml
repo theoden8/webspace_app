@@ -34,6 +34,8 @@ modules:
   - name: libwpe
     buildsystem: meson
     config-opts:
+      # meson picks lib64 here, which the SDK's pkg-config does not search.
+      - --libdir=lib
       - -Dbuild-docs=false
     sources:
       - type: archive
