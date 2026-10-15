@@ -87,7 +87,7 @@ Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch
 #### Scenario: One download for every platform
 
 - **WHEN** a manual (`workflow_dispatch`) run finishes
-- **THEN** a `screenshots` artifact holds each platform's set in its own folder (`android-screenshots/`, `ios-screenshots/`, `macos-screenshots/`)
+- **THEN** a `screenshots` artifact holds each platform's set in its own folder (`android-screenshots/` as taken, `android-framed-screenshots/`, `ios-screenshots/`, `macos-screenshots/`)
 - **AND** a platform that failed leaves its folder out instead of withholding the others
 
 ---

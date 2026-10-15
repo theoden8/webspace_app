@@ -776,6 +776,14 @@ jobs:
         if: needs.plan.outputs.screenshots == 'true'
         run: bundle exec fastlane android add_device_frames
 
+      - name: Upload framed Android screenshots
+        if: needs.plan.outputs.screenshots == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-framed-screenshots
+          path: screenshots/android/*_framed.png
+          if-no-files-found: error
+
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
