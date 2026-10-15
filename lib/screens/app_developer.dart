@@ -51,6 +51,10 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
             loc.appSettingsExperimentalTextureRenderingHint),
+      if (hostIsIOS || hostIsMacOS)
+        (ExperimentalFeature.contentRuleLists, Icons.shield_outlined,
+            loc.appSettingsExperimentalContentRuleLists,
+            loc.appSettingsExperimentalContentRuleListsHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

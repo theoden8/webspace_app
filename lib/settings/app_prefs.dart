@@ -68,6 +68,7 @@ enum AppPref<T extends Object> {
   experimentalProxyRouter('experimentalProxyRouter', fallback: true),
   experimentalSiteIconsOnly('experimentalSiteIconsOnly', fallback: false),
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
+  experimentalContentRuleLists('experimentalContentRuleLists', fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
   externalTor('experimentalExternalTor', fallback: false),

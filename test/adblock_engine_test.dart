@@ -12,6 +12,7 @@
 @TestOn('linux || mac-os')
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -139,24 +140,17 @@ void main() {
       e.dispose();
     }, skip: libExists ? false : 'library not built');
 
-    test('content-blocking export emits WKContentRuleList-shaped JSON', () {
-      // The Pod hook will pipe this JSON into
-      // `WKContentRuleListStore.compileContentRuleList` at install
-      // time. Asserting the shape (array of {action, trigger}
-      // objects) matches what Apple's API expects keeps the iOS
-      // integration honest without needing a real WebKit instance
-      // to test against.
-      final json = AdblockEngine.filterListToAppleContentBlockingJson(
+    test('content rule lists carry network rules as WebKit JSON arrays',
+        () async {
+      final lists = await AdblockEngine.contentRuleLists(
         '||doubleclick.net^\n||tracker.com^\$third-party\n##.ad-banner\n',
       );
-      expect(json, isNotNull,
-          reason: 'export must succeed with the library loaded');
-      expect(json!.startsWith('['), isTrue,
-          reason: 'Apple format is a JSON array of rules');
-      expect(json, contains('"action"'));
-      expect(json, contains('"trigger"'));
-      expect(json, contains('doubleclick'),
-          reason: 'concrete rule must surface in the exported JSON');
+      expect(lists, hasLength(1));
+      final rules = jsonDecode(lists!.single) as List<dynamic>;
+      expect(rules.first, containsPair('action', isA<Map<String, dynamic>>()));
+      expect(lists.single, contains('doubleclick'));
+      expect(lists.single, isNot(contains('css-display-none')),
+          reason: 'cosmetic rules stay with the page cosmetic pass');
     }, skip: libExists ? false : 'library not built');
 
     test('rewrittenUrl strips \$removeparam= keys', () {

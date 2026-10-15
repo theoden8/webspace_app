@@ -229,6 +229,7 @@
     "experimentalProxyRouter": false,
     "experimentalSiteIconsOnly": true,
     "experimentalTextureRendering": true,
+    "experimentalContentRuleLists": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,
     "experimentalExternalTor": true,

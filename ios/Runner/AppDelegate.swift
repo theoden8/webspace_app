@@ -10,6 +10,7 @@ import UserNotifications
   private var shortcutsPlugin: ShortcutsPlugin?
   private var mediaSessionPlugin: MediaSessionPlugin?
   private var torControllerPlugin: TorControllerPlugin?
+  private var contentRuleListPlugin: ContentRuleListPlugin?
   private let shareIntent = ShareIntentPlugin()
 
   override func application(
@@ -40,6 +41,7 @@ import UserNotifications
       shortcutsPlugin = ShortcutsPlugin(messenger: controller.binaryMessenger)
       mediaSessionPlugin = MediaSessionPlugin(messenger: controller.binaryMessenger)
       torControllerPlugin = TorControllerPlugin(messenger: controller.binaryMessenger)
+      contentRuleListPlugin = ContentRuleListPlugin(messenger: controller.binaryMessenger)
       if let registrar = self.registrar(forPlugin: "WebSpaceShortcutsLink") {
         registrar.register(
           ShortcutsLinkViewFactory(messenger: controller.binaryMessenger),

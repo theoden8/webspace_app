@@ -324,6 +324,8 @@
   "appSettingsIconCacheCleared": "圖示快取已清除",
   "appSettingsExperimentalTextureRendering": "以紋理繪製頁面",
   "appSettingsExperimentalTextureRenderingHint": "將每個頁面繪製到由 WebSpace 自行合成的紋理中，而不是作為與應用程式分層的獨立 Android 檢視。這可能避免頁面一直保持空白，直到你旋轉手機或切換應用程式。以這種方式時，輸入、選取文字和螢幕閱讀器的測試較少，快速捲動也可能卡頓。下次啟動應用程式時生效。",
+  "appSettingsExperimentalContentRuleLists": "WebKit 內容封鎖",
+  "appSettingsExperimentalContentRuleListsHint": "將過濾清單中的網路規則交給 WebKit，由它在請求送出前就加以封鎖，包括網頁本身的 HTML 在一般封鎖器看到之前就發出的請求。規則會針對每組清單在背景編譯一次，之後開啟的網站便會使用。外觀規則與重新導向仍由持續運作的一般封鎖器負責。",
   "externalTor": "Tor（外部）",
   "externalTorHint": "將設為 Tor 的網站改經由這部裝置上已在執行的 tor 傳送，例如 Orbot、InviZible、Arti 或 tor 服務；在 macOS 上會取代內建的 Tor。每個網站都會向該 tor 提供自己的 SOCKS 使用者名稱與密碼，因此啟用 IsolateSOCKSAuth 的 tor（除非其 SocksPort 寫明 NoIsolateSOCKSAuth，否則預設啟用）會讓每個網站使用各自的線路。橋接在該 tor 中設定；出口國家與新線路也是如此，除非應用程式擁有它的控制連接埠（Linux 和 macOS）。",
   "externalTorAddress": "Tor SOCKS 位址",

@@ -57,6 +57,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
 | `WebViewHostHooks` | the host's answers to every site webview: prompts, outbound links, capture | one required-field class, passed whole |
 | `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
+| `ContentRuleLists` (`services/content_rule_lists.dart`) | which compiled WebKit content rule lists a new webview attaches (CB-020) | `contentRuleListIdentifiers`; `planRuleLists` → sealed `RuleListPlan` |
 | `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js:, frames:)`; `ShimFrames` has no default |
 | `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |
 | `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |

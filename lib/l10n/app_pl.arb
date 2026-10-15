@@ -324,6 +324,8 @@
   "appSettingsIconCacheCleared": "Wyczyszczono pamięć podręczną ikon",
   "appSettingsExperimentalTextureRendering": "Renderowanie stron do tekstury",
   "appSettingsExperimentalTextureRenderingHint": "Rysuje każdą stronę w teksturze, którą WebSpace składa sam, zamiast jako osobny widok Androida nałożony na aplikację. Może to zapobiec stronom, które pozostają puste i białe, dopóki nie obrócisz telefonu lub nie przełączysz aplikacji. Pisanie, zaznaczanie tekstu i czytniki ekranu są w tym trybie mniej sprawdzone, a szybkie przewijanie może się zacinać. Zacznie obowiązywać przy następnym uruchomieniu aplikacji.",
+  "appSettingsExperimentalContentRuleLists": "Blokowanie treści przez WebKit",
+  "appSettingsExperimentalContentRuleListsHint": "Przekazuje reguły sieciowe z Twoich list filtrów do WebKit, który blokuje te żądania, zanim zostaną wysłane, w tym te, które uruchamia sam kod HTML strony, zanim zwykły bloker zdąży je zobaczyć. Reguły są kompilowane raz dla każdego zestawu list, w tle, a strony otwarte później z nich korzystają. Reguły kosmetyczne i przekierowania zostają przy zwykłym blokerze, który nadal działa.",
   "externalTor": "Tor (zewnętrzny)",
   "externalTorHint": "Kieruje witryny ustawione na Tor przez tor, który już działa na tym urządzeniu, np. Orbot, InviZible, Arti lub usługę tor; w macOS zastępuje wbudowany Tor. Każda witryna podaje temu torowi własną nazwę użytkownika i hasło SOCKS, więc tor z IsolateSOCKSAuth, włączonym, chyba że jego SocksPort mówi NoIsolateSOCKSAuth, trzyma każdą witrynę na osobnych obwodach. Mostki ustawia się w tym torze, a kraje wyjścia i nowe obwody również, chyba że aplikacja ma dostęp do jego portu sterującego (Linux i macOS).",
   "externalTorAddress": "Adres SOCKS Tora",
