@@ -59,10 +59,10 @@ class SiteEditingController {
   /// chose to create it: an unattended entry point must not put a stranger's
   /// page on screen.
   Future<void> registerSite(WebViewModel model, {bool activate = true}) async {
-    // Before the first build: initialHtml reads currentTheme to pick the dark
+    // Before the first build: initialHtml reads effectiveTheme to pick the dark
     // prelude for cached HTML (file:// imports especially, which never reload
     // to live), and the model defaults to WebViewTheme.light.
-    await model.setTheme(_shell.theme.themeMode.webViewTheme);
+    await model.setAppTheme(_shell.theme.themeMode.webViewTheme);
     await _host.commitSites(SiteAdded(model));
     if (!activate || !_host.mounted) return;
     await _host.activate(model);

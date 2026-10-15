@@ -19,6 +19,7 @@ import 'package:webspace/settings/http_auth_memory.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 
 /// The store the site binds and what it keeps there.
 typedef SiteContainer = ({
@@ -66,6 +67,8 @@ typedef SitePage = ({
   String? userAgent,
   String? language,
   int zoomPercent,
+  // The site's own theme, or the app's when it follows it.
+  WebViewTheme theme,
   List<UserScriptConfig> userScripts,
   ExternalLinkMode externalLinks,
   bool notifications,

@@ -14,6 +14,7 @@ import 'package:webspace/services/container_names.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -906,8 +907,6 @@ Widget _siteBehaviour(BuildContext _) {
 
 /// The real AddSiteScreen: the URL entry and suggestion surface.
 Widget _addSite(BuildContext _) => AddSiteScreen(
-      themeMode: ThemeMode.light,
-      onThemeModeChanged: (_) {},
       suggestions: const [],
       onSuggestionsChanged: (_) {},
     );
@@ -919,7 +918,8 @@ Widget _siteSettings(BuildContext _) {
     initUrl: 'https://codeberg.org/theoden8/webspace',
     name: 'Codeberg',
   );
-  return SettingsScreen(webViewModel: model, useContainers: true);
+  return SettingsScreen(
+      webViewModel: model, appTheme: WebViewTheme.system, useContainers: true);
 }
 
 /// The real LocationPickerScreen, opened on a seeded coordinate. The map tiles

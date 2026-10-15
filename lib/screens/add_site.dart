@@ -19,7 +19,6 @@ import '../settings/site_suggestion.dart';
 import '../utils/url_utils.dart';
 import '../web_view_model.dart' show WebViewModel;
 import 'site_settings_qr.dart';
-import '../widgets/theme_mode_button.dart';
 
 /// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
@@ -351,15 +350,11 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 }
 
 class AddSiteScreen extends StatefulWidget {
-  final ThemeMode themeMode;
-  final Function(ThemeMode) onThemeModeChanged;
   final List<SiteSuggestion> suggestions;
   final Function(List<SiteSuggestion>) onSuggestionsChanged;
   final String? initialUrl;
 
   AddSiteScreen({
-    required this.themeMode,
-    required this.onThemeModeChanged,
     required this.suggestions,
     required this.onSuggestionsChanged,
     this.initialUrl,
@@ -595,20 +590,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(loc.addSiteScreenTitle),
-        actions: [
-          ThemeModeButton(
-            mode: widget.themeMode,
-            tooltip: switch (widget.themeMode) {
-              ThemeMode.light => loc.addSiteThemeLight,
-              ThemeMode.dark => loc.addSiteThemeDark,
-              ThemeMode.system => loc.addSiteThemeSystem,
-            },
-            onChanged: widget.onThemeModeChanged,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(loc.addSiteScreenTitle)),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: LayoutBuilder(

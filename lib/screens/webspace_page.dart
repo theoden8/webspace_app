@@ -98,7 +98,6 @@ import 'package:webspace/widgets/backup_prompts.dart';
 import 'package:webspace/widgets/link_prompts.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
 import 'package:webspace/widgets/protection_shield_button.dart';
-import 'package:webspace/widgets/theme_mode_button.dart';
 import 'package:webspace/widgets/shortcut_prompts.dart';
 import 'package:webspace/widgets/surface_nudge_scope.dart';
 import 'package:webspace/widgets/webspace_prompts.dart';
@@ -195,8 +194,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   late final SiteEditingController _editing = SiteEditingController(
     _sites,
     host: _PageHost(this),
-    prompts: DialogSiteEditingPrompts(context,
-        shell: _shell, applyTheme: _applyThemeSettings),
+    prompts: DialogSiteEditingPrompts(context, shell: _shell),
     shell: _shell,
     shortcuts: _shortcuts,
     deletion: _deletion,
@@ -339,6 +337,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         MaterialPageRoute(
           builder: (context) => SettingsScreen(
             webViewModel: model,
+            appTheme: _shell.theme.themeMode.webViewTheme,
             otherSites: _sites.models
                 .where((m) => m.siteId != model.siteId)
                 .toList(growable: false),
@@ -935,20 +934,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  String _getThemeTooltip(AppLocalizations loc) {
-    final modeName = _shell.theme.themeMode == ThemeMode.system
-        ? loc.homeThemeModeSystem
-        : _shell.theme.themeMode == ThemeMode.light
-            ? loc.homeThemeModeLight
-            : loc.homeThemeModeDark;
-    final colorName = _shell.theme.accentColor == AccentColor.blue
-        ? loc.homeThemeColorBlue
-        : loc.homeThemeColorGreen;
-    return loc.homeThemeTooltip(modeName, colorName);
-  }
-
-  /// The one way the theme changes: the app, its saved settings and every
-  /// site's webview follow.
+  /// The one way the theme changes: the app, its saved settings and the
+  /// webview of every site without a theme of its own follow.
   Future<void> _applyThemeSettings(AppThemeSettings next) async {
     setState(() => _shell.theme = next);
     widget.onThemeSettingsChanged(next);
@@ -956,7 +943,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!mounted) return;
     final webViewTheme = next.themeMode.webViewTheme;
     for (final model in List.of(_sites.models)) {
-      await model.setTheme(webViewTheme);
+      await model.setAppTheme(webViewTheme);
     }
   }
 
@@ -1057,7 +1044,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               ),
             )
           : Text(_selectedWebspaceName ?? loc.homeNoWebspaceSelected),
-      // KIOSK-002: no app-bar actions (download, theme, settings) when locked.
+      // KIOSK-002: no app-bar actions (download, settings) when locked.
       actions: _kioskLocked ? const <Widget>[] : [
         // Tab count for the site on screen. Present whenever a site is shown,
         // even at one tab, because it is also how a new tab is opened.
@@ -1067,12 +1054,6 @@ class _WebSpacePageState extends State<WebSpacePage>
             onPressed: () => unawaited(_showTabsSheet()),
           ),
         const DownloadButton(),
-        ThemeModeButton(
-          mode: _shell.theme.themeMode,
-          tooltip: _getThemeTooltip(loc),
-          onChanged: (mode) => _applyThemeSettings(
-              _shell.theme.copyWith(themeMode: mode)),
-        ),
         // Protection report shield, badged with the week's block count.
         // Same visibility rule as the settings gear: the webspaces list is
         // the app's "home", which is where a protection summary belongs.

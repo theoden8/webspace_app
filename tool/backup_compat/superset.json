@@ -56,6 +56,7 @@
       "containerColor": 3,
       "language": "de",
       "zoomPercent": 150,
+      "theme": "dark",
       "clearUrlEnabled": false,
       "dnsBlockEnabled": false,
       "dnsBlockLevel": 2,

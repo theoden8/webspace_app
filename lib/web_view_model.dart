@@ -47,6 +47,7 @@ import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/scoped.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -295,6 +296,7 @@ class WebViewModel implements MediaGrantRecord {
   /// the OS accessibility font scale that [WebViewController.setTextZoom]
   /// tracks. Clamped to [kMinZoomPercent]..[kMaxZoomPercent].
   int zoomPercent;
+  WebViewTheme? theme; // Color scheme pages are told to prefer, null = app's (HINTS-006)
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
 
@@ -769,6 +771,7 @@ class WebViewModel implements MediaGrantRecord {
         userAgent: effectiveUserAgentOrNull,
         language: language,
         zoomPercent: zoomPercent,
+        theme: effectiveTheme,
         userScripts: combineUserScripts(globalUserScripts),
         externalLinks: effectiveExternalLinkMode,
         notifications: effectiveNotificationsEnabled,
@@ -823,12 +826,13 @@ class WebViewModel implements MediaGrantRecord {
   /// navigate while another site is current.
   VoidCallback? onNavigationCommitted;
   FindMatchesResult findMatches = FindMatchesResult();
-  WebViewTheme _currentTheme = WebViewTheme.light;
+  /// The app's theme as the page last handed it over, set before the first
+  /// build (the light default would otherwise flash the HTML cache prelude).
+  WebViewTheme _appTheme = WebViewTheme.light;
 
-  /// The theme most recently applied to this webview via [setTheme]. Used
-  /// by callers (e.g. HTML cache prelude) that need to render a frame that
-  /// matches the current theme before scripts and stylesheets load.
-  WebViewTheme get currentTheme => _currentTheme;
+  /// What this site's pages are told to prefer: its own [theme], else the
+  /// app's. The HTML cache prelude reads it to paint a matching first frame.
+  WebViewTheme get effectiveTheme => Scoped.fromStored(theme).resolve(_appTheme);
 
   /// The UA string webviews are actually built with: presets render fresh
   /// at the current Firefox version; custom strings pass through verbatim.
@@ -886,6 +890,7 @@ class WebViewModel implements MediaGrantRecord {
     this.containerColor,
     this.language,
     this.zoomPercent = kDefaultZoomPercent,
+    this.theme,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.dnsBlockLevel,
@@ -1033,7 +1038,7 @@ class WebViewModel implements MediaGrantRecord {
       thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
       incognito: id.effectiveIncognito,
     );
-    await c.setThemePreference(_currentTheme);
+    await c.setThemePreference(effectiveTheme);
     defaultUserAgent ??=
         HostBrowser.defaultUserAgent ?? await c.getDefaultUserAgent();
   }
@@ -1103,9 +1108,9 @@ class WebViewModel implements MediaGrantRecord {
     ];
   }
 
-  Future<void> setTheme(WebViewTheme theme) async {
-    _currentTheme = theme;
-    if (webview != null) await controller?.setThemePreference(theme);
+  Future<void> setAppTheme(WebViewTheme appTheme) async {
+    _appTheme = appTheme;
+    if (webview != null) await controller?.setThemePreference(effectiveTheme);
   }
 
   /// On iOS / macOS, the proxy is sealed into the per-site
@@ -1418,7 +1423,7 @@ bool dispatch(NavigationDecision decision,
               // dying frame when chromium tears down between our request
               // and its dispatch. The theme call doesn't gate any
               // subsequent work — saveFunc below is Dart-only.
-              unawaited(controller?.setThemePreference(_currentTheme));
+              unawaited(controller?.setThemePreference(effectiveTheme));
             }
             await hooks.save();
             lastSavedUrl = currentNotifyUrl;

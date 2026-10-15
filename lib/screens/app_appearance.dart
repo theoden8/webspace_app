@@ -4,18 +4,11 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
-import 'package:webspace/widgets/theme_mode_button.dart';
-
-/// The label a theme mode goes by, on its chip and in the App Settings row.
-String themeModeLabel(AppLocalizations loc, {required ThemeMode mode}) =>
-    switch (mode) {
-      ThemeMode.light => loc.appSettingsThemeLight,
-      ThemeMode.dark => loc.appSettingsThemeDark,
-      ThemeMode.system => loc.appSettingsThemeSystem,
-    };
+import 'package:webspace/widgets/theme_mode_icon.dart';
 
 /// How the app itself looks: UI language, theme mode and accent colour.
 class AppAppearanceScreen extends StatefulWidget {
@@ -128,7 +121,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
   }
 
   Widget _buildThemeModeChip(ThemeMode mode) {
-    final label = themeModeLabel(AppLocalizations.of(context), mode: mode);
+    final label = mode.webViewTheme.label(AppLocalizations.of(context));
     final icon = themeModeIcon(mode);
     final isSelected = _settings.themeMode == mode;
     final accentColor = Theme.of(context).colorScheme.secondary;
