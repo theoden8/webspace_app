@@ -10,6 +10,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What the resets ask of the page.
@@ -87,7 +88,7 @@ class SiteResetController {
     if (_sites.current == null || _sites.current! >= _sites.models.length)
       return;
     evictCacheIfOnline(_sites.models[_sites.current!].siteId);
-    _sites.models[_sites.current!].disposeWebView();
+    _sites.models[_sites.current!].disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     _host.rebuild();
   }
 
@@ -122,7 +123,7 @@ class SiteResetController {
       }
     }
     for (final model in _sites.models) {
-      model.disposeWebView();
+      model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     }
     _host.rebuild();
   }
@@ -187,7 +188,7 @@ class SiteResetController {
       // the activation of the site already on screen, so nothing would re-add
       // it or recreate the disposed webview.
       if (identical(m, _sites.shown)) {
-        m.disposeWebView();
+        m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.homeLanding));
       } else {
         await _activation.unload(m, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
@@ -211,7 +212,7 @@ class SiteResetController {
     final model = _sites.models[_sites.current!];
     evictCacheIfOnline(model.siteId);
     model.currentUrl = model.navigationHomeUrl;
-    model.disposeWebView();
+    model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     _host.rebuild();
     // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
     if (model.fullscreenMode) {

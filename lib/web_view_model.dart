@@ -1129,7 +1129,7 @@ class WebViewModel implements MediaGrantRecord {
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
     if (hostIsIOS || hostIsMacOS) {
-      disposeWebView();
+      disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
       return;
     }
     if (controller != null) await _applyProxySettings();
@@ -1231,7 +1231,7 @@ bool dispatch(NavigationDecision decision,
     }
     if (webview == null) {
       final builtTab = activeTabId;
-      tabBinding.bind(builtTab);
+      tabBinding.bind(builtTab, commit: const Commit.environment(Environment.frame));
       LogTag.webView.debug(
           'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
           '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
@@ -1516,7 +1516,10 @@ bool dispatch(NavigationDecision decision,
           // depend on the restore completing. Clear the field
           // *before* awaiting so a back-to-back rebuild doesn't
           // re-apply the same bytes.
-          final pending = tabBinding.take(tab: builtTab);
+          final pending = tabBinding.take(
+            tab: builtTab,
+            commit: const Commit.environment(Environment.frame),
+          );
           if (pending != null) {
             // On Android the webview was built with no initial load
             // (deferRestoreLoad), so restoreState applies to a pristine
@@ -1597,7 +1600,7 @@ bool dispatch(NavigationDecision decision,
     webview = null;
     controller = null;
     ProcessRoute.instance.release(routeClaim.occupant);
-    tabBinding.unbind();
+    tabBinding.unbind(commit: const Commit.unmodeled(Unmodeled.rendererGone));
     resumeReload.reset();
     stateSetterF?.call();
   }
@@ -1730,15 +1733,16 @@ bool dispatch(NavigationDecision decision,
         sensitive: true);
   }
 
-  /// Used when unloading a site due to domain conflict.
-  void disposeWebView() {
+  /// Lets go of the webview, in [commit]: an unload's, the commit that takes
+  /// the site off the list, or a named rebuild.
+  void disposeWebView({required Commit commit}) {
     LogTag.webView.debug(
         'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
         sensitive: true);
     webview = null;
     controller = null;
     ProcessRoute.instance.release(routeClaim.occupant);
-    tabBinding.unbind();
+    tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the
     // webview. Without this the OS transport controls outlive it and their

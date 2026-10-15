@@ -97,13 +97,18 @@ void f(WebViewModel m) {
   m.activeTabId = m.activeTabId;
   m.lifecycleState = m.lifecycleState;
   m.tabBinding.queue(Uint8List(0), tab: m.activeTabId);
+  m.tabBinding.bind(m.activeTabId);
+  m.tabBinding.take(tab: m.activeTabId);
+  m.tabBinding.unbind();
+  m.disposeWebView();
 }
 ''');
     expect(errors, [
       ...List.filled(3, 'assignment_to_final_no_setter'),
-      'missing_required_argument',
+      ...List.filled(5, 'missing_required_argument'),
     ], reason: 'tabs, active and tier have no setter outside a commit, and '
-        'queued is written only with one');
+        'queued and built, which the frame and a dispose write, are written '
+        'only with one');
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test("the runner's commit cannot be made outside it", () async {
@@ -124,6 +129,9 @@ void f(WebViewModel m) {
       at: m, to: m.tabs, commit: const Commit.unmodeled(Unmodeled.tabMove));
   m.tabBinding.queue(Uint8List(0),
       tab: m.activeTabId, commit: const Commit.unmodeled(Unmodeled.tabMove));
+  m.tabBinding.bind(m.activeTabId,
+      commit: const Commit.environment(Environment.frame));
+  m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
 }
 ''');
     expect(errors, isEmpty, reason: 'the probe fails only for the commit');
@@ -139,5 +147,20 @@ void f(WebViewModel m) {
     };
     expect({for (final u in Unmodeled.values) u.name}.difference(named), isEmpty,
         reason: 'a debt no write names is paid: drop it from Unmodeled');
+  });
+
+  test("every environment action the code writes in is one it still makes",
+      () {
+    final named = <String>{
+      for (final f in Directory('lib').listSync(recursive: true))
+        if (f is File && f.path.endsWith('.dart') &&
+            !f.path.endsWith('services/step_table.dart'))
+          for (final m
+              in RegExp(r'Environment\.(\w+)').allMatches(f.readAsStringSync()))
+            m[1]!,
+    };
+    expect(
+        {for (final e in Environment.values) e.name}.difference(named), isEmpty,
+        reason: 'an environment action no write names is gone: drop it');
   });
 }

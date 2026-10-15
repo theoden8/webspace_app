@@ -313,7 +313,9 @@ class TabsController {
         )) {
       _host.noteUnloaded(model, why: 'identity change');
     }
-    model.disposeWebView();
+    model.disposeWebView(
+      commit: const Commit.unmodeled(Unmodeled.identityChange),
+    );
     if (global) _reopen(model);
   }
 
@@ -1096,7 +1098,7 @@ class TabsController {
     // tab was on; leaving it would flash that page into this tab's first
     // frame. Offline it is the only thing renderable, so it stays.
     _host.evictCache(model.siteId);
-    model.disposeWebView();
+    model.disposeWebView(commit: c.commit);
     _host.rebuild();
     flow
       ..rebound = true

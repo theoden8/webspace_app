@@ -106,6 +106,7 @@ import 'package:webspace/widgets/webview_prompts.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/step_table.dart';
 
 /// Test seam: when set, the page state uses this store instead of
 /// constructing a [SecureWebViewStateStorage]. Lets integration tests
@@ -759,11 +760,11 @@ class _WebSpacePageState extends State<WebSpacePage>
         _resets.evictCacheIfOnline(model.siteId);
         await engine.clearForSite(model.containerKey);
         setState(() {
-          model.disposeWebView();
+          model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
           // LIR-023: a slot running as this site binds the cleared container.
           for (final other in _sites.models) {
             if (other.activeTab.hostSiteId == model.siteId) {
-              other.disposeWebView();
+              other.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
             }
           }
           // Until the new webview's first load reports its own.

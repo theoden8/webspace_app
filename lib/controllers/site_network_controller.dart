@@ -79,7 +79,7 @@ class SiteNetworkController {
       anyTorSite = true;
       // A site with no webview shows the placeholder; the rebuild below
       // builds the real one.
-      if (m.webview != null) m.disposeWebView();
+      if (m.webview != null) m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     }
     if (!anyTorSite) return;
     // Router mode encodes a Tor route against the endpoint it saw last
@@ -152,7 +152,9 @@ class SiteNetworkController {
         model,
         commit: const Commit.unmodeled(Unmodeled.trustRevoked),
       )) {
-        model.disposeWebView();
+        model.disposeWebView(
+          commit: const Commit.unmodeled(Unmodeled.trustRevoked),
+        );
         background.noteUnloaded(model, reason: 'certificate trust revoked');
         changed = true;
       }

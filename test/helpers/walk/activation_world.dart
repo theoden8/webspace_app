@@ -1400,7 +1400,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// Another component edits the rows, as `formal/activation.tla`'s
   /// environment does (`Move`): at once, between the flows' steps.
   void _editRows(SiteSetChange change) {
-    sites.apply(change, commit: const Commit.unmodeled(Unmodeled.siteSet));
+    sites.apply(
+      change,
+      commit: change is SitesMoved
+          ? const Commit.environment(Environment.move)
+          : const Commit.unmodeled(Unmodeled.siteSet),
+    );
     _drawn = sites.shown;
   }
 
@@ -1418,8 +1423,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     for (final m in sites.loaded) {
       if (m.controller != null) continue;
       final tab = m.activeTabId;
-      m.tabBinding.bind(tab);
-      final bytes = m.tabBinding.take(tab: tab);
+      m.tabBinding.bind(tab, commit: const Commit.environment(Environment.frame));
+      final bytes = m.tabBinding.take(
+        tab: tab,
+        commit: const Commit.environment(Environment.frame),
+      );
       m.controller = FakeWebViewController()
         ..pace = _webViewPace
         ..history = bytes ?? _historyOf(tab);

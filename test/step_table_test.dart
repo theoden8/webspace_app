@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/formal_model/models.dart';
 import 'package:webspace/services/activation_step.dart';
@@ -439,6 +441,79 @@ void _definitions() {
     expect(printed, contains('IF (Cardinality(loaded)) = 2'));
     expect(printed, contains('![f].label = Cardinality(loaded)'));
     expect(printed, isNot(contains('IF fl[f].label')));
+  });
+
+  group('a step that reads what a write no step takes changed while it '
+      'waited is recorded (Phase 4)', () {
+    /// `go` lands at once; `wait` waits on [reply], then reads `loaded`.
+    StepTable<_World, _Place> table(Future<void> reply) => StepTable(
+      _Place.values,
+      vars: [_loaded],
+      at: (place) => switch (place) {
+        _Place.go => Step(
+          ActivationStep.plan,
+          holds: null,
+          otherwise: Otherwise(StepOutcome.none, then: [], next: to(_Place.wait)),
+        ),
+        _Place.wait => Step(
+          ActivationStep.applied,
+          holds: null,
+          call: Call.on(_loadedPort, run: (_) => reply, writes: const []),
+          branches: [
+            Branch(
+              StepOutcome.none,
+              when: _loaded.value.isEmpty,
+              then: [],
+              next: to(_Place.done),
+            ),
+          ],
+          otherwise: Otherwise(StepOutcome.none, then: [], next: to(_Place.done)),
+        ),
+        _Place.done => const Leaves(),
+      },
+    );
+
+    Future<Set<UnmodeledMeet>> during(
+        void Function() write) async {
+      UnmodeledWrites.forget();
+      final reply = Completer<void>();
+      final run = table(reply.future).run(StepContext(_World()), from: _Place.go);
+      await Future<void>.delayed(Duration.zero);
+      write();
+      reply.complete();
+      await run;
+      return UnmodeledWrites.met;
+    }
+
+    test('an unmodeled write of what the step reads is a meet', () async {
+      expect(
+        await during(() => const Commit.unmodeled(Unmodeled.rebuild)
+            .wrote(ModelVar.loaded)),
+        {
+          (
+            step: ActivationStep.applied,
+            by: Unmodeled.rebuild,
+            variable: ModelVar.loaded,
+          ),
+        },
+      );
+    });
+
+    test('a write the model takes is none', () async {
+      expect(
+        await during(() => const Commit.fixture().wrote(ModelVar.loaded)),
+        isEmpty,
+      );
+    });
+
+    test('an unmodeled write of what the step does not read is none',
+        () async {
+      expect(
+        await during(() => const Commit.unmodeled(Unmodeled.rebuild)
+            .wrote(ModelVar.queued)),
+        isEmpty,
+      );
+    });
   });
 
   test('a call records what it reads as it starts, on the arm that enters '

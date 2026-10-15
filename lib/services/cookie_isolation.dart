@@ -113,7 +113,7 @@ Act<W> disposeOf<W>(
     ],
     then: (c) {
       final site = victim.of(c);
-      site.disposeWebView();
+      site.disposeWebView(commit: c.commit);
       LogTag.cookieIsolation.debug(
         'Disposed webview for "${site.name}"',
         sensitive: true,

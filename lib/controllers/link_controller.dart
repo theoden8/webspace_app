@@ -38,6 +38,7 @@ import 'package:webspace/widgets/external_url_prompt.dart'
 import 'package:webspace/widgets/url_bar.dart' show UrlBarSearchSite;
 import 'package:webspace/widgets/web_search_sheet.dart' show WebSearchRequest;
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/step_table.dart';
 
 /// What the web search sheet is asked (LIR-029).
 typedef WebSearchAsk = ({
@@ -784,7 +785,7 @@ class LinkController {
         await _host.unloadSite(model, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
       } else {
-        model.disposeWebView();
+        model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
       }
       model.currentUrl = model.initUrl;
     }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/step_table.dart';
 
 // Use getNormalizedDomain from web_view_model.dart for domain comparison tests
 
@@ -403,7 +404,7 @@ void main() {
 
       // Simulate having a webview (we can't create real ones in tests)
       // The fields are nullable, so we just verify they get set to null
-      model.disposeWebView();
+      model.disposeWebView(commit: const Commit.fixture());
 
       expect(model.webview, isNull);
       expect(model.controller, isNull);

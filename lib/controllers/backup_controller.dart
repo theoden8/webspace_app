@@ -20,6 +20,7 @@ import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart' show UboTrustedSite, hostTrustedBy;
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_suggestion.dart';
 import 'package:webspace/theme/app_theme.dart';
@@ -137,7 +138,7 @@ class BackupController {
     if (apply && matched.isNotEmpty) {
       for (final m in matched) {
         m.contentBlockEnabled = false;
-        m.disposeWebView();
+        m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
       }
       _host.rebuild();
       await _host.commitSites(const SitesEdited());
@@ -292,7 +293,7 @@ class BackupController {
       for (final script in plan.heldScripts) {
         script.release();
         for (final site in script.sites) {
-          site.disposeWebView();
+          site.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
         }
       }
       _host.rebuild();

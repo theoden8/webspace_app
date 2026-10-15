@@ -150,7 +150,15 @@ final class Expr<T, W> {
     required V Function(StepView<W> c) run,
     required Reads reads,
     Set<Need> needs = const {},
-  }) => Expr(run: run, tla: tla, reads: reads, needs: needs);
+  }) => Expr(
+    run: (c) {
+      _noteReads(reads);
+      return run(c);
+    },
+    tla: tla,
+    reads: reads,
+    needs: needs,
+  );
 
   /// The model's constant [of], as the code knows it through what [run]
   /// reads: printed by its name, needing what reading it whole needs.
@@ -722,9 +730,12 @@ class Var<T, W> {
   final T Function(W world)? _read;
 
   Expr<T, W> get value => Expr(
-    run: (c) => switch (_read) {
-      final read? => read(c._world),
-      null => throw StateError('$name is read only through a call'),
+    run: (c) {
+      _reading?.add(variable);
+      return switch (_read) {
+        final read? => read(c._world),
+        null => throw StateError('$name is read only through a call'),
+      };
     },
     tla: name,
     reads: Reads(vars: {variable}),
@@ -864,17 +875,100 @@ final class Shared<T> {
 /// which names why. A cell the code shares ([SharedAt]) writes only with
 /// one in hand, so a write outside them does not compile.
 final class Commit {
-  const Commit._() : unmodeled = null;
+  const Commit._() : unmodeled = null, environment = null;
 
   /// A write no step of the model takes yet: debt, which a step that takes
   /// it retires.
-  const Commit.unmodeled(Unmodeled this.unmodeled);
+  const Commit.unmodeled(Unmodeled this.unmodeled) : environment = null;
+
+  /// A write of one of the environment's actions `activation.tla` states by
+  /// hand: the model takes it there, not in a table's step.
+  const Commit.environment(Environment this.environment) : unmodeled = null;
 
   /// A model a test builds before any step runs.
   @visibleForTesting
-  const Commit.fixture() : unmodeled = null;
+  const Commit.fixture() : unmodeled = null, environment = null;
 
   final Unmodeled? unmodeled;
+  final Environment? environment;
+
+  /// This commit wrote [variable]. A write no step takes is stamped, so a
+  /// step that reads the variable once its flow's await is over learns it
+  /// met one ([UnmodeledWrites]).
+  void wrote(ModelVar variable) {
+    if (unmodeled case final by?) {
+      UnmodeledWrites._last[variable] = (at: ++UnmodeledWrites._now, by: by);
+    }
+  }
+}
+
+/// The writes of the model's variables no step takes ([Commit.unmodeled]),
+/// stamped as they happen, and each step that met one: a step that read,
+/// after its flow's await, a variable such a write changed during it. That
+/// step decides on a state the model never has there, so its timing is
+/// outside what TLC checked; the walks hold [met] to the list they owe.
+abstract final class UnmodeledWrites {
+  static int _now = 0;
+  static final _last = <ModelVar, ({int at, Unmodeled by})>{};
+  static final _met = <UnmodeledMeet>{};
+
+  /// Where each flow last landed a step, on the stamps' clock, keyed by the
+  /// fields every table of the flow shares.
+  static final _landed = Expando<int>('landed');
+
+  static Set<UnmodeledMeet> get met => Set.unmodifiable(_met);
+
+  @visibleForTesting
+  static void forget() => _met.clear();
+
+  static void _meet(
+    ActivationStep step, {
+    required Set<ModelVar> read,
+    required Object flow,
+  }) {
+    final since = _landed[flow];
+    if (since != null) {
+      for (final v in read) {
+        if (_last[v] case (:final at, :final by) when at > since) {
+          _met.add((step: step, by: by, variable: v));
+        }
+      }
+    }
+    _landed[flow] = _now;
+  }
+}
+
+/// A step that read [variable] after [by] wrote it while the step's flow
+/// waited.
+typedef UnmodeledMeet = ({
+  ActivationStep step,
+  Unmodeled by,
+  ModelVar variable,
+});
+
+/// The model's variables the step being landed has read so far: its
+/// leaves, the ports it reaches and the operators it calls add to it as
+/// they run. Null outside a landing.
+Set<ModelVar>? _reading;
+
+void _noteReads(Reads r) {
+  final into = _reading;
+  if (into == null) return;
+  into.addAll(r.vars);
+  for (final b in r.base) {
+    into.addAll(b.reads);
+  }
+}
+
+/// The environment's actions of `activation.tla` the code writes the
+/// model's variables in, hand-written there until the tables print them.
+enum Environment {
+  /// The frame that builds a loaded site's webview for its active tab and
+  /// hands it the back stack queued for that tab (`Frame(s)`).
+  frame,
+
+  /// A row moved to another place in the list (`Move(from, to)`).
+  move,
 }
 
 /// The writes of the model's state that no step of a table takes yet.
@@ -900,10 +994,24 @@ enum Unmodeled {
   /// A revoked certificate's trust unloads the sites pinned to it (ISO-002).
   trustRevoked,
 
-  /// A change to the set of sites no step takes: an add, an import, a move,
-  /// an archive's open, a site's edit (`SiteSetCommit.commit`). A delete
-  /// and an archive's close land in their drop's step.
+  /// A change to the set of sites no step takes: an add, an import, an
+  /// archive's open, a site's edit (`SiteSetCommit.commit`). A delete and
+  /// an archive's close land in their drop's step, and a move is the
+  /// environment's.
   siteSet,
+
+  /// A loaded site's webview let go of so the frame builds it afresh: a
+  /// changed posture, proxy, user script or Tor binding, a data clear, a
+  /// reset.
+  rebuild,
+
+  /// A site moved into an archive or back out, on the other tier's
+  /// container.
+  archiveMove,
+
+  /// The renderer under a site's webview died, and the webview goes with it
+  /// (BUG-002).
+  rendererGone,
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it
@@ -937,8 +1045,10 @@ final class SharedAt<K, V> {
 
   V of(K at) => _read(at);
 
-  void write({required K at, required V to, required Commit commit}) =>
-      _write(at, to: to);
+  void write({required K at, required V to, required Commit commit}) {
+    _write(at, to: to);
+    commit.wrote(variable);
+  }
 }
 
 /// A variable of the model that is a function, `name[k]`, read and
@@ -998,9 +1108,12 @@ final class Indexed<K, V, W> {
   final void Function(W world, {required K at, required V to})? _write;
 
   Expr<V, W> at(Expr<K, W> k) => Expr(
-    run: (c) => switch (_read) {
-      final read? => read(c._world, at: k.run(c)),
-      null => throw StateError('$name is read only through a call'),
+    run: (c) {
+      if (_variable case final v?) _reading?.add(v);
+      return switch (_read) {
+        final read? => read(c._world, at: k.run(c)),
+        null => throw StateError('$name is read only through a call'),
+      };
     },
     tla: '$name[${k.tla}]',
     reads: Reads(vars: {?_variable}) + k.reads,
@@ -1201,7 +1314,10 @@ final class Port<I, W> {
   final I Function(W world) _of;
 
   /// The interface in [c]'s world, for code of the table that declared it.
-  I from(StepView<W> c) => _of(c._world);
+  I from(StepView<W> c) {
+    _reading?.addAll(reads);
+    return _of(c._world);
+  }
 
   PortView<I, W> _view(StepView<W> c) => PortView._(c, api: from(c));
 
@@ -1749,6 +1865,19 @@ final class StepTable<W, P extends Enum> {
   /// holds is taken, its effects done, the step marked, and then the inputs
   /// it spawns started, each marking its own step after this one.
   P _land(Step<W, P> step, {required StepContext<W> on}) {
+    final c = on;
+    final outerReading = _reading;
+    final reading = _reading = <ModelVar>{};
+    try {
+      final next = _landReading(step, on: c);
+      UnmodeledWrites._meet(step.name, read: reading, flow: c._fields);
+      return next;
+    } finally {
+      _reading = outerReading;
+    }
+  }
+
+  P _landReading(Step<W, P> step, {required StepContext<W> on}) {
     final c = on;
     if (step.input) _admit(step.name, spawned: step.spawned);
     final arm = step._taken(c);

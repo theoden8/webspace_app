@@ -317,7 +317,7 @@ class ArchiveController {
     // concurrent persist filters on `!isArchiveTier` when it rebuilds the
     // app-tier cookie and password maps, so one that read the site before
     // the flip and landed after the clears would re-persist it.
-    model.disposeWebView();
+    model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.archiveMove));
     model.isArchiveTier = true;
     model.archiveContainerKey = archiveContainerKey;
     model.setPendingArchiveCookies(capturedCookies);
@@ -386,7 +386,7 @@ class ArchiveController {
     await _archive.save(handle);
 
     // Back on the standard `ws-<siteId>` container.
-    model.disposeWebView();
+    model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.archiveMove));
     model.isArchiveTier = false;
     model.archiveContainerKey = null;
     model.cookies = capturedCookies;

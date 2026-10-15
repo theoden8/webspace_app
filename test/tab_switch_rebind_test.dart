@@ -81,7 +81,7 @@ void main() {
     // IndexedStack's, after setState. Two webviews for one site would double
     // the renderer cost that tabs exist to avoid (TAB-002).
     expect(
-      RegExp(RegExp.escape('model.disposeWebView()')).allMatches(body).length,
+      RegExp(RegExp.escape('model.disposeWebView(commit: c.commit)')).allMatches(body).length,
       1,
     );
     expect(body.contains('getWebView('), isFalse);

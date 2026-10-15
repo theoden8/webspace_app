@@ -563,9 +563,16 @@ enum Witness {
   String get tla => 'Reach_${_upper(name)}';
 }
 
+/// The inputs a planted mistake's counterexample takes, out of those its
+/// world lets land: a behavior of the slice is one of the world's, so a
+/// violation found there is one the world has, and the search pays only for
+/// the inputs it needs.
+typedef Slice = ({Set<String> allowed});
+
 /// A mistake an engine once had, planted in a copy of its tables or
 /// definitions (`mutated` in models.dart), and where it is caught: [by]
-/// is violated in [world], and in each world of [also].
+/// is violated in [world], within its [slice] when one is named, and in
+/// each world of [also].
 enum Mutant {
   incognitonuked(
     world: ActivationWorld.incognito,
@@ -727,13 +734,36 @@ enum Mutant {
     required this.world,
     required this.by,
     required this.doc,
+    this.slice,
     this.also = const {},
   });
 
   final ActivationWorld world;
   final Inv by;
   final String doc;
+  final Slice? slice;
   final Map<ActivationWorld, String> also;
+
+  /// Where the mistake is looked for in [world]: the world itself, or the
+  /// part of it its [slice] lets land.
+  WorldSpec get spec {
+    final w = world.spec;
+    final s = slice;
+    if (s == null) return w;
+    assert(
+      w.allowed == null || w.allowed!.containsAll(s.allowed),
+      '$name: a slice lets land only what its world does',
+    );
+    return (
+      cookies: w.cookies,
+      coldStart: w.coldStart,
+      inputs: w.inputs,
+      tabbed: w.tabbed,
+      maxTabs: w.maxTabs,
+      env: w.env,
+      allowed: s.allowed,
+    );
+  }
 }
 
 /// How TLC shows a planted mistake.
@@ -834,13 +864,14 @@ List<Check> activationChecks({
         label: x.doc,
       ),
     for (final m in Mutant.values)
-      for (final (i, (world, doc)) in [
-        (m.world, m.doc),
-        for (final MapEntry(:key, :value) in m.also.entries) (key, value),
+      for (final (i, (world, spec, doc)) in [
+        (m.world, m.spec, m.doc),
+        for (final MapEntry(:key, :value) in m.also.entries)
+          (key, key.spec, value),
       ].indexed)
         _check(
           cfg: 'activation_${m.name}${i == 0 ? '' : '_${_snake(world.name)}'}',
-          world: world.spec,
+          world: spec,
           invariants: [m.by.tla],
           expect: '${m.by.tla} is violated',
           label: doc,

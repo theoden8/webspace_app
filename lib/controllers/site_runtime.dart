@@ -6,6 +6,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/isolation.dart';
+import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
@@ -74,8 +75,11 @@ class SiteRuntime {
   /// A site whose webview went outside the unload engine: deleted, its
   /// trust revoked, or its slot's identity changed. Named here so those
   /// three are the only writers beside the tables and [apply].
-  bool retired(WebViewModel site, {required Commit commit}) =>
-      _loaded.remove(site);
+  bool retired(WebViewModel site, {required Commit commit}) {
+    final went = _loaded.remove(site);
+    if (went) commit.wrote(ModelVar.loaded);
+    return went;
+  }
 
   /// The state an earlier session or input left, for a test to start from.
   @visibleForTesting
@@ -186,6 +190,11 @@ class SiteRuntime {
   /// [activationVersion].
   void apply(SiteSetChange change, {required Commit commit}) {
     final before = [...models];
+    final was = (
+      loaded: {..._loaded},
+      shown: _shown,
+      version: _version,
+    );
     switch (change) {
       case SitesEdited() ||
           SiteSettingsSaved() ||
@@ -248,8 +257,23 @@ class SiteRuntime {
         webspaces.removeWhere((w) => webspaceIds.contains(w.id));
     }
     for (final m in before) {
-      if (!models.contains(m)) m.disposeWebView();
+      if (!models.contains(m)) m.disposeWebView(commit: commit);
     }
+    final moved = before.length != models.length ||
+        [
+          for (var i = 0; i < before.length; i++)
+            identical(before[i], models[i]),
+        ].contains(false);
+    if (moved) {
+      commit.wrote(ModelVar.rows);
+      if (before.any((m) => !models.contains(m))) commit.wrote(ModelVar.gone);
+    }
+    if (was.loaded.length != _loaded.length ||
+        !was.loaded.containsAll(_loaded)) {
+      commit.wrote(ModelVar.loaded);
+    }
+    if (!identical(was.shown, _shown)) commit.wrote(ModelVar.current);
+    if (was.version != _version) commit.wrote(ModelVar.version);
     resolveWebspaceIndices();
     assert(
       _loaded.every(models.contains) &&

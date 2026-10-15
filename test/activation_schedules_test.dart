@@ -17,6 +17,7 @@ import 'helpers/fake_tor_runtime.dart';
 import 'helpers/walk/activation_world.dart';
 import 'helpers/walk/schedules.dart';
 import 'helpers/walk/step_traces.dart';
+import 'helpers/walk/unmodeled_meets.dart';
 
 /// Three sites as in formal/kernel.cfg: all on one base domain, so each
 /// switch unloads the site it replaces; or two sharing one and a third apart.
@@ -487,6 +488,7 @@ void main() {
     ),
   );
   tearDownAll(StepTraces.instance.writeIfAsked);
+  tearDownAll(expectOnlyOwedMeets);
 
   for (final MapEntry(key: pageName, value: page) in _pages.entries) {
     for (final MapEntry(key: setupName, value: setup) in _setups.entries) {

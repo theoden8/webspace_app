@@ -94,7 +94,7 @@ void main() {
           reason: 'a plan between the two would read the new identity\'s '
               'route for a webview still on the old one');
       final letGo = tabsBody('void _letGoOfIdentity(');
-      expect(letGo, contains('model.disposeWebView();'));
+      expect(letGo, contains('model.disposeWebView(\n      commit: const Commit.unmodeled(Unmodeled.identityChange),\n    );'));
       expect(letGo, matches(RegExp(r'_sites\.retired\(\s*model,')));
     });
 

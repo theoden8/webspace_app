@@ -49,6 +49,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/services/step_table.dart';
 
 const List<MapEntry<String?, String>> _languages = [
   MapEntry(null, 'System default'),
@@ -593,7 +594,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     // Dispose the webview so it gets recreated with the new settings, at
     // the URL it was showing.
     final currentUrl = m.currentUrl;
-    m.disposeWebView();
+    m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     m.currentUrl = currentUrl;
 
     // Pop first so the Settings route leaves the tree before the parent

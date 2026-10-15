@@ -152,7 +152,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   void simulateAppRestart() {
     runtime.seed(loaded: const [], shown: null);
     for (final site in sites) {
-      site.disposeWebView();
+      site.disposeWebView(commit: const Commit.fixture());
       site.cookies = [];
     }
   }

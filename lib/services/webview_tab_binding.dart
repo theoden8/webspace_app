@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/step_table.dart';
 
@@ -29,20 +30,33 @@ final class WebViewTabBinding {
 
   /// Queues [bytes], read from [tab]'s file, for the next build: the
   /// model's `queued[s]`, written in a step's [commit].
-  void queue(Uint8List bytes, {required TabId tab, required Commit commit}) =>
-      _queued = (tab: tab, bytes: bytes);
+  void queue(Uint8List bytes, {required TabId tab, required Commit commit}) {
+    _queued = (tab: tab, bytes: bytes);
+    commit.wrote(ModelVar.queued);
+  }
 
-  /// A webview is being built for [tab].
-  void bind(TabId tab) => _built = tab;
+  /// A webview is being built for [tab]: the model's `built[s]`, written in
+  /// [commit].
+  void bind(TabId tab, {required Commit commit}) {
+    _built = tab;
+    commit.wrote(ModelVar.built);
+  }
 
   /// The webview is gone.
-  void unbind() => _built = null;
+  void unbind({required Commit commit}) {
+    _built = null;
+    commit.wrote(ModelVar.built);
+  }
 
-  /// The back stack queued for [tab], handed over once. Bytes queued for
-  /// another tab are dropped: that tab is no longer the one being built.
-  Uint8List? take({required TabId tab}) {
+  /// The back stack queued for [tab], handed over once in [commit]. Bytes
+  /// queued for another tab are dropped: that tab is no longer the one being
+  /// built.
+  Uint8List? take({required TabId tab, required Commit commit}) {
     final queued = _queued;
     _queued = null;
+    commit
+      ..wrote(ModelVar.queued)
+      ..wrote(ModelVar.hist);
     if (queued == null) return null;
     if (queued.tab != tab) {
       LogTag.webViewState.debug('Dropped a back stack queued for tab '

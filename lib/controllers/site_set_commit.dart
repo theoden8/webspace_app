@@ -53,9 +53,27 @@ final class SiteSetCommit {
   Future<void> commit(SiteSetChange change) async {
     final stage = this.stage(change);
     await stage.prepare();
-    stage.land(commit: const Commit.unmodeled(Unmodeled.siteSet));
+    stage.land(commit: _commitOf(change));
     await stage.follow();
   }
+
+  /// The model's action [change] is: a row move is the environment's
+  /// `Move`; a delete and an archive's close land in their drop's step
+  /// ([stage]); the rest no step takes yet.
+  static Commit _commitOf(SiteSetChange change) => switch (change) {
+    SitesMoved() => const Commit.environment(Environment.move),
+    SitesEdited() ||
+    SiteSettingsSaved() ||
+    SiteSettingsClosed() ||
+    SitesLoaded() ||
+    SiteAdded() ||
+    SiteRemoved() ||
+    SitesReplaced() ||
+    ArchiveOpened() ||
+    ArchiveClosed() ||
+    SiteArchived() ||
+    SiteUnarchived() => const Commit.unmodeled(Unmodeled.siteSet),
+  };
 
   /// [change] in the three parts a step table runs it in, so the lists
   /// move in a step's turn: what goes before, the move, what follows.
