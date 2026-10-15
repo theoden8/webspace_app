@@ -11,7 +11,8 @@ import 'package:image/image.dart' as img;
 /// continuous-corner square with a drop shadow, centred on a 1024 px canvas.
 /// macOS 26 shrinks an icon that does not fit that shape onto a grey tile.
 ///
-/// `fvm dart run tool/macos_app_icon.dart`
+/// The macOS build runs this (the Runner target's "Generate App Icon" phase)
+/// whenever the artwork or this file changes; the set it writes is committed.
 void main() {
   final square = img.decodePng(File(_source).readAsBytesSync())!;
   final art = img.copyResize(

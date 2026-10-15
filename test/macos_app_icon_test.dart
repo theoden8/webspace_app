@@ -7,8 +7,9 @@ import '../tool/macos_app_icon.dart';
 
 /// macOS draws its icon as the PNG has it, so the shape has to be in the
 /// committed set. A square there (flutter_launcher_icons' output) shows with
-/// sharp corners, or on a grey tile on macOS 26. Rung 5: the set is committed
-/// rather than built, so only its pixels can say which tool made it.
+/// sharp corners, or on a grey tile on macOS 26. Rung 5: the build rewrites
+/// the set only when the artwork changes, so a square another tool writes over
+/// it ships unless its pixels are checked.
 void main() {
   img.Image icon(int size) => img.decodePng(
     File('$macosIconSet/app_icon_$size.png').readAsBytesSync(),

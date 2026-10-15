@@ -250,7 +250,6 @@ fvm flutter build macos  --release                       # unsigned; see below
 ./scripts/sign_macos.sh mas                              # Mac App Store .pkg
 fvm flutter build linux  --release
 fvm dart run flutter_launcher_icons
-fvm dart run tool/macos_app_icon.dart                    # macOS icon set (shape baked in)
 ```
 
 Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`. The `debug` build type

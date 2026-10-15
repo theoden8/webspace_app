@@ -1435,9 +1435,7 @@ jobs:
         run: fvm flutter test
 
       - name: Generate launcher icons
-        run: |
-          fvm dart run flutter_launcher_icons
-          fvm dart run tool/macos_app_icon.dart
+        run: fvm dart run flutter_launcher_icons
 
       # adblock-rust ships as an optional, graceful-fallback engine, so the
       # build never fails on its own when the native lib is missing. Each

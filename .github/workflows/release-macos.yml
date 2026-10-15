@@ -120,9 +120,7 @@ jobs:
         run: bash scripts/build_rust.sh apple
 
       - name: Generate launcher icons
-        run: |
-          fvm dart run flutter_launcher_icons
-          fvm dart run tool/macos_app_icon.dart
+        run: fvm dart run flutter_launcher_icons
 
       # A build-local keychain: the runner's login keychain is shared with
       # every other step, and the identity must not outlive this job.
