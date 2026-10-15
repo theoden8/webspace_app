@@ -7,8 +7,14 @@ description: >-
 runs:
   using: composite
   steps:
-    - name: Setup Dart
-      uses: dart-lang/setup-dart@v1
+    # Not dart-lang/setup-dart: it registers its problem matcher from
+    # GITHUB_ACTION_PATH, which inside this composite names this folder, and
+    # fails the step.
+    - name: Setup Flutter (for Dart SDK)
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version-file: '.fvmrc'
+        channel: 'stable'
 
     - name: Install CocoaPods
       shell: bash
