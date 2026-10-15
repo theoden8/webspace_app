@@ -376,6 +376,11 @@ WakesUp == TRUE
 \* The refusing jar's config: any read, nuke or write of the shared jar may
 \* be refused (ISO-014).
 JarCanRefuse == TRUE
+\* The refusing rule's config: the platform refuses every move of the
+\* process-wide proxy rule (PROXY-008); the offline config's device answers
+\* offline (WEBSPACE-013).
+ProxyCanRefuse == TRUE
+Offline == FALSE
 \* Site 1 follows the app-wide level, site 2 asks for level 2, site 3 has
 \* DNS blocking off; downloads pick level 1 or 2.
 DnsAsk == <<-1, 2, 0>>
@@ -449,6 +454,11 @@ Reach_IncognitoKept ==
 \* jar's config is not vacuous (ISO-014).
 Reach_Unrestored == ~(last.a = "Exit" /\ last.o = "refused")
 Reach_CaptureRefused == ~(last.a = "UnloadKept")
+\* A nested open whose rule the platform refused ends before its screen, and
+\* a webspace switch offline unloads nothing: the refusing rule's and the
+\* offline configs are not vacuous.
+Reach_NestedRefused == ~(last.a = "NestedApplyReply" /\ last.o = "bail")
+Reach_Offline == "offline" \notin seen
 Reach_WakeSkips == ~(last.a = "WakeAsk" /\ last.o = "skip" /\ fore = FALSE)
 \* A rebind that reroutes the slot starts the activation that opens it again
 \* in the same turn, on the flow numbered last: the routed tabs config is not

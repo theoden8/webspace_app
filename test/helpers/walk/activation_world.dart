@@ -44,6 +44,7 @@ import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/process_route.dart';
+import 'package:webspace/services/proxy_refused.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/site_unload_engine.dart';
@@ -227,14 +228,19 @@ final class Login extends SiteAction {
   String toString() => 'Login($slot)';
 }
 
-/// From here on the jar fails every [call] (ISO-014): a setup step, before
-/// the script the trace records, whose world then lets the jar refuse
-/// (`JarRefuses`).
-final class JarFails extends SiteAction {
-  const JarFails(this.call);
-  final JarCall call;
+/// What the platform fails at once a setup step says so: a read, a write
+/// or the clear of the shared jar (ISO-014), the process-wide proxy rule
+/// (PROXY-008), the network (WEBSPACE-013).
+enum Fault { jarRead, jarWrite, jarClear, proxy, network }
+
+/// From here on the platform fails at [fault]: a setup step, before the
+/// script the trace records, whose world then lets the model's step fail
+/// there too (`JarRefuses`, `ProxyRefused`, `Online`).
+final class Fails extends SiteAction {
+  const Fails(this.fault);
+  final Fault fault;
   @override
-  String toString() => 'JarFails(JarCall.${call.name})';
+  String toString() => 'Fails(Fault.${fault.name})';
 }
 
 /// A site from the page's host pool, appended (`SiteAdded`).
@@ -956,7 +962,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Reply() ||
     Settle() ||
     Login() ||
-    JarFails() ||
+    Fails() ||
     Add() ||
     Move() ||
     Touch() ||
@@ -1315,7 +1321,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${archived ? '_archive' : ''}'
             '${deletes ? '_delete' : ''}'
             '${page.incognito.isEmpty ? '' : '_incognito'}'
-            '${jar.failing.isEmpty ? '' : '_refusing'}',
+            '${_faults.isEmpty ? '' : '_fails_${[for (final f in _faults) f.name].join('_')}'}',
         constants: (
           sites: page.hosts.length,
           tabbed: tabbed,
@@ -1357,9 +1363,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.maxLoaded => '${caps.loaded}',
       ModelConst.maxResident => '${caps.resident}',
       ModelConst.linked => set(nestedOpens ? every : const <int>[]),
-      // The walk's proxy always applies.
-      ModelConst.proxyRefused => null,
-      ModelConst.jarRefuses => jar.failing.isEmpty ? null : 'TRUE',
+      ModelConst.proxyRefused => _faults.contains(Fault.proxy) ? 'TRUE' : null,
+      ModelConst.jarRefuses => _jarFails ? 'TRUE' : null,
       ModelConst.notified => set(wakes ? every : const <int>[]),
       ModelConst.waking => '$wakes'.toUpperCase(),
       ModelConst.siteLevel => seq(switch (dns?.siteLevels) {
@@ -1368,8 +1373,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       }),
       ModelConst.dnsLevels => set(dns?.levels ?? const <int>[]),
       ModelConst.away => set([for (final a in _away) set(a)]),
-      // The walk's device always answers online.
-      ModelConst.online => null,
+      ModelConst.online => _faults.contains(Fault.network) ? 'FALSE' : null,
       ModelConst.archive => set([for (final m in _archived) _siteNumber(m)]),
       ModelConst.deletable => set(deletes ? const [1] : const <int>[]),
       ModelConst.boxed || ModelConst.noNavState => null,
@@ -1415,7 +1419,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Reply() ||
     Settle() ||
     Login() ||
-    JarFails() ||
+    Fails() ||
     Retap() ||
     Touch() ||
     StayPut() => null,
@@ -1538,6 +1542,25 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// What broke between settles, reported at the next one.
   final List<String> _violations = [];
+
+  /// What the platform fails at ([Fails]).
+  final Set<Fault> _faults = {};
+
+  bool get _jarFails => _faults.any(
+    (f) => switch (f) {
+      Fault.jarRead || Fault.jarWrite || Fault.jarClear => true,
+      Fault.proxy || Fault.network => false,
+    },
+  );
+
+  /// The process-wide proxy rule's write, which a [Fault.proxy] refuses
+  /// once the platform has answered.
+  Future<void> _writeRule() async {
+    await gate.pace(PlatformCall.proxyOverride);
+    if (_faults.contains(Fault.proxy)) {
+      throw const ProxyRefused('the walk refuses the rule');
+    }
+  }
 
   /// The process-wide proxy rule the production webviews release on
   /// dispose, which the walk's nested opens, wakes and webview builds claim.
@@ -1713,7 +1736,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       case Reply() ||
           Settle() ||
           Login() ||
-          JarFails() ||
+          Fails() ||
           Retap() ||
           Touch() ||
           StayPut():
@@ -1775,8 +1798,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         if (waiting > 0) gate.release(pick % waiting);
       case Settle():
         await settle();
-      case JarFails(:final call):
-        jar.failing.add(call);
+      case Fails(:final fault):
+        _faults.add(fault);
+        if (switch (fault) {
+          Fault.jarRead => JarCall.read,
+          Fault.jarWrite => JarCall.write,
+          Fault.jarClear => JarCall.clear,
+          Fault.proxy || Fault.network => null,
+        } case final call?) {
+          jar.failing.add(call);
+        }
       case Login(:final slot):
         await settle();
         if (n > 0 && sites.isLoadedAt(slot % n)) {
@@ -2048,7 +2079,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       );
     }
     // A jar that refuses can lose a session, never cross one (ISO-014).
-    if (jar.failing.isNotEmpty) return;
+    if (_jarFails) return;
     for (final MapEntry(key: siteId, value: names) in _signedIn.entries) {
       final loaded = sites.loaded.any((m) => m.siteId == siteId);
       // An incognito site's session is the jar's while it is loaded and
@@ -2193,7 +2224,7 @@ final class _WalkHost implements ActivationHost, SurfaceHost, WebspacesHost {
   @override
   Future<bool> isOnline() async {
     await world.gate.pace(PlatformCall.connectivity);
-    return true;
+    return !world._faults.contains(Fault.network);
   }
 
   @override
@@ -2318,12 +2349,15 @@ final class _WalkNestedScreen implements NestedScreenHost {
       target.proxySettings,
       siteId: target.siteId,
     ),
-    write: () => world.gate.pace(PlatformCall.proxyOverride),
+    write: world._writeRule,
   );
 
+  /// A failure the walk did not plant is a bug.
   @override
-  void reportProxyFailure(Object error) =>
-      world._violations.add('a nested open\'s proxy failed: $error');
+  void reportProxyFailure(Object error) {
+    if (world._faults.contains(Fault.proxy)) return;
+    world._violations.add('a nested open\'s proxy failed: $error');
+  }
 
   @override
   Future<void> launch(WebViewModel target, {required String url}) =>
@@ -2391,14 +2425,18 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
   @override
   Future<bool> applyRoute(SiteId siteId) async {
     if (world.proxies?.scope != WalkScope.global) return true;
-    await world._route.claim(
-      (use: RouteUse.headless, site: siteId),
-      route: ProxyConflictEngine.routeOf(
-        siteOf(siteId).proxySettings,
-        siteId: siteId,
-      ),
-      write: () => world.gate.pace(PlatformCall.proxyOverride),
-    );
+    try {
+      await world._route.claim(
+        (use: RouteUse.headless, site: siteId),
+        route: ProxyConflictEngine.routeOf(
+          siteOf(siteId).proxySettings,
+          siteId: siteId,
+        ),
+        write: world._writeRule,
+      );
+    } on ProxyRefused {
+      return false;
+    }
     return true;
   }
 

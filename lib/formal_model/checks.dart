@@ -26,7 +26,9 @@ enum Env {
   archiveOne(op: ModelConst.archive, by: 'ArchiveOne'),
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
   incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne'),
-  jarRefuses(op: ModelConst.jarRefuses, by: 'JarCanRefuse');
+  jarRefuses(op: ModelConst.jarRefuses, by: 'JarCanRefuse'),
+  proxyRefuses(op: ModelConst.proxyRefused, by: 'ProxyCanRefuse'),
+  offline(op: ModelConst.online, by: 'Offline');
 
   const Env({required this.op, required this.by});
 
@@ -240,6 +242,26 @@ enum ActivationWorld {
     holds:
         'containers, two Tor exits, links opened nested: the screen and the '
         'loaded sites run one exit (TOR-014)',
+  ),
+  nestedRefusedContainers(
+    cookies: Cookies.containers,
+    coldStart: true,
+    inputs: 3,
+    env: {Env.proxyGlobal, Env.routeSplit, Env.linkAny, Env.proxyRefuses},
+    invariants: [..._core, Inv.oneRoute],
+    holds:
+        'containers, two routes, a proxy rule the platform refuses: a nested '
+        'open that could not move it puts up no screen (PROXY-008)',
+  ),
+  spacesOffline(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.awaySpaces, Env.offline},
+    invariants: [..._core, ..._jar, Inv.leftHidden],
+    holds:
+        'shared jar, webspaces chosen offline: a switch unloads nothing '
+        '(WEBSPACE-013)',
   ),
   spaces(
     cookies: Cookies.sharedJar,
@@ -593,6 +615,15 @@ enum Witness {
     world: ActivationWorld.jarRefuses,
     doc: 'an unload whose capture the jar refused keeping the stored session '
         'is reachable',
+  ),
+  nestedRefused(
+    world: ActivationWorld.nestedRefusedContainers,
+    doc: 'a nested open whose proxy the platform refused ending before its '
+        'screen is reachable',
+  ),
+  offline(
+    world: ActivationWorld.spacesOffline,
+    doc: 'a webspace switch that found the device offline is reachable',
   ),
   reopened(
     world: ActivationWorld.tabsRouterContainers,

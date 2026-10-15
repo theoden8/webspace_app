@@ -476,6 +476,11 @@ abstract final class ActivationTable {
           StepOutcome.skip,
           does: [
             Note((_) => LogTag.webspaceSwitch.debug('Offline: webviews kept')),
+            modelOnly(
+              'seen\' = seen \\cup {"offline"}',
+              writes: {ModelVar.seen},
+              reads: const Reads(vars: {ModelVar.seen}),
+            ),
             _keepBehind,
           ],
           next: GoTo(to(ActivationPlace.done)),

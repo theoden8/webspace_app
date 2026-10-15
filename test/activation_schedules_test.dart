@@ -54,6 +54,15 @@ const _mixedIncognito = (
   incognito: ['other.test'],
 );
 
+/// Three sites on three base domains, so all three stay loaded together
+/// on the shared jar.
+const _threeBases = (
+  hosts: ['one.example.com', 'other.test', 'third.example.org'],
+  pool: <String>[],
+  containers: false,
+  incognito: <String>[],
+);
+
 const _pages = <String, WalkPage>{
   'one base domain, shared jar': _oneDomain,
   'mixed, shared jar': _mixed,
@@ -244,25 +253,44 @@ const _regressions =
         setup: _slot2Behind,
         script: [Pressure(), Pressure(), Tap(1)],
       ),
+      'an incognito target has nothing to restore (INC-001)': (
+        page: _mixedIncognito,
+        setup: _oneSignedIn,
+        script: [Tap(2)],
+      ),
+      // Each loaded site's share goes back after the target's, one site at
+      // a time (ISO-003).
+      'a restore sets back the share of every other loaded site': (
+        page: _threeBases,
+        setup: [
+          Tap(0),
+          Login(0),
+          Tap(1),
+          Login(1),
+          Tap(2),
+          Login(2),
+        ],
+        script: [Tap(0)],
+      ),
       // A jar that does not answer: what the capture could not read stays
       // as stored, and a restore that cannot read, empty or refill the jar
       // leaves its target unshown, whatever lands meanwhile (ISO-014).
       'an unload whose capture the jar refuses keeps the stored session '
           '(ISO-014)': (
         page: _oneDomain,
-        setup: [..._oneSignedIn, JarFails(JarCall.read)],
+        setup: [..._oneSignedIn, Fails(Fault.jarRead)],
         script: [Tap(1), Tap(0)],
       ),
       'a restore whose nuke the jar refuses leaves its target unshown '
           '(ISO-014)': (
         page: _mixed,
-        setup: [..._oneSignedIn, JarFails(JarCall.clear)],
+        setup: [..._oneSignedIn, Fails(Fault.jarClear)],
         script: [Tap(2)],
       ),
       'a refill the jar refuses writes the rest, then leaves its target '
           'unshown (ISO-014)': (
         page: _mixed,
-        setup: [..._slot2Behind, JarFails(JarCall.write)],
+        setup: [..._slot2Behind, Fails(Fault.jarWrite)],
         script: [Tap(2)],
       ),
       'a second tap reads the jar a restore emptied (BUG-032)': (
@@ -350,6 +378,51 @@ const _spaceAlphabet = <SiteAction>[
   GoHome(),
   Pressure(),
 ];
+
+/// Scripts whose platform fails at something from their setup on, so each
+/// step the model takes only where its world lets it fail is taken too:
+/// the proxy rule a nested open or a wake's check moves (PROXY-008), and
+/// the network a webspace switch asks after (WEBSPACE-013).
+final _failing =
+    <
+      String,
+      ({
+        ActivationWorld Function() world,
+        List<SiteAction> setup,
+        List<SiteAction> script,
+      })
+    >{
+      'a nested open whose proxy the platform refuses goes no further '
+          '(PROXY-008)': (
+        world: () => ActivationWorld(
+          _launches['mixed, containers, from launch']!.page,
+          launch: _launches['mixed, containers, from launch']!.launch,
+          proxies: _proxied['mismatched proxies'],
+          nestedOpens: true,
+        ),
+        setup: const [Fails(Fault.proxy)],
+        script: const [OpenNested(2)],
+      ),
+      'a wake whose route the platform refuses opens no check there '
+          '(PROXY-008)': (
+        world: () => ActivationWorld(
+          _launches['mixed, containers, from launch']!.page,
+          launch: _launches['mixed, containers, from launch']!.launch,
+          proxies: _proxied['mismatched proxies'],
+          wakes: true,
+        ),
+        setup: const [Fails(Fault.proxy)],
+        script: const [Background(), Wake()],
+      ),
+      'a webspace switch offline unloads nothing (WEBSPACE-013)': (
+        world: () => ActivationWorld(_mixed, spaces: _spaces),
+        setup: [
+          ..._spaceSetups['home, slot 2 signed in behind']!,
+          const Fails(Fault.network),
+        ],
+        script: const [SwitchWebspace(1)],
+      ),
+    };
 
 /// A switch race, at two preemptions: a switch that leaves the
 /// site an activation is opening, and one a tap lands on while it unloads.
@@ -992,6 +1065,20 @@ void main() {
         await _expectEvery(
           world: () => ActivationWorld(_mixedContainers, archived: true),
           setup: _archiveSetups['site 3 archived, loaded behind']!,
+          script: script,
+          preemptions: _onePast,
+        );
+      });
+    }
+  });
+
+  group('a platform that fails', () {
+    for (final MapEntry(key: name, value: (:world, :setup, :script))
+        in _failing.entries) {
+      _scheduleTest(name, body: () async {
+        await _expectEvery(
+          world: world,
+          setup: setup,
           script: script,
           preemptions: _onePast,
         );
