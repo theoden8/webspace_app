@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:webspace/settings/shortcut_id.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/web_view_model.dart';
@@ -179,83 +180,97 @@ class ShortcutUrlLedger {
   }
 }
 
-/// Helpers for "is this site already reachable by a home shortcut?", used to
-/// gate the "Home Shortcut" menu item (HS-005).
+/// Which site each pinned Android tile opens (HS-017): the site its launch
+/// intent names, resolved by the rule [StartupRestoreEngine.resolveLaunch]
+/// applies to a tap, so the menu (HS-005), the delete prompt (HS-013), the
+/// tile faces (HS-016) and the settings list follow where a tap goes.
 class ShortcutPinState {
-  /// The set of siteIds that already have a reachable shortcut: the pinned
-  /// tiles themselves, plus any site a pinned tile has been rebound to via the
-  /// HS-011 remap. Without folding in remap targets, a site an orphaned tile
-  /// now routes to would still offer to create a second, redundant tile.
-  static Set<SiteId> effectivePinnedSiteIds({
-    required Set<SiteId> pinnedSiteIds,
-    required Map<SiteId, SiteId> rememberedRemap,
-  }) {
-    final result = Set<SiteId>.of(pinnedSiteIds);
-    for (final pinned in pinnedSiteIds) {
-      final target = rememberedRemap[pinned];
-      if (target != null) result.add(target);
-    }
-    return result;
-  }
-
-  /// The pinned tile ids that currently reach [siteId] — either directly (the
-  /// tile's id IS the siteId) or through an HS-011 rebind (`remap[tile] ==
-  /// siteId`). Used by the delete-time prompt (HS-013) so deleting a site an
-  /// orphaned tile was rebound to still prompts about that tile, not just the
-  /// site that was originally pinned.
-  static Set<SiteId> tilesReaching({
-    required SiteId siteId,
-    required Set<SiteId> pinnedSiteIds,
-    required Map<SiteId, SiteId> rememberedRemap,
-  }) {
-    return {
-      for (final tile in pinnedSiteIds)
-        if (tile == siteId || rememberedRemap[tile] == siteId) tile,
-    };
-  }
-
-  /// Each pinned tile and the site a tap on it opens, by the rule
-  /// [StartupRestoreEngine.resolveLaunch] applies. A tile that opens no site
-  /// is left out, as is one opening an archive-tier site, whose name and
-  /// icon never reach an OS surface (ARCH-006).
-  static Map<SiteId, WebViewModel> sitesOfTiles({
-    required Set<SiteId> pinnedSiteIds,
+  /// Each pinned tile and the site a tap on it opens, null where none does:
+  /// the site it names is gone and no remembered rebind resolves it (HS-011).
+  static Map<ShortcutId, WebViewModel?> sitesOpened({
+    required Map<ShortcutId, SiteId> pinned,
     required Map<SiteId, SiteId> rememberedRemap,
     required List<WebViewModel> models,
   }) {
-    final result = <SiteId, WebViewModel>{};
-    for (final tile in pinnedSiteIds) {
+    WebViewModel? opened(SiteId named) {
       final opens = StartupRestoreEngine.resolveLaunch(
-        shortcutSiteId: tile,
+        shortcutSiteId: named,
         shortcutUrl: null,
         models: models,
         rememberedRemap: rememberedRemap,
       );
-      if (opens is! LaunchOpenSite) continue;
-      final site = models[opens.index];
-      if (!site.isArchiveTier) result[tile] = site;
+      if (opens case LaunchOpenSite(:final index)) return models[index];
+      return null;
     }
-    return result;
+
+    return {
+      for (final MapEntry(key: tile, value: named) in pinned.entries)
+        tile: opened(named),
+    };
   }
 
-  /// HS-016: the tiles in [want] whose face differs from what [shown] says
-  /// they were last given, and what every tile shows once those are
-  /// rewritten. A wanted face with no icon leaves the tile's icon as it is,
-  /// so an icon not known yet never replaces the one a tile has.
-  static ({List<TileUpdate> updates, Map<SiteId, TileFace> shown}) staleTiles({
-    required Map<SiteId, TileFace> want,
-    required Map<SiteId, TileFace> shown,
+  /// The pinned tiles a tap on which opens [siteId]. Its menu offers no
+  /// second tile while one does (HS-005), and deleting it asks about them
+  /// (HS-013).
+  static Set<ShortcutId> tilesReaching({
+    required SiteId siteId,
+    required Map<ShortcutId, SiteId> pinned,
+    required Map<SiteId, SiteId> rememberedRemap,
+    required List<WebViewModel> models,
+  }) {
+    final opened = sitesOpened(
+      pinned: pinned,
+      rememberedRemap: rememberedRemap,
+      models: models,
+    );
+    return {
+      for (final MapEntry(key: tile, value: site) in opened.entries)
+        if (site?.siteId == siteId) tile,
+    };
+  }
+
+  /// Each pinned tile that opens a site, and that site. An archive-tier site
+  /// is left out: its name and icon never reach an OS surface (ARCH-006).
+  static Map<ShortcutId, WebViewModel> sitesOfTiles({
+    required Map<ShortcutId, SiteId> pinned,
+    required Map<SiteId, SiteId> rememberedRemap,
+    required List<WebViewModel> models,
+  }) {
+    final opened = sitesOpened(
+      pinned: pinned,
+      rememberedRemap: rememberedRemap,
+      models: models,
+    );
+    return {
+      for (final MapEntry(key: tile, value: site) in opened.entries)
+        if (site != null && !site.isArchiveTier) tile: site,
+    };
+  }
+
+  /// HS-016/HS-017: the tiles in [want] whose face differs from what
+  /// [shown] says they were last given, and what every tile shows once those
+  /// are rewritten. A wanted face with no icon leaves the tile's icon as it
+  /// is, so an icon not known yet never replaces the one a tile has.
+  static ({List<TileUpdate> updates, Map<ShortcutId, TileFace> shown})
+      staleTiles({
+    required Map<ShortcutId, TileFace> want,
+    required Map<ShortcutId, TileFace> shown,
   }) {
     final updates = <TileUpdate>[];
-    final next = Map<SiteId, TileFace>.of(shown);
+    final next = Map<ShortcutId, TileFace>.of(shown);
     for (final MapEntry(key: tile, value: face) in want.entries) {
       final last = shown[tile];
       final icon = face.icon;
       final newIcon =
           icon != null && !_sameBytes(icon, other: last?.icon) ? icon : null;
-      if (newIcon == null && face.label == last?.label) continue;
-      updates.add((tile: tile, label: face.label, icon: newIcon));
-      next[tile] = (label: face.label, icon: icon ?? last?.icon);
+      if (newIcon == null &&
+          face.site == last?.site &&
+          face.label == last?.label) {
+        continue;
+      }
+      updates.add(
+          (tile: tile, site: face.site, label: face.label, icon: newIcon));
+      next[tile] = (site: face.site, label: face.label, icon: icon ?? last?.icon);
     }
     return (updates: updates, shown: next);
   }
@@ -269,11 +284,17 @@ class ShortcutPinState {
   }
 }
 
-/// What a pinned tile shows: its label and, once known, its icon as PNG.
-typedef TileFace = ({String label, Uint8List? icon});
+/// What a pinned tile carries: the site a tap opens, its label and, once
+/// known, its icon as PNG.
+typedef TileFace = ({SiteId site, String label, Uint8List? icon});
 
 /// A pinned tile to rewrite; a null [icon] leaves the tile's icon as it is.
-typedef TileUpdate = ({SiteId tile, String label, Uint8List? icon});
+typedef TileUpdate = ({
+  ShortcutId tile,
+  SiteId site,
+  String label,
+  Uint8List? icon,
+});
 
 /// A deleted site a Shortcuts tile may still be bound to (HS-011).
 typedef ShortcutTombstone = ({SiteId siteId, String label, String url});

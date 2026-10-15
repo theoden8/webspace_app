@@ -8,6 +8,7 @@ import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_appearance.dart';
 import 'package:webspace/screens/app_backup.dart';
 import 'package:webspace/screens/app_behaviour.dart';
+import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/screens/app_developer.dart';
 import 'package:webspace/screens/app_network.dart';
 import 'package:webspace/screens/app_privacy.dart';
@@ -62,6 +63,9 @@ class AppSettingsScreen extends StatefulWidget {
   /// LIR-008: entry into the routing overview screen.
   final VoidCallback onOpenLinkHandlingSettings;
 
+  /// HS-017: the pinned home screen tiles, on Android only.
+  final HomeShortcutsHost? homeShortcuts;
+
   /// The user's web search sites outside every archive (LIR-029), each with
   /// its container's colour, null on the legacy engine.
   final List<PickableSearchSite> webSearchSites;
@@ -105,6 +109,7 @@ class AppSettingsScreen extends StatefulWidget {
     this.hasOpenArchives = false,
     this.onCloseAllArchives,
     required this.onOpenLinkHandlingSettings,
+    required this.homeShortcuts,
     this.webSearchSites = const [],
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
@@ -279,6 +284,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             summary: _behaviourSummary(loc),
             onTap: () => _open(AppBehaviourScreen(
               onOpenLinkHandlingSettings: widget.onOpenLinkHandlingSettings,
+              homeShortcuts: widget.homeShortcuts,
               webSearchSites: widget.webSearchSites,
             )),
           ),

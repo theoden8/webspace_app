@@ -104,6 +104,7 @@ void main() {
         onExportSettings: () {},
         onImportSettings: () {},
         onOpenLinkHandlingSettings: () {},
+        homeShortcuts: null,
       ),
     ));
     await tester.pumpAndSettle();

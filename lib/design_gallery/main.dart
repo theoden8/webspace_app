@@ -728,6 +728,7 @@ Widget _appSettings(BuildContext _) => AppSettingsScreen(
       onExportSettings: () {},
       onImportSettings: () {},
       onOpenLinkHandlingSettings: () {},
+      homeShortcuts: null,
     );
 
 /// App appearance: language, theme mode and every accent swatch.
@@ -740,6 +741,7 @@ Widget _appAppearance(BuildContext _) => AppAppearanceScreen(
 /// full-screen choice under it shows.
 Widget _appBehaviour(BuildContext _) => AppBehaviourScreen(
       onOpenLinkHandlingSettings: () {},
+      homeShortcuts: null,
     );
 
 /// Off their defaults where that shows more of App settings: the tab strip

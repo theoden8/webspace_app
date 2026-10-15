@@ -61,6 +61,7 @@ void main() {
           onExportSettings: () {},
           onImportSettings: () {},
           onOpenLinkHandlingSettings: () {},
+          homeShortcuts: null,
           webSearchSites: webSearchSites,
         ),
       );

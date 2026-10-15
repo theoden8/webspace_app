@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/settings/shortcut_id.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/shortcut_service.dart';
 
@@ -20,7 +21,7 @@ void main() {
       calls.add(call);
       // Default to a permissive value; individual tests can re-register.
       if (call.method == 'isAppIntentsSupported') return true;
-      if (call.method == 'getPinnedSiteIds') return <Object?>[];
+      if (call.method == 'getPinnedShortcuts') return <Object?>[];
       return null;
     });
   });
@@ -108,10 +109,10 @@ void main() {
       }
     });
 
-    test('getPinnedSiteIds is empty off Android', () async {
-      final ids = await ShortcutService.getPinnedSiteIds();
+    test('getPinnedShortcuts is empty off Android', () async {
+      final tiles = await ShortcutService.getPinnedShortcuts();
       if (!Platform.isAndroid) {
-        expect(ids, isEmpty);
+        expect(tiles, isEmpty);
         expect(calls, isEmpty);
       }
     });
@@ -124,7 +125,7 @@ void main() {
     });
 
     test('disableShortcut is a no-op off Android', () async {
-      await ShortcutService.disableShortcut(SiteId('a'));
+      await ShortcutService.disableShortcut(ShortcutId.mint());
       if (!Platform.isAndroid) {
         expect(calls, isEmpty);
       }
@@ -132,7 +133,7 @@ void main() {
 
     test('updateTiles writes nothing off Android', () async {
       final written = await ShortcutService.updateTiles([
-        (tile: SiteId('a'), label: 'A', icon: null),
+        (tile: ShortcutId.mint(), site: SiteId('a'), label: 'A', icon: null),
       ]);
       if (!Platform.isAndroid) {
         expect(written, isFalse);
@@ -153,7 +154,7 @@ void main() {
       expect(await ShortcutService.pinShortcut(siteId: SiteId('a'), label: 'A'),
           PinShortcutResult.failed);
       expect(await ShortcutService.getLaunch(), isNull);
-      expect(await ShortcutService.getPinnedSiteIds(), isEmpty);
+      expect(await ShortcutService.getPinnedShortcuts(), isEmpty);
       expect(await ShortcutService.isAppIntentsSupported(), isFalse);
       expect(await ShortcutService.updateTiles(const []), isFalse);
       await ShortcutService.syncSites(const []);
@@ -166,24 +167,38 @@ void main() {
       expect(PinShortcutResult.fromChannel(true), PinShortcutResult.requested);
     });
 
-    test('alreadyPinned is a re-enabled tile with no dialog (HS-015)', () {
-      expect(PinShortcutResult.fromChannel('alreadyPinned'),
-          PinShortcutResult.alreadyPinned);
-    });
-
     test('anything else is a failure', () {
-      for (final raw in [false, null, 'requested', 1]) {
+      for (final raw in [false, null, 'requested', 'alreadyPinned', 1]) {
         expect(PinShortcutResult.fromChannel(raw), PinShortcutResult.failed,
             reason: '$raw');
       }
     });
   });
 
-  // HS-015: a device restore brings a pinned tile back disabled under the
-  // same id, and an imported backup brings the same siteId back. No test can
-  // stage a restore, so guard the two lines that keep such a tile from
-  // blocking a new pin.
-  group('MainActivity.kt — a disabled tile never blocks pinning (HS-015)', () {
+  group('ShortcutId (HS-017)', () {
+    test('a minted id is fresh and parses back', () {
+      final a = ShortcutId.mint();
+      final b = ShortcutId.mint();
+      expect(a, isNot(b));
+      expect(ShortcutId.parse(a), a);
+    });
+
+    test('a tile pinned before shortcut ids parses', () {
+      expect(ShortcutId.parse('site_abc-123'), 'site_abc-123');
+    });
+
+    test('anything native code could not have handed out is absent', () {
+      for (final raw in [null, '', 'a b', 'tile/1', 42, 'x' * 161]) {
+        expect(ShortcutId.parse(raw), isNull, reason: '$raw');
+      }
+    });
+  });
+
+  // HS-015/HS-017: the tile's id is its own and the site it opens rides its
+  // intent, so the app can point a pinned tile at another site and a fresh
+  // pin never meets a disabled copy under its id (a device restore leaves
+  // one). No test can stage a launcher, so guard the lines that do it.
+  group('MainActivity.kt: tiles carry their own id (HS-017)', () {
     final source = File(
             'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/MainActivity.kt')
         .readAsStringSync();
@@ -195,26 +210,27 @@ void main() {
       return source.substring(start, next == -1 ? source.length : next);
     }
 
-    test('pinShortcut republishes the id before requestPinShortcut', () {
-      final pin = body('private fun pinShortcut(');
-      final republish = pin.indexOf('republish(shortcut)');
-      final request = pin.indexOf('requestPinShortcut(');
-      expect(republish, isNot(-1),
-          reason: 'requestPinShortcut throws "already exists but disabled" '
-              'for a restored tile; republishing replaces it first.');
-      expect(request, greaterThan(republish));
-      expect(body('private fun republish('), contains('pushDynamicShortcut('));
+    test('a tile is built under the id Dart gives it, naming its site', () {
+      final shortcut = body('private fun siteShortcut(');
+      expect(shortcut, contains('ShortcutInfoCompat.Builder(this, shortcutId)'));
+      expect(shortcut, contains('putExtra("siteId", siteId)'));
+      expect(shortcut, contains('putExtra("shortcutId", shortcutId)'));
+      expect(shortcut, isNot(contains(r'"site_$')),
+          reason: 'A tile id derived from the site makes a restored, '
+              'disabled tile block pinning that site again (HS-015).');
     });
 
-    test('getPinnedSiteIds leaves disabled tiles out', () {
-      final start = source.indexOf('"getPinnedSiteIds" ->');
-      final branch = source.substring(start, source.indexOf('else ->', start));
-      expect(branch, contains('pinnedSiteIds('));
-      final fn = source.indexOf('internal fun pinnedSiteIds(');
-      expect(fn, greaterThanOrEqualTo(0));
-      expect(source.substring(fn), contains('it.isEnabled'),
-          reason: 'A disabled tile counted as pinned hides the Home Shortcut '
-              'menu item that would re-enable it.');
+    test('getPinnedShortcuts reads the site from the intent, enabled only',
+        () {
+      final start = source.indexOf('internal fun pinnedShortcuts(');
+      expect(start, isNot(-1));
+      final fn = source.substring(start);
+      expect(fn, contains('it.isEnabled'),
+          reason: 'A disabled tile opens nothing; counted as reaching its '
+              'site, it hides the menu item that would pin a working one.');
+      expect(fn, contains('getStringExtra("siteId")'),
+          reason: 'A rewritten tile opens the site its intent names, not '
+              'the one its id was minted for.');
     });
   });
 

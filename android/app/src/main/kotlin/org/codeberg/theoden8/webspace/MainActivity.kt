@@ -100,17 +100,23 @@ class MainActivity: FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pinShortcut" -> {
+                    val shortcutId = call.argument<String>("shortcutId")
                     val siteId = call.argument<String>("siteId")
                     val label = call.argument<String>("label")
-                    val iconUrl = call.argument<String>("iconUrl")
                     val iconBytes = call.argument<ByteArray>("iconBytes")
 
-                    if (siteId == null || label == null) {
-                        result.error("INVALID_ARGS", "siteId and label are required", null)
+                    if (shortcutId == null || siteId == null || label == null) {
+                        result.error("INVALID_ARGS", "shortcutId, siteId and label are required", null)
                         return@setMethodCallHandler
                     }
 
-                    pinShortcut(siteId, label, iconBytes, iconUrl, result)
+                    // Dart rasterizes the favicon through the site's proxy;
+                    // when that fails the shortcut gets the app icon (HS-003).
+                    // Never fetch a page-chosen icon URL here: it would leave
+                    // over the device IP, outside the proxy (LEAK-003).
+                    val icon = decodeIcon(iconBytes)
+                        ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher)
+                    pinShortcut(siteShortcut(shortcutId, siteId, label, icon), result)
                 }
                 "removeShortcut" -> {
                     val siteId = call.argument<String>("siteId")
@@ -127,17 +133,23 @@ class MainActivity: FlutterActivity() {
                     result.success(true)
                 }
                 "updateShortcuts" -> {
-                    // HS-016: a pinned tile follows the name and icon of the
-                    // site it opens. A tile sent without iconBytes keeps the
-                    // icon it has.
+                    // HS-016/HS-017: a pinned tile opens the site its intent
+                    // names, and shows that site's name and icon. A tile sent
+                    // without iconBytes keeps the icon it has.
                     val tiles = call.argument<List<Map<String, Any?>>>("tiles").orEmpty()
                     val shortcuts = tiles.mapNotNull { tile ->
+                        val shortcutId = tile["shortcutId"] as? String
                         val siteId = tile["siteId"] as? String
                         val label = tile["label"] as? String
-                        if (siteId == null || label.isNullOrEmpty()) {
+                        if (shortcutId == null || siteId == null || label.isNullOrEmpty()) {
                             null
                         } else {
-                            siteShortcut(siteId, label, decodeIcon(tile["iconBytes"] as? ByteArray))
+                            siteShortcut(
+                                shortcutId,
+                                siteId,
+                                label,
+                                decodeIcon(tile["iconBytes"] as? ByteArray),
+                            )
                         }
                     }
                     result.success(updateTiles(shortcuts))
@@ -147,12 +159,12 @@ class MainActivity: FlutterActivity() {
                     // pinned tile, but it can disable it — greyed out, launcher
                     // shows "shortcut isn't available" on tap until the user
                     // drags it off the home screen.
-                    val siteId = call.argument<String>("siteId")
-                    if (siteId != null) {
+                    val shortcutId = call.argument<String>("shortcutId")
+                    if (shortcutId != null) {
                         ShortcutManagerCompat.disableShortcuts(
                             this,
-                            listOf("site_$siteId"),
-                            "Site has been removed"
+                            listOf(shortcutId),
+                            "Disabled in WebSpace"
                         )
                     }
                     result.success(true)
@@ -194,21 +206,32 @@ class MainActivity: FlutterActivity() {
                 }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")
-                    // Drain the extra after reading so it fires once per tap.
+                    // A tile pinned before shortcut ids carries no shortcutId
+                    // and was never rewritten, so its id is still the one it
+                    // was pinned under (HS-017).
+                    val shortcutId = intent?.getStringExtra("shortcutId")
+                        ?: siteId?.let { "site_$it" }
+                    // Drain the extras after reading so they fire once per tap.
                     // didChangeAppLifecycleState(resumed) re-polls this on every
                     // foreground; without clearing, a plain background/return
                     // would re-navigate to the pinned site (issue: shortcut
                     // re-opens on resume).
                     intent?.removeExtra("siteId")
-                    result.success(siteId)
+                    intent?.removeExtra("shortcutId")
+                    result.success(
+                        siteId?.let { mapOf("siteId" to it, "shortcutId" to shortcutId) }
+                    )
                 }
-                "getPinnedSiteIds" -> result.success(pinnedSiteIds(this))
+                "getPinnedShortcuts" -> result.success(pinnedShortcuts(this))
                 else -> result.notImplemented()
             }
         }
     }
 
-    private fun pinShortcut(siteId: String, label: String, iconBytes: ByteArray?, iconUrl: String?, result: MethodChannel.Result) {
+    // Each pin carries a fresh shortcut id (HS-017), so it never meets a
+    // disabled copy under its id, the case requestPinShortcut throws on
+    // (HS-015).
+    private fun pinShortcut(shortcut: ShortcutInfoCompat, result: MethodChannel.Result) {
         if (!ShortcutManagerCompat.isRequestPinShortcutSupported(this)) {
             result.error("NOT_SUPPORTED", "Pinned shortcuts not supported on this device", null)
             return
@@ -216,20 +239,6 @@ class MainActivity: FlutterActivity() {
 
         Thread {
             try {
-                // Dart rasterizes the favicon through the site's proxy; when that
-                // fails the shortcut gets the app icon (HS-003). Never fetch the
-                // page-chosen iconUrl here: this is a raw HttpURLConnection over
-                // the device IP, outside the proxy (LEAK-003).
-                val icon = decodeIcon(iconBytes)
-                    ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher)
-                val shortcut = siteShortcut(siteId, label, icon)
-
-                republish(shortcut)
-                if (isPinnedAndEnabled(shortcut.id)) {
-                    runOnUiThread { result.success("alreadyPinned") }
-                    return@Thread
-                }
-
                 val success = ShortcutManagerCompat.requestPinShortcut(this, shortcut, null)
                 runOnUiThread {
                     if (success) {
@@ -246,15 +255,23 @@ class MainActivity: FlutterActivity() {
         }.start()
     }
 
-    // A null icon leaves it unset, which an update reads as "keep the tile's
+    // The intent names the site a tap opens and the tile's own id, which a
+    // tap reports back so the app can point that tile elsewhere (HS-017). A
+    // null icon leaves it unset, which an update reads as "keep the tile's
     // icon": ShortcutInfo.copyNonNullFieldsFrom only replaces non-null fields.
-    private fun siteShortcut(siteId: String, label: String, icon: IconCompat?): ShortcutInfoCompat {
+    private fun siteShortcut(
+        shortcutId: String,
+        siteId: String,
+        label: String,
+        icon: IconCompat?,
+    ): ShortcutInfoCompat {
         val intent = Intent(this, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             putExtra("siteId", siteId)
+            putExtra("shortcutId", shortcutId)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        val builder = ShortcutInfoCompat.Builder(this, "site_$siteId")
+        val builder = ShortcutInfoCompat.Builder(this, shortcutId)
             .setShortLabel(label)
             .setLongLabel(label)
             .setIntent(intent)
@@ -280,22 +297,6 @@ class MainActivity: FlutterActivity() {
             false
         }
     }
-
-    // requestPinShortcut throws when the id already exists disabled. A device
-    // restore leaves exactly that behind: the old pinned tile comes back
-    // disabled when Android can't vouch for this install (signature, version),
-    // invisible to getShortcuts, and an imported backup brings the same siteId
-    // back. Publishing the id replaces that copy with an enabled one and keeps
-    // its pin (HS-015); dropping the dynamic flag right after keeps the site
-    // out of the launcher's long-press menu.
-    private fun republish(shortcut: ShortcutInfoCompat) {
-        ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
-        ShortcutManagerCompat.removeDynamicShortcuts(this, listOf(shortcut.id))
-    }
-
-    private fun isPinnedAndEnabled(id: String): Boolean =
-        ShortcutManagerCompat.getShortcuts(this, ShortcutManagerCompat.FLAG_MATCH_PINNED)
-            .any { it.id == id && it.isEnabled }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -471,17 +472,20 @@ class MainActivity: FlutterActivity() {
     }
 }
 
-/** Site ids of the enabled pinned shortcuts. Needs no activity, so the
- * worker's engine answers it too (NOTIF-016). */
-internal fun pinnedSiteIds(context: Context): List<String> = try {
+/** The enabled pinned shortcuts, each as its id and the site its intent
+ * opens (HS-017). Needs no activity, so the worker's engine answers it too
+ * (NOTIF-016). */
+internal fun pinnedShortcuts(context: Context): List<Map<String, String>> = try {
     val pinned = ShortcutManagerCompat.getShortcuts(
         context,
         ShortcutManagerCompat.FLAG_MATCH_PINNED
     )
-    // A disabled tile opens nothing, so it must not hide
-    // the menu item that would bring it back (HS-015).
+    // A disabled tile opens nothing, so it is not listed: it can't be
+    // reassigned, and it must not count as reaching its site (HS-005).
     pinned.filter { it.isEnabled }.mapNotNull { info ->
-        info.id.takeIf { it.startsWith("site_") }?.removePrefix("site_")
+        info.intent?.getStringExtra("siteId")?.let {
+            mapOf("shortcutId" to info.id, "siteId" to it)
+        }
     }
 } catch (e: Exception) {
     emptyList()

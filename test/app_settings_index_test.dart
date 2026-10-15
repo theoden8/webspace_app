@@ -42,6 +42,7 @@ void main() {
         onExportSettings: onExportSettings ?? () {},
         onImportSettings: () {},
         onOpenLinkHandlingSettings: () {},
+        homeShortcuts: null,
       );
 
   Widget app(Widget home) => MaterialApp(
