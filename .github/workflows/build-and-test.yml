@@ -2019,6 +2019,21 @@ jobs:
           path: screenshots/macos/*.png
           if-no-files-found: warn
 
+  # A manual run's screenshots in one download, a folder per platform. Runs
+  # when a platform failed too, to keep the sets that were made.
+  screenshots:
+    name: Screenshots
+    needs: [build-android, build-apple]
+    if: github.event_name == 'workflow_dispatch' && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge every platform's screenshots
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: screenshots
+          pattern: '*-screenshots'
+          separate-directories: true
+
   release-summary:
     name: Release Summary
     needs: [build-android, build-linux, build-apple]

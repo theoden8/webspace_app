@@ -78,6 +78,12 @@ Screenshots SHALL be generated in GitHub Actions when relevant files change.
 - **WHEN** CI workflow runs
 - **THEN** screenshots are generated on the Android emulator, the iOS simulator and the macOS runner
 
+#### Scenario: One download for every platform
+
+- **WHEN** a manual (`workflow_dispatch`) run finishes
+- **THEN** a `screenshots` artifact holds each platform's set in its own folder (`android-screenshots/`, `ios-screenshots/`, `macos-screenshots/`)
+- **AND** a platform that failed leaves its folder out instead of withholding the others
+
 ---
 
 ### SCREENSHOT-005 - Device Frame Integration
