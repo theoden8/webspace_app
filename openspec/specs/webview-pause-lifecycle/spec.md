@@ -1234,7 +1234,8 @@ nudges stay in both modes.
 - The running mode is `WebViewFactory.hybridComposition`, assigned once in
   `main()` from the experiment's gate before any webview exists. Flipping the
   switch, or developer mode, applies from the next launch, so every webview in
-  a process shares one mode.
+  a process shares one mode. The Android screenshot run turns the mode on
+  through this gate (SCREENSHOT-008).
 - Every `InAppWebViewSettings` the app builds SHALL carry
   `useHybridComposition: WebViewFactory.hybridComposition`, including the
   `setSettings` calls. The fork replaces native settings wholesale on

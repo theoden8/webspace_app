@@ -1,8 +1,8 @@
 // Driver for arms that assert nothing on the host side.
 //
 // `test_driver/integration_test.dart` exists for the screenshot tier: it
-// connects a `FlutterDriver` and runs a native screenshot watcher. The proxy
-// arms report through their own fixtures and want none of that.
+// connects a `FlutterDriver` and writes each screenshot into SCREENSHOT_DIR.
+// The proxy arms report through their own fixtures and want none of that.
 //
 // It exists at all so the macOS tier can use `flutter drive --no-build`.
 // `flutter test -d macos` rebuilds the app on every invocation and has no

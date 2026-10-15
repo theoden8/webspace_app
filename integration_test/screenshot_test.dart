@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
@@ -51,67 +53,54 @@ Future<void> _setDeviceOrientation(WidgetTester tester) async {
 const Duration _ICON_LOAD_TIMEOUT = Duration(seconds: 10);
 const Duration _WEBVIEW_LOAD_TIMEOUT = Duration(seconds: 15);
 const Duration _SCREENSHOT_TIMEOUT = Duration(seconds: 10);
-const Duration _NATIVE_SCREENSHOT_TIMEOUT = Duration(seconds: 30);
 const Duration _DRAWER_TIMEOUT = Duration(seconds: 5);
+
+/// Android runs the tour with its webviews drawn into a texture (PAUSE-032,
+/// SCREENSHOT-008), so the FlutterView that `takeScreenshot` copies holds the page.
+final _androidTextureMode = <String, Object>{
+  // Through the gate main() reads (DEVTOOLS-011); developer mode adds nothing to the four screens shot.
+  AppPref.developerMode.key: true,
+  AppPref.experimentalTextureRendering.key: true,
+  // Developer mode would also start the proxy router; the run stays on PROXY-008.
+  AppPref.experimentalProxyRouter.key: false,
+};
+
+/// A PNG's pixel size, read from its IHDR chunk.
+(int, int) _pngSize(List<int> png) {
+  final header = ByteData.sublistView(Uint8List.fromList(png.take(24).toList()));
+  return (header.getUint32(16), header.getUint32(20));
+}
 
 /// Helper to take a screenshot with both light and dark themes.
 /// Takes the current theme screenshot first, then toggles to the other theme,
 /// takes that screenshot, and toggles back.
-/// 
-/// If [useNative] is true on Android, the driver will use ADB screencap to 
-/// capture the actual screen including webviews. This is needed because Flutter's
-/// convertFlutterSurfaceToImage() only captures Flutter-rendered content.
-/// On iOS, useNative is ignored since Flutter screenshots work fine with webviews.
 Future<void> _takeThemedScreenshots(
   IntegrationTestWidgetsFlutterBinding binding, {
   required WidgetTester tester,
   required String baseName,
   required String currentTheme,
-  bool useNative = false,
 }) async {
   final themeSuffix = currentTheme == 'light' ? '-light' : '-dark';
   final screenshotName = '$baseName$themeSuffix';
-  
-  // Only use native screenshots on Android - iOS Flutter screenshots capture webviews fine
-  final isAndroid = Platform.isAndroid;
-  final shouldUseNative = useNative && isAndroid;
-  
-  print('Capturing $screenshotName${shouldUseNative ? ' (native/Android)' : ''}');
-  
+
+  print('Capturing $screenshotName');
+
   // Pump before screenshot to ensure all pending frame updates are processed
   // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
-  
-  if (shouldUseNative) {
-    // For native screenshots on Android (webviews), use logcat-based signaling
-    // because binding.takeScreenshot() only captures Flutter-rendered content.
-    await _requestNativeScreenshot(screenshotName);
-  } else {
-    // For Flutter-only UI or iOS, use the standard screenshot mechanism
-    await binding.takeScreenshot(screenshotName).timeout(
-      _SCREENSHOT_TIMEOUT,
-      onTimeout: () {
-        print('Warning: Screenshot $screenshotName timed out after ${_SCREENSHOT_TIMEOUT.inSeconds}s');
-        return <int>[];
-      },
-    );
+
+  final png = await binding
+      .takeScreenshot(screenshotName)
+      .timeout(_SCREENSHOT_TIMEOUT);
+  if (Platform.isAndroid) {
+    // A PixelCopy of exactly the FlutterView's rectangle: any other size is
+    // not the frame this view drew.
+    expect(png.length, greaterThan(24), reason: '$screenshotName is not a PNG');
+    final view = tester.view.physicalSize;
+    expect(_pngSize(png), (view.width.round(), view.height.round()),
+        reason: '$screenshotName is not the size of the FlutterView');
   }
   await tester.pump();
-}
-
-/// Request a native screenshot by printing a marker that the driver watches for.
-/// The driver will take an ADB screenshot when it sees this marker in the logs.
-/// This avoids file permission issues on Android.
-Future<void> _requestNativeScreenshot(String screenshotName) async {
-  // Print a unique marker that the driver can detect in logcat
-  // Format: @@NATIVE_SCREENSHOT:<name>@@
-  print('@@NATIVE_SCREENSHOT:$screenshotName@@');
-  
-  // Give the driver time to capture the screenshot
-  // The driver watches logcat and takes a screenshot when it sees the marker
-  await Future.delayed(const Duration(seconds: 3));
-  
-  print('Native screenshot requested: $screenshotName');
 }
 
 void main() {
@@ -130,7 +119,10 @@ void main() {
         print('Setting up screenshot test ($theme theme)');
         print('========================================');
 
-        // Seed demo data before launching the app
+        // In memory, so the seed never replaces a device's own storage.
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          if (Platform.isAndroid) ..._androidTextureMode,
+        });
         print('Seeding demo data with $theme theme...');
         await seedDemoData(theme: theme);
         print('Demo data seeded successfully');
@@ -153,10 +145,8 @@ void main() {
         print('STARTING SCREENSHOT TOUR ($theme theme)');
         print('========================================');
 
-        // Convert Flutter surface to image for screenshot capture (required on Android).
-        // NOTE: This only captures Flutter-rendered content, not native platform views like webviews.
-        // For screenshots that include webviews (01, 02), we pass useNative: true to use
-        // ADB screencap instead, which captures the actual screen including platform views.
+        // Required before takeScreenshot on Android, which PixelCopies the
+        // FlutterView; texture mode puts the webviews inside that frame.
         await binding.convertFlutterSurfaceToImage();
         await tester.pumpAndSettle();
 
