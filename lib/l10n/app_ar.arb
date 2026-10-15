@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "لم تُسجَّل أي أحداث في الخلفية بعد",
   "devToolsBackgroundSensitiveShow": "إظهار الإدخالات التي تذكر مواقع (الأسماء، عناوين الصفحات، نص الإشعارات)",
   "devToolsBackgroundSensitiveShowing": "يتم عرض الإدخالات التي تذكر مواقع. تُحفظ في الذاكرة فقط وتُمسح عند إعادة تشغيل التطبيق.",
-  "devToolsBackgroundCopySensitiveBody": "{count} من الإدخالات المعروضة تذكر مواقع أو تحمل عناوين صفحات ونص إشعارات. قد تتم مزامنة الحافظة خارج الجهاز."
+  "devToolsBackgroundCopySensitiveBody": "{count} من الإدخالات المعروضة تذكر مواقع أو تحمل عناوين صفحات ونص إشعارات. قد تتم مزامنة الحافظة خارج الجهاز.",
+  "cookieStoreFailed": "فشل مخزن ملفات تعريف الارتباط: {error}",
+  "siteCookiesNotRestored": "تعذّر فتح {site}: تعذّرت استعادة ملفات تعريف الارتباط الخاصة به"
 }

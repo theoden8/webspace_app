@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Oraindik ez da atzeko planoko gertaerarik erregistratu",
   "devToolsBackgroundSensitiveShow": "Erakutsi guneak aipatzen dituzten sarrerak (izenak, orri-izenburuak, jakinarazpen-testua)",
   "devToolsBackgroundSensitiveShowing": "Guneak aipatzen dituzten sarrerak erakusten. Memorian soilik gordetzen dira eta aplikazioa berrabiaraztean berrezartzen dira.",
-  "devToolsBackgroundCopySensitiveBody": "Erakutsitako sarreretatik {count} sarrerak guneak aipatzen dituzte edo orri-izenburuak eta jakinarazpen-testua dituzte. Arbela gailutik kanpo sinkroniza daiteke."
+  "devToolsBackgroundCopySensitiveBody": "Erakutsitako sarreretatik {count} sarrerak guneak aipatzen dituzte edo orri-izenburuak eta jakinarazpen-testua dituzte. Arbela gailutik kanpo sinkroniza daiteke.",
+  "cookieStoreFailed": "Cookie-biltegiak huts egin du: {error}",
+  "siteCookiesNotRestored": "Ezin izan da {site} ireki: ezin izan dira bere cookieak leheneratu"
 }

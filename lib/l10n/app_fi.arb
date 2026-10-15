@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Taustatapahtumia ei ole vielä tallennettu",
   "devToolsBackgroundSensitiveShow": "Näytä merkinnät, jotka nimeävät sivustoja (nimet, sivujen otsikot, ilmoitusteksti)",
   "devToolsBackgroundSensitiveShowing": "Näytetään merkinnät, jotka nimeävät sivustoja. Ne säilytetään vain muistissa ja nollautuvat sovelluksen uudelleenkäynnistyksessä.",
-  "devToolsBackgroundCopySensitiveBody": "{count} näytetystä merkinnästä nimeää sivustoja tai sisältää sivujen otsikoita ja ilmoitustekstiä. Leikepöytä voi synkronoitua laitteen ulkopuolelle."
+  "devToolsBackgroundCopySensitiveBody": "{count} näytetystä merkinnästä nimeää sivustoja tai sisältää sivujen otsikoita ja ilmoitustekstiä. Leikepöytä voi synkronoitua laitteen ulkopuolelle.",
+  "cookieStoreFailed": "Evästevarasto epäonnistui: {error}",
+  "siteCookiesNotRestored": "Sivustoa {site} ei voitu avata: sen evästeitä ei voitu palauttaa"
 }

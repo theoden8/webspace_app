@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Nessun evento in secondo piano registrato finora",
   "devToolsBackgroundSensitiveShow": "Mostra le voci che nominano siti (nomi, titoli di pagina, testo delle notifiche)",
   "devToolsBackgroundSensitiveShowing": "Visualizzazione delle voci che nominano siti. Sono conservate solo in memoria e si reimpostano al riavvio dell'app.",
-  "devToolsBackgroundCopySensitiveBody": "{count} delle voci mostrate nominano siti o contengono titoli di pagina e testo delle notifiche. Gli appunti possono sincronizzarsi fuori dal dispositivo."
+  "devToolsBackgroundCopySensitiveBody": "{count} delle voci mostrate nominano siti o contengono titoli di pagina e testo delle notifiche. Gli appunti possono sincronizzarsi fuori dal dispositivo.",
+  "cookieStoreFailed": "Errore dell'archivio dei cookie: {error}",
+  "siteCookiesNotRestored": "Impossibile aprire {site}: non è stato possibile ripristinarne i cookie"
 }

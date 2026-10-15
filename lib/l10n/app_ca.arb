@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Encara no s'ha registrat cap esdeveniment en segon pla",
   "devToolsBackgroundSensitiveShow": "Mostra les entrades que anomenen llocs (noms, títols de pàgina, text de notificació)",
   "devToolsBackgroundSensitiveShowing": "Mostrant entrades que anomenen llocs. Només es guarden a la memòria i es restableixen en reiniciar l'app.",
-  "devToolsBackgroundCopySensitiveBody": "{count} de les entrades mostrades anomenen llocs o contenen títols de pàgina i text de notificació. El porta-retalls es pot sincronitzar fora del dispositiu."
+  "devToolsBackgroundCopySensitiveBody": "{count} de les entrades mostrades anomenen llocs o contenen títols de pàgina i text de notificació. El porta-retalls es pot sincronitzar fora del dispositiu.",
+  "cookieStoreFailed": "Error del magatzem de galetes: {error}",
+  "siteCookiesNotRestored": "No s'ha pogut obrir {site}: no se n'han pogut restaurar les galetes"
 }

@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Dim digwyddiadau cefndir wedi'u cofnodi eto",
   "devToolsBackgroundSensitiveShow": "Dangos cofnodion sy'n enwi gwefannau (enwau, teitlau tudalennau, testun hysbysiadau)",
   "devToolsBackgroundSensitiveShowing": "Yn dangos cofnodion sy'n enwi gwefannau. Dim ond yn y cof y cânt eu cadw ac maent yn ailosod ar ailgychwyn yr ap.",
-  "devToolsBackgroundCopySensitiveBody": "Mae {count} o'r cofnodion a ddangosir yn enwi gwefannau neu'n cynnwys teitlau tudalennau a thestun hysbysiadau. Gall y clipfwrdd gydweddu oddi ar y ddyfais."
+  "devToolsBackgroundCopySensitiveBody": "Mae {count} o'r cofnodion a ddangosir yn enwi gwefannau neu'n cynnwys teitlau tudalennau a thestun hysbysiadau. Gall y clipfwrdd gydweddu oddi ar y ddyfais.",
+  "cookieStoreFailed": "Methodd y storfa gwcis: {error}",
+  "siteCookiesNotRestored": "Methwyd agor {site}: methwyd adfer ei gwcis"
 }

@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Ainda não foram registados eventos em segundo plano",
   "devToolsBackgroundSensitiveShow": "Mostrar entradas que nomeiam sites (nomes, títulos de página, texto de notificações)",
   "devToolsBackgroundSensitiveShowing": "A mostrar entradas que nomeiam sites. São guardadas apenas na memória e repõem-se ao reiniciar a aplicação.",
-  "devToolsBackgroundCopySensitiveBody": "{count} das entradas mostradas nomeiam sites ou contêm títulos de página e texto de notificações. A área de transferência pode sincronizar fora do dispositivo."
+  "devToolsBackgroundCopySensitiveBody": "{count} das entradas mostradas nomeiam sites ou contêm títulos de página e texto de notificações. A área de transferência pode sincronizar fora do dispositivo.",
+  "cookieStoreFailed": "Falha no armazenamento de cookies: {error}",
+  "siteCookiesNotRestored": "Não foi possível abrir {site}: não foi possível restaurar os respetivos cookies"
 }

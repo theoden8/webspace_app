@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Inga bakgrundshändelser registrerade ännu",
   "devToolsBackgroundSensitiveShow": "Visa poster som nämner webbplatser (namn, sidtitlar, aviseringstext)",
   "devToolsBackgroundSensitiveShowing": "Visar poster som nämner webbplatser. De sparas bara i minnet och återställs vid omstart av appen.",
-  "devToolsBackgroundCopySensitiveBody": "{count} av posterna som visas nämner webbplatser eller innehåller sidtitlar och aviseringstext. Urklipp kan synkroniseras utanför enheten."
+  "devToolsBackgroundCopySensitiveBody": "{count} av posterna som visas nämner webbplatser eller innehåller sidtitlar och aviseringstext. Urklipp kan synkroniseras utanför enheten.",
+  "cookieStoreFailed": "Cookielagringen misslyckades: {error}",
+  "siteCookiesNotRestored": "Kunde inte öppna {site}: dess cookies kunde inte återställas"
 }

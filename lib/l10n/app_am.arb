@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "እስካሁን ምንም የዳራ ክስተቶች አልተመዘገቡም",
   "devToolsBackgroundSensitiveShow": "ጣቢያዎችን የሚጠቅሱ ግቤቶችን አሳይ (ስሞች፣ የገጽ ርዕሶች፣ የማሳወቂያ ጽሑፍ)",
   "devToolsBackgroundSensitiveShowing": "ጣቢያዎችን የሚጠቅሱ ግቤቶች በማሳየት ላይ። በማህደረ ትውስታ ውስጥ ብቻ ይቀመጣሉ፣ መተግበሪያው እንደገና ሲጀምር ይጸዳሉ።",
-  "devToolsBackgroundCopySensitiveBody": "ከሚታዩት ግቤቶች ውስጥ {count} ጣቢያዎችን ይጠቅሳሉ ወይም የገጽ ርዕሶችንና የማሳወቂያ ጽሑፍን ይዘዋል። ቅንጥብ ሰሌዳው ከመሣሪያው ውጭ ሊመሳሰል ይችላል።"
+  "devToolsBackgroundCopySensitiveBody": "ከሚታዩት ግቤቶች ውስጥ {count} ጣቢያዎችን ይጠቅሳሉ ወይም የገጽ ርዕሶችንና የማሳወቂያ ጽሑፍን ይዘዋል። ቅንጥብ ሰሌዳው ከመሣሪያው ውጭ ሊመሳሰል ይችላል።",
+  "cookieStoreFailed": "የኩኪ ማከማቻ አልተሳካም: {error}",
+  "siteCookiesNotRestored": "{site}ን መክፈት አልተቻለም: ኩኪዎቹን መመለስ አልተቻለም"
 }

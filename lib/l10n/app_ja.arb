@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "バックグラウンドのイベントはまだ記録されていません",
   "devToolsBackgroundSensitiveShow": "サイトを示すエントリを表示（名前、ページタイトル、通知テキスト）",
   "devToolsBackgroundSensitiveShowing": "サイトを示すエントリを表示しています。メモリ内にのみ保持され、アプリ再起動時にリセットされます。",
-  "devToolsBackgroundCopySensitiveBody": "表示中のエントリのうち {count} 件がサイトを示すか、ページタイトルや通知テキストを含んでいます。クリップボードは端末外に同期されることがあります。"
+  "devToolsBackgroundCopySensitiveBody": "表示中のエントリのうち {count} 件がサイトを示すか、ページタイトルや通知テキストを含んでいます。クリップボードは端末外に同期されることがあります。",
+  "cookieStoreFailed": "Cookie ストアでエラーが発生しました: {error}",
+  "siteCookiesNotRestored": "{site} を開けませんでした: Cookie を復元できませんでした"
 }
