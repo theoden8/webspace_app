@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Aún no se han registrado eventos en segundo plano",
   "devToolsBackgroundSensitiveShow": "Mostrar entradas que nombran sitios (nombres, títulos de página, texto de notificaciones)",
   "devToolsBackgroundSensitiveShowing": "Mostrando entradas que nombran sitios. Solo se guardan en memoria y se restablecen al reiniciar la app.",
-  "devToolsBackgroundCopySensitiveBody": "{count} de las entradas mostradas nombran sitios o contienen títulos de página y texto de notificaciones. El portapapeles puede sincronizarse fuera del dispositivo."
+  "devToolsBackgroundCopySensitiveBody": "{count} de las entradas mostradas nombran sitios o contienen títulos de página y texto de notificaciones. El portapapeles puede sincronizarse fuera del dispositivo.",
+  "cookieStoreFailed": "Error en el almacén de cookies: {error}",
+  "siteCookiesNotRestored": "No se pudo abrir {site}: no se pudieron restaurar sus cookies"
 }

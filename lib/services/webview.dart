@@ -44,6 +44,7 @@ import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/site_icon_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -1504,14 +1505,24 @@ class WebViewFactory {
           // the fork's `webViewController:`; the legacy one, the shared jar.
           final container = config.hooks.containerCookieManager;
           final pageUrl = Uri.parse(urlStr);
-          onCookiesChanged(container != null
-              ? await container.getCookies(
-                  controller: PlatformWebViewController(controller,
-                      pauseHack: pauseHack, settings: settings),
-                  siteId: config.posture.siteId,
-                  url: pageUrl,
-                )
-              : await config.hooks.cookieManager.getCookies(url: pageUrl));
+          List<Cookie>? cookies;
+          try {
+            cookies = container != null
+                ? await container.getCookies(
+                    controller: PlatformWebViewController(controller,
+                        pauseHack: pauseHack, settings: settings),
+                    url: pageUrl,
+                  )
+                : await config.hooks.cookieManager.getCookies(url: pageUrl);
+          } on CookieJarFailure catch (e) {
+            // A read that failed is not an empty jar: the site keeps the
+            // cookies it last saved, and the rest of the load's work runs.
+            LogTag.webView.warning(
+                'Cookie read after load failed for '
+                '${config.posture.siteId}: $e',
+                sensitive: true);
+          }
+          if (cookies != null) onCookiesChanged(cookies);
         }
         // Inject full cosmetic script: MutationObserver + text-based hiding
         if (config.posture.blocking.contentBlock) {

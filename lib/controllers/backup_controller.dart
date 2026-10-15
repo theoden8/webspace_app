@@ -221,7 +221,13 @@ class BackupController {
     // shared that jar, and an unscoped clear issued while live containers
     // exist is the shape BUG-007 turned into a wiped session.
     if (indexToRestore == null && !_sites.useContainers) {
-      await _cookies.deleteAllCookies();
+      try {
+        await _cookies.deleteAllCookies();
+      } on CookieJarFailure catch (e) {
+        // No site is shown, and the next activation empties the jar before
+        // one is (ISO-012), so the import goes on.
+        LogTag.import.warning('Jar clear after import failed: $e');
+      }
     }
     await _host.activate(indexToRestore);
     if (!_host.mounted) return;

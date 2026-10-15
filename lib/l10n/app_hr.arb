@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Još nema zabilježenih događaja u pozadini",
   "devToolsBackgroundSensitiveShow": "Prikaži unose koji imenuju web-mjesta (nazive, naslove stranica, tekst obavijesti)",
   "devToolsBackgroundSensitiveShowing": "Prikazuju se unosi koji imenuju web-mjesta. Čuvaju se samo u memoriji i resetiraju pri ponovnom pokretanju aplikacije.",
-  "devToolsBackgroundCopySensitiveBody": "{count} prikazanih unosa imenuje web-mjesta ili sadrži naslove stranica i tekst obavijesti. Međuspremnik se može sinkronizirati izvan uređaja."
+  "devToolsBackgroundCopySensitiveBody": "{count} prikazanih unosa imenuje web-mjesta ili sadrži naslove stranica i tekst obavijesti. Međuspremnik se može sinkronizirati izvan uređaja.",
+  "cookieStoreFailed": "Spremište kolačića nije uspjelo: {error}",
+  "siteCookiesNotRestored": "Nije moguće otvoriti {site}: njegove kolačiće nije bilo moguće vratiti"
 }

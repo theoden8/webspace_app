@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Noch keine Hintergrundereignisse aufgezeichnet",
   "devToolsBackgroundSensitiveShow": "Einträge anzeigen, die Websites nennen (Namen, Seitentitel, Benachrichtigungstext)",
   "devToolsBackgroundSensitiveShowing": "Einträge, die Websites nennen, werden angezeigt. Sie liegen nur im Arbeitsspeicher und werden beim App-Neustart zurückgesetzt.",
-  "devToolsBackgroundCopySensitiveBody": "{count} der angezeigten Einträge nennen Websites oder enthalten Seitentitel und Benachrichtigungstext. Die Zwischenablage kann außerhalb des Geräts synchronisiert werden."
+  "devToolsBackgroundCopySensitiveBody": "{count} der angezeigten Einträge nennen Websites oder enthalten Seitentitel und Benachrichtigungstext. Die Zwischenablage kann außerhalb des Geräts synchronisiert werden.",
+  "cookieStoreFailed": "Cookie-Speicher fehlgeschlagen: {error}",
+  "siteCookiesNotRestored": "{site} konnte nicht geöffnet werden: Die Cookies der Website konnten nicht wiederhergestellt werden"
 }

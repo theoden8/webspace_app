@@ -1,8 +1,8 @@
-import 'package:flutter/services.dart';
 import 'dart:async';
-import 'package:webspace/platform/host_platform.dart';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
 
 typedef Cookie = inapp.Cookie;
@@ -55,11 +55,43 @@ Cookie? tryCookieFromJson(Object? json) {
   return cookieFromJson(json);
 }
 
-class CookieManager {
-  final _manager = inapp.CookieManager.instance();
+/// What a cookie call throws when the plugin's cookie channel fails: the
+/// native side answered with an error, or this engine has no handler for the
+/// channel. A read that failed returned nothing; it is not an empty jar.
+final class CookieJarFailure implements Exception {
+  const CookieJarFailure(this.message);
 
-  Future<List<Cookie>> getCookies({required Uri url}) async =>
-      _manager.getCookies(url: inapp.WebUri(url.toString()));
+  /// The platform's report, as its exception printed it.
+  final String message;
+
+  @override
+  String toString() => 'CookieJarFailure: $message';
+}
+
+/// The plugin's cookie manager, which only [cookieChannel] hands out.
+final inapp.CookieManager _plugin = inapp.CookieManager.instance();
+
+/// Runs [call], one call on the plugin's cookie channel, with what the channel
+/// throws named once: every cookie op in the app comes through here.
+Future<T> cookieChannel<T>(
+    Future<T> Function(inapp.CookieManager plugin) call) async {
+  try {
+    return await call(_plugin);
+  } on PlatformException catch (e, stack) {
+    // An error envelope (MethodChannel.invokeMethod), e.g. what Android's
+    // MyCookieManager rethrows from CookieManager.getInstance().
+    Error.throwWithStackTrace(CookieJarFailure('$e'), stack);
+  } on MissingPluginException catch (e, stack) {
+    // No handler in this engine, or a method the platform does not implement.
+    Error.throwWithStackTrace(CookieJarFailure('$e'), stack);
+  }
+}
+
+/// The shared jar the legacy engine's sites use. Every call fails only with
+/// [CookieJarFailure].
+class CookieManager {
+  Future<List<Cookie>> getCookies({required Uri url}) => cookieChannel(
+      (plugin) => plugin.getCookies(url: inapp.WebUri(url.toString())));
 
   /// Returns every cookie in the native jar regardless of URL scoping.
   /// `getCookies(url)` only returns cookies that would be sent with a request
@@ -74,9 +106,11 @@ class CookieManager {
   /// a best-effort capture — cookies on subdomains of a candidate URL that
   /// aren't reachable from it (e.g. `accounts.google.com` when only
   /// `mail.google.com` has been visited) cannot be discovered on Android.
+  /// One URL's read failing fails the whole capture, so part of the jar is
+  /// never returned as all of it.
   Future<List<Cookie>> getAllCookies({List<Uri>? candidateUrls}) async {
     if (hostIsIOS || hostIsMacOS) {
-      return _manager.getAllCookies();
+      return cookieChannel((plugin) => plugin.getAllCookies());
     }
     if (candidateUrls == null || candidateUrls.isEmpty) return [];
     final seen = <String>{};
@@ -102,16 +136,16 @@ class CookieManager {
     bool? isHttpOnly,
   }) async {
     if (value.isEmpty) return;
-    await _manager.setCookie(
-      url: inapp.WebUri(url.toString()),
-      name: name,
-      value: value,
-      domain: domain,
-      path: path ?? '/',
-      expiresDate: expiresDate,
-      isSecure: isSecure,
-      isHttpOnly: isHttpOnly,
-    );
+    await cookieChannel((plugin) => plugin.setCookie(
+          url: inapp.WebUri(url.toString()),
+          name: name,
+          value: value,
+          domain: domain,
+          path: path ?? '/',
+          expiresDate: expiresDate,
+          isSecure: isSecure,
+          isHttpOnly: isHttpOnly,
+        ));
   }
 
   Future<void> deleteCookie({
@@ -119,12 +153,13 @@ class CookieManager {
     required String name,
     String? domain,
     String? path,
-  }) => _manager.deleteCookie(
-    url: inapp.WebUri(url.toString()),
-    name: name,
-    domain: domain,
-    path: path ?? '/',
-  );
+  }) =>
+      cookieChannel((plugin) => plugin.deleteCookie(
+            url: inapp.WebUri(url.toString()),
+            name: name,
+            domain: domain,
+            path: path ?? '/',
+          ));
 
   /// Used for per-site cookie isolation when switching between same-domain sites.
   Future<void> deleteAllCookiesForUrl(Uri url) async {
@@ -141,7 +176,7 @@ class CookieManager {
 
   /// Used for aggressive cookie isolation when switching between same-domain sites.
   Future<void> deleteAllCookies() async {
-    await _manager.deleteAllCookies();
+    await cookieChannel((plugin) => plugin.deleteAllCookies());
   }
 
   /// Commit pending cookie writes to persistent storage.
@@ -150,18 +185,16 @@ class CookieManager {
   /// container's jar, not just the default one), and the platform interface's
   /// default throws `UnimplementedError` everywhere else. Callers gate on
   /// [flushSupported] rather than calling and catching, so an unsupported
-  /// platform costs no channel round-trip. Failures are swallowed: a flush is
-  /// an optimization over the platform's own lazy commit, never a correctness
-  /// requirement.
+  /// platform costs no channel round-trip. A failure is logged and dropped: a
+  /// flush is an optimization over the platform's own lazy commit, never a
+  /// correctness requirement.
   static bool get flushSupported => hostIsAndroid;
 
   Future<void> flush() async {
     if (!flushSupported) return;
     try {
-      await _manager.flush();
-    } on PlatformException catch (e) {
-      LogTag.cookieManager.warning('flush() failed: $e');
-    } on MissingPluginException catch (e) {
+      await cookieChannel((plugin) => plugin.flush());
+    } on CookieJarFailure catch (e) {
       LogTag.cookieManager.warning('flush() failed: $e');
     }
   }

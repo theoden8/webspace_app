@@ -3956,6 +3956,24 @@
       }
     }
   },
+  "cookieStoreFailed": "Cookie store failed: {error}",
+  "@cookieStoreFailed": {
+    "description": "Snackbar shown when the device's cookie store did not carry out a read, delete or clear the user asked for (the Cookies tab of Developer Tools, the Clear cookies button of a site's settings). Nothing was changed. {error} is the platform's own report, left untranslated.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "siteCookiesNotRestored": "Could not open {site}: its cookies could not be restored",
+  "@siteCookiesNotRestored": {
+    "description": "Snackbar shown when the user opened a site and the app could not put that site's saved sign-in cookies back into the device's cookie store, so the site was not opened (it might otherwise have shown another site's account). The webspace list is shown instead. {site} is the name the user gave the site.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
   "devToolsCookieUnblocked": "Unblocked cookie \"{name}\"",
   "@devToolsCookieUnblocked": {
     "description": "Snackbar after unblocking a previously blocked cookie.",

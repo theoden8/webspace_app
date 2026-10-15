@@ -472,8 +472,8 @@ side picks it up directly — there is no WebSpace-side subclass of
 
 Every per-site cookie operation (read, delete, block) SHALL route
 through [`ContainerCookieManager`](../../../lib/services/container_cookie_manager.dart)
-in profile mode, which calls
-`inapp.CookieManager.instance().{getCookies,deleteCookie}` with
+in profile mode, which calls the plugin's `getCookies` and `deleteCookie`
+through `cookieChannel` with
 `webViewController: controller.nativeController`. The WebSpace
 fork honors that parameter on every platform: Android's
 `MyCookieManager.java` walks to the bound
@@ -498,7 +498,9 @@ mechanism `ContainerCookieManager` itself uses, so the jar resolution is
 identical. The invariant that matters is the argument, not the wrapper:
 any op that omits it addresses the default jar, which in profile mode is
 empty. [test/js/container_cookie_scope_funnel.test.js](../../../test/js/container_cookie_scope_funnel.test.js)
-fails on a direct op that drops it.
+fails on a `cookieChannel` call that drops it, and on a handle on the
+plugin's cookie manager anywhere but `cookie_manager.dart`, which would
+bypass both that rule and CONT-009.
 
 #### Scenario: Cookie blocking targets the per-site profile
 
@@ -506,8 +508,7 @@ fails on a direct op that drops it.
   `BlockedCookie(name: "_ga", domain: ".google.com")`
 **When** the page sets `_ga` and `onCookiesChanged` fires
 **Then** `ContainerCookieManager.deleteCookie(controller: ...,
-  siteId: "<A.siteId>", url: A.currentUrl, name: "_ga", domain:
-  ".google.com")` runs
+  url: A.currentUrl, name: "_ga", domain: ".google.com")` runs
 **And** the patched plugin routes the delete to A's profile cookie
   store via `webViewController:`
 **And** Site B's profile is unaffected — its own `_ga` (if any) is
@@ -527,8 +528,8 @@ fails on a direct op that drops it.
 **Given** profile mode is active and Site A is the current site
 **When** the user opens DevTools → Cookies tab
 **Then** `_refreshCookies` calls
-  `ContainerCookieManager.getCookies(controller: ..., siteId: ...,
-  url: ...)` (per [DEVTOOLS-002](../developer-tools/spec.md#requirement-devtools-002---cookie-inspector))
+  `ContainerCookieManager.getCookies(controller: ..., url: ...)`
+  (per [DEVTOOLS-002](../developer-tools/spec.md#requirement-devtools-002---cookie-inspector))
 **And** the listed cookies match Site A's per-profile jar — what
   the page itself sees, including HttpOnly entries — not the
   global default jar (which in profile mode is unused)
@@ -540,6 +541,35 @@ fails on a direct op that drops it.
 **Then** `_profileCookieManager` is null and the call branches to
   the existing `CookieManager` path, byte-identical to
   pre-Profile-API behaviour
+
+### Requirement: CONT-009 - A Container Jar That Fails Is Not an Empty Jar
+
+`ContainerCookieManager` SHALL fail with `CookieJarFailure` when the
+plugin's cookie channel fails, through the same `cookieChannel` the shared
+jar uses ([ISO-014](../per-site-cookie-isolation/spec.md#requirement-iso-014---a-jar-that-fails-is-never-read-as-empty)),
+and SHALL NOT answer a failed read with an empty list. A site's cookie
+list is saved to secure storage on every page load, so an empty answer
+would delete the stored copy that backups and archive moves carry.
+
+Its callers answer the failure: the mirror after a page load keeps the
+site's last saved cookies; an archive move carries the site's own list
+across; a blocked cookie the jar refuses to delete stays for the next load;
+the cookie inspector says the store failed (DEVTOOLS-002).
+
+#### Scenario: A container read that fails
+
+**Given** profile mode is active and Site A's webview is bound to its
+  container
+**When** a read of A's jar fails on the channel
+**Then** `ContainerCookieManager.getCookies` throws `CookieJarFailure`
+**And** A's cookie list and its stored copy are unchanged
+
+#### Scenario: An archive move whose read fails
+
+**Given** profile mode is active and Site A is being moved into an archive
+**When** the read of A's live jar fails
+**Then** the cookies A's model holds are the ones that cross into the
+  archive
 
 ### Requirement: CONT-008 — No Unscoped Global Cookie Ops in Profile Mode
 

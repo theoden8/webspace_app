@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Belum ada peristiwa latar belakang yang tercatat",
   "devToolsBackgroundSensitiveShow": "Tampilkan entri yang menyebut situs (nama, judul halaman, teks notifikasi)",
   "devToolsBackgroundSensitiveShowing": "Menampilkan entri yang menyebut situs. Entri ini hanya disimpan di memori dan disetel ulang saat aplikasi dimulai ulang.",
-  "devToolsBackgroundCopySensitiveBody": "{count} dari entri yang ditampilkan menyebut situs atau memuat judul halaman dan teks notifikasi. Papan klip dapat disinkronkan ke luar perangkat."
+  "devToolsBackgroundCopySensitiveBody": "{count} dari entri yang ditampilkan menyebut situs atau memuat judul halaman dan teks notifikasi. Papan klip dapat disinkronkan ke luar perangkat.",
+  "cookieStoreFailed": "Penyimpanan cookie gagal: {error}",
+  "siteCookiesNotRestored": "Tidak dapat membuka {site}: cookie-nya tidak dapat dipulihkan"
 }

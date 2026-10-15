@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Zatiaľ neboli zaznamenané žiadne udalosti na pozadí",
   "devToolsBackgroundSensitiveShow": "Zobraziť záznamy, ktoré menujú stránky (názvy, titulky stránok, text upozornení)",
   "devToolsBackgroundSensitiveShowing": "Zobrazujú sa záznamy, ktoré menujú stránky. Uchovávajú sa len v pamäti a pri reštarte aplikácie sa vynulujú.",
-  "devToolsBackgroundCopySensitiveBody": "{count} zobrazených záznamov menuje stránky alebo obsahuje titulky stránok a text upozornení. Schránka sa môže synchronizovať mimo zariadenia."
+  "devToolsBackgroundCopySensitiveBody": "{count} zobrazených záznamov menuje stránky alebo obsahuje titulky stránok a text upozornení. Schránka sa môže synchronizovať mimo zariadenia.",
+  "cookieStoreFailed": "Úložisko súborov cookie zlyhalo: {error}",
+  "siteCookiesNotRestored": "{site} sa nepodarilo otvoriť: jeho súbory cookie sa nepodarilo obnoviť"
 }

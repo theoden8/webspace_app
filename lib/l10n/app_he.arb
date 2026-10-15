@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "עדיין לא תועדו אירועי רקע",
   "devToolsBackgroundSensitiveShow": "הצגת רשומות שמציינות אתרים (שמות, כותרות דפים, טקסט התראות)",
   "devToolsBackgroundSensitiveShowing": "מוצגות רשומות שמציינות אתרים. הן נשמרות בזיכרון בלבד ומתאפסות בהפעלה מחדש של האפליקציה.",
-  "devToolsBackgroundCopySensitiveBody": "{count} מהרשומות המוצגות מציינות אתרים או מכילות כותרות דפים וטקסט התראות. הלוח עשוי להסתנכרן אל מחוץ למכשיר."
+  "devToolsBackgroundCopySensitiveBody": "{count} מהרשומות המוצגות מציינות אתרים או מכילות כותרות דפים וטקסט התראות. הלוח עשוי להסתנכרן אל מחוץ למכשיר.",
+  "cookieStoreFailed": "מאגר העוגיות נכשל: {error}",
+  "siteCookiesNotRestored": "לא ניתן היה לפתוח את {site}: לא ניתן היה לשחזר את העוגיות שלו"
 }

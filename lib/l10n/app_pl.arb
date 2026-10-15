@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Nie zarejestrowano jeszcze żadnych zdarzeń w tle",
   "devToolsBackgroundSensitiveShow": "Pokaż wpisy wymieniające witryny (nazwy, tytuły stron, treść powiadomień)",
   "devToolsBackgroundSensitiveShowing": "Wyświetlanie wpisów wymieniających witryny. Są przechowywane tylko w pamięci i resetują się po ponownym uruchomieniu aplikacji.",
-  "devToolsBackgroundCopySensitiveBody": "{count} z wyświetlonych wpisów wymienia witryny lub zawiera tytuły stron i treść powiadomień. Schowek może synchronizować się poza urządzeniem."
+  "devToolsBackgroundCopySensitiveBody": "{count} z wyświetlonych wpisów wymienia witryny lub zawiera tytuły stron i treść powiadomień. Schowek może synchronizować się poza urządzeniem.",
+  "cookieStoreFailed": "Błąd magazynu plików cookie: {error}",
+  "siteCookiesNotRestored": "Nie udało się otworzyć {site}: nie udało się przywrócić plików cookie tej witryny"
 }

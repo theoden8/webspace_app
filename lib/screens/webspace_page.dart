@@ -832,7 +832,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// constructs a fresh InAppWebView against the now-empty container.
   /// Legacy mode falls back to in-model cookie deletion + reload (the
   /// most that can be scoped to a single site when localStorage / IDB
-  /// / SW are app-global).
+  /// / SW are app-global). A delete the jar refuses fails the wipe with
+  /// [CookieJarFailure], which the settings screen that asked reports.
   Future<void> _clearSiteData(int index) async {
     if (index < 0 || index >= _sites.models.length) return;
     final model = _sites.models[index];
@@ -1833,12 +1834,16 @@ class _PageHost
       final url = Uri.parse(
         model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl,
       );
-      final fresh = await jar.getCookies(
-        controller: controller,
-        siteId: model.siteId,
-        url: url,
-      );
-      if (fresh.isNotEmpty) return fresh;
+      try {
+        final fresh = await jar.getCookies(controller: controller, url: url);
+        if (fresh.isNotEmpty) return fresh;
+      } on CookieJarFailure catch (e) {
+        // The site's own list crosses instead: a read that failed is not an
+        // empty jar (CONT-009).
+        LogTag.containerCookieManager.warning(
+            'Archive move read of "${model.name}" failed: $e',
+            sensitive: true);
+      }
     }
     return List<Cookie>.from(model.cookies);
   }

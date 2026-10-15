@@ -45,6 +45,7 @@ import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
@@ -92,7 +93,10 @@ class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
-  final VoidCallback? onClearCookies;
+  /// Clears the site's cookies, or its whole container's data. Fails with
+  /// [CookieJarFailure] when the jar refuses, which the screen reports
+  /// instead of saying it is done.
+  final Future<void> Function()? onClearCookies;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired when the user toggles / edits / adds / deletes / opts in to a
@@ -1179,6 +1183,7 @@ IconButton zoomStep(IconData icon,
                   label: Text(label, style: TextStyle(color: Colors.red)),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red)),
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     if (!await confirm(
                       context,
                       title: label,
@@ -1188,8 +1193,15 @@ IconButton zoomStep(IconData icon,
                     )) {
                       return;
                     }
-                    widget.onClearCookies!();
-                    if (mounted) ScaffoldMessenger.of(context).toast(snack);
+                    try {
+                      await widget.onClearCookies!();
+                    } on CookieJarFailure catch (e) {
+                      if (mounted) {
+                        messenger.toast(loc.cookieStoreFailed(e.message));
+                      }
+                      return;
+                    }
+                    if (mounted) messenger.toast(snack);
                   },
                 );
               }),

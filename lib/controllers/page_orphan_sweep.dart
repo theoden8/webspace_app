@@ -67,8 +67,16 @@ class PageOrphanSweep implements OrphanSweepTargets {
           }),
       };
 
+  /// A jar that refuses is left as it is: the next activation empties it
+  /// before any site shows (ISO-012), and the rest of the sweep goes on.
   @override
-  Future<void> clearLegacyGlobalCookieJar() => cookies.deleteAllCookies();
+  Future<void> clearLegacyGlobalCookieJar() async {
+    try {
+      await cookies.deleteAllCookies();
+    } on CookieJarFailure catch (e) {
+      LogTag.startup.warning('Launch jar clear failed: $e');
+    }
+  }
 
   /// The container sweep at launch, before any webview binds:
   /// `deleteContainer` is reliable only in that unbound window. An incognito

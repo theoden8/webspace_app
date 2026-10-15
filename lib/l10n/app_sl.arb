@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Dogodkov v ozadju še ni zabeleženih",
   "devToolsBackgroundSensitiveShow": "Pokaži vnose, ki imenujejo spletna mesta (imena, naslove strani, besedilo obvestil)",
   "devToolsBackgroundSensitiveShowing": "Prikazani so vnosi, ki imenujejo spletna mesta. Hranijo se le v pomnilniku in se ponastavijo ob ponovnem zagonu aplikacije.",
-  "devToolsBackgroundCopySensitiveBody": "{count} prikazanih vnosov imenuje spletna mesta ali vsebuje naslove strani in besedilo obvestil. Odložišče se lahko sinhronizira zunaj naprave."
+  "devToolsBackgroundCopySensitiveBody": "{count} prikazanih vnosov imenuje spletna mesta ali vsebuje naslove strani in besedilo obvestil. Odložišče se lahko sinhronizira zunaj naprave.",
+  "cookieStoreFailed": "Shramba piškotkov ni uspela: {error}",
+  "siteCookiesNotRestored": "{site} ni bilo mogoče odpreti: njegovih piškotkov ni bilo mogoče obnoviti"
 }

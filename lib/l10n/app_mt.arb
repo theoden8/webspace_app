@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Għadu ma ġie rreġistrat ebda avveniment fl-isfond",
   "devToolsBackgroundSensitiveShow": "Uri l-entrati li jsemmu siti (ismijiet, titoli ta' paġni, test tan-notifiki)",
   "devToolsBackgroundSensitiveShowing": "Qed jintwerew entrati li jsemmu siti. Jinżammu fil-memorja biss u jirrisettjaw meta tinbeda mill-ġdid l-app.",
-  "devToolsBackgroundCopySensitiveBody": "{count} mill-entrati murija jsemmu siti jew fihom titoli ta' paġni u test tan-notifiki. Il-klipbord jista' jissinkronizza barra mill-apparat."
+  "devToolsBackgroundCopySensitiveBody": "{count} mill-entrati murija jsemmu siti jew fihom titoli ta' paġni u test tan-notifiki. Il-klipbord jista' jissinkronizza barra mill-apparat.",
+  "cookieStoreFailed": "Il-ħażna tal-cookies falliet: {error}",
+  "siteCookiesNotRestored": "Ma setax jinfetaħ {site}: il-cookies tiegħu ma setgħux jiġu rrestawrati"
 }

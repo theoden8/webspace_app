@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Bado hakuna matukio ya chinichini yaliyorekodiwa",
   "devToolsBackgroundSensitiveShow": "Onyesha maingizo yanayotaja tovuti (majina, vichwa vya kurasa, maandishi ya arifa)",
   "devToolsBackgroundSensitiveShowing": "Inaonyesha maingizo yanayotaja tovuti. Huhifadhiwa kwenye kumbukumbu ya muda tu na hujirekebisha programu inapoanzishwa upya.",
-  "devToolsBackgroundCopySensitiveBody": "Maingizo {count} kati ya yanayoonyeshwa yanataja tovuti au yana vichwa vya kurasa na maandishi ya arifa. Ubao wa kunakili unaweza kusawazishwa nje ya kifaa."
+  "devToolsBackgroundCopySensitiveBody": "Maingizo {count} kati ya yanayoonyeshwa yanataja tovuti au yana vichwa vya kurasa na maandishi ya arifa. Ubao wa kunakili unaweza kusawazishwa nje ya kifaa.",
+  "cookieStoreFailed": "Hifadhi ya vidakuzi imeshindwa: {error}",
+  "siteCookiesNotRestored": "Haikuweza kufungua {site}: vidakuzi vyake havikuweza kurejeshwa"
 }

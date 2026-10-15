@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Aínda non se rexistrou ningún evento en segundo plano",
   "devToolsBackgroundSensitiveShow": "Amosar as entradas que nomean sitios (nomes, títulos de páxina, texto das notificacións)",
   "devToolsBackgroundSensitiveShowing": "Amosando entradas que nomean sitios. Só se gardan na memoria e restablécense ao reiniciar a aplicación.",
-  "devToolsBackgroundCopySensitiveBody": "{count} das entradas amosadas nomean sitios ou conteñen títulos de páxina e texto de notificacións. O portapapeis pode sincronizarse fóra do dispositivo."
+  "devToolsBackgroundCopySensitiveBody": "{count} das entradas amosadas nomean sitios ou conteñen títulos de páxina e texto de notificacións. O portapapeis pode sincronizarse fóra do dispositivo.",
+  "cookieStoreFailed": "Erro no almacén de cookies: {error}",
+  "siteCookiesNotRestored": "Non se puido abrir {site}: non se puideron restaurar as súas cookies"
 }

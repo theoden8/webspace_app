@@ -57,7 +57,7 @@ details, reading from the same jar the WebView itself uses.
 **Given** the app is running in profile mode (`_useProfiles == true`)
 **When** the user opens the Cookies tab on Site A
 **Then** `_refreshCookies` calls
-  `ContainerCookieManager.getCookies(controller: ..., siteId: ..., url: ...)`
+  `ContainerCookieManager.getCookies(controller: ..., url: ...)`
   which routes through the patched `inapp.CookieManager`'s
   `webViewController:` parameter
 **And** the returned cookies are Site A's per-profile jar
@@ -81,6 +81,23 @@ details, reading from the same jar the WebView itself uses.
   `cookieManager.deleteCookie` in legacy mode (same branch as
   `_refreshCookies`)
 **And** the cookie list refreshes
+
+#### Scenario: A refresh the jar does not answer
+
+**Given** the Cookies tab shows a site's cookies
+**When** the user taps "Refresh" and the cookie store fails
+  (`CookieJarFailure`)
+**Then** a snackbar says the cookie store failed
+**And** the list and the site's saved cookies are unchanged: a read that
+  failed is not an empty jar
+
+#### Scenario: A delete the jar refuses
+
+**Given** the Cookies tab shows a cookie
+**When** the user taps "Delete" and the cookie store refuses
+**Then** a snackbar says the cookie store failed, not that the cookie was
+  deleted
+**And** the cookie stays in the list and in the site's saved cookies
 
 #### Scenario: Refresh and copy cookies
 

@@ -4,6 +4,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/settings/capture.dart';
@@ -41,6 +42,41 @@ final class WebViewHostHooks {
   /// container engine, [cookieManager] (the shared jar) otherwise.
   final CookieManager cookieManager;
   final ContainerCookieManager? containerCookieManager;
+
+  /// Takes [blocked] out of the jar of [controller]'s webview after a load
+  /// (ISO-011, CONT-006). A delete the jar refuses leaves that cookie for the
+  /// next load to take, and the rest still go.
+  Future<void> removeBlockedCookies(
+    List<Cookie> blocked, {
+    required WebViewController? controller,
+    required Uri url,
+  }) async {
+    final container = containerCookieManager;
+    for (final c in blocked) {
+      try {
+        if (container != null) {
+          await container.deleteCookie(
+            controller: controller,
+            url: url,
+            name: c.name,
+            domain: c.domain,
+            path: c.path ?? '/',
+          );
+        } else {
+          await cookieManager.deleteCookie(
+            url: url,
+            name: c.name,
+            domain: c.domain,
+            path: c.path ?? '/',
+          );
+        }
+      } on CookieJarFailure catch (e) {
+        LogTag.cookieManager.warning(
+            'Blocked cookie ${c.name} left for the next load: $e',
+            sensitive: true);
+      }
+    }
+  }
 
   /// The app-wide user scripts a site may opt into, read when a webview is
   /// built.

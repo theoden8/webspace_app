@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Ingen baggrundshændelser registreret endnu",
   "devToolsBackgroundSensitiveShow": "Vis poster, der nævner websteder (navne, sidetitler, notifikationstekst)",
   "devToolsBackgroundSensitiveShowing": "Viser poster, der nævner websteder. De gemmes kun i hukommelsen og nulstilles ved genstart af appen.",
-  "devToolsBackgroundCopySensitiveBody": "{count} af de viste poster nævner websteder eller indeholder sidetitler og notifikationstekst. Udklipsholderen kan synkronisere uden for enheden."
+  "devToolsBackgroundCopySensitiveBody": "{count} af de viste poster nævner websteder eller indeholder sidetitler og notifikationstekst. Udklipsholderen kan synkronisere uden for enheden.",
+  "cookieStoreFailed": "Cookielageret fejlede: {error}",
+  "siteCookiesNotRestored": "Kunne ikke åbne {site}: dets cookies kunne ikke gendannes"
 }

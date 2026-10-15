@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Nulli eventus in recessu adhuc notati",
   "devToolsBackgroundSensitiveShow": "Inscriptiones ostendere quae locos nominant (nomina, titulos paginarum, textum nuntiorum)",
   "devToolsBackgroundSensitiveShowing": "Inscriptiones quae locos nominant ostenduntur. In memoria tantum servantur et reponuntur cum applicatio iterum incipit.",
-  "devToolsBackgroundCopySensitiveBody": "{count} ex inscriptionibus ostensis locos nominant aut titulos paginarum et textum nuntiorum continent. Tabula transcriptionis extra machinam synchronizari potest."
+  "devToolsBackgroundCopySensitiveBody": "{count} ex inscriptionibus ostensis locos nominant aut titulos paginarum et textum nuntiorum continent. Tabula transcriptionis extra machinam synchronizari potest.",
+  "cookieStoreFailed": "Repositorium crustulorum defecit: {error}",
+  "siteCookiesNotRestored": "{site} aperiri non potuit: crustula eius restitui non potuerunt"
 }

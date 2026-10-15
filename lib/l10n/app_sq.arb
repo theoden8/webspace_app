@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Ende nuk është regjistruar asnjë ngjarje në sfond",
   "devToolsBackgroundSensitiveShow": "Shfaq hyrjet që përmendin sajte (emra, tituj faqesh, tekst njoftimesh)",
   "devToolsBackgroundSensitiveShowing": "Po shfaqen hyrjet që përmendin sajte. Ruhen vetëm në kujtesë dhe rivendosen në rinisjen e aplikacionit.",
-  "devToolsBackgroundCopySensitiveBody": "{count} nga hyrjet e shfaqura përmendin sajte ose përmbajnë tituj faqesh dhe tekst njoftimesh. Kujtesa e fragmenteve mund të sinkronizohet jashtë pajisjes."
+  "devToolsBackgroundCopySensitiveBody": "{count} nga hyrjet e shfaqura përmendin sajte ose përmbajnë tituj faqesh dhe tekst njoftimesh. Kujtesa e fragmenteve mund të sinkronizohet jashtë pajisjes.",
+  "cookieStoreFailed": "Depoja e cookie-ve dështoi: {error}",
+  "siteCookiesNotRestored": "Nuk u hap dot {site}: cookie-t e tij nuk u rikthyen dot"
 }

@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Engir bakgrunnsatburðir skráðir enn",
   "devToolsBackgroundSensitiveShow": "Sýna færslur sem nefna vefsvæði (heiti, síðutitlar, tilkynningartexti)",
   "devToolsBackgroundSensitiveShowing": "Sýni færslur sem nefna vefsvæði. Þær eru aðeins geymdar í minni og endurstillast við endurræsingu forrits.",
-  "devToolsBackgroundCopySensitiveBody": "{count} af sýndum færslum nefna vefsvæði eða innihalda síðutitla og tilkynningartexta. Klippiborðið getur samstillst út fyrir tækið."
+  "devToolsBackgroundCopySensitiveBody": "{count} af sýndum færslum nefna vefsvæði eða innihalda síðutitla og tilkynningartexta. Klippiborðið getur samstillst út fyrir tækið.",
+  "cookieStoreFailed": "Vefkökugeymslan brást: {error}",
+  "siteCookiesNotRestored": "Ekki tókst að opna {site}: ekki tókst að endurheimta vefkökur hans"
 }

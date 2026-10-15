@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Vēl nav reģistrēts neviens fona notikums",
   "devToolsBackgroundSensitiveShow": "Rādīt ierakstus, kuros minētas vietnes (nosaukumi, lapu virsraksti, paziņojumu teksts)",
   "devToolsBackgroundSensitiveShowing": "Tiek rādīti ieraksti, kuros minētas vietnes. Tie tiek glabāti tikai atmiņā un atiestatās pēc lietotnes restartēšanas.",
-  "devToolsBackgroundCopySensitiveBody": "{count} no parādītajiem ierakstiem min vietnes vai satur lapu virsrakstus un paziņojumu tekstu. Starpliktuve var sinhronizēties ārpus ierīces."
+  "devToolsBackgroundCopySensitiveBody": "{count} no parādītajiem ierakstiem min vietnes vai satur lapu virsrakstus un paziņojumu tekstu. Starpliktuve var sinhronizēties ārpus ierīces.",
+  "cookieStoreFailed": "Sīkdatņu krātuves kļūda: {error}",
+  "siteCookiesNotRestored": "Nevarēja atvērt {site}: tās sīkdatnes neizdevās atjaunot"
 }

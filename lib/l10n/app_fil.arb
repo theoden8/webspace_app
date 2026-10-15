@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Wala pang naitalang background event",
   "devToolsBackgroundSensitiveShow": "Ipakita ang mga entry na nagbabanggit ng site (pangalan, pamagat ng page, teksto ng notification)",
   "devToolsBackgroundSensitiveShowing": "Ipinapakita ang mga entry na nagbabanggit ng site. Sa memory lang itinatago ang mga ito at nire-reset kapag nag-restart ang app.",
-  "devToolsBackgroundCopySensitiveBody": "{count} sa mga ipinapakitang entry ang nagbabanggit ng site o may pamagat ng page at teksto ng notification. Maaaring mag-sync ang clipboard sa labas ng device."
+  "devToolsBackgroundCopySensitiveBody": "{count} sa mga ipinapakitang entry ang nagbabanggit ng site o may pamagat ng page at teksto ng notification. Maaaring mag-sync ang clipboard sa labas ng device.",
+  "cookieStoreFailed": "Nabigo ang imbakan ng cookie: {error}",
+  "siteCookiesNotRestored": "Hindi mabuksan ang {site}: hindi maibalik ang mga cookie nito"
 }

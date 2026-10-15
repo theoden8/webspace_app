@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Níor taifeadadh aon imeachtaí cúlra go fóill",
   "devToolsBackgroundSensitiveShow": "Taispeáin iontrálacha a ainmníonn suíomhanna (ainmneacha, teidil leathanach, téacs fógraí)",
   "devToolsBackgroundSensitiveShowing": "Iontrálacha a ainmníonn suíomhanna á dtaispeáint. Ní choinnítear iad ach sa chuimhne agus athshocraítear iad ar atosú na haipe.",
-  "devToolsBackgroundCopySensitiveBody": "Ainmníonn {count} de na hiontrálacha atá ar taispeáint suíomhanna nó tá teidil leathanach agus téacs fógraí iontu. Is féidir leis an ngearrthaisce sioncronú lasmuigh den ghléas."
+  "devToolsBackgroundCopySensitiveBody": "Ainmníonn {count} de na hiontrálacha atá ar taispeáint suíomhanna nó tá teidil leathanach agus téacs fógraí iontu. Is féidir leis an ngearrthaisce sioncronú lasmuigh den ghléas.",
+  "cookieStoreFailed": "Theip ar stór na bhfianán: {error}",
+  "siteCookiesNotRestored": "Níorbh fhéidir {site} a oscailt: níorbh fhéidir a fhianáin a athchur"
 }

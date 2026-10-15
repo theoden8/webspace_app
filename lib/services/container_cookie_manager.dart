@@ -1,7 +1,4 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-import 'package:webspace/services/log_service.dart';
-import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
 
@@ -26,47 +23,36 @@ import 'package:webspace/services/webview_controller.dart';
 /// There is intentionally no shared base class — call sites branch
 /// explicitly on which manager is non-null. With only two real impls
 /// and one of them being the existing thin `CookieManager` wrapper
-/// over `inapp.CookieManager.instance()`, an interface here would be
-/// indirection without payoff.
+/// over [cookieChannel], an interface here would be indirection without
+/// payoff.
 class ContainerCookieManager {
-  final inapp.CookieManager _native = inapp.CookieManager.instance();
-
-  /// Read the cookies the page at [url] can see in [siteId]'s jar.
-  /// Returns an empty list (and logs the failure) on a runtime error
-  /// from the platform side.
+  /// Read the cookies the page at [url] can see in the jar of the container
+  /// [controller]'s webview is bound to. Fails with [CookieJarFailure]: a
+  /// read that failed is not an empty jar.
   Future<List<Cookie>> getCookies({
     required WebViewController controller,
-    required SiteId siteId,
     required Uri url,
   }) async {
-    try {
-      final raw = await _native.getCookies(
-        url: inapp.WebUri(url.toString()),
-        webViewController: controller.nativeController,
-      );
-      return raw
-          .map((c) => Cookie(
-                name: c.name,
-                value: c.value,
-                domain: c.domain,
-                path: c.path,
-                expiresDate: c.expiresDate,
-                isSecure: c.isSecure,
-                isHttpOnly: c.isHttpOnly,
-              ))
-          .toList(growable: false);
-    } on PlatformException catch (e) {
-      LogTag.containerCookieManager.error(
-          'getCookies($siteId, ${url.host}) failed: $e', sensitive: true);
-      return const [];
-    } on MissingPluginException catch (e) {
-      LogTag.containerCookieManager.error(
-          'getCookies($siteId, ${url.host}) failed: $e', sensitive: true);
-      return const [];
-    }
+    final raw = await cookieChannel((plugin) => plugin.getCookies(
+          url: inapp.WebUri(url.toString()),
+          webViewController: controller.nativeController,
+        ));
+    return raw
+        .map((c) => Cookie(
+              name: c.name,
+              value: c.value,
+              domain: c.domain,
+              path: c.path,
+              expiresDate: c.expiresDate,
+              isSecure: c.isSecure,
+              isHttpOnly: c.isHttpOnly,
+            ))
+        .toList(growable: false);
   }
 
-  /// Delete a cookie matching `(name, domain, path)` for [siteId].
+  /// Delete a cookie matching `(name, domain, path)` from the jar of the
+  /// container [controller]'s webview is bound to. Fails with
+  /// [CookieJarFailure].
   ///
   /// When [controller] is null, the WebView has been disposed before
   /// the delete reached us; the call no-ops (the cookie either went
@@ -74,29 +60,18 @@ class ContainerCookieManager {
   /// re-activates the site).
   Future<void> deleteCookie({
     WebViewController? controller,
-    required SiteId siteId,
     required Uri url,
     required String name,
     String? domain,
     String? path,
   }) async {
     if (controller == null) return;
-    try {
-      await _native.deleteCookie(
-        url: inapp.WebUri(url.toString()),
-        name: name,
-        domain: domain ?? '',
-        path: path ?? '/',
-        webViewController: controller.nativeController,
-      );
-    } on PlatformException catch (e) {
-      LogTag.containerCookieManager.error(
-          'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
-          'failed: $e', sensitive: true);
-    } on MissingPluginException catch (e) {
-      LogTag.containerCookieManager.error(
-          'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
-          'failed: $e', sensitive: true);
-    }
+    await cookieChannel((plugin) => plugin.deleteCookie(
+          url: inapp.WebUri(url.toString()),
+          name: name,
+          domain: domain ?? '',
+          path: path ?? '/',
+          webViewController: controller.nativeController,
+        ));
   }
 }

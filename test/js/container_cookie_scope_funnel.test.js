@@ -15,8 +15,13 @@
 //
 // Structural rather than behavioral: reproducing it needs a device with the
 // container engine active and a live signed-in session, which no CI tier here
-// has. The rule below is what keeps the class closed — every direct cookie op
-// on the plugin singleton carries the WebView it belongs to.
+// has. The rule below is what keeps the class closed: every cookie op on the
+// plugin carries the WebView it belongs to.
+//
+// Every op reaches the plugin through `cookieChannel`
+// (lib/services/cookie_manager.dart), the one place that names what the
+// channel fails with (CONT-009), so the rule reads those calls; the first test
+// keeps a direct handle on the plugin from slipping past both.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -30,21 +35,25 @@ const SCOPED_OPS = [
   'deleteCookie(',
 ];
 
-/// Every statement that reaches the plugin singleton directly, as
-/// `<text from the instance() call to the statement's semicolon>`.
-function singletonStatements() {
+/// Holds the plugin's handle and the shared jar's wrapper, whose ops address
+/// the default jar by design: under the legacy engine that is every site's.
+const GUARD = 'lib/services/cookie_manager.dart';
+
+/// Every call through the guard outside it, as
+/// `<text from cookieChannel( to the statement's semicolon>`.
+function channelCalls() {
   const out = [];
   for (const rel of dartFiles()) {
+    if (rel === GUARD) continue;
     const source = code(read(rel));
-    const marker = 'CookieManager.instance()';
+    const marker = 'cookieChannel(';
     let at = source.indexOf(marker);
     while (at !== -1) {
       const end = source.indexOf(';', at);
-      const text = source.slice(at, end === -1 ? source.length : end);
       out.push({
         rel,
         line: source.slice(0, at).split('\n').length,
-        text,
+        text: source.slice(at, end === -1 ? source.length : end),
       });
       at = source.indexOf(marker, at + marker.length);
     }
@@ -52,13 +61,33 @@ function singletonStatements() {
   return out;
 }
 
-test('every direct cookie op on the plugin singleton names its WebView', () => {
-  // A bare `final _manager = CookieManager.instance();` field is fine: it is a
-  // wrapper's handle, and which jar its calls address is decided by the
-  // wrapper the host picked (CookieManager for legacy, ContainerCookieManager
-  // for containers). Only a statement that performs the op itself is bound by
-  // this rule.
-  const unscoped = singletonStatements().filter(
+test('the plugin cookie manager is reached only through cookieChannel', () => {
+  const direct = dartFiles().filter(
+    (rel) => rel !== GUARD && code(read(rel)).includes('CookieManager.instance()'),
+  );
+  assert.deepEqual(
+    direct,
+    [],
+    'a direct inapp.CookieManager.instance() bypasses cookieChannel: its ' +
+      'failures go unnamed and its scope goes unread by the test below',
+  );
+  const handles = code(read(GUARD)).match(/CookieManager\.instance\(\)/g) ?? [];
+  assert.equal(handles.length, 1, `${GUARD} holds the plugin's one handle`);
+});
+
+test('every cookie op on the plugin names its WebView', () => {
+  const calls = channelCalls();
+  // Not vacuous: the container jar's ops and the download's read are here.
+  for (const rel of [
+    'lib/services/container_cookie_manager.dart',
+    'lib/services/webview_downloads.dart',
+  ]) {
+    assert.ok(
+      calls.some((c) => c.rel === rel && SCOPED_OPS.some((op) => c.text.includes(op))),
+      `${rel} no longer makes a scoped op through cookieChannel; re-point the gate`,
+    );
+  }
+  const unscoped = calls.filter(
     ({ text }) =>
       SCOPED_OPS.some((op) => text.includes(op)) &&
       !text.includes('webViewController:'),
@@ -67,9 +96,9 @@ test('every direct cookie op on the plugin singleton names its WebView', () => {
   assert.deepEqual(
     unscoped.map((s) => `${s.rel}:${s.line}`),
     [],
-    'a cookie op on inapp.CookieManager.instance() must pass ' +
-      'webViewController: — without it the op addresses the default jar, ' +
-      "which is empty for every container-bound site",
+    'a cookie op through cookieChannel must pass webViewController:; ' +
+      'without it the op addresses the default jar, which is empty for ' +
+      'every container-bound site',
   );
 });
 
@@ -87,7 +116,7 @@ test('the HTTP download path reads cookies through the downloading WebView', () 
   );
 
   const body = webview.slice(webview.indexOf('_handleHttpDownload(\n'));
-  const cookieRead = body.slice(body.indexOf('CookieManager.instance()'));
+  const cookieRead = body.slice(body.indexOf('cookieChannel('));
   assert.match(
     cookieRead.slice(0, cookieRead.indexOf(';')),
     /webViewController: controller/,

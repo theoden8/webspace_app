@@ -4,9 +4,8 @@ import 'dart:typed_data';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show CookieManager, WebUri;
+    show WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -1410,30 +1409,13 @@ bool dispatch(NavigationDecision decision,
             // Remove blocked cookies from the webview cookie jar. The mirror
             // and the block list are those of the site the slot runs as.
             if (id.blockedCookies.isNotEmpty) {
-              final blocked = newCookies
-                  .where((c) => id.isCookieBlocked(c.name, domain: c.domain))
-                  .toList();
-              final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : id.initUrl);
-              for (final c in blocked) {
-                final containerCookieManager = hooks.containerCookieManager;
-                if (containerCookieManager != null) {
-                  await containerCookieManager.deleteCookie(
-                    controller: controller,
-                    siteId: id.siteId,
-                    url: url,
-                    name: c.name,
-                    domain: c.domain,
-                    path: c.path ?? '/',
-                  );
-                } else {
-                  await hooks.cookieManager.deleteCookie(
-                    url: url,
-                    name: c.name,
-                    domain: c.domain,
-                    path: c.path ?? '/',
-                  );
-                }
-              }
+              await hooks.removeBlockedCookies(
+                newCookies
+                    .where((c) => id.isCookieBlocked(c.name, domain: c.domain))
+                    .toList(),
+                controller: controller,
+                url: Uri.parse(currentUrl.isNotEmpty ? currentUrl : id.initUrl),
+              );
               id.cookies = newCookies
                   .where((c) => !id.isCookieBlocked(c.name, domain: c.domain))
                   .toList();
@@ -1563,6 +1545,9 @@ bool dispatch(NavigationDecision decision,
     return controller;
   }
 
+  /// Deletes every cookie this site knows of from its jar, then forgets
+  /// them. Fails with [CookieJarFailure] when the jar refuses one, and the
+  /// site keeps its list, since those cookies may still be there.
   Future<void> deleteCookies(CookieManager cookieManager, {
       required ContainerCookieManager? containerCookieManager}) async {
     final url = Uri.parse(initUrl);
@@ -1570,7 +1555,6 @@ bool dispatch(NavigationDecision decision,
       if (containerCookieManager != null) {
         await containerCookieManager.deleteCookie(
           controller: controller,
-          siteId: siteId,
           url: url,
           name: cookie.name,
           domain: cookie.domain,
@@ -1586,13 +1570,6 @@ bool dispatch(NavigationDecision decision,
       }
     }
     cookies = [];
-  }
-
-  /// Used for per-site cookie isolation when switching between same-domain sites.
-  Future<void> captureCookies(CookieManager cookieManager) async {
-    if (incognito) return;
-    final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
-    cookies = await cookieManager.getCookies(url: url);
   }
 
   /// Drop the cached webview widget and controller, then ask the host to
@@ -1937,7 +1914,6 @@ bool dispatch(NavigationDecision decision,
     final pending = _pendingArchiveCookies;
     if (pending == null || pending.isEmpty) return;
     _pendingArchiveCookies = null;
-    final mgr = inapp.CookieManager.instance();
     for (final cookie in pending) {
       if (cookie.name.isEmpty || cookie.value.isEmpty) continue;
       final dom = cookie.domain ?? '';
@@ -1947,18 +1923,18 @@ bool dispatch(NavigationDecision decision,
       // The plugin asserts both are non-empty.
       if (path.isEmpty) continue;
       try {
-        await mgr.setCookie(
-          url: inapp.WebUri('https://$cleanDomain$path'),
-          name: cookie.name,
-          value: cookie.value.toString(),
-          domain: cookie.domain,
-          path: path,
-          expiresDate: cookie.expiresDate,
-          isSecure: cookie.isSecure,
-          isHttpOnly: cookie.isHttpOnly,
-          webViewController: ctrl.nativeController,
-        );
-      } on PlatformException {
+        await cookieChannel((plugin) => plugin.setCookie(
+              url: inapp.WebUri('https://$cleanDomain$path'),
+              name: cookie.name,
+              value: cookie.value.toString(),
+              domain: cookie.domain,
+              path: path,
+              expiresDate: cookie.expiresDate,
+              isSecure: cookie.isSecure,
+              isHttpOnly: cookie.isHttpOnly,
+              webViewController: ctrl.nativeController,
+            ));
+      } on CookieJarFailure {
         // Best effort. A cookie that fails to insert (malformed
         // attributes from a legacy import, expired, etc.) is simply
         // dropped from the runtime jar; archive state still has it for

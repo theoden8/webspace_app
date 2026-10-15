@@ -1085,5 +1085,7 @@
   "devToolsBackgroundEmpty": "Henüz kaydedilmiş arka plan olayı yok",
   "devToolsBackgroundSensitiveShow": "Siteleri adlandıran girdileri göster (adlar, sayfa başlıkları, bildirim metni)",
   "devToolsBackgroundSensitiveShowing": "Siteleri adlandıran girdiler gösteriliyor. Yalnızca bellekte tutulur ve uygulama yeniden başlatıldığında sıfırlanır.",
-  "devToolsBackgroundCopySensitiveBody": "Gösterilen girdilerin {count} tanesi siteleri adlandırıyor veya sayfa başlıkları ve bildirim metni içeriyor. Pano cihaz dışına eşitlenebilir."
+  "devToolsBackgroundCopySensitiveBody": "Gösterilen girdilerin {count} tanesi siteleri adlandırıyor veya sayfa başlıkları ve bildirim metni içeriyor. Pano cihaz dışına eşitlenebilir.",
+  "cookieStoreFailed": "Çerez deposu başarısız oldu: {error}",
+  "siteCookiesNotRestored": "{site} açılamadı: çerezleri geri yüklenemedi"
 }
