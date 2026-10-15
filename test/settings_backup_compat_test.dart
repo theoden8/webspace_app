@@ -15,6 +15,7 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/url_utils.dart';
+import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
@@ -184,12 +185,18 @@ final Set<String> _captureKeysRead = {
   ],
 };
 
-/// Every JSON key the backup, site, webspace and nested parsers read, taken
-/// from their source so a rename that forgets the old name shows up.
+/// Every key a site's read takes, current and older names.
+final Set<String> _siteKeysRead = {
+  for (final field in SiteField.values) ...[...field.keys, ...field.oldKeys],
+};
+
+/// Every JSON key the backup, site, webspace and nested parsers read: a
+/// site's from [SiteField], the rest taken from their source so a rename that
+/// forgets the old name shows up.
 final Set<String> _keysRead = {
+  ..._siteKeysRead,
   for (final f in const [
     'lib/web_view_model.dart',
-    'lib/web_view_model_json.dart',
     'lib/webspace_model.dart',
     'lib/services/settings_backup.dart',
     'lib/services/settings_import_engine.dart',
@@ -210,15 +217,9 @@ final Set<String> _keysRead = {
       pattern: r"'(\w+)'"),
 };
 
-/// Every key `WebViewModel.toJson` can write, read from its source because a
-/// site has no field registry to iterate (the per-site field debt in
-/// CLAUDE.md); that registry would turn this scan into a loop over a type.
+/// Every key `WebViewModel.toJson` can write.
 final Set<String> _siteKeysWritten = {
-  for (final kind in CaptureKind.values) ...kind.jsonKeys,
-  ..._matches(
-      _region('lib/web_view_model_json.dart',
-          from: "'siteId': siteId", to: 'WebViewModel webViewModelFromJson('),
-      pattern: r"'(\w+)':"),
+  for (final field in SiteField.values) ...field.keys,
 };
 
 /// Keys a site writes that `superset.json` leaves out, and why.
@@ -371,7 +372,7 @@ void main() {
                 '_retiredKeys with the reason.');
       });
 
-      test('sites keep every field the release wrote', () {
+      test('sites keep every field the release wrote (LANG-004)', () {
         final supersetSites = _supersetSites;
         expect(plan.sites.length, supersetSites.length);
         for (var i = 0; i < supersetSites.length; i++) {
@@ -505,7 +506,7 @@ void main() {
         }
       });
 
-      test('optional sections', () {
+      test('optional sections (SUGGEST-005)', () {
         final json = jsonDecode(raw) as Map<String, dynamic>;
         expect(plan.suggestedSites?.map((s) => s.url).toList(),
             json.containsKey('suggestedSites') ? ['https://example.com'] : null);
@@ -1249,6 +1250,8 @@ Map<String, dynamic> loaded(Map<String, dynamic> json) =>
             _region('lib/services/site_tab.dart',
                 from: 'Map<String, dynamic> toJson() =>', to: '};'),
             pattern: r"'(\w+)':"),
+        // What a site's save adds to the entry of the tab it is on.
+        'active',
       }.difference(_supersetOmits.keys.toSet());
       final missing = [
         for (final key in keys)
@@ -1278,8 +1281,7 @@ Map<String, dynamic> loaded(Map<String, dynamic> json) =>
       // writes is a migration. Each one must appear in some fixture, or the
       // migration is untested code waiting to rot.
       final reads = {
-        ..._readKeys(_region('lib/web_view_model_json.dart',
-            from: 'WebViewModel webViewModelFromJson(', to: '\n}\n')),
+        ..._siteKeysRead,
         ..._readKeys(_region('lib/services/settings_backup.dart',
             from: 'factory SettingsBackup.fromJson(', to: '\n  }\n')),
         ..._matches(

@@ -33,6 +33,7 @@ Map<String, dynamic> _legacyJson([Map<String, dynamic> extra = const {}]) =>
 
 void main() {
   group('WebViewModel', () {
+    // ETP-001, NOTIF-004
     test('should initialize with default values', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
@@ -237,7 +238,7 @@ void main() {
     });
 
     test(
-        'effectiveDomainClaims synthesizes baseDomain claim from initUrl when null',
+        'effectiveDomainClaims synthesizes baseDomain claim from initUrl when null (LIR-001)',
         () {
       final m = WebViewModel(initUrl: 'https://mail.example.org/inbox');
       expect(m.effectiveDomainClaims, hasLength(1));
@@ -536,12 +537,13 @@ void main() {
       ('notificationsEnabled', false, (m) => m.notificationsEnabled,
           ({required enabled}) => WebViewModel(initUrl: _url, notificationsEnabled: enabled)),
     ]) {
-      test('$key defaults to $byDefault when missing from JSON', () {
+      // DNS-011, CURL-012
+      test('$key defaults to $byDefault when missing from JSON (CB-009)', () {
         expect(read(WebViewModel.fromJson(_legacyJson(), stateSetterF: null)),
             byDefault);
       });
 
-      test('$key ${!byDefault} is preserved through serialization', () {
+      test('$key ${!byDefault} is preserved through serialization (CURL-008)', () {
         final json = build(enabled: !byDefault).toJson();
         expect(json[key], !byDefault);
         expect(
@@ -624,7 +626,7 @@ int zoomOf(int zoom) =>
         final model = WebViewModel(initUrl: 'https://example.com');
         expect(model.effectiveWebRtcPolicy, WebRtcPolicy.defaultPolicy);
 
-        GlobalOutboundProxy.setForTest(
+        GlobalOutboundProxy.setInMemory(
           UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
         );
         expect(model.effectiveWebRtcPolicy, WebRtcPolicy.relayOnly);
@@ -654,7 +656,7 @@ int zoomOf(int zoom) =>
       });
     });
 
-    test('letterboxEnabled defaults to false; omitted from JSON; round-trips',
+    test('letterboxEnabled defaults to false; omitted from JSON; round-trips (ETP-021)',
         () {
       final m = WebViewModel(initUrl: 'https://example.com');
       expect(m.letterboxEnabled, isFalse);
@@ -716,13 +718,13 @@ int zoomOf(int zoom) =>
       expect(m.fingerprintResetNonce, isNot(equals(first)));
     });
 
-    test('blockScreenshots is off and unwritten by default', () {
+    test('blockScreenshots is off and unwritten by default (SCREENBLOCK-004)', () {
       final model = WebViewModel(initUrl: 'https://example.com');
       expect(model.blockScreenshots, isFalse);
       expect(model.toJson().containsKey('blockScreenshots'), isFalse);
     });
 
-    test('blockScreenshots true is preserved through serialization', () {
+    test('blockScreenshots true is preserved through serialization (SCREENBLOCK-001)', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
         blockScreenshots: true,
@@ -901,7 +903,7 @@ int zoomOf(int zoom) =>
           equals(LocationGranularity.gsm));
     });
 
-    test('location spoof fields round-trip through JSON', () {
+    test('location spoof fields round-trip through JSON (LOC-005)', () {
       final original = WebViewModel(
         initUrl: 'https://example.com',
         locationMode: LocationMode.spoof,

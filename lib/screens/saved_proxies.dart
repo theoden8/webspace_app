@@ -198,7 +198,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     final problem = resolved.problem == LibraryProblem.none
         ? null
         : libraryProblemLabel(loc, problem: resolved.problem);
-    // Data, not copy (LOC-002): what the route is made of.
+    // Data, not copy (L10N-002): what the route is made of.
     final gateway = p.settings.type == ProxyType.GATEWAY
         ? _lib.gateway(p.settings.gatewayId)
         : null;
@@ -242,7 +242,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
   }
 
   Widget _credentialsRow(AppLocalizations loc, {required SavedCredentials c}) {
-    // Data, not copy (LOC-002).
+    // Data, not copy (L10N-002).
     final gateways = [
       for (final id in c.gatewayIds)
         if (_lib.gateway(id) case final g?) gatewayLabel(g),

@@ -14,6 +14,7 @@ package org.codeberg.theoden8.webspace
 
 import android.util.Log
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.write
 
 /**
  * Singleton wrapper around the JNI bridge to adblock-rust. Thread-safe
@@ -48,7 +49,8 @@ object AdblockEngineNative {
      * Opaque pointer the Rust side hands back from
      * `nativeEngineFromSerialized` / `nativeEngineNew`. Mutated
      * only under [rwLock]'s write lock; read under the read lock on the
-     * hot path (and lock-free in the [active] getter, hence @Volatile).
+     * hot path (and lock-free in the [active] getter, hence @Volatile,
+     * which a replace never shows at 0 between two engines).
      */
     @Volatile
     private var enginePtr: Long = 0L
@@ -102,24 +104,23 @@ object AdblockEngineNative {
     }
 
     /**
-     * Frees the engine and builds its successor under the write lock, so a
-     * request that arrives meanwhile waits for the new engine rather than
-     * being judged by the old one or by none.
+     * Builds the successor while the engine in use still answers, swaps it
+     * in under the write lock, and frees the one it replaced once no reader
+     * can hold it. A request checked meanwhile is judged by the engine in
+     * use, never by none, and waits only for the swap: building under the
+     * lock left [enginePtr] at 0 for the whole parse, so [active] read
+     * false and the interceptor let every sub-resource through (BUG-007).
      */
     private inline fun replace(build: () -> Long) {
         if (!loaded) return
-        val writeLock = rwLock.writeLock()
-        writeLock.lock()
-        try {
-            if (enginePtr != 0L) {
-                nativeEngineFree(enginePtr)
-                enginePtr = 0L
-            }
-            enginePtr = build()
-            Log.i(TAG, if (enginePtr != 0L) "engine built" else "engine torn down or build failed")
-        } finally {
-            writeLock.unlock()
+        val next = build()
+        val previous = rwLock.write {
+            val replaced = enginePtr
+            enginePtr = next
+            replaced
         }
+        if (previous != 0L) nativeEngineFree(previous)
+        Log.i(TAG, if (next != 0L) "engine built" else "engine torn down or build failed")
     }
 
     /**

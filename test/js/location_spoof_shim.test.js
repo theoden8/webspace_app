@@ -32,7 +32,7 @@ test('webrtc_relay: RTCPeerConnection construction forces iceTransportPolicy=rel
   assert.equal(pc.__config.iceTransportPolicy, 'relay');
 });
 
-test('webrtc_relay: setLocalDescription strips non-relay ICE candidates from SDP', async () => {
+test('webrtc_relay: setLocalDescription strips non-relay ICE candidates from SDP (LOC-004)', async () => {
   const dom = loadShim(LOC.WEBRTC_RELAY);
   const pc = new dom.window.RTCPeerConnection();
   const sdp = [
@@ -50,7 +50,7 @@ test('webrtc_relay: setLocalDescription strips non-relay ICE candidates from SDP
   assert.ok(pc.__lastSdp.sdp.includes('a=other-line'));
 });
 
-test('timezone_only_tokyo: Intl.DateTimeFormat reports Asia/Tokyo without explicit timeZone', () => {
+test('timezone_only_tokyo: Intl.DateTimeFormat reports Asia/Tokyo without explicit timeZone (LOC-003)', () => {
   const dom = loadShim(LOC.TIMEZONE_ONLY_TOKYO);
   const dtf = new dom.window.Intl.DateTimeFormat('en-US');
   assert.equal(dtf.resolvedOptions().timeZone, 'Asia/Tokyo');
@@ -72,7 +72,7 @@ test('timezone_only_tokyo: Date.prototype.getTimezoneOffset returns -540 for Tok
   assert.equal(offset, -540);
 });
 
-test('static_tokyo: navigator.geolocation.getCurrentPosition resolves with spoofed coords', async () => {
+test('static_tokyo: navigator.geolocation.getCurrentPosition resolves with spoofed coords (LOC-001)', async () => {
   const dom = loadShim(LOC.STATIC_TOKYO);
   const pos = await new Promise((resolve, reject) => {
     dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
@@ -123,7 +123,7 @@ function loadLiveShim(source, fakeFix) {
   return dom;
 }
 
-test('live_gps: getCurrentPosition returns the platform fix unchanged (modulo sub-meter jitter)', async () => {
+test('live_gps: getCurrentPosition returns the platform fix unchanged (modulo sub-meter jitter) (LOC-009)', async () => {
   // The platform fix is 35.6762, 139.6503 with 12 m accuracy. GPS
   // granularity must not snap to a grid; only the ~2 m jitter in
   // makeCoordsFrom is allowed to perturb the values.

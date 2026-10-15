@@ -439,7 +439,7 @@ The control is shown in App Settings > Behaviour under "Tab strip" and is inacti
 
 ### Site Switching
 
-In `setCurrentIndex()`:
+In `activate()`:
 - If target site has `fullscreenMode = true`, calls `FullscreenController.enter()`
 - Otherwise, calls `FullscreenController.exit()`
 - Navigating to null index (webspaces list) always exits fullscreen

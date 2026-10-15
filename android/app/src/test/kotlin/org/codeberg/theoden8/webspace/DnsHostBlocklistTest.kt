@@ -109,10 +109,10 @@ class DnsHostBlocklistTest {
     @Test
     fun awaitReadyBlocksUntilBackgroundBuildCompletes() {
         val b = DnsHostBlocklist()
-        b.beginBuild()
+        val build = b.beginBuild()
         val t = Thread {
             Thread.sleep(150)
-            b.replaceFromBlob("ads.example.com")
+            build.complete("ads.example.com")
         }
         t.start()
         val t0 = System.nanoTime()
@@ -121,6 +121,33 @@ class DnsHostBlocklistTest {
         t.join()
         assertTrue("should have waited for the build, waited ${ms}ms", ms >= 100)
         assertTrue(b.isBlocked("ads.example.com"))
+    }
+
+    // BUG-007 attempt 10: two pushes build on two threads, and the older one
+    // could finish last and swap the newer set out.
+    @Test
+    fun anOlderBuildFinishingLastDoesNotLand() {
+        val b = DnsHostBlocklist()
+        val older = b.beginBuild()
+        val newer = b.beginBuild()
+        newer.complete("new.example")
+        older.complete("old.example")
+        assertTrue(b.awaitReady(0))
+        assertTrue(b.isBlocked("new.example"))
+        assertFalse(b.isBlocked("old.example"))
+    }
+
+    @Test
+    fun anOlderBuildFinishingFirstLeavesReadersWaitingForTheNewer() {
+        val b = DnsHostBlocklist()
+        val older = b.beginBuild()
+        val newer = b.beginBuild()
+        older.complete("old.example")
+        assertFalse("still building the newer set", b.awaitReady(50))
+        assertFalse(b.isBlocked("old.example"))
+        newer.complete("new.example")
+        assertTrue(b.awaitReady(0))
+        assertTrue(b.isBlocked("new.example"))
     }
 
     @Test

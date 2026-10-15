@@ -10,6 +10,7 @@ import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/widgets/container_mark.dart' show SiteIdLine;
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
@@ -120,7 +121,7 @@ class SiteBehaviourScreen extends StatefulWidget {
     required this.values,
     required this.onChanged,
     this.domainClaims,
-    this.containersActive = true,
+    required this.containersActive,
     this.routingTargets = const [],
     this.initUrl,
     this.discoveredSearchAddress,
@@ -353,7 +354,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     final names = [
       for (final id in _values.searchSites) ?_nameOf(id),
     ];
-    // Data, not copy: site names joined with punctuation (LOC-002).
+    // Data, not copy: site names joined with punctuation (L10N-002).
     final summary = names.join(', ');
     return SettingTile(
       title: loc.webSearchOfferedTitle,

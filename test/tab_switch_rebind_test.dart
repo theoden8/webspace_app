@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// the outgoing tab's back stack, disposes the webview and queues the incoming
 /// tab's bytes, so an assignment that skips it leaves a live webview rendering
 /// one tab while the model, the app bar and the tab list all name another —
-/// and the outgoing tab's stack is lost rather than parked.
+/// and the outgoing tab's stack is lost rather than parked. The order inside
+/// the switch is held by the tab schedules in `activation_schedules_test.dart`
+/// (TAB-003); this gate covers the paths no schedule drives.
 ///
 /// A site with no webview is the one case where the bare assignment is right:
 /// there is nothing on screen to disagree with, and the activation that
@@ -56,7 +58,7 @@ void main() {
         final window = lines
             .sublist(i - 12 < 0 ? 0 : i - 12, i)
             .join('\n');
-        if (window.contains('_sites.loaded.contains(index)')) continue;
+        if (window.contains('_sites.loaded.contains(model)')) continue;
         offenders.add('$rel:${i + 1}: ${lines[i].trim()}');
       }
     });
@@ -67,37 +69,13 @@ void main() {
       reason: 'each of these moves a site\'s active tab without going through '
           'switchActiveTab and without first establishing that the site has '
           'no webview to re-bind. Either call _switchActiveTab, or guard the '
-          'assignment with _sites.loaded.contains(index).',
+          'assignment with _sites.loaded.contains(model).',
     );
   });
 
-  test('switchActiveTab captures, queues and disposes in that order', () {
-    final (start, end) = methodRange('Future<void> switchActiveTab(');
-    final body = lines.sublist(start, end).join('\n');
-
-    final capture = body.indexOf('_host.captureNavState(model)');
-    final move = body.indexOf('model.activeTabId = targetTabId');
-    final queue = body.indexOf('schedulePendingRestoreState(');
-    final dispose = body.indexOf('model.disposeWebView()');
-
-    expect(capture, isNot(-1), reason: 'the outgoing tab\'s stack is parked');
-    expect(queue, isNot(-1), reason: 'the incoming tab\'s stack is restored');
-    expect(dispose, isNot(-1), reason: 'restoreState needs a fresh controller');
-
-    // Capture reads `model.activeStateKey`, so it has to run while that still
-    // names the tab being left.
-    expect(capture, lessThan(move),
-        reason: 'capturing after the move would write the outgoing tab\'s '
-            'bytes under the incoming tab\'s key');
-    // The queue is consumed by onControllerCreated, which only runs because
-    // the dispose makes the next build create a controller.
-    expect(queue, lessThan(dispose),
-        reason: 'bytes queued after the dispose miss the rebuild that was '
-            'supposed to consume them');
-  });
-
   test('a tab switch never builds a second webview for the site', () {
-    final (start, end) = methodRange('Future<void> switchActiveTab(');
+    // The switch is the tab table's steps; its one turn is _rebind.
+    final (start, end) = methodRange('void _rebind(CommitView<TabFlow> c) {');
     final body = lines.sublist(start, end).join('\n');
     // One dispose, no getWebView / getController: the rebuild is the
     // IndexedStack's, after setState. Two webviews for one site would double
@@ -107,5 +85,11 @@ void main() {
       1,
     );
     expect(body.contains('getWebView('), isFalse);
+    // The table's steps dispose nothing themselves.
+    final table = lines.join('\n');
+    final steps = table.substring(
+      table.indexOf('static final tabFlow = StepTable<TabFlow, TabPlace>('),
+    );
+    expect(steps.contains('disposeWebView('), isFalse);
   });
 }

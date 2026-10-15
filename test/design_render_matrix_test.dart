@@ -116,6 +116,7 @@ void main() {
     for (final width in _widths) {
       for (final scale in _textScales) {
         for (final brightness in Brightness.values) {
+          // DESIGN-006
           testWidgets(
             '${subject.key} lays out at ${width.toInt()}pt, '
             '${scale}x text, ${brightness.name}',

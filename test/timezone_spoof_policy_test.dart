@@ -33,7 +33,7 @@ void main() {
       expect(f(fromLocation: true, lat: 51.5, lng: -0.1), isTrue);
     });
 
-    test('tracking protection forces it when coords are set', () {
+    test('tracking protection forces it when coords are set (ETP-018)', () {
       expect(f(tp: true, lat: 35.6, lng: 139.7), isTrue);
       // TP alone, no coords -> false (umbrella only pins tz when geo is spoofed)
       expect(f(tp: true), isFalse);

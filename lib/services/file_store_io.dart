@@ -58,11 +58,8 @@ class IoFileStore implements FileStore {
   }
 
   @override
-  Future<void> writeText(String name, {required String contents}) async {
-    final dir = await _directory();
-    if (!await dir.exists()) await dir.create(recursive: true);
-    await _file(dir, name: name).writeAsString(contents);
-  }
+  Future<void> writeText(String name, {required String contents}) =>
+      _replace(name, write: (staged) => staged.writeAsString(contents, flush: true));
 
   @override
   Future<Uint8List?> readBytes(String name) async {
@@ -72,10 +69,29 @@ class IoFileStore implements FileStore {
   }
 
   @override
-  Future<void> writeBytes(String name, {required List<int> bytes}) async {
+  Future<void> writeBytes(String name, {required List<int> bytes}) =>
+      _replace(name, write: (staged) => staged.writeAsBytes(bytes, flush: true));
+
+  static var _staged = 0;
+
+  /// Writes beside [name] and renames over it, so a reader, or the next
+  /// launch after a kill mid-write, sees the old file or the new one and
+  /// never a torn one: a list cut short would build an engine that misses
+  /// rules, under a stamp that keeps it.
+  Future<void> _replace(
+    String name, {
+    required Future<File> Function(File staged) write,
+  }) async {
     final dir = await _directory();
     if (!await dir.exists()) await dir.create(recursive: true);
-    await _file(dir, name: name).writeAsBytes(bytes);
+    final target = _file(dir, name: name);
+    final staged = File('${dir.path}/$name.${_staged++}$kFileStoreStagedSuffix');
+    try {
+      await write(staged);
+      await staged.rename(target.path);
+    } finally {
+      if (await staged.exists()) await staged.delete();
+    }
   }
 
   @override
@@ -100,7 +116,10 @@ class IoFileStore implements FileStore {
     final entries = await dir.list().toList();
     return [
       for (final entity in entries)
-        if (entity is File) entity.path.split(Platform.pathSeparator).last,
+        if (entity is File)
+          if (entity.path.split(Platform.pathSeparator).last case final name
+              when !name.endsWith(kFileStoreStagedSuffix))
+            name,
     ];
   }
 

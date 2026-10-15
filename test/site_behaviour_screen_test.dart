@@ -137,7 +137,7 @@ void main() {
     });
   });
 
-  testWidgets('every behaviour switch lives on this screen', (tester) async {
+  testWidgets('every behaviour switch lives on this screen (BEHAV-001)', (tester) async {
     await _pump(tester, values: _values());
     for (final title in const [
       'Always open Home',
@@ -191,6 +191,7 @@ void main() {
         home: SiteBehaviourScreen(
           host: 'example.com',
           incognito: false,
+          containersActive: true,
           values: _values(externalLinkMode: ExternalLinkMode.browser),
           onChanged: (_) {},
         ),
@@ -270,7 +271,7 @@ void main() {
       expect(_switchTitled(tester, title: 'Full screen mode').value, isTrue);
     });
 
-    testWidgets('kiosk shows tabs off and gives them back', (tester) async {
+    testWidgets('kiosk shows tabs off and gives them back (BEHAV-005)', (tester) async {
       SiteBehaviourValues? seen;
       await _pump(
         tester,

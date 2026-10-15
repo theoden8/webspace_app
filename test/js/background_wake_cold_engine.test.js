@@ -65,8 +65,8 @@ test('both engines register the same activity-free plugins', () => {
     'BackgroundTaskAndroidPlugin', 'ProxyRelayPlugin']) {
     assert.match(plugins, new RegExp(`${name}\\(`), `EnginePlugins must build ${name}`);
   }
-  assert.match(activity, /EnginePlugins\(this, flutterEngine, this\)/);
-  assert.match(engine, /EnginePlugins\(app, engine, activity = null\)/);
+  assert.match(activity, /EnginePlugins\(this, flutterEngine\)/);
+  assert.match(engine, /EnginePlugins\(app, engine\)/);
   assert.doesNotMatch(activity, /WebSpaceContainerPlugin\(flutterEngine\)/,
     'the activity must take the container plugin from EnginePlugins, not build its own');
 });
@@ -77,12 +77,15 @@ test('main knows it runs for a wake and builds no site webview', () => {
   assert.match(engine, new RegExp(`BACKGROUND_WAKE_ARG = "${arg[1]}"`),
     'the worker engine must pass the argument main looks for');
   assert.match(engine, /executeDartEntrypoint\(\s*DartExecutor\.DartEntrypoint\.createDefault\(\),\s*listOf\(BACKGROUND_WAKE_ARG\)/);
-  assert.match(main, /void main\(\[List<String> args = const \[\]\]\) async \{\s*launchedForBackgroundWake = args\.contains\(kBackgroundWakeArg\);/);
-  assert.match(startup, /if \(!_sites\.useContainers && !launchedForBackgroundWake\) \{/,
-    'the legacy pre-paint auto-load must not run in the wake engine');
+  assert.match(main, /void main\(\[List<String> args = const \[\]\]\) async \{\s*final launch = ProcessLaunch\.fromArgs\(args\);/);
+  assert.match(main, /runApp\(WebSpaceApp\(launch: launch\)\);/,
+    'the app is told what started it; nothing else holds the launch reason');
+  assert.match(launch, /args\.contains\(kBackgroundWakeArg\) \? backgroundWake : user/);
+  const autoLoads = startup.match(/DeferredStartupEngine\.autoLoadNotificationSites/g) ?? [];
+  assert.equal(autoLoads.length, 1, 'notification sites auto-load in one place');
   assert.match(startup,
-    /if \(_sites\.useContainers && !launchedForBackgroundWake\) \{\s*unawaited\(\s*DeferredStartupEngine\.autoLoadNotificationSites/,
-    'the container auto-load must not run in the wake engine');
+    /case ProcessLaunch\.user:\s*await DeferredStartupEngine\.autoLoadNotificationSites/,
+    'the auto-load must not run in the wake engine');
 });
 
 test('the refresh waits for Dart to install its handler', () => {
@@ -104,9 +107,16 @@ test('a return to the foreground closes the wake headless checks', () => {
   assert.match(blockAfter(lifecycle, 'void _foregrounded() {', null, 'app_lifecycle_controller.dart'),
     /background\.noteResumed\(\)/);
   assert.match(blockAfter(background, 'void noteResumed() {', null, 'background_sites_controller.dart'),
-    /_activeWake\?\.closeAllHeadless\(\)/);
-  const body = blockAfter(background, 'Future<WakeSkip?> openHeadless(SiteId siteId) async {', null,
+    /_wakeEngine\.foreground\(_wakeHost\)/,
+    'the return is the wake table\'s Foreground input, which closes every check');
+  const body = blockAfter(background, 'Future<WakeSkip?> _openHeadless(SiteId siteId) async {', null,
     'background_sites_controller.dart');
-  assert.equal((body.match(/if \(_foreground\)/g) || []).length, 2,
+  assert.equal((body.match(/if \(_sites\.fore\)/g) || []).length, 2,
     'openHeadless must refuse before building a check and drop one finished after the app came back');
+  const closeAll = blockAfter(background, 'Future<void> _closeAll() {', null,
+    'background_sites_controller.dart');
+  assert.match(closeAll, /vacateEvery\(\s*RouteUse\.headless/,
+    'the return takes every check on the rule in its turn, one claimed just before it too');
+  assert.match(closeAll, /Future\.wait\(\[\.\.\._opening\]\)/,
+    'the return waits out the opens under way before the rule may move');
 });

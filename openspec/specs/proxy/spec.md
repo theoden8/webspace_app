@@ -158,6 +158,16 @@ The system SHALL validate proxy addresses before applying them.
 **Then** an error message is displayed: "Invalid port number"
 **And** the settings are not saved
 
+#### Scenario: The screens take what the proxy takes
+
+**Given** the user is configuring a proxy, per site or app-wide
+**When** the user enters a bracketed IPv6 literal such as "[::1]:1080"
+**Then** it is accepted, as both proxy mechanisms route it (PROXY-017)
+**And** an address with no host (":8080") or a colon outside brackets is refused with "Format: host:port"
+**And** the screens, both proxy mechanisms and the outbound client parse an address through one function, `ProxyAddressParse.of`
+
+Tests: `test/proxy_test.dart` ("Proxy address parsing"), `test/site_network_screen_test.dart` ("the screen takes what the proxy itself takes").
+
 #### Scenario: Native side rejects malformed maps
 
 **Given** the iOS / macOS path receives a `proxySettings` map missing
@@ -251,6 +261,72 @@ which is partitioned per `siteId`
 (including Site A) is disposed *before*
 `ProxyController.setProxyOverride` applies P2 globally
 **And** the data model preserves Site A's P1 setting
+
+#### Scenario: Android — no background load on another route
+
+**Given** Site A is loaded on Android with HTTP proxy P1
+**And** router mode is NOT active
+**And** Site B is a notification site configured with proxy P2
+**When** the app auto-loads notification sites at launch
+**Then** Site B is not loaded in the background
+**Because** a background load runs no residency plan, so it cannot unload
+Site A, and building Site B's webview applies P2 to the process-wide
+override, which would carry Site A's requests through P2
+**And** Site B loads when the user activates it, which unloads Site A first
+**And** `formal/activation.tla`'s `Inv_OneRoute` holds every interleaving of
+taps and preloads to it (`activation_proxy.cfg`; the `preloadmismatch`
+mutant is the guard without the check). History:
+[BUG-037](../../../docs/bugs/037-background-load-on-another-route.md)
+
+#### Scenario: Android — a loaded site's proxy changed in its settings
+
+**Given** Sites A and B are loaded on Android with HTTP proxy P1
+**And** router mode is NOT active
+**When** the user saves Site A's settings with proxy P2
+**Then** Site B is unloaded before the override flips to P2
+**And** Site A's webview takes P2
+**And** a site whose webview is not built takes its new proxy only when it
+is built, so saving it moves no rule under the loaded sites
+
+#### Scenario: Android — a nested open asks again before the proxy moves
+
+**Given** Site A is loaded on Android with HTTP proxy P1
+**And** the user opens a link nested in Site B, configured with proxy P2
+**When** a site on P1 loads while the open unloads Site A, or while the
+override flips
+**Then** the open unloads it too before its screen goes up
+**And** the screen and every loaded site run one route (`Inv_OneRoute`
+over the running sites: `activation_nested*.cfg`; `nestedonce` is the open
+that does not ask again once the proxy moved)
+
+#### Scenario: Android — a nested open is an input
+
+**Given** a tap on Site A is in flight
+**When** a link opens Site B nested, on another proxy
+**Then** the open supersedes the tap, as a second tap would
+**And** a tap that lands while the open unloads supersedes the open, whose
+unloads then spare the tapped site (PAUSE-006)
+**And** when the open unloaded the site on screen, that site comes back
+once the screen pops
+**And** however the open ends, its claim on the override goes with it, so
+the next write is not refused for a screen that never went up (the walks'
+`ProcessRoute`, empty once settled)
+
+#### Scenario: Android — a preload asks again at its commit
+
+**Given** a notification site is preloading at launch on proxy P1
+**When** a nested screen on P2 goes up before the preload commits
+**Then** the preload does not load (`preloadunchecked` is the commit that
+does not ask)
+
+#### Scenario: The process-wide rule moves one write at a time
+
+**Given** two writes of the process-wide override, one with a credentialed
+proxy that starts the relay first
+**Then** the second's relay and override calls begin only once the first's
+have landed (`ProcessRoute`)
+**And** in a debug build a write asserts that nothing else running on the
+rule needs another route
 
 #### Scenario: Android — no unload under router mode
 

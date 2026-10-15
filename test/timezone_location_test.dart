@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_zone.dart';
 import 'helpers/fake_path_provider.dart';
+import 'helpers/isolations.dart';
 
 /// Minimal GeoJSON FeatureCollection used as a fixture for the parser.
 /// Two zones: a square covering "Asia/Tokyo" around (35.68, 139.65) and a
@@ -139,6 +142,46 @@ void main() {
       await TimezoneLocationService.instance.clear();
       expect(prefs.getInt('tz_polygons_zone_count'), isNull);
       expect(await TimezoneLocationService.instance.cachedZoneCount(), isNull);
+    });
+  });
+
+  // A site whose zone comes from its coordinates has it resolved before its
+  // webview is built, and building it before any lookup is an assert.
+  group('resolveZones', () {
+    WebViewModel fromLocation({required double lat, required double lng}) =>
+        WebViewModel(initUrl: 'https://a.example/')
+          ..spoofLatitude = lat
+          ..spoofLongitude = lng
+          ..spoofTimezoneFromLocation = true;
+
+    test('a webview built before any lookup is refused', () async {
+      await TimezoneLocationService.instance.clear();
+      final m = fromLocation(lat: 35.68, lng: 139.65);
+      expect(m.zoneUnresolved, isTrue);
+      expect(() => m.sitePosture(globalUserScripts: const [], isolation: fakeSharedJar()),
+          throwsA(isA<AssertionError>()));
+    });
+
+    test('resolves the unresolved and leaves the rest', () async {
+      final dir = Directory(
+          (PathProviderPlatform.instance as FakePathProvider).dir.path);
+      await TimezoneLocationService.instance.clear();
+      await File('${dir.path}/tz_polygons.geojson').writeAsString(_fixture);
+      final tokyo = fromLocation(lat: 35.68, lng: 139.65);
+      final ocean = fromLocation(lat: 0.0, lng: 0.0);
+      final picked = fromLocation(lat: 51.5, lng: -0.13)
+        ..spoofTimezone = 'America/New_York';
+      final plain = WebViewModel(initUrl: 'https://b.example/');
+
+      await resolveZones([tokyo, ocean, picked, plain]);
+
+      expect(tokyo.spoofTimezone, 'Asia/Tokyo');
+      expect(ocean.spoofTimezone, isNull,
+          reason: 'no polygon covers it: the system zone, as the spec says');
+      expect(picked.spoofTimezone, 'America/New_York');
+      for (final m in [tokyo, ocean, picked, plain]) {
+        m.sitePosture(globalUserScripts: const [], isolation: fakeSharedJar());
+      }
     });
   });
 }

@@ -1,0 +1,8 @@
+name = "footprint"
+defaultTargets = ["Footprint"]
+
+[leanOptions]
+warningAsError = true
+
+[[lean_lib]]
+name = "Footprint"

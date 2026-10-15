@@ -14,7 +14,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
-import 'package:webspace/services/container_cookie_manager.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -162,14 +162,11 @@ class NestedDevToolsHost implements DevToolsHost {
 
 class DevToolsScreen extends StatefulWidget {
   final DevToolsHost? host;
-  final CookieManager cookieManager;
-  /// Container-mode counterpart of [cookieManager]; non-null when
-  /// `_useContainers` is true. The cookie inspector reads/deletes
-  /// through this so the UI reflects the per-site container's jar
-  /// instead of the (unused, likely empty) default jar in container
-  /// mode. Same branching pattern as the WebView construction and
-  /// onCookiesChanged sites.
-  final ContainerCookieManager? containerCookieManager;
+
+  /// How [host]'s cookies are kept apart, which the cookie inspector reads
+  /// and deletes through, so it shows the jar the page uses; null only with
+  /// no host (the app logs).
+  final Isolation? isolation;
   final VoidAsyncCallback? onSave;
   final List<UserScriptConfig> globalUserScripts;
 
@@ -188,13 +185,13 @@ class DevToolsScreen extends StatefulWidget {
   const DevToolsScreen({
     super.key,
     this.host,
-    required this.cookieManager,
-    this.containerCookieManager,
+    this.isolation,
     this.onSave,
     this.globalUserScripts = const [],
     this.onSimulateBackgroundRefresh,
     this.startOnBackground = false,
-  });
+  }) : assert(host == null || isolation != null,
+            'a site\'s cookie inspector reads the jar its page uses');
 
   @override
   State<DevToolsScreen> createState() => _DevToolsScreenState();
@@ -657,24 +654,16 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     setState(() => _loadingCookies = true);
     final List<Cookie> cookies;
     try {
-      final container = widget.containerCookieManager;
-      final controller = widget.host!.controller;
-      if (container != null && controller != null) {
-        cookies = await container.getCookies(
-          controller: controller,
-          url: Uri.parse(url),
-        );
-        LogTag.devTools.debug('Cookie inspector via ContainerCookieManager: '
-            'siteId=${widget.host!.siteId} url=$url '
-            'count=${cookies.length}', sensitive: true);
-      } else {
-        cookies = await widget.cookieManager.getCookies(url: Uri.parse(url));
-        LogTag.devTools.debug('Cookie inspector via legacy CookieManager: '
-            'siteId=${widget.host!.siteId} url=$url '
-            'count=${cookies.length} '
-            '(container=${container != null} ctrl=${controller != null})',
-            sensitive: true);
-      }
+      final isolation = widget.isolation!;
+      cookies = await isolation.cookiesAt(
+        Uri.parse(url),
+        controller: widget.host!.controller,
+      );
+      LogTag.devTools.debug('Cookie inspector via ${switch (isolation) {
+        Containers() => 'the container',
+        SharedJar() => 'the shared jar',
+      }}: siteId=${widget.host!.siteId} url=$url count=${cookies.length}',
+          sensitive: true);
     } on CookieJarFailure catch (e) {
       // The list the site holds stays: a read that failed is not an empty
       // jar (DEVTOOLS-002).
@@ -692,26 +681,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Future<void> _deleteCookie(Cookie cookie) async {
-    final url = Uri.parse(widget.host!.currentUrl);
-    final container = widget.containerCookieManager;
-    final controller = widget.host!.controller;
     try {
-      if (container != null && controller != null) {
-        await container.deleteCookie(
-          controller: controller,
-          url: url,
-          name: cookie.name,
-          domain: cookie.domain,
-          path: cookie.path ?? '/',
-        );
-      } else {
-        await widget.cookieManager.deleteCookie(
-          url: url,
-          name: cookie.name,
-          domain: cookie.domain,
-          path: cookie.path ?? '/',
-        );
-      }
+      await widget.isolation!.deleteCookie(
+        cookie,
+        url: Uri.parse(widget.host!.currentUrl),
+        controller: widget.host!.controller,
+      );
     } on CookieJarFailure catch (e) {
       _toast((loc) => loc.cookieStoreFailed(e.message));
       return;

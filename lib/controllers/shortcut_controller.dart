@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/controllers/startup_controller.dart' show Launched, Reached, SitesOnPage;
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -64,11 +65,12 @@ abstract interface class ShortcutHost implements PageHost {
   /// stay on top of the site it opens.
   void popToRoot();
 
-  Future<void> activate(int index);
+  Future<void> activate(WebViewModel site);
   void enterFullscreen();
 
-  /// Sends the always-open-home siblings of [index] home (HS-007, TAB-014).
-  Future<void> resetHomeOnLaunch(int index);
+  /// Sends the always-open-home siblings of [launched] home (HS-007,
+  /// TAB-014).
+  Future<void> resetHomeOnLaunch(WebViewModel launched);
 
   /// Adds [model] and puts it on screen.
   Future<void> registerSite(WebViewModel model);
@@ -129,6 +131,9 @@ class ShortcutController implements HomeShortcutsHost {
   /// A cold-launch tap that needs a prompt, parked until the first frame:
   /// there is no UI mid-restore.
   _Tap? _parked;
+
+  /// The restore's proof, kept for the refresh the settings list asks for.
+  Reached<SitesOnPage>? _sitesOnPage;
   final _promptGuard = ReentryGuard();
 
   /// A pinned tile takes its site's page icon once the webview reports one.
@@ -227,7 +232,7 @@ class ShortcutController implements HomeShortcutsHost {
 
   /// Re-reads the launcher's pinned set; on every resume, since a pin dialog
   /// or a removal from the launcher happens outside the app.
-  Future<void> refreshPinned() async {
+  Future<void> refreshPinned({required Reached<SitesOnPage> after}) async {
     final tiles = await ShortcutService.getPinnedShortcuts();
     if (!_host.mounted) return;
     await _reconcileLedger(tiles.values.toSet());
@@ -242,7 +247,11 @@ class ShortcutController implements HomeShortcutsHost {
   /// Drops remembered state naming sites that no longer exist: a remap whose
   /// target is gone would never resolve (a fresh tap re-prompts), and a
   /// tombstone whose site is live again (only a backup can do that).
-  Future<void> pruneAgainst(Set<SiteId> liveSiteIds) async {
+  Future<void> pruneAgainst(
+    Set<SiteId> liveSiteIds, {
+    required Reached<SitesOnPage> after,
+  }) async {
+    _sitesOnPage = after;
     final prefs = await SharedPreferences.getInstance();
     final remapBefore = _remap.length;
     _remap.removeWhere((_, resolved) => !liveSiteIds.contains(resolved));
@@ -257,21 +266,23 @@ class ShortcutController implements HomeShortcutsHost {
     }
   }
 
-  /// A cold launch: the index to activate for a shortcut that resolves to a
-  /// site, with the Always open Home resets done (HS-006, HS-007), or null.
+  /// A cold launch: the site to activate for a shortcut that resolves to
+  /// one, with the Always open Home resets done (HS-006, HS-007), or null.
   /// A launch that needs a prompt is parked for [promptParkedAfterFrame].
-  Future<int?> resolveColdLaunch() async {
+  Future<WebViewModel?> resolveColdLaunch({
+    required Reached<SitesOnPage> after,
+  }) async {
     final tap = await _resolveLaunch(warm: false);
     final resolution = tap.resolution;
     if (resolution is! LaunchOpenSite) {
       if (resolution is! LaunchNone) _parked = tap;
       return null;
     }
-    final index = resolution.index;
-    _host.kioskLocked = _sites.models[index].kioskMode;
-    await _host.resetHomeOnLaunch(index);
+    final site = resolution.site;
+    _host.kioskLocked = site.kioskMode;
+    await _host.resetHomeOnLaunch(site);
     if (!_host.mounted) return null;
-    return index;
+    return site;
   }
 
   void promptParkedAfterFrame() {
@@ -285,11 +296,11 @@ class ShortcutController implements HomeShortcutsHost {
   }
 
   /// A shortcut tapped while the app runs.
-  Future<void> handleWarmLaunch() async {
+  Future<void> handleWarmLaunch({required Reached<Launched> after}) async {
     final tap = await _resolveLaunch(warm: true);
     if (!_host.mounted) return;
-    if (tap.resolution case LaunchOpenSite(:final index)) {
-      await _openIndex(index);
+    if (tap.resolution case LaunchOpenSite(:final site)) {
+      await _open(site);
     } else if (tap.resolution is! LaunchNone) {
       await _applyInteractive(tap);
     }
@@ -333,14 +344,14 @@ class ShortcutController implements HomeShortcutsHost {
   /// Warm-tap switch to a resolved site: siblings home (HS-007), switch if
   /// not already on screen, persist. The site's own page is kept: a warm tap
   /// preserves the live session (HS-006).
-  Future<void> _openIndex(int index) async {
-    if (index < 0 || index >= _sites.models.length) return;
+  Future<void> _open(WebViewModel site) async {
+    if (!_sites.models.contains(site)) return;
     // KIOSK-001: a kiosk site locks the shell; any other clears the lock.
-    _host.kioskLocked = _sites.models[index].kioskMode;
-    await _host.resetHomeOnLaunch(index);
+    _host.kioskLocked = site.kioskMode;
+    await _host.resetHomeOnLaunch(site);
     if (!_host.mounted) return;
-    if (index != _sites.current) {
-      await _host.activate(index);
+    if (site != _sites.shown) {
+      await _host.activate(site);
       if (!_host.mounted) return;
     }
     // FS-008, after the activation exited full screen for a non-full-screen
@@ -349,7 +360,7 @@ class ShortcutController implements HomeShortcutsHost {
         StartupRestoreEngine.shouldEnterFullscreen(
           viaShortcut: true,
           fullscreenOnShortcut: AppPref.fullscreenOnShortcut.value,
-          perSiteFullscreenMode: _sites.models[index].fullscreenMode,
+          perSiteFullscreenMode: site.fullscreenMode,
         )) {
       _host.enterFullscreen();
     }
@@ -363,15 +374,14 @@ class ShortcutController implements HomeShortcutsHost {
     final tile = tap.tile;
     await _promptGuard.run(() async {
       switch (tap.resolution) {
-        case LaunchConfirmExisting(:final index, :final shortcutSiteId):
-          if (index < 0 || index >= _sites.models.length) return;
-          final model = _sites.models[index];
-          if (!await _prompts.confirmOpen(model.getDisplayName()) ||
+        case LaunchConfirmExisting(:final site, :final shortcutSiteId):
+          if (!_sites.models.contains(site)) return;
+          if (!await _prompts.confirmOpen(site.getDisplayName()) ||
               !_host.mounted) {
             return;
           }
-          await _rebind(shortcutSiteId, tile: tile, to: model.siteId);
-          await _openIndex(index);
+          await _rebind(shortcutSiteId, tile: tile, to: site.siteId);
+          await _open(site);
         case LaunchOfferCreate(:final url, :final shortcutSiteId):
           final choice = await _prompts.missingSite(url);
           if (choice == null || !_host.mounted) return;
@@ -405,8 +415,7 @@ class ShortcutController implements HomeShortcutsHost {
     final targetSiteId = await _pickSite();
     if (targetSiteId == null || !_host.mounted) return;
     await _rebind(shortcutSiteId, tile: tile, to: targetSiteId);
-    final i = _sites.models.indexWhere((m) => m.siteId == targetSiteId);
-    if (i >= 0) await _openIndex(i);
+    if (_sites.byId(targetSiteId) case final site?) await _open(site);
   }
 
   /// Keeps the user's answer for a tapped shortcut: an Android tile is
@@ -522,7 +531,8 @@ class ShortcutController implements HomeShortcutsHost {
   @override
   Future<void> refreshHomeShortcuts() async {
     _publishHomeShortcuts();
-    await refreshPinned();
+    // The settings list opens only once the sites are on the page.
+    if (_sitesOnPage case final onPage?) await refreshPinned(after: onPage);
   }
 
   @override

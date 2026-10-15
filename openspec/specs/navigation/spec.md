@@ -383,7 +383,7 @@ Apple is excluded because the app cannot see the gesture: the root site webview 
 
 ### Requirement: NAV-010 - Leaving A Site Is Committed Before Its Teardown
 
-Returning to the webspace list SHALL take effect on the user's tap, independently of the teardown of the site being left. `setCurrentIndex(null)` SHALL assign `_sites.current` and exit fullscreen **before** it captures nav state, stops a real camera capture, pauses media, or pauses the webview — nothing in that sequence decides where the user ends up.
+Returning to the webspace list SHALL take effect on the user's tap, independently of the teardown of the site being left. `activate(null)` SHALL assign `_sites.current` and exit fullscreen **before** it captures nav state, stops a real camera capture, pauses media, or pauses the webview — nothing in that sequence decides where the user ends up.
 
 That teardown is best-effort and SHALL be funnelled through `SiteTeardownEngine.quiesceOutgoing` (also used by the site-switch path and the defensive sweep of background sites), which:
 
@@ -434,7 +434,7 @@ Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateSto
 
 The startup restore SHALL NOT close a site the user opened while it was still running. `StartupController.restore` records `SiteRuntime.activationVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
 
-**Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `setCurrentIndex(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_sites.current` cleared the next memory-pressure event no longer protected it.
+**Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `activate(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_sites.current` cleared the next memory-pressure event no longer protected it.
 
 #### Scenario: Opening a site during a slow startup
 
@@ -462,7 +462,7 @@ Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/s
 
 ### Requirement: NAV-013 - An Activation Shows The Site It Made Current
 
-`SiteActivationController.setCurrentIndex` SHALL rebuild the page once it has assigned `_sites.current` (and, for a site, moved it to the end of `_sites.loaded`), on both the site path and the webspace-list path. A caller's own rebuild does not stand in for it: one made before the activation's awaits end draws the previous state, and a caller that never rebuilds leaves the site unbuilt.
+`SiteActivationController.activate` SHALL rebuild the page once it has assigned `_sites.current` (and, for a site, moved it to the end of `_sites.loaded`), on both the site path and the webspace-list path. A caller's own rebuild does not stand in for it: one made before the activation's awaits end draws the previous state, and a caller that never rebuilds leaves the site unbuilt.
 
 **Rationale:** callers rebuilt on their own schedule. A notification tap rebuilt synchronously, before the activation's state reads finished; the launch link's open-in-main path did not rebuild at all. On a device those reads outlast a frame, so the app stayed on the webspace list with the site marked current and no webview. It went unnoticed while the notification-site auto-load, which rebuilds, usually reached the same site first; a faster startup let the link win.
 
@@ -479,7 +479,7 @@ Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/s
 **When** the link's activation of that site completes
 **Then** the site is shown, whether or not the notification auto-load also loads it
 
-Covered by `test/notification_launch_app_test.dart` (the tap); the launch link reaches the page through the same `setCurrentIndex`.
+Covered by `test/notification_launch_app_test.dart` (the tap); the launch link reaches the page through the same `activate`.
 
 ---
 
@@ -554,9 +554,9 @@ does not use.
 
 ### Guard: RACE-003 - SiteRuntime.activationVersion Counter
 
-**Problem:** `setCurrentIndex()` performs multiple async operations (cookie capture, domain conflict resolution, cookie restoration). Rapid site switching could interleave these operations.
+**Problem:** `activate()` performs multiple async operations (cookie capture, domain conflict resolution, cookie restoration). Rapid site switching could interleave these operations.
 
-**Solution:** Version counter `SiteRuntime.activationVersion` is checked after each `await` gap. If the version changed (another `setCurrentIndex` call started), the stale call returns early.
+**Solution:** Version counter `SiteRuntime.activationVersion` is checked after each `await` gap. If the version changed (another `activate` call started), the stale call returns early.
 
 ### Guard: RACE-004 - goHome() Synchronous Execution
 

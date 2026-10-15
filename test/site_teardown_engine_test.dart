@@ -72,7 +72,7 @@ void main() {
         steps: [
           SiteTeardownStep('capture', run: () async {
             order.add('capture');
-            version = 2; // a newer setCurrentIndex landed mid-teardown
+            version = 2; // a newer activate landed mid-teardown
             return true;
           }),
           _step('pause', order: order),

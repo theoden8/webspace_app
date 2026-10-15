@@ -471,7 +471,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       expect(prefs.getBool(AppPref.experimentalSiteIconsOnly.key), isTrue);
     });
 
-    testWidgets('Reset icon cache forgets every cached icon', (tester) async {
+    testWidgets('Reset icon cache forgets every cached icon (ICON-015)', (tester) async {
       SharedPreferences.setMockInitialValues({
         'favicon_url_https://a.test/': 'https://a.test/icon.png',
         'favicon_svg_https://a.test/icon.svg': '<svg/>',

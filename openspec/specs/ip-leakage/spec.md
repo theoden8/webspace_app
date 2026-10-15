@@ -702,7 +702,7 @@ written to a log or forwarded upstream.
 
 ---
 
-### Requirement: LEAK-010 - Page JS cannot obtain or forge a router token
+### Requirement: LEAK-013 - Page JS cannot obtain or forge a router token
 
 A site's own content SHALL NOT be able to present another site's router
 credential, nor read its own.

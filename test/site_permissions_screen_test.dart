@@ -127,7 +127,7 @@ void main() {
     expect(find.textContaining('bank.example'), findsOneWidget);
   });
 
-  testWidgets('choosing a state reports it to the caller', (tester) async {
+  testWidgets('choosing a state reports it to the caller (CAM-002)', (tester) async {
     SitePermissionValues? reported;
     await _pump(
       tester,

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview.dart';
@@ -150,7 +149,7 @@ void main() {
       harness = NavigationTestHarness();
     });
 
-    test('each site should use its own initUrl for domain comparison', () {
+    test('each site should use its own initUrl for domain comparison (ISO-008)', () {
       // Setup: Site A (GitHub), Site B (GitLab)
       harness.addSite('https://github.com', name: 'GitHub');
       harness.addSite('https://gitlab.com', name: 'GitLab');
@@ -388,102 +387,6 @@ void main() {
       expect(harness.simulateNavigation(1, targetUrl: 'https://github.com'),
           isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('GitLab'));
-    });
-  });
-
-  group('Widget Identity in IndexedStack', () {
-    testWidgets('ValueKey ensures widget identity is preserved', (tester) async {
-      // Create sites with unique siteIds
-      final siteA = WebViewModel(initUrl: 'https://github.com', name: 'GitHub');
-      final siteB = WebViewModel(initUrl: 'https://gitlab.com', name: 'GitLab');
-
-      // Verify siteIds are unique
-      expect(siteA.siteId, isNot(equals(siteB.siteId)));
-
-      int currentIndex = 0;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: StatefulBuilder(
-            builder: (context, setState) {
-              return Column(
-                children: [
-                  // Simulate IndexedStack behavior with visibility
-                  IndexedStack(
-                    index: currentIndex,
-                    children: [
-                      Container(
-                        key: ValueKey(siteA.siteId),
-                        child: Text('Site A: ${siteA.initUrl}'),
-                      ),
-                      Container(
-                        key: ValueKey(siteB.siteId),
-                        child: Text('Site B: ${siteB.initUrl}'),
-                      ),
-                    ],
-                  ),
-                  ElevatedButton(
-                    onPressed: () => setState(() => currentIndex = 1),
-                    child: const Text('Switch to B'),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      );
-
-      // Verify initial state - use skipOffstage: false to find offstage widgets
-      expect(find.text('Site A: https://github.com', skipOffstage: false), findsOneWidget);
-      expect(find.text('Site B: https://gitlab.com', skipOffstage: false), findsOneWidget);
-
-      // Switch to site B
-      await tester.tap(find.text('Switch to B'));
-      await tester.pump();
-
-      // Both widgets should still exist (IndexedStack keeps both in tree)
-      expect(find.text('Site A: https://github.com', skipOffstage: false), findsOneWidget);
-      expect(find.text('Site B: https://gitlab.com', skipOffstage: false), findsOneWidget);
-
-      // The key thing: widgets maintain their identity via ValueKey
-      // This prevents Flutter from reusing/swapping widget state
-    });
-
-    testWidgets('without ValueKey, widgets might get confused', (tester) async {
-      // This test documents the potential issue without proper keys
-      final sites = [
-        WebViewModel(initUrl: 'https://github.com', name: 'GitHub'),
-        WebViewModel(initUrl: 'https://gitlab.com', name: 'GitLab'),
-      ];
-
-      // Track which initUrl each "widget" thinks it has
-      final Map<int, String> capturedInitUrls = {};
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) {
-              return Column(
-                children: [
-                  for (int i = 0; i < sites.length; i++)
-                    Builder(
-                      key: ValueKey(sites[i].siteId), // With proper key
-                      builder: (context) {
-                        // Simulate callback capturing initUrl
-                        capturedInitUrls[i] = sites[i].initUrl;
-                        return Text('Site $i: ${sites[i].initUrl}');
-                      },
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
-      );
-
-      // Each widget captured the correct initUrl
-      expect(capturedInitUrls[0], equals('https://github.com'));
-      expect(capturedInitUrls[1], equals('https://gitlab.com'));
     });
   });
 

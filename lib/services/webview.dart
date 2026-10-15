@@ -58,6 +58,7 @@ import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/webview_tls.dart';
 import 'package:webspace/services/webview_downloads.dart';
 import 'package:webspace/services/page_scripts.dart';
+import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/page_js.dart';
@@ -76,20 +77,32 @@ typedef StoreBinding = ({
 });
 
 class WebViewFactory {
-  /// How Android draws a webview (PAUSE-032). True, the default, is hybrid
-  /// composition: the WebView sits in the Android view hierarchy and Flutter
-  /// draws into image views around it, where a surface can reattach without a
-  /// paint and stay blank white (BUG-001). False is texture layer hybrid
-  /// composition, where the page renders into a texture Flutter composites in
-  /// its own frame; it is an experimental feature (DEVTOOLS-011).
+  /// How Android draws a webview (PAUSE-032). True is hybrid composition:
+  /// the WebView sits in the Android view hierarchy and Flutter draws into
+  /// image views around it, where a surface can reattach without a paint and
+  /// stay blank white (BUG-001). False is texture layer hybrid composition,
+  /// where the page renders into a texture Flutter composites in its own
+  /// frame; it is an experimental feature (DEVTOOLS-011).
   ///
-  /// Set once at startup and never after, so every webview in a process runs
-  /// the same mode. The fork's `setSettings` replaces the native settings
+  /// Decided by main before any webview exists, and never changed after, so
+  /// every webview in a process runs the same mode: a read before it is
+  /// decided, or a second decision that differs, is an error. Held here
+  /// rather than handed down because three settings builders in three layers
+  /// read it. The fork's `setSettings` replaces the native settings
   /// wholesale and the Dart settings class defaults this field to true, so
   /// every `InAppWebViewSettings` the app builds must carry it or a settings
   /// update flips a texture webview's native input and selection code to
   /// hybrid behaviour.
-  static bool hybridComposition = true;
+  static bool get hybridComposition =>
+      _hybridComposition ??
+      (throw StateError('a webview built before main decided its composition'));
+  static set hybridComposition(bool hybrid) {
+    assert(_hybridComposition == null || _hybridComposition == hybrid,
+        'one composition mode per process (PAUSE-032)');
+    _hybridComposition = hybrid;
+  }
+
+  static bool? _hybridComposition;
 
   /// One per process, shared by root and nested webviews: a host that answered
   /// an upgrade with a failure in one must not be probed again by the other
@@ -132,7 +145,11 @@ class WebViewFactory {
     return true;
   }
 
-  static bool _shouldBlockUrl(String url) {
+  /// Whether a frame may not navigate to [url] at all: an `about:` page
+  /// other than the two a captcha iframe needs (CAPTCHA-002, NESTED-002), or
+  /// a service-worker iframe (NESTED-003).
+  @visibleForTesting
+  static bool shouldBlockUrl(String url) {
     // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile
     if (url.startsWith('about:') && url != 'about:blank' && url != 'about:srcdoc') return true;
     if (url.contains('/sw_iframe.html') || url.contains('/blank.html') || url.contains('/service_worker/')) return true;
@@ -212,11 +229,11 @@ class WebViewFactory {
     // across sites. The WebSpace fork's `containerId` field on
     // `InAppWebViewSettings` is read by `prepare()` /
     // `preWKWebViewConfiguration` and binds the WebView to the named
-    // container before any session-bound op runs. `cachedSupported` is
-    // already platform-aware (Windows / web fall through to the stub
-    // which returns false); no extra Platform gate needed.
+    // container before any session-bound op runs. The posture's
+    // container id comes from the restore's isolation, so a platform
+    // without containers binds none; no extra Platform gate needed.
     // Archive-tier sites (ARCH-007) pass an opaque
-    // [archiveContainerKey] derived from `HMAC(archiveKey, "container:" +
+    // [archiveContainerId] derived from `HMAC(archiveKey, "container:" +
     // siteId)`, so directory listings under the native container roots
     // expose neither the cleartext archive siteId nor a count delta
     // that correlates 1:1 with archive contents.
@@ -230,10 +247,7 @@ class WebViewFactory {
     // archive closes (ARCH-006/ARCH-007). So Android always binds a named
     // profile and relies on the existing teardown: incognito ids are deleted
     // at startup and archive container ids at close.
-    final containerId = containerIdFor(
-      key: posture.container.containerKey,
-      incognito: posture.container.incognito,
-    );
+    final containerId = posture.container.containerId;
 
     // Per-site proxy delivery, on the platforms that bind it to the
     // WebView's own network store rather than process-wide:
@@ -390,7 +404,7 @@ class WebViewFactory {
     bool refusePlainHttp = false,
   }) {
     final url = navigationAction.request.url?.toString() ?? '';
-    if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
+    if (shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
     if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
     final verdict = judgeAndRecord(
       config,
@@ -551,19 +565,6 @@ class WebViewFactory {
     // the snapshot itself.
     String? failedNavUrl;
 
-    // Monotonic counter bumped on every `shouldOverrideUrlLoading`
-    // entry — i.e. every time chromium asks us about a new navigation,
-    // including the synthetic invocations chromium fires for
-    // server-side 3xx redirects. `onLoadStart` captures this value at
-    // entry; if a later `shouldOverrideUrlLoading` bumps the counter
-    // before we finish issuing IPCs against the previous frame, we bail
-    // out of the remaining work. The previous frame is being torn down
-    // and any further `evaluateJavascript` we post against it is bound
-    // with `Unretained` lifetimes that the chromium IO thread later
-    // dereferences after the frame is freed — exactly the
-    // dangling-raw_ptr SIGTRAP at `partition_alloc_support.cc:770`.
-    var navigationGen = 0;
-
     // One gate per mounted WebView, because the mounting navigation it tracks
     // is a property of the platform view and not of the site (LEAK-010).
     // Rebuilt in `onWebViewCreated` rather than only here: a remount that
@@ -650,20 +651,41 @@ class WebViewFactory {
     // Shared between this webview's controller (which issues the pause) and
     // its `onJsAlert` (which has to recognise the pause's own alert).
     final pauseHack = PauseTimersHackState();
+    // The webview's own phase, moved by its callbacks: one that reports on a
+    // webview whose renderer died or that was disposed does not act, and a
+    // load that starts without what the page needs is an assert.
+    final phases = PagePhases(
+      blocking: config.posture.blocking,
+      dnsLevel: () => config.effectiveDnsLevel,
+    );
     final grants = config.grants;
     PlatformWebViewController? view;
 
+    final initialRequest = (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
+      url: inapp.WebUri(proxyUnavailable ? 'about:blank' : config.initialUrl),
+      headers: proxyUnavailable || headers.isEmpty ? null : headers,
+    );
+    final initialHtmlToRender =
+        renderInitialData ? fileImport?.html ?? config.initialHtml! : null;
+    // Android holds the first load until the native interceptor has attached
+    // to this view: the fork makes a widget's initial load as it creates the
+    // native view, before Dart hears of it, so a load handed to the widget
+    // would send its first document's sub-resources past the site's DNS
+    // level, the adblock engine and LocalCDN. The wrapped controller holds
+    // every other first load (restore, the proxy path) the same way.
+    final holdsFirstLoad = WebInterceptNative.isSupported;
+    VoidCallback? stopFollowingBlockers;
+
     final webViewWidget = inapp.InAppWebView(
-      initialUrlRequest: (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
-        url: inapp.WebUri(proxyUnavailable ? 'about:blank' : config.initialUrl),
-        headers: proxyUnavailable || headers.isEmpty ? null : headers,
-      ),
-      initialData: renderInitialData ? inapp.InAppWebViewInitialData(
-        data: fileImport?.html ?? config.initialHtml!,
-        mimeType: 'text/html',
-        encoding: 'utf-8',
-        baseUrl: inapp.WebUri(config.initialUrl),
-      ) : null,
+      initialUrlRequest: holdsFirstLoad ? null : initialRequest,
+      initialData: holdsFirstLoad || initialHtmlToRender == null
+          ? null
+          : inapp.InAppWebViewInitialData(
+              data: initialHtmlToRender,
+              mimeType: 'text/html',
+              encoding: 'utf-8',
+              baseUrl: inapp.WebUri(config.initialUrl),
+            ),
       pullToRefreshController: config.pullToRefreshGate?.controller,
       initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: settings,
@@ -802,23 +824,51 @@ class WebViewFactory {
         return inapp.JsAlertResponse(handledByClient: true);
       },
       onWebViewCreated: (controller) async {
+        if (!phases.on(PageEvent.viewCreated, view: controller.platform)) return;
         coverageGate = ProxyCoverageGate(
           binding: ProxyManager.binding,
           proxyConfigured: binding.proxyConfigured,
           mountUrl: config.initialUrl,
         );
+        final viewId = controller.getViewId();
+        final attached = holdsFirstLoad && viewId != null
+            ? WebInterceptNative.attachToView(
+                viewId: viewId as Object,
+                siteId: config.posture.siteId,
+                dnsLevel: DnsBlockService.instance.views.built(
+                  viewId,
+                  site: config.posture.siteId,
+                  siteLevel: config.siteDnsAsk,
+                  localCdn: config.posture.blocking.localCdn,
+                  contentBlock: config.posture.blocking.contentBlock,
+                ),
+                localCdn: config.posture.blocking.localCdn,
+                contentBlock: config.posture.blocking.contentBlock,
+              )
+            : Future.value(!holdsFirstLoad);
         final wrappedController = view = PlatformWebViewController(
           controller,
           pauseHack: pauseHack,
           settings: settings,
+          loadsAfter: attached,
           fileImport: fileImport,
+        );
+        stopFollowingBlockers?.call();
+        stopFollowingBlockers = _followBlockerData(
+          config,
+          view: wrappedController,
+          viewId: viewId,
+          live: () => phases.live(view: controller.platform),
         );
         onControllerCreated(wrappedController);
         PageHandlers.registerPageHandlers(
           controller,
           config: config,
           userScriptService: userScriptService,
-          sourceUrl: () => lastLoadStartUrl,
+          page: (
+            sourceUrl: () => lastLoadStartUrl,
+            document: () => phases.page(controller),
+          ),
         );
         if (iconEngine != null) {
           // Frame-aware, all three: Blink and WebKit take icons from the top
@@ -943,34 +993,26 @@ class WebViewFactory {
             }
           }));
         }
-        // Attach native interceptor (DNS blocking + LocalCDN serving) once
-        // the view is in the hierarchy. Always attach on Android — the
-        // handler no-ops cheaply when neither blocklist nor CDN cache are
-        // populated, and the references are shared with the plugin so
-        // subsequent updates are picked up without re-attaching.
-        if (hostIsAndroid) {
-          // Track attach attempts so we can correlate with the
-          // native-side "attachToAllWebViews" log. Helps
-          // debug the case where Android sub-resources aren't blocked
-          // — first thing to check is whether attach is even running.
-          LogTag.webView.debug(
-              'requesting native interceptor attach: siteId=${config.posture.siteId} '
-              'initialUrl=${config.initialUrl}', sensitive: true);
-          unawaited(Future.microtask(() => WebInterceptNative.attachToWebViews(
-              siteId: config.posture.siteId,
-              dnsLevel: config.effectiveDnsLevel,
-              localCdn: config.posture.blocking.localCdn)));
+        // The first load this widget was given, held until the interceptor
+        // has attached and issued last, once every handler above is in.
+        if (holdsFirstLoad) {
+          if (initialHtmlToRender != null) {
+            unawaited(wrappedController.loadHtml(initialHtmlToRender,
+                baseUrl: config.initialUrl));
+          } else if (initialRequest != null) {
+            unawaited(wrappedController.loadRequest(initialRequest));
+          }
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
-        // Bump the navigation generation FIRST. Any in-flight `onLoadStart`
-        // handler from the previous navigation that's about to fire an
-        // `evaluateJavascript` IPC will see the advance and skip the call,
-        // so the IPC isn't bound to a frame chromium is in the middle of
-        // tearing down.
-        navigationGen++;
+        if (!phases.live(view: controller.platform)) {
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
+        // First: a load start's scripts still on their way see the ask and
+        // stay out of a frame Chromium may be tearing down.
+        phases.asks();
         final url = navigationAction.request.url.toString();
-        if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
+        if (shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         final frame = NavigationDecisionEngine.frameOf(
           reportedMainFrame: navigationAction.isForMainFrame,
           mainFrameInferred: hostIsLinux,
@@ -1149,12 +1191,12 @@ class WebViewFactory {
                 config.posture.blocking.httpsUpgrade);
         if (upgrade.armDeadlineFor != null) {
           final armed = upgrade.armDeadlineFor!;
-          final genAtUpgrade = navigationGen;
+          final genAtUpgrade = phases.asked;
           Timer(WebViewFactory.httpsUpgrade.deadline, () {
             final out = WebViewFactory.httpsUpgrade.onDeadline(
               armed,
               generationAtArm: genAtUpgrade,
-              currentGeneration: () => navigationGen,
+              currentGeneration: () => phases.asked,
             );
             if (out.load != null) {
               LogTag.webView.debug(
@@ -1256,6 +1298,7 @@ class WebViewFactory {
         config.onLinkLongPress!(extra);
       },
       onCreateWindow: (controller, createWindowAction) async {
+        if (!phases.live(view: controller.platform)) return false;
         final url = createWindowAction.request.url?.toString() ?? '';
         final windowId = createWindowAction.windowId;
         LogTag.webView.debug(
@@ -1345,6 +1388,7 @@ class WebViewFactory {
               config.onProgressChanged!(progress);
             },
       onLoadStart: (controller, url) async {
+        if (!phases.on(PageEvent.loadStarted, view: controller.platform)) return;
         LogTag.webViewLifecycle.debug(
             'onLoadStart siteId=${config.posture.siteId} url=$url',
             sensitive: true);
@@ -1360,9 +1404,10 @@ class WebViewFactory {
           iconEngine.onLoadStarted(url?.toString()).forEach(siteIcon!.onIcon);
           logSiteIcon('loadStart ${iconEngine.stateForLog}');
         }
-        // Taken before any await: see `navigationGen`.
-        final myGen = navigationGen;
-        bool stillCurrent() => navigationGen == myGen;
+        // Taken before any await: see `PagePhases.asked`.
+        final askedAtStart = phases.asked;
+        bool stillCurrent() => phases.asked == askedAtStart;
+        final page = phases.page(controller);
 
         // The server answered for an upgrade of ours, so the deadline stops
         // applying to it: a page that is slow to finish is not a connection
@@ -1399,10 +1444,10 @@ class WebViewFactory {
           earlyScripts.add(PageJs.clearUrlShare.script);
         }
         if (earlyScripts.isNotEmpty && stillCurrent()) {
-          await view?.evaluateJavascript(earlyScripts.join('\n'));
+          await page.evaluate(earlyScripts.join('\n'));
         }
         if (stillCurrent()) {
-          await userScriptService.reinjectOnLoadStart(controller);
+          await userScriptService.reinjectOnLoadStart(page);
         }
       },
       // The Android plugin dispatches only this callback; onFaviconChanged,
@@ -1417,12 +1462,15 @@ class WebViewFactory {
               if (accepted != null) siteIcon!.onIcon(accepted);
             },
       onPageCommitVisible: (controller, url) {
+        if (!phases.on(PageEvent.commitVisible, view: controller.platform)) return;
         LogTag.webViewLifecycle.debug(
             'onPageCommitVisible siteId=${config.posture.siteId} url=$url',
             sensitive: true);
         config.onPageCommitVisible?.call();
       },
       onLoadStop: (controller, url) async {
+        if (!phases.on(PageEvent.loadStopped, view: controller.platform)) return;
+        final page = phases.page(controller);
         LogTag.webViewLifecycle.debug(
             'onLoadStop siteId=${config.posture.siteId} url=$url',
             sensitive: true);
@@ -1462,11 +1510,11 @@ class WebViewFactory {
         // `pendingLiveReload` flag is consumed on first use so the
         // subsequent (post-reload) onLoadStop doesn't recurse.
         //
-        // Gated on `navigationGen == 0` — i.e. no shouldOverrideUrlLoading
+        // Gated on `phases.asked == 0` — i.e. no shouldOverrideUrlLoading
         // has fired yet. If the user clicked anything during the cached
         // parse, gen > 0 and we skip the reload; their navigation is the
         // current intent. (`reload()` itself does not bump
-        // navigationGen on Android WebView.)
+        // the count on Android WebView.)
         //
         // Offline, the cached page is the answer until the network comes
         // back: `awaitOnlineForLiveSwap` re-probes for a bounded window,
@@ -1476,15 +1524,15 @@ class WebViewFactory {
         //
         // Each probe is a DNS lookup with up to a 3s timeout — long enough
         // for the user to tap a link or trigger a back/forward gesture.
-        // `navigationGen` is re-checked after every probe so the
+        // `phases.asked` is re-checked after every probe so the
         // live-reload doesn't clobber a navigation that started meanwhile.
-        final firedLiveReload = pendingLiveReload && navigationGen == 0;
+        final firedLiveReload = pendingLiveReload && phases.asked == 0;
         if (firedLiveReload) {
           pendingLiveReload = false;
-          final genAtSchedule = navigationGen;
+          final genAtSchedule = phases.asked;
           unawaited(awaitOnlineForLiveSwap(
             isOnline: ConnectivityService.instance.isOnline,
-            stillWanted: () => navigationGen == genAtSchedule,
+            stillWanted: () => phases.asked == genAtSchedule,
           ).then((online) async {
             if (!online) {
               LogTag.webView.debug(
@@ -1503,17 +1551,16 @@ class WebViewFactory {
         if (onCookiesChanged != null) {
           // The container engine reads the bound container's jar through
           // the fork's `webViewController:`; the legacy one, the shared jar.
-          final container = config.hooks.containerCookieManager;
-          final pageUrl = Uri.parse(urlStr);
           List<Cookie>? cookies;
           try {
-            cookies = container != null
-                ? await container.getCookies(
-                    controller: PlatformWebViewController(controller,
-                        pauseHack: pauseHack, settings: settings),
-                    url: pageUrl,
-                  )
-                : await config.hooks.cookieManager.getCookies(url: pageUrl);
+            cookies = await config.hooks.isolation().cookiesAt(
+              Uri.parse(urlStr),
+              controller: view ??
+                  PlatformWebViewController(controller,
+                      pauseHack: pauseHack,
+                      settings: settings,
+                      loadsAfter: Future<void>.value()),
+            );
           } on CookieJarFailure catch (e) {
             // A read that failed is not an empty jar: the site keeps the
             // cookies it last saved, and the rest of the load's work runs.
@@ -1527,9 +1574,9 @@ class WebViewFactory {
         // Inject full cosmetic script: MutationObserver + text-based hiding
         if (config.posture.blocking.contentBlock) {
           final script = ContentBlockerService.instance.getCosmeticScript(urlStr);
-          if (script != null) await view?.evaluateJavascript(script);
+          if (script != null) await page.evaluate(script);
         }
-        await userScriptService.reinjectOnLoadStop(controller);
+        await userScriptService.reinjectOnLoadStop(page);
         // Cache HTML for offline viewing. Pre-gate the renderer IPC
         // via shouldFetchHtml so the per-onLoadStop storm is collapsed
         // before we ask chromium to serialize the DOM — the IPC, not
@@ -1548,6 +1595,7 @@ class WebViewFactory {
         if (config.onHtmlLoaded != null
             && !firedLiveReload
             && failedNavUrl == null
+            && page.current
             && (config.shouldFetchHtml?.call() ?? true)) {
           final snapshot =
               await view?.evaluateJavascriptReturning(PageJs.htmlSnapshot.script);
@@ -1562,9 +1610,9 @@ class WebViewFactory {
             // the wrong page when they swipe back into the cached entry.
             // Re-read the URL post-snapshot and skip the save on
             // mismatch — the next stable onLoadStop will write the
-            // right pair.
+            // right pair. A reload keeps the URL and not the document.
             final liveUrl = (await view?.getUrl())?.toString();
-            if (liveUrl == urlStr) {
+            if (page.current && liveUrl == urlStr) {
               config.onHtmlLoaded!(urlStr, html: snapshot);
             } else {
               LogTag.webView.debug(
@@ -1575,6 +1623,7 @@ class WebViewFactory {
         }
       },
       onUpdateVisitedHistory: (controller, url, androidIsReload) {
+        if (!phases.live(view: controller.platform)) return;
         // Fires on every history change including back/forward gestures.
         // onLoadStop may not fire for BFCache restorations (iOS Safari back
         // gesture), so this ensures the URL bar stays in sync.
@@ -1591,7 +1640,9 @@ class WebViewFactory {
           // re-run user scripts' source code (not the library).
           final urlStr = url.toString();
           if (urlStr != lastLoadStartUrl) {
-            unawaited(userScriptService.reinjectOnSpaNavigation(controller));
+            unawaited(userScriptService.reinjectOnSpaNavigation(
+              phases.page(controller),
+            ));
           }
           lastLoadStartUrl = null;
         }
@@ -1605,6 +1656,7 @@ class WebViewFactory {
             ?.call(consoleMessage.message, level: consoleMessage.messageLevel);
       },
       onReceivedError: (controller, request, error) async {
+        if (!phases.live(view: controller.platform)) return;
         // An upgrade this engine issued that did not answer: load the original
         // http URL and stop upgrading that host for the rest of the process
         // (HTTPS-002). Ahead of every other recovery below, because those
@@ -1641,6 +1693,7 @@ class WebViewFactory {
         //     marks suppression on the user's choice.
         //   * external scheme + no host UI → best-effort reload.
         if (request.isForMainFrame != true) return;
+        phases.on(PageEvent.loadFailed, view: controller.platform);
         LogTag.webViewLifecycle.warning(
             'main-frame load error type=${error.type} ${ProxyManager.stateForLogs}');
         final reqUrl = request.url.toString();
@@ -1775,6 +1828,7 @@ class WebViewFactory {
       // setState so the IndexedStack child rebuilds at the same `currentUrl`.
       // Fixes issue #333.
       onRenderProcessGone: (controller, detail) {
+        if (!phases.on(PageEvent.rendererGone, view: controller.platform)) return;
         LogTag.webView.warning(
             'onRenderProcessGone: siteId=${config.posture.siteId} didCrash=${detail.didCrash} '
             'priority=${detail.rendererPriorityAtExit}');
@@ -1785,6 +1839,7 @@ class WebViewFactory {
       // backgrounding, or a page-induced crash). Same recovery path —
       // throw the WebView away and let the host rebuild.
       onWebContentProcessDidTerminate: (controller) {
+        if (!phases.on(PageEvent.rendererGone, view: controller.platform)) return;
         LogTag.webView.warning(
             'onWebContentProcessDidTerminate: siteId=${config.posture.siteId}');
         config.onRendererGone?.call(didCrash: true);
@@ -1792,11 +1847,51 @@ class WebViewFactory {
     );
     final scoped = ControllerScope(
       key: config.key,
-      onUnmount: () => view?.markDisposed(),
+      onUnmount: () {
+        phases.unmounted();
+        stopFollowingBlockers?.call();
+        view?.markDisposed();
+      },
       child: webViewWidget,
     );
     return _applyLetterbox(config,
         webView: _applyRefreshGate(config, webView: scoped));
+  }
+
+  /// Tells a live view when the blockers' data changes under it: a level's
+  /// list lands, a filter list downloads. Android's interceptor keeps the
+  /// level it was attached at, so the view is one of [ViewBlockers]', told
+  /// its site's level as the partition moves (DNS-022); WebKit's interceptor
+  /// answers from the bloom its document fetched, where a miss is a hard
+  /// allow, so the page reloads its bloom. Returns the undo, run when the
+  /// view unmounts or a new one replaces it.
+  static VoidCallback _followBlockerData(
+    WebViewConfig config, {
+    required PlatformWebViewController view,
+    required Object? viewId,
+    required bool Function() live,
+  }) {
+    if (WebInterceptNative.isSupported) {
+      final views = DnsBlockService.instance.views;
+      return () {
+        if (viewId != null) views.gone(viewId);
+      };
+    }
+    void changed() {
+      if (!live()) return;
+      if (config.posture.blocking.dns || config.posture.blocking.contentBlock) {
+        unawaited(view.evaluateJavascript(
+            'window.__wsReloadBlockBloom && window.__wsReloadBlockBloom()'));
+      }
+    }
+
+    final dns = DnsBlockService.instance..addBlocklistChangedListener(changed);
+    final blocker = ContentBlockerService.instance
+      ..addRulesChangedListener(changed);
+    return () {
+      dns.removeBlocklistChangedListener(changed);
+      blocker.removeRulesChangedListener(changed);
+    };
   }
 
   /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].

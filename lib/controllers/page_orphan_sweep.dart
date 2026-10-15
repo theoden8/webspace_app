@@ -5,9 +5,6 @@ import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/services/block_stats_service.dart';
-import 'package:webspace/services/container_isolation_engine.dart';
-import 'package:webspace/services/container_native.dart';
-import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
@@ -33,16 +30,12 @@ class PageOrphanSweep implements OrphanSweepTargets {
     required this.cookieStore,
     required this.proxyPasswords,
     required this.navStates,
-    required this.cookies,
-    required this.containers,
   });
 
   final SiteRuntime _sites;
   final CookieSecureStorage cookieStore;
   final ProxyPasswordSecureStorage proxyPasswords;
   final WebViewStateStorage navStates;
-  final CookieManager cookies;
-  final ContainerIsolationEngine containers;
 
   @override
   Future<void> removeOrphans(OrphanStore store,
@@ -67,32 +60,6 @@ class PageOrphanSweep implements OrphanSweepTargets {
           }),
       };
 
-  /// A jar that refuses is left as it is: the next activation empties it
-  /// before any site shows (ISO-012), and the rest of the sweep goes on.
-  @override
-  Future<void> clearLegacyGlobalCookieJar() async {
-    try {
-      await cookies.deleteAllCookies();
-    } on CookieJarFailure catch (e) {
-      LogTag.startup.warning('Launch jar clear failed: $e');
-    }
-  }
-
-  /// The container sweep at launch, before any webview binds:
-  /// `deleteContainer` is reliable only in that unbound window. An incognito
-  /// site's container goes too, so its directory does not grow across
-  /// sessions; the next bind makes a fresh one (#298).
-  Future<void> containersBeforeBind(
-    Set<ContainerKey> active, {
-    required Set<ContainerKey> nonIncognito,
-  }) async {
-    if (isDemoMode) return;
-    await containers.garbageCollectOrphans(active);
-    for (final key in active.difference(nonIncognito)) {
-      await containers.onSiteDeleted(key);
-    }
-  }
-
   /// Sweep after sites left the list while the app runs (delete, import).
   Future<void> afterRemoval() async {
     if (isDemoMode) return;
@@ -100,8 +67,6 @@ class PageOrphanSweep implements OrphanSweepTargets {
       targets: this,
       activeSiteIds: _sites.siteIds,
       nonIncognitoSiteIds: _sites.nonIncognitoSiteIds,
-      useContainers: _sites.useContainers,
-      occasion: SweepOccasion.sitesRemoved,
     );
   }
 
@@ -123,8 +88,6 @@ class PageOrphanSweep implements OrphanSweepTargets {
         targets: this,
         activeSiteIds: activeSiteIds,
         nonIncognitoSiteIds: nonIncognitoSiteIds,
-        useContainers: _sites.useContainers,
-        occasion: SweepOccasion.launch,
       );
       // Blocklist levels nothing asks for any more: a site that moved back
       // to the app-wide level leaves its tier behind, and each one is a

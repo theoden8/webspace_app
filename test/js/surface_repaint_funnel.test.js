@@ -151,7 +151,7 @@ for (const screen of GUARDED) {
   test('the page: reload hooks drive the surface repaint engine', () => {
     assert.match(methodBody('_wireSite'), /_surface\.watch\(site,/,
       'every loaded site must be watched by the repaint controller');
-    assert.match(methodBody('_buildBodyWithBottomBar'), /_wireSite\(/,
+    assert.match(methodBody('_buildBodyWithBottomBar'), /forEach\(_wireSite\)|_wireSite\(/,
       'the body must wire each loaded site');
     const watch = methodBody('watch', { file: 'lib/controllers/surface_repaint_controller.dart' });
     const reload = watch.slice(watch.search(/site\.onReloadIssued\s*=/));
@@ -313,7 +313,7 @@ for (const screen of GUARDED) {
 {
   const lines = linesOf('lib/screens/inappbrowser.dart');
 
-  test('lib/screens/inappbrowser.dart: a resume repaints the nested surface', () => {
+  test('lib/screens/inappbrowser.dart: a resume repaints the nested surface (PAUSE-026)', () => {
     const defIdx = lines.findIndex((l) =>
       /void\s+didChangeAppLifecycleState\s*\(/.test(l),
     );
@@ -457,6 +457,7 @@ for (const screen of GUARDED) {
       'the funnel must report through _trace, not its call sites');
   });
 
+  // PAUSE-029
   test(`${CONTROLLER}: the trace is gated on developer mode and throttled`, () => {
     const body = controllerMethod('_trace');
     // A repaint line per call would evict LogService's 2000-entry ring with

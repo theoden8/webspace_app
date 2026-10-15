@@ -51,7 +51,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'bare_site.dart';
@@ -59,7 +59,6 @@ import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 /// One field's trip across the channel.
 class _Field {
@@ -90,7 +89,7 @@ class _Field {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   // Every platform whose engine answers `getSettings()`. Windows and web have
   // no such engine here; everywhere else the comparison runs, on the subset of
@@ -116,9 +115,8 @@ void main() {
   setUpAll(() async {
     if (!applies) return;
     await PlatformInfo.initialize();
-    // Warms `ContainerNative.cachedSupported`, which is what the app reads
-    // when it decides whether this site gets a container of its own.
-    containers = await ContainerNative.instance.isSupported();
+    // Whether this site gets a container of its own, as [bareSetUp] decided.
+    containers = bareIsolation is Containers;
   });
 
   /// Whether this platform can answer, and what that decision rested on.
@@ -341,6 +339,7 @@ void main() {
     ]);
   });
 
+  // A11Y-007
   testWidgets('an update after creation keeps every field it does not own',
       (tester) async {
     // BUG-022. The app updates a live webview twice: setOptions when the

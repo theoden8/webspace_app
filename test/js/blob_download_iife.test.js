@@ -70,7 +70,7 @@ function waitForCall(calls, name, timeoutMs = 2000) {
   });
 }
 
-test('fast path: reads captured Blob via FileReader, reports base64', async () => {
+test('fast path: reads captured Blob via FileReader, reports base64 (DL-005)', async () => {
   const dom = loadShim(pageJs('blob_url_capture'));
   const calls = installBridge(dom);
   // Sentinel: assert fetch is NOT called on the fast path.

@@ -1,6 +1,6 @@
 // Generates lib/l10n/gen/localizations.dart, the typed API over the ARB
 // files, from the template lib/l10n/app_en.arb. The translations themselves
-// stay data: the app reads the active locale's ARB from its assets (LOC-012).
+// stay data: the app reads the active locale's ARB from its assets (L10N-012).
 // Every shipped ARB is parsed here so a broken translation fails the build,
 // not the screen that shows it.
 //

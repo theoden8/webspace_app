@@ -183,7 +183,7 @@ void main() {
       );
     });
 
-    test('should handle missing userScripts in JSON (backward compat)', () {
+    test('should handle missing userScripts in JSON (backward compat) (US-004)', () {
       final json = {
         'initUrl': 'https://example.com',
         'currentUrl': 'https://example.com',
@@ -210,7 +210,7 @@ void main() {
       expect(model.enabledGlobalScriptIds, isEmpty);
     });
 
-    test('enabledGlobalScriptIds survives JSON roundtrip', () {
+    test('enabledGlobalScriptIds survives JSON roundtrip (US-001c)', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
         enabledGlobalScriptIds: {UserScriptId('us-aaa'), UserScriptId('us-bbb')},
@@ -588,7 +588,7 @@ void main() {
       expect(json['urlSource'], '/* lib */');
     });
 
-    test('toJson includes all fields for complete roundtrip', () {
+    test('toJson includes all fields for complete roundtrip (US-001)', () {
       final original = UserScriptConfig(
         name: 'Complete',
         source: 'init();',

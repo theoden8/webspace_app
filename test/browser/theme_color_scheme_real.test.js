@@ -199,7 +199,7 @@ test('iframe contentWindow inherits the matchMedia override', async (t) => {
   });
 });
 
-test('injected at DOCUMENT_START it applies without throwing', async (t) => {
+test('injected at DOCUMENT_START it applies without throwing (HINTS-002)', async (t) => {
   // How the app actually injects it (setThemePreference registers an
   // AT_DOCUMENT_START user script), and where it used to die: the parser
   // has made <html> but not <head>, so `document.head.appendChild` threw

@@ -6,7 +6,8 @@
 /// spoofed geo so Date/Intl match). Single source of truth for the three
 /// places that must agree, or a site's timezone silently stops being spoofed:
 ///   - settings-save baking the resolved zone into `spoofTimezone`,
-///   - the cold-start synchronous resolve for an unbaked launched site,
+///   - the resolve for a site that arrives on the page without one
+///     (`WebViewModelZone.zoneUnresolved`),
 ///   - the post-paint background re-bake migration.
 /// Pure (no Flutter, no I/O) — see test/timezone_spoof_policy_test.dart.
 library;

@@ -1,0 +1,9 @@
+# Two actions sharing a variable that no checked world takes
+# together: action, action, the variables they share.
+# Printed by formal/footprint.py --write; only shrinks.
+Background	SpaceSwitch	fore
+ClearJar	RoutesReply	queue
+CloseDropReply	SpaceOnlineReply	current loaded version
+CloseDropReply	SpaceSwitch	current version
+Foreground	SpaceSwitch	fore
+TabRebind	ViewGone	loaded

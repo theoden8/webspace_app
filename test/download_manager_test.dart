@@ -134,7 +134,7 @@ void main() {
       expect(agg.value, isNull);
     });
 
-    test('multiple active tasks, all known → weighted aggregate', () {
+    test('multiple active tasks, all known → weighted aggregate (DL-006)', () {
       final s = DownloadsService.instance;
       final a = s.start(filename: 'a', bytesTotal: 1000);
       final b = s.start(filename: 'b', bytesTotal: 3000);

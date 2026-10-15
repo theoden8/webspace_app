@@ -1,6 +1,5 @@
 package org.codeberg.theoden8.webspace
 
-import android.app.Activity
 import android.content.Context
 import io.flutter.embedding.engine.FlutterEngine
 
@@ -15,9 +14,8 @@ import io.flutter.embedding.engine.FlutterEngine
 internal class EnginePlugins(
     context: Context,
     engine: FlutterEngine,
-    activity: Activity?,
 ) {
-    private val webIntercept = WebInterceptPlugin(activity, engine)
+    private val webIntercept = WebInterceptPlugin(engine)
     private val container = WebSpaceContainerPlugin(engine)
     private val backgroundTask = BackgroundTaskAndroidPlugin(context.applicationContext, engine)
     private val mediaSession = MediaSessionPlugin(context.applicationContext, engine)

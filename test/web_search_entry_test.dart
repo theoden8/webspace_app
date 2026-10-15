@@ -44,7 +44,7 @@ void main() {
         matches(RegExp(r'SiteMenuAction\.webSearch =>\s*state\.tabsOn \? null :')),
         reason: 'the overflow menus offer it only while tabs are off',
       );
-      expect(main, contains('tabsOn: _tabs.enabledAt(_sites.current),'));
+      expect(main, contains('tabsOn: _tabs.enabledFor(_sites.shown),'));
       expect(main,
           matches(RegExp(r'case SiteMenuAction\.webSearch:\s*await _links\.webSearch\(\);')));
     });
@@ -101,8 +101,8 @@ void main() {
     test('a fallback new tab goes through the gate and New tab', () {
       final body = bodyOf(links, signature: 'Future<void> _executeOpenInMain(');
       expect(
-        RegExp(r'if \(a\.newTab && _tabs\.enabledAt\(activateIndex\)\) \{\s*'
-                r'await _tabs\.newTab\(activateIndex, url: a\.url\);\s*return;')
+        RegExp(r'if \(a\.newTab && _tabs\.enabledFor\(model\)\) \{\s*'
+                r'await _tabs\.newTab\(model, url: a\.url\);\s*return;')
             .hasMatch(body),
         isTrue,
       );
@@ -141,7 +141,7 @@ void main() {
   });
 
   group('hosted tabs (LIR-018 to LIR-024)', () {
-    test('only a persistent app-tier container on the container engine hosts',
+    test('only a persistent app-tier container on the container engine hosts (LIR-019)',
         () {
       final body = bodyOf(tabs, signature: 'bool mayHost(');
       for (final rule in [
@@ -155,17 +155,11 @@ void main() {
     });
 
     test('tabs whose host is gone close at every lifecycle edge (LIR-023)', () {
-      // Which changes close them is SiteSetChange.effects (site_runtime_test).
-      expect(count(main, needle: 'await _tabs.closeIneligibleHostedTabs();'), 1,
-          reason: 'the commit');
-      final delete = main.indexOf(
-          'await _tabs.closeIneligibleHostedTabs(goneSiteId: site.siteId);');
-      final container =
-          main.indexOf('await _containerIsolation.onSiteDeleted(site.containerKey);');
-      expect(delete, isNot(-1));
-      expect(container, isNot(-1));
-      expect(delete, lessThan(container),
-          reason: 'hosted tabs close before the host\'s container goes');
+      // Which changes close them is SiteSetChange.effects (site_runtime_test),
+      // and that a delete closes them before its container goes is
+      // site_deletion_test.
+      expect(count(main, needle: '_tabs.closeIneligibleHostedTabs('), 1,
+          reason: 'the commit, through the page\'s host');
     });
 
     test('proxy and Tor engines read what each slot runs as (LIR-024)', () {
@@ -242,7 +236,7 @@ void main() {
           start, model.indexOf('  WebViewController? getController('));
       expect(
           count(body,
-              needle: 'id.sitePosture(globalUserScripts: globalUserScripts)'),
+              needle: 'id.sitePosture(\n'),
           2,
           reason: 'the webview and the nested launch run as the identity');
       for (final field in [

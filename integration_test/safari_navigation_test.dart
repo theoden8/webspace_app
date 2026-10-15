@@ -52,6 +52,7 @@ import 'package:webspace/services/webview_state_storage.dart';
 import 'fixture_server.dart';
 import 'helpers/ui.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/launch_context.dart';
 
 final _siteId = SiteId('safari-nav');
 const String _siteName = 'Safari Nav';
@@ -267,7 +268,7 @@ void main() {
     // macOS/mobile only (Linux returned above). WKWebView tears down async,
     // so disposing the run-1 platform view inside pumpWidget doesn't block.
     log('run2: pumpWidget(WebSpaceApp) restart');
-    await tester.pumpWidget(WebSpaceApp());
+    await tester.pumpWidget(const WebSpaceApp(launch: ProcessLaunch.user));
     await pumpFor(tester, total: const Duration(seconds: 5));
     log('run2: restarted');
 

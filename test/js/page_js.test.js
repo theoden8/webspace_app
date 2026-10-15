@@ -23,6 +23,7 @@ test('the scan sees the scripts (self-check)', () => {
 });
 
 for (const name of entries) {
+  // SHIM-TEST-003
   test(`${name}.js parses as the app injects it`, () => {
     const source = pageJsSource(name);
     const js = /\bCONFIG\./.test(source) ? pageJs(name, {}) : source;
@@ -30,7 +31,7 @@ for (const name of entries) {
   });
 }
 
-test('every script has a sample the all-scripts gates run', () => {
+test('every script has a sample the all-scripts gates run (SHIM-TEST-004)', () => {
   assert.deepEqual(Object.keys(SAMPLES).sort(), [...entries].sort(),
     'add the script to helpers/page_js_samples.js with a realistic config');
 });
@@ -51,7 +52,7 @@ test('this tier reads lib/js the way PageJs does', () => {
 const JS_TOKENS = /\b(function|var |let |const |window\.|document\.|navigator\.|globalThis\.|=>)/g;
 const LITERAL = /(?:r?)('''|""")([\s\S]*?)\1/g;
 
-test('no page script is written as a Dart string', () => {
+test('no page script is written as a Dart string (SHIM-TEST-001)', () => {
   const inline = [];
   for (const rel of dartFiles('lib')) {
     const src = code(read(rel));

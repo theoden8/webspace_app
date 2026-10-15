@@ -184,7 +184,7 @@ void main() {
       expect(await storage.siteIds(), {'b'});
     });
 
-    test('persists across instance restarts (same key)', () async {
+    test('persists across instance restarts (same key) (PAUSE-008)', () async {
       // Same encryption key in fakeStorage → same instance can decrypt
       // what a previous instance encrypted, modeling app cold-start
       // with persistent key.

@@ -22,7 +22,6 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/filter_list_mask.dart';
 import 'package:webspace/services/filter_list_preparser.dart';
 import 'package:webspace/services/procedural_action_backfill.dart';
-import 'package:webspace/services/startup_init_engine.dart';
 
 import 'blocker_disk.dart';
 import 'perf_samples.dart';
@@ -129,7 +128,7 @@ void main() {
 
   // main() runs the inits as one concurrent group; on one isolate the CPU
   // they spend adds up however they are awaited.
-  test('StartupInitEngine.runIndependentInits, both blockers', () async {
+  test('both blockers at once, as main() runs them', () async {
     final disk = await BlockerDisk.seed(dnsLevel: _groupDnsLevel);
     reportSamples('dns alone (level $_groupDnsLevel)', samples: await timeRuns(() async {
       SharedPreferences.setMockInitialValues(disk.prefs);
@@ -141,7 +140,7 @@ void main() {
     }));
     reportSamples('group wall-clock (main() before runApp)', samples: await timeRuns(() async {
       SharedPreferences.setMockInitialValues(disk.prefs);
-      await StartupInitEngine.runIndependentInits([disk.dnsInit, disk.contentBlockerInit]);
+      await Future.wait([disk.dnsInit(), disk.contentBlockerInit()]);
     }));
     reportSamples('dns alone, longest UI-isolate stall',
         samples: await _stalls(disk.dnsInit, prefs: disk.prefs));
@@ -149,7 +148,7 @@ void main() {
         samples: await _stalls(disk.contentBlockerInit, prefs: disk.prefs));
     reportSamples('group, longest UI-isolate stall',
         samples: await _stalls(
-            () => StartupInitEngine.runIndependentInits([disk.dnsInit, disk.contentBlockerInit]),
+            () => Future.wait([disk.dnsInit(), disk.contentBlockerInit()]),
             prefs: disk.prefs));
   }, skip: skip);
 }

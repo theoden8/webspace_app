@@ -128,38 +128,39 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     widget.onWebViewReset?.call();
   }
 
-  /// Opens [list]'s script at [index] in the editor, or a new script when
-  /// [index] is null, and stores what the editor saved.
+  /// Opens [script] of [list] in the editor, or a new script when [script]
+  /// is null, and stores what the editor saved where [script] is by then.
   Future<void> _edit(
     List<UserScriptConfig> list, {
-    required int? index,
+    required UserScriptConfig? script,
     required VoidCallback sync,
   }) async {
     final result = await Navigator.push<UserScriptConfig>(
       context,
       MaterialPageRoute(
         builder: (_) => UserScriptEditScreen(
-          script: index == null ? null : list[index],
+          script: script,
           onRun: widget.onRun,
           proxy: widget.proxy,
         ),
       ),
     );
     if (result == null) return;
-    setState(() => index == null ? list.add(result) : list[index] = result);
+    final at = script == null ? null : list.indexOf(script);
+    if (at != null && at < 0) return;
+    setState(() => at == null ? list.add(result) : list[at] = result);
     sync();
   }
 
-  void _deleteScript(int index) {
-    setState(() => _scripts.removeAt(index));
+  void _deleteScript(UserScriptConfig script) {
+    setState(() => _scripts.remove(script));
     _syncSite();
   }
 
-  void _deleteGlobalScript(int index) {
-    final removed = _globalScripts[index];
+  void _deleteGlobalScript(UserScriptConfig script) {
     setState(() {
-      _globalScripts.removeAt(index);
-      _enabledGlobalIds.remove(removed.id);
+      _globalScripts.remove(script);
+      _enabledGlobalIds.remove(script.id);
     });
     _syncGlobal();
     if (_isPerSiteMode) _syncEnabledGlobalIds();
@@ -182,9 +183,9 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   }
 
   /// The long-press sheet: delete, and for a site script, make it global.
-  Future<void> _showActions(int index, {required bool isGlobal}) async {
+  Future<void> _showActions(UserScriptConfig script,
+      {required bool isGlobal}) async {
     final loc = AppLocalizations.of(context);
-    final script = (isGlobal ? _globalScripts : _scripts)[index];
     final canMakeGlobal = !isGlobal &&
         (widget.onMakeGlobal != null ||
             widget.onGlobalUserScriptsChanged != null);
@@ -215,16 +216,15 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     if (!mounted) return;
     if (action == 'delete') {
       if (await _confirmDelete(script, isGlobal: isGlobal) && mounted) {
-        isGlobal ? _deleteGlobalScript(index) : _deleteScript(index);
+        isGlobal ? _deleteGlobalScript(script) : _deleteScript(script);
       }
     } else if (action == 'global') {
-      await _makeGlobal(index);
+      await _makeGlobal(script);
     }
   }
 
-  Future<void> _makeGlobal(int index) async {
+  Future<void> _makeGlobal(UserScriptConfig script) async {
     final loc = AppLocalizations.of(context);
-    final script = _scripts[index];
     final confirmed = await confirm(
       context,
       title: loc.userScriptsMakeGlobal,
@@ -232,12 +232,12 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
       confirmLabel: loc.userScriptsMakeGlobal,
       destructive: false,
     );
-    if (!confirmed || !mounted) return;
+    if (!confirmed || !mounted || !_scripts.contains(script)) return;
     setState(() {
-      final promoted = _scripts.removeAt(index);
-      _globalScripts.add(promoted);
+      _scripts.remove(script);
+      _globalScripts.add(script);
       // Keep the script running on this site: opt in to its global id.
-      if (_isPerSiteMode) _enabledGlobalIds.add(promoted.id);
+      if (_isPerSiteMode) _enabledGlobalIds.add(script.id);
     });
     _syncSite();
     _syncGlobal();
@@ -324,7 +324,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                 ),
                 confirmDismiss: (_) =>
                     _confirmDelete(script, isGlobal: isGlobal),
-                onDismissed: (_) => _deleteScript(index),
+                onDismissed: (_) => _deleteScript(script),
                 child: ListTile(
                   leading: ReorderableDragStartListener(
                     index: index,
@@ -343,10 +343,10 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                             _syncSite();
                           },
                         ),
-                  onTap: () => _edit(_scripts, index: index, sync: _syncSite),
+                  onTap: () => _edit(_scripts, script: script, sync: _syncSite),
                   onLongPress: isGlobal
                       ? null
-                      : () => _showActions(index, isGlobal: false),
+                      : () => _showActions(script, isGlobal: false),
                 ),
               );
             },
@@ -381,9 +381,11 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
               },
             )
           : null,
-      onTap: editable ? () => _edit(_globalScripts, index: index, sync: _syncGlobal) : null,
+      onTap: editable
+          ? () => _edit(_globalScripts, script: script, sync: _syncGlobal)
+          : null,
       onLongPress:
-          editable ? () => _showActions(index, isGlobal: true) : null,
+          editable ? () => _showActions(script, isGlobal: true) : null,
     );
   }
 
@@ -392,7 +394,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _edit(_scripts, index: null, sync: _syncSite),
+        onPressed: () => _edit(_scripts, script: null, sync: _syncSite),
         child: const Icon(Icons.add),
       ),
       body: _buildBody(),

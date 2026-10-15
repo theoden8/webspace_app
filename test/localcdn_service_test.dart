@@ -1,7 +1,21 @@
+// ignore_for_file: depend_on_referenced_packages
+
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+
+import 'helpers/fake_outbound.dart';
+import 'helpers/fake_path_provider.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  clearDuringDownload();
   late LocalCdnService service;
 
   setUp(() {
@@ -194,5 +208,36 @@ void main() {
       expect(LocalCdnService.formatSize(1048576), equals('1.0 MB'));
       expect(LocalCdnService.formatSize(5242880), equals('5.0 MB'));
     });
+  });
+}
+
+/// A Clear pressed while the popular set downloads wins; the download
+/// lands nothing fetched before it and stops.
+void clearDuringDownload() {
+  test('a clear during the popular download is not refilled behind it',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('localcdn_test');
+    addTearDown(() => dir.delete(recursive: true));
+    PathProviderPlatform.instance = FakePathProvider(dir);
+    SharedPreferences.setMockInitialValues({});
+    final release = Completer<void>();
+    final fetching = Completer<void>();
+    outboundHttp = FakeOutbound(responder: (req) async {
+      if (!fetching.isCompleted) fetching.complete();
+      await release.future;
+      return http.Response('/* lib */', 200);
+    });
+    addTearDown(resetOutboundHttp);
+    final service = LocalCdnService.instance;
+    await service.initialize();
+
+    final download = service.downloadPopularResources();
+    await fetching.future;
+    await service.clearCache();
+    release.complete();
+    await download;
+
+    expect(service.resourceCount, 0);
+    expect(await service.getLastUpdated(), isNull);
   });
 }

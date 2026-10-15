@@ -136,7 +136,7 @@ void main() {
     });
 
     test('a DEFAULT site inherits an app-wide proxy from the library', () {
-      GlobalOutboundProxy.setForTest(_gateway(GatewayId('de'), credentialsId: CredentialsId('mail')));
+      GlobalOutboundProxy.setInMemory(_gateway(GatewayId('de'), credentialsId: CredentialsId('mail')));
       final route =
           resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT),
               siteId: null);
@@ -147,7 +147,7 @@ void main() {
 
   group('fails closed, never through the global or direct', () {
     setUp(() {
-      GlobalOutboundProxy.setForTest(
+      GlobalOutboundProxy.setInMemory(
           UserProxySettings(type: ProxyType.HTTP, address: '1.2.3.4:8080'));
     });
 

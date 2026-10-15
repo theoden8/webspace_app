@@ -277,6 +277,45 @@ covers this repo's Kotlin only: the Swift plugins still rest on their per-file g
 (attempts 2, 6, 7), the fork (gap 2) is untouched, and gap 5's unbounded write-lock latency
 is unchanged.
 
+### Attempt 9 — Adblock engine: the swap, not the build, under the write lock
+**Date:** 2026-10-11 · **PR:** #696 · **Files:**
+`android/app/src/main/kotlin/.../AdblockEngineNative.kt`, `test/js/native_shared_state.test.js`
+**What it did:** `AdblockEngineNative.replace` freed the engine, set `enginePtr` to 0, and
+parsed or hydrated the successor while holding the write lock. The read lock kept every
+deref safe, but `active` reads the pointer without it, and the interceptor consults the
+engine only when `active` is true (the `Decision.ALLOWED && AdblockEngineNative.active`
+check in `WebInterceptPlugin.kt`). For the whole build, a full adblock-rust parse on the
+rules-text fallback, `active` read false and every sub-resource the DNS list allowed went
+through unjudged, against CB-008's "a sub-resource checked meanwhile waits for the new
+engine". The successor is now built before the lock is taken, the lock guards only the
+pointer swap, and the replaced engine is freed after it, when no reader can hold it, so
+`enginePtr` never reads 0 between two engines and the write lock is held for a swap instead
+of a parse (gap 5's writer side). A gate in `native_shared_state.test.js` fails if a build
+runs under the write lock again. The Dart side had the same shape, `_rustEngine` nulled for
+a rebuild's reads and parse, fixed in the same PR (`ContentBlockerService._swapEngine`,
+CB-001).
+**Why:** found mapping what a page needs before it loads: the rebuild window was the "loads
+without the content blocker" case on both sides of the channel.
+**Why it was partial:** it closes the window for the ABP engine only. The native DNS builds
+(`setDnsBlockedDomains`) still start one thread per call and swap without a generation
+check, so an older blob can land last; and `checkUrl`'s `readLock.lock()` is still
+unbounded, now only behind a pointer swap or a `dispose`.
+
+### Attempt 10 — DNS blocklist: only the newest build lands
+**Date:** 2026-10-11 · **PR:** #696 · **Files:**
+`android/app/src/main/kotlin/.../DnsHostBlocklist.kt`, `WebInterceptPlugin.kt`,
+`DnsHostBlocklistTest.kt`
+**What it did:** `setDnsBlockedDomains` starts a thread per push, and every
+`replaceFromBlob` swapped its set in and cleared `building`. Two pushes in a row (a site's
+level fetched, then the app-wide level downloaded) built at once; whichever finished last
+won, so an older blob could replace the newer set, and the first to finish woke the
+fail-closed readers while the other was still building. `beginBuild` now hands out a
+`Build` with a generation, and its `complete` lands only if no later build has started, so
+the readers wait for the newest set and nothing older replaces it.
+**Why:** attempt 9's partial: the same shape as the adblock swap, one channel over.
+**Why it was partial:** the builds still run one thread each; a burst of pushes parses every
+stale blob to the end before dropping it. Nothing bounds how many run at once.
+
 ## Known open gaps
 
 1. **No universal structural guard for Swift.** Android Kotlin has one since attempt 8
@@ -297,7 +336,8 @@ is unchanged.
 4. **CONT-005 silent degrade-to-shared.** If the native `containerId` bind ever fails, the
    site falls back to the default store; the engine tolerates a zero-bind result but can't
    detect the degraded (isolation-lost) state. Wants a native post-bind assertion.
-5. **Adblock engine: correct locking, unbounded latency.** Found 2026-09-06 while triaging
+5. **Adblock engine: correct locking, unbounded latency.** Writer side closed by attempt 9:
+   the write lock now covers a pointer swap, not a parse. What follows is the record as found. Found 2026-09-06 while triaging
    upstream [#2888](https://github.com/pichillilorenzo/flutter_inappwebview/issues/2888)
    (a fork latch with no timeout) and [#2718](https://github.com/pichillilorenzo/flutter_inappwebview/issues/2718)
    (an ANR in `MyCookieManager.deleteAllCookies`); see

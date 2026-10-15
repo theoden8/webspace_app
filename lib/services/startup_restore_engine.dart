@@ -6,7 +6,7 @@ import 'package:webspace/web_view_model.dart';
 
 /// Outcome of resolving a tapped home shortcut against the current site list.
 /// The engine only decides *what* should happen; the caller owns the dialogs,
-/// `setCurrentIndex`, site creation, and remap persistence.
+/// the activation, site creation, and remap persistence.
 sealed class LaunchResolution {
   const LaunchResolution();
 }
@@ -19,20 +19,20 @@ class LaunchNone extends LaunchResolution {
 }
 
 /// The shortcut resolved directly to a known site (by siteId or a remembered
-/// remap). Caller switches to [index] with no prompt.
+/// remap). Caller switches to [site] with no prompt.
 class LaunchOpenSite extends LaunchResolution {
-  final int index;
-  const LaunchOpenSite(this.index);
+  final WebViewModel site;
+  const LaunchOpenSite(this.site);
 }
 
-/// The shortcut's siteId is gone, but a current site at [index] matches the
+/// The shortcut's siteId is gone, but a current [site] matches the
 /// shortcut url's base domain. Caller prompts the user to open it; on confirm,
 /// remembers `shortcutSiteId -> that site` so the next tap resolves directly.
 class LaunchConfirmExisting extends LaunchResolution {
-  final int index;
+  final WebViewModel site;
   final SiteId shortcutSiteId;
   const LaunchConfirmExisting({
-    required this.index,
+    required this.site,
     required this.shortcutSiteId,
   });
 }
@@ -61,7 +61,7 @@ class LaunchOfferReroute extends LaunchResolution {
 
 /// Pure helpers for `StartupController.restore`. Only the
 /// straight-line decisions live here; SharedPreferences I/O, native
-/// cookie-jar nuking, and `setCurrentIndex` chaining stay at the
+/// cookie-jar nuking, and the activation chaining stay at the
 /// caller because they cross rendering/persistence boundaries.
 class StartupRestoreEngine {
   /// Full shortcut resolution (HS-011). Tries, in order:
@@ -84,13 +84,21 @@ class StartupRestoreEngine {
   }) {
     if (shortcutSiteId == null) return const LaunchNone();
 
-    final direct = models.indexWhere((m) => m.siteId == shortcutSiteId);
-    if (direct >= 0) return LaunchOpenSite(direct);
+    WebViewModel? first(bool Function(WebViewModel) test) {
+      for (final m in models) {
+        if (test(m)) return m;
+      }
+      return null;
+    }
 
-    final remembered = rememberedRemap[shortcutSiteId];
-    if (remembered != null) {
-      final i = models.indexWhere((m) => m.siteId == remembered);
-      if (i >= 0) return LaunchOpenSite(i);
+    if (first((m) => m.siteId == shortcutSiteId) case final direct?) {
+      return LaunchOpenSite(direct);
+    }
+
+    if (rememberedRemap[shortcutSiteId] case final remembered?) {
+      if (first((m) => m.siteId == remembered) case final site?) {
+        return LaunchOpenSite(site);
+      }
     }
 
     final url = shortcutUrl?.trim() ?? '';
@@ -105,9 +113,8 @@ class StartupRestoreEngine {
 
     final base = getBaseDomain(url);
     if (base.isNotEmpty) {
-      final i = models.indexWhere((m) => getBaseDomain(m.initUrl) == base);
-      if (i >= 0) {
-        return LaunchConfirmExisting(index: i, shortcutSiteId: shortcutSiteId);
+      if (first((m) => getBaseDomain(m.initUrl) == base) case final site?) {
+        return LaunchConfirmExisting(site: site, shortcutSiteId: shortcutSiteId);
       }
     }
 
@@ -131,8 +138,8 @@ class StartupRestoreEngine {
     return perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut);
   }
 
-  /// Whether the restore's closing `setCurrentIndex(indexToRestore)` should
-  /// still run (NAV-012).
+  /// Whether the restore's closing activation should still run (NAV-012);
+  /// [opensSite] when a shortcut or notification named the site to open.
   ///
   /// The home grid takes taps while the restore is still awaiting startup work
   /// (the proxy router's attribution pass alone can take seconds), so a site
@@ -140,10 +147,10 @@ class StartupRestoreEngine {
   /// plain launch's `null` target. A shortcut target still applies: it is the
   /// site the app was launched to open.
   static bool shouldActivateAfterRestore({
-    required int? indexToRestore,
+    required bool opensSite,
     required bool activatedDuringRestore,
   }) {
-    return indexToRestore != null || !activatedDuringRestore;
+    return opensSite || !activatedDuringRestore;
   }
 }
 
@@ -199,7 +206,7 @@ class ShortcutPinState {
         models: models,
         rememberedRemap: rememberedRemap,
       );
-      if (opens case LaunchOpenSite(:final index)) return models[index];
+      if (opens case LaunchOpenSite(:final site)) return site;
       return null;
     }
 

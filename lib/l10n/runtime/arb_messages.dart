@@ -11,7 +11,7 @@ import 'package:webspace/l10n/runtime/icu_message.dart';
 typedef ArbRead = FutureOr<String> Function(String path);
 
 /// One shipped locale's messages, read from its ARB at run time rather than
-/// compiled into the app (LOC-012).
+/// compiled into the app (L10N-012).
 class ArbMessages {
   ArbMessages._({required this.localeName, required this._sources});
 

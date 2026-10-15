@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -71,7 +72,7 @@ void main() {
     service.reset();
     service.store = MemoryFileStore();
     SharedPreferences.setMockInitialValues({'content_blocker_lists': stored});
-    await service.initialize();
+    await service.initialize(native: WebInterceptNative.initialize());
 
     final list = service.lists.singleWhere((l) => l.id == id);
     expect(list.rules, '||ads.local.example^');

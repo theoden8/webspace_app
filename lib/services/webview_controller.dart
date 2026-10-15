@@ -279,13 +279,20 @@ class PlatformWebViewController implements WebViewController {
   /// object resets whatever it leaves out to the plugin default (BUG-022).
   final inapp.InAppWebViewSettings _settings;
 
+  /// What every load waits for: on Android the native interceptor attaching
+  /// to this view, so no document's sub-resources leave before the site's
+  /// blockers see them, whichever path issues the first load.
+  final Future<void> _loadsAfter;
+
   PlatformWebViewController(
     this._c, {
     required PauseTimersHackState pauseHack,
     required inapp.InAppWebViewSettings settings,
+    required Future<void> loadsAfter,
     FileImportDocument? fileImport,
   })  : _pauseHack = pauseHack,
         _settings = settings,
+        _loadsAfter = loadsAfter,
         _import = fileImport;
 
   /// Null when the webview is gone or the platform refused: a native
@@ -307,19 +314,17 @@ class PlatformWebViewController implements WebViewController {
     }
   }
 
-  Future<bool> _issued(Future<void> Function() call) async =>
-      await _native(() => call().then((_) => true)) ?? false;
+  /// A navigation, issued once [_loadsAfter] has.
+  Future<T?> _load<T>(Future<T?> Function() call) async {
+    await _loadsAfter;
+    return _native(call);
+  }
 
   @override
   inapp.InAppWebViewController get nativeController => _c;
 
   @override
   Future<void> loadUrl(String url, {String? language}) async {
-    final fileImport = _import;
-    if (fileImport != null && fileImport.isLoadOf(url)) {
-      await _loadHtml(fileImport.html, baseUrl: fileImport.url);
-      return;
-    }
     final headers = <String, String>{};
     // HTTP headers are only meaningful for http(s) schemes. Attaching them to
     // non-HTTP URLs (chrome://, about:, file://, data:, javascript:) routes
@@ -333,30 +338,43 @@ class PlatformWebViewController implements WebViewController {
     if (language != null && isHttp) {
       headers['Accept-Language'] = '$language, *;q=0.5';
     }
-    await _native(() => _c.loadUrl(
-          urlRequest: inapp.URLRequest(
-            url: inapp.WebUri(url),
-            headers: headers.isNotEmpty ? headers : null,
-          ),
-        ));
+    await loadRequest(inapp.URLRequest(
+      url: inapp.WebUri(url),
+      headers: headers.isNotEmpty ? headers : null,
+    ));
   }
 
-  Future<bool> _loadHtml(String html, {required String baseUrl}) =>
-      _issued(() => _c.loadData(
+  /// [request] as the webview's next navigation, headers and all.
+  Future<void> loadRequest(inapp.URLRequest request) async {
+    final fileImport = _import;
+    if (fileImport != null &&
+        fileImport.isLoadOf(request.url?.rawValue ?? '')) {
+      await loadHtml(fileImport.html, baseUrl: fileImport.url);
+      return;
+    }
+    await _load(() => _c.loadUrl(urlRequest: request));
+  }
+
+  /// [html] rendered against [baseUrl], as `initialData` would.
+  Future<bool> loadHtml(String html, {required String baseUrl}) async =>
+      await _load(() => _c
+          .loadData(
             data: html,
             mimeType: 'text/html',
             encoding: 'utf-8',
             baseUrl: inapp.WebUri(baseUrl),
-          ));
+          )
+          .then((_) => true)) ??
+      false;
 
   @override
-  Future<bool> reload() {
+  Future<bool> reload() async {
     final fileImport = _import;
     if (fileImport != null &&
         FileImportDocument.rendersOnReload(isAndroid: hostIsAndroid)) {
-      return _loadHtml(fileImport.html, baseUrl: fileImport.url);
+      return loadHtml(fileImport.html, baseUrl: fileImport.url);
     }
-    return _issued(() => _c.reload());
+    return await _load(() => _c.reload().then((_) => true)) ?? false;
   }
 
   @override
@@ -507,14 +525,15 @@ class PlatformWebViewController implements WebViewController {
   Future<void> clearCache() => _native(_c.clearCache);
 
   @override
-  Future<bool> clearSslPreferences() => _issued(_c.clearSslPreferences);
+  Future<bool> clearSslPreferences() async =>
+      await _native(() => _c.clearSslPreferences().then((_) => true)) ?? false;
 
   @override
   Future<Uint8List?> saveState() async => await _native(_c.saveState);
 
   @override
   Future<bool> restoreState(Uint8List state) async =>
-      await _native(() => _c.restoreState(state)) ?? false;
+      await _load(() => _c.restoreState(state)) ?? false;
 }
 
 /// Marks the [PlatformWebViewController] of the webview under it disposed when that

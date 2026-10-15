@@ -22,8 +22,11 @@ import 'package:http/http.dart' as http;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/app.dart';
+import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/webview.dart';
 
 /// CanvasKit pulls Roboto from fonts.gstatic.com; where that is unreachable it
 /// draws no text at all. Serve it from web/fonts (see sync_fonts.js) instead.
@@ -56,6 +59,9 @@ Future<void> main() async {
   // Counters for the protection report, so its shield carries a badge and the
   // report has a week to draw. Session-only: nothing here is flushed.
   seedDemoBlockStats();
+  await GlobalOutboundProxy.initialize();
+  // The web build draws no webview; the mode any settings builder reads.
+  WebViewFactory.hybridComposition = true;
 
-  runApp(WebSpaceApp());
+  runApp(const WebSpaceApp(launch: ProcessLaunch.user));
 }

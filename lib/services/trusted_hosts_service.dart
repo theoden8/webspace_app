@@ -83,7 +83,12 @@ class TrustedHostsService {
       StreamController<TrustedHostEntry>.broadcast();
   Stream<TrustedHostEntry> get untrustChanges => _untrustController.stream;
 
-  Future<void> initialize() async {
+  Future<TrustedHostsLoaded> initialize() async {
+    await _load();
+    return TrustedHostsLoaded._(this);
+  }
+
+  Future<void> _load() async {
     if (_initialized) return;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(kTrustedHostsKey) ?? const <String>[];
@@ -221,5 +226,22 @@ class TrustedHostsService {
   Future<void> reloadFromPrefs() async {
     _initialized = false;
     await initialize();
+  }
+}
+
+/// [TrustedHostsService] once [TrustedHostsService.initialize] has run,
+/// which alone makes one: startup work that rewrites the pins takes this.
+extension type const TrustedHostsLoaded._(TrustedHostsService _service)
+    implements TrustedHostsService {
+  /// The trust prompt's first release (5ef1174) intercepted every TLS
+  /// handshake on iOS/macOS, and users pinned leaf fingerprints for dozens of
+  /// valid public CA sites. Cleared once; a legitimate self-signed pin is
+  /// prompted for again on the next visit.
+  Future<void> resetOnceForOsDefault() async {
+    final prefs = await SharedPreferences.getInstance();
+    const resetKey = 'trustedHostsResetForOsDefaultV1';
+    if (prefs.getBool(resetKey) ?? false) return;
+    await clear();
+    await prefs.setBool(resetKey, true);
   }
 }

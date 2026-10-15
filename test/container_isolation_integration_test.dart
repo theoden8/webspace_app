@@ -34,9 +34,6 @@ class MockContainerNative implements ContainerNative {
   MockContainerNative({this.supported = true});
 
   @override
-  bool get cachedSupported => supported;
-
-  @override
   Future<bool> isSupported() async {
     calls.add('isSupported');
     return supported;
@@ -115,7 +112,7 @@ class SimWebView {
 }
 
 /// Test harness for profile-mode site activation. Mirrors the
-/// `_useProfiles == true` branch of `SiteActivationController.setCurrentIndex`
+/// `_useProfiles == true` branch of `SiteActivationController.activate`
 /// and `SiteEditingController.deleteSite`: skips conflict-find/unload, ensures the profile,
 /// marks loaded, simulates webview construction triggering a native
 /// bind. Delegates the real work to [ContainerIsolationEngine] so tests
@@ -136,7 +133,7 @@ class ContainerIsolationTestHarness with SiteListState {
     sites.add(WebViewModel(initUrl: url, name: name));
   }
 
-  /// Mirrors `setCurrentIndex` for the profile-mode branch:
+  /// Mirrors `activate` for the profile-mode branch:
   ///   1. No `findDomainConflict` call — sites are isolated at the
   ///      engine level, so same-base-domain conflicts don't unload
   ///      anyone (CONT-003).
@@ -150,8 +147,7 @@ class ContainerIsolationTestHarness with SiteListState {
     final target = sites[index];
     await engine.ensureContainer(target.containerKey);
 
-    currentIndex = index;
-    loadedIndices.add(index);
+    show(target);
 
     // Construct the simulated webview the first time the site is
     // visited; reuse on later activations (the lazy-load behavior in
@@ -432,31 +428,6 @@ void main() {
       expect(deleted, 2);
       expect(h.native.containers, isEmpty);
       expect(h.native.cookiesByContainer, isEmpty);
-    });
-  });
-
-  group('Engine selection invariants', () {
-    test('isSupported() is the gate — profile path stays cold when false',
-        () async {
-      final h = ContainerIsolationTestHarness();
-      h.native.supported = false;
-      h.addSite('https://github.com');
-
-      // The harness still calls switchToSite — the gating decision in
-      // the production call site (`_useProfiles`) is what skips the
-      // engine. Here we verify the engine itself is also a no-op when
-      // unsupported, defending against accidentally calling it from a
-      // future code path that forgets the gate.
-      await h.switchToSite(0);
-
-      expect(h.native.containers, isEmpty,
-          reason: 'engine must not touch ProfileStore when isSupported '
-              'returns false');
-      // Only the supported-check should have run on the native side.
-      expect(
-        h.native.calls.where((c) => c != 'isSupported').toList(),
-        isEmpty,
-      );
     });
   });
 }

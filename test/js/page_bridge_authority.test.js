@@ -440,7 +440,7 @@ const CAPTURE_BRIDGE = (() => {
   return WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
 })();
 
-test('CAM-013 / MIC-013: capture prompts name an origin read from the webview', () => {
+test('CAM-013 / MIC-013: capture prompts name an origin read from the webview (SHARE-013)', () => {
   assert.ok(!CAPTURE_BRIDGE.includes('args'),
     'a capture bridge must not take the origin from the page: the camera and ' +
     'microphone shims are injected forMainFrameOnly:false, so any frame can ' +

@@ -44,14 +44,17 @@ void main() {
   test('a close never seals fewer rows than the archive opened with', () {
     final archives =
         File('lib/controllers/archive_controller.dart').readAsStringSync();
-    final start = archives.indexOf('  Future<bool> close(ArchiveHandle handle) async {');
+    final start = archives.indexOf('final class CloseFlow {');
     expect(start, greaterThan(-1));
-    final close = archives.substring(start, archives.indexOf('\n  }\n', start));
+    final close = archives.substring(start, archives.indexOf('\n}\n', start));
     final guard = close.indexOf(
-        'final intact = ownedSites.length >= slice.siteIds.length;');
+        'late final bool intact = owned.length >= slice.siteIds.length;');
     expect(guard, greaterThan(-1));
-    final save = close.indexOf('await _archive.save(handle);');
-    expect(save, greaterThan(guard));
-    expect(close.substring(guard, save), contains('if (intact) {'));
+    expect(close.indexOf('if (intact) await controller._archive.save(handle);'),
+        greaterThan(guard));
+    final seal = close.indexOf('void seal() {');
+    expect(seal, greaterThan(guard));
+    expect(close.substring(seal, close.indexOf('handle.state.cookies', seal)),
+        contains('if (intact) {'));
   });
 }

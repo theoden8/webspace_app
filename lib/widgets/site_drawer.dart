@@ -32,12 +32,12 @@ class SiteDrawer extends StatelessWidget {
   /// Positions in [models], in the order the grid shows them.
   final List<int> order;
   final int? current;
-  final bool Function(int index) showsTabCount;
+  final bool Function(WebViewModel site) showsTabCount;
   final VoidCallback onBackToWebspaces;
-  final ValueChanged<int> onOpen;
+  final ValueChanged<WebViewModel> onOpen;
   final void Function(
     BuildContext context, {
-    required int index,
+    required WebViewModel site,
     required Offset position,
   })
   onMenu;
@@ -162,12 +162,12 @@ class SiteDrawer extends StatelessWidget {
                               listIndex: listIndex,
                               selected: current == index,
                               showTabCount:
-                                  showsTabCount(index) && site.tabs.length > 1,
-                              onOpen: () => onOpen(index),
+                                  showsTabCount(site) && site.tabs.length > 1,
+                              onOpen: () => onOpen(site),
                               onMenu: (context, {required globalPosition}) =>
                                   onMenu(
                                     context,
-                                    index: index,
+                                    site: site,
                                     position: globalPosition,
                                   ),
                               onReorder: onReorder,

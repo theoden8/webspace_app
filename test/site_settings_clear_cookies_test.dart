@@ -17,6 +17,7 @@ Future<void> _clear(WidgetTester tester,
       size: const Size(1000, 4000),
       home: SettingsScreen(
         webViewModel: WebViewModel(initUrl: 'https://example.com/'),
+        useContainers: false,
         onClearCookies: onClearCookies,
       ));
   await tester.pumpAndSettle();

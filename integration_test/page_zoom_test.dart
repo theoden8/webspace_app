@@ -32,7 +32,6 @@ import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 // Cell width in CSS px, and the box the webview is mounted in. The cell
 // is small enough that a zoom step moves the count by more than the
@@ -83,7 +82,7 @@ const String _kProbeJs = '''
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   late HttpServer server;
   late String base;
@@ -288,7 +287,7 @@ Future<void> checkZoom(WidgetTester tester, {required int zoomPercent}) async {
             'baseline=$baseline');
   }, timeout: const Timeout(Duration(minutes: 4)));
 
-  testWidgets('80%: one fifth more content fits, on every engine',
+  testWidgets('80%: one fifth more content fits, on every engine (ZOOM-001)',
       (tester) async {
     await checkZoom(tester, zoomPercent: 80);
   }, timeout: const Timeout(Duration(minutes: 4)));
@@ -297,7 +296,8 @@ Future<void> checkZoom(WidgetTester tester, {required int zoomPercent}) async {
     await checkZoom(tester, zoomPercent: 150);
   }, timeout: const Timeout(Duration(minutes: 4)));
 
-  testWidgets('the platform takes the channel it is supposed to take',
+  // ZOOM-006
+  testWidgets('the platform takes the channel it is supposed to take (ZOOM-002)',
       (tester) async {
     // Same outcome, two mechanisms. Mixing them is what BUG-008 is about,
     // so each platform must be on its own channel and off the other's.

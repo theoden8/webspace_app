@@ -11,6 +11,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'helpers/localized.dart';
+import 'helpers/model_fixture.dart';
 
 /// A site with [urls] as tabs. The first is the active one; every later tab is
 /// a child of the one before it, so the fixture is a chain three deep.
@@ -19,7 +20,7 @@ WebViewModel siteWithChain(String name, {required List<String> urls}) {
   var parent = m.activeTabId;
   for (final url in urls.skip(1)) {
     final t = SiteTab(id: TabId('tab${m.tabs.length}'), url: url, parentId: parent);
-    m.tabs = [...m.tabs, t];
+    m.setTabs([...m.tabs, t]);
     parent = t.id;
   }
   return m;
@@ -28,12 +29,12 @@ WebViewModel siteWithChain(String name, {required List<String> urls}) {
 Future<void> pumpSheet(
   WidgetTester tester, {
   required List<TabsSheetSite> sites,
-  void Function(int siteIndex, {required TabId tabId})? onOpenTab,
-  void Function(int)? onNewTab,
+  void Function(WebViewModel site, {required TabId tabId})? onOpenTab,
+  void Function(WebViewModel site)? onNewTab,
   VoidCallback? onWebSearch,
-  void Function(int siteIndex, {required TabId tabId})? onCloseTab,
-  void Function(int siteIndex, {required TabId tabId})? onCloseSubtree,
-  bool Function(int siteIndex,
+  void Function(WebViewModel site, {required TabId tabId})? onCloseTab,
+  void Function(WebViewModel site, {required TabId tabId})? onCloseSubtree,
+  bool Function(WebViewModel site,
       {required TabId tabId, required TabDrop drop})? onMoveTab,
   List<TabsSheetSite>? Function(String siteId,
       {required String ontoSiteId})? onMoveSite,
@@ -79,7 +80,7 @@ bool isHighlighted(String text) => find
 WebViewModel siteWithRoots(String name, {required List<String> urls}) {
   final m = WebViewModel(initUrl: urls.first, name: name);
   for (final url in urls.skip(1)) {
-    m.tabs = [...m.tabs, SiteTab(id: TabId('tab${m.tabs.length}'), url: url)];
+    m.setTabs([...m.tabs, SiteTab(id: TabId('tab${m.tabs.length}'), url: url)]);
   }
   return m;
 }
@@ -127,14 +128,14 @@ void main() {
       await pumpSheet(
         tester,
         sites: [
-          TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)
+          TabsSheetSite(model: m, isCurrent: true, isLoaded: true)
         ],
         onMoveTab: (i, {required tabId, required drop}) {
           drops.add((tabId, drop));
           final moved =
               TabLifecycleEngine.drop(m.tabs, tabId: tabId, drop: drop);
           if (moved == null) return false;
-          m.tabs = moved;
+          m.setTabs(moved);
           return true;
         },
       );
@@ -184,7 +185,7 @@ void main() {
       await pumpSheet(
         tester,
         sites: [
-          TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)
+          TabsSheetSite(model: m, isCurrent: true, isLoaded: true)
         ],
         onMoveTab: (i, {required tabId, required drop}) {
           drops.add(drop);
@@ -199,7 +200,7 @@ void main() {
         (tester) async {
       final m = siteWithRoots('GitHub', urls: [a, b]);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)
+        TabsSheetSite(model: m, isCurrent: true, isLoaded: true)
       ]);
       expect(find.byWidgetPredicate((w) => w is LongPressDraggable),
           findsNothing);
@@ -217,7 +218,7 @@ void main() {
 Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
     WidgetTester tester,
     {bool refuse = false,
-    void Function(int siteIndex, {required TabId tabId})? onOpenTab}) async {
+    void Function(WebViewModel site, {required TabId tabId})? onOpenTab}) async {
       final models = [
         siteWithChain('GitHub', urls: ['https://github.com/']),
         siteWithChain('Mastodon', urls: ['https://mastodon.social/']),
@@ -227,7 +228,6 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       List<TabsSheetSite> sites() => [
             for (var i = 0; i < models.length; i++)
               TabsSheetSite(
-                index: i,
                 model: models[i],
                 isCurrent: models[i] == current,
                 isLoaded: models[i] == current,
@@ -304,22 +304,21 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       expect(headingOrder(tester), [gh, md, wp]);
     });
 
-    testWidgets('tabs open by the numbering the host hands back',
-        (tester) async {
-      final opened = <int>[];
+    testWidgets('a tab opens in its own site after a reorder', (tester) async {
+      final opened = <WebViewModel>[];
       await pumpSites(tester,
-          onOpenTab: (i, {required tabId}) => opened.add(i));
+          onOpenTab: (site, {required tabId}) => opened.add(site));
       await dragHeading(tester, from: wp, to: gh);
       await tester.tap(find.text('https://en.wikipedia.org/'));
       await tester.pumpAndSettle();
-      expect(opened, [0]);
+      expect([for (final m in opened) m.name], ['Wikipedia']);
     });
 
-    testWidgets('This site follows the site on screen to its new number',
+    testWidgets('This site follows the site on screen after a reorder',
         (tester) async {
-      final opened = <int>[];
+      final opened = <WebViewModel>[];
       final (models, _) = await pumpSites(tester,
-          onOpenTab: (i, {required tabId}) => opened.add(i));
+          onOpenTab: (site, {required tabId}) => opened.add(site));
       await dragHeading(tester, from: wp, to: gh);
       expect(models[1].name, 'GitHub');
       await tester.tap(find.text('This site'));
@@ -327,7 +326,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       expect(find.text('https://en.wikipedia.org/'), findsNothing);
       await tester.tap(find.text('https://github.com/'));
       await tester.pumpAndSettle();
-      expect(opened, [1]);
+      expect(opened, [same(models[1])]);
     });
 
     testWidgets('without a host reorder the headings are not draggable',
@@ -335,8 +334,8 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       final a = siteWithChain('GitHub', urls: ['https://github.com/']);
       final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
-        TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: false),
+        TabsSheetSite(model: a, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: b, isCurrent: false, isLoaded: false),
       ]);
       await tester.tap(find.text('All sites'));
       await tester.pumpAndSettle();
@@ -358,7 +357,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         'https://github.com/pull/601',
       ]);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: site, isCurrent: true, isLoaded: true),
       ]);
 
       expect(find.textContaining('github.com'), findsWidgets);
@@ -381,7 +380,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       final site =
           siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: site, isCurrent: true, isLoaded: true),
       ]);
       expect(find.text('Mastodon · 1 tab'), findsOneWidget);
     });
@@ -394,7 +393,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         'https://github.com/pull/601',
       ]);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: site, isCurrent: true, isLoaded: true),
       ]);
       expect(find.byIcon(Icons.keyboard_arrow_down), findsNWidgets(2));
 
@@ -408,25 +407,25 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
     });
 
     testWidgets('New tab reports the site it belongs to', (tester) async {
-      int? opened;
+      WebViewModel? opened;
       final site = siteWithChain('GitHub', urls: ['https://github.com/']);
       await pumpSheet(
         tester,
         sites: [
-          TabsSheetSite(index: 7, model: site, isCurrent: true, isLoaded: true)
+          TabsSheetSite(model: site, isCurrent: true, isLoaded: true)
         ],
-        onNewTab: (i) => opened = i,
+        onNewTab: (m) => opened = m,
       );
       await tester.tap(find.text('New tab'));
       await tester.pump();
-      expect(opened, 7);
+      expect(opened, same(site));
     });
 
     testWidgets('Web search sits beside New tab (LIR-029)', (tester) async {
       var searched = 0;
       final site = siteWithChain('GitHub', urls: ['https://github.com/']);
       final sites = [
-        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: site, isCurrent: true, isLoaded: true),
       ];
       await pumpSheet(tester, sites: sites);
       expect(find.byIcon(Icons.travel_explore), findsNothing);
@@ -441,7 +440,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       await pumpSheet(
         tester,
         sites: [
-          TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)
+          TabsSheetSite(model: site, isCurrent: true, isLoaded: true)
         ],
         onWebSearch: () {},
         width: 600,
@@ -458,7 +457,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
           tester,
           sites: [
             TabsSheetSite(
-                index: 0, model: site, isCurrent: true, isLoaded: true)
+                model: site, isCurrent: true, isLoaded: true)
           ],
           onWebSearch: () {},
           locale: locale,
@@ -486,7 +485,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       await pumpSheet(
         tester,
         sites: [
-          TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)
+          TabsSheetSite(model: site, isCurrent: true, isLoaded: true)
         ],
         onCloseTab: (_, {required tabId}) => closed = tabId,
       );
@@ -505,7 +504,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       await pumpSheet(
         tester,
         sites: [
-          TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)
+          TabsSheetSite(model: site, isCurrent: true, isLoaded: true)
         ],
         onCloseSubtree: (_, {required tabId}) => closed = tabId,
       );
@@ -520,14 +519,14 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         (tester) async {
       final a = siteWithChain('GitHub', urls: ['https://github.com/']);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: a, isCurrent: true, isLoaded: true),
       ]);
       expect(find.text('All sites'), findsNothing);
 
       final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
-        TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: false),
+        TabsSheetSite(model: a, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: b, isCurrent: false, isLoaded: false),
       ]);
       expect(find.text('All sites'), findsOneWidget);
       expect(find.text('This site'), findsOneWidget);
@@ -551,12 +550,12 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       ]);
       final c = siteWithChain('Wikipedia', urls: ['https://en.wikipedia.org/']);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: a, isCurrent: true, isLoaded: true),
         // Backgrounded but still resident: its active tab keeps a paused
         // webview until the policy evicts the site.
-        TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: true),
+        TabsSheetSite(model: b, isCurrent: false, isLoaded: true),
         // Unloaded by the policy: nothing of it is in memory.
-        TabsSheetSite(index: 2, model: c, isCurrent: false, isLoaded: false),
+        TabsSheetSite(model: c, isCurrent: false, isLoaded: false),
       ]);
       await tester.tap(find.text('All sites'));
       await tester.pump();
@@ -590,7 +589,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         (tester) async {
       final a = siteWithChain('GitHub', urls: ['https://github.com/']);
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: false),
+        TabsSheetSite(model: a, isCurrent: true, isLoaded: false),
       ]);
       expect(strengthOf(tester, text: 'https://github.com/'), lessThan(1));
       expect(isHighlighted('https://github.com/'), isFalse);
@@ -651,8 +650,8 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
 
     /// DuckDuckGo on screen, GitHub after it.
     List<TabsSheetSite> sites() => [
-          TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
-          TabsSheetSite(index: 0, model: gh, isCurrent: false, isLoaded: false),
+          TabsSheetSite(model: ddg, isCurrent: true, isLoaded: true),
+          TabsSheetSite(model: gh, isCurrent: false, isLoaded: false),
         ];
 
     WebViewModel markedAs(WidgetTester tester, {required String text}) => tester
@@ -707,11 +706,11 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
 
     testWidgets('on a tab GitHub runs as DuckDuckGo, GitHub\'s tree is first',
         (tester) async {
-      gh.activeTabId = TabId('h');
-      final newTabs = <int>[];
+      gh.setActiveTab(TabId('h'));
+      final newTabs = <WebViewModel>[];
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
-        TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: true),
+        TabsSheetSite(model: gh, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: ddg, isCurrent: false, isLoaded: true),
       ], onNewTab: newTabs.add);
       expect(find.text('GitHub · 4 tabs'), findsOneWidget);
       expect(find.text('In DuckDuckGo'), findsOneWidget,
@@ -727,7 +726,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       expect(isHighlighted(ddgHome), isFalse);
       await tester.tap(find.text('New tab'));
       await tester.pump();
-      expect(newTabs, [0], reason: 'a new tab of the site on screen');
+      expect(newTabs, [same(gh)], reason: 'a new tab of the site on screen');
     });
 
     testWidgets('where the user was is marked and its tree listed',
@@ -745,7 +744,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       WebViewModel.siteLookup = (id) => {'gh': gh, 'ddg': ddg, 'wiki': wiki}[id];
       await pumpSheet(tester, sites: [
         ...sites(),
-        TabsSheetSite(index: 2, model: wiki, isCurrent: false, isLoaded: true),
+        TabsSheetSite(model: wiki, isCurrent: false, isLoaded: true),
       ], wayBack: TabReturn(
           fromSiteId: SiteId('wiki'), fromTabId: TabId('w'), toSiteId: SiteId('ddg'), toTabId: kPrimaryTabId));
       expect(find.text('In Wikipedia'), findsOneWidget,
@@ -758,9 +757,8 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
     testWidgets('a site the webspace hides still lists what runs as this one',
         (tester) async {
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: ddg, isCurrent: true, isLoaded: true),
         TabsSheetSite(
-            index: 0,
             model: gh,
             isCurrent: false,
             isLoaded: false,
@@ -779,10 +777,9 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
           initUrl: 'https://wikipedia.org/',
           name: 'Wikipedia');
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
-        TabsSheetSite(index: 2, model: other, isCurrent: false, isLoaded: false),
+        TabsSheetSite(model: ddg, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: other, isCurrent: false, isLoaded: false),
         TabsSheetSite(
-            index: 0,
             model: gh,
             isCurrent: false,
             isLoaded: false,
@@ -799,10 +796,10 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         (tester) async {
       // GitHub on the tab it opened in DuckDuckGo's domain while its routing
       // was off: that tab and its root both run as GitHub.
-      gh.activeTabId = TabId('f');
+      gh.setActiveTab(TabId('f'));
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
-        TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),
+        TabsSheetSite(model: gh, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: ddg, isCurrent: false, isLoaded: false),
       ]);
       expect(find.textContaining('In '), findsNothing);
     });
@@ -812,8 +809,8 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       // GitHub on its home tab: everything below it is on the branch,
       // including the tab that runs as DuckDuckGo.
       await pumpSheet(tester, sites: [
-        TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
-        TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),
+        TabsSheetSite(model: gh, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: ddg, isCurrent: false, isLoaded: false),
       ]);
       expect(find.text('In DuckDuckGo'), findsOneWidget);
       expect(find.text(ddgHome), findsOneWidget);
@@ -822,33 +819,34 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
 
     testWidgets('a tap opens the tab in the site whose tree holds it',
         (tester) async {
-      final opened = <(int, String)>[];
+      final opened = <(WebViewModel, String)>[];
       await pumpSheet(tester,
           sites: sites(),
-          onOpenTab: (i, {required tabId}) => opened.add((i, tabId)));
+          onOpenTab: (site, {required tabId}) => opened.add((site, tabId)));
       await tester.tap(find.text(hosted));
       await tester.pump();
-      expect(opened, [(0, 'h')]);
+      expect(opened, [(gh, 'h')]);
     });
 
     testWidgets('the other site\'s own tabs open from here too', (tester) async {
-      final opened = <(int, String)>[];
-      void open(int i, {required String id}) => opened.add((i, id));
+      final opened = <(WebViewModel, String)>[];
+      void open(WebViewModel site, {required String id}) =>
+          opened.add((site, id));
       // A tap pops the sheet, so each tab gets a sheet of its own.
       await pumpSheet(tester,
           sites: sites(),
-          onOpenTab: (i, {required tabId}) => open(i, id: tabId));
+          onOpenTab: (site, {required tabId}) => open(site, id: tabId));
       await tester.tap(find.text('https://github.com/'));
       await tester.pump();
       await tester.pumpWidget(const SizedBox());
       await pumpSheet(tester,
           sites: sites(),
-          onOpenTab: (i, {required tabId}) => open(i, id: tabId));
+          onOpenTab: (site, {required tabId}) => open(site, id: tabId));
       await tester.tap(find.text('1 more GitHub tab'));
       await tester.pump();
       await tester.tap(find.text(foreign));
       await tester.pump();
-      expect(opened, [(0, kPrimaryTabId), (0, 'f')],
+      expect(opened, [(gh, kPrimaryTabId), (gh, 'f')],
           reason: 'a switcher over the whole tree, not only what runs as '
               'DuckDuckGo');
     });

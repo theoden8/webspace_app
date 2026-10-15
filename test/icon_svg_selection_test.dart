@@ -33,7 +33,7 @@ void main() {
     expect(await loadUntrustedSvg(recursive), isNull);
   });
 
-  group('svgHasRealColor', () {
+  group('svgHasRealColor (ICON-004)', () {
     test('detects attribute hex color', () {
       expect(svgHasRealColor('<path fill="#de5833"/>'.toLowerCase()), isTrue);
     });

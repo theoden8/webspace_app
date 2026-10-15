@@ -17,7 +17,7 @@ test('the process-wide rule expands TOR with the site id before applying', () =>
   const at = text.search(/Future<void>\s+setProxySettings\s*\(/);
   assert.ok(at >= 0, 'ProxyManager.setProxySettings not found');
   assert.match(text.slice(at, text.indexOf(';', at)),
-    /_platformTakes\(\s*\(\)\s*=>\s*_applyRule\(\s*settings\s*,\s*siteId:\s*siteId\s*\)\s*\)/,
+    /_platformTakes\(\s*\(\)\s*=>\s*_applyRule\(\s*settings\s*,\s*siteId:\s*siteId\s*(?:,\s*\w+:\s*\w+\s*)*,?\s*\)\s*\)/,
     'setProxySettings applies the rule through _applyRule');
   const rule = text.search(/Future<void>\s+_applyRule\s*\(/);
   assert.ok(rule >= 0, 'ProxyManager._applyRule not found');

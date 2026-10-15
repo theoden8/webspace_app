@@ -22,6 +22,7 @@ import 'package:webspace/services/proxy_library.dart'
     show ProxyLibraryData, resolveLibrary;
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/settings/site_ids.dart';
 

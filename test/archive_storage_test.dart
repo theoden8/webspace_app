@@ -9,7 +9,7 @@ import 'helpers/mock_secure_storage.dart';
 
 void main() {
   group('ArchiveStorage.ensureInitialized', () {
-    test('writes K slots of S bytes each on fresh storage', () async {
+    test('writes K slots of S bytes each on fresh storage (ARCH-003)', () async {
       final secureStorage = MockFlutterSecureStorage();
       final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();

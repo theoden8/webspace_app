@@ -32,7 +32,7 @@ class SiteIconStore {
   final Map<String, _Entry> _entries = {};
   final StreamController<String?> _changes =
       StreamController<String?>.broadcast();
-  final SerialQueue _io = SerialQueue();
+  final SerialQueue _io = SerialQueue('siteIconIo');
 
   /// Fires the site URL whenever its icon is replaced or removed, and null
   /// once the icons on disk have been loaded or all of them were cleared.

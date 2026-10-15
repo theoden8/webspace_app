@@ -400,7 +400,7 @@ test('enumerateDevices publishes one videoinput, label gated on a served grant',
     'label revealed after a grant, matching a real permission gate');
 });
 
-test('missing flutter_inappwebview bridge fails closed (block)', async () => {
+test('missing flutter_inappwebview bridge fails closed (block) (CAM-009)', async () => {
   const { window, calls } = setupCameraDom({ noBridge: true });
   await assert.rejects(
     () => window.navigator.mediaDevices.getUserMedia({ video: true }),

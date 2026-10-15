@@ -1,26 +1,17 @@
 // Orphan sweep: which per-site storages get reclaimed, and which live set each
 // one is measured against.
 //
-// The critical case is the legacy global cookie jar clear. Under the
-// container engine every site owns its jar, so the global clear reclaims
-// nothing — but it is an "empty a cookie jar" instruction issued with no site
-// in hand, and a plugin-side mislabel (BUG-007, fork privacy-v5) once pointed
-// it at a live container and wiped a real session a launch later. The engine
-// must not issue it at all when containers are in use.
+// The legacy shared cookie jar is not among them. It holds no site's entries
+// apart, so the only op on it with no site in hand is
+// CookieIsolationEngine.clearAtLaunch, the jar's first turn; container mode
+// has no shared jar to clear, which keeps the plugin-side mislabel that once
+// pointed such a clear at a live container (BUG-007, fork privacy-v5)
+// unreachable.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/controllers/page_orphan_sweep.dart';
-import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/settings/site_ids.dart';
-import 'package:webspace/services/container_isolation_engine.dart';
-import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
-import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/services/webview_state_storage.dart';
-
-import 'helpers/mock_container_native.dart';
-import 'helpers/mock_cookie_manager.dart';
 
 class _FakeTargets implements OrphanSweepTargets {
   final List<Object> ops = [];
@@ -32,73 +23,37 @@ class _FakeTargets implements OrphanSweepTargets {
     ops.add(store);
     liveSets[store] = liveSiteIds;
   }
-
-  @override
-  Future<void> clearLegacyGlobalCookieJar() async => ops.add('globalCookieJar');
 }
 
 void main() {
   final active = {SiteId('a'), SiteId('b'), SiteId('incog')};
   final nonIncognito = {SiteId('a'), SiteId('b')};
 
-  Future<_FakeTargets> sweep({
-    required bool useContainers,
-    required SweepOccasion occasion,
-  }) async {
+  Future<_FakeTargets> sweep() async {
     final targets = _FakeTargets();
     await OrphanSweepEngine.sweep(
       targets: targets,
       activeSiteIds: active,
       nonIncognitoSiteIds: nonIncognito,
-      useContainers: useContainers,
-      occasion: occasion,
     );
     return targets;
   }
 
   group('OrphanSweepEngine.sweep', () {
-    test('container mode never clears the global cookie jar', () async {
-      final targets =
-          await sweep(useContainers: true, occasion: SweepOccasion.launch);
+    test('every store is swept (PAUSE-010)', () async {
+      // The post-import sweep was once a hand-copied list that skipped saved
+      // navigation state, and the startup one skipped page icons.
+      final targets = await sweep();
 
-      expect(targets.ops, isNot(contains('globalCookieJar')));
+      expect(targets.ops, OrphanStore.values);
     });
-
-    test('legacy mode clears the global jar at launch, after every store',
-        () async {
-      final targets =
-          await sweep(useContainers: false, occasion: SweepOccasion.launch);
-
-      expect(targets.ops, [...OrphanStore.values, 'globalCookieJar']);
-    });
-
-    test('a mid-session sweep never clears the jar the live sessions are in',
-        () async {
-      // Settings import and site delete run after activation restored the
-      // loaded sites' cookies into the shared jar (per-site-cookie-isolation).
-      final targets = await sweep(
-          useContainers: false, occasion: SweepOccasion.sitesRemoved);
-
-      expect(targets.ops, isNot(contains('globalCookieJar')));
-    });
-
-    for (final occasion in SweepOccasion.values) {
-      test('${occasion.name} sweeps every store', () async {
-        // The post-import sweep was once a hand-copied list that skipped
-        // saved navigation state, and the startup one skipped page icons.
-        final targets = await sweep(useContainers: true, occasion: occasion);
-
-        expect(targets.ops, OrphanStore.values);
-      });
-    }
 
     test('session-scoped storages measure against the non-incognito set',
         () async {
       // Incognito sites are deliberately treated as orphans for anything that
       // must not outlive the process (INC-006): cookies, cached HTML, saved
       // navigation state, the protection report's per-site rows, page icons.
-      final targets = await sweep(
-          useContainers: true, occasion: SweepOccasion.sitesRemoved);
+      final targets = await sweep();
 
       for (final store in [
         OrphanStore.cookies,
@@ -115,8 +70,7 @@ void main() {
         () async {
       // Proxy passwords, saved sign-ins and imported HTML are configuration,
       // not session residue: an incognito site keeps them across launches.
-      final targets = await sweep(
-          useContainers: true, occasion: SweepOccasion.sitesRemoved);
+      final targets = await sweep();
 
       for (final store in [
         OrphanStore.proxyPasswords,
@@ -129,19 +83,11 @@ void main() {
   });
 
   group('call sites', () {
-    final host = File('lib/screens/webspace_page.dart').readAsStringSync();
-
-    String body(String signature) {
-      final start = host.indexOf(signature);
-      expect(start, greaterThan(-1), reason: 'could not find $signature');
-      final end = host.indexOf('\n  Future<void> ', start + signature.length);
-      return host.substring(start, end < 0 ? host.length : end);
-    }
-
-    // Which changes sweep is SiteSetChange.effects (site_runtime_test).
+    // Which changes sweep is SiteSetChange.effects (site_runtime_test), and
+    // that the commit sweeps for them is site_set_commit_test.
     test('import and delete sweep through the engine', () {
-      expect(body('Future<void> _commitSites(SiteSetChange change) async {'),
-          contains('if (effects.sweepsOrphans) await _sweep.afterRemoval();'));
+      expect(File('lib/screens/webspace_page.dart').readAsStringSync(),
+          contains('Future<void> sweepOrphans() => _s._sweep.afterRemoval();'));
       final backup =
           File('lib/controllers/backup_controller.dart').readAsStringSync();
       expect(backup.substring(backup.indexOf('Future<void> import() async {')),
@@ -149,23 +95,10 @@ void main() {
       final editing =
           File('lib/controllers/site_editing_controller.dart').readAsStringSync();
       expect(
-          editing.substring(editing.indexOf('Future<void> deleteSite(int index) async {')),
-          contains('await _host.commitSites(SiteRemoved(deletedModel));'));
-    });
-
-    test(
-        'ISO-014: a launch jar clear the jar refuses is left to the next '
-        "activation's, and the sweep goes on", () async {
-      final sweep = PageOrphanSweep(
-        SiteRuntime(),
-        cookieStore: CookieSecureStorage(),
-        proxyPasswords: ProxyPasswordSecureStorage(),
-        navStates: InMemoryWebViewStateStorage(),
-        cookies: MockCookieManager()..failing.add(JarCall.clear),
-        containers:
-            ContainerIsolationEngine(containerNative: MockContainerNative()),
-      );
-      await expectLater(sweep.clearLegacyGlobalCookieJar(), completes);
+          editing.substring(editing.indexOf('Future<void> deleteSite(WebViewModel deletedModel) async {')),
+          contains('await _deletion.delete(deletedModel);'));
+      expect(File('lib/controllers/site_deletion.dart').readAsStringSync(),
+          contains('controller._host.stageSites(\n    SiteRemoved(site),\n  )'));
     });
 
     test('no store is swept outside the engine binding', () {

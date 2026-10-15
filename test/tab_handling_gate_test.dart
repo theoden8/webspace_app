@@ -147,6 +147,20 @@ void main() {
     expect(released, isTrue);
   });
 
+  test('a wait on the gate from inside it is refused: it never ends',
+      () async {
+    final real = TabHandlingGate(scheduleMicrotask);
+    Object? refused;
+    await real.run(() async {
+      try {
+        await real.runWhenIdle(() async {});
+      } on AssertionError catch (e) {
+        refused = e;
+      }
+    });
+    expect('$refused', contains('behind itself'));
+  });
+
   test('runWhenIdle waiters take the gate one at a time', () async {
     final real = TabHandlingGate(scheduleMicrotask);
     final log = <String>[];

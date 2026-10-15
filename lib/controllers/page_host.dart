@@ -13,6 +13,6 @@ abstract interface class PageHost {
     bool floating,
   });
 
-  /// The one way the set of sites changes (`_commitSites`).
+  /// The one way the set of sites changes (`SiteSetCommit`).
   Future<void> commitSites(SiteSetChange change);
 }

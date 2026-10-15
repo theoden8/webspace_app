@@ -42,6 +42,14 @@ encrypted storage when that site is incognito.
 **When** site A is unloaded (webspace switch, LRU eviction, conflict resolution)
 **Then** no cookies are written to A's siteId-keyed encrypted storage
 
+#### Scenario: Incognito site keeps its session through a switch on the shared jar
+
+**Given** the legacy engine, and an incognito site I loaded with session cookies in `CookieManager`
+**When** another site is activated, which empties the jar (capture-nuke-restore)
+**Then** I's share of the snapshot is held in memory and set back once the jar is emptied
+**And** nothing is written to I's encrypted storage
+**And** I stays signed in (`test/activation_schedules_test.dart`, "a switch keeps a loaded incognito site's session (INC-001)"; `formal/activation.tla`'s incognito config and its `incognitonuked` mutant)
+
 #### Scenario: Incognito site is exempt from domain conflict
 
 **Given** a regular site R and an incognito site I share the same base domain

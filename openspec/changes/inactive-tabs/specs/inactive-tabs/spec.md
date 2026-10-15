@@ -68,10 +68,24 @@ the site as their unit.
 
 Activating a parked tab while another tab of the same site is active SHALL, in
 order: capture the active tab's navigation state to `<siteId>.<activeTabId>`
-when `persistsNavState` is true; park it; dispose the site's webview; queue
-the target's saved bytes for `onControllerCreated` when they exist; rebuild
-the webview. At no point SHALL two webviews exist for the site. Switching sites
-SHALL NOT change any site's active tab.
+when `persistsNavState` is true; read the target's saved bytes; then in one
+turn, with no await between, park the active tab, make the target active,
+queue the target's bytes for `onControllerCreated` when they exist, dispose the
+site's webview and rebuild it. At no point SHALL two webviews exist for the
+site. Switching sites SHALL NOT change any site's active tab.
+
+A site's webview SHALL show its active tab's history. Bytes queued for a site's
+next webview SHALL carry the tab they were read for, and a webview built for
+any other tab SHALL drop them. A capture SHALL store a webview's bytes under
+the tab the webview was built for, never under whichever tab is active when
+the capture returns, and SHALL drop them when that tab closed meanwhile.
+Closing a site's last tab SHALL land it on a new tab at its home page, with an
+id none of the site's tabs had: a capture of the closed tab still in flight
+would otherwise land in the new tab's file. Gate: the switch, the close and the
+duplicate are step tables (`TabsController.tabInputs`, `tabFlow`) printed into
+`formal/activation.tla`, whose `Inv_TabShown`, `Inv_TabFiles`, `Inv_TabBound`
+and `Inv_TabActive` TLC holds on `activation_tabs.cfg`; the tab schedules in
+`test/activation_schedules_test.dart` are replayed against it.
 
 #### Scenario: Switching tabs inside a site
 
@@ -81,6 +95,23 @@ SHALL NOT change any site's active tab.
 - **AND** GitHub's webview is disposed and rebuilt with T2's bytes queued
 - **AND** the rebuilt webview restores T2's back stack
 - **AND** the number of live webviews is unchanged before and after
+
+#### Scenario: A tab closed while its site activates
+
+- **GIVEN** GitHub is not loaded, its active tab T1 has saved state and T2 is
+  parked
+- **WHEN** the user opens GitHub, and closes T1 in the Tabs sheet while the
+  activation reads T1's state
+- **THEN** GitHub's webview is built for T2 and shows T2's history
+- **AND** T1's bytes are dropped, not restored into T2
+
+#### Scenario: Leaving a site during a tab switch
+
+- **GIVEN** GitHub is on screen on T1 and the user picks T2, whose saved state
+  is being read
+- **WHEN** the user goes back to the webspace list before that read returns
+- **THEN** the capture going home makes is stored under T1, whose history it
+  is, and never under T2
 
 #### Scenario: Switching sites leaves tabs alone
 

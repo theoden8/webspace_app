@@ -35,7 +35,6 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/stat_chip.dart';
-import 'package:webspace/services/cookie_manager.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -126,7 +125,7 @@ Future<void> tapTile(WidgetTester tester,
 
   testWidgets('enabling unconfigured Content Blocker warns and flips',
       (tester) async {
-    await pump(tester, home: SettingsScreen(webViewModel: freshModel()));
+    await pump(tester, home: SettingsScreen(webViewModel: freshModel(), useContainers: false));
     await openPrivacy(tester);
     expect(warnIcon, findsNothing);
 
@@ -143,7 +142,7 @@ Future<void> tapTile(WidgetTester tester,
 
   testWidgets('enabling unconfigured DNS blocklist warns and flips',
       (tester) async {
-    await pump(tester, home: SettingsScreen(webViewModel: freshModel()));
+    await pump(tester, home: SettingsScreen(webViewModel: freshModel(), useContainers: false));
     await openPrivacy(tester);
 
     final tile = await revealTile(tester, title: 'DNS Blocklist');
@@ -156,7 +155,7 @@ Future<void> tapTile(WidgetTester tester,
 
   testWidgets('enabling Tracking Protection warns for both forced deps',
       (tester) async {
-    await pump(tester, home: SettingsScreen(webViewModel: freshModel()));
+    await pump(tester, home: SettingsScreen(webViewModel: freshModel(), useContainers: false));
     await openPrivacy(tester);
 
     final tile = await revealTile(tester, title: 'Tracking Protection');
@@ -196,7 +195,7 @@ Future<void> tapTile(WidgetTester tester,
     expect(svc.engineBlockedSinceTimingOn, 5);
     expect(svc.engineAllowedSinceTimingOn, 1);
 
-    await pump(tester, home: DevToolsScreen(cookieManager: CookieManager()));
+    await pump(tester, home: DevToolsScreen());
 
     // host == null and engine active: the ABP tab is first and selected.
     for (final (label, value) in [

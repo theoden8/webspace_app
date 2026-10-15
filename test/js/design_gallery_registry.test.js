@@ -12,7 +12,7 @@ const { read } = require('./helpers/source');
 const dartIds = [...read('lib/design_gallery/main.dart').matchAll(/GalleryCard\(id:\s*'([^']+)'/g)].map((m) => m[1]);
 const shootIds = [...read('tool/design_gallery/shoot.js').matchAll(/\{\s*id:\s*'([^']+)'/g)].map((m) => m[1]);
 
-test('every gallery card has a viewport in shoot.js', () => {
+test('every gallery card has a viewport in shoot.js (DESIGN-003)', () => {
   assert.deepEqual(dartIds.filter((id) => !shootIds.includes(id)), []);
 });
 

@@ -52,7 +52,7 @@ async function withShim(t, shim, fn) {
 
 // ---------- Function.prototype.toString native-code probe ----------
 
-test('location_spoof: every override stringifies as native code',
+test('location_spoof: every override stringifies as native code (SHIM-TEST-008)',
   async (t) => {
     // The shim's WeakMap-keyed Function.prototype.toString patch
     // claims to make every spoofed function look native. Walk the
@@ -196,6 +196,160 @@ test('anti_fingerprinting: deviceMemory and getBattery are still spoofed here',
       assert.equal(r.dischargingIsInfinite, true);
     } finally {
       await page.close();
+      server.close();
+    }
+  });
+
+// ---------- Canvas: every read agrees with every other (ETP-005) ----------
+
+// A fingerprint-style canvas: an opaque ground, text and a curve, whose
+// anti-aliased edges are where the noise lives, and a solid block and a
+// one-pixel line a probe can compare against what it drew.
+function drawProbeCanvas(doc, w, h) {
+  const c = doc.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f60';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#069';
+  ctx.font = '14px sans-serif';
+  ctx.fillText('Cwm fjordbank glyphs vext quiz', 2, 15);
+  ctx.strokeStyle = 'rgba(102, 204, 0, 1)';
+  ctx.beginPath();
+  ctx.arc(40, 30, 12, 0, Math.PI * 1.7);
+  ctx.stroke();
+  ctx.fillStyle = '#123456';
+  ctx.fillRect(70, 20, 10, 10);
+  ctx.fillRect(90, 25, 20, 1);
+  return { c, ctx };
+}
+
+async function onShimmedPage(t, fn, arg) {
+  if (!requireBrowser(browser, t)) return null;
+  const server = await startBlankServer();
+  const page = await browser.browser.newPage();
+  try {
+    await page.evaluateOnNewDocument(AF_ALPHA);
+    await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'load' });
+    await page.evaluate(`window.drawProbeCanvas = ${drawProbeCanvas.toString()}`);
+    return await page.evaluate(fn, arg);
+  } finally {
+    await page.close();
+    server.close();
+  }
+}
+
+test('anti_fingerprinting: a canvas pixel reads the same through any rectangle (ETP-005)',
+  async (t) => {
+    const r = await onShimmedPage(t, () => {
+      const { c, ctx } = window.drawProbeCanvas(document, 120, 40);
+      const whole = ctx.getImageData(0, 0, 120, 40).data;
+      let viaPixel = 0;
+      let viaStrip = 0;
+      for (let y = 0; y < 40; y++) {
+        const strip = ctx.getImageData(5, y, 100, 1).data;
+        for (let x = 0; x < 120; x++) {
+          const one = ctx.getImageData(x, y, 1, 1).data;
+          for (let k = 0; k < 4; k++) {
+            const w = whole[(y * 120 + x) * 4 + k];
+            if (one[k] !== w) viaPixel++;
+            if (x >= 5 && x < 105 && strip[(x - 5) * 4 + k] !== w) viaStrip++;
+          }
+        }
+      }
+      const copy = document.createElement('canvas');
+      copy.width = 120;
+      copy.height = 40;
+      const copyCtx = copy.getContext('2d');
+      copyCtx.drawImage(c, 0, 0);
+      const copied = copyCtx.getImageData(0, 0, 120, 40).data;
+      let viaCopy = 0;
+      for (let i = 0; i < whole.length; i++) if (copied[i] !== whole[i]) viaCopy++;
+      return { viaPixel, viaStrip, viaCopy };
+    });
+    if (!r) return;
+    assert.deepEqual(r, { viaPixel: 0, viaStrip: 0, viaCopy: 0 },
+      'one pixel read two ways disagreed: the noise depends on how it was read');
+  });
+
+test('anti_fingerprinting: an encode leaves the canvas as drawn and decodes to its read (ETP-005)',
+  async (t) => {
+    const r = await onShimmedPage(t, async () => {
+      const { c, ctx } = window.drawProbeCanvas(document, 120, 40);
+      const before = ctx.getImageData(0, 0, 120, 40).data;
+      const url = c.toDataURL('image/png');
+      const after = ctx.getImageData(0, 0, 120, 40).data;
+      let moved = 0;
+      for (let i = 0; i < before.length; i++) if (before[i] !== after[i]) moved++;
+      const img = new Image();
+      await new Promise((ok, fail) => { img.onload = ok; img.onerror = fail; img.src = url; });
+      const back = document.createElement('canvas');
+      back.width = 120;
+      back.height = 40;
+      const backCtx = back.getContext('2d');
+      backCtx.drawImage(img, 0, 0);
+      const decoded = backCtx.getImageData(0, 0, 120, 40).data;
+      let disagree = 0;
+      for (let i = 0; i < before.length; i++) if (decoded[i] !== before[i]) disagree++;
+      return { moved, disagree, again: c.toDataURL('image/png') === url };
+    });
+    if (!r) return;
+    assert.deepEqual(r, { moved: 0, disagree: 0, again: true });
+  });
+
+test('anti_fingerprinting: a solid block, a line and a put read back as written (ETP-005)',
+  async (t) => {
+    const r = await onShimmedPage(t, () => {
+      const { ctx } = window.drawProbeCanvas(document, 120, 40);
+      const block = ctx.getImageData(70, 20, 10, 10).data;
+      const line = ctx.getImageData(90, 25, 20, 1).data;
+      let off = 0;
+      for (const d of [block, line]) {
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i] !== 0x12 || d[i + 1] !== 0x34 || d[i + 2] !== 0x56 || d[i + 3] !== 255) off++;
+        }
+      }
+      const known = ctx.createImageData(16, 16);
+      for (let i = 0; i < known.data.length; i++) {
+        known.data[i] = i % 4 === 3 ? 255 : (i * 37) % 256;
+      }
+      ctx.putImageData(known, 0, 0);
+      const back = ctx.getImageData(0, 0, 16, 16).data;
+      let putOff = 0;
+      for (let i = 0; i < back.length; i++) if (back[i] !== known.data[i]) putOff++;
+      return { off, putOff };
+    });
+    if (!r) return;
+    assert.deepEqual(r, { off: 0, putOff: 0 });
+  });
+
+test('anti_fingerprinting: the noise still moves a text canvas, the same way each load (ETP-005)',
+  async (t) => {
+    if (!requireBrowser(browser, t)) return;
+    const server = await startBlankServer();
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    const read = async (shim) => {
+      const page = await browser.browser.newPage();
+      try {
+        if (shim) await page.evaluateOnNewDocument(shim);
+        await page.goto(url, { waitUntil: 'load' });
+        await page.evaluate(`window.drawProbeCanvas = ${drawProbeCanvas.toString()}`);
+        return await page.evaluate(() =>
+          Array.from(window.drawProbeCanvas(document, 120, 40).ctx.getImageData(0, 0, 120, 40).data));
+      } finally {
+        await page.close();
+      }
+    };
+    try {
+      const clean = await read(null);
+      const alpha = await read(AF_ALPHA);
+      const beta = await read(pageJs('anti_fingerprinting', { seed: 'beta-fixture-seed', letterbox: false }));
+      const moved = alpha.filter((v, i) => v !== clean[i]).length;
+      assert.ok(moved > 0, 'the shim left the canvas fingerprint as the engine drew it');
+      assert.deepEqual(await read(AF_ALPHA), alpha, 'the noise must be stable per site');
+      assert.notDeepEqual(beta, alpha, 'two sites must read different canvases');
+    } finally {
       server.close();
     }
   });

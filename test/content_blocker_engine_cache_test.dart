@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/web_intercept_native.dart';
@@ -41,7 +43,7 @@ void main() {
       ..reset()
       ..store = store;
     store.listReads = 0;
-    await service.initialize();
+    await service.initialize(native: WebInterceptNative.initialize());
     // The cache is written behind the launch, not on its path.
     await pumpEventQueue();
   }
@@ -129,7 +131,7 @@ void main() {
           reason: 'the cached engine is the one the cold launch built');
     }, skip: skip);
 
-    test('is handed the rules when the blob does not hydrate', () async {
+    test('is handed the rules when the blob does not hydrate (CB-008)', () async {
       blobHydrates = false;
       await launch();
       expect(pushes, hasLength(2));
@@ -142,6 +144,58 @@ void main() {
       expect(pushes.last['rulesText'], contains('||tracker.example^'));
     }, skip: skip);
   });
+
+  // CB-001: a page built or a request judged while the lists are rebuilt
+  // meets the engine in use, never none. The engine used to be dropped as
+  // the rebuild started and put back after its reads and its parse.
+  test('a rebuild keeps the engine in place until its replacement is built',
+      () async {
+    await launch();
+    final hold = store.holdListReads = Completer<void>();
+    // A failed expectation must not leave the service's queue held for the
+    // tests after this one.
+    addTearDown(() {
+      if (!hold.isCompleted) hold.complete();
+    });
+    final rebuild = service.setListMasks({
+      'trackers': {'site.example'},
+    });
+    while (store.waitingReads == 0) {
+      await pumpEventQueue();
+    }
+    expect(service.hasRules, isTrue,
+        reason: 'a page built now would go without the blocker shims');
+    expect(service.isHostBlocked('tracker.example'), isTrue,
+        reason: 'a request judged now would be allowed');
+    hold.complete();
+    await rebuild;
+    expect(service.isHostBlocked('tracker.example'), isTrue);
+  }, skip: skip);
+
+  // A rebuild reads the lists across awaits; one added or switched off
+  // meanwhile changed the list it was iterating, and the rebuild threw
+  // with the engine already dropped.
+  test('lists changed while a rebuild reads them leave it whole', () async {
+    await launch();
+    final hold = store.holdListReads = Completer<void>();
+    addTearDown(() {
+      if (!hold.isCompleted) hold.complete();
+    });
+    final rebuild = service.setListMasks({
+      'trackers': {'site.example'},
+    });
+    while (store.waitingReads == 0) {
+      await pumpEventQueue();
+    }
+    await service.addCustomList('more', url: 'https://lists.example/more.txt');
+    final toggled = service.toggleList(FilterListId('ads'), enabled: false);
+    hold.complete();
+    await rebuild;
+    await toggled;
+    expect(service.isHostBlocked('tracker.example'), isTrue);
+    expect(service.isHostBlocked('ads.example'), isFalse,
+        reason: 'the rebuild after the toggle has the last word');
+  }, skip: skip);
 
   test('a cache whose write was cut short rebuilds from text', () async {
     await launch();
@@ -157,9 +211,20 @@ class _CountingStore implements FileStore {
   final MemoryFileStore _inner = MemoryFileStore();
   int listReads = 0;
 
+  /// While set, a list read waits for it, as a slow disk does.
+  Completer<void>? holdListReads;
+  int waitingReads = 0;
+
   @override
-  Future<String?> readText(String name) {
-    if (name.endsWith('.txt')) listReads++;
+  Future<String?> readText(String name) async {
+    if (name.endsWith('.txt')) {
+      listReads++;
+      if (holdListReads case final hold?) {
+        waitingReads++;
+        await hold.future;
+        waitingReads--;
+      }
+    }
     return _inner.readText(name);
   }
 

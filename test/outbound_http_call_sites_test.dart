@@ -72,7 +72,7 @@ void main() {
     });
 
     test('per-site DEFAULT falls through to global outbound proxy', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '192.168.1.10:3128',
       ));
@@ -88,7 +88,7 @@ void main() {
     });
 
     test('null proxy uses global outbound proxy', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '127.0.0.1:9999',
       ));
@@ -144,7 +144,7 @@ void main() {
 
   group('global services use global outbound proxy', () {
     test('ClearURLs.downloadRules queries factory with global proxy', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '10.0.0.1:8080',
       ));
@@ -169,7 +169,7 @@ void main() {
 
     test('ClearURLs.downloadRules: Blocked client returns false without leaking',
         () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       ));
@@ -186,7 +186,7 @@ void main() {
 
     test('DnsBlockService.downloadList: Blocked client returns false without leaking',
         () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       ));
@@ -242,7 +242,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
 
     testWidgets('per-site DEFAULT resolves to the global proxy',
         (tester) async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '192.168.1.10:3128',
       ));
@@ -278,7 +278,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
 
   group('timezone dataset download', () {
     test('queries the factory with the global proxy', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '10.0.0.9:3128',
       ));
@@ -295,7 +295,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
     });
 
     test('Blocked client returns false without leaking', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       ));
@@ -349,7 +349,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
         UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
         UserProxySettings(type: ProxyType.HTTPS, address: '10.0.0.1:8443'),
       ]) {
-        GlobalOutboundProxy.setForTest(proxy);
+        GlobalOutboundProxy.setInMemory(proxy);
         expect(addSitePreviewMayResolveLocally(), isFalse,
             reason: 'the proxy resolves the destination name, not the device');
       }
@@ -379,7 +379,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
     });
 
     test('per-site DEFAULT inherits global; HTTP global is requested', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '10.0.0.5:3128',
       ));

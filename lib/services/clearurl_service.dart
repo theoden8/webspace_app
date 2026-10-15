@@ -116,7 +116,17 @@ class ClearUrlService {
   /// Returns the cleaned URL, or the original if no changes were made.
   /// Returns an empty string if the URL should be blocked entirely (completeProvider).
   /// Returns the input unchanged if it is not a valid HTTP(S) URL.
-  String cleanUrl(String url) {
+  ///
+  /// Idempotent (CURL-009): a redirector's target is cleaned too, so the
+  /// navigation to the result does not come back with something left to
+  /// strip.
+  String cleanUrl(String url) => _clean(url, hops: 0);
+
+  /// How many redirectors a URL may be wrapped in before it is returned as
+  /// unwrapped so far.
+  static const _maxRedirectHops = 4;
+
+  String _clean(String url, {required int hops}) {
     if (_providers.isEmpty) return url;
     if (!_urlRegExp.hasMatch(url)) return url;
 
@@ -138,7 +148,9 @@ class ClearUrlService {
             // A `javascript:` / `data:` / `file:` target would run in, or
             // read from, the document doing the navigating.
             if (!ExternalUrlParser.isLoadableWebUrl(decoded)) break;
-            return decoded;
+            return hops < _maxRedirectHops
+                ? _clean(decoded, hops: hops + 1)
+                : decoded;
           }
         }
       }
@@ -146,13 +158,15 @@ class ClearUrlService {
       var uri = Uri.tryParse(url);
       if (uri == null) continue;
 
-      if (uri.queryParameters.isNotEmpty) {
-        final cleanedParams = Map<String, String>.from(uri.queryParameters);
+      // Every value of a repeated key: `queryParameters` keeps one of them.
+      if (uri.queryParametersAll.isNotEmpty) {
+        final cleanedParams =
+            Map<String, List<String>>.from(uri.queryParametersAll);
         cleanedParams.removeWhere((key, value) {
           return provider.rules.any((rule) => rule.hasMatch(key));
         });
 
-        if (cleanedParams.length != uri.queryParameters.length) {
+        if (cleanedParams.length != uri.queryParametersAll.length) {
           if (cleanedParams.isEmpty) {
             uri = uri.replace(query: '');
             url = uri.toString();
@@ -199,6 +213,10 @@ class ClearUrlService {
   void loadRulesFromJson(Map<String, dynamic> json) {
     _parseRules(json);
   }
+
+  /// No rules, as before [initialize]: a load always adds the built-ins.
+  @visibleForTesting
+  void resetForTest() => _providers = [];
 
   void _parseRules(Map<String, dynamic> json) {
     final providers = <ClearUrlProvider>[];

@@ -116,7 +116,7 @@ void main() {
 
   group('resolveEffectiveProxy', () {
     test('per-site DEFAULT falls through to global', () {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '10.0.0.1:3128',
       ));
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('per-site explicit proxy overrides global', () {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: '10.0.0.1:3128',
       ));

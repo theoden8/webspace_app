@@ -45,7 +45,7 @@ test('window.ontouchstart is undefined after the shim runs', () => {
   assert.equal(dom.window.ontouchstart, undefined);
 });
 
-test('matchMedia(pointer: fine) → matches=true; (pointer: coarse) → false', () => {
+test('matchMedia(pointer: fine) → matches=true; (pointer: coarse) → false (DM-002)', () => {
   const dom = loadShim(pageJs('desktop_mode', { platform: 'Linux x86_64' }));
   const fine = dom.window.matchMedia('(pointer: fine)');
   const coarse = dom.window.matchMedia('(pointer: coarse)');

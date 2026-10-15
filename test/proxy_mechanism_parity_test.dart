@@ -80,7 +80,7 @@ void main() {
       );
 
   setUp(() {
-    GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
+    GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
     torProxyResolver = null;
   });
 
@@ -108,7 +108,7 @@ void main() {
         username: 'alice', password: 's3cret'),
   };
 
-  group('both mechanisms route a site to the same upstream', () {
+  group('both mechanisms route a site to the same upstream (PROXY-017)', () {
     cases.forEach((name, perSite) {
       test(name, () {
         expect(routerEgress(perSite), nativeEgress(perSite),
@@ -120,7 +120,7 @@ void main() {
 
   group('with an app-global proxy inherited by DEFAULT (PROXY-009)', () {
     test('a DEFAULT site follows the global on both paths', () {
-      GlobalOutboundProxy.setForTest(
+      GlobalOutboundProxy.setInMemory(
           proxy(ProxyType.HTTP, address: '10.0.0.1:8080'));
       final site = proxy(ProxyType.DEFAULT, address: null);
       expect(routerEgress(site), nativeEgress(site));
@@ -130,7 +130,7 @@ void main() {
       // Neither may fall through to the device connection. The Tor
       // runtime is down here (no resolver installed), which is exactly
       // the state TOR-008 says must never mean "connect anyway".
-      GlobalOutboundProxy.setForTest(
+      GlobalOutboundProxy.setInMemory(
           proxy(ProxyType.TOR, address: '203.0.113.9:9050'));
       final site = proxy(ProxyType.DEFAULT, address: null);
       expect(nativeEgress(site), isNull);
@@ -167,7 +167,7 @@ void main() {
   });
 
   test('an explicit per-site proxy still wins over a global on both', () {
-    GlobalOutboundProxy.setForTest(
+    GlobalOutboundProxy.setInMemory(
         proxy(ProxyType.HTTP, address: '10.0.0.1:8080'));
     final site = proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050');
     expect(routerEgress(site), nativeEgress(site));

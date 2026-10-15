@@ -399,7 +399,7 @@ wait_for_logcat() { # $1 = slug, $2 = deadline secs, $3 = literal pattern
   local slug="$1" deadline="$2" pattern="$3" start now
   start=$(date +%s)
   while :; do
-    if adb logcat -d 2>/dev/null | grep -qF -- "$pattern"; then
+    if grep -qF -- "$pattern" <<<"$(adb logcat -d 2>/dev/null)"; then
       echo "  $slug: logged '$pattern'"
       return 0
     fi

@@ -122,7 +122,7 @@ case "${1:-}" in
     )
     installed=$(rustup target list --installed 2>/dev/null || true)
     for target in "${apple_targets[@]}"; do
-      if ! echo "$installed" | grep -qx "$target"; then
+      if ! grep -qx "$target" <<<"$installed"; then
         echo "[build_rust.sh apple] installing rust target: $target"
         rustup target add "$target"
       fi

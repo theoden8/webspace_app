@@ -84,7 +84,7 @@ void main() {
       });
     }
 
-    test('allows same normalized domain without gesture (no record)', () {
+    test('allows same normalized domain without gesture (no record) (NESTED-007)', () {
       final r = decideShould(targetUrl: 'https://www.example.com/page');
       expect(r.decision, NavigationDecision.allow);
       expect(r.gestureUpdate, isNull);
@@ -184,7 +184,7 @@ void main() {
       expect(r.gestureUpdate, isNull, reason: 'same-domain changes do not touch gesture state');
     });
 
-    test('a captcha-shaped URL does not buy a gesture-less cross-origin hop',
+    test('a captcha-shaped URL does not buy a gesture-less cross-origin hop (NESTED-005)',
         () {
       // `isCaptchaChallenge` matches a URL *shape*, so a page can send itself
       // to `https://attacker.example/cdn-cgi/challenge-platform/x` and, when
@@ -266,7 +266,7 @@ void main() {
     }
   });
 
-  group('external link mode: browser (discussion #438)', () {
+  group('external link mode: browser (discussion #438) (NESTED-009)', () {
     NavigationDecisionResult tap(
       String url, {
       bool gesture = true,

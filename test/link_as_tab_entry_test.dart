@@ -93,7 +93,7 @@ void main() {
   test('a screen a share opened hands nothing over', () {
     expect(main, contains('fromTab: a.sourceIsParent && source != null,'));
     expect(
-      RegExp(r'launchNested\([^)]*\)\s*=>\s*_host\.launchNestedFor\(target, url: url, opensFromTab: fromTab\);')
+      RegExp(r'Future<void> launch\([^)]*\) async \{[^}]*await _host\.launchNestedFor\(target, url: url, opensFromTab: fromTab\);')
           .hasMatch(File('lib/controllers/nested_open_binding.dart').readAsStringSync()),
       isTrue,
     );

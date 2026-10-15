@@ -278,3 +278,9 @@ path — page/worker agreement in one flavour is not evidence for another.**
   as `t.todo` in `test/browser/lie_detection.test.js` and
   `test/browser/worker_realm_escape.test.js`; fixing it means moving the whole
   convention to Symbols.
+- **A shim's disguise reads as V8's on WebKit.** `asNative` writes V8's
+  one-line `function f() { [native code] }`, while JavaScriptCore prints
+  `function f() {\n    [native code]\n}` and names a getter without `get `, so
+  on iOS and macOS every shim's replacement reads differently from the
+  engine's own. The disguise case in `test/browser/worker_base_url.test.js`
+  would fail on WebKit for this alone; the browser tier runs Chromium.

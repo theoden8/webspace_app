@@ -224,7 +224,7 @@ void main() {
       expect(ip1, isNot(equals(ip2)));
     });
 
-    test('private suffixes isolate per subdomain, not per registrant', () {
+    test('private suffixes isolate per subdomain, not per registrant (ISO-013)', () {
       // `victim.github.io` and `attacker.github.io` are different people.
       // Collapsing them to `github.io` shares one cookie container between
       // them and makes a hop between them read as same-site navigation.

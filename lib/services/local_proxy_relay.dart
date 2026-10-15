@@ -268,12 +268,11 @@ class LocalProxyRelay {
   }
 
   static ({String host, int port})? _endpoint(String? address) {
-    if (address == null || address.isEmpty) return null;
-    final colon = address.lastIndexOf(':');
-    if (colon <= 0) return null;
-    final port = int.tryParse(address.substring(colon + 1));
-    if (port == null || port < 1 || port > 65535) return null;
-    return (host: address.substring(0, colon), port: port);
+    if (ProxyAddressParse.of(address)
+        case ProxyAddress(:final socketHost, :final port)) {
+      return (host: socketHost, port: port);
+    }
+    return null;
   }
 
   LocalProxyRoute? _routeFor(String head) {

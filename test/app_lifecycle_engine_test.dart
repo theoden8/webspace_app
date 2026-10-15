@@ -499,7 +499,7 @@ void main() {
     });
   });
   group('NOTIF-011 notification pause exemption', () {
-    test('LOADED notification site vetoes the pause of a plain active site',
+    test('LOADED notification site vetoes the pause of a plain active site (PAUSE-002)',
         () {
       // Android's pauseTimers() is process-global: pausing the site on screen
       // would also freeze the notification site's page JS behind it, and that

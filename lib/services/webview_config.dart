@@ -111,9 +111,13 @@ class WebViewConfig {
   /// is off, otherwise the resolved per-site level, which falls back to the
   /// app-wide one until its list is downloaded. One number so the toggle and
   /// the level can't disagree at a call site.
-  int get effectiveDnsLevel => posture.blocking.dns
-      ? DnsBlockService.instance.effectiveLevelFor(posture.blocking.dnsLevel)
-      : kDnsLevelOff;
+  int get effectiveDnsLevel =>
+      DnsBlockService.instance.effectiveLevelFor(siteDnsAsk);
+
+  /// The level the site asks for, as `resolveDnsLevel` takes it: its own,
+  /// null to follow the app-wide one, or off when DNS blocking is.
+  int? get siteDnsAsk =>
+      posture.blocking.dns ? posture.blocking.dnsLevel : kDnsLevelOff;
   BlockPolicy get blockPolicy => (
         dnsLevel: effectiveDnsLevel,
         contentBlock: posture.blocking.contentBlock,

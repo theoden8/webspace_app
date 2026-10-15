@@ -132,7 +132,7 @@ void main() {
         'Site Tab Strip · Full screen on shortcut launch · 1 more');
   });
 
-  testWidgets('a change on a category screen reaches the app and the row',
+  testWidgets('a change on a category screen reaches the app and the row (APPSET-003)',
       (tester) async {
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
@@ -246,7 +246,7 @@ void main() {
           ),
         ));
 
-    testWidgets('a double tap on a category opens it once', (tester) async {
+    testWidgets('a double tap on a category opens it once (APPSET-004)', (tester) async {
       await tester.pumpWidget(app(settings()));
       await tester.pumpAndSettle();
 

@@ -5,12 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 
 /// CDN URL pattern with named capture groups for library, version, and file.
 class _CdnPattern {
@@ -309,12 +311,14 @@ class LocalCdnService {
     return total;
   }
 
-  Future<void> initialize() async {
-    if (_initialized) return;
-    _cacheDir = '${await hostDocumentsPath()}/localcdn_cache';
-    await hostEnsureDirectory(_cacheDir!);
-    await _loadCacheIndex();
-    _initialized = true;
+  Future<CdnLoaded> initialize() async {
+    if (!_initialized) {
+      _cacheDir = '${await hostDocumentsPath()}/localcdn_cache';
+      await hostEnsureDirectory(_cacheDir!);
+      await _edits.run(_loadCacheIndex);
+      _initialized = true;
+    }
+    return CdnLoaded._(this);
   }
 
   /// Extract a canonical cache key from a CDN URL.
@@ -340,8 +344,11 @@ class LocalCdnService {
       if (await hostFileExists(filePath)) {
         return await hostReadFileBytes(filePath);
       }
-      _cache.remove(key);
-      await _saveCacheIndex();
+      await _edits.run(() async {
+        if (_cache[key] != filePath) return;
+        _cache.remove(key);
+        await _saveCacheIndex();
+      });
       return null;
     } on IOException {
       return null;
@@ -357,37 +364,49 @@ class LocalCdnService {
 
   /// Download a resource from cdnjs (preferred source) and cache it locally.
   /// The original CDN URL is NEVER contacted - we always fetch from cdnjs.
-  Future<Uint8List?> _downloadAndCache(String cacheKey) async {
+  Future<Uint8List?> _downloadAndCache(String cacheKey,
+      {required int clearsAtStart}) async {
     if (!_initialized) return null;
     if (_cache.containsKey(cacheKey)) return _getResourceByKey(cacheKey);
 
     final fetched = await fetchViaAppProxy(Uri.parse(_cdnjsUrl(cacheKey)),
         tag: LogTag.localCdn);
     return switch (fetched) {
-      Fetched(:final response) =>
-        _saveToCache(cacheKey, bytes: response.bodyBytes),
+      Fetched(:final response) => _saveToCache(cacheKey,
+          bytes: response.bodyBytes, clearsAtStart: clearsAtStart),
       FetchRefused() || FetchFailed() => null,
     };
   }
 
+  /// Clears so far: a download that began before the latest one lands
+  /// nothing, or a Clear the user pressed mid-download would be refilled
+  /// behind it.
+  int _clears = 0;
+
+  /// Every change to the cache directory and its index, one at a time.
+  final SerialQueue _edits = SerialQueue('localCdnEdits');
+
   Future<Uint8List?> _saveToCache(String key,
-      {required Uint8List bytes}) async {
-    final safeFilename =
-        key.replaceAll('/', '__').replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-    final filePath = '$_cacheDir/$safeFilename';
-    try {
-      await hostWriteFileBytes(filePath, bytes: bytes);
-      _cache[key] = filePath;
-      await _saveCacheIndex();
-      return bytes;
-    } on IOException catch (e) {
-      LogTag.localCdn.error('Cache write error for $key: $e');
-      return null;
-    } on PlatformException catch (e) {
-      LogTag.localCdn.error('Cache write error for $key: $e');
-      return null;
-    }
-  }
+      {required Uint8List bytes, required int clearsAtStart}) =>
+      _edits.run(() async {
+        if (_clears != clearsAtStart) return null;
+        final safeFilename = key
+            .replaceAll('/', '__')
+            .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+        final filePath = '$_cacheDir/$safeFilename';
+        try {
+          await hostWriteFileBytes(filePath, bytes: bytes);
+          _cache[key] = filePath;
+          await _saveCacheIndex();
+          return bytes;
+        } on IOException catch (e) {
+          LogTag.localCdn.error('Cache write error for $key: $e');
+          return null;
+        } on PlatformException catch (e) {
+          LogTag.localCdn.error('Cache write error for $key: $e');
+          return null;
+        }
+      });
 
   /// Download all popular resources from cdnjs.
   /// Returns the number of successfully downloaded resources.
@@ -399,8 +418,10 @@ class LocalCdnService {
 
     int downloaded = 0;
     final total = _popularResources.length;
+    final clearsAtStart = _clears;
 
     for (int i = 0; i < total; i++) {
+      if (_clears != clearsAtStart) break;
       final (lib, ver, file) = _popularResources[i];
       final key = '$lib/$ver/$file';
 
@@ -410,11 +431,13 @@ class LocalCdnService {
         continue;
       }
 
-      final result = await _downloadAndCache(key);
+      final result =
+          await _downloadAndCache(key, clearsAtStart: clearsAtStart);
       if (result != null) downloaded++;
       onProgress?.call(i + 1, total: total);
     }
 
+    if (_clears != clearsAtStart) return 0;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
 
@@ -432,19 +455,21 @@ class LocalCdnService {
 
   Future<void> clearCache() async {
     if (!_initialized) return;
+    _clears++;
+    await _edits.run(() async {
+      try {
+        await hostDeleteDirectory(_cacheDir!);
+        await hostEnsureDirectory(_cacheDir!);
+      } on IOException {
+        // The index below is what serves; files it no longer names are inert.
+      }
 
-    try {
-      await hostDeleteDirectory(_cacheDir!);
-      await hostEnsureDirectory(_cacheDir!);
-    } on IOException {
-      // The index below is what serves; files it no longer names are inert.
-    }
+      _cache.clear();
+      await _saveCacheIndex();
 
-    _cache.clear();
-    await _saveCacheIndex();
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_lastUpdatedKey);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_lastUpdatedKey);
+    });
   }
 
   Future<void> _loadCacheIndex() async {
@@ -478,6 +503,7 @@ class LocalCdnService {
   /// mutation to [_cache] should go through this so the native interceptor
   /// bridge can keep its copy in sync.
   Future<void> _saveCacheIndex() async {
+    assert(_edits.isHeld, 'the LocalCDN index written outside an edit turn');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('localcdn_cache_index', jsonEncode(_cache));
     _notifyCacheChanged();
@@ -487,5 +513,20 @@ class LocalCdnService {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
+
+/// [LocalCdnService] once [LocalCdnService.initialize] has run, which alone
+/// makes one: startup work that reads the cache index takes this.
+extension type const CdnLoaded._(LocalCdnService _service)
+    implements LocalCdnService {
+  /// Android's interceptor serves from the patterns and the cache index:
+  /// sent now, and the index again each time the cache changes.
+  Future<void> mirrorInto(NativeIntercept native) async {
+    addCacheChangeListener(
+      () => native.sendCdnCacheIndex(cacheIndexSnapshot),
+    );
+    await native.sendCdnPatterns(cdnPatternStrings);
+    await native.sendCdnCacheIndex(cacheIndexSnapshot);
   }
 }

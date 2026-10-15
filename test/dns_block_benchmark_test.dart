@@ -37,7 +37,7 @@ String _generateSyntheticDomainList(int count) {
 
 void main() {
   group('DnsBlockService Benchmark', () {
-    test('parse 522K domains in under 5 seconds', () {
+    test('parse 522K domains in under 5 seconds (DNS-010)', () {
       final data = _generateSyntheticDomainList(522000);
       final service = DnsBlockService.instance;
 

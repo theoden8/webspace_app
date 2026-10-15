@@ -9,7 +9,7 @@ void main() {
           isTrue);
     });
 
-    test('second pass within memo window returns false (caller allows)', () {
+    test('second pass within memo window returns false (caller allows) (IOS-UL-003)', () {
       final bypass = IosUniversalLinkBypass();
       final t = DateTime(2026, 1, 1, 12, 0, 0);
       expect(bypass.shouldCancelAndReissue(
@@ -93,7 +93,7 @@ void main() {
   });
 
   group('IosUniversalLinkBypass.isEligibleNavigation', () {
-    test('user tap on http link is eligible', () {
+    test('user tap on http link is eligible (IOS-UL-001)', () {
       expect(
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
@@ -261,7 +261,7 @@ void main() {
       });
     });
 
-    test('programmatic navigation (no link activation) is NOT eligible', () {
+    test('programmatic navigation (no link activation) is NOT eligible (IOS-UL-002)', () {
       // Initial loads, server redirects without a tap origin, and
       // pushState SPA navs all surface as `.other` — they don't
       // activate AASA on iOS and don't need the bypass.

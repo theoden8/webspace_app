@@ -79,7 +79,7 @@ void main() {
     });
   });
 
-  group('Notification identity (NOTIF-002)', () {
+  group('Notification identity (NOTIF-002, NOTIF-009)', () {
 NotificationTarget target(String siteId,
         {required String? tag, required int seq}) =>
     NotificationTarget.resolve(siteId: SiteId(siteId), tag: tag, sequence: seq);

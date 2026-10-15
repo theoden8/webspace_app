@@ -91,18 +91,23 @@ test('routing hands every gate to the engine, with the live values', () => {
   }
 });
 
-test('a nested open runs through the engine, over the source only when routed', () => {
+test('a nested open runs through the activation table, over the source only when routed', () => {
   const open = blockAfter(main, '  Future<void> _executeOpenNested(', '}) async {', mainRel);
-  assert.match(open, /NestedOpenEngine\.run</,
-    'the proxy sequence and the return to the source live in NestedOpenEngine');
+  assert.match(open, /_activation\.openNested\(/,
+    'the proxy sequence and the return to the source are the activation table\'s');
   assert.match(open, /source: a\.sourceIsParent \? source : null/,
-    'only a routed open skips the webspace switch and brings its source back');
+    'only a routed open skips the webspace switch');
+  const tableRel = 'lib/controllers/activation_table.dart';
+  const table = read(tableRel);
+  const at = table.indexOf('ActivationPlace.nUp => Step(');
+  assert.ok(at >= 0, 'the nested open\'s pop is a step of the activation table');
+  const pop = table.slice(at, table.indexOf('ActivationPlace.commit => Step(', at));
+  assert.match(pop, /\bkind\.becomes\(Expr\.constant\(FlowKind\.tap\)\)/,
+    'the site on screen the open unloaded comes back as an activation, which applies its proxy first');
   const bindingRel = 'lib/controllers/nested_open_binding.dart';
   const host = blockAfter(read(bindingRel),
-    'class NestedOpenBinding implements NestedOpenHost<WebViewModel> {', null, bindingRel);
-  assert.match(host, /Future<void> activate\(int index\) => _activation\.setCurrentIndex\(index\);/,
-    'the source must come back through the full activation, which applies its proxy first');
-  assert.match(host, /Future<void> launchNested\([^)]*\)\s*=>\s*_host\.launchNestedFor\(/,
+    'class NestedOpenBinding implements NestedScreenHost {', null, bindingRel);
+  assert.match(host, /Future<void> launch\([^)]*\) async \{[^}]*_host\.launchNestedFor\(/,
     'the screen opens through the NESTED-010 funnel');
   assert.match(main, /launchNestedFor\([^)]*\}\) =>\s*_s\._launchNestedForModel\(/,
     'the page answers it with its one nested launch');

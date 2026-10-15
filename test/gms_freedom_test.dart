@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// CI calls `scripts/check_no_gms.sh` directly so a missing APK is a
 /// hard failure rather than a skipped test.
 void main() {
-  test('built fdroid APK contains no com.google.android.gms classes',
+  test('built fdroid APK contains no com.google.android.gms classes (CONT-007)',
       () async {
     final apk =
         File('build/app/outputs/flutter-apk/app-fdroid-release.apk');

@@ -196,9 +196,8 @@ void main() {
     });
 
     test('a DEFAULT site under an app-wide Tor holds Tor too', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.TOR));
-      addTearDown(() =>
-          GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT)));
+      GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.TOR));
+      addTearDown(GlobalOutboundProxy.resetForTest);
       outboundHttp = FakeOutbound(blockWhen: (_) => true);
       var held = false;
 
@@ -214,12 +213,12 @@ void main() {
     });
 
     test('DEFAULT falls through to the app-wide proxy (PROXY-009)', () async {
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.HTTP,
         address: 'global.example:3128',
       ));
       addTearDown(() =>
-          GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT)));
+          GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT)));
       final factory = FakeOutbound(
           client: () => _ScriptedClient((_) async => _response(200)));
       outboundHttp = factory;

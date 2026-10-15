@@ -13,7 +13,6 @@ import 'package:webspace/services/icon_service.dart'
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
-import 'package:webspace/services/cookie_manager.dart';
 
 /// Turns developer mode on or off, with everything it decides.
 Future<void> setDeveloperMode({required bool on}) async {
@@ -28,7 +27,6 @@ Future<void> openAppLogs(BuildContext context,
       context,
       MaterialPageRoute(
         builder: (context) => DevToolsScreen(
-          cookieManager: CookieManager(),
           startOnBackground: startOnBackground,
         ),
       ),

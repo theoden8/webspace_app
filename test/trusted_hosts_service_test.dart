@@ -30,7 +30,7 @@ void main() {
       );
     });
 
-    test('fingerprint mismatch is rejected (cert rotation re-prompts)',
+    test('fingerprint mismatch is rejected (cert rotation re-prompts) (TLS-005)',
         () async {
       await service.trust(
         host: 'example.com',

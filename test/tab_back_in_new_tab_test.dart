@@ -11,6 +11,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/fake_webview_controller.dart';
+import 'helpers/model_fixture.dart';
 
 class _Page extends Fake implements TabsHost {
   final offered = <TabId>[];
@@ -46,9 +47,8 @@ void main() {
       ..currentUrl = 'https://github.com/theoden8/webspace_app/pull/601';
     final webview = FakeWebViewController();
     site.controller = webview;
-    final sites = SiteRuntime()..apply(SitesLoaded([site]));
-    sites.loaded.add(0);
-    sites.current = 0;
+    final sites = SiteRuntime()..applied(SitesLoaded([site]));
+    sites.seed(loaded: [site], shown: site);
     final page = _Page();
     final tabs = TabsController(sites,
         host: page, navStates: _NavStates(), residency: _NoResidency());
@@ -64,7 +64,7 @@ void main() {
           title: 'Pull requests',
         );
 
-    await s.tabs.openBackInNewTab(0);
+    await s.tabs.openBackInNewTab(s.site);
 
     expect(s.site.tabs, hasLength(2));
     final child = s.site.tabs.last;
@@ -92,12 +92,12 @@ void main() {
       homeUrl: 'https://codeberg.org/theoden8/webspace',
     );
     s.site
-      ..tabs = [...s.site.tabs, hosted]
-      ..activeTabId = hosted.id;
+      ..setTabs([...s.site.tabs, hosted])
+      ..setActiveTab(hosted.id);
     s.webview.backEntryAnswer = () async =>
         (url: 'https://codeberg.org/theoden8/webspace/pulls', title: null);
 
-    await s.tabs.openBackInNewTab(0);
+    await s.tabs.openBackInNewTab(s.site);
 
     final child = s.site.tabs.last;
     expect(child.parentId, hosted.id);
@@ -110,7 +110,7 @@ void main() {
   test('nothing opens at the start of the history', () async {
     final s = githubOnScreen();
 
-    await s.tabs.openBackInNewTab(0);
+    await s.tabs.openBackInNewTab(s.site);
 
     expect(s.site.tabs, hasLength(1));
     expect(s.page.offered, isEmpty);
@@ -122,7 +122,7 @@ void main() {
     s.webview.backEntryAnswer =
         () async => (url: 'https://github.com/', title: null);
 
-    await s.tabs.openBackInNewTab(0);
+    await s.tabs.openBackInNewTab(s.site);
 
     expect(s.webview.calls, isEmpty);
     expect(s.site.tabs, hasLength(1));
@@ -131,14 +131,14 @@ void main() {
   test('a tab switch during the read drops the new tab', () async {
     final s = githubOnScreen();
     final other = SiteTab(url: 'https://github.com/notifications');
-    s.site.tabs = [...s.site.tabs, other];
+    s.site.setTabs([...s.site.tabs, other]);
     s.webview.backEntryAnswer = () async {
       // The history read was the tab's that has just been left.
-      s.site.activeTabId = other.id;
+      s.site.setActiveTab(other.id);
       return (url: 'https://github.com/theoden8', title: null);
     };
 
-    await s.tabs.openBackInNewTab(0);
+    await s.tabs.openBackInNewTab(s.site);
 
     expect(s.site.tabs, hasLength(2));
     expect(s.page.offered, isEmpty);

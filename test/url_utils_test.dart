@@ -32,7 +32,7 @@ void main() {
   });
 
   group('ensureUrlScheme', () {
-    test('prepends https:// to bare hostnames', () {
+    test('prepends https:// to bare hostnames (EDIT-005)', () {
       expect(ensureUrlScheme('example.com'), 'https://example.com');
       expect(ensureUrlScheme('example.com:8080'), 'https://example.com:8080');
       expect(ensureUrlScheme('localhost'), 'https://localhost');

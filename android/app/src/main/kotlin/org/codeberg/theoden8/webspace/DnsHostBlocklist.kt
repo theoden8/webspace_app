@@ -44,31 +44,45 @@ class DnsHostBlocklist {
     /** How many disjoint groups the downloaded levels resolve to. */
     val groupCount: Int get() = groups.size
 
+    // The newest build started; guarded by [lock].
+    private var started = 0L
+
+    /** One build in flight, from [beginBuild] to its [complete]. */
+    inner class Build internal constructor(private val generation: Long) {
+        /**
+         * Parse a newline-joined blob and swap it in, clearing the in-flight
+         * flag and waking [awaitReady] waiters, unless a later build has
+         * started: each push starts its own thread, so an older blob can
+         * finish last, and landing it would swap the newer set out and wake
+         * readers onto the old one while the newer build still runs (BUG-007).
+         *
+         * Format: a `#<mask-hex>` marker line introduces each group, followed
+         * by that group's domains one per line. Lines before any marker are
+         * taken as level 1 so an unmarked blob still loads.
+         */
+        fun complete(blob: String) {
+            val built = parse(blob)
+            synchronized(lock) {
+                if (generation != started) return
+                groups = built
+                building = false
+                lock.notifyAll()
+            }
+        }
+    }
+
     /**
      * Mark that a build is starting. Call on the requesting (main) thread,
      * synchronously, before handing the blob to a worker thread — so a request
      * thread that races in observes `building` and waits in [awaitReady].
      */
-    fun beginBuild() {
-        synchronized(lock) { building = true }
+    fun beginBuild(): Build = synchronized(lock) {
+        building = true
+        Build(++started)
     }
 
-    /**
-     * Parse a newline-joined blob and swap it in, clearing the in-flight flag
-     * and waking [awaitReady] waiters.
-     *
-     * Format: a `#<mask-hex>` marker line introduces each group, followed by
-     * that group's domains one per line. Lines before any marker are taken as
-     * level 1 so an unmarked blob still loads.
-     */
-    fun replaceFromBlob(blob: String) {
-        val built = parse(blob)
-        synchronized(lock) {
-            groups = built
-            building = false
-            lock.notifyAll()
-        }
-    }
+    /** Parse [blob] and swap it in now, as a build that starts and lands at once. */
+    fun replaceFromBlob(blob: String) = beginBuild().complete(blob)
 
     /**
      * Fail-closed wait: block until no build is in flight, up to [timeoutMs].

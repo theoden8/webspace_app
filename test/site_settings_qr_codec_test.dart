@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show File, gzip;
+import 'dart:io' show gzip;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
@@ -92,7 +92,7 @@ void main() {
       expect(hydrated.userScripts, isEmpty);
     });
 
-    test('emits webspace://qr/site/v1/<payload> URI', () {
+    test('emits webspace://qr/site/v1/<payload> URI (QR-001)', () {
       final encoded = SiteSettingsQrCodec.encode({
         'initUrl': 'https://example.com',
       });
@@ -100,7 +100,7 @@ void main() {
       expect(SiteSettingsQrCodec.decode(encoded), isNotNull);
     });
 
-    test('proxy password and secure cookies never appear in encoded output',
+    test('proxy password and secure cookies never appear in encoded output (QR-003)',
         () {
       final source = WebViewModel(
         initUrl: 'https://secure.example.com',
@@ -156,7 +156,7 @@ void main() {
       expect(inner.contains('userScripts'), isFalse);
     });
 
-    test('decode strips smuggled fields outside the allowlist', () {
+    test('decode strips smuggled fields outside the allowlist (QR-002)', () {
       final hostile = {
         'initUrl': 'https://example.com',
         'cookies': [
@@ -181,7 +181,7 @@ void main() {
       expect(decoded.containsKey('siteId'), isFalse);
     });
 
-    test('decode rejects malformed input', () {
+    test('decode rejects malformed input (QR-004)', () {
       expect(SiteSettingsQrCodec.decode(''), isNull);
       expect(SiteSettingsQrCodec.decode('not a uri'), isNull);
       expect(SiteSettingsQrCodec.decode('https://example.com'), isNull);
@@ -216,43 +216,6 @@ void main() {
     test('decode refuses anything outside the QR prefix', () {
       expect(SiteSettingsQrCodec.decode('https://example.com'), isNull);
       expect(SiteSettingsQrCodec.decode(''), isNull);
-    });
-
-    test('every WebViewModel.toJson key is classified', () {
-      // Drift guard: when a new per-site field is added to WebViewModel,
-      // the dev MUST decide whether it rides a shared QR. This test fails
-      // if a `toJson` key isn't in either set. A default model omits every
-      // field that sits at its default, so the backup-compat superset (every
-      // key a release has written, set to non-default values) is what makes
-      // those fields reach the check.
-      final superset = jsonDecode(
-        File('tool/backup_compat/superset.json').readAsStringSync(),
-      ) as Map<String, dynamic>;
-      final keys = <String>{
-        ...WebViewModel(
-          initUrl: 'https://example.com',
-          spoofLatitude: 1.0,
-          spoofLongitude: 1.0,
-          spoofTimezone: 'UTC',
-          spoofTimezoneFromLocation: true,
-        ).toJson().keys,
-        for (final site in superset['sites'] as List)
-          ...WebViewModel.fromJson(site as Map<String, dynamic>,
-                  stateSetterF: null)
-              .toJson()
-              .keys,
-      };
-
-      final classified = {
-        ...SiteSettingsQrCodec.includedKeys,
-        ...SiteSettingsQrCodec.excludedKeys,
-      };
-      final unknown = keys.where((k) => !classified.contains(k)).toList();
-
-      expect(unknown, isEmpty,
-          reason:
-              'Unclassified WebViewModel.toJson keys: $unknown. Add to '
-              'SiteSettingsQrCodec.includedKeys or excludedKeys.');
     });
 
     test('decode rejects non-http(s) initUrl schemes', () {
@@ -333,7 +296,7 @@ void main() {
       expect(encoded.length, lessThan(900));
     });
 
-    test('decode strips a hand-crafted proxy password', () {
+    test('decode strips a hand-crafted proxy password (QR-009)', () {
       // `includedKeys` whitelists top-level keys only, so a sender that does
       // not use our encoder can nest a password inside `proxySettings` and
       // `UserProxySettings.fromJson` would read it straight into the

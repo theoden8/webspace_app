@@ -28,18 +28,21 @@ test('reload re-renders the import before it can reach the engine', () => {
   assert.notEqual(guard, -1, 'reload() must consult rendersOnReload');
   assert.notEqual(native, -1, 'reload() must still reload natively otherwise');
   assert.ok(guard < native, 'the import check must precede _c.reload()');
-  assert.match(body.slice(guard, native), /_loadHtml\(\s*fileImport\.html/,
+  assert.match(body.slice(guard, native), /\bloadHtml\(\s*fileImport\.html/,
       'the guarded branch must render the import document');
 });
 
 test('a load of the import URL renders the import', () => {
-  const body = blockAfter(wrapper, 'Future<void> loadUrl(', ') async {', rel);
-  const guard = body.indexOf('.isLoadOf(url)');
+  const body = blockAfter(wrapper, 'Future<void> loadRequest(', ') async {', rel);
+  const guard = body.indexOf('.isLoadOf(');
   const native = body.indexOf('_c.loadUrl(');
-  assert.notEqual(guard, -1, 'loadUrl() must consult isLoadOf');
+  assert.notEqual(guard, -1, 'loadRequest() must consult isLoadOf');
   assert.ok(native > guard, 'the import check must precede _c.loadUrl()');
-  assert.match(body.slice(guard, native), /_loadHtml\(\s*fileImport\.html/,
+  assert.match(body.slice(guard, native), /\bloadHtml\(\s*fileImport\.html/,
       'the guarded branch must render the import document');
+  const loadUrl = blockAfter(wrapper, 'Future<void> loadUrl(', ') async {', rel);
+  assert.match(loadUrl, /\bloadRequest\(/,
+      'loadUrl() must load through loadRequest()');
 });
 
 test('the wrapper has no other native reload or load', () => {
@@ -58,8 +61,13 @@ test('the controller handed to the model carries the import document', () => {
 
 test('initialData and the wrapper render the same import document', () => {
   assert.match(src, /final fileImport = FileImportDocument\.of\(/);
-  assert.match(src, /data:\s*fileImport\?\.html\s*\?\?\s*config\.initialHtml!/,
-      'initialData must render fileImport.html for an import');
+  assert.match(src,
+      /final initialHtmlToRender =\s*renderInitialData \? fileImport\?\.html \?\? config\.initialHtml! : null;/,
+      'the first document must be fileImport.html for an import');
+  assert.match(src, /data:\s*initialHtmlToRender,/,
+      'initialData must render the first document');
+  assert.match(src, /wrappedController\.loadHtml\(\s*initialHtmlToRender,/,
+      'the held first load must render the same document');
 });
 
 test('model code does not load through the raw native controller', () => {

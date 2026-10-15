@@ -42,7 +42,7 @@ const PRIMITIVES = [
   'recordUpgradeSuccess', 'recordUpgradeFailure', 'noteUpgradeResponded',
 ];
 
-test('the call site forwards events and never decides', () => {
+test('the call site forwards events and never decides (HTTPS-008)', () => {
   for (const [file, src] of [['webview.dart', WEBVIEW], ['webview_tls.dart', TLS]]) for (const p of PRIMITIVES) {
     assert.ok(!calls(src, p),
       `${file} calls httpsUpgrade.${p}() directly. That is a decision ` +
@@ -83,7 +83,7 @@ test('HTTPS-002: the deadline is armed from the engine, with a generation', () =
     'the duration must be the engine\'s, not a literal at the call site');
   assert.match(nav, /generationAtArm: genAtUpgrade/,
     'without a generation the engine cannot tell a stale deadline from a live one');
-  assert.match(nav, /currentGeneration: \(\) => navigationGen/,
+  assert.match(nav, /currentGeneration: \(\) => phases\.asked/,
     'the engine needs the CURRENT generation, read when the timer fires');
 });
 

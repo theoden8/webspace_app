@@ -1,3 +1,4 @@
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/container_native.dart';
 
 /// In-memory model of the native container API: a set of containers
@@ -24,17 +25,34 @@ class MockContainerNative implements ContainerNative {
 
   MockContainerNative({this.supported = true});
 
-  @override
-  bool get cachedSupported => supported;
+  /// Containers a mounted webview binds, which a delete leaves: Android
+  /// refuses one in use, iOS and macOS one a webview still holds (LIR-023).
+  final Set<ContainerKey> bound = {};
+
+  /// A webview mounts on [key]'s container, making it if missing, as the
+  /// platform does when the view binds it.
+  void bind(ContainerKey key) {
+    profiles[key] = ContainerName.of(key);
+    dataByContainer.putIfAbsent(key, () => []);
+    bound.add(key);
+  }
+
+  void unbind(ContainerKey key) => bound.remove(key);
+
+  /// Awaited before every call, named by its method: a test that schedules
+  /// the platform's replies decides here when each one lands.
+  Future<void> Function(PlatformCall call)? pace;
 
   @override
   Future<bool> isSupported() async {
+    await pace?.call(PlatformCall.containerIsSupported);
     calls.add('isSupported');
     return supported;
   }
 
   @override
   Future<ContainerName> getOrCreateContainer(ContainerKey siteId) async {
+    await pace?.call(PlatformCall.containerGetOrCreate);
     calls.add('getOrCreateContainer($siteId)');
     final name = ContainerName.of(siteId);
     profiles[siteId] = name;
@@ -44,7 +62,9 @@ class MockContainerNative implements ContainerNative {
 
   @override
   Future<bool> deleteContainer(ContainerKey siteId) async {
+    await pace?.call(PlatformCall.containerDelete);
     calls.add('deleteContainer($siteId)');
+    if (bound.contains(siteId)) return false;
     final existed = profiles.remove(siteId) != null;
     dataByContainer.remove(siteId);
     return existed;
@@ -52,6 +72,7 @@ class MockContainerNative implements ContainerNative {
 
   @override
   Future<bool> clearContainerData(ContainerKey siteId) async {
+    await pace?.call(PlatformCall.containerClearData);
     calls.add('clearContainerData($siteId)');
     if (refuseClearFor?.contains(siteId) ?? false) return false;
     if (!profiles.containsKey(siteId)) return false;
@@ -61,6 +82,7 @@ class MockContainerNative implements ContainerNative {
 
   @override
   Future<List<ContainerKey>> listContainers() async {
+    await pace?.call(PlatformCall.containerList);
     calls.add('listContainers');
     return [for (final name in profiles.keys) ContainerKey.named(name)];
   }

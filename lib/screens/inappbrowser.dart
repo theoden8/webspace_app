@@ -35,7 +35,6 @@ import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
-import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
@@ -122,7 +121,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// some Android System WebView builds when the parent Column's
   /// children list churns (FindToolbar appearing/disappearing). State
   /// recreation tears down the platform view and creates a new one,
-  /// which triggers fresh onWebViewCreated → attachToAllWebViews. That
+  /// which triggers a fresh onWebViewCreated and interceptor attach. That
   /// platform-view churn, mid-page-load, has been the trigger for
   /// `partition_alloc_support.cc:770 dangling raw_ptr` SIGTRAPs on
   /// Chrome_IOThread. Stabilizing the Widget reference removes the
@@ -406,10 +405,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         siteName: widget.homeTitle ?? extractDomain(widget.url),
         openedFrom: widget.openedFrom,
         pageUrl: _currentUrl,
-        containerId: containerIdFor(
-          key: p.container.containerKey,
-          incognito: p.container.incognito,
-        ),
+        containerId: p.container.containerId,
         incognito: p.container.incognito,
         proxy: PlatformInfo.isProxySupported ? p.container.proxy : null,
         siteId: p.siteId,
@@ -673,7 +669,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     MaterialPageRoute(
                       builder: (context) => DevToolsScreen(
                         host: _devToolsHost,
-                        cookieManager: CookieManager(),
+                        isolation: widget.hooks.isolation(),
                       ),
                     ),
                   ));

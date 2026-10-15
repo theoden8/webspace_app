@@ -28,9 +28,14 @@ import 'package:webspace/settings/proxy.dart';
 class GlobalOutboundProxy {
   GlobalOutboundProxy._();
 
-  static UserProxySettings _current = UserProxySettings(type: ProxyType.DEFAULT);
+  static UserProxySettings? _current;
 
-  static UserProxySettings get current => _current;
+  /// Before [initialize] there is no answer: DEFAULT would send a download
+  /// direct past the proxy the user set (LEAK-004), so a read then is an
+  /// error rather than a guess.
+  static UserProxySettings get current =>
+      _current ??
+      (throw StateError('the app-wide proxy was read before it loaded (LEAK-004)'));
 
   /// Secure-storage handle for the password component. Tests may override.
   static ProxyPasswordSecureStorage _passwordStore =
@@ -52,14 +57,15 @@ class GlobalOutboundProxy {
       prefsKey: AppPref.globalOutboundProxy.key,
       secureKey: ProxyPasswordKey.global,
     );
-    _current = readGlobalOutboundProxy(prefs);
+    final loaded = readGlobalOutboundProxy(prefs);
     final pwd = await _passwordStore
         .loadPassword(ProxyPasswordKey.global);
     if (pwd != null && pwd.isNotEmpty) {
-      _current.password = pwd;
+      loaded.password = pwd;
     }
+    _current = loaded;
     LogTag.proxy.info(
-        'GlobalOutboundProxy initialized: ${_current.describeForLogs()}',
+        'GlobalOutboundProxy initialized: ${loaded.describeForLogs()}',
         sensitive: true);
   }
 
@@ -81,8 +87,9 @@ class GlobalOutboundProxy {
     _current = UserProxySettings(type: ProxyType.DEFAULT);
   }
 
-  /// Override in-memory value without touching SharedPreferences; for tests.
-  static void setForTest(UserProxySettings settings) {
+  /// A value with nothing persisted behind it: a test's, or the design
+  /// gallery's, which loads no storage.
+  static void setInMemory(UserProxySettings settings) {
     _current = settings;
   }
 }

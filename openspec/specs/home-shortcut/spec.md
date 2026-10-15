@@ -146,7 +146,7 @@ Sites in WebSpace are stable, so a home shortcut is a one-time setup per site. O
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is still shown (iOS cannot detect prior pinning)
 
-The Android pinned tiles are queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)`, keeping only enabled shortcuts (a disabled tile opens nothing, so it does not count as pinned; see HS-015), each with the site its launch intent names (HS-017), exposed through the platform channel as `getPinnedShortcuts`. The cached map is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
+The Android pinned tiles are queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)`, keeping only enabled shortcuts (a disabled tile opens nothing, so it does not count as pinned; see HS-015), each with the site its launch intent names (HS-017), exposed through the platform channel as `getPinnedShortcuts`. The cached map is refreshed at launch once the restored sites are on the page and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
 
 A tile opens a site by the rule a tap resolves with (`ShortcutPinState.tilesReaching`, through `StartupRestoreEngine.resolveLaunch`): the site its intent names, or, for a tile an earlier version rebound by a remap (HS-011), the remap's target. The item is hidden for every site some tile opens, so the user is not offered a second, redundant tile.
 
@@ -357,7 +357,7 @@ The ledger, tombstone list, and remembered-rebind map are machine state derived 
 
 ### Requirement: HS-012 - Shortcut URL Ledger Maintenance (Android)
 
-The system SHALL maintain the HS-011 `siteId -> url` ledger against the launcher's actual pinned set, so it carries exactly the entries needed to route orphaned shortcuts and no stale cruft. On pin, and on every `initState` / `AppLifecycleState.resumed` (the same cadence as the HS-005 pinned-set refresh), the system SHALL:
+The system SHALL maintain the HS-011 `siteId -> url` ledger against the launcher's actual pinned set, so it carries exactly the entries needed to route orphaned shortcuts and no stale cruft. On pin, at launch once the restored sites are on the page (the pin read takes the restore's proof that they are, `Reached<SitesOnPage>`), and on every `AppLifecycleState.resumed` once the launch has ended (the same cadence as the HS-005 pinned-set refresh), the system SHALL:
 
 - record `siteId -> initUrl` for every site a pinned tile names that still exists, so a later deletion leaves a routable trail; and
 - drop any ledger entry whose `siteId` is neither a current site nor in the pinned set (unreachable: the site is gone and no launcher tile points at it).
@@ -369,6 +369,13 @@ The reconcile logic is a pure function exercised in [test/startup_restore_engine
 **Given** the user pins a shortcut for a site at `https://www.example.com`
 **When** the pin completes
 **Then** the ledger holds that site's `siteId -> https://www.example.com`
+
+#### Scenario: The launch reconciles against the restored sites
+
+**Given** a ledger entry for a live site whose launcher tile was removed
+**When** the app launches
+**Then** the reconcile runs only once the restored sites are on the page, so the entry is kept for the live site rather than dropped as a deleted one
+**And** a resume that lands before the launched site is up reconciles only after it
 
 #### Scenario: Removing the launcher tile prunes the entry
 
@@ -592,7 +599,7 @@ App Settings > Behaviour SHALL list the enabled pinned tiles under "Home screen 
 
 A pinned shortcut SHALL open the targeted site where it was left: a site with tabs on the tab it was on (TAB-014), a site without tabs at its last `currentUrl`. Only Always open Home SHALL send it home (AOH-004; incognito implies it, AOH-005): a site without tabs then loads at its `initUrl`, and a site with tabs lands on a tab at home (TAB-014). A site whose URL gathers state it should not keep, such as a map or search site that encodes coordinates or a query in the URL (issue #298), keeps it out of the next launch by turning Always open Home on.
 
-The rule is the same for a cold launch (including after the app was killed) and a warm tap. A warm tap of a site without Always open Home keeps the live session, matching HS-002's "App already running" scenario.
+The rule is the same for a cold launch (including after the app was killed) and a warm tap. A warm tap the app sees while the cold launch is still restoring is handled once the launched site is up, so the cold launch's own activation cannot undo it. A warm tap of a site without Always open Home keeps the live session, matching HS-002's "App already running" scenario.
 
 #### Scenario: A cold launch opens where the site was left
 

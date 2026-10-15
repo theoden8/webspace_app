@@ -163,7 +163,7 @@ void main() {
       () async {
     answers.answer = ExternalTorAnswer.unreachable;
     await settled(() => engine.acquire(TorSiteHolder(SiteId('site-a'))));
-    final route = engine.routeFor(TorTag.ofSite(SiteId('site-a')));
+    final route = engine.routeFor(TorTag.fromWire('site-a'));
     expect((route as TorRouteBlocked).reason,
         'Nothing answers at 127.0.0.1:9050.');
   });
@@ -174,7 +174,7 @@ void main() {
     answers.answer = ExternalTorAnswer.tor;
     final s = await settled(engine.revive);
     expect(s, isA<TorUp>());
-    expect(engine.socksFor(TorTag.ofSite(SiteId('site-a'))), isNotNull);
+    expect(engine.socksFor(TorTag.fromWire('site-a')), isNotNull);
   });
 
   test('a new claim asks a tor that was not answering again', () async {

@@ -10,6 +10,7 @@ import 'package:webspace/services/site_search_list_engine.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_search.dart';
 import 'helpers/fake_outbound.dart';
 import 'helpers/fake_path_provider.dart';
 

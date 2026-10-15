@@ -40,7 +40,7 @@ void main() {
       expect(await store.loadPassword(ProxyPasswordKey.site(SiteId('site-1'))), isNull);
     });
 
-    test('removeOrphaned drops site keys not in the active set', () async {
+    test('removeOrphaned drops site keys not in the active set (PWD-004)', () async {
       await store.savePassword(ProxyPasswordKey.site(SiteId('site-1')), password: 'a');
       await store.savePassword(ProxyPasswordKey.site(SiteId('site-2')), password: 'b');
       await store.savePassword(ProxyPasswordKey.site(SiteId('site-3')), password: 'c');
@@ -78,7 +78,7 @@ void main() {
   });
 
   group('ProxyPasswordSecureStorage.migrateLegacyPassword', () {
-    test('moves plaintext password from SharedPreferences to secure storage',
+    test('moves plaintext password from SharedPreferences to secure storage (PWD-003)',
         () async {
       final prefs = await SharedPreferences.getInstance();
       const prefsKey = 'someProxyKey';
@@ -184,7 +184,7 @@ void main() {
       GlobalOutboundProxy.resetForTest();
     });
 
-    test('initialize migrates legacy plaintext password and hydrates current',
+    test('initialize migrates legacy plaintext password and hydrates current (PWD-002)',
         () async {
       final prefs = await SharedPreferences.getInstance();
       // Pre-migration state: password lives in plaintext prefs.
@@ -214,7 +214,7 @@ void main() {
           equals('onion'));
     });
 
-    test('update writes JSON-without-password to prefs and password to secure',
+    test('update writes JSON-without-password to prefs and password to secure (PWD-001)',
         () async {
       final prefs = await SharedPreferences.getInstance();
       await GlobalOutboundProxy.update(UserProxySettings(

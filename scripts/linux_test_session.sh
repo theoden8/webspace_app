@@ -35,7 +35,7 @@ xdg-user-dir DOCUMENTS
 mkdir -p "$HOME/.gnupg" && chmod 700 "$HOME/.gnupg"
 printf '%s\n' "allow-loopback-pinentry" > "$HOME/.gnupg/gpg-agent.conf"
 printf '%s\n' "pinentry-mode loopback" > "$HOME/.gnupg/gpg.conf"
-if ! gpg --list-secret-keys --with-colons | grep -q '^sec'; then
+if ! gpg --list-secret-keys --with-colons | grep '^sec' >/dev/null; then
   cat > /tmp/gpgkey <<'EOF'
 %no-protection
 Key-Type: rsa

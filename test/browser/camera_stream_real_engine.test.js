@@ -139,14 +139,17 @@ function readClipFixture() {
   return { b64, colours };
 }
 
-// BUG-010: the emulator tier proves "playing, not frozen" by watching the clip
+// The emulator tier proves "playing, not frozen" by watching the clip
 // change colour, so the assertion is only as good as the share of playback
 // time the second colour holds. The clip this replaced carried that colour on
 // one frame at the very end, leaving the probe to race the loop wrap for it —
 // a race it lost across ~300 samples in 30s. tool/generate_camera_video_fixture.js
 // enforces per-frame alternation where the clip is generated; this re-derives
 // it from the committed bytes, so a hand-edited fixture fails here rather than
-// on an emulator three tiers away.
+// on an emulator three tiers away. What it cannot see: this walks the clip
+// under desktop Chromium, so a decoder-side regression on the emulator still
+// shows only there, and a runner that presents fewer than two frames in 30s
+// fails the emulator scenario as a stalled stream would.
 test('the committed clip alternates colour on every frame', async (t) => {
   if (!requireBrowser(browser, t)) return;
 

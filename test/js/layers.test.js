@@ -10,7 +10,6 @@ const DEBT = new Set([
   'lib/services/cookie_isolation.dart -> lib/web_view_model.dart',
   'lib/services/settings_backup.dart -> lib/web_view_model.dart',
   'lib/services/settings_import_engine.dart -> lib/web_view_model.dart',
-  'lib/services/site_activation_engine.dart -> lib/web_view_model.dart',
   'lib/services/site_unload_engine.dart -> lib/web_view_model.dart',
   'lib/services/startup_restore_engine.dart -> lib/web_view_model.dart',
   'lib/services/webview_downloads.dart -> lib/widgets/root_messenger.dart',

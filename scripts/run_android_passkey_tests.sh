@@ -58,7 +58,7 @@ adb_ shell settings put system screen_off_timeout 2147483647
 bash scripts/print_android_webview_version.sh "$device_id" | tee "$OUT/webview_version.txt"
 
 # ── G0: the harness ──────────────────────────────────────────────────────────
-if adb_ shell pm list features | grep -q 'feature:android.software.credentials'; then
+if grep -q 'feature:android.software.credentials' <<<"$(adb_ shell pm list features)"; then
   pass G0-feature "android.software.credentials present"
 else
   fail G0-feature "android.software.credentials missing; Credential Manager does not run on this image"
@@ -89,7 +89,7 @@ for _ in $(seq 30); do
   sleep 1
 done
 adb_ reverse "tcp:$PORT" "tcp:$PORT"
-if adb_ reverse --list | grep -q "tcp:$PORT"; then
+if grep -q "tcp:$PORT" <<<"$(adb_ reverse --list)"; then
   pass G0-reverse "adb reverse tcp:$PORT active"
 else
   fail G0-reverse "adb reverse not active"
@@ -114,7 +114,7 @@ fi
 adb_ shell dumpsys package "$APP_ID" > "$OUT/dumpsys_package.txt"
 for perm in CREDENTIAL_MANAGER_SET_ORIGIN CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS; do
   line="$(grep "android.permission.$perm:" "$OUT/dumpsys_package.txt" | head -1 | tr -d '\r' | sed 's/^ *//')"
-  if printf '%s' "$line" | grep -q 'granted=true'; then
+  if grep -q 'granted=true' <<<"$line"; then
     pass G1-$perm "dumpsys: $line"
   else
     fail G1-$perm "not granted: '${line:-absent}'"
@@ -143,14 +143,14 @@ touch "$OUT/.tapping"
       echo "$(date -u +%T) $state" >> "$OUT/tapper.log"
       last="$state"
     fi
-    if printf '%s' "$state" | grep -q 'com.android.credentialmanager'; then
+    if grep -q 'com.android.credentialmanager' <<<"$state"; then
       if ! adbt shell uiautomator dump /sdcard/ws_ui.xml >/dev/null 2>&1; then
         echo "$(date -u +%T) uiautomator dump failed" >> "$OUT/tapper.log"
         sleep 1
         continue
       fi
       xml="$(adbt shell cat /sdcard/ws_ui.xml 2>/dev/null)"
-      if printf '%s' "$xml" | grep -q 'package="com.android.credentialmanager"'; then
+      if grep -q 'package="com.android.credentialmanager"' <<<"$xml"; then
         seen=$((seen + 1))
         [ "$seen" -le 6 ] && printf '%s' "$xml" > "$OUT/sheet-$seen.xml"
         for label in Continue Create Save "Use passkey" "Sign in"; do
@@ -178,8 +178,8 @@ run_phase() {
   # A ceremony the previous phase left waiting keeps its sheet on top of
   # the next launch, and the app under test never gets to run.
   for _ in 1 2 3; do
-    adb_ shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=' \
-      | grep -q 'com.android.credentialmanager' || break
+    grep -q 'com.android.credentialmanager' \
+      <<<"$(adb_ shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=')" || break
     adb_ shell input keyevent KEYCODE_BACK
     sleep 1
   done
@@ -217,7 +217,7 @@ rp() { node -e "
 # ── G0: the page ────────────────────────────────────────────────────────────
 probe="$(gate_line probe)"
 echo "probe: $probe"
-if printf '%s' "$probe" | grep -q '"secure":true' && printf '%s' "$probe" | grep -q '"uvpaa":true'; then
+if grep -q '"secure":true' <<<"$probe" && grep -q '"uvpaa":true' <<<"$probe"; then
   pass G0-page "$probe"
 else
   fail G0-page "probe was '${probe:-missing}'"
@@ -226,9 +226,9 @@ fi
 # ── G2: registration, verified by the RP, asserted with the page origin ─────
 reg="$(rp "e => e.ceremony === 'register' && e.name === 'alice'")"
 prov_create="$(grep 'TESTPROVIDER.*create origin=' "$OUT/logcat.txt" | head -1 | tr -d '\r')"
-if printf '%s' "$reg" | grep -q '"verified":true' \
-    && printf '%s' "$reg" | grep -q '"origin":"http://localhost:8443"' \
-    && printf '%s' "$prov_create" | grep -q 'create origin=http://localhost:8443 '; then
+if grep -q '"verified":true' <<<"$reg" \
+    && grep -q '"origin":"http://localhost:8443"' <<<"$reg" \
+    && grep -q 'create origin=http://localhost:8443 ' <<<"$prov_create"; then
   pass G2-register "RP: $reg | provider: ${prov_create#*: }"
 else
   fail G2-register "RP: ${reg:-none} | provider: ${prov_create:-no create line}"
@@ -259,12 +259,12 @@ run_phase refused
 refused_rc=$?
 refused="$(gate_line refused-register)"
 prov_refuse="$(grep "TESTPROVIDER.*refuse create caller=$APP_ID" "$OUT/logcat.txt" | head -1 | tr -d '\r')"
-if [ "$refused_rc" -eq 0 ] && printf '%s' "$refused" | grep -q '"name":"NotAllowedError"' && [ -n "$prov_refuse" ]; then
+if [ "$refused_rc" -eq 0 ] && grep -q '"name":"NotAllowedError"' <<<"$refused" && [ -n "$prov_refuse" ]; then
   pass G4-refused "page: $refused | provider: ${prov_refuse#*: }"
 else
   fail G4-refused "exit $refused_rc | page: ${refused:-none} | provider: ${prov_refuse:-no refusal line}"
 fi
-if grep -E "FATAL EXCEPTION|Process: $APP_ID" "$OUT/logcat.txt" | grep -q "$APP_ID"; then
+if grep -q "$APP_ID" <<<"$(grep -E "FATAL EXCEPTION|Process: $APP_ID" "$OUT/logcat.txt")"; then
   fail no-crash "$(grep -A3 'FATAL EXCEPTION' "$OUT/logcat.txt" | head -8 | tr -d '\r')"
 else
   pass no-crash "no FATAL EXCEPTION for $APP_ID in logcat"

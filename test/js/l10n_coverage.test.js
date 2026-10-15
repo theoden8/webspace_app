@@ -1,4 +1,4 @@
-// Localization coverage guard (LOC-003), ported from the former Dart
+// Localization coverage guard (L10N-003), ported from the former Dart
 // test/l10n_coverage_test.dart so it runs in the lightweight checks job
 // (Node) instead of behind a platform build. The English ARB is the source
 // of truth; every other locale must define the same keys with the same
@@ -60,7 +60,8 @@ const localeNames = fs
   .filter((f) => f.endsWith('.arb') && f !== templateName)
   .sort();
 
-test('template ARB is well-formed and fully documented', () => {
+// L10N-004
+test('template ARB is well-formed and fully documented (L10N-001)', () => {
   assert.ok(templateKeys.size > 0);
   for (const k of templateKeys) {
     assert.ok(template[k].trim().length > 0, `Template key "${k}" has an empty value.`);

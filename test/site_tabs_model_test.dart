@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
+import 'helpers/model_fixture.dart';
 
 void main() {
   group('TAB-001 — a site owns its tabs', () {
@@ -22,8 +23,8 @@ void main() {
       expect(m.activeTab.title, 'Notifications');
 
       final second = SiteTab(url: 'https://github.com/pulls');
-      m.tabs = [...m.tabs, second];
-      m.activeTabId = second.id;
+      m.setTabs([...m.tabs, second]);
+      m.setActiveTab(second.id);
       expect(m.currentUrl, 'https://github.com/pulls');
       expect(m.pageTitle, isNull);
       // Writing now lands on the second tab; the first one is untouched.
@@ -59,7 +60,7 @@ void main() {
         title: 'PR 601',
         parentId: m.activeTabId,
       );
-      m.tabs = [...m.tabs, child];
+      m.setTabs([...m.tabs, child]);
 
       final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));
@@ -74,8 +75,8 @@ void main() {
         () {
       final m = WebViewModel(initUrl: 'https://github.com/');
       final child = SiteTab(url: 'https://github.com/pulls');
-      m.tabs = [...m.tabs, child];
-      m.activeTabId = child.id;
+      m.setTabs([...m.tabs, child]);
+      m.setActiveTab(child.id);
 
       final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.activeTabId, child.id);
@@ -85,8 +86,8 @@ void main() {
     test('the active tab is marked inside the list, not beside it', () {
       final m = WebViewModel(initUrl: 'https://github.com/');
       final child = SiteTab(url: 'https://github.com/pulls');
-      m.tabs = [...m.tabs, child];
-      m.activeTabId = child.id;
+      m.setTabs([...m.tabs, child]);
+      m.setActiveTab(child.id);
       final json = m.toJson();
       expect(json.containsKey('activeTabId'), isFalse);
       final entries = (json['tabs'] as List).cast<Map<String, dynamic>>();
@@ -101,7 +102,7 @@ void main() {
       final m = WebViewModel(initUrl: 'https://github.com/');
       m.pageTitle = 'Home';
       final child = SiteTab(url: 'https://github.com/pulls', title: 'Pulls');
-      m.tabs = [...m.tabs, child];
+      m.setTabs([...m.tabs, child]);
       final json = m.toJson()
         ..['currentUrl'] = 42
         ..remove('pageTitle');
@@ -149,17 +150,17 @@ void main() {
     test('the key follows the active tab', () {
       final m = WebViewModel(initUrl: 'https://github.com/', siteId: SiteId('site_1'));
       final second = SiteTab(id: TabId('tb'), url: 'https://github.com/pulls');
-      m.tabs = [...m.tabs, second];
-      m.activeTabId = TabId('tb');
+      m.setTabs([...m.tabs, second]);
+      m.setActiveTab(TabId('tb'));
       expect(m.activeStateKey, 'site_1.tb');
     });
   });
 
   group('TAB-009 — tabs under per-site features', () {
-    test('an incognito site keeps its tab list, not its URL or cookies', () {
+    test('an incognito site keeps its tab list, not its URL or cookies (INC-008)', () {
       final m = WebViewModel(initUrl: 'https://en.wikipedia.org/');
       m.incognito = true;
-      m.tabs = [...m.tabs, SiteTab(url: 'https://en.wikipedia.org/wiki/Tab')];
+      m.setTabs([...m.tabs, SiteTab(url: 'https://en.wikipedia.org/wiki/Tab')]);
       m.currentUrl = 'https://en.wikipedia.org/wiki/Web_browser';
 
       final json = m.toJson();
@@ -196,7 +197,7 @@ void main() {
       final m = WebViewModel(initUrl: 'https://mastodon.social/');
       m.alwaysOpenHome = true;
       m.currentUrl = 'https://mastodon.social/@a/1';
-      m.tabs = [...m.tabs, SiteTab(url: 'https://mastodon.social/@b/2')];
+      m.setTabs([...m.tabs, SiteTab(url: 'https://mastodon.social/@b/2')]);
       return m;
     }
 

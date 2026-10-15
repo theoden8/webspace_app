@@ -56,7 +56,7 @@ internal object WorkerFlutterEngine {
             app,
             forThisDevice(FlutterShellArgs(arrayOf<String>())).toArray(),
         )
-        val plugins = EnginePlugins(app, engine, activity = null)
+        val plugins = EnginePlugins(app, engine)
         registerLaunchChannels(app, engine)
         // Tells `main` it runs for a wake with no activity, so it builds no
         // site webview: the native blockers could not find one (NOTIF-016).

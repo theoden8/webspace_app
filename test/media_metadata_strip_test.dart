@@ -83,7 +83,7 @@ void main() {
   group('MP3 (SEC-016)', () {
     final frame = [0xff, 0xfb, 0x90, 0x00, ...List.filled(20, 7)];
 
-    test('ID3v2 header and ID3v1 trailer are cut', () {
+    test('ID3v2 header and ID3v1 trailer are cut (MIC-017)', () {
       final tag = 'TXXX....LAT=37.77'.codeUnits;
       final id3 = [0x49, 0x44, 0x33, 3, 0, 0, 0, 0, 0, tag.length, ...tag];
       final v1 = [...'TAG'.codeUnits, ...List.filled(125, 0x20)];
@@ -103,7 +103,7 @@ void main() {
   });
 
   group('images (SEC-016)', () {
-    test('a JPEG loses its EXIF and stays a JPEG', () {
+    test('a JPEG loses its EXIF and stays a JPEG (CAM-015)', () {
       final image = img.Image(width: 4, height: 4);
       image.exif.imageIfd['Make'] = 'Phone Co';
       final raw = Uint8List.fromList(img.encodeJpg(image));

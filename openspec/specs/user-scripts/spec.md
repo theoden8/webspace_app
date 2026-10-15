@@ -175,7 +175,7 @@ When a script has both `urlSource` (cached library) and `source` (user code):
 ;null;                          ← prevents WebKit "unsupported type" error
 ```
 
-The `;null;` suffix is appended to all injected scripts because WebKit (macOS/iOS) errors when `evaluateJavascript` returns `undefined`. Returning `null` (a serializable value) prevents this. All `evaluateJavascript` calls are also wrapped in try-catch at the Dart level via `_safeEval`.
+The `;null;` suffix is appended to all injected scripts because WebKit (macOS/iOS) errors when `evaluateJavascript` returns `undefined`. Returning `null` (a serializable value) prevents this. Every script reaches the page through `PageScope.evaluate` (US-007), which appends the suffix and treats a refused call as a no-op.
 
 ### Requirement: US-002c - HTML Cache Invalidation on Script Changes
 
@@ -314,7 +314,8 @@ User scripts SHALL be included in settings export/import.
 
 **Given** a backup file containing user scripts
 **When** settings are imported
-**Then** user scripts are restored for each site, per-site `enabledGlobalScriptIds` sets are restored, and global scripts (with their `id`s) are restored to app state
+**Then** each site's user scripts and the global scripts (with their `id`s) are restored, switched off
+**And** each site's `enabledGlobalScriptIds` set is dropped, so no imported script runs until the user turns it on (BACKUP-011)
 
 ---
 
@@ -367,6 +368,36 @@ redirect onto a name pointing at a private address is refused by both halves.
 **Given** a host that answers every request with another redirect
 **When** the bridge follows the chain
 **Then** it stops after 5 hops and returns `{status: 403}`
+
+### Requirement: US-007 - A script lands in the document it was decided for
+
+Every script the app evaluates into a site's page after an await (the
+re-injection at load start and load stop, the SPA re-run, the script the
+bridge fetched, the inline script it was handed, the content blocker's early
+and cosmetic scripts) SHALL run in the document that was shown when it was
+decided, and SHALL run nowhere once a new load has started, the renderer
+has died or the view has gone. A navigation that is only asked for does not
+end the document: the app may cancel it (a link routed to another site, a
+blocked URL) and the page stays.
+
+The document is the page phases' (`PagePhases`, one per webview: the site's
+own, a popup's, a wake's headless check), and a script reaches the page only
+through a `PageScope` taken from them, so a path that evaluates across an
+await without one has no handle to evaluate with.
+
+#### Scenario: A fetched script outlives its page
+
+**Given** a page's user script asks the bridge for a library on a CDN
+**And** the next page starts loading while the fetch is in flight
+**When** the fetch returns
+**Then** the handler returns false
+**And** nothing is evaluated in the page the frame navigated to
+
+#### Scenario: A navigation lands between two re-injected scripts
+
+**Given** a site with the bridge shim and a document-start user script
+**When** the next page starts loading after the shim lands and before the script does
+**Then** the script is not evaluated in the next page
 
 ---
 

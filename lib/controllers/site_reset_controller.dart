@@ -10,6 +10,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/web_view_model.dart';
 
 /// What the resets ask of the page.
 abstract interface class SiteResetHost implements PageHost {
@@ -153,7 +154,9 @@ class SiteResetController {
   ///
   /// A site with tabs is not sent home in place: it lands on a tab at home,
   /// and the tab it was on stays in its list (TAB-014).
-  Future<void> resetHomeOnLaunch(int launchedIndex) async {
+  Future<void> resetHomeOnLaunch(WebViewModel launched) async {
+    final launchedIndex = _sites.models.indexOf(launched);
+    if (launchedIndex < 0) return;
     final indices = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
       launchedIndex: launchedIndex,
       webspaces: _sites.webspaces,
@@ -163,12 +166,14 @@ class SiteResetController {
         return m.alwaysOpenHome || m.incognito;
       },
     );
+    // Sites, not rows: the loop awaits, and a row can name another site
+    // after an await.
+    final sites = [for (final i in indices) _sites.models[i]];
     final withTabs = [
-      for (final i in indices)
-        if (_tabs.enabledAt(i)) _sites.models[i],
+      for (final m in sites)
+        if (_tabs.enabledFor(m)) m,
     ];
-    for (final i in indices) {
-      final m = _sites.models[i];
+    for (final m in sites) {
       if (withTabs.contains(m)) continue;
       if (m.currentUrl == m.initUrl && m.webview == null) continue;
       evictCacheIfOnline(m.siteId);
@@ -178,13 +183,13 @@ class SiteResetController {
       // Keep the active site in _sites.loaded (mirrors
       // _resetAlwaysOpenHomeForAppClose / goHome) so the IndexedStack still
       // has a child to rebuild at initUrl. Dropping it black-screens a warm
-      // shortcut re-tap of the already-current site: _openShortcutIndex skips
-      // setCurrentIndex when index == _sites.current, so nothing would re-add
+      // shortcut re-tap of the already-current site: the shortcut open skips
+      // the activation of the site already on screen, so nothing would re-add
       // it or recreate the disposed webview.
-      if (i == _sites.current) {
+      if (identical(m, _sites.shown)) {
         m.disposeWebView();
       } else {
-        await _activation.unload(i, reason: UnloadReason.homeReset);
+        await _activation.unload(m, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
       }
     }

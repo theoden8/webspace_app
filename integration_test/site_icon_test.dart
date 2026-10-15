@@ -39,7 +39,6 @@ import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'package:webspace/services/webview_config.dart';
-import 'package:webspace/services/page_js.dart';
 
 class _Icon {
   const _Icon(this.size, {required this.r, required this.g, required this.b, this.delayMs = 0});
@@ -95,7 +94,7 @@ const _siteIconsOnly = bool.fromEnvironment('WS_SITE_ICONS_ONLY');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   // The webview reports its own icons on Android only; elsewhere, and on
   // Android under Site icons only, the app fetches the declared links.

@@ -17,7 +17,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { read } = require('./helpers/source');
 
-test('QR-supplied site settings are reviewed before the site is created', () => {
+test('QR-supplied site settings are reviewed before the site is created (QR-008)', () => {
   const src = read('lib/controllers/site_editing_controller.dart');
 
   const confirm = src.indexOf('_prompts.reviewQrSettings(resultQrSettings)');

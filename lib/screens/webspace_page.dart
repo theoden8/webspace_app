@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
@@ -14,6 +16,8 @@ import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/startup_controller.dart';
 import 'package:webspace/controllers/nested_open_binding.dart';
 import 'package:webspace/controllers/page_orphan_sweep.dart';
+import 'package:webspace/controllers/site_deletion.dart';
+import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
 import 'package:webspace/controllers/link_controller.dart';
@@ -22,6 +26,7 @@ import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_reset_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/shell_store.dart';
+import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_editing_controller.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -29,6 +34,7 @@ import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/controllers/webspaces_controller.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
@@ -51,31 +57,27 @@ import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/html_cache_service.dart';
-import 'package:webspace/services/html_import_storage.dart';
+import 'package:webspace/services/isolation.dart';
+import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/archive.dart' show Archive, ArchiveHandle;
-import 'package:webspace/services/container_isolation_engine.dart';
-import 'package:webspace/services/container_native.dart';
-import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_posture.dart';
-import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
-import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/controllers/site_list_store.dart';
+import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/nav_state_capture_debouncer.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
-import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
-import 'package:webspace/services/nested_open_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/log_service.dart';
@@ -125,8 +127,9 @@ Future<void>? debugStartupRestore;
 
 class WebSpacePage extends StatefulWidget {
   final Function(AppThemeSettings) onThemeSettingsChanged;
+  final ProcessLaunch launch;
 
-  WebSpacePage({required this.onThemeSettingsChanged});
+  WebSpacePage({required this.onThemeSettingsChanged, required this.launch});
 
   @override
   _WebSpacePageState createState() => _WebSpacePageState();
@@ -151,7 +154,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     host: _PageHost(this),
     residency: _ResidencyHost(this),
     navStates: _stateStorage,
-    containers: _containerIsolation,
     surface: _surface,
   );
   late final BackgroundSitesController _background =
@@ -169,7 +171,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     host: _PageHost(this),
     residency: _ResidencyHost(this),
     background: _background,
-    containers: _containerIsolation,
   );
   late final TabsController _tabs = TabsController(
     _sites,
@@ -197,17 +198,19 @@ class _WebSpacePageState extends State<WebSpacePage>
         shell: _shell, applyTheme: _applyThemeSettings),
     shell: _shell,
     shortcuts: _shortcuts,
+    deletion: _deletion,
   );
+  late final SiteDeletion _deletion = SiteDeletion(_sites, host: _PageHost(this));
+  late final SiteSetCommit _commit = SiteSetCommit(_sites, host: _PageHost(this));
   late final PageOrphanSweep _sweep = PageOrphanSweep(
     _sites,
     cookieStore: _cookieSecureStorage,
     proxyPasswords: _proxyPasswordStorage,
     navStates: _stateStorage,
-    cookies: _cookieManager,
-    containers: _containerIsolation,
   );
   late final StartupController _startup = StartupController(
     _sites,
+    launch: widget.launch,
     host: _PageHost(this),
     shell: _shell,
     siteStore: _siteStore,
@@ -229,13 +232,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     shell: _shell,
     archives: _archives,
     background: _background,
-    cookies: _cookieManager,
   );
   late final ArchiveController _archives = ArchiveController(
     _sites,
     host: _PageHost(this),
     prompts: DialogArchivePrompts(context),
-    containers: _containerIsolation,
     cookieStore: _cookieSecureStorage,
     proxyPasswords: _proxyPasswordStorage,
     navStates: _stateStorage,
@@ -254,16 +255,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     cookieManager: _cookieManager,
     storage: _cookieSecureStorage,
   );
-  late final ContainerIsolationEngine _containerIsolation =
-      ContainerIsolationEngine(containerNative: ContainerNative.instance);
 
-  /// Container-mode cookie manager. Non-null when `_sites.useContainers ==
-  /// true`; null in legacy mode (the existing `_cookieManager` covers
-  /// that path). Resolved alongside `_sites.useContainers` in
-  /// `StartupController.restore` so the branches stay tied to the same
-  /// runtime decision. The WebViewModel cookie-blocking path branches
-  /// on `containerCookieManager != null`.
-  late final ContainerCookieManager? _containerCookieManager;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final _siteSettingsGuard = ReentryGuard();
@@ -283,9 +275,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   // starts (cleared on app-version upgrade alongside the key).
   //
   // Sites in [SiteLifecycleState.savedForRestore] have an entry here
-  // keyed by siteId; re-activation reads it and pre-populates the
-  // model's `_pendingRestoreState` so onControllerCreated can apply
-  // it to the freshly-built controller.
+  // per tab; re-activation reads the active tab's and queues it on the
+  // model's `tabBinding`, tagged with that tab, so onControllerCreated can
+  // apply it to the freshly-built controller.
   final WebViewStateStorage _stateStorage =
       debugWebViewStateStorageOverride ?? SecureWebViewStateStorage();
 
@@ -316,7 +308,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
     AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
     debugStartupRestore = _startup.restore();
-    unawaited(_shortcuts.refreshPinned());
     unawaited(_shortcuts.probeAppIntents());
     _shortcuts.start();
     _network.start();
@@ -339,10 +330,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Three call sites want it: the two overflow menus, and the
   /// blocked-navigation interstitial, which has to reach the proxy row of
   /// the site it is covering (LEAK-010).
-  Future<void> _openSiteSettings(int index) async {
-    if (index < 0 || index >= _sites.models.length) return;
+  Future<void> _openSiteSettings(WebViewModel model) async {
+    if (!_sites.models.contains(model)) return;
     await _siteSettingsGuard.run(() async {
-      final model = _sites.models[index];
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -363,8 +353,9 @@ class _WebSpacePageState extends State<WebSpacePage>
               _resets.resetAll();
             },
             onScriptsChanged: _resets.resetShown,
-            onClearCookies: () => _clearSiteData(index),
+            onClearCookies: () => _clearSiteData(model),
             onSettingsSaved: _resets.settingsSaved,
+            onProxyChanging: () => _beforeProxyChange(model),
           ),
         ),
       );
@@ -373,13 +364,23 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
+  /// A site's proxy changed in its settings. Its live webview takes the new
+  /// rule at once, so the loaded sites it now contends with go first, as
+  /// they would for its activation (PROXY-008).
+  Future<void> _beforeProxyChange(WebViewModel model) async {
+    final slot = _sites.models.indexOf(model);
+    if (slot < 0 || model.controller == null) return;
+    await _activation.applyResidency(
+      _activation.residencyPlan(SlotIdentityChanged(slot)),
+      isStale: () => !mounted,
+    );
+  }
+
   /// [_openSiteSettings] for the site [siteId] names, for call sites that
-  /// carry the id rather than the index (the nested webview screen).
+  /// carry the id rather than the site (the nested webview screen).
   Future<void> _openSiteSettingsById(SiteId? siteId) async {
     if (siteId == null) return;
-    final index = _sites.models.indexWhere((m) => m.siteId == siteId);
-    if (index == -1) return;
-    await _openSiteSettings(index);
+    if (_sites.byId(siteId) case final model?) await _openSiteSettings(model);
   }
 
   @override
@@ -393,7 +394,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// visible again. While it was covered the platform view was not composited,
   /// so Android detached its SurfaceView and re-attaches it here — blank, and
   /// through none of the other chokepoints: the site did not change
-  /// (`setCurrentIndex`), the controller was not recreated
+  /// (`activate`), the controller was not recreated
   /// (`onControllerReady`), nothing navigated, and the app never left the
   /// foreground. See PAUSE-024 / BUG-001.
   @override
@@ -403,6 +404,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   @override
   void dispose() {
+    _startup.dispose();
     _background.dispose();
     _surface.dispose();
     _navStateDebouncer.dispose();
@@ -497,7 +499,8 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// LIR-011: open as a nested webview using the chosen site's settings.
   /// LIR-015: a routed outbound link opens the same way over [source], the
-  /// site it came from. The ordering lives in [NestedOpenEngine].
+  /// site it came from. The ordering is the activation table's
+  /// ([SiteActivationController.openNested]).
   Future<void> _executeOpenNested(
     DispatchOpenNested a, {
     WebViewModel? source,
@@ -505,17 +508,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     final index =
         _sites.models.indexWhere((m) => m.siteId == a.siteId);
     if (index < 0) return;
-    await NestedOpenEngine.run<WebViewModel>(
-      NestedOpenBinding(
-        _sites,
-        host: _PageHost(this),
-        webspaces: _webspaces,
-        activation: _activation,
-        fromTab: a.sourceIsParent && source != null,
+    await _activation.openNested(
+      _sites.models[index],
+      opening: (
+        screen: NestedOpenBinding(
+          host: _PageHost(this),
+          webspaces: _webspaces,
+          fromTab: a.sourceIsParent && source != null,
+        ),
+        url: a.url,
+        source: a.sourceIsParent ? source : null,
       ),
-      target: _sites.models[index],
-      url: a.url,
-      source: a.sourceIsParent ? source : null,
     );
   }
 
@@ -533,99 +536,16 @@ class _WebSpacePageState extends State<WebSpacePage>
   }) =>
       launchUrl(
         url,
-        posture: model.sitePosture(globalUserScripts: _shell.globalUserScripts),
+        posture: model.sitePosture(
+          globalUserScripts: _shell.globalUserScripts,
+          isolation: _sites.isolation,
+        ),
         opensFromTab: opensFromTab,
         homeTitle: model.name,
       );
 
-  /// TAB-018: give every app-tier site without a container colour the least
-  /// used one. Only app-tier sites count, so what the app-tier list stores
-  /// never depends on an archive being open (ARCH-001).
-  void _assignContainerColors() {
-    final sites = [
-      for (final m in _sites.models)
-        if (!m.isArchiveTier) m,
-    ];
-    if (sites.every((m) => m.containerColor != null)) return;
-    final given = ContainerColorEngine.assign(
-      [for (final m in sites) m.containerColor],
-      paletteSize: kContainerPaletteSize,
-    );
-    for (var i = 0; i < sites.length; i++) {
-      sites[i].containerColor = given[i];
-    }
-  }
-
-  /// The one way the set of sites changes, and what runs after any change to
-  /// a site. The order is fixed; [SiteSetChange.effects] decides which steps
-  /// run, never in what order.
-  Future<void> _commitSites(SiteSetChange change) async {
-    // Before anything moves. LIR-023: a deleted site's hosted tabs close
-    // before its container goes. ARCH-010: open archives seal before an
-    // import replaces the rows they were materialised into.
-    switch (change) {
-      case SiteRemoved(:final site):
-        await _retireSite(site);
-        if (!mounted) return;
-      case SitesReplaced():
-        await _archives.closeAll();
-        if (!mounted) return;
-      case SitesEdited() ||
-            SiteSettingsSaved() ||
-            SiteSettingsClosed() ||
-            SitesLoaded() ||
-            SiteAdded() ||
-            SitesMoved() ||
-            ArchiveOpened() ||
-            ArchiveClosed() ||
-            SiteArchived() ||
-            SiteUnarchived():
-        break;
-    }
-    final shownBefore = _sites.shown;
-    final selectionBefore = _sites.selectedWebspaceId;
-    _sites.apply(change);
-    _rebuild();
-    final effects = change.effects;
-    // TAB-018: a site added since the last commit is drawn and written with
-    // its colour.
-    _assignContainerColors();
-    if (effects.prunesReferences) {
-      _links.pruneOutboundPreferences();
-      _links.pruneSearchReferences();
-    }
-    if (effects.followsOpeners) {
-      await _tabs.reconcileLinkTabs();
-      if (!mounted) return;
-    }
-    if (effects.closesIneligibleTabs) {
-      await _tabs.closeIneligibleHostedTabs();
-      if (!mounted) return;
-    }
-    if (change case SiteArchived(:final site, :final into)) {
-      await _archives.recordIn(site, into: into);
-      if (!mounted) return;
-    }
-    if (shownBefore != null && !_sites.models.contains(shownBefore)) {
-      await _activation.setCurrentIndex(null);
-      if (!mounted) return;
-    }
-    if (_sites.selectedWebspaceId != selectionBefore) {
-      unawaited(_shell.saveSelectedWebspaceId());
-    }
-    // Before the demo-mode bail in the writes: the refcount tracks runtime
-    // intent, not persistence, and a demo session that pinned Tor up would
-    // keep it up.
-    await _network.syncTorHolders();
-    unawaited(_network.refreshRoutes());
-    if (effects.persists) await _persistSites();
-    if (effects.savesWebspaces) await _shell.saveWebspaces();
-    if (effects.reschedulesBackground) {
-      unawaited(_background.reschedule());
-      unawaited(_background.updateAudioSession());
-    }
-    if (effects.sweepsOrphans) await _sweep.afterRemoval();
-  }
+  /// The one way the set of sites changes ([SiteSetCommit]).
+  Future<void> _commitSites(SiteSetChange change) => _commit.commit(change);
 
   Future<void> _persistSites() async {
     if (isDemoMode) return;
@@ -677,10 +597,9 @@ class _WebSpacePageState extends State<WebSpacePage>
         builder: (ctx) => LinkHandlingSettingsScreen(
           sites: List<WebViewModel>.from(_sites.models),
           onOpenSiteEditor: (site) {
-            final idx = _sites.models.indexOf(site);
-            if (idx >= 0) {
+            if (_sites.models.contains(site)) {
               Navigator.of(ctx).pop();
-              unawaited(_editing.editSite(idx));
+              unawaited(_editing.editSite(site));
             }
           },
           onManualDispatch: (uri) async {
@@ -695,8 +614,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// What this page answers for every site webview, root and nested.
   late final WebViewHostHooks _webViewHooks = WebViewHostHooks(
-    cookieManager: _cookieManager,
-    containerCookieManager: _containerCookieManager,
+    isolation: () => _sites.isolation,
     globalUserScripts: () => _shell.globalUserScripts,
     save: () => _commitSites(const SitesEdited()),
     rebuild: () {
@@ -711,10 +629,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     routeOutbound: _links.routeOutbound,
     // Identity, not index: the list can have been reordered by the time the
     // native event lands.
-    linkMenu: (source, {required url}) {
-      final at = _sites.models.indexOf(source);
-      if (at >= 0) unawaited(_showLinkLongPressMenu(at, url: url));
-    },
+    linkMenu: (source, {required url}) =>
+        unawaited(_showLinkLongPressMenu(source, url: url)),
     openSiteSettings: _openSiteSettingsById,
     showPopup: _prompts.showPopup,
     externalScheme: (info, {required loadIn}) async {
@@ -801,10 +717,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         action: (loc) => SnackBarAction(
           label: loc.tabsSwitchAction,
           // Sites may have moved or gone by the time this is tapped.
-          onPressed: () {
-            final at = _sites.models.indexOf(model);
-            if (at >= 0) unawaited(_tabs.openTab(at, tabId: tabId));
-          },
+          onPressed: () => unawaited(_tabs.openTab(model, tabId: tabId)),
         ),
       );
 
@@ -822,22 +735,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     return model.getController(_webViewHooks);
   }
 
-  /// User-driven full session wipe for a single site.
-  ///
-  /// Plan is computed by [SiteDataClearEngine.planClear]; this method
-  /// is the executor. Container mode calls
-  /// `ContainerIsolationEngine.clearForSite` (fork's
-  /// `clearContainerData`, designed for live-bound containers) and
-  /// disposes the cached widget so the next IndexedStack rebuild
-  /// constructs a fresh InAppWebView against the now-empty container.
-  /// Legacy mode falls back to in-model cookie deletion + reload (the
-  /// most that can be scoped to a single site when localStorage / IDB
-  /// / SW are app-global). A delete the jar refuses fails the wipe with
-  /// [CookieJarFailure], which the settings screen that asked reports.
-  Future<void> _clearSiteData(int index) async {
-    if (index < 0 || index >= _sites.models.length) return;
-    final model = _sites.models[index];
-    final plan = SiteDataClearEngine.planClear(useContainers: _sites.useContainers);
+  /// User-driven full session wipe for a single site. Under containers the
+  /// container's data goes in place (the fork's `clearContainerData`, made for
+  /// a bound container) and the webview is rebuilt against it: the user
+  /// expects a fresh page, and Android's per-webview HTTP cache is beyond the
+  /// clear. On the shared jar the site's known cookies are deleted and the
+  /// page reloads, the most that can be scoped to one site while localStorage,
+  /// IndexedDB and service workers are app-wide. A delete the jar refuses
+  /// fails the wipe with [CookieJarFailure], which the settings screen that
+  /// asked reports.
+  Future<void> _clearSiteData(WebViewModel model) async {
+    if (!_sites.models.contains(model)) return;
 
     // Reroll the anti-fingerprinting seed so the post-wipe page can't be
     // re-identified via a stable fingerprint (window size, canvas, …) after
@@ -845,17 +753,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // webview is rebuilt against the cleared container.
     model.rerollFingerprint();
 
-    if (plan.disposeWebView) {
-      _resets.evictCacheIfOnline(model.siteId);
-    }
-
-    if (plan.clearContainer) {
-      await _containerIsolation.clearForSite(model.containerKey);
-    }
-
-    if (plan.disposeWebView || plan.clearInModelCookies) {
-      setState(() {
-        if (plan.disposeWebView) {
+    final isolation = _sites.isolation;
+    switch (isolation) {
+      case Containers(:final engine):
+        _resets.evictCacheIfOnline(model.siteId);
+        await engine.clearForSite(model.containerKey);
+        setState(() {
           model.disposeWebView();
           // LIR-023: a slot running as this site binds the cleared container.
           for (final other in _sites.models) {
@@ -863,16 +766,13 @@ class _WebSpacePageState extends State<WebSpacePage>
               other.disposeWebView();
             }
           }
-        }
-        if (plan.clearInModelCookies) {
+          // Until the new webview's first load reports its own.
           model.cookies = const [];
-        }
-      });
-    }
-
-    if (plan.deleteKnownCookies) {
-      await model.deleteCookies(_cookieManager,
-          containerCookieManager: _containerCookieManager);
+        });
+      case SharedJar():
+        // The snapshot names what to delete, and the jar's pre-delete
+        // cleanup reads it, so it goes only with the cookies.
+        await model.deleteCookies(isolation);
     }
     // Restorable residue the container/cookie wipes don't reach, both engines:
     // the saved `controller.saveState()` bytes are replayed on the next
@@ -885,9 +785,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     await HtmlCacheService.instance.deleteCache(model.siteId);
     await _commitSites(const SitesEdited());
     if (!mounted) return;
-    if (plan.userDrivenReload) {
-      await _resets.refreshShown();
-    }
+    // A rebuilt webview loads afresh on its own.
+    if (isolation is SharedJar) await _resets.refreshShown();
   }
 
   /// A sheet opened while the keyboard is up sits behind it, and the
@@ -904,13 +803,13 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _showTabsSheet() async {
-    if (_kioskLocked || !_tabs.enabledAt(_sites.current) || _isShowingTabsSheet) {
+    if (_kioskLocked || !_tabs.enabledFor(_sites.shown) || _isShowingTabsSheet) {
       return;
     }
     _isShowingTabsSheet = true;
     try {
       await _dismissKeyboard();
-      if (!mounted || !_tabs.enabledAt(_sites.current)) return;
+      if (!mounted || !_tabs.enabledFor(_sites.shown)) return;
       await _presentTabsSheet();
     } finally {
       _isShowingTabsSheet = false;
@@ -920,8 +819,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _isShowingTabsSheet = false;
 
   Future<void> _presentTabsSheet() async {
+    final shown = _sites.shown;
+    if (shown == null) return;
     final sites = _tabs.sheetSites();
-    final at = sites.indexWhere((s) => s.index == _sites.current);
+    final at = sites.indexWhere((s) => identical(s.model, shown));
     if (at < 0) return;
     await showModalBottomSheet<void>(
       context: context,
@@ -929,17 +830,17 @@ class _WebSpacePageState extends State<WebSpacePage>
       builder: (ctx) => TabsSheet(
         sites: sites,
         currentIndex: at,
-        onOpenTab: (i, {required tabId}) =>
-            unawaited(_tabs.openTab(i, tabId: tabId)),
-        onNewTab: (i) => unawaited(_tabs.newTab(i)),
+        onOpenTab: (site, {required tabId}) =>
+            unawaited(_tabs.openTab(site, tabId: tabId)),
+        onNewTab: (site) => unawaited(_tabs.newTab(site)),
         onWebSearch: () => unawaited(_links.webSearch()),
-        onCloseTab: (i, {required tabId}) =>
-            unawaited(_tabs.closeTab(i, tabId: tabId)),
-        onCloseSubtree: (i, {required tabId}) =>
-            unawaited(_tabs.closeTab(i, tabId: tabId, subtree: true)),
+        onCloseTab: (site, {required tabId}) =>
+            unawaited(_tabs.closeTab(site, tabId: tabId)),
+        onCloseSubtree: (site, {required tabId}) =>
+            unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
         onMoveTab: _tabs.moveTab,
         onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
-        wayBack: _tabs.wayBackFrom(_sites.models[_sites.current!]),
+        wayBack: _tabs.wayBackFrom(shown),
       ),
     );
   }
@@ -964,15 +865,14 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// this site; anything else keeps today's behaviour, and the sheet says why
   /// rather than silently offering nothing. A site without tabs gets the sheet
   /// without its New tab row.
-  Future<void> _showLinkLongPressMenu(int index, {required String url}) async {
+  Future<void> _showLinkLongPressMenu(WebViewModel model,
+      {required String url}) async {
     if (_kioskLocked) return;
-    if (index < 0 || index >= _sites.models.length) return;
-    if (index != _sites.current) return;
-    final tabs = _tabs.enabledAt(index);
+    if (!identical(model, _sites.shown)) return;
+    final tabs = _tabs.enabledFor(model);
     // WebKit shows its own link menu, with Share, where the app shows none;
     // Android's WebView has none to fall back to.
     if (!tabs && hostIsIOS) return;
-    final model = _sites.models[index];
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final identity = model.runningIdentity;
@@ -1015,18 +915,18 @@ class _WebSpacePageState extends State<WebSpacePage>
           // A sibling of the tab on screen: same container, and when that tab
           // follows an opener's switch (LIR-034), so does it.
           final active = model.activeTab;
-          unawaited(_tabs.openLinkInNewTab(index, url: url,
+          unawaited(_tabs.openLinkInNewTab(model, url: url,
               hostSiteId: active.hostSiteId,
               openerSiteId: active.openerSiteId,
               homeUrl: active.homeUrl));
         } else {
-          unawaited(_tabs.openLinkInNewTab(index, url: url,
+          unawaited(_tabs.openLinkInNewTab(model, url: url,
               hostSiteId: tabHost?.siteId,
               openerSiteId: identity.siteId,
               homeUrl: url));
         }
       case LinkMenuChoice.open:
-        unawaited(_links.openLinkAsTapped(index, url: url));
+        unawaited(_links.openLinkAsTapped(model, url: url));
       case LinkMenuChoice.copy:
         await Clipboard.setData(ClipboardData(text: url));
       case LinkMenuChoice.share:
@@ -1160,7 +1060,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       actions: _kioskLocked ? const <Widget>[] : [
         // Tab count for the site on screen. Present whenever a site is shown,
         // even at one tab, because it is also how a new tab is opened.
-        if (currentModel != null && _tabs.enabledAt(_sites.current))
+        if (currentModel != null && _tabs.enabledFor(currentModel))
           TabCountButton(
             count: currentModel.tabs.length,
             onPressed: () => unawaited(_showTabsSheet()),
@@ -1249,8 +1149,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         });
         _surface.nudge('tab-overlay-hide');
       },
-      onOpen: (siteIndex) async {
-        await _activation.setCurrentIndex(siteIndex);
+      onOpen: (site) async {
+        await _activation.activate(site);
         if (!mounted) return;
         setState(() {
           _fullscreen.tabBarOverlayVisible = false;
@@ -1303,7 +1203,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 : (query, {required siteId}) =>
                     _links.searchFromUrlBar(model, query: query, siteId: siteId),
             onSiteInfo: () => showSiteInfoFor(context,
-                site: model, useContainers: _sites.useContainers),
+                site: model, isolation: _sites.isolation),
             onUrlSubmitted: (url) => _links.openTypedAddress(model, url: url),
           ),
       ],
@@ -1314,7 +1214,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         placement: placement,
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
-          tabsOn: _tabs.enabledAt(_sites.current),
+          tabsOn: _tabs.enabledFor(_sites.shown),
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1339,15 +1239,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       );
 
   Future<void> _onSiteMenuAction(SiteMenuAction action) async {
-    final index = _sites.current;
-    final model = index != null && index < _sites.models.length
-        ? _sites.models[index]
-        : null;
+    final model = _sites.shown;
     switch (action) {
       case SiteMenuAction.newTab:
-        if (model != null) await _tabs.newTab(index!);
+        if (model != null) await _tabs.newTab(model);
       case SiteMenuAction.backToWebspaces:
-        await _activation.setCurrentIndex(null);
+        await _activation.activate(null);
         if (!mounted) return;
         setState(() {});
         await _shell.saveSelectedWebspaceId();
@@ -1363,7 +1260,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.repaint:
         _repaintCurrentSurface();
       case SiteMenuAction.settings:
-        if (model != null) await _openSiteSettings(index!);
+        if (model != null) await _openSiteSettings(model);
       case SiteMenuAction.devTools:
         if (model == null) return;
         unawaited(Navigator.push(
@@ -1371,8 +1268,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           MaterialPageRoute(
             builder: (context) => DevToolsScreen(
               host: WebViewModelDevToolsHost(model),
-              cookieManager: _cookieManager,
-              containerCookieManager: _containerCookieManager,
+              isolation: _sites.isolation,
               onSave: () => _commitSites(const SitesEdited()),
               globalUserScripts: _shell.globalUserScripts,
               onSimulateBackgroundRefresh: _background.wake,
@@ -1385,77 +1281,41 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _showSiteContextMenu(BuildContext context,
-      {required int index, required Offset position}) async {
-    final filteredIndices = _sites.filteredIndices();
-    final listIndex = filteredIndices.indexOf(index);
+      {required WebViewModel site, required Offset position}) async {
+    if (!_sites.models.contains(site)) return;
+    int listIndexOf() =>
+        _sites.filteredIndices().indexOf(_sites.models.indexOf(site));
+    final listIndex = listIndexOf();
     final action = await showSiteListMenu(
       context,
       position: position,
       canMoveUp: _webspaces.canReorderView && listIndex > 0,
       canMoveDown: _webspaces.canReorderView &&
           listIndex >= 0 &&
-          listIndex < filteredIndices.length - 1,
-      archived: index >= 0 &&
-          index < _sites.models.length &&
-          _sites.models[index].isArchiveTier,
+          listIndex < _sites.filteredIndices().length - 1,
+      archived: site.isArchiveTier,
     );
-    final site =
-        index >= 0 && index < _sites.models.length ? _sites.models[index] : null;
+    if (!_sites.models.contains(site)) return;
     switch (action) {
       case null:
         return;
       case SiteListAction.moveToArchive:
-        if (site != null) await _archives.moveIn(site);
+        await _archives.moveIn(site);
       case SiteListAction.moveOutOfArchive:
-        if (site != null) await _archives.moveOut(site);
+        await _archives.moveOut(site);
       case SiteListAction.closeArchive:
-        if (site != null) await _archives.closeArchiveOf(site);
+        await _archives.closeArchiveOf(site);
       case SiteListAction.edit:
-        await _editing.editSite(index);
+        await _editing.editSite(site);
       case SiteListAction.delete:
-        await _editing.deleteSite(index);
-      case SiteListAction.moveUp:
-        _webspaces.reorderSite(listIndex, newListIndex: listIndex - 1);
-      case SiteListAction.moveDown:
-        _webspaces.reorderSite(listIndex, newListIndex: listIndex + 1);
+        await _editing.deleteSite(site);
+      case SiteListAction.moveUp || SiteListAction.moveDown:
+        final at = listIndexOf();
+        if (at < 0) return;
+        final to = action == SiteListAction.moveUp ? at - 1 : at + 1;
+        if (to < 0 || to >= _sites.filteredIndices().length) return;
+        _webspaces.reorderSite(at, newListIndex: to);
     }
-  }
-
-  /// What a deleted site leaves outside the list: its webview, the tabs it
-  /// hosts, its shortcut, its container or shared-jar cookies, its pages.
-  Future<void> _retireSite(WebViewModel site) async {
-    final index = _sites.models.indexOf(site);
-    if (index < 0) return;
-    site.disposeWebView();
-    _sites.loaded.remove(index);
-    // LIR-023: every tab the site hosts closes before its container is
-    // deleted, which iOS and macOS skip while a webview still binds it.
-    await _tabs.closeIneligibleHostedTabs(goneSiteId: site.siteId);
-    if (!mounted) return;
-    // LIR-022: its hosted tabs keep their bytes under their hosts' keys,
-    // which the site's own sweep does not reach.
-    for (final t in site.tabs) {
-      if (t.hostSiteId != null) {
-        await _stateStorage.removeState(site.stateKeyForTab(t.id));
-      }
-    }
-    await ShortcutService.removeShortcut(site.siteId);
-    if (!mounted) return;
-    if (_sites.useContainers) {
-      await _containerIsolation.onSiteDeleted(site.containerKey);
-    } else {
-      // The legacy jar is shared: a loaded same-base-domain site's session
-      // is captured and restored around clearing the deleted site's cookies,
-      // so the site on screen is not logged out.
-      await _cookieIsolation.preDeleteCookieCleanup(
-        deletedModel: site,
-        deletedIndex: _sites.models.indexOf(site),
-        models: _sites.models,
-        loadedIndices: _sites.loaded,
-      );
-    }
-    await HtmlCacheService.instance.deleteCache(site.siteId);
-    await HtmlImportStorage.instance.deleteImport(site.siteId);
   }
 
   /// The selected webspace's name, or null while none is selected.
@@ -1468,7 +1328,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _backToWebspacesFromDrawer() async {
-    await _activation.setCurrentIndex(null);
+    await _activation.activate(null);
     if (!mounted) return;
     setState(() {});
     await _shell.saveSelectedWebspaceId();
@@ -1478,12 +1338,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// A site tapped in the drawer, once a webspace switch in flight lands.
-  Future<void> _openSiteFromDrawer(int index) async {
+  Future<void> _openSiteFromDrawer(WebViewModel site) async {
     // closeDrawer() (not Navigator.pop) is idempotent: a rapid second tap
     // won't pop the underlying page route once the drawer is already closing.
     _scaffoldKey.currentState?.closeDrawer();
     await _webspaces.switchInFlight;
-    await _activation.setCurrentIndex(index);
+    await _activation.activate(site);
     if (!mounted) return;
     setState(() {});
     await _shell.saveCurrentIndex();
@@ -1499,8 +1359,8 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// The page's hooks on a loaded site, set on every build; each reads the
   /// page's state when it fires.
-  void _wireSite(WebViewModel site, {required int index}) {
-    _surface.watch(site, onScreen: () => index == _sites.current);
+  void _wireSite(WebViewModel site) {
+    _surface.watch(site, onScreen: () => identical(site, _sites.shown));
     // Keep the on-disk back/forward stack tracking browsing (PAUSE-009):
     // pause and dispose captures go stale for background sites, and a kill
     // from the switcher only delivers `inactive`, which is ignored (#308).
@@ -1521,9 +1381,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// A top tab strip leads the body; a bottom one stays in
   /// bottomNavigationBar.
   Widget _buildBodyWithBottomBar() {
-    for (final i in _sites.loaded) {
-      if (i < _sites.models.length) _wireSite(_sites.models[i], index: i);
-    }
+    _sites.loaded.forEach(_wireSite);
     final inputBar = _buildInputBar();
     final topStrip = _buildTabStrip(at: TabStripEdge.top);
     final nudgeInset = _surface.bottomInset;
@@ -1596,7 +1454,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                       padding: EdgeInsets.only(bottom: nudgeInset),
                       child: SiteWebViewStack(
                         models: _sites.models,
-                        loaded: _sites.loaded,
+                        loaded: _sites.loadedRows,
                         current: _sites.current,
                         hooks: _webViewHooks,
                         showStatsBanner: AppPref.showStatsBanner.value,
@@ -1722,9 +1580,9 @@ class _WebSpacePageState extends State<WebSpacePage>
         models: _sites.models,
         order: _sites.filteredIndices(),
         current: _sites.current,
-        showsTabCount: _tabs.enabledAt,
+        showsTabCount: _tabs.enabledFor,
         onBackToWebspaces: () => unawaited(_backToWebspacesFromDrawer()),
-        onOpen: (index) => unawaited(_openSiteFromDrawer(index)),
+        onOpen: (site) => unawaited(_openSiteFromDrawer(site)),
         onMenu: _showSiteContextMenu,
         onReorder: _webspaces.canReorderView
             ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
@@ -1744,25 +1602,26 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 }
 
-
 class _ResidencyHost implements ResidencyHost {
   const _ResidencyHost(this.state);
 
   final _WebSpacePageState state;
 
   @override
+  ResidencyCaps get caps => kResidencyCaps;
+
+  @override
   List<WebViewModel> get models => state._sites.models;
 
   @override
-  Set<int> get loadedIndices => state._sites.loaded;
+  RuntimeVars<WebViewModel> get vars => state._sites.vars;
 
   @override
-  CookieIsolationEngine? get sharedJar =>
-      state._sites.useContainers ? null : state._cookieIsolation;
+  Isolation get isolation => state._sites.isolation;
 
   @override
-  Future<void> captureNavState(WebViewModel model) =>
-      state._activation.captureStateForRestore(model);
+  NavCapture? beginNavCapture(WebViewModel model) =>
+      state._activation.beginNavCapture(model);
 
   @override
   void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
@@ -1801,7 +1660,9 @@ class _PageHost
         BackGestureHost,
         SiteResetHost,
         NestedLaunchHost,
-        StartupHost {
+        StartupHost,
+        SiteSetCommitHost,
+        SiteDeletionHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -1824,15 +1685,63 @@ class _PageHost
   Future<void> commitSites(SiteSetChange change) => _s._commitSites(change);
 
   @override
+  SiteSetStage stageSites(SiteSetChange change) => _s._commit.stage(change);
+
+  @override
+  Future<void> closeArchives() async {
+    await _s._archives.closeAll();
+  }
+
+  @override
+  Future<void> recordInArchive(SiteArchived change) =>
+      _s._archives.recordIn(change.site, into: change.into);
+
+  @override
+  void pruneLinkReferences() {
+    _s._links.pruneOutboundPreferences();
+    _s._links.pruneSearchReferences();
+  }
+
+  @override
+  Future<void> reconcileLinkTabs() => _s._tabs.reconcileLinkTabs();
+
+  @override
+  Future<void> closeIneligibleHostedTabs() =>
+      _s._tabs.closeIneligibleHostedTabs();
+
+  @override
+  void screenEmptied() => _s._fullscreen.exit();
+
+  @override
+  Future<void> saveSelectedWebspaceId() => _s._shell.saveSelectedWebspaceId();
+
+  @override
+  Future<void> syncTorHolders() => _s._network.syncTorHolders();
+
+  @override
+  Future<void> persistSites() => _s._persistSites();
+
+  @override
+  Future<void> saveWebspaces() => _s._shell.saveWebspaces();
+
+  @override
+  Future<void> sweepOrphans() => _s._sweep.afterRemoval();
+
+  @override
+  Future<void> endOfFrame() => WidgetsBinding.instance.endOfFrame;
+
+  @override
   Future<List<Cookie>> captureCookies(WebViewModel model) async {
-    final jar = _s._containerCookieManager;
-    final controller = model.controller;
-    if (controller != null && jar != null) {
-      final url = Uri.parse(
-        model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl,
-      );
+    // The shared jar holds whichever site was restored last; the snapshot is
+    // this site's.
+    if (_s._sites.isolation case final Containers containers) {
       try {
-        final fresh = await jar.getCookies(controller: controller, url: url);
+        final fresh = await containers.cookiesAt(
+          Uri.parse(
+            model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl,
+          ),
+          controller: model.controller,
+        );
         if (fresh.isNotEmpty) return fresh;
       } on CookieJarFailure catch (e) {
         // The site's own list crosses instead: a read that failed is not an
@@ -1856,7 +1765,7 @@ class _PageHost
       Navigator.of(_s.context).popUntil((route) => route.isFirst);
 
   @override
-  Future<void> activate(int? index) => _s._activation.setCurrentIndex(index);
+  Future<void> activate(WebViewModel? site) => _s._activation.activate(site);
 
   @override
   ScaffoldState? get scaffold => _s._scaffoldKey.currentState;
@@ -1868,8 +1777,7 @@ class _PageHost
   Future<bool> backAtTabStart() => _s._tabs.backAtTabStart();
 
   @override
-  void bindCookieJar() => _s._containerCookieManager =
-      _s._sites.useContainers ? ContainerCookieManager() : null;
+  CookieIsolationEngine get legacyJar => _s._cookieIsolation;
 
   @override
   Future<void> activateRouter() => _s._network.activateRouter();
@@ -1884,7 +1792,14 @@ class _PageHost
   void themeChanged() => _s.widget.onThemeSettingsChanged(_s._shell.theme);
 
   @override
-  void syncTorExitPin(Set<int> indices) => _s._network.syncTorExitPin(indices);
+  void syncTorExitPin(Iterable<WebViewModel> sites) =>
+      _s._network.syncTorExitPin(sites);
+
+  @override
+  bool routeFree(WebViewModel site) => _s._activation.routeFreeFor(site);
+
+  @override
+  bool get nestedOpening => _s._activation.opensNested;
 
   @override
   void forgetTabReturns() => _s._tabs.forgetReturns();
@@ -1893,8 +1808,14 @@ class _PageHost
   void exitFullscreen() => _s._fullscreen.exit();
 
   @override
-  Future<void> refreshRoutes({int? activeIndex}) =>
-      _s._network.refreshRoutes(activeIndex: activeIndex);
+  Future<void> refreshRoutes({WebViewModel? active}) =>
+      _s._network.refreshRoutes(active: active);
+
+  @override
+  Future<bool> isOnline() => ConnectivityService.instance.isOnline();
+
+  @override
+  Future<void> spawned(Future<void> Function() flow) => flow();
 
   @override
   Future<void> probeRenderer(WebViewModel model, {required String trigger}) =>
@@ -1918,15 +1839,23 @@ class _PageHost
   }
 
   @override
-  Future<bool> captureNavState(WebViewModel model) async =>
-      await _s._activation.captureStateBytes(model) == CaptureOutcome.saved;
+  NavCapture? beginNavCapture(WebViewModel model) =>
+      _s._activation.beginNavCapture(model);
 
   @override
-  Future<void> handleShareIntent() => _s._links.handleShareIntent();
+  Future<bool> captureNavState(WebViewModel model) =>
+      _s._activation.captureStateBytes(model);
 
   @override
-  Future<void> resetHomeOnLaunch(int index) =>
-      _s._resets.resetHomeOnLaunch(index);
+  Future<void> handleShareIntent({required Reached<Launched> after}) =>
+      _s._links.handleShareIntent(after: after);
+
+  @override
+  Future<Reached<Launched>?> launched() => _s._startup.launched();
+
+  @override
+  Future<void> resetHomeOnLaunch(WebViewModel launched) =>
+      _s._resets.resetHomeOnLaunch(launched);
 
   @override
   Future<void> registerSite(WebViewModel model, {bool activate = true}) =>
@@ -1950,12 +1879,14 @@ class _PageHost
       _s._executeOpenNested(action, source: source);
 
   @override
-  Future<void> unloadSite(int index, {required UnloadReason reason}) =>
-      _s._activation.unload(index, reason: reason);
+  Future<void> unloadSite(WebViewModel site, {required UnloadReason reason}) =>
+      _s._activation.unload(site, reason: reason);
 
   @override
   Future<void> wipeContainer(ContainerKey key) async {
-    await _s._containerIsolation.clearForSite(key);
+    if (_s._sites.isolation case Containers(:final engine)) {
+      await engine.clearForSite(key);
+    }
   }
 
   @override
@@ -1976,8 +1907,8 @@ class _PageHost
   Future<void> saveSelectedWebspace() => _s._shell.saveSelectedWebspaceId();
 
   @override
-  Future<void> revealSite(WebViewModel model, {required int index}) =>
-      _s._webspaces.revealSite(model, index: index);
+  Future<void> revealSite(WebViewModel model) =>
+      _s._webspaces.revealSite(model);
 
   @override
   void offerOpenTab(WebViewModel model, {required TabId tabId}) =>

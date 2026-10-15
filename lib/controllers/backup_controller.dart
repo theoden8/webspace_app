@@ -8,10 +8,11 @@ import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/settings_backup.dart';
@@ -42,7 +43,7 @@ abstract interface class BackupPrompts {
 
 /// What a backup asks of the page.
 abstract interface class BackupHost implements PageHost {
-  Future<void> activate(int? index);
+  Future<void> activate(WebViewModel? site);
 
   /// The app's theme follows [ShellStore.theme].
   void themeChanged();
@@ -58,13 +59,11 @@ class BackupController {
     required ShellStore shell,
     required ArchiveController archives,
     required BackgroundSitesController background,
-    required CookieManager cookies,
   })  : _host = host,
         _prompts = prompts,
         _shell = shell,
         _archives = archives,
-        _background = background,
-        _cookies = cookies;
+        _background = background;
 
   final SiteRuntime _sites;
   final BackupHost _host;
@@ -72,7 +71,6 @@ class BackupController {
   final ShellStore _shell;
   final ArchiveController _archives;
   final BackgroundSitesController _background;
-  final CookieManager _cookies;
 
   Future<void> export() async {
     final prefs = await SharedPreferences.getInstance();
@@ -97,10 +95,13 @@ class BackupController {
       themeMode: _shell.theme.toStorageIndex(),
       globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _sites.selectedWebspaceId,
-      currentIndex: _sites.current != null &&
-              _sites.current! < appTierModels.length
-          ? _sites.current
-          : null,
+      // A row among the exported sites, which an archive-tier row before
+      // the shown site would shift.
+      currentIndex: switch (_sites.shown) {
+        final shown? when appTierModels.contains(shown) =>
+          appTierModels.indexOf(shown),
+        _ => null,
+      },
       suggestedSites: _shell.suggestedSites
           .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
           .toList(),
@@ -214,22 +215,24 @@ class BackupController {
     ));
     if (!_host.mounted) return;
 
-    final indexToRestore = plan.currentIndex;
-    // With no site activated, setCurrentIndex never reaches
-    // _restoreCookiesForSite, so the previously active site's cookies would
-    // stay in the native jar. Legacy engine only: container-mode sites never
-    // shared that jar, and an unscoped clear issued while live containers
-    // exist is the shape BUG-007 turned into a wiped session.
-    if (indexToRestore == null && !_sites.useContainers) {
+    // The site, read before the jar clear's await can move the rows.
+    final restore = switch (plan.currentIndex) {
+      final i? when i >= 0 && i < _sites.models.length => _sites.models[i],
+      _ => null,
+    };
+    // With no site activated no restore empties the shared jar, so what
+    // the replaced sites left there would stay. Under containers there is no
+    // shared jar, and no clear is issued without a site in hand (BUG-007).
+    if ((restore, _sites.isolation) case (null, SharedJar(:final jar))) {
       try {
-        await _cookies.deleteAllCookies();
+        await jar.clearUnloaded(loaded: _sites.loaded);
       } on CookieJarFailure catch (e) {
         // No site is shown, and the next activation empties the jar before
         // one is (ISO-012), so the import goes on.
         LogTag.import.warning('Jar clear after import failed: $e');
       }
     }
-    await _host.activate(indexToRestore);
+    await _host.activate(restore);
     if (!_host.mounted) return;
     _host.rebuild();
     _host.themeChanged();

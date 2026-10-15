@@ -42,7 +42,6 @@ Future<({double frame, double landed, double restored})> _coldStart(
 }) async {
   final sites = _sites(siteCount);
   final tapped = sites.last;
-  launchedForBackgroundWake = mode == _Mode.backgroundWake;
   await prepareRealApp(
     tester,
     sites: sites,
@@ -60,7 +59,11 @@ Future<({double frame, double landed, double restored})> _coldStart(
 
   var restoreDone = false;
   final sw = Stopwatch()..start();
-  await tester.pumpWidget(WebSpaceApp());
+  await tester.pumpWidget(WebSpaceApp(
+    launch: mode == _Mode.backgroundWake
+        ? ProcessLaunch.backgroundWake
+        : ProcessLaunch.user,
+  ));
   final frame = elapsedMs(sw);
   unawaited(debugStartupRestore!.then((_) => restoreDone = true));
   double? landedAt;
@@ -75,7 +78,6 @@ Future<({double frame, double landed, double restored})> _coldStart(
   final restored = elapsedMs(sw);
   await tester.pumpWidget(const SizedBox());
   await settleRealApp(tester);
-  launchedForBackgroundWake = false;
   return (frame: frame, landed: landedAt, restored: restored);
 }
 

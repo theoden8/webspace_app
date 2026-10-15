@@ -31,7 +31,7 @@ void main() {
       );
 
   setUp(() {
-    GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
+    GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
   });
 
   group('nonces and credentials', () {
@@ -81,7 +81,7 @@ void main() {
       );
     });
 
-    test("refuses a site's own 401 even if it guesses the realm", () {
+    test("refuses a site's own 401 even if it guesses the realm (LEAK-013)", () {
       // The Android callback drops `is_proxy` and the port, so a site
       // serving 401 with a copied realm reaches the same handler. The
       // host check is what stops it.
@@ -251,7 +251,7 @@ void main() {
     });
 
     test('a DEFAULT site inherits the app-global proxy (PROXY-009)', () {
-      GlobalOutboundProxy.setForTest(
+      GlobalOutboundProxy.setInMemory(
         proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
       );
       final state = ProxyRouterState();
@@ -326,7 +326,7 @@ void main() {
     });
 
     test('a DEFAULT site inheriting a global TOR gets no route either', () {
-      GlobalOutboundProxy.setForTest(
+      GlobalOutboundProxy.setInMemory(
         proxy(ProxyType.TOR, address: '203.0.113.9:9050'),
       );
       final state = ProxyRouterState();
@@ -351,6 +351,7 @@ void main() {
     });
   });
 
+  // PROXY-018
   group('shared-profile identity', () {
     // A site the app cannot bind to a container profile -- incognito, and
     // archive-tier which is always incognito -- runs in the default

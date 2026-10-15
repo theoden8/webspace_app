@@ -50,7 +50,7 @@ class SiteTabStrip extends StatelessWidget {
   /// then lives inside the bar rather than floating above it.
   final bool revealed;
   final VoidCallback onHide;
-  final ValueChanged<int> onOpen;
+  final ValueChanged<WebViewModel> onOpen;
   final VoidCallback onShowTabs;
 
   /// Null where the view cannot be reordered.
@@ -120,7 +120,7 @@ class SiteTabStrip extends StatelessWidget {
       if (isActive) {
         onShowTabs();
       } else {
-        onOpen(siteIndex);
+        onOpen(site);
       }
     }
 

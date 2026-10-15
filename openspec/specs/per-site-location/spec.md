@@ -371,7 +371,7 @@ This is a UI affordance only — when `spoofTimezone` is `null` the JS shim is n
 
 The per-site model SHALL expose a boolean field `spoofTimezoneFromLocation`. When true AND coordinates are set AND a polygon dataset is loaded, the effective spoof timezone is the IANA zone whose polygon contains `(spoofLatitude, spoofLongitude)`. `spoofTimezone` is ignored in that case (the two fields are mutually exclusive in the UI).
 
-If the polygon dataset is absent, or the coordinates fall in a region not covered by the dataset (e.g. open ocean in the no-oceans variant), the lookup SHALL fall through to no-timezone-spoof (system default) rather than failing the whole shim. The lookup happens where the dataset is loaded, at settings save (and on startup for a site saved before that), and the resolved zone is stored in `spoofTimezone`; every webview applies that stored zone, so the dataset never loads on the webview-build path and a slow polygon test never touches page load.
+If the polygon dataset is absent, or the coordinates fall in a region not covered by the dataset (e.g. open ocean in the no-oceans variant), the lookup SHALL fall through to no-timezone-spoof (system default) rather than failing the whole shim. The lookup happens where the dataset is loaded, at settings save, and for a site that arrives on the page without a zone (one saved before that or while the dataset was absent, at launch, from a backup, an added or shared site, an opened archive) before the grid can build it; the resolved zone is stored in `spoofTimezone`. Every webview applies that stored zone, so the dataset never loads on the webview-build path and a slow polygon test never touches page load. A webview built for a site whose zone comes from its coordinates, before any lookup has been tried, is an assert: it would run at the real zone.
 
 The polygon dataset SHALL be downloadable on demand via App Settings → Location picker → "Timezone polygons" → Download. Default source is the `evansiroky/timezone-boundary-builder` GitHub release (zipped GeoJSON, ~7–15 MB compressed). The download URL is user-configurable so users can swap in a smaller community dataset, a self-hosted mirror, or a pre-extracted GeoJSON file. The dataset is not bundled with the app — it is opt-in. The state (loaded zone count, last-updated timestamp, configured URL) round-trips across app launches in app private storage.
 
@@ -419,6 +419,15 @@ The per-site Timezone dropdown SHALL include a "From picked location" entry. The
 **And** showing the row SHALL NOT load the polygons into memory; a dataset stored before the count was recorded is counted once on a background isolate
 **And** when the dataset file is absent the row SHALL read "Not downloaded" with no timestamp, whatever the stored timestamp says
 **And** the row SHALL follow a load, download or clear made while it is open
+
+#### Scenario: A site with no resolved zone arrives on the page
+
+**Given** a site with Tracking Protection and coordinates, saved while the polygon dataset was absent, and the dataset downloaded since
+**When** the app launches, or a backup holding the site is imported
+**Then** the site's zone is resolved from its coordinates before its row can be tapped
+**And** its first webview runs at that zone, not the real one
+
+Test: `test/timezone_location_test.dart` ("resolveZones").
 
 ---
 

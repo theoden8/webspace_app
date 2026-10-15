@@ -1,0 +1,10 @@
+# The floor of what formal/verify.sh checks; formal/levels.py holds every run
+# to it. A count may rise (commit the run's build/formal/levels.tsv over this
+# file); none may fall: verification only grows.
+holds	79
+caught	50
+reached	39
+traces	31
+steps	674929
+modules	13
+obligations	717

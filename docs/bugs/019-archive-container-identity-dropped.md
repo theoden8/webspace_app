@@ -1,10 +1,9 @@
 # BUG-019 — An archived site's webview binds a container named after its cleartext id
 
 Status: **closed.** Every webview that runs as a site binds through
-`WebViewFactory.storeBinding(SitePosture)`, and a `SitePosture` cannot be built
-without the site's container key: it is a required field of the posture's
-container group, filled only by `WebViewModel.sitePosture` (attempt 4). Every
-operation on a container takes a `ContainerKey`, never a `SiteId` (attempt 5). The close still sweeps
+`WebViewFactory.storeBinding(SitePosture)`, whose container is resolved only
+by `WebViewModel.sitePosture` (attempt 4), and every operation on a container
+takes a `ContainerKey`, never a `SiteId` (attempt 5). The close still sweeps
 any `ws-<siteId>` an earlier build left behind.
 
 **Spec:** [archive](../../openspec/specs/archive/spec.md) ARCH-006, ARCH-007
@@ -98,6 +97,13 @@ container addresses that key.
    `SiteId`, so the cleartext name is reachable only through
    `ContainerKey.ofSite`, which the two archive paths that mean it
    (moving a site in, the close-time sweep) spell out.
+
+6. **2026-10-14, #696.** *What:* the posture's container group holds the
+   container the site binds, resolved once from the isolation witness
+   (`containerIdFor`), as one `ContainerName`, in place of the key attempt 5
+   put there. *Why:* where containers do not exist there is nothing to bind,
+   so the field is absent there rather than a key nothing resolves. *Why it
+   was partial:* it changes no operation; attempt 5 already closed them.
 
 ## Known open gaps
 

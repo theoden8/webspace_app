@@ -63,7 +63,7 @@ class BlockStatsService {
   final Set<VoidCallback> _listeners = <VoidCallback>{};
   Timer? _idleFlushTimer;
   Timer? _maxFlushTimer;
-  final SerialQueue _flushes = SerialQueue();
+  final SerialQueue _flushes = SerialQueue('blockStatsFlushes');
   final SingleFlight<(), void> _init = SingleFlight();
   bool _notifyScheduled = false;
   bool _initialized = false;

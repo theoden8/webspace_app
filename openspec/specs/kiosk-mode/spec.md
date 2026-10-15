@@ -190,8 +190,8 @@ audit it needs no archive override.
   locked, and the exit handle / tab-bar button are not rendered.
 - `lib/l10n/app_en.arb` (+ all locale ARBs) — `siteSettingsKioskMode` +
   `siteSettingsKioskModeHint` (shown in a `HintButton` dialog).
-- `lib/services/site_settings_qr_codec.dart` — `kioskMode` classified in
-  `includedKeys` (shareable per-site config, like `fullscreenMode`).
+- `lib/settings/site_field.dart` — `kioskMode` is `QrShare.carried`
+  (shareable per-site config, like `fullscreenMode`).
 
 #### Tests
 

@@ -112,7 +112,7 @@ test('extraction still finds the settings subtitles it is meant to police', () =
   assert.ok(locales.length > 10, `expected many locales, found ${locales.length}`);
 });
 
-test('a fixed-string subtitle fits the row in every locale', () => {
+test('a fixed-string subtitle fits the row in every locale (HINT-001)', () => {
   const violations = [];
   for (const { key, rel, line } of collectStaticSubtitles()) {
     let worst = null;

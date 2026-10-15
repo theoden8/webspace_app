@@ -28,7 +28,7 @@ function requirePacked(t) {
   return false;
 }
 
-test('the packed app declares a relative base and no service worker', (t) => {
+test('the packed app declares a relative base and no service worker (DESIGN-008)', (t) => {
   if (!requirePacked(t)) return;
   const index = fs.readFileSync(path.join(PACKED, 'index.html'), 'utf8');
   assert.match(index, /<base href="\.\/">/);

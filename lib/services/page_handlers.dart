@@ -4,6 +4,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/passkey_engine.dart';
@@ -26,6 +27,13 @@ import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_blocking.dart';
 import 'package:webspace/services/webview_downloads.dart';
 import 'package:webspace/services/webview.dart';
+
+/// What the handlers read of the page they serve: the URL its load started
+/// at, and the document it shows now, for a script a handler evaluates.
+typedef PageSide = ({
+  String? Function() sourceUrl,
+  PageScope Function() document,
+});
 
 /// The JavaScript handlers a site page calls into: notifications, capture,
 /// passkeys, media session, downloads and the rest of the page bridge.
@@ -67,7 +75,7 @@ abstract final class PageHandlers {
     inapp.InAppWebViewController controller, {
     required WebViewConfig config,
     required UserScriptService userScriptService,
-    required String? Function() sourceUrl,
+    required PageSide page,
   }) {
     // Live geolocation: forward navigator.geolocation calls from the
     // shim into the platform's native location service. Permission is
@@ -260,14 +268,14 @@ abstract final class PageHandlers {
       return null;
     });
     if (!hostIsAndroid) {
-      // The WebKit interceptor's question about a Bloom hit. [sourceUrl] is
-      // the hosting page, so `$domain=` rules apply.
+      // The WebKit interceptor's question about a Bloom hit. The page's
+      // source URL is the hosting page, so `$domain=` rules apply.
       controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
         if (args.isEmpty || args[0] is! String) return false;
         final verdict = judgeAndRecord(
           config,
           query: UrlQuery(args[0] as String,
-              sourceUrl: sourceUrl() ?? '', requestType: 'other'),
+              sourceUrl: page.sourceUrl() ?? '', requestType: 'other'),
         );
         return switch (verdict) {
           Allowed() => false,
@@ -437,7 +445,10 @@ abstract final class PageHandlers {
         return result;
       },
     );
-    userScriptService.registerHandlers(controller);
+    userScriptService.registerHandlers(
+      controller.addJavaScriptHandler,
+      page: page.document,
+    );
     // Blob download: JS reads the blob via FileReader and hands the
     // base64 payload back through these handlers.
     controller.addJavaScriptHandler(

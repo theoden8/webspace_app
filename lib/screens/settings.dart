@@ -93,6 +93,11 @@ class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
+
+  /// Run before a changed proxy takes effect: the sites the site now
+  /// contends with go first (PROXY-008).
+  final Future<void> Function()? onProxyChanging;
+
   /// Clears the site's cookies, or its whole container's data. Fails with
   /// [CookieJarFailure] when the jar refuses, which the screen reports
   /// instead of saying it is done.
@@ -123,11 +128,12 @@ class SettingsScreen extends StatefulWidget {
   SettingsScreen({
     required this.webViewModel,
     this.onSettingsSaved,
+    this.onProxyChanging,
     this.onClearCookies,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onScriptsChanged,
-    this.useContainers = false,
+    required this.useContainers,
     this.notificationsBlockedBySite,
     this.otherSites = const [],
     this.routingTargets = const [],
@@ -501,6 +507,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       LogTag.proxy.info(
           'Saving per-site proxy for siteId=${m.siteId}: '
           '${_proxySettings.describeForLogs()}', sensitive: true);
+      await widget.onProxyChanging?.call();
       await m.updateProxySettings(_proxySettings);
     } else {
       final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
@@ -649,7 +656,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   /// The picked coordinates as the permission row shows them, or null when
-  /// none are set. Built as data before it reaches `Text(` (LOC-002): a
+  /// none are set. Built as data before it reaches `Text(` (L10N-002): a
   /// latitude and a longitude are numbers, not translatable copy.
   String? _coordinatesPreview() {
     final (lat, lng) = (_latitude, _longitude);
@@ -883,7 +890,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         : (torExitCountryFor(pin)?.label ?? pin.toUpperCase());
 
     // A proxy type, an address and a country are data, not translatable copy
-    // (LOC-002).
+    // (L10N-002).
     final on = <String>[
       if (inheritsAppProxy) loc.networkSummaryAppProxy,
       // A saved proxy or gateway goes by its name; one that no longer

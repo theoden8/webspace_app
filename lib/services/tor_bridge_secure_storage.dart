@@ -52,7 +52,7 @@ class TorBridgeSecureStorage {
           // Only ever written whole, so a keystore that was locked at a
           // background wake is simply asked again next time.
           onFailure: KeystoreFailurePolicy.retry,
-          queue: SerialQueue(),
+          queue: SerialQueue('torBridges'),
         );
 
   /// Whether the platform keystore answered the last call. False after a

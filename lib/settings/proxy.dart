@@ -164,3 +164,55 @@ class UserProxySettings {
 
   bool get hasCredentials => username != null && username!.isNotEmpty && password != null && password!.isNotEmpty;
 }
+
+/// A proxy address as every reader of one takes it: the settings screens'
+/// checks (PROXY-005), both per-site proxy mechanisms and the outbound
+/// client (PROXY-017). Split on the last colon, so a bracketed IPv6 literal
+/// keeps its host; a host holds a colon only inside brackets.
+sealed class ProxyAddressParse {
+  const ProxyAddressParse();
+
+  static ProxyAddressParse of(String? raw) {
+    final text = raw?.trim() ?? '';
+    if (text.isEmpty) return const ProxyAddressMissing();
+    final at = text.lastIndexOf(':');
+    if (at <= 0) return const ProxyAddressMalformed();
+    final host = text.substring(0, at);
+    final bracketed = host.startsWith('[') && host.endsWith(']');
+    if (host.contains(':') && !bracketed) return const ProxyAddressMalformed();
+    if (bracketed && host.length == 2) return const ProxyAddressMalformed();
+    final port = int.tryParse(text.substring(at + 1));
+    if (port == null || port < 1 || port > 65535) {
+      return const ProxyAddressBadPort();
+    }
+    return ProxyAddress(host: host, port: port);
+  }
+}
+
+/// An address that parsed: the host as written, brackets kept, and its port.
+final class ProxyAddress extends ProxyAddressParse {
+  const ProxyAddress({required this.host, required this.port});
+  final String host;
+  final int port;
+
+  /// [host] as a socket or a native call takes it: an IPv6 literal without
+  /// its brackets.
+  String get socketHost => host.startsWith('[') && host.endsWith(']')
+      ? host.substring(1, host.length - 1)
+      : host;
+}
+
+/// Nothing was given.
+final class ProxyAddressMissing extends ProxyAddressParse {
+  const ProxyAddressMissing();
+}
+
+/// Not `host:port`: no port, no host, or a colon outside brackets.
+final class ProxyAddressMalformed extends ProxyAddressParse {
+  const ProxyAddressMalformed();
+}
+
+/// A port that is not a number from 1 to 65535.
+final class ProxyAddressBadPort extends ProxyAddressParse {
+  const ProxyAddressBadPort();
+}

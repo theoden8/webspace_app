@@ -60,8 +60,7 @@ reason it is unloaded (domain conflict, webspace switch, proxy or Tor
 exit-country mismatch, the loaded-site cap, memory pressure, a home reset).
 Every activation empties the shared jar after saving it for the loaded sites
 only, so a site unloaded without the capture loses what it set since its own
-activation. All unloads go through `SiteUnloadEngine.unload`. Lineage:
-[BUG-026](../../../docs/bugs/026-legacy-unload-drops-session.md).
+activation. All unloads go through `SiteUnloadEngine.unload`.
 
 #### Scenario: Capture cookies before switch
 
@@ -88,17 +87,29 @@ a capture → nuke → restore cycle:
 2. **Attribute** — for every loaded non-incognito site (including the
    target if it is already loaded), filter the snapshot by base-domain
    match (`cookie.domain` equals or is a subdomain of the site's base
-   domain) and save to that site's siteId-keyed encrypted storage.
+   domain) and save to that site's siteId-keyed encrypted storage. A loaded
+   incognito site's share is held in memory only (INC-001).
 3. **Nuke** — `CookieManager.deleteAllCookies()` to evict cookies from
    previously-deleted sites, legacy pre-siteId sessions, and sibling
    subdomains that would otherwise leak into the target's requests.
 4. **Restore** — load the target's cookies from storage and set them, then
    restore every other still-loaded site's cookies (parallel-loaded sites
-   share the same native jar).
+   share the same native jar), an incognito one's from memory.
 
-All async steps SHALL check `SiteRuntime.activationVersion` and early-return if a
-newer `setCurrentIndex` invocation has started, to prevent concurrent
-cookie mutations from interleaving under rapid tab switching.
+All async steps before the nuke SHALL check `SiteRuntime.activationVersion`
+against the version the activation began at, never one read later, and
+early-return if a newer `activate` invocation has bumped it (a row
+move bumps nothing: every flow holds its sites, not rows); once
+nuked, the jar SHALL be refilled before returning. The engine SHALL run one
+operation on the jar at a time (a restore, an unload's capture, a delete's
+cleanup), so no capture reads a jar another operation has emptied and saves
+the emptiness as the loaded sites' sessions (BUG-032). The turn is a type
+(`JarTurn`) only the engine's `_turn` makes, and every read of the jar the
+engine saves and every write it makes takes one, so a path to the jar
+outside a turn does not compile. `formal/activation.tla`
+checks these steps interleaved with other switches, memory pressure and row
+moves (`Inv_NoSessionLoss`, `Inv_NoForeignSession`), and catches the jar
+without its turns (`noturns`).
 
 #### Scenario: Restore cookies on activation
 
@@ -143,13 +154,28 @@ cookie mutations from interleaving under rapid tab switching.
   storage before the nuke
 **And** after the nuke-and-restore, Site A's session is intact
 
+#### Scenario: A site loaded off screen at launch restores its own session
+
+**Given** the last session left Site A's cookies in the native jar, and
+  Site B, a notification site on Site A's base domain, has its own stored
+  session
+**When** the app launches and auto-loads Site B (`preload`)
+**Then** Site B's webview is built only after a restore has nuked the jar
+  and set Site B's stored session
+**And** Site B never runs on, or saves as its own, the cookies Site A left
+**And** a preload starts only while no activation is in flight, is
+  superseded by any input as an activation is, and skips a site whose base
+  domain a loaded site already holds (ISO-001)
+
 #### Scenario: Concurrent activation is serialized
 
 **Given** the user taps Site B, then taps Site C before Site B's activation
   completes
 **When** Site C's activation runs
-**Then** any in-flight step of Site B's activation SHALL early-return on the
-  version mismatch
+**Then** any in-flight step of Site B's activation before its nuke SHALL
+  early-return on the version mismatch
+**And** Site C's snapshot SHALL NOT read the jar until Site B's restore has
+  refilled it
 **And** the cookie jar and encrypted storage SHALL NOT reflect interleaved
   captures from the two activations
 
@@ -291,7 +317,7 @@ Each site's webview SHALL use its own `initUrl` for domain comparison when decid
 
 ### Requirement: ISO-009 - Widget Identity Preservation
 
-Each webview widget SHALL maintain its identity via `ValueKey(siteId)` to prevent Flutter from reusing widget state incorrectly.
+Each site's webview widget SHALL keep its identity by its site, not its position in the stack, so Flutter never hands one site's webview State to another and a change that shifts a site's row neither rebuilds nor reloads its webview. The key is global (`GlobalObjectKey(site)`): `IndexedStack` wraps each child in an unkeyed `Visibility`, so a local key such as `ValueKey(siteId)` never meets its old element once the rows shift.
 
 #### Scenario: Switching sites preserves widget identity
 
@@ -299,6 +325,12 @@ Each webview widget SHALL maintain its identity via `ValueKey(siteId)` to preven
 **When** user switches from Site A to Site B and back
 **Then** each widget maintains its own state
 **And** callbacks reference the correct site's `initUrl`
+
+#### Scenario: Deleting or moving a site keeps the other webviews
+
+**Given** Site A and Site B are both loaded, A in the row before B
+**When** A is deleted, or the two swap rows
+**Then** B's webview keeps its State: its page is neither rebuilt nor reloaded
 
 ### Requirement: ISO-010 - Cookie Cleanup on Site Deletion
 
@@ -400,14 +432,19 @@ The system SHALL garbage-collect the native cookie jar (iOS `WKHTTPCookieStorage
 
 The boundaries:
 
-- **On app startup** — after loading persisted models but before activating
-  any site
+- **On app startup** — in the jar's first turn: queued as soon as the
+  engine is chosen, before the site list can be tapped, and run only while
+  no site is loaded (`CookieIsolationEngine.clearUnloaded`). Queued later,
+  as the post-paint sweep once did it outside the jar's turns, it empties
+  the sessions the launch's restores put back
 - **On site switch** — inside `_restoreCookiesForSite`, after capturing
   cookies for other loaded sites
-- **On settings import** — `setCurrentIndex` during import routes through
+- **On settings import** — `activate` during import routes through
   `_restoreCookiesForSite`, which performs the nuke-and-restore cycle; the
   import path MUST NOT issue a subsequent `deleteAllCookies()` or it would
-  wipe the session just restored for the imported active site
+  wipe the session just restored for the imported active site. An import
+  that activates nothing empties the jar through `clearUnloaded`, in the
+  jar's turn and only while no site is loaded
 - **On site deletion** — for the deleted site's `initUrl` and `currentUrl`
   unconditionally, followed by an orphan sweep of siteId-keyed storage; if
   a loaded same-base-domain site exists, its session SHALL be snapshotted
@@ -422,8 +459,18 @@ The boundaries:
 **When** the app launches
 **Then** orphaned siteId-keyed entries are swept from encrypted storage and
   HTML cache
-**And** the native cookie jar is cleared before any site is activated
+**And** the native cookie jar is cleared in the jar's first turn, before any
+  site's restore
 **And** the first activated site restores only its own siteId-keyed cookies
+
+#### Scenario: The launch clear never empties a restored session
+
+**Given** a notification site was preloaded, or the user tapped a site,
+  while the launch was still under way
+**When** its restore has refilled the jar
+**Then** no jar clear runs after it at that launch
+**And** the post-paint orphan sweep issues no `deleteAllCookies()` at all
+  (`formal/activation.tla`, the cold start's `lateclear` mistake)
 
 #### Scenario: Orphan sweep runs on site deletion
 
@@ -531,16 +578,16 @@ stays at the `_WebSpacePageState` call site.
   `restoreCookiesForSite`, and `preDeleteCookieCleanup`. Tests model RFC
   6265 domain-match semantics in `MockCookieManager`
   ([test/cookie_isolation_integration_test.dart](../../../test/cookie_isolation_integration_test.dart)).
-- [`SiteActivationEngine.findDomainConflict`](../../../lib/services/site_activation_engine.dart) —
-  pure `(targetIndex, models, loadedIndices) → int?` deciding which
-  loaded site (if any) must unload before activating the target per
-  ISO-001. Same function is called from `setCurrentIndex` in
-  `main.dart` AND the integration-test harness, so the rule can't
+- [`SiteUnloadEngine.conflicts`](../../../lib/services/site_unload_engine.dart) —
+  the model's `Conflicts(s)`, a definition deciding which loaded sites
+  must unload before activating the target per ISO-001; the residency
+  plan runs it, the preload's guard and the ISO-001 assert call it, and
+  `formal/verify.sh` prints it, so the rule can't
   diverge between prod and tests.
-- [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart) —
-  pure index-rewrite transform applied during site deletion (ISO-010);
-  shifts `_sites.loaded` and every webspace's `siteIndices` down when
-  an earlier index is removed, so references don't drift.
+- [`SiteRuntime`](../../../lib/controllers/site_runtime.dart) holds the
+  loaded sites and the one on screen as sites, so a deletion (ISO-010)
+  takes the deleted site out of both and leaves every other one naming
+  the site it did; webspaces hold site ids and are re-resolved after it.
 
 ### Domain Comparison for Cookie Isolation
 
@@ -692,18 +739,15 @@ IndexedStack(
 
 ### Modified
 - `lib/web_view_model.dart` - siteId, domain functions, captureCookies(), disposeWebView()
-- `lib/main.dart` - Domain conflict detection, async setCurrentIndex(), _unloadSite()
+- `lib/main.dart` - Domain conflict detection, async activate(), _unloadSite()
 - `lib/services/webview.dart` - deleteAllCookies() method on CookieManager
 - `lib/services/cookie_secure_storage.dart` - loadCookiesForSite(), saveCookiesForSite(), removeOrphanedCookies()
 
 ### Created
 - `lib/services/cookie_isolation.dart` - `CookieIsolationEngine` (capture-nuke-restore)
-- `lib/services/site_activation_engine.dart` - `SiteActivationEngine.findDomainConflict`
-- `lib/services/site_lifecycle_engine.dart` - `SiteLifecycleEngine.computeDeletionPatch`
 - `test/cookie_isolation_test.dart` - Unit tests for domain extraction, aliases, siteId
 - `test/cookie_isolation_integration_test.dart` - Integration tests with mock CookieManager
-- `test/site_activation_engine_test.dart` - Unit tests for domain-conflict resolution
-- `test/site_lifecycle_engine_test.dart` - Unit tests for deletion patch
+- `test/site_unload_engine_test.dart` - Unit tests for domain-conflict resolution (`SiteUnloadEngine.conflicts`)
 - `test/nested_webview_navigation_test.dart` - Tests for per-site URL blocking and widget identity
 - `openspec/specs/per-site-cookie-isolation/spec.md` - This specification
 

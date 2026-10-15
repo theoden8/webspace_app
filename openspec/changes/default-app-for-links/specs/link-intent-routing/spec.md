@@ -104,6 +104,13 @@ The app SHALL register the `webspace` URL scheme on every supported platform (An
 - **AND** the URL is delivered exactly once
 - **AND** subsequent calls to `getInitialUrl()` return null
 
+#### Scenario: Cold start on a desktop runner
+
+- **GIVEN** WebSpace is not running on Linux or macOS
+- **WHEN** it is launched with `webspace://open?url=https%3A%2F%2Fdiscord.com%2Fapp` (`xdg-open`, the `.desktop` handler, `open`)
+- **THEN** the cold-start poll reads the URL from the runner over the `share_intent` channel, as on Android and iOS
+- **AND** which platforms answer is the runners' to say: a host whose runner serves no `share_intent` channel reads as no pending URL, and the Dart side keeps no list of platforms
+
 #### Scenario: Warm start via `webspace://` URL
 
 - **GIVEN** WebSpace is already running in the background

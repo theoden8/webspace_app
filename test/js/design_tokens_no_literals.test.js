@@ -52,7 +52,7 @@ const RULES = [
   { re: /Duration\(\s*milliseconds:\s*\d/g, token: 'Motion.*' },
 ];
 
-test('UI files carry no raw design literals', () => {
+test('UI files carry no raw design literals (DESIGN-004)', () => {
   const offences = [];
   for (const rel of SCANNED.filter((f) => !EXEMPT.has(f))) {
     const src = read(rel);

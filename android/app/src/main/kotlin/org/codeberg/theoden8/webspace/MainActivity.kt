@@ -66,7 +66,7 @@ class MainActivity: FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        enginePlugins = EnginePlugins(this, flutterEngine, this)
+        enginePlugins = EnginePlugins(this, flutterEngine)
         locationPlugin = LocationPlugin(this, flutterEngine)
         cameraPermissionPlugin = CapturePermissionPlugin.camera(this, flutterEngine)
         microphonePermissionPlugin = CapturePermissionPlugin.microphone(this, flutterEngine)

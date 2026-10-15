@@ -1,0 +1,318 @@
+/// The model's names, each declared once: its variables, a flow's fields,
+/// the engines' operators, the base's, and what a step reads of them. The
+/// step tables' leaves take their names from here, and the printer
+/// iterates these to write the model's declarations.
+library;
+
+import 'package:webspace/services/activation_step.dart';
+
+/// Every variable of `formal/activation.tla`, in the order its module
+/// declares them, with the comment that declaration prints: the one place
+/// a variable is named. Every leaf takes its name from here, the printer
+/// writes the `VARIABLES` block and every action's frame from here
+/// (`activation_vars`), so a variable left out of a frame or named twice
+/// cannot happen.
+enum ModelVar {
+  rows('rows[q]: the site at position q'),
+  loaded('sites with a webview (SiteRuntime.loaded)'),
+  current('site on screen, 0 for home (SiteRuntime.shown)'),
+  version('SiteRuntime.activationVersion'),
+  marker('SiteRuntime.activating: [t |-> site, v |-> version]'),
+  tier('tier[s]: "resident", "cleared" (cacheCleared) or "saved" (savedForRestore)'),
+  jar('sites whose session the shared jar holds'),
+  stored("stored[s]: sites whose session s's storage holds"),
+  signedIn('sites whose page set a session (ghost)'),
+  holder("the flow holding the jar's turn, 0 for none"),
+  queue('flows waiting for the turn, in order; 0 is the jar clear queued at launch'),
+  fl('fl[f]: the flow the f-th input started'),
+  inputs('inputs so far'),
+  newest('the flow of the newest activation, 0 after home (ghost)'),
+  evictedShown('a priority-picked unload disposed a protected site (ghost)'),
+  seen('the reachability witnesses met (ghost)'),
+  last('the step just taken: action, flow, outcome, site (ghost)'),
+  tabs("tabs[s]: the ids of s's tabs (WebViewModel.tabs)"),
+  active('active[s]: its active tab (activeTabId)'),
+  built('built[s]: the tab its webview was built for, 0 for none (WebViewTabBinding.built)'),
+  hist("hist[s]: the tab whose history the webview shows, 0 for none (the bytes' label)"),
+  queued('queued[s]: the back stack queued for the next build: the tab it was read for and the tab whose history it is (WebViewTabBinding.queued)'),
+  file("file[s][t]: the tab whose history t's saved file holds, 0 for no file (WebViewStateStorage)"),
+  minted('minted[s]: the last tab id s took (environment)'),
+  nested('the site whose nested screen is up, 0 for none (SiteRuntime.nested)'),
+  headless('sites a background wake checks in a headless webview (SiteRuntime.headless)'),
+  fore('the app on screen (environment)'),
+  dns('[lvl |-> the app-wide DNS level, levels |-> the levels whose lists are downloaded] (DnsBlockService)'),
+  told("told[s]: the DNS level s's webview told its native interceptor, -1 for none (ViewBlockers)"),
+  gone('sites that left the list (SiteRuntime.models)'),
+  views('sites whose webview is mounted, binding its container (the platform)'),
+  boxes('archive-tier sites whose container is on disk (ContainerNative)');
+
+  const ModelVar(this.doc);
+
+  /// What the declaration says of it.
+  final String doc;
+}
+
+/// Every field a flow's record carries (`fl[f].<field>`), with what it is
+/// when no flow runs (`NoFlow`, printed from here): the one place a field
+/// is named, which every [Field] takes its name from.
+enum FlowField {
+  kind('"none"'),
+  pc('"done"'),
+  site('0'),
+  v('0'),
+  victims('{}'),
+  clears('{}'),
+  picked('{}'),
+  victim('0'),
+  snap('{}'),
+  ls('{}'),
+  todo('{}'),
+  tmp('{}'),
+  unloaded('FALSE'),
+  tab('0'),
+  keep('FALSE'),
+  rest('{}'),
+  closing('{}'),
+  copy('0'),
+  label('0'),
+  wrote('FALSE'),
+
+  /// What a capture read as it started: the webview's tab and the history
+  /// it showed, held for the file write its reply makes (`Capture`).
+  capTab('0'),
+  capHist('0'),
+
+  /// The notification sites a wake has still to check headless.
+  checks('{}'),
+
+  /// The sites a webspace switch stops showing, which its plan unloads
+  /// once the device is online (WEBSPACE-013).
+  away('{}'),
+
+  /// The site an activation the switch superseded was opening, which goes
+  /// on loading behind the list instead of going with the rest
+  /// (WEBSPACE-013).
+  behind('0'),
+
+  /// The DNS level a download fetches, and whether it becomes the
+  /// app-wide level.
+  lvl('0'),
+  appWide('FALSE');
+
+  const FlowField(this.none);
+
+  /// Its value in `NoFlow`.
+  final String none;
+}
+
+/// What a constant of the model is where no world sets it, which a need
+/// of it is measured against: a set empty, a switch off or on, a function
+/// the same at every site, a bound the device's, or data no world changes.
+enum ConstKind { set, off, on, uniform, bound, fixed }
+
+/// Every constant of the model a table reads, named once: the leaves that
+/// read one ([Constant], [Members], `Indexed.fixed`) take its name from
+/// here, and a world sets one (`Env`) or leaves it as the base gives it.
+/// One the base defines over others is set wherever one of them is
+/// ([follows]).
+enum ModelConst {
+  containers(ConstKind.off),
+  coldStart(ConstKind.off),
+  tabbed(ConstKind.set),
+  maxTabs(ConstKind.bound),
+  routed(ConstKind.set),
+  contending(ConstKind.set),
+  route(ConstKind.uniform),
+  torExit(ConstKind.uniform),
+  torRuntime(ConstKind.off),
+  maxLoaded(ConstKind.bound),
+  maxResident(ConstKind.bound),
+  linked(ConstKind.set),
+  proxyRefused(ConstKind.off),
+  notified(ConstKind.set),
+  waking(ConstKind.off),
+  siteLevel(ConstKind.uniform),
+  dnsLevels(ConstKind.set),
+  away(ConstKind.set),
+  online(ConstKind.on),
+  archive(ConstKind.set),
+  deletable(ConstKind.set),
+  boxed(ConstKind.set, follows: {archive, deletable}),
+  incognito(ConstKind.set, follows: {archive}),
+  noNavState(ConstKind.set, follows: {archive, incognito}),
+  sites(ConstKind.fixed),
+  base(ConstKind.fixed);
+
+  const ModelConst(this.kind, {this.follows = const {}});
+
+  final ConstKind kind;
+  final Set<ModelConst> follows;
+
+  /// Its name in the model: the enum's, capitalised.
+  String get tla => '${name[0].toUpperCase()}${name.substring(1)}';
+}
+
+/// A constant a value needs to hold: [of] set by the world, or left as
+/// the base gives it ([set] false). A condition's needs are what must
+/// hold for it to be true, a set's what must hold for it to be non-empty;
+/// each is necessary, never sufficient, so an action no world gives its
+/// needs is one no world takes.
+typedef Need = ({ModelConst of, bool set});
+
+/// Every operator an engine defines ([Def]), named once: the printer
+/// answers each with the definition that owns it, in a `switch` the
+/// compiler holds exhaustive, so a definition cannot be left unprinted.
+enum ModelDef {
+  evictable,
+  running,
+  midActivation,
+  pressureResident,
+  pressureCleared,
+  stale,
+  conflicts,
+  proxyContenders,
+  torDissenters,
+  routeFree,
+  ruled,
+  kept,
+  picked,
+  spare,
+  gone,
+  share,
+  tabBusy,
+  capture,
+  bound,
+  shown,
+  taken,
+  staged,
+  resolveLevel;
+
+  /// Its name in the model: the enum's, capitalised.
+  String get tla => '${name[0].toUpperCase()}${name.substring(1)}';
+}
+
+/// The operators of the hand-written model (`activation_base.tla`) that a
+/// table's text calls and that read its state, with what each reads and
+/// writes of it, which the footprint gate holds to the definition's text.
+/// The base's constant data (`Routed`, `Archive`) reads nothing and is not
+/// named.
+enum BaseOp {
+  kinds(reads: {ModelVar.fl}),
+  listed(reads: {ModelVar.gone}),
+
+  /// The newest tap's target while it stands: that row's version and site.
+  liveTarget(
+    reads: {ModelVar.fl, ModelVar.newest, ModelVar.version},
+    rows: {
+      (kind: FlowKind.tap, field: FlowField.v),
+      (kind: FlowKind.tap, field: FlowField.site),
+    },
+  ),
+  hasFresh(reads: {ModelVar.minted}),
+  mint(reads: {ModelVar.minted}),
+  enqueue(reads: {ModelVar.holder, ModelVar.queue}, writes: {ModelVar.queue}),
+  takeTurn(reads: {ModelVar.queue}, writes: {ModelVar.holder, ModelVar.queue}),
+  passTurn(reads: {ModelVar.queue}, writes: {ModelVar.holder, ModelVar.queue}),
+  release(writes: {ModelVar.holder}),
+  granted(reads: {ModelVar.holder, ModelVar.queue}),
+
+  /// An input, which lands only where `Lands` lets it: on the page when no
+  /// nested screen covers it, and on screen unless the OS made it.
+  input(reads: {ModelVar.fore, ModelVar.nested});
+
+  const BaseOp({this.reads = const {}, this.writes = const {}, this.rows = const {}});
+
+  /// The model's variables its definition reads and writes, apart from
+  /// the checkers' own (`last`, `inputs`, `seen`).
+  final Set<ModelVar> reads;
+  final Set<ModelVar> writes;
+
+  /// The other flows' rows it reads, as [Reads.rows] says them.
+  final Set<RowRead> rows;
+
+  /// Its name in the model: the enum's, capitalised.
+  String get tla => '${name[0].toUpperCase()}${name.substring(1)}';
+}
+
+/// A read of other flows' rows: [field] of every row of [kind]. A flow
+/// writes only its own row, so the read meets only the steps that can run
+/// in a row of [kind] and write [field] (`activation_footprints.tsv`).
+typedef RowRead = ({FlowKind kind, FlowField field});
+
+/// What one arm of a step does to its flow's own row, as the composition
+/// reads it: the places it may go to (each with what going there needs,
+/// when the next place is a choice), the kind it gives the flow when it
+/// sets one, the fields it writes, whether it ends the flow (every field
+/// back to `NoFlow`), what the model's constants must be for it to be
+/// taken ([needs]), the kinds of flow it is taken for ([only], null
+/// for any), and the rows of the flows it starts ([spawns]).
+typedef ArmRow = ({
+  Map<String, Set<Need>> next,
+  FlowKind? kind,
+  bool ends,
+  Set<FlowField> fields,
+  Set<Need> needs,
+  Set<FlowKind>? only,
+  List<SpawnRow> spawns,
+});
+
+/// The row of a flow an arm starts in its own turn (`Spawn`): the kind its
+/// input gives it, the places it goes to, the fields it writes, and what
+/// starting it needs beyond the arm.
+typedef SpawnRow = ({
+  FlowKind kind,
+  Map<String, Set<Need>> next,
+  Set<FlowField> fields,
+  Set<Need> needs,
+});
+
+/// One step's action as the composition reads it: the place it waits at,
+/// what it reads and writes of the shared state, what the model's
+/// constants must be for it to be taken at all ([needs]: its input's
+/// condition and the set it picks from), and its arms' rows.
+typedef Footprint = ({
+  ActivationStep step,
+  String place,
+  bool input,
+  Reads reads,
+  Set<ModelVar> writes,
+  Set<Need> needs,
+
+  /// The variables an input's guard reads (`enabled`): an input that writes
+  /// one of them is what lets it land.
+  Set<ModelVar> guard,
+  List<ArmRow> arms,
+});
+
+/// What a value of a step reads of the model's shared state: its
+/// variables, the engines' definitions it calls by name, the base's
+/// operators, and the fields of other flows' rows it reads, by kind. A
+/// flow's own row (`fl[f]`) is its own and is not here. Every leaf says
+/// what it reads and every operator unions its operands', so an action's
+/// footprint is a function of its declarations
+/// (`activation_footprints.tsv`).
+final class Reads {
+  const Reads({
+    this.vars = const {},
+    this.defs = const {},
+    this.base = const {},
+    this.rows = const {},
+  });
+
+  final Set<ModelVar> vars;
+  final Set<ModelDef> defs;
+  final Set<BaseOp> base;
+  final Set<RowRead> rows;
+
+  static const none = Reads();
+
+  Reads operator +(Reads other) => Reads(
+    vars: {...vars, ...other.vars},
+    defs: {...defs, ...other.defs},
+    base: {...base, ...other.base},
+    rows: {...rows, ...other.rows},
+  );
+
+  /// Everything [all] read.
+  static Reads of(Iterable<Reads> all) => all.fold(none, (a, b) => a + b);
+}

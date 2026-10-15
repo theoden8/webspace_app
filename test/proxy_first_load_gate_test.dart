@@ -19,14 +19,14 @@ void main() {
     });
 
     test('DEFAULT site under a global Tor waits exactly like an explicit one', () {
-      GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.TOR));
+      GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.TOR));
       expect(waitsForTor(defaultSite, siteId: SiteId('s'), torUp: false), isTrue);
       expect(waitsForTor(defaultSite, siteId: SiteId('s'), torUp: true), isFalse);
     });
 
     test('DEFAULT site with no global Tor never waits', () {
       expect(waitsForTor(defaultSite, siteId: SiteId('s'), torUp: false), isFalse);
-      GlobalOutboundProxy.setForTest(UserProxySettings(
+      GlobalOutboundProxy.setInMemory(UserProxySettings(
         type: ProxyType.SOCKS5,
         address: 'p:1080',
       ));

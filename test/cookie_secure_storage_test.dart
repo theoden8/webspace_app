@@ -62,7 +62,7 @@ void main() {
   }
 
   group('CookieSecureStorage', () {
-    test('should save cookies to secure storage keyed by domain', () async {
+    test('should save cookies to secure storage keyed by domain (COOKIE-001)', () async {
       // Note: With COOKIE-006, only isSecure=true cookies go to secure storage
       await cookieSecureStorage.saveCookies({
         'example.com': [
@@ -119,7 +119,7 @@ void main() {
       expect(loaded['example.com']!.map((c) => c.name).toSet(), equals({'cookie1', 'cookie2'}));
     });
 
-    test('should migrate cookies from SharedPreferences to secure storage with domain keys', () async {
+    test('should migrate cookies from SharedPreferences to secure storage with domain keys (COOKIE-003)', () async {
       // Legacy cookies without isSecure flag are treated as non-secure
       // (COOKIE-006) and stored in SharedPreferences, not secure storage.
       _seedLegacySites([
@@ -261,7 +261,7 @@ void main() {
       expect(loaded.length, equals(2));
     });
 
-    test('should handle corrupted secure storage gracefully', () async {
+    test('should handle corrupted secure storage gracefully (COOKIE-004)', () async {
       await mockSecureStorage.write(key: 'secure_cookies', value: 'not valid json');
 
       // Should fall back to SharedPreferences
@@ -348,7 +348,7 @@ void main() {
       expect(loaded['example.com'], isNotNull);
     });
 
-    test('should load cookies for specific siteId with mixed secure flags', () async {
+    test('should load cookies for specific siteId with mixed secure flags (COOKIE-005)', () async {
       // Save cookies keyed by siteId with mixed secure flags (COOKIE-006)
       await cookieSecureStorage.saveCookies({
         'site-id-1': [
@@ -467,7 +467,7 @@ void main() {
       expect(loaded['github.com']!.map((c) => c.name).toSet(), equals({'session', 'theme'}));
     });
 
-    test('secure cookies NOT stored in SharedPreferences even if secure storage fails', () async {
+    test('secure cookies NOT stored in SharedPreferences even if secure storage fails (COOKIE-002)', () async {
       mockSecureStorage
         ..throwOnRead = true
         ..throwOnWrite = true;

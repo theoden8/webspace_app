@@ -22,7 +22,7 @@ void main() {
       expect(r, isA<LaunchNone>());
     });
 
-    test('direct siteId hit -> LaunchOpenSite at its index', () {
+    test('direct siteId hit -> LaunchOpenSite for that site', () {
       final a = _site('https://a.com');
       final b = _site('https://b.com');
       final r = StartupRestoreEngine.resolveLaunch(
@@ -32,7 +32,7 @@ void main() {
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchOpenSite>());
-      expect((r as LaunchOpenSite).index, 1);
+      expect((r as LaunchOpenSite).site, same(b));
     });
 
     test('the first match wins if siteIds collide (hand-edited backup)', () {
@@ -44,7 +44,7 @@ void main() {
         models: [a, b],
         rememberedRemap: const {},
       );
-      expect((r as LaunchOpenSite).index, 0);
+      expect((r as LaunchOpenSite).site, same(a));
     });
 
     test('siteId gone but remembered remap resolves -> LaunchOpenSite', () {
@@ -57,7 +57,7 @@ void main() {
         rememberedRemap: {SiteId('stale-id'): b.siteId},
       );
       expect(r, isA<LaunchOpenSite>());
-      expect((r as LaunchOpenSite).index, 1);
+      expect((r as LaunchOpenSite).site, same(b));
     });
 
     test('remembered remap takes priority over a domain match', () {
@@ -70,7 +70,7 @@ void main() {
         models: [a, b],
         rememberedRemap: {SiteId('stale-id'): b.siteId},
       );
-      expect((r as LaunchOpenSite).index, 1);
+      expect((r as LaunchOpenSite).site, same(b));
     });
 
     test('stale remap (target deleted) falls through to domain match', () {
@@ -82,7 +82,7 @@ void main() {
         rememberedRemap: {SiteId('stale-id'): SiteId('also-gone')},
       );
       expect(r, isA<LaunchConfirmExisting>());
-      expect((r as LaunchConfirmExisting).index, 0);
+      expect((r as LaunchConfirmExisting).site, same(a));
       expect(r.shortcutSiteId, 'stale-id');
     });
 
@@ -96,7 +96,7 @@ void main() {
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchConfirmExisting>());
-      expect((r as LaunchConfirmExisting).index, 1);
+      expect((r as LaunchConfirmExisting).site, same(b));
     });
 
     test('siteId gone, no domain match -> LaunchOfferCreate', () {
@@ -522,7 +522,7 @@ void main() {
     test('a plain launch with nothing opened yet still lands home', () {
       expect(
         StartupRestoreEngine.shouldActivateAfterRestore(
-          indexToRestore: null,
+          opensSite: false,
           activatedDuringRestore: false,
         ),
         isTrue,
@@ -535,7 +535,7 @@ void main() {
       // the plain launch's null target sent the user back home.
       expect(
         StartupRestoreEngine.shouldActivateAfterRestore(
-          indexToRestore: null,
+          opensSite: false,
           activatedDuringRestore: true,
         ),
         isFalse,
@@ -545,7 +545,7 @@ void main() {
     test('a shortcut target is applied when nothing was opened', () {
       expect(
         StartupRestoreEngine.shouldActivateAfterRestore(
-          indexToRestore: 3,
+          opensSite: true,
           activatedDuringRestore: false,
         ),
         isTrue,
@@ -556,7 +556,7 @@ void main() {
         () {
       expect(
         StartupRestoreEngine.shouldActivateAfterRestore(
-          indexToRestore: 0,
+          opensSite: true,
           activatedDuringRestore: true,
         ),
         isTrue,

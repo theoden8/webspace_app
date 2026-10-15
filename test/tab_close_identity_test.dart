@@ -9,6 +9,9 @@ import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/isolations.dart';
+import 'helpers/model_fixture.dart';
+
 class _Page extends Fake implements TabsHost {
   final calls = <String>[];
 
@@ -61,22 +64,42 @@ void main() {
       hostSiteId: host.siteId,
     );
     owner
-      ..tabs = [...owner.tabs, hosted]
-      ..activeTabId = hosted.id;
-    final sites = SiteRuntime()..apply(SitesLoaded([owner, host]));
-    sites.loaded.addAll({0, 1});
-    sites.current = 1;
+      ..setTabs([...owner.tabs, hosted])
+      ..setActiveTab(hosted.id);
+    final sites = SiteRuntime()
+      ..isolation = fakeContainers()
+      ..applied(SitesLoaded([owner, host]));
+    sites.seed(loaded: [owner, host], shown: host);
     final page = _Page();
     final tabs = TabsController(sites, host: page,
         navStates: _NavStates(), residency: _ProcessGlobal());
     expect(owner.runningIdentity, same(host));
 
-    await tabs.closeTab(0, tabId: hosted.id);
+    await tabs.closeTab(owner, tabId: hosted.id);
 
     expect(owner.runningIdentity, same(owner));
     expect(page.calls, ['unloaded https://duckduckgo.com/ identity change'],
         reason: 'the slot ran as GitHub and now runs as itself, so on a '
             'process-global proxy it rebuilds under its own on next show');
-    expect(sites.loaded, {1});
+    expect(sites.loaded, {host});
+  });
+
+  test('closing the last tab lands on a tab no tab of the site had (TAB-003)',
+      () async {
+    final site = WebViewModel(initUrl: 'https://example.com/');
+    final closed = site.activeTabId;
+    final sites = SiteRuntime()
+      ..isolation = fakeSharedJar()
+      ..applied(SitesLoaded([site]));
+    final tabs = TabsController(sites, host: _Page(),
+        navStates: _NavStates(), residency: _ProcessGlobal());
+
+    await tabs.closeTab(site, tabId: closed);
+
+    expect(site.tabs, hasLength(1));
+    expect(site.activeTabId, isNot(closed),
+        reason: 'a capture of the closed tab still in flight would land in '
+            'the new tab\'s file');
+    expect(site.tabs.single.url, 'https://example.com/');
   });
 }

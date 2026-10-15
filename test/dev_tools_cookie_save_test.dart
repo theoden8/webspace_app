@@ -6,6 +6,7 @@ import 'package:webspace/web_view_model.dart';
 
 import 'helpers/localized.dart';
 import 'helpers/mock_cookie_manager.dart';
+import 'helpers/isolations.dart';
 
 /// The cookie inspector writes the jar's list into the site, which is what a
 /// restart restores from; each write is saved, so a cookie deleted here does
@@ -19,7 +20,7 @@ void main() {
     await pumpLocalized(tester,
         home: DevToolsScreen(
           host: WebViewModelDevToolsHost(site),
-          cookieManager: jar,
+          isolation: fakeSharedJar(cookies: jar),
           onSave: onSave,
         ));
     await tester.pumpAndSettle();
@@ -82,7 +83,7 @@ void main() {
     await pumpLocalized(tester,
         home: DevToolsScreen(
           host: WebViewModelDevToolsHost(site),
-          cookieManager: jar,
+          isolation: fakeSharedJar(cookies: jar),
           onSave: () async => saved.add([for (final c in site.cookies) c.name]),
         ));
     await tester.pumpAndSettle();

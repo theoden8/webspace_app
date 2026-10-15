@@ -7,9 +7,11 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/container_proxy_ledger.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
@@ -176,22 +178,10 @@ Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
 /// Sites without a container profile share the default profile's cached
 /// proxy credential, so they share one identity; see
 /// [ProxyRouterEngine.sharedProfileIdentity].
-RouterIdentity routerIdentityForSite({
-  required SiteId siteId,
-  required bool incognito,
-}) =>
-    ProxyRouterEngine.identityFor(
-      siteId: siteId,
-      ownsContainer: siteOwnsContainerProfile(
-        containersSupported: ContainerNative.instance.cachedSupported,
-        incognito: incognito,
-      ),
-    );
-
 RouterIdentity routerIdentityForConfig(WebViewConfig config) =>
-    routerIdentityForSite(
+    ProxyRouterEngine.identityFor(
       siteId: config.posture.siteId,
-      incognito: config.posture.container.incognito,
+      ownsContainer: config.posture.container.containerId != null,
     );
 
 /// Whether a site gets a native container profile of its own.
@@ -204,10 +194,10 @@ RouterIdentity routerIdentityForConfig(WebViewConfig config) =>
 /// credential; one that is not shares the default profile with every other
 /// such site.
 bool siteOwnsContainerProfile({
-  required bool containersSupported,
+  required Isolation isolation,
   required bool incognito,
 }) =>
-    containersSupported &&
+    isolation is Containers &&
     // Android binds one even under incognito: it has no ephemeral profile,
     // so an unbound site would share the default store with every other
     // such site and leave its storage behind (ARCH-006/ARCH-007). The other
@@ -215,18 +205,17 @@ bool siteOwnsContainerProfile({
     // session of its own and needs no name.
     (!incognito || hostIsAndroid);
 
-/// The native container a site's webview binds (`ws-<key>`), or null when it
+/// The native container a site's webview binds (`ws-<id>`), or null when it
 /// binds none: the legacy engine, or an incognito site off Android, which gets
-/// an ephemeral store. The one rule [WebViewFactory.createWebView] binds by and
-/// the site info sheet reports.
+/// an ephemeral store. Resolved once into the site's posture
+/// (`SitePosture.container.containerId`), which the factory binds by and the
+/// site info sheet reports.
 ContainerName? containerIdFor({
+  required Isolation isolation,
   required ContainerKey key,
   required bool incognito,
 }) =>
-    siteOwnsContainerProfile(
-      containersSupported: ContainerNative.instance.cachedSupported,
-      incognito: incognito,
-    )
+    siteOwnsContainerProfile(isolation: isolation, incognito: incognito)
         ? ContainerName.of(key)
         : null;
 
@@ -298,11 +287,14 @@ class ProxyManager {
 
   /// [siteId] is the isolation tag a TOR proxy carries (TOR-003): without
   /// it every Tor site would present the app-global credential, and the one
-  /// rule in force would put them all on one circuit. Throws [ProxyRefused]
-  /// for a rule it will not make or the platform did not take.
+  /// rule in force would put them all on one circuit. Where one rule covers
+  /// the process, the write is [occupant]'s claim on it ([ProcessRoute]).
+  /// Throws [ProxyRefused] for a rule it will not make or the platform did
+  /// not take.
   Future<void> setProxySettings(UserProxySettings settings,
-          {required SiteId siteId}) =>
-      _platformTakes(() => _applyRule(settings, siteId: siteId));
+          {required SiteId siteId, required RouteOccupant occupant}) =>
+      _platformTakes(
+          () => _applyRule(settings, siteId: siteId, occupant: occupant));
 
   /// Runs [call], reporting the plugin's refusal of a rule (its channel
   /// failure, or no plugin) as [ProxyRefused].
@@ -317,7 +309,7 @@ class ProxyManager {
   }
 
   Future<void> _applyRule(UserProxySettings settings,
-      {required SiteId siteId}) async {
+      {required SiteId siteId, required RouteOccupant occupant}) async {
     if (!PlatformInfo.isProxySupported) {
       LogTag.proxy.debug(
           'setProxySettings: platform does not support proxy override; no-op',
@@ -356,6 +348,7 @@ class ProxyManager {
     // honoring the same proxy precedence: explicit per-site override wins,
     // otherwise the global applies, otherwise system/direct.
     var effective = resolveEffectiveProxy(settings, siteId: siteId);
+    final route = effective.routeKey;
     final fellThrough = settings.type == ProxyType.DEFAULT &&
         effective.type != ProxyType.DEFAULT;
     // TOR names no address of its own; the rule has to carry the endpoint
@@ -375,41 +368,31 @@ class ProxyManager {
     }
 
     if (effective.type == ProxyType.DEFAULT) {
-      if (hostIsAndroid) await ProxyRelay.instance.stop();
-      LogTag.proxy.info(
-          'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
-          sensitive: true);
-      final sw = Stopwatch()..start();
-      await controller.clearProxyOverride();
-      overrideActive = false;
-      LogTag.proxy.info(
-          'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
-          sensitive: true);
+      await ProcessRoute.instance.claim(occupant, route: route, write: () async {
+        if (hostIsAndroid) await ProxyRelay.instance.stop();
+        LogTag.proxy.info(
+            'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
+            sensitive: true);
+        final sw = Stopwatch()..start();
+        await controller.clearProxyOverride();
+        overrideActive = false;
+        LogTag.proxy.info(
+            'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
+            sensitive: true);
+      });
       return;
     }
 
-    if (effective.address == null || effective.address!.isEmpty) {
-      LogTag.proxy.error(
-          'Effective proxy missing address; aborting setProxyOverride. '
-          'Effective: ${effective.describeForLogs()}', sensitive: true);
-      throw const ProxyRefused('Proxy address is required');
-    }
-
-    final parts = effective.address!.split(':');
-    if (parts.length != 2) {
-      LogTag.proxy.error(
-          'Effective proxy address malformed (expected host:port). '
-          'Effective: ${effective.describeForLogs()}', sensitive: true);
-      throw const ProxyRefused('Proxy address must be in format host:port');
-    }
-
-    final host = parts[0];
-    final port = int.tryParse(parts[1]);
-    if (port == null) {
-      LogTag.proxy.error('Effective proxy port is not numeric. '
-          'Effective: ${effective.describeForLogs()}', sensitive: true);
-      throw const ProxyRefused('Invalid port number');
-    }
+    final (host, port) = switch (ProxyAddressParse.of(effective.address)) {
+      ProxyAddress(:final host, :final port) => (host, port),
+      ProxyAddressMissing() => _refuse(effective,
+          why: 'missing address', message: 'Proxy address is required'),
+      ProxyAddressMalformed() => _refuse(effective,
+          why: 'malformed address (expected host:port)',
+          message: 'Proxy address must be in format host:port'),
+      ProxyAddressBadPort() => _refuse(effective,
+          why: 'port is not 1-65535', message: 'Invalid port number'),
+    };
 
     final scheme = switch (effective.type) {
       ProxyType.HTTPS => 'https',
@@ -424,60 +407,74 @@ class ProxyManager {
     // WebView at it with NO credentials; the relay injects them upstream.
     // iOS/macOS never reach here; Linux/WebKit accepts a credentialed
     // proxy URI directly, so it keeps the inline-credential path below.
-    if (hostIsAndroid && effective.hasCredentials) {
-      final relay = await ProxyRelay.instance.start(effective);
-      if (relay == null) {
-        LogTag.proxy.error(
-            'Auth proxy relay failed to start; refusing to fall back to a '
-            'direct connection. Effective: ${effective.describeForLogs()}',
-            sensitive: true);
-        throw const ProxyRefused('Proxy relay failed to start');
-      }
-      LogTag.proxy.info(
-          'Applying Android proxy override via auth relay (upstream scheme=$scheme'
+    final applied = effective;
+    if (hostIsAndroid && applied.hasCredentials) {
+      await ProcessRoute.instance.claim(occupant, route: route, write: () async {
+        final relay = await ProxyRelay.instance.start(applied);
+        if (relay == null) {
+          LogTag.proxy.error(
+              'Auth proxy relay failed to start; refusing to fall back to a '
+              'direct connection. Effective: ${applied.describeForLogs()}',
+              sensitive: true);
+          throw const ProxyRefused('Proxy relay failed to start');
+        }
+        LogTag.proxy.info(
+            'Applying Android proxy override via auth relay (upstream scheme=$scheme'
+            '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
+            'effective: ${applied.describeForLogs()})', sensitive: true);
+        final sw = Stopwatch()..start();
+        await controller.setProxyOverride(
+          settings: inapp.ProxySettings(
+            proxyRules: [inapp.ProxyRule(url: 'http://${relay.host}:${relay.port}')],
+            // No `<local>`: it exempts dotless hosts (http://intranet/) from
+            // the proxy entirely, and the coverage contract is every byte.
+            // Loopback is bypassed by Chromium regardless, which is what
+            // keeps the relay itself reachable.
+            bypassRules: [],
+          ),
+        );
+        overrideActive = true;
+        LogTag.proxy.info(
+            'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
+            'relay endpoint=${relay.host}:${relay.port})', sensitive: true);
+      });
+      return;
+    }
+
+    final proxyUrl = applied.hasCredentials
+        ? '$scheme://${Uri.encodeComponent(applied.username!)}:${Uri.encodeComponent(applied.password!)}@$host:$port'
+        : '$scheme://$host:$port';
+
+    await ProcessRoute.instance.claim(occupant, route: route, write: () async {
+      // No credentials (or Linux): point ProxyController straight at the
+      // upstream. Stop any relay left over from a previous credentialed
+      // config so its loopback port isn't left listening.
+      if (hostIsAndroid) await ProxyRelay.instance.stop();
+      LogTag.proxy.info('Applying proxy override (scheme=$scheme'
           '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
-          'effective: ${effective.describeForLogs()})', sensitive: true);
+          'effective: ${applied.describeForLogs()})', sensitive: true);
       final sw = Stopwatch()..start();
       await controller.setProxyOverride(
         settings: inapp.ProxySettings(
-          proxyRules: [inapp.ProxyRule(url: 'http://${relay.host}:${relay.port}')],
-          // No `<local>`: it exempts dotless hosts (http://intranet/) from
-          // the proxy entirely, and the coverage contract is every byte.
-          // Loopback is bypassed by Chromium regardless, which is what
-          // keeps the relay itself reachable.
+          proxyRules: [inapp.ProxyRule(url: proxyUrl)],
           bypassRules: [],
         ),
       );
       overrideActive = true;
       LogTag.proxy.info(
-          'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
-          'relay endpoint=${relay.host}:${relay.port})', sensitive: true);
-      return;
-    }
+          'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
+          'scheme=$scheme)', sensitive: true);
+    });
+  }
 
-    // No credentials (or Linux): point ProxyController straight at the
-    // upstream. Stop any relay left over from a previous credentialed
-    // config so its loopback port isn't left listening.
-    if (hostIsAndroid) await ProxyRelay.instance.stop();
-
-    final proxyUrl = effective.hasCredentials
-        ? '$scheme://${Uri.encodeComponent(effective.username!)}:${Uri.encodeComponent(effective.password!)}@$host:$port'
-        : '$scheme://$host:$port';
-
-    LogTag.proxy.info('Applying proxy override (scheme=$scheme'
-        '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
-        'effective: ${effective.describeForLogs()})', sensitive: true);
-    final sw = Stopwatch()..start();
-    await controller.setProxyOverride(
-      settings: inapp.ProxySettings(
-        proxyRules: [inapp.ProxyRule(url: proxyUrl)],
-        bypassRules: [],
-      ),
-    );
-    overrideActive = true;
-    LogTag.proxy.info(
-        'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
-        'scheme=$scheme)', sensitive: true);
+  /// Logs why [effective] cannot be applied and throws, so no rule is
+  /// written for it (LEAK-003).
+  static Never _refuse(UserProxySettings effective,
+      {required String why, required String message}) {
+    LogTag.proxy.error(
+        'Effective proxy $why; aborting setProxyOverride. '
+        'Effective: ${effective.describeForLogs()}', sensitive: true);
+    throw ProxyRefused(message);
   }
 
   /// Point the process-wide rule at the loopback router on [host]:[port]

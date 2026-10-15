@@ -75,7 +75,7 @@ The system SHALL inject a JavaScript polyfill at `DOCUMENT_START` (with `forMain
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
-The system SHALL navigate to the originating site when the user taps a notification. This routes through `setCurrentIndex`. In container mode, no domain conflicts occur — the target site simply becomes active.
+The system SHALL navigate to the originating site when the user taps a notification. This routes through `activate`. In container mode, no domain conflicts occur — the target site simply becomes active.
 
 #### Scenario: User taps a notification for a loaded site
 
@@ -83,7 +83,7 @@ The system SHALL navigate to the originating site when the user taps a notificat
 **And** Site A is still loaded in `_sites.loaded`
 **When** the user taps the notification
 **Then** the app opens (or comes to foreground)
-**And** `setCurrentIndex` is called with Site A's index
+**And** `activate` is called with Site A
 **And** Site A becomes the active site
 
 #### Scenario: User taps a notification for a site that was not yet loaded
@@ -91,7 +91,7 @@ The system SHALL navigate to the originating site when the user taps a notificat
 **Given** a native notification was created by Site A
 **And** Site A is not in `_sites.loaded` (e.g., app was restarted)
 **When** the user taps the notification
-**Then** `setCurrentIndex` adds Site A to `_sites.loaded`
+**Then** `activate` adds Site A to `_sites.loaded`
 **And** Site A's webview is created with its profile
 **And** Site A becomes the active site
 
@@ -644,9 +644,15 @@ send its traffic somewhere the user did not ask for:
   (the toggle is hidden there, NOTIF-001);
 - its proxy cannot be bound (SEC-009);
 - it routes through Tor and Tor is not up (TOR-008);
-- on Android outside router mode, its effective proxy differs from the one
-  the wake runs under (PROXY-008): the live sites' proxy, or with none live,
-  the first headless site's, applied before any headless load;
+- it may not run beside what runs: the activation's own rule (`RouteFree`,
+  PROXY-008, TOR-014) over the running sites, the loaded ones with
+  notifications on or off, a nested screen and the checks already up,
+  asked as each check opens, before it awaits its route;
+- an activation is in flight: its plan ran before the check was there, so
+  its commit could put a site on another route beside it (a launch preload
+  waits the same way, NOTIF-017); so is a nested open whose screen is not
+  yet up, since its pop brings the site on screen back on its own route;
+  the next wake checks the site;
 - on Android, the native interceptor did not attach to the headless webview
   while the site blocks DNS, filters content or serves LocalCDN: its
   sub-resources would otherwise load unfiltered, so its load never starts;
@@ -660,7 +666,14 @@ does not have, so asking threw and ended the wake before its first post.
 When the app returns to the foreground during a wake, its open headless
 checks are closed at once and no further one opens: on Android the site the
 user opens next moves the one process-wide proxy, and a check still loading
-would follow it.
+would follow it. The checks leave the proxy rule only once they are
+disposed, in the rule's turn (`ProcessRoute.vacateEvery`): every check on
+the rule then, one whose claim was queued just before the return among
+them, after any open still under way has ended. A proxy write the user's
+next site asks for meanwhile waits until no check loads on the old route.
+A check that never opens drops its claim at once.
+
+One wake runs at a time: a wake asked for while one runs joins it.
 
 With HTTPS upgrade on (HTTPS-001) a headless check loads the site over https
 and cancels plaintext main-frame navigations, with no http fallback: a check
@@ -673,7 +686,11 @@ tree, so every check there is headless, attached by the headless webview's
 id.
 
 Selection is the engine's (`BackgroundWakeEngine.plan`), so a test drives
-the selection the app runs rather than a copy of it. The symptom's lineage
+the selection the app runs rather than a copy of it. The checks run from the
+wake's step table (`WakeTable`), which `formal/activation.tla` takes whole:
+its checks are running sites there, and `activation_wake_containers.cfg`
+holds `Inv_OneRoute` and `Inv_ChecksOffScreen` across taps, preloads,
+memory pressure and the app's lifecycle. The symptom's lineage
 is [BUG-024](../../../docs/bugs/024-background-notifications-never-arrive.md). Engine tests:
 `test/background_wake_engine_test.dart` and `test/wake_candidates_test.dart`;
 headless policy: `test/js/page_bridge_authority.test.js`; the Android
@@ -705,3 +722,81 @@ emulator Scenario P2.
 **Given** Android outside router mode, site A loaded with proxy P, and site B with notifications on, no webview and proxy Q
 **When** a background wake runs
 **Then** site B is skipped with the reason logged, and site A is reloaded under P
+
+#### Scenario: The site left on screen holds the route, notifications off
+
+**Given** Android outside router mode, site A loaded with proxy P and notifications off, and site B with notifications on, no webview and proxy Q
+**When** a background wake runs
+**Then** site B is skipped with the reason logged, and the proxy override stays on P
+**And** a live Tor site with notifications off keeps its exit country the same way (TOR-014; BUG-037)
+
+#### Scenario: A check waits out an activation in flight
+
+**Given** Android outside router mode, a tap on site A with proxy P still in flight as the app leaves the screen, and site B with notifications on, no webview and proxy Q
+**When** a background wake runs before the tap commits
+**Then** site B is skipped as an activation in flight, and site A loads under P with no check beside it (BUG-037)
+
+#### Scenario: A check waits out a nested open in flight
+
+**Given** containers on a process-wide proxy rule, site A with proxy P on screen opening a link nested, and site B with notifications on, no webview and proxy Q
+**When** a background wake runs before the nested screen is up
+**Then** site B is skipped as an activation in flight, and the pop that follows brings site A back under P with no check beside it (BUG-037)
+
+#### Scenario: A check asked for just before the app returns leaves the rule
+
+**Given** a wake whose check of site B has claimed the proxy rule but not yet opened
+**When** the app returns to the foreground
+**Then** the check of site B leaves the rule with the open ones, once its open has ended
+**And** the site the user opens next moves the rule without failing its assert
+
+### Requirement: NOTIF-017 - Notification sites load at launch, after the launched site
+
+At launch, outside a background wake, the system SHALL load every
+notification site's webview so it can poll and post without being opened,
+once the launched site's activation has ended and, when the launch opened a
+site, once that site's first page load has settled or ten seconds have
+passed, whichever comes first: the launched page's requests and renderer are
+what the user waits on, and every preload competes with both, while a page
+that never settles must not keep every notification site from loading. Each
+load SHALL be a preload
+(`SiteActivationController.preload`): an activation that does not show,
+started only while no activation is in flight and superseded by any input as
+one would be, retried once activations settle. On the shared cookie jar a
+preload SHALL restore the site's own session before its webview is built,
+and SHALL skip a site whose base domain a loaded site already holds
+(per-site-cookie-isolation ISO-001, ISO-003); in containers it SHALL record
+the container after the launch sweep (per-site-containers CONT-004). A
+preloaded site SHALL be loaded at the lowest retention tier, as an activated
+one is.
+
+#### Scenario: A notification site sharing the launched site's base domain
+
+**Given** the shared cookie jar, a shortcut launch of Site A, and Site B, a
+  notification site on Site A's base domain
+**When** the launch's auto-load reaches Site B
+**Then** Site B is skipped while Site A is loaded
+**And** Site A keeps the jar to itself
+
+#### Scenario: The launched page loads first
+
+**Given** a shortcut launch of Site A and Site B, a notification site
+**When** Site A's activation has ended but its first page load has not
+  settled
+**Then** Site B is not preloaded
+**And** Site B is preloaded once Site A's load settles, or ten seconds after
+  the auto-load began waiting for it
+
+#### Scenario: A tap during the auto-load
+
+**Given** the auto-load is restoring Site B's session
+**When** the user taps Site C
+**Then** Site C's activation supersedes Site B's preload
+**And** Site B is preloaded again once Site C's activation has ended, unless
+  Site C now holds its base domain
+
+#### Scenario: A preloaded site that memory pressure unloaded
+
+**Given** Site B was preloaded, then unloaded by memory pressure
+  (`savedForRestore`)
+**When** Site B is preloaded again
+**Then** it is loaded at the lowest tier, where memory pressure can pick it

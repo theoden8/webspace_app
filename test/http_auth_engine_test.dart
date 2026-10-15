@@ -3,36 +3,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/http_auth_engine.dart';
-import 'package:webspace/services/url_host.dart';
 
-/// Models the store's contract: one credential per (siteId, host, realm).
-class _MemoryStore implements HttpAuthCredentialStore {
-  final Map<String, HttpAuthCredential> entries = {};
-  int lookups = 0;
-
-  static String _key(SiteId siteId,
-          {required String host, required String realm}) =>
-      '$siteId|$host|$realm';
-
-  @override
-  Future<HttpAuthCredential?> lookup(
-      SiteId siteId, {required Host host, required String realm}) async {
-    lookups++;
-    return entries[_key(siteId, host: host, realm: realm)];
-  }
-
-  @override
-  Future<void> save(SiteId siteId, {required Host host, required String realm,
-      required HttpAuthCredential credential}) async {
-    entries[_key(siteId, host: host, realm: realm)] = credential;
-  }
-
-  @override
-  Future<void> remove(SiteId siteId,
-      {required Host host, required String realm}) async {
-    entries.remove(_key(siteId, host: host, realm: realm));
-  }
-}
+import 'helpers/memory_http_auth_store.dart';
 
 /// A prompt that records every request and answers from a queue.
 class _ScriptedPrompt {
@@ -49,7 +21,7 @@ class _ScriptedPrompt {
 const _alice = HttpAuthCredential(username: 'alice', password: 's3cret');
 
 HttpAuthSession _session({
-  required _MemoryStore store,
+  required MemoryHttpAuthStore store,
   HttpAuthPrompt? prompt,
   HttpAuthMemory memory = HttpAuthMemory.readWrite,
   SiteId? siteId,
@@ -134,7 +106,7 @@ void main() {
   group('HttpAuthSession.answer', () {
     test('HTTPAUTH-002: another site\'s challenge is left to the platform',
         () async {
-      final store = _MemoryStore();
+      final store = MemoryHttpAuthStore();
       final prompt = _ScriptedPrompt([]);
       final session = _session(store: store, prompt: prompt.call);
 
@@ -144,7 +116,7 @@ void main() {
     });
 
     test('a proxy challenge is left to the proxy settings', () async {
-      final store = _MemoryStore();
+      final store = MemoryHttpAuthStore();
       final prompt = _ScriptedPrompt([]);
       final session = _session(store: store, prompt: prompt.call);
 
@@ -154,7 +126,7 @@ void main() {
 
     test('HTTPAUTH-003: first challenge prompts and answers with the input',
         () async {
-      final store = _MemoryStore();
+      final store = MemoryHttpAuthStore();
       final prompt = _ScriptedPrompt([
         const HttpAuthPromptResult(username: 'alice', password: 's3cret'),
       ]);
@@ -170,18 +142,18 @@ void main() {
 
     test('cancel leaves the challenge to the platform', () async {
       final prompt = _ScriptedPrompt([null]);
-      final session = _session(store: _MemoryStore(), prompt: prompt.call);
+      final session = _session(store: MemoryHttpAuthStore(), prompt: prompt.call);
 
       expect(await session.answer(_challenge()), isNull);
     });
 
     test('no prompt wired and nothing saved: left to the platform', () async {
-      final session = _session(store: _MemoryStore());
+      final session = _session(store: MemoryHttpAuthStore());
       expect(await session.answer(_challenge()), isNull);
     });
 
     test('HTTPAUTH-004: remember saves under (siteId, host, realm)', () async {
-      final store = _MemoryStore();
+      final store = MemoryHttpAuthStore();
       final prompt = _ScriptedPrompt([
         const HttpAuthPromptResult(
             username: 'alice', password: 's3cret', remember: true),
@@ -193,7 +165,7 @@ void main() {
     });
 
     test('HTTPAUTH-004: a saved credential answers without a prompt', () async {
-      final store = _MemoryStore()
+      final store = MemoryHttpAuthStore()
         ..entries['site-1|nas.example.com|Restricted'] = _alice;
       final prompt = _ScriptedPrompt([]);
       final session = _session(store: store, prompt: prompt.call);
@@ -203,7 +175,7 @@ void main() {
     });
 
     test('a saved credential is scoped to its site, host and realm', () async {
-      final store = _MemoryStore()
+      final store = MemoryHttpAuthStore()
         ..entries['site-2|nas.example.com|Restricted'] = _alice
         ..entries['site-1|nas.example.com|Other'] = _alice;
       final prompt = _ScriptedPrompt([null]);
@@ -215,7 +187,7 @@ void main() {
 
     test('HTTPAUTH-005: a refused saved credential re-prompts once, marked retry',
         () async {
-      final store = _MemoryStore()
+      final store = MemoryHttpAuthStore()
         ..entries['site-1|nas.example.com|Restricted'] = _alice;
       final prompt = _ScriptedPrompt([
         const HttpAuthPromptResult(
@@ -236,7 +208,7 @@ void main() {
     });
 
     test('HTTPAUTH-005: platform retry skips the saved credential', () async {
-      final store = _MemoryStore()
+      final store = MemoryHttpAuthStore()
         ..entries['site-1|nas.example.com|Restricted'] = _alice;
       final prompt = _ScriptedPrompt([null]);
       final session = _session(store: store, prompt: prompt.call);
@@ -250,7 +222,7 @@ void main() {
         const HttpAuthPromptResult(username: 'alice', password: 'typo'),
         const HttpAuthPromptResult(username: 'alice', password: 's3cret'),
       ]);
-      final session = _session(store: _MemoryStore(), prompt: prompt.call);
+      final session = _session(store: MemoryHttpAuthStore(), prompt: prompt.call);
 
       await session.answer(_challenge());
       expect(await session.answer(_challenge()), _alice);
@@ -266,7 +238,7 @@ void main() {
         null,
         null,
       ]);
-      final session = _session(store: _MemoryStore(), prompt: prompt.call);
+      final session = _session(store: MemoryHttpAuthStore(), prompt: prompt.call);
 
       await session.answer(_challenge());
       await session.answer(_challenge());
@@ -276,7 +248,7 @@ void main() {
 
     test('unticking remember on a retry forgets the saved credential',
         () async {
-      final store = _MemoryStore()
+      final store = MemoryHttpAuthStore()
         ..entries['site-1|nas.example.com|Restricted'] = _alice;
       final prompt = _ScriptedPrompt([
         const HttpAuthPromptResult(username: 'bob', password: 'x'),
@@ -292,7 +264,7 @@ void main() {
       final gate = Completer<HttpAuthPromptResult?>();
       var prompts = 0;
       final session = _session(
-        store: _MemoryStore(),
+        store: MemoryHttpAuthStore(),
         prompt: (_) {
           prompts++;
           return gate.future;
@@ -315,7 +287,7 @@ void main() {
         const HttpAuthPromptResult(username: 'a', password: '1'),
         const HttpAuthPromptResult(username: 'b', password: '2'),
       ]);
-      final session = _session(store: _MemoryStore(), prompt: prompt.call);
+      final session = _session(store: MemoryHttpAuthStore(), prompt: prompt.call);
 
       await session.answer(_challenge(realm: 'One'));
       await session.answer(_challenge(realm: 'Two'));
@@ -325,7 +297,7 @@ void main() {
 
   group('HttpAuthMemory', () {
     test('readOnly (incognito) answers from saved but never saves', () async {
-      final store = _MemoryStore()
+      final store = MemoryHttpAuthStore()
         ..entries['site-1|nas.example.com|Restricted'] = _alice;
       final prompt = _ScriptedPrompt([
         const HttpAuthPromptResult(
@@ -345,7 +317,7 @@ void main() {
     });
 
     test('off (archive-tier) neither reads nor writes the store', () async {
-      final store = _MemoryStore()
+      final store = MemoryHttpAuthStore()
         ..entries['site-1|nas.example.com|Restricted'] = _alice;
       final prompt = _ScriptedPrompt([
         const HttpAuthPromptResult(
@@ -365,7 +337,7 @@ void main() {
     });
 
     test('a webview with no site never touches the store', () async {
-      final store = _MemoryStore();
+      final store = MemoryHttpAuthStore();
       final prompt = _ScriptedPrompt([
         const HttpAuthPromptResult(
             username: 'bob', password: 'x', remember: true),

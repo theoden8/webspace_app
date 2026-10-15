@@ -248,7 +248,7 @@ void main() {
           print('Selecting SearXNG site');
           await tester.tap(searxFinder);
 
-          // Pump to process the tap event and trigger Navigator.pop + setCurrentIndex
+          // Pump to process the tap event and trigger Navigator.pop + activate
           await tester.pump();
           
           // Wait for drawer closing animation to complete

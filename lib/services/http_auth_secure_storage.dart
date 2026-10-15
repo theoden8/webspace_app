@@ -39,7 +39,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
           },
           isEmpty: (all) => all.isEmpty,
           onFailure: KeystoreFailurePolicy.stopUsing,
-          queue: SerialQueue(),
+          queue: SerialQueue('httpAuthCredentials'),
         );
 
   static Map<String, List<_Saved>> _decode(Object? json) {

@@ -5,12 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show ServiceWorkerController;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/icon_service.dart';
-import 'package:webspace/services/startup_init_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/diag_seed.dart';
@@ -42,35 +40,11 @@ import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/app_locale.dart';
 
-/// Debug-only per-step timing for the cold-start critical path. Logs under
-/// the 'Startup' tag; compiled out of release builds via kDebugMode. Steps in
-/// the concurrent init group overlap and contend on the main isolate, so their
-/// reported ms can sum to more than the group wall-clock — read them as
-/// "which step is heaviest", not as additive. The serial-tail steps are
-/// additive.
-Future<void> _runTimed(String label, {required AsyncStep step}) async {
-  if (!kDebugMode) return step();
-  final sw = Stopwatch()..start();
-  try {
-    await step();
-  } finally {
-    LogTag.startup.debug('  $label: ${sw.elapsedMilliseconds}ms');
-  }
-}
-
 void main([List<String> args = const []]) async {
-  launchedForBackgroundWake = args.contains(kBackgroundWakeArg);
+  final launch = ProcessLaunch.fromArgs(args);
   WidgetsFlutterBinding.ensureInitialized();
 
   final swMain = kDebugMode ? (Stopwatch()..start()) : null;
-
-  // Externally-driven test tiers (INTEG-011/012): a debug launch may
-  // carry a seeded site list (Android intent extra, or WS_DIAG_SEED env
-  // for a simctl driver); it must land in prefs before the page state
-  // reads them.
-  if (kDebugMode) {
-    await DiagSeed.applyFromLaunch();
-  }
 
   // Imported HTML files are the only copy of user-supplied content, so they
   // live in their own persistent store and survive upgrades. The HTML cache
@@ -118,178 +92,93 @@ void main([List<String> args = const []]) async {
     }
   }
 
-  // Native interceptor bridge for sub-resource DNS + ABP blocking and LocalCDN
-  // serving (Android). The Dart shouldInterceptRequest callback only fires for
-  // main-document navigations on modern Chromium WebView, so everything
-  // per-subresource goes through the native path. It's the bridgeSetup step:
-  // ContentBlockerService.initialize feeds the engine from inside, so the
-  // bridge must exist before the parallel group runs.
-  //
-  // The independent inits touch disjoint storage (each upgrade check keys off
-  // its own version pref) and feed independent subsystems, so they overlap
-  // rather than run serially. The adblock-rust engine spin-up
-  // (ContentBlockerService) and the DNS/timezone dataset loads dominate
-  // cold-launch latency; concurrency keeps them off the serial critical path
-  // while still completing before runApp, so the fail-closed blocking posture
-  // is unchanged. Timezone-polygon lookups are synchronous, so the per-site
-  // shim builder needs that data ready before it runs (missing/empty cache is
-  // fine — the "From picked location" option just stays disabled).
-  final swServices = kDebugMode ? (Stopwatch()..start()) : null;
-  await StartupInitEngine.runIndependentInits(
-    <AsyncStep>[
-      () => _runTimed('html', step: htmlInit),
-      () => _runTimed('pageJs', step: PageJs.load),
-      () => _runTimed('l10n', step: l10nPreload),
-      () => _runTimed('clearUrl', step: ClearUrlService.instance.initialize),
-      () => _runTimed('dns', step: DnsBlockService.instance.initialize),
-      () => _runTimed('firefoxUa',
-          step: FirefoxUserAgentService.instance.initialize),
-      () => _runTimed('hostUa', step: HostBrowser.initialize),
-      () =>
-          _runTimed('adblock', step: ContentBlockerService.instance.initialize),
-      () => _runTimed('localCdn', step: LocalCdnService.instance.initialize),
-      () => _runTimed('searchList',
-          step: SiteSearchListService.instance.initialize),
-      () =>
-          _runTimed('blockStats', step: BlockStatsService.instance.initialize),
-      if (hostIsAndroid)
-        () => _runTimed('swBlock', step: blockServiceWorkerNetwork),
-    ],
-    bridgeSetup: WebInterceptNative.initialize,
-  );
-  if (swServices != null) {
-    LogTag.startup.debug(
-        'parallel service init: ${swServices.elapsedMilliseconds}ms');
-  }
+  // A debug launch may carry a seeded site list (Android intent extra, or
+  // WS_DIAG_SEED env for a simctl driver), written before anything reads
+  // prefs (INTEG-011/012).
+  if (kDebugMode) await DiagSeed.applyFromLaunch();
 
-  // Opt-in weekly Firefox-version auto-refresh (DM-004). Fire-and-forget:
-  // a network scrape must never sit on the startup path, and preset UAs
-  // re-render from the cached version on the next webview build anyway.
-  unawaited(FirefoxUserAgentService.instance.maybeAutoRefresh());
-
-  if (DnsBlockService.instance.hasBlocklist) {
-    await _runTimed(
-        'dnsSend(${DnsBlockService.instance.domainCount})',
-        step: () => WebInterceptNative.sendDnsLevelGroups(
-            DnsBlockService.instance.levelGroups));
-  }
-
-  // Keep the DNS-side native domain push in sync when the DNS list
-  // changes. (Android's native interceptor consumes the raw domains;
-  // the iOS/macOS JS prefilter consumes the merged bloom below.)
-  DnsBlockService.instance.addBlocklistChangedListener(() {
-    unawaited(WebInterceptNative.sendDnsLevelGroups(
-        DnsBlockService.instance.levelGroups));
-  });
-  ContentBlockerService.instance.addRulesChangedListener(() {
-    // Feed the ABP `||host^` block hosts into the merged prefilter Bloom
-    // so the iOS/macOS interceptor trips for ABP-only hosts instead of
-    // hard-allowing them on a bloom miss. Also invalidates the bloom.
-    DnsBlockService.instance.setAbpNetworkHosts(
-        ContentBlockerService.instance.abpNetworkBlockHosts);
-  });
-  // Seed the merged bloom with the ABP hosts harvested by the initial
-  // engine build — that build ran during init, before the listener
-  // above existed, so its rules-changed notification was not delivered.
-  DnsBlockService.instance.setAbpNetworkHosts(
-      ContentBlockerService.instance.abpNetworkBlockHosts);
-
-  await _runTimed(
-      'cdnSend',
-      step: () async {
-        await WebInterceptNative.sendCdnPatterns(
-            LocalCdnService.instance.cdnPatternStrings);
-        await WebInterceptNative.sendCdnCacheIndex(
-            LocalCdnService.instance.cacheIndexSnapshot);
-      });
-  LocalCdnService.instance.addCacheChangeListener(() {
-    unawaited(WebInterceptNative.sendCdnCacheIndex(
-        LocalCdnService.instance.cacheIndexSnapshot));
-  });
-
+  // The native interceptor bridge for sub-resource DNS + ABP blocking and
+  // LocalCDN serving (Android). The Dart shouldInterceptRequest callback
+  // only fires for main-document navigations on modern Chromium WebView,
+  // so everything per-subresource goes through the native path.
+  final native = WebInterceptNative.initialize();
+  // Before the pins load, so a pin the load migrates re-fetches its favicon.
+  wireFaviconTrustInvalidation();
+  // Until this is installed every TOR request blocks rather than connecting
+  // directly: the right failure, but a useless one.
+  torProxyResolver = (tag) => TorService.instance.routeFor(siteId: tag.site);
   registerLicenses();
 
-  // Initialize platform info to detect proxy support before UI loads
-  await _runTimed('platformInfo', step: PlatformInfo.initialize);
+  // Each load starts at once; what needs another's result takes its
+  // witness. Every blocker is in before runApp, so blocking stays
+  // fail-closed (CB-001).
+  final dns = DnsBlockService.instance.initialize();
+  final blocker = ContentBlockerService.instance.initialize(native: native);
+  await Future.wait([
+    htmlInit(),
+    PageJs.load(),
+    l10nPreload(),
+    ClearUrlService.instance.initialize(),
+    FirefoxUserAgentService.instance.initialize(),
+    HostBrowser.initialize(),
+    dns.then((loaded) => loaded.mirrorInto(native)),
+    blocker.then((loaded) async => loaded.seedHostsInto(await dns)),
+    LocalCdnService.instance.initialize().then((cdn) => cdn.mirrorInto(native)),
+    SiteSearchListService.instance.initialize(),
+    BlockStatsService.instance.initialize(),
+    if (hostIsAndroid) blockServiceWorkerNetwork(),
+    // Proxy support, detected before the UI loads.
+    PlatformInfo.initialize(),
+    // ConnectivityService.lastKnownOnline before the first webview: the
+    // offline cached-HTML render path needs a sync answer at construction.
+    ConnectivityService.instance.primeLastKnownOnline(),
+    // Synchronous callers (flutter_map TileProvider, per-site DEFAULT
+    // fallthrough) read GlobalOutboundProxy.current after this.
+    GlobalOutboundProxy.initialize(),
+    // A site that uses a library entry not loaded yet fails closed until it
+    // is.
+    ProxyLibrary.initialize(),
+    // User-approved TLS exceptions, so a self-signed site trusted in a
+    // previous session loads without a prompt, and the Dart-side
+    // `badCertificateCallback` sees the same pinned set.
+    TrustedHostsService.instance.initialize().then(
+      (pins) => pins.resetOnceForOsDefault(),
+    ),
+    // Read directly by the menus rather than plumbed.
+    DeveloperModeService.instance.initialize(),
+    ExperimentalFeaturesService.instance.initialize(),
+    ExternalTorSettings.initialize(),
+  ]);
 
-  // Prime ConnectivityService.lastKnownOnline before the first webview
-  // is constructed. The offline cached-HTML render path needs a sync
-  // answer to decide between live URL and `initialData` at construction
-  // time — without this the first webview always sees `null` and
-  // defaults to live load even when the device is offline.
-  await _runTimed(
-      'connectivity', step: ConnectivityService.instance.primeLastKnownOnline);
-
-  // HTML caches are not bulk-preloaded here: that would decrypt every
-  // cached + imported page (e.g. a 9.7 MB notif import) before the first
-  // frame, even when the launched site needs none of them. Instead each site's
-  // page is decrypted on demand via `HtmlCacheService.preloadOne` /
-  // `HtmlImportStorage.preloadOne` right before it enters `_sites.loaded`
-  // (in `setCurrentIndex` and the deferred notification-site load), so the
-  // build's synchronous `getHtmlSync` still hits but only for sites that
-  // actually build.
-
-  // Load the global outbound proxy from SharedPreferences. Synchronous
-  // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
-  // GlobalOutboundProxy.current after this.
-  await _runTimed('proxyInit', step: GlobalOutboundProxy.initialize);
-  // Before any site resolves a proxy: a site that uses a library entry that
-  // has not loaded yet fails closed until it does.
-  await _runTimed('proxyLibraryInit', step: ProxyLibrary.initialize);
-  // Teach the outbound seams how to expand ProxyType.TOR. Until this is
-  // installed every TOR request blocks rather than connecting directly,
-  // which is the right failure but a useless one, so install it early —
-  // before any site can build a webview or fetch a favicon.
-  torProxyResolver = (tag) => TorService.instance.routeFor(siteId: tag.site);
-  // Hydrate user-approved TLS exceptions so a self-signed site the user
-  // already trusted in a previous session loads without a prompt — and
-  // so the Dart-side `HttpClient.badCertificateCallback` (favicon
-  // probes, downloads, …) sees the same pinned set.
-  await TrustedHostsService.instance.initialize();
-  // Gate for diagnostic-only affordances; read directly by the menus rather
-  // than plumbed, so it must be hydrated before the first frame.
-  await DeveloperModeService.instance.initialize();
-  // A process the OS started for a background task reports a lifecycle other
-  // than resumed here, which is how the background log tells a cold wake from
-  // a launch the user made.
+  // Every load is done from here, so what reads one reads it whole: an
+  // experimental switch counts only in developer mode, which loads beside
+  // it.
+  //
+  // A process the OS started for a background task reports a lifecycle
+  // other than resumed here, which is how the background log tells a cold
+  // wake from a launch the user made.
   BackgroundLog.instance.record(
     LogTag.lifecycle,
-    message: 'process started (app '
+    message:
+        'process started (app '
         '${WidgetsBinding.instance.lifecycleState?.name ?? 'state not reported yet'})',
   );
-  await ExperimentalFeaturesService.instance.initialize();
   // Before anything touches TorService.instance, which picks its tor from
   // this on first use and on every runtimeChoiceChanged (TOR-025).
-  await ExternalTorSettings.initialize();
   TorService.wantsExternal = () => ExternalTorSettings.chosen;
-  // Before any webview exists, and only here: a process runs one composition
-  // mode, so the Experimental switch applies from the next launch (PAUSE-032).
+  // A process runs one composition mode, so the Experimental switch applies
+  // from the next launch (PAUSE-032).
   WebViewFactory.hybridComposition = !ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.textureRendering);
-  // Re-fetch favicons whose initial request died on
-  // CERTIFICATE_VERIFY_FAILED once the user later approves the cert
-  // via the webview trust prompt. Subscribes before any pin can fire,
-  // so even an immediate trust on first launch is observed.
-  wireFaviconTrustInvalidation();
-  // One-shot reset: the initial release of the trust prompt
-  // (commit 5ef1174) intercepted every TLS handshake on iOS/macOS
-  // because the Dart handler short-circuited Apple Keychain
-  // validation. Users ended up pinning leaf fingerprints for dozens
-  // of valid public CA sites. Clear those pins once so the new
-  // OS-default-first flow has a clean slate; legitimate self-signed
-  // pins (the only ones a user would have wanted) get re-prompted on
-  // next visit.
-  {
-    final prefs = await SharedPreferences.getInstance();
-    const resetKey = 'trustedHostsResetForOsDefaultV1';
-    if (!(prefs.getBool(resetKey) ?? false)) {
-      await TrustedHostsService.instance.clear();
-      await prefs.setBool(resetKey, true);
-    }
-  }
+  // Opt-in weekly Firefox-version auto-refresh (DM-004), left running: a
+  // download, so after the proxy, the saved proxies and the choice of tor it
+  // may go through (LEAK-004). Preset UAs re-render from the cached version
+  // on the next build.
+  unawaited(FirefoxUserAgentService.instance.maybeAutoRefresh());
   if (swMain != null) {
     LogTag.startup.debug(
-        'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms');
+      'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms',
+    );
   }
-  runApp(WebSpaceApp());
+  runApp(WebSpaceApp(launch: launch));
 }

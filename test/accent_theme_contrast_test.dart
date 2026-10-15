@@ -34,7 +34,7 @@ double contrastRatio(Color a, {required Color b}) {
 const double _minRatio = 4.5;
 
 void main() {
-  test('every accent keeps AA contrast on its paired on-colours', () {
+  test('every accent keeps AA contrast on its paired on-colours (DESIGN-007)', () {
     final failures = <String>[];
 
     for (final brightness in Brightness.values) {

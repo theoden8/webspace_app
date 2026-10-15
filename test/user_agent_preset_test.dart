@@ -175,7 +175,7 @@ void main() {
     });
   });
 
-  group('WebViewModel preset integration', () {
+  group('WebViewModel preset integration (DM-005)', () {
     Map<String, dynamic> baseJson() =>
         WebViewModel(initUrl: 'https://example.com').toJson();
 

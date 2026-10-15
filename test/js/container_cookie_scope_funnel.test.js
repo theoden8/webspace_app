@@ -75,7 +75,7 @@ test('the plugin cookie manager is reached only through cookieChannel', () => {
   assert.equal(handles.length, 1, `${GUARD} holds the plugin's one handle`);
 });
 
-test('every cookie op on the plugin names its WebView', () => {
+test('every cookie op on the plugin names its WebView (CONT-006)', () => {
   const calls = channelCalls();
   // Not vacuous: the container jar's ops and the download's read are here.
   for (const rel of [

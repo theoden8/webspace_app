@@ -7,7 +7,7 @@ import 'package:webspace/services/page_js.dart';
 final _include = RegExp(r'^[ \t]*// @include (\S+)', multiLine: true);
 
 void main() {
-  test('every lib/js file is a script or a part a script includes', () {
+  test('every lib/js file is a script or a part a script includes (SHIM-TEST-004)', () {
     final files = {
       for (final f in Directory(PageJs.dir).listSync().whereType<File>())
         f.uri.pathSegments.last,
@@ -43,7 +43,7 @@ void main() {
     expect(js.replaceAll(jsonEncode(payload), ''), isNot(contains('__ws_pwned')));
   });
 
-  test('withConfig takes exactly the keys the script reads', () {
+  test('withConfig takes exactly the keys the script reads (SHIM-TEST-001)', () {
     expect(() => PageJs.language.withConfig({}), throwsA(isA<AssertionError>()));
     expect(() => PageJs.language.withConfig({'language': 'en', 'extra': 1}),
         throwsA(isA<AssertionError>()));

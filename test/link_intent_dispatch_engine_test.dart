@@ -516,7 +516,7 @@ void main() {
       expect(route('https://medium.com/x'), isNull);
     });
 
-    test('a claim outside a site\'s navigation domain makes no tab', () {
+    test('a claim outside a site\'s navigation domain makes no tab (LIR-019)', () {
       expect(route('https://codeberg.page/docs', hosts: [ddg, pages]), isNull);
     });
 

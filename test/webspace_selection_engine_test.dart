@@ -13,7 +13,7 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('returns every index for the All webspace', () {
+    test('returns every index for the All webspace (WEBSPACE-009)', () {
       final result = WebspaceSelectionEngine.filteredSiteIndices(
         selectedWebspaceId: WebspaceId.all,
         webspaces: const [],
@@ -31,7 +31,7 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('returns the webspace siteIndices when selected', () {
+    test('returns the webspace siteIndices when selected (WEBSPACE-004)', () {
       final ws = Webspace(id: WebspaceId('w1'), name: 'A', siteIndices: [2, 0, 1]);
       final result = WebspaceSelectionEngine.filteredSiteIndices(
         selectedWebspaceId: WebspaceId('w1'),
@@ -61,55 +61,9 @@ void main() {
     });
   });
 
-  group('WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch', () {
-    test('unloads sites visible only in the previous webspace', () {
-      final result = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
-        loadedIndices: {0, 1, 2},
-        previousWebspaceIndices: {0, 1},
-        newWebspaceIndices: {2, 3},
-      );
-      expect(result, {0, 1});
-    });
-
-    test('preserves sites that appear in both webspaces', () {
-      final result = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
-        loadedIndices: {0, 1, 2},
-        previousWebspaceIndices: {0, 1, 2},
-        newWebspaceIndices: {1, 2, 3},
-      );
-      expect(result, {0});
-    });
-
-    test('unloads nothing when no loaded site was in the previous webspace', () {
-      final result = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
-        loadedIndices: {5, 6},
-        previousWebspaceIndices: {0, 1},
-        newWebspaceIndices: {2, 3},
-      );
-      expect(result, isEmpty);
-    });
-
-    test('does not consider sites not currently loaded', () {
-      final result = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
-        loadedIndices: {0},
-        previousWebspaceIndices: {0, 1, 2},
-        newWebspaceIndices: {3},
-      );
-      expect(result, {0});
-    });
-
-    test('returns empty when switching between identical webspaces', () {
-      final result = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
-        loadedIndices: {0, 1},
-        previousWebspaceIndices: {0, 1},
-        newWebspaceIndices: {0, 1},
-      );
-      expect(result, isEmpty);
-    });
-  });
-
   group('WebspaceSelectionEngine.indicesToResetOnShortcutLaunch', () {
-    test('resets flagged siblings sharing a named webspace with the launched site', () {
+    // HS-007
+    test('resets flagged siblings sharing a named webspace with the launched site (AOH-004)', () {
       // Banking webspace: A (launched) and B (flagged); Mail: C (flagged
       // but unrelated). Tap on A's shortcut should reset B, not C.
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(

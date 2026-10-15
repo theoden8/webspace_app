@@ -1,12 +1,12 @@
 // What "Access is denied for this document." actually means.
 //
-// A captcha stall (BUG-013) is reported with this console line:
+// A captcha stall (BUG-016) is reported with this console line:
 //
 //   Uncaught SecurityError: Failed to read the 'cookie' property from
 //   'Document': Access is denied for this document.
 //
 // It is tempting to read that as "cookies are blocked for this site", and a
-// first pass at BUG-013 did exactly that and blamed the third-party-cookie
+// first pass at BUG-016 did exactly that and blamed the third-party-cookie
 // setting. Chromium picks the string in `Document::cookie()` only when the
 // document's ORIGIN cannot access cookies at all, and it has more specific
 // wording for the two cases people usually mean — so the string is a much
@@ -118,7 +118,7 @@ test('blocking third-party cookies does not throw, it returns empty', async (t) 
     `cross-site frame threw with cookies allowed: ${allowedResult}`);
   assert.ok(!blockedResult.startsWith('THREW'),
     'blocking third-party cookies must not produce a SecurityError — reading ' +
-    `one as evidence of the policy is the BUG-013 misdiagnosis: ${blockedResult}`);
+    `one as evidence of the policy is the BUG-016 misdiagnosis: ${blockedResult}`);
 });
 
 // The two cases a reader is most likely to assume, both of which Chromium

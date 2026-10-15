@@ -210,7 +210,7 @@ leaves the archive, and the site shows no drawer badge.
 ### Requirement: SHARE-007 — Decision never rides the settings QR
 
 `screenShareMode` and `virtualScreenSource` SHALL be in
-`SiteSettingsQrCodec.excludedKeys`: a remembered permission decision is trust
+`QrShare.withheld` on its `SiteField`: a remembered permission decision is trust
 the user gave one device's popup, and the picked media is local user content (it
 would also blow QR capacity) — neither is shareable configuration.
 
@@ -430,12 +430,13 @@ handler shape matches the other capture bridges; the Dart side ignores it.
 A nested `InAppWebViewScreen` (cross-domain navigation) SHALL forward screen
 sharing requests to the same popup and remember the answer in-memory for that
 screen's lifetime only, mirroring the camera and microphone pattern. Nested
-screens have no persisted model; the parent site's stored decision is not
-inherited across the origin change.
+screens have no persisted model. A screen starts from the opening site's nested
+posture, which keeps its screen sharing mode as it is: there is no `real` mode
+to fall back to `ask`, so `ask`, `virtual` and `block` are all inherited.
 
 #### Scenario: Outbound link to a page that wants a share
 
-**Given** a site whose outbound link opens a nested webview on another domain
+**Given** a site set to `ask` whose outbound link opens a nested webview on another domain
 **When** the nested page calls `getDisplayMedia()`
 **Then** the Block / Use-a-media-file popup is shown
 **And** the answer is reused for further requests within that nested screen

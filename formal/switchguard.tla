@@ -1,7 +1,7 @@
 --------------------------- MODULE switchguard ---------------------------
 (***************************************************************************)
 (* Site-switch version guard vs a concurrent structural mutation. An        *)
-(* in-flight `_setCurrentIndex` captures a version at entry and, after each *)
+(* in-flight `activate` captures a version at entry and, after each *)
 (* await, activates the site at a positional index. A concurrent structural *)
 (* mutation (`_deleteSite` / import / archive move) shifts that index and   *)
 (* bumps the version. The fix bumps `SiteRuntime.activationVersion` on      *)

@@ -125,7 +125,7 @@ void main() {
       AppPref.blockScreenshots.debugValue = false;
     });
 
-    testWidgets('absent where the platform cannot block capture',
+    testWidgets('absent where the platform cannot block capture (SCREENBLOCK-001)',
         (tester) async {
       ScreenCaptureGuard.debugSupportedOverride = false;
       await _pump(tester, values: _values(blockScreenshots: true));

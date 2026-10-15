@@ -90,7 +90,7 @@ void main() {
       service.store = MemoryFileStore();
     });
 
-    test('an id that would escape the cache directory is dropped', () async {
+    test('an id that would escape the cache directory is dropped (CB-013)', () async {
       await service.importListSelection([
         {
           'id': '../../../../evil',

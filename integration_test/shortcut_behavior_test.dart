@@ -296,7 +296,7 @@ void main() {
   List<WebViewModel> models() => debugWebViewModels ?? const [];
 
   bool siteIsMounted(String siteId) =>
-      find.byKey(ValueKey(siteId), skipOffstage: false).evaluate().isNotEmpty;
+      siteSlot(siteId, skipOffstage: false).evaluate().isNotEmpty;
 
   Future<Map<String, dynamic>> prefsMap(String key) async {
     final raw = (await SharedPreferences.getInstance()).getString(key);

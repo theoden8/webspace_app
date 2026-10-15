@@ -8,6 +8,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 
 import 'helpers/real_app.dart';
+import 'helpers/model_fixture.dart';
 
 /// TAB-017 and TAB-019 through the shipped app. `tabs_sheet_test.dart` hands the sheet
 /// the sites it lists; here the page state builds that list and the link
@@ -147,7 +148,7 @@ void main() {
       openerSiteId: github.siteId,
       homeUrl: 'https://duckduckgo.com/?q=webspace',
     );
-    github.tabs = [...github.tabs, hosted];
+    github.setTabs([...github.tabs, hosted]);
     await pumpRealApp(tester, sites: [github, ddg], webspaces: webspaces);
     await openWebspace(tester, name: webspace);
     await openSiteFromDrawer(tester, name: 'DuckDuckGo');
@@ -256,7 +257,7 @@ void main() {
       openerSiteId: github.siteId,
       homeUrl: 'https://duckduckgo.com/?q=webspace',
     );
-    github.tabs = [...github.tabs, tab];
+    github.setTabs([...github.tabs, tab]);
     await pumpRealApp(
       tester,
       sites: [github, ddg],

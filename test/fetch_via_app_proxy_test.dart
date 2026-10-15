@@ -34,7 +34,7 @@ void main() {
   });
 
   test('goes through the app-wide proxy', () async {
-    GlobalOutboundProxy.setForTest(
+    GlobalOutboundProxy.setInMemory(
         UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:3128'));
     final factory = FakeOutbound();
     await _fetch(factory);

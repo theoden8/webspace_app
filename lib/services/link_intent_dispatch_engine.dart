@@ -1,6 +1,6 @@
 /// Pure-Dart logic engine for dispatching inbound share/open intents to a
 /// site (LIR-002, LIR-009, LIR-010, LIR-011, LIR-012). Mirrors the engine
-/// pattern in `cookie_isolation.dart` / `site_activation_engine.dart`:
+/// pattern in `cookie_isolation.dart` / `site_unload_engine.dart`:
 /// the engine returns a [DispatchAction] describing what should happen,
 /// and `_WebSpacePageState` performs the IO/UI side-effects. No Flutter,
 /// no platform channels, no setState — fully testable with fakes.

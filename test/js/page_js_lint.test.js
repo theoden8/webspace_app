@@ -44,6 +44,7 @@ const eslint = new ESLint({
 });
 
 for (const [name, source] of Object.entries(SAMPLES)) {
+  // SHIM-TEST-003
   test(`${name}.js passes ESLint as injected`, async () => {
     const [result] = await eslint.lintText(source, { filePath: `${name}.js` });
     const lines = source.split('\n');

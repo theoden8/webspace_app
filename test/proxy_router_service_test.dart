@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:webspace/settings/site_ids.dart';
@@ -10,7 +11,11 @@ import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/http_auth_challenge.dart';
+import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/settings/proxy.dart';
+
+import 'helpers/memory_http_auth_store.dart';
 
 /// Lifecycle contract of the per-site proxy router (PROXY-013): what gets
 /// installed in the relay, what happens when the relay refuses, and which
@@ -92,7 +97,7 @@ void main() {
       UserProxySettings(type: type, address: address);
 
   setUp(() {
-    GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
+    GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
     relay = FakeRelay();
     service = ProxyRouterService.instance;
     service.resetForTest();
@@ -227,6 +232,62 @@ void main() {
       expect(service.isActive, isFalse);
       expect(service.ownsChallenge(host: '127.0.0.1', realm: realm), isFalse);
       expect(relay.stopCalls, 1);
+    });
+  });
+
+  // Android's callback carries only host and realm, so the relay's 407 and a
+  // site's 401 meet in one funnel; the router answers first and alone.
+  group('the challenge funnel (HTTPAUTH-001)', () {
+    final site = RouterIdentity.ofSite(SiteId('a'));
+    late MemoryHttpAuthStore store;
+    late List<HttpAuthPromptRequest> prompts;
+
+    setUp(() async {
+      await service.activate(perSiteProxies: {
+        site: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+      });
+      store = MemoryHttpAuthStore();
+      prompts = [];
+    });
+
+    Future<inapp.HttpAuthResponse?> challenge({required String host,
+            required String? realm}) =>
+        answerHttpAuthChallenge(
+          routerIdentity: site,
+          session: HttpAuthSession(
+            siteId: SiteId('a'),
+            siteUrl: 'https://nas.example.com/',
+            memory: HttpAuthMemory.readWrite,
+            store: store,
+            prompt: (request) async {
+              prompts.add(request);
+              return const HttpAuthPromptResult(
+                  username: 'user', password: 'typed');
+            },
+          ),
+          challenge: inapp.HttpAuthenticationChallenge(
+            previousFailureCount: 0,
+            protectionSpace: inapp.URLProtectionSpace(host: host, realm: realm),
+          ),
+        );
+
+    test("the relay's challenge never reaches the user", () async {
+      final answer =
+          await challenge(host: FakeRelay.boundHost, realm: service.realm);
+      expect(answer?.username, service.usernameFor(site));
+      expect(answer?.password, service.tokenFor(site));
+      expect(answer?.permanentPersistence, isFalse);
+      expect(prompts, isEmpty, reason: 'no sign-in dialog opens');
+      expect(store.lookups, 0, reason: 'no saved sign-in is read');
+    });
+
+    test("a site's challenge is not answered with the router token",
+        () async {
+      final answer =
+          await challenge(host: 'nas.example.com', realm: 'Basic realm');
+      expect(prompts, hasLength(1), reason: "the site's session decides it");
+      expect(answer?.password, 'typed');
+      expect(answer?.password, isNot(service.tokenFor(site)));
     });
   });
 

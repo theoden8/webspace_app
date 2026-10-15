@@ -10,7 +10,10 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/file_store_io.dart';
@@ -157,6 +160,26 @@ void main() {
     });
   });
 
+  // BUG-035: a store written for every site, with no tier input, carried
+  // archive-tier and incognito sites' hosts into plaintext prefs.
+  group('Block verdicts write no plaintext preference', () {
+    testWidgets('a verdict for any site leaves SharedPreferences as it was',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final dns = DnsBlockService.instance..resetForTest();
+      addTearDown(dns.resetForTest);
+      for (final host in ['tracker.example', 'cdn.example']) {
+        dns.recordVerdict(SiteId('archived-site'),
+            query: HostQuery(host), verdict: const Blocked(BlockSource.dns));
+        dns.recordVerdict(SiteId('archived-site'),
+            query: HostQuery(host), verdict: const Allowed());
+      }
+      await tester.pump(const Duration(seconds: 5));
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getKeys(), isEmpty);
+    });
+  });
+
   group('Archive does not touch SharedPreferences', () {
     test('open/create/close cycle leaves SharedPreferences empty', () async {
       final storage = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
@@ -272,6 +295,31 @@ void main() {
         base64Url.decode(withNone.storage[kArchiveKdfSaltKey]!).length,
         equals(kArchiveKdfSaltEntryLength),
       );
+    });
+
+    // KIOSK-005: kiosk mode is one field of the site's JSON, which for an
+    // archived site rides inside the slot; the lock itself is derived at
+    // launch and stored nowhere.
+    test('an archived kiosk site adds nothing outside the slots (KIOSK-005)',
+        () async {
+      final mock = MockFlutterSecureStorage();
+      final archive = Archive(storage: ArchiveStorage(secureStorage: mock));
+      final handle = await archive.createWithKey(_testKey(30));
+      handle.state.sites.add(
+          WebViewModel(initUrl: 'https://kiosk.test', kioskMode: true)
+              .toArchiveJson());
+      await archive.save(handle);
+      await archive.close(handle);
+      final reopened = await archive.tryOpenWithKey(_testKey(30));
+      expect(reopened!.state.sites.single['kioskMode'], isTrue,
+          reason: 'the field rides inside the archive');
+      await archive.close(reopened);
+
+      expect(mock.storage.keys.toSet(), equals(poolKeys()));
+      for (final value in mock.storage.values) {
+        expect(value.contains('kiosk'), isFalse);
+      }
+      expect((await SharedPreferences.getInstance()).getKeys(), isEmpty);
     });
 
     test('the salt differs per install, so one table cannot cover two devices',
@@ -416,7 +464,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
   // and put an archive site's non-Secure cookies into plaintext
   // SharedPreferences (`cookies_fallback`) keyed by its cleartext siteId —
   // an ARCH-001 byte-identity break the moment an archive is opened.
-  group('Legacy cookie engine leaves no app-tier trace for archive sites', () {
+  group('Legacy cookie engine leaves no app-tier trace for archive sites (ISO-005)', () {
     late MockCookieManager jar;
     late MockCookieSecureStorage storage;
     late CookieIsolationEngine engine;
@@ -442,9 +490,17 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
       );
 
       await engine.unloadSiteForDomainSwitch(
-        index: 0,
-        models: [archived],
-        loadedIndices: {0},
+        site: archived,
+        world: UnloadWorld(
+          engine: engine,
+          vars: RuntimeVars.ofSet({archived}),
+          answers: (
+            spared: () => false,
+            disposed: () {},
+            picked: () => false,
+            gone: () => false,
+          ),
+        ),
       );
 
       expect(storage.allStorage, isEmpty);
@@ -477,21 +533,17 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
 
       // Activating the app-tier site sweeps every loaded site into storage.
       await engine.restoreCookiesForSite(
-        index: 0,
-        models: [appSite, archived],
-        loadedIndices: {0, 1},
+        site: appSite,
+        vars: RuntimeVars.ofSet({appSite, archived}),
         versionAtEntry: 0,
-        currentVersion: () => 0,
       );
       expect(storage.allStorage.keys.toSet(), equals({'app-1'}));
 
       // Activating the archive site itself must also write nothing.
       await engine.restoreCookiesForSite(
-        index: 1,
-        models: [appSite, archived],
-        loadedIndices: {0, 1},
+        site: archived,
+        vars: RuntimeVars.ofSet({appSite, archived}),
         versionAtEntry: 0,
-        currentVersion: () => 0,
       );
       expect(storage.allStorage.containsKey('arch-1'), isFalse);
     });
@@ -506,9 +558,7 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
 
       await engine.preDeleteCookieCleanup(
         deletedModel: archived,
-        deletedIndex: 0,
-        models: [archived],
-        loadedIndices: {0},
+        loaded: {archived},
       );
 
       // `saveCookiesForSite(id, [])` removes the entry rather than writing

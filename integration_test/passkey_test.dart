@@ -33,7 +33,6 @@ import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 const _gate = bool.fromEnvironment('PASSKEY_GATE');
 const _phase = String.fromEnvironment('PASSKEY_GATE_PHASE', defaultValue: 'main');
@@ -41,7 +40,7 @@ const _rp = String.fromEnvironment('PASSKEY_GATE_RP', defaultValue: 'http://loca
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   void report(String what, {required Object? value}) {
     // ignore: avoid_print
@@ -269,7 +268,7 @@ WebViewConfig config(SiteId siteId, {required PasskeyBackend backend}) =>
   }
 
   if (_phase == 'refused') {
-    testWidgets('an untrusted app is refused with NotAllowedError (G4)', (tester) async {
+    testWidgets('an untrusted app is refused with NotAllowedError (G4) (PASSKEY-011)', (tester) async {
       WebViewController? c;
       await tester.pumpWidget(host([
         (
@@ -292,7 +291,7 @@ WebViewConfig config(SiteId siteId, {required PasskeyBackend backend}) =>
   }
 
   if (_phase == 'webview') {
-    testWidgets('the WebView\'s own FOR_BROWSER WebAuthn (best effort)', (tester) async {
+    testWidgets('the WebView\'s own FOR_BROWSER WebAuthn (best effort) (PASSKEY-010)', (tester) async {
       final status = await PasskeyNative.status();
       if (!status.webViewSupport) {
         report('webview', value: {

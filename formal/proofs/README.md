@@ -57,6 +57,19 @@ TLC model it backs (same definitions — no re-modeling).
   egresses directly): directly inductive, since a config change clears egress and a good load
   never sets `direct` while the type is proxied. Backs `proxy_failclosed.tla`.
   **28 obligations, all proved.**
+- **`activation_turns.tla`** — proves `[]Inv_Places` (a flow at one of the jar's places holds
+  the jar's turn, so no two are there at once: ISO-003) for any number of inputs. It is over
+  the jar's actions and the invariant printed from `CookieIsolationEngine`'s step tables (each
+  step's `holds`, which the code asserts as a flow moves in), so it needs the modules
+  `../verify.sh` prints (`FORMAL_MODEL`): a table that lets a flow into a jar place without
+  the turn fails it. Inductive with two helpers: the flow records keep their fields, and a flow
+  no input has started is idle. It covers the launch too: the cold start's preloads and the jar
+  clear queued for the first turn. Every flow step (the activation's own, the unload loop's and
+  the jar's turns) is one case, `TableStep`, proved by the printed `activation_tables_proof` (a
+  case per table step, by its action and the operators its acts call), which `check_proofs.sh`
+  checks on its own, since tlapm takes an extended module's lemma as given; the hand-written
+  cases are the inputs and the pressure plan.
+  **54 obligations, all proved; `activation_tables_proof` 85.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
@@ -68,7 +81,8 @@ TLC's `N = 3`. The only TLC-bounded model left is `renderer.tla`, which has no s
 ## Check
 
 ```bash
-./check_proofs.sh            # runs tlapm over every *.tla here
+../verify.sh                 # prints the modules, then runs tlapm over every *.tla here
+FORMAL_MODEL=<dir> ./check_proofs.sh   # with modules printed already
 ```
 
 Requires **tlapm** (the TLA+ Proof Manager), installed from the prebuilt tarball:
@@ -99,6 +113,15 @@ read as green. If you add or remove proof steps, update the count here *and* in
 it still runs the rest of the suite. CI installs it in the `validate` job, where the
 proofs are a hard gate alongside the TLC suite. Backend timeouts are wall-clock, so the
 script passes `--stretch 5` to survive a loaded runner; override with `TLAPM_STRETCH`.
+
+tlapm fingerprints every obligation it settles, here under `.tlacache/` (`TLAPM_CACHE_DIR`
+moves it) and in CI between runs, so a run proves only what no earlier run proved. A
+remembered failure is replayed as a proof is, without a retry, so a module that fails is
+proved again ignoring the cache before it counts as failed.
+
+The modules share nothing and tlapm gains little from threads within one, so
+`TLAPM_JOBS` of them (default 2) prove side by side, each with its share of the cores,
+the printed tables' proofs first as the longest; the report keeps the list's order.
 
 ## Why both TLC and TLAPS
 

@@ -412,6 +412,7 @@ void main() {
     });
   });
 
+  // DL-004
   group('DownloadEngine.decodeDataUri', () {
     test('decodes base64 payload', () {
       final result = DownloadEngine.decodeDataUri(

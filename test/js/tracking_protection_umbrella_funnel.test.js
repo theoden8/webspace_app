@@ -91,7 +91,8 @@ test('the model exposes an effective getter for the forced-off setting', () => {
   // Stored separately from effective, so turning the umbrella off restores
   // the user's own choice instead of resetting it.
   assert.match(src, /bool thirdPartyCookiesEnabled;/);
-  assert.match(src, /'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,/);
+  assert.match(src,
+    /SiteField\.thirdPartyCookiesEnabled => \{key: thirdPartyCookiesEnabled\},/);
 });
 
 test(`${MODEL}: forced-off setting never passes its stored value`, () => {

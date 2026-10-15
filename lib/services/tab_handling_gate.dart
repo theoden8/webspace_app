@@ -15,6 +15,7 @@ library;
 import 'dart:async';
 
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 final class TabHandlingGate {
   TabHandlingGate(this._schedule);
@@ -29,11 +30,14 @@ final class TabHandlingGate {
 
   bool get busy => _guard.busy;
 
-  /// [ReentryGuard.run], then wakes what waited for the release.
+  /// [ReentryGuard.run], then wakes what waited for the release. The body
+  /// holds the gate ([LockOrder]), so a wait on it from inside is an assert.
   Future<bool> run(Future<void> Function() body) async {
     if (busy) return false;
     try {
-      return await _guard.run(body);
+      return await _guard.run(
+        () => LockOrder.holding(this, name: 'tabHandling', body: body),
+      );
     } finally {
       _released();
     }
@@ -56,11 +60,13 @@ final class TabHandlingGate {
 
   /// Completes when the gate is next released, or now when it is free.
   /// Another waiter may take it first, so a caller checks [busy] again.
-  Future<void> idle() =>
-      busy ? (_idle ??= Completer<void>()).future : Future<void>.value();
+  /// Asked from inside the gate it would wait for itself; that is an assert.
+  Future<void> idle() {
+    assert(LockOrder.mayWait(this, name: 'tabHandling'));
+    return busy ? (_idle ??= Completer<void>()).future : Future<void>.value();
+  }
 
-  /// Runs [body] holding the gate once whatever holds it now lets go. Never
-  /// called with the gate held: it would wait for itself.
+  /// Runs [body] holding the gate once whatever holds it now lets go.
   Future<T> runWhenIdle<T>(Future<T> Function() body) async {
     while (busy) {
       await idle();

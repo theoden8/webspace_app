@@ -30,7 +30,7 @@ void main() {
             http.Response('BODY', 200, headers: {'content-type': 'text/css'}),
       );
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(fetchPrefix)([
         'https://example.com/x.css',
@@ -44,7 +44,7 @@ void main() {
       final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(fetchPrefix)(['data:text/html,x']);
       expect((res as Map)['status'], 403);
@@ -55,7 +55,7 @@ void main() {
       final big = 'a' * (5 * 1024 * 1024 + 1);
       outboundHttp = FakeOutbound(responder: (_) => http.Response(big, 200));
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(fetchPrefix)(['https://example.com/big']);
       expect((res as Map)['status'], 413);
@@ -64,7 +64,7 @@ void main() {
     test('non-string argument returns a 400', () async {
       outboundHttp = FakeOutbound(responder: (_) => http.Response('x', 200));
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(fetchPrefix)([42]);
       expect((res as Map)['status'], 400);
@@ -77,7 +77,7 @@ void main() {
         (_) => http.Response('CODE_A();', 200),
       );
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl.handler(scriptPrefix)([
         'https://cdn.jsdelivr.net/npm/x/x.js',
@@ -86,13 +86,35 @@ void main() {
       expect(ctrl.evaluatedAny('CODE_A();'), isTrue);
     });
 
+    test('a script fetched for a page that moved on lands nowhere', () async {
+      late final FakeUserScriptController ctrl;
+      outboundHttp = FakeOutbound(
+        responder: (_) {
+          ctrl.navigate();
+          return http.Response('CODE_A();', 200);
+        },
+      );
+      ctrl = FakeUserScriptController();
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
+
+      final ok = await ctrl.handler(scriptPrefix)([
+        'https://cdn.jsdelivr.net/npm/x/x.js',
+      ]);
+      expect(ok, isFalse);
+      expect(
+        ctrl.evaluatedAny('CODE_A();'),
+        isFalse,
+        reason: 'the next page did not ask for it',
+      );
+    });
+
     test(
       'blocks a non-whitelisted URL when there is no confirm handler',
       () async {
         final factory = FakeOutbound(responder: (_) => http.Response('CODE;', 200));
         outboundHttp = factory;
         final ctrl = FakeUserScriptController();
-        serviceWith(oneScript).registerHandlers(ctrl);
+        serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
         final ok = await ctrl.handler(scriptPrefix)([
           'https://evil.example/x.js',
@@ -108,7 +130,7 @@ void main() {
         (_) => http.Response('CONFIRMED();', 200),
       );
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript, confirm: (_) async => true).registerHandlers(ctrl);
+      serviceWith(oneScript, confirm: (_) async => true).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl.handler(scriptPrefix)(['https://ok.example/x.js']);
       expect(ok, isTrue);
@@ -118,7 +140,7 @@ void main() {
     test('returns false and injects nothing on a non-200 response', () async {
       outboundHttp = FakeOutbound(responder: (_) => http.Response('nope', 404));
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl.handler(scriptPrefix)([
         'https://cdn.jsdelivr.net/npm/x/x.js',
@@ -131,14 +153,14 @@ void main() {
   group('inline script handler', () {
     test('evaluates the bridged inline source', () async {
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
       await ctrl.handler(inlinePrefix)(['window.__x = 1;']);
       expect(ctrl.evaluatedAny('window.__x = 1;'), isTrue);
     });
 
     test('ignores empty inline source', () async {
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
       await ctrl.handler(inlinePrefix)(['']);
       expect(ctrl.evaluated, isEmpty);
     });
@@ -178,10 +200,10 @@ void main() {
     ];
 
     test(
-      'onLoadStart re-runs the shim and only atStart non-library scripts',
+      'onLoadStart re-runs the shim and only atStart non-library scripts (US-002b)',
       () async {
         final ctrl = FakeUserScriptController();
-        await serviceWith(mixed()).reinjectOnLoadStart(ctrl);
+        await serviceWith(mixed()).reinjectOnLoadStart(ctrl.page());
 
         expect(
           ctrl.evaluatedAny('Node.prototype.appendChild'),
@@ -200,11 +222,36 @@ void main() {
       },
     );
 
+    test('a page that moves on mid-injection takes nothing more', () async {
+      final ctrl = FakeUserScriptController();
+      ctrl.onEvaluate = (source) {
+        if (source.contains('Node.prototype.appendChild')) ctrl.navigate();
+      };
+      await serviceWith(mixed()).reinjectOnLoadStart(ctrl.page());
+
+      expect(ctrl.evaluatedAny('Node.prototype.appendChild'), isTrue);
+      expect(
+        ctrl.evaluatedAny('START();'),
+        isFalse,
+        reason: 'the script was for the page the shim landed in',
+      );
+    });
+
+    test('a navigation only asked for leaves the page its scripts',
+        () async {
+      final ctrl = FakeUserScriptController();
+      ctrl.onEvaluate = (_) => ctrl.phases.asks();
+      await serviceWith(mixed()).reinjectOnLoadStart(ctrl.page());
+
+      expect(ctrl.evaluatedAny('START();'), isTrue,
+          reason: 'a link routed elsewhere leaves the page where it was');
+    });
+
     test(
       'onLoadStop re-runs only atEnd non-library scripts, no shim',
       () async {
         final ctrl = FakeUserScriptController();
-        await serviceWith(mixed()).reinjectOnLoadStop(ctrl);
+        await serviceWith(mixed()).reinjectOnLoadStop(ctrl.page());
 
         expect(
           ctrl.evaluatedAny('Node.prototype.appendChild'),

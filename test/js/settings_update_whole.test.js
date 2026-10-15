@@ -13,7 +13,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { callSites } = require('./helpers/source');
 
-test('every setSettings call sends the creation settings', () => {
+test('every setSettings call sends the creation settings (A11Y-007)', () => {
   const offending = [];
   let count = 0;
   for (const site of callSites('setSettings')) {

@@ -1,0 +1,21 @@
+# Action	outcome ("-" for none)	why no schedule takes it
+Login	-	a sign-in is a setup step, before the script the trace records
+NextUnload	skip	the first victim is checked in the turn the plan picks it; a later one leaves the loaded set only if another flow unloads it while the first unloads, which no schedule within one preemption does
+NextClear	skip	a clear's site leaves the loaded set or the resident tier only if another flow unloads or clears it while the plan's unloads run, which no schedule within one preemption does
+RestoreSetOtherReply	more	two other loaded sites need three base domains; the pages have two
+GrantUnload	spared	an incognito victim is spared at its turn only if a tap opens it between the plan and the turn, which neither incognito script does
+GrantRestore	skip	an incognito target keeps nothing to restore; neither incognito script opens the incognito site
+TabCaptureReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch, or by a delete, which the walk has none of
+TabNavReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch, or by a delete, which the walk has none of
+TabRemoveReply	more	no schedule closes a subtree; a tab's close removes one file
+DupReadReply	skip	the site on screen is loaded and its webview is its active tab's, so the duplicate's read is never empty
+DupInsert	gone	the source leaves the list only by a close, which the tab gate serialises with the duplicate, or by a delete, which the walk has none of
+DupRemoveReply	-	follows DupInsert gone, which no schedule reaches
+HtmlReply	bail	the walk's sites have no cached or imported HTML, so the step answers before any input can land
+NestedApplyReply	bail	the walk's proxy always applies
+CloseArchive	skip	an archive too large for its slot is refused before anything moves, which the model prints FALSE; the walk's archive holds one site, which fits
+NestedAsk	stale	the webspace switch before the first ask answers at once in the walk, so no input lands there; one that lands during a round of unloads ends the open at the unload's own stale check
+WakeApplyReply	bail	the walk's route always applies, as the nested open's does
+DnsFolded	bail	the model's mirror always has the list (its failure is FALSE there): a fetch that fails writes nothing the model holds, and the walk's mirror serves every level it asks for
+SpaceOnlineReply	skip	the walk's device always answers online (Online is TRUE in the model)
+TabRebind	unload	a slot runs as another site only in the reroute world, whose traces are not replayed: the model keeps no slot identity and a Reroute is no step of it; TLC takes the arm and its spawn in activation_tabs_router_containers (LIR-024)

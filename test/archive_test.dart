@@ -96,7 +96,7 @@ void main() {
       expect(reopened.state.selectedWebspaceId, equals('ws-1'));
     });
 
-    test('close zeroes the key and marks the handle closed', () async {
+    test('close zeroes the key and marks the handle closed (ARCH-004)', () async {
       final storage = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
       final archive = Archive(storage: storage);
       final handle = await archive.createWithKey(_testKey(5));
@@ -124,7 +124,7 @@ void main() {
       expect(archive.openArchives, hasLength(2));
     });
 
-    test('closing one archive leaves the other intact', () async {
+    test('closing one archive leaves the other intact (ARCH-005)', () async {
       final storage = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
       final archive = Archive(storage: storage);
       final a = await archive.createWithKey(_testKey(20));

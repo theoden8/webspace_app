@@ -9,11 +9,11 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
-import 'helpers/mock_cookie_manager.dart';
 import 'helpers/localized.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview_config.dart';
+import 'helpers/isolations.dart';
 
 class _StubHost implements DevToolsHost {
   @override
@@ -74,7 +74,7 @@ void main() {
 
   Future<void> pumpDevTools(WidgetTester tester, {DevToolsHost? host}) async {
     await pumpLocalized(tester,
-        home: DevToolsScreen(host: host, cookieManager: MockCookieManager()));
+        home: DevToolsScreen(host: host, isolation: fakeSharedJar()));
     await tester.pumpAndSettle();
   }
 
@@ -163,7 +163,7 @@ void main() {
   });
 
   group('DNS log copy', () {
-    testWidgets('copies only the entries the blocked/allowed filter leaves',
+    testWidgets('copies only the entries the blocked/allowed filter leaves (DNS-014)',
         (tester) async {
       DnsBlockService.instance.loadDomainsFromString('tracker.net');
       DnsBlockService.instance.recordVerdict(SiteId('site-1'),

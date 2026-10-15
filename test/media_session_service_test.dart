@@ -353,7 +353,7 @@ void main() {
     test(
       'a per-site DEFAULT proxy resolves to the global outbound proxy',
       () async {
-        GlobalOutboundProxy.setForTest(
+        GlobalOutboundProxy.setInMemory(
           UserProxySettings(type: ProxyType.HTTP, address: '192.168.1.10:3128'),
         );
         fake.responder = (_) => http.Response.bytes(<int>[9], 200);

@@ -26,6 +26,7 @@ import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/filter_list_mask.dart';
 import 'package:webspace/services/filter_list_preparser.dart';
 import 'package:webspace/services/procedural_action_backfill.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 
 import 'blocker_disk.dart';
 
@@ -377,7 +378,7 @@ void main() {
           ..reset()
           ..store = store;
         final sw = Stopwatch()..start();
-        await service.initialize();
+        await service.initialize(native: WebInterceptNative.initialize());
         // ignore: avoid_print
         print('${launch.name}: initialize ${sw.elapsedMilliseconds} ms');
         expect(service.hasRules, isTrue);

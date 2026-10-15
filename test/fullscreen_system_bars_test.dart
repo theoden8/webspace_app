@@ -88,6 +88,7 @@ void main() {
       await tester.pump();
     }
 
+    // FS-007
     testWidgets('a kept tab strip moves above a revealed navigation bar, '
         'which is hidden again', (tester) async {
       addTearDown(tester.view.reset);

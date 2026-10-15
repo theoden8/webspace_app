@@ -86,7 +86,7 @@ void main() {
       expect(service.isBlocked('https://safe.example./pixel.gif'), isFalse);
     }, skip: libExists ? false : 'library not built');
 
-    test('a trailing-dot sourceUrl matches \$domain= the same way', () {
+    test('a trailing-dot sourceUrl matches \$domain= the same way (CB-003)', () {
       service.reset();
       service.setRustEngineForTest(
           AdblockEngine.load('||ads.example^\$domain=news.example\n'));

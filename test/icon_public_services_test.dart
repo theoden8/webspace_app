@@ -111,6 +111,53 @@ void main() {
         'https://other.test/icon.png');
   });
 
+  test('a quick small icon comes first, then better ones (ICON-001)',
+      () async {
+    final updates = await getFaviconUrlStream(_site).toList();
+    expect(updates.first.url, contains('icons.duckduckgo.com'));
+    expect(updates.first.isFinal, isFalse,
+        reason: 'shown before the slower sources answer');
+    // The final emission names the best one found, which may be the last
+    // upgrade again.
+    final qualities = [for (final u in updates) u.quality];
+    for (var i = 1; i < qualities.length - 1; i++) {
+      expect(qualities[i], greaterThan(qualities[i - 1]),
+          reason: 'each emission is an upgrade: $qualities');
+    }
+    expect(qualities.last, greaterThanOrEqualTo(qualities[qualities.length - 2]));
+    expect(qualities.length, greaterThan(2), reason: 'it upgraded at least once');
+    expect([for (final u in updates) u.isFinal], [
+      for (var i = 0; i < updates.length; i++) i == updates.length - 1,
+    ]);
+  });
+
+  test('gmail.com is asked about as mail.google.com (ICON-007)', () async {
+    await getFaviconUrlStream('https://gmail.com/').drain<void>();
+    final asked = [
+      for (final u in factory.requested)
+        if (u.host == 'www.google.com') u.queryParameters['domain']
+        else if (u.host == 'icons.duckduckgo.com') u.pathSegments.last,
+    ];
+    expect(asked, isNotEmpty);
+    for (final domain in asked) {
+      expect(domain, startsWith('mail.google.com'));
+    }
+  });
+
+  test('a repeat request is answered from the cache (ICON-008)', () async {
+    final first = await getFaviconUrlStream(_site).last;
+    factory.requests.clear();
+    final again = await getFaviconUrlStream(_site).toList();
+    expect(again.single.url, first.url);
+    expect(again.single.isFinal, isTrue);
+    expect(factory.requested, isEmpty, reason: 'no request goes out');
+
+    invalidateFaviconFor(_site);
+    await getFaviconUrlStream(_site).drain<void>();
+    expect(factory.requested, isNotEmpty,
+        reason: 'an invalidated entry is fetched again');
+  });
+
   test('isPublicIconServiceUrl names only the two services', () {
     expect(isPublicIconServiceUrl(_google), isTrue);
     expect(

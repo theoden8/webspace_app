@@ -27,6 +27,20 @@ class WebspaceSelectionEngine {
     }
   }
 
+  /// Moves the webspace at [from] to [to], as a `ReorderableListView`
+  /// reports a drop: an index past the dragged item counts the item itself.
+  /// "All" stays first, so a move from or to position 0 changes nothing.
+  /// Returns whether anything moved.
+  static bool reorder(
+    List<Webspace> webspaces, {
+    required int from,
+    required int to,
+  }) {
+    if (from == 0 || to == 0) return false;
+    webspaces.insert(to > from ? to - 1 : to, webspaces.removeAt(from));
+    return true;
+  }
+
   /// The indices displayed for `selectedWebspaceId`:
   ///
   ///   * `null`                        → empty list (home screen shows nothing)
@@ -49,23 +63,6 @@ class WebspaceSelectionEngine {
       return ws.siteIndices.where((i) => i >= 0 && i < siteCount).toList();
     }
     return const [];
-  }
-
-  /// The loaded indices that should be disposed when the user switches
-  /// webspaces online: anything that was visible in the previous webspace
-  /// but isn't visible in the new one.
-  ///
-  /// The caller is responsible for the offline short-circuit — when offline,
-  /// all loaded webviews are preserved regardless of webspace membership so
-  /// cached content stays viewable.
-  static Set<int> indicesToUnloadOnWebspaceSwitch({
-    required Set<int> loadedIndices,
-    required Set<int> previousWebspaceIndices,
-    required Set<int> newWebspaceIndices,
-  }) {
-    return loadedIndices
-        .where((i) => previousWebspaceIndices.contains(i) && !newWebspaceIndices.contains(i))
-        .toSet();
   }
 
   /// Site indices that should reset to their `initUrl` when the user taps

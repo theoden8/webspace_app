@@ -10,12 +10,17 @@ import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/isolations.dart';
+
 const _safari =
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
     '(KHTML, like Gecko) Version/26.0.1 Safari/605.1.15';
 
 String? _postureUserAgent(WebViewModel m) =>
-    m.sitePosture(globalUserScripts: const <UserScriptConfig>[]).page.userAgent;
+    m.sitePosture(
+      globalUserScripts: const <UserScriptConfig>[],
+      isolation: fakeContainers(),
+    ).page.userAgent;
 
 void main() {
   tearDown(() => HostBrowser.defaultUserAgentForTest = null);
@@ -81,7 +86,7 @@ void main() {
     });
   });
 
-  test('a settings update keeps the Safari UA the webview was built with',
+  test('a settings update keeps the Safari UA the webview was built with (CAPTCHA-005)',
       () {
     HostBrowser.defaultUserAgentForTest = _safari;
     final settings = inapp.InAppWebViewSettings()

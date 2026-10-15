@@ -249,7 +249,7 @@ test('a max-width constraint scales the surface down without distorting it',
     assert.equal(draw.h, 450, 'aspect ratio preserved');
   });
 
-test('the track reports a display surface, not a camera', async () => {
+test('the track reports a display surface, not a camera (SHARE-009)', async () => {
   const { window } = setupShareDom({
     decision: { mode: 'virtual', source: IMAGE_SOURCE },
   });
@@ -277,7 +277,7 @@ test('a track the shim did not create keeps its real label and settings', () => 
   assert.deepEqual(foreign.getSettings(), {});
 });
 
-test('the served stream never carries an audio track', async () => {
+test('the served stream never carries an audio track (SHARE-015)', async () => {
   const { window } = setupShareDom({
     decision: { mode: 'virtual', source: IMAGE_SOURCE },
   });
@@ -323,7 +323,7 @@ test('a missing bridge fails closed', async () => {
   );
 });
 
-test('a malformed bridge answer fails closed', async () => {
+test('a malformed bridge answer fails closed (SHARE-010)', async () => {
   for (const answer of [null, undefined, 'virtual', 42, { mode: 'real' }, {}]) {
     const { window } = setupShareDom({ decision: answer });
     await assert.rejects(

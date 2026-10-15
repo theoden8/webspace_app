@@ -107,15 +107,6 @@ abstract class ContainerNative {
   /// site no longer exists.
   Future<List<ContainerKey>> listContainers();
 
-  /// Synchronous, cached copy of the most recent [isSupported] result.
-  /// Defaults to `false` until the first async resolution completes.
-  /// Call sites that need to branch *synchronously* during widget build
-  /// (e.g. choosing whether to defer `initialUrlRequest` on the
-  /// flutter_inappwebview construction path so the bind can win the
-  /// race against `webView.loadUrl`) read this getter; the async
-  /// resolution is performed once at startup in `StartupController.restore`.
-  bool get cachedSupported;
-
   /// Default singleton routed to the platform-appropriate impl. Tests
   /// inject a mock directly into the engine instead.
   static final ContainerNative instance =
@@ -137,9 +128,6 @@ class _ContainerNative implements ContainerNative {
       MethodChannel('org.codeberg.theoden8.webspace/container');
 
   bool? _supportedCache;
-
-  @override
-  bool get cachedSupported => _supportedCache ?? false;
 
   @override
   Future<bool> isSupported() async {
@@ -235,13 +223,9 @@ class _ContainerNative implements ContainerNative {
 }
 
 /// Fallback for unsupported platforms (Windows / web / future
-/// targets). Returns `isSupported() == false`; engine selection in
-/// [_WebSpacePageState] falls through to [CookieIsolationEngine] in
-/// that case.
+/// targets). Returns `isSupported() == false`, so the restore binds the
+/// shared jar.
 class _StubContainerNative implements ContainerNative {
-  @override
-  bool get cachedSupported => false;
-
   @override
   Future<bool> isSupported() async => false;
 
