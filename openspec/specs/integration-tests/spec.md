@@ -97,8 +97,9 @@ layers:
    (`file_picker`).
 
 The pipeline is invoked once per integration test file via
-`fvm flutter test integration_test/<file>.dart -d linux` inside
-`xvfb-run dbus-run-session`.
+`fvm flutter test integration_test/<file>.dart -d linux` inside the session
+[`scripts/linux_test_session.sh`](../../../scripts/linux_test_session.sh) sets
+up (`xvfb-run dbus-run-session`, a headless weston, pass-secret-service).
 
 ---
 
@@ -1227,7 +1228,8 @@ macOS runner exercises the failure assertions for real.
 ### Modified
 - [`.github/workflows/build-and-test.yml`](../../../.github/workflows/build-and-test.yml)
   — `build-linux` job's `Install container base + Flutter Linux + WPE WebKit deps`,
-  `Install pass-secret-service`, and `Run Linux integration tests` steps;
+  `Install pass-secret-service`, and `Run Linux integration tests` steps,
+  the last running its loop in `scripts/linux_test_session.sh`;
   its `--cap-add=NET_ADMIN`, `Warm the toolchain before arming the egress
   guard`, `Arm egress guard` and `Disarm egress guard and report` steps
   (INTEG-016); `build-apple` job's `Run macOS integration tests` step
