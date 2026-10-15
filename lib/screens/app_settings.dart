@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_appearance.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/screens/app_backup.dart';
 import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/home_shortcuts_settings.dart';
@@ -241,7 +242,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   }
 
   String _appearanceSummary(AppLocalizations loc) => [
-        themeModeLabel(loc, mode: _settings.themeMode),
+        _settings.themeMode.webViewTheme.label(loc),
         if (AppPref.appLocaleOverride.value case final tag
             when tag.isNotEmpty)
           languageLabelForTag(tag),

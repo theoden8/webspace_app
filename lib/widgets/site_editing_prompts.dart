@@ -11,32 +11,23 @@ import 'package:webspace/services/suggested_sites_service.dart'
     as suggested_sites;
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
 
 /// [SiteEditingPrompts] as the add-site screen and dialogs over the page that
-/// owns [context]. The add-site screen also changes the theme and the
-/// suggested sites, which [shell] holds and [applyTheme] applies.
+/// owns [context]. The add-site screen also edits the suggested sites, which
+/// [shell] holds.
 class DialogSiteEditingPrompts implements SiteEditingPrompts {
-  const DialogSiteEditingPrompts(
-    this.context, {
-    required this.shell,
-    required this.applyTheme,
-  });
+  const DialogSiteEditingPrompts(this.context, {required this.shell});
 
   final BuildContext context;
   final ShellStore shell;
-  final Future<void> Function(AppThemeSettings next) applyTheme;
 
   @override
   Future<Object?> addSite({String? initialUrl}) => Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => AddSiteScreen(
-        themeMode: shell.theme.themeMode,
-        onThemeModeChanged: (mode) =>
-            applyTheme(shell.theme.copyWith(themeMode: mode)),
         suggestions: shell.suggestedSites,
         onSuggestionsChanged: (sites) {
           shell.suggestedSites = sites;

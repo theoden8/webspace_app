@@ -9,6 +9,7 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 import 'helpers/isolations.dart';
 
@@ -145,6 +146,18 @@ void main() {
     expect(_posture(on).forNested().blocking.localCdn, isTrue);
     final archivedOn = _site(tp: false, archived: true)..localCdnEnabled = true;
     expect(_posture(archivedOn).blocking.localCdn, isFalse);
+  });
+
+  test('the theme follows the app until the site picks its own (HINTS-006)',
+      () async {
+    final site = _site(tp: false, archived: false);
+    await site.setAppTheme(WebViewTheme.dark);
+    expect(_posture(site).page.theme, WebViewTheme.dark);
+    site.theme = WebViewTheme.light;
+    expect(_posture(site).page.theme, WebViewTheme.light);
+    expect(_posture(site).forNested().page.theme, WebViewTheme.light);
+    await site.setAppTheme(WebViewTheme.system);
+    expect(_posture(site).page.theme, WebViewTheme.light);
   });
 
   group('a nested screen runs under the opening site\'s posture', () {

@@ -267,7 +267,7 @@ class BackupController {
 
     final webViewTheme = _shell.theme.themeMode.webViewTheme;
     for (var webViewModel in _sites.models) {
-      await webViewModel.setTheme(webViewTheme);
+      await webViewModel.setAppTheme(webViewTheme);
     }
 
     final hinted = plan.proxyPasswordsNeeded || plan.blocklistsNeedDownload;

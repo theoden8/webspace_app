@@ -13,6 +13,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/web_view_model_json.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 
 const _url = 'https://example.com';
 
@@ -550,6 +551,26 @@ void main() {
             read(WebViewModel.fromJson(json, stateSetterF: null)), !byDefault);
       });
     }
+
+    test('theme is omitted while the site follows the app, kept once it '
+        'picks one (HINTS-006)', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      expect(model.toJson().containsKey('theme'), isFalse);
+      model.theme = WebViewTheme.dark;
+      final json = model.toJson();
+      expect(json['theme'], 'dark');
+      expect(WebViewModel.fromJson(json, stateSetterF: null).theme,
+          WebViewTheme.dark);
+    });
+
+    test('a theme this build does not name follows the app', () {
+      for (final stored in <Object>['sepia', 1, true]) {
+        final json = WebViewModel(initUrl: 'https://example.com').toJson()
+          ..['theme'] = stored;
+        expect(WebViewModel.fromJson(json, stateSetterF: null).theme, isNull,
+            reason: '$stored');
+      }
+    });
 
     test('zoomPercent defaults to 100 and is omitted from JSON at default', () {
       final model = WebViewModel(initUrl: 'https://example.com');

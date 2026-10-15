@@ -374,7 +374,6 @@ Known failures at `5e1788f`:
 | `main.dart:9920` | site menu button: unlabelled, about 24x24, the only non-long-press route to the site menu |
 | `main.dart:10431` | fullscreen exit handle: unlabelled |
 | `stats_banner.dart:80` | expand/collapse with no button role or expanded state |
-| `main.dart:7851` | theme toggle tooltip names Green for every accent but Blue |
 | `main.dart:8128-8200` | back, home, share and refresh inside one `PopupMenuItem`, whose `MergeSemantics` makes them one node |
 | drawer grid, tab strip | reorder by drag only (the drawer's Move up/down sits behind the site menu); no custom action on the tab strip |
 | `user_scripts.dart:379-442` | in the global library, swipe is the only way to delete a script |

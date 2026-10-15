@@ -10,7 +10,7 @@ import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/webview.dart';
@@ -431,7 +431,6 @@ class PlatformWebViewController implements WebViewController {
 
   @override
   Future<void> setThemePreference(WebViewTheme theme) async {
-    final themeValue = theme == WebViewTheme.system ? 'system' : (theme == WebViewTheme.dark ? 'dark' : 'light');
     // Rotate the DOCUMENT_START user script so future page loads
     // (including controller.reload()) re-run the shim. Without this,
     // a refresh drops the matchMedia override and `<meta name=
@@ -439,7 +438,7 @@ class PlatformWebViewController implements WebViewController {
     // (typically light), since onUrlChanged dedups same-URL events
     // and skips its own evaluateJavascript reapplication.
     await _rotateShim(
-        'theme_color_scheme_shim', shim: buildThemeColorSchemeShim(themeValue));
+        themeColorSchemeGroup, shim: buildThemeColorSchemeShim(theme));
   }
 
   @override

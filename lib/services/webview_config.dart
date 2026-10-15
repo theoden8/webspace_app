@@ -22,8 +22,6 @@ class FindMatchesResult {
   int numberOfMatches = 0;
 }
 
-enum WebViewTheme { light, dark, system }
-
 class WebViewConfig {
   /// Unique key to force widget recreation when settings change.
   final Key? key;

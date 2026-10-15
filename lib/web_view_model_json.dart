@@ -14,6 +14,7 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/web_view_model.dart';
@@ -84,6 +85,7 @@ extension WebViewModelJson on WebViewModel {
       SiteField.zoomPercent => {
           if (zoomPercent != kDefaultZoomPercent) key: zoomPercent,
         },
+      SiteField.theme => {if (theme != null) key: theme!.name},
       SiteField.clearUrlEnabled => {key: clearUrlEnabled},
       SiteField.dnsBlockEnabled => {key: dnsBlockEnabled},
       SiteField.dnsBlockLevel => {key: dnsBlockLevel},
@@ -318,6 +320,9 @@ class _SiteJson {
       case SiteField.zoomPercent:
         model.zoomPercent = clampZoomPercent(
             finite(field)?.toInt() ?? kDefaultZoomPercent);
+      case SiteField.theme:
+        // A name this build does not know follows the app.
+        model.theme = WebViewTheme.values.asNameMap()[raw];
       case SiteField.clearUrlEnabled:
         model.clearUrlEnabled = value<bool>(field) ?? true;
       case SiteField.dnsBlockEnabled:

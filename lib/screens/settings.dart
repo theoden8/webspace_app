@@ -37,6 +37,7 @@ import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show libraryRouteLabel, torRouteLabel;
 import 'package:webspace/widgets/proxy_test_tile.dart';
@@ -126,8 +127,12 @@ class SettingsScreen extends StatefulWidget {
   /// site's candidates on its side of the archive boundary, minus itself.
   final List<WebViewModel> routingTargets;
 
+  /// The app's theme, which a site following it gets.
+  final WebViewTheme appTheme;
+
   SettingsScreen({
     required this.webViewModel,
+    required this.appTheme,
     this.onSettingsSaved,
     this.onProxyChanging,
     this.onClearCookies,
@@ -182,6 +187,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   CaptureGrants _captures = CaptureGrants.none;
   String? _selectedLanguage;
   late int _zoomPercent;
+  late Scoped<WebViewTheme> _theme;
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
   final _accuracyController = TextEditingController();
@@ -271,6 +277,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         captures: _captures,
         selectedLanguage: _selectedLanguage,
         zoomPercent: _zoomPercent,
+        theme: _theme,
         latitude: _latitudeController.text,
         longitude: _longitudeController.text,
         accuracy: _accuracyController.text,
@@ -436,6 +443,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     _captures = m.captures;
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
+    _theme = Scoped.fromStored(m.theme);
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
     _longitudeController.text = m.spoofLongitude?.toString() ?? '';
     _accuracyController.text = m.spoofAccuracy.toString();
@@ -555,6 +563,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     m.captures = _captures;
     m.language = _selectedLanguage;
     m.zoomPercent = _zoomPercent;
+    m.theme = _theme.stored;
     // Live and custom coordinates are mutually exclusive in the UI; only a
     // spoofed location keeps its coordinates.
     final lat = _latitude;
@@ -1129,6 +1138,17 @@ IconButton zoomStep(IconData icon,
               onChanged: (value) => setState(() =>
                   _zoomPercent = clampZoomPercent((value / 10).round() * 10)),
             ),
+          ),
+          ChoiceTile<Scoped<WebViewTheme>>(
+            title: loc.siteSettingsTheme,
+            hint: loc.siteSettingsThemeHint,
+            values: [
+              const FollowApp(),
+              for (final theme in WebViewTheme.values) Own(theme),
+            ],
+            label: (choice) => choice.label(loc, appValue: widget.appTheme),
+            value: _theme,
+            onChanged: (choice) => setState(() => _theme = choice),
           ),
           SettingTile(
             title: loc.siteSettingsUserScripts,
