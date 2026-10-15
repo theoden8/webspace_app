@@ -615,17 +615,20 @@ enum Mutant {
   ),
   nohome(
     world: ActivationWorld.delete,
+    slice: (allowed: {'Tap', 'DeleteSite'}),
     by: Inv.shownLoaded,
     doc: 'a switch a delete of another site supersedes, staying on the site '
         'it unloaded (LAZY-007, caught)',
   ),
   markerbytarget(
     world: ActivationWorld.containers,
+    slice: (allowed: {'Tap', 'Pressure'}),
     by: Inv.noShownEvicted,
     doc: 'a marker any activation of its target clears (CONT-003, caught)',
   ),
   noretry(
     world: ActivationWorld.base,
+    slice: (allowed: {'Tap', 'Pressure'}),
     by: Inv.noShownEvicted,
     doc:
         'an eviction that does not ask again before it disposes (BUG-033, '
@@ -633,6 +636,7 @@ enum Mutant {
   ),
   staleplan(
     world: ActivationWorld.base,
+    slice: (allowed: {'Tap'}),
     by: Inv.noShownEvicted,
     doc:
         "a superseded switch's unload that disposes the site a newer tap "
@@ -640,6 +644,7 @@ enum Mutant {
   ),
   tierearly(
     world: ActivationWorld.base,
+    slice: (allowed: {'Tap', 'GoHome'}),
     by: Inv.loadedNotSaved,
     doc:
         "a spared site left at savedForRestore, out of pressure's reach "
@@ -654,6 +659,7 @@ enum Mutant {
   ),
   takeany(
     world: ActivationWorld.tabs,
+    slice: (allowed: {'Tap', 'CloseTab'}),
     by: Inv.tabShown,
     doc: 'a build taking bytes queued for another tab (caught)',
   ),
@@ -666,6 +672,7 @@ enum Mutant {
   ),
   preloadmismatch(
     world: ActivationWorld.proxy,
+    slice: (allowed: {'Preload'}),
     by: Inv.oneRoute,
     doc: 'a preload loading a site on another route than a loaded one (caught)',
     also: {
@@ -707,6 +714,7 @@ enum Mutant {
   ),
   wakebesidetap(
     world: ActivationWorld.wakeContainers,
+    slice: (allowed: {'Tap', 'Background', 'Wake'}),
     by: Inv.oneRoute,
     doc:
         "a wake's check beside a tap in flight, whose plan ran before it "
@@ -721,6 +729,7 @@ enum Mutant {
   ),
   preloadunbound(
     world: ActivationWorld.tabsCold,
+    slice: (allowed: {'Preload'}),
     by: Inv.tabActive,
     doc:
         "a preload's frame that sees its site unloaded binds no tab, so the "
@@ -771,24 +780,30 @@ enum Mutant {
 
   /// Where the mistake is looked for in [world]: the world itself, or the
   /// part of it its [slice] lets land.
-  WorldSpec get spec {
-    final w = world.spec;
-    final s = slice;
-    if (s == null) return w;
-    assert(
-      w.allowed == null || w.allowed!.containsAll(s.allowed),
-      '$name: a slice lets land only what its world does',
-    );
-    return (
-      cookies: w.cookies,
-      coldStart: w.coldStart,
-      inputs: w.inputs,
-      tabbed: w.tabbed,
-      maxTabs: w.maxTabs,
-      env: w.env,
-      allowed: s.allowed,
-    );
-  }
+  WorldSpec get spec => _sliced(world, slice: slice, by: name);
+}
+
+/// [world], or the part of it [slice] lets land, for the mistake [by].
+WorldSpec _sliced(
+  ActivationWorld world, {
+  required Slice? slice,
+  required String by,
+}) {
+  final w = world.spec;
+  if (slice == null) return w;
+  assert(
+    w.allowed == null || w.allowed!.containsAll(slice.allowed),
+    '$by: a slice lets land only what its world does',
+  );
+  return (
+    cookies: w.cookies,
+    coldStart: w.coldStart,
+    inputs: w.inputs,
+    tabbed: w.tabbed,
+    maxTabs: w.maxTabs,
+    env: w.env,
+    allowed: slice.allowed,
+  );
 }
 
 /// How TLC shows a planted mistake.
@@ -813,6 +828,7 @@ final class Deadlocks extends Caught {
 enum HandMistake {
   noturns(
     world: ActivationWorld.base,
+    slice: (allowed: {'Tap', 'GoHome'}),
     caught: Breaks(Inv.noSessionLoss),
     doc:
         'jar operations that do not wait for each other lose a session '
@@ -827,6 +843,7 @@ enum HandMistake {
   ),
   lateclear(
     world: ActivationWorld.coldstart,
+    slice: (allowed: {'Preload'}),
     caught: Breaks(Inv.noSessionLoss),
     doc:
         "a launch clear outside the jar's turns empties a restored session "
@@ -835,13 +852,18 @@ enum HandMistake {
 
   const HandMistake({
     required this.world,
+    this.slice,
     required this.caught,
     required this.doc,
   });
 
   final ActivationWorld world;
+  final Slice? slice;
   final Caught caught;
   final String doc;
+
+  /// Where the mistake is looked for ([Mutant.spec]).
+  WorldSpec get spec => _sliced(world, slice: slice, by: name);
 }
 
 /// One run of TLC over `activation.tla`: the config it reads, the line its
@@ -905,7 +927,7 @@ List<Check> activationChecks({
     for (final h in HandMistake.values)
       _check(
         cfg: 'activation_${h.name}',
-        world: h.world.spec,
+        world: h.spec,
         mistake: h,
         invariants: switch (h.caught) {
           Breaks(:final inv) => [inv.tla],

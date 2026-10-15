@@ -63,7 +63,15 @@ if [ "$FAST" -eq 0 ]; then
   for i in $(seq 0 $((shards - 1))); do
     MODEL_STEPS_DIR="$OUT/steps/$i" SCHEDULE_SHARD="$i/$shards" \
       $FLUTTER test test/activation_schedules_test.dart >"$OUT/steps.$i.log" 2>&1 &
-    pids="$pids $!"
+    pid=$!
+    pids="$pids $pid"
+    # Each flutter test copies the test assets under build/ as it starts,
+    # and two starting together race on the copy, so the next starts once
+    # this one is loading its tests, or has ended.
+    while kill -0 "$pid" 2>/dev/null &&
+      ! grep -E '^[0-9]+:[0-9]+ [+]' "$OUT/steps.$i.log" >/dev/null; do
+      sleep 1
+    done
   done
   status=0
   for pid in $pids; do wait "$pid" || status=$?; done

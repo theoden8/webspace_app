@@ -200,10 +200,21 @@ reap() {
     rm -rf "$RUNS/$name.states" "$RUNS/$name.tmp"
     tmp="$(mktemp "$TIMES/.$name.XXXXXX")"
     echo "$((SECONDS - t0)) $w" >"$tmp" && mv "$tmp" "$TIMES/$name"
+    remember "$name"
     touch "$RUNS/$name.done"
     free=$((free + w))
   done
   running="$still"
+}
+
+# remember: keeps a run that behaved under its key as it ends, so a suite
+# cut short keeps every run it finished, not only those it reported, which
+# wait in the list's order behind the longest.
+remember() {
+  local name="$1" tmp
+  grep -E "$(cat "$RUNS/$name.expect")" "$RUNS/$name.out" >/dev/null || return 0
+  tmp="$(mktemp "$MEMO/.$name.XXXXXX")"
+  cp "$RUNS/$name.out" "$tmp" && mv "$tmp" "$MEMO/$(cat "$RUNS/$name.key")"
 }
 
 PASS=collect
@@ -230,6 +241,7 @@ expect() {
     local covered=-; [ -z "${COVERAGE:-}" ] || covered=on
     local k; k="$(key "$1" "$2" "${5:-}" "$3" "$covered")"
     echo "$k" >"$RUNS/$name.key"
+    printf '%s\n' "$3" >"$RUNS/$name.expect"
     if [ -z "${FORMAL_RERUN:-}" ] && [ -f "$MEMO/$k" ]; then
       cp "$MEMO/$k" "$RUNS/$name.out"
       touch "$MEMO/$k" "$RUNS/$name.remembered" "$RUNS/$name.done"
@@ -247,14 +259,10 @@ expect() {
     printf '%s\n' "$out" > "$COVERAGE/$(basename "$1" .cfg).log"
   fi
   if grep -qE "$3" <<<"$out"; then
-    local mark="" tmp
-    if [ -f "$RUNS/$name.remembered" ]; then
-      mark=" (remembered)"
-    else
-      # Only a run that behaved is kept, so a failure always runs again.
-      tmp="$(mktemp "$MEMO/.$name.XXXXXX")"
-      cp "$RUNS/$name.out" "$tmp" && mv "$tmp" "$MEMO/$(cat "$RUNS/$name.key")"
-    fi
+    local mark=""
+    # Only a run that behaved is kept (remember, as it ended), so a failure
+    # always runs again.
+    if [ -f "$RUNS/$name.remembered" ]; then mark=" (remembered)"; fi
     printf '  OK   %-34s %s%s\n' "$(basename "$1")" "$4" "$mark"
     case "$3" in
       "No error has been found") HOLDS=$((HOLDS + 1)) ;;

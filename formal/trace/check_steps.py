@@ -216,10 +216,68 @@ def merge_shards(paths, into):
     return out
 
 
-def replay(path, jar, model, work):
-    trace = json.load(open(path))
-    config = os.path.splitext(os.path.basename(path))[0]
-    name = "mc_steps_" + config
+# A replay holds its whole trie as the module's constants beside the states
+# it reaches: past this many nodes the longest outgrew the heap, so a larger
+# trie is replayed in pieces.
+PIECE = 200000
+
+
+def pieces(nodes, limit=PIECE):
+    """The trie's node indices in pieces of about [limit] each, every piece
+    whole subtrees with the path from a root down to each, so every path
+    of the trie is a path of some piece. A parent precedes its children."""
+    size = [1] * len(nodes)
+    kids = [[] for _ in nodes]
+    roots = []
+    for i in reversed(range(len(nodes))):
+        parent = nodes[i][0]
+        if parent >= 0:
+            size[parent] += size[i]
+    for i, nd in enumerate(nodes):
+        (roots if nd[0] < 0 else kids[nd[0]]).append(i)
+    whole, todo = [], list(reversed(roots))
+    while todo:
+        n = todo.pop()
+        if size[n] <= limit:
+            whole.append(n)
+        else:
+            todo.extend(reversed(kids[n]))
+    out, group, filled = [], [], 0
+    for n in whole:
+        if group and filled + size[n] > limit:
+            out.append(group)
+            group, filled = [], 0
+        group.append(n)
+        filled += size[n]
+    if group:
+        out.append(group)
+    result = []
+    for group in out:
+        keep = set()
+        for top in group:
+            n = nodes[top][0]
+            while n >= 0 and n not in keep:
+                keep.add(n)
+                n = nodes[n][0]
+            stack = [top]
+            while stack:
+                n = stack.pop()
+                keep.add(n)
+                stack.extend(kids[n])
+        result.append(sorted(keep))
+    return result
+
+
+def piece_of(trace, keep):
+    """The trace cut to the nodes [keep], renumbered in order."""
+    index = {old: new for new, old in enumerate(keep)}
+    nodes = trace["nodes"]
+    return dict(trace, nodes=[
+        [-1 if nodes[i][0] < 0 else index[nodes[i][0]]] + nodes[i][1:]
+        for i in keep])
+
+
+def run_tlc(name, trace, jar, model, work):
     with open(os.path.join(work, name + ".tla"), "w") as f:
         f.write(module(name, trace, model_vars(model)))
     with open(os.path.join(work, name + ".cfg"), "w") as f:
@@ -228,7 +286,7 @@ def replay(path, jar, model, work):
                 + "".join("    %s <- Step%s\n" % (k, k)
                           for k in trace["constants"])
                 + "INIT StepInit\nNEXT StepNext\nCONSTRAINT Reached\n")
-    out = subprocess.run(
+    return subprocess.run(
         ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=50",
          "-DTLA-Library=" + os.pathsep.join([FORMAL, model]),
          "-cp", jar, "tlc2.TLC", "-deadlock",
@@ -240,10 +298,21 @@ def replay(path, jar, model, work):
          "-workers", "auto", "-metadir", os.path.join(work, "states", name),
          "-config", name + ".cfg", name + ".tla"],
         cwd=work, capture_output=True, text=True).stdout
+
+
+def replay(path, jar, model, work):
+    trace = json.load(open(path))
+    config = os.path.splitext(os.path.basename(path))[0]
     nodes = trace["nodes"]
-    if "No error has been found" not in out:
-        return trace, "TLC did not run the replay:\n" + out[-3000:]
-    reached = {int(n) - 1 for n in re.findall(r'<<"reached", (\d+)>>', out)}
+    split = pieces(nodes)
+    reached = set()
+    for k, keep in enumerate(split):
+        name = "mc_steps_" + config + ("_%d" % k if len(split) > 1 else "")
+        out = run_tlc(name, piece_of(trace, keep), jar, model, work)
+        if "No error has been found" not in out:
+            return trace, "TLC did not run the replay:\n" + out[-3000:]
+        reached |= {keep[int(n) - 1]
+                    for n in re.findall(r'<<"reached", (\d+)>>', out)}
     missed = [i for i, nd in enumerate(nodes)
               if i not in reached and (nd[0] < 0 or nd[0] in reached)]
     if not missed:
