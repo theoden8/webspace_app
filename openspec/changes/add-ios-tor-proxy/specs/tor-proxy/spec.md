@@ -742,7 +742,10 @@ A change to `ExitNodes` stops tor attaching new streams to older circuits,
 and does nothing to streams already open. The webview pools connections per
 data store, so a site recreated for its new pin can reuse a connection
 opened under the old one. Every exit-capable circuit (`GENERAL`,
-`CONFLUX_*`) SHALL therefore be closed after each pin change.
+`CONFLUX_*`) SHALL therefore be closed after each pin change. A change whose
+old circuits tor did not list, or did not close, SHALL fail closed as a
+control-channel failure with Retry: the pin is set, but a connection kept open
+would still leave from the old exit (BUG-014 instance 7).
 
 Closing them is not enough while conflux is on. A conflux set outlives the
 change: when one of its legs closes, by tor's own cleanup or ours, tor
@@ -787,6 +790,18 @@ memory pressure evicts a site, not left for the next activation.
 - **AND** every circuit that carried exit traffic before the change is closed
 - **AND** A's next request leaves from a Brazilian exit, not over a pooled
   connection to the Dutch one
+
+#### Scenario: Old circuits that were not closed fail the change
+
+- **GIVEN** site A is loaded through Tor under `{de}`, with a connection kept
+  open
+- **WHEN** A is pinned to `{us}` and tor does not answer the circuit list, or
+  the close
+- **THEN** the change fails as a control-channel failure with Retry, and the
+  engine does not publish `up`
+- **AND** no Tor-bound site loads until a Retry lands the change and closes the
+  circuits from before it
+- **AND** a dropped result of the close fails `test/js/tor_exit_pin_conflux.test.js`
 
 #### Scenario: A conflux set built before a pin carries none of its traffic
 

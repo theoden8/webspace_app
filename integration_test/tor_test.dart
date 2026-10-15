@@ -819,15 +819,29 @@ void main() {
 
       // A stream opened on the German circuit and left silent. Until the
       // server's own timeout, nothing but that circuit closing ends it.
-      await askTor((p) async => '${(await p.streamEvents()).length}');
-      held = await openStream(via, to: exitCheck);
-      final heldEnded = whenEnded(held);
-      var heldGone = false;
-      unawaited(heldEnded.then((_) => heldGone = true));
       // Alive before the change, so its end below is the change's doing.
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      expect(heldGone, isFalse,
-          reason: 'the stream opened under {de} ended before any pin change');
+      Future<Future<Duration>?> hold() async {
+        final stream = held = await openStream(via, to: exitCheck);
+        final ended = whenEnded(stream);
+        var gone = false;
+        unawaited(ended.then((_) => gone = true));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        return gone ? null : ended;
+      }
+
+      await askTor((p) async => '${(await p.streamEvents()).length}');
+      var heldEnded = await hold();
+      if (heldEnded == null) {
+        // An exit can drop a silent stream on its own; that says nothing
+        // about the pin, which has not changed yet.
+        trace('the stream opened under {de} ended before any pin change; '
+            'opening another');
+        held?.destroy();
+        heldEnded = await hold();
+      }
+      if (heldEnded == null) {
+        fail('both streams opened under {de} ended before any pin change');
+      }
       await pin('{us}');
       final heldLasted = await heldEnded
           .then<Duration?>((d) => d)

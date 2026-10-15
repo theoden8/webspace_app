@@ -196,12 +196,16 @@ Future<bool> _waitFor(bool Function() done, {required Duration budget}) async {
 
 /// The address check.torproject.org saw a request through tor come from, or
 /// why there is none: which step failed is the first thing a red run needs.
-Future<({String? ip, String detail})> _exitAddress(SiteId reason) async {
+///
+/// [dropped] is a connection that ended mid-request, which an exit can do on
+/// a circuit tor built correctly.
+Future<({String? ip, String detail, bool dropped})> _exitAddress(
+    SiteId reason) async {
   final via = TorService.instance.socksFor(siteId: reason);
-  if (via == null) return (ip: null, detail: 'no SOCKS route');
+  if (via == null) return (ip: null, detail: 'no SOCKS route', dropped: false);
   final route = outboundHttp.clientFor(via);
   if (route is! OutboundClientReady) {
-    return (ip: null, detail: 'no client: $route');
+    return (ip: null, detail: 'no client: $route', dropped: false);
   }
   final started = DateTime.now();
   String failed(String why) =>
@@ -210,28 +214,54 @@ Future<({String? ip, String detail})> _exitAddress(SiteId reason) async {
     final response =
         await route.client.get(_exitCheck).timeout(const Duration(seconds: 90));
     if (response.statusCode != 200) {
-      return (ip: null, detail: failed('HTTP ${response.statusCode}'));
+      return (
+          ip: null,
+          detail: failed('HTTP ${response.statusCode}'),
+          dropped: false);
     }
     final body = jsonDecode(response.body);
     final ip = body is Map<String, dynamic> ? body['IP'] : null;
     if (ip is! String) {
-      return (ip: null, detail: failed('no IP in ${response.body}'));
+      return (
+          ip: null,
+          detail: failed('no IP in ${response.body}'),
+          dropped: false);
     }
-    if (body['IsTor'] != true) return (ip: null, detail: 'not a Tor exit: $ip');
-    return (ip: ip, detail: ip);
+    if (body['IsTor'] != true) {
+      return (ip: null, detail: 'not a Tor exit: $ip', dropped: false);
+    }
+    return (ip: ip, detail: ip, dropped: false);
   } on TimeoutException {
-    return (ip: null, detail: failed('no answer'));
+    return (ip: null, detail: failed('no answer'), dropped: false);
   } on SocksHandshakeFailure catch (e) {
-    return (ip: null, detail: failed('SOCKS $e'));
+    return (ip: null, detail: failed('SOCKS $e'), dropped: false);
   } on http.ClientException catch (e) {
-    return (ip: null, detail: failed('$e'));
+    return (ip: null, detail: failed('$e'), dropped: true);
   } on TlsException catch (e) {
-    return (ip: null, detail: failed('TLS $e'));
+    return (ip: null, detail: failed('TLS $e'), dropped: true);
   } on FormatException catch (e) {
-    return (ip: null, detail: failed('unreadable body: ${e.message}'));
+    return (
+        ip: null,
+        detail: failed('unreadable body: ${e.message}'),
+        dropped: false);
   } finally {
     route.client.close();
   }
+}
+
+/// [_exitAddress], asked once more on a circuit of its own when the first
+/// request's connection dropped. One dropped handshake says nothing about the
+/// listener; two on different circuits do.
+Future<({String? ip, String detail})> _exitAddressOnTwoCircuits(
+    SiteId reason) async {
+  final first = await _exitAddress(reason);
+  if (!first.dropped) return (ip: first.ip, detail: first.detail);
+  _say('the request dropped (${first.detail}); asking on another circuit');
+  final again = await _exitAddress(SiteId('$reason-again'));
+  return (
+    ip: again.ip,
+    detail: 'after a dropped request (${first.detail}): ${again.detail}',
+  );
 }
 
 Future<bool> _run() async {
@@ -253,7 +283,7 @@ Future<bool> _run() async {
   if (!up) return false;
 
   final before = TorService.instance.socksEndpoint!;
-  final exitBefore = await _exitAddress(reason);
+  final exitBefore = await _exitAddressOnTwoCircuits(reason);
   check(
       passed: exitBefore.ip != null,
       what:
@@ -324,7 +354,7 @@ Future<bool> _run() async {
     check(
         passed: await _socksAnswers(after),
         what: 'the SOCKS listener at $after answers');
-    final exitAfter = await _exitAddress(reason);
+    final exitAfter = await _exitAddressOnTwoCircuits(reason);
     check(
         passed: exitAfter.ip != null,
         what:
