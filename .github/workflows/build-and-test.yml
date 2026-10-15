@@ -624,145 +624,16 @@ jobs:
       # finding, and a true one.
       FLUTTER_SUPPRESS_ANALYTICS: "true"
     steps:
-      - name: Install container base + Flutter Linux + WPE WebKit deps
-        # debian:sid-slim ships nothing — Actions need git/curl/unzip
-        # just to function. Flutter desktop linux needs gtk/lzma/secret/
-        # epoxy. The plugin needs libwpewebkit-2.0-dev plus libwpe-1.0-dev
-        # and libwpebackend-fdo-1.0-dev (legacy fallback path; harmless
-        # to install even though the plugin prefers WPEPlatform).
-        # xvfb is for the integration_test step further down — Flutter
-        # desktop linux apps need a display server, and Actions runners
-        # don't expose one in headless containers.
-        # pass + gpg + pipx + python3-gi/dbus/secretstorage are the
-        # support stack for pass-secret-service (a Secret Service dbus
-        # provider backed by pass+gpg). Replaces gnome-keyring for CI:
-        # gnome-keyring 50.0 in sid auto-activates a fresh daemon on
-        # libsecret first-call that prompts via gcr-prompter, and
-        # headless Xvfb has no way to dismiss the prompt — main() hangs
-        # forever before runApp. pass-secret-service answers the same
-        # org.freedesktop.secrets dbus name without ever prompting, so
-        # libsecret round-trips cleanly. Build deps (libcairo2-dev,
-        # libgirepository-2.0-dev, python3-dev, pkg-config) are needed
-        # for the pygobject wheel pipx pulls in.
-        run: |
-          set -x
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            ca-certificates curl wget git unzip xz-utils sudo \
-            build-essential clang lld llvm cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
-            libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev \
-            xvfb xauth dbus-x11 xdg-user-dirs \
-            weston mesa-utils libgl1-mesa-dri libegl-mesa0 \
-            libegl1-mesa-dev libgles2-mesa-dev libgbm-dev mesa-vulkan-drivers \
-            pass gpg pipx python3-gi gir1.2-glib-2.0 python3-dbus \
-            python3-cairo python3-secretstorage \
-            libcairo2-dev python3-dev libgirepository-2.0-dev \
-            nftables iproute2
-          rm -rf /var/lib/apt/lists/*
-          pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
-          pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
-
-      - name: Install pass-secret-service
-        # pipx into a venv with --system-site-packages so the venv can
-        # see the apt-installed python3-gi (which builds against system
-        # libgirepository — pipx-installing pygobject from PyPI fails
-        # without that). Then two sed patches:
-        #   1. cryptography 46+ removed cryptography.utils.int_from_bytes;
-        #      shim it back with int.from_bytes.
-        #   2. pydbus delivers the 'ay' (byte array) field of the secret
-        #      tuple as list[int], not bytes — wrap with bytes() before
-        #      handing to the AES decryptor.
-        # Both will be unnecessary once upstream pass-secret-service
-        # ships a release > 0.1a0; track upstream and drop when fixed.
-        run: |
-          set -x
-          pipx install --system-site-packages pass-secret-service
-          # Resolve the venv's python3.X dir at runtime — pipx picks whatever
-          # interpreter the sid image ships (3.13 -> 3.14 -> ...), so pinning a
-          # version breaks the moment the base image bumps Python.
-          SESSION_PY="$(ls "$HOME"/.local/share/pipx/venvs/pass-secret-service/lib/python3.*/site-packages/pass_secret_service/interfaces/session.py)"
-          sed -i 's|from cryptography.utils import int_from_bytes|def int_from_bytes(data, byteorder, signed=False): return int.from_bytes(data, byteorder, signed=signed)|' "$SESSION_PY"
-          sed -i 's|password = secret\[2\]|password = bytes(secret[2])|' "$SESSION_PY"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # git before the checkout, so it is a clone and not a REST download:
+      # debian:sid-slim ships without it.
+      - name: Install git
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
 
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          # GitHub Actions sets HOME=/github/home inside container jobs
-          # (not /root, even though the container runs as root). fvm
-          # install script v2.0.0+ caches Flutter SDKs under $HOME/fvm/versions.
-          path: ~/fvm/versions
-          key: fvm-debian-sid-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-debian-sid-
-
-      - name: Install fvm (standalone binary)
-        # fvm.app/install.sh v2 installs the binary to $HOME/fvm/bin/fvm.
-        # GitHub Actions overrides HOME to /github/home in container jobs,
-        # so the binary lands at /github/home/fvm/bin/fvm. Append it to
-        # GITHUB_PATH for subsequent steps. fvm itself manages Flutter SDK
-        # installs — no Dart bootstrap needed.
-        run: |
-          set -x
-          # Retried: install.sh pulls the fvm binary from a GitHub release,
-          # and a single 504 from that CDN fails the whole Linux job before
-          # anything is built. The retry lives here rather than on a curl
-          # flag because the failing fetch is inside their script.
-          for attempt in 1 2 3 4; do
-            if curl -fsSL https://fvm.app/install.sh | bash; then break; fi
-            if [ "$attempt" = 4 ]; then
-              echo "fvm install failed after $attempt attempts" >&2
-              exit 1
-            fi
-            sleep $((attempt * 5))
-          done
-          ls -la "$HOME/fvm/bin/"
-          echo "$HOME/fvm/bin" >> "$GITHUB_PATH"
-          "$HOME/fvm/bin/fvm" --version
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            /root/.pub-cache
-            .dart_tool
-          key: pub-debian-sid-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-debian-sid-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-      - name: Generate localizations
-        run: fvm dart tool/gen_l10n.dart
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            /root/.cargo/registry
-            /root/.cargo/git
-            rust/webspace_adblock/target
-          key: cargo-linux-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
-          restore-keys: |
-            cargo-linux-${{ runner.os }}-
-
-      - name: Read Rust toolchain
-        id: rust
-        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ steps.rust.outputs.channel }}
+      - name: Linux toolchain
+        uses: ./.github/actions/linux-toolchain
 
       # Pin the upstream-crate behaviour the Dart-side procedural
       # backfill (procedural_action_backfill.dart) relies on. If
@@ -988,30 +859,6 @@ jobs:
           name: linux-egress-recording
           path: ${{ env.WS_EGRESS_STATE }}
           if-no-files-found: ignore
-
-      # Linux Screenshots (conditional), after the disarm: the tour loads the
-      # demo sites and their icons. The session gives GTK a Wayland display,
-      # so the window carries the title bar and shadow Flathub asks for.
-      - name: Generate Linux screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        timeout-minutes: 30
-        env:
-          LANG: C.UTF-8
-          LC_ALL: C.UTF-8
-        run: |
-          set -x
-          apt-get update
-          apt-get install -y --no-install-recommends ruby ruby-dev ruby-bundler
-          bundle install
-          bash scripts/linux_test_session.sh bundle exec fastlane linux screenshots
-
-      - name: Upload Linux screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-screenshots
-          path: screenshots/linux/*.png
-          if-no-files-found: warn
 
   build-apple:
     name: Build iOS & macOS
@@ -1749,11 +1596,52 @@ jobs:
           path: screenshots/macos/*.png
           if-no-files-found: warn
 
+  # In the container the Linux build runs in, for the same WPE WebKit. The
+  # session gives GTK a Wayland display, so the window carries the title bar
+  # and shadow Flathub asks for.
+  screenshots-linux:
+    name: Screenshots (Linux)
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.screenshots == 'true'
+    container:
+      image: debian:sid-slim
+    steps:
+      # git before the checkout, so it is a clone and not a REST download:
+      # debian:sid-slim ships without it.
+      - name: Install git
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Linux toolchain
+        uses: ./.github/actions/linux-toolchain
+
+      - name: Generate Linux screenshots
+        timeout-minutes: 30
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+        run: |
+          set -x
+          apt-get update
+          apt-get install -y --no-install-recommends ruby ruby-dev ruby-bundler
+          bundle install
+          bash scripts/linux_test_session.sh bundle exec fastlane linux screenshots
+
+      - name: Upload Linux screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshots
+          path: screenshots/linux/*.png
+          if-no-files-found: warn
+
   # The screenshots in one download, a folder per device. Runs when a set
   # failed too, to keep the sets that were made.
   screenshots:
     name: Screenshots
-    needs: [plan, screenshots-android, screenshots-ios, screenshots-macos, build-linux]
+    needs: [plan, screenshots-android, screenshots-ios, screenshots-macos, screenshots-linux]
     if: needs.plan.outputs.screenshots == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:

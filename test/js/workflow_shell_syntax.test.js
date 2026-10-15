@@ -103,6 +103,7 @@ test('every heavy job is gated on the plan job', () => {
     ['screenshots-android', 'screenshots'],
     ['screenshots-ios', 'screenshots'],
     ['screenshots-macos', 'screenshots'],
+    ['screenshots-linux', 'screenshots'],
   ]) {
     const header = text.slice(text.indexOf(`\n  ${job}:\n`));
     const block = header.slice(0, header.indexOf('\n    steps:'));
@@ -182,7 +183,7 @@ test('every device feeds the one screenshots artifact', () => {
   const merge = job(text, 'screenshots');
   assert.match(merge, /pattern: '\*-screenshots'/);
   const needs = merge.match(/\n {4}needs: \[([^\]]*)\]/)[1].split(',').map((n) => n.trim());
-  for (const id of ['screenshots-android', 'screenshots-ios', 'screenshots-macos']) {
+  for (const id of ['screenshots-android', 'screenshots-ios', 'screenshots-macos', 'screenshots-linux']) {
     assert.ok(needs.includes(id), `the screenshots merge does not wait for ${id}`);
     assert.match(job(text, id), /\n +name: [^\n]*-screenshots\n/,
       `${id} uploads no *-screenshots artifact for the merge to take`);

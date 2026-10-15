@@ -83,12 +83,12 @@ The test SHALL capture 4 screenshots per theme (8 total): `01-site-settings`, `0
 
 ### SCREENSHOT-004 - CI/CD Integration
 
-Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch`) run and on every release PR, so a release cannot go green without them. The plan job decides which runs make them. Each device's set is a job of its own (`screenshots-android`, `screenshots-ios` for iPhone and iPad, `screenshots-macos`), started with the build jobs rather than after their test tiers; a job shares its toolchain setup with the build job of its platform through `.github/actions/`.
+Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch`) run and on every release PR, so a release cannot go green without them. The plan job decides which runs make them. Each device's set is a job of its own (`screenshots-android`, `screenshots-ios` for iPhone and iPad, `screenshots-macos`, `screenshots-linux`), started with the build jobs rather than after their test tiers; a job shares its toolchain setup with the build job of its platform through `.github/actions/`.
 
 #### Scenario: Manual run
 
 - **WHEN** Build and Test is run by hand
-- **THEN** screenshots are generated on the Android emulator, an iPhone simulator, an iPad simulator and the macOS runner, each in its own job, and in the Linux container of `build-linux`
+- **THEN** screenshots are generated on the Android emulator, an iPhone simulator, an iPad simulator, the macOS runner and the Linux container, each in its own job
 
 #### Scenario: Screenshots only
 
@@ -243,6 +243,6 @@ The iPad set SHALL be landscape. iPadOS honours an app's orientation lock only w
 
 **CI:**
 - `.github/workflows/build-and-test.yml` - The plan job, a screenshot job per device, and the merge
-- `.github/actions/android-toolchain`, `android-emulator`, `apple-toolchain` - Setup the screenshot jobs share with the build jobs
+- `.github/actions/android-toolchain`, `android-emulator`, `apple-toolchain`, `linux-toolchain` - Setup the screenshot jobs share with the build jobs
 - `scripts/prepare_macos_ci_debug.sh` - CI keychain and entitlements for a macOS debug run
 - `scripts/linux_test_session.sh` - The Linux CI desktop session the lane runs in

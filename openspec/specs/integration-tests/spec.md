@@ -1165,7 +1165,8 @@ macOS runner exercises the failure assertions for real.
   `flutter drive` + a custom test driver, but the simplicity of one-test-
   per-file outweighs the wall-time gain at the current count.
 - **`pass-secret-service` patches**: the two `sed` patches applied in the
-  workflow's `Install pass-secret-service` step are pinned to the
+  `Install pass-secret-service` step of `.github/actions/linux-toolchain`
+  are pinned to the
   upstream 0.1a0 release. When upstream ships a release that handles
   `cryptography>=46` and pydbus's `list[int]` buffer convention natively,
   drop the patches. No version pin in the workflow today; track
@@ -1229,9 +1230,11 @@ macOS runner exercises the failure assertions for real.
 
 ### Modified
 - [`.github/workflows/build-and-test.yml`](../../../.github/workflows/build-and-test.yml)
-  — `build-linux` job's `Install container base + Flutter Linux + WPE WebKit deps`,
-  `Install pass-secret-service`, and `Run Linux integration tests` steps,
-  the last running its loop in `scripts/linux_test_session.sh`;
+  — `build-linux` job's `Run Linux integration tests` step, which runs its
+  loop in `scripts/linux_test_session.sh`, after the job's container setup
+  (`Install container base + Flutter Linux + WPE WebKit deps`,
+  `Install pass-secret-service`) in `.github/actions/linux-toolchain`, which
+  the Linux screenshots share;
   its `--cap-add=NET_ADMIN`, `Warm the toolchain before arming the egress
   guard`, `Arm egress guard` and `Disarm egress guard and report` steps
   (INTEG-016); `build-apple` job's `Run macOS integration tests` step
