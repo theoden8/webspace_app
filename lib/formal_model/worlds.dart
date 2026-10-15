@@ -14,6 +14,7 @@ import 'package:webspace/services/model_names.dart';
 /// TLC's coverage names it, which the footprint gate holds to its text.
 enum EnvAction {
   move(
+    next: r'nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)',
     coverage:
         r'InputStep@nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)',
     reads: {
@@ -25,18 +26,21 @@ enum EnvAction {
     writes: {ModelVar.rows},
   ),
   login(
+    next: r'\E s \in Sites : Login(s)',
     coverage: 'Login',
     reads: {ModelVar.jar, ModelVar.loaded, ModelVar.signedIn},
     writes: {ModelVar.jar, ModelVar.signedIn},
     needs: {(of: ModelConst.containers, set: false)},
   ),
   clearJar(
+    next: 'ClearJar',
     coverage: 'ClearJar',
     reads: {ModelVar.holder, ModelVar.queue},
     writes: {ModelVar.jar, ModelVar.queue},
     needs: {(of: ModelConst.containers, set: false)},
   ),
   viewBuilt(
+    next: r'\E s \in Sites : ViewBuilt(s)',
     coverage: 'ViewBuilt',
     reads: {ModelVar.dns, ModelVar.loaded, ModelVar.told},
     writes: {ModelVar.told},
@@ -45,12 +49,14 @@ enum EnvAction {
   // A view is told a level only where a download can pick one, so one
   // goes only there.
   viewGone(
+    next: r'\E s \in Sites : ViewGone(s)',
     coverage: 'ViewGone',
     reads: {ModelVar.loaded, ModelVar.told},
     writes: {ModelVar.told},
     needs: {(of: ModelConst.dnsLevels, set: true)},
   ),
   frame(
+    next: r'\E s \in Sites : Frame(s)',
     coverage: 'Frame',
     reads: {ModelVar.boxes, ModelVar.loaded, ModelVar.views},
     writes: {ModelVar.boxes, ModelVar.views},
@@ -58,11 +64,18 @@ enum EnvAction {
   );
 
   const EnvAction({
+    required this.next,
     required this.coverage,
     required this.reads,
     required this.writes,
     this.needs = const {},
   });
+
+  /// How `Next` takes it, a case a proof over `Next` splits on.
+  final String next;
+
+  /// Its operator in `activation.tla`.
+  String get op => '${name[0].toUpperCase()}${name.substring(1)}';
 
   final String coverage;
   final Set<ModelVar> reads;

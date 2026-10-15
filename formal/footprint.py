@@ -188,7 +188,8 @@ def main():
     ap.add_argument("--debt", required=True)
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--plant", choices=["listed", "unlisted", "declared",
-                                        "untaken", "rows", "needs"])
+                                        "untaken", "rows", "needs",
+                                        "invariant"])
     ap.add_argument("--untaken", default=os.path.join(HERE, "untaken.tsv"))
     args = ap.parse_args()
 
@@ -228,6 +229,27 @@ def main():
             print("FAIL: BaseOp %s declares reads %s, writes %s; its text"
                   " reads %s, writes %s" % (op, sorted(reads.split()),
                   sorted(writes.split()), sorted(tr), sorted(tw)))
+    if wrong:
+        sys.exit(1)
+
+    # Each invariant reads what `Inv` declares, and holds at rest only
+    # where it says so (`Idle =>`).
+    invariants = []
+    for line in open(os.path.join(args.model, "activation_invariants.tsv")):
+        if line.strip() and not line.startswith("#"):
+            name, rest, reads = (line.rstrip("\n").split("\t") + [""])[:3]
+            invariants.append((name, rest == "true", set(reads.split())))
+    if args.plant == "invariant":
+        name, rest, reads = invariants[0]
+        invariants[0] = (name, rest, set(sorted(reads)[1:]))
+    for name, rest, reads in invariants:
+        tr = prints[name][0]
+        idle = "Idle" in IDENT.findall(defs[name])
+        if (reads, rest) != (tr, idle):
+            wrong.append(name)
+            print("FAIL: %s declares reads %s%s; its text reads %s%s"
+                  % (name, sorted(reads), " at rest" if rest else "",
+                     sorted(tr), " at rest" if idle else ""))
     if wrong:
         sys.exit(1)
 

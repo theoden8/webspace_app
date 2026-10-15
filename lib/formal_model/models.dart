@@ -202,6 +202,10 @@ List<PrintedFile> printedModels() => [
   (path: 'activation_ops.tla', text: activationOps(tables)),
   (path: 'activation_tables.tla', text: activationTables(tables)),
   (path: 'activation_tables_proof.tla', text: activationTablesProof(tables)),
+  (
+    path: 'activation_invariants_proof.tla',
+    text: activationInvariantsProof(tables),
+  ),
   (path: 'activation_footprints.tsv', text: activationFootprints(tables)),
   (path: 'activation_base_ops.tsv', text: activationBaseOps()),
   (
@@ -224,6 +228,16 @@ List<PrintedFile> printedModels() => [
       '# action\taction\tthe variables they share',
       for (final (a, b, vars) in meetings(composedActions(tables)))
         '$a\t$b\t${([for (final v in vars) v.name]..sort()).join(' ')}',
+      '',
+    ].join('\n'),
+  ),
+  (
+    path: 'activation_invariants.tsv',
+    text: [
+      '# invariant\tat rest\tthe variables it reads',
+      for (final i in Inv.values)
+        if (i.reads case final reads?)
+          '${i.tla}\t${i.atRest}\t${([for (final v in reads) v.name]..sort()).join(' ')}',
       '',
     ].join('\n'),
   ),
@@ -679,6 +693,84 @@ String _stepInd(
   '       DEF $over',
   '',
 ].join('\n');
+
+/// For each invariant every step keeps as it stands ([Inv.inductive]): a
+/// case per step, each closed by the step's definition, and the theorem
+/// that it holds in every state beside `IndInv`, whose own preservation is
+/// `proofs/activation_turns.tla`'s.
+String activationInvariantsProof(Tables t) => [
+  '--------------------- MODULE activation_invariants_proof ---------------------',
+  '(* Printed from Inv and the step tables by lib/formal_model/main.dart.   *)',
+  '(* Not committed; edit the declarations instead.                          *)',
+  'EXTENDS activation_turns',
+  '',
+  for (final i in Inv.values)
+    if (i.inductive) ...[
+      _keeps(i, over: 'TableStep', steps: _flowSteps(t)),
+      _keeps(i, over: 'InputTableStep', steps: _inputSteps(t)),
+      _holds(i),
+    ],
+  '=============================================================================',
+  '',
+].join('\n');
+
+/// The lemma that every step of [over] keeps [i], one case per step.
+String _keeps(
+  Inv i, {
+  required String over,
+  required List<Step<Object?, Enum>> steps,
+}) => [
+  'LEMMA ${i.tla}_$over ==',
+  '    ASSUME Good, IndInv, ${i.tla}, NEW f \\in Flows, $over(f)',
+  "    PROVE  ${i.tla}'",
+  '  <1> USE DEF ${i.tla}, Flows',
+  for (final (n, s) in steps.indexed) ...[
+    '  <1>${n + 1}. CASE ${s.action}(f)',
+    '    BY <1>${n + 1} DEF ${[s.action, if (s.input) 'Input', ..._operators(s)].join(', ')}',
+  ],
+  '  <1> QED',
+  '    BY ${[for (var n = 1; n <= steps.length; n++) '<1>$n'].join(', ')}',
+  '       DEF $over',
+  '',
+].join('\n');
+
+/// [i] in every state: `Next`'s cases, the tables' by their lemmas and the
+/// environment's ([EnvAction]) by their definitions.
+String _holds(Inv i) {
+  final cases = [
+    (r'\E f \in Flows : InputTableStep(f)', '${i.tla}_InputTableStep'),
+    (r'\E f \in Flows : FlowStep(f)', '${i.tla}_TableStep DEF FlowStep'),
+    for (final e in EnvAction.values)
+      (e.next, 'DEF ${e.op}${e == EnvAction.move || e == EnvAction.login ? ', Input' : ''}'),
+    ('Done', 'DEF Done, vars'),
+    ('UNCHANGED vars', 'DEF vars'),
+  ];
+  return [
+    'THEOREM ${i.tla}_Holds == ASSUME Good PROVE Spec => []${i.tla}',
+    '  <1>1. Init => ${i.tla}',
+    '    BY DEF Init, WarmInit, ColdInit, ${i.tla}',
+    "  <1>2. IndInv /\\ ${i.tla} /\\ [Next]_vars => ${i.tla}'",
+    '    <2> SUFFICES ASSUME Good, IndInv, ${i.tla}, [Next]_vars',
+    "                 PROVE  ${i.tla}'",
+    '      OBVIOUS',
+    '    <2> USE DEF ${i.tla}, Flows, site, sessions, turn, ghosts, tabVars,',
+    '                blocking, archived, Did',
+    for (final (n, (onCase, by)) in cases.indexed) ...[
+      '    <2>${n + 1}. CASE $onCase',
+      '      BY <2>${n + 1}${by.startsWith('DEF') ? ' $by' : ', $by'}',
+    ],
+    '    <2> QED',
+    '      BY ${[for (var n = 1; n <= cases.length; n++) '<2>$n'].join(', ')}',
+    '         DEF Next, InputStep',
+    "  <1>3. Init => IndInv /\\ ${i.tla}",
+    '    BY <1>1, InitInd',
+    "  <1>4. IndInv /\\ ${i.tla} /\\ [Next]_vars => (IndInv /\\ ${i.tla})'",
+    '    BY <1>2, StepInd',
+    '  <1> QED',
+    '    BY <1>3, <1>4, PTL DEF Spec',
+    '',
+  ].join('\n');
+}
 
 /// The model's operators [s]'s action calls: `Granted` for a step the jar's
 /// turn grants, and the operator each of its acts opens with.

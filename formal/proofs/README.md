@@ -70,6 +70,14 @@ TLC model it backs (same definitions — no re-modeling).
   checks on its own, since tlapm takes an extended module's lemma as given; the hand-written
   cases are the inputs and the pressure plan.
   **54 obligations, all proved; `activation_tables_proof` 85.**
+- **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
+  invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
+  `lib/formal_model/checks.dart`), beside `IndInv`, whose preservation is `activation_turns`'s
+  `StepInd`: a lemma per kind of step with a case per printed step, each closed by its
+  definition, then `Next`'s cases, the environment's (`EnvAction`) by their definitions. An
+  invariant is declared inductive only once its cases close; one that needs a strengthening is
+  not yet. Today `Inv_ChecksOffScreen`.
+  **287 obligations, all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant

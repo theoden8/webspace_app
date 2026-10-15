@@ -488,6 +488,13 @@ if reporting; then
     exit 1
   fi
   echo "  OK   planted: a row read dropped from a declaration is caught by the footprint gate"
+  # An invariant that declares less than its text reads.
+  if python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+      --debt footprint_debt.tsv --plant invariant >/dev/null; then
+    echo "FAIL: the footprint gate passed a read dropped from an invariant's declaration" >&2
+    exit 1
+  fi
+  echo "  OK   planted: a read dropped from an invariant's declaration is caught by the footprint gate"
   # A need a world that takes the action does not give.
   if python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
       --debt footprint_debt.tsv --plant needs >/dev/null; then

@@ -39,23 +39,48 @@ enum Cookies { sharedJar, containers }
 
 /// An invariant `activation.tla` states.
 enum Inv {
-  typeOK,
-  shownLoaded,
-  oneSitePerBase,
-  noSessionLoss,
-  noForeignSession,
-  noShownEvicted,
-  leftHidden,
-  loadedNotSaved,
-  places,
-  oneRoute,
-  checksOffScreen,
-  told,
-  tabShown,
-  tabFiles,
-  tabBound,
-  tabActive,
-  retired;
+  typeOK(reads: null),
+  shownLoaded(atRest: true, reads: {ModelVar.current, ModelVar.loaded}),
+  oneSitePerBase(reads: {ModelVar.loaded}),
+  noSessionLoss(
+    atRest: true,
+    reads: {ModelVar.gone, ModelVar.jar, ModelVar.loaded, ModelVar.signedIn, ModelVar.stored},
+  ),
+  noForeignSession(atRest: true, reads: {ModelVar.jar, ModelVar.loaded, ModelVar.stored}),
+  noShownEvicted(reads: {ModelVar.evictedShown}),
+  leftHidden(reads: {ModelVar.current, ModelVar.fl, ModelVar.version}),
+  loadedNotSaved(atRest: true, reads: {ModelVar.loaded, ModelVar.tier}),
+  places(reads: {ModelVar.fl, ModelVar.holder}),
+  oneRoute(reads: {ModelVar.headless, ModelVar.loaded, ModelVar.nested}),
+  checksOffScreen(
+    reads: {ModelVar.fore, ModelVar.headless},
+    inductive: true,
+  ),
+  told(reads: {ModelVar.dns, ModelVar.told}),
+  tabShown(reads: {ModelVar.built, ModelVar.hist}),
+  tabFiles(reads: {ModelVar.file}),
+  tabBound(reads: {ModelVar.active, ModelVar.built}),
+  tabActive(atRest: true, reads: {ModelVar.active, ModelVar.built, ModelVar.loaded, ModelVar.tabs}),
+  retired(
+    atRest: true,
+    reads: {ModelVar.boxes, ModelVar.current, ModelVar.gone, ModelVar.loaded, ModelVar.views},
+  );
+
+  const Inv({required this.reads, this.atRest = false, this.inductive = false});
+
+  /// The model's variables its definition reads, through the operators it
+  /// calls, null for every one: `footprint.py` holds it to the text. An
+  /// action that writes none of them keeps the invariant as it found it.
+  final Set<ModelVar>? reads;
+
+  /// Whether it holds only at rest (`Idle =>`): then it also reads every
+  /// row's place, which every step that ends a flow's wait writes.
+  final bool atRest;
+
+  /// Whether every step keeps it as it stands, each case closed by the
+  /// step's definition, so it is proved for every number of inputs
+  /// (`activation_invariants_proof`) and not only checked by TLC.
+  final bool inductive;
 
   String get tla => this == typeOK ? 'TypeOK' : 'Inv_${_upper(name)}';
 }
