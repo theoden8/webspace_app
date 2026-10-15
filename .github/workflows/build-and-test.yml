@@ -2023,7 +2023,7 @@ jobs:
   # when a platform failed too, to keep the sets that were made.
   screenshots:
     name: Screenshots
-    needs: [build-android, build-apple]
+    needs: [build-android, build-apple, build-linux]
     if: github.event_name == 'workflow_dispatch' && !cancelled()
     runs-on: ubuntu-latest
     steps:
