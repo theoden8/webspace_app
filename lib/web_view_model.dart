@@ -484,20 +484,12 @@ class WebViewModel implements MediaGrantRecord {
   SiteId? searchDefault;
 
   /// View used by the resolver: the explicit `domainClaims` if the user has
-  /// set them, otherwise the synthesized `[baseDomain(getBaseDomain(initUrl))]`
-  /// per LIR-001, which is empty for an [initUrl] with no host.
+  /// set them, otherwise what [initUrl] claims by itself (LIR-001).
   List<DomainClaim> get effectiveDomainClaims {
     final explicit = domainClaims;
-    if (explicit != null && explicit.isNotEmpty) return explicit;
-    final uri = Uri.tryParse(initUrl);
-    if (uri != null && uri.host.isNotEmpty && uri.hasPort) {
-      final h = uri.host.toLowerCase();
-      final wrapped = h.contains(':') && !h.startsWith('[') ? '[$h]' : h;
-      return [DomainClaim.exactHost('$wrapped:${uri.port}')];
-    }
-    final base = getBaseDomain(initUrl);
-    if (base.isEmpty) return const [];
-    return [DomainClaim.baseDomain(base)];
+    return explicit != null && explicit.isNotEmpty
+        ? explicit
+        : DomainClaim.implicitFor(initUrl);
   }
 
   /// True when [url] is covered by one of this site's domain claims. Every
