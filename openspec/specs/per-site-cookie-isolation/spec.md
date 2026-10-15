@@ -436,6 +436,85 @@ The boundaries:
 **And** any encrypted-storage or HTML-cache entries not referenced by a
   surviving site are removed
 
+### Requirement: ISO-014 - A Jar That Fails Is Never Read as Empty
+
+Every call on the plugin's cookie channel SHALL go through `cookieChannel`
+([cookie_manager.dart](../../../lib/services/cookie_manager.dart)), which
+names what the channel fails with once: an error envelope from the native
+side (`PlatformException`) and a channel with no handler in this engine
+(`MissingPluginException`) reach a caller only as `CookieJarFailure`.
+
+A read that failed SHALL NOT be taken for an empty jar: nothing is saved from
+it over a stored session, and the jar is not emptied after it. A write that
+failed SHALL NOT be reported as done. Each caller answers the failure in its
+own terms:
+
+- An unload's capture (ISO-002) keeps the set the site last saved, and the
+  unload goes on.
+- An activation's restore (ISO-003) fails. A failed read saves nothing and
+  empties nothing; a refused write leaves the rest of the refill to run
+  first. The activation does not show its target, since until the jar is
+  emptied and refilled it can hold another same-base-domain site's session
+  (ISO-001): the webspace list is shown, with a message naming the site.
+- A deletion's jar cleanup (ISO-010) drops the deleted site's stored cookies
+  first; a jar that fails is left for the next activation to empty
+  (ISO-012), and the deletion goes on.
+- The jar clear at launch, and after an import that restores no site
+  (ISO-012), is left to the next activation; the sweep and the import go on.
+- The cookie mirror after a page load keeps the site's last saved cookies,
+  and the rest of the load's work runs.
+- A blocked cookie the jar refuses to delete stays for the next load to take
+  (ISO-011), and the others go.
+- Clear Cookies on a site's settings reports the failure instead of
+  "Cookies cleared", and the site keeps its list.
+
+What the channel reports is what this covers: Linux's native side answers a
+failed `getCookies` with an empty list (it logs the `GError` and replies
+success), so there a failed read still arrives as an empty jar.
+
+#### Scenario: A capture on unload that cannot read the jar
+
+**Given** Site A is loaded and its signed-in cookies are in secure storage
+**When** A is unloaded and the jar cannot be read
+**Then** A is unloaded
+**And** A's stored cookies are unchanged
+
+#### Scenario: An activation whose restore cannot read the jar
+
+**Given** Site A is loaded and signed in, and Site B is not loaded
+**When** the user opens B and the jar cannot be read
+**Then** nothing is saved over A's stored cookies and the jar is not emptied
+**And** B is not shown or loaded; the webspace list is shown with a message
+  that B could not be opened
+
+#### Scenario: A refill that refuses one cookie
+
+**Given** the restore has emptied the jar
+**When** the jar refuses one of the cookies written back
+**Then** every other stored cookie is still written
+**And** the restore fails, so the activation does not show its target
+
+#### Scenario: A deletion whose jar cleanup fails
+
+**Given** Site A and Site B share a base domain and B is loaded with a live
+  session
+**When** the user deletes A and the jar cannot be read
+**Then** A's stored cookies are removed
+**And** B's live session is still in the jar
+
+#### Scenario: A launch jar clear the jar refuses
+
+**Given** the legacy engine runs the launch sweep
+**When** the jar refuses the clear
+**Then** the sweep goes on, and the next activation empties the jar before
+  any site shows
+
+#### Scenario: A clear the jar refuses
+
+**Given** the user taps Clear Cookies on a site's settings and confirms
+**When** the jar refuses a delete
+**Then** the screen says the cookie store failed, not "Cookies cleared"
+
 ## Implementation Details
 
 ### Logic Engines

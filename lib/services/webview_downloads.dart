@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/blob_url_capture.dart';
+import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/file_dialog.dart';
@@ -65,10 +66,10 @@ abstract final class WebViewDownloads {
       // unscoped read resolves against the default jar, which is empty, so
       // the GET goes out logged-out and an authenticated download comes
       // back 401/403 (DL-003, CONT-006).
-      final cookies = await inapp.CookieManager.instance().getCookies(
-        url: req.url,
-        webViewController: controller,
-      );
+      final cookies = await cookieChannel((plugin) => plugin.getCookies(
+            url: req.url,
+            webViewController: controller,
+          ));
       final cookieHeader = DownloadEngine.buildCookieHeader(
         cookies.map((c) => MapEntry(c.name, c.value.toString())),
       );
@@ -81,10 +82,10 @@ abstract final class WebViewDownloads {
         url: req.url.toString(),
         cookieHeader: cookieHeader,
         cookieHeaderFor: (uri) async {
-          final hop = await inapp.CookieManager.instance().getCookies(
-            url: inapp.WebUri(uri.toString()),
-            webViewController: controller,
-          );
+          final hop = await cookieChannel((plugin) => plugin.getCookies(
+                url: inapp.WebUri(uri.toString()),
+                webViewController: controller,
+              ));
           return DownloadEngine.buildCookieHeader(
             hop.map((c) => MapEntry(c.name, c.value.toString())),
           );
@@ -105,10 +106,10 @@ abstract final class WebViewDownloads {
       }
     } on DownloadException catch (e) {
       DownloadsService.instance.fail(task.id, message: e.message);
-    } on PlatformException catch (e, stack) {
-      _failed(task.id, what: 'Download error', error: e, stack: stack);
-    } on MissingPluginException catch (e, stack) {
-      _failed(task.id, what: 'Download error', error: e, stack: stack);
+    } on CookieJarFailure catch (e, stack) {
+      // Sent without the site's cookies the request would go out signed out
+      // (DL-003), so the download fails instead.
+      _failed(task.id, what: 'Download cookie read', error: e, stack: stack);
     } on FileDialogFailure catch (e, stack) {
       _failed(task.id, what: 'Download error', error: e, stack: stack);
     } on IOException catch (e, stack) {

@@ -1,6 +1,10 @@
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
+/// A kind of call on a [MockCookieManager], as a test names the ones that
+/// fail: [read] is `getCookies` and `getAllCookies`.
+enum JarCall { read, write, delete, clear }
+
 /// In-memory cookie jar that models RFC 6265 domain-match semantics so the
 /// sibling-subdomain scenarios the real fix addresses can actually be
 /// exercised. Implements the real `CookieManager` interface so the engine
@@ -15,6 +19,20 @@ import 'package:webspace/services/cookie_manager.dart';
 class MockCookieManager implements CookieManager {
   final List<Cookie> _cookies = [];
 
+  /// Calls that fail the way the real wrapper reports a broken channel: with
+  /// [CookieJarFailure], leaving the jar as it was.
+  final Set<JarCall> failing = {};
+
+  /// Cookies, by name, whose write or delete alone fails: a platform that
+  /// refuses one and takes the rest.
+  final Set<String> refusing = {};
+
+  void _answer(JarCall call) {
+    if (failing.contains(call)) {
+      throw CookieJarFailure('${call.name} refused');
+    }
+  }
+
   /// All cookies in the jar (for assertions).
   List<Cookie> get all => List.unmodifiable(_cookies);
 
@@ -26,6 +44,7 @@ class MockCookieManager implements CookieManager {
 
   @override
   Future<List<Cookie>> getCookies({required Uri url}) async {
+    _answer(JarCall.read);
     final host = url.host.toLowerCase();
     final path = url.path.isEmpty ? '/' : url.path;
     return _cookies.where((c) {
@@ -40,6 +59,7 @@ class MockCookieManager implements CookieManager {
     // The real iOS/macOS path ignores candidateUrls. On Android the wrapper
     // aggregates per-URL; for tests the mock returns everything so we don't
     // need to thread a platform switch through the tests.
+    _answer(JarCall.read);
     return List.from(_cookies);
   }
 
@@ -54,6 +74,8 @@ class MockCookieManager implements CookieManager {
     bool? isSecure,
     bool? isHttpOnly,
   }) async {
+    _answer(JarCall.write);
+    if (refusing.contains(name)) throw CookieJarFailure('$name refused');
     final effectiveDomain = (domain ?? url.host).toLowerCase();
     final effectivePath = path ?? '/';
     _cookies.removeWhere((c) =>
@@ -78,6 +100,8 @@ class MockCookieManager implements CookieManager {
     String? domain,
     String? path,
   }) async {
+    _answer(JarCall.delete);
+    if (refusing.contains(name)) throw CookieJarFailure('$name refused');
     final effectiveDomain = (domain ?? url.host).toLowerCase();
     final effectivePath = path ?? '/';
     _cookies.removeWhere((c) =>
@@ -88,6 +112,7 @@ class MockCookieManager implements CookieManager {
 
   @override
   Future<void> deleteAllCookies() async {
+    _answer(JarCall.clear);
     _cookies.clear();
   }
 

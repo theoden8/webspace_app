@@ -7,6 +7,7 @@ import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/html_source.dart';
@@ -248,7 +249,23 @@ class SiteActivationController {
       await _containers.ensureContainer(target.containerKey);
       if (version != _sites.activationVersion) return;
     } else {
-      await _restoreCookiesForSite(index);
+      try {
+        await _restoreCookiesForSite(index);
+      } on CookieJarFailure catch (e) {
+        // Until the jar is emptied and refilled it can hold another
+        // same-base-domain site's session (ISO-001), so the target is not
+        // shown on it; the user lands on the webspace list (ISO-014).
+        LogTag.cookieIsolation.error(
+            'Restore for "${target.name}" failed, not shown: $e',
+            sensitive: true);
+        if (version != _sites.activationVersion) return;
+        _sites.current = null;
+        _host.exitFullscreen();
+        _host.rebuild();
+        _host.toast(
+            (loc) => loc.siteCookiesNotRestored(target.getDisplayName()));
+        return;
+      }
       if (version != _sites.activationVersion) return;
     }
 

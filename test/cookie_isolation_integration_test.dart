@@ -1412,6 +1412,111 @@ void main() {
   });
 
   // ==========================================================================
+  // A jar that fails (ISO-014): what the channel throws is CookieJarFailure,
+  // and a read that failed is never taken for an empty jar.
+  // ==========================================================================
+  group('A jar that fails (ISO-014)', () {
+    late CookieIsolationTestHarness harness;
+
+    setUp(() {
+      harness = CookieIsolationTestHarness();
+    });
+
+    Future<void> signIn(int index, {required List<Cookie> cookies}) async {
+      await harness.simulateLogin(index, cookies: cookies);
+      await harness.storage.saveCookiesForSite(harness.sites[index].siteId,
+          cookies: harness.sites[index].cookies);
+    }
+
+    test('ISO-014: an unload whose capture cannot read the jar keeps the '
+        'stored set and still unloads', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+      await harness.switchToSite(0);
+      await signIn(0, cookies: [
+        Cookie(name: 'session', value: 'saved', domain: 'github.com'),
+      ]);
+
+      harness.cookieManager.failing.add(JarCall.read);
+      await harness.unload(0, reason: UnloadReason.domainConflict);
+
+      expect(harness.loadedIndices, isNot(contains(0)));
+      final stored =
+          await harness.storage.loadCookiesForSite(harness.sites[0].siteId);
+      expect(stored.map((c) => c.value), ['saved'],
+          reason: 'a read that failed is not an empty jar to save');
+    });
+
+    test('ISO-014: a restore that cannot read the jar saves nothing, '
+        'empties nothing and fails', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://example.com', name: 'Example');
+      await harness.switchToSite(0);
+      await signIn(0, cookies: [
+        Cookie(name: 'session', value: 'saved', domain: 'github.com'),
+      ]);
+
+      harness.cookieManager.failing.add(JarCall.read);
+      await expectLater(
+          harness.switchToSite(1), throwsA(isA<CookieJarFailure>()));
+
+      expect(harness.cookieManager.all.map((c) => c.value), ['saved'],
+          reason: 'the jar is not emptied past a failed read');
+      final stored =
+          await harness.storage.loadCookiesForSite(harness.sites[0].siteId);
+      expect(stored.map((c) => c.value), ['saved']);
+      expect(harness.loadedIndices, isNot(contains(1)));
+    });
+
+    test('ISO-014: a refill that refuses one cookie writes the rest, '
+        'then fails', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://example.com', name: 'Example');
+      await harness.switchToSite(0);
+      await signIn(0, cookies: [
+        Cookie(name: 'session', value: 's', domain: 'github.com'),
+        Cookie(name: 'prefs', value: 'p', domain: 'github.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[1].siteId,
+          cookies: [Cookie(name: 'ex', value: 'e', domain: 'example.com')]);
+
+      harness.cookieManager.refusing.add('session');
+      await expectLater(
+          harness.switchToSite(1), throwsA(isA<CookieJarFailure>()));
+
+      expect(harness.cookieManager.all.map((c) => c.name).toSet(),
+          {'ex', 'prefs'},
+          reason: 'a cookie the jar refuses does not keep the others out');
+    });
+
+    test('ISO-014: a deletion whose jar cleanup fails still drops the '
+        "site's stored cookies and leaves the live session", () async {
+      harness.addSite('https://github.com/personal', name: 'Personal');
+      harness.addSite('https://github.com/work', name: 'Work');
+      await harness.switchToSite(0);
+      await signIn(0, cookies: [
+        Cookie(name: 'session', value: 'personal', domain: 'github.com'),
+      ]);
+      await harness.switchToSite(1);
+      await signIn(1, cookies: [
+        Cookie(name: 'session', value: 'work', domain: 'github.com'),
+      ]);
+
+      harness.cookieManager.failing.add(JarCall.read);
+      await harness.engine.preDeleteCookieCleanup(
+        deletedModel: harness.sites[0],
+        deletedIndex: 0,
+        models: harness.sites,
+        loadedIndices: harness.loadedIndices,
+      );
+
+      expect(
+          await harness.storage.loadCookiesForSite(harness.sites[0].siteId),
+          isEmpty);
+      expect(harness.cookieManager.all.map((c) => c.value), ['work']);
+    });
+  });
+
+  // ==========================================================================
   // Domain-match helper — direct unit test of the pure function.
   // ==========================================================================
   group('cookieMatchesBaseDomain', () {

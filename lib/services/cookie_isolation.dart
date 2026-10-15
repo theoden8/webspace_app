@@ -40,6 +40,10 @@ class CookieIsolationEngine {
   /// The native jar keeps the site's cookies until the next activation's
   /// [restoreCookiesForSite], which attributes the jar to the loaded sites
   /// only and then empties it, so this capture is all the site keeps.
+  ///
+  /// A jar that cannot be read leaves the set the site last saved where it
+  /// is, and the unload goes on: what unloads a site (a conflict, a cap,
+  /// memory) does not wait for the jar (ISO-014).
   Future<void> unloadSiteForDomainSwitch({
     required int index,
     required List<WebViewModel> models,
@@ -57,17 +61,27 @@ class CookieIsolationEngine {
       // sibling-subdomain cookies (e.g. `accounts.google.com` for a
       // `mail.google.com` site) aren't lost — a URL-scoped capture alone
       // would only return cookies applicable to the site's primary URL.
-      final allCookies = await cookieManager.getAllCookies(
-        candidateUrls: _candidateUrlsFor([model]),
-      );
-      final base = getBaseDomain(model.initUrl);
-      model.cookies = allCookies
-          .where((c) => cookieMatchesBaseDomain(c, baseDomain: base))
-          .toList();
-      await storage.saveCookiesForSite(model.siteId, cookies: model.cookies);
-      LogTag.cookieIsolation.debug(
-          'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
-          sensitive: true);
+      List<Cookie>? allCookies;
+      try {
+        allCookies = await cookieManager.getAllCookies(
+          candidateUrls: _candidateUrlsFor([model]),
+        );
+      } on CookieJarFailure catch (e) {
+        LogTag.cookieIsolation.warning(
+            'Capture for site $index "${model.name}" failed, its stored '
+            'cookies stay: $e',
+            sensitive: true);
+      }
+      if (allCookies != null) {
+        final base = getBaseDomain(model.initUrl);
+        model.cookies = allCookies
+            .where((c) => cookieMatchesBaseDomain(c, baseDomain: base))
+            .toList();
+        await storage.saveCookiesForSite(model.siteId, cookies: model.cookies);
+        LogTag.cookieIsolation.debug(
+            'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
+            sensitive: true);
+      }
     }
 
     model.disposeWebView();
@@ -93,6 +107,11 @@ class CookieIsolationEngine {
   /// `await` if a newer caller has bumped the version. Callers that don't
   /// need the guard can pass matching ints and a lambda that returns that
   /// same int.
+  ///
+  /// Fails with [CookieJarFailure] when the jar cannot be read, emptied or
+  /// refilled (ISO-014). A read that fails saves nothing and empties
+  /// nothing. A write that fails leaves the rest of the refill to run first,
+  /// so the jar holds all of the stored sets the platform takes.
   Future<void> restoreCookiesForSite({
     required int index,
     required List<WebViewModel> models,
@@ -162,19 +181,47 @@ class CookieIsolationEngine {
         'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})',
         sensitive: true);
 
-    await _setCookies(model, cookies: cookies);
+    var refused = await _setCookies(model, cookies: cookies);
 
     // Step 4b: restore every other still-loaded site's cookies.
     for (final other in otherLoadedModels) {
-      await _setCookies(other, cookies: other.cookies);
+      final otherRefused = await _setCookies(other, cookies: other.cookies);
+      refused ??= otherRefused;
     }
+    if (refused != null) throw refused;
   }
 
   /// Clears native cookies for a site about to be deleted. If a loaded
   /// same-base-domain site exists, snapshots its session first and
   /// restores after — the URL-scoped delete would otherwise evict the
   /// surviving site's live cookies too.
+  ///
+  /// The site's stored cookies go first, whatever the jar does. A jar that
+  /// fails is left as it is, with nothing deleted past the failure: the next
+  /// activation empties it before any site shows (ISO-012, ISO-014).
   Future<void> preDeleteCookieCleanup({
+    required WebViewModel deletedModel,
+    required int deletedIndex,
+    required List<WebViewModel> models,
+    required Set<int> loadedIndices,
+  }) async {
+    await storage.saveCookiesForSite(deletedModel.siteId, cookies: []);
+    try {
+      await _clearDeletedFromJar(
+        deletedModel: deletedModel,
+        deletedIndex: deletedIndex,
+        models: models,
+        loadedIndices: loadedIndices,
+      );
+    } on CookieJarFailure catch (e) {
+      LogTag.cookieIsolation.warning(
+          'Clearing deleted site "${deletedModel.name}" from the jar failed; '
+          'the next activation empties it: $e',
+          sensitive: true);
+    }
+  }
+
+  Future<void> _clearDeletedFromJar({
     required WebViewModel deletedModel,
     required int deletedIndex,
     required List<WebViewModel> models,
@@ -208,23 +255,13 @@ class CookieIsolationEngine {
         deletedModel.currentUrl != deletedModel.initUrl) {
       await cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.currentUrl));
     }
-    await storage.saveCookiesForSite(deletedModel.siteId, cookies: []);
 
     if (survivingSameBase.isNotEmpty && survivingSnapshot.isNotEmpty) {
-      final restoreUrl = Uri.parse(survivingSameBase.first.initUrl);
-      for (final cookie in survivingSnapshot) {
-        if (cookie.value.isEmpty) continue;
-        await cookieManager.setCookie(
-          url: restoreUrl,
-          name: cookie.name,
-          value: cookie.value,
-          domain: cookie.domain,
-          path: cookie.path ?? '/',
-          expiresDate: cookie.expiresDate,
-          isSecure: cookie.isSecure,
-          isHttpOnly: cookie.isHttpOnly,
-        );
-      }
+      final refused = await _writeAll(
+        Uri.parse(survivingSameBase.first.initUrl),
+        cookies: survivingSnapshot,
+      );
+      if (refused != null) throw refused;
     }
   }
 
@@ -246,22 +283,38 @@ class CookieIsolationEngine {
     return urls.map(Uri.tryParse).whereType<Uri>().toList();
   }
 
-  Future<void> _setCookies(WebViewModel model,
-      {required List<Cookie> cookies}) async {
-    final url = Uri.parse(model.initUrl);
+  /// [model]'s [cookies] into the jar, but the ones it blocks; see
+  /// [_writeAll].
+  Future<CookieJarFailure?> _setCookies(WebViewModel model,
+          {required List<Cookie> cookies}) =>
+      _writeAll(
+        Uri.parse(model.initUrl),
+        cookies: cookies.where(
+            (c) => !model.isCookieBlocked(c.name, domain: c.domain)),
+      );
+
+  /// Writes every one of [cookies] the jar takes at [url]: one it refuses
+  /// does not stop the rest. Returns the first refusal, null when none.
+  Future<CookieJarFailure?> _writeAll(Uri url,
+      {required Iterable<Cookie> cookies}) async {
+    CookieJarFailure? refused;
     for (final cookie in cookies) {
       if (cookie.value.isEmpty) continue;
-      if (model.isCookieBlocked(cookie.name, domain: cookie.domain)) continue;
-      await cookieManager.setCookie(
-        url: url,
-        name: cookie.name,
-        value: cookie.value,
-        domain: cookie.domain,
-        path: cookie.path ?? '/',
-        expiresDate: cookie.expiresDate,
-        isSecure: cookie.isSecure,
-        isHttpOnly: cookie.isHttpOnly,
-      );
+      try {
+        await cookieManager.setCookie(
+          url: url,
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain,
+          path: cookie.path ?? '/',
+          expiresDate: cookie.expiresDate,
+          isSecure: cookie.isSecure,
+          isHttpOnly: cookie.isHttpOnly,
+        );
+      } on CookieJarFailure catch (e) {
+        refused ??= e;
+      }
     }
+    return refused;
   }
 }

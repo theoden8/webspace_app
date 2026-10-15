@@ -10,8 +10,17 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/controllers/page_orphan_sweep.dart';
+import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
+import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/services/webview_state_storage.dart';
+
+import 'helpers/mock_container_native.dart';
+import 'helpers/mock_cookie_manager.dart';
 
 class _FakeTargets implements OrphanSweepTargets {
   final List<Object> ops = [];
@@ -142,6 +151,21 @@ void main() {
       expect(
           editing.substring(editing.indexOf('Future<void> deleteSite(int index) async {')),
           contains('await _host.commitSites(SiteRemoved(deletedModel));'));
+    });
+
+    test(
+        'ISO-014: a launch jar clear the jar refuses is left to the next '
+        "activation's, and the sweep goes on", () async {
+      final sweep = PageOrphanSweep(
+        SiteRuntime(),
+        cookieStore: CookieSecureStorage(),
+        proxyPasswords: ProxyPasswordSecureStorage(),
+        navStates: InMemoryWebViewStateStorage(),
+        cookies: MockCookieManager()..failing.add(JarCall.clear),
+        containers:
+            ContainerIsolationEngine(containerNative: MockContainerNative()),
+      );
+      await expectLater(sweep.clearLegacyGlobalCookieJar(), completes);
     });
 
     test('no store is swept outside the engine binding', () {

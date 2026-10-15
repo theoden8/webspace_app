@@ -117,7 +117,9 @@ authenticated downloads succeed.
 
 The cookie read MUST be scoped to the WebView that raised
 `onDownloadStartRequest`:
-`inapp.CookieManager.instance().getCookies(url:, webViewController:)`.
+`cookieChannel((plugin) => plugin.getCookies(url:, webViewController:))`.
+A read that fails (`CookieJarFailure`, ISO-014) fails the download
+rather than sending it without the session.
 The download is a *second* request for a URL the WebView already
 fetched once, so it only carries the user's session if it reads from
 the same jar that WebView uses. Under the container engine

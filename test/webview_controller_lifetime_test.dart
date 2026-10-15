@@ -4,12 +4,14 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/capture_fakes.dart';
+import 'helpers/mock_cookie_manager.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
@@ -19,6 +21,11 @@ import 'package:webspace/services/webview_controller.dart';
 class _NativeController implements inapp.InAppWebViewController {
   final List<String> calls = [];
   Object? failWith;
+
+  /// What a cookie call reads to find the view's jar: a view the platform
+  /// has no id for.
+  @override
+  inapp.PlatformInAppWebViewController get platform => _UnregisteredView();
 
   // A completed Future<Null> passes for every Future<T?> the factory awaits.
   // ignore: prefer_void_to_null
@@ -54,11 +61,17 @@ class _NativeController implements inapp.InAppWebViewController {
       invocation.isMethod ? Future<Null>.value() : null;
 }
 
+class _UnregisteredView extends Fake
+    implements inapp.PlatformInAppWebViewController {
+  @override
+  dynamic get id => null;
+}
+
 final _site = WebViewModel(initUrl: 'https://example.com/');
 
 /// A host that answers nothing: these tests never reach a prompt.
-WebViewHostHooks _hooks() => WebViewHostHooks(
-      cookieManager: CookieManager(),
+WebViewHostHooks _hooks({CookieManager? cookies}) => WebViewHostHooks(
+      cookieManager: cookies ?? CookieManager(),
       containerCookieManager: null,
       globalUserScripts: () => const [],
       save: () async {},
@@ -84,6 +97,9 @@ Widget _webView({
   String? initialHtml,
   VoidCallback? onReloadIssued,
   void Function(WebViewController)? onControllerCreated,
+  WebViewHostHooks? hooks,
+  void Function(List<Cookie>)? onCookiesChanged,
+  void Function(String url, {required String html})? onHtmlLoaded,
 }) =>
     MaterialApp(
       home: WebViewFactory.createWebView(
@@ -91,10 +107,12 @@ Widget _webView({
           key: key,
           posture:
               _site.sitePosture(globalUserScripts: const <UserScriptConfig>[]),
-          hooks: _hooks(),
+          hooks: hooks ?? _hooks(),
           initialUrl: 'https://example.com/',
           initialHtml: initialHtml,
           onReloadIssued: onReloadIssued,
+          onCookiesChanged: onCookiesChanged,
+          onHtmlLoaded: onHtmlLoaded,
         ),
         onControllerCreated: onControllerCreated ?? (_) {},
       ),
@@ -144,6 +162,65 @@ void main() {
     });
     expect(native.calls, contains('reload'));
     expect(reloads, 1);
+  });
+
+  group('a cookie jar that fails (ISO-014, CONT-009)', () {
+    testWidgets(
+        'ISO-014: a cookie read that fails after a load leaves the mirror '
+        'alone and the load finishes', (tester) async {
+      final jar = MockCookieManager()..failing.add(JarCall.read);
+      final mirrored = <List<Cookie>>[];
+      await tester.pumpWidget(_webView(
+        hooks: _hooks(cookies: jar),
+        onCookiesChanged: mirrored.add,
+        onHtmlLoaded: (_, {required html}) {},
+      ));
+      final (:params, :native) = await _attach(tester);
+      await tester.runAsync(() async {
+        params.onLoadStop!(native, inapp.WebUri('https://example.com/'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      expect(mirrored, isEmpty,
+          reason: 'a read that failed is not an empty jar to mirror');
+      expect(native.calls, contains('evaluateJavascript'),
+          reason: 'the page snapshot after the read is still asked for');
+    });
+
+    testWidgets(
+        'CONT-009: a container jar read that fails throws, not an empty list',
+        (tester) async {
+      late WebViewController controller;
+      await tester.pumpWidget(
+          _webView(onControllerCreated: (c) => controller = c));
+      await _attach(tester);
+      await tester.runAsync(() async {
+        // No handler on the cookie channel here, as in an engine the plugin
+        // is not registered in.
+        await expectLater(
+            ContainerCookieManager().getCookies(
+                controller: controller,
+                url: Uri.parse('https://example.com/')),
+            throwsA(isA<CookieJarFailure>()));
+      });
+    });
+
+    test(
+        'ISO-014: a blocked cookie the jar refuses to delete leaves the rest '
+        'to go', () async {
+      final jar = MockCookieManager();
+      final url = Uri.parse('https://example.com/');
+      for (final name in ['_ga', '_gid']) {
+        await jar.setCookie(url: url, name: name, value: 'v');
+      }
+      jar.refusing.add('_ga');
+      await _hooks(cookies: jar).removeBlockedCookies(
+        [...jar.all],
+        controller: null,
+        url: url,
+      );
+      expect(jar.all.map((c) => c.name), ['_ga'],
+          reason: 'the next load takes _ga; _gid is gone now');
+    });
   });
 
   group('the controller over a native webview', () {

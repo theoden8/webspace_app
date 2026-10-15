@@ -662,7 +662,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (container != null && controller != null) {
         cookies = await container.getCookies(
           controller: controller,
-          siteId: widget.host!.siteId!,
           url: Uri.parse(url),
         );
         LogTag.devTools.debug('Cookie inspector via ContainerCookieManager: '
@@ -676,11 +675,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             '(container=${container != null} ctrl=${controller != null})',
             sensitive: true);
       }
-    } on PlatformException {
+    } on CookieJarFailure catch (e) {
+      // The list the site holds stays: a read that failed is not an empty
+      // jar (DEVTOOLS-002).
       if (mounted) setState(() => _loadingCookies = false);
-      return;
-    } on MissingPluginException {
-      if (mounted) setState(() => _loadingCookies = false);
+      _toast((loc) => loc.cookieStoreFailed(e.message));
       return;
     } on FormatException {
       if (mounted) setState(() => _loadingCookies = false);
@@ -696,22 +695,26 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final url = Uri.parse(widget.host!.currentUrl);
     final container = widget.containerCookieManager;
     final controller = widget.host!.controller;
-    if (container != null && controller != null) {
-      await container.deleteCookie(
-        controller: controller,
-        siteId: widget.host!.siteId!,
-        url: url,
-        name: cookie.name,
-        domain: cookie.domain,
-        path: cookie.path ?? '/',
-      );
-    } else {
-      await widget.cookieManager.deleteCookie(
-        url: url,
-        name: cookie.name,
-        domain: cookie.domain,
-        path: cookie.path ?? '/',
-      );
+    try {
+      if (container != null && controller != null) {
+        await container.deleteCookie(
+          controller: controller,
+          url: url,
+          name: cookie.name,
+          domain: cookie.domain,
+          path: cookie.path ?? '/',
+        );
+      } else {
+        await widget.cookieManager.deleteCookie(
+          url: url,
+          name: cookie.name,
+          domain: cookie.domain,
+          path: cookie.path ?? '/',
+        );
+      }
+    } on CookieJarFailure catch (e) {
+      _toast((loc) => loc.cookieStoreFailed(e.message));
+      return;
     }
     if (!mounted) return;
     _toast((loc) => loc.devToolsCookieDeleted(cookie.name));

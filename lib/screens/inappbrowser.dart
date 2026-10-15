@@ -257,31 +257,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // always-on reader would add a jar round-trip to every load here.
         onCookiesChanged: blockedCookies.isEmpty
             ? null
-            : (cookies) async {
-                final url = Uri.parse(_currentUrl);
-                for (final c in cookies.where((c) =>
-                    matchesBlockedCookie(blockedCookies, name: c.name, domain: c.domain))) {
-                  final containerCookieManager =
-                      widget.hooks.containerCookieManager;
-                  if (containerCookieManager != null) {
-                    await containerCookieManager.deleteCookie(
-                      controller: _controller,
-                      siteId: p.siteId,
-                      url: url,
-                      name: c.name,
-                      domain: c.domain,
-                      path: c.path ?? '/',
-                    );
-                  } else {
-                    await widget.hooks.cookieManager.deleteCookie(
-                      url: url,
-                      name: c.name,
-                      domain: c.domain,
-                      path: c.path ?? '/',
-                    );
-                  }
-                }
-              },
+            : (cookies) => widget.hooks.removeBlockedCookies(
+                  cookies
+                      .where((c) => matchesBlockedCookie(blockedCookies,
+                          name: c.name, domain: c.domain))
+                      .toList(),
+                  controller: _controller,
+                  url: Uri.parse(_currentUrl),
+                ),
         pullToRefreshGate: _pullToRefreshGate,
         onUrlChanged: (url) {
           _devToolsHost.currentUrl = url;
