@@ -302,6 +302,7 @@
 			buildConfigurationList = 33CC10FB2044A3C60003C045 /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
 				393765D4C08553F47312FEAC /* [CP] Check Pods Manifest.lock */,
+				7C1C0A000000000000000001 /* Generate App Icon */,
 				33CC10E92044A3C60003C045 /* Sources */,
 				33CC10EA2044A3C60003C045 /* Frameworks */,
 				33CC10EB2044A3C60003C045 /* Resources */,
@@ -503,6 +504,33 @@
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		7C1C0A000000000000000001 /* Generate App Icon */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../assets/webspace_icon.png",
+				"$(SRCROOT)/../tool/macos_app_icon.dart",
+			);
+			name = "Generate App Icon";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png",
+				"$(SRCROOT)/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png",
+				"$(SRCROOT)/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png",
+				"$(SRCROOT)/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png",
+				"$(SRCROOT)/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png",
+				"$(SRCROOT)/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png",
+				"$(SRCROOT)/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SRCROOT/..\" && \"$FLUTTER_ROOT/bin/dart\" tool/macos_app_icon.dart\n";
 		};
 		8C57ECB85F52EBCF51FA3B2F /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;

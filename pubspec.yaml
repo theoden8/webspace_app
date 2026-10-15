@@ -165,8 +165,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   macos:
-    generate: true
-    image_path: "assets/webspace_icon.png"  # 1024x1024 PNG recommended
+    generate: false  # tool/macos_app_icon.dart: macOS does not shape the icon itself
   remove_alpha_ios: true
   image_path: "assets/webspace_icon.png"  # Path to your icon.png
   image_path_ios_dark_transparent: "assets/webspace_icon_dark.png"
