@@ -4037,15 +4037,6 @@
   "@homeShortcutPickTitle": {
     "description": "Title of the dialog listing existing sites to reassign an orphaned shortcut to."
   },
-  "homeShortcutReenabled": "Re-enabled the existing home screen shortcut for \"{name}\"",
-  "@homeShortcutReenabled": {
-    "description": "Snackbar after the user asks for a home screen shortcut for a site that already had one on the home screen in a disabled (greyed out) state, for example after restoring the phone from a backup. The app made that existing shortcut work again instead of adding a second one.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "homeShortcutPinFailed": "Couldn't add a home screen shortcut for \"{name}\"",
   "@homeShortcutPinFailed": {
     "description": "Snackbar shown when Android refused to add a home screen shortcut for a site.",
@@ -4054,6 +4045,48 @@
         "type": "String"
       }
     }
+  },
+  "homeShortcutNowOpens": "The home screen shortcut now opens \"{name}\"",
+  "@homeShortcutNowOpens": {
+    "description": "Snackbar after the user changed which site an existing home screen shortcut opens. {name} is the site the shortcut opens from now on.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeShortcutsTitle": "Home screen shortcuts",
+  "@homeShortcutsTitle": {
+    "description": "Title of a settings row and of the screen it opens, listing every shortcut to a site that the user added to the phone's home screen (Android)."
+  },
+  "homeShortcutsHint": "Shortcuts you added to the phone's home screen, and the site each one opens. Tap one to make it open another site. Android doesn't let an app remove a shortcut, so the app can only disable one; remove it from the home screen yourself.",
+  "@homeShortcutsHint": {
+    "description": "Explanation behind the hint button of the 'Home screen shortcuts' settings row."
+  },
+  "homeShortcutsCount": "{count, plural, =0{No shortcuts} one{{count} shortcut} other{{count} shortcuts}}",
+  "@homeShortcutsCount": {
+    "description": "Subtitle of the 'Home screen shortcuts' settings row: how many shortcuts to sites are on the phone's home screen.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeShortcutsEmpty": "No shortcuts on the home screen. Add one from a site's menu.",
+  "@homeShortcutsEmpty": {
+    "description": "Shown on the 'Home screen shortcuts' screen when the phone's home screen has no shortcut to any site."
+  },
+  "homeShortcutsSiteGone": "Deleted site",
+  "@homeShortcutsSiteGone": {
+    "description": "Name shown in the list of home screen shortcuts for a shortcut whose site was deleted from the app."
+  },
+  "homeShortcutsDisableTitle": "Disable this shortcut?",
+  "@homeShortcutsDisableTitle": {
+    "description": "Title of the confirmation before disabling one home screen shortcut from the list of shortcuts."
+  },
+  "homeShortcutsDisableBody": "It stays on the home screen, greyed out, until you remove it there, and it can't be turned back on.",
+  "@homeShortcutsDisableBody": {
+    "description": "Body of the confirmation before disabling a home screen shortcut. Android doesn't let the app remove the shortcut; disabling greys it out for good."
   },
   "siteSettingsWindowWidth": "Box width",
   "@siteSettingsWindowWidth": {

@@ -21,6 +21,7 @@ void main() {
     onExportSettings: () {},
     onImportSettings: () {},
     onOpenLinkHandlingSettings: () {},
+    homeShortcuts: null,
   ));
 
   /// The version row sits at the bottom of a long list.

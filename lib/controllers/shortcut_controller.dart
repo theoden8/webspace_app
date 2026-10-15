@@ -10,6 +10,7 @@ import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
+import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/page_title.dart';
@@ -18,6 +19,7 @@ import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/shortcut_id.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// A shortcut tapped after its site is gone, with no site on its domain
@@ -26,6 +28,10 @@ enum MissingShortcutChoice { reroute, create }
 
 /// What becomes of the pinned tiles of a deleted site (HS-013).
 enum ShortcutFate { keep, reassign, disable }
+
+/// A shortcut tap: what it resolved to, and on Android the tile tapped, so a
+/// choice the user makes about it rewrites that tile (HS-017).
+typedef _Tap = ({LaunchResolution resolution, ShortcutId? tile});
 
 /// The questions the shortcut flows put to the user.
 abstract interface class ShortcutPrompts {
@@ -38,7 +44,7 @@ abstract interface class ShortcutPrompts {
   /// HS-013: the launcher tiles of a site just deleted.
   Future<ShortcutFate?> deletedSiteTiles();
 
-  /// A site to point an orphaned shortcut at, as its siteId.
+  /// A site to point a shortcut at, as its siteId.
   Future<SiteId?> pickSite(List<WebViewModel> candidates);
 
   /// HS-008 on iOS: how to add the site through Shortcuts.app.
@@ -70,7 +76,7 @@ abstract interface class ShortcutHost implements PageHost {
 
 /// Home shortcuts (HS-*): pinning, launches, and what a tile keeps pointing
 /// at once its site is gone.
-class ShortcutController {
+class ShortcutController implements HomeShortcutsHost {
   ShortcutController(
     this._sites, {
     required ShortcutHost host,
@@ -86,18 +92,18 @@ class ShortcutController {
   static const _kTombstonesKey = 'shortcutTombstones';
   static const _kRemapKey = 'shortcutSiteRemap';
 
-  /// Sites that already have a pinned shortcut, so the menu item hides for
-  /// them (HS-005).
-  Set<SiteId> _pinnedSiteIds = const <SiteId>{};
+  /// Each enabled pinned Android tile and the site its launch intent names
+  /// (HS-017), as the launcher last reported them.
+  Map<ShortcutId, SiteId> _pinned = const {};
 
   /// HS-006/007: iOS 16+ / macOS 13+ expose shortcuts via App Intents.
   /// Probed once so the menu renders synchronously.
   bool _appIntentsSupported = false;
 
-  /// HS-011 (Android): a pinned shortcut's intent carries only the random
-  /// siteId, which is opaque once its site is deleted, so `siteId -> url` is
-  /// kept for pinned sites, pruned to the pinned/current set, to drive the
-  /// domain fallback.
+  /// HS-011 (Android): a pinned tile's intent names only a siteId, which is
+  /// opaque once its site is deleted, so `siteId -> url` is kept for the
+  /// sites tiles name, pruned to the pinned/current set, to drive the domain
+  /// fallback.
   Map<SiteId, String> _urlLedger = {};
 
   /// HS-011 (iOS): iOS cannot enumerate home-screen tiles, so a bounded list
@@ -108,18 +114,21 @@ class ShortcutController {
 
   /// A confirmed rebind (stale siteId -> live siteId), so later taps of the
   /// same shortcut resolve silently. Machine state, not a user setting:
-  /// excluded from backups.
+  /// excluded from backups. Written on iOS, where a Shortcuts tile cannot be
+  /// rewritten; an Android tile is rewritten instead (HS-017), so Android
+  /// only still reads the entries an earlier version wrote.
   Map<SiteId, SiteId> _remap = {};
 
   /// What each pinned Android tile was last given (HS-016). Held in memory
   /// only, so a launch's first sync rewrites every tile once, which also
   /// brings a tile pinned by an earlier version up to date.
-  Map<SiteId, TileFace> _tileFaces = const {};
+  Map<ShortcutId, TileFace> _tileFaces = const {};
   StreamSubscription<String?>? _siteIconChanges;
+  final _homeShortcuts = ValueNotifier<List<HomeShortcut>>(const []);
 
-  /// A cold-launch resolution that needs a prompt, parked until the first
-  /// frame: there is no UI mid-restore.
-  LaunchResolution? _parked;
+  /// A cold-launch tap that needs a prompt, parked until the first frame:
+  /// there is no UI mid-restore.
+  _Tap? _parked;
   final _promptGuard = ReentryGuard();
 
   /// A pinned tile takes its site's page icon once the webview reports one.
@@ -131,6 +140,7 @@ class ShortcutController {
 
   void dispose() {
     unawaited(_siteIconChanges?.cancel());
+    _homeShortcuts.dispose();
   }
 
   void load(SharedPreferences prefs) {
@@ -157,18 +167,18 @@ class ShortcutController {
   }
 
   /// HS-004 / HS-005: whether the menu offers a shortcut for [model]. Android
-  /// hides it once the site has one; iOS 16+ / macOS 13+ always offer it (no
-  /// API reports a pin); elsewhere there is no shortcut.
+  /// hides it while a pinned tile opens the site; iOS 16+ / macOS 13+ always
+  /// offer it (no API reports a pin); elsewhere there is no shortcut.
   bool offersShortcutFor(WebViewModel model) {
     // ARCH-006: an OS-level shortcut would name an archived site.
     if (model.isArchiveTier) return false;
     if (hostIsAndroid) {
-      // A site an orphaned tile was rebound to is reachable by that tile.
-      final effective = ShortcutPinState.effectivePinnedSiteIds(
-        pinnedSiteIds: _pinnedSiteIds,
+      return ShortcutPinState.tilesReaching(
+        siteId: model.siteId,
+        pinned: _pinned,
         rememberedRemap: _remap,
-      );
-      return !effective.contains(model.siteId);
+        models: _sites.models,
+      ).isEmpty;
     }
     if (hostIsIOS || hostIsMacOS) return _appIntentsSupported;
     return false;
@@ -192,6 +202,7 @@ class ShortcutController {
       final pinned = await ShortcutService.pinShortcut(
         siteId: model.siteId,
         label: model.name,
+        shortcutId: ShortcutId.mint(),
         iconBytes: iconBytes,
       );
       // HS-011: so a later delete+recreate can route by domain.
@@ -199,10 +210,6 @@ class ShortcutController {
       switch (pinned) {
         case PinShortcutResult.requested:
           break;
-        case PinShortcutResult.alreadyPinned:
-          // No pin dialog backgrounds the app, so no resume refreshes the set.
-          await refreshPinned();
-          _host.toast((loc) => loc.homeShortcutReenabled(model.name));
         case PinShortcutResult.failed:
           _host.toast((loc) => loc.homeShortcutPinFailed(model.name));
       }
@@ -221,14 +228,15 @@ class ShortcutController {
   /// Re-reads the launcher's pinned set; on every resume, since a pin dialog
   /// or a removal from the launcher happens outside the app.
   Future<void> refreshPinned() async {
-    final ids = await ShortcutService.getPinnedSiteIds();
+    final tiles = await ShortcutService.getPinnedShortcuts();
     if (!_host.mounted) return;
-    await _reconcileLedger(ids);
+    await _reconcileLedger(tiles.values.toSet());
     if (!_host.mounted) return;
-    if (setEquals(ids, _pinnedSiteIds)) return;
-    _pinnedSiteIds = ids;
+    if (mapEquals(tiles, _pinned)) return;
+    _pinned = tiles;
     _host.rebuild();
     _syncTiles();
+    _publishHomeShortcuts();
   }
 
   /// Drops remembered state naming sites that no longer exist: a remap whose
@@ -253,9 +261,10 @@ class ShortcutController {
   /// site, with the Always open Home resets done (HS-006, HS-007), or null.
   /// A launch that needs a prompt is parked for [promptParkedAfterFrame].
   Future<int?> resolveColdLaunch() async {
-    final resolution = await _resolveLaunch(warm: false);
+    final tap = await _resolveLaunch(warm: false);
+    final resolution = tap.resolution;
     if (resolution is! LaunchOpenSite) {
-      if (resolution is! LaunchNone) _parked = resolution;
+      if (resolution is! LaunchNone) _parked = tap;
       return null;
     }
     final index = resolution.index;
@@ -277,20 +286,21 @@ class ShortcutController {
 
   /// A shortcut tapped while the app runs.
   Future<void> handleWarmLaunch() async {
-    final resolution = await _resolveLaunch(warm: true);
+    final tap = await _resolveLaunch(warm: true);
     if (!_host.mounted) return;
-    if (resolution is LaunchOpenSite) {
-      await _openIndex(resolution.index);
-    } else if (resolution is! LaunchNone) {
-      await _applyInteractive(resolution);
+    if (tap.resolution case LaunchOpenSite(:final index)) {
+      await _openIndex(index);
+    } else if (tap.resolution is! LaunchNone) {
+      await _applyInteractive(tap);
     }
   }
 
-  Future<LaunchResolution> _resolveLaunch({required bool warm}) async {
+  Future<_Tap> _resolveLaunch({required bool warm}) async {
+    const none = (resolution: LaunchNone(), tile: null);
     final launch = await ShortcutService.getLaunch();
-    if (launch == null) return const LaunchNone();
+    if (launch == null) return none;
     if (warm) {
-      if (!_host.mounted) return const LaunchNone();
+      if (!_host.mounted) return none;
       _host.popToRoot();
     }
     // iOS carries the url in the launch payload; Android pairs the id with
@@ -302,11 +312,14 @@ class ShortcutController {
     LogTag.shortcut.debug(
         '${warm ? 'warm' : 'cold'} launch siteId=${launch.siteId} payloadUrl=${launch.url} '
         'resolvedUrl=$url', sensitive: true);
-    return StartupRestoreEngine.resolveLaunch(
-      shortcutSiteId: launch.siteId,
-      shortcutUrl: url,
-      models: _sites.models,
-      rememberedRemap: _remap,
+    return (
+      resolution: StartupRestoreEngine.resolveLaunch(
+        shortcutSiteId: launch.siteId,
+        shortcutUrl: url,
+        models: _sites.models,
+        rememberedRemap: _remap,
+      ),
+      tile: launch.shortcutId,
     );
   }
 
@@ -345,10 +358,11 @@ class ShortcutController {
   }
 
   /// HS-011: the prompts for a shortcut whose siteId no longer maps to a
-  /// site. Every choice is remembered as a remap so the next tap is direct.
-  Future<void> _applyInteractive(LaunchResolution resolution) async {
+  /// site. Every choice is kept, so the next tap is direct.
+  Future<void> _applyInteractive(_Tap tap) async {
+    final tile = tap.tile;
     await _promptGuard.run(() async {
-      switch (resolution) {
+      switch (tap.resolution) {
         case LaunchConfirmExisting(:final index, :final shortcutSiteId):
           if (index < 0 || index >= _sites.models.length) return;
           final model = _sites.models[index];
@@ -356,14 +370,14 @@ class ShortcutController {
               !_host.mounted) {
             return;
           }
-          await _rememberRemap(shortcutSiteId, resolvedSiteId: model.siteId);
+          await _rebind(shortcutSiteId, tile: tile, to: model.siteId);
           await _openIndex(index);
         case LaunchOfferCreate(:final url, :final shortcutSiteId):
           final choice = await _prompts.missingSite(url);
           if (choice == null || !_host.mounted) return;
           switch (choice) {
             case MissingShortcutChoice.reroute:
-              await _reroute(shortcutSiteId);
+              await _reroute(shortcutSiteId, tile: tile);
             case MissingShortcutChoice.create:
               final model =
                   WebViewModel(initUrl: url, stateSetterF: _host.rebuild);
@@ -375,45 +389,58 @@ class ShortcutController {
               }
               await _host.registerSite(model);
               if (!_host.mounted) return;
-              await _rememberRemap(shortcutSiteId,
-                  resolvedSiteId: model.siteId);
+              await _rebind(shortcutSiteId, tile: tile, to: model.siteId);
           }
         case LaunchOfferReroute(:final shortcutSiteId):
           // A handle resolved to a placeholder: site removed, no url known.
-          await _reroute(shortcutSiteId);
+          await _reroute(shortcutSiteId, tile: tile);
         case LaunchNone() || LaunchOpenSite():
           return;
       }
     });
   }
 
-  Future<void> _reroute(SiteId shortcutSiteId) async {
+  Future<void> _reroute(SiteId shortcutSiteId,
+      {required ShortcutId? tile}) async {
     final targetSiteId = await _pickSite();
     if (targetSiteId == null || !_host.mounted) return;
-    await _rememberRemap(shortcutSiteId, resolvedSiteId: targetSiteId);
+    await _rebind(shortcutSiteId, tile: tile, to: targetSiteId);
     final i = _sites.models.indexWhere((m) => m.siteId == targetSiteId);
     if (i >= 0) await _openIndex(i);
   }
 
-  Future<SiteId?> _pickSite() async {
+  /// Keeps the user's answer for a tapped shortcut: an Android tile is
+  /// rewritten to open [to] (HS-017); a Shortcuts tile, which the app cannot
+  /// rewrite, gets a remembered remap from the site it names.
+  Future<void> _rebind(SiteId shortcutSiteId,
+      {required ShortcutId? tile, required SiteId to}) async {
+    if (hostIsAndroid && tile != null) {
+      _pointTile(tile, to: to);
+      return;
+    }
+    await _rememberRemap(shortcutSiteId, resolvedSiteId: to);
+  }
+
+  Future<SiteId?> _pickSite({SiteId? except}) async {
     final candidates = [
       for (final m in _sites.models)
-        if (!m.isArchiveTier) m,
+        if (!m.isArchiveTier && m.siteId != except) m,
     ];
     if (candidates.isEmpty || !_host.mounted) return null;
     return _prompts.pickSite(candidates);
   }
 
-  /// HS-013: the launcher tiles that reach [model], directly or through an
-  /// HS-011 rebind, read fresh from the launcher before the delete. Android
-  /// only; elsewhere no tile can be enumerated.
-  Future<Set<SiteId>> tilesReaching(WebViewModel model) async {
+  /// HS-013: the launcher tiles that open [model], read fresh from the
+  /// launcher before the delete. Android only; elsewhere no tile can be
+  /// enumerated.
+  Future<Set<ShortcutId>> tilesReaching(WebViewModel model) async {
     if (!hostIsAndroid) return const {};
-    final pinnedNow = await ShortcutService.getPinnedSiteIds();
+    final pinnedNow = await ShortcutService.getPinnedShortcuts();
     final tiles = ShortcutPinState.tilesReaching(
       siteId: model.siteId,
-      pinnedSiteIds: pinnedNow,
+      pinned: pinnedNow,
       rememberedRemap: _remap,
+      models: _sites.models,
     );
     LogTag.shortcut.debug(
         'delete siteId=${model.siteId} pinned=$pinnedNow reachingTiles=$tiles',
@@ -427,7 +454,7 @@ class ShortcutController {
   /// no way to tell whether a tile exists, so a prompt there would fire on
   /// every delete.
   Future<void> siteDeleted(WebViewModel deleted,
-      {required Set<SiteId> tiles}) async {
+      {required Set<ShortcutId> tiles}) async {
     if (tiles.isNotEmpty && _host.mounted) await _decideTileFate(tiles);
     if ((hostIsIOS || hostIsMacOS) && !deleted.isArchiveTier) {
       await _recordTombstone(deleted.siteId,
@@ -437,31 +464,104 @@ class ShortcutController {
 
   /// Keep the tiles (a tap re-routes), point them at another site, or
   /// disable them; Android cannot remove a tile for the user.
-  Future<void> _decideTileFate(Set<SiteId> tileIds) async {
+  Future<void> _decideTileFate(Set<ShortcutId> tileIds) async {
     final choice = await _prompts.deletedSiteTiles();
     if (!_host.mounted) return;
     switch (choice) {
       case null || ShortcutFate.keep:
         return;
       case ShortcutFate.disable:
-        for (final tile in tileIds) {
-          await ShortcutService.disableShortcut(tile);
-          _remap.remove(tile);
-          _urlLedger.remove(tile);
-        }
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_kRemapKey, jsonEncode(_remap));
-        await prefs.setString(_kUrlLedgerKey, jsonEncode(_urlLedger));
-        if (!_host.mounted) return;
-        _pinnedSiteIds = {..._pinnedSiteIds}..removeAll(tileIds);
-        _host.rebuild();
+        await _disableTiles(tileIds);
       case ShortcutFate.reassign:
         final targetSiteId = await _pickSite();
         if (targetSiteId == null || !_host.mounted) return;
         for (final tile in tileIds) {
-          await _rememberRemap(tile, resolvedSiteId: targetSiteId);
+          _pointTile(tile, to: targetSiteId);
         }
     }
+  }
+
+  /// Greys [tileIds] out, and forgets what only they kept: the rebind and
+  /// the url of a gone site no remaining tile names.
+  Future<void> _disableTiles(Set<ShortcutId> tileIds) async {
+    for (final tile in tileIds) {
+      await ShortcutService.disableShortcut(tile);
+    }
+    if (!_host.mounted) return;
+    _pinned = {..._pinned}..removeWhere((tile, _) => tileIds.contains(tile));
+    final stillNamed = _pinned.values.toSet();
+    final remapBefore = _remap.length;
+    _remap.removeWhere((named, _) => !stillNamed.contains(named));
+    if (_remap.length != remapBefore) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kRemapKey, jsonEncode(_remap));
+    }
+    await _reconcileLedger(stillNamed);
+    if (!_host.mounted) return;
+    _host.rebuild();
+    _publishHomeShortcuts();
+  }
+
+  /// HS-017: [tile] opens [to] from now on, and takes its name and icon
+  /// (HS-016) through the next tile sync, which this runs.
+  void _pointTile(ShortcutId tile, {required SiteId to}) {
+    _pinned = {..._pinned, tile: to};
+    final url = _sites.models
+        .where((m) => m.siteId == to)
+        .map((m) => m.initUrl)
+        .firstOrNull;
+    if (url != null) unawaited(_recordLedger(to, url: url));
+    _host.rebuild();
+    _syncTiles();
+    _publishHomeShortcuts();
+  }
+
+  @override
+  ValueListenable<List<HomeShortcut>> get homeShortcuts => _homeShortcuts;
+
+  @override
+  Future<void> refreshHomeShortcuts() async {
+    _publishHomeShortcuts();
+    await refreshPinned();
+  }
+
+  @override
+  Future<void> reassignHomeShortcut(ShortcutId id) async {
+    final opens = ShortcutPinState.sitesOpened(
+      pinned: _pinned,
+      rememberedRemap: _remap,
+      models: _sites.models,
+    )[id];
+    final targetSiteId = await _pickSite(except: opens?.siteId);
+    if (targetSiteId == null || !_host.mounted) return;
+    _pointTile(id, to: targetSiteId);
+    final target = _sites.models.where((m) => m.siteId == targetSiteId);
+    if (target.isEmpty) return;
+    _host.toast((loc) => loc.homeShortcutNowOpens(target.first.name));
+  }
+
+  @override
+  Future<void> disableHomeShortcut(ShortcutId id) => _disableTiles({id});
+
+  /// The list App Settings shows: tiles that open a site, by name, then the
+  /// ones whose site is gone.
+  void _publishHomeShortcuts() {
+    if (!hostIsAndroid) return;
+    final opened = ShortcutPinState.sitesOpened(
+      pinned: _pinned,
+      rememberedRemap: _remap,
+      models: _sites.models,
+    );
+    _homeShortcuts.value = [
+      for (final MapEntry(key: id, value: site) in opened.entries)
+        (id: id, opens: site, url: _urlLedger[_pinned[id]]),
+    ]..sort((a, b) => switch ((a.opens, b.opens)) {
+          (final x?, final y?) =>
+            x.getDisplayName().compareTo(y.getDisplayName()),
+          (null, null) => 0,
+          (null, _) => 1,
+          (_, null) => -1,
+        });
   }
 
   /// The shortcuts follow the site list. HS-007: the iOS App Intents picker
@@ -471,6 +571,7 @@ class ShortcutController {
   void syncSites() {
     if (hostIsAndroid) {
       _syncTiles();
+      _publishHomeShortcuts();
       return;
     }
     if (!hostIsIOS && !hostIsMacOS) return;
@@ -496,7 +597,7 @@ class ShortcutController {
   void _syncTiles() {
     if (!hostIsAndroid || !_host.mounted) return;
     final sitesOfTiles = ShortcutPinState.sitesOfTiles(
-      pinnedSiteIds: _pinnedSiteIds,
+      pinned: _pinned,
       rememberedRemap: _remap,
       models: _sites.models,
     );
@@ -504,6 +605,7 @@ class ShortcutController {
       want: {
         for (final MapEntry(key: tile, value: site) in sitesOfTiles.entries)
           tile: (
+            site: site.siteId,
             label: site.name,
             icon: knownSiteIcon(site.initUrl, customIcon: site.customIconPng),
           ),
@@ -546,7 +648,8 @@ class ShortcutController {
     await prefs.setString(_kUrlLedgerKey, jsonEncode(_urlLedger));
   }
 
-  /// HS-011: urls for pinned sites that still exist; unreachable entries go.
+  /// HS-011: urls for the sites pinned tiles name while they exist;
+  /// unreachable entries go.
   Future<void> _reconcileLedger(Set<SiteId> pinnedSiteIds) async {
     final next = ShortcutUrlLedger.reconcile(
       ledger: _urlLedger,

@@ -66,7 +66,7 @@ class ShortcutsPlugin: NSObject {
     case "removeShortcut":
       // No-op: we don't pin, we don't track.
       result(nil)
-    case "getPinnedSiteIds":
+    case "getPinnedShortcuts":
       // Neither platform has a public API to enumerate Shortcuts tiles.
       result([])
     default:

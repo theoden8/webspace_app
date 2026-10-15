@@ -86,7 +86,7 @@ internal object WorkerFlutterEngine {
             when (call.method) {
                 "getLaunchSiteId", "getDiagSeed", "getDiagRepaintSuppression",
                 "getDiagReload" -> result.success(null)
-                "getPinnedSiteIds" -> result.success(pinnedSiteIds(app))
+                "getPinnedShortcuts" -> result.success(pinnedShortcuts(app))
                 else -> result.notImplemented()
             }
         }

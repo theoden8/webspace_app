@@ -12,26 +12,29 @@
 // Scenario map (requirement -> test):
 //   HS-002 / HS-006  cold launch selects the site and opens it where it was
 //                    left, tabs on or off; with Always open Home, at initUrl
-//   HS-005 / HS-004  "Home Shortcut" hidden for a pinned site, shown for an
-//                    unpinned one, hidden for a site an orphaned tile was
-//                    rebound to
-//   HS-001 / HS-012  tapping the item pins through the channel and records the
-//                    site's url in the ledger
-//   HS-015           a refused pin says so; a pin that re-enabled a disabled
-//                    tile says so and hides the item
+//   HS-005 / HS-004  "Home Shortcut" hidden while a tile opens the site, shown
+//                    for a site none opens, hidden for a site a tile pinned
+//                    by an earlier version was rebound to
+//   HS-001 / HS-012  tapping the item pins a tile with a fresh shortcut id
+//                    (HS-017) and records the site's url in the ledger
+//   HS-015           a refused pin says so; each pin carries a fresh id
 //   HS-011           orphaned tile with a domain match: cancel leaves no trace,
-//                    confirm opens and is remembered, the next tap is silent
+//                    confirm opens and rewrites the tile, the next tap is silent
 //   HS-011           orphaned tile with no match: reroute to an existing site,
-//                    or create a new one for the ledger url
+//                    or create a new one for the ledger url; either rewrites
+//                    the tile
+//   HS-017           App Settings lists the tiles; a tap rewrites one to open
+//                    another site, Disable greys one out after asking
 //   HS-013           deleting a site reachable by pinned tiles prompts
 //                    Keep/Reassign/Disable; Disable disables every reaching
 //                    tile and drops its ledger + rebind entries; deleting an
 //                    unreachable site prompts nothing
 //
 // The platform channel is mocked (a real launcher pin dialog is not drivable
-// from in-process), and the mock drains `getLaunchSiteId` on read exactly like
-// MainActivity's `intent.removeExtra`, so a re-poll on the next resume sees
-// nothing. Pages come from an in-process loopback server so a site activation
+// from in-process). The mock launcher holds each tile's id and the site its
+// intent names, rewrites that on `updateShortcuts` as the launcher does, and
+// drains `getLaunchSiteId` on read exactly like MainActivity's
+// `intent.removeExtra`, so a re-poll on the next resume sees nothing. Pages come from an in-process loopback server so a site activation
 // settles without network. The genuinely out-of-process half — a launcher tap
 // delivering a real intent to a running activity — lives in the adb tier
 // (scripts/run_android_lifecycle_tests.sh, INTEG-013).
@@ -67,6 +70,9 @@ const _kShortcutChannel = MethodChannel(
 const _kOffDomainUrl = 'http://192.0.2.9/gone.html';
 const _kCreateUrl = 'http://192.0.2.10/fresh.html';
 
+/// A launcher tap: the tile tapped and the site its intent names.
+typedef _Launch = ({String tile, String site});
+
 String _solidPage(String cssColor) =>
     '<!doctype html><html><head>'
     '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -80,13 +86,14 @@ void main() {
   late String hostA;
   late String hostB;
 
-  // Mock launcher state. `pendingLaunch` is what the next `getLaunchSiteId`
-  // returns; reading it clears it, mirroring the native consume-on-read.
-  String? pendingLaunch;
-  var pinned = <String>{};
-  // What the native pin reports: a dialog opened, a disabled tile under the
-  // id was re-enabled (HS-015), or requestPinShortcut threw.
-  var pinOutcome = 'requested';
+  // Mock launcher state. `pendingLaunch` is the intent the next
+  // `getLaunchSiteId` reads: the tapped tile and the site it names. Reading it
+  // clears it, mirroring the native consume-on-read.
+  _Launch? pendingLaunch;
+  // The enabled pinned tiles: shortcut id -> the site its intent names.
+  var pinned = <String, String>{};
+  // Whether requestPinShortcut opens its dialog or throws.
+  var pinFails = false;
   final calls = <MethodCall>[];
 
   setUpAll(() async {
@@ -120,17 +127,29 @@ void main() {
             case 'getLaunchSiteId':
               final launch = pendingLaunch;
               pendingLaunch = null;
-              return launch;
-            case 'getPinnedSiteIds':
-              return pinned.toList();
+              return launch == null
+                  ? null
+                  : {'siteId': launch.site, 'shortcutId': launch.tile};
+            case 'getPinnedShortcuts':
+              return [
+                for (final MapEntry(:key, :value) in pinned.entries)
+                  {'shortcutId': key, 'siteId': value},
+              ];
             case 'pinShortcut':
-              if (pinOutcome == 'error') {
-                throw PlatformException(code: 'ERROR');
+              if (pinFails) throw PlatformException(code: 'ERROR');
+              final args = call.arguments as Map;
+              pinned[args['shortcutId'] as String] = args['siteId'] as String;
+              return true;
+            case 'updateShortcuts':
+              for (final tile in (call.arguments as Map)['tiles'] as List) {
+                final id = (tile as Map)['shortcutId'] as String;
+                if (pinned.containsKey(id)) {
+                  pinned[id] = tile['siteId'] as String;
+                }
               }
-              pinned.add((call.arguments as Map)['siteId'] as String);
-              return pinOutcome == 'alreadyPinned' ? 'alreadyPinned' : true;
+              return true;
             case 'disableShortcut':
-              pinned.remove((call.arguments as Map)['siteId'] as String);
+              pinned.remove((call.arguments as Map)['shortcutId'] as String);
               return null;
             default:
               // removeShortcut, syncSites, getDiagSeed, isAppIntentsSupported.
@@ -172,8 +191,8 @@ void main() {
     required List<WebViewModel> sites,
     Map<String, String> ledger = const {},
     Map<String, String> remap = const {},
-    Set<String> pinnedTiles = const {},
-    String? launch,
+    Map<String, String> pinnedTiles = const {},
+    _Launch? launch,
   }) {
     SharedPreferences.setMockInitialValues({
       'webViewModels': [for (final s in sites) jsonEncode(s.toJson())],
@@ -184,7 +203,7 @@ void main() {
       'shortcutSiteRemap': jsonEncode(remap),
     });
     pinned = {...pinnedTiles};
-    pinOutcome = 'requested';
+    pinFails = false;
     calls.clear();
     pendingLaunch = launch;
   }
@@ -295,7 +314,7 @@ void main() {
   /// frame nobody will schedule (observed as a 25-minute CI hang). The real
   /// background/foreground cycle, with the pause work in between, is driven
   /// out of process by the adb tier.
-  Future<void> resumeApp(WidgetTester tester, {String? withLaunch}) async {
+  Future<void> resumeApp(WidgetTester tester, {_Launch? withLaunch}) async {
     pendingLaunch = withLaunch;
     Future<void> send(String state) =>
         tester.binding.defaultBinaryMessenger.handlePlatformMessage(
@@ -323,6 +342,9 @@ void main() {
       reason: 'the overflow menu should be open',
     );
   }
+
+  /// A tap on the pinned [tile], carrying the site its intent names now.
+  _Launch tapOn(String tile) => (tile: tile, site: pinned[tile]!);
 
   bool drawerIsOpen() => find.byType(Drawer).evaluate().isNotEmpty;
 
@@ -377,8 +399,8 @@ Future<void> tapDialogButton(WidgetTester tester,
             siteA(currentUrl: '$hostA/deep.html', tabsEnabled: tabsOn),
             siteB(),
           ],
-          pinnedTiles: {'ws-hs-a'},
-          launch: 'ws-hs-a',
+          pinnedTiles: {'tile_a': 'ws-hs-a'},
+          launch: (tile: 'tile_a', site: 'ws-hs-a'),
         );
         await withApp(tester, body: () async {
           await pumpUntil(
@@ -433,8 +455,8 @@ Future<void> tapDialogButton(WidgetTester tester,
           ),
           siteB(),
         ],
-        pinnedTiles: {'ws-hs-a'},
-        launch: 'ws-hs-a',
+        pinnedTiles: {'tile_a': 'ws-hs-a'},
+        launch: (tile: 'tile_a', site: 'ws-hs-a'),
       );
       await withApp(tester, body: () async {
         await pumpUntil(
@@ -455,12 +477,12 @@ Future<void> tapDialogButton(WidgetTester tester,
   );
 
   testWidgets(
-    'the Home Shortcut item hides for a pinned site (HS-005)',
+    'the Home Shortcut item hides while a tile opens the site (HS-005)',
     (tester) async {
       seed(
         sites: [siteA(), siteB()],
-        pinnedTiles: {'ws-hs-a'},
-        launch: 'ws-hs-a',
+        pinnedTiles: {'tile_a': 'ws-hs-a'},
+        launch: (tile: 'tile_a', site: 'ws-hs-a'),
       );
       await withApp(tester, body: () async {
         await pumpUntil(
@@ -484,16 +506,17 @@ Future<void> tapDialogButton(WidgetTester tester,
   );
 
   testWidgets(
-    'the Home Shortcut item hides for a site an orphaned tile was rebound to '
-    '(HS-005)',
+    'the Home Shortcut item hides for a site an earlier version rebound a '
+    'tile to (HS-005)',
     (tester) async {
-      // A tile whose own site is gone, rebound to Site B by an earlier
-      // HS-011 prompt: B is already reachable from the launcher.
+      // A tile pinned before shortcut ids, whose own site is gone, rebound to
+      // Site B by an HS-011 prompt that kept a remap: B is already reachable
+      // from the launcher.
       seed(
         sites: [siteA(), siteB()],
         remap: {'ws-hs-ghost': 'ws-hs-b'},
-        pinnedTiles: {'ws-hs-ghost'},
-        launch: 'ws-hs-b',
+        pinnedTiles: {'site_ws-hs-ghost': 'ws-hs-ghost'},
+        launch: (tile: 'site_ws-hs-ghost', site: 'ws-hs-ghost'),
       );
       await withApp(tester, body: () async {
         await pumpUntil(
@@ -516,9 +539,10 @@ Future<void> tapDialogButton(WidgetTester tester,
 
   testWidgets(
     'pinning an unpinned site goes through the channel and records the ledger '
-    '(HS-004 / HS-001 / HS-012)',
+    '(HS-004 / HS-001 / HS-012 / HS-017)',
     (tester) async {
-      seed(sites: [siteA(), siteB()], launch: 'ws-hs-a');
+      // Launched from a tile since removed from the home screen.
+      seed(sites: [siteA(), siteB()], launch: (tile: 'tile_old', site: 'ws-hs-a'));
       await withApp(tester, body: () async {
         await pumpUntil(
           tester,
@@ -545,6 +569,9 @@ Future<void> tapDialogButton(WidgetTester tester,
         final args = (pin.arguments as Map).cast<String, dynamic>();
         expect(args['siteId'], 'ws-hs-a');
         expect(args['label'], 'Site A');
+        expect(args['shortcutId'], allOf(startsWith('tile_'), isNot('tile_old')),
+            reason: 'a pinned tile gets an id of its own, never one derived '
+                'from the site (HS-017)');
 
         // HS-012: pinning records the url so a later delete+recreate can be
         // routed by domain.
@@ -555,6 +582,14 @@ Future<void> tapDialogButton(WidgetTester tester,
               '$hostA/a.html',
           description: 'the pin to record the site url in the ledger',
         );
+
+        // The pin dialog backgrounds the app; back in front, the launcher
+        // reports the new tile and the item hides.
+        await resumeApp(tester);
+        await pumpFor(tester, total: const Duration(seconds: 1));
+        await openOverflowMenu(tester);
+        expect(find.text('Home Shortcut'), findsNothing,
+            reason: 'the new tile opens the site');
       });
     },
     skip: skipOffAndroid,
@@ -562,10 +597,9 @@ Future<void> tapDialogButton(WidgetTester tester,
   );
 
   testWidgets(
-    'a refused pin says so; a re-enabled tile says so and hides the item '
-    '(HS-015)',
+    'a refused pin says so, and each pin carries a fresh id (HS-015)',
     (tester) async {
-      seed(sites: [siteA(), siteB()], launch: 'ws-hs-a');
+      seed(sites: [siteA(), siteB()], launch: (tile: 'tile_old', site: 'ws-hs-a'));
       await withApp(tester, body: () async {
         await pumpUntil(
           tester,
@@ -573,7 +607,7 @@ Future<void> tapDialogButton(WidgetTester tester,
           description: 'the launched site to activate',
         );
 
-        pinOutcome = 'error';
+        pinFails = true;
         await openOverflowMenu(tester);
         await tester.tap(find.text('Home Shortcut'));
         await pumpUntil(
@@ -585,29 +619,24 @@ Future<void> tapDialogButton(WidgetTester tester,
           description: 'the refused pin to be reported',
         );
 
-        // A device restore leaves the tile disabled under the same id, so
-        // getPinnedSiteIds omits it and the item is still offered.
-        pinOutcome = 'alreadyPinned';
+        // A device restore leaves a disabled tile behind, which the launcher
+        // leaves out of what it reports: the item is still offered, and the
+        // new pin cannot meet that tile, since no two pins share an id.
+        pinFails = false;
         await openOverflowMenu(tester);
         expect(find.text('Home Shortcut'), findsOneWidget);
         await tester.tap(find.text('Home Shortcut'));
         await pumpUntil(
           tester,
-          predicate: () => find
-              .text('Re-enabled the existing home screen shortcut for "Site A"')
-              .evaluate()
-              .isNotEmpty,
-          description: 'the re-enabled tile to be reported',
+          predicate: () =>
+              calls.where((c) => c.method == 'pinShortcut').length == 2,
+          description: 'the second pin request',
         );
-
-        // No pin dialog backgrounded the app, so the item hides without a
-        // resume.
-        await openOverflowMenu(tester);
-        expect(
-          find.text('Home Shortcut'),
-          findsNothing,
-          reason: 'the re-enabled tile already reaches the site',
-        );
+        final ids = {
+          for (final c in calls.where((c) => c.method == 'pinShortcut'))
+            (c.arguments as Map)['shortcutId'],
+        };
+        expect(ids, hasLength(2), reason: 'each pin mints its own id');
       });
     },
     skip: skipOffAndroid,
@@ -615,16 +644,16 @@ Future<void> tapDialogButton(WidgetTester tester,
   );
 
   testWidgets(
-    'an orphaned tile with a domain match prompts, then is remembered '
-    '(HS-011)',
+    'an orphaned tile with a domain match prompts, then is rewritten '
+    '(HS-011 / HS-017)',
     (tester) async {
-      // The tile's own site is gone; its ledger url shares Site A's base
+      // The site the tile names is gone; its ledger url shares Site A's base
       // domain. The tile is still pinned, which is what keeps the ledger
       // entry alive through the startup reconcile (HS-012).
       seed(
         sites: [siteA()],
         ledger: {'ws-hs-ghost': '$hostA/gone.html'},
-        pinnedTiles: {'ws-hs-ghost'},
+        pinnedTiles: {'tile_ghost': 'ws-hs-ghost'},
       );
       await withApp(tester, body: () async {
         expect(
@@ -634,7 +663,7 @@ Future<void> tapDialogButton(WidgetTester tester,
         );
 
         // Declining leaves no trace, and a later tap asks again.
-        await resumeApp(tester, withLaunch: 'ws-hs-ghost');
+        await resumeApp(tester, withLaunch: tapOn('tile_ghost'));
         await pumpUntil(
           tester,
           predicate: () => find.text('Open site?').evaluate().isNotEmpty,
@@ -647,13 +676,13 @@ Future<void> tapDialogButton(WidgetTester tester,
           reason: 'declining must not open the matched site',
         );
         expect(
-          await prefsMap('shortcutSiteRemap'),
-          isEmpty,
-          reason: 'declining must not remember a rebind',
+          pinned['tile_ghost'],
+          'ws-hs-ghost',
+          reason: 'declining must not rewrite the tile',
         );
 
-        // Confirming opens the match and remembers it.
-        await resumeApp(tester, withLaunch: 'ws-hs-ghost');
+        // Confirming opens the match and points the tile at it.
+        await resumeApp(tester, withLaunch: tapOn('tile_ghost'));
         await pumpUntil(
           tester,
           predicate: () => find.text('Open site?').evaluate().isNotEmpty,
@@ -665,20 +694,21 @@ Future<void> tapDialogButton(WidgetTester tester,
           predicate: () => siteIsMounted('ws-hs-a'),
           description: 'the matched site to activate',
         );
-        await pumpUntilAsync(
+        await pumpUntil(
           tester,
-          predicate: () async =>
-              (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost'] == 'ws-hs-a',
-          description: 'the confirmed rebind to persist',
+          predicate: () => pinned['tile_ghost'] == 'ws-hs-a',
+          description: 'the tile to be rewritten to open the match',
         );
+        expect(await prefsMap('shortcutSiteRemap'), isEmpty,
+            reason: 'an Android tile is rewritten, not remapped');
 
-        // The remembered rebind resolves the next tap directly.
-        await resumeApp(tester, withLaunch: 'ws-hs-ghost');
+        // The rewritten tile opens the site directly.
+        await resumeApp(tester, withLaunch: tapOn('tile_ghost'));
         await pumpFor(tester, total: const Duration(seconds: 3));
         expect(
           find.text('Open site?'),
           findsNothing,
-          reason: 'a remembered rebind must resolve without prompting',
+          reason: 'a rewritten tile must resolve without prompting',
         );
       });
     },
@@ -692,10 +722,10 @@ Future<void> tapDialogButton(WidgetTester tester,
       seed(
         sites: [siteB()],
         ledger: {'ws-hs-ghost1': _kOffDomainUrl, 'ws-hs-ghost2': _kCreateUrl},
-        pinnedTiles: {'ws-hs-ghost1', 'ws-hs-ghost2'},
+        pinnedTiles: {'tile_1': 'ws-hs-ghost1', 'tile_2': 'ws-hs-ghost2'},
       );
       await withApp(tester, body: () async {
-        await resumeApp(tester, withLaunch: 'ws-hs-ghost1');
+        await resumeApp(tester, withLaunch: tapOn('tile_1'));
         await pumpUntil(
           tester,
           predicate: () =>
@@ -719,18 +749,16 @@ Future<void> tapDialogButton(WidgetTester tester,
           predicate: () => siteIsMounted('ws-hs-b'),
           description: 'the rerouted site to activate',
         );
-        await pumpUntilAsync(
+        await pumpUntil(
           tester,
-          predicate: () async =>
-              (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost1'] ==
-              'ws-hs-b',
-          description: 'the reroute to be remembered',
+          predicate: () => pinned['tile_1'] == 'ws-hs-b',
+          description: 'the tile to be rewritten to the rerouted site',
         );
 
         // The create branch builds a site rooted at the ledger url and
-        // binds the tile to it. The url is unreachable, so the title probe
+        // points the tile at it. The url is unreachable, so the title probe
         // times out first.
-        await resumeApp(tester, withLaunch: 'ws-hs-ghost2');
+        await resumeApp(tester, withLaunch: tapOn('tile_2'));
         await pumpUntil(
           tester,
           predicate: () =>
@@ -745,13 +773,91 @@ Future<void> tapDialogButton(WidgetTester tester,
           timeout: const Duration(seconds: 60),
         );
         final created = models().firstWhere((m) => m.initUrl == _kCreateUrl);
-        await pumpUntilAsync(
+        await pumpUntil(
           tester,
-          predicate: () async =>
-              (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost2'] ==
-              created.siteId,
-          description: 'the created site to be bound to the tile',
+          predicate: () => pinned['tile_2'] == created.siteId,
+          description: 'the tile to be rewritten to the created site',
         );
+      });
+    },
+    skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  testWidgets(
+    'App Settings lists the tiles; a tap points one at another site and '
+    'Disable greys one out (HS-017)',
+    (tester) async {
+      seed(
+        sites: [siteA(), siteB()],
+        pinnedTiles: {'tile_a': 'ws-hs-a', 'tile_ghost': 'ws-hs-ghost'},
+      );
+      await withApp(tester, body: () async {
+        final settingsButton = find.byTooltip('App Settings');
+        if (settingsButton.evaluate().isEmpty) {
+          dumpDiagnostics('no App Settings button');
+        }
+        await tester.tap(settingsButton.first);
+        await pumpFor(tester, total: const Duration(seconds: 2));
+        await tester.tap(find.text('Behaviour'));
+        await pumpFor(tester, total: const Duration(seconds: 2));
+        final row = find.text('Home screen shortcuts');
+        await tester.scrollUntilVisible(row, 100,
+            scrollable: find.byType(Scrollable).first);
+        expect(find.text('2 shortcuts'), findsOneWidget);
+        await tester.tap(row);
+        await pumpFor(tester, total: const Duration(seconds: 2));
+        expect(find.text('Site A'), findsOneWidget);
+        expect(find.text('Deleted site'), findsOneWidget,
+            reason: 'a tile whose site is gone is listed too');
+
+        await tester.tap(find.text('Site A'));
+        await pumpUntil(
+          tester,
+          predicate: () =>
+              find.text('Point shortcut at').evaluate().isNotEmpty,
+          description: 'the site picker',
+        );
+        await tester.tap(find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Site B'),
+        ));
+        await pumpUntil(
+          tester,
+          predicate: () => pinned['tile_a'] == 'ws-hs-b',
+          description: 'the tile to be rewritten to open Site B',
+        );
+        await pumpUntil(
+          tester,
+          predicate: () => find.text('Site B').evaluate().isNotEmpty,
+          description: 'the list to show the tile opening Site B',
+        );
+
+        await tester.tap(find.descendant(
+          of: find.ancestor(
+            of: find.text('Deleted site'),
+            matching: find.byType(ListTile),
+          ),
+          matching: find.byIcon(Icons.block),
+        ));
+        await pumpUntil(
+          tester,
+          predicate: () =>
+              find.text('Disable this shortcut?').evaluate().isNotEmpty,
+          description: 'the disable confirmation',
+        );
+        await tapDialogButton(tester, label: 'Disable');
+        await pumpUntil(
+          tester,
+          predicate: () => !pinned.containsKey('tile_ghost'),
+          description: 'the orphaned tile to be disabled',
+        );
+        await pumpUntil(
+          tester,
+          predicate: () => find.text('Deleted site').evaluate().isEmpty,
+          description: 'the disabled tile to leave the list',
+        );
+        expect(pinned, {'tile_a': 'ws-hs-b'});
       });
     },
     skip: skipOffAndroid,
@@ -762,12 +868,13 @@ Future<void> tapDialogButton(WidgetTester tester,
     'deleting a site pinned tiles reach prompts, and Disable kills the tiles '
     '(HS-013)',
     (tester) async {
-      // Two tiles reach Site A: its own, and an orphaned tile rebound to it.
+      // Two tiles reach Site A: one naming it, and one pinned by an earlier
+      // version whose site is gone, rebound to A by a remap.
       seed(
         sites: [siteA(), siteB()],
         ledger: {'ws-hs-a': '$hostA/a.html', 'ws-hs-tile': _kOffDomainUrl},
         remap: {'ws-hs-tile': 'ws-hs-a'},
-        pinnedTiles: {'ws-hs-a', 'ws-hs-tile'},
+        pinnedTiles: {'tile_a': 'ws-hs-a', 'site_ws-hs-tile': 'ws-hs-tile'},
       );
       await withApp(tester, body: () async {
         Future<void> deleteFirstSite() async {
@@ -807,11 +914,11 @@ Future<void> tapDialogButton(WidgetTester tester,
         );
         final disabled = {
           for (final c in calls.where((c) => c.method == 'disableShortcut'))
-            (c.arguments as Map)['siteId'] as String,
+            (c.arguments as Map)['shortcutId'] as String,
         };
         expect(
           disabled,
-          {'ws-hs-a', 'ws-hs-tile'},
+          {'tile_a', 'site_ws-hs-tile'},
           reason:
               'the deleted site\'s own tile and the tile rebound to it '
               'both reach it',

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
@@ -67,11 +68,16 @@ class AppBehaviourScreen extends StatefulWidget {
   const AppBehaviourScreen({
     super.key,
     required this.onOpenLinkHandlingSettings,
+    required this.homeShortcuts,
     this.webSearchSites = const [],
   });
 
   /// LIR-008: entry into the routing overview screen.
   final VoidCallback onOpenLinkHandlingSettings;
+
+  /// HS-017: the pinned home screen tiles, null where no platform API lists
+  /// them (everywhere but Android), which leaves the row out.
+  final HomeShortcutsHost? homeShortcuts;
 
   /// The user's web search sites outside every archive (LIR-029), each with
   /// its container's colour, null on the legacy engine.
@@ -234,6 +240,22 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
               title: loc.appSettingsBackOpensMenu,
               hint: backOpensMenuHint,
               control: const PrefToggle(AppPref.backOpensMenu),
+            ),
+          if (widget.homeShortcuts case final shortcuts?)
+            ValueListenableBuilder<List<HomeShortcut>>(
+              valueListenable: shortcuts.homeShortcuts,
+              builder: (context, pinned, _) => SettingTile(
+                leading: const Icon(Icons.app_shortcut),
+                title: loc.homeShortcutsTitle,
+                hint: loc.homeShortcutsHint,
+                subtitle: loc.homeShortcutsCount(pinned.length),
+                control: Opens(() => guardedOpen(() => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => HomeShortcutsScreen(host: shortcuts),
+                      ),
+                    ))),
+              ),
             ),
           SettingTile(
             leading: const Icon(Icons.share_outlined),

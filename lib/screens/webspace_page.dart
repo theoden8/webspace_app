@@ -1081,6 +1081,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 closed ? loc.homeArchivesClosed : loc.homeArchiveFull);
           },
           onOpenLinkHandlingSettings: _openLinkHandlingSettings,
+          homeShortcuts: hostIsAndroid ? _shortcuts : null,
           webSearchSites: [
             for (final m in _sites.models)
               if (!m.isArchiveTier &&

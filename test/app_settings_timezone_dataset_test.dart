@@ -43,6 +43,7 @@ void main() {
           onExportSettings: () {},
           onImportSettings: () {},
           onOpenLinkHandlingSettings: () {},
+          homeShortcuts: null,
         ),
       );
 

@@ -1,4 +1,5 @@
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/settings/shortcut_id.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
@@ -31,33 +32,26 @@ class ShortcutSite {
       };
 }
 
-/// What a tapped home shortcut hands back: the `siteId` plus, on iOS, the
-/// site's `url` carried through the App Group (`OpenSiteIntent` writes it). On
-/// Android the launch intent is siteId-only and `url` is null — the caller
-/// supplies it from the Android-side url ledger instead.
+/// What a tapped home shortcut hands back: the `siteId` it opens, plus on
+/// iOS the site's `url` carried through the App Group (`OpenSiteIntent`
+/// writes it) and on Android the tile's own [shortcutId] (HS-017). Android
+/// carries no url; the caller supplies it from the url ledger instead.
 class ShortcutLaunch {
   final SiteId siteId;
   final String? url;
+  final ShortcutId? shortcutId;
 
-  const ShortcutLaunch({required this.siteId, this.url});
+  const ShortcutLaunch({required this.siteId, this.url, this.shortcutId});
 }
 
 enum PinShortcutResult {
   /// The system pin dialog opened (Android), or Shortcuts.app did (iOS/macOS).
   requested,
 
-  /// Android: the site's tile was already pinned. A disabled copy (a tile
-  /// restored from a device backup, or one disabled at delete time) has just
-  /// been re-enabled, so no dialog follows (HS-015).
-  alreadyPinned,
-
   failed;
 
-  static PinShortcutResult fromChannel(Object? raw) {
-    if (raw == true) return requested;
-    if (raw == 'alreadyPinned') return alreadyPinned;
-    return failed;
-  }
+  static PinShortcutResult fromChannel(Object? raw) =>
+      raw == true ? requested : failed;
 }
 
 class ShortcutService {
@@ -65,32 +59,30 @@ class ShortcutService {
 
   /// Request a pinned home screen shortcut for a site.
   ///
-  /// Android: hands the request to `ShortcutManagerCompat.requestPinShortcut`
-  /// after re-enabling any disabled tile under the same id. iOS 16+: opens the
+  /// Android: hands a tile with its own fresh [shortcutId] (HS-017) to
+  /// `ShortcutManagerCompat.requestPinShortcut`. iOS 16+: opens the
   /// Shortcuts app — the caller is responsible for showing the
   /// instructional dialog (HS-008) before invoking. [PinShortcutResult.failed]
   /// on platforms without either path.
   ///
   /// [iconBytes] is a ready-to-use raster PNG (the caller rasterizes the
   /// favicon, including SVG, before invoking — Android's BitmapFactory can't
-  /// decode SVG). When present the native side uses it directly; [iconUrl] is
-  /// only a fallback the native side downloads if no bytes were supplied. With
-  /// neither, the shortcut uses the WebSpace app icon.
+  /// decode SVG). Without it the shortcut uses the WebSpace app icon.
   static Future<PinShortcutResult> pinShortcut({
     required SiteId siteId,
     required String label,
+    ShortcutId? shortcutId,
     Uint8List? iconBytes,
-    String? iconUrl,
   }) async {
     if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
       return PinShortcutResult.failed;
     }
     try {
       final result = await _channel.invokeMethod('pinShortcut', {
+        'shortcutId': shortcutId,
         'siteId': siteId,
         'label': label,
         'iconBytes': iconBytes,
-        'iconUrl': iconUrl,
       });
       return PinShortcutResult.fromChannel(result);
     } on PlatformException {
@@ -120,9 +112,9 @@ class ShortcutService {
   /// underlying pending state on read (consume-once), so callers polling on
   /// every resume don't re-navigate on a plain background/return.
   ///
-  /// Android returns a bare siteId string (`url` null — the caller pairs it
-  /// with the url ledger); iOS/macOS return a `{siteId, url}` map. Both shapes
-  /// are tolerated so the platforms can share one call site.
+  /// Android returns `{siteId, shortcutId}` (`url` null — the caller pairs it
+  /// with the url ledger); iOS/macOS return `{siteId, url}`. A bare siteId
+  /// string is still read, so the platforms share one call site.
   static Future<ShortcutLaunch?> getLaunch() async {
     if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
       return null;
@@ -141,6 +133,7 @@ class ShortcutService {
           return ShortcutLaunch(
             siteId: id,
             url: url is String && url.isNotEmpty ? url : null,
+            shortcutId: ShortcutId.parse(res['shortcutId']),
           );
         }
       }
@@ -154,35 +147,43 @@ class ShortcutService {
     }
   }
 
-  /// Get the set of siteIds that currently have an enabled pinned home
-  /// shortcut. A disabled tile is left out: it opens nothing, and counting it
-  /// would hide the menu item that re-enables it (HS-015).
+  /// The enabled pinned home shortcuts, each with the site its launch intent
+  /// names (HS-017). A disabled tile is left out: it opens nothing.
   /// Android-only — iOS has no public API to enumerate home-screen tiles, so
-  /// this always returns an empty set on iOS.
-  static Future<Set<SiteId>> getPinnedSiteIds() async {
-    if (!hostIsAndroid) return const <SiteId>{};
+  /// this is always empty there.
+  static Future<Map<ShortcutId, SiteId>> getPinnedShortcuts() async {
+    if (!hostIsAndroid) return const {};
     try {
-      final result = await _channel.invokeMethod('getPinnedSiteIds');
-      if (result is List) {
-        return result.map(SiteId.parse).nonNulls.toSet();
-      }
-      return const <SiteId>{};
+      final result = await _channel.invokeMethod('getPinnedShortcuts');
+      if (result is! List) return const {};
+      return {
+        for (final tile in result)
+          if (tile is Map)
+            if ((ShortcutId.parse(tile['shortcutId']), SiteId.parse(tile['siteId']))
+                case (final id?, final site?))
+              id: site,
+      };
     } on PlatformException {
-      return const <SiteId>{};
+      return const {};
     }
   }
 
-  /// Rewrite the label, and the icon where one is given, of pinned tiles
-  /// (Android only, HS-016). False when nothing was written: off Android, on
-  /// a channel error, or when the launcher rate-limits the call, so the
-  /// caller retries on its next sync.
+  /// Rewrite pinned tiles (Android only): the site each opens (HS-017), its
+  /// label, and its icon where one is given (HS-016). False when nothing was
+  /// written: off Android, on a channel error, or when the launcher
+  /// rate-limits the call, so the caller retries on its next sync.
   static Future<bool> updateTiles(List<TileUpdate> updates) async {
     if (!hostIsAndroid) return false;
     try {
       final result = await _channel.invokeMethod('updateShortcuts', {
         'tiles': [
           for (final u in updates)
-            {'siteId': u.tile, 'label': u.label, 'iconBytes': u.icon},
+            {
+              'shortcutId': u.tile,
+              'siteId': u.site,
+              'label': u.label,
+              'iconBytes': u.icon,
+            },
         ],
       });
       return result == true;
@@ -191,16 +192,15 @@ class ShortcutService {
     }
   }
 
-  /// Disable a pinned shortcut for a deleted site (Android only). Android has
-  /// no API to remove a pinned tile, so this greys it out and makes the
-  /// launcher show "shortcut isn't available" on tap until the user drags it
-  /// off the home screen. Used only when the user explicitly opts to kill a
-  /// deleted site's shortcut (HS-011); the default leaves the tile tappable so
-  /// it can re-route via the url ledger.
-  static Future<void> disableShortcut(SiteId siteId) async {
+  /// Disable a pinned shortcut (Android only). Android has no API to remove a
+  /// pinned tile, so this greys it out and makes the launcher show "shortcut
+  /// isn't available" on tap until the user drags it off the home screen.
+  /// Only on the user's say-so (HS-013, HS-017): the default leaves a deleted
+  /// site's tile tappable so it can re-route via the url ledger.
+  static Future<void> disableShortcut(ShortcutId shortcutId) async {
     if (!hostIsAndroid) return;
     try {
-      await _channel.invokeMethod('disableShortcut', {'siteId': siteId});
+      await _channel.invokeMethod('disableShortcut', {'shortcutId': shortcutId});
     } on PlatformException {
       // Ignore — shortcut may not exist.
     }

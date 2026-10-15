@@ -126,7 +126,7 @@ The "Home Shortcut" menu item SHALL be shown on Android, on iOS 16+, and on macO
 
 ### Requirement: HS-005 - Hide When Already Pinned (Android only)
 
-Sites in WebSpace are stable, so a home shortcut is a one-time setup per site. On Android, the "Home Shortcut" menu item SHALL be hidden when the current site already has a pinned shortcut, and SHALL reappear if the user removes the shortcut from the launcher. On iOS this scenario does not apply: iOS does not expose an API to query whether an App Shortcut tile is currently on the home screen, so the menu item stays available on iOS regardless of pin state.
+Sites in WebSpace are stable, so a home shortcut is a one-time setup per site. On Android, the "Home Shortcut" menu item SHALL be hidden while a pinned tile opens the current site, and SHALL reappear once none does: the user removed the tile from the launcher, or pointed it at another site (HS-017). On iOS this scenario does not apply: iOS does not expose an API to query whether an App Shortcut tile is currently on the home screen, so the menu item stays available on iOS regardless of pin state.
 
 #### Scenario: Android — site already has a pinned shortcut
 
@@ -146,13 +146,13 @@ Sites in WebSpace are stable, so a home shortcut is a one-time setup per site. O
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is still shown (iOS cannot detect prior pinning)
 
-The Android pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)`, keeping only enabled shortcuts (a disabled tile opens nothing, so it does not count as pinned; see HS-015), exposed through the platform channel as `getPinnedSiteIds`. The cached set is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
+The Android pinned tiles are queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)`, keeping only enabled shortcuts (a disabled tile opens nothing, so it does not count as pinned; see HS-015), each with the site its launch intent names (HS-017), exposed through the platform channel as `getPinnedShortcuts`. The cached map is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
 
-For the menu-visibility check the pinned set is widened to its **effective** form (`ShortcutPinState.effectivePinnedSiteIds`): the pinned ids plus any site a pinned tile has been rebound to via the HS-011 remap. A site an orphaned tile now routes to is already reachable, so the "Home Shortcut" item is hidden for it too — otherwise the user could pin a second, redundant tile to the same site.
+A tile opens a site by the rule a tap resolves with (`ShortcutPinState.tilesReaching`, through `StartupRestoreEngine.resolveLaunch`): the site its intent names, or, for a tile an earlier version rebound by a remap (HS-011), the remap's target. The item is hidden for every site some tile opens, so the user is not offered a second, redundant tile.
 
-#### Scenario: Android — rebound site hides the menu
+#### Scenario: Android — a site a tile was pointed at hides the menu
 
-**Given** an orphaned pinned tile was rebound to (or created) a site via HS-011
+**Given** a pinned tile was pointed at a site (HS-011, HS-013 Reassign, HS-017), or created one (HS-011)
 **When** the user opens the overflow menu for that site
 **Then** the "Home Shortcut" option is not shown (the existing tile already reaches it)
 
@@ -303,17 +303,19 @@ A home shortcut identifies its site by the random `siteId`. When that `siteId` n
 
 1. **Direct match** — the `siteId` maps to a current site. Open it (HS-002), no prompt.
 2. **Remembered rebind** — a prior user choice mapped this `siteId` to a live site. Open it, no prompt.
-3. **Domain match** — a url is known for this `siteId` and a current site shares its base domain. The system SHALL prompt the user to open that site; on confirm it SHALL remember the rebind so later taps resolve via step 2.
-4. **Offer to create** — a url is known but no current site matches. The system SHALL prompt the user to create a new site for that url; on confirm it SHALL create the site, open it, and remember the rebind.
+3. **Domain match** — a url is known for this `siteId` and a current site shares its base domain. The system SHALL prompt the user to open that site; on confirm it SHALL keep the choice, so later taps resolve via step 1 or 2.
+4. **Offer to create** — a url is known but no current site matches. The system SHALL prompt the user to create a new site for that url; on confirm it SHALL create the site, open it, and keep the choice.
+
+A choice is kept where the tile allows it. On **Android** the tapped tile is rewritten to open the chosen site (HS-017), so its next tap is a direct match; on **iOS/macOS**, where the app cannot rewrite a Shortcuts tile, a rebind from the stale `siteId` to the chosen site is remembered (step 2).
 
 With no url known for the id, the system falls back to the home screen (legacy HS-002 behavior).
 
 The resolution engine (`StartupRestoreEngine.resolveLaunch`) is platform-agnostic; the two platforms differ only in **where the url comes from**:
 
-- **Android** — the launch intent is siteId-only, so a persisted `siteId -> url` ledger supplies the url (recorded for pinned sites, pruned to the pinned/current set; see HS-012).
+- **Android** — the launch intent names a `siteId` and the tile's own id but no url, so a persisted `siteId -> url` ledger supplies the url (recorded for the sites pinned tiles name, pruned to the pinned/current set; see HS-012).
 - **iOS / macOS** — the launch can't be intercepted for a deleted entity unless the entity still resolves, so a deleted site is kept in a bounded **tombstone** list that `SiteEntityQuery.entities(for:)` resolves (while the picker stays live-only, HS-009). The resolved `SiteEntity` carries the url, which `OpenSiteIntent.perform()` writes into the launch payload (see HS-014). The choice for a no-match tap (reroute to an existing site or create one) is made when the handle is tapped, not at delete time, since neither OS can enumerate or disable home-screen tiles.
 
-The ledger, tombstone list, and remembered-rebind map are machine state derived from shortcut activity: all are persisted in `SharedPreferences` (`shortcutUrlLedger`, `shortcutTombstones`, `shortcutSiteRemap`), are NOT part of settings export/import, and are bounded/pruned (HS-012, HS-014). A rebind whose resolved target is later deleted is dropped at startup.
+The ledger, tombstone list, and remembered-rebind map are machine state derived from shortcut activity: all are persisted in `SharedPreferences` (`shortcutUrlLedger`, `shortcutTombstones`, `shortcutSiteRemap`), are NOT part of settings export/import, and are bounded/pruned (HS-012, HS-014). A rebind whose resolved target is later deleted is dropped at startup. Android writes no new rebind (it rewrites the tile instead) and still reads the ones an earlier version wrote.
 
 #### Scenario: Pinned site deleted and recreated under a new id
 
@@ -342,7 +344,7 @@ The ledger, tombstone list, and remembered-rebind map are machine state derived 
 
 **Given** an orphaned shortcut's confirm/create prompt is shown
 **When** the user taps Cancel
-**Then** no site is opened or created and no rebind is remembered
+**Then** no site is opened or created, no tile is rewritten and no rebind is remembered
 **And** a later tap shows the prompt again
 
 #### Scenario: Orphaned id with no ledger url
@@ -357,7 +359,7 @@ The ledger, tombstone list, and remembered-rebind map are machine state derived 
 
 The system SHALL maintain the HS-011 `siteId -> url` ledger against the launcher's actual pinned set, so it carries exactly the entries needed to route orphaned shortcuts and no stale cruft. On pin, and on every `initState` / `AppLifecycleState.resumed` (the same cadence as the HS-005 pinned-set refresh), the system SHALL:
 
-- record `siteId -> initUrl` for every pinned shortcut whose site still exists, so a later deletion leaves a routable trail; and
+- record `siteId -> initUrl` for every site a pinned tile names that still exists, so a later deletion leaves a routable trail; and
 - drop any ledger entry whose `siteId` is neither a current site nor in the pinned set (unreachable: the site is gone and no launcher tile points at it).
 
 The reconcile logic is a pure function exercised in [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart).
@@ -378,13 +380,13 @@ The reconcile logic is a pure function exercised in [test/startup_restore_engine
 
 ### Requirement: HS-013 - Delete-Time Shortcut Prompt (Android)
 
-When the user deletes a site that is reachable by one or more pinned tiles, the system SHALL prompt for the fate of those now-orphaned tiles, since Android cannot remove a pinned tile programmatically. A tile "reaches" the deleted site if its id IS the deleted `siteId` OR a prior HS-011 rebind points it there (`remap[tile] == siteId`) — computed via `ShortcutPinState.tilesReaching` against a **fresh** `getPinnedSiteIds()` query (not the cached set, which lags pins made this session). The prompt offers three choices, applied to every reaching tile:
+When the user deletes a site that is reachable by one or more pinned tiles, the system SHALL prompt for the fate of those now-orphaned tiles, since Android cannot remove a pinned tile programmatically. A tile "reaches" the deleted site if a tap on it opened that site (HS-005: its intent names it, or a remap an earlier version wrote resolves it there) — computed via `ShortcutPinState.tilesReaching` against a **fresh** `getPinnedShortcuts()` query (not the cached map, which lags pins made this session). The prompt offers three choices, applied to every reaching tile:
 
 - **Keep** — leave the tile(s) enabled; a tap re-routes via HS-011 (open a domain match or offer to create). This is also the outcome if the prompt is dismissed.
-- **Reassign** — pick another existing site; the system records a rebind (`tile -> chosen siteId`) for each reaching tile so a tap opens the chosen site directly (HS-011 step 2).
-- **Disable** — disable each reaching tile (it greys out and the launcher rejects the tap until the user removes it from the home screen) and drop its ledger and rebind entries.
+- **Reassign** — pick another existing site; the system rewrites each reaching tile to open it (HS-017), so a tap opens the chosen site directly.
+- **Disable** — disable each reaching tile (it greys out and the launcher rejects the tap until the user removes it from the home screen) and drop the ledger and rebind entries no remaining tile needs.
 
-The prompt appears only on **Android**, and only when at least one pinned tile reaches the deleted site (detectable via `getPinnedSiteIds`); deleting a site no tile reaches is unaffected. The prompt is Android-only because only Android can enumerate tiles (to know one exists) and disable them (so the choice has a system-UI effect). On platforms with no tile-introspection or disable API (**iOS**; macOS and Linux if/when they gain a shortcut path), a delete-time prompt would fire blindly on every deletion, so the site is tombstoned silently (HS-014) and the choice is deferred to the only moment a handle reveals itself — when it is tapped (HS-011 step 3): a tap with no live/remap/domain match offers to reroute the handle to an existing site or create a new one, and the choice is remembered as a remap.
+The prompt appears only on **Android**, and only when at least one pinned tile reaches the deleted site (detectable via `getPinnedShortcuts`); deleting a site no tile reaches is unaffected. The prompt is Android-only because only Android can enumerate tiles (to know one exists) and disable them (so the choice has a system-UI effect). On platforms with no tile-introspection or disable API (**iOS**; macOS and Linux if/when they gain a shortcut path), a delete-time prompt would fire blindly on every deletion, so the site is tombstoned silently (HS-014) and the choice is deferred to the only moment a handle reveals itself — when it is tapped (HS-011 step 3): a tap with no live/remap/domain match offers to reroute the handle to an existing site or create a new one, and the choice is remembered as a remap.
 
 #### Scenario: iOS records a tombstone silently on delete
 
@@ -402,7 +404,7 @@ The prompt appears only on **Android**, and only when at least one pinned tile r
 
 #### Scenario: Deleting a site a tile was rebound to still prompts
 
-**Given** an orphaned tile was rebound (HS-011) to site B, and B has no shortcut of its own
+**Given** a tile pinned for another site was pointed at site B (HS-011, HS-017), and no tile was pinned for B itself
 **When** the user deletes B
 **Then** the prompt still appears (the rebound tile reaches B)
 **And** the chosen action applies to that tile, not to B's own (absent) shortcut
@@ -417,8 +419,9 @@ The prompt appears only on **Android**, and only when at least one pinned tile r
 
 **Given** the delete-time prompt is shown
 **When** the user chooses Reassign and picks another site
-**Then** a rebind from the deleted siteId to the chosen site is remembered
+**Then** each reaching tile is rewritten to open the chosen site
 **And** a later tap of the tile opens the chosen site with no prompt
+**And** the tile shows the chosen site's name and icon (HS-016)
 
 #### Scenario: Disable greys out the tile
 
@@ -477,30 +480,27 @@ Because the OS gives no way to know whether a tile exists, the system tombstones
 
 ### Requirement: HS-015 - A Disabled Tile Never Blocks Pinning (Android)
 
-A pinned tile can exist in a disabled state under a site's shortcut id (`site_<siteId>`):
+A pinned tile can exist in a disabled state:
 
-- **Device restore.** Android backs up pinned tiles and restores them with the launcher layout. When it cannot vouch for the reinstalled app (signature mismatch, lower version, backup not allowed) it restores the tile disabled and hides it from the app's own `getShortcuts`. Settings import keeps each site's `siteId`, so the restored tile carries the same id as the imported site.
-- **Delete-time Disable (HS-013),** followed by an import that brings the same `siteId` back.
+- **Device restore.** Android backs up pinned tiles and restores them with the launcher layout. When it cannot vouch for the reinstalled app (signature mismatch, lower version, backup not allowed) it restores the tile disabled and hides it from the app's own `getShortcuts`. Settings import keeps each site's `siteId`, so the restored tile names the imported site.
+- **Disable** from the delete prompt (HS-013) or the shortcuts list (HS-017).
 
-`ShortcutManager.requestPinShortcut` throws `IllegalArgumentException` ("already exists but disabled") for such an id. The system SHALL therefore, before requesting the pin, publish the shortcut under its id (`pushDynamicShortcut`, then `removeDynamicShortcuts` so the site does not join the launcher's long-press menu). Publishing replaces a disabled copy, restore-blocked or not, with an enabled one and keeps its pinned flag. If the id is then pinned and enabled, the existing tile works again: the system SHALL NOT request a second tile, and SHALL tell the user the existing shortcut was re-enabled. If the pin still fails, the system SHALL say so rather than fail silently.
+`ShortcutManager.requestPinShortcut` throws `IllegalArgumentException` ("already exists but disabled") for an id that exists disabled. The system SHALL therefore pin every tile under a fresh shortcut id (HS-017), never one derived from the site, so a new pin cannot meet a disabled copy under its id. A disabled tile does not count as pinned (HS-005), so the menu offers a new tile for its site; the disabled one stays greyed out until the user removes it from the home screen. If the pin fails, the system SHALL say so rather than fail silently.
 
 #### Scenario: Tile restored disabled after a device backup
 
 **Given** the user restored the phone from a backup and the launcher brought back the site's tile greyed out
-**And** the user imported a settings backup, so the site has the tile's `siteId`
-**When** the user taps "Home Shortcut" for that site
-**Then** the greyed-out tile is enabled again and opens the site
-**And** no second tile is requested
-**And** a message says the existing home screen shortcut was re-enabled
-**And** the "Home Shortcut" item is hidden for the site from then on (HS-005)
-
-#### Scenario: Tile disabled at delete time, site re-imported
-
-**Given** the user deleted a site and chose Disable for its tile (HS-013)
-**And** later imported a backup that restores the site with the same `siteId`
-**When** the user opens the overflow menu for the site
+**And** the user imported a settings backup, so the site has the `siteId` the tile names
+**When** the user opens the overflow menu for that site
 **Then** "Home Shortcut" is shown (a disabled tile does not count as pinned)
-**And** tapping it re-enables the existing tile
+**And** tapping it requests a new tile, under an id of its own
+
+#### Scenario: Tile disabled, site re-imported
+
+**Given** the user disabled a site's tile (HS-013, HS-017)
+**And** later imported a backup that restores the site with the same `siteId`
+**When** the user taps "Home Shortcut" for the site
+**Then** a new tile is requested; the pin does not fail on the disabled one
 
 #### Scenario: Pin refused
 
@@ -512,7 +512,7 @@ A pinned tile can exist in a disabled state under a site's shortcut id (`site_<s
 
 ### Requirement: HS-016 - A Pinned Tile Follows Its Site (Android)
 
-A pinned tile SHALL show the name and icon of the site a tap on it opens (its own site, else the site it was rebound to, by the rule HS-011 applies), so a rename or a new icon reaches the home screen without pinning again. Some launchers cannot edit a pinned shortcut at all, so the app is the only place to change it.
+A pinned tile SHALL show the name and icon of the site a tap on it opens (the site its intent names, else the site a remap an earlier version wrote resolves it to, by the rule HS-011 applies), so a rename or a new icon reaches the home screen without pinning again. The same rewrite carries the site the tile opens (HS-017), so a tile an earlier version rebound by a remap is rewritten to name its site. Some launchers cannot edit a pinned shortcut at all, so the app is the only place to change it.
 
 The icon is the one the drawer shows when it is known without a fetch: the custom icon (EDIT-008), else the page icon the site's webview reported (ICON-009). While neither exists the tile keeps the icon it has: a tile is never rewritten with the app icon, or with a favicon fetched for the purpose, by this sync.
 
@@ -546,8 +546,45 @@ The tiles are rewritten through `ShortcutManagerCompat.updateShortcuts`, the doc
 
 #### Scenario: A rebound tile shows the site it opens
 
-**Given** an orphaned tile the user pointed at another site (HS-011, HS-013 Reassign)
+**Given** a tile the user pointed at another site (HS-011, HS-013 Reassign, HS-017)
 **Then** the tile shows that site's name and icon
+
+---
+
+### Requirement: HS-017 - Shortcut Ids and the Shortcuts List (Android)
+
+Each pinned Android tile SHALL carry an id of its own (`ShortcutId`, `tile_<time>-<random>`), minted when it is pinned and never derived from a site. Its launch intent names the site it opens (`siteId`) and the tile's id (`shortcutId`), and a tap reports both. The app points a tile at another site by rewriting its intent through `updateShortcuts`, with that site's name and icon (HS-016), so the launcher holds which site each tile opens and the app reads it back through `getPinnedShortcuts`. A tile pinned before shortcut ids keeps the id `site_<siteId>` it was pinned under; a tap on one reports that id, so it is rewritten like any other.
+
+App Settings > Behaviour SHALL list the enabled pinned tiles under "Home screen shortcuts", the row's subtitle counting them. Each entry shows the site the tile opens, or "Deleted site" when none, with the address it last opened. Tapping an entry picks another site (the one it opens is not offered) and rewrites the tile; Disable asks first, then disables the tile as HS-013's Disable does. The app cannot re-enable a tile it disabled, and the confirmation says so. The row is absent where no platform lists its tiles (everywhere but Android). iOS and macOS keep the HS-011 remap: the app cannot rewrite a Shortcuts tile.
+
+#### Scenario: Pointing a tile at another site
+
+**Given** a pinned tile opening site A
+**When** the user opens App Settings > Behaviour > Home screen shortcuts, taps the tile and picks site B
+**Then** a tap on the tile opens B from then on, with no prompt
+**And** the tile shows B's name and icon (HS-016)
+**And** A's menu offers "Home Shortcut" again, and B's does not (HS-005)
+
+#### Scenario: A tile whose site is gone
+
+**Given** a tile kept when its site was deleted (HS-013 Keep)
+**When** the user opens the shortcuts list
+**Then** the tile is listed as "Deleted site" with the address it last opened
+**And** tapping it points it at a site the user picks
+
+#### Scenario: Disabling a tile from the list
+
+**Given** the shortcuts list shows a tile
+**When** the user taps Disable and confirms
+**Then** the tile is disabled and leaves the list
+**And** the ledger and rebind entries no remaining tile needs are dropped
+**When** the user cancels instead
+**Then** nothing changes
+
+#### Scenario: A tile pinned by an earlier version
+
+**Given** a tile pinned as `site_<siteId>` before shortcut ids existed
+**Then** it is listed and can be pointed at another site like any other
 
 ---
 
@@ -597,12 +634,12 @@ The rule is the same for a cold launch (including after the app was killed) and 
 Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.webspace/shortcuts')`.
 
 Methods:
-- `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **macOS 13+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first). **iOS**: retained fallback that opens `shortcuts://`; the HS-010 dialog no longer calls it — its embedded `ShortcutsUIButton` opens WebSpace's App Shortcuts page directly.
+- `pinShortcut({shortcutId, siteId, label, iconBytes?})` — **Android**: requests a pinned shortcut under the fresh `shortcutId` (HS-017) via `ShortcutManagerCompat.requestPinShortcut()`, with the app icon when no `iconBytes` are given (HS-003). **macOS 13+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first). **iOS**: retained fallback that opens `shortcuts://`; the HS-010 dialog no longer calls it — its embedded `ShortcutsUIButton` opens WebSpace's App Shortcuts page directly.
 - `removeShortcut(siteId)` — Android: removes any dynamic shortcut copy but leaves the pinned launcher tile ENABLED, so an HS-011 tap on the now-orphaned shortcut still launches the app and re-routes via the ledger. (It MUST NOT call `disableShortcuts`, which makes the launcher reject the tap with "shortcut isn't available".) iOS: no-op (the App Intents site list is recomputed from `_sites.models` on every save via HS-009).
-- `getLaunchSiteId()` — **Android**: returns the bare `siteId` string from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains `pending_shortcut_site_id` + `pending_shortcut_url` from App Group UserDefaults (written by `OpenSiteIntent.perform()`) and returns a `{siteId, url}` map. Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. The Dart `ShortcutService.getLaunch()` tolerates both shapes (`ShortcutLaunch`); for HS-011 the caller uses `launch.url ?? shortcutUrlLedger[siteId]` (iOS carries the url, Android supplies it from the ledger).
-- `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
-- `disableShortcut(siteId)` — **Android only** (HS-013): `ShortcutManagerCompat.disableShortcuts` greys out a pinned tile when the user opts to kill a deleted site's shortcut. No-op elsewhere.
-- `updateShortcuts({tiles: [{siteId, label, iconBytes?}]})` — **Android only** (HS-016): `ShortcutManagerCompat.updateShortcuts` rewrites each tile's label, and its icon where `iconBytes` is given (an update without an icon keeps the tile's). Returns false when the launcher rate-limits the call or refuses an id. No-op elsewhere.
+- `getLaunchSiteId()` — **Android**: returns `{siteId, shortcutId}` from the launch intent extras (`shortcutId` is `site_<siteId>` for a tile pinned before shortcut ids), then drains them (`intent.removeExtra`) so they fire once per tap. **iOS**: drains `pending_shortcut_site_id` + `pending_shortcut_url` from App Group UserDefaults (written by `OpenSiteIntent.perform()`) and returns a `{siteId, url}` map. Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. The Dart `ShortcutService.getLaunch()` reads both shapes, and a bare `siteId` string (`ShortcutLaunch`); for HS-011 the caller uses `launch.url ?? shortcutUrlLedger[siteId]` (iOS carries the url, Android supplies it from the ledger).
+- `getPinnedShortcuts()` — Android: returns `[{shortcutId, siteId}]` for the enabled pinned tiles, from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)`, each `siteId` read from the tile's launch intent. The worker's engine answers it too (NOTIF-016). iOS: always returns an empty list (no public API for pin-state introspection).
+- `disableShortcut(shortcutId)` — **Android only** (HS-013, HS-017): `ShortcutManagerCompat.disableShortcuts` greys out a pinned tile when the user opts to. No-op elsewhere.
+- `updateShortcuts({tiles: [{shortcutId, siteId, label, iconBytes?}]})` — **Android only** (HS-016, HS-017): `ShortcutManagerCompat.updateShortcuts` rewrites each tile's intent to open `siteId`, its label, and its icon where `iconBytes` is given (an update without an icon keeps the tile's). Returns false when the launcher rate-limits the call or refuses an id. No-op elsewhere.
 - `syncSites({sites: [{siteId, label, url?, iconUrl?}], tombstones: [{siteId, label, url?}]})` — **iOS only**: writes the live `sites` to `shortcut_sites` and the deleted-site `tombstones` to `shortcut_tombstones` in App Group UserDefaults (HS-014), then calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the picker. No-op on Android.
 - `isAppIntentsSupported()` — **iOS**: true if `#available(iOS 16, *)`. Other platforms: false.
 
@@ -622,13 +659,15 @@ The Swift method-channel handler lives in `ios/Runner/ShortcutsPlugin.swift`, al
 
 The shortcut launches `MainActivity` with:
 - `action`: `ACTION_VIEW`
-- `extra`: `siteId` = the site's unique ID
+- `extra`: `siteId` = the ID of the site it opens
+- `extra`: `shortcutId` = the tile's own ID (HS-017)
 - `flags`: `FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TOP`
 
 ### Launch Handling
 
 On app start and on `onNewIntent` (app already running), read the launch
-`siteId` via `ShortcutService.getLaunchSiteId()`, pair it with its
+`siteId` (and on Android the tapped tile's `shortcutId`) via
+`ShortcutService.getLaunch()`, pair it with its
 `shortcutUrlLedger` url (HS-011/HS-012), and resolve through
 [`StartupRestoreEngine.resolveLaunch`](../../../lib/services/startup_restore_engine.dart):
 
@@ -638,10 +677,11 @@ On app start and on `onNewIntent` (app already running), read the launch
      caller switches to `index` with no prompt.
    - `LaunchConfirmExisting(index, shortcutSiteId)` — siteId gone, a
      current site matches the url's base domain; caller prompts, and on
-     confirm remembers `shortcutSiteId -> that site`.
+     confirm rewrites the tapped tile to open that site (Android, HS-017)
+     or remembers `shortcutSiteId -> that site` (iOS/macOS).
    - `LaunchOfferCreate(url, shortcutSiteId)` — siteId gone, no domain
-     match; caller prompts to create a site for `url`, remembering the
-     rebind on confirm.
+     match; caller prompts to create a site for `url`, keeping the choice
+     the same way on confirm.
    - `LaunchNone` — no intent, or an orphaned siteId with no ledger url
      (home screen).
 2. On cold launch the confirm/create prompts are deferred to the first
@@ -660,7 +700,9 @@ no widget tree required.
 
 #### New
 - `lib/services/shortcut_service.dart` — Flutter wrapper around the platform channel (Android pin + iOS sync/launch)
-- `lib/services/startup_restore_engine.dart` — `resolveLaunch` shortcut→site resolution (HS-011)
+- `lib/services/startup_restore_engine.dart` — `resolveLaunch` shortcut→site resolution (HS-011), `ShortcutPinState` (which site each tile opens)
+- `lib/settings/shortcut_id.dart` — `ShortcutId`, a tile's own id (HS-017)
+- `lib/screens/home_shortcuts_settings.dart` — the shortcuts list in App Settings > Behaviour (HS-017)
 - `ios/Runner/WebSpaceAppIntents.swift` — `SiteEntity`, `SiteEntityQuery`, `OpenSiteIntent`, `WebSpaceShortcuts` (iOS 16+)
 - `ios/Runner/ShortcutsPlugin.swift` — iOS method-channel handler + `ShortcutsLinkViewFactory`/`ShortcutsLinkNativeView` platform view hosting the HS-010 `ShortcutsUIButton`
 - `test/startup_restore_engine_test.dart` — unit tests for the resolution rule
@@ -681,9 +723,10 @@ no widget tree required.
 
 | Layer | Covers |
 |---|---|
-| [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart) | the resolution rules themselves: `resolveLaunch` (HS-002/HS-011), ledger reconcile (HS-012), `effectivePinnedSiteIds` / `tilesReaching` (HS-005/HS-013), tombstone add + prune (HS-014), `sitesOfTiles` / `staleTiles` (HS-016) |
-| [test/shortcut_service_test.dart](../../../test/shortcut_service_test.dart) | the Dart channel surface: argument shapes, per-platform no-ops, degradation on `PlatformException` |
-| [integration_test/shortcut_behavior_test.dart](../../../integration_test/shortcut_behavior_test.dart) (run by [scripts/run_android_shortcut_tests.sh](../../../scripts/run_android_shortcut_tests.sh)) | the wiring in `lib/main.dart` on an Android emulator (INTEG-013): cold launch where the site was left, and home with Always open Home (HS-002/HS-006), menu gating incl. the rebound site (HS-004/HS-005), pin + ledger record (HS-001/HS-012), orphan confirm / reroute / create and the remembered rebind (HS-011), delete-time Keep/Reassign/Disable (HS-013) |
+| [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart) | the resolution rules themselves: `resolveLaunch` (HS-002/HS-011), ledger reconcile (HS-012), `sitesOpened` / `tilesReaching` (HS-005/HS-013/HS-017), tombstone add + prune (HS-014), `sitesOfTiles` / `staleTiles` (HS-016) |
+| [test/shortcut_service_test.dart](../../../test/shortcut_service_test.dart) | the Dart channel surface: argument shapes, per-platform no-ops, degradation on `PlatformException`; `ShortcutId` parsing; that `MainActivity.kt` builds a tile under the id Dart gives it and reads its site from the intent (HS-015/HS-017) |
+| [test/home_shortcuts_settings_test.dart](../../../test/home_shortcuts_settings_test.dart) | the shortcuts list and its Behaviour row against a fake host: listing, reassign, Disable with its confirmation, the count (HS-017) |
+| [integration_test/shortcut_behavior_test.dart](../../../integration_test/shortcut_behavior_test.dart) (run by [scripts/run_android_shortcut_tests.sh](../../../scripts/run_android_shortcut_tests.sh)) | the wiring in `lib/main.dart` on an Android emulator (INTEG-013): cold launch where the site was left, and home with Always open Home (HS-002/HS-006), menu gating incl. the rebound site (HS-004/HS-005), pin under a fresh id + ledger record (HS-001/HS-012/HS-015), orphan confirm / reroute / create rewriting the tile (HS-011), the shortcuts list's reassign and Disable (HS-017), delete-time Keep/Reassign/Disable (HS-013) |
 | [scripts/run_android_lifecycle_tests.sh](../../../scripts/run_android_lifecycle_tests.sh) | what needs a real intent: cold launch through the launcher `siteId` extra, warm tap switching sites (HS-002), warm tap preserving the live session (HS-006) |
 
 iOS/macOS App Intents (HS-008/HS-009/HS-010/HS-014) stay manual plus
@@ -718,3 +761,11 @@ Shortcuts.app cannot be driven from `simctl` headlessly.
 2. Long-press the site in the list, Edit, change its name and its icon, Save
 3. Verify the home screen tile shows the new name and icon without pinning again
 4. Repeat on the launchers that cannot edit a pinned shortcut themselves (Lawnchair)
+
+### Manual Test: Point a Shortcut at Another Site (HS-017)
+
+1. Create a shortcut for Site A (Android)
+2. Open App Settings > Behaviour > Home screen shortcuts
+3. Tap the tile and pick Site B
+4. Verify the home screen tile shows Site B's name and icon, and a tap opens Site B
+5. Back in the list, Disable the tile and confirm; verify the tile greys out
