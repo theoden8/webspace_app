@@ -103,16 +103,12 @@ post_install do |installer|
     build = target.shell_script_build_phases.find { |p| p.name.to_s.include?('Build adblock-rust artifacts') }
     raise '[webspace] webspace_adblock has no Rust build phase' unless build
     build.always_out_of_date = '1'
-    # The pod links the slice "[CP] Copy XCFrameworks" copies out of
-    # WebspaceAdblock.xcframework, and CocoaPods orders that phase before
-    # every script phase of the pod's own. Built after it, the Rust library
-    # linked is the previous build's while keep_alive.c is this build's, so a
-    # new ws_* function fails the link as an undefined symbol.
-    copy = target.shell_script_build_phases.find { |p| p.name == '[CP] Copy XCFrameworks' }
-    raise '[webspace] webspace_adblock has no Copy XCFrameworks phase to build before' unless copy
-    if target.build_phases.index(copy) < target.build_phases.index(build)
-      target.build_phases.move(build, target.build_phases.index(copy))
-    end
+    # First of the pod's phases. The pod links the slice "[CP] Copy
+    # XCFrameworks" copies out of WebspaceAdblock.xcframework, and CocoaPods
+    # orders that phase ahead of the pod's own script phases: built after it,
+    # the library linked was the previous build's while keep_alive.c was this
+    # build's, so a new ws_* function failed the link as an undefined symbol.
+    target.build_phases.move(build, 0)
   end
 
   # Migration cleanup + needed_framework injection. Two reasons we

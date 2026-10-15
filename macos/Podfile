@@ -82,13 +82,14 @@ post_install do |installer|
 
     # See ios/Podfile — mark the webspace_adblock script phase
     # always-out-of-date so xcodebuild invokes scripts/build_rust.sh
-    # apple on EVERY build.
+    # apple on EVERY build, and run it before any other phase of the pod.
+    # The macOS pod links the .a in place rather than a copied xcframework
+    # slice, so the order only matters here once it vendors one.
     next unless target.name == 'webspace_adblock'
-    target.build_phases.each do |phase|
-      next unless phase.respond_to?(:name) && phase.name &&
-                  phase.name.include?('Build adblock-rust artifacts')
-      phase.always_out_of_date = '1'
-    end
+    build = target.shell_script_build_phases.find { |p| p.name.to_s.include?('Build adblock-rust artifacts') }
+    raise '[webspace] webspace_adblock has no Rust build phase' unless build
+    build.always_out_of_date = '1'
+    target.build_phases.move(build, 0)
   end
 
   # See ios/Podfile — migration cleanup of stale [webspace] build
