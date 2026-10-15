@@ -70,13 +70,19 @@ The test SHALL capture 4 screenshots per theme (8 total): `01-site-settings`, `0
 
 ### SCREENSHOT-004 - CI/CD Integration
 
-Screenshots SHALL be generated in GitHub Actions when relevant files change.
+Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch`) run and on every release PR, so a release cannot go green without them. The plan job decides which runs make them.
 
-#### Scenario: Trigger screenshot generation in CI
+#### Scenario: Manual run
 
-- **GIVEN** changes to screenshot-related files (test, demo data, fastlane, workflow)
-- **WHEN** CI workflow runs
+- **WHEN** Build and Test is run by hand
 - **THEN** screenshots are generated on the Android emulator, the iOS simulator and the macOS runner
+
+#### Scenario: Release PR
+
+- **GIVEN** a pull request whose `pubspec.yaml` version line differs from its base (docs/releasing.md)
+- **WHEN** CI runs on it
+- **THEN** the same screenshot steps run
+- **AND** a failed screenshot step leaves the release PR red
 
 #### Scenario: One download for every platform
 

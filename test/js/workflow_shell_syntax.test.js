@@ -142,3 +142,23 @@ test('the Android job runs the passkey gate', () => {
     'build-android no longer runs scripts/run_android_passkey_tests.sh',
   );
 });
+
+// A release cannot go green without its store screenshots (docs/releasing.md),
+// so which runs make them is decided once, by the plan job, from the event and
+// the version line. A step gated on the event by hand would skip the release
+// PR and nothing would fail: YAML has no type for "this step makes a
+// screenshot".
+test('screenshots run on a manual run and on a release PR, decided by plan', () => {
+  const text = read(WORKFLOW);
+  assert.ok(
+    !/\n\s+if: github\.event_name == 'workflow_dispatch'/.test(text),
+    "a step is gated on workflow_dispatch by hand; gate it on needs.plan.outputs.screenshots == 'true'",
+  );
+  const start = text.indexOf('\n  plan:\n');
+  const plan = text.slice(start, text.indexOf('\n  validate:\n'));
+  assert.match(plan, /\n {6}screenshots: \$\{\{ steps\.screenshots\.outputs\.screenshots \}\}\n/);
+  assert.match(plan, /sed -n 's\/\^version: \/\/p' pubspec\.yaml/,
+    'the plan job no longer reads the version line, so a release PR would skip the screenshots');
+  const gated = text.match(/if: needs\.plan\.outputs\.screenshots == 'true'/g) ?? [];
+  assert.ok(gated.length >= 14, `only ${gated.length} steps run on the screenshot runs`);
+});
