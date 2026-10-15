@@ -1,6 +1,8 @@
 # Android Fastfile
 # This file contains the fastlane.tools configuration for Android
 
+require "mini_magick"
+
 opt_out_usage
 
 default_platform(:android)
@@ -95,23 +97,15 @@ platform :android do
   lane :resize_screenshots do
     screenshots_dir = File.join(project_root, "screenshots", "android")
 
+    # Through mini_magick, which frameit drives ImageMagick with too: it takes
+    # ImageMagick 6 (a distro's) or 7, where the `magick` binary is 7 only.
     Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
       next if File.basename(screenshot) == "background.png"
-      
-      # Get image dimensions to detect orientation
-      dimensions = `magick identify -format '%wx%h' '#{screenshot}'`.strip.split('x')
-      width = dimensions[0].to_i
-      height = dimensions[1].to_i
-      
-      if width > height
-        # Landscape orientation
-        UI.message("Resizing #{File.basename(screenshot)} to 2340x1080 (landscape)...")
-        sh("magick '#{screenshot}' -resize 2340x1080! '#{screenshot}'")
-      else
-        # Portrait orientation
-        UI.message("Resizing #{File.basename(screenshot)} to 1080x2340 (portrait)...")
-        sh("magick '#{screenshot}' -resize 1080x2340! '#{screenshot}'")
-      end
+
+      image = MiniMagick::Image.new(screenshot)
+      size = image.width > image.height ? "2340x1080" : "1080x2340"
+      UI.message("Resizing #{File.basename(screenshot)} to #{size}...")
+      image.resize("#{size}!")
     end
 
     UI.success("All screenshots resized to Pixel 5 resolution (orientation-aware)")

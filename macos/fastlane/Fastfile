@@ -1,0 +1,33 @@
+# macOS Fastfile
+# Imported by fastlane/Fastfile; run from the project root as
+# `fastlane mac screenshots`.
+
+opt_out_usage
+
+platform :mac do
+  # This Fastfile is always at macos/fastlane/Fastfile
+  def project_root
+    File.expand_path("../..", __dir__)
+  end
+
+  # Mac App Store screenshots are window captures at a store size, so there is
+  # no frameit step: frameit has no Mac bezel, only a background-and-title
+  # layout the iOS and Android sets do not use either.
+  desc "Generate screenshots using Flutter integration test"
+  lane :screenshots do
+    screenshots_dir = File.join(project_root, "screenshots", "macos")
+    FileUtils.mkdir_p(screenshots_dir)
+    FileUtils.rm_f(Dir.glob(File.join(screenshots_dir, "*.png")))
+
+    # On a CI runner a sandboxed debug app never surfaces its VM service to
+    # the tool; --ci re-signs it with the sandbox off, as the macOS
+    # integration tier in build-and-test.yml does.
+    ci_flag = ENV["CI"] == "true" ? "--ci" : ""
+    sh("cd '#{project_root}' && SCREENSHOT_DIR='#{screenshots_dir}' fvm flutter drive \
+      --driver=test_driver/integration_test.dart \
+      --target=integration_test/screenshot_test.dart \
+      -d macos #{ci_flag}")
+
+    UI.success("Screenshots saved to: #{screenshots_dir}")
+  end
+end

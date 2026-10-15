@@ -19,10 +19,14 @@ import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/webview_state_storage.dart';
+import 'package:webspace/settings/demo_mode.dart';
 
 /// [OrphanSweepEngine] bound to the page's stores. The switch over
 /// [OrphanStore] has no default, so a store added there does not compile
 /// until it is swept here.
+///
+/// Nothing is swept in demo mode: a seeded or test site list is not the
+/// user's, and measured against it every one of their sites is an orphan.
 class PageOrphanSweep implements OrphanSweepTargets {
   PageOrphanSweep(
     this._sites, {
@@ -74,6 +78,7 @@ class PageOrphanSweep implements OrphanSweepTargets {
     Set<ContainerKey> active, {
     required Set<ContainerKey> nonIncognito,
   }) async {
+    if (isDemoMode) return;
     await containers.garbageCollectOrphans(active);
     for (final key in active.difference(nonIncognito)) {
       await containers.onSiteDeleted(key);
@@ -81,13 +86,16 @@ class PageOrphanSweep implements OrphanSweepTargets {
   }
 
   /// Sweep after sites left the list while the app runs (delete, import).
-  Future<void> afterRemoval() => OrphanSweepEngine.sweep(
-        targets: this,
-        activeSiteIds: _sites.siteIds,
-        nonIncognitoSiteIds: _sites.nonIncognitoSiteIds,
-        useContainers: _sites.useContainers,
-        occasion: SweepOccasion.sitesRemoved,
-      );
+  Future<void> afterRemoval() async {
+    if (isDemoMode) return;
+    await OrphanSweepEngine.sweep(
+      targets: this,
+      activeSiteIds: _sites.siteIds,
+      nonIncognitoSiteIds: _sites.nonIncognitoSiteIds,
+      useContainers: _sites.useContainers,
+      occasion: SweepOccasion.sitesRemoved,
+    );
+  }
 
   /// Housekeeping sweep of storage left by sites deleted in previous sessions,
   /// deferred off the cold-launch first-paint path. The launched site never
@@ -99,6 +107,7 @@ class PageOrphanSweep implements OrphanSweepTargets {
     Set<SiteId> activeSiteIds, {
     required Set<SiteId> nonIncognitoSiteIds,
   }) async {
+    if (isDemoMode) return;
     void failed(Exception e) =>
         LogTag.startup.error('Deferred startup GC failed: $e');
     try {

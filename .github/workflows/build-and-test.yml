@@ -62,6 +62,7 @@ jobs:
       linux: ${{ steps.pick.outputs.linux }}
       apple: ${{ steps.pick.outputs.apple }}
       only: ${{ steps.pick.outputs.only }}
+      screenshots: ${{ steps.screenshots.outputs.screenshots }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -99,6 +100,25 @@ jobs:
           if [ -n "$only" ]; then
             echo "::notice::ci-only=$only -- every other job is skipped for this commit"
           fi
+      # The store screenshots: on a manual run, and on a release PR, which is
+      # one that moves pubspec.yaml's version line (docs/releasing.md), so a
+      # release cannot go green without them.
+      - id: screenshots
+        run: |
+          set -eu
+          screenshots=false
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            screenshots=true
+          elif [ "${{ github.event_name }}" = pull_request ]; then
+            git fetch -q --depth=1 origin "${{ github.event.pull_request.base.sha }}"
+            head_version="$(sed -n 's/^version: //p' pubspec.yaml)"
+            base_version="$(git show FETCH_HEAD:pubspec.yaml | sed -n 's/^version: //p')"
+            if [ "$head_version" != "$base_version" ]; then
+              screenshots=true
+              echo "::notice::release PR ($base_version -> $head_version): screenshots run"
+            fi
+          fi
+          echo "screenshots=$screenshots" >> "$GITHUB_OUTPUT"
 
   validate:
     name: Validate Fastlane + OpenSpec + proofs
@@ -559,12 +579,14 @@ jobs:
           if-no-files-found: error
 
       # Android Screenshots (conditional)
-      - name: Install ImageMagick (AppImage for magick command)
-        if: github.event_name == 'workflow_dispatch'
+      # The distro's ImageMagick 6, through mini_magick in frameit and in the
+      # resize lane. The pinned `magick` binary this downloaded went 404, and
+      # curl without -f saved the error page in its place.
+      - name: Install ImageMagick
+        if: needs.plan.outputs.screenshots == 'true'
         run: |
-          curl -L https://imagemagick.org/archive/binaries/magick -o magick
-          chmod +x magick
-          sudo mv magick /usr/local/bin/magick
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends imagemagick
 
       # Emulator prerequisites are ungated: the white-screen pixel suite
       # below runs on every push/PR, not just the workflow_dispatch
@@ -711,7 +733,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Create AVD and generate screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -737,7 +759,7 @@ jobs:
       # *_framed.png beside them: the set is the eight shots as taken, and
       # a framing failure does not withhold it.
       - name: Upload Android screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: android-screenshots
@@ -751,8 +773,16 @@ jobs:
           key: frameit-${{ runner.os }}
 
       - name: Add device frames to screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: bundle exec fastlane android add_device_frames
+
+      - name: Upload framed Android screenshots
+        if: needs.plan.outputs.screenshots == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-framed-screenshots
+          path: screenshots/android/*_framed.png
+          if-no-files-found: error
 
   build-linux:
     name: Build Linux
@@ -1309,7 +1339,7 @@ jobs:
           brew link --force cocoapods
 
       - name: Install ImageMagick and Fastlane (screenshots only)
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: |
           brew install imagemagick-full fastlane
           brew link --force imagemagick-full
@@ -1950,11 +1980,11 @@ jobs:
 
       # iOS Screenshots (conditional)
       - name: List available simulators
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: xcrun simctl list devices available
 
       - name: Boot iOS Simulator
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: |
           # Find and boot an iPhone 15 Pro simulator
           DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
@@ -1971,18 +2001,18 @@ jobs:
           echo "SIMULATOR_ID=$DEVICE_ID" >> $GITHUB_ENV
 
       - name: Wait for simulator to boot
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: |
           # Wait for simulator to be fully booted
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
           sleep 10
 
       - name: Create screenshots directory
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: mkdir -p screenshots/ios
 
       - name: Generate iOS screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: fastlane ios screenshots
 
       - name: Cache Fastlane frameit assets
@@ -1992,16 +2022,47 @@ jobs:
           key: frameit-${{ runner.os }}
 
       - name: Add device frames to iOS screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         run: fastlane ios add_device_frames
 
       - name: Upload iOS screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: needs.plan.outputs.screenshots == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ios-screenshots
           path: screenshots/ios/*.png
           if-no-files-found: warn
+
+      # macOS Screenshots (conditional). The debug build takes the stock
+      # entitlements "Prepare the macOS test run" wrote, and the lane passes
+      # --ci for the same reason the macOS tier does.
+      - name: Generate macOS screenshots
+        if: needs.plan.outputs.screenshots == 'true'
+        timeout-minutes: 30
+        run: fastlane mac screenshots
+
+      - name: Upload macOS screenshots
+        if: needs.plan.outputs.screenshots == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-screenshots
+          path: screenshots/macos/*.png
+          if-no-files-found: warn
+
+  # The screenshots in one download, a folder per platform. Runs when a
+  # platform failed too, to keep the sets that were made.
+  screenshots:
+    name: Screenshots
+    needs: [plan, build-android, build-apple, build-linux]
+    if: needs.plan.outputs.screenshots == 'true' && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge every platform's screenshots
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: screenshots
+          pattern: '*-screenshots'
+          separate-directories: true
 
   release-summary:
     name: Release Summary

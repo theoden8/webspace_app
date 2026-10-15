@@ -35,6 +35,7 @@
 		7AC2A0000000000000000H02 /* HostBrowserPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */; };
 		7AC2A0000000000000000T02 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000T01 /* TorControllerPlugin.swift */; };
 		C0471E5100000000000000C4 /* ContentRuleListPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */; };
+		7AC2A0000000000000000W02 /* WindowCapturePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000W01 /* WindowCapturePlugin.swift */; };
 		7B0F0000000000000000001E /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0F0000000000000000000A /* ShareViewController.swift */; };
 		7B0F0000000000000000001F /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B0F00000000000000000009 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BAD4A6ABA9F68FDD7BBA2F60 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0266C30107C75BF1C1D6CA07 /* Pods_RunnerTests.framework */; };
@@ -102,6 +103,7 @@
 		33CC10F52044A3C60003C045 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		33CC10F72044A3C60003C045 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Runner/Info.plist; sourceTree = "<group>"; };
 		33CC11122044BFA00003C045 /* MainFlutterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlutterWindow.swift; sourceTree = "<group>"; };
+		7AC2A0000000000000000W01 /* WindowCapturePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCapturePlugin.swift; sourceTree = "<group>"; };
 		33CEB47222A05771004F2AC0 /* Flutter-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Debug.xcconfig"; sourceTree = "<group>"; };
 		33CEB47422A05771004F2AC0 /* Flutter-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Release.xcconfig"; sourceTree = "<group>"; };
 		33CEB47722A0578A004F2AC0 /* Flutter-Generated.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "Flutter-Generated.xcconfig"; path = "ephemeral/Flutter-Generated.xcconfig"; sourceTree = "<group>"; };
@@ -232,6 +234,7 @@
 				7AC2A0000000000000000005 /* AppGroup.swift */,
 				7AC2A0000000000000000007 /* ShareIntentPlugin.swift */,
 				7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */,
+				7AC2A0000000000000000W01 /* WindowCapturePlugin.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
 				33CC11242044D66E0003C045 /* Resources */,
@@ -542,6 +545,7 @@
 				7AC2A0000000000000000006 /* AppGroup.swift in Sources */,
 				7AC2A0000000000000000008 /* ShareIntentPlugin.swift in Sources */,
 				7AC2A0000000000000000H02 /* HostBrowserPlugin.swift in Sources */,
+				7AC2A0000000000000000W02 /* WindowCapturePlugin.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

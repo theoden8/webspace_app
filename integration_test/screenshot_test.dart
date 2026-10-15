@@ -39,6 +39,41 @@ Future<void> _setDeviceOrientation(WidgetTester tester) async {
   }
 }
 
+/// The macOS Runner's debug-only channel (macos/Runner/WindowCapturePlugin.swift).
+/// Flutter's integration_test plugin cannot capture on macOS.
+const _windowCapture =
+    MethodChannel('org.codeberg.theoden8.webspace/window_capture');
+
+/// The Mac window, title bar included. It images at 2880x1800 on a 2x display
+/// and 1440x900 on a 1x one, both sizes App Store Connect takes for a Mac app.
+const _macWindowPoints = Size(1440, 900);
+const _macStoreSizes = {(1280, 800), (1440, 900), (2560, 1600), (2880, 1800)};
+
+Future<void> _sizeMacWindow(WidgetTester tester) async {
+  if (!Platform.isMacOS) return;
+  await _windowCapture.invokeMethod<void>('resize', {
+    'width': _macWindowPoints.width,
+    'height': _macWindowPoints.height,
+  });
+  await tester.pumpAndSettle();
+}
+
+/// Hands the window to the driver the way [IntegrationTestWidgetsFlutterBinding.takeScreenshot]
+/// does on iOS: as an entry of the report's `screenshots` list, which
+/// `integrationDriver` writes out through `onScreenshot`.
+Future<void> _captureMacWindow(
+  IntegrationTestWidgetsFlutterBinding binding, {
+  required String name,
+}) async {
+  final png = (await _windowCapture.invokeMethod<Uint8List>('capture'))!;
+  final size = _pngSize(png);
+  expect(_macStoreSizes, contains(size),
+      reason: '$name is ${size.$1}x${size.$2}, not a Mac App Store size');
+  final report = binding.reportData ??= <String, dynamic>{};
+  final shots = (report['screenshots'] ??= <dynamic>[]) as List<dynamic>;
+  shots.add(<String, dynamic>{'screenshotName': name, 'bytes': png});
+}
+
 /// Flutter integration test for generating F-Droid and Play Store screenshots.
 ///
 /// This test seeds demo data automatically on startup and navigates through
@@ -74,6 +109,7 @@ final _androidTextureMode = <String, Object>{
 /// Helper to take a screenshot with both light and dark themes.
 /// Takes the current theme screenshot first, then toggles to the other theme,
 /// takes that screenshot, and toggles back.
+/// On macOS the shot is the window, through the Runner's capture channel.
 Future<void> _takeThemedScreenshots(
   IntegrationTestWidgetsFlutterBinding binding, {
   required WidgetTester tester,
@@ -89,16 +125,21 @@ Future<void> _takeThemedScreenshots(
   // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
 
-  final png = await binding
-      .takeScreenshot(screenshotName)
-      .timeout(_SCREENSHOT_TIMEOUT);
-  if (Platform.isAndroid) {
-    // A PixelCopy of exactly the FlutterView's rectangle: any other size is
-    // not the frame this view drew.
-    expect(png.length, greaterThan(24), reason: '$screenshotName is not a PNG');
-    final view = tester.view.physicalSize;
-    expect(_pngSize(png), (view.width.round(), view.height.round()),
-        reason: '$screenshotName is not the size of the FlutterView');
+  if (Platform.isMacOS) {
+    await _captureMacWindow(binding, name: screenshotName);
+  } else {
+    final png = await binding
+        .takeScreenshot(screenshotName)
+        .timeout(_SCREENSHOT_TIMEOUT);
+    if (Platform.isAndroid) {
+      // A PixelCopy of exactly the FlutterView's rectangle: any other size is
+      // not the frame this view drew.
+      expect(png.length, greaterThan(24),
+          reason: '$screenshotName is not a PNG');
+      final view = tester.view.physicalSize;
+      expect(_pngSize(png), (view.width.round(), view.height.round()),
+          reason: '$screenshotName is not the size of the FlutterView');
+    }
   }
   await tester.pump();
 }
@@ -137,6 +178,7 @@ void main() {
 
         // Set orientation based on device type (iPad: landscape, iPhone: portrait)
         await _setDeviceOrientation(tester);
+        await _sizeMacWindow(tester);
 
         // Theme is already set via seedDemoData
         String currentTheme = theme;
