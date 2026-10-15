@@ -1440,8 +1440,7 @@ class TorControllerPlugin: NSObject {
       if let failed = check(await Self.setConfs(controller, Self.exitPinClearConfigs)) {
         return failed
       }
-      await closeExitCircuits(controller)
-      return nil
+      return await closeExitCircuits(controller)
     }
 
     // Loading is tor's own: a SETCONF to a path it has not read yet makes
@@ -1492,7 +1491,9 @@ class TorControllerPlugin: NSObject {
     if let failed = check(await Self.setConfs(controller, Self.exitPinConfigs(exitNodes))) {
       return failed
     }
-    await closeExitCircuits(controller)
+    if let failed = await closeExitCircuits(controller) {
+      return failed
+    }
     // tor also wants an IPv6 table once a country pin is in force, and warns
     // on every config change that it has none. Exit countries are decided by
     // a relay's IPv4 address alone (`node_set_country`), so the IPv4 table
@@ -1516,7 +1517,12 @@ class TorControllerPlugin: NSObject {
   ///
   /// Onion-service and other internal circuits are left alone; the pin says
   /// nothing about them.
-  private func closeExitCircuits(_ controller: TorController) async {
+  ///
+  /// Nil once they are closed, or there were none. A list tor never sent or
+  /// a close it never answered is the change's failure: a circuit left open
+  /// goes on carrying a kept-alive connection from the old exit, so the pin
+  /// is not in force.
+  private func closeExitCircuits(_ controller: TorController) async -> FlutterError? {
     var status = await Self.controlRead(
       controller, ["circuit-status"], within: kTorControlReplyTimeout)
     // An empty answer, as opposed to an empty value, is Tor.framework's
@@ -1527,19 +1533,33 @@ class TorControllerPlugin: NSObject {
     }
     guard let raw = status?.first else {
       note("Could not read tor's circuits after an exit-country change.")
-      return
+      return Self.circuitsLeftOpen
     }
     let ids = Self.exitCircuitIds(fromCircuitStatus: raw)
-    guard !ids.isEmpty else { return }
+    guard !ids.isEmpty else { return nil }
     let closed = await Self.reply(within: kTorControlReplyTimeout) {
       (answer: @escaping (Bool) -> Void) in
       controller.closeCircuits(byIds: ids) { success in answer(success) }
     }
+    guard let closed = closed else {
+      note("tor did not answer closing the circuits opened before the exit-country change.")
+      return Self.circuitsLeftOpen
+    }
     note(
-      closed == true
+      closed
         ? "Closed \(ids.count) circuit(s) opened before the exit-country change."
         : "Some of \(ids.count) circuit(s) opened before the exit-country change "
           + "were already gone.")
+    return nil
+  }
+
+  static var circuitsLeftOpen: FlutterError {
+    FlutterError(
+      code: "control_timeout",
+      message: "Tor's control port did not answer while the circuits from before the "
+        + "exit-country change were being closed, so a connection kept open may still "
+        + "leave from the old exit. The change is not in force.",
+      details: nil)
   }
 
   /// Circuit purposes that carry streams out through an exit. Conflux legs

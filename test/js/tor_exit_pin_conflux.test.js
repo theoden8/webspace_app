@@ -7,6 +7,12 @@
 // pin left through the Netherlands and a {us} pin through Germany this way.
 // With conflux off no leg links, and every stream rides a circuit built under
 // the pin.
+//
+// The circuits from before the pin are closed, and a close that did not
+// happen fails the change: a kept-alive connection stays on its old circuit,
+// still leaving from the old exit. Here rather than in a type because Swift
+// only warns on a dropped result, and the Xcode builds do not fail on
+// warnings.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -49,4 +55,18 @@ test('the apply path uses those, and closes circuits after them', () => {
     'circuits must be closed after conflux is off, or their recovery legs can still link');
   assert.ok(!/"ExitNodes",\s*"value"/.test(apply),
     'ExitNodes is set only through exitPinConfigs, never beside it');
+});
+
+test('a change whose old circuits were not closed is not in force', () => {
+  assert.match(src,
+    /private func closeExitCircuits\(_ controller: TorController\) async -> FlutterError\?/,
+    'closeExitCircuits must say when it could not close the old circuits');
+  const start = src.indexOf('private func applyExitCountry(');
+  const apply = src.slice(start, src.indexOf('\n  }\n', start));
+  const calls = apply.match(/closeExitCircuits\(controller\)/g) || [];
+  const used = apply.match(
+    /(return await|let failed = await) closeExitCircuits\(controller\)/g) || [];
+  assert.equal(calls.length, 2, 'the pin and the clear each close the old circuits');
+  assert.equal(used.length, calls.length,
+    'a failed close has to fail the change, not be awaited and dropped');
 });

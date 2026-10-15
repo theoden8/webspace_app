@@ -194,6 +194,24 @@ silently. Only something that observes the *effect* can catch it.
    which is TOR-008's job rather than tor's. **Partial:** tor still judges
    a pinned country whose exits leave the consensus later the same way,
    until its next directory change.
+   **Fourth finding 2026-10-15**, from #710's CI on the macOS tier (run
+   38742447017): a stream held open under `{de}` was still open 15 s after
+   `{us}` was in force. The plugin had logged "Could not read tor's circuits
+   after an exit-country change": `GETINFO circuit-status` went unanswered
+   for its 8 s, so no circuit was closed, and `setExitCountry` still answered
+   success. The engine marked the pin applied while the kept-alive
+   connection went on leaving from Germany, the pooled-connection leak the
+   first fix closed, reopened by a read that failed open. **Fixed
+   2026-10-15** (#725): `closeExitCircuits` returns a failure when tor
+   does not list its circuits or does not answer the close, and both the
+   pin and the clear return it, so the change fails closed as a
+   control-channel failure with Retry (TOR-014). Gated by
+   `test/js/tor_exit_pin_conflux.test.js`, since Swift only warns on a
+   dropped result. **Partial:** why tor's reply never arrived is not known,
+   so the failure is now visible rather than prevented; and the failure
+   does not end the connection kept open. Until a Retry closes the old
+   circuits, it is held only by the engine keeping Tor-bound sites from
+   loading.
 
 8. **A proxy change reached the live session and not the connections it
    already held (iOS, macOS).** Reported 2026-09-25: a site that loaded

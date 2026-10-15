@@ -40,6 +40,14 @@ void main() {
         'The previous Tor is still running: its control port did not answer a '
             'shutdown request, so a new one cannot start. Restarting the app '
             'clears it.',
+        // Wrapped as the engine wraps a refused pin. The pin is set but the
+        // circuits from before it are not closed, so Retry, not another
+        // country, is the remedy.
+        "Could not apply the exit-country pin: PlatformException("
+            "control_timeout, Tor's control port did not answer while the "
+            'circuits from before the exit-country change were being closed, '
+            'so a connection kept open may still leave from the old exit. The '
+            'change is not in force., null, null)',
       ]) {
         expect(classifyTorFailure(m).kind, TorFailureKind.controlChannel,
             reason: '"$m" is a defect on our side of the channel');
