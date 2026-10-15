@@ -579,12 +579,14 @@ jobs:
           if-no-files-found: error
 
       # Android Screenshots (conditional)
-      - name: Install ImageMagick (AppImage for magick command)
+      # The distro's ImageMagick 6, through mini_magick in frameit and in the
+      # resize lane. The pinned `magick` binary this downloaded went 404, and
+      # curl without -f saved the error page in its place.
+      - name: Install ImageMagick
         if: needs.plan.outputs.screenshots == 'true'
         run: |
-          curl -L https://imagemagick.org/archive/binaries/magick -o magick
-          chmod +x magick
-          sudo mv magick /usr/local/bin/magick
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends imagemagick
 
       # Emulator prerequisites are ungated: the white-screen pixel suite
       # below runs on every push/PR, not just the workflow_dispatch
