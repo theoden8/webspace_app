@@ -402,6 +402,8 @@ Inv_Retired ==
 ArchiveOne == {3}
 \* The delete config's: site 1, on screen at the start.
 DeleteOne == {1}
+\* The reset config's: site 3, loaded and signed in at the start, off screen.
+ResetOne == {3}
 \* The incognito config's: site 3, loaded and signed in at the start.
 IncognitoOne == {3}
 

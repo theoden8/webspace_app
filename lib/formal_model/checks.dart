@@ -25,6 +25,7 @@ enum Env {
   capTwo(op: ModelConst.maxLoaded, by: 'CapTwo'),
   archiveOne(op: ModelConst.archive, by: 'ArchiveOne'),
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
+  resetOne(op: ModelConst.resettable, by: 'ResetOne'),
   incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne'),
   jarRefuses(op: ModelConst.jarRefuses, by: 'JarCanRefuse'),
   proxyRefuses(op: ModelConst.proxyRefused, by: 'ProxyCanRefuse'),
@@ -444,6 +445,16 @@ enum ActivationWorld {
         "shared jar, the site on screen deleted beside taps and the jar's "
         'turns: every other session stays (CONT-010)',
   ),
+  reset(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.resetOne},
+    invariants: [..._core, ..._jar],
+    holds:
+        'shared jar, a site off screen unloaded at a home reset beside taps '
+        "and the jar's turns: every session stays (ISO-002)",
+  ),
   deleteContainers(
     cookies: Cookies.containers,
     coldStart: false,
@@ -659,7 +670,8 @@ enum Mutant {
         'incognito site out (INC-001, caught)',
   ),
   recapture(
-    world: ActivationWorld.base,
+    world: ActivationWorld.reset,
+    slice: (allowed: {'Tap', 'UnloadSite'}),
     by: Inv.noSessionLoss,
     doc:
         'an unload that captures a site no longer loaded loses its session '

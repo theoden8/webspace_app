@@ -272,6 +272,20 @@ const _regressions =
         ],
         script: [Tap(0)],
       ),
+      // A home reset's unload picks its site, so it backs off once a tap
+      // has made the site its target or put it on screen (BUG-033).
+      'a home reset backs off from a site a tap opens (BUG-033)': (
+        page: _threeBases,
+        setup: [Tap(0), Login(0), Tap(1), Login(1)],
+        script: [UnloadSite(0), Tap(0)],
+      ),
+      // The site on screen keeps its place, its webview built afresh: a
+      // reset that unloaded it left LAZY-003's placeholder (LAZY-007).
+      'a home reset of the site on screen keeps it loaded (LAZY-007)': (
+        page: _threeBases,
+        setup: [Tap(0), Login(0), Tap(1), Login(1)],
+        script: [UnloadSite(1), Tap(0)],
+      ),
       // A jar that does not answer: what the capture could not read stays
       // as stored, and a restore that cannot read, empty or refill the jar
       // leaves its target unshown, whatever lands meanwhile (ISO-014).

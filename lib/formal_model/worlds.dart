@@ -163,6 +163,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.linkAny ||
   Env.archiveOne ||
   Env.deleteOne ||
+  Env.resetOne ||
   Env.incognitoOne ||
   Env.jarRefuses ||
   Env.proxyRefuses ||
@@ -190,6 +191,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
   ModelConst.archive || ModelConst.noNavState || ModelConst.boxed =>
     Env.archiveOne,
   ModelConst.deletable => Env.deleteOne,
+  ModelConst.resettable => Env.resetOne,
   ModelConst.incognito => Env.incognitoOne,
   ModelConst.jarRefuses => Env.jarRefuses,
   ModelConst.proxyRefused => Env.proxyRefuses,

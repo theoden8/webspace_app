@@ -48,18 +48,19 @@ enum UnloadReason {
   };
 
   /// Whether the plan chose the site rather than being bound to unload it:
-  /// retention priority's picks and a webspace switch's (WEBSPACE-013).
+  /// retention priority's picks, a webspace switch's (WEBSPACE-013) and a
+  /// home reset's.
   /// A choice spares the site on screen and an activation's target when it
   /// is made, and backs off if its site has become one of them by the time
   /// it would be disposed (PAUSE-006, BUG-033).
   bool get chosen => switch (this) {
     UnloadReason.loadedSiteCap ||
     UnloadReason.memoryPressure ||
-    UnloadReason.webspaceSwitch => true,
+    UnloadReason.webspaceSwitch ||
+    UnloadReason.homeReset => true,
     UnloadReason.domainConflict ||
     UnloadReason.proxyMismatch ||
-    UnloadReason.torExitMismatch ||
-    UnloadReason.homeReset => false,
+    UnloadReason.torExitMismatch => false,
   };
 
   /// An unload the user did not ask for and will notice logs as a warning.
@@ -74,7 +75,7 @@ enum UnloadReason {
   };
 }
 
-/// What [SiteUnloadEngine.unload] reads and writes on the page.
+/// What [SiteUnloadEngine.unloadFlow] reads and writes on the page.
 abstract interface class SiteUnloadHost {
   List<WebViewModel> get models;
 
@@ -270,37 +271,6 @@ typedef ProxySlots = ({
 ///      order: lowest priority (highest enum index) first, LRU within each
 ///      tier.
 class SiteUnloadEngine {
-  /// The one way a loaded site is unloaded. Under the legacy engine the
-  /// shared jar is captured first whatever the [reason] (ISO-002): the next
-  /// activation empties it after attributing it to the loaded sites only, so
-  /// a site unloaded without the capture loses what it set since its own
-  /// activation.
-  ///
-  /// The decision is asked again just before the dispose, with no await
-  /// between them: the unload backs off once [isStale] says the plan that
-  /// asked for it was superseded, or when a site picked by priority is no
-  /// longer evictable (BUG-033). Only a dispose makes a captured site
-  /// [SiteLifecycleState.savedForRestore], a tier memory pressure never
-  /// picks, so a site the unload spares keeps its own.
-  ///
-  /// [unloadFlow] from its capture, for a plan of this one site.
-  static Future<void> unload(
-    SiteUnloadHost host, {
-    required WebViewModel site,
-    required UnloadReason reason,
-    required bool Function() isStale,
-  }) async {
-    if (!host.models.contains(site)) return;
-    final flow = _start(
-      host,
-      plan: ResidencyPlan(unloads: [(site: site, reason: reason)]),
-      isStale: isStale,
-      victims: const [],
-    );
-    _victim.put(flow, value: site);
-    await unloadFlow.run(flow, from: UnloadPlace.uNav);
-  }
-
   /// Every rule deciding which loaded sites go, and in what order, for
   /// [event]. Each rule reads the loaded set the rules before it leave.
   static ResidencyPlan plan(
@@ -671,11 +641,32 @@ class SiteUnloadEngine {
           level: reason.logLevel,
           sensitivity: LogSensitivity.sensitive,
         );
-        return reason.keepsNavState ? plan.beginNavCapture(site) : null;
+        return _keeps.run(c) ? plan.beginNavCapture(site) : null;
       },
       marks: _victim.value,
+      keeps: _keeps,
     ),
   );
+
+  /// Whether the victim's reason keeps its back stack (PAUSE-007): a home
+  /// reset's does not, which the model knows by its flow's kind.
+  static final _keeps = () {
+    final notReset = const Field<FlowKind, UnloadFlow>(FlowField.kind).value
+        .neq(Expr.constant(FlowKind.unload));
+    return Expr<bool, UnloadFlow>(
+      run: (c) {
+        final keeps = _plan.from(c).reasonOf(_victim.of(c)).keepsNavState;
+        assert(
+          !const Field<FlowKind, UnloadFlow>(FlowField.kind).isSet(c) ||
+              keeps == notReset.run(c),
+          'a home reset, and no other unload, keeps no back stack',
+        );
+        return keeps;
+      },
+      tla: notReset.tla,
+      reads: notReset.reads,
+    );
+  }();
 
   static final unloadFlow = StepTable<UnloadFlow, UnloadPlace>(
     UnloadPlace.values,

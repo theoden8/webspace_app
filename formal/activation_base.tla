@@ -80,6 +80,9 @@ Online == TRUE
 Archive == {}
 \* The sites a delete may name (SiteDeletion); the pages delete none.
 Deletable == {}
+\* The sites a home reset may unload off screen (SiteActivationController.
+\* unload); the pages reset none.
+Resettable == {}
 \* The sites whose webviews and containers the model follows: what a close
 \* or a delete takes away.
 Boxed == Archive \cup Deletable

@@ -63,6 +63,7 @@ final _draws = <SiteAction Function(WalkRng rng), int>{
   (r) => Reply(r.nextInt(4)): 30,
   (r) => const GoHome(): 5,
   (r) => const Pressure(): 10,
+  (r) => UnloadSite(r.nextInt(64)): 3,
   (r) => Preload(r.nextInt(64)): 6,
   (r) => Login(r.nextInt(64)): 8,
   (r) => Add(r.nextInt(64)): 3,

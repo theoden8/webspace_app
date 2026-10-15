@@ -199,17 +199,16 @@ void main() {
     });
   });
 
-  group('SiteUnloadEngine.unload', () {
+  group('SiteUnloadEngine.apply, a plan of one site', () {
     for (final reason in UnloadReason.values) {
       test('${reason.name} unloads, logs, and keeps the back stack '
           'unless the site is going home', () async {
         final a = _site('https://a.example.com');
         final page = _ContainerPage([a, _site('https://b.example.com')]);
 
-        await SiteUnloadEngine.unload(
+        await SiteUnloadEngine.apply(
           page,
-          site: page.models[0],
-          reason: reason,
+          plan: ResidencyPlan(unloads: [(site: page.models[0], reason: reason)]),
           isStale: () => false,
         );
 
@@ -227,10 +226,11 @@ void main() {
       // A delete takes its site out of the list and the loaded set.
       page.duringCapture = () => page.loadedSet.remove(page.models.removeAt(0));
 
-      await SiteUnloadEngine.unload(
+      await SiteUnloadEngine.apply(
         page,
-        site: b,
-        reason: UnloadReason.loadedSiteCap,
+        plan: ResidencyPlan(
+          unloads: [(site: b, reason: UnloadReason.loadedSiteCap)],
+        ),
         isStale: () => false,
       );
 
@@ -242,7 +242,7 @@ void main() {
       );
     });
 
-    for (final reason in UnloadReason.values) {
+    for (final reason in UnloadReason.values.where((r) => r.keepsNavState)) {
       test('${reason.name} '
           '${reason.chosen ? 'spares' : 'still unloads'} a site that '
           'starts activating during its capture', () async {
@@ -251,10 +251,9 @@ void main() {
         final page = _ContainerPage([a, _site('https://b.example.com')]);
         page.duringCapture = () => page.activating = (target: a, version: 0);
 
-        await SiteUnloadEngine.unload(
+        await SiteUnloadEngine.apply(
           page,
-          site: page.models[0],
-          reason: reason,
+          plan: ResidencyPlan(unloads: [(site: page.models[0], reason: reason)]),
           isStale: () => false,
         );
 
@@ -279,10 +278,9 @@ void main() {
         var stale = false;
         page.duringCapture = () => stale = true;
 
-        await SiteUnloadEngine.unload(
+        await SiteUnloadEngine.apply(
           page,
-          site: page.models[0],
-          reason: reason,
+          plan: ResidencyPlan(unloads: [(site: page.models[0], reason: reason)]),
           isStale: () => stale,
         );
 
@@ -306,10 +304,11 @@ void main() {
         ),
       );
 
-      await SiteUnloadEngine.unload(
+      await SiteUnloadEngine.apply(
         page,
-        site: a,
-        reason: UnloadReason.memoryPressure,
+        plan: ResidencyPlan(
+          unloads: [(site: a, reason: UnloadReason.memoryPressure)],
+        ),
         isStale: () => false,
       );
 

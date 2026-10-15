@@ -110,6 +110,17 @@ final class Pressure extends SiteAction {
   String toString() => 'Pressure()';
 }
 
+/// A home reset unloads the site at [slot] (`unload(site)`, PAUSE-007). The
+/// site on screen keeps its place with its webview let go of, which no step
+/// takes, so that script's steps are checked by the world's invariants, not
+/// replayed.
+final class UnloadSite extends SiteAction {
+  const UnloadSite(this.slot);
+  final int slot;
+  @override
+  String toString() => 'UnloadSite($slot)';
+}
+
 /// The OS wakes the app off screen to check its notification sites
 /// (`BackgroundWakeEngine.wake`), left running.
 final class Wake extends SiteAction {
@@ -619,8 +630,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// its container, one no longer loaded unmounts (`Frame`).
   void _frameMounts() {
     // A reroute lets go of the slot's webview; the next frame builds it as
-    // the site it now runs as.
-    if (_boxed || rehosts) _buildWebViews();
+    // the site it now runs as. A reset of the site on screen lets go of its
+    // webview in place, and the page's stack builds it again.
+    if (_boxed || rehosts || _letGoInPlace) _buildWebViews();
+    _letGoInPlace = false;
     if (!_boxed) return;
     inFlow(flow: _frameFlow, () {
       for (final m in {..._bySite, ..._mounted.keys}) {
@@ -796,6 +809,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// ([_offScreenTabInput]).
   final Set<int?> _unmodeled = {};
 
+  /// A reset let go of the webview of the site on screen, which the next
+  /// frame builds again.
+  bool _letGoInPlace = false;
+
   /// Flows whose activation has committed.
   final Set<int?> _committed = {};
 
@@ -943,6 +960,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     OpenNested() ||
     GoHome() ||
     Pressure() ||
+    UnloadSite() ||
     Wake() ||
     Background() ||
     Foreground() ||
@@ -1376,6 +1394,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.online => _faults.contains(Fault.network) ? 'FALSE' : null,
       ModelConst.archive => set([for (final m in _archived) _siteNumber(m)]),
       ModelConst.deletable => set(deletes ? const [1] : const <int>[]),
+      ModelConst.resettable => set(every),
       ModelConst.boxed || ModelConst.noNavState => null,
       // An archive's sites are incognito too (`Incognito == Archive`).
       ModelConst.incognito => page.incognito.isEmpty
@@ -1395,6 +1414,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Tap() => ActivationStep.tap,
     GoHome() => ActivationStep.goHome,
     Pressure() => ActivationStep.pressure,
+    UnloadSite() => ActivationStep.unloadSite,
     Preload() => ActivationStep.preload,
     OpenNested() => ActivationStep.nestedOpen,
     Wake() => ActivationStep.wake,
@@ -1625,6 +1645,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         _startActivation(null);
       case Pressure():
         _track(activation.memoryPressure());
+      case UnloadSite(:final slot):
+        if (n > 0) {
+          final m = at(slot);
+          if (identical(m, sites.shown)) {
+            _recording = null;
+            _unmodeled.add(currentFlow());
+            _letGoInPlace = true;
+          }
+          _track(activation.unload(m, reason: UnloadReason.homeReset));
+        }
       case Preload(:final slot):
         if (n > 0) {
           _track(
@@ -1773,6 +1803,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       case Tap() ||
           GoHome() ||
           Pressure() ||
+          UnloadSite() ||
           Preload() ||
           Add() ||
           Move() ||

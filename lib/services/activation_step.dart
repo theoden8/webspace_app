@@ -1,7 +1,7 @@
 import 'package:webspace/services/site_tab.dart';
 
 /// What started a flow, as `fl[f].kind` names it.
-enum FlowKind { tap, preload, home, pressure, tab, nested, wake, dns, space, close, delete }
+enum FlowKind { tap, preload, home, pressure, tab, nested, wake, dns, space, close, delete, unload }
 
 /// Every platform call a step may wait on, which a fake reports as it is
 /// made (`pace`): a step declares its calls from here and a fake can only
@@ -112,6 +112,10 @@ enum ActivationStep {
   tap(),
   goHome(),
   pressure(),
+
+  /// A site off screen unloaded at a home reset (`unload(site)`): a plan of
+  /// that one site.
+  unloadSite(),
   move(),
   login(calls: {PlatformCall.cookieSet}),
 

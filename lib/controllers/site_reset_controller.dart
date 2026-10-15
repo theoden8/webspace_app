@@ -181,18 +181,8 @@ class SiteResetController {
       await _tabs.bindOwnerRunTab(m);
       if (!_host.mounted) return;
       m.currentUrl = m.initUrl;
-      // Keep the active site in _sites.loaded (mirrors
-      // _resetAlwaysOpenHomeForAppClose / goHome) so the IndexedStack still
-      // has a child to rebuild at initUrl. Dropping it black-screens a warm
-      // shortcut re-tap of the already-current site: the shortcut open skips
-      // the activation of the site already on screen, so nothing would re-add
-      // it or recreate the disposed webview.
-      if (identical(m, _sites.shown)) {
-        m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.homeLanding));
-      } else {
-        await _activation.unload(m, reason: UnloadReason.homeReset);
-        if (!_host.mounted) return;
-      }
+      await _activation.unload(m, reason: UnloadReason.homeReset);
+      if (!_host.mounted) return;
     }
     for (final m in withTabs) {
       if (!_host.mounted) return;

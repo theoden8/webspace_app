@@ -123,6 +123,17 @@ abstract final class ActivationTable {
   );
   static final _chosen = _eachSite.it;
 
+  /// The site a home reset unloads, from the listed sites a world lets it
+  /// name (`Resettable`).
+  static final _eachResettable = Pick<WebViewModel, ActivationFlow>(
+    Expr.op(
+      r'Listed \cap Resettable',
+      run: (c) => [ActivationFlow.state.from(c).target!],
+      reads: const Reads(base: {BaseOp.listed}),
+      needs: const {(of: ModelConst.resettable, set: true)},
+    ),
+  );
+
   /// The site a switch spawns the load of: `k`, beside the switch's own
   /// pick of what it stops showing.
   static final _eachKept = Pick<WebViewModel, ActivationFlow>(
@@ -718,6 +729,7 @@ abstract final class ActivationTable {
           models.indexOf(_site.of(c)),
         ),
         FlowKind.pressure => throw StateError('made by the pressure plan step'),
+        FlowKind.unload => throw StateError('made by the unload\'s caller'),
         FlowKind.nested => NestedOpening(models.indexOf(_site.of(c))),
         FlowKind.space => WebspaceSwitched(
           leaving: {
@@ -883,6 +895,7 @@ abstract final class ActivationTable {
           built: (s) => s.tabBinding.built,
           begin: (c) => ActivationFlow.page.from(c).beginNavCapture(_site.of(c)),
           marks: null,
+          keeps: null,
         ),
       );
 
@@ -1034,6 +1047,26 @@ abstract final class ActivationTable {
           next: to(ActivationPlace.pNav),
         ),
       ),
+      // unload(site) at a home reset, of a site off screen: a plan of that
+      // site alone, which it picks, so the unload backs off if the site has
+      // come on screen or become a tap's target by its dispose (BUG-033). It
+      // bumps no version, so it supersedes nothing.
+      ActivationPlace.unload => Step.input(
+        ActivationStep.unloadSite,
+        enabled: _current.value.neq(_eachResettable.it),
+        pick: _eachResettable,
+        site: _eachResettable.it,
+        otherwise: Otherwise(
+          StepOutcome.none,
+          then: [
+            kind.becomes(Expr.constant(FlowKind.unload)),
+            _victims.becomes(_eachResettable.it.asSet),
+            _clears.becomes(Expr.none()),
+            _picked.becomes(_eachResettable.it.asSet),
+          ],
+          next: to(ActivationPlace.next),
+        ),
+      ),
       // The target's saved back stack read, handed to the model so the
       // build's onControllerCreated applies restoreState.
       ActivationPlace.nav => Step(
@@ -1107,7 +1140,7 @@ abstract final class ActivationTable {
           ),
           Branch(
             StepOutcome.none,
-            when: _pressure | _is(FlowKind.space),
+            when: _pressure | _is(FlowKind.space) | _is(FlowKind.unload),
             then: [],
             next: to(ActivationPlace.done),
           ),

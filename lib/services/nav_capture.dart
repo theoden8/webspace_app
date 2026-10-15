@@ -22,13 +22,16 @@ abstract interface class Capturing {
 }
 
 /// What a capture needs of its flow: the [site], how its webview's tab is
-/// read ([built]), how the capture [begin]s, and what the steps mark
-/// ([marks], the site unless the flow marks nothing).
+/// read ([built]), how the capture [begin]s, what the steps mark ([marks],
+/// the site unless the flow marks nothing), and, for a flow that keeps the
+/// back stack it reads only sometimes, when it does ([keeps]): [begin]
+/// reads it and begins no capture where it does not hold.
 typedef CaptureOf<S, W> = ({
   Expr<S, W> site,
   TabId? Function(S site) built,
   NavCapture? Function(StepView<W> c) begin,
   Expr<Object?, W>? marks,
+  Expr<bool, W>? keeps,
 });
 
 /// The steps' names, as `ActivationStep` has them.
@@ -71,11 +74,14 @@ captureSteps<S, W extends Capturing, P extends Enum>({
     reads: tab.value.reads + of.site.reads + const Reads(vars: {ModelVar.tabs}),
   );
   // A site whose tab keeps no back stack gives the capture nothing to
-  // read, whether or not the model follows its tabs.
+  // read, whether or not the model follows its tabs, and neither does a
+  // flow that keeps none.
+  final keeps = of.keeps;
+  final noNavState = '${of.site.tla} \\in NoNavState';
   final none = Expr<bool, W>(
     run: (c) => inFlight.from(c).capture == null,
-    tla: '${of.site.tla} \\in NoNavState',
-    reads: of.site.reads,
+    tla: keeps == null ? noNavState : '($noNavState) \\/ ~(${keeps.tla})',
+    reads: of.site.reads + (keeps?.reads ?? Reads.none),
     needs: const {(of: ModelConst.noNavState, set: true)},
   );
   return (

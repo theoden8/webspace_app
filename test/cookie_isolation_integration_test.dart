@@ -80,8 +80,11 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
 
   /// Mirrors `SiteActivationController.unload`.
   Future<void> unload(int index, {required UnloadReason reason}) =>
-      SiteUnloadEngine.unload(this,
-          site: sites[index], reason: reason, isStale: () => false);
+      SiteUnloadEngine.apply(
+        this,
+        plan: ResidencyPlan(unloads: [(site: sites[index], reason: reason)]),
+        isStale: () => false,
+      );
 
   /// Monotonic counter mirroring `SiteRuntime.activationVersion`. Every `switchToSite` call bumps it; the engine
   /// reads it via a closure so concurrent activations can bail.
@@ -511,7 +514,7 @@ void main() {
     // loaded sites only, so an unloaded site keeps what it set since its own
     // activation only if its unload captured the jar first. The webspace
     // switch, a domain conflict's back stack and a home reset once each
-    // skipped a step; every unload now goes through SiteUnloadEngine.unload,
+    // skipped a step; every unload now goes through SiteUnloadEngine.unloadFlow,
     // which captures whatever the reason, and a new UnloadReason does not
     // compile until it answers keepsNavState.
     for (final reason in UnloadReason.values) {

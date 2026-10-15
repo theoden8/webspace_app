@@ -1273,6 +1273,7 @@ class TabsController {
       built: (s) => s.tabBinding.built,
       begin: (c) => _page.from(c).beginCapture(_site.of(c)),
       marks: _site.value,
+      keeps: null,
     ),
     first: [
       Branch(

@@ -142,6 +142,7 @@ enum ModelConst {
   online(ConstKind.on),
   archive(ConstKind.set),
   deletable(ConstKind.set),
+  resettable(ConstKind.set),
   boxed(ConstKind.set, follows: {archive, deletable}),
   incognito(ConstKind.set, follows: {archive}),
   noNavState(ConstKind.set, follows: {archive, incognito}),

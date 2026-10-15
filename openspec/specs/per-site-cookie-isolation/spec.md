@@ -60,7 +60,7 @@ reason it is unloaded (domain conflict, webspace switch, proxy or Tor
 exit-country mismatch, the loaded-site cap, memory pressure, a home reset).
 Every activation empties the shared jar after saving it for the loaded sites
 only, so a site unloaded without the capture loses what it set since its own
-activation. All unloads go through `SiteUnloadEngine.unload`.
+activation. All unloads go through `SiteUnloadEngine.unloadFlow`.
 
 #### Scenario: Capture cookies before switch
 

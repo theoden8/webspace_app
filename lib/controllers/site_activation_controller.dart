@@ -282,14 +282,29 @@ class SiteActivationController {
     _host.rebuild();
   }
 
-  /// Unloads [site] (PAUSE-007, ISO-002); see [SiteUnloadEngine.unload].
-  Future<void> unload(WebViewModel site, {required UnloadReason reason}) =>
-      SiteUnloadEngine.unload(
-        _residency,
-        site: site,
-        reason: reason,
-        isStale: () => false,
-      );
+  /// Unloads [site], a site a reset sends home (PAUSE-007): the unload
+  /// input, a plan that picks that site alone, so a tap that opens it
+  /// meanwhile wins and the unload backs off (BUG-033). Under the legacy
+  /// engine the shared jar is captured first (ISO-002): the next activation
+  /// empties it after attributing it to the loaded sites only, so a site
+  /// unloaded without the capture would lose what it set since its own
+  /// activation.
+  ///
+  /// The site on screen stays loaded, its webview let go of so the frame
+  /// builds it afresh: the screen never shows a site that is not loaded
+  /// (LAZY-007), and a caller that finds it still on screen activates
+  /// nothing.
+  Future<void> unload(WebViewModel site, {required UnloadReason reason}) async {
+    assert(reason.chosen, 'the unload input picks its site ($reason)');
+    if (!_sites.models.contains(site)) return;
+    if (identical(site, _sites.shown)) {
+      site.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      return;
+    }
+    final flow = _flow(target: site);
+    flow.world.plan = ResidencyPlan(unloads: [(site: site, reason: reason)]);
+    await _runFlow(flow, from: ActivationPlace.unload);
+  }
 
   ResidencyPlan residencyPlan(ResidencyEvent event) =>
       SiteUnloadEngine.plan(_residency, event: event);

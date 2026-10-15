@@ -102,12 +102,27 @@ picked by priority, the site still evictable.**
    caught by TLC there, and the old code planted in the walk fails
    "a switch unloads the site a tap is opening". *Why partial*: a settings
    save's, a tab's and a home reset's unloads are still outside the model.
+6. **2026-10-15 — PR #696.** A home reset's unload (a shortcut launch's,
+   or a link's into an always-open-home or incognito site) ran the unload
+   table from its capture as a plan outside the model, with a staleness
+   that never fired and a victim no pick: a tap of the site while the
+   reset captured it committed the site, and the reset then disposed it,
+   leaving the screen blank. Modelled as an input of the activation table
+   (`UnloadSite`, gated by `Resettable`), TLC broke `Inv_NoShownEvicted` in
+   its first world. The input picks its site (`UnloadReason.homeReset` is a
+   choice), so the unload asks again before the dispose and backs off.
+   *Why*: a reset names a site off screen, as a pressure pick does, and
+   the BUG-033 re-ask already covers a pick. The schedules' "a home reset
+   backs off from a site a tap opens" fails with the pick planted away, and
+   the `recapture` mutant, uncaught in every world since a move stopped
+   bumping the version (BUG-029), is caught in the reset world. *Why
+   partial*: a settings save's and a tab's unloads are still outside the
+   model.
 
 ## Known open gaps
 
 A site the user taps after its dispose and before the unload's bookkeeping
 returns is rebuilt from saved state, which is the designed path. An unload
-outside a plan (a home reset, a nested open's proxy mismatch) has no
-staleness to ask, so it passes one that never fires. The plans still outside
-the model (a settings save's, a tab's, a home reset's) are not held to the
-dispose's ghost.
+outside a plan (a nested open's proxy mismatch) has no staleness to ask, so
+it passes one that never fires. The plans still outside the model (a
+settings save's, a tab's) are not held to the dispose's ghost.
