@@ -98,9 +98,11 @@ class BackgroundTaskService {
       }
       return null;
     });
-    // Android: an engine the refresh worker started for a wake (NOTIF-016)
-    // sends the refresh only once this handler is installed.
-    if (hostIsAndroid) unawaited(_announceReady());
+    // The native side sends a refresh only once this handler is installed:
+    // on Android an engine the worker started for a wake (NOTIF-016) is still
+    // starting up, and on iOS the scene starts the engine after launch, so a
+    // refresh task can come first.
+    unawaited(_announceReady());
   }
 
   Future<void> _announceReady() async {

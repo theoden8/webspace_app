@@ -120,7 +120,25 @@ what it finds.**
    same log shows Low Power Mode on and no refresh task at all since attempt
    8 shipped, so the headless wake has still not run on a device.
 
+10. **2026-10-15 — this change.** The iOS Runner moved to the UIScene
+   lifecycle, under which the scene's storyboard starts the engine after
+   launch. The app delegate now holds `BackgroundTaskPlugin` from launch and
+   attaches each engine as it starts, and the plugin sends a refresh only
+   after Dart's `backgroundRefreshReady`, the handshake Android already used.
+   *Why*: the task handler must be registered during launch, but it handed
+   the task to a plugin built beside the engine; with the engine started
+   later, a task arriving first went to no plugin, was never completed and
+   never rescheduled the next one. The channel buffer the old path relied on
+   also dropped a message sent before the Dart isolate ran. *Why partial*:
+   not yet run on a device, and whether iOS connects the scene at all in a
+   launch it makes for a refresh task is unobserved.
+
 ## Known open gaps
+
+- Whether iOS connects the scene, and so starts an engine, in a launch it
+  makes for a refresh task has not been observed. If it does not, the task
+  waits and expires: the background log shows "refresh task waits for Dart
+  to start" with no "Dart started" line after it.
 
 - iOS decides whether a refresh task runs at all. A device that never runs
   one (Low Power Mode, Background App Refresh off, rarely used app) gets no

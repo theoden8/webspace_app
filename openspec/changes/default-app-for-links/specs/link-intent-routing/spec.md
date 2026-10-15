@@ -111,6 +111,13 @@ The app SHALL register the `webspace` URL scheme on every supported platform (An
 - **THEN** `LinkIntentService` emits the URL on its `Stream<Uri>`
 - **AND** `WebSpacePage` runs the resolver and activates the matching site
 
+#### Scenario: iOS delivers the URL to the scene
+
+- **GIVEN** the platform is iOS, where the app runs under the UIScene lifecycle
+- **WHEN** the OS opens a `webspace://` URL, at launch (the scene's connection options) or later (`scene(_:openURLContexts:)`)
+- **THEN** the share-intent plugin, a scene delegate registered ahead of the other plugins, takes it
+- **AND** claims it, so Flutter's deep linking does not push it to the navigator as a route
+
 ---
 
 ### Requirement: LIR-005 - Android Share Intent Handler

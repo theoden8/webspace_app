@@ -4,6 +4,7 @@
   import FlutterMacOS
 #else
   import Flutter
+  import UIKit
 #endif
 
 import Foundation
@@ -14,7 +15,8 @@ import Foundation
 ///
 /// The app delegate owns it from launch and attaches the channel once there
 /// is an engine, because macOS delivers `application(_:open:)` for a launch
-/// URL before `applicationDidFinishLaunching`.
+/// URL before `applicationDidFinishLaunching`, and iOS starts the engine only
+/// when the scene connects.
 final class ShareIntentPlugin: NSObject {
   private var pendingUrl: String?
 
@@ -47,17 +49,19 @@ final class ShareIntentPlugin: NSObject {
 
   /// Takes the URLs the OS opened the app with, then whatever the share
   /// extension left in the App Group, which wins when both are present.
-  func receive(_ urls: [URL]) {
-    for url in urls {
-      capture(url)
-    }
+  /// True when one of them was a `webspace://` URL.
+  @discardableResult
+  func receive(_ urls: [URL]) -> Bool {
+    let claimed = urls.map { capture($0) }.contains(true)
     drainPendingUrl()
+    return claimed
   }
 
-  private func capture(_ url: URL) {
+  /// False for a URL of any other scheme, which is not this plugin's.
+  private func capture(_ url: URL) -> Bool {
     guard url.scheme?.lowercased() == "webspace" else {
       trace("ignoring non-webspace scheme: \(url.scheme ?? "nil")")
-      return
+      return false
     }
     switch url.host?.lowercased() {
     case "open", "qr":
@@ -75,7 +79,7 @@ final class ShareIntentPlugin: NSObject {
         httpScheme == "http" || httpScheme == "https"
       else {
         trace("share URL has no valid http(s) inner: \(url.absoluteString)")
-        return
+        return true
       }
       pendingUrl = inner
       trace("captured share inner URL: \(inner)")
@@ -86,6 +90,7 @@ final class ShareIntentPlugin: NSObject {
     case let host:
       trace("unrecognized webspace host: \(host ?? "nil")")
     }
+    return true
   }
 
   private func drainPendingUrl() {
@@ -128,6 +133,26 @@ final class ShareIntentPlugin: NSObject {
     return payload
   }
 }
+
+#if !canImport(FlutterMacOS)
+  /// Under the scene lifecycle iOS opens a URL on the scene and never through
+  /// the app delegate: a launch URL comes in the connection options, a later
+  /// one through `openURLContexts`. Claiming a `webspace://` URL also keeps it
+  /// from Flutter's deep linking, which has no route for one.
+  extension ShareIntentPlugin: FlutterSceneLifeCycleDelegate {
+    func scene(
+      _ scene: UIScene,
+      willConnectTo session: UISceneSession,
+      options connectionOptions: UIScene.ConnectionOptions?
+    ) -> Bool {
+      receive(connectionOptions?.urlContexts.map(\.url) ?? [])
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) -> Bool {
+      receive(URLContexts.map(\.url))
+    }
+  }
+#endif
 
 /// URLs and hosts a user opened; kept out of release logs.
 private func trace(_ message: @autoclosure () -> String) {

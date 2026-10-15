@@ -203,7 +203,8 @@ On iOS, the OS suspends apps within seconds of backgrounding. The system SHALL:
 **Given** the platform is iOS
 **And** iOS had terminated the app, and Site A has notifications on
 **When** iOS launches the app in the background to run the refresh task
-**Then** the task waits for Dart to start: the channel buffers `onBackgroundRefresh` until `BackgroundTaskService` installs its handler
+**Then** the task waits for Dart to start: the plugin, which the app delegate holds from launch, sends `onBackgroundRefresh` only once `BackgroundTaskService` has installed its handler and said so (`backgroundRefreshReady`), as on Android
+**And** the task waits the same way when it arrives before there is an engine at all: under the UIScene lifecycle the scene's storyboard starts the engine, after launch
 **And** Site A, which has no webview in a process that draws no frames, is checked headless (NOTIF-016)
 **And** its unread baseline is the one recorded before the app was terminated (NOTIF-014)
 

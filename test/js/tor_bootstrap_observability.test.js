@@ -496,8 +496,8 @@ test('both Apple targets register the plugin where the engine exists', () => {
     'macos/Runner/AppDelegate.swift must not register it a second time, '
     + 'behind a window lookup that can silently skip');
 
-  // iOS keeps its own: there the delegate owns a window by the time
-  // didFinishLaunching returns, and it is the shipping path.
+  // iOS keeps its own: there the delegate is told when the scene's engine
+  // starts (didInitializeImplicitFlutterEngine), with no window to look up.
   const ios = read('ios/Runner/AppDelegate.swift');
   assert.match(ios, /torControllerPlugin = TorControllerPlugin\(/,
     'iOS must still register the plugin');

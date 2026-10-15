@@ -48,3 +48,29 @@ public class FlutterEventChannel: NSObject {
   public func setStreamHandler(_ handler: FlutterStreamHandler?) {}
 }
 
+
+// MARK: - Flutter (FlutterSceneLifeCycle.h)
+
+// Only where the UIKit stub is built, as the real header imports UIKit; the
+// macOS side and TorControllerPlugin.swift need none of it.
+#if canImport(UIKit)
+  import UIKit
+
+  // @protocol FlutterSceneLifeCycleDelegate <NSObject>, every method @optional.
+  // Swift on Linux has no @objc optional, so the ones the shared sources
+  // implement are required here. That also makes a near-miss signature an
+  // error, where Xcode only warns and then never calls the method.
+  public protocol FlutterSceneLifeCycleDelegate: NSObjectProtocol {
+    // - (BOOL)scene:(UIScene*)scene
+    //     willConnectToSession:(UISceneSession*)session
+    //                  options:(nullable UISceneConnectionOptions*)connectionOptions;
+    func scene(
+      _ scene: UIScene,
+      willConnectTo session: UISceneSession,
+      options connectionOptions: UIScene.ConnectionOptions?
+    ) -> Bool
+
+    // - (BOOL)scene:(UIScene*)scene openURLContexts:(NSSet<UIOpenURLContext*>*)URLContexts;
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) -> Bool
+  }
+#endif
