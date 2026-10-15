@@ -275,7 +275,9 @@ three runs on 2026-09-28) the WebView advertises `WEB_AUTHENTICATION`, reads
 back FOR_BROWSER (2) after it is set, and does not crash with the origin
 permission declared, yet `isUserVerifyingPlatformAuthenticatorAvailable()`
 resolves false and `create()` rejects with NotSupportedError "Not implemented".
-The bridge answers the same page on the same WebView.
+The bridge answers the same page on the same WebView. Because that answer can
+only be a NOTE and moves only with the image's WebView, the gate runs the
+`webview` phase only with `WS_PASSKEY_PATH_A=1`.
 
 #### Scenario: A WebView without WEB_AUTHENTICATION
 
@@ -285,7 +287,7 @@ The bridge answers the same page on the same WebView.
 
 #### Scenario: A WebView that advertises the switch with nothing behind it
 
-**Given** the gate's AOSP WebView, which advertises `WEB_AUTHENTICATION`
+**Given** the gate's AOSP WebView, which advertises `WEB_AUTHENTICATION`, and a gate run with `WS_PASSKEY_PATH_A=1`
 **When** the `webview` phase sets FOR_BROWSER and the page calls `create()`
 **Then** the phase reports the page's outcome and the gate records it as a NOTE, never a FAIL
 
@@ -316,7 +318,7 @@ evidence (the RP's results, the provider's logcat, `dumpsys package`):
 | Gate | Evidence |
 |---|---|
 | G0 | `android.software.credentials`, `credential_service` names the test provider, `adb reverse`, the page is a secure context with `PublicKeyCredential` and a platform authenticator |
-| G1 | both permissions `granted=true` |
+| G1 | both permissions `granted=true`, read from an install of the gate's build before any phase (`flutter test` uninstalls the app when a phase ends) |
 | G2 | the RP verifies a registration whose clientDataJSON origin is `http://localhost:8443`, and the provider logged that origin |
 | G3 | two sign-ins verify and the signature counter rises |
 | G4 | with the app off the provider's allowlist, the page gets NotAllowedError, the provider logged its refusal, and the app did not crash |

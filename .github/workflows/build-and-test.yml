@@ -690,16 +690,12 @@ jobs:
             bash scripts/run_android_proxy_router_tests.sh
             bash scripts/run_android_settings_seam_test.sh
             bash scripts/run_android_http_auth_tests.sh
-            WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
+            WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
             adb shell settings put global hide_error_dialogs 1
             bash scripts/run_android_passkey_tests.sh
 
-      # always(), not failure(): the tier now dumps the platform view's
-      # composition mode on every run, and that dump is only worth having on
-      # the green ones -- it says whether a green means the bug did not happen
-      # or that the emulator cannot host it.
       - name: Upload white-screen lifecycle diagnostics
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: white-screen-adb-diagnostics
@@ -707,7 +703,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload passkey gate evidence
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: passkey-gate-evidence

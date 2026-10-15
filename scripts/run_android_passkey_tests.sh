@@ -105,6 +105,22 @@ if ! $FLUTTER build apk --debug --flavor fdebug -t integration_test/passkey_test
   fail G0-build "the integration test APK did not build (see $OUT/build.txt)"
 fi
 
+# ── G1: both permissions are held ───────────────────────────────────────────
+# Read from an install of that build, before any phase: `flutter test`
+# uninstalls the app when it finishes, so after a phase there is nothing to read.
+if ! adb_ install -r -t build/app/outputs/flutter-apk/app-fdebug-debug.apk > "$OUT/install.txt" 2>&1; then
+  fail G1-install "the gate APK did not install (see $OUT/install.txt)"
+fi
+adb_ shell dumpsys package "$APP_ID" > "$OUT/dumpsys_package.txt"
+for perm in CREDENTIAL_MANAGER_SET_ORIGIN CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS; do
+  line="$(grep "android.permission.$perm:" "$OUT/dumpsys_package.txt" | head -1 | tr -d '\r' | sed 's/^ *//')"
+  if printf '%s' "$line" | grep -q 'granted=true'; then
+    pass G1-$perm "dumpsys: $line"
+  else
+    fail G1-$perm "not granted: '${line:-absent}'"
+  fi
+done
+
 adb_ logcat -c
 adb_ logcat -v time > "$OUT/logcat.txt" 2>&1 &
 LOGCAT_PID=$!
@@ -192,24 +208,6 @@ curl -fs "http://127.0.0.1:$PORT/results" > "$OUT/rp_results_main.json" || echo 
 
 gate_line() { grep -h "PASSKEY_GATE $1 " "$OUT"/phase-*.txt | head -1 | sed "s/.*PASSKEY_GATE $1 //"; }
 
-# ── G1: the origin permission is held ───────────────────────────────────────
-# `flutter test` may uninstall the app when it finishes; the app's own
-# checkSelfPermission, which the test prints, stands in when it has.
-adb_ shell dumpsys package "$APP_ID" > "$OUT/dumpsys_package.txt"
-status="$(gate_line status)"
-for perm in CREDENTIAL_MANAGER_SET_ORIGIN CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS; do
-  line="$(grep "android.permission.$perm:" "$OUT/dumpsys_package.txt" | head -1 | tr -d '\r' | sed 's/^ *//')"
-  if printf '%s' "$line" | grep -q 'granted=true'; then
-    pass G1-$perm "dumpsys: $line"
-  elif [ -z "$line" ] && [ "$perm" = CREDENTIAL_MANAGER_SET_ORIGIN ] \
-      && printf '%s' "$status" | grep -q '"permission":true'; then
-    pass G1-$perm "app no longer installed; in-app checkSelfPermission: $status"
-  elif [ -z "$line" ] && ! grep -q "Package \[$APP_ID\]" "$OUT/dumpsys_package.txt"; then
-    note G1-$perm "app no longer installed, nothing to read"
-  else
-    fail G1-$perm "not granted: '${line:-absent}'"
-  fi
-done
 rp() { node -e "
   const r = require('./$OUT/rp_results_main.json');
   const f = r.filter($1);
@@ -273,11 +271,15 @@ else
 fi
 
 # ── Path A: the WebView's own FOR_BROWSER WebAuthn, best effort ─────────────
-adb_ shell am broadcast -n "$PROVIDER_ID/.ControlReceiver" -a "$PROVIDER_ID.TRUST" \
-  --es package "$APP_ID" >/dev/null
-run_phase webview
-webview_rc=$?
-note path-a "exit $webview_rc: $(gate_line webview)"
+# A note, never a gate, whose answer moves only with the image's WebView
+# (PASSKEY-010), so it runs on request.
+if [ "${WS_PASSKEY_PATH_A:-0}" = "1" ]; then
+  adb_ shell am broadcast -n "$PROVIDER_ID/.ControlReceiver" -a "$PROVIDER_ID.TRUST" \
+    --es package "$APP_ID" >/dev/null
+  run_phase webview
+  webview_rc=$?
+  note path-a "exit $webview_rc: $(gate_line webview)"
+fi
 
 rm -f "$OUT/.tapping"
 kill "$LOGCAT_PID" 2>/dev/null
