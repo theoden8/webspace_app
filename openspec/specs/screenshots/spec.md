@@ -90,11 +90,31 @@ Screenshots SHALL be captured in both light and dark themes.
 
 ---
 
+### SCREENSHOT-008 - Android Capture In Texture Mode
+
+On Android every screenshot SHALL be taken by `binding.takeScreenshot`, which after `convertFlutterSurfaceToImage()` is a `PixelCopy` of the FlutterView's rectangle in the activity window, and the run SHALL create its webviews in texture layer hybrid composition (PAUSE-032), so a site's page is in that copy. In hybrid composition, the app's default, Flutter draws into `FlutterImageView`s layered around the WebView and an image view presents the last image it acquired: a shot of a site showed the previous screen (PR #77). In texture mode the page renders into a texture Flutter composites in its own frame. The test turns the mode on through the gate `main()` reads (DEVTOOLS-011), with developer mode and the Texture page rendering switch in its in-memory preferences, and holds off the proxy router that developer mode would also start, so the run keeps PROXY-008. Developer mode shows nothing on the screens SCREENSHOT-003 captures. No other platform changes mode, and nothing captures the screen through adb.
+
+#### Scenario: A site on screen is in the shot
+
+- **GIVEN** Android and a site's page on screen
+- **WHEN** the test takes a screenshot
+- **THEN** the image is the one `takeScreenshot` returns, with the page in it
+- **AND** every webview of the run was created with `useHybridComposition: false`
+- **AND** the image has no status or navigation bar, which are windows of their own outside the copy
+
+#### Scenario: The shot is the FlutterView
+
+- **WHEN** the test takes a screenshot on Android
+- **THEN** the PNG's pixel size equals the FlutterView's physical size, or the test fails
+- **AND** a screenshot that does not arrive within its timeout fails the test
+
+---
+
 ## Files
 
 **Test files:**
 - `integration_test/screenshot_test.dart` - Main test
-- `test_driver/integration_test.dart` - Driver with native screenshot support
+- `test_driver/integration_test.dart` - Driver that writes each screenshot the test takes into `SCREENSHOT_DIR`
 - `lib/demo_data.dart` - Demo data seeding
 
 **Fastlane config:**
