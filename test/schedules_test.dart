@@ -1,6 +1,10 @@
 // The schedule enumerator (test/helpers/walk/schedules.dart) on a toy world
 // whose schedules can be counted by hand, so a harness that explores too few
-// or too many interleavings fails here, before it vouches for the app.
+// or too many interleavings fails here, before it vouches for the app. The
+// toy marks its steps as the engines do, named after three of the tables'
+// steps but read by a relation of its own (_toyCommutes): a flow's input
+// and its replies touch nothing shared, and an increment's read and write
+// touch the counter.
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -51,13 +55,18 @@ final class ToyWorld implements ScheduledWorld<Toy> {
   Future<void> _run(Toy action) async {
     _running++;
     final read = counter;
+    ActivationSteps.mark(action is Inc ? _counter : _input);
     for (var i = 0; i < action.replies; i++) {
       // Any two calls: the toy only needs the replies told apart.
       await gate.pace(
         nondeterministic && _runs.isOdd ? PlatformCall.webViewPause : PlatformCall.webViewResume,
       );
+      ActivationSteps.mark(_reply);
     }
-    if (action is Inc) counter = read + 1;
+    if (action is Inc) {
+      counter = read + 1;
+      ActivationSteps.mark(_counter);
+    }
     _running--;
   }
 
@@ -81,6 +90,12 @@ final class ToyWorld implements ScheduledWorld<Toy> {
   }
 
   @override
+  ActivationStep? inputOf(Toy action) => switch (action) {
+    Wait() => _input,
+    Inc() => _counter,
+  };
+
+  @override
   void endScript() {
     expect(counter, _incs, reason: 'an increment was lost');
   }
@@ -100,17 +115,40 @@ final class ToyWorld implements ScheduledWorld<Toy> {
   String snapshot() => '$counter ${_scripting ? 'script' : 'setup'}';
 }
 
+/// The toy's steps: a flow's input, a reply, and an increment's read or
+/// write of the counter, the only step that meets another.
+const _input = ActivationStep.tap;
+const _reply = ActivationStep.resumeReply;
+const _counter = ActivationStep.plan;
+
+bool _toyCommutes(ActivationStep a, {required ActivationStep other}) =>
+    a != _counter || other != _counter;
+
 Future<int> _runs({
   required List<Toy> script,
   required int preemptions,
   bool nondeterministic = false,
-}) =>
-    expectEveryScheduleHolds<Toy>(
+}) async =>
+    (await expectEveryScheduleHolds<Toy>(
       world: () => ToyWorld(nondeterministic: nondeterministic),
       setup: const [],
       script: script,
       preemptions: preemptions,
-    );
+      commutes: null,
+    )).runs;
+
+Future<ScheduleSearch> _search({
+  required List<Toy> script,
+  required int preemptions,
+  required Commutes? commutes,
+}) => exploreSchedules<Toy>(
+  world: () => ToyWorld(nondeterministic: false),
+  setup: const [],
+  script: script,
+  preemptions: preemptions,
+  commutes: commutes,
+  toTheEnd: true,
+);
 
 void main() {
   // Two flows of one reply each have three interleavings that start them in
@@ -138,6 +176,60 @@ void main() {
       throwsA(isA<TestFailure>().having(
           (f) => f.message, 'message', contains('an increment was lost'))),
     );
+  });
+
+  group('reduced by sleep sets', () {
+    // The second schedule above only swaps two flows that share nothing,
+    // so the reduced search stops it short; the third is the first's
+    // tail swapped, and never runs.
+    test('two one-reply flows that share nothing: one schedule and one '
+        'stopped', () async {
+      final search = await _search(
+        script: const [Wait(1), Wait(1)],
+        preemptions: 2,
+        commutes: _toyCommutes,
+      );
+      expect((search.runs, search.stopped), (1, 1));
+      expect(search.ends, {'0 script'});
+    });
+
+    test('the lost update still shows at one preemption', () async {
+      final search = await _search(
+        script: const [Inc(1), Inc(1)],
+        preemptions: 1,
+        commutes: _toyCommutes,
+      );
+      expect(search.failures.keys, [contains('an increment was lost')]);
+    });
+
+    // Sleep sets keep every end and every failure, a bound on preemptions
+    // included: only a flow's default reply sleeps, and moving it ahead
+    // never spends a preemption the schedule pruned did not.
+    for (final script in const [
+      [Inc(1), Wait(2), Inc(1)],
+      [Wait(2), Inc(2), Inc(1)],
+      [Inc(2), Inc(2), Wait(1)],
+      [Wait(1), Wait(2), Wait(1)],
+    ]) {
+      for (final preemptions in [1, 2, 3]) {
+        test('$script at $preemptions: the same ends and failures, from '
+            'fewer schedules', () async {
+          final every = await _search(
+            script: script,
+            preemptions: preemptions,
+            commutes: null,
+          );
+          final reduced = await _search(
+            script: script,
+            preemptions: preemptions,
+            commutes: _toyCommutes,
+          );
+          expect(reduced.ends, every.ends);
+          expect(reduced.failures.keys.toSet(), every.failures.keys.toSet());
+          expect(reduced.runs + reduced.stopped, lessThan(every.runs));
+        });
+      }
+    }
   });
 
   test('a world that varies between runs is refused', () async {

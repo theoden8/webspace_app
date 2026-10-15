@@ -347,48 +347,58 @@ Reads _resolved(Reads r, {required Set<ModelDef> seen}) => r.defs
     );
 
 /// Every action of the model as the composition reads it: the tables'
-/// from their declarations, the environment's from [EnvAction].
-List<ComposedAction> composedActions(Tables t) {
+/// from their declarations ([stepActions]), the environment's from
+/// [EnvAction].
+List<ComposedAction> composedActions(Tables t) => [
+  for (final (step: _, :action) in stepActions(t)) action,
+  for (final e in EnvAction.values)
+    (
+      name: e.coverage,
+      reads: e.reads,
+      writes: e.writes,
+      rows: const {},
+      kinds: const {},
+      fields: const {},
+      ways: {null: e.needs},
+    ),
+];
+
+/// Each table step's action as the composition reads it, beside the step
+/// it prints from: what a schedule search pairs the steps it ran by.
+List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
   final all = _footprintsOf(t);
   final flows = flowsAt(all);
   return [
     for (final f in all)
       if (_resolved(f.reads, seen: const {}) case final r)
         (
-          name: f.step.action,
-          reads: {...r.vars, for (final b in r.base) ...b.reads},
-          writes: {...f.writes, for (final b in r.base) ...b.writes},
-          rows: {...r.rows, for (final b in r.base) ...b.rows},
-          kinds: {
-            if (!f.input) ...?flows[f.place]?.keys,
-            for (final a in f.arms) ...[?a.kind, for (final r in a.spawns) r.kind],
-          },
-          fields: f.arms.any((a) => a.ends)
-              ? null
-              : {
-                  for (final a in f.arms) ...[
-                    ...a.fields,
-                    for (final r in a.spawns) ...r.fields,
-                  ],
-                },
-          ways: f.input
-              ? {for (final a in f.arms) a.kind: f.needs}
-              : {
-                  for (final MapEntry(key: k, value: n)
-                      in (flows[f.place] ?? const {}).entries)
-                    k: {...n, ...f.needs},
-                },
+          step: f.step,
+          action: (
+            name: f.step.action,
+            reads: {...r.vars, for (final b in r.base) ...b.reads},
+            writes: {...f.writes, for (final b in r.base) ...b.writes},
+            rows: {...r.rows, for (final b in r.base) ...b.rows},
+            kinds: {
+              if (!f.input) ...?flows[f.place]?.keys,
+              for (final a in f.arms) ...[?a.kind, for (final r in a.spawns) r.kind],
+            },
+            fields: f.arms.any((a) => a.ends)
+                ? null
+                : {
+                    for (final a in f.arms) ...[
+                      ...a.fields,
+                      for (final r in a.spawns) ...r.fields,
+                    ],
+                  },
+            ways: f.input
+                ? {for (final a in f.arms) a.kind: f.needs}
+                : {
+                    for (final MapEntry(key: k, value: n)
+                        in (flows[f.place] ?? const {}).entries)
+                      k: {...n, ...f.needs},
+                  },
+          ),
         ),
-    for (final e in EnvAction.values)
-      (
-        name: e.coverage,
-        reads: e.reads,
-        writes: e.writes,
-        rows: const {},
-        kinds: const {},
-        fields: const {},
-        ways: {null: e.needs},
-      ),
   ];
 }
 

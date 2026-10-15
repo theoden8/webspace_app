@@ -1,10 +1,14 @@
 // Every interleaving of the real activation stack within a bound: for each
 // page, each starting state and each script of user and OS actions, every
-// schedule of platform replies and action arrivals with at most a few
-// preemptions (schedules.dart says what counts). The random walks sample
-// past the bound; this covers everything inside it, and the named scripts
-// below, each a bug the code once had, a bound further.
-// SCHEDULE_LENGTH and SCHEDULE_PREEMPTIONS widen the bound locally.
+// schedule of platform replies and action arrivals with at most two
+// preemptions (schedules.dart says what counts), less those that only swap
+// two steps whose footprints share no variable (tableCommutes), which end
+// where the schedule kept does. The random walks sample past the bound;
+// the named scripts below, each a bug the code once had, run at the bound
+// that found them. SCHEDULE_LENGTH and SCHEDULE_PREEMPTIONS widen the bound
+// locally; SCHEDULE_REDUCTION=off runs every schedule within one
+// preemption, none pruned, as the search did before, and SCHEDULE_STATS=1
+// prints how many schedules ran.
 import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +23,7 @@ import 'helpers/walk/activation_world.dart';
 import 'helpers/walk/schedules.dart';
 import 'helpers/walk/step_traces.dart';
 import 'helpers/walk/unmodeled_meets.dart';
+import 'helpers/walk/table_commutes.dart';
 
 /// Three sites as in formal/kernel.cfg: all on one base domain, so each
 /// switch unloads the site it replaces; or two sharing one and a third apart.
@@ -144,6 +149,17 @@ const _wakeAlphabet = <SiteAction>[
   Foreground(),
 ];
 
+/// A link opening the site on another route beside a background wake
+/// (BUG-037): the app may leave the screen while the open waits on the
+/// proxy, and the wake's checks ask the rule beside an open in flight.
+const _nestedWakeAlphabet = <SiteAction>[
+  OpenNested(2),
+  Background(),
+  Wake(),
+  Foreground(),
+  Tap(0),
+];
+
 /// DNS (DNS-022): the first site follows the app-wide level, the second
 /// asks for level 2 and the third has DNS blocking off.
 const WalkDns _dnsSites = (siteLevels: [null, 2, kDnsLevelOff], levels: [1, 2]);
@@ -160,16 +176,16 @@ const _dnsAlphabet = <SiteAction>[
   Pressure(),
 ];
 
-/// A wake the model broke before the code ran it, two preemptions past the
-/// bound, under the mismatched proxies (BUG-037).
+/// A wake the model broke before the code ran it, at three preemptions,
+/// under the mismatched proxies (BUG-037).
 const _wakeRegressions = <String, List<SiteAction>>{
   'a wake checks a site beside a tap in flight, whose plan ran before it':
       [Tap(2), Background(), Wake()],
 };
 
-/// A nested open the code once broke (BUG-037), two preemptions past the
-/// bound, under the mismatched proxies: the preload's commit beside a screen
-/// needs the open's move and the preload's two replies to cross.
+/// A nested open the code once broke (BUG-037), at three preemptions, under
+/// the mismatched proxies: the preload's commit beside a screen needs the
+/// open's move and the preload's two replies to cross.
 const _nestedRegressions = <String, List<SiteAction>>{
   'a tap in flight commits beside a nested screen, which unloaded the '
       'site on screen': [Tap(0), OpenNested(2)],
@@ -194,7 +210,7 @@ const _nestedRegressions = <String, List<SiteAction>>{
   ],
 };
 
-/// A launch the code once broke, a preemption past the bound.
+/// A launch the code once broke, at two preemptions.
 const _launchRegressions = <String, List<SiteAction>>{
   'a notification site loaded over what the last session left (NOTIF-017)': [
     Preload(0),
@@ -209,7 +225,7 @@ const _launchRegressions = <String, List<SiteAction>>{
 };
 
 /// A script the code once broke, with the page and setup it broke from,
-/// each run a preemption past the bound.
+/// each run at two preemptions.
 const _regressions =
     <
       String,
@@ -335,7 +351,7 @@ const _spaceAlphabet = <SiteAction>[
   Pressure(),
 ];
 
-/// A switch race, a preemption past the bound: a switch that leaves the
+/// A switch race, at two preemptions: a switch that leaves the
 /// site an activation is opening, and one a tap lands on while it unloads.
 const _spaceRegressions = <String, List<SiteAction>>{
   'a switch unloads the site a tap is opening (WEBSPACE-013)': [
@@ -365,7 +381,7 @@ const _archiveAlphabet = <SiteAction>[
 
 const _archiveLength = 2;
 
-/// A close race, a preemption past the bound: a frame landing while the
+/// A close race, at two preemptions: a frame landing while the
 /// close waits on its storage, which built the site it had let go again on
 /// the container it was about to delete.
 const _archiveRegressions = <String, List<SiteAction>>{
@@ -393,7 +409,7 @@ const _deleteAlphabet = <SiteAction>[
 
 const _deleteLength = 2;
 
-/// The race the delete's old order lost, a preemption past the bound: it
+/// The race the delete's old order lost, at two preemptions: it
 /// deleted the container before the commit took the site off the list, so
 /// a tap landing meanwhile built the site again on it.
 const _deleteRegressions = <String, List<SiteAction>>{
@@ -430,7 +446,7 @@ const _rerouteAlphabet = <SiteAction>[
 
 const _rerouteLength = 2;
 
-/// A tab race the code once lost, a preemption past the bound.
+/// A tab race the code once lost, at two preemptions.
 const _tabRegressions =
     <String, ({List<SiteAction> setup, List<SiteAction> script})>{
       'an activation restores the state of a tab closed meanwhile': (
@@ -469,7 +485,38 @@ int _env(String name, {required int fallback}) =>
 
 int get _length => _env('SCHEDULE_LENGTH', fallback: 3);
 
-int get _preemptions => _env('SCHEDULE_PREEMPTIONS', fallback: 1);
+/// Whether the search prunes by the steps' footprints (`tableCommutes`).
+bool get _reduced => Platform.environment['SCHEDULE_REDUCTION'] != 'off';
+
+int get _preemptions =>
+    _env('SCHEDULE_PREEMPTIONS', fallback: _reduced ? 2 : 1);
+
+/// The bounds the named regressions were found at: a preemption, and two,
+/// past the one the search ran at then.
+const _onePast = 2;
+const _twoPast = 3;
+
+/// The schedules every search in this file ran to their end, and those it
+/// stopped with every option left asleep.
+var _ran = 0;
+var _stopped = 0;
+
+Future<void> _expectEvery({
+  required ScheduledWorld<SiteAction> Function() world,
+  required List<SiteAction> setup,
+  required List<SiteAction> script,
+  required int preemptions,
+}) async {
+  final search = await expectEveryScheduleHolds(
+    world: world,
+    setup: setup,
+    script: script,
+    preemptions: preemptions,
+    commutes: _reduced ? tableCommutes : null,
+  );
+  _ran += search.runs;
+  _stopped += search.stopped;
+}
 
 /// A launch's alphabet is larger, so its scripts are a step shorter.
 int get _launchLength => _env('SCHEDULE_LAUNCH_LENGTH', fallback: 2);
@@ -499,6 +546,75 @@ void _scheduleTest(String name, {required Future<void> Function() body}) {
   if (_declared++ % _shard.of != _shard.at) return;
   test(name, body, timeout: Timeout.none);
 }
+/// One world of each kind with its setup and inputs, and the length of
+/// script whose every schedule within two preemptions runs in seconds:
+/// where the reduced search is held to the full one.
+final _samples =
+    <
+      String,
+      ({
+        ActivationWorld Function() world,
+        List<SiteAction> setup,
+        List<SiteAction> alphabet,
+        int length,
+      })
+    >{
+      'one base domain, shared jar, one site signed in': (
+        world: () => ActivationWorld(_oneDomain),
+        setup: _oneSignedIn,
+        alphabet: _alphabet,
+        length: 2,
+      ),
+      'mixed, containers, small caps': (
+        world: () => ActivationWorld(
+          _mixedContainers,
+          caps: (loaded: 2, resident: 1),
+        ),
+        setup: _slot2Behind,
+        alphabet: _alphabet,
+        length: 2,
+      ),
+      'tabs, mixed, shared jar, slot 0 unloaded with its state': (
+        world: () => ActivationWorld(_mixed, tabbed: true),
+        setup: _tabSetups['slot 0 unloaded with its state']!,
+        alphabet: _tabAlphabet,
+        length: 2,
+      ),
+      'mixed, shared jar, from launch, mismatched proxies, nested opens': (
+        world: () => ActivationWorld(
+          _mixed,
+          launch: _launches['mixed, shared jar, from launch']!.launch,
+          proxies: _proxied['mismatched proxies'],
+          nestedOpens: true,
+        ),
+        setup: const [],
+        alphabet: _nestedAlphabet,
+        length: 2,
+      ),
+      'mixed, containers, nested opens and background wakes': (
+        world: () => ActivationWorld(
+          _mixedContainers,
+          proxies: _proxied['mismatched proxies'],
+          nestedOpens: true,
+          wakes: true,
+        ),
+        setup: const [Tap(0)],
+        alphabet: _nestedWakeAlphabet,
+        length: 3,
+      ),
+      'webspaces, shared jar, home, slot 2 signed in behind': (
+        world: () => ActivationWorld(_mixed, spaces: _spaces),
+        setup: _spaceSetups['home, slot 2 signed in behind']!,
+        alphabet: _spaceAlphabet,
+        length: 2,
+      ),
+      'delete, containers, site 1 loaded behind': (
+        world: () => ActivationWorld(_mixedContainers, deletes: true),
+        setup: _deleteSetups['site 1 loaded behind']!,
+        alphabet: _deleteAlphabet,
+        length: 2,
+      ),
+    };
 
 void main() {
   setUpAll(
@@ -511,6 +627,14 @@ void main() {
   );
   tearDownAll(StepTraces.instance.writeIfAsked);
   tearDownAll(expectOnlyOwedMeets);
+  tearDownAll(() {
+    if ((Platform.environment['SCHEDULE_STATS'] ?? '').isEmpty) return;
+    // ignore: avoid_print
+    print(
+      'Schedules: $_ran run to their end, $_stopped stopped asleep, at '
+      '$_preemptions preemptions${_reduced ? ', reduced' : ''}',
+    );
+  });
 
   for (final MapEntry(key: pageName, value: page) in _pages.entries) {
     for (final MapEntry(key: setupName, value: setup) in _setups.entries) {
@@ -518,7 +642,7 @@ void main() {
           body: () async {
         for (var length = 1; length <= _length; length++) {
           for (final script in _scripts(length)) {
-            await expectEveryScheduleHolds(
+            await _expectEvery(
               world: () => ActivationWorld(page),
               setup: setup,
               script: script,
@@ -535,7 +659,7 @@ void main() {
     _scheduleTest('$name: every schedule holds', body: () async {
       for (var length = 1; length <= _launchLength; length++) {
         for (final script in _scripts(length, alphabet: _launchAlphabet)) {
-          await expectEveryScheduleHolds(
+          await _expectEvery(
             world: () => ActivationWorld(page, launch: launch),
             setup: const [],
             script: script,
@@ -552,7 +676,7 @@ void main() {
       _scheduleTest('$name, $proxyName: every schedule holds', body: () async {
         for (var length = 1; length <= _launchLength; length++) {
           for (final script in _scripts(length, alphabet: _launchAlphabet)) {
-            await expectEveryScheduleHolds(
+            await _expectEvery(
               world: () =>
                   ActivationWorld(page, launch: launch, proxies: proxies),
               setup: const [],
@@ -572,7 +696,7 @@ void main() {
           body: () async {
         for (var length = 1; length <= _launchLength; length++) {
           for (final script in _scripts(length, alphabet: _nestedAlphabet)) {
-            await expectEveryScheduleHolds(
+            await _expectEvery(
               world: () => ActivationWorld(
                 page,
                 launch: launch,
@@ -596,7 +720,7 @@ void main() {
           body: () async {
         for (var length = 1; length <= _wakeLength; length++) {
           for (final script in _scripts(length, alphabet: _wakeAlphabet)) {
-            await expectEveryScheduleHolds(
+            await _expectEvery(
               world: () => ActivationWorld(
                 page,
                 launch: launch,
@@ -613,6 +737,30 @@ void main() {
     }
   }
 
+  for (final MapEntry(key: setupName, value: setup) in {
+    'one site on screen': const [Tap(0)],
+    'two sites loaded': const [Tap(1), Tap(0)],
+  }.entries) {
+    test('mixed, containers, mismatched proxies, $setupName, nested opens '
+        'and background wakes: every schedule holds', () async {
+      for (var length = 1; length <= _wakeLength; length++) {
+        for (final script in _scripts(length, alphabet: _nestedWakeAlphabet)) {
+          await _expectEvery(
+            world: () => ActivationWorld(
+              _mixedContainers,
+              proxies: _proxied['mismatched proxies'],
+              nestedOpens: true,
+              wakes: true,
+            ),
+            setup: setup,
+            script: script,
+            preemptions: _preemptions,
+          );
+        }
+      }
+    }, timeout: Timeout.none);
+  }
+
   for (final MapEntry(key: pageName, value: page) in {
     'mixed, shared jar': _mixed,
     'mixed, containers': _mixedContainers,
@@ -626,7 +774,7 @@ void main() {
           body: () async {
         for (var length = 1; length <= _dnsLength; length++) {
           for (final script in _scripts(length, alphabet: _dnsAlphabet)) {
-            await expectEveryScheduleHolds(
+            await _expectEvery(
               world: () => ActivationWorld(page, dns: _dnsSites),
               setup: setup,
               script: script,
@@ -642,7 +790,7 @@ void main() {
     final (:page, :launch) = _launches['mixed, containers, from launch']!;
     for (final MapEntry(key: name, value: script) in _wakeRegressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(
             page,
             launch: launch,
@@ -651,7 +799,7 @@ void main() {
           ),
           setup: const [],
           script: script,
-          preemptions: _preemptions + 2,
+          preemptions: _twoPast,
         );
       });
     }
@@ -662,7 +810,7 @@ void main() {
     for (final MapEntry(key: name, value: script)
         in _nestedRegressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(
             page,
             launch: launch,
@@ -671,7 +819,7 @@ void main() {
           ),
           setup: const [],
           script: script,
-          preemptions: _preemptions + 2,
+          preemptions: _twoPast,
         );
       });
     }
@@ -682,7 +830,7 @@ void main() {
     _scheduleTest('$name, small caps: every schedule holds', body: () async {
       for (var length = 1; length <= _length; length++) {
         for (final script in _scripts(length)) {
-          await expectEveryScheduleHolds(
+          await _expectEvery(
             world: () =>
                 ActivationWorld(page, caps: (loaded: 2, resident: 1)),
             setup: _slot2Behind,
@@ -700,7 +848,7 @@ void main() {
           body: () async {
         for (var length = 1; length <= _tabLength; length++) {
           for (final script in _scripts(length, alphabet: _tabAlphabet)) {
-            await expectEveryScheduleHolds(
+            await _expectEvery(
               world: () => ActivationWorld(page, tabbed: true),
               setup: setup,
               script: script,
@@ -719,7 +867,7 @@ void main() {
           '$setupName: every schedule holds', body: () async {
         for (var length = 1; length <= _spaceLength; length++) {
           for (final script in _scripts(length, alphabet: _spaceAlphabet)) {
-            await expectEveryScheduleHolds(
+            await _expectEvery(
               world: () => ActivationWorld(page, spaces: _spaces),
               setup: setup,
               script: script,
@@ -737,7 +885,7 @@ void main() {
         body: () async {
       for (var length = 1; length <= _archiveLength; length++) {
         for (final script in _scripts(length, alphabet: _archiveAlphabet)) {
-          await expectEveryScheduleHolds(
+          await _expectEvery(
             world: () => ActivationWorld(_mixedContainers, archived: true),
             setup: setup,
             script: script,
@@ -754,7 +902,7 @@ void main() {
         body: () async {
       for (var length = 1; length <= _deleteLength; length++) {
         for (final script in _scripts(length, alphabet: _deleteAlphabet)) {
-          await expectEveryScheduleHolds(
+          await _expectEvery(
             world: () => ActivationWorld(_mixedContainers, deletes: true),
             setup: setup,
             script: script,
@@ -772,7 +920,7 @@ void main() {
         body: () async {
       for (var length = 1; length <= _rerouteLength; length++) {
         for (final script in _scripts(length, alphabet: _rerouteAlphabet)) {
-          await expectEveryScheduleHolds(
+          await _expectEvery(
             world: () => ActivationWorld(
               _mixedContainers,
               proxies: _proxied['mismatched proxies'],
@@ -791,11 +939,11 @@ void main() {
     for (final MapEntry(key: name, value: script)
         in _deleteRegressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(_mixedContainers, deletes: true),
           setup: _deleteSetups['site 1 on screen']!,
           script: script,
-          preemptions: _preemptions + 1,
+          preemptions: _onePast,
         );
       });
     }
@@ -823,6 +971,7 @@ void main() {
             setup: setup,
             script: script,
             preemptions: 0,
+            commutes: null,
           ),
           throwsA(
             isA<TestFailure>().having(
@@ -840,11 +989,11 @@ void main() {
     for (final MapEntry(key: name, value: script)
         in _archiveRegressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(_mixedContainers, archived: true),
           setup: _archiveSetups['site 3 archived, loaded behind']!,
           script: script,
-          preemptions: _preemptions + 1,
+          preemptions: _onePast,
         );
       });
     }
@@ -854,11 +1003,11 @@ void main() {
     for (final MapEntry(key: name, value: script)
         in _spaceRegressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(_mixed, spaces: _spaces),
           setup: _spaceSetups['home, slot 2 signed in behind']!,
           script: script,
-          preemptions: _preemptions + 1,
+          preemptions: _onePast,
         );
       });
     }
@@ -868,11 +1017,11 @@ void main() {
     for (final MapEntry(key: name, value: (:setup, :script))
         in _tabRegressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(_mixed, tabbed: true),
           setup: setup,
           script: script,
-          preemptions: _preemptions + 1,
+          preemptions: _onePast,
         );
       });
     }
@@ -883,11 +1032,11 @@ void main() {
     for (final MapEntry(key: name, value: script)
         in _launchRegressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(page, launch: launch),
           setup: const [],
           script: script,
-          preemptions: _preemptions + 1,
+          preemptions: _onePast,
         );
       });
     }
@@ -897,13 +1046,51 @@ void main() {
     for (final MapEntry(key: name, value: (:page, :setup, :script))
         in _regressions.entries) {
       _scheduleTest(name, body: () async {
-        await expectEveryScheduleHolds(
+        await _expectEvery(
           world: () => ActivationWorld(page),
           setup: setup,
           script: script,
-          preemptions: _preemptions + 1,
+          preemptions: _onePast,
         );
       });
+    }
+  });
+
+  // The pruned search keeps every end state and every failure of the full
+  // one: on scripts short enough to run every schedule within two
+  // preemptions, both reach the same ones (schedules.dart says why).
+  group('the reduced search', () {
+    for (final MapEntry(key: name, value: (:world, :setup, :alphabet, :length))
+        in _samples.entries) {
+      test('$name: reaches every end and failure every schedule does',
+          () async {
+        var every = 0;
+        var reduced = 0;
+        for (var n = 1; n <= length; n++) {
+          for (final script in _scripts(n, alphabet: alphabet)) {
+            Future<ScheduleSearch> search(Commutes? commutes) =>
+                exploreSchedules(
+                  world: world,
+                  setup: setup,
+                  script: script,
+                  preemptions: 2,
+                  commutes: commutes,
+                  toTheEnd: true,
+                );
+            final all = await search(null);
+            final pruned = await search(tableCommutes);
+            expect(pruned.ends, all.ends, reason: '$script');
+            expect(
+              pruned.failures.keys.toSet(),
+              all.failures.keys.toSet(),
+              reason: '$script',
+            );
+            every += all.runs;
+            reduced += pruned.runs + pruned.stopped;
+          }
+        }
+        expect(reduced, lessThanOrEqualTo(every));
+      }, timeout: Timeout.none);
     }
   });
 }

@@ -1387,6 +1387,41 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }
 
   @override
+  ActivationStep? inputOf(SiteAction action) => switch (action) {
+    Tap() => ActivationStep.tap,
+    GoHome() => ActivationStep.goHome,
+    Pressure() => ActivationStep.pressure,
+    Preload() => ActivationStep.preload,
+    OpenNested() => ActivationStep.nestedOpen,
+    Wake() => ActivationStep.wake,
+    Background() => ActivationStep.background,
+    Foreground() => ActivationStep.foreground,
+    DnsDownload() => ActivationStep.dnsDownload,
+    DnsAddLevel() => ActivationStep.dnsAddLevel,
+    DnsClear() => ActivationStep.dnsClear,
+    SwitchWebspace() => ActivationStep.spaceSwitch,
+    CloseArchive() => ActivationStep.closeArchive,
+    Delete() => ActivationStep.deleteSite,
+    OpenTab() => ActivationStep.openTab,
+    NewTab() => ActivationStep.newTab,
+    CloseTab() => ActivationStep.closeTab,
+    DuplicateTab() => ActivationStep.duplicateTab,
+    // A move is the environment's, a move into an archive and a reroute
+    // the model's setup, and the rest wait on the page.
+    Move() ||
+    ArchiveSite() ||
+    Reroute() ||
+    Add() ||
+    Reply() ||
+    Settle() ||
+    Login() ||
+    JarFails() ||
+    Retap() ||
+    Touch() ||
+    StayPut() => null,
+  };
+
+  @override
   void endScript() {
     if (_recording
         case (:final config, :final constants, :final start, :final steps)?) {

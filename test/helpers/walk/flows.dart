@@ -51,7 +51,52 @@ final ZoneSpecification segmentRuns = ZoneSpecification(
         A a,
         B b,
       ) => _segment(zone, run: () => parent.runBinary(zone, f, a, b)),
+  createTimer:
+      (
+        Zone self,
+        ZoneDelegate parent,
+        Zone zone,
+        Duration duration,
+        void Function() f,
+      ) => parent.createTimer(
+        zone,
+        duration,
+        duration == Duration.zero ? f : _onClock(f),
+      ),
+  createPeriodicTimer:
+      (
+        Zone self,
+        ZoneDelegate parent,
+        Zone zone,
+        Duration period,
+        void Function(Timer) f,
+      ) => parent.createPeriodicTimer(
+        zone,
+        period,
+        (t) => _onClock(() => f(t))(),
+      ),
 );
+
+/// Told of each stretch of the script's code as it begins, with the flow
+/// it belongs to (null outside any), while a search watches which flows a
+/// choice woke (schedules.dart). A clock timer's stretch is not told.
+void Function(int? flow)? stretchBegins;
+
+/// Whether the code running now is a clock timer's (one with a duration:
+/// a teardown's budget, a commit window), which fires at no point a
+/// schedule chooses, so what it runs is no choice's. A run prints
+/// synchronously so that debugPrint's throttle sets no such timer.
+bool get onTheClock => _clock > 0;
+var _clock = 0;
+
+void Function() _onClock(void Function() f) => () {
+  _clock++;
+  try {
+    f();
+  } finally {
+    _clock--;
+  }
+};
 
 /// The stretches running now, innermost last: a stretch whose code runs
 /// another's inline takes back its share at the nested one's start and
@@ -59,6 +104,7 @@ final ZoneSpecification segmentRuns = ZoneSpecification(
 final List<({int? flow, Map<Object, String> at})> _open = [];
 
 R _segment<R>(Zone zone, {required R Function() run}) {
+  if (_clock == 0) stretchBegins?.call(zone[_flowKey] as int?);
   final watch = segments;
   if (watch == null) return run();
   final now = watch.state();

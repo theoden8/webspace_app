@@ -1,7 +1,7 @@
 # Action	outcome ("-" for none)	why no schedule takes it
 Login	-	a sign-in is a setup step, before the script the trace records
-NextUnload	skip	the first victim is checked in the turn the plan picks it; a later one leaves the loaded set only if another flow unloads it while the first unloads, which no schedule within one preemption does
-NextClear	skip	a clear's site leaves the loaded set or the resident tier only if another flow unloads or clears it while the plan's unloads run, which no schedule within one preemption does
+NextUnload	skip	the first victim is checked in the turn the plan picks it; a later one leaves the loaded set only if another flow unloads it while the first unloads, which no schedule within two preemptions does
+NextClear	skip	a clear's site leaves the loaded set or the resident tier only if another flow unloads or clears it while the plan's unloads run, which no schedule within two preemptions does
 RestoreSetOtherReply	more	two other loaded sites need three base domains; the pages have two
 GrantUnload	spared	an incognito victim is spared at its turn only if a tap opens it between the plan and the turn, which neither incognito script does
 GrantRestore	skip	an incognito target keeps nothing to restore; neither incognito script opens the incognito site
