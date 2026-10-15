@@ -81,6 +81,16 @@ sweeps (INTEG-004), so a run on your own Mac keeps the installed app's sites,
 their containers, cookies and saved passwords. Until the installed app next
 starts, Shortcuts offers the demo sites.
 
+### With screenshot capture on Linux:
+```bash
+fastlane linux screenshots    # writes screenshots/linux/
+```
+The test sizes the Flutter view to 1000x650 and draws the GTK window, title
+bar and shadow included, through the debug-only `window_capture` channel in
+`linux/window_capture.cc` (SCREENSHOT-009). The title bar is whatever your
+session gives the window; CI runs the lane in `scripts/linux_test_session.sh`,
+where GTK draws its own on Wayland.
+
 ## Screenshot Locations
 
 ### When using `flutter test`:

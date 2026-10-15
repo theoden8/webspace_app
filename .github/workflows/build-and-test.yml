@@ -1081,8 +1081,8 @@ jobs:
           bash scripts/linux_test_session.sh bash -c '
               status=0
               for t in integration_test/*_test.dart; do
-                # Screenshot generator is an iOS/Android fastlane helper,
-                # not a Linux-runnable test. The white-screen pixel suite is
+                # The screenshot tour runs as its own step on a manual run
+                # (fastlane linux screenshots). The white-screen pixel suite is
                 # Android-only (window PixelCopy); skip its no-op build here.
                 # The camera suite (CAM-010) exercises media gates specific to
                 # the Android WebView, which the desktop WPE/WKWebView targets
@@ -1199,6 +1199,30 @@ jobs:
           name: linux-egress-recording
           path: ${{ env.WS_EGRESS_STATE }}
           if-no-files-found: ignore
+
+      # Linux Screenshots (conditional), after the disarm: the tour loads the
+      # demo sites and their icons. The session gives GTK a Wayland display,
+      # so the window carries the title bar and shadow Flathub asks for.
+      - name: Generate Linux screenshots
+        if: needs.plan.outputs.screenshots == 'true'
+        timeout-minutes: 30
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+        run: |
+          set -x
+          apt-get update
+          apt-get install -y --no-install-recommends ruby ruby-dev ruby-bundler
+          bundle install
+          bash scripts/linux_test_session.sh bundle exec fastlane linux screenshots
+
+      - name: Upload Linux screenshots
+        if: needs.plan.outputs.screenshots == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshots
+          path: screenshots/linux/*.png
+          if-no-files-found: warn
 
   build-apple:
     name: Build iOS & macOS

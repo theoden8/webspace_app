@@ -39,36 +39,58 @@ Future<void> _setDeviceOrientation(WidgetTester tester) async {
   }
 }
 
-/// The macOS Runner's debug-only channel (macos/Runner/WindowCapturePlugin.swift).
-/// Flutter's integration_test plugin cannot capture on macOS.
+/// The desktop Runners' debug-only channel (macos/Runner/WindowCapturePlugin.swift,
+/// linux/window_capture.cc). Flutter's integration_test plugin cannot capture
+/// on either.
 const _windowCapture =
     MethodChannel('org.codeberg.theoden8.webspace/window_capture');
+
+final _capturesWindow = Platform.isMacOS || Platform.isLinux;
 
 /// The Mac window, title bar included. It images at 2880x1800 on a 2x display
 /// and 1440x900 on a 1x one, both sizes App Store Connect takes for a Mac app.
 const _macWindowPoints = Size(1440, 900);
 const _macStoreSizes = {(1280, 800), (1440, 900), (2560, 1600), (2880, 1800)};
 
-Future<void> _sizeMacWindow(WidgetTester tester) async {
-  if (!Platform.isMacOS) return;
+/// The Linux view. GTK sizes a window below its title bar, and the title bar
+/// and shadow it draws around this keep the window inside the 1000x700
+/// Flathub sets for a screenshot.
+const _linuxViewPoints = Size(1000, 650);
+
+Future<void> _sizeWindow(WidgetTester tester) async {
+  if (!_capturesWindow) return;
+  final size = Platform.isMacOS ? _macWindowPoints : _linuxViewPoints;
   await _windowCapture.invokeMethod<void>('resize', {
-    'width': _macWindowPoints.width,
-    'height': _macWindowPoints.height,
+    'width': size.width,
+    'height': size.height,
   });
   await tester.pumpAndSettle();
+  if (!Platform.isLinux) return;
+  // GTK resizes once the window system confirms it, after `resize` returns.
+  for (var tries = 0; _viewPoints(tester) != _linuxViewPoints; tries++) {
+    expect(tries, lessThan(50),
+        reason: 'the view is ${_viewPoints(tester)}, not $_linuxViewPoints');
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await tester.pump();
+  }
 }
+
+Size _viewPoints(WidgetTester tester) =>
+    tester.view.physicalSize / tester.view.devicePixelRatio;
 
 /// Hands the window to the driver the way [IntegrationTestWidgetsFlutterBinding.takeScreenshot]
 /// does on iOS: as an entry of the report's `screenshots` list, which
 /// `integrationDriver` writes out through `onScreenshot`.
-Future<void> _captureMacWindow(
+Future<void> _captureWindow(
   IntegrationTestWidgetsFlutterBinding binding, {
   required String name,
 }) async {
   final png = (await _windowCapture.invokeMethod<Uint8List>('capture'))!;
-  final size = _pngSize(png);
-  expect(_macStoreSizes, contains(size),
-      reason: '$name is ${size.$1}x${size.$2}, not a Mac App Store size');
+  if (Platform.isMacOS) {
+    final size = _pngSize(png);
+    expect(_macStoreSizes, contains(size),
+        reason: '$name is ${size.$1}x${size.$2}, not a Mac App Store size');
+  }
   final report = binding.reportData ??= <String, dynamic>{};
   final shots = (report['screenshots'] ??= <dynamic>[]) as List<dynamic>;
   shots.add(<String, dynamic>{'screenshotName': name, 'bytes': png});
@@ -109,7 +131,8 @@ final _androidTextureMode = <String, Object>{
 /// Helper to take a screenshot with both light and dark themes.
 /// Takes the current theme screenshot first, then toggles to the other theme,
 /// takes that screenshot, and toggles back.
-/// On macOS the shot is the window, through the Runner's capture channel.
+/// On macOS and Linux the shot is the window, through the Runner's capture
+/// channel.
 Future<void> _takeThemedScreenshots(
   IntegrationTestWidgetsFlutterBinding binding, {
   required WidgetTester tester,
@@ -125,8 +148,8 @@ Future<void> _takeThemedScreenshots(
   // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
 
-  if (Platform.isMacOS) {
-    await _captureMacWindow(binding, name: screenshotName);
+  if (_capturesWindow) {
+    await _captureWindow(binding, name: screenshotName);
   } else {
     final png = await binding
         .takeScreenshot(screenshotName)
@@ -178,7 +201,7 @@ void main() {
 
         // Set orientation based on device type (iPad: landscape, iPhone: portrait)
         await _setDeviceOrientation(tester);
-        await _sizeMacWindow(tester);
+        await _sizeWindow(tester);
 
         // Theme is already set via seedDemoData
         String currentTheme = theme;

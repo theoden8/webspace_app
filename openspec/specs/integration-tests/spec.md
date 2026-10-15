@@ -99,7 +99,8 @@ layers:
 The pipeline is invoked once per integration test file via
 `fvm flutter test integration_test/<file>.dart -d linux` inside the session
 [`scripts/linux_test_session.sh`](../../../scripts/linux_test_session.sh) sets
-up (`xvfb-run dbus-run-session`, a headless weston, pass-secret-service).
+up (`xvfb-run dbus-run-session`, a headless weston, pass-secret-service). The
+Linux screenshot lane runs in the same session (SCREENSHOT-009).
 
 ---
 
