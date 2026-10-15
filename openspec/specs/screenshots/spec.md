@@ -7,7 +7,7 @@ Automated screenshot generation for app store submissions using Flutter integrat
 ## Status
 
 - **Status**: Completed
-- **Platforms**: Android, iOS, macOS
+- **Platforms**: Android, iOS, macOS, Linux
 - **CI Integration**: GitHub Actions (conditional on file changes)
 
 ---
@@ -16,7 +16,7 @@ Automated screenshot generation for app store submissions using Flutter integrat
 
 ### SCREENSHOT-001 - Cross-Platform Generation
 
-Screenshots SHALL be generated using Flutter integration tests on Android, iOS and macOS.
+Screenshots SHALL be generated using Flutter integration tests on Android, iOS, macOS and Linux.
 
 #### Scenario: Generate screenshots on Android
 
@@ -35,6 +35,12 @@ Screenshots SHALL be generated using Flutter integration tests on Android, iOS a
 - **GIVEN** a Mac
 - **WHEN** the user runs `fastlane mac screenshots`
 - **THEN** 8 screenshots are captured (4 per theme) into `screenshots/macos/`
+
+#### Scenario: Generate screenshots on Linux
+
+- **GIVEN** a Linux desktop session, or the CI session `scripts/linux_test_session.sh` sets up
+- **WHEN** the user runs `fastlane linux screenshots`
+- **THEN** 8 screenshots are captured (4 per theme) into `screenshots/linux/`
 
 ---
 
@@ -75,7 +81,7 @@ Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch
 #### Scenario: Manual run
 
 - **WHEN** Build and Test is run by hand
-- **THEN** screenshots are generated on the Android emulator, the iOS simulator and the macOS runner
+- **THEN** screenshots are generated on the Android emulator, the iOS simulator, the macOS runner and the Linux container
 
 #### Scenario: Release PR
 
@@ -87,14 +93,14 @@ Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch
 #### Scenario: One download for every platform
 
 - **WHEN** a manual (`workflow_dispatch`) run finishes
-- **THEN** a `screenshots` artifact holds each platform's set in its own folder (`android-screenshots/` as taken, `android-framed-screenshots/`, `ios-screenshots/`, `macos-screenshots/`)
+- **THEN** a `screenshots` artifact holds each platform's set in its own folder (`android-screenshots/` as taken, `android-framed-screenshots/`, `ios-screenshots/`, `macos-screenshots/`, `linux-screenshots/`)
 - **AND** a platform that failed leaves its folder out instead of withholding the others
 
 ---
 
 ### SCREENSHOT-005 - Device Frame Integration
 
-Android and iOS screenshots SHALL be frameable with device bezels using frameit. macOS screenshots are left unframed: frameit has no Mac bezel (SCREENSHOT-007).
+Android and iOS screenshots SHALL be frameable with device bezels using frameit. macOS and Linux screenshots are left unframed: frameit has no desktop bezel, and the window captures carry their own title bar (SCREENSHOT-007, SCREENSHOT-009).
 
 #### Scenario: Add device frames
 
@@ -155,6 +161,31 @@ On Android every screenshot SHALL be taken by `binding.takeScreenshot`, which af
 
 ---
 
+### SCREENSHOT-009 - Linux Window Capture
+
+On Linux a screenshot SHALL be the app's GTK window drawn into an image, with the title bar, shadow and rounded corners GTK draws for it, so the site's WPE view is in it and the window carries the native decoration Flathub's quality guidelines require of a screenshot. FlView paints through `gdk_cairo_draw_from_gl`, which reads its GL frame back for any cairo target, and the WPE view is a texture inside that frame, so the capture reads nothing back from the display server and works with the window covered or larger than the screen. The Runner provides the debug-only `window_capture` channel macOS has (`linux/window_capture.cc`); no release build carries it.
+
+#### Scenario: Capture includes the webview
+
+- **GIVEN** a site is on screen
+- **WHEN** the test takes a screenshot on Linux
+- **THEN** the image is the window drawn with `gtk_widget_draw`, webview included
+- **AND** the driver writes it through `onScreenshot` like an iOS screenshot
+
+#### Scenario: Window within Flathub's size
+
+- **WHEN** the test starts on Linux
+- **THEN** the Flutter view is set to 1000x650 logical pixels, which GTK's title bar brings to a window within the 1000x700 Flathub sets
+- **AND** a view that has not reached that size 5 seconds after the resize fails the test
+
+#### Scenario: Native decoration in CI
+
+- **GIVEN** the CI session, which runs a headless weston beside Xvfb
+- **WHEN** the screenshot lane runs
+- **THEN** GTK opens the window on Wayland and draws its header bar and shadow, which the capture includes
+
+---
+
 ## Files
 
 **Test files:**
@@ -162,11 +193,14 @@ On Android every screenshot SHALL be taken by `binding.takeScreenshot`, which af
 - `test_driver/integration_test.dart` - Driver that writes each screenshot the test takes into `SCREENSHOT_DIR`
 - `lib/demo_data.dart` - Demo data seeding
 - `macos/Runner/WindowCapturePlugin.swift` - Debug-only macOS window capture
+- `linux/window_capture.cc` - Debug-only Linux window capture
 
 **Fastlane config:**
-- `android/fastlane/Fastfile`, `ios/fastlane/Fastfile`, `macos/fastlane/Fastfile` - Screenshot lanes
+- `android/fastlane/Fastfile`, `ios/fastlane/Fastfile`, `macos/fastlane/Fastfile`, `linux/fastlane/Fastfile` - Screenshot lanes
 - `screenshots/android/`, `screenshots/ios/` - Output + frameit config
 - `screenshots/macos/` - Output (no frameit: Mac screenshots are unframed window captures)
+- `screenshots/linux/` - Output (no frameit, as on macOS)
 
 **CI:**
 - `.github/workflows/build-and-test.yml` - Build + conditional screenshots
+- `scripts/linux_test_session.sh` - The Linux CI desktop session the lane runs in

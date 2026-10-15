@@ -10,6 +10,7 @@ default_platform(:android)
 import "../android/fastlane/Fastfile" if File.exist?("../android/fastlane/Fastfile")
 import "../ios/fastlane/Fastfile" if File.exist?("../ios/fastlane/Fastfile")
 import "../macos/fastlane/Fastfile" if File.exist?("../macos/fastlane/Fastfile")
+import "../linux/fastlane/Fastfile" if File.exist?("../linux/fastlane/Fastfile")
 
 # Root-level lanes that can target both platforms
 lane :build_all do

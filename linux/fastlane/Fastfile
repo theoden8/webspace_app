@@ -1,0 +1,29 @@
+# Linux Fastfile
+# Imported by fastlane/Fastfile; run from the project root as
+# `fastlane linux screenshots`. Fastlane warns that linux is not one of its
+# platforms and runs the lane anyway.
+
+opt_out_usage
+
+platform :linux do
+  # This Fastfile is always at linux/fastlane/Fastfile
+  def project_root
+    File.expand_path("../..", __dir__)
+  end
+
+  # Window captures at 1440x900 for the metainfo, so no frameit step, as on
+  # macOS.
+  desc "Generate screenshots using Flutter integration test"
+  lane :screenshots do
+    screenshots_dir = File.join(project_root, "screenshots", "linux")
+    FileUtils.mkdir_p(screenshots_dir)
+    FileUtils.rm_f(Dir.glob(File.join(screenshots_dir, "*.png")))
+
+    sh("cd '#{project_root}' && SCREENSHOT_DIR='#{screenshots_dir}' fvm flutter drive \
+      --driver=test_driver/integration_test.dart \
+      --target=integration_test/screenshot_test.dart \
+      -d linux")
+
+    UI.success("Screenshots saved to: #{screenshots_dir}")
+  end
+end

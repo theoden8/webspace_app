@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "window_capture.h"
 
 // LIR-004: webspace:// inbound URL captured at cold-start (argv) or via
 // GApplication::open (warm xdg-open hits). Stored on the application
@@ -100,6 +101,9 @@ static void my_application_activate(GApplication* application) {
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+#ifndef NDEBUG
+  window_capture_attach(view, window);
+#endif
 
   // Register the share-intent channel after the engine is up.
   if (self->share_channel == nullptr) {
