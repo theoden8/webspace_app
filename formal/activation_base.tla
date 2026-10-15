@@ -55,6 +55,9 @@ MaxResident == 10
 \* open's proxy always applies in the model's environment.
 Linked == {}
 ProxyRefused == FALSE
+\* Whether the platform may refuse a read, the nuke or a write of the shared
+\* jar (ISO-014); the pages' jar never does.
+JarRefuses == FALSE
 \* The sites with notifications on, which a background wake checks
 \* (NOTIF-016), and whether the app goes to the background at all; the
 \* pages have none and stay on screen.

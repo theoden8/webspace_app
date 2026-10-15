@@ -1,8 +1,10 @@
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:webspace/services/activation_step.dart';
+import 'package:webspace/services/model_exprs.dart';
 import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/site_tab.dart';
 
+export 'package:webspace/services/model_exprs.dart';
 export 'package:webspace/services/model_names.dart';
 export 'package:webspace/services/step_print.dart';
 
@@ -209,14 +211,14 @@ final class Expr<T, W> {
 
   Expr<bool, W> eq(Expr<T, W> other) => Expr(
     run: (c) => run(c) == other.run(c),
-    tla: '${_op(tla)} = ${_op(other.tla)}',
+    tla: '${tlaOperand(tla)} = ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
     unless: _differs(other),
   );
 
   Expr<bool, W> neq(Expr<T, W> other) => Expr(
     run: (c) => run(c) != other.run(c),
-    tla: '${_op(tla)} # ${_op(other.tla)}',
+    tla: '${tlaOperand(tla)} # ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
     needs: _differs(other),
   );
@@ -228,105 +230,6 @@ final class Expr<T, W> {
         when k == other.literal && k.kind == ConstKind.uniform)
       (of: k, set: true),
   };
-}
-
-/// [tla] as an operand: in parentheses when an operator sits at its top
-/// level (a space outside every bracket), so the printed text groups as
-/// the tree that runs does; a name, a call or an indexing stands alone.
-String _op(String tla) {
-  var depth = 0;
-  for (final r in tla.runes) {
-    switch (String.fromCharCode(r)) {
-      case '(' || '[' || '{':
-        depth++;
-      case ')' || ']' || '}':
-        depth--;
-      case ' ' when depth == 0:
-        return '($tla)';
-    }
-  }
-  return tla;
-}
-
-/// `{e}`.
-extension SingletonExpr<E, W> on Expr<E, W> {
-  Expr<List<E>, W> get asSet =>
-      Expr(run: (c) => [run(c)], tla: '{$tla}', reads: reads);
-}
-
-/// A value the model writes 0 for when there is none, as a set: empty, or
-/// the value alone.
-extension OptionalExpr<E extends Object, W> on Expr<E?, W> {
-  Expr<List<E>, W> get orNone => Expr(
-    run: (c) => [?run(c)],
-    tla: 'IF ${_op(tla)} = 0 THEN {} ELSE {$tla}',
-    reads: reads,
-  );
-}
-
-/// `r.name`: one field of a record the model keeps as one variable.
-extension RecordExpr<R, W> on Expr<R, W> {
-  Expr<V, W> part<V>(String name, {required V Function(R record) get}) =>
-      Expr(run: (c) => get(run(c)), tla: '${_op(tla)}.$name', reads: reads);
-}
-
-/// A function of the model held whole (`file`, the platform's), indexed
-/// and updated an entry at a time.
-extension FunctionExpr<K, V, W> on Expr<Map<K, V>, W> {
-  /// `F[k]`.
-  Expr<V, W> at(Expr<K, W> k) => Expr(
-    run: (c) => run(c)[k.run(c)] as V,
-    tla: '${_op(tla)}[${k.tla}]',
-    reads: reads + k.reads,
-  );
-
-  /// `[F EXCEPT ![k] = v]`.
-  Expr<Map<K, V>, W> except(Expr<K, W> k, {required Expr<V, W> to}) => Expr(
-    run: (c) => {...run(c), k.run(c): to.run(c)},
-    tla: '[${_op(tla)} EXCEPT ![${k.tla}] = ${to.tla}]',
-    reads: reads + k.reads + to.reads,
-  );
-
-  /// `[k \in DOMAIN F |-> IF k \in ks THEN v ELSE F[k]]`: every key of
-  /// [ks] to one value.
-  Expr<Map<K, V>, W> exceptAll(
-    Expr<Iterable<K>, W> ks, {
-    required Expr<V, W> to,
-  }) => Expr(
-    run: (c) {
-      final keys = ks.run(c).toSet();
-      final v = to.run(c);
-      return {
-        for (final MapEntry(:key, :value) in run(c).entries)
-          key: keys.contains(key) ? v : value,
-      };
-    },
-    tla:
-        '[k \\in DOMAIN ${_op(tla)} |-> IF k \\in ${_op(ks.tla)} '
-        'THEN ${to.tla} ELSE ${_op(tla)}[k]]',
-    reads: reads + ks.reads + to.reads,
-  );
-}
-
-/// A function of functions, `F[k][j]`, updated one inner entry at a time.
-extension Function2Expr<K, J, V, W> on Expr<Map<K, Map<J, V>>, W> {
-  /// `[F EXCEPT ![k][j] = v]`.
-  Expr<Map<K, Map<J, V>>, W> exceptAt(
-    Expr<K, W> k, {
-    required Expr<J, W> at,
-    required Expr<V, W> to,
-  }) => Expr(
-    run: (c) {
-      final f = run(c);
-      final key = k.run(c);
-      return {
-        ...f,
-        key: {...f[key]!, at.run(c): to.run(c)},
-      };
-    },
-    tla: '[${_op(tla)} EXCEPT ![${k.tla}][${at.tla}] = ${to.tla}]',
-    reads: reads + k.reads + at.reads + to.reads,
-  );
 }
 
 /// A variable a quantifier or a set builder binds (`\A t \in S`,
@@ -437,241 +340,16 @@ final class Def<T, W> {
   Expr<T, W> get value => call(const []);
 }
 
-extension IntExpr<W> on Expr<int, W> {
-  Expr<int, W> plus(int n) =>
-      Expr(run: (c) => run(c) + n, tla: '${_op(tla)} + $n', reads: reads);
-
-  /// `a <= b`.
-  Expr<bool, W> isAtMost(Expr<int, W> other) => Expr(
-    run: (c) => run(c) <= other.run(c),
-    tla: '${_op(tla)} <= ${_op(other.tla)}',
-    reads: reads + other.reads,
-  );
-
-  /// `a > b`.
-  Expr<bool, W> exceeds(Expr<int, W> other) => Expr(
-    run: (c) => run(c) > other.run(c),
-    tla: '${_op(tla)} > ${_op(other.tla)}',
-    reads: reads + other.reads,
-  );
-
-  /// The lesser of this and [other].
-  Expr<int, W> atMost(Expr<int, W> other) => Expr(
-    run: (c) {
-      final a = run(c), b = other.run(c);
-      return a < b ? a : b;
-    },
-    tla: 'IF ${_op(tla)} > ${_op(other.tla)} THEN ${_op(other.tla)} ELSE ${_op(tla)}',
-    reads: reads + other.reads,
-  );
-
-  /// How far this exceeds [cap], `0` when it does not.
-  Expr<int, W> over(Expr<int, W> cap) => Expr(
-    run: (c) {
-      final excess = run(c) - cap.run(c);
-      return excess > 0 ? excess : 0;
-    },
-    tla:
-        'IF ${_op(tla)} > ${_op(cap.tla)} '
-        'THEN ${_op(tla)} - ${_op(cap.tla)} ELSE 0',
-    reads: reads + cap.reads,
-  );
-}
-
-/// A record of the model, `[t |-> s, v |-> version + 1]`, built in the code
-/// by [run] from the same [fields].
-Expr<V, W> record<V, W>(
-  Map<String, Expr<Object?, W>> fields, {
-  required V Function(StepView<W> c) run,
-}) => Expr(
-  run: run,
-  tla:
-      '[${[for (final MapEntry(key: k, value: e) in fields.entries) '$k |-> ${e.tla}'].join(', ')}]',
-  reads: Reads.of([for (final e in fields.values) e.reads]),
-);
-
-extension BoolExpr<W> on Expr<bool, W> {
-  Expr<bool, W> operator &(Expr<bool, W> other) => Expr(
-    run: (c) => run(c) && other.run(c),
-    tla: '${_op(tla)} /\\ ${_op(other.tla)}',
-    reads: reads + other.reads,
-    needs: {...needs, ...other.needs},
-    unless: unless.intersection(other.unless),
-    kinds: switch ((kinds, other.kinds)) {
-      (null, final k) || (final k, null) => k,
-      (final a?, final b?) => a.intersection(b),
-    },
-    exactKinds: exactKinds && other.exactKinds,
-  );
-
-  Expr<bool, W> operator |(Expr<bool, W> other) => Expr(
-    run: (c) => run(c) || other.run(c),
-    tla: '${_op(tla)} \\/ ${_op(other.tla)}',
-    reads: reads + other.reads,
-    needs: needs.intersection(other.needs),
-    unless: {...unless, ...other.unless},
-    kinds: switch ((kinds, other.kinds)) {
-      (final a?, final b?) => a.union(b),
-      _ => null,
-    },
-    exactKinds: exactKinds && other.exactKinds,
-  );
-
-  /// Holds where this does not: what it needs is what this needs not to
-  /// hold, and a test of the flow's kind holds for the other kinds.
-  Expr<bool, W> operator ~() => Expr(
-    run: (c) => !run(c),
-    tla: '~($tla)',
-    reads: reads,
-    needs: unless,
-    unless: needs,
-    kinds: exactKinds ? FlowKind.values.toSet().difference(kinds!) : null,
-    exactKinds: exactKinds,
-  );
-}
-
-extension KindField<W> on Field<FlowKind, W> {
-  /// `fl[f].kind = "<kind>"`: holds for a row of [kind] and no other.
-  Expr<bool, W> isKind(FlowKind kind) => Expr(
-    run: (c) => of(c) == kind,
-    tla: 'fl[f].$tla = "${kind.name}"',
-    reads: Reads.none,
-    kinds: {kind},
-    exactKinds: true,
-  );
-}
-
-/// A list or set of the code's as the model's set: its order and repeats
-/// are the code's alone.
-extension SetExpr<E, W> on Expr<Iterable<E>, W> {
-  Expr<bool, W> get isEmpty => Expr(
-    run: (c) => run(c).isEmpty,
-    tla: '${_op(tla)} = {}',
-    reads: reads,
-    unless: needs,
-  );
-
-  /// `S # {}`: needs what S needs to have members.
-  Expr<bool, W> get isNotEmpty => Expr(
-    run: (c) => run(c).isNotEmpty,
-    tla: '${_op(tla)} # {}',
-    reads: reads,
-    needs: needs,
-  );
-
-  /// `e \in S`; [e] may be of a wider type (`0` for no site), then it is
-  /// not in.
-  Expr<bool, W> has(Expr<Object?, W> e) => Expr(
-    run: (c) => run(c).contains(e.run(c)),
-    tla: '${_op(e.tla)} \\in ${_op(tla)}',
-    reads: reads + e.reads,
-    needs: needs,
-  );
-
-  /// `S = {e}`.
-  Expr<bool, W> isOnly(Expr<E, W> e) => Expr(
-    run: (c) {
-      final x = e.run(c);
-      final s = run(c);
-      return s.isNotEmpty && s.every((y) => y == x);
-    },
-    tla: '${_op(tla)} = {${e.tla}}',
-    reads: reads + e.reads,
-    needs: needs,
-  );
-
-  /// `S \ {e}`.
-  Expr<List<E>, W> without(Expr<E, W> e) => Expr(
-    run: (c) {
-      final x = e.run(c);
-      return [
-        for (final y in run(c))
-          if (y != x) y,
-      ];
-    },
-    tla: '${_op(tla)} \\ {${e.tla}}',
-    reads: reads + e.reads,
-    needs: needs,
-  );
-
-  /// `S \cup T`; [other]'s elements come last, so a set the code keeps in
-  /// use order (`SiteRuntime.loaded`) takes them as its newest.
-  Expr<List<E>, W> union(Expr<Iterable<E>, W> other) => Expr(
-    run: (c) {
-      final t = other.run(c).toList();
-      return [
-        for (final e in run(c))
-          if (!t.contains(e)) e,
-        ...t,
-      ];
-    },
-    tla: '${_op(tla)} \\cup ${_op(other.tla)}',
-    reads: reads + other.reads,
-    needs: needs.intersection(other.needs),
-  );
-
-  /// `S \ T`, [other] a set of the model.
-  Expr<List<E>, W> less(Expr<Iterable<E>, W> other) => Expr(
-    run: (c) {
-      final t = other.run(c).toSet();
-      return [
-        for (final e in run(c))
-          if (!t.contains(e)) e,
-      ];
-    },
-    tla: '${_op(tla)} \\ ${_op(other.tla)}',
-    reads: reads + other.reads,
-    needs: needs,
-  );
-
-  /// S itself, in the order the code keeps it.
-  Expr<List<E>, W> get inOrder => Expr(
-    run: (c) => run(c).toList(),
-    tla: tla,
-    reads: reads,
-    needs: needs,
-    literal: literal,
-  );
-
-  /// `Cardinality(S)`.
-  Expr<int, W> get size => Expr(
-    run: (c) => run(c).toSet().length,
-    tla: 'Cardinality(${_op(tla)})',
-    reads: reads,
-  );
-
-  /// `{C \in SUBSET S : Cardinality(C) = size}`: the sets of [size] drawn
-  /// from this one. The model may take any; the code takes [taken], which
-  /// is asserted to be one of them, so a pick over these runs as the code's
-  /// own choice.
-  Expr<List<List<E>>, W> choices({
-    required Expr<int, W> size,
-    required List<E> Function(StepView<W> c) taken,
-  }) => Expr(
-    run: (c) {
-      final pick = taken(c);
-      assert(() {
-        final all = run(c).toSet();
-        return pick.toSet().length == pick.length &&
-            all.containsAll(pick) &&
-            pick.length == size.run(c);
-      }(), 'the code took $pick, which ${choicesTla(size)} does not offer');
-      return [pick];
-    },
-    tla: choicesTla(size),
-    reads: reads + size.reads,
-  );
-
-  String choicesTla(Expr<int, Object?> size) =>
-      '{C \\in SUBSET ${_op(tla)} : Cardinality(C) = ${_op(size.tla)}}';
-
+/// What a set the model quantifies over binds: each operator here binds
+/// a [Bound] while its body runs.
+extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
   /// `S \ T`, [other] known by membership.
   Expr<List<E>, W> minus(Members<E, W> other) => Expr(
     run: (c) => [
       for (final e in run(c))
         if (!other._test(c._world, member: e)) e,
     ],
-    tla: '${_op(tla)} \\ ${other.name}',
+    tla: '${tlaOperand(tla)} \\ ${other.name}',
     reads: reads,
     needs: needs,
   );
@@ -681,7 +359,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
     run: (c) => {
       for (final e in run(c)) e: x._with(c, value: e, body: () => to.run(c)),
     },
-    tla: '[${x.name} \\in ${_op(tla)} |-> ${to.tla}]',
+    tla: '[${x.name} \\in ${tlaOperand(tla)} |-> ${to.tla}]',
     reads: reads + to.reads,
   );
 
@@ -689,7 +367,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   Expr<bool, W> forAll(Bound<E, W> x, {required Expr<bool, W> holds}) => Expr(
     run: (c) =>
         run(c).every((e) => x._with(c, value: e, body: () => holds.run(c))),
-    tla: '\\A ${x.name} \\in ${_op(tla)} : ${holds.tla}',
+    tla: '\\A ${x.name} \\in ${tlaOperand(tla)} : ${holds.tla}',
     reads: reads + holds.reads,
     unless: {...needs, ...holds.unless},
   );
@@ -698,7 +376,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   Expr<bool, W> exists(Bound<E, W> x, {required Expr<bool, W> holds}) => Expr(
     run: (c) =>
         run(c).any((e) => x._with(c, value: e, body: () => holds.run(c))),
-    tla: '\\E ${x.name} \\in ${_op(tla)} : ${holds.tla}',
+    tla: '\\E ${x.name} \\in ${tlaOperand(tla)} : ${holds.tla}',
     reads: reads + holds.reads,
     needs: {...needs, ...holds.needs},
   );
@@ -710,7 +388,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
           for (final e in run(c))
             if (x._with(c, value: e, body: () => holds.run(c))) e,
         ],
-        tla: '{${x.name} \\in ${_op(tla)} : ${holds.tla}}',
+        tla: '{${x.name} \\in ${tlaOperand(tla)} : ${holds.tla}}',
         reads: reads + holds.reads,
         needs: {...needs, ...holds.needs},
       );
@@ -1143,7 +821,7 @@ final class Members<E, W> {
 
   Expr<bool, W> has(Expr<E, W> e) => Expr(
     run: (c) => _test(c._world, member: e.run(c)),
-    tla: '${_op(e.tla)} \\in $name',
+    tla: '${tlaOperand(e.tla)} \\in $name',
     reads: e.reads,
     needs: _needs(of),
   );
@@ -1166,7 +844,7 @@ final class Write<W> {
   final void Function(StepView<W> c) apply;
 
   /// `name' = <to>`.
-  String get tla => "$name' = ${_op(to)}";
+  String get tla => "$name' = ${tlaOperand(to)}";
 }
 
 /// A ghost of the model, a flag only an invariant reads (`~evictedShown`):
@@ -1217,6 +895,16 @@ final class Field<T, W> {
       flow._fields[this] = value;
 
   Expr<T, W> get value => Expr(run: of, tla: 'fl[f].$tla', reads: Reads.none);
+
+  /// Its value, [none] until a step sets it, as the model's row starts.
+  Expr<T, W> valueOr({required T none}) {
+    assert(tlaOf(none) == field.none, '$tla starts as ${field.none}');
+    return Expr(
+      run: (c) => isSet(c) ? of(c) : none,
+      tla: 'fl[f].$tla',
+      reads: Reads.none,
+    );
+  }
 
   /// `fl[f].<field> = <to>`.
   Assign<W> becomes(Expr<T, W> to) => Assign._(
@@ -1582,6 +1270,40 @@ final class Otherwise<W, P extends Enum> extends Arm<W, P> {
   });
 }
 
+/// The arm a step takes when its call fails as [refusal] names, in place
+/// of its own: in the model the reply's alternative, open only where [when]
+/// holds (a world lets the platform refuse), and the call's writes are not
+/// made. Any other failure goes on to the flow's caller. A choice it needs
+/// after is the step it goes on to.
+final class Refused<W, P extends Enum> extends Arm<W, P> {
+  const Refused({
+    required this.refusal,
+    required this.when,
+    super.site,
+    required super.then,
+    required super.next,
+  }) : super(StepOutcome.refused);
+
+  final Refusal<Object> refusal;
+  final Expr<bool, W> when;
+}
+
+/// The failure, an [E], that a platform call answers with when it refuses
+/// ([Refused]).
+final class Refusal<E extends Object> {
+  const Refusal();
+
+  /// Whether [call] was refused.
+  Future<bool> _refuses(Future<void> call) async {
+    try {
+      await call;
+      return false;
+    } on E {
+      return true;
+    }
+  }
+}
+
 /// The place [place], as the model's `pc` names it: the enum value's name.
 Expr<P, W> to<P extends Enum, W>(P place) => Expr.constant(place);
 
@@ -1622,6 +1344,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
     this.tab,
     this.branches = const [],
     required this.otherwise,
+    this.refused,
   }) : input = false,
        spawned = false,
        enabled = null;
@@ -1642,7 +1365,8 @@ final class Step<W, P extends Enum> extends At<W, P> {
        spawned = false,
        holds = null,
        granted = false,
-       call = null;
+       call = null,
+       refused = null;
 
   /// An input only a [Spawn] starts, in the turn of the step that spawns
   /// it, under the spawn's condition: the model prints it in that step's
@@ -1659,7 +1383,8 @@ final class Step<W, P extends Enum> extends At<W, P> {
        enabled = null,
        holds = null,
        granted = false,
-       call = null;
+       call = null,
+       refused = null;
 
   final ActivationStep name;
   final bool input;
@@ -1682,9 +1407,16 @@ final class Step<W, P extends Enum> extends At<W, P> {
   final List<Branch<W, P>> branches;
   final Otherwise<W, P> otherwise;
 
+  /// What the step takes when its call is refused, if it can be.
+  final Refused<W, P>? refused;
+
   String get action => name.action;
 
+  /// The arms the step takes when its call answers.
   List<Arm<W, P>> get arms => [...branches, otherwise];
+
+  /// Every arm, the refused one among them.
+  List<Arm<W, P>> get allArms => [...arms, ?refused];
 
   Arm<W, P> _taken(StepView<W> flow) {
     for (final b in branches) {
@@ -1699,6 +1431,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   Step<W, P> withArms({
     List<Branch<W, P>>? branches,
     Otherwise<W, P>? otherwise,
+    Refused<W, P>? refused,
   }) => spawned
       ? Step.spawned(
           name,
@@ -1728,6 +1461,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
           tab: tab,
           branches: branches ?? this.branches,
           otherwise: otherwise ?? this.otherwise,
+          refused: refused ?? this.refused,
         );
 }
 
@@ -1747,7 +1481,11 @@ final class StepTable<W, P extends Enum> {
       'a variable the platform holds is read only through a call',
     );
     for (final (:place, :step) in steps) {
-      for (final arm in step.arms) {
+      assert(
+        step.refused == null || step.call != null,
+        '${step.name} at ${place.name} is refused with no call to refuse',
+      );
+      for (final arm in step.allArms) {
         assert(
           step.name.outcomes.contains(arm.outcome),
           '${step.name} at ${place.name} cannot end as ${arm.outcome}',
@@ -1793,8 +1531,9 @@ final class StepTable<W, P extends Enum> {
       if (step.name != name) continue;
       out = {
         ...?out,
-        for (final w in step.call?.writes ?? <Write<W>>[]) w.variable,
-        for (final arm in step.arms)
+        if (outcome != StepOutcome.refused)
+          for (final w in step.call?.writes ?? <Write<W>>[]) w.variable,
+        for (final arm in step.allArms)
           if (arm.outcome == outcome)
             for (final e in arm.then)
               if (e case Act(:final writes)) ...writes,
@@ -1829,11 +1568,21 @@ final class StepTable<W, P extends Enum> {
             step.enabled?.run(c) ?? true,
             'the input ${step.name} ran while ${step.enabled?.tla} did not hold',
           );
+          var refused = false;
           if (step.call case final call?) {
             for (final r in call.reads) {
               r.run(c);
             }
-            await call._run(c);
+            switch (step.refused) {
+              case null:
+                await call._run(c);
+              case final r:
+                refused = await r.refusal._refuses(call._run(c));
+                assert(
+                  !refused || r.when.run(c),
+                  '${step.name} was refused where ${r.when.tla} does not hold',
+                );
+            }
             _assertHolds(
               step,
               place: place,
@@ -1841,7 +1590,7 @@ final class StepTable<W, P extends Enum> {
               when: 'when its call returned',
             );
           }
-          place = _land(step, on: c);
+          place = _land(step, on: c, refused: refused);
       }
     }
   }
@@ -1864,12 +1613,16 @@ final class StepTable<W, P extends Enum> {
   /// The step's reply landed, or its input ran: its first branch that
   /// holds is taken, its effects done, the step marked, and then the inputs
   /// it spawns started, each marking its own step after this one.
-  P _land(Step<W, P> step, {required StepContext<W> on}) {
+  P _land(
+    Step<W, P> step, {
+    required StepContext<W> on,
+    bool refused = false,
+  }) {
     final c = on;
     final outerReading = _reading;
     final reading = _reading = <ModelVar>{};
     try {
-      final next = _landReading(step, on: c);
+      final next = _landReading(step, on: c, refused: refused);
       UnmodeledWrites._meet(step.name, read: reading, flow: c._fields);
       return next;
     } finally {
@@ -1877,10 +1630,14 @@ final class StepTable<W, P extends Enum> {
     }
   }
 
-  P _landReading(Step<W, P> step, {required StepContext<W> on}) {
+  P _landReading(
+    Step<W, P> step, {
+    required StepContext<W> on,
+    required bool refused,
+  }) {
     final c = on;
     if (step.input) _admit(step.name, spawned: step.spawned);
-    final arm = step._taken(c);
+    final arm = refused ? step.refused! : step._taken(c);
     arm.pick?._make(c);
     final next = arm.next.run(c);
     final site = (arm.site ?? step.site)?.run(c);
@@ -1893,7 +1650,7 @@ final class StepTable<W, P extends Enum> {
     final outer = _turn;
     final turn = _turn = _Turn(step.name);
     try {
-      step.call?.then?.call(CommitView._(c));
+      if (!refused) step.call?.then?.call(CommitView._(c));
       for (final e in arm.then) {
         if (e is! Spawn<W>) e.run(c);
       }
@@ -1929,8 +1686,9 @@ final class StepTable<W, P extends Enum> {
     required Arm<W, P> arm,
   }) {
     final declared = {
-      // A call's `then` lands its writes inside the turn.
-      if (step.call case Call(then: _?, :final writes))
+      // A call's `then` lands its writes inside the turn; a refused one
+      // writes nothing.
+      if (step.call case Call(then: _?, :final writes) when arm is! Refused)
         for (final w in writes) w.variable,
       for (final e in arm.then)
         if (e is Act<W>) ...e.writes,

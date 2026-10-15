@@ -25,7 +25,8 @@ enum Env {
   capTwo(op: ModelConst.maxLoaded, by: 'CapTwo'),
   archiveOne(op: ModelConst.archive, by: 'ArchiveOne'),
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
-  incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne');
+  incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne'),
+  jarRefuses(op: ModelConst.jarRefuses, by: 'JarCanRefuse');
 
   const Env({required this.op, required this.by});
 
@@ -391,6 +392,16 @@ enum ActivationWorld {
         'shared jar, an incognito site loaded: a switch empties the jar and '
         'sets its session back from memory (INC-001)',
   ),
+  jarRefuses(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.jarRefuses},
+    invariants: [..._core, Inv.oneSitePerBase, Inv.noForeignSession],
+    holds:
+        'shared jar that may refuse a read, the nuke or a write: no site is '
+        'shown on another\'s session (ISO-014)',
+  ),
   archive(
     cookies: Cookies.sharedJar,
     coldStart: false,
@@ -573,6 +584,16 @@ enum Witness {
     doc: 'a delete taking the site on screen off the list beside a tap in '
         'flight is reachable',
   ),
+  unrestored(
+    world: ActivationWorld.jarRefuses,
+    doc: 'a tap whose restore the jar refused landing on the webspace list '
+        'is reachable',
+  ),
+  captureRefused(
+    world: ActivationWorld.jarRefuses,
+    doc: 'an unload whose capture the jar refused keeping the stored session '
+        'is reachable',
+  ),
   reopened(
     world: ActivationWorld.tabsRouterContainers,
     doc:
@@ -669,6 +690,13 @@ enum Mutant {
     doc:
         'a capture keyed at its reply, after a rebind (BUG-036 attempt 1, '
         'caught)',
+  ),
+  nukeignored(
+    world: ActivationWorld.jarRefuses,
+    by: Inv.noForeignSession,
+    doc:
+        'a restore that refills a jar whose nuke was refused shows its target '
+        'on the session of a site it unloaded (ISO-014, caught)',
   ),
   preloadmismatch(
     world: ActivationWorld.proxy,

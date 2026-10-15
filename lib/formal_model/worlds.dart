@@ -163,7 +163,8 @@ Set<Env> _with(Env e) => switch (e) {
   Env.linkAny ||
   Env.archiveOne ||
   Env.deleteOne ||
-  Env.incognitoOne => const {},
+  Env.incognitoOne ||
+  Env.jarRefuses => const {},
 };
 
 /// The operator a world replaces to set [c], where one does.
@@ -188,6 +189,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
     Env.archiveOne,
   ModelConst.deletable => Env.deleteOne,
   ModelConst.incognito => Env.incognitoOne,
+  ModelConst.jarRefuses => Env.jarRefuses,
   ModelConst.containers ||
   ModelConst.coldStart ||
   ModelConst.tabbed ||

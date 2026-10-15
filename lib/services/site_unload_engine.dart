@@ -755,7 +755,8 @@ class SiteUnloadEngine {
       ),
       UnloadPlace.uTurn ||
       UnloadPlace.uCap ||
-      UnloadPlace.uSave => const Within(_inJar),
+      UnloadPlace.uSave ||
+      UnloadPlace.uKept => const Within(_inJar),
       // isStale between unloads.
       UnloadPlace.afterUnload => Step(
         ActivationStep.afterUnload,

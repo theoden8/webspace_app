@@ -22,6 +22,10 @@ abstract final class ActivationTable {
   static const kind = Field<FlowKind, ActivationFlow>(FlowField.kind);
   static const _site = Field<WebViewModel, ActivationFlow>(FlowField.site);
   static const _v = Field<int, ActivationFlow>(FlowField.v);
+
+  /// The jar refused a call of the flow's restore, so its target is not
+  /// shown (ISO-014).
+  static const unrestored = Field<bool, ActivationFlow>(FlowField.unrestored);
   static const _victims = Field<List<WebViewModel>, ActivationFlow>(FlowField.victims);
   static const _clears = Field<List<WebViewModel>, ActivationFlow>(FlowField.clears);
   static const _picked = Field<List<WebViewModel>, ActivationFlow>(FlowField.picked);
@@ -1080,6 +1084,7 @@ abstract final class ActivationTable {
       ActivationPlace.uTurn ||
       ActivationPlace.uCap ||
       ActivationPlace.uSave ||
+      ActivationPlace.uKept ||
       ActivationPlace.afterUnload ||
       ActivationPlace.nextClear ||
       ActivationPlace.cc => const Within(_inUnload),
@@ -1243,7 +1248,8 @@ abstract final class ActivationTable {
       ActivationPlace.rNuke ||
       ActivationPlace.rLoad ||
       ActivationPlace.rSetT ||
-      ActivationPlace.rSetO => const Within(_inRestore),
+      ActivationPlace.rSetO ||
+      ActivationPlace.rRefused => const Within(_inRestore),
       // The site's cached or imported HTML decrypted into memory before its
       // webview builds, so the build's synchronous getHtmlSync hits.
       ActivationPlace.html => Step(
@@ -1558,6 +1564,23 @@ abstract final class ActivationTable {
         ActivationStep.exit,
         holds: null,
         branches: [
+          // Until the jar is emptied and refilled it can hold another
+          // same-base-domain site's session (ISO-001), so the target is not
+          // shown on it; the user lands on the webspace list (ISO-014).
+          Branch(
+            StepOutcome.refused,
+            when: unrestored.valueOr(none: false) & _is(FlowKind.tap) & ~_stale,
+            then: [
+              _markerOff,
+              _homeOff,
+              _newestOff,
+              _bailedAfterUnload,
+              Note(
+                (c) => ActivationFlow.page.from(c).cookiesNotRestored(_site.of(c)),
+              ),
+            ],
+            next: to(ActivationPlace.done),
+          ),
           Branch(
             StepOutcome.home,
             when: _screenEmpty,

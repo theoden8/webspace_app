@@ -48,7 +48,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
   /// turn ([Spawn]).
   List<P> get spawningPlaces => [
     for (final (:place, :step) in steps)
-      if (step.arms.any((a) => a.then.any((e) => e is Spawn<W>))) place,
+      if (step.allArms.any((a) => a.then.any((e) => e is Spawn<W>))) place,
   ];
 
   static Footprint _footprint<W, P extends Enum>(
@@ -60,7 +60,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     required Map<ActivationStep, Step<Object?, Enum>> starts,
   }) {
     final call = s.call;
-    final arms = s.arms;
+    final arms = s.allArms;
     List<Assign<Object?>> entering(Arm<Object?, Enum> arm) => [
       for (final MapEntry(key: p, value: rs) in entered.entries)
         if (arm.next.tla == '"$p"') ...rs,
@@ -84,6 +84,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       ?s.site?.reads,
       ?s.tab?.reads,
       for (final b in s.branches) b.when.reads,
+      ?s.refused?.when.reads,
       if (call != null) ...[
         for (final w in call.writes) w.reads,
         ?call.keeps?.reads,
@@ -121,11 +122,13 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     Set<Need> passed(int i) => {
       for (final b in s.branches.take(i)) ...b.when.unless,
     };
+    // A refused reply takes its arm whatever the branches say.
     Set<FlowKind>? only(int i) {
-      Set<FlowKind>? left = switch (s.arms[i]) {
+      Set<FlowKind>? left = switch (arms[i]) {
         Branch(when: final w) => w.kinds,
-        Otherwise() => null,
+        Otherwise() || Refused() => null,
       };
+      if (arms[i] is Refused) return left;
       for (final b in s.branches.take(i)) {
         if (!b.when.exactKinds) continue;
         left = (left ?? FlowKind.values.toSet()).difference(b.when.kinds!);
@@ -152,7 +155,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         kind: kinds.firstOrNull,
         ends: ends,
         needs: {
-          ...passed(at),
+          if (arm case Refused(when: final w)) ...w.needs else ...passed(at),
           if (arm case Branch(when: final w)) ...w.needs,
           ...?arm.pick?.from.needs,
         },
@@ -161,7 +164,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
             ? FlowField.values.toSet()
             : {
                 FlowField.pc,
-                ?call?.keeps?.field,
+                if (arm is! Refused) ?call?.keeps?.field,
                 for (final e in arm.then)
                   if (e case Assign(:final field)) field,
                 for (final r in entering(arm)) r.field,
@@ -240,10 +243,11 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         if (s.granted) 'Granted(f)',
       ],
     ];
-    final callWrites = s.call?.writes ?? <Write<W>>[];
     // The reply lands before the arms run, so within the step a read of
-    // the field that keeps it is the reply; outside, the field.
-    final got = switch (s.call?.keeps) {
+    // the field that keeps it is the reply; outside, the field. A refused
+    // reply lands nothing: its arm writes none of the call's variables and
+    // reads the field as it was.
+    final replied = switch (s.call?.keeps) {
       null => (String tla) => tla,
       (:final field, :final reply, reads: _) => (String tla) => tla.replaceAll(
         RegExp('fl\\[f\\]\\.${field.name}\\b'),
@@ -251,9 +255,13 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       ),
     };
     String branch(Arm<W, P> arm) {
+      final refused = arm is Refused;
+      final got = refused ? (String tla) => tla : replied;
+      final callWrites = refused ? <Write<W>>[] : s.call?.writes ?? <Write<W>>[];
       final ends = ending.any((p) => arm.next.tla == '"${p.name}"');
       final own = [
-        if (s.call?.keeps case final k?) (field: k.field.name, to: k.reply),
+        if (s.call?.keeps case final k? when !refused)
+          (field: k.field.name, to: k.reply),
         for (final e in arm.then)
           if (e case Assign(:final field, :final to))
             (field: field.name, to: got(to)),
@@ -356,7 +364,10 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     var choice = '(${branch(s.otherwise)})';
     for (final b in s.branches.reversed) {
       choice =
-          'IF ${got(b.when.tla)}\n         THEN (${branch(b)})\n         ELSE $choice';
+          'IF ${replied(b.when.tla)}\n         THEN (${branch(b)})\n         ELSE $choice';
+    }
+    if (s.refused case final r?) {
+      choice = '($choice)\n         \\/ ((${r.when.tla}) /\\ (${branch(r)}))';
     }
     final guarded = switch (s.enabled) {
       null => choice,

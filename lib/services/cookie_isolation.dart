@@ -16,8 +16,8 @@ bool cookieMatchesBaseDomain(Cookie cookie, {required String baseDomain}) =>
 
 /// Where an unload waits, by the model's `pc` names: the unload engine's
 /// loop over its plan (`SiteUnloadEngine.unloadFlow`), with the jar's turn
-/// nested in it at [uTurn], [uCap] and [uSave]; [applied] and [exit] are the
-/// activation's, where the loop ends.
+/// nested in it at [uTurn], [uCap], [uSave] and [uKept]; [applied] and
+/// [exit] are the activation's, where the loop ends.
 enum UnloadPlace {
   next,
   uNav,
@@ -26,6 +26,7 @@ enum UnloadPlace {
   uTurn,
   uCap,
   uSave,
+  uKept,
   afterUnload,
   nextClear,
   cc,
@@ -160,6 +161,7 @@ enum RestorePlace {
   rLoad,
   rSetT,
   rSetO,
+  rRefused,
   html,
   exit,
 }
@@ -194,12 +196,6 @@ class CookieIsolationEngine {
   /// Between a restore's nuke and the end of its refill.
   bool _emptied = false;
 
-  /// What the jar failed with in this turn: an unload's capture that could
-  /// not read it, and the first cookie a refill's write was refused
-  /// (ISO-014).
-  CookieJarFailure? _unread;
-  CookieJarFailure? _refused;
-
   /// The flow whose turn on the jar it is.
   StepContext<JarWorld>? _holder;
 
@@ -215,8 +211,6 @@ class CookieIsolationEngine {
       return await body(JarTurn._());
     } finally {
       _holder = null;
-      _unread = null;
-      _refused = null;
     }
   });
 
@@ -329,19 +323,21 @@ class CookieIsolationEngine {
   /// bumped the version, and never after it: once emptied, the jar is
   /// refilled before the turn passes on (BUG-032).
   ///
-  /// Fails with [CookieJarFailure] when the jar cannot be read, emptied or
-  /// refilled (ISO-014). A read that fails saves nothing and empties
-  /// nothing. A write that fails leaves the rest of the refill to run first,
-  /// so the jar holds all of the stored sets the platform takes.
-  Future<void> restoreCookiesForSite({
+  /// False when the jar refused a read, the nuke or a write, which leaves
+  /// the target unshown (ISO-014): a read that fails saves nothing and
+  /// empties nothing, and a write that fails leaves the rest of the refill
+  /// to run first, so the jar holds all of the stored sets the platform
+  /// takes.
+  Future<bool> restoreCookiesForSite({
     required WebViewModel site,
     required RuntimeVars<WebViewModel> vars,
     required int versionAtEntry,
-  }) {
+  }) async {
     final flow = StepContext(RestoreWorld(engine: this, vars: vars));
     _target.put(flow, value: site);
     _v.put(flow, value: versionAtEntry);
-    return restoreInTurn(flow, from: RestorePlace.rTurn);
+    await restoreInTurn(flow, from: RestorePlace.rTurn);
+    return !_unrestored.valueOr(none: false).run(flow);
   }
 
   /// The activation's flow at the jar's places: [restoreSteps] from [from],
@@ -353,9 +349,7 @@ class CookieIsolationEngine {
   }) => _turn(flow: flow, (turn) async {
     flow.world.turn = turn;
     try {
-      final left = await restoreSteps.run(flow, from: from);
-      if (_refused case final refused?) throw refused;
-      return left;
+      return await restoreSteps.run(flow, from: from);
     } finally {
       _emptied = false;
     }
@@ -386,6 +380,14 @@ class CookieIsolationEngine {
   /// operation reads or writes the jar meanwhile (ISO-003).
   static Expr<bool, W> _holdsTurn<W extends JarWorld>() =>
       _turnHolder<W>().value.eq(Expr.flow());
+
+  /// Whether the platform may refuse a call on the jar: always, though no
+  /// world but the one that asks lets it (ISO-014).
+  static Expr<bool, W> _jarRefuses<W>() =>
+      Expr.ofConstant(ModelConst.jarRefuses, run: (_) => true);
+
+  /// How the jar refuses: a [CookieJarFailure].
+  static const jarRefusal = Refusal<CookieJarFailure>();
 
   /// An incognito site keeps nothing to capture or restore.
   static Expr<bool, W> _incognito<W>(Expr<WebViewModel, W> site) =>
@@ -470,6 +472,25 @@ class CookieIsolationEngine {
     _unloadSnap.becomes(Expr.none()),
   ];
 
+  /// Once the capture saved, or could not read the jar: the site stays if a
+  /// tap opened it meanwhile, else it goes.
+  static final _sparedAfterCapture = Branch<UnloadWorld, UnloadPlace>(
+    StepOutcome.spared,
+    when: _spare,
+    then: [_release(), backoff(), ..._unloadReturn(disposed: false)],
+    next: to(UnloadPlace.afterUnload),
+  );
+  static final _disposedAfterCapture = Otherwise<UnloadWorld, UnloadPlace>(
+    StepOutcome.disposed,
+    then: [
+      _dispose,
+      _release(),
+      evictedMid(),
+      ..._unloadReturn(disposed: true),
+    ],
+    next: to(UnloadPlace.afterUnload),
+  );
+
   /// The capture and the dispose of an unload, in the jar's turn.
   static final unloadSteps = StepTable<UnloadWorld, UnloadPlace>(
     UnloadPlace.values,
@@ -533,7 +554,7 @@ class CookieIsolationEngine {
         // return cookies for the site's primary URL.
         call: _unloadSnap.receivesOn(
           _jarPort(),
-          run: (c) => c.api.capture(of: [_victim.of(c)]),
+          run: (c) => c.api.snapshot(of: [_victim.of(c)]),
           reply: _jar<UnloadWorld>().value,
         ),
         site: _victim.value,
@@ -541,6 +562,22 @@ class CookieIsolationEngine {
           StepOutcome.none,
           then: [],
           next: to(UnloadPlace.uSave),
+        ),
+        // A jar that cannot be read saves nothing over the site's stored
+        // session, which then stays as it was (ISO-014).
+        refused: Refused<UnloadWorld, UnloadPlace>(
+          refusal: jarRefusal,
+          when: _jarRefuses(),
+          then: [
+            Note(
+              (c) => LogTag.cookieIsolation.warning(
+                'Capture for "${_victim.of(c).name}" failed, its stored '
+                'cookies stay',
+                sensitive: true,
+              ),
+            ),
+          ],
+          next: to(UnloadPlace.uKept),
         ),
       ),
       UnloadPlace.uSave => Step(
@@ -550,14 +587,6 @@ class CookieIsolationEngine {
           _jarPort(),
           run: (c) async {
             final victim = _victim.of(c);
-            if (c.api.unread case final e?) {
-              LogTag.cookieIsolation.warning(
-                'Capture for "${victim.name}" failed, its stored cookies '
-                'stay: $e',
-                sensitive: true,
-              );
-              return;
-            }
             victim.cookies = _shareOf(_victim.value, of: _unloadSnap.value).run(c);
             await c.api.save(site: victim, cookies: victim.cookies);
             LogTag.cookieIsolation.debug(
@@ -573,24 +602,15 @@ class CookieIsolationEngine {
           ],
         ),
         site: _victim.value,
-        branches: [
-          Branch(
-            StepOutcome.spared,
-            when: _spare,
-            then: [_release(), backoff(), ..._unloadReturn(disposed: false)],
-            next: to(UnloadPlace.afterUnload),
-          ),
-        ],
-        otherwise: Otherwise(
-          StepOutcome.disposed,
-          then: [
-            _dispose,
-            _release(),
-            evictedMid(),
-            ..._unloadReturn(disposed: true),
-          ],
-          next: to(UnloadPlace.afterUnload),
-        ),
+        branches: [_sparedAfterCapture],
+        otherwise: _disposedAfterCapture,
+      ),
+      UnloadPlace.uKept => Step(
+        ActivationStep.unloadKept,
+        holds: _holdsTurn(),
+        site: _victim.value,
+        branches: [_sparedAfterCapture],
+        otherwise: _disposedAfterCapture,
       ),
       UnloadPlace.next ||
       UnloadPlace.uNav ||
@@ -629,6 +649,7 @@ class CookieIsolationEngine {
   }();
   static const _tmp = Field<List<Cookie>, RestoreWorld>(FlowField.tmp);
   static const _target = Field<WebViewModel, RestoreWorld>(FlowField.site);
+  static const _unrestored = Field<bool, RestoreWorld>(FlowField.unrestored);
   static const _v = Field<int, RestoreWorld>(FlowField.v);
   static final _version = Var<int, RestoreWorld>(
     ModelVar.version,
@@ -639,11 +660,53 @@ class CookieIsolationEngine {
   static final _picked = _eachTodo.it;
   static final _others = _ls.value.without(_target.value);
 
-  /// The activation goes on, or leaves if it was superseded meanwhile.
+  /// The activation goes on, or leaves if it was superseded meanwhile or
+  /// the jar refused a call of the restore.
   static final Expr<RestorePlace, RestoreWorld> _restoreDone = Expr.choose(
-    when: _restoreStale,
+    when: _restoreStale | _unrestored.valueOr(none: false),
     then: to(RestorePlace.exit),
     otherwise: to(RestorePlace.html),
+  );
+
+  /// The jar refused a read or the nuke: nothing more is written, and the
+  /// target is not shown (ISO-014).
+  static Refused<RestoreWorld, RestorePlace> _refusedEnd({
+    required String at,
+  }) => Refused(
+    refusal: jarRefusal,
+    when: _jarRefuses(),
+    then: [
+      _unrestored.becomes(Expr.constant(true, tla: 'TRUE')),
+      ..._restoreEnd,
+      Note(
+        (c) => LogTag.cookieIsolation.error(
+          'Restore for "${_target.of(c).name}" failed at the $at, not '
+          'shown',
+          sensitive: true,
+        ),
+      ),
+    ],
+    next: to(RestorePlace.exit),
+  );
+
+  /// The jar refused a write of the refill: the rest is still written, and
+  /// then the target is not shown (ISO-014).
+  static Refused<RestoreWorld, RestorePlace> _refusedSet({
+    required Expr<List<WebViewModel>, RestoreWorld> todo,
+  }) => Refused(
+    refusal: jarRefusal,
+    when: _jarRefuses(),
+    then: [
+      _unrestored.becomes(Expr.constant(true, tla: 'TRUE')),
+      _todo.becomes(todo),
+      Note(
+        (c) => LogTag.cookieIsolation.error(
+          'Restore for "${_target.of(c).name}" refused a cookie, not shown',
+          sensitive: true,
+        ),
+      ),
+    ],
+    next: to(RestorePlace.rRefused),
   );
 
   /// The turn passes on and the activation checks its version.
@@ -721,6 +784,7 @@ class CookieIsolationEngine {
           then: [_holdIncognito, _todo.becomes(_saves)],
           next: to(RestorePlace.rSave),
         ),
+        refused: _refusedEnd(at: 'snapshot'),
       ),
       RestorePlace.rSave => Step(
         ActivationStep.restoreSaveReply,
@@ -774,6 +838,7 @@ class CookieIsolationEngine {
           then: [],
           next: to(RestorePlace.rLoad),
         ),
+        refused: _refusedEnd(at: 'nuke'),
       ),
       RestorePlace.rLoad => Step(
         ActivationStep.restoreLoadReply,
@@ -824,6 +889,7 @@ class CookieIsolationEngine {
           then: [_todo.becomes(_others)],
           next: to(RestorePlace.rSetO),
         ),
+        refused: _refusedSet(todo: _others),
       ),
       RestorePlace.rSetO => Step(
         ActivationStep.restoreSetOtherReply,
@@ -855,6 +921,24 @@ class CookieIsolationEngine {
         otherwise: Otherwise(
           StepOutcome.more,
           then: [_todo.becomes(_todo.value.without(_picked))],
+          next: to(RestorePlace.rSetO),
+        ),
+        refused: _refusedSet(todo: _todo.value.without(_picked)),
+      ),
+      RestorePlace.rRefused => Step(
+        ActivationStep.restoreRefused,
+        holds: _holdsTurn(),
+        branches: [
+          Branch(
+            StepOutcome.end,
+            when: _todo.value.isEmpty,
+            then: _restoreEnd,
+            next: to(RestorePlace.exit),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.more,
+          then: [],
           next: to(RestorePlace.rSetO),
         ),
       ),
@@ -1017,20 +1101,6 @@ final class _JarCalls {
   Future<List<Cookie>> snapshot({required Iterable<WebViewModel> of}) =>
       _engine._snapshot(_turn, of: of);
 
-  /// An unload's [snapshot]: a jar that cannot be read gives nothing, and
-  /// leaves [unread] for the save after it, which then saves nothing.
-  Future<List<Cookie>> capture({required Iterable<WebViewModel> of}) async {
-    try {
-      return await snapshot(of: of);
-    } on CookieJarFailure catch (e) {
-      _engine._unread = e;
-      return const [];
-    }
-  }
-
-  /// Why this turn's capture could not read the jar, if it could not.
-  CookieJarFailure? get unread => _engine._unread;
-
   Future<void> save({
     required WebViewModel site,
     required List<Cookie> cookies,
@@ -1044,15 +1114,16 @@ final class _JarCalls {
   Future<List<Cookie>> load({required WebViewModel site}) =>
       _engine._loadStored(_turn, site: site);
 
-  /// A refill's write: a cookie the jar refuses is kept as the turn's first
-  /// refusal, which fails the restore once the rest are written.
+  /// A refill's write: fails with the first cookie the jar refused, once
+  /// the rest are written.
   Future<void> set({
     required WebViewModel site,
     required List<Cookie> cookies,
   }) async {
-    final refused =
-        await _engine._setCookies(_turn, site: site, cookies: cookies);
-    _engine._refused ??= refused;
+    if (await _engine._setCookies(_turn, site: site, cookies: cookies)
+        case final refused?) {
+      throw refused;
+    }
   }
 }
 

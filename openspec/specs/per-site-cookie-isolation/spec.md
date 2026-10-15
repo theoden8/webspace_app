@@ -503,6 +503,11 @@ own terms:
   first. The activation does not show its target, since until the jar is
   emptied and refilled it can hold another same-base-domain site's session
   (ISO-001): the webspace list is shown, with a message naming the site.
+
+Each of these refusals is the step's own outcome (`Refused`), which
+`formal/activation.tla` takes in a world whose jar may refuse any read, nuke
+or write (`JarRefuses`): there no site is shown or loaded on another site's
+session, whatever lands meanwhile.
 - A deletion's jar cleanup (ISO-010) drops the deleted site's stored cookies
   first; a jar that fails is left for the next activation to empty
   (ISO-012), and the deletion goes on.

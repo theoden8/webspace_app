@@ -227,6 +227,16 @@ final class Login extends SiteAction {
   String toString() => 'Login($slot)';
 }
 
+/// From here on the jar fails every [call] (ISO-014): a setup step, before
+/// the script the trace records, whose world then lets the jar refuse
+/// (`JarRefuses`).
+final class JarFails extends SiteAction {
+  const JarFails(this.call);
+  final JarCall call;
+  @override
+  String toString() => 'JarFails(JarCall.${call.name})';
+}
+
 /// A site from the page's host pool, appended (`SiteAdded`).
 final class Add extends SiteAction {
   const Add(this.host);
@@ -946,6 +956,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Reply() ||
     Settle() ||
     Login() ||
+    JarFails() ||
     Add() ||
     Move() ||
     Touch() ||
@@ -1303,7 +1314,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${spaces == null ? '' : '_spaces'}'
             '${archived ? '_archive' : ''}'
             '${deletes ? '_delete' : ''}'
-            '${page.incognito.isEmpty ? '' : '_incognito'}',
+            '${page.incognito.isEmpty ? '' : '_incognito'}'
+            '${jar.failing.isEmpty ? '' : '_refusing'}',
         constants: (
           sites: page.hosts.length,
           tabbed: tabbed,
@@ -1347,6 +1359,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.linked => set(nestedOpens ? every : const <int>[]),
       // The walk's proxy always applies.
       ModelConst.proxyRefused => null,
+      ModelConst.jarRefuses => jar.failing.isEmpty ? null : 'TRUE',
       ModelConst.notified => set(wakes ? every : const <int>[]),
       ModelConst.waking => '$wakes'.toUpperCase(),
       ModelConst.siteLevel => seq(switch (dns?.siteLevels) {
@@ -1662,7 +1675,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         if (wakes && sites.fore) wakeEngine.background(_wake);
       case Foreground():
         if (!sites.fore) wakeEngine.foreground(_wake);
-      case Reply() || Settle() || Login() || Retap() || Touch() || StayPut():
+      case Reply() ||
+          Settle() ||
+          Login() ||
+          JarFails() ||
+          Retap() ||
+          Touch() ||
+          StayPut():
         throw ArgumentError('$action waits on the platform or the page, so a '
             'schedule cannot start it');
     }
@@ -1721,6 +1740,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         if (waiting > 0) gate.release(pick % waiting);
       case Settle():
         await settle();
+      case JarFails(:final call):
+        jar.failing.add(call);
       case Login(:final slot):
         await settle();
         if (n > 0 && sites.isLoadedAt(slot % n)) {
@@ -1991,6 +2012,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${s.siteId} (Inv_JarMatchesVisible)',
       );
     }
+    // A jar that refuses can lose a session, never cross one (ISO-014).
+    if (jar.failing.isNotEmpty) return;
     for (final MapEntry(key: siteId, value: names) in _signedIn.entries) {
       final loaded = sites.loaded.any((m) => m.siteId == siteId);
       // An incognito site's session is the jar's while it is loaded and

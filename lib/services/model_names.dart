@@ -97,7 +97,11 @@ enum FlowField {
   /// The DNS level a download fetches, and whether it becomes the
   /// app-wide level.
   lvl('0'),
-  appWide('FALSE');
+  appWide('FALSE'),
+
+  /// A call of the restore on the shared jar was refused, so its target is
+  /// not shown once the rest of the refill is written (ISO-014).
+  unrestored('FALSE');
 
   const FlowField(this.none);
 
@@ -129,6 +133,7 @@ enum ModelConst {
   maxResident(ConstKind.bound),
   linked(ConstKind.set),
   proxyRefused(ConstKind.off),
+  jarRefuses(ConstKind.off),
   notified(ConstKind.set),
   waking(ConstKind.off),
   siteLevel(ConstKind.uniform),

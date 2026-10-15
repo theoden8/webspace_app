@@ -776,8 +776,8 @@ String _holds(Inv i) {
 /// turn grants, and the operator each of its acts opens with.
 List<String> _operators(Step<Object?, Enum> s) => {
   if (s.granted) 'Granted',
-  if (s.input || s.arms.any((a) => a.then.any((e) => e is Spawn))) 'Starts',
-  for (final arm in s.arms)
+  if (s.input || s.allArms.any((a) => a.then.any((e) => e is Spawn))) 'Starts',
+  for (final arm in s.allArms)
     for (final e in arm.then)
       if (e is Act)
         if (RegExp(r'^[A-Z]\w*').firstMatch(e.tla) case final m?) m[0]!,
@@ -915,6 +915,22 @@ Tables _with({
 /// Each mistake an engine once had, as the tables with it put back; the
 /// check that catches it is the [Mutant]'s own.
 Tables mutated(Mutant m) => switch (m) {
+  // The refill goes on over a jar the refused nuke left as it was
+  // (ISO-014).
+  Mutant.nukeignored => _with(
+    restore: _withArms(
+      tables.restore,
+      step: ActivationStep.restoreNukeReply,
+      arms: (s) => s.withArms(
+        refused: Refused<RestoreWorld, RestorePlace>(
+          refusal: CookieIsolationEngine.jarRefusal,
+          when: Expr.ofConstant(ModelConst.jarRefuses, run: (_) => true),
+          then: [],
+          next: to(RestorePlace.rLoad),
+        ),
+      ),
+    ),
+  ),
   // The restore takes in only the sites it saves, so a loaded incognito
   // site's session goes with the emptied jar (INC-001), as before the fix.
   Mutant.incognitonuked => _with(
@@ -1377,6 +1393,6 @@ List<Map<String, Object?>> _places<W, P extends Enum>(StepTable<W, P> t) => [
       'granted': step.granted,
       'input': step.input,
       'holds': step.holds?.tla,
-      'next': {for (final a in step.arms) a.outcome.tla: a.next.tla},
+      'next': {for (final a in step.allArms) a.outcome.tla: a.next.tla},
     },
 ];

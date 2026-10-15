@@ -109,7 +109,13 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
       return;
     }
 
-    await engine.restoreCookiesForSite(site: target, vars: vars, versionAtEntry: v);
+    if (!await engine.restoreCookiesForSite(
+      site: target,
+      vars: vars,
+      versionAtEntry: v,
+    )) {
+      return;
+    }
     if (v != version) return;
 
     show(target);
@@ -1465,7 +1471,7 @@ void main() {
     });
 
     test('ISO-014: a restore that cannot read the jar saves nothing, '
-        'empties nothing and fails', () async {
+        'empties nothing and leaves its target unshown', () async {
       harness.addSite('https://github.com', name: 'GitHub');
       harness.addSite('https://example.com', name: 'Example');
       await harness.switchToSite(0);
@@ -1474,8 +1480,7 @@ void main() {
       ]);
 
       harness.cookieManager.failing.add(JarCall.read);
-      await expectLater(
-          harness.switchToSite(1), throwsA(isA<CookieJarFailure>()));
+      await harness.switchToSite(1);
 
       expect(harness.cookieManager.all.map((c) => c.value), ['saved'],
           reason: 'the jar is not emptied past a failed read');
@@ -1486,7 +1491,7 @@ void main() {
     });
 
     test('ISO-014: a refill that refuses one cookie writes the rest, '
-        'then fails', () async {
+        'and leaves its target unshown', () async {
       harness.addSite('https://github.com', name: 'GitHub');
       harness.addSite('https://example.com', name: 'Example');
       await harness.switchToSite(0);
@@ -1498,12 +1503,12 @@ void main() {
           cookies: [Cookie(name: 'ex', value: 'e', domain: 'example.com')]);
 
       harness.cookieManager.refusing.add('session');
-      await expectLater(
-          harness.switchToSite(1), throwsA(isA<CookieJarFailure>()));
+      await harness.switchToSite(1);
 
       expect(harness.cookieManager.all.map((c) => c.name).toSet(),
           {'ex', 'prefs'},
           reason: 'a cookie the jar refuses does not keep the others out');
+      expect(harness.loadedIndices, isNot(contains(1)));
     });
 
     test(

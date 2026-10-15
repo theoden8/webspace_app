@@ -14,6 +14,7 @@ import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 
 import 'helpers/fake_tor_runtime.dart';
+import 'helpers/mock_cookie_manager.dart';
 import 'helpers/walk/activation_world.dart';
 import 'helpers/walk/schedules.dart';
 import 'helpers/walk/step_traces.dart';
@@ -226,6 +227,27 @@ const _regressions =
         page: _mixedIncognito,
         setup: _slot2Behind,
         script: [Pressure(), Pressure(), Tap(1)],
+      ),
+      // A jar that does not answer: what the capture could not read stays
+      // as stored, and a restore that cannot read, empty or refill the jar
+      // leaves its target unshown, whatever lands meanwhile (ISO-014).
+      'an unload whose capture the jar refuses keeps the stored session '
+          '(ISO-014)': (
+        page: _oneDomain,
+        setup: [..._oneSignedIn, JarFails(JarCall.read)],
+        script: [Tap(1), Tap(0)],
+      ),
+      'a restore whose nuke the jar refuses leaves its target unshown '
+          '(ISO-014)': (
+        page: _mixed,
+        setup: [..._oneSignedIn, JarFails(JarCall.clear)],
+        script: [Tap(2)],
+      ),
+      'a refill the jar refuses writes the rest, then leaves its target '
+          'unshown (ISO-014)': (
+        page: _mixed,
+        setup: [..._slot2Behind, JarFails(JarCall.write)],
+        script: [Tap(2)],
       ),
       'a second tap reads the jar a restore emptied (BUG-032)': (
         page: _oneDomain,

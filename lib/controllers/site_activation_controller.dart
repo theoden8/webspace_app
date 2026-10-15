@@ -16,7 +16,6 @@ import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/html_source.dart';
-import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_teardown_engine.dart';
@@ -153,21 +152,7 @@ class SiteActivationController {
       sensitive: true,
     );
     LogTag.cookieIsolation.debug('Currently loaded rows: ${_sites.loadedRows}');
-    try {
-      await _runToExit(flow, from: ActivationPlace.tap);
-    } on CookieJarFailure catch (e) {
-      // Until the jar is emptied and refilled it can hold another
-      // same-base-domain site's session (ISO-001), so the target is not
-      // shown on it; the user lands on the webspace list (ISO-014).
-      LogTag.cookieIsolation.error(
-        'Restore for "${site.name}" failed, not shown: $e',
-        sensitive: true,
-      );
-      if (!_host.mounted || ActivationTable.stale.value.run(flow)) return;
-      _host.exitFullscreen();
-      _host.toast((loc) => loc.siteCookiesNotRestored(site.getDisplayName()));
-      await _runFlow(_flow(target: null), from: ActivationPlace.goHome);
-    }
+    await _runToExit(flow, from: ActivationPlace.tap);
   }
 
   /// The list's webspace changed and stopped showing [leaving]
@@ -253,15 +238,10 @@ class SiteActivationController {
           ? PreloadOutcome.busy
           : PreloadOutcome.skipped;
     }
-    try {
-      await _runToExit(flow, from: ActivationPlace.preload);
-    } on CookieJarFailure catch (e) {
-      // Not loaded, as an activation's target is not shown (ISO-014); the
-      // next activation empties and refills the jar.
-      LogTag.cookieIsolation.warning(
-        'Restore for preloaded "${target.name}" failed, not loaded: $e',
-        sensitive: true,
-      );
+    await _runToExit(flow, from: ActivationPlace.preload);
+    // Not loaded, as an activation's target is not shown (ISO-014); the
+    // next activation empties and refills the jar.
+    if (ActivationTable.unrestored.valueOr(none: false).run(flow)) {
       return PreloadOutcome.skipped;
     }
     return flow.world.committed ? PreloadOutcome.loaded : PreloadOutcome.busy;
@@ -272,17 +252,9 @@ class SiteActivationController {
   /// turn, that takes the preload's steps from its own input.
   void _keepLoading(WebViewModel site) {
     final flow = _flow(target: site);
-    unawaited(_host.spawned(() async {
-      try {
-        await _runToExit(flow, from: ActivationPlace.keep);
-      } on CookieJarFailure catch (e) {
-        // Not loaded, as a preload's target is not (ISO-014).
-        LogTag.cookieIsolation.warning(
-          'Restore for "${site.name}" failed, not loaded: $e',
-          sensitive: true,
-        );
-      }
-    }));
+    unawaited(
+      _host.spawned(() => _runToExit(flow, from: ActivationPlace.keep)),
+    );
   }
 
   /// Opens [target]'s nested screen at [opening]'s page (LIR-011): first the

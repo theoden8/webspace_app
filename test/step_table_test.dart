@@ -12,6 +12,9 @@ final class _World {
 
 enum _Place { go, wait, done }
 
+/// What the platform answers a call it refuses with, in the tests below.
+final class _Refusal implements Exception {}
+
 final _loaded = Mutable<Iterable<int>, _World>(
   ModelVar.loaded,
   read: (w) => w.loaded.toSet(),
@@ -441,6 +444,66 @@ void _definitions() {
     expect(printed, contains('IF (Cardinality(loaded)) = 2'));
     expect(printed, contains('![f].label = Cardinality(loaded)'));
     expect(printed, isNot(contains('IF fl[f].label')));
+  });
+
+  group('a step whose call the platform refuses (Refused)', () {
+    StepTable<_World, _Place> refusing({
+      required Future<void> Function() run,
+    }) => StepTable(
+      _Place.values,
+      vars: [_loaded],
+      at: (place) => switch (place) {
+        _Place.go => Step(
+          ActivationStep.unloadCapReply,
+          holds: null,
+          call: Call.on(
+            _loadedPort,
+            run: (_) => run(),
+            writes: [
+              _loaded.becomes(Expr.constant<Set<int>, _World>({}, tla: '{}')),
+            ],
+          ),
+          otherwise: Otherwise(
+            StepOutcome.none,
+            then: [],
+            next: to(_Place.done),
+          ),
+          refused: Refused(
+            refusal: const Refusal<_Refusal>(),
+            when: Expr.ofConstant(ModelConst.jarRefuses, run: (_) => true),
+            then: [],
+            next: to(_Place.wait),
+          ),
+        ),
+        _Place.wait || _Place.done => const Leaves(),
+      },
+    );
+
+    test('takes its arm, and the model its alternative, with no call write',
+        () async {
+      final world = _World();
+      final table = refusing(run: () async => throw _Refusal());
+      expect(await table.run(StepContext(world), from: _Place.go), _Place.wait);
+      expect(world.loaded, {1, 2});
+      final printed =
+          table.tla(variables: [ModelVar.loaded, ModelVar.fl, ModelVar.last]);
+      expect(
+        printed,
+        contains(
+          '\\/ ((JarRefuses) /\\ ((fl\' = [fl EXCEPT ![f].pc = "wait"]) /\\ '
+          '(Did("UnloadCapReply", f, "refused", 0)) /\\ '
+          '(UNCHANGED << loaded >>)))',
+        ),
+      );
+    });
+
+    test('lets any other failure through to the caller', () {
+      final table = refusing(run: () async => throw StateError('lost'));
+      expect(
+        () => table.run(StepContext(_World()), from: _Place.go),
+        throwsA(isA<StateError>()),
+      );
+    });
   });
 
   group('a step that reads what a write no step takes changed while it '

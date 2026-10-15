@@ -81,6 +81,10 @@ final class ActivationCalls {
   void forgetTabReturns() => _r.host.forgetTabReturns();
   Future<bool> isOnline() => _r.host.isOnline();
   void leftForHome() => _r.answers.leftForHome();
+
+  /// [site] was not shown, since the jar refused its cookies (ISO-014).
+  void cookiesNotRestored(WebViewModel site) =>
+      _r.host.toast((loc) => loc.siteCookiesNotRestored(site.getDisplayName()));
   NavCapture? beginNavCapture(WebViewModel site) => _r.answers.beginNavCapture(site);
   Future<void> refreshRoutes({required WebViewModel active}) =>
       _r.host.refreshRoutes(active: active);

@@ -78,7 +78,10 @@ enum StepOutcome {
   home,
   stay,
   busy,
-  rebind;
+  rebind,
+
+  /// The platform refused the step's call (`Refused`).
+  refused;
 
   /// The outcome in the model: `none` is the empty string.
   String get tla => this == none ? '' : name;
@@ -161,7 +164,14 @@ enum ActivationStep {
       StepOutcome.capture,
     },
   ),
-  unloadCapReply(calls: {PlatformCall.cookiesGetAll}),
+  unloadCapReply(
+    outcomes: {StepOutcome.none, StepOutcome.refused},
+    calls: {PlatformCall.cookiesGetAll},
+  ),
+
+  /// The capture could not read the jar: the site's stored set stays, and
+  /// the unload goes on to its dispose (ISO-014).
+  unloadKept(outcomes: {StepOutcome.spared, StepOutcome.disposed}),
   unloadSaveReply(
     outcomes: {StepOutcome.spared, StepOutcome.disposed},
     calls: {PlatformCall.cookieStoreSave},
@@ -182,25 +192,37 @@ enum ActivationStep {
     outcomes: {StepOutcome.stale, StepOutcome.skip, StepOutcome.snap},
   ),
   restoreSnapReply(
-    outcomes: {StepOutcome.stale, StepOutcome.save, StepOutcome.nuke},
+    outcomes: {
+      StepOutcome.stale,
+      StepOutcome.save,
+      StepOutcome.nuke,
+      StepOutcome.refused,
+    },
     calls: {PlatformCall.cookiesGetAll},
   ),
   restoreSaveReply(
     outcomes: {StepOutcome.stale, StepOutcome.more, StepOutcome.nuke},
     calls: {PlatformCall.cookieStoreSave},
   ),
-  restoreNukeReply(calls: {PlatformCall.cookiesDeleteAll}),
+  restoreNukeReply(
+    outcomes: {StepOutcome.none, StepOutcome.refused},
+    calls: {PlatformCall.cookiesDeleteAll},
+  ),
   restoreLoadReply(calls: {PlatformCall.cookieStoreLoad}),
   restoreSetTargetReply(
-    outcomes: {StepOutcome.end, StepOutcome.others},
+    outcomes: {StepOutcome.end, StepOutcome.others, StepOutcome.refused},
     calls: {PlatformCall.cookieSet},
     severalAwaits: _inTurn,
   ),
   restoreSetOtherReply(
-    outcomes: {StepOutcome.end, StepOutcome.more},
+    outcomes: {StepOutcome.end, StepOutcome.more, StepOutcome.refused},
     calls: {PlatformCall.cookieSet},
     severalAwaits: _inTurn,
   ),
+
+  /// A refill write the jar refused: the rest is still written, and the
+  /// restore then fails (ISO-014).
+  restoreRefused(outcomes: {StepOutcome.end, StepOutcome.more}),
   contReply(
     outcomes: {StepOutcome.commit, StepOutcome.gone, StepOutcome.bail},
     calls: {PlatformCall.containerGetOrCreate},
@@ -220,7 +242,7 @@ enum ActivationStep {
   htmlReply(outcomes: {StepOutcome.go, StepOutcome.bail}),
   commit(outcomes: {StepOutcome.none, StepOutcome.bail}),
   resumeReply(calls: {PlatformCall.webViewResume}),
-  exit(outcomes: {StepOutcome.home, StepOutcome.stay}),
+  exit(outcomes: {StepOutcome.home, StepOutcome.stay, StepOutcome.refused}),
 
   /// The site left's webview answered its back stack capture; dropped
   /// when the tab it was read for closed meanwhile.

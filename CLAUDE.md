@@ -115,7 +115,7 @@ Debt, files importing upward (the gate's list, target 0): services → model (en
 | page script | 3 | 3 (the file, a `PageJs` value, a sample in `test/js/helpers/page_js_samples.js`) | `PageJs` |
 | release | 3 | 3 (version, changelog, fixtures) | the `pubspec.yaml` version line; the changelog and fixture gates key off it ([docs/releasing.md](docs/releasing.md)) |
 | secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
-| await step in an engine | 1 (a `Step`) | 2 (the `Step`, its `ActivationStep`); the model's action and its proof case are printed, an input's own step (`Step.input`) included. Debt: the environment's actions (`Move`, `Login`, `ClearJar`, `ViewBuilt`, `ViewGone`, `Frame`) are hand-written in `activation.tla`; the DNS lists' prune, import and startup load write them outside `DnsBlockService.table`, and a headless check's attach takes no part in `ViewBlockers`; the plan's picks by the loaded-site cap and its cache clears are printed as any choice of evictable sites of the size the caps leave, so the code's recency order is one the model checks, not one it knows; a tab input on a site off screen (an activation inside the tab gate) and the LIR-024 reroute are listed in `steps_uncovered.tsv`; a jar call that fails (ISO-014) is answered in the code beside its step (an unload's capture saves nothing, a restore's failure ends the activation at its exit), not as an outcome the model takes | `StepTable`, the model and its proof cases printed from it |
+| await step in an engine | 1 (a `Step`) | 2 (the `Step`, its `ActivationStep`); the model's action and its proof case are printed, an input's own step (`Step.input`) included. Debt: the environment's actions (`Move`, `Login`, `ClearJar`, `ViewBuilt`, `ViewGone`, `Frame`) are hand-written in `activation.tla`; the DNS lists' prune, import and startup load write them outside `DnsBlockService.table`, and a headless check's attach takes no part in `ViewBlockers`; the plan's picks by the loaded-site cap and its cache clears are printed as any choice of evictable sites of the size the caps leave, so the code's recency order is one the model checks, not one it knows; a tab input on a site off screen (an activation inside the tab gate) and the LIR-024 reroute are listed in `steps_uncovered.tsv` | `StepTable`, the model and its proof cases printed from it |
 | flow in the model | its own checks and one per flow it shares a variable with | every activation-side flow in one `Next` of `activation.tla` | footprints ([formal/README.md](formal/README.md#composition-by-footprint)) |
 
 Flag for review before changing: persisted formats, the Dart to page-script bridge, any join above.
@@ -469,6 +469,9 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
     guard, so an unfollowed site takes the outcome the code takes.
   - **A step whose arms pick marks the pick** (`tab:`): two picks sharing one label make the model
     ambiguous and the replay stalls there.
+  - **A call the platform can refuse has its refusal as an arm** (`Refused`, with the failure's
+    type as a `Refusal`): the model's alternative to the reply where a world lets it, never a
+    catch beside the table, which the model cannot see (ISO-014).
   - **A mutant is the bug's shape**, one fact moved and the other left (the key at the reply,
     the bytes from the start); a mutant TLC accepts is a consistent design alternative, not a
     planted mistake, and says nothing.

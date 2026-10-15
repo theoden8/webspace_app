@@ -373,6 +373,9 @@ LinkAny == Sites
 \* to the background (NOTIF-016).
 NotifyAll == Sites
 WakesUp == TRUE
+\* The refusing jar's config: any read, nuke or write of the shared jar may
+\* be refused (ISO-014).
+JarCanRefuse == TRUE
 \* Site 1 follows the app-wide level, site 2 asks for level 2, site 3 has
 \* DNS blocking off; downloads pick level 1 or 2.
 DnsAsk == <<-1, 2, 0>>
@@ -441,6 +444,11 @@ Reach_DeleteSupersedes ==
 \* emptied: the incognito config is not vacuous (INC-001).
 Reach_IncognitoKept ==
     ~(last.a = "RestoreSetOtherReply" /\ last.s \in Incognito)
+\* A tap whose restore the jar refused lands on the webspace list, and an
+\* unload whose capture it refused keeps the stored session: the refusing
+\* jar's config is not vacuous (ISO-014).
+Reach_Unrestored == ~(last.a = "Exit" /\ last.o = "refused")
+Reach_CaptureRefused == ~(last.a = "UnloadKept")
 Reach_WakeSkips == ~(last.a = "WakeAsk" /\ last.o = "skip" /\ fore = FALSE)
 \* A rebind that reroutes the slot starts the activation that opens it again
 \* in the same turn, on the flow numbered last: the routed tabs config is not
