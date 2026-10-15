@@ -10,6 +10,10 @@ on:
   push:
     branches:
       - master
+    # A release tag builds the bundle its GitHub release carries. GitHub
+    # applies no path filter to a tag push.
+    tags:
+      - 'v*'
     paths:
       - .github/workflows/flatpak.yml
       - scripts/build_flatpak.sh
