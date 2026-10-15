@@ -302,9 +302,9 @@
 			buildConfigurationList = 33CC10FB2044A3C60003C045 /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
 				393765D4C08553F47312FEAC /* [CP] Check Pods Manifest.lock */,
+				7C1C0A000000000000000001 /* Generate App Icon */,
 				33CC10E92044A3C60003C045 /* Sources */,
 				33CC10EA2044A3C60003C045 /* Frameworks */,
-				7C1C0A000000000000000001 /* Generate App Icon */,
 				33CC10EB2044A3C60003C045 /* Resources */,
 				33CC110E2044A8840003C045 /* Bundle Framework */,
 				7B0F00000000000000000020 /* Embed App Extensions */,
