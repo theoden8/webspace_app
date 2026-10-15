@@ -66,4 +66,6 @@ fi
 
 flatpak-builder --sandbox --force-clean --user --install-deps-from=flathub \
   --state-dir="$out/state" --repo="$out/repo" "$out/app" "$work/$app_id.yml"
-flatpak build-bundle "$out/repo" "$out/$app_id.flatpak" "$app_id"
+# The runtime comes from Flathub, so installing the bundle offers to add it.
+flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+  "$out/repo" "$out/webspace-$(flatpak --default-arch).flatpak" "$app_id"
