@@ -178,8 +178,10 @@ final class BackgroundLogFile {
 /// The schedule is best-effort: iOS decides when (and whether) to run a
 /// refresh. We re-submit on every refresh so the cycle continues; if the
 /// user kills the app, the schedule is dropped until next launch.
+///
+/// The app delegate owns it from launch, since the task handler must be
+/// registered then, and attaches each engine the scene starts.
 class BackgroundTaskPlugin: NSObject {
-  private let channel: FlutterMethodChannel
   private static let refreshIdentifier =
     "org.codeberg.theoden8.webspace.notification-refresh"
   private static let refreshMinDelaySeconds: TimeInterval = 15 * 60
@@ -193,18 +195,34 @@ class BackgroundTaskPlugin: NSObject {
   /// `setTaskCompleted(success:)` per task.
   private var pendingRefreshTask: BGAppRefreshTask?
 
+  /// The current engine's channel, nil until the scene starts one: under the
+  /// scene lifecycle that is after launch, and a refresh task can come first.
+  private var channel: FlutterMethodChannel?
+
+  /// Dart has installed its `onBackgroundRefresh` handler on [channel]. A
+  /// refresh that arrives before then waits for it, as on Android.
+  private var dartReady = false
+
   private var observers: [NSObjectProtocol] = []
 
-  init(messenger: FlutterBinaryMessenger) {
-    self.channel = FlutterMethodChannel(
+  override init() {
+    super.init()
+    observeSystemEvents()
+  }
+
+  /// A scene the system disconnected comes back with a new engine, whose Dart
+  /// has yet to announce itself.
+  func attach(to messenger: FlutterBinaryMessenger) {
+    assert(Thread.isMainThread, "channel and dartReady are confined to main, as the pending slot is")
+    let channel = FlutterMethodChannel(
       name: "org.codeberg.theoden8.webspace/background_task",
       binaryMessenger: messenger
     )
-    super.init()
-    self.channel.setMethodCallHandler { [weak self] call, result in
+    channel.setMethodCallHandler { [weak self] call, result in
       self?.handle(call: call, result: result)
     }
-    observeSystemEvents()
+    self.channel = channel
+    dartReady = false
   }
 
   /// DEVTOOLS-012: what decides whether a page or a refresh task gets to run
@@ -257,28 +275,26 @@ class BackgroundTaskPlugin: NSObject {
   /// Registers the BGAppRefreshTask handler. Must be called from
   /// `application(_:didFinishLaunchingWithOptions:)` BEFORE the app
   /// finishes launching, per `BGTaskScheduler` requirements.
-  static func registerLaunchHandler(
-    _ handler: @escaping (BGAppRefreshTask) -> Void
-  ) {
+  func registerLaunchHandler() {
     let registered = BGTaskScheduler.shared.register(
-      forTaskWithIdentifier: refreshIdentifier,
+      forTaskWithIdentifier: Self.refreshIdentifier,
       using: nil
     ) { task in
       guard let refresh = task as? BGAppRefreshTask else {
         task.setTaskCompleted(success: false)
         return
       }
-      handler(refresh)
+      self.handleRefreshTask(refresh)
     }
     if !registered {
       BackgroundLogFile.shared.record(
-        "BGTaskScheduler refused to register \(refreshIdentifier); no refresh task can run",
+        "BGTaskScheduler refused to register \(Self.refreshIdentifier); no refresh task can run",
         level: "error")
     }
   }
 
-  /// Called by AppDelegate when iOS hands us a refresh task. Forwards to
-  /// Dart and re-schedules the next refresh.
+  /// Called when iOS hands us a refresh task. Forwards to Dart once Dart is
+  /// listening and re-schedules the next refresh.
   ///
   /// `pendingRefreshTask` is touched from three threads: this handler (the
   /// `BGTaskScheduler` launch queue, off-main), the `expirationHandler`
@@ -288,7 +304,7 @@ class BackgroundTaskPlugin: NSObject {
   /// write leaks the completion (iOS then throttles future scheduling). So
   /// every access to the pending slot is funnelled onto the main queue and
   /// completion is made idempotent per task via [completeTask].
-  func handleRefreshTask(_ task: BGAppRefreshTask) {
+  private func handleRefreshTask(_ task: BGAppRefreshTask) {
     NSLog("BackgroundTaskPlugin: BGAppRefreshTask received — forwarding to Dart")
     BackgroundLogFile.shared.record("BGAppRefreshTask received; forwarding to Dart")
     task.expirationHandler = { [weak self, weak task] in
@@ -309,11 +325,19 @@ class BackgroundTaskPlugin: NSObject {
         self.completeTask(previous, success: false)
       }
       self.pendingRefreshTask = task
-      // Dart calls back via `bgRefreshDidComplete`; don't mark the task
-      // complete from the channel result or it races the Dart-side reload.
-      self.channel.invokeMethod("onBackgroundRefresh", arguments: nil, result: nil)
       self.scheduleNextRefresh()
+      if self.dartReady {
+        self.forwardRefresh()
+      } else {
+        BackgroundLogFile.shared.record("refresh task waits for Dart to start")
+      }
     }
+  }
+
+  /// Dart calls back via `bgRefreshDidComplete`; don't mark the task
+  /// complete from the channel result or it races the Dart-side reload.
+  private func forwardRefresh() {
+    channel?.invokeMethod("onBackgroundRefresh", arguments: nil, result: nil)
   }
 
   /// Complete [task] exactly once. Must run on the main queue. The identity
@@ -426,6 +450,13 @@ class BackgroundTaskPlugin: NSObject {
     case "setBackgroundAudioActive":
       let active = (call.arguments as? [String: Any])?["active"] as? Bool ?? false
       setBackgroundAudioActive(active)
+      result(nil)
+    case "backgroundRefreshReady":
+      dartReady = true
+      if pendingRefreshTask != nil {
+        BackgroundLogFile.shared.record("Dart started; forwarding the waiting refresh task")
+        forwardRefresh()
+      }
       result(nil)
     case "bgRefreshDidComplete":
       let success: Bool

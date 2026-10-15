@@ -29,9 +29,10 @@ modules="Flutter Tor IPtProxy"
 # file for real later in the same job, so checking it here buys nothing.
 # Elsewhere there is no SDK at all, and this is the only gate it gets.
 if [ "$(uname -s)" != "Darwin" ]; then
-  # Network before WebKit: the WebKit stub types proxyConfigurations in
-  # Network's terms, exactly as the SDK has it.
-  modules="$modules Cocoa FlutterMacOS Network WebKit UIKit"
+  # UIKit before Flutter and Network before WebKit: the Flutter stub types
+  # its scene protocol in UIKit's terms and the WebKit stub
+  # proxyConfigurations in Network's, exactly as the SDK has them.
+  modules="UIKit $modules Cocoa FlutterMacOS Network WebKit"
 fi
 
 for module in $modules; do
@@ -56,7 +57,8 @@ if [ "$(uname -s)" != "Darwin" ]; then
   for side in false true; do
     mkdir "$work/$side"
     for name in AppGroup ContentRuleListPlugin ShareIntentPlugin ShortcutsPlugin WebSpaceAppIntents; do
-      sed "s/#if canImport(FlutterMacOS)/#if $side/" \
+      sed -e "s/#if canImport(FlutterMacOS)/#if $side/" \
+        -e "s/#if !canImport(FlutterMacOS)/#if !$side/" \
         "$root/ios/Runner/$name.swift" > "$work/$side/$name.swift"
     done
     "$swiftc" -typecheck -swift-version 5 -I "$work" \

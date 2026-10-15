@@ -15,7 +15,8 @@
 //   legacy isolation, one cookie jar for every site);
 // - it tells `main` it runs for a wake, and startup then builds no site
 //   webview, since Android's blockers could not find one with no activity;
-// - the refresh waits for Dart to install its handler.
+// - the refresh waits for Dart to install its handler, on iOS too, where the
+//   scene starts the engine after a launch made for the task.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -28,6 +29,7 @@ const engine = read(`${kt}/WorkerFlutterEngine.kt`);
 const plugins = read(`${kt}/EnginePlugins.kt`);
 const activity = read(`${kt}/MainActivity.kt`);
 const taskPlugin = read(`${kt}/BackgroundTaskAndroidPlugin.kt`);
+const iosTaskPlugin = read('ios/Runner/BackgroundTaskPlugin.swift');
 const main = read('lib/main.dart');
 const startup = read('lib/controllers/startup_controller.dart');
 const launch = read('lib/services/launch_context.dart');
@@ -86,10 +88,14 @@ test('main knows it runs for a wake and builds no site webview', () => {
 test('the refresh waits for Dart to install its handler', () => {
   assert.match(taskPlugin, /"backgroundRefreshReady" -> \{\s*NotificationRefreshDispatcher\.dartReady\(channel\)/);
   assert.match(taskPlugin, /if \(dartReady\) invoke\(c\) else waitingForDart = true/);
+  assert.match(iosTaskPlugin, /case "backgroundRefreshReady":\s*dartReady = true\s*if pendingRefreshTask != nil \{/);
+  assert.match(iosTaskPlugin, /if self\.dartReady \{\s*self\.forwardRefresh\(\)/);
   const init = service.slice(service.indexOf('void initialize() {'),
     service.indexOf('Future<void> _announceReady()'));
   assert.ok(init.indexOf('setMethodCallHandler') < init.indexOf('_announceReady()'),
     'Dart must announce readiness only after its handler is installed');
+  assert.match(init, /^\s*unawaited\(_announceReady\(\)\);/m,
+    'both platforms wait for the announcement, so neither may skip it');
 });
 
 // Android has one proxy override. A user who reopens the app mid-wake moves
