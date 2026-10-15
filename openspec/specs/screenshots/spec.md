@@ -121,6 +121,13 @@ Android, iPhone and iPad screenshots SHALL be frameable with device bezels using
 - **THEN** screenshots are resized and framed with device bezels
 - **AND** an iPhone set is resized to 1170x2532 and an iPad set to 2732x2048, the sizes App Store Connect takes that frameit has a bezel for
 
+#### Scenario: Every iOS shot is framed or the lane fails
+
+- **GIVEN** frameit logs a shot it cannot frame and carries on
+- **WHEN** `fastlane ios add_device_frames` finishes framing a set
+- **THEN** a shot without its `_framed` copy fails the lane, naming the shot
+- **AND** before framing, the lane strips the metadata (EXIF, XMP, orNT) from every frame image that carries it, which Homebrew's ImageMagick 7 failed to rewrite in the iPhone 14 frame, leaving every iPhone shot unframed
+
 ---
 
 ### SCREENSHOT-006 - Theme Support
