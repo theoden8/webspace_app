@@ -26,16 +26,16 @@ Simulator (`-d <udid>`) — are a separate harness: each needs a booted
 emulator/simulator before `flutter test` can attach, not just a window
 server. The device-boot plumbing exists in this workflow for the
 fastlane-driven Android/iOS screenshot pipeline (see
-[`screenshots`](../screenshots/spec.md) — `build-android`'s
-`reactivecircus/android-emulator-runner` and `build-apple`'s
-`simctl boot`). The Android-emulator scenarios are wired in:
+[`screenshots`](../screenshots/spec.md) — `screenshots-android`'s
+`reactivecircus/android-emulator-runner` and `screenshots-ios`'s
+`simctl bootstatus`). The Android-emulator scenarios are wired in:
 `white_screen_test.dart` (INTEG-010), `shortcut_behavior_test.dart`
 (INTEG-013) and `page_zoom_test.dart` (ZOOM-006 — the wide-viewport quirk
 behind BUG-008 exists in no other engine, and the same file also runs on
 both desktop loops) run inside the `build-android` job on every push/PR, on the
-same AVD profile and snapshot cache the screenshots lane uses (the
-emulator prerequisite steps are ungated; only the screenshot generation
-itself stays `workflow_dispatch`), followed in the same emulator step by
+same AVD profile and snapshot cache the Android screenshots use (both jobs
+take them from `.github/actions/android-emulator`), followed in the same
+emulator step by
 the adb-driven lifecycle tier (INTEG-011), which drives warm start,
 bfcache back navigation, activity recreation, and the warm
 home-shortcut taps from outside the app process. The white-screen and
@@ -401,10 +401,11 @@ either target.
   declares provisioning-dependent entitlements (the team-prefixed
   `application-groups` and `keychain-access-groups`) that an ad-hoc
   signature cannot satisfy
-- **When** the `Run macOS integration tests` step overwrites that file
+- **When** `scripts/prepare_macos_ci_debug.sh`, run ahead of the macOS
+  integration tests and of the macOS screenshots, overwrites that file
   with the stock Flutter debug set (`app-sandbox`, `cs.allow-jit`,
   `files.user-selected.read-write`, `network.server`, `network.client`)
-  minus those two keys, and runs `flutter test -d macos --ci`
+  minus those two keys, and the step runs `flutter test -d macos --ci`
 - **Then** `taskgated` accepts the ad-hoc signature (instead of
   SIGKILL'ing the app as "Code Signature Invalid"), and `--ci`
   (`usingCISystem`) re-signs with the sandbox disabled so the tool
@@ -678,9 +679,9 @@ synthetic touch reaching the platform view.
   inside the booted emulator with a 25-minute wall-clock cap
 - **Then** the suite executes on every push to master, every PR, and
   every manual dispatch, and a failure fails `build-android`
-- **And** the screenshot generation step after it remains gated on
-  `workflow_dispatch`, booting the emulator a second time on dispatch
-  runs
+- **And** the screenshots are not taken here but by the
+  `screenshots-android` job, which boots the same snapshot on the runs the
+  plan job picks for screenshots
 
 #### Scenario: Desktop loops skip the Android-only suite
 

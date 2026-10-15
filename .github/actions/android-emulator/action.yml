@@ -1,0 +1,47 @@
+name: Android emulator
+description: >-
+  KVM, the SDK's platform tools and a booted-once AVD snapshot for
+  reactivecircus/android-emulator-runner, shared by the emulator scenarios and
+  the Android screenshots. A run step that boots it passes the same api-level,
+  target, arch, profile and disk-size, or the snapshot is not reused.
+runs:
+  using: composite
+  steps:
+    - name: Enable KVM for emulator acceleration
+      shell: bash
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    # packages: the action defaults to "tools platform-tools", and the
+    # obsolete "tools" package is gone from Google's repository, so the
+    # default install aborts the job with "Failed to find package 'tools'".
+    # Nothing here uses it; the emulator runner installs what it needs.
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        packages: platform-tools
+
+    - name: AVD snapshot cache
+      id: avd-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.android/avd/*
+          ~/.android/adb*
+        key: avd-api35-x86_64-aosp-pixel_5-v1
+
+    - name: Pre-warm AVD snapshot
+      if: steps.avd-cache.outputs.cache-hit != 'true'
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 35
+        target: default
+        arch: x86_64
+        profile: pixel_5
+        disk-size: 4096M
+        force-avd-creation: false
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+        disable-animations: true
+        script: echo "Generated AVD snapshot for caching."

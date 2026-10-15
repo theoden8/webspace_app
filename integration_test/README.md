@@ -70,6 +70,15 @@ flutter drive \
   -d iPhone
 ```
 
+### With screenshot capture on iPad:
+```bash
+fastlane ios screenshots device:ipad    # writes screenshots/ios/ipad/
+```
+The iPad set is landscape. iPadOS ignores an app's orientation lock while the
+app supports multitasking, so the lane builds with `UIRequiresFullScreen` for
+the run and puts `ios/Runner/Info.plist` back afterwards (SCREENSHOT-010). A
+plain `flutter drive` on an iPad stays portrait, and the test fails on it.
+
 ### With screenshot capture on macOS:
 ```bash
 fastlane mac screenshots    # writes screenshots/macos/
