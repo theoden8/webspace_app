@@ -100,10 +100,18 @@ post_install do |installer|
     # otherwise Xcode skips it once it's run successfully. cargo's
     # incremental compile keeps the no-op cost negligible.
     next unless target.name == 'webspace_adblock'
-    target.build_phases.each do |phase|
-      next unless phase.respond_to?(:name) && phase.name &&
-                  phase.name.include?('Build adblock-rust artifacts')
-      phase.always_out_of_date = '1'
+    build = target.shell_script_build_phases.find { |p| p.name.to_s.include?('Build adblock-rust artifacts') }
+    raise '[webspace] webspace_adblock has no Rust build phase' unless build
+    build.always_out_of_date = '1'
+    # The pod links the slice "[CP] Copy XCFrameworks" copies out of
+    # WebspaceAdblock.xcframework, and CocoaPods orders that phase before
+    # every script phase of the pod's own. Built after it, the Rust library
+    # linked is the previous build's while keep_alive.c is this build's, so a
+    # new ws_* function fails the link as an undefined symbol.
+    copy = target.shell_script_build_phases.find { |p| p.name == '[CP] Copy XCFrameworks' }
+    raise '[webspace] webspace_adblock has no Copy XCFrameworks phase to build before' unless copy
+    if target.build_phases.index(copy) < target.build_phases.index(build)
+      target.build_phases.move(build, target.build_phases.index(copy))
     end
   end
 
