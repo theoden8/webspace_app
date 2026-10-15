@@ -352,7 +352,7 @@ packages:
     source: git
     version: "0.1.0-beta.2"
   flutter_inappwebview_macos:
-    dependency: "direct overridden"
+    dependency: "direct dev"
     description:
       path: flutter_inappwebview_macos
       ref: "v6.2.0-beta.3-privacy-v13.3"

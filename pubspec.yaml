@@ -98,6 +98,9 @@ dev_dependencies:
   # test/helpers/real_app.dart registers the Android webview platform to pump
   # the shipped app; the fork's ref is pinned by the overrides below.
   flutter_inappwebview_android: any
+  # test/cookie_channel_test.dart registers the macOS one on a macOS host,
+  # where the jar is read whole the Apple way.
+  flutter_inappwebview_macos: any
   # test/named_arguments_test.dart parses every Dart source to hold CLAUDE.md
   # rule 2 (named arguments past the first).
   analyzer: ^10.0.1

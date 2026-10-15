@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart';
+import 'package:flutter_inappwebview_macos/flutter_inappwebview_macos.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
 /// What the plugin's cookie channel throws reaches a caller of the shared
@@ -13,7 +15,14 @@ void main() {
   late TestDefaultBinaryMessenger messenger;
 
   setUp(() {
-    AndroidInAppWebViewPlatform.registerWith();
+    // The wrapper reads the whole jar in one call on an Apple host and per
+    // URL elsewhere, so the platform under it is the one the host's path
+    // calls: Android's has no getAllCookies.
+    if (hostIsMacOS) {
+      MacOSInAppWebViewPlatform.registerWith();
+    } else {
+      AndroidInAppWebViewPlatform.registerWith();
+    }
     messenger =
         TestWidgetsFlutterBinding.ensureInitialized().defaultBinaryMessenger;
   });
