@@ -10,7 +10,9 @@ import FlutterMacOS
   /// layer alone would leave out the site, which WKWebView draws in another
   /// process. Debug builds only: no shipped build can image its own window.
   enum WindowCapturePlugin {
-    static func attach(to messenger: FlutterBinaryMessenger, window: NSWindow) {
+    static func attach(
+      to messenger: FlutterBinaryMessenger, window: MainFlutterWindow
+    ) {
       let channel = FlutterMethodChannel(
         name: "org.codeberg.theoden8.webspace/window_capture",
         binaryMessenger: messenger
@@ -32,7 +34,17 @@ import FlutterMacOS
                 details: nil))
             return
           }
-          resize(window, to: NSSize(width: width, height: height))
+          let size = NSSize(width: width, height: height)
+          resize(window, to: size)
+          guard window.frame.size == size else {
+            result(
+              FlutterError(
+                code: "resize_refused",
+                message:
+                  "window is \(window.frame.size), not \(size); screen \(String(describing: window.screen?.frame))",
+                details: nil))
+            return
+          }
           result(nil)
         case "capture":
           if #available(macOS 14.4, *) {
@@ -51,8 +63,10 @@ import FlutterMacOS
     }
 
     /// The whole window, title bar included, at [size] points, pinned to the
-    /// top left of its screen's visible area.
-    private static func resize(_ window: NSWindow, to size: NSSize) {
+    /// top left of its screen's visible area. What does not fit on the screen
+    /// hangs below it: a desktop-independent window capture still has it.
+    private static func resize(_ window: MainFlutterWindow, to size: NSSize) {
+      window.keepsFrameBeyondScreen = true
       let visible = window.screen?.visibleFrame ?? window.frame
       window.setFrame(
         NSRect(

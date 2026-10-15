@@ -130,6 +130,7 @@ On macOS a screenshot SHALL be the app's window as the window server composites 
 
 - **WHEN** the test starts on macOS
 - **THEN** the window is set to 1440x900 points, title bar included
+- **AND** on a screen shorter than that (a CI runner's) the window keeps its size, the rest below the screen's edge, and a resize the window does not take fails the test
 - **AND** a capture whose pixel size is not a Mac App Store size fails the test
 
 ---

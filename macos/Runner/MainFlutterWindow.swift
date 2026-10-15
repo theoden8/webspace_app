@@ -33,4 +33,17 @@ class MainFlutterWindow: NSWindow {
 
     super.awakeFromNib()
   }
+
+  #if DEBUG
+    /// Set by WindowCapturePlugin's resize. A store-size window is taller
+    /// than a CI runner's screen, and AppKit would shrink it to fit.
+    var keepsFrameBeyondScreen = false
+
+    override func constrainFrameRect(
+      _ frameRect: NSRect, to screen: NSScreen?
+    ) -> NSRect {
+      keepsFrameBeyondScreen
+        ? frameRect : super.constrainFrameRect(frameRect, to: screen)
+    }
+  #endif
 }
