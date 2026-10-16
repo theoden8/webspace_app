@@ -278,6 +278,8 @@ Selecting Hidden or Button clears the "Keep Tab Strip in Full Screen" sub-choice
 
 The button is suppressed while the strip is already on screen: in Always mode, or in either mode while a button-revealed strip is still showing (the revealed strip then carries its own inline dismiss control), or in a locked kiosk session (KIOSK-002).
 
+Out of full screen a revealed strip is the user's tab bar until they put it away: switching sites, from the strip or any other way, keeps it on screen. It is dismissed by its own dismiss control, by full screen (entering it, leaving it, or a site or tab landing in it, where a revealed strip lasts one pick), by an app entry point (a home-shortcut or notification tap), and by leaving Button mode.
+
 The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarButton` (on-demand), which the single control keeps mutually exclusive. The legacy `tabBarButtonInFullscreen` preference (full-screen-only button) is migrated to `tabBarButton` on upgrade and from imported backups.
 
 #### Scenario: Reveal tab bar out of full screen (Button mode)
@@ -308,11 +310,31 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 **Given** the tab strip presentation is set to Always visible
 **Then** the floating button is not shown
 
-#### Scenario: Selecting a site dismisses the revealed strip
+#### Scenario: Switching sites keeps the revealed strip
 
 **Given** the user revealed the tab strip via the floating button
+**And** the user is not in full screen
+**When** the user taps another site in the revealed strip, or opens one from the drawer
+**And** that site does not open in full screen
+**Then** the app switches to that site and the revealed strip stays on screen
+
+#### Scenario: A pick in full screen dismisses the revealed strip
+
+**Given** the user is in full screen and revealed the tab strip via the floating button
 **When** the user taps a site in the revealed strip
-**Then** the app switches to that site and the revealed strip is dismissed
+**Then** the app switches to that site and the revealed strip is dismissed, whether or not the site stays in full screen
+
+#### Scenario: Entering full screen dismisses the revealed strip
+
+**Given** the user revealed the tab strip via the floating button out of full screen
+**When** the app enters full screen (from the menu, or for a site that opens in full screen)
+**Then** the revealed strip is dismissed and the floating button shows instead
+
+#### Scenario: An app entry point dismisses the revealed strip
+
+**Given** the user revealed the tab strip via the floating button
+**When** the user taps a home-screen shortcut or a site notification while the app runs
+**Then** the site it opens comes up with the strip dismissed
 
 #### Scenario: Dragging the button moves it to another corner
 
@@ -414,14 +436,14 @@ The control is shown in App Settings > Behaviour under "Tab strip" and is inacti
 - `FullscreenController.active` - Current fullscreen state (not persisted; runtime only)
 - `AppPref.tabStripInFullscreen` (`lib/settings/app_prefs.dart`, default off) - Global pref under the `tabStripInFullscreen` SharedPreferences key; round-trips through settings backup
 - `AppPref.tabStripEdge` (default empty) - Global pref under the `tabStripEdge` SharedPreferences key: `top`, `bottom`, or empty to follow the platform. Read as `TabStripEdge.current` (`lib/widgets/site_tab_strip.dart`, FS-012), which resolves it through the pure `TabStripEdge.of(stored, desktop:)`; round-trips through settings backup
-- `AppPref.tabBarButton` (default off) - Global pref under the `tabBarButton` SharedPreferences key. When set, a floating button reveals the tab strip (and its overflow menu) on demand, in and out of full screen (FS-009). Read falls back to the legacy `tabBarButtonInFullscreen` key (and backup field) once on upgrade. `AppPref.tabBarButtonOnRight` is the legacy app-wide corner default, mapped to a bottom corner via `_tabBarButtonCornerEffective` only for sites whose per-site `tabBarButtonCorner` is null (still read from prefs/backups, never written by UI anymore); `bool FullscreenController.tabBarOverlayVisible` is the runtime-only flag for "the button has revealed the strip" (reset on exit-fullscreen and site switch, never persisted).
+- `AppPref.tabBarButton` (default off) - Global pref under the `tabBarButton` SharedPreferences key. When set, a floating button reveals the tab strip (and its overflow menu) on demand, in and out of full screen (FS-009). Read falls back to the legacy `tabBarButtonInFullscreen` key (and backup field) once on upgrade. `AppPref.tabBarButtonOnRight` is the legacy app-wide corner default, mapped to a bottom corner via `_tabBarButtonCornerEffective` only for sites whose per-site `tabBarButtonCorner` is null (still read from prefs/backups, never written by UI anymore); `FullscreenController.tabStripRevealed` is the runtime-only flag for "the button has revealed the strip", never persisted; only the controller writes it (`revealTabStrip`, `hideTabStrip`, and entering or leaving full screen), and the page's `resetForEntry` hides it on a shortcut or notification tap.
 - `AppPref.fullscreenOnShortcut` (on by default) - Global pref under the `fullscreenOnShortcut` SharedPreferences key. Both shortcut launch paths — `_openShortcutIndex` (warm) and the cold-launch restore path (`indexToRestore != null`) — route the decision through the pure `StartupRestoreEngine.shouldEnterFullscreen(viaShortcut, fullscreenOnShortcut, perSiteFullscreenMode)` policy and call `FullscreenController.enter()` when it returns true. The policy returns `perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut)`, so a normal in-app switch (`viaShortcut: false`) is never pulled into fullscreen by the global option. Covered by `test/startup_restore_engine_test.dart`.
 
 ### UI Changes
 
 - **App bar**: Hidden when `FullscreenController.active` is true (`appBar: _fullscreen.active ? null : _buildAppBar()`)
-- **Tab strip**: `_buildTabStrip(at:)` builds the strip for one edge and returns null unless `_tabStripEdge` (the edge it is on screen at, or null while `_tabStripShown` is false) is that edge. The bottom one sits in `bottomNavigationBar` and owns the bottom safe-area inset; the top one leads the body `Column`, above the keyed site stack, so the body `SafeArea` gives it the top inset in full screen (FS-012). `_tabStripShown` is false in full screen unless the global `tabStripInFullscreen` pref is set. The `_tabStripShown` getter also renders it on demand in either mode when `_tabBarButton && FullscreenController.tabBarOverlayVisible`; the revealed strip carries an inline close button.
-- **Tab bar button**: the `_tabBarButtonShown` getter places `TabBarCornerOverlay` (`lib/widgets/tab_bar_corner_button.dart`, a hit-test-transparent `Padding > AnimatedAlign` around `TabBarCornerButton`) in the body `Stack` inside a `Positioned.fill`, resting at the corner from `_tabBarButtonCornerEffective` (the active site's `tabBarButtonCorner`, or the legacy app-wide default mapped to a bottom corner when null). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping sets `FullscreenController.tabBarOverlayVisible = true` (FS-009). The widget recognizes both an immediate pan and a long-press drag (same callbacks; one recognizer wins per gesture); the drag tracks the finger through the overlay's runtime-only drag alignment (fractional position from `tabBarCornerDragFraction`, measured against the area the overlay fills; `AnimatedAlign` runs with `Duration.zero` while dragging so the button follows instantly). On release the overlay picks `tabBarCornerNearest` (quadrant of the drop point) and reports it through `onCornerChosen`; the page stores it on the current site's model and persists it through `_commitSites`, and the `AnimatedAlign` glides the button to its corner (`Motion.settle`, 250ms ease-out). Corner math is pure and covered by `test/tab_bar_corner_test.dart`; gesture recognition by `test/tab_bar_corner_button_test.dart`.
+- **Tab strip**: `_buildTabStrip(at:)` builds the strip for one edge and returns null unless `_tabStripEdge` (the edge it is on screen at, or null while `_tabStripShown` is false) is that edge. The bottom one sits in `bottomNavigationBar` and owns the bottom safe-area inset; the top one leads the body `Column`, above the keyed site stack, so the body `SafeArea` gives it the top inset in full screen (FS-012). `_tabStripShown` is false in full screen unless the global `tabStripInFullscreen` pref is set. The `_tabStripShown` getter also renders it on demand in either mode when `_tabBarButton && FullscreenController.tabStripRevealed`; the revealed strip carries an inline close button.
+- **Tab bar button**: the `_tabBarButtonShown` getter places `TabBarCornerOverlay` (`lib/widgets/tab_bar_corner_button.dart`, a hit-test-transparent `Padding > AnimatedAlign` around `TabBarCornerButton`) in the body `Stack` inside a `Positioned.fill`, resting at the corner from `_tabBarButtonCornerEffective` (the active site's `tabBarButtonCorner`, or the legacy app-wide default mapped to a bottom corner when null). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping calls `FullscreenController.revealTabStrip` (FS-009). The widget recognizes both an immediate pan and a long-press drag (same callbacks; one recognizer wins per gesture); the drag tracks the finger through the overlay's runtime-only drag alignment (fractional position from `tabBarCornerDragFraction`, measured against the area the overlay fills; `AnimatedAlign` runs with `Duration.zero` while dragging so the button follows instantly). On release the overlay picks `tabBarCornerNearest` (quadrant of the drop point) and reports it through `onCornerChosen`; the page stores it on the current site's model and persists it through `_commitSites`, and the `AnimatedAlign` glides the button to its corner (`Motion.settle`, 250ms ease-out). Corner math is pure and covered by `test/tab_bar_corner_test.dart`; gesture recognition by `test/tab_bar_corner_button_test.dart`.
 - **Input bar**: `_buildInputBar()` returns null when `_fullscreen.active`
 - **Body insets**: The fullscreen body keeps top/bottom `SafeArea` active (`top: _fullscreen.active`, `bottom: _fullscreen.active || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen. Left/right insets are dropped in fullscreen (`left: !_fullscreen.active`, `right: !_fullscreen.active`) so the webview uses the display-cutout strip beside a landscape notch (FS-010); out of fullscreen they stay active so chrome avoids the notch.
 - **Display cutout (FS-010)**: `MainActivity.onCreate` sets `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` (API 28+) so the window may extend into the cutout on short edges. Without it, hiding the system bars makes Android letterbox the cutout strip black.

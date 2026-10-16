@@ -13,8 +13,7 @@ abstract interface class FullscreenHost implements PageHost {
 }
 
 /// Full screen (FS-*): whether the page is in it, the system UI mode it
-/// holds, and the tab strip the tab-bar button reveals over it, which leaving
-/// full screen hides again.
+/// holds, and the tab strip the tab-bar button reveals.
 class FullscreenController {
   FullscreenController({
     required FullscreenHost host,
@@ -28,14 +27,19 @@ class FullscreenController {
   /// Hides the app bar, the tab strip and the system UI.
   bool active = false;
 
-  /// Whether the tab-bar button has revealed the tab strip. Runtime only.
-  bool tabBarOverlayVisible = false;
+  /// Whether the tab-bar button has revealed the tab strip (FS-009). Runtime
+  /// only. A site switch out of full screen keeps it; its dismiss control,
+  /// full screen and an app entry point end it.
+  bool get tabStripRevealed => _tabStripRevealed;
+  bool _tabStripRevealed = false;
 
   Timer? _revealedBarsHideTimer;
 
-  /// Only Android's embedder implements the listener; elsewhere registering
-  /// it throws MissingPluginException.
   void start() {
+    AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
+    AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
+    // Only Android's embedder implements the listener; elsewhere registering
+    // it throws MissingPluginException.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       unawaited(SystemChrome.setSystemUIChangeCallback(onSystemUiChange));
     }
@@ -43,7 +47,29 @@ class FullscreenController {
 
   void dispose() {
     _revealedBarsHideTimer?.cancel();
+    AppPref.tabStripInFullscreen.listenable
+        .removeListener(_onTabStripPrefChanged);
+    AppPref.tabBarButton.listenable.removeListener(_onTabStripPrefChanged);
     unawaited(SystemChrome.setSystemUIChangeCallback(null));
+  }
+
+  void _onTabStripPrefChanged() {
+    if (!AppPref.tabBarButton.value) hideTabStrip();
+    if (active) apply();
+  }
+
+  void revealTabStrip() {
+    if (_tabStripRevealed) return;
+    _tabStripRevealed = true;
+    _host.rebuild();
+    _surface.nudge('tab-overlay-show');
+  }
+
+  void hideTabStrip() {
+    if (!_tabStripRevealed) return;
+    _tabStripRevealed = false;
+    _host.rebuild();
+    _surface.nudge('tab-overlay-hide');
   }
 
   void enter() {
@@ -51,9 +77,13 @@ class FullscreenController {
       // The mode depends on the kiosk lock and the tab strip prefs, which a
       // shortcut launch or an import can change while already full screen.
       apply();
+      // A site or tab landing in full screen: there a revealed strip lasts
+      // one pick.
+      hideTabStrip();
       return;
     }
     active = true;
+    _tabStripRevealed = false;
     _host.rebuild();
     apply();
     // Removing the app bar / changing the bottom bar resizes the webview; on
@@ -73,7 +103,7 @@ class FullscreenController {
     if (!active) return;
     _revealedBarsHideTimer?.cancel();
     active = false;
-    tabBarOverlayVisible = false;
+    _tabStripRevealed = false;
     _host.rebuild();
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     _surface.nudge('fullscreen-exit');

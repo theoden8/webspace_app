@@ -61,9 +61,9 @@ abstract interface class ShortcutHost implements PageHost {
   set kioskLocked(bool locked);
   bool get kioskLocked;
 
-  /// A shortcut tap is an app entry point: nothing pushed over the page may
-  /// stay on top of the site it opens.
-  void popToRoot();
+  /// A shortcut tap is an app entry point: the site it opens comes up with
+  /// nothing over the page, neither a pushed route nor a revealed tab strip.
+  void resetForEntry();
 
   Future<void> activate(WebViewModel site);
   void enterFullscreen();
@@ -312,7 +312,7 @@ class ShortcutController implements HomeShortcutsHost {
     if (launch == null) return none;
     if (warm) {
       if (!_host.mounted) return none;
-      _host.popToRoot();
+      _host.resetForEntry();
     }
     // iOS carries the url in the launch payload; Android pairs the id with
     // its url ledger; the iOS tombstone is the last resort for a stale cached
