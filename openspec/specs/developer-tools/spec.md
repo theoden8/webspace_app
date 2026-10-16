@@ -460,6 +460,24 @@ The App Logs ring (DEVTOOLS-004) cannot answer that question. It lives in memory
 
 ---
 
+### Requirement: DEVTOOLS-013 - Launch Timeline
+
+Each launch SHALL write one App Logs line, tagged Startup, giving the time from `main()` to each launch phase it reached: runApp, first frame, sites on page, site activated, webview built, page started, page settled. The line SHALL be written when the launched site's first load settles or stops being waited for (`kLaunchLoadWait`), or as soon as the activation ends when the launch opened no site. It names no site and is not sensitive, so a launch can be timed on a device with no debugger attached ([launch_timeline.dart](../../../lib/services/launch_timeline.dart)).
+
+#### Scenario: A shortcut launch is timed on the device
+
+**Given** a release build launched from a shortcut
+**When** the site's first load settles
+**Then** App Logs carries one Startup line listing each phase reached with its milliseconds from `main()`
+
+#### Scenario: One line per process
+
+**Given** the launch line has been written
+**When** another webview is built or loads
+**Then** no second launch line is written
+
+---
+
 ### Requirement: DEVTOOLS-007 - Console Eval
 
 The app SHALL provide a JavaScript evaluation input in the Console tab, allowing users to execute arbitrary JS in the context of the current page and see results inline, like a standard browser console.
