@@ -443,33 +443,47 @@ webview's own, never the page's. The polyfill stays in frames so
 **Then** no OS notification is shown
 **And** a post from Acme's own document, or a same-origin frame, is shown as before
 
-### Requirement: NOTIF-011 - A loaded notification site vetoes the app-background JS pause
+### Requirement: NOTIF-011 - A notification site vetoes the app-background JS pause
 
 `AppLifecycleEngine.backgroundPlan` SHALL return `jsPauseIndex: null` when
-ANY loaded site has `effectiveNotificationsEnabled`, not only when the active
-site does, and `resumeJsIndex` SHALL mirror the decision. Android's
-`pauseTimers()` is process-global: pausing the site on screen freezes the
-page JS of every notification site behind it, and that JS is what posts the
-notification. Same shape as BGAUDIO-002, and one decision on both platforms
-(on iOS the pause is per-instance, so the only cost is the active site
-running until iOS suspends the app).
+ANY site has `effectiveNotificationsEnabled`, loaded or not, and not only
+when the active site does; `resumeJsIndex` SHALL mirror the decision.
+Android's `pauseTimers()` is process-global and reaches every webview in the
+process, including ones built after it. Pausing the site on screen freezes
+the page JS of every notification site behind it, and that JS is what posts
+the notification. It also stalls every headless check a wake opens for an
+unloaded notification site (NOTIF-016): the check is built in the same
+process, and its load never finishes. The veto first counted only loaded
+sites, and on a device every wake after a paused exit ran out its deadline
+with both checks still loading (BUG-024 attempt 11). Same shape as
+BGAUDIO-002, and one decision on both platforms (on iOS the pause is
+per-instance, so the only cost is the active site running until iOS
+suspends the app). `anyNotifications` takes no loaded set, so a veto over
+loaded sites alone cannot come back without changing its signature.
 
-The `App background:` decision line SHALL carry `notif=<count>`, the number
-of loaded notification sites, so a `jsPause=true` line can be told apart from
-a broken exemption.
+The `App background:` decision line SHALL carry the notification sites
+enabled and loaded (`notif sites <enabled> enabled, <loaded> loaded`), so a
+`jsPause=true` line can be told apart from a broken exemption.
 
 #### Scenario: Notification site behind a plain active site
 
 **Given** plain site A is on screen and notification site B is loaded behind it
 **When** the app goes to background
-**Then** no JS pause is issued and the decision line reads `jsPause=false ... notif=1 loaded`
+**Then** no JS pause is issued and the decision line reads `jsPause=false ... notif sites 1 enabled, 1 loaded`
 **And** state capture still runs for site A
 
-#### Scenario: Unloaded notification site does not veto
+#### Scenario: Unloaded notification site vetoes too
 
-**Given** plain site A is on screen and notification site B is not loaded
+**Given** Android, plain site A is on screen and notification site B is not loaded
+**When** the app goes to background and a later wake checks site B headless
+**Then** no JS pause is issued (`jsPause=false ... notif sites 1 enabled, 0 loaded`)
+**And** the headless check's load can finish
+
+#### Scenario: No notification site
+
+**Given** plain site A is on screen and no site has notifications on
 **When** the app goes to background
-**Then** site A is paused as before (`jsPause=true`, `notif=0`)
+**Then** site A is paused as before (`jsPause=true ... notif sites 0 enabled, 0 loaded`)
 
 ### Requirement: NOTIF-012 - The background-delivery test starts at the server
 
@@ -518,8 +532,20 @@ page had loaded and a wake never ran page JS at all. A load counts as settled
 once it has been seen to start and stop, or when it never started within the
 first second; a webview that goes away mid-wake stops counting. The
 foreground branch (Android's worker firing while the app is visible) keeps
-`BackgroundSitesController.refreshSites(excludeActive: true)`. Structural gate:
+`BackgroundSitesController.refreshSites`, which reloads around the site on
+screen. Visible is `resumed` or `inactive`
+(`AppLifecycleEngine.refreshTickOnScreen`): `inactive` is the step between
+`resumed` and `hidden` either way, and a tick Battery Saver held back runs
+as the app returns, in that step, where a wake reloaded the page the user had
+just opened (BUG-024 attempt 11). Structural gate:
 `test/js/background_refresh_active_site.test.js`.
+
+#### Scenario: A held-back tick lands as the app returns
+
+**Given** Android, and the periodic refresh was deferred while the app was in the background
+**When** the worker fires as the app comes back, in `AppLifecycleState.inactive`
+**Then** `refreshSites` runs and the site on screen is not reloaded
+**And** no background wake runs
 
 #### Scenario: A wake does not end before the page has loaded
 

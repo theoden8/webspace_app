@@ -17,10 +17,11 @@ import 'dart:ui' show AppLifecycleState;
 
 class LifecycleBackgroundPlan {
   /// Active site whose JS timers should pause for the background, or null when
-  /// there is no eligible active site, or ANY loaded site has notifications
-  /// (NOTIF-011) or background audio (BGAUDIO-002) enabled: the pause is
-  /// process-global on Android, so pausing the active site would also freeze
-  /// every backgrounded site that has to keep running.
+  /// there is no eligible active site, ANY site has notifications enabled
+  /// (NOTIF-011), or ANY loaded site has background audio (BGAUDIO-002): the
+  /// pause is process-global on Android, so pausing the active site would also
+  /// freeze every backgrounded site that has to keep running, and every
+  /// headless check a wake opens.
   final int? jsPauseIndex;
 
   /// Active site whose restore-state bytes should be captured, or null. Capture
@@ -61,6 +62,15 @@ class AppLifecycleEngine {
   /// connections included (PAUSE-034, BUG-024).
   static bool memoryPressureTrims(AppLifecycleState? state) =>
       state == AppLifecycleState.resumed;
+
+  /// Whether an Android refresh tick finds the app on screen, where it reloads
+  /// around the site the user sees instead of running a wake (NOTIF-006).
+  /// `inactive` is on screen: it is the step between `resumed` and `hidden`
+  /// either way, and a split-screen app without focus. A tick Battery Saver
+  /// held back runs as the app returns, in that step, and a wake there
+  /// reloaded the page the user had just opened.
+  static bool refreshTickOnScreen(AppLifecycleState? state) =>
+      state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
 
   /// The active, in-bounds, loaded site index eligible for lifecycle
   /// pause/resume, or null. Mirrors the call-site guard
@@ -114,18 +124,17 @@ class AppLifecycleEngine {
     return out;
   }
 
-  /// True when any loaded, in-bounds site has notifications enabled
-  /// (NOTIF-011). Same veto shape as [anyLoadedBackgroundAudio]: the page JS
-  /// that posts a notification is the page's own, so a notification site
-  /// sitting behind a plain active site is frozen by the process-global
-  /// Android pause exactly as an audio site's player is.
-  static bool anyLoadedNotifications({
+  /// True when any site has notifications enabled, loaded or not (NOTIF-011).
+  /// Android's pause is process-global and reaches every webview in the
+  /// process, those built after it too: a loaded notification site's page JS
+  /// is what posts, and a wake opens every unloaded one in a headless webview
+  /// here (NOTIF-016), whose load stalls under the pause (BUG-024 attempt 11).
+  /// It takes no loaded set, so a veto over loaded sites alone cannot return.
+  static bool anyNotifications({
     required int siteCount,
-    required Set<int> loadedIndices,
     required bool Function(int index) notificationsEnabled,
   }) {
-    for (final i in loadedIndices) {
-      if (i < 0 || i >= siteCount) continue;
+    for (var i = 0; i < siteCount; i++) {
       if (notificationsEnabled(i)) return true;
     }
     return false;
@@ -137,9 +146,8 @@ class AppLifecycleEngine {
     required bool Function(int index) notificationsEnabled,
     required bool Function(int index) backgroundAudioEnabled,
   }) =>
-      anyLoadedNotifications(
+      anyNotifications(
         siteCount: siteCount,
-        loadedIndices: loadedIndices,
         notificationsEnabled: notificationsEnabled,
       ) ||
       anyLoadedBackgroundAudio(
@@ -149,10 +157,10 @@ class AppLifecycleEngine {
       );
 
   /// Plan for `AppLifecycleState.paused`. The active site's JS timers pause
-  /// only when it is loaded and no loaded site has notifications or
-  /// background audio enabled; restore-state is captured for any loaded
-  /// active site. Every loaded site without background audio has its media
-  /// paused (BGAUDIO-009), the active one included.
+  /// only when it is loaded, no site has notifications enabled and no loaded
+  /// site has background audio enabled; restore-state is captured for any
+  /// loaded active site. Every loaded site without background audio has its
+  /// media paused (BGAUDIO-009), the active one included.
   ///
   /// [cookieFlushSupported] is the caller's platform answer for
   /// `CookieManager.flush` (Android only — everywhere else the platform
@@ -202,8 +210,8 @@ class AppLifecycleEngine {
 
   /// Active site whose JS timers should resume on `AppLifecycleState.resumed`:
   /// the loaded active site unless the background plan would have skipped its
-  /// pause (a loaded notification or background-audio site: never paused, so
-  /// nothing to resume). The renderer probe runs against
+  /// pause (a notification site, or a loaded background-audio site: never
+  /// paused, so nothing to resume). The renderer probe runs against
   /// [activeLoadedIndex] regardless — exempted sites included.
   static int? resumeJsIndex({
     required int? currentIndex,

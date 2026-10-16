@@ -516,7 +516,10 @@ void main() {
       expect(plan.captureStateIndex, 0);
     });
 
-    test('unloaded notification site does not veto the pause', () {
+    // BUG-024 attempt 11: a wake opens an unloaded notification site in a
+    // headless webview in this process (NOTIF-016), and Android's pause
+    // stalls its load. Every wake after a paused exit ran out its deadline.
+    test('an unloaded notification site vetoes the pause too', () {
       final plan = AppLifecycleEngine.backgroundPlan(
         currentIndex: 0,
         siteCount: 3,
@@ -525,34 +528,78 @@ void main() {
         backgroundAudioEnabled: (_) => false,
         cookieFlushSupported: true,
       );
+      expect(plan.jsPauseIndex, isNull);
+      expect(plan.captureStateIndex, 0);
+    });
+
+    test('with no notification site anywhere the plain site pauses', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 3,
+        loadedIndices: {0},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
+        cookieFlushSupported: true,
+      );
       expect(plan.jsPauseIndex, 0);
     });
 
     test('resume mirrors the skipped pause (nothing to resume)', () {
-      expect(
-        AppLifecycleEngine.resumeJsIndex(
-          currentIndex: 0,
-          siteCount: 3,
-          loadedIndices: {0, 2},
-          notificationsEnabled: (i) => i == 2,
-          backgroundAudioEnabled: (_) => false,
-        ),
-        isNull,
-      );
+      for (final loaded in [
+        {0, 2},
+        {0},
+      ]) {
+        expect(
+          AppLifecycleEngine.resumeJsIndex(
+            currentIndex: 0,
+            siteCount: 3,
+            loadedIndices: loaded,
+            notificationsEnabled: (i) => i == 2,
+            backgroundAudioEnabled: (_) => false,
+          ),
+          isNull,
+          reason: 'loaded $loaded',
+        );
+      }
     });
 
-    test('out-of-bounds loaded index never reaches the flag callback', () {
+    test('only indices inside the site list reach the flag callback', () {
+      final asked = <int>[];
       expect(
-        AppLifecycleEngine.anyLoadedNotifications(
+        AppLifecycleEngine.anyNotifications(
           siteCount: 2,
-          loadedIndices: {0, 5},
           notificationsEnabled: (i) {
-            expect(i, lessThan(2));
+            asked.add(i);
             return false;
           },
         ),
         isFalse,
       );
+      expect(asked, [0, 1]);
+    });
+  });
+
+  group('AppLifecycleEngine.refreshTickOnScreen (NOTIF-006)', () {
+    test('resumed and inactive reload around the site on screen', () {
+      expect(
+          AppLifecycleEngine.refreshTickOnScreen(AppLifecycleState.resumed),
+          isTrue);
+      expect(
+          AppLifecycleEngine.refreshTickOnScreen(AppLifecycleState.inactive),
+          isTrue,
+          reason: 'a tick Battery Saver held back lands as the app returns');
+    });
+
+    test('off screen, or in a process with no activity, the tick wakes', () {
+      for (final state in [
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.detached,
+        null,
+      ]) {
+        expect(AppLifecycleEngine.refreshTickOnScreen(state), isFalse,
+            reason: '$state');
+      }
     });
   });
 }
