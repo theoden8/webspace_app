@@ -451,6 +451,7 @@
   "siteSettingsZoomIn": "Povećaj",
   "siteSettingsTheme": "Tema",
   "siteSettingsThemeHint": "Traži od stranica web-mjesta svijetle ili tamne boje. Stranice bez tamnog načina rada izgledaju isto u oba slučaja.",
+  "siteSettingsThemeFollowAppShort": "Aplikacija",
   "siteSettingsHttpsUpgrade": "Nadogradnja na HTTPS",
   "siteSettingsHttpsUpgradeHint": "Učitava stranice preko šifrirane https veze čak i kada adresa počinje s http, tako da se ono što čitate i šaljete ne može pratiti ni mijenjati na mreži. Stranice koje ne nude šifriranu vezu i dalje se učitavaju preko običnog http-a i više se ne nadograđuju. Isključite to samo za stranicu koja je nema.",
   "siteSettingsThirdPartyCookies": "Kolačići trećih strana",

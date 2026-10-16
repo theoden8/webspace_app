@@ -451,6 +451,7 @@
   "siteSettingsZoomIn": "تكبير",
   "siteSettingsTheme": "السمة",
   "siteSettingsThemeHint": "يطلب من صفحات الموقع استخدام ألوان فاتحة أو داكنة. الصفحات التي لا تدعم الوضع الداكن تبدو كما هي في الحالتين.",
+  "siteSettingsThemeFollowAppShort": "التطبيق",
   "siteSettingsHttpsUpgrade": "الترقية إلى HTTPS",
   "siteSettingsHttpsUpgradeHint": "يحمّل الصفحات عبر اتصال https المشفّر حتى عندما يبدأ العنوان بـ http، بحيث لا يمكن مراقبة ما تقرأه وترسله أو تعديله على الشبكة. المواقع التي لا توفّر اتصالاً مشفّراً تظل تُحمّل عبر http العادي ولا تُرقّى مرة أخرى. أوقفه فقط لموقع لا يوفّر ذلك.",
   "siteSettingsThirdPartyCookies": "ملفات تعريف الارتباط من الطرف الثالث",
