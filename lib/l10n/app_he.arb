@@ -451,6 +451,7 @@
   "siteSettingsZoomIn": "הגדל זום",
   "siteSettingsTheme": "ערכת נושא",
   "siteSettingsThemeHint": "מבקש מדפי האתר להשתמש בצבעים בהירים או כהים. דפים ללא מצב כהה נראים אותו דבר בשני המקרים.",
+  "siteSettingsThemeFollowAppShort": "אפליקציה",
   "siteSettingsHttpsUpgrade": "שדרוג ל-HTTPS",
   "siteSettingsHttpsUpgradeHint": "טוען דפים דרך חיבור https מוצפן גם כשהכתובת מתחילה ב-http, כך שלא ניתן לצפות במה שאתם קוראים ושולחים או לשנות אותו ברשת. אתרים שאינם מציעים חיבור מוצפן עדיין נטענים ב-http רגיל ואינם משודרגים שוב. כבו זאת רק עבור אתר שאין לו חיבור כזה.",
   "siteSettingsThirdPartyCookies": "עוגיות צד שלישי",

@@ -451,6 +451,7 @@
   "siteSettingsZoomIn": "Zoom inn",
   "siteSettingsTheme": "Tema",
   "siteSettingsThemeHint": "Ber nettstedets sider om lyse eller mørke farger. Sider uten mørk modus ser like ut i begge tilfeller.",
+  "siteSettingsThemeFollowAppShort": "App",
   "siteSettingsHttpsUpgrade": "HTTPS-oppgradering",
   "siteSettingsHttpsUpgradeHint": "Laster sider over den krypterte https-forbindelsen selv når adressen begynner med http, slik at det du leser og sender ikke kan overvåkes eller endres på nettverket. Nettsteder som ikke tilbyr kryptert forbindelse lastes fortsatt over vanlig http og oppgraderes ikke på nytt. Slå det av bare for et nettsted som ikke har noen.",
   "siteSettingsThirdPartyCookies": "Tredjeparts informasjonskapsler",

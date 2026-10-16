@@ -451,6 +451,7 @@
   "siteSettingsZoomIn": "Inzoomen",
   "siteSettingsTheme": "Thema",
   "siteSettingsThemeHint": "Vraagt de pagina's van de site om lichte of donkere kleuren. Pagina's zonder donkere modus zien er in beide gevallen hetzelfde uit.",
+  "siteSettingsThemeFollowAppShort": "App",
   "siteSettingsHttpsUpgrade": "HTTPS-upgrade",
   "siteSettingsHttpsUpgradeHint": "Laadt pagina's via de versleutelde https-verbinding, ook wanneer het adres met http begint, zodat wat u leest en verstuurt niet op het netwerk kan worden bekeken of gewijzigd. Sites zonder versleutelde verbinding worden nog steeds via gewoon http geladen en worden niet opnieuw omgezet. Schakel dit alleen uit voor een site die er geen heeft.",
   "siteSettingsThirdPartyCookies": "Cookies van derden",
