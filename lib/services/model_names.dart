@@ -13,100 +13,203 @@ import 'package:webspace/services/activation_step.dart';
 /// (`activation_vars`), so a variable left out of a frame or named twice
 /// cannot happen.
 enum ModelVar {
-  rows('rows[q]: the site at position q'),
-  loaded('sites with a webview (SiteRuntime.loaded)'),
-  current('site on screen, 0 for home (SiteRuntime.shown)'),
-  version('SiteRuntime.activationVersion'),
-  marker('SiteRuntime.activating: [t |-> site, v |-> version]'),
-  tier('tier[s]: "resident", "cleared" (cacheCleared) or "saved" (savedForRestore)'),
-  jar('sites whose session the shared jar holds'),
-  stored("stored[s]: sites whose session s's storage holds"),
-  signedIn('sites whose page set a session (ghost)'),
-  holder("the flow holding the jar's turn, 0 for none"),
-  queue('flows waiting for the turn, in order; 0 is the jar clear queued at launch'),
-  fl('fl[f]: the flow the f-th input started'),
-  inputs('inputs so far'),
-  newest('the flow of the newest activation, 0 after home (ghost)'),
-  evictedShown('a priority-picked unload disposed a protected site (ghost)'),
-  seen('the reachability witnesses met (ghost)'),
-  last('the step just taken: action, flow, outcome, site (ghost)'),
-  tabs("tabs[s]: the ids of s's tabs (WebViewModel.tabs)"),
-  active('active[s]: its active tab (activeTabId)'),
-  built('built[s]: the tab its webview was built for, 0 for none (WebViewTabBinding.built)'),
-  hist("hist[s]: the tab whose history the webview shows, 0 for none (the bytes' label)"),
-  queued('queued[s]: the back stack queued for the next build: the tab it was read for and the tab whose history it is (WebViewTabBinding.queued)'),
-  file("file[s][t]: the tab whose history t's saved file holds, 0 for no file (WebViewStateStorage)"),
-  minted('minted[s]: the last tab id s took (environment)'),
-  nested('the site whose nested screen is up, 0 for none (SiteRuntime.nested)'),
-  headless('sites a background wake checks in a headless webview (SiteRuntime.headless)'),
-  fore('the app on screen (environment)'),
-  dns('[lvl |-> the app-wide DNS level, levels |-> the levels whose lists are downloaded] (DnsBlockService)'),
-  told("told[s]: the DNS level s's webview told its native interceptor, -1 for none (ViewBlockers)"),
-  gone('sites that left the list (SiteRuntime.models)'),
-  views('sites whose webview is mounted, binding its container (the platform)'),
-  boxes('archive-tier sites whose container is on disk (ContainerNative)');
+  rows(
+    'rows[q]: the site at position q',
+    type: r'rows \in [Pos -> Sites]',
+  ),
+  loaded(
+    'sites with a webview (SiteRuntime.loaded)',
+    type: r'loaded \subseteq Sites',
+  ),
+  current(
+    'site on screen, 0 for home (SiteRuntime.shown)',
+    type: r'current \in Sites \cup {0}',
+  ),
+  version(
+    'SiteRuntime.activationVersion',
+    type: r'version \in Nat',
+  ),
+  marker(
+    'SiteRuntime.activating: [t |-> site, v |-> version]',
+    type: r'marker \in [t : Sites \cup {0}, v : Nat]',
+  ),
+  tier(
+    'tier[s]: "resident", "cleared" (cacheCleared) or "saved" (savedForRestore)',
+    type: r'tier \in [Sites -> {"resident", "cleared", "saved"}]',
+  ),
+  jar(
+    'sites whose session the shared jar holds',
+    type: r'jar \subseteq Sites',
+  ),
+  stored(
+    "stored[s]: sites whose session s's storage holds",
+    type: r'stored \in [Sites -> SUBSET Sites]',
+  ),
+  signedIn(
+    'sites whose page set a session (ghost)',
+    type: r'signedIn \subseteq Sites',
+  ),
+  holder(
+    "the flow holding the jar's turn, 0 for none",
+    type: r'holder \in Flows \cup {0}',
+  ),
+  queue(
+    'flows waiting for the turn, in order; 0 is the jar clear queued at launch',
+    type: r'queue \in Seq(Flows \cup {0})',
+  ),
+  fl(
+    'fl[f]: the flow the f-th input started',
+    type: r'fl \in [Flows -> FlowRecord]',
+  ),
+  inputs(
+    'inputs so far',
+    type: r'inputs \in Nat',
+  ),
+  newest(
+    'the flow of the newest activation, 0 after home (ghost)',
+    type: r'newest \in Flows \cup {0}',
+  ),
+  evictedShown(
+    'a priority-picked unload disposed a protected site (ghost)',
+    type: r'evictedShown \in BOOLEAN',
+  ),
+  seen(
+    'the reachability witnesses met (ghost)',
+    type: r'seen \subseteq STRING',
+  ),
+  last(
+    'the step just taken: action, flow, outcome, site (ghost)',
+    type: r'last.a = "init" \/ last.o \in Outcomes[last.a]',
+  ),
+  tabs(
+    "tabs[s]: the ids of s's tabs (WebViewModel.tabs)",
+    type: r'tabs \in [Sites -> SUBSET TabIds]',
+  ),
+  active(
+    'active[s]: its active tab (activeTabId)',
+    type: r'active \in [Sites -> TabIds]',
+  ),
+  built(
+    'built[s]: the tab its webview was built for, 0 for none (WebViewTabBinding.built)',
+    type: r'built \in [Sites -> TabIds \cup {0}]',
+  ),
+  hist(
+    "hist[s]: the tab whose history the webview shows, 0 for none (the bytes' label)",
+    type: r'hist \in [Sites -> TabIds \cup {0}]',
+  ),
+  queued(
+    'queued[s]: the back stack queued for the next build: the tab it was read for and the tab whose history it is (WebViewTabBinding.queued)',
+    type: r'queued \in [Sites -> [t : TabIds \cup {0}, h : TabIds \cup {0}]]',
+  ),
+  file(
+    "file[s][t]: the tab whose history t's saved file holds, 0 for no file (WebViewStateStorage)",
+    type: r'file \in [Sites -> [TabIds -> TabIds \cup {0}]]',
+  ),
+  minted(
+    'minted[s]: the last tab id s took (environment)',
+    type: r'minted \in [Sites -> TabIds]',
+  ),
+  nested(
+    'the site whose nested screen is up, 0 for none (SiteRuntime.nested)',
+    type: r'nested \in Sites \cup {0}',
+  ),
+  headless(
+    'sites a background wake checks in a headless webview (SiteRuntime.headless)',
+    type: r'headless \subseteq Sites',
+  ),
+  fore(
+    'the app on screen (environment)',
+    type: r'fore \in BOOLEAN',
+  ),
+  dns(
+    '[lvl |-> the app-wide DNS level, levels |-> the levels whose lists are downloaded] (DnsBlockService)',
+    type: r'dns \in [lvl : 0..5, levels : SUBSET (1..5)]',
+  ),
+  told(
+    "told[s]: the DNS level s's webview told its native interceptor, -1 for none (ViewBlockers)",
+    type: r'told \in [Sites -> -1..5]',
+  ),
+  gone(
+    'sites that left the list (SiteRuntime.models)',
+    type: r'gone \subseteq Sites',
+  ),
+  views(
+    'sites whose webview is mounted, binding its container (the platform)',
+    type: r'views \subseteq Sites',
+  ),
+  boxes(
+    'archive-tier sites whose container is on disk (ContainerNative)',
+    type: r'boxes \subseteq Sites',
+  );
 
-  const ModelVar(this.doc);
+  const ModelVar(this.doc, {required this.type});
 
   /// What the declaration says of it.
   final String doc;
+
+  /// The values it can hold, as a predicate over it: a conjunct of the
+  /// printed `TypeOK`.
+  final String type;
 }
 
 /// Every field a flow's record carries (`fl[f].<field>`), with what it is
 /// when no flow runs (`NoFlow`, printed from here): the one place a field
 /// is named, which every [Field] takes its name from.
 enum FlowField {
-  kind('"none"'),
-  pc('"done"'),
-  site('0'),
-  v('0'),
-  victims('{}'),
-  clears('{}'),
-  picked('{}'),
-  victim('0'),
-  snap('{}'),
-  ls('{}'),
-  todo('{}'),
-  tmp('{}'),
-  unloaded('FALSE'),
-  tab('0'),
-  keep('FALSE'),
-  rest('{}'),
-  closing('{}'),
-  copy('0'),
-  label('0'),
-  wrote('FALSE'),
+  kind('"none"', range: r'FlowKinds'),
+  pc('"done"', range: r'Places'),
+  site('0', range: r'Sites \cup {0}'),
+  v('0', range: r'Nat'),
+  victims('{}', range: r'SUBSET Sites'),
+  clears('{}', range: r'SUBSET Sites'),
+  picked('{}', range: r'SUBSET Sites'),
+  victim('0', range: r'Sites \cup {0}'),
+  snap('{}', range: r'SUBSET Sites'),
+  ls('{}', range: r'SUBSET Sites'),
+  todo('{}', range: r'SUBSET Sites'),
+  tmp('{}', range: r'SUBSET Sites'),
+  unloaded('FALSE', range: r'BOOLEAN'),
+  tab('0', range: r'TabIds \cup {0}'),
+  keep('FALSE', range: r'BOOLEAN'),
+  rest('{}', range: r'SUBSET TabIds'),
+  closing('{}', range: r'SUBSET TabIds'),
+  copy('0', range: r'TabIds \cup {0}'),
+  label('0', range: r'TabIds \cup {0}'),
+  wrote('FALSE', range: r'BOOLEAN'),
 
   /// What a capture read as it started: the webview's tab and the history
   /// it showed, held for the file write its reply makes (`Capture`).
-  capTab('0'),
-  capHist('0'),
+  capTab('0', range: r'TabIds \cup {0}'),
+  capHist('0', range: r'TabIds \cup {0}'),
 
   /// The notification sites a wake has still to check headless.
-  checks('{}'),
+  checks('{}', range: r'SUBSET Sites'),
 
   /// The sites a webspace switch stops showing, which its plan unloads
   /// once the device is online (WEBSPACE-013).
-  away('{}'),
+  away('{}', range: r'SUBSET Sites'),
 
   /// The site an activation the switch superseded was opening, which goes
   /// on loading behind the list instead of going with the rest
   /// (WEBSPACE-013).
-  behind('0'),
+  behind('0', range: r'Sites \cup {0}'),
 
   /// The DNS level a download fetches, and whether it becomes the
   /// app-wide level.
-  lvl('0'),
-  appWide('FALSE'),
+  lvl('0', range: r'0..5'),
+  appWide('FALSE', range: r'BOOLEAN'),
 
   /// A call of the restore on the shared jar was refused, so its target is
   /// not shown once the rest of the refill is written (ISO-014).
-  unrestored('FALSE');
+  unrestored('FALSE', range: r'BOOLEAN');
 
-  const FlowField(this.none);
+  const FlowField(this.none, {required this.range});
 
   /// Its value in `NoFlow`.
   final String none;
+
+  /// The values it can hold: its field of the printed `FlowRecord`.
+  final String range;
 }
 
 /// What a constant of the model is where no world sets it, which a need

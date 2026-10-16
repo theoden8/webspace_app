@@ -467,9 +467,36 @@ String activationOps(Tables t) => [
   'EXTENDS activation_base',
   '',
   for (final d in t.ops) ...[d.tla, ''],
+  ..._types(t),
   '=============================================================================',
   '',
 ].join('\n');
+
+/// What the model's variables hold, from each [ModelVar]'s type and each
+/// [FlowField]'s range: `TypeOK`, which every world checks, over the kinds
+/// a flow can be and the places of every table.
+List<String> _types(Tables t) {
+  final tables = <StepTable<Object?, Enum>>[
+    t.activation, t.tabInputs, t.tabFlow, t.unload, t.jar, t.restore,
+    t.wake, t.dns, t.archive, t.delete,
+  ];
+  final places = {
+    FlowField.pc.none,
+    for (final table in tables)
+      for (final p in table.places) '"${p.name}"',
+  };
+  return [
+    'FlowKinds == {${[FlowField.kind.none, for (final k in FlowKind.values) '"${k.name}"'].join(', ')}}',
+    '',
+    'Places == {${places.join(', ')}}',
+    '',
+    'FlowRecord == [${[for (final f in FlowField.values) '${f.name} : ${f.range}'].join(', ')}]',
+    '',
+    'TypeOK ==',
+    for (final v in ModelVar.values) '    /\\ ${v.type}',
+    '',
+  ];
+}
 
 /// What each table action reads and writes of the shared state, from its
 /// declarations alone: the definitions it calls resolved through their

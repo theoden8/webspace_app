@@ -168,33 +168,6 @@ Enqueue(f) ==
          /\ seen' = seen \cup (IF holder # 0 THEN {"queued"} ELSE {})
 Release == IF Mistake \in {"noturns", "keepturn"} THEN UNCHANGED holder ELSE holder' = 0
 
-TypeOK ==
-    /\ rows \in [Pos -> Sites]
-    /\ loaded \subseteq Sites
-    /\ current \in Sites \cup {0}
-    /\ nested \in Sites \cup {0}
-    /\ headless \subseteq Sites
-    /\ fore \in BOOLEAN
-    /\ marker.t \in Sites \cup {0}
-    /\ tier \in [Sites -> {"resident", "cleared", "saved"}]
-    /\ jar \subseteq Sites
-    /\ stored \in [Sites -> SUBSET Sites]
-    /\ holder \in Flows \cup {0}
-    /\ last.a = "init" \/ last.o \in Outcomes[last.a]
-    /\ tabs \in [Sites -> SUBSET TabIds]
-    /\ active \in [Sites -> TabIds]
-    /\ built \in [Sites -> TabIds \cup {0}]
-    /\ hist \in [Sites -> TabIds \cup {0}]
-    /\ queued \in [Sites -> [t : TabIds \cup {0}, h : TabIds \cup {0}]]
-    /\ file \in [Sites -> [TabIds -> TabIds \cup {0}]]
-    /\ minted \in [Sites -> TabIds]
-    /\ dns.lvl \in 0..5
-    /\ dns.levels \subseteq 1..5
-    /\ told \in [Sites -> -1..5]
-    /\ gone \subseteq Sites
-    /\ views \subseteq Sites
-    /\ boxes \subseteq Sites
-
 -----------------------------------------------------------------------------
 \* The live activation: the newest, not superseded since it began. A ghost,
 \* so the marker is held to it (the markerbytarget mutant).
