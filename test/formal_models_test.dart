@@ -14,7 +14,34 @@ import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/step_table.dart';
 
 void main() {
-  final printed = {for (final f in printedModels()) f.path: f.text};
+  final printed = {
+    for (final f in printedModels(handWritten: [
+      for (final m in handWrittenModules) File(m).readAsStringSync(),
+    ]))
+      f.path: f.text,
+  };
+
+  test('every step the model takes has a typing lemma the steps module cites',
+      () {
+    final tables = printed['activation_tables.tla']!;
+    final typing = [
+      for (final MapEntry(:key, :value) in printed.entries)
+        if (key.startsWith('activation_types_')) value,
+    ].join('\n');
+    final steps = printed['activation_types_steps_proof.tla']!;
+    for (final over in ['TableStep', 'InputTableStep']) {
+      final body = RegExp('^$over\\(f\\) ==\\n((?:    .*\\n)+)', multiLine: true)
+          .firstMatch(tables)![1]!;
+      final actions = [
+        for (final m in RegExp(r'\\/ (\w+)\(f\)').allMatches(body)) m[1]!,
+      ];
+      expect(actions, isNotEmpty, reason: over);
+      for (final a in actions) {
+        expect(typing, contains('LEMMA Fl_$a =='), reason: '$a has no typing lemma');
+        expect(steps, contains('Fl_$a'), reason: 'Fl_$over cites no Fl_$a');
+      }
+    }
+  });
 
   test('pc-first printing only permutes the original guard conjuncts', () {
     final prefix = RegExp(

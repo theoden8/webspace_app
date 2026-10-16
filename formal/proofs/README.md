@@ -87,12 +87,25 @@ TLC model it backs (same definitions — no re-modeling).
   invariant is declared inductive only once its cases close; one that needs a strengthening is
   not yet. Today `Inv_ChecksOffScreen`.
   **287 obligations, all proved.**
-- **`activation_types_proof`** (printed from `FlowField`, no hand-written module) — the typing
-  lemmas a proof that every step keeps `TypeOK` rests on: a function of flow records updated in
-  one field of one row, with a value in that field's range, is still one (`Fl_<field>`), and
-  `NoFlow` is a flow record. The provers do not take the flow record's set of 28 fields whole,
-  so each is proved field by field.
-  **85 obligations, all proved.**
+- **`activation_types_proof` and its tables' modules** (printed from `FlowField` and the step
+  tables, no hand-written module) — every step keeps `fl` a function of flow records, the flow
+  rows' part of `TypeOK`. `activation_types_proof` holds the lemmas the rest stand on: a
+  function of flow records updated in one field of one row, with a value in that field's range,
+  is still one (`Fl_<field>`); a field read from one is in its range (`Rd_<field>`); `NoFlow` is
+  a flow record; each place and each kind is a member of its set (`Places_<place>`,
+  `FlowKinds_<kind>`); and what a world may set each constant to (`ConstantsType`), since a
+  proof opens no default a world can replace. Then one module per table, or per twelve of its
+  rows (`activation_types_<table>[<n>]_proof`), proves each row of `fl` an arm writes, a clause
+  at a time over a named partial row, each value over only what it reads; and
+  `activation_types_steps_proof` takes them to `TableStep` and `InputTableStep`.
+  The provers do not take the flow record's set of 28 fields whole, SMT takes no string or
+  record literal here, and tlapm holds a module's obligations until it ends, so each is split
+  as it is. What some steps need of their flow beyond `TypeOK` (a site that indexes a site's
+  history, a fresh tab id when the last tab closes) is `Supports`, assumed and owed: a proof
+  that every step keeps it is the next step. `ConstantsType` is assumed too; TLC does not yet
+  check it in each world.
+  **`activation_types_proof` 312 obligations, the tables' 19 modules 3,849,
+  `activation_types_steps_proof` 85; all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
