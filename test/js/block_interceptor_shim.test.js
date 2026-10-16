@@ -3,8 +3,9 @@
 // webview.dart neither ran in any test.
 //
 // The bridge is stubbed: `getBlockBloom` answers with a Bloom filter, and
-// `blockCheck` with the three verdicts the Dart handler can give: false
-// (allow), true (block), or a `data:` URL to load instead ($redirect=).
+// `blockCheckBatch` with one of the three verdicts the Dart handler can
+// give per URL: false (allow), true (block), or a `data:` URL to load
+// instead ($redirect=).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -21,9 +22,9 @@ const VERDICTS = {
 
 // A Bloom filter that answers "maybe" for every host, so each request is
 // the Dart handler's to decide.
-const SATURATED = { bits: new Array(8).fill(255), bitCount: 64, k: 1 };
+const SATURATED = { bits64: Buffer.alloc(8, 255).toString('base64'), bitCount: 64, k: 1 };
 // One that answers "no" for every host: the synchronous fast path.
-const EMPTY = { bits: new Array(8).fill(0), bitCount: 64, k: 1 };
+const EMPTY = { bits64: Buffer.alloc(8, 0).toString('base64'), bitCount: 64, k: 1 };
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -31,6 +32,7 @@ async function setup(bloom) {
   const dom = makeDom();
   const w = dom.window;
   const checks = [];
+  const batches = [];
   const fetched = [];
   w.fetch = function (input) {
     fetched.push(typeof input === 'string' ? input : input.url);
@@ -39,16 +41,17 @@ async function setup(bloom) {
   w.flutter_inappwebview = {
     callHandler(name, arg) {
       if (name === 'getBlockBloom') return Promise.resolve(bloom);
-      if (name === 'blockCheck') {
-        checks.push(arg);
-        return Promise.resolve(VERDICTS[new URL(arg).hostname] ?? false);
+      if (name === 'blockCheckBatch') {
+        batches.push([...arg]);
+        checks.push(...arg);
+        return Promise.resolve(arg.map((u) => VERDICTS[new URL(u).hostname] ?? false));
       }
       return Promise.resolve(null);
     },
   };
   runInDom(dom, INTERCEPTOR);
   await tick();
-  return { w, checks, fetched };
+  return { w, checks, batches, fetched };
 }
 
 test('an allowed fetch goes out unchanged', async () => {
@@ -93,6 +96,43 @@ test('a host the decision cached is answered without the bridge', async () => {
   await assert.rejects(w.fetch('https://blocked.example/1.js'));
   await assert.rejects(w.fetch('https://blocked.example/2.js'));
   assert.equal(checks.length, 1, 'host-level verdicts are cached by host');
+});
+
+test('the checks one burst asks go to Dart as one call, answered in order', async () => {
+  const { w, batches, fetched } = await setup(SATURATED);
+  const srcs = ['https://allowed.example/1.png', 'https://blocked.example/2.png',
+    'https://redirect.example/3.png', 'https://allowed.example/4.png'];
+  const imgs = srcs.map((src) => {
+    const img = w.document.createElement('img');
+    img.src = src;
+    return img;
+  });
+  const fetches = [w.fetch('https://allowed.example/a.js'),
+    w.fetch('https://blocked.example/b.js').catch((e) => e.message)];
+  await tick();
+  assert.deepEqual(batches, [[...srcs, 'https://allowed.example/a.js',
+    'https://blocked.example/b.js']]);
+  assert.deepEqual(imgs.map((i) => i.getAttribute('src')),
+    ['https://allowed.example/1.png', null, REDIRECT, 'https://allowed.example/4.png']);
+  assert.equal((await fetches[1]).startsWith('Blocked'), true);
+  assert.deepEqual(fetched, ['https://allowed.example/a.js']);
+});
+
+test('a burst the bridge refuses fails every request in it', async () => {
+  const dom = makeDom();
+  const w = dom.window;
+  w.fetch = () => Promise.resolve('response');
+  w.flutter_inappwebview = {
+    callHandler(name) {
+      if (name === 'getBlockBloom') return Promise.resolve(SATURATED);
+      return Promise.reject(new Error('bridge gone'));
+    },
+  };
+  runInDom(dom, INTERCEPTOR);
+  await tick();
+  const outcomes = await Promise.allSettled([
+    w.fetch('https://a.example/1'), w.fetch('https://b.example/2')]);
+  assert.deepEqual(outcomes.map((o) => o.status), ['rejected', 'rejected']);
 });
 
 test('a Bloom miss is allowed synchronously, without the bridge', async () => {
@@ -143,8 +183,8 @@ test('a reload of the bloom blocks what the old one let through', async () => {
   w.flutter_inappwebview = {
     callHandler(name, arg) {
       if (name === 'getBlockBloom') return Promise.resolve(bloom);
-      if (name === 'blockCheck') {
-        return Promise.resolve(VERDICTS[new URL(arg).hostname] ?? false);
+      if (name === 'blockCheckBatch') {
+        return Promise.resolve(arg.map((u) => VERDICTS[new URL(u).hostname] ?? false));
       }
       return Promise.resolve(null);
     },

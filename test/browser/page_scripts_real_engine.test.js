@@ -57,13 +57,13 @@ function bridge() {
     callHandler: function (name, arg) {
       window.__calls.push([name, arg]);
       if (name === 'getBlockBloom') {
-        return Promise.resolve({ bits: new Array(8).fill(255), bitCount: 64, k: 1 });
+        return Promise.resolve({ bits64: btoa('\xff'.repeat(8)), bitCount: 64, k: 1 });
       }
-      if (name === 'blockCheck') {
-        if (arg.indexOf('redirect.invalid') >= 0) {
-          return Promise.resolve('data:text/plain,stub');
-        }
-        return Promise.resolve(arg.indexOf('blocked.invalid') >= 0);
+      if (name === 'blockCheckBatch') {
+        return Promise.resolve(arg.map(function (url) {
+          if (url.indexOf('redirect.invalid') >= 0) return 'data:text/plain,stub';
+          return url.indexOf('blocked.invalid') >= 0;
+        }));
       }
       return Promise.resolve(null);
     },

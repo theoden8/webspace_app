@@ -268,20 +268,19 @@ abstract final class PageHandlers {
       return null;
     });
     if (!hostIsAndroid) {
-      // The WebKit interceptor's question about a Bloom hit. The page's
+      // The WebKit interceptor's questions about Bloom hits, as many as one
+      // burst of the page's requests asked, answered in order. The page's
       // source URL is the hosting page, so `$domain=` rules apply.
-      controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
-        if (args.isEmpty || args[0] is! String) return false;
-        final verdict = judgeAndRecord(
-          config,
-          query: UrlQuery(args[0] as String,
-              sourceUrl: page.sourceUrl() ?? '', requestType: 'other'),
+      controller.addJavaScriptHandler(handlerName: 'blockCheckBatch', callback: (args) {
+        if (args.isEmpty || args[0] is! List) return const <Object>[];
+        final sourceUrl = page.sourceUrl() ?? '';
+        return pageBlockReplies(
+          args[0] as List,
+          judge: (url) => judgeAndRecord(
+            config,
+            query: UrlQuery(url, sourceUrl: sourceUrl, requestType: 'other'),
+          ),
         );
-        return switch (verdict) {
-          Allowed() => false,
-          Blocked() => true,
-          Redirect(:final url) => url,
-        };
       });
       // One-shot merged Bloom filter delivery to JS. Bloom bits only: the
       // handler is reachable from any page, so nothing host-identifying
@@ -299,10 +298,9 @@ abstract final class PageHandlers {
         final fallback =
             config.posture.blocking.contentBlock && cb.hasUntokenizableNetworkRules;
         if (tokenBloom != null) {
-          final tm = tokenBloom.toMap();
-          map['tokenBits'] = tm['bits'];
-          map['tokenBitCount'] = tm['bitCount'];
-          map['tokenK'] = tm['k'];
+          map['tokenBits64'] = tokenBloom.bitsBase64;
+          map['tokenBitCount'] = tokenBloom.bitCount;
+          map['tokenK'] = tokenBloom.k;
         }
         map['genericFallback'] = fallback;
         map['hasGeneric'] = tokenBloom != null || fallback;
