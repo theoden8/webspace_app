@@ -1000,16 +1000,16 @@ the body is parsed
 
 ---
 
-### Requirement: CB-020 - WebKit content rule lists (experimental, iOS and macOS)
+### Requirement: CB-020 - WebKit content rule lists (experimental, iOS, macOS and Linux)
 
 With the `contentRuleLists` experiment on (DEVTOOLS-011: developer mode and
-its own switch), iOS and macOS webviews SHALL attach the network rules of the
-enabled filter lists as compiled WebKit content rule lists, so WebKit blocks a
+its own switch), iOS, macOS and Linux webviews SHALL attach the network rules
+of the enabled filter lists as compiled WebKit content rule lists, so WebKit blocks a
 request before it is sent, including the requests the page's own HTML starts
 before the page interceptor sees them. The lists are converted by
 adblock-rust (`ws_filters_to_content_rule_lists`) from the same rules text the
-engine parses, compiled once per rule set into WebKit's default store, and
-found again by name on later launches; a webview only names them
+engine parses, compiled once per rule set into the store this host's webviews
+attach from, and found again by name on later launches; a webview only names them
 (`contentRuleListIdentifiers`, a setting of the webview fork). The page
 interceptor and the cosmetic pass keep running: the lists carry no cosmetic
 rules, redirects, `$csp`, `$removeparam` or scriptlets, and WebKit reports no
@@ -1018,8 +1018,11 @@ match back. With the experiment off, nothing changes.
 The rule set is named by the head of the engine inputs key, so a change of
 enabled lists, of their per-site masks, or of the app build names a new set.
 Implementation: `planRuleLists` (`content_rule_list_engine.dart`) decides,
-`ContentRuleLists` (`content_rule_lists.dart`) runs the plan against the
-Runner's `ContentRuleListPlugin`.
+`ContentRuleLists` (`content_rule_lists.dart`) runs the plan against the store
+`MethodChannelContentRuleListStore.here` names: on iOS and macOS the Runner's
+`ContentRuleListPlugin`, which compiles into `WKContentRuleListStore.default()`;
+on Linux the webview fork's own store, since WPE has no default one and only the
+fork opens the store its webviews read.
 
 #### Scenario: Only network rules, under WebKit's cap
 
@@ -1059,6 +1062,13 @@ Runner's `ContentRuleListPlugin`.
 **When** its webview is created
 **Then** its `contentRuleListIdentifiers` is empty
 **And** turning the experiment off removes our lists from the store
+
+#### Scenario: Linux compiles into the webview plugin's store
+
+**Given** the Linux app with the experiment on
+**When** a rule set is compiled
+**Then** it goes into the webview fork's `WebKitUserContentFilterStore` over the fork's store channel
+**And** a webview created after it attaches the set by name before its first load
 
 #### Scenario: Settings updates keep the lists
 
@@ -1190,7 +1200,7 @@ Late-added or class-flipped elements hide reactively without any JS sweep.
 - `lib/services/generic_cosmetic_shim.dart` — Page-side class/id scanner
 - `lib/services/procedural_cosmetic_shim.dart` — Page-side runner for engine-emitted procedural actions
 - `lib/services/content_rule_list_engine.dart` — CB-020: which compiled WebKit content rule lists to attach, compile or drop
-- `lib/services/content_rule_lists.dart` — CB-020: runs that plan against the Runner's `ContentRuleListPlugin`
+- `lib/services/content_rule_lists.dart` — CB-020: runs that plan against this host's store: the Runner's `ContentRuleListPlugin` on iOS and macOS, the webview fork's store channel on Linux
 - `ios/Runner/ContentRuleListPlugin.swift` — CB-020: compiles, lists and removes rule lists in WebKit's default store; both Apple Runners compile it
 - `openspec/specs/content-blocker/spec.md` — This specification
 
