@@ -28,7 +28,8 @@ costs a second renderer.
   the target's state queued. The number of live webviews never changes.
 - **Opening a site never creates a tab**: it resumes the site's active tab.
   Only "New tab" creates a root tab (at `initUrl`, parking the current one),
-  and only "Open in new tab" on an in-domain link creates a child tab (in the
+  and only "Open in new tab" on an in-domain link, or a long press on Back
+  for the page it would go to (TAB-020), creates a child tab (in the
   background, under the tab it came from).
 - **System back at the start of a child tab closes it** and returns to its
   parent, as Chrome does. Root tabs keep NAV-001's no-op.

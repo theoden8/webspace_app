@@ -113,6 +113,15 @@ class TabsController {
       index < _sites.models.length &&
       _sites.models[index].effectiveTabsEnabled;
 
+  /// [act] on the site on screen when called, or null where that site has no
+  /// tabs, so a button bound to it offers nothing there.
+  void Function()? forShownSite(Future<void> Function(int index) act) =>
+      enabledAt(_sites.current)
+          ? () {
+              if (_sites.current case final index?) unawaited(act(index));
+            }
+          : null;
+
   /// Every site with tabs: the current webspace's in the order the drawer
   /// shows them, then the rest, whose trees can hold tabs that run as a site
   /// the webspace shows (TAB-017). A site without tabs is left out, so its
@@ -591,23 +600,55 @@ class TabsController {
   }) async {
     if (index < 0 || index >= _sites.models.length) return;
     final model = _sites.models[index];
-    // A tab handler in flight may write back a list read before this insert.
+    await _parkChild(model, child: () => SiteTab(
+          url: url,
+          parentId: model.activeTabId,
+          hostSiteId: hostSiteId == model.siteId ? null : hostSiteId,
+          openerSiteId: openerSiteId,
+          homeUrl: homeUrl,
+        ));
+  }
+
+  /// Open the page Back would go to as a parked child of the site's current
+  /// tab (TAB-020), running as that tab runs. The page on screen stays, as it
+  /// does for a link opened in a new tab.
+  Future<void> openBackInNewTab(int index) async {
+    if (!enabledAt(index)) return;
+    final model = _sites.models[index];
+    final source = model.activeTab;
+    final back = await model.controller?.backEntry();
+    if (back == null || !_host.mounted) return;
+    await _parkChild(model, child: () {
+      // The history read belongs to the tab that was active then.
+      if (model.activeTabId != source.id) return null;
+      return SiteTab(
+        url: back.url,
+        title: back.title,
+        parentId: source.id,
+        hostSiteId: source.hostSiteId,
+        openerSiteId: source.openerSiteId,
+        homeUrl: source.homeUrl,
+      );
+    });
+  }
+
+  /// Insert the tab [child] makes into [model]'s tree under its parent,
+  /// parked, and offer to switch to it (TAB-006). [child] runs once no tab
+  /// handler is in flight, which may have written back a list read before
+  /// this insert; it returns null when the tab no longer belongs there.
+  Future<void> _parkChild(WebViewModel model,
+      {required SiteTab? Function() child}) async {
     final tab = await _gate.runWhenIdle(() async {
       if (!_host.mounted || !_sites.models.contains(model)) return null;
-      final tab = SiteTab(
-        url: url,
-        parentId: model.activeTabId,
-        hostSiteId: hostSiteId == model.siteId ? null : hostSiteId,
-        openerSiteId: openerSiteId,
-        homeUrl: homeUrl,
-      );
+      final tab = child();
+      if (tab == null) return null;
       model.tabs = TabLifecycleEngine.insertChild(model.tabs, tab: tab);
       _host.rebuild();
       return tab;
     });
     if (tab == null) return;
     LogTag.tabs.debug(
-        'Opened a background tab under ${model.activeTabId} in "${model.name}"',
+        'Opened a background tab under ${tab.parentId} in "${model.name}"',
         sensitive: true);
     await _host.commitSites(const SitesEdited());
     _host.offerOpenTab(model, tabId: tab.id);

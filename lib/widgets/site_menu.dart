@@ -38,6 +38,9 @@ typedef SiteMenuNav = ({
   VoidCallback reload,
   VoidCallback stop,
 
+  /// A long press on back, where the site has tabs (TAB-020).
+  VoidCallback? backInNewTab,
+
   /// A long press on reload, where the site has tabs (TAB-010).
   VoidCallback? duplicateTab,
 });
@@ -145,6 +148,7 @@ class SiteMenuButton extends StatelessWidget {
       then();
     }
 
+    final backInNewTab = nav.backInNewTab;
     final duplicateTab = nav.duplicateTab;
     return PopupMenuItem(
       padding: EdgeInsets.zero,
@@ -154,6 +158,8 @@ class SiteMenuButton extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.arrow_back),
             tooltip: loc.homeGoBackTooltip,
+            onLongPress:
+                backInNewTab == null ? null : () => close(backInNewTab),
             onPressed: () => close(nav.back),
           ),
           IconButton(

@@ -15,6 +15,24 @@ import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/webview.dart';
 
+/// A page in a webview's history: its address and the title it had.
+typedef HistoryEntry = ({String url, String? title});
+
+/// The entry one step back in [history], or null at its start.
+HistoryEntry? backEntryIn(inapp.WebHistory? history, {required bool isLinux}) {
+  final current = history?.currentIndex;
+  final list = history?.list;
+  if (current == null || list == null) return null;
+  if (current < 1 || current > list.length) return null;
+  // WebKitGTK and WPE hand the back list nearest-first (they prepend), and the
+  // Linux plugin appends it as given, so there the back entries run backwards.
+  final item = isLinux ? list.first : list[current - 1];
+  final url = item.url?.toString();
+  if (url == null || url.isEmpty) return null;
+  final title = item.title;
+  return (url: url, title: title == null || title.isEmpty ? null : title);
+}
+
 abstract class WebViewController {
   /// The underlying `inapp.InAppWebViewController` this wrapper is
   /// bound to. Exposed so per-site code paths can pass it as the
@@ -53,6 +71,10 @@ abstract class WebViewController {
   Future<void> setTextZoom(int zoomPercent);
   Future<void> goBack();
   Future<bool> canGoBack();
+
+  /// The page Back would go to, or null at the start of the history.
+  Future<HistoryEntry?> backEntry();
+
   /// Per-instance pause to reduce resource usage.
   ///
   /// On Android: **no-op.** `WebView.onPause()` only does a best-effort pause
@@ -427,6 +449,11 @@ class PlatformWebViewController implements WebViewController {
 
   @override
   Future<bool> canGoBack() async => await _native(_c.canGoBack) ?? false;
+
+  @override
+  Future<HistoryEntry?> backEntry() async => backEntryIn(
+      await _native(_c.getCopyBackForwardList),
+      isLinux: hostIsLinux);
 
   @override
   Future<void> pause() async {
