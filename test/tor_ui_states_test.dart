@@ -195,6 +195,23 @@ void main() {
     await t.pump(const Duration(seconds: 91));
   }
 
+  /// A phone-sized window [height] tall, so a whole screen fits the PNG.
+  void window(WidgetTester t, {required double height}) {
+    t.view.devicePixelRatio = 2;
+    t.view.physicalSize = Size(430 * 2, height * 2);
+    addTearDown(t.view.reset);
+  }
+
+  Future<void> shoot(WidgetTester t, {required String name}) async {
+    if (_writePngs) {
+      await expectLater(find.byType(MaterialApp),
+          matchesGoldenFile('../build/tor_ui/$name.png'));
+    }
+    await t.pumpWidget(const SizedBox.shrink());
+    await settle(t);
+    await t.pump(const Duration(seconds: 91));
+  }
+
   group('status card', () {
     testWidgets('connected shows the live SOCKS endpoint', (t) async {
       await withState(
@@ -470,6 +487,36 @@ void main() {
   });
 
   // TOR-026: an external tor on Linux whose control port the user named.
+  group('Tor screen', () {
+    testWidgets('names each site with the exit country it pins', (t) async {
+      final runtime = installEngine();
+      await TorService.instance.syncHolders({
+        TorSiteHolder(SiteId('mail')),
+        TorSiteHolder(SiteId('bank')),
+        TorSiteHolder(SiteId('forum')),
+        const TorAppWideHolder(),
+      });
+      await TorService.instance.setExitCountry('{de}');
+      window(t, height: 820);
+      await t.pumpWidget(host(
+          TorStatusScreen(sites: {
+            SiteId('mail'): (name: 'Mail', exitNodes: '{de}'),
+            SiteId('bank'): (name: 'Bank', exitNodes: null),
+            SiteId('forum'): (name: 'Forum', exitNodes: '{nl}'),
+          }),
+          size: const Size(430, 820)));
+      runtime.emit(const TorUp('127.0.0.1', port: 41337));
+      await settle(t);
+
+      expect(find.text('Exit country: 🇩🇪  Deutschland (DE)'), findsOneWidget);
+      expect(find.text('Exit country: 🇳🇱  Nederland (NL)'), findsOneWidget,
+          reason: 'a site that is not loaded keeps its own country');
+      expect(find.text('Exit country: Any country'), findsOneWidget);
+      expect(find.text('Exit country'), findsNothing);
+      await shoot(t, name: 'tor_screen_site_exits');
+    });
+  });
+
   group('external tor control port', () {
     tearDown(() {
       AppPref.externalTor.debugValue = AppPref.externalTor.fallback;
@@ -500,23 +547,6 @@ void main() {
       await settle(t);
     }
 
-    /// A phone-sized window [height] tall, so a whole screen fits the PNG.
-    void window(WidgetTester t, {required double height}) {
-      t.view.devicePixelRatio = 2;
-      t.view.physicalSize = Size(430 * 2, height * 2);
-      addTearDown(t.view.reset);
-    }
-
-    Future<void> shoot(WidgetTester t, {required String name}) async {
-      if (_writePngs) {
-        await expectLater(find.byType(MaterialApp),
-            matchesGoldenFile('../build/tor_ui/$name.png'));
-      }
-      await t.pumpWidget(const SizedBox.shrink());
-      await settle(t);
-      await t.pump(const Duration(seconds: 91));
-    }
-
     testWidgets('the Tor screen lists how that tor differs', (t) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       try {
@@ -530,7 +560,8 @@ void main() {
             }));
         window(t, height: 1100);
         await t.pumpWidget(host(
-            const TorStatusScreen(siteNames: {'mail': 'Mail'}),
+            TorStatusScreen(
+                sites: {SiteId('mail'): (name: 'Mail', exitNodes: null)}),
             size: const Size(430, 1100)));
         await settle(t);
 
@@ -538,8 +569,9 @@ void main() {
         expect(find.text('A circuit per host'), findsOneWidget);
         expect(find.text('That tor picks exits: {us}'), findsOneWidget);
         expect(find.text('That tor logs addresses'), findsOneWidget);
-        expect(find.text('Exit country'), findsOneWidget,
-            reason: 'an exit country can be asked of it now');
+        expect(find.text('Exit country: 🇺🇸  United States (US)'),
+            findsOneWidget,
+            reason: 'a site with no pin leaves through that tor\'s own exits');
         expect(find.text('Rebuild circuits'), findsOneWidget);
         expect(find.text('Bridges'), findsNothing,
             reason: "bridges stay that tor's own");
@@ -577,12 +609,13 @@ void main() {
                 methods: {TorAuthMethod.hashedPassword}, password: 'p'));
         window(t, height: 900);
         await t.pumpWidget(host(
-            const TorStatusScreen(siteNames: {'mail': 'Mail'}),
+            TorStatusScreen(
+                sites: {SiteId('mail'): (name: 'Mail', exitNodes: null)}),
             size: const Size(430, 900)));
         await settle(t);
 
         expect(find.text('Needs a password'), findsOneWidget);
-        expect(find.text('Exit country'), findsNothing);
+        expect(find.textContaining('Exit country'), findsNothing);
         expect(find.text('Rebuild circuits'), findsNothing);
         await shoot(t, name: 'external_control_needs_password');
       } finally {

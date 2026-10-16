@@ -14,6 +14,7 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
@@ -51,15 +52,15 @@ String appNetworkSummary(AppLocalizations loc) {
 class AppNetworkScreen extends StatefulWidget {
   const AppNetworkScreen({
     super.key,
-    this.siteNames = const {},
+    this.torSites = const {},
     this.onOutboundProxyChanged,
     this.siteProxies,
     this.onSavedProxiesChanged,
     this.externalTorRunsHere = false,
   });
 
-  /// `siteId` -> display name, for the Tor status screen's list of users.
-  final Map<String, String> siteNames;
+  /// The sites the Tor status screen may list as using Tor.
+  final Map<SiteId, TorSiteLabel> torSites;
 
   /// Whether Tor sites can use a tor already running on this device, so the
   /// screen lists Tor (external) (TOR-025). Passed in so the design gallery,
@@ -360,7 +361,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          TorStatusScreen(siteNames: widget.siteNames),
+                          TorStatusScreen(sites: widget.torSites),
                     ),
                   )),
             ),

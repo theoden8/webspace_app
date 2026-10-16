@@ -16,10 +16,12 @@ import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
@@ -95,12 +97,16 @@ class AppSettingsScreen extends StatefulWidget {
   /// per-category drill-down can name the sites a block was recorded for.
   final Map<String, String> siteNames;
 
+  /// The sites the Tor status screen may list as using Tor.
+  final Map<SiteId, TorSiteLabel> torSites;
+
   const AppSettingsScreen({
     super.key,
     required this.currentSettings,
     this.proxyRouterRunsHere = false,
     this.externalTorRunsHere = false,
     this.siteNames = const {},
+    this.torSites = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
@@ -294,7 +300,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: loc.appSettingsNetwork,
             summary: appNetworkSummary(loc),
             onTap: () => _open(AppNetworkScreen(
-              siteNames: widget.siteNames,
+              torSites: widget.torSites,
               onOutboundProxyChanged: widget.onOutboundProxyChanged,
               siteProxies: widget.siteProxies,
               onSavedProxiesChanged: widget.onSavedProxiesChanged,
