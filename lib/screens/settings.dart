@@ -38,6 +38,8 @@ import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
+import 'package:webspace/widgets/icon_choice_chips.dart';
+import 'package:webspace/widgets/theme_icon.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show libraryRouteLabel, torRouteLabel;
 import 'package:webspace/widgets/proxy_test_tile.dart';
@@ -1139,14 +1141,23 @@ IconButton zoomStep(IconData icon,
                   _zoomPercent = clampZoomPercent((value / 10).round() * 10)),
             ),
           ),
-          ChoiceTile<Scoped<WebViewTheme>>(
+          SettingTile(
             title: loc.siteSettingsTheme,
             hint: loc.siteSettingsThemeHint,
+            subtitle: _theme.label(loc, appValue: widget.appTheme),
+          ),
+          IconChoiceChips<Scoped<WebViewTheme>>(
             values: [
               const FollowApp(),
               for (final theme in WebViewTheme.values) Own(theme),
             ],
-            label: (choice) => choice.label(loc, appValue: widget.appTheme),
+            face: (choice) => (
+              icon: choice.icon,
+              label: switch (choice) {
+                FollowApp() => loc.siteSettingsThemeFollowAppShort,
+                Own(:final value) => value.label(loc),
+              },
+            ),
             value: _theme,
             onChanged: (choice) => setState(() => _theme = choice),
           ),
