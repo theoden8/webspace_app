@@ -284,9 +284,32 @@ void main() {
     );
     final c = StepContext(_World());
     expect(view.value.run(c), [1]);
-    view.becomes(Expr.constant<List<int>, _World>([2, 3])).apply(c);
+    view.becomes(Expr.constant<List<int>, _World>([2, 3])).stage(c)();
     expect(owner, {2, 3});
     expect(shared.value, isNot(same(owner)), reason: 'a read is a fresh copy');
+  });
+
+  test("an act's writes read the state the step found, as the model's "
+      'primed writes do', () {
+    var count = 0;
+    final counted = Mutable<int, _World>(
+      ModelVar.version,
+      read: (_) => count,
+      write: (_, {required to}) => count = to,
+    );
+    final c = StepContext(_World());
+    Act.of([
+      _loaded.becomes(Expr.constant<Iterable<int>, _World>([3])),
+      counted.becomes(
+        Expr(
+          run: (c) => _loaded.value.run(c).length,
+          tla: 'Cardinality(loaded)',
+          reads: const Reads(vars: {ModelVar.loaded}),
+        ),
+      ),
+    ]).run(c);
+    expect(c.world.loaded, {3});
+    expect(count, 2, reason: 'the second write read loaded as {1, 2}');
   });
 
   test('a cell made narrower than the view reaching it fails at its first '
@@ -313,7 +336,7 @@ void main() {
     );
     expect(() => view.value.run(c), narrower);
     expect(
-      () => view.becomes(Expr.constant<List<Object>, _World>([2])).apply(c),
+      () => view.becomes(Expr.constant<List<Object>, _World>([2])).stage(c)(),
       narrower,
     );
   });
@@ -392,7 +415,7 @@ void _definitions() {
     final never = _loaded.value.has(Expr.constant<int, _World>(1));
     final w = ghost(ModelVar.evictedShown, never: never, why: 'site 1 is loaded');
     expect(w.to, 'evictedShown \\/ (1 \\in loaded)');
-    expect(() => w.apply(c), throwsA(isA<AssertionError>()));
+    expect(() => w.stage(c)(), throwsA(isA<AssertionError>()));
   });
 
   test('a record\'s part reads the field the model names', () {

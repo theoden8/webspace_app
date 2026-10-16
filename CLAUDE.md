@@ -464,7 +464,8 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
   - **A field a call receives reads as the reply within its step**, not as its value before.
   - **An arm's effects read the state the step found**, so an effect over what another effect
     of the same arm writes is given it (`TabVars.framed(site, loaded:)`: a preload's commit
-    loads the site its frame binds).
+    loads the site its frame binds). Within one `Act.of` the runner reads every write's value
+    before any lands, as TLA+ reads a primed write's.
   - **A variable the model keeps for a subset** (`Tabbed`) is read under that membership in every
     guard, so an unfollowed site takes the outcome the code takes.
   - **A step whose arms pick marks the pick** (`tab:`): two picks sharing one label make the model

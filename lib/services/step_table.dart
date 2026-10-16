@@ -499,7 +499,12 @@ final class Mutable<T, W> extends Var<T, W> {
     variable,
     to: to.tla,
     reads: to.reads,
-    apply: (c) => _write?.call(c._world, to: to.run(c)),
+    stage: (c) {
+      final write = _write;
+      if (write == null) return () {};
+      final value = to.run(c);
+      return () => write(c._world, to: value);
+    },
   );
 }
 
@@ -803,7 +808,13 @@ final class Indexed<K, V, W> {
     _variable ?? (throw StateError('$name is a constant of the model')),
     to: '[$name EXCEPT ![${k.tla}] = ${to.tla}]',
     reads: Reads(vars: {_variable}) + k.reads + to.reads,
-    apply: (c) => _write?.call(c._world, at: k.run(c), to: to.run(c)),
+    stage: (c) {
+      final write = _write;
+      if (write == null) return () {};
+      final key = k.run(c);
+      final value = to.run(c);
+      return () => write(c._world, at: key, to: value);
+    },
   );
 }
 
@@ -828,20 +839,24 @@ final class Members<E, W> {
 }
 
 /// A shared variable's new value once a call lands or an act runs:
-/// `name' = <to>`, taken by the engine's state through [apply].
+/// `name' = <to>`, its value read over the state the step found ([stage])
+/// and taken by the engine's state once every write of its act is read.
 final class Write<W> {
   const Write._(
     this.variable, {
     required this.to,
     required this.reads,
-    required this.apply,
+    required this.stage,
   });
 
   final ModelVar variable;
   String get name => variable.name;
   final String to;
   final Reads reads;
-  final void Function(StepView<W> c) apply;
+
+  /// Reads the new value over [StepView]'s state and returns the write
+  /// that puts it in.
+  final void Function() Function(StepView<W> c) stage;
 
   /// `name' = <to>`.
   String get tla => "$name' = ${tlaOperand(to)}";
@@ -858,8 +873,9 @@ Write<W> ghost<W>(
   variable,
   to: '${variable.name} \\/ (${never.tla})',
   reads: Reads(vars: {variable}) + never.reads,
-  apply: (c) {
+  stage: (c) {
     assert(!never.run(c), why);
+    return () {};
   },
 );
 
@@ -1037,17 +1053,20 @@ final class Act<W> extends Effect<W> {
     required super.run,
   });
 
-  /// `name' = <to>` for each of [writes], applied in order, then what the
-  /// code does once they are in ([then]): its half of a write the platform
-  /// holds, an assert over the new state, a notify, a log.
+  /// `name' = <to>` for each of [writes], every value read over the state
+  /// the step found, as the model's primed writes are, and then put in in
+  /// order; then what the code does once they are in ([then]): its half of
+  /// a write the platform holds, an assert over the new state, a notify, a
+  /// log.
   Act.of(List<Write<W>> writes, {void Function(CommitView<W> c)? then})
     : writes = {for (final w in writes) w.variable},
       tla = [for (final w in writes) w.tla].join(' /\\ '),
       reads = Reads.of([for (final w in writes) w.reads]),
       super(
         run: (c) {
-          for (final w in writes) {
-            w.apply(c);
+          final staged = [for (final w in writes) w.stage(c)];
+          for (final put in staged) {
+            put();
           }
           then?.call(CommitView._(c));
         },
