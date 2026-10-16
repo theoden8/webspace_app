@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_rule_list_engine.dart';
 import 'package:webspace/services/log_service.dart';
 
-/// WebKit's store of compiled content rule lists, as the Runner's
-/// `ContentRuleListPlugin` exposes it.
+/// WebKit's store of compiled content rule lists.
 abstract interface class ContentRuleListStore {
   /// Every identifier the store holds, ours or not.
   Future<List<String>> identifiers();
@@ -18,9 +18,25 @@ abstract interface class ContentRuleListStore {
 }
 
 class MethodChannelContentRuleListStore implements ContentRuleListStore {
-  static const _channel = MethodChannel(
-    'org.codeberg.theoden8.webspace/content_rule_lists',
-  );
+  const MethodChannelContentRuleListStore._(this._channel);
+
+  /// The store this host's webviews attach from, or null where WebKit has
+  /// none. On iOS and macOS the Runner's `ContentRuleListPlugin` compiles into
+  /// `WKContentRuleListStore.default()`. WPE has no default store, so on Linux
+  /// it is the webview plugin's own, the one its webviews read.
+  static MethodChannelContentRuleListStore? get here => hostIsLinux
+      ? const MethodChannelContentRuleListStore._(
+          MethodChannel(
+            'com.pichillilorenzo/flutter_inappwebview_content_rule_list_store',
+          ),
+        )
+      : hostIsIOS || hostIsMacOS
+      ? const MethodChannelContentRuleListStore._(
+          MethodChannel('org.codeberg.theoden8.webspace/content_rule_lists'),
+        )
+      : null;
+
+  final MethodChannel _channel;
 
   @override
   Future<List<String>> identifiers() async =>
@@ -36,8 +52,9 @@ class MethodChannelContentRuleListStore implements ContentRuleListStore {
 }
 
 /// Owns which compiled WebKit content rule lists new webviews attach on
-/// iOS and macOS (content-blocker CB-020). A set is compiled once per rule
-/// set and found again by name on later launches; a webview only names it.
+/// iOS, macOS and Linux (content-blocker CB-020). A set is compiled once per
+/// rule set and found again by name on later launches; a webview only names
+/// it.
 class ContentRuleLists {
   ContentRuleLists({required this.store, required this.convert});
 
