@@ -176,7 +176,8 @@ fills in, so the ID has one owner.
 
 They belong to the Linux build, not to one package: the CMake install puts
 them and the icon under the bundle's `share/`, at the paths a desktop reads
-under a data directory, and every package copies that directory into its own.
+under a data directory, and every package, the flatpak among them, copies that
+directory into its own.
 
 #### Scenario: Package the native bundle
 
@@ -185,6 +186,35 @@ under a data directory, and every package copies that directory into its own.
 **Then** `applications/`, `metainfo/` and `icons/hicolor/512x512/apps/` hold
 the desktop entry, the metainfo and the icon, each named by the application ID
 **And** the entry's icon and the metainfo's ID name that same ID
+
+---
+
+### Requirement: PLATFORM-009 - The flatpak's application ID
+
+The flatpak SHALL run as `page.codeberg.theoden8.webspace_app`, the ID
+Flathub's naming rules give a project hosted at
+`codeberg.org/theoden8/webspace_app`, because `org.codeberg.*` is reserved for
+Codeberg's own projects. Its manifest passes its own ID to `flutter build linux`
+as `WEBSPACE_APPLICATION_ID`, so the GTK application, the window's Wayland app
+ID and the desktop files (PLATFORM-008) all take it.
+
+Every other Linux build SHALL keep `org.codeberg.theoden8.webspace`, the ID
+earlier releases ran under. path_provider keeps the sites and settings under
+that ID, and flutter_secure_storage_linux names its keyring entry after it, so
+an install keeps both across an upgrade.
+
+#### Scenario: Build the flatpak
+
+**Given** the flatpak manifest with `id: page.codeberg.theoden8.webspace_app`
+**When** the flatpak is built
+**Then** the app registers as `page.codeberg.theoden8.webspace_app`
+**And** its desktop entry, metainfo and icon are named by that ID
+
+#### Scenario: Build the native bundle
+
+**Given** a build with no `WEBSPACE_APPLICATION_ID` set
+**When** `flutter build linux` runs
+**Then** the app and its desktop files take `org.codeberg.theoden8.webspace`
 
 ---
 
