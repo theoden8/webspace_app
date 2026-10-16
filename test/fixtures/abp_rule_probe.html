@@ -1021,8 +1021,7 @@
       try {
         const map = await window.flutter_inappwebview.callHandler('getBlockBloom');
         if (!map) return null;
-        const bits = map.bits;
-        const bytesLen = (bits && (bits.length || bits.byteLength)) || 0;
+        const bytesLen = map.bits64 ? atob(map.bits64).length : 0;
         const cacheSize = map.cache ? Object.keys(map.cache).length : 0;
         return {
           bitCount: map.bitCount || 0,

@@ -110,3 +110,22 @@ abstract final class BlockDecision {
     }
   }
 }
+
+/// The WebKit interceptor's reply for each URL of one batch, in order: false
+/// lets it go, true drops it, a string is the `data:` URL a `$redirect=` rule
+/// serves instead. An entry that is no URL is let go: nothing loads from it.
+List<Object> pageBlockReplies(
+  List<Object?> urls, {
+  required BlockVerdict Function(String url) judge,
+}) =>
+    [
+      for (final url in urls)
+        if (url is String)
+          switch (judge(url)) {
+            Allowed() => false,
+            Blocked() => true,
+            Redirect(:final url) => url,
+          }
+        else
+          false,
+    ];

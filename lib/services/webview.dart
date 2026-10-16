@@ -45,6 +45,7 @@ import 'package:webspace/services/site_icon_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -825,6 +826,7 @@ class WebViewFactory {
       },
       onWebViewCreated: (controller) async {
         if (!phases.on(PageEvent.viewCreated, view: controller.platform)) return;
+        LaunchTimeline.reached(LaunchMark.webViewBuilt);
         coverageGate = ProxyCoverageGate(
           binding: ProxyManager.binding,
           proxyConfigured: binding.proxyConfigured,
@@ -1389,6 +1391,7 @@ class WebViewFactory {
             },
       onLoadStart: (controller, url) async {
         if (!phases.on(PageEvent.loadStarted, view: controller.platform)) return;
+        LaunchTimeline.reached(LaunchMark.pageStarted);
         LogTag.webViewLifecycle.debug(
             'onLoadStart siteId=${config.posture.siteId} url=$url',
             sensitive: true);

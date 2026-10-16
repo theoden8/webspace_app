@@ -7,6 +7,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_cache_service.dart';
 
+import 'helpers/held_file_store.dart';
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
 import 'helpers/fake_path_provider.dart';
 
@@ -120,9 +121,28 @@ void main() {
       await saving;
 
       // saveHtml must observe the gen change and drop the write so the
-      // stale snapshot can't resurrect itself over the eviction.
+      // stale snapshot can't resurrect itself over the eviction. The disk
+      // keeps what it held, as after any eviction.
       expect(svc.getHtmlSync(SiteId('site-1')), isNull);
-      // On disk: rolled back. No file should remain for site-1.
+      expect((await svc.loadHtml(SiteId('site-1')))?.$2, '<p>baseline</p>');
+    });
+
+    test('rolls back a write an eviction lands during', () async {
+      final store = HeldFileStore(IoFileStore('html_cache', overrideRoot: tempDir),
+          holds: HeldCall.writeText);
+      HtmlCacheService.resetForTesting();
+      await HtmlCacheService.instance
+          .initialize(store: store, secureStorage: fakeSecureStorage);
+      final svc = HtmlCacheService.instance;
+
+      final saving = svc.saveHtml(SiteId('site-1'),
+          html: '<p>stale-from-pre-home</p>', url: 'https://example.com/deep');
+      await store.reached.future;
+      svc.evictInMemory(SiteId('site-1'));
+      store.release.complete();
+      await saving;
+
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
       final cacheFile = File('${tempDir.path}/html_cache/site-1.enc');
       expect(await cacheFile.exists(), isFalse);
     });
@@ -164,3 +184,4 @@ void main() {
     });
   });
 }
+

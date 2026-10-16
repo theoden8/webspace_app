@@ -102,7 +102,7 @@ class HtmlCacheService {
     try {
       final encrypted = await store.readText('$siteId.enc');
       if (encrypted == null) return;
-      final decrypted = _aead?.unseal(encrypted);
+      final decrypted = await _aead?.unseal(encrypted);
       if (decrypted == null) return;
       final nl = decrypted.indexOf('\n');
       if (nl == -1) return;
@@ -125,7 +125,7 @@ class HtmlCacheService {
           try {
             final encrypted = await store.readText(name);
             final decrypted =
-                encrypted == null ? null : _aead?.unseal(encrypted);
+                encrypted == null ? null : await _aead?.unseal(encrypted);
             if (decrypted != null) {
               final newlineIndex = decrypted.indexOf('\n');
               if (newlineIndex != -1) {
@@ -291,7 +291,7 @@ class HtmlCacheService {
     try {
       final name = _cacheFileName(siteId);
 
-      final encrypted = aead.seal('$url\n$html');
+      final encrypted = await aead.seal('$url\n$html');
 
       // An eviction (e.g. from `goHome`) that lands between entry and
       // here invalidates this save: the call site explicitly asked the
@@ -339,7 +339,7 @@ class HtmlCacheService {
       final encrypted = await store.readText(_cacheFileName(siteId));
       if (encrypted == null) return null;
 
-      final decrypted = aead.unseal(encrypted);
+      final decrypted = await aead.unseal(encrypted);
       if (decrypted == null) return null;
 
       final newlineIndex = decrypted.indexOf('\n');

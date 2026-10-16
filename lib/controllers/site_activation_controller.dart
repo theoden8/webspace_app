@@ -12,6 +12,7 @@ import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
+import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
@@ -391,23 +392,29 @@ class SiteActivationController {
         run: () => model.pauseWebView().then((_) => true)),
   ];
 
-  /// Decrypt the cached/imported HTML for [m] into memory before its webview
-  /// builds, so the build's synchronous `getHtmlSync` hits. Uses the same
-  /// [htmlSourceFor] classification as the build's `initialHtml` read, so the
-  /// preload can never target a different store than the read (a blank
-  /// site). Cheap no-op when the site has nothing on disk.
+  /// Decrypt the cached/imported HTML for [m] into memory, so the build's
+  /// synchronous `getHtmlSync` hits. Uses the same [htmlSourceFor]
+  /// classification as the build's `initialHtml` read, so the preload can
+  /// never target a different store than the read (a blank site). Waited for
+  /// only when the build renders it: a page snapshot is megabytes, and an
+  /// online start reads it only if the webview is rebuilt offline later.
   Future<void> ensureSiteHtmlForModel(WebViewModel m) async {
-    switch (htmlSourceFor(
+    final source = htmlSourceFor(
       incognito: m.incognito,
       isArchiveTier: m.isArchiveTier,
       initUrl: m.initUrl,
-    )) {
-      case HtmlSource.import:
-        await HtmlImportStorage.instance.preloadOne(m.siteId);
-      case HtmlSource.cache:
-        await HtmlCacheService.instance.preloadOne(m.siteId);
-      case HtmlSource.none:
-        break;
+    );
+    final loading = switch (source) {
+      HtmlSource.import => HtmlImportStorage.instance.preloadOne(m.siteId),
+      HtmlSource.cache => HtmlCacheService.instance.preloadOne(m.siteId),
+      HtmlSource.none => Future<void>.value(),
+    };
+    if (rendersStoredHtml(source,
+        htmlCachingEnabled: m.htmlCachingEnabled,
+        online: ConnectivityService.instance.lastKnownOnline)) {
+      await loading;
+    } else {
+      unawaited(loading);
     }
   }
 

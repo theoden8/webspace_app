@@ -79,10 +79,10 @@ class HtmlImportStorage {
   /// Decrypts a stored blob, reporting whether it was still in the AES-CBC
   /// form imports used before GCM, so the caller can reseal it. Imports are
   /// the user's only copy, so those blobs stay readable.
-  ({String plaintext, bool legacy})? _decrypt(String wire) {
+  Future<({String plaintext, bool legacy})?> _decrypt(String wire) async {
     final aead = _aead;
     if (aead == null) return null;
-    final sealed = aead.unseal(wire);
+    final sealed = await aead.unseal(wire);
     if (sealed != null) return (plaintext: sealed, legacy: false);
     final legacy = aead.unsealLegacyCbc(wire);
     if (legacy == null) {
@@ -100,7 +100,7 @@ class HtmlImportStorage {
     if (store == null || aead == null) return;
     try {
       await store.writeText(_importFileName(siteId),
-          contents: aead.seal(plaintext));
+          contents: await aead.seal(plaintext));
     } on IOException catch (e) {
       LogTag.htmlImport.warning(
           'Could not re-encrypt import for $siteId: $e', sensitive: true);
@@ -118,7 +118,7 @@ class HtmlImportStorage {
         if (name.endsWith('.enc')) {
           try {
             final encrypted = await store.readText(name);
-            final decrypted = encrypted == null ? null : _decrypt(encrypted);
+            final decrypted = encrypted == null ? null : await _decrypt(encrypted);
             if (decrypted != null) {
               final newlineIndex = decrypted.plaintext.indexOf('\n');
               if (newlineIndex != -1) {
@@ -190,7 +190,7 @@ class HtmlImportStorage {
 
     try {
       await store.writeText(_importFileName(siteId),
-          contents: aead.seal('$url\n$html'));
+          contents: await aead.seal('$url\n$html'));
       _memoryStore[siteId] = html;
 
       LogTag.htmlImport.debug(
@@ -210,7 +210,7 @@ class HtmlImportStorage {
       final encrypted = await store.readText(_importFileName(siteId));
       if (encrypted == null) return null;
 
-      final decrypted = _decrypt(encrypted);
+      final decrypted = await _decrypt(encrypted);
       if (decrypted == null) return null;
 
       final newlineIndex = decrypted.plaintext.indexOf('\n');

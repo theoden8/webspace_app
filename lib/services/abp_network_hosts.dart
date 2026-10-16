@@ -23,7 +23,7 @@
 // the flag is set.
 //
 // The token Bloom is only a prefilter: a false positive costs one Dart
-// round-trip to blockCheck, which applies the engine's full semantics.
+// round-trip to blockCheckBatch, which applies the engine's full semantics.
 
 typedef AbpNetworkPrefilter = ({
   Set<String> hosts,
