@@ -21,6 +21,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -42,9 +43,8 @@ import 'package:webspace/settings/app_locale.dart';
 
 void main([List<String> args = const []]) async {
   final launch = ProcessLaunch.fromArgs(args);
+  LaunchTimeline.start();
   WidgetsFlutterBinding.ensureInitialized();
-
-  final swMain = kDebugMode ? (Stopwatch()..start()) : null;
 
   // Imported HTML files are the only copy of user-supplied content, so they
   // live in their own persistent store and survive upgrades. The HTML cache
@@ -175,10 +175,8 @@ void main([List<String> args = const []]) async {
   // may go through (LEAK-004). Preset UAs re-render from the cached version
   // on the next build.
   unawaited(FirefoxUserAgentService.instance.maybeAutoRefresh());
-  if (swMain != null) {
-    LogTag.startup.debug(
-      'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms',
-    );
-  }
+  LaunchTimeline.reached(LaunchMark.runApp);
+  unawaited(WidgetsBinding.instance.waitUntilFirstFrameRasterized
+      .then((_) => LaunchTimeline.reached(LaunchMark.firstFrame)));
   runApp(WebSpaceApp(launch: launch));
 }
