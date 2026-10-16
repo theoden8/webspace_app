@@ -308,11 +308,11 @@ smallest Hagezi blocklist ("Light") is 146K domains.
 Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`.
 The interceptor is shared with the ABP content blocker: the Bloom filter
 shipped to JS is built from DNS ∪ ABP blocked domains, and the Dart
-`blockCheck` handler decides DNS vs ABP on each positive hit, recording
+`blockCheckBatch` handler decides DNS vs ABP on each positive hit, recording
 the decision with the matching [BlockSource] so per-site stats stay
 disentangleable.
 
-- Overrides `window.fetch` — async check via `blockCheck` handler, reject if blocked
+- Overrides `window.fetch` — async check via `blockCheckBatch` handler, reject if blocked
 - Overrides `XMLHttpRequest.prototype.open`/`send` — abort if blocked
 - Patches `src`/`href` setters on `HTMLImageElement`, `HTMLScriptElement`,
   `HTMLLinkElement`, `HTMLIFrameElement` — defers the assignment pending the check
@@ -334,14 +334,23 @@ at launch.
 **2. Bloom filter (JS byte array)** — microsecond lookup:
 Built from the merged DNS ∪ ABP blocked domains (~430 KB for 588K domains
 at 5% false positive rate). Fetched by each document through
-`getBlockBloom`, and fetched again, with the host cache emptied, when the
+`getBlockBloom`, which hands it over as base64 encoded once per filter (a
+JSON array of its bytes is nearly four times the size, and every frame asks),
+and fetched again, with the host cache emptied, when the
 lists change under an open page (DNS-023). Uses FNV-1a hash with Kirsch-Mitzenmacher double-hashing
 for k hash functions. JS implementation byte-compatible with Dart
 `BloomFilter` class. Rebuilt lazily; invalidated whenever either the DNS
 blocklist or the aggregated ABP rule set changes.
 
 - Bloom says "definitely not" → allow without roundtrip (the PerformanceObserver batch records it), add to JS cache
-- Bloom says "possibly yes" → roundtrip to Dart `blockCheck` handler for confirmation, add result to JS cache
+- Bloom says "possibly yes" → roundtrip to Dart `blockCheckBatch` handler for confirmation, add result to JS cache
+
+The checks one burst of requests asks (every check issued before the page's
+current task ends: an image grid, the next step of a chunk waterfall) go to
+Dart in one `blockCheckBatch` call, answered in the order asked. Each URL is
+still judged and recorded on its own, so a batch decides and counts exactly
+what as many single calls would; it only spares the bridge, which on iOS
+crosses the main thread twice per call.
 
 **3. Dart authoritative check** — handles false positives + blocks:
 Only ~5% of first-time allowed URLs + all blocked URLs hit Dart. Dart does
@@ -672,7 +681,14 @@ holds hosts from all of them
 **Given** a freshly created webview whose JS host cache is empty
 **When** the page requests a sub-resource on a blocked host
 **Then** the host hits the Bloom filter
-**And** the `blockCheck` round-trip adjudicates it and the request is blocked
+**And** the `blockCheckBatch` round-trip adjudicates it and the request is blocked
+
+#### Scenario: A burst of requests is one round trip
+
+**Given** a page whose Bloom filter says "possibly yes" for several hosts
+**When** it sets the `src` of several images and starts a `fetch` in one task
+**Then** the interceptor sends their URLs to `blockCheckBatch` in one call
+**And** each request gets the verdict for its own URL, in the order asked
 
 ---
 

@@ -484,7 +484,7 @@ class AdblockEngine implements AdblockEngineApi {
   /// applies — caller should fall back to the empty-body block
   /// response.
   ///
-  /// Called from the iOS/macOS JS bridge's `blockCheck` handler so
+  /// Called from the iOS/macOS JS bridge's `blockCheckBatch` handler so
   /// the JS interceptor can swap the request URL with the data URL
   /// instead of dropping it. Same FFI symbol the JNI bridge calls
   /// on Android (`ws_engine_redirect_for`).

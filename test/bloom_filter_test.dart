@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/bloom_filter.dart';
 
@@ -48,13 +50,13 @@ void main() {
           reason: 'False positive rate $actualFpr exceeds tolerance (target 0.05)');
     });
 
-    test('toMap returns bits, bitCount, k', () {
+    test('toMap returns the bits as base64, bitCount, k', () {
       final bf = BloomFilter.build(['a.com', 'b.com']);
       final map = bf.toMap();
-      expect(map['bits'], isNotNull);
+      expect(base64Decode(map['bits64']! as String), bf.bits);
       expect(map['bitCount'], isPositive);
       expect(map['k'], isPositive);
-      expect((map['bits'] as List).length * 8, greaterThanOrEqualTo(map['bitCount'] as int));
+      expect(bf.bits.length * 8, greaterThanOrEqualTo(map['bitCount']! as int));
     });
 
     test('hash function is JS-compatible (FNV-1a)', () {

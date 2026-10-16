@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -64,10 +65,14 @@ class BloomFilter {
     return true;
   }
 
+  /// [bits] as base64, encoded once: every frame of every page asks for the
+  /// filter, and a JSON array of its bytes is nearly four times the size.
+  late final String bitsBase64 = base64Encode(bits);
+
   /// Serialize to a Map suitable for JS consumption.
-  /// JS reads `bits` (List<int> bytes), `bitCount` (int), `k` (int).
-  Map<String, dynamic> toMap() => {
-        'bits': bits,
+  /// JS reads `bits64` (base64 of the bytes), `bitCount` (int), `k` (int).
+  Map<String, Object> toMap() => {
+        'bits64': bitsBase64,
         'bitCount': bitCount,
         'k': k,
       };
