@@ -78,6 +78,12 @@ TLC model it backs (same definitions — no re-modeling).
   invariant is declared inductive only once its cases close; one that needs a strengthening is
   not yet. Today `Inv_ChecksOffScreen`.
   **287 obligations, all proved.**
+- **`activation_types_proof`** (printed from `FlowField`, no hand-written module) — the typing
+  lemmas a proof that every step keeps `TypeOK` rests on: a function of flow records updated in
+  one field of one row, with a value in that field's range, is still one (`Fl_<field>`), and
+  `NoFlow` is a flow record. The provers do not take the flow record's set of 28 fields whole,
+  so each is proved field by field.
+  **85 obligations, all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
