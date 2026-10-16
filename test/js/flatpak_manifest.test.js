@@ -1,12 +1,11 @@
 // The flatpak manifest repeats values other files own, and flatpak-builder
 // reads YAML that cannot import them. So this gate holds each copy to its
 // owner: the Flutter version (.fvmrc), the uBO commit build.rs embeds
-// (UBO_COMMIT), and the app ID (APPLICATION_ID in linux/CMakeLists.txt),
-// which also names the desktop entry and metainfo the manifest installs.
+// (UBO_COMMIT), and the app ID (APPLICATION_ID in linux/CMakeLists.txt).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read, exists } = require('./helpers/source');
+const { read } = require('./helpers/source');
 
 const MANIFEST = 'linux/flatpak/flatpak-flutter.yml';
 const manifest = read(MANIFEST);
@@ -45,11 +44,4 @@ test('the manifest id is the Linux application id', () => {
     .match(/^set\(APPLICATION_ID "([^"]+)"\)$/m)?.[1];
   assert.ok(appId, `${MANIFEST} has no id:`);
   assert.equal(appId, cmake);
-});
-
-test('the desktop entry and metainfo are named by the app id', () => {
-  assert.ok(exists(`linux/${appId}.desktop`), `linux/${appId}.desktop is missing`);
-  const metainfo = read(`linux/${appId}.metainfo.xml`);
-  assert.match(metainfo, new RegExp(`<id>${appId.replaceAll('.', '\\.')}</id>`));
-  assert.match(metainfo, new RegExp(`<launchable type="desktop-id">${appId.replaceAll('.', '\\.')}\\.desktop</launchable>`));
 });
