@@ -24,6 +24,10 @@ on:
         type: choice
         options: [record, enforce, off]
         default: record
+      screenshots_only:
+        description: 'Only the store screenshots: every device at once, into the one screenshots artifact. No build or test job runs.'
+        type: boolean
+        default: false
 
 # Supersede in-progress runs for the same ref: a new push cancels the
 # previous run instead of letting both consume runners. A hung job (e.g. a
@@ -46,12 +50,14 @@ jobs:
   #
   # Put `[ci-only: apple]` in the commit message -- or several, as
   # `[ci-only: apple,validate]` -- and everything else skips. Tokens are the
-  # job ids below: validate, design, android, linux, apple.
+  # job ids below: validate, design, android, linux, apple, and screenshots
+  # for the screenshot jobs, which a marker naming it runs on any PR.
   #
   # Honoured on pull_request only. The marker stays in the message after a
   # merge, so on master and on workflow_dispatch every job runs regardless
   # and the branch everyone reads cannot be silenced by a commit that was
-  # written for one experiment.
+  # written for one experiment. A manual run's screenshots_only input is the
+  # marker `[ci-only: screenshots]`.
   plan:
     name: Plan
     runs-on: ubuntu-latest
@@ -78,6 +84,8 @@ jobs:
             only="$(git log -1 --pretty=%B \
               | sed -n 's/.*\[ci-only:[[:space:]]*\([^]]*\)\].*/\1/p' \
               | head -1 | tr -d '[:space:]')"
+          elif [ "${{ inputs.screenshots_only }}" = true ]; then
+            only=screenshots
           fi
           pick() {
             if [ -z "$only" ]; then
@@ -102,12 +110,18 @@ jobs:
           fi
       # The store screenshots: on a manual run, and on a release PR, which is
       # one that moves pubspec.yaml's version line (docs/releasing.md), so a
-      # release cannot go green without them.
+      # release cannot go green without them. A ci-only marker that names
+      # them runs them, and one that does not skips them.
       - id: screenshots
         run: |
           set -eu
+          only="${{ steps.pick.outputs.only }}"
           screenshots=false
-          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+          if [ -n "$only" ]; then
+            case ",$only," in
+              *,screenshots,*) screenshots=true ;;
+            esac
+          elif [ "${{ github.event_name }}" = workflow_dispatch ]; then
             screenshots=true
           elif [ "${{ github.event_name }}" = pull_request ]; then
             git fetch -q --depth=1 origin "${{ github.event.pull_request.base.sha }}"
@@ -359,139 +373,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: plan
     if: needs.plan.outputs.android == 'true'
-    env:
-      GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
-      # GitHub-hosted ubuntu-latest ships with ~14 GB free, but the
-      # job's working set is closer to 25 GB once you add: Android
-      # SDK/NDK (~10 GB preinstalled), Gradle caches, four Rust
-      # target dirs (~2 GB each for the Android cross-compiles), the
-      # Flutter build dir, and pub-cache. We've been hitting "No
-      # space left on device" mid-build (seen as a CI diag-log write
-      # failure, no actual build output). Free the preinstalled
-      # heavies we don't use — saves ~30 GB and the disk-pressure
-      # margin keeps the build deterministic.
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false  # keep the preinstalled JDK we use below
-          android: false     # keep the Android SDK we use below
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Android toolchain
+        uses: ./.github/actions/android-toolchain
         with:
-          distribution: 'zulu'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version-file: '.fvmrc'
-          channel: 'stable'
-
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-      - name: Generate localizations
-        run: fvm dart tool/gen_l10n.dart
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/webspace_adblock/target
-          key: cargo-android-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
-          restore-keys: |
-            cargo-android-${{ runner.os }}-
-
-      - name: Read Rust toolchain
-        id: rust
-        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ steps.rust.outputs.channel }}
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
-
-      - name: Install cargo-ndk
-        run: cargo install --locked "cargo-ndk@${CARGO_NDK_VERSION}"
-
-      # cargo-ndk requires ANDROID_NDK_HOME pointing at a real NDK
-      # install. The ubuntu-latest runner ships a default NDK under
-      # $ANDROID_SDK_ROOT/ndk/, but the path is version-stamped and
-      # the actual version drifts across runner image releases. Use
-      # the dedicated setup action so we pin a known-good NDK and
-      # don't wedge on a path-shape change in the runner image.
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r26d
-          add-to-path: false
-
-      # The Rust .so is built by the buildRustAdblock Gradle task that
-      # phase 11 wired into the Android build (see android/app/build.
-      # gradle). It auto-runs as a dependency of mergeJniLibFolders, so
-      # we don't need an explicit build step here — but the task needs
-      # ANDROID_NDK_HOME set on the env, which we export here so every
-      # downstream gradle invocation (Kotlin tests + APK build) sees it.
-      - name: Export ANDROID_NDK_HOME
-        run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          # Pin to the version declared in android/gradle/wrapper/
-          # gradle-wrapper.properties. The wrapper script is gitignored, so
-          # the JVM-test and APK steps invoke the `gradle` on PATH; without
-          # this pin the runner's preinstalled Gradle (bumped to 9.6.0) drops
-          # an internal API that AGP 8.x relies on and the
-          # `com.android.application` plugin fails to apply.
-          gradle-version: "8.13"
+          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
 
       - name: Run JVM unit tests (Kotlin plugins)
         # Catches Kotlin compile errors and pure-logic bugs in the
@@ -578,56 +467,8 @@ jobs:
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
 
-      # Android Screenshots (conditional)
-      # The distro's ImageMagick 6, through mini_magick in frameit and in the
-      # resize lane. The pinned `magick` binary this downloaded went 404, and
-      # curl without -f saved the error page in its place.
-      - name: Install ImageMagick
-        if: needs.plan.outputs.screenshots == 'true'
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends imagemagick
-
-      # Emulator prerequisites are ungated: the white-screen pixel suite
-      # below runs on every push/PR, not just the workflow_dispatch
-      # screenshots tier.
-      - name: Enable KVM for emulator acceleration
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      # packages: the action defaults to "tools platform-tools", and the
-      # obsolete "tools" package is gone from Google's repository, so the
-      # default install aborts the job with "Failed to find package 'tools'".
-      # Nothing here uses it; the emulator runner installs what it needs.
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-
-      - name: AVD snapshot cache
-        id: avd-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-api35-x86_64-aosp-pixel_5-v1
-
-      - name: Pre-warm AVD snapshot
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: default
-          arch: x86_64
-          profile: pixel_5
-          disk-size: 4096M
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          script: echo "Generated AVD snapshot for caching."
+      - name: Android emulator
+        uses: ./.github/actions/android-emulator
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -732,58 +573,6 @@ jobs:
           path: build/passkey_gate/
           if-no-files-found: ignore
 
-      - name: Create AVD and generate screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: default
-          arch: x86_64
-          profile: pixel_5
-          disk-size: 4096M
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          script: |
-            # Wait for emulator to be fully booted
-            adb wait-for-device
-            adb shell input keyevent 82
-
-            # Create screenshots directory
-            mkdir -p screenshots/android
-
-            # Run fastlane android screenshots using bundle
-            bundle exec fastlane android screenshots
-
-      # Before framing, which resizes these files in place and writes
-      # *_framed.png beside them: the set is the eight shots as taken, and
-      # a framing failure does not withhold it.
-      - name: Upload Android screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-screenshots
-          path: screenshots/android/*.png
-          if-no-files-found: warn
-
-      - name: Cache Fastlane frameit assets
-        uses: actions/cache@v4
-        with:
-          path: ~/.fastlane/frameit/latest
-          key: frameit-${{ runner.os }}
-
-      - name: Add device frames to screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        run: bundle exec fastlane android add_device_frames
-
-      - name: Upload framed Android screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-framed-screenshots
-          path: screenshots/android/*_framed.png
-          if-no-files-found: error
-
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
@@ -835,145 +624,16 @@ jobs:
       # finding, and a true one.
       FLUTTER_SUPPRESS_ANALYTICS: "true"
     steps:
-      - name: Install container base + Flutter Linux + WPE WebKit deps
-        # debian:sid-slim ships nothing — Actions need git/curl/unzip
-        # just to function. Flutter desktop linux needs gtk/lzma/secret/
-        # epoxy. The plugin needs libwpewebkit-2.0-dev plus libwpe-1.0-dev
-        # and libwpebackend-fdo-1.0-dev (legacy fallback path; harmless
-        # to install even though the plugin prefers WPEPlatform).
-        # xvfb is for the integration_test step further down — Flutter
-        # desktop linux apps need a display server, and Actions runners
-        # don't expose one in headless containers.
-        # pass + gpg + pipx + python3-gi/dbus/secretstorage are the
-        # support stack for pass-secret-service (a Secret Service dbus
-        # provider backed by pass+gpg). Replaces gnome-keyring for CI:
-        # gnome-keyring 50.0 in sid auto-activates a fresh daemon on
-        # libsecret first-call that prompts via gcr-prompter, and
-        # headless Xvfb has no way to dismiss the prompt — main() hangs
-        # forever before runApp. pass-secret-service answers the same
-        # org.freedesktop.secrets dbus name without ever prompting, so
-        # libsecret round-trips cleanly. Build deps (libcairo2-dev,
-        # libgirepository-2.0-dev, python3-dev, pkg-config) are needed
-        # for the pygobject wheel pipx pulls in.
-        run: |
-          set -x
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            ca-certificates curl wget git unzip xz-utils sudo \
-            build-essential clang lld llvm cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
-            libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev \
-            xvfb xauth dbus-x11 xdg-user-dirs \
-            weston mesa-utils libgl1-mesa-dri libegl-mesa0 \
-            libegl1-mesa-dev libgles2-mesa-dev libgbm-dev mesa-vulkan-drivers \
-            pass gpg pipx python3-gi gir1.2-glib-2.0 python3-dbus \
-            python3-cairo python3-secretstorage \
-            libcairo2-dev python3-dev libgirepository-2.0-dev \
-            nftables iproute2
-          rm -rf /var/lib/apt/lists/*
-          pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
-          pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
-
-      - name: Install pass-secret-service
-        # pipx into a venv with --system-site-packages so the venv can
-        # see the apt-installed python3-gi (which builds against system
-        # libgirepository — pipx-installing pygobject from PyPI fails
-        # without that). Then two sed patches:
-        #   1. cryptography 46+ removed cryptography.utils.int_from_bytes;
-        #      shim it back with int.from_bytes.
-        #   2. pydbus delivers the 'ay' (byte array) field of the secret
-        #      tuple as list[int], not bytes — wrap with bytes() before
-        #      handing to the AES decryptor.
-        # Both will be unnecessary once upstream pass-secret-service
-        # ships a release > 0.1a0; track upstream and drop when fixed.
-        run: |
-          set -x
-          pipx install --system-site-packages pass-secret-service
-          # Resolve the venv's python3.X dir at runtime — pipx picks whatever
-          # interpreter the sid image ships (3.13 -> 3.14 -> ...), so pinning a
-          # version breaks the moment the base image bumps Python.
-          SESSION_PY="$(ls "$HOME"/.local/share/pipx/venvs/pass-secret-service/lib/python3.*/site-packages/pass_secret_service/interfaces/session.py)"
-          sed -i 's|from cryptography.utils import int_from_bytes|def int_from_bytes(data, byteorder, signed=False): return int.from_bytes(data, byteorder, signed=signed)|' "$SESSION_PY"
-          sed -i 's|password = secret\[2\]|password = bytes(secret[2])|' "$SESSION_PY"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # git before the checkout, so it is a clone and not a REST download:
+      # debian:sid-slim ships without it.
+      - name: Install git
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
 
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          # GitHub Actions sets HOME=/github/home inside container jobs
-          # (not /root, even though the container runs as root). fvm
-          # install script v2.0.0+ caches Flutter SDKs under $HOME/fvm/versions.
-          path: ~/fvm/versions
-          key: fvm-debian-sid-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-debian-sid-
-
-      - name: Install fvm (standalone binary)
-        # fvm.app/install.sh v2 installs the binary to $HOME/fvm/bin/fvm.
-        # GitHub Actions overrides HOME to /github/home in container jobs,
-        # so the binary lands at /github/home/fvm/bin/fvm. Append it to
-        # GITHUB_PATH for subsequent steps. fvm itself manages Flutter SDK
-        # installs — no Dart bootstrap needed.
-        run: |
-          set -x
-          # Retried: install.sh pulls the fvm binary from a GitHub release,
-          # and a single 504 from that CDN fails the whole Linux job before
-          # anything is built. The retry lives here rather than on a curl
-          # flag because the failing fetch is inside their script.
-          for attempt in 1 2 3 4; do
-            if curl -fsSL https://fvm.app/install.sh | bash; then break; fi
-            if [ "$attempt" = 4 ]; then
-              echo "fvm install failed after $attempt attempts" >&2
-              exit 1
-            fi
-            sleep $((attempt * 5))
-          done
-          ls -la "$HOME/fvm/bin/"
-          echo "$HOME/fvm/bin" >> "$GITHUB_PATH"
-          "$HOME/fvm/bin/fvm" --version
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            /root/.pub-cache
-            .dart_tool
-          key: pub-debian-sid-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-debian-sid-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-      - name: Generate localizations
-        run: fvm dart tool/gen_l10n.dart
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            /root/.cargo/registry
-            /root/.cargo/git
-            rust/webspace_adblock/target
-          key: cargo-linux-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
-          restore-keys: |
-            cargo-linux-${{ runner.os }}-
-
-      - name: Read Rust toolchain
-        id: rust
-        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ steps.rust.outputs.channel }}
+      - name: Linux toolchain
+        uses: ./.github/actions/linux-toolchain
 
       # Pin the upstream-crate behaviour the Dart-side procedural
       # backfill (procedural_action_backfill.dart) relies on. If
@@ -1200,30 +860,6 @@ jobs:
           path: ${{ env.WS_EGRESS_STATE }}
           if-no-files-found: ignore
 
-      # Linux Screenshots (conditional), after the disarm: the tour loads the
-      # demo sites and their icons. The session gives GTK a Wayland display,
-      # so the window carries the title bar and shadow Flathub asks for.
-      - name: Generate Linux screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        timeout-minutes: 30
-        env:
-          LANG: C.UTF-8
-          LC_ALL: C.UTF-8
-        run: |
-          set -x
-          apt-get update
-          apt-get install -y --no-install-recommends ruby ruby-dev ruby-bundler
-          bundle install
-          bash scripts/linux_test_session.sh bundle exec fastlane linux screenshots
-
-      - name: Upload Linux screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-screenshots
-          path: screenshots/linux/*.png
-          if-no-files-found: warn
-
   build-apple:
     name: Build iOS & macOS
     runs-on: macos-latest
@@ -1240,106 +876,8 @@ jobs:
       - name: Type-check the Tor plugin
         run: ./tool/swift_typecheck/check.sh
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
-
-      - name: Install CocoaPods
-        run: |
-          brew install cocoapods
-          brew link --force cocoapods
-
-      - name: Install ImageMagick and Fastlane (screenshots only)
-        if: needs.plan.outputs.screenshots == 'true'
-        run: |
-          brew install imagemagick-full fastlane
-          brew link --force imagemagick-full
-          brew link --force fastlane
-
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: |
-            ios/Pods
-            macos/Pods
-            ~/Library/Caches/CocoaPods
-            ~/.cocoapods/repos
-          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'macos/Podfile.lock') }}
-          restore-keys: |
-            pods-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-      - name: Generate localizations
-        run: fvm dart tool/gen_l10n.dart
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/webspace_adblock/target
-          key: cargo-apple-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
-          restore-keys: |
-            cargo-apple-${{ runner.os }}-
-
-      # The IPtProxy pod has no prebuilt binary: its prepare_command
-      # cross-compiles the transports from Go with gomobile during `pod
-      # install`, which `flutter build ipa` runs. Pinned rather than left to
-      # whatever the runner image ships, because the pod needs 1.24+ and a
-      # runner image bump is not something this build should notice.
-      - name: Setup Go (for the IPtProxy pod's gomobile build)
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-
-      - name: Read Rust toolchain
-        id: rust
-        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ steps.rust.outputs.channel }}
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
-
-      # Build the rust .xcframework + macOS fat .a + keep_alive.c into
-      # rust/webspace_adblock/cocoapods/, where the webspace_adblock
-      # podspec consumes them as vendored binaries. CocoaPods handles the
-      # link via standard pod machinery (no force_load / -Wl,-u / pbxproj
-      # mutation), so this just needs to run before pod install.
-      - name: Build Rust adblock for Apple (xcframework + macOS .a)
-        run: |
-          bash scripts/build_rust.sh apple
-          ls -la rust/webspace_adblock/cocoapods/
+      - name: Apple toolchain
+        uses: ./.github/actions/apple-toolchain
 
       - name: Run tests
         run: fvm flutter test
@@ -1466,32 +1004,12 @@ jobs:
       # generator; a non-zero exit from any file is remembered and re-raised
       # so one failure doesn't mask the rest. On failure, dump the macOS
       # crash report so a launch-time SIGKILL explains itself.
-      # Shared by both steps below: the debug build needs the sandbox
-      # exceptions the tier's servers and the Tor runtime use, and the
-      # keychain has to be open for flutter_secure_storage.
+      # Shared by both steps below and by the macOS screenshots: the debug
+      # build needs the sandbox exceptions the tier's servers and the Tor
+      # runtime use, and the keychain has to be open for
+      # flutter_secure_storage.
       - name: Prepare the macOS test run
-        run: |
-          set -x
-          security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
-          cat > macos/Runner/DebugProfile.entitlements <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-          	<key>com.apple.security.app-sandbox</key>
-          	<true/>
-          	<key>com.apple.security.cs.allow-jit</key>
-          	<true/>
-          	<key>com.apple.security.files.user-selected.read-write</key>
-          	<true/>
-          	<key>com.apple.security.network.server</key>
-          	<true/>
-          	<key>com.apple.security.network.client</key>
-          	<true/>
-          </dict>
-          </plist>
-          EOF
-
+        run: bash scripts/prepare_macos_ci_debug.sh
 
       # Runs even when an earlier step failed, and runs ahead of the Tor
       # scenario: that scenario is one file, and hiding the other eighteen --
@@ -1888,42 +1406,67 @@ jobs:
           path: webspace-macos.zip
           if-no-files-found: error
 
-      # iOS Screenshots (conditional)
-      - name: List available simulators
-        if: needs.plan.outputs.screenshots == 'true'
-        run: xcrun simctl list devices available
+  # The store screenshots, a job per device, so every set is taken at once
+  # and none waits on a build or a test tier. The plan job decides which runs
+  # make them.
+  screenshots-android:
+    name: Screenshots (Android)
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.screenshots == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Boot iOS Simulator
-        if: needs.plan.outputs.screenshots == 'true'
+      - name: Android toolchain
+        uses: ./.github/actions/android-toolchain
+        with:
+          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      # The distro's ImageMagick 6, through mini_magick in frameit and in the
+      # resize lane. The pinned `magick` binary this downloaded went 404, and
+      # curl without -f saved the error page in its place.
+      - name: Install ImageMagick
         run: |
-          # Find and boot an iPhone 15 Pro simulator
-          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
-          if [ -z "$DEVICE_ID" ]; then
-            # Fallback to iPhone 14 Pro if iPhone 15 Pro not available
-            DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 14 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
-          fi
-          if [ -z "$DEVICE_ID" ]; then
-            # Fallback to any available iPhone
-            DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
-          fi
-          echo "Booting simulator: $DEVICE_ID"
-          xcrun simctl boot "$DEVICE_ID" || true
-          echo "SIMULATOR_ID=$DEVICE_ID" >> $GITHUB_ENV
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends imagemagick
 
-      - name: Wait for simulator to boot
-        if: needs.plan.outputs.screenshots == 'true'
-        run: |
-          # Wait for simulator to be fully booted
-          xcrun simctl bootstatus "$SIMULATOR_ID" -b
-          sleep 10
+      - name: Android emulator
+        uses: ./.github/actions/android-emulator
 
-      - name: Create screenshots directory
-        if: needs.plan.outputs.screenshots == 'true'
-        run: mkdir -p screenshots/ios
+      - name: Generate Android screenshots
+        timeout-minutes: 45
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 4096M
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            adb wait-for-device
+            adb shell input keyevent 82
+            mkdir -p screenshots/android
+            bundle exec fastlane android screenshots
 
-      - name: Generate iOS screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        run: fastlane ios screenshots
+      # Before framing, which resizes these files in place and writes
+      # *_framed.png beside them: the set is the eight shots as taken, and
+      # a framing failure does not withhold it.
+      - name: Upload Android screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-screenshots
+          path: screenshots/android/*.png
+          if-no-files-found: warn
 
       - name: Cache Fastlane frameit assets
         uses: actions/cache@v4
@@ -1931,39 +1474,191 @@ jobs:
           path: ~/.fastlane/frameit/latest
           key: frameit-${{ runner.os }}
 
-      - name: Add device frames to iOS screenshots
-        if: needs.plan.outputs.screenshots == 'true'
-        run: fastlane ios add_device_frames
+      - name: Add device frames to screenshots
+        run: bundle exec fastlane android add_device_frames
 
-      - name: Upload iOS screenshots
-        if: needs.plan.outputs.screenshots == 'true'
+      - name: Upload framed Android screenshots
         uses: actions/upload-artifact@v4
         with:
-          name: ios-screenshots
-          path: screenshots/ios/*.png
+          name: android-framed-screenshots
+          path: screenshots/android/*_framed.png
+          if-no-files-found: error
+
+  # iPhone and iPad on a simulator each. A set is resized to its App Store
+  # size, so the simulator is the last Pro the runner's Xcode lists, near
+  # that aspect, and any of its family only when there is none.
+  screenshots-ios:
+    name: Screenshots (${{ matrix.device }})
+    runs-on: macos-latest
+    needs: plan
+    if: needs.plan.outputs.screenshots == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: iphone
+            family: iPhone
+            simulator: '^iPhone [0-9]+ Pro$'
+          - device: ipad
+            family: iPad
+            simulator: '^iPad (Pro|Air) 13-inch|^iPad Pro \(12\.9-inch\)'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Apple toolchain
+        uses: ./.github/actions/apple-toolchain
+
+      # The runner image's formula data trails Homebrew and brew does not
+      # refresh it on install: it kept serving ImageMagick 7.1.2-33, whose
+      # mogrify cannot write, after 7.1.2-34 fixed it.
+      - name: Install ImageMagick and Fastlane
+        run: |
+          brew update --quiet
+          brew install imagemagick-full fastlane
+          brew link --force imagemagick-full
+          brew link --force fastlane
+          magick -version | head -n 1
+
+      - name: Boot the simulator
+        id: simulator
+        env:
+          FAMILY: ${{ matrix.family }}
+          PREFERRED: ${{ matrix.simulator }}
+        run: |
+          set -eu
+          xcrun simctl list devices available
+          pick() {
+            xcrun simctl list devices available -j \
+              | jq -r --arg re "$1" '[.devices[][] | select(.name | test($re))] | last | .udid // empty'
+          }
+          udid="$(pick "$PREFERRED")"
+          [ -n "$udid" ] || udid="$(pick "^$FAMILY")"
+          if [ -z "$udid" ]; then
+            echo "::error::no $FAMILY simulator on this runner"
+            exit 1
+          fi
+          xcrun simctl bootstatus "$udid" -b
+          sleep 10
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Generate the screenshots
+        timeout-minutes: 45
+        run: fastlane ios screenshots device:${{ matrix.device }} udid:${{ steps.simulator.outputs.udid }}
+
+      # The iPad lane builds with UIRequiresFullScreen and must put the
+      # shipped Info.plist back, failed run included (SCREENSHOT-010).
+      - name: Info.plist is as shipped
+        if: success() || failure()
+        run: git diff --exit-code -- ios/Runner/Info.plist
+
+      - name: Cache Fastlane frameit assets
+        uses: actions/cache@v4
+        with:
+          path: ~/.fastlane/frameit/latest
+          key: frameit-${{ runner.os }}
+
+      - name: Add device frames
+        run: fastlane ios add_device_frames device:${{ matrix.device }}
+
+      # The shots at their App Store size, which the framing lane resized
+      # them to; kept when framing fails.
+      - name: Upload the screenshots
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.device }}-screenshots
+          path: |
+            screenshots/ios/${{ matrix.device }}/*.png
+            !screenshots/ios/${{ matrix.device }}/*_framed.png
           if-no-files-found: warn
 
-      # macOS Screenshots (conditional). The debug build takes the stock
-      # entitlements "Prepare the macOS test run" wrote, and the lane passes
-      # --ci for the same reason the macOS tier does.
+      - name: Upload the framed screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.device }}-framed-screenshots
+          path: screenshots/ios/${{ matrix.device }}/*_framed.png
+          if-no-files-found: error
+
+  screenshots-macos:
+    name: Screenshots (macOS)
+    runs-on: macos-latest
+    needs: plan
+    if: needs.plan.outputs.screenshots == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Apple toolchain
+        uses: ./.github/actions/apple-toolchain
+
+      - name: Install Fastlane
+        run: |
+          brew install fastlane
+          brew link --force fastlane
+
+      # The debug build takes the entitlements the macOS test tier runs with,
+      # and the lane passes --ci for the same reason that tier does.
+      - name: Prepare the macOS debug run
+        run: bash scripts/prepare_macos_ci_debug.sh
+
       - name: Generate macOS screenshots
-        if: needs.plan.outputs.screenshots == 'true'
         timeout-minutes: 30
         run: fastlane mac screenshots
 
       - name: Upload macOS screenshots
-        if: needs.plan.outputs.screenshots == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-screenshots
           path: screenshots/macos/*.png
           if-no-files-found: warn
 
-  # The screenshots in one download, a folder per platform. Runs when a
-  # platform failed too, to keep the sets that were made.
+  # In the container the Linux build runs in, for the same WPE WebKit. The
+  # session gives GTK a Wayland display, so the window carries the title bar
+  # and shadow Flathub asks for.
+  screenshots-linux:
+    name: Screenshots (Linux)
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.screenshots == 'true'
+    container:
+      image: debian:sid-slim
+    steps:
+      # git before the checkout, so it is a clone and not a REST download:
+      # debian:sid-slim ships without it.
+      - name: Install git
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Linux toolchain
+        uses: ./.github/actions/linux-toolchain
+
+      - name: Generate Linux screenshots
+        timeout-minutes: 30
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+        run: |
+          set -x
+          apt-get update
+          apt-get install -y --no-install-recommends ruby ruby-dev ruby-bundler
+          bundle install
+          bash scripts/linux_test_session.sh bundle exec fastlane linux screenshots
+
+      - name: Upload Linux screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshots
+          path: screenshots/linux/*.png
+          if-no-files-found: warn
+
+  # The screenshots in one download, a folder per device. Runs when a set
+  # failed too, to keep the sets that were made.
   screenshots:
     name: Screenshots
-    needs: [plan, build-android, build-apple, build-linux]
+    needs: [plan, screenshots-android, screenshots-ios, screenshots-macos, screenshots-linux]
     if: needs.plan.outputs.screenshots == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:

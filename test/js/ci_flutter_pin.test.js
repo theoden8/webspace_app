@@ -39,7 +39,8 @@ function flutterActionSteps(text, file) {
   return steps;
 }
 
-const steps = files('.github/workflows', /\.ya?ml$/)
+// The composite actions the jobs share bootstrap Flutter too.
+const steps = [...files('.github/workflows', /\.ya?ml$/), ...files('.github/actions', /\.ya?ml$/)]
   .flatMap((f) => flutterActionSteps(read(f), f));
 
 test('the workflows still bootstrap Flutter through the action', () => {

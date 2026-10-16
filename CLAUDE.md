@@ -193,7 +193,9 @@ missing piece: [docs/releasing.md](docs/releasing.md).
 
 - **`[ci-only: <jobs>]` narrows a CI run.** A commit message carrying it runs only
   the jobs it names and skips the rest; tokens are `validate`, `design`, `android`,
-  `linux`, `apple`, comma-separated (`[ci-only: apple,validate]`). For a bisection
+  `linux`, `apple`, `screenshots`, comma-separated (`[ci-only: apple,validate]`).
+  `screenshots` runs the store screenshot jobs on any PR, as a manual run's
+  `screenshots_only` input does. For a bisection
   that reads one tier this is the difference between one runner and five. It is
   honoured on `pull_request` only, so a marker that survives a merge cannot silence
   master, and the guardrails are gated by

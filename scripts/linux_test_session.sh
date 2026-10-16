@@ -6,8 +6,8 @@
 #
 #   scripts/linux_test_session.sh <command> [args...]
 #
-# Needs the packages and pass-secret-service install from the Linux job in
-# .github/workflows/build-and-test.yml.
+# Needs the packages and pass-secret-service install from
+# .github/actions/linux-toolchain.
 
 set -x
 

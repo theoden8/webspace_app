@@ -7,8 +7,8 @@ Automated screenshot generation for app store submissions using Flutter integrat
 ## Status
 
 - **Status**: Completed
-- **Platforms**: Android, iOS, macOS, Linux
-- **CI Integration**: GitHub Actions (conditional on file changes)
+- **Platforms**: Android, iOS (iPhone and iPad), macOS, Linux
+- **CI Integration**: GitHub Actions, a job per device (SCREENSHOT-004)
 
 ---
 
@@ -26,9 +26,16 @@ Screenshots SHALL be generated using Flutter integration tests on Android, iOS, 
 
 #### Scenario: Generate screenshots on iOS
 
-- **GIVEN** an iOS simulator is running
-- **WHEN** the user runs `fastlane ios screenshots`
-- **THEN** 8 screenshots are captured (4 per theme)
+- **GIVEN** an iPhone simulator is running
+- **WHEN** the user runs `fastlane ios screenshots` (`device:iphone` is the default)
+- **THEN** 8 screenshots are captured (4 per theme) into `screenshots/ios/iphone/`
+
+#### Scenario: Generate screenshots on iPad
+
+- **GIVEN** an iPad simulator is running
+- **WHEN** the user runs `fastlane ios screenshots device:ipad`
+- **THEN** 8 landscape screenshots are captured (4 per theme) into `screenshots/ios/ipad/` (SCREENSHOT-010)
+- **AND** `udid:<simulator>` picks the device when more than one is booted
 
 #### Scenario: Generate screenshots on macOS
 
@@ -76,12 +83,18 @@ The test SHALL capture 4 screenshots per theme (8 total): `01-site-settings`, `0
 
 ### SCREENSHOT-004 - CI/CD Integration
 
-Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch`) run and on every release PR, so a release cannot go green without them. The plan job decides which runs make them.
+Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch`) run and on every release PR, so a release cannot go green without them. The plan job decides which runs make them. Each device's set is a job of its own (`screenshots-android`, `screenshots-ios` for iPhone and iPad, `screenshots-macos`, `screenshots-linux`), started with the build jobs rather than after their test tiers; a job shares its toolchain setup with the build job of its platform through `.github/actions/`.
 
 #### Scenario: Manual run
 
 - **WHEN** Build and Test is run by hand
-- **THEN** screenshots are generated on the Android emulator, the iOS simulator, the macOS runner and the Linux container
+- **THEN** screenshots are generated on the Android emulator, an iPhone simulator, an iPad simulator, the macOS runner and the Linux container, each in its own job
+
+#### Scenario: Screenshots only
+
+- **WHEN** Build and Test is run by hand with `screenshots_only`
+- **THEN** only the screenshot jobs and the merge run, all at once, and no build or test job does
+- **AND** the input is the `[ci-only: screenshots]` marker, which a pull request's commit can carry to run them on any PR
 
 #### Scenario: Release PR
 
@@ -93,19 +106,27 @@ Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch
 #### Scenario: One download for every platform
 
 - **WHEN** a manual (`workflow_dispatch`) run finishes
-- **THEN** a `screenshots` artifact holds each platform's set in its own folder (`android-screenshots/` as taken, `android-framed-screenshots/`, `ios-screenshots/`, `macos-screenshots/`, `linux-screenshots/`)
-- **AND** a platform that failed leaves its folder out instead of withholding the others
+- **THEN** a `screenshots` artifact holds each device's set in its own folder (`android-screenshots/` as taken, `android-framed-screenshots/`, `iphone-screenshots/` and `ipad-screenshots/` at their App Store size, `iphone-framed-screenshots/`, `ipad-framed-screenshots/`, `macos-screenshots/`, `linux-screenshots/`)
+- **AND** a device whose job failed leaves its folder out instead of withholding the others
 
 ---
 
 ### SCREENSHOT-005 - Device Frame Integration
 
-Android and iOS screenshots SHALL be frameable with device bezels using frameit. macOS and Linux screenshots are left unframed: frameit has no desktop bezel, and the window captures carry their own title bar (SCREENSHOT-007, SCREENSHOT-009).
+Android, iPhone and iPad screenshots SHALL be frameable with device bezels using frameit; the iPhone and iPad sets share the frameit config in `screenshots/ios/`, which frameit reads from a screenshot's parent folder. macOS and Linux screenshots are left unframed: frameit has no desktop bezel, and the window captures carry their own title bar (SCREENSHOT-007, SCREENSHOT-009).
 
 #### Scenario: Add device frames
 
-- **WHEN** the user runs `fastlane add_device_frames`
+- **WHEN** the user runs `fastlane add_device_frames` (`fastlane ios add_device_frames device:ipad` for the iPad set)
 - **THEN** screenshots are resized and framed with device bezels
+- **AND** an iPhone set is resized to 1170x2532 and an iPad set to 2732x2048, the sizes App Store Connect takes that frameit has a bezel for
+
+#### Scenario: Every iOS shot is framed or the lane fails
+
+- **GIVEN** frameit logs a shot it cannot frame and carries on
+- **WHEN** `fastlane ios add_device_frames` finishes framing a set
+- **THEN** a shot without its `_framed` copy fails the lane, naming the shot
+- **AND** a broken ImageMagick fails the lane instead of passing with no framed set: under 7.1.2-33, whose `mogrify` could not write any image, frameit logged an error per shot and framed none
 
 ---
 
@@ -186,6 +207,24 @@ On Linux a screenshot SHALL be the app's GTK window drawn into an image, with th
 
 ---
 
+### SCREENSHOT-010 - iPad Landscape
+
+The iPad set SHALL be landscape. iPadOS honours an app's orientation lock only when the app opts out of multitasking, and the shipped app does not, so `SystemChrome.setPreferredOrientations` alone leaves an iPad in portrait. The iPad lane builds the app with `UIRequiresFullScreen` set for the run and puts `ios/Runner/Info.plist` back afterwards, failed run included; no shipped build opts out of multitasking.
+
+#### Scenario: The iPad turns before the first shot
+
+- **GIVEN** an iPad simulator in portrait
+- **WHEN** `fastlane ios screenshots device:ipad` runs the test
+- **THEN** the test locks the orientation to landscape and waits until the view is wider than tall
+- **AND** a view still portrait 5 seconds after the lock fails the test, so a portrait set is never taken
+
+#### Scenario: Info.plist stays as shipped
+
+- **WHEN** the iPad lane finishes, or its drive fails
+- **THEN** `ios/Runner/Info.plist` is byte-identical to what it was before the lane ran
+
+---
+
 ## Files
 
 **Test files:**
@@ -197,10 +236,13 @@ On Linux a screenshot SHALL be the app's GTK window drawn into an image, with th
 
 **Fastlane config:**
 - `android/fastlane/Fastfile`, `ios/fastlane/Fastfile`, `macos/fastlane/Fastfile`, `linux/fastlane/Fastfile` - Screenshot lanes
-- `screenshots/android/`, `screenshots/ios/` - Output + frameit config
+- `screenshots/android/` - Output + frameit config
+- `screenshots/ios/` - frameit config; `iphone/` and `ipad/` hold the output
 - `screenshots/macos/` - Output (no frameit: Mac screenshots are unframed window captures)
 - `screenshots/linux/` - Output (no frameit, as on macOS)
 
 **CI:**
-- `.github/workflows/build-and-test.yml` - Build + conditional screenshots
+- `.github/workflows/build-and-test.yml` - The plan job, a screenshot job per device, and the merge
+- `.github/actions/android-toolchain`, `android-emulator`, `apple-toolchain`, `linux-toolchain` - Setup the screenshot jobs share with the build jobs
+- `scripts/prepare_macos_ci_debug.sh` - CI keychain and entitlements for a macOS debug run
 - `scripts/linux_test_session.sh` - The Linux CI desktop session the lane runs in

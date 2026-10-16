@@ -104,8 +104,8 @@ Without `cargo` on PATH the Flutter build still succeeds — the Rust step print
 | macOS | Notarized Developer ID build, and the Mac App Store |
 
 macOS release builds are signed after the build by
-[`scripts/sign_macos.sh`](scripts/sign_macos.sh), driven by the
-`release-macos.yml` workflow; account setup and the submission path are in
+[`scripts/sign_macos.sh`](scripts/sign_macos.sh), run on a Mac that holds the
+signing identity; account setup and the submission path are in
 [docs/releasing-macos.md](docs/releasing-macos.md). The macOS bundle attached
 to CI runs is a developer build: it is ad-hoc signed, so it launches but
 secure storage (cookies, proxy credentials) and the share extension's app

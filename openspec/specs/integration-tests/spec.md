@@ -26,16 +26,16 @@ Simulator (`-d <udid>`) — are a separate harness: each needs a booted
 emulator/simulator before `flutter test` can attach, not just a window
 server. The device-boot plumbing exists in this workflow for the
 fastlane-driven Android/iOS screenshot pipeline (see
-[`screenshots`](../screenshots/spec.md) — `build-android`'s
-`reactivecircus/android-emulator-runner` and `build-apple`'s
-`simctl boot`). The Android-emulator scenarios are wired in:
+[`screenshots`](../screenshots/spec.md) — `screenshots-android`'s
+`reactivecircus/android-emulator-runner` and `screenshots-ios`'s
+`simctl bootstatus`). The Android-emulator scenarios are wired in:
 `white_screen_test.dart` (INTEG-010), `shortcut_behavior_test.dart`
 (INTEG-013) and `page_zoom_test.dart` (ZOOM-006 — the wide-viewport quirk
 behind BUG-008 exists in no other engine, and the same file also runs on
 both desktop loops) run inside the `build-android` job on every push/PR, on the
-same AVD profile and snapshot cache the screenshots lane uses (the
-emulator prerequisite steps are ungated; only the screenshot generation
-itself stays `workflow_dispatch`), followed in the same emulator step by
+same AVD profile and snapshot cache the Android screenshots use (both jobs
+take them from `.github/actions/android-emulator`), followed in the same
+emulator step by
 the adb-driven lifecycle tier (INTEG-011), which drives warm start,
 bfcache back navigation, activity recreation, and the warm
 home-shortcut taps from outside the app process. The white-screen and
@@ -401,10 +401,11 @@ either target.
   declares provisioning-dependent entitlements (the team-prefixed
   `application-groups` and `keychain-access-groups`) that an ad-hoc
   signature cannot satisfy
-- **When** the `Run macOS integration tests` step overwrites that file
+- **When** `scripts/prepare_macos_ci_debug.sh`, run ahead of the macOS
+  integration tests and of the macOS screenshots, overwrites that file
   with the stock Flutter debug set (`app-sandbox`, `cs.allow-jit`,
   `files.user-selected.read-write`, `network.server`, `network.client`)
-  minus those two keys, and runs `flutter test -d macos --ci`
+  minus those two keys, and the step runs `flutter test -d macos --ci`
 - **Then** `taskgated` accepts the ad-hoc signature (instead of
   SIGKILL'ing the app as "Code Signature Invalid"), and `--ci`
   (`usingCISystem`) re-signs with the sandbox disabled so the tool
@@ -678,9 +679,9 @@ synthetic touch reaching the platform view.
   inside the booted emulator with a 25-minute wall-clock cap
 - **Then** the suite executes on every push to master, every PR, and
   every manual dispatch, and a failure fails `build-android`
-- **And** the screenshot generation step after it remains gated on
-  `workflow_dispatch`, booting the emulator a second time on dispatch
-  runs
+- **And** the screenshots are not taken here but by the
+  `screenshots-android` job, which boots the same snapshot on the runs the
+  plan job picks for screenshots
 
 #### Scenario: Desktop loops skip the Android-only suite
 
@@ -1164,7 +1165,8 @@ macOS runner exercises the failure assertions for real.
   `flutter drive` + a custom test driver, but the simplicity of one-test-
   per-file outweighs the wall-time gain at the current count.
 - **`pass-secret-service` patches**: the two `sed` patches applied in the
-  workflow's `Install pass-secret-service` step are pinned to the
+  `Install pass-secret-service` step of `.github/actions/linux-toolchain`
+  are pinned to the
   upstream 0.1a0 release. When upstream ships a release that handles
   `cryptography>=46` and pydbus's `list[int]` buffer convention natively,
   drop the patches. No version pin in the workflow today; track
@@ -1228,9 +1230,11 @@ macOS runner exercises the failure assertions for real.
 
 ### Modified
 - [`.github/workflows/build-and-test.yml`](../../../.github/workflows/build-and-test.yml)
-  — `build-linux` job's `Install container base + Flutter Linux + WPE WebKit deps`,
-  `Install pass-secret-service`, and `Run Linux integration tests` steps,
-  the last running its loop in `scripts/linux_test_session.sh`;
+  — `build-linux` job's `Run Linux integration tests` step, which runs its
+  loop in `scripts/linux_test_session.sh`, after the job's container setup
+  (`Install container base + Flutter Linux + WPE WebKit deps`,
+  `Install pass-secret-service`) in `.github/actions/linux-toolchain`, which
+  the Linux screenshots share;
   its `--cap-add=NET_ADMIN`, `Warm the toolchain before arming the egress
   guard`, `Arm egress guard` and `Disarm egress guard and report` steps
   (INTEG-016); `build-apple` job's `Run macOS integration tests` step

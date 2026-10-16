@@ -42,6 +42,16 @@ function extractSingleQuotedShellBlocks(text) {
 }
 
 const workflowText = read(WORKFLOW);
+
+/** A job's block: its header line up to the next job's. */
+function job(text, id) {
+  const start = text.indexOf(`\n  ${id}:\n`);
+  assert.notEqual(start, -1, `${id} job not found`);
+  const rest = text.slice(start + 1);
+  const next = rest.search(/\n {2}[a-z][a-z-]*:\n/);
+  return next === -1 ? rest : rest.slice(0, next);
+}
+
 const blocks = extractSingleQuotedShellBlocks(workflowText);
 
 test('the workflow embeds at least one single-quoted shell block', () => {
@@ -90,6 +100,10 @@ test('every heavy job is gated on the plan job', () => {
     ['build-android', 'android'],
     ['build-linux', 'linux'],
     ['build-apple', 'apple'],
+    ['screenshots-android', 'screenshots'],
+    ['screenshots-ios', 'screenshots'],
+    ['screenshots-macos', 'screenshots'],
+    ['screenshots-linux', 'screenshots'],
   ]) {
     const header = text.slice(text.indexOf(`\n  ${job}:\n`));
     const block = header.slice(0, header.indexOf('\n    steps:'));
@@ -131,14 +145,8 @@ test('the ci-only marker is honoured on pull requests only', () => {
 // PASSKEY-012 runs inside the Android job rather than a job of its own, so no
 // plan token guards it and nothing above would notice the step going missing.
 test('the Android job runs the passkey gate', () => {
-  const text = read(WORKFLOW);
-  const start = text.indexOf('\n  build-android:\n');
-  assert.notEqual(start, -1, 'build-android job not found');
-  const rest = text.slice(start + 1);
-  const next = rest.search(/\n {2}[a-z][a-z-]*:\n/);
-  const job = next === -1 ? rest : rest.slice(0, next);
   assert.ok(
-    /\n +bash scripts\/run_android_passkey_tests\.sh\n/.test(job),
+    /\n +bash scripts\/run_android_passkey_tests\.sh\n/.test(job(read(WORKFLOW), 'build-android')),
     'build-android no longer runs scripts/run_android_passkey_tests.sh',
   );
 });
@@ -159,6 +167,33 @@ test('screenshots run on a manual run and on a release PR, decided by plan', () 
   assert.match(plan, /\n {6}screenshots: \$\{\{ steps\.screenshots\.outputs\.screenshots \}\}\n/);
   assert.match(plan, /sed -n 's\/\^version: \/\/p' pubspec\.yaml/,
     'the plan job no longer reads the version line, so a release PR would skip the screenshots');
-  const gated = text.match(/if: needs\.plan\.outputs\.screenshots == 'true'/g) ?? [];
-  assert.ok(gated.length >= 14, `only ${gated.length} steps run on the screenshot runs`);
+  assert.match(plan, /\*,screenshots,\*\) screenshots=true/,
+    'a ci-only marker naming screenshots no longer runs them');
+  assert.match(plan,
+    /elif \[ "\$\{\{ inputs\.screenshots_only \}\}" = true \]; then\n\s+only=screenshots\n/,
+    'the screenshots_only input is no longer the [ci-only: screenshots] marker');
+});
+
+// A device's set is a job of its own so a screenshots-only run takes them all
+// at once, and the merge job is what makes them one download. A set whose job
+// the merge does not wait for is uploaded after the merge ran and is missing
+// from it, with every job green.
+test('every device feeds the one screenshots artifact', () => {
+  const text = read(WORKFLOW);
+  const merge = job(text, 'screenshots');
+  assert.match(merge, /pattern: '\*-screenshots'/);
+  const needs = merge.match(/\n {4}needs: \[([^\]]*)\]/)[1].split(',').map((n) => n.trim());
+  for (const id of ['screenshots-android', 'screenshots-ios', 'screenshots-macos', 'screenshots-linux']) {
+    assert.ok(needs.includes(id), `the screenshots merge does not wait for ${id}`);
+    assert.match(job(text, id), /\n +name: [^\n]*-screenshots\n/,
+      `${id} uploads no *-screenshots artifact for the merge to take`);
+  }
+  const ios = job(text, 'screenshots-ios');
+  for (const device of ['iphone', 'ipad']) {
+    assert.match(ios, new RegExp(`\\n +- device: ${device}\\n`),
+      `the iOS screenshot matrix has no ${device}`);
+  }
+  assert.match(ios, /name: \$\{\{ matrix\.device \}\}-screenshots\n/);
+  assert.match(ios, /name: \$\{\{ matrix\.device \}\}-framed-screenshots\n/,
+    'the iOS framed sets no longer reach the merge');
 });

@@ -81,24 +81,6 @@ MACOS_EXT_PROVISION_PROFILE=~/profiles/ext.provisionprofile \
 the `.pkg`; either `xcrun altool --upload-app` or `fastlane deliver
 --platform osx` sends it to App Store Connect.
 
-## Signing in CI
-
-`release-macos.yml` runs the same path on `workflow_dispatch`, with a
-`devid` / `mas` choice. It imports the certificate into a job-local keychain
-and deletes it afterwards. Repository secrets:
-
-| Secret | Channel | What |
-|--------|---------|------|
-| `WEBSPACE_TEAM_ID` | both | `7NGC2P87LM` |
-| `MACOS_CERT_P12` | both | base64 of the .p12 (signing cert, plus the installer cert for `mas`) |
-| `MACOS_CERT_PASSWORD` | both | .p12 password |
-| `MACOS_SIGN_IDENTITY` | both | full identity name; defaults to `Developer ID Application` / `Apple Distribution` |
-| `MACOS_INSTALLER_IDENTITY` | mas | defaults to `3rd Party Mac Developer Installer` |
-| `MACOS_PROVISION_PROFILE_B64` | mas | base64 of the app profile |
-| `MACOS_EXT_PROVISION_PROFILE_B64` | mas | base64 of the extension profile |
-| `NOTARY_KEY_P8` | devid | base64 of the App Store Connect API key |
-| `NOTARY_KEY_ID`, `NOTARY_ISSUER` | devid | key identifiers |
-
 ## What the store build has to keep true
 
 - **The sandbox stays on.** All file IO already goes through

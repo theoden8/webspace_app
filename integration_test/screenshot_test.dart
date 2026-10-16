@@ -36,6 +36,23 @@ Future<void> _setDeviceOrientation(WidgetTester tester) async {
       ]);
     }
     await tester.pump();
+    if (_isTablet(tester)) await _awaitLandscape(tester);
+  }
+}
+
+/// iPadOS honours the lock only for an app that opts out of multitasking,
+/// which the iPad screenshot lane's build does (UIRequiresFullScreen). Any
+/// other build would take the iPad set in portrait.
+Future<void> _awaitLandscape(WidgetTester tester) async {
+  bool portrait() =>
+      tester.view.physicalSize.width <= tester.view.physicalSize.height;
+  for (var tries = 0; portrait(); tries++) {
+    expect(tries, lessThan(50),
+        reason: 'the iPad stayed in portrait; take the set with '
+            '`fastlane ios screenshots device:ipad`, which builds with '
+            'UIRequiresFullScreen');
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await tester.pump();
   }
 }
 
