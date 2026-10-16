@@ -947,7 +947,7 @@
   "torStateAppWide": "All apptrafik",
   "torStateAppWideSubtitle": "Utgående proxy i Appinställningar är inställd på Tor",
   "torStateOtherSites": "{count, plural, one{En annan webbplats} other{{count} andra webbplatser}}",
-  "torStateExitCountryHint": "Tor lämnar nätverket från ett land åt gången, för alla webbplatser samtidigt. En webbplats väljer land under Nätverk i sina inställningar, och att öppna en webbplats som är fäst vid ett annat land stänger de webbplatser som inte stämmer överens.",
+  "torStateSiteExitCountry": "Utgångsland: {country}",
   "torStateBridgesOff": "Av",
   "torStateCircuits": "Kretsar",
   "torStateCircuitsPerSite": "En per webbplats",

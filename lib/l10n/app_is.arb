@@ -947,7 +947,7 @@
   "torStateAppWide": "Öll umferð forritsins",
   "torStateAppWideSubtitle": "Útgangandi milliþjónn í Forritsstillingum er stilltur á Tor",
   "torStateOtherSites": "{count, plural, one{{count} annað vefsvæði} other{{count} önnur vefsvæði}}",
-  "torStateExitCountryHint": "Tor fer út úr netinu um eitt land í einu, fyrir öll vefsvæði samtímis. Vefsvæði velur landið í Netkerfisstillingum sínum, og ef opnað er vefsvæði sem er fest við annað land lokast þau vefsvæði sem stangast á við það.",
+  "torStateSiteExitCountry": "Útgönguland: {country}",
   "torStateBridgesOff": "Af",
   "torStateCircuits": "Rásir",
   "torStateCircuitsPerSite": "Ein á hvert vefsvæði",

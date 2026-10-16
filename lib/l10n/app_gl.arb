@@ -947,7 +947,7 @@
   "torStateAppWide": "Todo o tráfico da aplicación",
   "torStateAppWideSubtitle": "O proxy de saída de Axustes da aplicación é Tor",
   "torStateOtherSites": "{count, plural, one{Outro sitio} other{{count} sitios máis}}",
-  "torStateExitCountryHint": "O Tor sae da rede por un só país de cada vez, para todos os sitios á vez. Cada sitio escolle o país nos seus axustes de Rede, e abrir un sitio fixado noutro país pecha os sitios que non coinciden.",
+  "torStateSiteExitCountry": "País de saída: {country}",
   "torStateBridgesOff": "Desactivadas",
   "torStateCircuits": "Circuítos",
   "torStateCircuitsPerSite": "Un por sitio",

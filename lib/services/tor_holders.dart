@@ -68,6 +68,10 @@ final class TorTestHolder extends TorHolder {
   Object? get _id => owner;
 }
 
+/// A site as the Tor screen lists it: its name, and the country it pins
+/// in tor's `ExitNodes` syntax (`{de}`), null for any (TOR-014).
+typedef TorSiteLabel = ({String name, String? exitNodes});
+
 /// What is keeping the Tor runtime up, in terms a person can read.
 class TorHolderSummary {
   const TorHolderSummary({
@@ -79,8 +83,8 @@ class TorHolderSummary {
   /// The app-wide outbound proxy is set to Tor.
   final bool appWide;
 
-  /// Display names of the sites routed through Tor, sorted.
-  final List<String> sites;
+  /// The sites routed through Tor that have a name to show, sorted by it.
+  final List<TorSiteLabel> sites;
 
   /// Sites routed through Tor that have no name to show, such as a site in
   /// an open archive.
@@ -89,10 +93,11 @@ class TorHolderSummary {
   bool get isEmpty => !appWide && sites.isEmpty && otherSites == 0;
 }
 
-/// Reads the engine's holder set against [siteNames] (siteId to name).
+/// Reads the engine's holder set against [sites]; a holder missing from it
+/// is counted, never named.
 TorHolderSummary summarizeTorHolders(
   Iterable<TorHolder> holders, {
-  required Map<String, String> siteNames,
+  required Map<SiteId, TorSiteLabel> sites,
 }) {
   var appWide = false;
   final siteIds = <SiteId>{};
@@ -106,11 +111,11 @@ TorHolderSummary summarizeTorHolders(
         break;
     }
   }
-  final names = <String>[for (final id in siteIds) ?siteNames[id]]
-    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  final named = <TorSiteLabel>[for (final id in siteIds) ?sites[id]]
+    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   return TorHolderSummary(
     appWide: appWide,
-    sites: names,
-    otherSites: siteIds.length - names.length,
+    sites: named,
+    otherSites: siteIds.length - named.length,
   );
 }

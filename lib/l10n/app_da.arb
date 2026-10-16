@@ -947,7 +947,7 @@
   "torStateAppWide": "Al apptrafik",
   "torStateAppWideSubtitle": "Den udgående proxy i Appindstillinger er sat til Tor",
   "torStateOtherSites": "{count, plural, one{Ét andet websted} other{{count} andre websteder}}",
-  "torStateExitCountryHint": "Tor forlader netværket gennem ét land ad gangen, for alle websteder på én gang. Et websted vælger landet i sine Netværk-indstillinger, og når du åbner et websted, der er fastgjort til et andet land, lukkes de websteder, der ikke stemmer overens.",
+  "torStateSiteExitCountry": "Udgangsland: {country}",
   "torStateBridgesOff": "Fra",
   "torStateCircuits": "Kredsløb",
   "torStateCircuitsPerSite": "Ét pr. websted",

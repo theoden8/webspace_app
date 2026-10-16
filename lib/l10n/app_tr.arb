@@ -947,7 +947,7 @@
   "torStateAppWide": "Tüm uygulama trafiği",
   "torStateAppWideSubtitle": "Uygulama Ayarları'ndaki giden proxy Tor olarak ayarlı",
   "torStateOtherSites": "{count, plural, one{Bir başka site} other{{count} başka site}}",
-  "torStateExitCountryHint": "Tor ağdan her seferinde tek bir ülkeden, tüm siteler için aynı anda çıkar. Bir site ülkeyi kendi Ağ ayarlarında seçer; farklı bir ülkeye sabitlenmiş bir siteyi açmak, uyuşmayan siteleri kapatır.",
+  "torStateSiteExitCountry": "Çıkış ülkesi: {country}",
   "torStateBridgesOff": "Kapalı",
   "torStateCircuits": "Devreler",
   "torStateCircuitsPerSite": "Site başına bir",

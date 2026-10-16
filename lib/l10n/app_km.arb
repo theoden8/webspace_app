@@ -947,7 +947,7 @@
   "torStateAppWide": "ចរាចរណ៍ទាំងអស់របស់កម្មវិធី",
   "torStateAppWideSubtitle": "Proxy ចេញក្នុងការកំណត់កម្មវិធីត្រូវបានកំណត់ទៅ Tor",
   "torStateOtherSites": "{count, plural, other{គេហទំព័រផ្សេងទៀត {count}}}",
-  "torStateExitCountryHint": "Tor ចាកចេញពីបណ្តាញតាមប្រទេសតែមួយក្នុងពេលតែមួយ សម្រាប់គេហទំព័រទាំងអស់ព្រមគ្នា។ គេហទំព័រនីមួយៗជ្រើសរើសប្រទេសនៅក្នុងការកំណត់បណ្តាញរបស់វា ហើយការបើកគេហទំព័រដែលបានខ្ទាស់ទៅប្រទេសផ្សេង នឹងបិទគេហទំព័រដែលមិនស្របគ្នា។",
+  "torStateSiteExitCountry": "ប្រទេសចេញ: {country}",
   "torStateBridgesOff": "បិទ",
   "torStateCircuits": "សៀគ្វី",
   "torStateCircuitsPerSite": "មួយសម្រាប់គេហទំព័រនីមួយៗ",

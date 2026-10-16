@@ -947,7 +947,7 @@
   "torStateAppWide": "యాప్ ట్రాఫిక్ మొత్తం",
   "torStateAppWideSubtitle": "యాప్ సెట్టింగ్‌లలో అవుట్‌బౌండ్ ప్రాక్సీ Tor కి సెట్ చేయబడింది",
   "torStateOtherSites": "{count, plural, one{మరో సైట్} other{మరో {count} సైట్లు}}",
-  "torStateExitCountryHint": "Tor ఒకసారి ఒకే దేశం నుండి, అన్ని సైట్లకూ ఒకేసారి నెట్‌వర్క్‌ను వదిలివెళ్తుంది. సైట్ తన నెట్‌వర్క్ సెట్టింగ్‌లలో దేశాన్ని ఎంచుకుంటుంది, వేరే దేశానికి పిన్ చేసిన సైట్‌ను తెరిస్తే దానితో ఏకీభవించని సైట్లు మూసివేయబడతాయి.",
+  "torStateSiteExitCountry": "నిష్క్రమణ దేశం: {country}",
   "torStateBridgesOff": "ఆఫ్",
   "torStateCircuits": "సర్క్యూట్లు",
   "torStateCircuitsPerSite": "ప్రతి సైట్‌కు ఒకటి",

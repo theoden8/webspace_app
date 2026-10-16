@@ -947,7 +947,7 @@
   "torStateAppWide": "Holl draffig yr ap",
   "torStateAppWideSubtitle": "Mae'r dirprwy allanol yng Ngosodiadau'r Ap wedi'i osod i Tor",
   "torStateOtherSites": "{count, plural, zero{{count} safle arall} one{Un safle arall} two{{count} safle arall} few{{count} safle arall} many{{count} safle arall} other{{count} safle arall}}",
-  "torStateExitCountryHint": "Mae Tor yn gadael y rhwydwaith drwy un wlad ar y tro, ar gyfer pob safle ar unwaith. Mae safle'n dewis y wlad yn ei osodiadau Rhwydwaith, ac mae agor safle sydd wedi'i binio i wlad wahanol yn cau'r safleoedd sy'n anghytuno.",
+  "torStateSiteExitCountry": "Gwlad ymadael: {country}",
   "torStateBridgesOff": "I ffwrdd",
   "torStateCircuits": "Cylchedau",
   "torStateCircuitsPerSite": "Un i bob safle",

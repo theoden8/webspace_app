@@ -947,7 +947,7 @@
   "torStateAppWide": "Trafiki yote ya programu",
   "torStateAppWideSubtitle": "Proksi ya kutoka katika Mipangilio ya Programu imewekwa kuwa Tor",
   "torStateOtherSites": "{count, plural, one{Tovuti nyingine moja} other{Tovuti nyingine {count}}}",
-  "torStateExitCountryHint": "Tor hutoka kwenye mtandao kupitia nchi moja kwa wakati mmoja, kwa tovuti zote kwa pamoja. Tovuti huchagua nchi katika mipangilio yake ya Mtandao, na kufungua tovuti iliyobandikwa kwenye nchi tofauti hufunga tovuti zisizokubaliana nayo.",
+  "torStateSiteExitCountry": "Nchi ya kutokea: {country}",
   "torStateBridgesOff": "Imezimwa",
   "torStateCircuits": "Saketi",
   "torStateCircuitsPerSite": "Moja kwa kila tovuti",
