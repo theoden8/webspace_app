@@ -93,7 +93,7 @@ what it finds.**
    drawn, so no webview is ever built, and on Android the reclaimed process
    was the common case. *Why partial*: see the open gaps.
 
-9. **2026-10-08 — this change.** The memory-pressure cascade runs only while
+9. **2026-10-08 — PR #688.** The memory-pressure cascade runs only while
    the app is resumed (PAUSE-034). *Why*: the first device log after attempt
    8 put every `SiteUnload (memory pressure)` line in the same second as an
    `App background` line, on every second exit. Flutter reports memory
@@ -120,7 +120,7 @@ what it finds.**
    same log shows Low Power Mode on and no refresh task at all since attempt
    8 shipped, so the headless wake has still not run on a device.
 
-10. **2026-10-15 — this change.** The iOS Runner moved to the UIScene
+10. **2026-10-15 — PR #726.** The iOS Runner moved to the UIScene
    lifecycle, under which the scene's storyboard starts the engine after
    launch. The app delegate now holds `BackgroundTaskPlugin` from launch and
    attaches each engine as it starts, and the plugin sends a refresh only
@@ -132,6 +132,27 @@ what it finds.**
    also dropped a message sent before the Dart isolate ran. *Why partial*:
    not yet run on a device, and whether iOS connects the scene at all in a
    launch it makes for a refresh task is unobserved.
+
+11. **2026-10-16 — this change.** Any site with notifications on vetoes the
+   app-background JS pause, loaded or not (NOTIF-011); before, only a loaded
+   one did. An Android refresh tick that lands while the app is `inactive`
+   reloads around the site on screen instead of running a wake
+   (`AppLifecycleEngine.refreshTickOnScreen`). *Why*: four days of a
+   device's Android background log (0.3.4, then 0.3.5) had headless checks
+   loading in 3 to 12 s after an exit that paused nothing, and 8 of 8 wakes after an exit
+   that logged `jsPause=true` ending "still loading at the deadline" for both
+   sites. Android's `pauseTimers()` reaches every webview in the process,
+   those built after it included, and a wake builds its headless checks in
+   that process; nothing on the wake path resumed the timers. The veto
+   predates NOTIF-016, when an unloaded notification site had nothing
+   running to freeze. The same log had a tick Battery Saver held back fire
+   as the app returned, in `inactive`, which took the wake path and reloaded
+   both live sites under the user. `anyNotifications` takes no loaded set,
+   so a veto over loaded sites alone does not compile back in. *Why
+   partial*: no wake in that log posted anything for two more reasons this
+   leaves open (below): neither site's title gave the fallback a count in a
+   headless check, and Battery Saver held most wakes until the app was
+   opened.
 
 ## Known open gaps
 
@@ -152,3 +173,16 @@ what it finds.**
   checked in one wake; the ones not on the wake's route are skipped.
 - A site that shows no unread count in its title and does not post on load
   is reloaded by a wake but has nothing to post.
+- Android appears to hold the periodic work while Battery Saver is on and
+  the app is in the background and not exempt from battery optimisation.
+  The log behind attempt 11, with `powerSaveMode: true`, had 13 ticks fire
+  in the same second as the app's return, and background stretches of 4.7,
+  11.5 and 25 hours with no wake at all. The state row shows
+  `powerSaveMode`, but its changes are not logged as iOS's Low Power Mode
+  changes are, so the log shows this only by inference.
+- A headless check read no unread count from either site in that log: one
+  site's title never carries one, the other's carried "(1)" live and none
+  headless, 3 s after its load stopped. Whether the headless page was not
+  signed in or had not set its title yet is not in the log, which keeps no
+  title. A title with no count also erases the site's baseline, so the next
+  real rise posts nothing.

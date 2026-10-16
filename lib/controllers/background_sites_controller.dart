@@ -7,6 +7,7 @@ import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/wake_candidates.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/background_wake_engine.dart';
@@ -358,7 +359,8 @@ class BackgroundSitesController {
     // runs a refresh task only in the background, and a process it launched
     // for one has seen no lifecycle event to say so.
     BackgroundTaskService.instance.onBackgroundRefresh = () => !hostIsIOS &&
-            WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed
+            AppLifecycleEngine.refreshTickOnScreen(
+                WidgetsBinding.instance.lifecycleState)
         ? refreshSites()
         : wake();
     BackgroundTaskService.instance.initialize();

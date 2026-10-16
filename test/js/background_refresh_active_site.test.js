@@ -26,8 +26,11 @@ test('the background-refresh handler is wired', () => {
 test('the foreground branch reloads around the site on screen', () => {
   // The exclusion is ForegroundPollEngine's, unconditionally; it was once a
   // parameter whose default reloaded the page the user was reading.
-  assert.match(assignment[1], /AppLifecycleState\.resumed\s*\?\s*refreshSites\(\)/,
-    `${rel} must reload through refreshSites while resumed`);
+  // Which states count as on screen is AppLifecycleEngine.refreshTickOnScreen's,
+  // unit-tested in test/app_lifecycle_engine_test.dart.
+  assert.match(assignment[1],
+    /AppLifecycleEngine\.refreshTickOnScreen\(\s*WidgetsBinding\.instance\.lifecycleState\)\s*\?\s*refreshSites\(\)/,
+    `${rel} must reload through refreshSites while the app is on screen`);
   const refresh = /Future<void> refreshSites\(\) async \{([\s\S]*?)\n {2}\}/.exec(src);
   assert.ok(refresh, `${rel} must define refreshSites`);
   assert.match(refresh[1], /ForegroundPollEngine\.plan\([\s\S]*currentIndex: _sites\.current,/,
