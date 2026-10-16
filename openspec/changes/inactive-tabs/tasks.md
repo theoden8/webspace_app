@@ -97,3 +97,8 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
   close, move in or import that would not fit the slot changes nothing
   (ARCH-011, `Archive.fits`). Tests: `test/archive_round_trip_test.dart`,
   `test/archive_neutrality_test.dart`, `test/import_closes_archives_test.dart`.
+
+## 11. Back in a new tab
+
+- [x] 11.1 A long press on Back opens the page it would go to as a parked child tab (TAB-020): `TabsController.openBackInNewTab`, inserting through `_parkChild` as "Open in new tab" does, with the entry read by `WebViewController.backEntry` (`backEntryIn`). Tests: `test/tab_back_in_new_tab_test.dart`, `test/tab_entry_points_test.dart`.
+- [ ] 11.2 Manual smoke on Android, iOS, macOS and Linux: three pages deep, long-press Back; the new tab is the second page. On Linux this checks `backEntryIn`'s reading of the WebKitGTK/WPE back list, which comes nearest-first.

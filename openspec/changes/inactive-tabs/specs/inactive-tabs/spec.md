@@ -97,8 +97,8 @@ Tapping a site in the strip or drawer, a cold start, a home-shortcut tap and
 a share arrival SHALL resume the site's active tab and SHALL NOT create a tab,
 except that a cold start or a home-shortcut tap lands a site with Always open
 Home on a tab at home (TAB-014). A tab SHALL be created only by "New tab"
-(TAB-005), "Open in new tab" (TAB-006), "Duplicate tab" (TAB-010), a web search
-(LIR-030) and that landing. Home (NAV-004) SHALL act on the active tab: `initUrl` with history
+(TAB-005), "Open in new tab" (TAB-006), "Duplicate tab" (TAB-010), a long press
+on Back (TAB-020), a web search (LIR-030) and that landing. Home (NAV-004) SHALL act on the active tab: `initUrl` with history
 cleared, no new tab.
 
 #### Scenario: Reopening a site resumes
@@ -801,3 +801,32 @@ stored.
 - **GIVEN** the user jumped from DuckDuckGo's Tabs sheet to a child tab in GitHub's tree
 - **WHEN** they go to another site from the drawer, come back to GitHub on that tab, and press Back at the start of its history
 - **THEN** the tab closes as TAB-007 says
+
+---
+
+### Requirement: TAB-020 - Back in a new tab
+
+A long press on either Back button SHALL open the page Back would go to as a
+parked child of the active tab: the URL and title of the entry one step back
+in the webview's history, running as the active tab runs (its `hostSiteId`,
+`openerSiteId` and `homeUrl`), with no history of its own. As with "Open in
+new tab" (TAB-006), the page on screen SHALL stay, no webview SHALL be built or
+disposed, no state bytes SHALL be written, and a snackbar SHALL offer
+"Switch". At the start of the active tab's history, or on a site without tabs,
+the long press SHALL do nothing, and when the active tab changes before the
+history is read, nothing SHALL open. Neither overflow menu SHALL offer it as a
+row.
+
+#### Scenario: Branching off the page before
+
+- **GIVEN** GitHub's active tab went from the pull request list to #601
+- **WHEN** the user long-presses Back
+- **THEN** a parked child tab for the pull request list appears under #601
+- **AND** #601 stays on screen with no reload
+- **AND** Back at the start of the new tab closes it and shows #601 again (TAB-007)
+
+#### Scenario: Nothing to go back to
+
+- **GIVEN** GitHub's active tab has no back history
+- **WHEN** the user long-presses Back
+- **THEN** no tab is created

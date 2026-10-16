@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// TAB-005 / TAB-010: where "New tab" and "Duplicate tab" are reached from.
-/// The app has two overflow menus (app bar, and the tab strip's when the
-/// strip is on), and a spec that names "the overflow menu" means both.
-/// "Duplicate tab" is a long press on refresh only, never a menu row.
+/// TAB-005 / TAB-010 / TAB-020: where "New tab", "Duplicate tab" and the
+/// page Back would go to in a new tab are reached from. The app has two
+/// overflow menus (app bar, and the tab strip's when the strip is on), and a
+/// spec that names "the overflow menu" means both. "Duplicate tab" is a long
+/// press on refresh only, and the back page a long press on back, never a
+/// menu row.
 /// Structural, because `_WebSpacePageState` is not constructible from a unit
 /// test; the tab flows themselves are `TabsController`'s.
 void main() {
@@ -39,11 +41,24 @@ void main() {
       r'onLongPress:\s*duplicateTab == null \? null : \(\) => close\(duplicateTab\),',
     );
     expect(refresh.allMatches(menu).length, 1);
-    final duplicate = RegExp(
-      r'duplicateTab: _tabs\.enabledAt\(_sites\.current\)\s*\?\s*\(\) \{[^}]*'
-      r'_tabs\.duplicateTab\(',
+    expect(count('duplicateTab: _tabs.forShownSite(_tabs.duplicateTab),'), 1);
+  });
+
+  test('a long press on the menus\' back button opens the back page in a '
+      'new tab', () {
+    final back = RegExp(
+      r'tooltip: loc\.homeGoBackTooltip,\s*'
+      r'onLongPress:\s*backInNewTab == null \? null : \(\) => close\(backInNewTab\),',
     );
-    expect(duplicate.allMatches(source).length, 1);
+    expect(back.allMatches(menu).length, 1);
+    expect(count('backInNewTab: _tabs.forShownSite(_tabs.openBackInNewTab),'),
+        1);
+    expect(
+        RegExp(r'forShownSite\(Future<void> Function\(int index\) act\) =>\s*'
+                r'enabledAt\(_sites\.current\)\s*\?')
+            .hasMatch(tabs),
+        isTrue,
+        reason: 'both long presses offer nothing where the site has no tabs');
   });
 
   test('a duplicate opens parked: it never re-binds the webview', () {
@@ -87,6 +102,7 @@ void main() {
       for (final (src, signature, gate) in [
         (tabs, 'Future<void> newTab(', '!enabledAt(index)'),
         (tabs, 'Future<void> duplicateTab(', '!enabledAt(index)'),
+        (tabs, 'Future<void> openBackInNewTab(', '!enabledAt(index)'),
         (tabs, 'Future<bool> _closeChildTabOnBack(', '!enabledAt(_sites.current)'),
         (tabs, 'Future<bool> _returnFromJumpOnBack(', '!enabledAt(_sites.current)'),
         (source, 'Future<void> _showTabsSheet(', '!_tabs.enabledAt(_sites.current)'),
@@ -174,9 +190,16 @@ void main() {
       }
 
       expect(tabs, contains('_gate.runWhenIdle(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
-      expect(body('Future<void> openLinkInNewTab(', src: tabs),
+      expect(body('Future<void> _parkChild(', src: tabs),
           contains('await _gate.runWhenIdle('),
           reason: 'a background insert must not be lost to a close in flight');
+      for (final signature in [
+        'Future<void> openLinkInNewTab(',
+        'Future<void> openBackInNewTab(',
+      ]) {
+        expect(body(signature, src: tabs), contains('await _parkChild(model,'),
+            reason: '$signature inserts through the one gated funnel');
+      }
       expect(body('Future<void> _executeOpenInMain(', src: links),
           contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
       expect(body('Future<void> openTypedAddress(', src: links),

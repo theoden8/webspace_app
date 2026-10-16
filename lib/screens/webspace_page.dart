@@ -1332,12 +1332,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           },
           reload: () => unawaited(_resets.refreshShown()),
           stop: () => unawaited(_resets.stopShown()),
-          duplicateTab: _tabs.enabledAt(_sites.current)
-              ? () {
-                  final index = _sites.current;
-                  if (index != null) unawaited(_tabs.duplicateTab(index));
-                }
-              : null,
+          backInNewTab: _tabs.forShownSite(_tabs.openBackInNewTab),
+          duplicateTab: _tabs.forShownSite(_tabs.duplicateTab),
         ),
         onSelected: _onSiteMenuAction,
       );
