@@ -71,10 +71,13 @@ min_obligations() {
     activation_tables_7_proof.tla) echo 116 ;;
     activation_tables_8_proof.tla) echo 88 ;;
     activation_invariants_proof.tla) echo 287 ;;
-    activation_types_proof.tla) echo 312 ;;
+    activation_types_proof.tla) echo 313 ;;
     activation_types_steps_proof.tla) echo 85 ;;
-    # The tables' typing modules are as many as their rows need, so they
-    # are not pinned by name; formal/levels.tsv holds the sum of them all.
+    activation_held_steps_proof.tla) echo 255 ;;
+    activation_supports_steps_proof.tla) echo 170 ;;
+    # The tables' typing, held and supports modules are as many as their
+    # rows need, so they are not pinned by name; formal/levels.tsv holds
+    # the sum of them all.
     containers_disjoint.tla)   echo 39 ;;
     current_loaded.tla)        echo 52 ;;
     jar_matches.tla)           echo 52 ;;

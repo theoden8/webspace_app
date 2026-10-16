@@ -1,3 +1,4 @@
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/step_print.dart';
 
@@ -19,14 +20,40 @@ List<({String path, String text})> activationTypesProofs({
     for (final MapEntry(:key, :value) in definitions.entries)
       if (!_parameters.contains(key)) key: value,
   };
+  final all = [for (final steps in tables.values) ...steps];
+  final needs = {for (final h in _held) h: _needs(h, steps: all)};
   return [
     _module('activation_types_proof', extending: 'activation, TLAPS', body: [
-      '\\* What some steps need of their flow beyond TypeOK at the place they run',
-      '\\* from (_supports in lib/formal_model/types_proof.dart); a proof that',
-      '\\* every step keeps it is owed.',
-      'Supports == \\A g \\in Flows :',
+      '\\* What some steps need of their flow beyond TypeOK and Held at the place',
+      '\\* they run from (_supports in lib/formal_model/types_proof.dart).',
       for (final MapEntry(key: place, value: fact) in _supports.entries)
-        '    /\\ (fl[g].pc = "$place" => ($fact))',
+        'Supported_$place(r) == $fact',
+      'Supports == \\A g \\in Flows :',
+      for (final place in _supports.keys)
+        '    /\\ (fl[g].pc = "$place" => Supported_$place(fl[g]))',
+      '',
+      '\\* At most one flow of each of these kinds is in flight: an input that',
+      '\\* starts one lands only once its gate did not hold (_alone).',
+      'Alone == \\A g, h \\in Flows :',
+      for (final k in _alone.keys)
+        '    /\\ (fl[g].kind = "${k.name}" /\\ fl[h].kind = "${k.name}" => g = h)',
+      '',
+      for (final h in _held) ...[
+        '\\* Where a flow\'s ${h.field.name} is in ${h.set}: where a step needs it, and on',
+        '\\* every way there that does not set it, for the kinds of flow that go',
+        '\\* that way (_held).',
+        'Held_${h.field.name} == \\A g \\in Flows :',
+        for (final (:places, :others) in _byOthers(needs[h]!))
+          '    /\\ (fl[g].pc \\in ${_set(places)}${others.isEmpty ? '' : ' /\\ fl[g].kind \\notin ${_set(others)}'}'
+              ' => fl[g].${h.field.name} \\in ${h.set})',
+        '',
+      ],
+      'Held == ${[for (final h in _held) 'Held_${h.field.name}'].join(' /\\ ')}',
+      '',
+      'LEMMA Pick ==',
+      '    ASSUME NEW g \\in [Flows -> FlowRecord], NEW x \\in Flows',
+      '    PROVE  DOMAIN g[x] = {${[for (final f in FlowField.values) '"${f.name}"'].join(', ')}}',
+      '  BY DEF FlowRecord',
       '',
       '\\* What a world may set each constant to; a proof opens no default a world',
       '\\* may replace.',
@@ -83,41 +110,102 @@ List<({String path, String text})> activationTypesProofs({
                   _rowTyped(
                     s.action,
                     at: k + 1,
-                    row: (
-                      picks: row.picks,
-                      lets: row.lets,
-                      given: [
-                        if (_supports[s.place] case final fact? when !s.input)
-                          fact.replaceAll('fl[g]', 'fl[f]'),
-                        ...row.given,
-                      ],
-                      clauses: row.clauses,
-                    ),
+                    row: _atPlace(row, of: s),
                     definitions: opened,
                   ),
                 'LEMMA Fl_${s.action} ==',
-                '    ASSUME TypeOK, IndInv, Supports, NEW f \\in Flows, ${s.action}(f)',
+                '    ASSUME TypeOK, IndInv, Held, Supports, NEW f \\in Flows, ${s.action}(f)',
                 "    PROVE  fl' \\in [Flows -> FlowRecord]",
                 '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'FlRow_${s.action}_$k'].join(', ')}',
-                '     DEF ${s.action}${s.input ? ', Input' : ''}, Starts, IndInv'
-                    '${_supports.containsKey(s.place) && !s.input ? ', Supports' : ''}',
+                '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', ..._placeDefs(s)].join(', ')}',
                 '',
               ],
             ]),
-    _module('activation_types_steps_proof',
-        extending: [for (final (:name, steps: _) in _parts(tables)) name].join(', '),
-        body: [
-          for (final (over, input) in [('TableStep', false), ('InputTableStep', true)]) ...[
-            'LEMMA Fl_$over ==',
-            '    ASSUME TypeOK, IndInv, Supports, NEW f \\in Flows, $over(f)',
-            "    PROVE  fl' \\in [Flows -> FlowRecord]",
-            '  BY ${[for (final steps in tables.values) for (final s in steps) if (s.input == input) 'Fl_${s.action}'].join(', ')}',
-            '     DEF $over',
-            '',
-          ],
-        ]),
+    for (final (:name, :steps) in _parts(tables))
+      _module(name.replaceFirst('activation_types_', 'activation_held_'),
+          extending: 'activation_types_proof',
+          body: [
+            for (final h in _held)
+              for (final s in steps) ...[
+                for (final (k, row) in s.rows.indexed)
+                  _rowHeld(
+                    s,
+                    at: k + 1,
+                    row: _atPlace(row, of: s),
+                    held: h,
+                    need: needs[h]!,
+                    definitions: opened,
+                  ),
+                'LEMMA Hd_${h.field.name}_${s.action} ==',
+                '    ASSUME TypeOK, IndInv, ConstantsType, Held, Supports, NEW f \\in Flows, ${s.action}(f)',
+                "    PROVE  Held_${h.field.name}'",
+                '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'HdRow_${h.field.name}_${s.action}_$k'].join(', ')}',
+                '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
+                '',
+              ],
+          ]),
+    for (final (:name, :steps) in _parts(tables))
+      _module(name.replaceFirst('activation_types_', 'activation_supports_'),
+          extending: 'activation_types_proof',
+          body: [
+            for (final s in steps) ...[
+              for (final (k, row) in s.rows.indexed) _rowAlone(s, at: k + 1, row: row),
+              'LEMMA Al_${s.action} ==',
+              '    ASSUME TypeOK, IndInv, ConstantsType, Alone, NEW f \\in Flows, ${s.action}(f)',
+              "    PROVE  Alone'",
+              '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'AlRow_${s.action}_$k'].join(', ')}',
+              '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv'].join(', ')}',
+              '',
+              for (final (k, row) in s.rows.indexed)
+                _rowSupported(
+                  s,
+                  at: k + 1,
+                  row: _atPlace(row, of: s),
+                  kinds: needs[_held.firstWhere((h) => h.field == FlowField.kind)]!,
+                  definitions: opened,
+                ),
+              'LEMMA Sp_${s.action} ==',
+              '    ASSUME TypeOK, IndInv, ConstantsType, Held, Supports, Alone, NEW f \\in Flows, ${s.action}(f)',
+              "    PROVE  Supports'",
+              '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'SpRow_${s.action}_$k'].join(', ')}',
+              '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
+              '',
+            ],
+          ]),
+    for (final (:family, :kept) in _kept)
+      _module('activation_${family}_steps_proof',
+          extending: [
+            for (final (:name, steps: _) in _parts(tables))
+              name.replaceFirst('activation_types_', 'activation_${family}_'),
+          ].join(', '),
+          body: [
+            for (final (over, input) in [('TableStep', false), ('InputTableStep', true)])
+              for (final (:lemma, :fact) in kept) ...[
+                'LEMMA ${lemma}_$over ==',
+                '    ASSUME TypeOK, IndInv, ConstantsType, Held, Supports, Alone, NEW f \\in Flows, $over(f)',
+                '    PROVE  $fact',
+                '  BY ${[for (final steps in tables.values) for (final s in steps) if (s.input == input) '${lemma}_${s.action}'].join(', ')}',
+                '     DEF $over',
+                '',
+              ],
+          ]),
   ];
 }
+
+/// Each family of modules a fact is proved kept in, with the facts: the
+/// lemma's prefix and what it keeps. Each family's steps module extends
+/// only its own modules, since one that held every family's would hold
+/// every row of every table at once.
+final _kept = <({String family, List<({String lemma, String fact})> kept})>[
+  (family: 'types', kept: [(lemma: 'Fl', fact: r"fl' \in [Flows -> FlowRecord]")]),
+  (
+    family: 'held',
+    kept: [
+      for (final h in _held) (lemma: 'Hd_${h.field.name}', fact: "Held_${h.field.name}'"),
+    ],
+  ),
+  (family: 'supports', kept: [(lemma: 'Al', fact: "Alone'"), (lemma: 'Sp', fact: "Supports'")]),
+];
 
 /// The rows one module proves at most: tlapm holds every obligation of a
 /// module until it ends, so its memory grows with the module's rows.
@@ -149,6 +237,303 @@ List<({String name, List<FlStep> steps})> _parts(Map<String, List<FlStep>> table
           ),
       ];
     }(),
+];
+
+/// The definitions a step's lemma opens to give its rows the facts of its
+/// place ([_placeFacts]).
+List<String> _placeDefs(FlStep s) => <String>{
+  if (!s.input) ...[
+    for (final h in _held)
+      if (h.at.contains(s.place)) ...['Held', 'Held_${h.field.name}'],
+    if (_supports.containsKey(s.place)) ...['Supports', 'Supported_${s.place}'],
+  ],
+}.toList();
+
+/// [row] with what its step may take of the place it runs from
+/// ([_placeFacts]).
+FlRow _atPlace(FlRow row, {required FlStep of}) => (
+  picks: row.picks,
+  lets: row.lets,
+  given: [if (!of.input) ..._placeFacts(of.place), ...row.given],
+  clauses: row.clauses,
+  tested: row.tested,
+  passed: row.passed,
+  writes: row.writes,
+);
+
+/// The lemma that [row] of [s] keeps `Held_<field>` of [held]: the field
+/// of each row it writes is in the set wherever that row goes to a place
+/// and a kind in [need], by its value where the row sets it and by the
+/// place and kind it came from where it keeps it; every other row is as
+/// it was.
+String _rowHeld(
+  FlStep s, {
+  required int at,
+  required FlRow row,
+  required _Held held,
+  required Map<String, Set<String>> need,
+  required Map<String, String> definitions,
+}) {
+  final field = held.field.name;
+  final spawns = row.clauses.any((c) => c.startsWith('![inputs + 1]'));
+  assert(!spawns || !s.input, '${s.action} starts a flow beside its input');
+  final entries = _entries(row);
+  // A row that keeps the field needs only where it came from and the tests
+  // of its kind: what its picks range over can only bury those.
+  final sets = entries.any((e) => e.values.containsKey(field));
+  final assume = [
+    'TypeOK',
+    'ConstantsType',
+    'Held_$field',
+    r'NEW f \in Flows',
+    for (final p in row.picks) sets ? 'NEW ${p.name} \\in ${p.from}' : 'NEW ${p.name}',
+    for (final l in row.lets) ...['NEW ${l.name}', if (sets) '${l.name} = ${l.to}'],
+    if (sets || row.tested != null) ...row.given,
+    if (!s.input) ...[
+      'fl[f].pc = "${s.place}"',
+      for (final p in row.passed)
+        if (p.kinds.isNotEmpty) p.tla,
+    ],
+    if (spawns) ...[r'inputs \in Nat', 'inputs < MaxInputs', 'Fresh'],
+    "fl' = [fl EXCEPT ${row.clauses.join(', ')}]",
+  ];
+  final bound = {
+    for (final p in row.picks) p.name: p.from,
+    for (final l in row.lets) l.name: l.to,
+  };
+  final read = <ModelVar>{};
+  final proved = [
+    for (final (i, (index: _, :places, ends: _, :values)) in entries.indexed)
+      if (values[field] case final value? when places.any(need.containsKey))
+        (
+          label: '<1>v$i',
+          lines: [
+            '  <1>v$i. ($value) \\in ${held.set}',
+            '    ${_typed(value, field: held.field, range: held.set, bound: bound, given: row.given, definitions: definitions, read: read)}',
+          ],
+        ),
+  ];
+  final (:steps, :facts) = _readBack(
+    entries,
+    fields: [if (held.field != FlowField.kind) 'kind', field],
+    of: s,
+  );
+  return [
+    'LEMMA HdRow_${field}_${s.action}_$at ==',
+    '    ASSUME ${assume.join(',\n           ')}',
+    "    PROVE  Held_$field'",
+    '  <1>0. fl \\in [Flows -> FlowRecord]',
+    '    BY DEF TypeOK',
+    if (spawns) ..._started,
+    for (final v in ModelVar.values)
+      if (read.contains(v)) ...['  <1>${_typeStep(v)}. ${v.type}', '    BY DEF TypeOK'],
+    for (final p in proved) ...p.lines,
+    ...steps,
+    ..._others(spawns: spawns),
+    '  <1> QED',
+    '    BY ${[for (final p in proved) p.label, ...facts, '<1>o', if (spawns) '<1>s'].join(', ')}, Zenon DEF Held_$field',
+    '',
+  ].join('\n');
+}
+
+/// The lemma that [row] of [s] keeps `Alone`: a row it starts as a kind of
+/// [_alone] lands only once that kind's gate did not hold, so no other
+/// flow is of it; every other row keeps its kind, ends, or starts as
+/// another.
+String _rowAlone(FlStep s, {required int at, required FlRow row}) {
+  final spawns = row.clauses.any((c) => c.startsWith('![inputs + 1]'));
+  final entries = _entries(row);
+  final gates = <ModelDef>{
+    for (final (:index, places: _, ends: _, :values) in entries)
+      for (final MapEntry(key: kind, value: gate) in _alone.entries)
+        if (values['kind'] == '"${kind.name}"') () {
+          assert(s.input && index == 'f', '${s.action} gives a flow the kind ${kind.name} on its way');
+          assert(row.passed.any((p) => p.tla == '~(${gate.tla})'),
+              '${s.action} starts a ${kind.name} flow whatever ${gate.tla} says');
+          return gate;
+        }(),
+  };
+  final (:steps, :facts) = _readBack(entries, fields: ['kind'], of: s);
+  return [
+    'LEMMA AlRow_${s.action}_$at ==',
+    '    ASSUME ${[
+      'TypeOK',
+      'ConstantsType',
+      'Alone',
+      r'NEW f \in Flows',
+      for (final p in row.picks) 'NEW ${p.name}',
+      for (final l in row.lets) 'NEW ${l.name}',
+      if (!s.input) 'fl[f].pc = "${s.place}"',
+      for (final g in gates) '~(${g.tla})',
+      if (spawns) ...[r'inputs \in Nat', 'inputs < MaxInputs', 'Fresh'],
+      "fl' = [fl EXCEPT ${row.clauses.join(', ')}]",
+    ].join(',\n           ')}',
+    "    PROVE  Alone'",
+    '  <1>0. fl \\in [Flows -> FlowRecord]',
+    '    BY DEF TypeOK',
+    if (spawns) ..._started,
+    ...steps,
+    ..._others(spawns: spawns),
+    '  <1> QED',
+    // Zenon loses its way beside a row whose next place is a long choice;
+    // the default provers do not.
+    '    BY ${[...facts, '<1>o', if (spawns) '<1>s'].join(', ')} DEF ${['Alone', if (gates.isNotEmpty) ...[for (final g in gates) g.tla, 'Kinds']].join(', ')}',
+    '',
+  ].join('\n');
+}
+
+/// The lemma that [row] of [s] keeps `Supports`: a row it sends to a
+/// supported place has its fact there, by its values or as it had it at
+/// that place; where the row writes a variable a fact reads, no other flow
+/// is at a supported place, since only a kind of [_alone] is ([_held]) and
+/// the row passed that kind's gate or runs as it; every other row is as it
+/// was. [kinds] is where `Held_kind` holds its kind, by kinds of flow.
+String _rowSupported(
+  FlStep s, {
+  required int at,
+  required FlRow row,
+  required Map<String, Set<String>> kinds,
+  required Map<String, String> definitions,
+}) {
+  final spawns = row.clauses.any((c) => c.startsWith('![inputs + 1]'));
+  final entries = _entries(row);
+  final facts = _supports.values.join(' ');
+  final fields = {for (final m in RegExp(r'\br\.(\w+)').allMatches(facts)) m[1]!}.toList()..sort();
+  final opens = _reached(facts, definitions: definitions);
+  final shared = [
+    for (final v in ModelVar.values)
+      if (v != ModelVar.fl && RegExp('\\b${v.name}\\b').hasMatch(_closure(facts, definitions: definitions))) v,
+  ];
+  final writes = [
+    for (final w in row.writes)
+      if (w.vars.any(shared.contains)) w.tla,
+  ];
+  final kept = [
+    for (final v in shared)
+      if (!row.writes.any((w) => w.vars.contains(v))) "${v.name}' = ${v.name}",
+  ];
+  final moves = writes.isNotEmpty;
+  final gates = [
+    for (final p in row.passed)
+      for (final g in _alone.values)
+        if (p.tla == '~(${g.tla})') g,
+  ];
+  assert(
+    !moves || gates.isNotEmpty || (kinds[s.place]?.containsAll(_kinds) ?? false),
+    '${s.action} writes what a supported fact reads beside a flow it does not keep out',
+  );
+  // The rows that arrive at a supported place other than as they were there.
+  final arrives = [
+    for (final (i, e) in entries.indexed)
+      if (!e.ends && e.places.any(_supports.containsKey))
+        if (s.input || moves || !e.places.contains(s.place) || fields.any(e.values.containsKey)) (i, e),
+  ];
+  assert(arrives.every((a) => a.$2.index == 'f'), '${s.action} starts a flow at a supported place');
+  final (:steps, facts: read) = _readBack(entries, fields: fields, of: s);
+  final reached = [
+    for (final (i, e) in arrives)
+      for (final p in e.places.where(_supports.containsKey))
+        (
+          label: '<1>v$i$p',
+          lines: [
+            "  <1>v$i$p. fl'[f].pc = \"$p\" => (Supported_$p(fl[f]))'",
+            '    BY <1>w$i, Zenon DEF ${['Supported_$p', ...opens].join(', ')}',
+          ],
+        ),
+  ];
+  return [
+    'LEMMA SpRow_${s.action}_$at ==',
+    '    ASSUME ${[
+      'TypeOK',
+      'ConstantsType',
+      'Supports',
+      if (moves) ...['Held_kind', 'Alone'],
+      r'NEW f \in Flows',
+      for (final p in row.picks) arrives.isEmpty ? 'NEW ${p.name}' : 'NEW ${p.name} \\in ${p.from}',
+      for (final l in row.lets) ...['NEW ${l.name}', if (arrives.isNotEmpty) '${l.name} = ${l.to}'],
+      if (arrives.isNotEmpty) ...row.given,
+      if (!s.input) 'fl[f].pc = "${s.place}"',
+      if (moves) for (final g in gates) '~(${g.tla})',
+      if (spawns) ...[r'inputs \in Nat', 'inputs < MaxInputs', 'Fresh'],
+      "fl' = [fl EXCEPT ${row.clauses.join(', ')}]",
+      ...writes,
+      ...kept,
+    ].join(',\n           ')}',
+    "    PROVE  Supports'",
+    '  <1>0. fl \\in [Flows -> FlowRecord]',
+    '    BY DEF TypeOK',
+    if (spawns) ..._started,
+    ...steps,
+    for (final r in reached) ...r.lines,
+    if (moves) ...[
+      '  <1>a. \\A g \\in Flows : g # f => fl[g].pc \\notin ${_set(_supports.keys.toList())}',
+      '    BY Zenon DEF ${['Held_kind', 'Alone', if (gates.isNotEmpty) ...[for (final g in gates) g.tla, 'Kinds']].join(', ')}',
+    ],
+    ..._others(spawns: spawns),
+    '  <1> QED',
+    '    BY ${[
+      ...read,
+      for (final r in reached) r.label,
+      if (moves) '<1>a',
+      '<1>o',
+      if (spawns) '<1>s',
+    ].join(', ')}, Zenon DEF ${['Supports', for (final p in _supports.keys) 'Supported_$p', ...opens].join(', ')}',
+    '',
+  ].join('\n');
+}
+
+/// The steps that read back each row [entries] writes: its domain, then
+/// the place it goes to and each of [fields], by the value the row gives
+/// it or as it was; a row it ends, by its place (and kind, among [fields])
+/// as NoFlow's. The domain is stated first: Zenon does not find it through
+/// `Pick` beside a value it cannot see past.
+({List<String> steps, List<String> facts}) _readBack(
+  List<_Entry> entries, {
+  required List<String> fields,
+  required FlStep of,
+}) {
+  final steps = <String>[];
+  final facts = <String>[];
+  // Beside a flow it starts, each row reads back only as the other's
+  // number differs.
+  final started = entries.length > 1 ? '<1>s, ' : '';
+  for (final (i, (:index, :places, :ends, :values)) in entries.indexed) {
+    assert(ends || places.isNotEmpty, '${of.action} writes a row it sends to no place');
+    final at = index == 'f' ? 'f' : 'inputs + 1';
+    if (ends) {
+      steps.addAll([
+        "  <1>w$i. fl'[$at].pc = ${FlowField.pc.none}"
+            "${fields.contains('kind') ? " /\\ fl'[$at].kind = ${FlowField.kind.none}" : ''}",
+        '    BY <1>0, ${started}Zenon DEF NoFlow',
+      ]);
+    } else {
+      steps.addAll([
+        '  <1>d$i. DOMAIN fl[$at] = ${_set([for (final f in FlowField.values) f.name])}',
+        '    BY <1>0, ${started}Pick',
+        "  <1>w$i. /\\ fl'[$at].pc \\in ${_set(places.toList()..sort())}",
+        for (final f in fields) "        /\\ fl'[$at].$f = (${values[f] ?? 'fl[$at].$f'})",
+        '    BY <1>0, <1>d$i, ${started}Zenon',
+      ]);
+    }
+    facts.add('<1>w$i');
+  }
+  return (steps: steps, facts: facts);
+}
+
+/// The steps that give a row lemma the flow its row starts: numbered next,
+/// a flow, and not the one that starts it, which has started already.
+const _started = [
+  '  <1>n. ~(f > inputs)',
+  '    BY Zenon DEF Fresh',
+  r'  <1>s. inputs + 1 \in Flows /\ f # inputs + 1',
+  '    BY <1>n, ConstantsType DEF Flows',
+];
+
+/// The step of a row lemma that every row but the ones it writes is as it
+/// was.
+List<String> _others({required bool spawns}) => [
+  "  <1>o. \\A g \\in Flows : g # f${spawns ? r' /\ g # inputs + 1' : ''} => fl'[g] = fl[g]",
+  '    BY <1>0',
 ];
 
 ({String path, String text}) _module(
@@ -214,7 +599,7 @@ String _rowTyped(
       '  <1>${2 * i + 1}. ($value) \\in ${field?.range ?? 'FlowRecord'}',
       switch (field) {
         null => '    BY NoFlowType',
-        final field => '    ${_typed(value, field: field, bound: bound, given: row.given, definitions: definitions, read: read)}',
+        final field => '    ${_typed(value, field: field, range: field.range, bound: bound, given: row.given, definitions: definitions, read: read)}',
       },
       '  <1>${2 * i + 2}. fl${i + 1} \\in [Flows -> FlowRecord]',
       '    BY ${i == 0 ? '<1>0' : '<1>${2 * i}'}, <1>${2 * i + 1}, '
@@ -253,6 +638,7 @@ String _rowTyped(
 String _typed(
   String value, {
   required FlowField field,
+  required String range,
   required Map<String, String> bound,
   required List<String> given,
   required Map<String, String> definitions,
@@ -267,7 +653,7 @@ String _typed(
   }
   final own = [
     value,
-    field.range,
+    range,
     for (final MapEntry(key: name, value: from) in bound.entries)
       if (RegExp('\\b$name\\b').hasMatch(value)) from,
   ].join(' ');
@@ -310,16 +696,129 @@ String _typed(
 /// conjunction too wide to close.
 String _typeStep(ModelVar v) => 't${v.name}';
 
-/// What a step needs of its flow beyond `TypeOK`, by the place it runs from,
-/// over the flow `g`: true in every reachable state, but not yet proved
-/// kept by every step, which a supporting invariant's proof would do. A
-/// debt that only shrinks.
+/// What a step needs of its flow beyond `TypeOK` and [_held], by the place
+/// it runs from, over the flow `g`, each a definition over the row
+/// (`Supported_<place>`): proved kept by every step (`Supports`), by the
+/// ways into the place and, where a step writes a variable it reads, by no
+/// other flow being there ([_alone]).
 const _supports = <String, String>{
-  'rLoad': r'fl[g].site \in Sites',
-  'tNav': r'fl[g].site \in Sites /\ fl[g].tab \in TabIds',
-  'tDupRead': r'fl[g].site \in Sites /\ fl[g].tab \in TabIds',
-  'tRemove': r'fl[g].site \in Sites /\ (fl[g].rest = {} => HasFresh(fl[g].site))',
+  'tRemove': r'r.rest = {} => HasFresh(r.site)',
 };
+
+/// The kinds of flow of which at most one is in flight, each with the
+/// definition every input that starts one is taken only once it did not
+/// hold: the tab gate (`TabsController.tabBusy`).
+final _alone = {FlowKind.tab: ModelDef.tabBusy};
+
+/// A field a flow holds in a set narrower than its range wherever a step
+/// needs it: the places named, and each place an arm leaves from that
+/// enters one of them without setting the field ([_needs]). Proved kept by
+/// every step (`Held_<field>`).
+typedef _Held = ({FlowField field, String set, Set<String> at});
+
+final _held = <_Held>[
+  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tDupRead', 'tRemove'}),
+  (field: FlowField.tab, set: 'TabIds', at: {'tNav', 'tDupRead'}),
+  // What [_supports] reads of the shared state only a flow of a kind in
+  // [_alone] writes, so its places hold only those.
+  (field: FlowField.kind, set: _set([for (final k in _alone.keys) k.name]), at: _supports.keys.toSet()),
+];
+
+/// The kinds of flow a row can hold, as the model names them: a row no
+/// input has started holds none.
+final _kinds = {FlowField.kind.none.replaceAll('"', ''), for (final k in FlowKind.values) k.name};
+
+/// The kinds of flow [held]'s field must be in its set for at each place:
+/// every kind at the places it names, and back from each, at the place of
+/// every arm that enters one without setting the field, the kinds the arm
+/// is taken for that arrive as a kind needed there. An input or a started
+/// flow that arrives as one must set it.
+Map<String, Set<String>> _needs(_Held held, {required Iterable<FlStep> steps}) {
+  final need = {for (final p in held.at) p: {..._kinds}};
+  bool needed(Set<String> places, {required String kind}) =>
+      places.any((p) => need[p]?.contains(kind) ?? false);
+  var moved = true;
+  while (moved) {
+    moved = false;
+    for (final s in steps) {
+      for (final row in s.rows) {
+        for (final (:index, :places, :values, ends: _) in _entries(row)) {
+          final kind = values['kind']?.replaceAll('"', '');
+          final value = values[held.field.name];
+          if (value != null) continue;
+          if (index != 'f' || s.input) {
+            assert(!(switch (kind) { null => _kinds, final k => {k} }).any((k) => needed(places, kind: k)),
+                '${s.action} enters ${places.where(need.containsKey)} without its ${held.field.name}');
+            continue;
+          }
+          for (final k in _taken(row)) {
+            if (needed(places, kind: kind ?? k)) moved |= need.putIfAbsent(s.place, () => {}).add(k);
+          }
+        }
+      }
+    }
+  }
+  return need;
+}
+
+/// A row of `fl` a row writes: its index (`f`, or `inputs + 1` for the
+/// flow it starts), the places it goes to, whether it ends the flow, and
+/// the value of each other field it sets, as printed.
+typedef _Entry = ({String index, Set<String> places, bool ends, Map<String, String> values});
+
+/// The rows [row] writes.
+List<_Entry> _entries(FlRow row) {
+  final out = <String, _Entry>{};
+  for (final c in row.clauses) {
+    final m = RegExp(r'^!\[(.+?)\](?:\.(\w+))? = (.*)$').firstMatch(c)!;
+    final (index, name, value) = (m[1]!, m[2], m[3]!);
+    final was = out[index] ?? (index: index, places: <String>{}, ends: false, values: <String, String>{});
+    out[index] = switch (name) {
+      null => (index: index, places: {FlowField.pc.none.replaceAll('"', '')}, ends: true, values: was.values),
+      'pc' => (
+        index: index,
+        places: {...was.places, for (final p in RegExp(r'"(\w+)"').allMatches(value)) p[1]!},
+        ends: was.ends,
+        values: was.values,
+      ),
+      final n => (index: index, places: was.places, ends: was.ends, values: {...was.values, n: value}),
+    };
+  }
+  return [...out.values];
+}
+
+/// The kinds of flow [row] is taken for: those its branch holds for, or
+/// any, less those the branches before it held for.
+Set<String> _taken(FlRow row) => {
+  ...switch (row.tested) {
+    null => _kinds,
+    final kinds => {for (final k in kinds) k.name},
+  },
+}.difference({
+  for (final p in row.passed)
+    for (final k in p.kinds) k.name,
+});
+
+/// The places of [need] grouped by the kinds of flow not needed there.
+List<({List<String> places, List<String> others})> _byOthers(Map<String, Set<String>> need) {
+  final groups = <String, ({List<String> places, List<String> others})>{};
+  for (final p in need.keys.toList()..sort()) {
+    final others = [for (final k in _kinds) if (!need[p]!.contains(k)) k]..sort();
+    groups.putIfAbsent(others.join(' '), () => (places: [], others: others)).places.add(p);
+  }
+  return [for (final k in groups.keys.toList()..sort()) groups[k]!];
+}
+
+/// [names] as a set of the model's strings.
+String _set(List<String> names) => '{${[for (final n in names) '"$n"'].join(', ')}}';
+
+/// What a step at [place] may take of its flow beyond `TypeOK`: each field
+/// [_held] names there, and what [_supports] holds there.
+List<String> _placeFacts(String place) => [
+  for (final h in _held)
+    if (h.at.contains(place)) 'fl[f].${h.field.name} \\in ${h.set}',
+  if (_supports[place] case final fact?) fact.replaceAll(RegExp(r'\br\.'), 'fl[f].'),
+];
 
 /// The constants a world may set, which a proof takes by their range alone.
 final _parameters = {

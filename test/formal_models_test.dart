@@ -21,14 +21,22 @@ void main() {
       f.path: f.text,
   };
 
-  test('every step the model takes has a typing lemma the steps module cites',
-      () {
+  test('every step the model takes has a lemma for each fact the steps '
+      'modules prove it keeps', () {
     final tables = printed['activation_tables.tla']!;
-    final typing = [
+    final lemmas = [
       for (final MapEntry(:key, :value) in printed.entries)
-        if (key.startsWith('activation_types_')) value,
+        if (key.endsWith('_proof.tla')) value,
     ].join('\n');
-    final steps = printed['activation_types_steps_proof.tla']!;
+    final steps = [
+      for (final MapEntry(:key, :value) in printed.entries)
+        if (key.endsWith('_steps_proof.tla')) value,
+    ].join('\n');
+    final kept = {
+      for (final m in RegExp(r'^LEMMA (\w+)_TableStep ==', multiLine: true).allMatches(steps))
+        m[1]!,
+    };
+    expect(kept, containsAll(['Fl', 'Al', 'Sp']));
     for (final over in ['TableStep', 'InputTableStep']) {
       final body = RegExp('^$over\\(f\\) ==\\n((?:    .*\\n)+)', multiLine: true)
           .firstMatch(tables)![1]!;
@@ -36,9 +44,13 @@ void main() {
         for (final m in RegExp(r'\\/ (\w+)\(f\)').allMatches(body)) m[1]!,
       ];
       expect(actions, isNotEmpty, reason: over);
-      for (final a in actions) {
-        expect(typing, contains('LEMMA Fl_$a =='), reason: '$a has no typing lemma');
-        expect(steps, contains('Fl_$a'), reason: 'Fl_$over cites no Fl_$a');
+      for (final fact in kept) {
+        final cites = RegExp('^LEMMA ${fact}_$over ==\\n((?:  .*\\n)+)', multiLine: true)
+            .firstMatch(steps)![1]!;
+        for (final a in actions) {
+          expect(lemmas, contains('LEMMA ${fact}_$a =='), reason: '$a has no ${fact}_$a');
+          expect(cites, contains('${fact}_$a'), reason: '${fact}_$over cites no ${fact}_$a');
+        }
       }
     }
   });

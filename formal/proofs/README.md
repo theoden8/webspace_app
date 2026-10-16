@@ -97,15 +97,20 @@ TLC model it backs (same definitions — no re-modeling).
   proof opens no default a world can replace. Then one module per table, or per twelve of its
   rows (`activation_types_<table>[<n>]_proof`), proves each row of `fl` an arm writes, a clause
   at a time over a named partial row, each value over only what it reads; and
-  `activation_types_steps_proof` takes them to `TableStep` and `InputTableStep`.
-  The provers do not take the flow record's set of 28 fields whole, SMT takes no string or
-  record literal here, and tlapm holds a module's obligations until it ends, so each is split
-  as it is. What some steps need of their flow beyond `TypeOK` (a site that indexes a site's
-  history, a fresh tab id when the last tab closes) is `Supports`, assumed and owed: a proof
-  that every step keeps it is the next step. `ConstantsType` is assumed too; TLC does not yet
-  check it in each world.
-  **`activation_types_proof` 312 obligations, the tables' 19 modules 3,849,
-  `activation_types_steps_proof` 85; all proved.**
+  `activation_types_steps_proof` takes them to `TableStep` and `InputTableStep`. The
+  provers do not take the flow record's set of 28 fields whole, SMT takes no
+  string or record literal here, and tlapm holds a module's obligations until it ends, so each
+  is split as it is. What some steps need of their flow beyond `TypeOK` (a site that indexes a
+  site's history, a tab where one is read, a fresh tab id when the last tab closes) is
+  `Supports`; it stands on `Held` (each place a field is read at, and every place an arm
+  reaches it from, holds the field set: `Held_site`, `Held_tab`, `Held_kind`) and
+  `Alone` (at most one tab flow, the tab gate). The `held` and `supports` families prove every
+  row keeps them, module for module beside the types family
+  (`activation_held_<table>[<n>]_proof`, `activation_supports_<table>[<n>]_proof`), each
+  family's steps module extending only its own, since one module holding every family's rows
+  runs out of memory. `ConstantsType` is still assumed; TLC does not yet check it in each world.
+  **`activation_types_proof` 313 obligations; the tables' modules 3,849 (types), 7,749 (held),
+  4,925 (supports); the steps modules 85 (types), 255 (held), 170 (supports); all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant

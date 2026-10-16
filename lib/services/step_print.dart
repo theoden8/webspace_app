@@ -150,19 +150,6 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     Set<Need> passed(int i) => {
       for (final b in s.branches.take(i)) ...b.when.unless,
     };
-    // A refused reply takes its arm whatever the branches say.
-    Set<FlowKind>? only(int i) {
-      Set<FlowKind>? left = switch (arms[i]) {
-        Branch(when: final w) => w.kinds,
-        Otherwise() || Refused() => null,
-      };
-      if (arms[i] is Refused) return left;
-      for (final b in s.branches.take(i)) {
-        if (!b.when.exactKinds) continue;
-        left = (left ?? FlowKind.values.toSet()).difference(b.when.kinds!);
-      }
-      return left;
-    }
     ArmRow row(Arm<W, P> arm, {required int at}) {
       // Each place the arm may go to, with what going there needs.
       final next = <String, Set<Need>>{};
@@ -187,7 +174,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           if (arm case Branch(when: final w)) ...w.needs,
           ...?arm.pick?.from.needs,
         },
-        only: only(at),
+        only: _only(s, at: at),
         fields: ends
             ? FlowField.values.toSet()
             : {
@@ -327,7 +314,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           for (final w in callWrites) w.tla,
           if (started == null) row,
           for (final a in acts) got(a.tla),
-          if (started != null) ...[...started.acts, row],
+          if (started != null) ...[for (final a in started.acts) a.tla, row],
           'Did("${s.action}", f, "${arm.outcome.tla}", ${got((arm.tab ?? s.tab ?? arm.site ?? s.site)?.tla ?? '0')})',
           if (held.isNotEmpty) 'UNCHANGED << ${held.join(', ')} >>',
         ].map((c) => '($c)').join(' /\\ ');
@@ -434,6 +421,29 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     );
   }
 
+  /// The branches before arm [at] of [s], which it is taken only once they
+  /// did not hold. A refused reply takes its arm whatever the branches say.
+  static List<Branch<W, P>> _passed<W, P extends Enum>(Step<W, P> s, {required int at}) =>
+      s.allArms[at] is Refused ? const [] : s.branches.take(at).toList();
+
+  /// The kinds of flow [arm]'s own branch holds for, null when it does not
+  /// test the kind.
+  static Set<FlowKind>? _tested<W, P extends Enum>(Arm<W, P> arm) => switch (arm) {
+    Branch(when: final w) => w.kinds,
+    Otherwise() || Refused() => null,
+  };
+
+  /// The kinds of flow arm [at] of [s] is taken for, null for any: those
+  /// its branch holds for, less those the branches before it took.
+  static Set<FlowKind>? _only<W, P extends Enum>(Step<W, P> s, {required int at}) {
+    var left = _tested(s.allArms[at]);
+    for (final b in _passed(s, at: at)) {
+      if (!b.when.exactKinds) continue;
+      left = (left ?? FlowKind.values.toSet()).difference(b.when.kinds!);
+    }
+    return left;
+  }
+
   /// The step's reads of the field its call keeps, as the reply: the reply
   /// lands before the arms run.
   static String Function(String) _replied<W, P extends Enum>(Step<W, P> s) =>
@@ -478,9 +488,13 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       input: s.input,
       place: place,
       rows: [
-        for (final arm in s.allArms) ...() {
-          final (:got, :ends, :assigns, :written, callWrites: _, acts: _) =
+        for (final (at, arm) in s.allArms.indexed) ...() {
+          final (:got, :ends, :assigns, :written, :callWrites, :acts) =
               _parts(s, arm: arm, replied: replied, ending: ending, entered: entered);
+          final writes = [
+            for (final w in callWrites) (vars: {w.variable}, tla: w.tla),
+            for (final a in acts) (vars: a.writes, tla: got(a.tla)),
+          ];
           final own = ends ? ['![f] = NoFlow'] : assigns;
           final picks = [
             if (s.pick case final p?) (name: p.name, from: p.from.tla),
@@ -495,12 +509,23 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
             },
           ];
           final spawn = arm.then.whereType<Spawn<W>>().firstOrNull;
+          final tested = _tested(arm);
+          final passed = [
+            for (final b in _passed(s, at: at))
+              (
+                tla: '~(${replied(b.when.tla)})',
+                kinds: b.when.exactKinds ? b.when.kinds! : const <FlowKind>{},
+              ),
+          ];
           return [
             (
               picks: picks,
               lets: const <({String name, String to})>[],
               given: given,
               clauses: own,
+              tested: tested,
+              passed: passed,
+              writes: writes,
             ),
             if (spawn != null)
               () {
@@ -516,6 +541,9 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
                   lets: [(name: started.pick, to: got(spawn.site.tla))],
                   given: [...given, got(spawn.when.tla)],
                   clauses: [...own, ...started.assigns],
+                  tested: tested,
+                  passed: passed,
+                  writes: [...writes, ...started.acts],
                 );
               }(),
           ];
@@ -675,7 +703,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         ])
           '![inputs + 1].$field = ${fresh(to)}',
       ],
-      acts: [for (final a in acts) fresh(a.tla)],
+      acts: [for (final a in acts) (vars: a.writes, tla: fresh(a.tla))],
       written: written,
     );
   }
@@ -694,13 +722,20 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
 }
 
 /// A row of `fl` an arm writes, as its action prints it: the picks bound
-/// around it, the names a started flow's pick is bound to, and the clauses
-/// of `[fl EXCEPT ...]`.
+/// around it, the names a started flow's pick is bound to, the guards it
+/// is taken under, the clauses of `[fl EXCEPT ...]`, the kinds of flow its
+/// own branch holds for (null when it does not test the kind), and the
+/// branches before it, which did not hold, each with the kinds it holds
+/// for exactly (none when it is not a test of the kind alone), and its
+/// writes of the other variables, each with those it writes.
 typedef FlRow = ({
   List<({String name, String from})> picks,
   List<({String name, String to})> lets,
   List<String> given,
   List<String> clauses,
+  Set<FlowKind>? tested,
+  List<({String tla, Set<FlowKind> kinds})> passed,
+  List<({Set<ModelVar> vars, String tla})> writes,
 });
 
 /// A step's action, whether it is an input, the place it runs from, and the
@@ -712,7 +747,7 @@ typedef FlStep = ({String action, bool input, String place, List<FlRow> rows});
 typedef _Started = ({
   String pick,
   List<String> assigns,
-  List<String> acts,
+  List<({Set<ModelVar> vars, String tla})> acts,
   Set<ModelVar> written,
 });
 
