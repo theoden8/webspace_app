@@ -99,9 +99,7 @@ class _SiteWebView extends StatelessWidget {
               shouldFetchHtml: htmlSource != HtmlSource.cache
                   ? null
                   : () => HtmlCacheService.instance.shouldSave(site.siteId),
-              initialHtml: htmlSource == HtmlSource.none
-                  ? null
-                  : _initialHtml(context, isFileImport: htmlSource == HtmlSource.import),
+              initialHtml: _initialHtml(context, source: htmlSource),
             )),
           ),
         ],
@@ -143,17 +141,15 @@ class _SiteWebView extends StatelessWidget {
   }
 
   /// The first paint, before the live load swaps in (the factory's
-  /// `pendingLiveReload` skips the swap offline). A file:// import renders
-  /// its stored bytes, having no live page. A URL site reads its cache only
-  /// with `htmlCachingEnabled` or when offline at construction, so an online
-  /// cold start never shows stale content.
-  String? _initialHtml(BuildContext context, {required bool isFileImport}) {
-    if (!isFileImport &&
-        !site.htmlCachingEnabled &&
-        (ConnectivityService.instance.lastKnownOnline ?? true)) {
+  /// `pendingLiveReload` skips the swap offline), when the build renders the
+  /// stored HTML at all.
+  String? _initialHtml(BuildContext context, {required HtmlSource source}) {
+    if (!rendersStoredHtml(source,
+        htmlCachingEnabled: site.htmlCachingEnabled,
+        online: ConnectivityService.instance.lastKnownOnline)) {
       return null;
     }
-    final cached = isFileImport
+    final cached = source == HtmlSource.import
         ? HtmlImportStorage.instance.getHtmlSync(site.siteId)
         : HtmlCacheService.instance.getHtmlSync(site.siteId);
     if (cached == null) return null;

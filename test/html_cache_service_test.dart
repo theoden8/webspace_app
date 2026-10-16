@@ -1,15 +1,13 @@
-import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
-import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_cache_service.dart';
 
+import 'helpers/held_file_store.dart';
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
 import 'helpers/fake_path_provider.dart';
 
@@ -130,7 +128,8 @@ void main() {
     });
 
     test('rolls back a write an eviction lands during', () async {
-      final store = _HeldWrites(IoFileStore('html_cache', overrideRoot: tempDir));
+      final store = HeldFileStore(IoFileStore('html_cache', overrideRoot: tempDir),
+          holds: HeldCall.writeText);
       HtmlCacheService.resetForTesting();
       await HtmlCacheService.instance
           .initialize(store: store, secureStorage: fakeSecureStorage);
@@ -138,7 +137,7 @@ void main() {
 
       final saving = svc.saveHtml(SiteId('site-1'),
           html: '<p>stale-from-pre-home</p>', url: 'https://example.com/deep');
-      await store.writing.future;
+      await store.reached.future;
       svc.evictInMemory(SiteId('site-1'));
       store.release.complete();
       await saving;
@@ -186,41 +185,3 @@ void main() {
   });
 }
 
-/// Holds the first text write until [release], so an eviction can land
-/// while it is on its way to disk.
-class _HeldWrites implements FileStore {
-  _HeldWrites(this._inner);
-
-  final FileStore _inner;
-  final Completer<void> writing = Completer<void>();
-  final Completer<void> release = Completer<void>();
-
-  @override
-  Future<void> writeText(String name, {required String contents}) async {
-    if (!writing.isCompleted) {
-      writing.complete();
-      await release.future;
-    }
-    await _inner.writeText(name, contents: contents);
-  }
-
-  @override
-  Future<void> ensure() => _inner.ensure();
-  @override
-  Future<bool> exists(String name) => _inner.exists(name);
-  @override
-  Future<String?> readText(String name) => _inner.readText(name);
-  @override
-  Future<Uint8List?> readBytes(String name) => _inner.readBytes(name);
-  @override
-  Future<void> writeBytes(String name, {required List<int> bytes}) =>
-      _inner.writeBytes(name, bytes: bytes);
-  @override
-  Future<void> delete(String name) => _inner.delete(name);
-  @override
-  Future<String?> stamp(String name) => _inner.stamp(name);
-  @override
-  Future<List<String>> list() => _inner.list();
-  @override
-  Future<void> deleteAll() => _inner.deleteAll();
-}

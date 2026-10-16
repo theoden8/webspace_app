@@ -3,9 +3,10 @@
 /// This classification MUST be identical everywhere it's used, or a site can
 /// render blank (preloaded from one store, read from another) or have its live
 /// snapshot wrongly saved over a `file://` import. The call sites:
-///   - preload: `_WebSpacePageState.ensureSiteHtml` decrypts the right store
-///     before a site enters `_loadedIndices`.
-///   - read: the IndexedStack `initialHtml` callback reads it synchronously.
+///   - preload: `SiteActivationController.ensureSiteHtmlForModel` decrypts
+///     the right store before a site's webview builds, waiting for it only
+///     when the build renders it ([rendersStoredHtml]).
+///   - read: `SiteWebViewStack`'s `initialHtml` reads it synchronously.
 ///   - save: `onHtmlLoaded` / `shouldFetchHtml` persist live snapshots only for
 ///     [HtmlSource.cache] sites.
 /// Centralising the rule here (instead of three inline `incognito || isArchive
@@ -37,3 +38,19 @@ HtmlSource htmlSourceFor({
   if (initUrl.startsWith('file://')) return HtmlSource.import;
   return HtmlSource.cache;
 }
+
+/// Whether a webview built now starts from the site's stored HTML rather
+/// than its live page: an import always, having no live page; a cached page
+/// only when the site keeps its HTML or the device is offline, so an online
+/// start never shows stale content. [online] is the last known state, null
+/// when none is known yet.
+bool rendersStoredHtml(
+  HtmlSource source, {
+  required bool htmlCachingEnabled,
+  required bool? online,
+}) =>
+    switch (source) {
+      HtmlSource.import => true,
+      HtmlSource.cache => htmlCachingEnabled || !(online ?? true),
+      HtmlSource.none => false,
+    };

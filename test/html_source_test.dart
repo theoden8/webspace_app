@@ -104,4 +104,48 @@ void main() {
       }
     });
   });
+
+  group('rendersStoredHtml', () {
+    test('an import always renders its stored bytes', () {
+      for (final caches in [false, true]) {
+        for (final online in [null, false, true]) {
+          expect(
+              rendersStoredHtml(HtmlSource.import,
+                  htmlCachingEnabled: caches, online: online),
+              isTrue);
+        }
+      }
+    });
+
+    test('a cached page only when the site keeps its HTML or is offline', () {
+      expect(
+          rendersStoredHtml(HtmlSource.cache,
+              htmlCachingEnabled: false, online: true),
+          isFalse);
+      expect(
+          rendersStoredHtml(HtmlSource.cache,
+              htmlCachingEnabled: false, online: null),
+          isFalse,
+          reason: 'unknown connectivity reads as online');
+      expect(
+          rendersStoredHtml(HtmlSource.cache,
+              htmlCachingEnabled: false, online: false),
+          isTrue);
+      expect(
+          rendersStoredHtml(HtmlSource.cache,
+              htmlCachingEnabled: true, online: true),
+          isTrue);
+    });
+
+    test('a site with no store renders none', () {
+      for (final caches in [false, true]) {
+        for (final online in [null, false, true]) {
+          expect(
+              rendersStoredHtml(HtmlSource.none,
+                  htmlCachingEnabled: caches, online: online),
+              isFalse);
+        }
+      }
+    });
+  });
 }
