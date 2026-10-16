@@ -1509,11 +1509,16 @@ jobs:
       - name: Apple toolchain
         uses: ./.github/actions/apple-toolchain
 
+      # The runner image's formula data trails Homebrew and brew does not
+      # refresh it on install: it kept serving ImageMagick 7.1.2-33, whose
+      # mogrify cannot write, after 7.1.2-34 fixed it.
       - name: Install ImageMagick and Fastlane
         run: |
+          brew update --quiet
           brew install imagemagick-full fastlane
           brew link --force imagemagick-full
           brew link --force fastlane
+          magick -version | head -n 1
 
       - name: Boot the simulator
         id: simulator
