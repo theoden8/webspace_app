@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>@APPLICATION_ID@</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT AND CC-BY-NC-SA-4.0</project_license>
+  <name>WebSpace</name>
+  <summary>Web apps with an isolated container each</summary>
+  <description>
+    <p>
+      WebSpace keeps the websites you use as apps side by side, each in its
+      own container: cookies, storage, cache and service workers never cross
+      from one site to another, so several accounts on the same service can
+      stay signed in at once.
+    </p>
+    <p>Per site, you choose:</p>
+    <ul>
+      <li>a proxy, including SOCKS5 and Tor</li>
+      <li>tracking protection, DNS and filter-list blocking, ClearURLs</li>
+      <li>language, location, time zone and user agent</li>
+      <li>user scripts, zoom, and how outbound links open</li>
+    </ul>
+    <p>Sites group into webspaces, and a webspace can be archived behind a passphrase.</p>
+  </description>
+  <developer id="@DEVELOPER_ID@">
+    <name>Kirill Rodriguez</name>
+  </developer>
+  <launchable type="desktop-id">@APPLICATION_ID@.desktop</launchable>
+  <url type="homepage">https://github.com/theoden8/webspace_app</url>
+  <url type="bugtracker">https://github.com/theoden8/webspace_app/issues</url>
+  <url type="vcs-browser">https://github.com/theoden8/webspace_app</url>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+</component>

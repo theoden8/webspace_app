@@ -8,7 +8,7 @@ Comment=Manage multiple websites with per-site cookie isolation
 # substitutes Exec= with the on-disk binary path. The %u substitutes the
 # inbound URL when launched via xdg-open.
 Exec=webspace_app %u
-Icon=webspace
+Icon=@APPLICATION_ID@
 Terminal=false
 Categories=Network;WebBrowser;
 # LIR-004: register WebSpace as the handler for webspace://. xdg-open

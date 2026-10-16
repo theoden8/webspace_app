@@ -204,12 +204,22 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
     COMPONENT Runtime)
 endif()
 
-# LIR-004: webspace:// scheme handler. Bundles the .desktop file alongside
-# the binary; downstream packagers should additionally copy it to
-# `${XDG_DATA_DIRS}/applications/` (e.g. `/usr/share/applications/`) and
-# run `update-desktop-database` so xdg-open dispatches `webspace://`. The
-# bundled copy is documented for users running `flutter build linux`
-# manually.
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/webspace.desktop"
-  DESTINATION "${CMAKE_INSTALL_PREFIX}"
+# The desktop entry, metainfo and icon, written with the application id and
+# installed at the paths a desktop reads under a data directory, so a package
+# copies the bundle's share/ into /usr/share, ~/.local/share or its own.
+# Running update-desktop-database on applications/ then routes webspace:// to
+# the app (LIR-004).
+string(REGEX REPLACE "\\.[^.]*$" "" DEVELOPER_ID "${APPLICATION_ID}")
+configure_file(webspace.desktop.in "${APPLICATION_ID}.desktop" @ONLY)
+configure_file(webspace.metainfo.xml.in "${APPLICATION_ID}.metainfo.xml" @ONLY)
+set(INSTALL_BUNDLE_SHARE_DIR "${CMAKE_INSTALL_PREFIX}/share")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${APPLICATION_ID}.desktop"
+  DESTINATION "${INSTALL_BUNDLE_SHARE_DIR}/applications"
+  COMPONENT Runtime)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${APPLICATION_ID}.metainfo.xml"
+  DESTINATION "${INSTALL_BUNDLE_SHARE_DIR}/metainfo"
+  COMPONENT Runtime)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../assets/webspace_icon_round.png"
+  DESTINATION "${INSTALL_BUNDLE_SHARE_DIR}/icons/hicolor/512x512/apps"
+  RENAME "${APPLICATION_ID}.png"
   COMPONENT Runtime)
