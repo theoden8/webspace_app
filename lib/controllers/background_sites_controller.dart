@@ -34,9 +34,10 @@ import 'package:webspace/services/headless_site_check.dart';
 abstract interface class BackgroundSitesHost implements PageHost {
   Future<void> activate(WebViewModel site);
 
-  /// A notification tap is an app entry point: nothing pushed over the page
-  /// may stay on top of the site it opens.
-  void popToRoot();
+  /// A notification tap is an app entry point: the site it opens comes up
+  /// with nothing over the page, neither a pushed route nor a revealed tab
+  /// strip.
+  void resetForEntry();
 
   /// Points Tor's exit country at what the sites at [indices] agree on
   /// (TOR-014).
@@ -303,7 +304,7 @@ class BackgroundSitesController {
   void _onNotificationTapped(SiteId siteId) {
     final site = _siteTapped(siteId);
     if (site == null) return;
-    _host.popToRoot();
+    _host.resetForEntry();
     unawaited(_host.activate(site));
     _host.rebuild();
   }
