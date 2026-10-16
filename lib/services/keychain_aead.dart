@@ -1,15 +1,24 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
+import 'package:cryptography/dart.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:pointycastle/api.dart' show InvalidCipherTextException;
 
 import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
 
 const int _nonceLength = 12;
 const int _tagLength = 16;
+
+/// From this many characters a seal or an open runs on a background
+/// isolate: a page snapshot is over a megabyte, and on iOS the UI isolate
+/// shares the main thread with every WKWebView callback.
+const int _offIsolateFrom = 64 * 1024;
+
+final DartAesGcm _gcm = DartAesGcm.with256bits(nonceLength: _nonceLength);
 
 /// AES-256-GCM under a key held in the platform keystore, for the encrypted
 /// on-disk caches.
@@ -21,11 +30,9 @@ const int _tagLength = 16;
 /// and let successive rewrites share a byte-identical prefix. Files already
 /// on disk use this format, so it cannot change.
 final class KeychainAead {
-  KeychainAead._(Uint8List key) : _key = encrypt.Key(key);
+  KeychainAead._(this._key);
 
-  final encrypt.Key _key;
-  late final encrypt.Encrypter _gcm =
-      encrypt.Encrypter(encrypt.AES(_key, mode: encrypt.AESMode.gcm));
+  final Uint8List _key;
 
   /// The key stored under [keyName], created on first use; null, after
   /// logging, when the keystore refuses or holds something that is not a
@@ -69,25 +76,20 @@ final class KeychainAead {
     return open(keystore, keyName: keyName, logTag: logTag);
   }
 
-  String seal(String plaintext) {
-    final nonce = encrypt.IV.fromSecureRandom(_nonceLength);
-    final body = _gcm.encrypt(plaintext, iv: nonce).bytes;
-    return base64.encode([...nonce.bytes, ...body]);
+  Future<String> seal(String plaintext) {
+    final job = (key: _key, text: plaintext);
+    return plaintext.length < _offIsolateFrom
+        ? Future.value(_seal(job))
+        : compute(_seal, job);
   }
 
   /// The plaintext [wire] seals, or null when this key did not seal it:
   /// truncated, tampered, written under another key, or an older format.
-  String? unseal(String wire) {
-    final bytes = _decodeBase64(wire);
-    if (bytes == null || bytes.length < _nonceLength + _tagLength) return null;
-    try {
-      return _gcm.decrypt(
-        encrypt.Encrypted(bytes.sublist(_nonceLength)),
-        iv: encrypt.IV(bytes.sublist(0, _nonceLength)),
-      );
-    } on InvalidCipherTextException {
-      return null;
-    }
+  Future<String?> unseal(String wire) {
+    final job = (key: _key, text: wire);
+    return wire.length < _offIsolateFrom
+        ? Future.value(_unseal(job))
+        : compute(_unseal, job);
   }
 
   /// Reads a blob from before GCM: AES-CBC with the key's first 16 bytes as
@@ -95,10 +97,11 @@ final class KeychainAead {
   String? unsealLegacyCbc(String wire) {
     final bytes = _decodeBase64(wire);
     if (bytes == null || bytes.isEmpty || bytes.length % 16 != 0) return null;
-    final cbc = encrypt.Encrypter(encrypt.AES(_key, mode: encrypt.AESMode.cbc));
+    final cbc = encrypt.Encrypter(
+        encrypt.AES(encrypt.Key(_key), mode: encrypt.AESMode.cbc));
     try {
       return cbc.decrypt(encrypt.Encrypted(bytes),
-          iv: encrypt.IV(_key.bytes.sublist(0, 16)));
+          iv: encrypt.IV(_key.sublist(0, 16)));
     } on ArgumentError {
       // pointycastle's report of a bad PKCS7 pad: not a blob of this key.
       return null;
@@ -107,11 +110,40 @@ final class KeychainAead {
     }
   }
 
-  static Uint8List? _decodeBase64(String wire) {
-    try {
-      return base64.decode(wire);
-    } on FormatException {
-      return null;
-    }
+}
+
+typedef _Job = ({Uint8List key, String text});
+
+String _seal(_Job job) {
+  final box = _gcm.encryptSync(utf8.encode(job.text),
+      secretKeyData: SecretKeyData(job.key));
+  final cipher = box.cipherText;
+  return base64.encode(Uint8List(_nonceLength + cipher.length + _tagLength)
+    ..setAll(0, box.nonce)
+    ..setAll(_nonceLength, cipher)
+    ..setAll(_nonceLength + cipher.length, box.mac.bytes));
+}
+
+String? _unseal(_Job job) {
+  final bytes = _decodeBase64(job.text);
+  if (bytes == null || bytes.length < _nonceLength + _tagLength) return null;
+  final box = SecretBox(
+    Uint8List.sublistView(bytes, _nonceLength, bytes.length - _tagLength),
+    nonce: Uint8List.sublistView(bytes, 0, _nonceLength),
+    mac: Mac(Uint8List.sublistView(bytes, bytes.length - _tagLength)),
+  );
+  try {
+    return utf8.decode(_gcm.decryptSync(box, secretKeyData: SecretKeyData(job.key)),
+        allowMalformed: true);
+  } on SecretBoxAuthenticationError {
+    return null;
+  }
+}
+
+Uint8List? _decodeBase64(String wire) {
+  try {
+    return base64.decode(wire);
+  } on FormatException {
+    return null;
   }
 }

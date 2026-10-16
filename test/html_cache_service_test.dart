@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_cache_service.dart';
 
@@ -120,9 +123,27 @@ void main() {
       await saving;
 
       // saveHtml must observe the gen change and drop the write so the
-      // stale snapshot can't resurrect itself over the eviction.
+      // stale snapshot can't resurrect itself over the eviction. The disk
+      // keeps what it held, as after any eviction.
       expect(svc.getHtmlSync(SiteId('site-1')), isNull);
-      // On disk: rolled back. No file should remain for site-1.
+      expect((await svc.loadHtml(SiteId('site-1')))?.$2, '<p>baseline</p>');
+    });
+
+    test('rolls back a write an eviction lands during', () async {
+      final store = _HeldWrites(IoFileStore('html_cache', overrideRoot: tempDir));
+      HtmlCacheService.resetForTesting();
+      await HtmlCacheService.instance
+          .initialize(store: store, secureStorage: fakeSecureStorage);
+      final svc = HtmlCacheService.instance;
+
+      final saving = svc.saveHtml(SiteId('site-1'),
+          html: '<p>stale-from-pre-home</p>', url: 'https://example.com/deep');
+      await store.writing.future;
+      svc.evictInMemory(SiteId('site-1'));
+      store.release.complete();
+      await saving;
+
+      expect(svc.getHtmlSync(SiteId('site-1')), isNull);
       final cacheFile = File('${tempDir.path}/html_cache/site-1.enc');
       expect(await cacheFile.exists(), isFalse);
     });
@@ -163,4 +184,43 @@ void main() {
       expect(await cacheFile.exists(), isFalse);
     });
   });
+}
+
+/// Holds the first text write until [release], so an eviction can land
+/// while it is on its way to disk.
+class _HeldWrites implements FileStore {
+  _HeldWrites(this._inner);
+
+  final FileStore _inner;
+  final Completer<void> writing = Completer<void>();
+  final Completer<void> release = Completer<void>();
+
+  @override
+  Future<void> writeText(String name, {required String contents}) async {
+    if (!writing.isCompleted) {
+      writing.complete();
+      await release.future;
+    }
+    await _inner.writeText(name, contents: contents);
+  }
+
+  @override
+  Future<void> ensure() => _inner.ensure();
+  @override
+  Future<bool> exists(String name) => _inner.exists(name);
+  @override
+  Future<String?> readText(String name) => _inner.readText(name);
+  @override
+  Future<Uint8List?> readBytes(String name) => _inner.readBytes(name);
+  @override
+  Future<void> writeBytes(String name, {required List<int> bytes}) =>
+      _inner.writeBytes(name, bytes: bytes);
+  @override
+  Future<void> delete(String name) => _inner.delete(name);
+  @override
+  Future<String?> stamp(String name) => _inner.stamp(name);
+  @override
+  Future<List<String>> list() => _inner.list();
+  @override
+  Future<void> deleteAll() => _inner.deleteAll();
 }
