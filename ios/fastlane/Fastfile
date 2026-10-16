@@ -211,21 +211,13 @@ platform :ios do
 
     resize_screenshots(device: set[:name])
 
-    # The iPhone 14 frame carries EXIF, XMP and orNT chunks that no working
-    # frame has, and Homebrew's ImageMagick 7 failed to rewrite it, so every
-    # iPhone shot went unframed. Stripped, a frame is its pixels alone.
-    require "frameit"
-    frames = Frameit::FrameDownloader.new
-    frames.download_frames unless frames.frames_exist?
-    tagged = Dir[File.join(frames.templates_path, "*.png")].select { |frame| File.binread(frame).include?("eXIf") }
-    sh("magick", "mogrify", "-strip", *tagged) unless tagged.empty?
-
     frame_screenshots(
       path: screenshots_dir,
       white: true
     )
 
-    # frameit logs a shot it could not frame and carries on.
+    # frameit logs a shot it could not frame and carries on, as it did for
+    # every shot under ImageMagick 7.1.2-33, whose mogrify could not write.
     unframed = Dir.glob(File.join(screenshots_dir, "*.png"))
       .reject { |shot| shot.end_with?("_framed.png") || File.exist?(shot.sub(/\.png\z/, "_framed.png")) }
     UI.user_error!("frameit left unframed: #{unframed.map { |shot| File.basename(shot) }.join(', ')}") unless unframed.empty?

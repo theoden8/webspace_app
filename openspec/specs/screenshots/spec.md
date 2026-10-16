@@ -126,7 +126,7 @@ Android, iPhone and iPad screenshots SHALL be frameable with device bezels using
 - **GIVEN** frameit logs a shot it cannot frame and carries on
 - **WHEN** `fastlane ios add_device_frames` finishes framing a set
 - **THEN** a shot without its `_framed` copy fails the lane, naming the shot
-- **AND** before framing, the lane strips the metadata (EXIF, XMP, orNT) from every frame image that carries it, which Homebrew's ImageMagick 7 failed to rewrite in the iPhone 14 frame, leaving every iPhone shot unframed
+- **AND** a broken ImageMagick fails the lane instead of passing with no framed set: under 7.1.2-33, whose `mogrify` could not write any image, frameit logged an error per shot and framed none
 
 ---
 
