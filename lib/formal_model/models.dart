@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:webspace/formal_model/checks.dart';
 import 'package:webspace/formal_model/lean_footprints.dart';
+import 'package:webspace/formal_model/types_proof.dart';
 import 'package:webspace/formal_model/worlds.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/tab_leaves.dart';
@@ -196,9 +197,14 @@ Map<ActivationStep, Step<Object?, Enum>> _starts(Tables t) => {
       if (step.input) step.name: step,
 };
 
+/// The modules `formal/` writes by hand that the printed ones extend, from
+/// the repository's root.
+const handWrittenModules = ['formal/activation_base.tla', 'formal/activation.tla'];
+
 /// Everything there is to print, in one list: a new engine's model is a new
-/// entry here.
-List<PrintedFile> printedModels() => [
+/// entry here. [handWritten] is the text of the modules `formal/` writes by
+/// hand that the printed ones extend, whose definitions a proof opens.
+List<PrintedFile> printedModels({required List<String> handWritten}) => [
   (path: 'activation_vars.tla', text: activationVars()),
   (path: 'activation_steps.tla', text: activationSteps()),
   (path: 'activation_ops.tla', text: activationOps(tables)),
@@ -207,6 +213,18 @@ List<PrintedFile> printedModels() => [
   (
     path: 'activation_invariants_proof.tla',
     text: activationInvariantsProof(tables),
+  ),
+  ...activationTypesProofs(
+    tables: {
+      for (final m in ModelTable.values)
+        m.name: _table(tables, of: m)
+            .flSteps(entered: _entered(tables), starts: _starts(tables)),
+    },
+    definitions: tlaDefinitions([
+      activationVars(),
+      activationOps(tables),
+      ...handWritten,
+    ]),
   ),
   (path: 'activation_footprints.tsv', text: activationFootprints(tables)),
   (path: 'activation_base_ops.tsv', text: activationBaseOps()),
