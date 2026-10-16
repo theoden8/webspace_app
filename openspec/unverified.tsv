@@ -73,7 +73,6 @@ FS-002	no check: no test covers the top-edge exit handle (the centered 96px band
 FS-004	no check: AppLifecycleController calls host.reapplyFullscreen() on resume, but no test asserts the immersive mode is re-applied
 FS-005	no check: no test checks that activate(null) exits full screen; the walk world stubs exitFullscreen() as a no-op
 FS-006	no check: no test checks the body's top/bottom SafeArea inset in full screen under a persistent system bar (partly: test/fullscreen_system_bars_test.dart, "a kept tab strip moves above a revealed navigation bar, which is hidden again")
-FS-009	no check: no test covers the single Hidden/Always/Button choice (TabStrip in lib/screens/app_behaviour.dart) or its mutual exclusion and clearing of the full screen sub-choice; only the drag-to-corner widget and the corner JSON are tested (partly: test/tab_bar_corner_button_test.dart, "the overlay carries the button and reports the nearest corner")
 FS-010	no check: LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES in MainActivity and dropping the left/right SafeArea in full screen are both untested
 # home-shortcut
 HS-009	no check: no test that persisting sites and the startup restore call ShortcutService.syncSites, nor of the Swift App Group write; shortcut_service_test only checks syncSites is a no-op off Apple
