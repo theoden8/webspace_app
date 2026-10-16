@@ -947,7 +947,7 @@
   "torStateAppWide": "Հավելվածի ամբողջ տրաֆիկը",
   "torStateAppWideSubtitle": "Հավելվածի կարգավորումների ելքային պրոքսին Tor է",
   "torStateOtherSites": "{count, plural, one{Եվս {count} կայք} other{Եվս {count} կայք}}",
-  "torStateExitCountryHint": "Tor-ը միաժամանակ ցանցից դուրս է գալիս միայն մեկ երկրով՝ բոլոր կայքերի համար միասին։ Կայքն ընտրում է երկիրն իր Ցանցի կարգավորումներում, և այլ երկրի ամրակցված կայք բացելիս փակվում են այն կայքերը, որոնց երկիրը չի համընկնում։",
+  "torStateSiteExitCountry": "Ելքի երկիր: {country}",
   "torStateBridgesOff": "Անջատ",
   "torStateCircuits": "Շղթաներ",
   "torStateCircuitsPerSite": "Մեկական՝ յուրաքանչյուր կայքին",

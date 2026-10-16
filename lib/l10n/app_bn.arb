@@ -947,7 +947,7 @@
   "torStateAppWide": "অ্যাপের সমস্ত ট্র্যাফিক",
   "torStateAppWideSubtitle": "অ্যাপ সেটিংসে আউটবাউন্ড প্রক্সি Tor-এ সেট করা আছে",
   "torStateOtherSites": "{count, plural, one{আরও একটি সাইট} other{আরও {count}টি সাইট}}",
-  "torStateExitCountryHint": "Tor একবারে একটিমাত্র দেশ দিয়ে নেটওয়ার্ক ছাড়ে, সব সাইটের জন্য একসাথে। প্রতিটি সাইট তার নেটওয়ার্ক সেটিংসে দেশ বেছে নেয়, এবং অন্য দেশে পিন করা কোনো সাইট খুললে যেসব সাইটের দেশ মেলে না সেগুলি বন্ধ হয়ে যায়।",
+  "torStateSiteExitCountry": "প্রস্থান দেশ: {country}",
   "torStateBridgesOff": "বন্ধ",
   "torStateCircuits": "সার্কিট",
   "torStateCircuitsPerSite": "প্রতি সাইটে একটি",

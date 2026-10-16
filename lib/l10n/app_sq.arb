@@ -947,7 +947,7 @@
   "torStateAppWide": "Gjithë trafiku i aplikacionit",
   "torStateAppWideSubtitle": "Proxy dalëse te Cilësimet e aplikacionit është vendosur në Tor",
   "torStateOtherSites": "{count, plural, one{Një faqe tjetër} other{{count} faqe të tjera}}",
-  "torStateExitCountryHint": "Tor e lë rrjetin nga një shtet njëherësh, për të gjitha faqet njëkohësisht. Një faqe e zgjedh shtetin te Rrjeti në cilësimet e saj, dhe hapja e një faqeje të fiksuar në një shtet tjetër mbyll faqet që nuk përputhen.",
+  "torStateSiteExitCountry": "Shteti i daljes: {country}",
   "torStateBridgesOff": "Joaktive",
   "torStateCircuits": "Qarqet",
   "torStateCircuitsPerSite": "Një për faqe",

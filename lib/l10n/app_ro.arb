@@ -947,7 +947,7 @@
   "torStateAppWide": "Tot traficul aplicației",
   "torStateAppWideSubtitle": "Proxy-ul de ieșire din Setări aplicație este setat pe Tor",
   "torStateOtherSites": "{count, plural, one{Încă un site} few{Alte {count} site-uri} other{Alte {count} de site-uri}}",
-  "torStateExitCountryHint": "Tor iese din rețea printr-o singură țară odată, pentru toate site-urile deodată. Un site alege țara în setările sale de Rețea, iar deschiderea unui site fixat pe altă țară închide site-urile care nu se potrivesc.",
+  "torStateSiteExitCountry": "Țara de ieșire: {country}",
   "torStateBridgesOff": "Dezactivate",
   "torStateCircuits": "Circuite",
   "torStateCircuitsPerSite": "Câte unul pe site",

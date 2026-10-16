@@ -947,7 +947,7 @@
   "torStateAppWide": "Lahat ng trapiko ng app",
   "torStateAppWideSubtitle": "Nakatakda sa Tor ang outbound na proxy sa Mga Setting ng App",
   "torStateOtherSites": "{count, plural, one{{count} iba pang site} other{{count} iba pang site}}",
-  "torStateExitCountryHint": "Lumalabas ang Tor sa network mula sa iisang bansa lamang sa bawat pagkakataon, para sa lahat ng site nang sabay-sabay. Pinipili ng isang site ang bansa sa mga setting ng Network nito, at kapag nagbukas ka ng site na naka-pin sa ibang bansa, isinasara ang mga site na hindi tugma rito.",
+  "torStateSiteExitCountry": "Bansang lalabasan: {country}",
   "torStateBridgesOff": "Naka-off",
   "torStateCircuits": "Mga circuit",
   "torStateCircuitsPerSite": "Isa bawat site",

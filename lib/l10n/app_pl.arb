@@ -947,7 +947,7 @@
   "torStateAppWide": "Cały ruch aplikacji",
   "torStateAppWideSubtitle": "Proxy wychodzące w Ustawieniach aplikacji ustawiono na Tor",
   "torStateOtherSites": "{count, plural, one{Jedna inna witryna} few{{count} inne witryny} many{{count} innych witryn} other{{count} innych witryn}}",
-  "torStateExitCountryHint": "Tor opuszcza sieć z jednego kraju naraz, dla wszystkich witryn jednocześnie. Witryna wybiera kraj na ekranie Sieć w swoich ustawieniach, a otwarcie witryny przypiętej do innego kraju zamyka witryny o odmiennym ustawieniu.",
+  "torStateSiteExitCountry": "Kraj wyjścia: {country}",
   "torStateBridgesOff": "Wyłączone",
   "torStateCircuits": "Obwody",
   "torStateCircuitsPerSite": "Jeden na witrynę",

@@ -947,7 +947,7 @@
   "torStateAppWide": "Kaikki sovelluksen liikenne",
   "torStateAppWideSubtitle": "Sovellusasetusten lähtevä välityspalvelin on Tor",
   "torStateOtherSites": "{count, plural, one{Yksi muu sivusto} other{{count} muuta sivustoa}}",
-  "torStateExitCountryHint": "Tor poistuu verkosta yhden maan kautta kerrallaan, kaikille sivustoille yhtä aikaa. Sivusto valitsee maan omissa Verkko-asetuksissaan, ja eri maahan kiinnitetyn sivuston avaaminen sulkee sivustot, joiden valinta on sen kanssa ristiriidassa.",
+  "torStateSiteExitCountry": "Poistumismaa: {country}",
   "torStateBridgesOff": "Pois",
   "torStateCircuits": "Piirit",
   "torStateCircuitsPerSite": "Yksi sivustoa kohden",

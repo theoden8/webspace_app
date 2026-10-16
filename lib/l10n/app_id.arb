@@ -947,7 +947,7 @@
   "torStateAppWide": "Semua lalu lintas aplikasi",
   "torStateAppWideSubtitle": "Proxy keluar di Pengaturan Aplikasi disetel ke Tor",
   "torStateOtherSites": "{count, plural, other{{count} situs lainnya}}",
-  "torStateExitCountryHint": "Tor keluar dari jaringan melalui satu negara pada satu waktu, untuk semua situs sekaligus. Situs memilih negaranya di pengaturan Jaringan miliknya, dan membuka situs yang disematkan pada negara lain akan menutup situs-situs yang tidak sesuai.",
+  "torStateSiteExitCountry": "Negara keluar: {country}",
   "torStateBridgesOff": "Nonaktif",
   "torStateCircuits": "Sirkuit",
   "torStateCircuitsPerSite": "Satu per situs",

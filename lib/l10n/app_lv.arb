@@ -947,7 +947,7 @@
   "torStateAppWide": "Visa lietotnes datplūsma",
   "torStateAppWideSubtitle": "Izejošais starpniekserveris Lietotnes iestatījumos ir iestatīts uz Tor",
   "torStateOtherSites": "{count, plural, zero{Vēl {count} vietnes} one{Vēl {count} vietne} other{Vēl {count} vietnes}}",
-  "torStateExitCountryHint": "Tor vienlaikus iziet no tīkla tikai caur vienu valsti, visām vietnēm kopā. Vietne izvēlas valsti savos Tīkla iestatījumos, un, atverot vietni, kas piesprausta citai valstij, tiek aizvērtas vietnes ar atšķirīgu valsti.",
+  "torStateSiteExitCountry": "Izejas valsts: {country}",
   "torStateBridgesOff": "Izslēgts",
   "torStateCircuits": "Ķēdes",
   "torStateCircuitsPerSite": "Viena katrai vietnei",

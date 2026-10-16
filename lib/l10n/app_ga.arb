@@ -947,7 +947,7 @@
   "torStateAppWide": "Trácht uile na haipe",
   "torStateAppWideSubtitle": "Tá an seachfhreastalaí amach i Socruithe na hAipe socraithe ar Tor",
   "torStateOtherSites": "{count, plural, one{Suíomh amháin eile} two{{count} shuíomh eile} few{{count} shuíomh eile} many{{count} suíomh eile} other{{count} suíomh eile}}",
-  "torStateExitCountryHint": "Fágann Tor an líonra trí thír amháin ag an am, do gach suíomh le chéile. Roghnaíonn suíomh an tír ina shocruithe Líonra, agus nuair a osclaítear suíomh atá greamaithe de thír eile, dúntar na suíomhanna nach n-aontaíonn leis.",
+  "torStateSiteExitCountry": "Tír imeachta: {country}",
   "torStateBridgesOff": "As",
   "torStateCircuits": "Ciorcaid",
   "torStateCircuitsPerSite": "Ceann amháin in aghaidh an tsuímh",

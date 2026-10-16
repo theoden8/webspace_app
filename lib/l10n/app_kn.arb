@@ -947,7 +947,7 @@
   "torStateAppWide": "ಆ್ಯಪ್‌ನ ಎಲ್ಲಾ ಟ್ರಾಫಿಕ್",
   "torStateAppWideSubtitle": "ಅಪ್ಲಿಕೇಶನ್ ಸೆಟ್ಟಿಂಗ್ಸ್‌ನಲ್ಲಿ ಔಟ್‌ಬೌಂಡ್ ಪ್ರಾಕ್ಸಿಯನ್ನು Tor ಗೆ ಹೊಂದಿಸಲಾಗಿದೆ",
   "torStateOtherSites": "{count, plural, one{{count} ಇತರ ಸೈಟ್} other{{count} ಇತರ ಸೈಟ್‌ಗಳು}}",
-  "torStateExitCountryHint": "Tor ಒಂದು ಸಮಯದಲ್ಲಿ ಒಂದೇ ದೇಶದಿಂದ ಜಾಲವನ್ನು ತೊರೆಯುತ್ತದೆ, ಎಲ್ಲಾ ಸೈಟ್‌ಗಳಿಗೂ ಒಟ್ಟಿಗೆ. ಸೈಟ್ ತನ್ನ ನೆಟ್‌ವರ್ಕ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ದೇಶವನ್ನು ಆಯ್ಕೆಮಾಡುತ್ತದೆ, ಮತ್ತು ಬೇರೆ ದೇಶಕ್ಕೆ ಪಿನ್ ಮಾಡಿದ ಸೈಟ್ ತೆರೆದರೆ ಅದಕ್ಕೆ ಹೊಂದಿಕೆಯಾಗದ ಸೈಟ್‌ಗಳು ಮುಚ್ಚುತ್ತವೆ.",
+  "torStateSiteExitCountry": "ನಿರ್ಗಮನ ದೇಶ: {country}",
   "torStateBridgesOff": "ಆಫ್",
   "torStateCircuits": "ಸರ್ಕ್ಯೂಟ್‌ಗಳು",
   "torStateCircuitsPerSite": "ಪ್ರತಿ ಸೈಟ್‌ಗೆ ಒಂದು",

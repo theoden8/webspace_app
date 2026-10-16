@@ -947,7 +947,7 @@
   "torStateAppWide": "การรับส่งข้อมูลทั้งหมดของแอป",
   "torStateAppWideSubtitle": "พร็อกซีขาออกในการตั้งค่าแอปตั้งเป็น Tor",
   "torStateOtherSites": "{count, plural, other{ไซต์อื่นอีก {count} ไซต์}}",
-  "torStateExitCountryHint": "Tor ออกจากเครือข่ายทีละประเทศ สำหรับทุกไซต์พร้อมกัน ไซต์เลือกประเทศในการตั้งค่าเครือข่ายของตัวเอง และการเปิดไซต์ที่ปักหมุดไว้กับประเทศอื่นจะปิดไซต์ที่ไม่ตรงกัน",
+  "torStateSiteExitCountry": "ประเทศทางออก: {country}",
   "torStateBridgesOff": "ปิด",
   "torStateCircuits": "วงจร",
   "torStateCircuitsPerSite": "ไซต์ละหนึ่งวงจร",

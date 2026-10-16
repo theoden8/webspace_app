@@ -947,7 +947,7 @@
   "torStateAppWide": "Visas programos srautas",
   "torStateAppWideSubtitle": "Programos nustatymuose išeinantis tarpinis serveris nustatytas į Tor",
   "torStateOtherSites": "{count, plural, one{Dar {count} svetainė} few{Dar {count} svetainės} many{Dar {count} svetainės} other{Dar {count} svetainių}}",
-  "torStateExitCountryHint": "Tor vienu metu išeina iš tinklo tik per vieną šalį, visoms svetainėms kartu. Svetainė šalį pasirenka savo Tinklo nustatymuose, o atvėrus svetainę, prisegtą prie kitos šalies, uždaromos svetainės, kurių šalis nesutampa.",
+  "torStateSiteExitCountry": "Išėjimo šalis: {country}",
   "torStateBridgesOff": "Išjungta",
   "torStateCircuits": "Grandinės",
   "torStateCircuitsPerSite": "Po vieną svetainei",

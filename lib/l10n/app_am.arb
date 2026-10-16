@@ -947,7 +947,7 @@
   "torStateAppWide": "ሁሉም የመተግበሪያ ትራፊክ",
   "torStateAppWideSubtitle": "በመተግበሪያ ቅንብሮች ውስጥ ያለው ወጪ proxy ወደ Tor ተቀናብሯል",
   "torStateOtherSites": "{count, plural, one{አንድ ሌላ ጣቢያ} other{{count} ሌሎች ጣቢያዎች}}",
-  "torStateExitCountryHint": "Tor ከአውታረ መረቡ የሚወጣው በአንድ ጊዜ በአንድ አገር በኩል ብቻ ነው፣ ለሁሉም ጣቢያዎች በአንድ ላይ። እያንዳንዱ ጣቢያ አገሩን በአውታረ መረብ ቅንብሮቹ ውስጥ ይመርጣል፤ ከሌላ አገር ጋር የተሰካ ጣቢያ መክፈት የማይስማሙትን ጣቢያዎች ይዘጋል።",
+  "torStateSiteExitCountry": "የመውጫ አገር: {country}",
   "torStateBridgesOff": "ጠፍቷል",
   "torStateCircuits": "ዑደቶች",
   "torStateCircuitsPerSite": "ለእያንዳንዱ ጣቢያ አንድ",
