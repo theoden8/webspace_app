@@ -1556,12 +1556,24 @@ jobs:
       - name: Add device frames
         run: fastlane ios add_device_frames device:${{ matrix.device }}
 
+      # The shots at their App Store size, which the framing lane resized
+      # them to; kept when framing fails.
       - name: Upload the screenshots
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.device }}-screenshots
-          path: screenshots/ios/${{ matrix.device }}/*.png
+          path: |
+            screenshots/ios/${{ matrix.device }}/*.png
+            !screenshots/ios/${{ matrix.device }}/*_framed.png
           if-no-files-found: warn
+
+      - name: Upload the framed screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.device }}-framed-screenshots
+          path: screenshots/ios/${{ matrix.device }}/*_framed.png
+          if-no-files-found: error
 
   screenshots-macos:
     name: Screenshots (macOS)

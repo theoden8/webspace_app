@@ -67,9 +67,10 @@ that adds a pref or a site field without it.
   `./scripts/validate_fastlane_metadata.sh` pass.
 - CI on the release PR is green, screenshot jobs included: a PR that moves
   the version line runs them as a manual run does, and its `screenshots`
-  artifact (a folder per device: Android, iPhone, iPad, macOS) is the store
-  set for this version. To retake only the screenshots, run Build and Test
-  by hand with `screenshots_only`.
+  artifact (a folder per device: Android, iPhone, iPad, macOS, Linux, and the
+  framed Android, iPhone and iPad sets) is the store set for this version.
+  To retake only the screenshots, run Build and Test by hand with
+  `screenshots_only`.
 
 ## Tagging
 

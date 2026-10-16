@@ -194,4 +194,6 @@ test('every device feeds the one screenshots artifact', () => {
       `the iOS screenshot matrix has no ${device}`);
   }
   assert.match(ios, /name: \$\{\{ matrix\.device \}\}-screenshots\n/);
+  assert.match(ios, /name: \$\{\{ matrix\.device \}\}-framed-screenshots\n/,
+    'the iOS framed sets no longer reach the merge');
 });
