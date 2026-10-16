@@ -14,10 +14,13 @@ void main() {
     exitCode = 2;
     return;
   }
-  for (final f in printedModels()) {
+  final printed = printedModels(handWritten: [
+    for (final m in handWrittenModules) File(m).readAsStringSync(),
+  ]);
+  for (final f in printed) {
     File('$out/${f.path}')
       ..createSync(recursive: true)
       ..writeAsStringSync(f.text);
   }
-  stdout.writeln('Wrote ${printedModels().length} files under $out');
+  stdout.writeln('Wrote ${printed.length} files under $out');
 }

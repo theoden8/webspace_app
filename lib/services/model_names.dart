@@ -223,39 +223,42 @@ enum ConstKind { set, off, on, uniform, bound, fixed }
 /// One the base defines over others is set wherever one of them is
 /// ([follows]).
 enum ModelConst {
-  containers(ConstKind.off),
-  coldStart(ConstKind.off),
-  tabbed(ConstKind.set),
-  maxTabs(ConstKind.bound),
-  routed(ConstKind.set),
-  contending(ConstKind.set),
-  route(ConstKind.uniform),
-  torExit(ConstKind.uniform),
-  torRuntime(ConstKind.off),
-  maxLoaded(ConstKind.bound),
-  maxResident(ConstKind.bound),
-  linked(ConstKind.set),
-  proxyRefused(ConstKind.off),
-  jarRefuses(ConstKind.off),
-  notified(ConstKind.set),
-  waking(ConstKind.off),
-  siteLevel(ConstKind.uniform),
-  dnsLevels(ConstKind.set),
-  away(ConstKind.set),
-  online(ConstKind.on),
-  archive(ConstKind.set),
-  deletable(ConstKind.set),
-  resettable(ConstKind.set),
-  boxed(ConstKind.set, follows: {archive, deletable}),
-  incognito(ConstKind.set, follows: {archive}),
-  noNavState(ConstKind.set, follows: {archive, incognito}),
-  sites(ConstKind.fixed),
-  base(ConstKind.fixed);
+  containers(ConstKind.off, range: r'BOOLEAN'),
+  coldStart(ConstKind.off, range: r'BOOLEAN'),
+  tabbed(ConstKind.set, range: r'SUBSET Sites'),
+  maxTabs(ConstKind.bound, range: r'Nat'),
+  routed(ConstKind.set, range: r'SUBSET Sites'),
+  contending(ConstKind.set, range: r'SUBSET Sites'),
+  route(ConstKind.uniform, range: r'[Sites -> Nat]'),
+  torExit(ConstKind.uniform, range: r'[Sites -> Nat]'),
+  torRuntime(ConstKind.off, range: r'BOOLEAN'),
+  maxLoaded(ConstKind.bound, range: r'Nat'),
+  maxResident(ConstKind.bound, range: r'Nat'),
+  linked(ConstKind.set, range: r'SUBSET Sites'),
+  proxyRefused(ConstKind.off, range: r'BOOLEAN'),
+  jarRefuses(ConstKind.off, range: r'BOOLEAN'),
+  notified(ConstKind.set, range: r'SUBSET Sites'),
+  waking(ConstKind.off, range: r'BOOLEAN'),
+  siteLevel(ConstKind.uniform, range: r'[Sites -> -1..5]'),
+  dnsLevels(ConstKind.set, range: r'SUBSET (1..5)'),
+  away(ConstKind.set, range: r'SUBSET SUBSET Sites'),
+  online(ConstKind.on, range: r'BOOLEAN'),
+  archive(ConstKind.set, range: r'SUBSET Sites'),
+  deletable(ConstKind.set, range: r'SUBSET Sites'),
+  resettable(ConstKind.set, range: r'SUBSET Sites'),
+  boxed(ConstKind.set, range: r'SUBSET Sites', follows: {archive, deletable}),
+  incognito(ConstKind.set, range: r'SUBSET Sites', follows: {archive}),
+  noNavState(ConstKind.set, range: r'SUBSET Sites', follows: {archive, incognito}),
+  sites(ConstKind.fixed, range: r'SUBSET Nat'),
+  base(ConstKind.fixed, range: r'[Sites -> Nat]');
 
-  const ModelConst(this.kind, {this.follows = const {}});
+  const ModelConst(this.kind, {required this.range, this.follows = const {}});
 
   final ConstKind kind;
   final Set<ModelConst> follows;
+
+  /// The values a world may give it, which a proof assumes.
+  final String range;
 
   /// Its name in the model: the enum's, capitalised.
   String get tla => '${name[0].toUpperCase()}${name.substring(1)}';
