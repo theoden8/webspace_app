@@ -96,7 +96,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     // A pre-GCM blob or a tampered one reads as "no detail": the report
     // rebuilds from the plaintext counters rather than trusting the bytes.
     if (wire == null || wire.isEmpty) return null;
-    return aead.unseal(wire);
+    return await aead.unseal(wire);
   }
 
   @override
@@ -106,7 +106,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final aead = _aead;
     if (store == null || aead == null) return false;
     try {
-      await store.writeText(_fileName, contents: aead.seal(payload));
+      await store.writeText(_fileName, contents: await aead.seal(payload));
       return true;
     } on IOException catch (e) {
       LogTag.blockStats.warning('Detail write failed: $e');

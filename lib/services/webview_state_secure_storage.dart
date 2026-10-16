@@ -146,7 +146,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     if (store == null || aead == null) return false;
     try {
       await store.writeText(_fileNameFor(key),
-          contents: aead.seal(base64.encode(state)));
+          contents: await aead.seal(base64.encode(state)));
       LogTag.webViewState.debug(
           'Saved ${state.length} bytes for $key (encrypted)', sensitive: true);
       return true;
@@ -172,7 +172,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       return null;
     }
     if (raw == null) return null;
-    final opened = aead.unseal(raw);
+    final opened = await aead.unseal(raw);
     final bytes = opened == null ? null : _decodeBase64(opened);
     if (bytes != null) return bytes;
     LogTag.webViewState.error(
