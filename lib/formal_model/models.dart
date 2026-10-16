@@ -218,7 +218,7 @@ List<PrintedFile> printedModels() => [
           if (w.holds != null)
             (cfg: w.cfg, spec: w.spec, invariants: w.invariants),
         for (final (:cfg, :spec, pairs: _) in printed.worlds)
-          (cfg: cfg, spec: spec, invariants: Inv.values),
+          (cfg: cfg, spec: spec, invariants: invariantsOf(spec)),
       ],
     ),
   ),

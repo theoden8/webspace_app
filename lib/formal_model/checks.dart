@@ -27,15 +27,31 @@ enum Env {
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
   resetOne(op: ModelConst.resettable, by: 'ResetOne'),
   incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne'),
-  jarRefuses(op: ModelConst.jarRefuses, by: 'JarCanRefuse'),
+  /// A refused read keeps the set the site last saved, so what the jar
+  /// held of its session since is lost (ISO-014).
+  jarRefuses(
+    op: ModelConst.jarRefuses,
+    by: 'JarCanRefuse',
+    givesUp: {Inv.noSessionLoss},
+  ),
   proxyRefuses(op: ModelConst.proxyRefused, by: 'ProxyCanRefuse'),
   offline(op: ModelConst.online, by: 'Offline');
 
-  const Env({required this.op, required this.by});
+  const Env({required this.op, required this.by, this.givesUp = const {}});
 
   final ModelConst op;
   final String by;
+
+  /// The invariants no world that sets it holds, by design.
+  final Set<Inv> givesUp;
 }
+
+/// The invariants a world holds: every one but those its constants give up
+/// ([Env.givesUp]).
+List<Inv> invariantsOf(WorldSpec w) => [
+  for (final i in Inv.values)
+    if (!w.env.any((e) => e.givesUp.contains(i))) i,
+];
 
 /// How a world keeps the sites' cookies apart, as the app's `Isolation`
 /// does: one shared jar the activation swaps, or a container per site.
@@ -434,6 +450,18 @@ enum ActivationWorld {
     holds:
         "shared jar, an archive closed beside taps and the jar's turns: its "
         'sites leave the list and the jar keeps every other session (ARCH-007)',
+  ),
+  archiveJarRefuses(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.archiveOne, Env.jarRefuses},
+    allowed: {'CloseArchive', 'Pressure', 'Tap'},
+    invariants: [..._core, Inv.noForeignSession],
+    holds:
+        "shared jar that may refuse, an archive's close beside an unload "
+        "whose capture the jar refused: no site is shown on another's "
+        'session (ISO-014, ARCH-014)',
   ),
   delete(
     cookies: Cookies.sharedJar,
@@ -955,6 +983,12 @@ typedef Check = ({
 List<Check> activationChecks({
   required List<({String cfg, WorldSpec spec, String label})> printed,
 }) {
+  for (final w in ActivationWorld.values) {
+    assert(
+      w.invariants.every(invariantsOf(w.spec).contains),
+      '${w.name} checks an invariant its constants give up',
+    );
+  }
   final checks = [
     for (final w in ActivationWorld.values)
       if (w.holds case final holds?)
@@ -969,7 +1003,7 @@ List<Check> activationChecks({
       _check(
         cfg: cfg,
         world: spec,
-        invariants: [for (final i in Inv.values) i.tla],
+        invariants: [for (final i in invariantsOf(spec)) i.tla],
         expect: 'No error has been found',
         label: label,
       ),
