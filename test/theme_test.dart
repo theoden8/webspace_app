@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/theme/app_theme.dart';
-import 'package:webspace/widgets/theme_mode_icon.dart';
+import 'package:webspace/settings/scoped.dart';
+import 'package:webspace/widgets/theme_icon.dart';
 
 void main() {
   group('Theme Mode Tests', () {
@@ -26,9 +27,17 @@ void main() {
     });
 
     test('Theme icon mapping', () {
-      expect(themeModeIcon(ThemeMode.light), Icons.wb_sunny);
-      expect(themeModeIcon(ThemeMode.dark), Icons.nights_stay);
-      expect(themeModeIcon(ThemeMode.system), Icons.brightness_auto);
+      expect(WebViewTheme.light.icon, Icons.wb_sunny);
+      expect(WebViewTheme.dark.icon, Icons.nights_stay);
+      expect(WebViewTheme.system.icon, Icons.brightness_auto);
+    });
+
+    test('following the app has an icon no theme choice shares', () {
+      final follow = const FollowApp<WebViewTheme>().icon;
+      for (final theme in WebViewTheme.values) {
+        expect(Own(theme).icon, theme.icon);
+        expect(follow, isNot(theme.icon));
+      }
     });
 
     test('WebViewTheme names are what the shim reads and site JSON stores',

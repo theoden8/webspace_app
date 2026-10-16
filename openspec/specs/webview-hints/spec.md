@@ -123,8 +123,11 @@ The theme hint mechanism SHALL work on all supported platforms.
 ### Requirement: HINTS-006 - Per-Site Theme
 
 Each site SHALL have a Theme setting with the values App default (the
-default), Light, Dark and System. App default follows the app's theme mode;
-the others are the site's own. Every webview that runs as the site, including
+default), Light, Dark and System, picked from a row of icons with a short label
+under each, the same picker App Settings > Appearance uses for the app's theme.
+App default follows the app's theme mode and has an icon of its own; the row's
+subtitle names the theme it currently gives, such as App default (Dark). The
+others are the site's own. Every webview that runs as the site, including
 a nested screen or a popup it opens, SHALL receive the site's own value when
 it has one and the app's otherwise.
 
@@ -242,4 +245,6 @@ This eliminates the white-frame flash while the cached HTML's stylesheets and us
 - `lib/services/webview_controller.dart` — `setThemePreference`, which replaces it
 - `lib/web_view_model.dart` — the per-site theme and the one it resolves to
 - `lib/screens/settings.dart` — the per-site Theme row
+- `lib/widgets/icon_choice_chips.dart`, `lib/widgets/theme_icon.dart` — the
+  icon picker both theme rows use, and each choice's icon
 - `lib/screens/app_appearance.dart` — the app's theme mode
