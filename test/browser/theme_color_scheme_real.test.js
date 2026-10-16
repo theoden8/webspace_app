@@ -9,12 +9,12 @@
 // `system` fixture) the shim's host-preference resolution reads the
 // real engine's prefers-color-scheme value at install time.
 //
-// The shim is registered via setThemePreference at runtime, not via
-// initialUserScripts, so it normally runs after document load. To
-// exercise the resolveExisting path we run it post-`load` — same as
-// the desktop_mode viewport rewrite test does for the same reason
-// (Puppeteer's evaluateOnNewDocument fires before documentElement
-// exists, but the shim needs documentElement.style.colorScheme).
+// The shim is an initial user script and is run again on the live page by
+// setThemePreference, after the document has loaded. To exercise that
+// resolveExisting path we run it post-`load` — same as the desktop_mode
+// viewport rewrite test does for the same reason (Puppeteer's
+// evaluateOnNewDocument fires before documentElement exists, but the shim
+// needs documentElement.style.colorScheme).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

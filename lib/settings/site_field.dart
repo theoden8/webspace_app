@@ -33,6 +33,7 @@ enum SiteField {
   containerColor('containerColor', qr: QrShare.withheld),
   language('language', qr: QrShare.carried),
   zoomPercent('zoomPercent', qr: QrShare.carried),
+  theme('theme', qr: QrShare.carried),
   clearUrlEnabled('clearUrlEnabled', qr: QrShare.carried),
   dnsBlockEnabled('dnsBlockEnabled', qr: QrShare.carried),
   dnsBlockLevel('dnsBlockLevel', qr: QrShare.carried),

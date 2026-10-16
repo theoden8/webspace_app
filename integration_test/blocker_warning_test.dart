@@ -33,6 +33,7 @@ import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/stat_chip.dart';
 
@@ -125,7 +126,10 @@ Future<void> tapTile(WidgetTester tester,
 
   testWidgets('enabling unconfigured Content Blocker warns and flips',
       (tester) async {
-    await pump(tester, home: SettingsScreen(webViewModel: freshModel(), useContainers: false));
+    await pump(tester, home: SettingsScreen(
+        webViewModel: freshModel(),
+        appTheme: WebViewTheme.system,
+        useContainers: false));
     await openPrivacy(tester);
     expect(warnIcon, findsNothing);
 
@@ -142,7 +146,10 @@ Future<void> tapTile(WidgetTester tester,
 
   testWidgets('enabling unconfigured DNS blocklist warns and flips',
       (tester) async {
-    await pump(tester, home: SettingsScreen(webViewModel: freshModel(), useContainers: false));
+    await pump(tester, home: SettingsScreen(
+        webViewModel: freshModel(),
+        appTheme: WebViewTheme.system,
+        useContainers: false));
     await openPrivacy(tester);
 
     final tile = await revealTile(tester, title: 'DNS Blocklist');
@@ -155,7 +162,10 @@ Future<void> tapTile(WidgetTester tester,
 
   testWidgets('enabling Tracking Protection warns for both forced deps',
       (tester) async {
-    await pump(tester, home: SettingsScreen(webViewModel: freshModel(), useContainers: false));
+    await pump(tester, home: SettingsScreen(
+        webViewModel: freshModel(),
+        appTheme: WebViewTheme.system,
+        useContainers: false));
     await openPrivacy(tester);
 
     final tile = await revealTile(tester, title: 'Tracking Protection');

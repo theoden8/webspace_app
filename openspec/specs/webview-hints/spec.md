@@ -25,11 +25,14 @@ to respect or ignore them.
 
 ### Requirement: HINTS-001 - Theme Preference
 
-The app SHALL suggest its current theme mode (light, dark, or system) to webviews.
+The app SHALL suggest a theme (light, dark, or system) to every webview that
+runs as a site: the site's own theme when it has one, the app's theme mode
+otherwise (HINTS-006).
 
 #### Scenario: Apply dark theme hint
 
 **Given** the app is set to dark mode
+**And** the site follows the app's theme
 **When** a webview is created
 **Then** the webview receives the dark theme preference via JavaScript injection
 
@@ -72,16 +75,23 @@ on every page load, so the meta tag and the listener replay never ran.
 ### Requirement: HINTS-003 - Theme Application Timing
 
 The theme hint SHALL be applied:
-1. On webview creation (theme on controller ready)
+1. On webview creation, as a document-start user script, so the first
+   document already has it: the site's webview, a nested screen its links
+   open, and a popup either spawns
 2. On page navigation (theme reapplied after each page load)
-3. On theme toggle (immediately to all existing webviews)
+3. On a change to the app's theme mode (immediately to every existing webview
+   whose site follows the app)
 4. On app startup (to all restored webviews)
+5. On a change to the site's own theme (its webview is rebuilt on save)
 
-#### Scenario: Apply theme on toggle
+#### Scenario: Apply an app theme change
 
 **Given** multiple webviews are open
-**When** the user toggles from light to dark mode
-**Then** all webviews immediately receive the dark theme preference
+**And** one site is set to Light and the others follow the app
+**When** the user changes the app's theme from light to dark in App Settings
+**Then** the webviews of the sites that follow the app immediately receive the
+dark theme preference
+**And** the site set to Light keeps the light preference
 
 ---
 
@@ -110,14 +120,64 @@ The theme hint mechanism SHALL work on all supported platforms.
 
 ---
 
+### Requirement: HINTS-006 - Per-Site Theme
+
+Each site SHALL have a Theme setting with the values App default (the
+default), Light, Dark and System, picked from a row of icons with a short label
+under each, the same picker App Settings > Appearance uses for the app's theme.
+App default follows the app's theme mode and has an icon of its own; the row's
+subtitle names the theme it currently gives, such as App default (Dark). The
+others are the site's own. Every webview that runs as the site, including
+a nested screen or a popup it opens, SHALL receive the site's own value when
+it has one and the app's otherwise.
+
+The setting is configuration: it is stored with the site, carried by a backup
+and by a shared site QR, and a stored value this build does not name follows
+the app.
+
+The app SHALL NOT offer a theme toggle in an app bar (the main page or the
+add-site screen). The app's own theme mode is set in App Settings >
+Appearance.
+
+#### Scenario: A new site follows the app
+
+**Given** the app is set to dark mode
+**When** the user adds a site
+**Then** the site's Theme reads App default (Dark)
+**And** its pages receive the dark preference
+**When** the user switches the app to light mode
+**Then** its pages receive the light preference
+
+#### Scenario: A site with its own theme
+
+**Given** the app is set to dark mode
+**And** a site's Theme is Light
+**When** the site's page loads
+**Then** it receives the light preference
+**And** a nested screen opened from one of its links receives the light
+preference
+
+#### Scenario: No theme toggle in the app bar
+
+**Given** a site is on screen
+**Then** the app bar offers no theme action
+
+---
+
 ## Data Model
 
 ```dart
+// lib/settings/web_view_theme.dart
 enum WebViewTheme {
   light,
   dark,
   system,
 }
+
+// WebViewModel: the site's own theme, null following the app's, and what a
+// webview of the site applies (also SitePosture.page.theme).
+WebViewTheme? theme;
+WebViewTheme get effectiveTheme;
 
 abstract class WebViewController {
   Future<void> setThemePreference(WebViewTheme theme);
@@ -173,13 +233,18 @@ html,body{background:#111 !important;color-scheme:dark}
 </style>
 ```
 
-This eliminates the white-frame flash while the cached HTML's stylesheets and user scripts re-run on the live load. The prelude is keyed on the live `WebViewModel.currentTheme` plus platform brightness (for `WebViewTheme.system`), so a theme switch takes effect on the next cache load without cache invalidation. The helper is idempotent — duplicate prelude insertion is detected via the `__ws_cache_prelude` id.
+This eliminates the white-frame flash while the cached HTML's stylesheets and user scripts re-run on the live load. The prelude is keyed on the live `WebViewModel.effectiveTheme` plus platform brightness (for `WebViewTheme.system`), so a theme switch takes effect on the next cache load without cache invalidation. The helper is idempotent — duplicate prelude insertion is detected via the `__ws_cache_prelude` id.
 
 ---
 
 ## Files
 
 ### Modified
-- `lib/services/webview.dart` — `WebViewTheme` enum, theme injection
-- `lib/web_view_model.dart` — theme state, webview recreation with `UniqueKey`
-- `lib/main.dart` — theme toggle
+- `lib/settings/web_view_theme.dart` — `WebViewTheme` enum
+- `lib/services/page_scripts.dart` — the theme shim at webview creation
+- `lib/services/webview_controller.dart` — `setThemePreference`, which replaces it
+- `lib/web_view_model.dart` — the per-site theme and the one it resolves to
+- `lib/screens/settings.dart` — the per-site Theme row
+- `lib/widgets/icon_choice_chips.dart`, `lib/widgets/theme_icon.dart` — the
+  icon picker both theme rows use, and each choice's icon
+- `lib/screens/app_appearance.dart` — the app's theme mode

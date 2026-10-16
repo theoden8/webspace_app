@@ -800,18 +800,6 @@
   "@addSiteIncognitoOff": {
     "description": "Tooltip when the incognito toggle in the add-site dialog is disabled"
   },
-  "addSiteThemeLight": "Light theme",
-  "@addSiteThemeLight": {
-    "description": "Tooltip for the theme toggle button when light theme is active"
-  },
-  "addSiteThemeDark": "Dark theme",
-  "@addSiteThemeDark": {
-    "description": "Tooltip for the theme toggle button when dark theme is active"
-  },
-  "addSiteThemeSystem": "System theme",
-  "@addSiteThemeSystem": {
-    "description": "Tooltip for the theme toggle button when system theme is active"
-  },
   "addSiteScreenTitle": "Add Site",
   "@addSiteScreenTitle": {
     "description": "App bar title of the add-site screen"
@@ -871,15 +859,15 @@
   },
   "appSettingsThemeLight": "Light",
   "@appSettingsThemeLight": {
-    "description": "Light theme mode label"
+    "description": "Light theme mode label, on the App Settings theme chips and as a value of a site's Theme row"
   },
   "appSettingsThemeDark": "Dark",
   "@appSettingsThemeDark": {
-    "description": "Dark theme mode label"
+    "description": "Dark theme mode label, on the App Settings theme chips and as a value of a site's Theme row"
   },
   "appSettingsThemeSystem": "System",
   "@appSettingsThemeSystem": {
-    "description": "System theme mode label"
+    "description": "System theme mode label, on the App Settings theme chips and as a value of a site's Theme row"
   },
   "appSettingsAccentColor": "Accent Color",
   "@appSettingsAccentColor": {
@@ -2162,6 +2150,18 @@
   "siteSettingsZoomIn": "Zoom in",
   "@siteSettingsZoomIn": {
     "description": "Tooltip for the zoom-in button."
+  },
+  "siteSettingsTheme": "Theme",
+  "@siteSettingsTheme": {
+    "description": "Label of the per-site row picking the color scheme the site's pages are asked to use: the app's own theme (the default), light, dark, or the device's."
+  },
+  "siteSettingsThemeHint": "Asks the site's pages for light or dark colors. Pages without a dark mode look the same either way.",
+  "@siteSettingsThemeHint": {
+    "description": "Explanatory popup for the per-site Theme row: the site's pages are asked for light or dark colors, and pages that have no dark mode do not change."
+  },
+  "siteSettingsThemeFollowAppShort": "App",
+  "@siteSettingsThemeFollowAppShort": {
+    "description": "Label under the first icon of a site's Theme picker, meaning the site follows the app's theme. It sits under an icon beside Light, Dark and System, so keep it to one short word; the row's subtitle names the theme in full."
   },
   "siteSettingsHttpsUpgrade": "HTTPS upgrade",
   "@siteSettingsHttpsUpgrade": {
@@ -3706,38 +3706,6 @@
   "homeMenuTooltip": "Menu",
   "@homeMenuTooltip": {
     "description": "Tooltip for the overflow menu button"
-  },
-  "homeThemeModeSystem": "System",
-  "@homeThemeModeSystem": {
-    "description": "Name of the system theme mode, used in the theme toggle tooltip"
-  },
-  "homeThemeModeLight": "Light",
-  "@homeThemeModeLight": {
-    "description": "Name of the light theme mode, used in the theme toggle tooltip"
-  },
-  "homeThemeModeDark": "Dark",
-  "@homeThemeModeDark": {
-    "description": "Name of the dark theme mode, used in the theme toggle tooltip"
-  },
-  "homeThemeColorBlue": "Blue",
-  "@homeThemeColorBlue": {
-    "description": "Name of the blue accent color, used in the theme toggle tooltip"
-  },
-  "homeThemeColorGreen": "Green",
-  "@homeThemeColorGreen": {
-    "description": "Name of the green accent color, used in the theme toggle tooltip"
-  },
-  "homeThemeTooltip": "{mode} {color} theme",
-  "@homeThemeTooltip": {
-    "description": "Tooltip for the theme toggle button combining mode and accent color names",
-    "placeholders": {
-      "mode": {
-        "type": "String"
-      },
-      "color": {
-        "type": "String"
-      }
-    }
   },
   "homeEditSiteTitle": "Edit Site",
   "@homeEditSiteTitle": {
