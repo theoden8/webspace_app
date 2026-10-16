@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:webspace/formal_model/checks.dart';
 import 'package:webspace/formal_model/lean_footprints.dart';
+import 'package:webspace/formal_model/types_proof.dart';
 import 'package:webspace/formal_model/worlds.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/tab_leaves.dart';
@@ -209,6 +210,7 @@ List<PrintedFile> printedModels() => [
     path: 'activation_invariants_proof.tla',
     text: activationInvariantsProof(tables),
   ),
+  (path: 'activation_types_proof.tla', text: activationTypesProof()),
   (path: 'activation_footprints.tsv', text: activationFootprints(tables)),
   (path: 'activation_base_ops.tsv', text: activationBaseOps()),
   (

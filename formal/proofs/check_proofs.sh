@@ -71,6 +71,7 @@ min_obligations() {
     activation_tables_7_proof.tla) echo 116 ;;
     activation_tables_8_proof.tla) echo 88 ;;
     activation_invariants_proof.tla) echo 287 ;;
+    activation_types_proof.tla) echo 85 ;;
     containers_disjoint.tla)   echo 39 ;;
     current_loaded.tla)        echo 52 ;;
     jar_matches.tla)           echo 52 ;;
