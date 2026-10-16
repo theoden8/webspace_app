@@ -114,12 +114,11 @@ modules:
       # The plugin copies WPE into the bundle; the copy in /app is the one
       # it was built against.
       - rm -f "$BUNDLE"/lib/libWPEWebKit-*.so* "$BUNDLE"/lib/libwpe-*.so*
-      - mkdir -p /app/webspace /app/bin
+      - mkdir -p /app/webspace /app/bin /app/share
+      - cp -a "$BUNDLE"/share/. /app/share/
+      - rm -r "$BUNDLE"/share
       - cp -a "$BUNDLE"/. /app/webspace/
       - ln -s /app/webspace/webspace_app /app/bin/webspace_app
-      - install -Dm644 linux/${FLATPAK_ID}.desktop -t /app/share/applications
-      - install -Dm644 linux/${FLATPAK_ID}.metainfo.xml -t /app/share/metainfo
-      - install -Dm644 assets/webspace_icon_round.png /app/share/icons/hicolor/512x512/apps/${FLATPAK_ID}.png
     sources:
       - type: git
         url: https://github.com/theoden8/webspace_app.git
