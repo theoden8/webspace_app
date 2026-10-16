@@ -9,7 +9,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-literal-operator")
 set(BINARY_NAME "webspace_app")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "org.codeberg.theoden8.webspace")
+# The flatpak's manifest passes its own id (PLATFORM-009); every other build
+# keeps the one releases have shipped under.
+if(NOT "$ENV{WEBSPACE_APPLICATION_ID}" STREQUAL "")
+  set(APPLICATION_ID "$ENV{WEBSPACE_APPLICATION_ID}")
+else()
+  set(APPLICATION_ID "org.codeberg.theoden8.webspace")
+endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
