@@ -165,6 +165,29 @@ before any app code runs.
 
 ---
 
+### Requirement: PLATFORM-008 - Linux desktop files
+
+The Linux build SHALL name its desktop entry, its metainfo and its icon after
+`APPLICATION_ID` in `linux/CMakeLists.txt`, and the desktop entry's `Icon=`
+and the metainfo's `<id>`, `<launchable>` and developer id SHALL come from it
+too: a desktop matches a window to its entry, and a software centre an entry
+to its listing, by that ID. The entry and the metainfo are templates CMake
+fills in, so the ID has one owner.
+
+They belong to the Linux build, not to one package: the CMake install puts
+them and the icon under the bundle's `share/`, at the paths a desktop reads
+under a data directory, and every package copies that directory into its own.
+
+#### Scenario: Package the native bundle
+
+**Given** a bundle built by `flutter build linux`
+**When** its `share/` is copied into a data directory
+**Then** `applications/`, `metainfo/` and `icons/hicolor/512x512/apps/` hold
+the desktop entry, the metainfo and the icon, each named by the application ID
+**And** the entry's icon and the metainfo's ID name that same ID
+
+---
+
 ## Platform Capabilities Matrix
 
 | Feature | iOS | Android | macOS | Linux |
