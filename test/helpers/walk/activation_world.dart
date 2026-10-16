@@ -874,6 +874,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     }
     takeSegment();
     _checkFrame(flow, step: step, outcome: outcome);
+    _checkLeftHidden();
+    _checkTabBound();
+    _checkTold();
   }
 
   /// The model's variables each flow changed that no step it marked has
@@ -1563,6 +1566,59 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// What broke between settles, reported at the next one.
   final List<String> _violations = [];
 
+  /// Each webspace switch, the model's `space` flow: the version its input
+  /// left, and the sites it stopped showing, read off the webspaces
+  /// themselves. It stands while that version does.
+  final List<({int version, Set<WebViewModel> away})> _switches = [];
+
+  Set<WebViewModel> _showing(Webspace w) => {
+    for (final m in sites.models)
+      if (w.isAll || w.siteIds.contains(m.siteId)) m,
+  };
+
+  /// TAB-003: a site's webview, while one is built, is its active tab's:
+  /// the list, the pointer and the webview move in one turn
+  /// (`Inv_TabBound`), held after every step, not only at rest, where a
+  /// rebind has bound it to whatever the pointer names by then.
+  void _checkTabBound() {
+    if (!tabbed) return;
+    for (final m in sites.models) {
+      if (m.tabBinding.built case final t? when t != m.activeTabId) {
+        _violations.add("${m.siteId}'s webview is built for tab $t while "
+            'its active tab is ${m.activeTabId} (TAB-003)');
+      }
+    }
+  }
+
+  /// DNS-022: every live view runs the level its site resolves to under
+  /// the lists and level in force (`Inv_Told`), held after every step.
+  void _checkTold() {
+    if (dns == null) return;
+    final views = DnsBlockService.instance.views;
+    final asks = views.siteLevels;
+    views.told.forEach((site, told) {
+      final now = views.resolve(asks[site]);
+      if (told != now) {
+        _violations.add("$site's view runs DNS level $told where its site "
+            'resolves to $now (DNS-022)');
+      }
+    });
+  }
+
+  /// WEBSPACE-013: while a switch stands, no site it stopped showing is on
+  /// screen (`Inv_LeftHidden`), held after every step as TLC holds it in
+  /// every state.
+  void _checkLeftHidden() {
+    final shown = sites.shown;
+    if (shown == null) return;
+    for (final (:version, :away) in _switches) {
+      if (version == sites.activationVersion && away.contains(shown)) {
+        _violations.add('${shown.siteId} came on screen while a webspace '
+            'switch that stopped showing it stood (WEBSPACE-013)');
+      }
+    }
+  }
+
   /// What the platform fails at ([Fails]).
   final Set<Fault> _faults = {};
 
@@ -1726,9 +1782,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         if (dns != null) _track(DnsBlockService.instance.downloadList(0));
       case SwitchWebspace(:final pick):
         if (spaces != null) {
-          _track(
-            webspaces.select(sites.webspaces[pick % sites.webspaces.length]),
-          );
+          final to = sites.webspaces[pick % sites.webspaces.length];
+          final from = sites.webspaces
+              .firstWhere((w) => w.id == sites.selectedWebspaceId);
+          _track(webspaces.select(to));
+          if (!identical(to, from)) {
+            _switches.add((
+              version: sites.activationVersion,
+              away: _showing(from).difference(_showing(to)),
+            ));
+          }
         }
       case ArchiveSite(:final slot):
         if (archived && n > 0 && !at(slot).isArchiveTier) {
@@ -1967,6 +2030,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }
 
   void _checkSettled() {
+    _checkLeftHidden();
     expect(_violations, isEmpty);
     expect(
       {

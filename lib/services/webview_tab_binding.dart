@@ -4,6 +4,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/tab_leaves.dart';
 
 /// A webview's back stack as `saveState` returned it, with the tab whose
 /// history it is.
@@ -58,11 +59,24 @@ final class WebViewTabBinding {
       ..wrote(ModelVar.queued)
       ..wrote(ModelVar.hist);
     if (queued == null) return null;
-    if (queued.tab != tab) {
+    if (!_takes(queued, tab: tab)) {
       LogTag.webViewState.debug('Dropped a back stack queued for tab '
           '${queued.tab}: the webview is built for $tab');
       return null;
     }
     return queued.bytes;
   }
+
+  /// Whether a build for [tab] takes [queued], as the model's `Takes`
+  /// decides it.
+  static bool _takes(CapturedNavState queued, {required TabId tab}) =>
+      _takesDef.call([
+        Expr<QueuedStack, Object?>(
+          run: (_) => (t: queued.tab, h: null),
+          tla: 'queued',
+          reads: Reads.none,
+        ),
+        Expr<TabId?, Object?>(run: (_) => tab, tla: 'tab', reads: Reads.none),
+      ]).run(StepContext<Object?>(null));
+  static final _takesDef = takesOf<Object?>();
 }

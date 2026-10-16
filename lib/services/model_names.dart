@@ -291,6 +291,7 @@ enum ModelDef {
   tabBusy,
   capture,
   bound,
+  takes,
   shown,
   taken,
   staged,

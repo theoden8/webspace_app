@@ -339,7 +339,7 @@ class BackgroundWakeEngine<S extends Object> {
         WakePlanEntry.check(c.site, mode: WakeMode.headless),
   ]);
 
-  late final _table = _WakeTable<S>();
+  _WakeTable<S> get _table => _WakeTable.of<S>();
 
   /// The table a wake runs from, printed into the model.
   StepTable<WakeFlow<S>, WakePlace> get table => _table.table;
@@ -590,9 +590,34 @@ final class WakeCalls<S extends Object> {
 /// preload that lands meanwhile sees it; it leaves at its close, or at once
 /// when the app comes back to the screen.
 StepTable<WakeFlow<S>, WakePlace> wakeTable<S extends Object>() =>
-    _WakeTable<S>().table;
+    _WakeTable.of<S>().table;
+
+/// What a wake's check asks before it opens ([WakePlace.wAsk]), each a
+/// reason to skip its site: the app back on screen, an activation or a
+/// nested open in flight, a route the running sites do not leave free.
+typedef WakeAsks<S extends Object> = ({
+  Expr<bool, WakeFlow<S>> fore,
+  Expr<bool, WakeFlow<S>> activating,
+  Expr<bool, WakeFlow<S>> nestedOpening,
+  Expr<bool, WakeFlow<S>> routeFree,
+});
+
+WakeAsks<S> wakeAsks<S extends Object>() => _WakeTable.of<S>().asks;
 
 final class _WakeTable<S extends Object> {
+  _WakeTable._();
+
+  /// One per site type, so every engine runs the table the model prints
+  /// and a test plants a mistake over.
+  static _WakeTable<S> of<S extends Object>() {
+    if (_bySite[S] case final _WakeTable<S> made) return made;
+    final made = _WakeTable<S>._();
+    _bySite[S] = made;
+    return made;
+  }
+
+  static final _bySite = <Type, _WakeTable<Object>>{};
+
   late final _kind = Field<FlowKind, WakeFlow<S>>(FlowField.kind);
   late final _site = Field<S, WakeFlow<S>>(FlowField.site);
   late final _checks = Field<List<S>, WakeFlow<S>>(FlowField.checks);
@@ -683,6 +708,13 @@ final class _WakeTable<S extends Object> {
 
   /// Whether [s] may run beside what runs: the activation's `RouteFree`,
   /// the one rule of the proxy and the Tor exit (PROXY-008, TOR-014).
+  late final WakeAsks<S> asks = (
+    fore: _fore.value,
+    activating: _marker.value.neq(_noMarker),
+    nestedOpening: _nestedOpening,
+    routeFree: _routeFree(_chosen),
+  );
+
   Expr<bool, WakeFlow<S>> _routeFree(Expr<S, WakeFlow<S>> s) =>
       ModelDef.routeFree.over(
         [s],
@@ -773,10 +805,10 @@ final class _WakeTable<S extends Object> {
           Branch(
             StepOutcome.skip,
             when:
-                _fore.value |
-                _marker.value.neq(_noMarker) |
-                _nestedOpening |
-                ~_routeFree(_chosen),
+                asks.fore |
+                asks.activating |
+                asks.nestedOpening |
+                ~asks.routeFree,
             then: [
               Note(
                 (c) => _calls.from(c).skip(

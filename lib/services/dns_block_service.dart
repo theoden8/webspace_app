@@ -290,7 +290,6 @@ class DnsBlockService {
     // cache is also stale because the groups themselves changed.
     _mergedBloomFilter = null;
     _dnsBlockCache.clear();
-    views.changed();
     for (final listener in List<VoidCallback>.from(_blocklistChangedListeners)) {
       listener();
     }
@@ -570,9 +569,17 @@ class DnsBlockService {
     return builder.build();
   }
 
+  /// [_inForce], then every live view told the level its site resolves to
+  /// now.
+  void _apply({required DnsLevelSets sets, required int level}) {
+    _inForce(sets: sets, level: level);
+    views.changed();
+  }
+
   /// The partition and the app-wide level a listener reads, put in force
   /// together: a listener told of one reads the other as it now stands.
-  void _apply({required DnsLevelSets sets, required int level}) {
+  /// The views are not told here: a fold's write of `told` tells them.
+  void _inForce({required DnsLevelSets sets, required int level}) {
     _levelSets = sets;
     _level = level;
     _notifyBlocklistChanged();
@@ -1008,23 +1015,16 @@ final _dnsInForce = Mutable<DnsInForce, DnsFlow>(
       setEquals(folded.levels, to.levels),
       'the fold made levels ${folded.levels}, the model ${to.levels}',
     );
-    w.service._apply(sets: folded, level: to.level);
+    w.service._inForce(sets: folded, level: to.level);
   },
 );
 
-/// The level each live view told its interceptor: the views' own (they
-/// are told as the partition moves), which the model's value must match.
+/// The level each live view told its interceptor (DNS-022): a table's write
+/// tells each view the level the model gives its site.
 final _dnsTold = Mutable<Map<SiteId, int>, DnsFlow>(
   ModelVar.told,
   read: (w) => w.service.views.told,
-  write: (w, {required to}) {
-    final told = w.service.views.told;
-    assert(
-      told.length == to.length &&
-          told.entries.every((e) => to[e.key] == e.value),
-      'the views were told $told, the model $to',
-    );
-  },
+  write: (w, {required to}) => w.service.views.tell(to),
 );
 
 final _dnsSiteLevel = Indexed<SiteId, int, DnsFlow>.fixed(
@@ -1124,6 +1124,35 @@ final _dnsNewLevels = _dnsInForce.value
     .part<Iterable<int>>('levels', get: (d) => d.levels)
     .union(_dnsLvl.value.asSet);
 
+/// What a download's fold writes ([DnsPlace.dFold]): the lists and level
+/// in force, and what each live view is told, at a level and over the
+/// levels downloaded; [levelInForce] is the app-wide level before it.
+typedef DnsFoldWrites = ({
+  Write<DnsFlow> inForce,
+  Expr<int, DnsFlow> levelInForce,
+  Expr<Iterable<int>, DnsFlow> newLevels,
+  Write<DnsFlow> Function({
+    required Expr<int, DnsFlow> level,
+    required Expr<Iterable<int>, DnsFlow> levels,
+  })
+  toldUnder,
+});
+
+final DnsFoldWrites dnsFoldWrites = (
+  inForce: _dnsInForce.becomes(
+    record(
+      {'lvl': _dnsNewLevel, 'levels': _dnsNewLevels},
+      run: (c) => DnsInForce(
+        level: _dnsNewLevel.run(c),
+        levels: _dnsNewLevels.run(c).toSet(),
+      ),
+    ),
+  ),
+  levelInForce: _dnsInForce.value.part('lvl', get: (d) => d.level),
+  newLevels: _dnsNewLevels,
+  toldUnder: _toldUnder,
+);
+
 final _dnsOff = Expr.constant<int, DnsFlow>(kDnsLevelOff);
 final _dnsNoLevels = Expr.constant<Iterable<int>, DnsFlow>(
   const <int>[],
@@ -1202,16 +1231,8 @@ final StepTable<DnsFlow, DnsPlace> _dnsTable = StepTable(
         StepOutcome.go,
         then: [
           Act.of([
-            _dnsInForce.becomes(
-              record(
-                {'lvl': _dnsNewLevel, 'levels': _dnsNewLevels},
-                run: (c) => DnsInForce(
-                  level: _dnsNewLevel.run(c),
-                  levels: _dnsNewLevels.run(c).toSet(),
-                ),
-              ),
-            ),
-            _toldUnder(level: _dnsNewLevel, levels: _dnsNewLevels),
+            dnsFoldWrites.inForce,
+            dnsFoldWrites.toldUnder(level: _dnsNewLevel, levels: _dnsNewLevels),
           ]),
           modelOnly(
             'seen\' = seen \\cup (IF \\E s \\in Sites : told\'[s] > 0 '

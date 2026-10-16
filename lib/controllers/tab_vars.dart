@@ -99,15 +99,13 @@ final class TabVars {
   }
 
   /// What the built webview shows: the back stack queued for the tab it is
-  /// built for, else that tab's own fresh history
-  /// (`WebViewTabBinding.take`). Taking bytes queued for another tab is
-  /// the `takeany` mistake.
+  /// built for, when `Takes` says the build takes it, else that tab's own
+  /// fresh history (`WebViewTabBinding.take`).
   static Def<Map<WebViewModel, TabId?>, W> shown<W>() {
     final s = Bound<WebViewModel, W>('s');
     final hist = TabVars.hist<W>().value;
     final queued = TabVars.queued<W>().value.at(s.it);
     final target = active<W>().at(s.it);
-    final forTab = queued.part('t', get: (q) => q.t);
     final l = Bound<Iterable<WebViewModel>, W>('l');
     return Def(
       ModelDef.shown,
@@ -117,7 +115,7 @@ final class TabVars {
         then: hist.except(
           s.it,
           to: Expr.choose(
-            when: forTab.neq(noTab()) & forTab.eq(target),
+            when: takesOf<W>().call([queued, target]),
             then: queued.part('h', get: (q) => q.h),
             otherwise: target,
           ),

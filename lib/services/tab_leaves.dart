@@ -31,6 +31,20 @@ Mutable<Map<S, Map<TabId, TabId?>>, W> fileOf<S, W>() =>
 /// No tab: `0`.
 Expr<TabId?, W> noTab<W>() => Expr.constant(null, tla: '0');
 
+/// Whether a build for [tab] takes the back stack [q] queued: only one read
+/// for that tab (`Takes`, TAB-003). The binding's take runs it and `Shown`
+/// prints it, so a mistake in it is the code's.
+Def<bool, W> takesOf<W>() {
+  final q = Bound<QueuedStack, W>('q');
+  final tab = Bound<TabId?, W>('tab');
+  final forTab = q.it.part('t', get: (x) => x.t);
+  return Def(
+    ModelDef.takes,
+    params: [q, tab],
+    body: forTab.neq(noTab()) & forTab.eq(tab.it),
+  );
+}
+
 /// The sites whose tabs the model follows (`Tabbed`): every site's in the
 /// code, so a config picks the few it checks.
 Members<S, W> tabbedOf<S, W>() =>

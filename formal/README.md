@@ -210,7 +210,11 @@ class.
   worlds it breaks it in, a `HandMistake`. Each prints as one config, and `check.sh` runs the
   list (`checks.tsv`), so a mutant that names no check does not compile. A check of a
   mutant or a witness checks only the invariant it expects violated: the world's own check
-  holds the rest on every state. The printed modules and configs are derivatives:
+  holds the rest on every state. A mutant is planted in the code too: the runner takes its
+  tables and definitions in place of the code's inside `Planted.run` (`planted`,
+  `models.dart`), and `test/planted_mistakes_test.dart` names, per mutant, the schedule
+  script the walk breaks with it planted and holds without it, or owes why no script
+  reaches it, a list that only shrinks. The printed modules and configs are derivatives:
   `verify.sh` writes them under `build/formal/`, and nothing commits them.
 - **`proxy_failclosed.tla`** + `proxy_failclosed*.cfg` — proxy fail-closed (specs: `proxy`,
   `ip-leakage`). `Inv_NoDirectWhenProxied` (a non-DEFAULT-proxy site blanks the load rather

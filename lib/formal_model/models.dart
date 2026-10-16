@@ -23,6 +23,7 @@ import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_table.dart';
 
@@ -39,7 +40,7 @@ typedef Tables = ({
   StepTable<UnloadFlow, UnloadPlace> unload,
   StepTable<UnloadWorld, UnloadPlace> jar,
   StepTable<RestoreWorld, RestorePlace> restore,
-  StepTable<WakeFlow<Object>, WakePlace> wake,
+  StepTable<WakeFlow<WebViewModel>, WakePlace> wake,
   StepTable<DnsFlow, DnsPlace> dns,
   StepTable<CloseFlow, ClosePlace> archive,
   StepTable<DeleteFlow, DeletePlace> delete,
@@ -69,6 +70,7 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.tabBusy => TabsController.tabBusy,
   ModelDef.capture => TabVars.capture<Object?>(),
   ModelDef.bound => TabVars.bound<Object?>(),
+  ModelDef.takes => takesOf<Object?>(),
   ModelDef.shown => TabVars.shown<Object?>(),
   ModelDef.taken => TabVars.taken<Object?>(),
   ModelDef.staged => TabVars.staged<Object?>(),
@@ -86,7 +88,7 @@ final Tables tables = (
   unload: SiteUnloadEngine.unloadFlow,
   jar: CookieIsolationEngine.unloadSteps,
   restore: CookieIsolationEngine.restoreSteps,
-  wake: wakeTable<Object>(),
+  wake: wakeTable<WebViewModel>(),
   dns: DnsTable.table,
   archive: ArchiveController.closeTable,
   delete: SiteDeletion.deleteTable,
@@ -835,9 +837,10 @@ StepTable<W, P> _withArms<W, P extends Enum>(
   required ActivationStep step,
   required Step<W, P> Function(Step<W, P> s) arms,
 }) => StepTable(
-  [for (final s in table.steps) s.place],
+  [...table.places],
   ending: table.ending,
   awaited: table.awaited,
+  vars: table.vars,
   at: (place) => switch (table.at(place)) {
     final Step<W, P> s when s.name == step => arms(s),
     final at => at,
@@ -896,28 +899,14 @@ Def<Map<WebViewModel, Map<TabId, TabId?>>, Object?> _captureAtReply() {
   );
 }
 
-/// `Shown` taking whatever back stack is queued, read for any tab.
-Def<Map<WebViewModel, TabId?>, Object?> _shownTakeAny() {
-  final s = Bound<WebViewModel, Object?>('s');
-  final hist = TabVars.hist<Object?>().value;
-  final queued = TabVars.queued<Object?>().value.at(s.it);
-  final forTab = queued.part('t', get: (q) => q.t);
-  final l = Bound<Iterable<WebViewModel>, Object?>('l');
+/// `Takes` taking whatever back stack is queued, read for any tab.
+Def<bool, Object?> _takesAny() {
+  final q = Bound<QueuedStack, Object?>('q');
+  final tab = Bound<TabId?, Object?>('tab');
   return Def(
-    ModelDef.shown,
-    params: [s, l],
-    body: Expr.choose(
-      when: TabVars.builds(s, l: l),
-      then: hist.except(
-        s.it,
-        to: Expr.choose(
-          when: forTab.neq(noTab()),
-          then: queued.part('h', get: (q) => q.h),
-          otherwise: TabVars.active<Object?>().at(s.it),
-        ),
-      ),
-      otherwise: hist,
-    ),
+    ModelDef.takes,
+    params: [q, tab],
+    body: q.it.part('t', get: (x) => x.t).neq(noTab()),
   );
 }
 
@@ -930,7 +919,7 @@ Tables _with({
   StepTable<UnloadFlow, UnloadPlace>? unload,
   StepTable<UnloadWorld, UnloadPlace>? jar,
   StepTable<RestoreWorld, RestorePlace>? restore,
-  StepTable<WakeFlow<Object>, WakePlace>? wake,
+  StepTable<WakeFlow<WebViewModel>, WakePlace>? wake,
   StepTable<DnsFlow, DnsPlace>? dns,
   StepTable<CloseFlow, ClosePlace>? archive,
   StepTable<DeleteFlow, DeletePlace>? delete,
@@ -948,6 +937,25 @@ Tables _with({
   delete: delete ?? tables.delete,
   ops: ops ?? tables.ops,
 );
+
+final _asks = wakeAsks<WebViewModel>();
+
+/// [m] as code: each table and definition its tables replace, for the
+/// runner to take in place of the code's while a test runs it.
+Planted planted(Mutant m) {
+  final t = mutated(m);
+  return Planted(
+    tables: [
+      for (final of in ModelTable.values)
+        if (!identical(_table(t, of: of), _table(tables, of: of)))
+          (_table(tables, of: of), _table(t, of: of)),
+    ],
+    defs: {
+      for (final (i, d) in t.ops.indexed)
+        if (!identical(d, tables.ops[i])) d.id: d,
+    },
+  );
+}
 
 /// Each mistake an engine once had, as the tables with it put back; the
 /// check that catches it is the [Mutant]'s own.
@@ -980,11 +988,10 @@ Tables mutated(Mutant m) => switch (m) {
           then: [
             s.otherwise.then.first,
             const Field<List<WebViewModel>, RestoreWorld>(FlowField.ls).becomes(
-              Expr.op(
-                r'loaded \ Incognito',
-                run: (_) => const [],
-                reads: const Reads(vars: {ModelVar.loaded}),
-              ),
+              Mutable<Iterable<WebViewModel>, RestoreWorld>.over(
+                ModelVar.loaded,
+                of: (w) => w.vars.loaded,
+              ).value.minus(incognitoOf()),
             ),
           ],
           next: s.otherwise.next,
@@ -1061,12 +1068,12 @@ Tables mutated(Mutant m) => switch (m) {
           s.otherwise.outcome,
           then: [
             ...s.otherwise.then,
-            Act<TabFlow>(
-              writes: {ModelVar.active},
-              tla: 'active\' = [active EXCEPT ![fl[f].site] = fl[f].tab]',
-              run: (_) {},
-              reads: const Reads(vars: {ModelVar.active}),
-            ),
+            Act.of([
+              TabVars.active<TabFlow>().except(
+                const Field<WebViewModel, TabFlow>(FlowField.site).value,
+                to: const Field<TabId, TabFlow>(FlowField.tab).value,
+              ),
+            ]),
           ],
           next: s.otherwise.next,
         ),
@@ -1087,7 +1094,7 @@ Tables mutated(Mutant m) => switch (m) {
   ),
   // The build takes whatever back stack is queued, read for any tab.
   Mutant.takeany => _with(
-    ops: _withDef(tables.ops, def: _shownTakeAny()),
+    ops: _withDef(tables.ops, def: _takesAny()),
   ),
   // An unload captures a site no longer loaded (BUG-032): no wait asks.
   Mutant.recapture => _with(
@@ -1131,14 +1138,29 @@ Tables mutated(Mutant m) => switch (m) {
       tables.activation,
       step: ActivationStep.exit,
       arms: (s) {
-        final byTarget = Act<ActivationFlow>(
-          writes: {ModelVar.marker},
-          tla:
-              'marker\' = IF fl[f].kind = "tap" /\\ marker.t = fl[f].site '
-              'THEN NoMarker ELSE marker',
-          run: (_) {},
-          reads: const Reads(vars: {ModelVar.marker}),
-        );
+        final marker =
+            Mutable<({WebViewModel target, int version})?, ActivationFlow>.over(
+              ModelVar.marker,
+              of: (w) => w.reach.sites.vars.marker,
+            );
+        final byTarget = Act.of([
+          marker.becomes(
+            Expr.choose(
+              when:
+                  ActivationTable.kind.isKind(FlowKind.tap) &
+                  marker.value
+                      .part('t', get: (m) => m?.target)
+                      .eq(
+                        const Field<WebViewModel, ActivationFlow>(
+                          FlowField.site,
+                        ).value,
+                      ),
+              then: Expr.constant<({WebViewModel target, int version})?,
+                  ActivationFlow>(null, tla: 'NoMarker'),
+              otherwise: marker.value,
+            ),
+          ),
+        ]);
         List<Effect<ActivationFlow>> swap(List<Effect<ActivationFlow>> then) =>
             [
               for (final e in then)
@@ -1255,7 +1277,7 @@ Tables mutated(Mutant m) => switch (m) {
           for (final b in s.branches)
             Branch(
               b.outcome,
-              when: Var<bool, WakeFlow<Object>>(
+              when: Var<bool, WakeFlow<WebViewModel>>(
                 ModelVar.fore,
                 read: (w) => w.host.vars.fore.value,
               ).value,
@@ -1293,14 +1315,7 @@ Tables mutated(Mutant m) => switch (m) {
           for (final b in s.branches)
             Branch(
               b.outcome,
-              when: Expr.op(
-                '(fore \\/ (marker # NoMarker)) \\/ ~(RouteFree(s))',
-                run: (_) => false,
-                reads: const Reads(
-                  vars: {ModelVar.fore, ModelVar.marker},
-                  defs: {ModelDef.routeFree},
-                ),
-              ),
+              when: _asks.fore | _asks.activating | ~_asks.routeFree,
               pick: b.pick,
               site: b.site,
               then: b.then,
@@ -1322,11 +1337,7 @@ Tables mutated(Mutant m) => switch (m) {
           for (final b in s.branches)
             Branch(
               b.outcome,
-              when: Expr.op(
-                'fore \\/ ~(RouteFree(s))',
-                run: (_) => false, reads: const Reads(vars: {ModelVar.fore},
-                defs: {ModelDef.routeFree}),
-              ),
+              when: _asks.fore | ~_asks.routeFree,
               pick: b.pick,
               site: b.site,
               then: b.then,
@@ -1347,15 +1358,14 @@ Tables mutated(Mutant m) => switch (m) {
         otherwise: Otherwise(
           s.otherwise.outcome,
           then: [
-            modelOnly(
-              "dns' = [lvl |-> IF fl[f].appWide THEN fl[f].lvl ELSE dns.lvl, "
-              'levels |-> dns.levels \\cup {fl[f].lvl}] /\\ '
-              "told' = [s \\in Sites |-> IF told[s] = -1 THEN -1 ELSE "
-              'ResolveLevel(SiteLevel[s], dns.lvl, '
-              'dns.levels \\cup {fl[f].lvl})]',
-              writes: {ModelVar.dns, ModelVar.told},
-              reads: const Reads(vars: {ModelVar.dns}),
-            ),
+            Act.of([
+              dnsFoldWrites.inForce,
+              dnsFoldWrites.toldUnder(
+                level: dnsFoldWrites.levelInForce,
+                levels: dnsFoldWrites.newLevels,
+              ),
+            ]),
+            ...s.otherwise.then.skip(1),
           ],
           next: s.otherwise.next,
         ),
@@ -1367,12 +1377,15 @@ Tables mutated(Mutant m) => switch (m) {
       tables.unload,
       step: ActivationStep.unloadCaptured,
       arms: (s) {
-        final early = Act<UnloadFlow>(
-          writes: {ModelVar.tier},
-          tla: 'tier\' = [tier EXCEPT ![fl[f].victim] = "saved"]',
-          run: (_) {},
-          reads: const Reads(vars: {ModelVar.tier}),
-        );
+        final early = Act.of([
+          tierOf<UnloadFlow>().except(
+            const Field<WebViewModel, UnloadFlow>(FlowField.victim).value,
+            to: Expr.constant(
+              SiteLifecycleState.savedForRestore,
+              tla: '"saved"',
+            ),
+          ),
+        ]);
         return s.withArms(
           branches: [
             for (final b in s.branches)
@@ -1382,7 +1395,7 @@ Tables mutated(Mutant m) => switch (m) {
                   when: b.when,
                   pick: b.pick,
                   site: b.site,
-                  then: [...b.then, early],
+                  then: [early, ...b.then],
                   next: b.next,
                 )
               else
@@ -1392,7 +1405,7 @@ Tables mutated(Mutant m) => switch (m) {
             s.otherwise.outcome,
             pick: s.otherwise.pick,
             site: s.otherwise.site,
-            then: [...s.otherwise.then, early],
+            then: [early, ...s.otherwise.then],
             next: s.otherwise.next,
           ),
         );

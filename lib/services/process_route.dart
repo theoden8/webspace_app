@@ -39,6 +39,11 @@ final class ProcessRoute {
     _inForce = null;
   }
 
+  /// What a run a planted mistake broke left mid-claim, dropped, for a test
+  /// that goes on to its next world.
+  @visibleForTesting
+  void abandonClaimsForTest() => _claims.clear();
+
   /// The route the rule names, null before the first write.
   ProxyRouteKey? get inForce => _inForce;
 

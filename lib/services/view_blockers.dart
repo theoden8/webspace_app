@@ -72,9 +72,23 @@ final class ViewBlockers {
 
   /// The blockers' data moved: each view whose site resolves elsewhere now
   /// is told so.
-  void changed() {
+  void changed() => tell({
+    for (final v in _views.values) v.site: resolve(v.siteLevel),
+  });
+
+  /// Each view whose site [to] names at another level than it was told is
+  /// told that level, which must be the one its site resolves to: a table
+  /// tells the model's level, which [resolve] recomputes from the lists in
+  /// force.
+  void tell(Map<SiteId, int> to) {
     for (final MapEntry(key: view, value: v) in _views.entries) {
-      final now = resolve(v.siteLevel);
+      final now = to[v.site];
+      if (now == null) continue;
+      assert(
+        now == resolve(v.siteLevel),
+        "${v.site}'s view is told DNS level $now where its site resolves to "
+        '${resolve(v.siteLevel)} (DNS-022)',
+      );
       if (now == v.told) continue;
       v.told = now;
       send((

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/model_exprs.dart';
@@ -320,10 +322,10 @@ final class Def<T, W> {
     return Expr(
       run: (c) {
         final values = [for (final a in args) a.run(c)];
-        T bind(int i) => i == params.length
-            ? body.run(c)
-            : params[i]._with(c, value: values[i], body: () => bind(i + 1));
-        return bind(0);
+        if (Planted._current?.defs[id] case final planted?) {
+          return planted._apply(c, values: values) as T;
+        }
+        return _bind(c, values: values);
       },
       tla: overFlow
           ? '$name(f)'
@@ -338,6 +340,23 @@ final class Def<T, W> {
 
   /// A definition with no parameters, or over the flow, as a value.
   Expr<T, W> get value => call(const []);
+
+  T _bind(StepView<W> c, {required List<Object?> values}) {
+    T bind(int i) => i == params.length
+        ? body.run(c)
+        : params[i]._with(c, value: values[i], body: () => bind(i + 1));
+    return bind(0);
+  }
+
+  /// The body over [values], run on [c] as a view of this definition's own
+  /// world, for a planted definition standing in for the code's.
+  Object? _apply(StepView<Object?> c, {required List<Object?> values}) {
+    assert(values.length == params.length, '$name takes ${params.length}');
+    return switch (c) {
+      final StepView<W> view => _bind(view, values: values),
+      _ => throw StateError('$name is planted over another world'),
+    };
+  }
 }
 
 /// What a set the model quantifies over binds: each operator here binds
@@ -641,6 +660,40 @@ void _noteReads(Reads r) {
   for (final b in r.base) {
     into.addAll(b.reads);
   }
+}
+
+/// A planted mistake run as code: the tables and definitions the runner
+/// takes in place of the code's own while [run]'s body runs, so a test
+/// holds the code to a mistake the model's mutants plant (`mutated`,
+/// `formal_model/models.dart`). Nothing outside a test plants one.
+final class Planted {
+  Planted({
+    required Iterable<(StepTable<Object?, Enum>, StepTable<Object?, Enum>)>
+    tables,
+    required this.defs,
+  }) {
+    for (final (code, planted) in tables) {
+      _tables[code] = planted;
+    }
+  }
+
+  final Map<StepTable<Object?, Enum>, StepTable<Object?, Enum>> _tables =
+      Map.identity();
+
+  /// Each definition the code calls by its name, with the one run instead.
+  final Map<ModelDef, Def<Object?, Object?>> defs;
+
+  static const _key = #plantedMistake;
+
+  R run<R>(R Function() body) => runZoned(body, zoneValues: {_key: this});
+
+  StepTable<Object?, Enum>? _table(StepTable<Object?, Enum> code) =>
+      _tables[code];
+
+  static Planted? get _current => switch (Zone.current[_key]) {
+    final Planted p => p,
+    _ => null,
+  };
 }
 
 /// The environment's actions of `activation.tla` the code writes the
@@ -1572,7 +1625,14 @@ final class StepTable<W, P extends Enum> {
   /// place it left by: each step waits on its call, takes its first branch
   /// that holds, does its effects, marks itself and goes where the branch
   /// says.
-  Future<P> run(StepContext<W> c, {required P from}) async {
+  Future<P> run(StepContext<W> c, {required P from}) {
+    if (Planted._current?._table(this) case final StepTable<W, P> planted) {
+      return planted._run(c, from: from);
+    }
+    return _run(c, from: from);
+  }
+
+  Future<P> _run(StepContext<W> c, {required P from}) async {
     var place = from;
     while (true) {
       switch (at(place)) {
@@ -1618,6 +1678,13 @@ final class StepTable<W, P extends Enum> {
   /// flow [c] is, and the place it goes on to. An input lands outside any
   /// gate the flow then takes, so its step runs on its own.
   P runInput(StepContext<W> c, {required P from}) {
+    if (Planted._current?._table(this) case final StepTable<W, P> planted) {
+      return planted._runInput(c, from: from);
+    }
+    return _runInput(c, from: from);
+  }
+
+  P _runInput(StepContext<W> c, {required P from}) {
     final step = at(from);
     assert(step is Step<W, P> && step.input, '${from.name} is no input');
     step as Step<W, P>;
