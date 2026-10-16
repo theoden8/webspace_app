@@ -4602,9 +4602,14 @@
       }
     }
   },
-  "torStateExitCountryHint": "Tor leaves the network from one country at a time, for every site at once. A site picks the country in its Network settings, and opening a site pinned to a different country closes the sites that disagree.",
-  "@torStateExitCountryHint": {
-    "description": "Explanation behind the hint button on the 'Exit country' row of the Tor screen. The row shows the country Tor's traffic currently exits from, or 'Any country'."
+  "torStateSiteExitCountry": "Exit country: {country}",
+  "@torStateSiteExitCountry": {
+    "description": "Subtitle under a site's name in the 'Using Tor' list of the Tor screen: the country that site's Tor traffic leaves the network from. {country} is a flag, the country's own name and its code, such as '🇩🇪  Deutschland (DE)', or the 'Any country' text when the site pins none.",
+    "placeholders": {
+      "country": {
+        "type": "String"
+      }
+    }
   },
   "torStateBridgesOff": "Off",
   "@torStateBridgesOff": {

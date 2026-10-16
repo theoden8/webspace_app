@@ -45,7 +45,7 @@ void main() {
   Widget host({
     bool routerRunsHere = false,
     bool externalTorRunsHere = false,
-    Map<String, String> siteNames = const {},
+    Map<SiteId, TorSiteLabel> torSites = const {},
     List<PickableSearchSite> webSearchSites =
         const [],
   }) =>
@@ -56,7 +56,7 @@ void main() {
           currentSettings: AppThemeSettings(),
           proxyRouterRunsHere: routerRunsHere,
           externalTorRunsHere: externalTorRunsHere,
-          siteNames: siteNames,
+          torSites: torSites,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},
@@ -186,7 +186,8 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
 
     testWidgets('tapping the card opens what Tor is doing app-wide',
         (tester) async {
-      await tester.pumpWidget(host(siteNames: const {'site-a': 'Mail'}));
+      await tester.pumpWidget(host(
+          torSites: {SiteId('site-a'): (name: 'Mail', exitNodes: '{de}')}));
       await tester.pumpAndSettle();
       await TorService.instance.syncHolders({TorSiteHolder(SiteId('site-a'))});
       runtime.emit(const TorUp('127.0.0.1', port: 41337));
@@ -198,6 +199,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       expect(find.byType(TorStatusScreen), findsOneWidget);
       expect(find.text('Using Tor'), findsOneWidget);
       expect(find.text('Mail'), findsOneWidget);
+      expect(find.text('Exit country: 🇩🇪  Deutschland (DE)'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 91));

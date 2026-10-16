@@ -167,11 +167,16 @@ the one thing it is, shared by the whole app: the same card at its head; what
 is using Tor now, read from the runtime's holders (each site by name, "All app
 traffic" for the app-wide proxy, a nested browser counted as the site that
 opened it, and sites with no name to show, such as an open archive's, counted
-but not named); and the settings that hold for every site at once, each with
-its explanation behind a hint: the exit country pin in force (TOR-014), bridges
-with a way into their settings (TOR-016), and circuits, one per site (TOR-003).
-The holder summary is the pure `summarizeTorHolders`
-(`lib/services/tor_holders.dart`).
+but not named), each named site with the exit country it pins (TOR-014) while
+the tor in use takes one (`TorService.hasControlPort`), and a site that pins
+none with the exits an attached external tor picks for it (TOR-026), else
+"Any country"; and the settings that hold for every site at once, each with its
+explanation behind a hint: bridges with a way into their settings (TOR-016),
+and circuits, one per site (TOR-003). The exit country SHALL NOT be shown as
+one value for the runtime: the holders are every site set to Tor, loaded or
+not, and only the loaded ones share the pin in force, so one row would put a
+country beside sites that ask for another. The holder summary is the pure
+`summarizeTorHolders` (`lib/services/tor_holders.dart`).
 
 #### Scenario: Settings card reflects bootstrap progress
 
@@ -195,8 +200,17 @@ The holder summary is the pure `summarizeTorHolders`
 - **WHEN** the user taps the Tor card in App Settings
 - **THEN** the Tor screen lists "All app traffic", "Bank" and "Mail" under
   "Using Tor"
-- **AND** it shows the exit country in force, whether bridges are on, and
-  that circuits are one per site
+- **AND** "Bank" and "Mail" each show the exit country they pin
+- **AND** it shows whether bridges are on, and that circuits are one per site
+
+#### Scenario: The Tor screen shows each site's own exit country
+
+- **GIVEN** "Mail" is loaded and pinned to Germany, "Forum" is set to `TOR`,
+  pinned to the Netherlands and not loaded, and "Bank" pins none
+- **WHEN** the user opens the Tor screen
+- **THEN** "Mail" shows Germany, "Forum" the Netherlands and "Bank" any
+  country
+- **AND** no row shows one exit country for the whole runtime
 
 #### Scenario: Error state surfaces the message
 
