@@ -1,7 +1,8 @@
 // The flatpak manifest repeats values other files own, and flatpak-builder
 // reads YAML that cannot import them. So this gate holds each copy to its
 // owner: the Flutter version (.fvmrc), the uBO commit build.rs embeds
-// (UBO_COMMIT), and the app ID (APPLICATION_ID in linux/CMakeLists.txt).
+// (UBO_COMMIT), and the app ID, which reaches APPLICATION_ID in
+// linux/CMakeLists.txt through WEBSPACE_APPLICATION_ID.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -39,9 +40,27 @@ test('the manifest checks out the uBO commit build.rs embeds', () => {
   assert.equal(sourceRef('https://github.com/gorhill/uBlock.git', 'commit'), embedded);
 });
 
-test('the manifest id is the Linux application id', () => {
-  const cmake = read('linux/CMakeLists.txt')
-    .match(/^set\(APPLICATION_ID "([^"]+)"\)$/m)?.[1];
-  assert.ok(appId, `${MANIFEST} has no id:`);
-  assert.equal(appId, cmake);
+// The binary's GApplication id names its Wayland window and its desktop files,
+// so it has to be the flatpak's id, not the native build's.
+test('the flatpak builds the app under the manifest id, the native build under its own (PLATFORM-009)', () => {
+  assert.equal(appId, 'page.codeberg.theoden8.webspace_app');
+  assert.match(manifest, /^ {6}- WEBSPACE_APPLICATION_ID="\$FLATPAK_ID" flutter build linux /m,
+    `${MANIFEST} does not pass its id to flutter build linux`);
+  const cmake = read('linux/CMakeLists.txt');
+  assert.match(cmake, /^ {2}set\(APPLICATION_ID "\$ENV\{WEBSPACE_APPLICATION_ID\}"\)$/m,
+    'linux/CMakeLists.txt does not take APPLICATION_ID from WEBSPACE_APPLICATION_ID');
+  assert.match(cmake, /^ {2}set\(APPLICATION_ID "org\.codeberg\.theoden8\.webspace"\)$/m,
+    'linux/CMakeLists.txt does not fall back to the id earlier releases ran under');
+});
+
+// flatpak-flutter and scripts/build_flatpak.sh find the app module by the last
+// part of the id, and flatpak-builder builds it in /run/build/<module>.
+test('the app module is named after the id, and its build paths follow', () => {
+  const module = appId.split('.').pop();
+  assert.match(manifest, new RegExp(`^  - name: ${module}$`, 'm'),
+    `${MANIFEST} has no module named ${module}, the last part of its id`);
+  for (const [, dir] of manifest.matchAll(/\/run\/build\/([^/\s]+)\//g)) {
+    assert.equal(dir, module,
+      `${MANIFEST} builds under /run/build/${dir}, not the app module's /run/build/${module}`);
+  }
 });

@@ -1,7 +1,7 @@
 # Input to flatpak-flutter, which writes the offline manifest
-# (org.codeberg.theoden8.webspace.yml) beside it. Build through
+# (page.codeberg.theoden8.webspace_app.yml) beside it. Build through
 # scripts/build_flatpak.sh; nothing here reaches the network at build time.
-id: org.codeberg.theoden8.webspace
+id: page.codeberg.theoden8.webspace_app
 runtime: org.gnome.Platform
 runtime-version: '51'
 sdk: org.gnome.Sdk
@@ -93,10 +93,10 @@ modules:
         url: https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
         sha256: d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
 
-  - name: webspace
+  - name: webspace_app
     buildsystem: simple
     build-options:
-      append-path: /usr/lib/sdk/llvm22/bin:/run/build/webspace/flutter/bin
+      append-path: /usr/lib/sdk/llvm22/bin:/run/build/webspace_app/flutter/bin
       prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
       arch:
         x86_64:
@@ -106,10 +106,10 @@ modules:
           env:
             BUNDLE: build/linux/arm64/release/bundle
       env:
-        PUB_CACHE: /run/build/webspace/.pub-cache
-        WEBSPACE_UBO_SOURCE: /run/build/webspace/flatpak-sources/ubo
+        PUB_CACHE: /run/build/webspace_app/.pub-cache
+        WEBSPACE_UBO_SOURCE: /run/build/webspace_app/flatpak-sources/ubo
     build-commands:
-      - flutter build linux --release --no-pub
+      - WEBSPACE_APPLICATION_ID="$FLATPAK_ID" flutter build linux --release --no-pub
       - bash scripts/verify_adblock_shipped.sh linux
       # The plugin copies WPE into the bundle; the copy in /app is the one
       # it was built against.
