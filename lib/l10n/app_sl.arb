@@ -947,7 +947,7 @@
   "torStateAppWide": "Ves promet aplikacije",
   "torStateAppWideSubtitle": "Odhodni posredniški strežnik v Nastavitvah aplikacije je nastavljen na Tor",
   "torStateOtherSites": "{count, plural, one{{count} drugo spletno mesto} two{{count} drugi spletni mesti} few{{count} druga spletna mesta} other{{count} drugih spletnih mest}}",
-  "torStateExitCountryHint": "Tor zapušča omrežje iz ene države naenkrat, za vsa spletna mesta hkrati. Spletno mesto izbere državo na zaslonu Omrežje v svojih nastavitvah, odpiranje mesta, pripetega na drugo državo, pa zapre mesta, ki se s tem ne ujemajo.",
+  "torStateSiteExitCountry": "Izhodna država: {country}",
   "torStateBridgesOff": "Izklopljeno",
   "torStateCircuits": "Tokokrogi",
   "torStateCircuitsPerSite": "Eden na spletno mesto",

@@ -947,7 +947,7 @@
   "torStateAppWide": "앱의 모든 트래픽",
   "torStateAppWideSubtitle": "앱 설정의 아웃바운드 프록시가 Tor로 설정되어 있습니다",
   "torStateOtherSites": "{count, plural, other{다른 사이트 {count}개}}",
-  "torStateExitCountryHint": "Tor는 한 번에 한 국가를 통해서만 네트워크를 빠져나가며, 이는 모든 사이트에 함께 적용됩니다. 사이트는 자체 네트워크 설정에서 국가를 선택하며, 다른 국가로 고정된 사이트를 열면 국가가 맞지 않는 사이트가 닫힙니다.",
+  "torStateSiteExitCountry": "출구 국가: {country}",
   "torStateBridgesOff": "꺼짐",
   "torStateCircuits": "회로",
   "torStateCircuitsPerSite": "사이트마다 하나",

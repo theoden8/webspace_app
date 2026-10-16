@@ -947,7 +947,7 @@
   "torStateAppWide": "Kogu rakenduse liiklus",
   "torStateAppWideSubtitle": "Rakenduse seadetes on väljuvaks proksiks määratud Tor",
   "torStateOtherSites": "{count, plural, one{Veel üks sait} other{Veel {count} saiti}}",
-  "torStateExitCountryHint": "Tor väljub võrgust alati ainult ühe riigi kaudu, kõigi saitide jaoks korraga. Sait valib riigi oma Võrgu seadetes ning teise riigi külge kinnitatud saidi avamine sulgeb saidid, mis sellega ei ühti.",
+  "torStateSiteExitCountry": "Väljumisriik: {country}",
   "torStateBridgesOff": "Väljas",
   "torStateCircuits": "Ahelad",
   "torStateCircuitsPerSite": "Üks saidi kohta",

@@ -947,7 +947,7 @@
   "torStateAppWide": "යෙදුමේ සියලු ගමනාගමනය",
   "torStateAppWideSubtitle": "යෙදුම් සැකසුම් හි පිටතට යන ප්‍රොක්සිය Tor ලෙස සකසා ඇත",
   "torStateOtherSites": "{count, plural, one{තවත් එක් අඩවියක්} other{තවත් අඩවි {count}ක්}}",
-  "torStateExitCountryHint": "Tor වරකට එක් රටකින් පමණක්, සියලු අඩවි සඳහා එකවර ජාලයෙන් පිටවේ. අඩවියක් තම ජාලය සැකසුම් තුළ රට තෝරයි, වෙනත් රටකට පින් කළ අඩවියක් විවෘත කිරීමෙන් ඊට එකඟ නොවන අඩවි වැසේ.",
+  "torStateSiteExitCountry": "පිටවීමේ රට: {country}",
   "torStateBridgesOff": "අක්‍රීය",
   "torStateCircuits": "පරිපථ",
   "torStateCircuitsPerSite": "අඩවියකට එකක්",

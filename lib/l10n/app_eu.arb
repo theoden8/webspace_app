@@ -947,7 +947,7 @@
   "torStateAppWide": "Aplikazioaren trafiko osoa",
   "torStateAppWideSubtitle": "Aplikazioaren ezarpenetako irteerako proxya Tor da",
   "torStateOtherSites": "{count, plural, one{Beste gune bat} other{Beste {count} gune}}",
-  "torStateExitCountryHint": "Tor-ek herrialde bakar batetik uzten du sarea aldiko, gune guztientzat batera. Gune bakoitzak bere Sare-ezarpenetan aukeratzen du herrialdea, eta beste herrialde bati finkatutako gune bat irekitzeak bat ez datozen guneak ixten ditu.",
+  "torStateSiteExitCountry": "Irteera-herrialdea: {country}",
   "torStateBridgesOff": "Itzalita",
   "torStateCircuits": "Zirkuituak",
   "torStateCircuitsPerSite": "Bat gune bakoitzeko",

@@ -947,7 +947,7 @@
   "torStateAppWide": "ایپ کی تمام ٹریفک",
   "torStateAppWideSubtitle": "ایپ سیٹنگز میں آؤٹ باؤنڈ پراکسی Tor پر سیٹ ہے",
   "torStateOtherSites": "{count, plural, one{ایک اور سائٹ} other{{count} دیگر سائٹس}}",
-  "torStateExitCountryHint": "Tor ایک وقت میں ایک ہی ملک سے، تمام سائٹس کے لیے بیک وقت نیٹ ورک چھوڑتا ہے۔ سائٹ اپنی نیٹ ورک سیٹنگز میں ملک چنتی ہے، اور کسی مختلف ملک پر پن کی گئی سائٹ کھولنے سے اس سے مختلف سائٹس بند ہو جاتی ہیں۔",
+  "torStateSiteExitCountry": "اخراج کا ملک: {country}",
   "torStateBridgesOff": "آف",
   "torStateCircuits": "سرکٹ",
   "torStateCircuitsPerSite": "ہر سائٹ کے لیے ایک",

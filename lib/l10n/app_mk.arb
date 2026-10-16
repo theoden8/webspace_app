@@ -947,7 +947,7 @@
   "torStateAppWide": "Целиот сообраќај на апликацијата",
   "torStateAppWideSubtitle": "Излезниот прокси во Поставки на апликацијата е поставен на Tor",
   "torStateOtherSites": "{count, plural, one{Уште {count} страница} other{Уште {count} страници}}",
-  "torStateExitCountryHint": "Tor излегува од мрежата низ само една земја наеднаш, за сите страници заедно. Страницата ја избира земјата во своите поставки за Мрежа, а отворањето страница прикачена за друга земја ги затвора страниците со различна земја.",
+  "torStateSiteExitCountry": "Излезна земја: {country}",
   "torStateBridgesOff": "Исклучено",
   "torStateCircuits": "Кола",
   "torStateCircuitsPerSite": "Едно по страница",

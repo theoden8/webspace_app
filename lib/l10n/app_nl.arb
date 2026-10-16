@@ -947,7 +947,7 @@
   "torStateAppWide": "Al het appverkeer",
   "torStateAppWideSubtitle": "De uitgaande proxy in App-instellingen staat op Tor",
   "torStateOtherSites": "{count, plural, one{Eén andere site} other{{count} andere sites}}",
-  "torStateExitCountryHint": "Tor verlaat het netwerk steeds vanuit één land, voor alle sites tegelijk. Een site kiest het land onder Netwerk in zijn instellingen, en een site openen die aan een ander land is vastgezet, sluit de sites die daarvan afwijken.",
+  "torStateSiteExitCountry": "Uitgangsland: {country}",
   "torStateBridgesOff": "Uit",
   "torStateCircuits": "Circuits",
   "torStateCircuitsPerSite": "Eén per site",

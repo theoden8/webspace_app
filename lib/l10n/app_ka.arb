@@ -947,7 +947,7 @@
   "torStateAppWide": "აპის მთელი ტრაფიკი",
   "torStateAppWideSubtitle": "აპის პარამეტრებში გამავალი პროქსი დაყენებულია Tor-ზე",
   "torStateOtherSites": "{count, plural, one{კიდევ ერთი საიტი} other{კიდევ {count} საიტი}}",
-  "torStateExitCountryHint": "Tor ქსელიდან ერთდროულად მხოლოდ ერთი ქვეყნიდან გადის, ყველა საიტისთვის ერთად. საიტი ქვეყანას თავისი ქსელის პარამეტრებში ირჩევს, ხოლო სხვა ქვეყანაზე მიმაგრებული საიტის გახსნა ხურავს იმ საიტებს, რომლებიც მას არ ემთხვევა.",
+  "torStateSiteExitCountry": "გასასვლელი ქვეყანა: {country}",
   "torStateBridgesOff": "გამორთული",
   "torStateCircuits": "წრედები",
   "torStateCircuitsPerSite": "თითო საიტზე ერთი",
