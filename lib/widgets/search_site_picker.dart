@@ -18,7 +18,7 @@ typedef PickableSearchSite = ({
 
 /// [name] as a one-line summary names a site: with its [siteId] when another
 /// of [names] is the same, so "DuckDuckGo, DuckDuckGo" never stands for two
-/// sites. Data, not copy (LOC-002).
+/// sites. Data, not copy (L10N-002).
 String searchSiteSummaryName(String name,
         {required SiteId siteId, required Iterable<String> names}) =>
     names.where((n) => n == name).length > 1 ? '$name ($siteId)' : name;

@@ -236,7 +236,7 @@ then withholds its token. The symptom is always the same indefinite
 "Verifying…", it never reaches an error handler, and no tier of this repo's
 tests can observe it — the verdict is a server-side judgement over a
 fingerprint. Lineage and open gaps:
-[docs/bugs/013-captcha-verification-stalls.md](../../../docs/bugs/013-captcha-verification-stalls.md).
+[docs/bugs/016-captcha-verification-stalls.md](../../../docs/bugs/016-captcha-verification-stalls.md).
 
 ### Reading the console line
 

@@ -198,7 +198,7 @@ void main() {
   });
 
   group('WebViewModel captures', () {
-    test('an untouched site writes no capture key', () {
+    test('an untouched site writes no capture key (CAM-002)', () {
       final json = WebViewModel(initUrl: 'https://example.com').toJson();
       for (final kind in CaptureKind.values) {
         for (final key in kind.jsonKeys) {

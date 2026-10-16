@@ -17,6 +17,8 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
+import 'fake_platform_controller.dart';
+import 'package:webspace/services/launch_context.dart';
 import 'fake_path_provider.dart';
 
 /// The documents directory the faked platform reports, one path per test
@@ -59,7 +61,7 @@ Future<void> pumpRealApp(
     prefs: prefs,
     launchedByNotificationFor: launchedByNotificationFor,
   );
-  await tester.pumpWidget(WebSpaceApp());
+  await tester.pumpWidget(const WebSpaceApp(launch: ProcessLaunch.user));
   await settleRealApp(tester);
 }
 
@@ -166,9 +168,10 @@ Future<void> tapLink(WidgetTester tester, {required String url}) async {
   final views = find.byType(inapp.InAppWebView).evaluate().toList();
   expect(views, hasLength(1), reason: 'one page on screen to tap in');
   final view = views.single.widget as inapp.InAppWebView;
+  final controller = await _controllerOf(tester, view: view);
   await tester.runAsync(() async {
     await view.platform.params.shouldOverrideUrlLoading!(
-      _FakeWebViewController(),
+      controller,
       inapp.NavigationAction(
         request: inapp.URLRequest(url: inapp.WebUri(url)),
         isForMainFrame: true,
@@ -186,9 +189,10 @@ Future<void> pageHistoryChanged(WidgetTester tester, {required String url}) asyn
   final views = find.byType(inapp.InAppWebView).evaluate().toList();
   expect(views, hasLength(1), reason: 'one page on screen');
   final view = views.single.widget as inapp.InAppWebView;
+  final controller = await _controllerOf(tester, view: view);
   await tester.runAsync(() async {
     view.platform.params.onUpdateVisitedHistory!(
-        _FakeWebViewController(), inapp.WebUri(url), false);
+        controller, inapp.WebUri(url), false);
   });
 }
 
@@ -197,16 +201,28 @@ Future<void> pageHistoryChanged(WidgetTester tester, {required String url}) asyn
 /// loading, so Back, for one, is not spent on its tabs until this runs.
 Future<void> attachWebViews(WidgetTester tester) async {
   for (final e in find.byType(inapp.InAppWebView).evaluate()) {
-    final view = e.widget as inapp.InAppWebView;
-    if (!_attached.add(view)) continue;
-    await tester.runAsync(() async {
-      view.platform.params.onWebViewCreated?.call(_FakeWebViewController());
-    });
+    await _controllerOf(tester, view: e.widget as inapp.InAppWebView);
   }
   await settleRealApp(tester);
 }
 
-final Set<inapp.InAppWebView> _attached = Set.identity();
+/// [view]'s controller, created and reported the first time it is asked
+/// for: the platform reports a view created before any other callback, and
+/// passes every callback that view's own controller.
+Future<_FakeWebViewController> _controllerOf(
+  WidgetTester tester, {
+  required inapp.InAppWebView view,
+}) async {
+  if (_attached[view] case final known?) return known;
+  final controller = _attached[view] = _FakeWebViewController();
+  await tester.runAsync(() async {
+    view.platform.params.onWebViewCreated?.call(controller);
+  });
+  return controller;
+}
+
+final Map<inapp.InAppWebView, _FakeWebViewController> _attached =
+    Map.identity();
 
 /// The system back gesture, as Android delivers it to the app.
 Future<void> pressBack(WidgetTester tester) async {
@@ -217,6 +233,10 @@ Future<void> pressBack(WidgetTester tester) async {
 /// A webview with no page in it: nothing to go back to, nothing loading,
 /// and every other call answered with nothing.
 class _FakeWebViewController implements inapp.InAppWebViewController {
+  @override
+  final inapp.PlatformInAppWebViewController platform =
+      FakePlatformController();
+
   @override
   Future<bool> canGoBack() async => false;
 

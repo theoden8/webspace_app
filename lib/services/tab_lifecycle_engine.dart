@@ -5,7 +5,7 @@
 /// `site_unload_engine.dart`: the engine owns the graph arithmetic — tree
 /// order, re-parenting on close, which tab takes over, what the back gesture
 /// means — and returns a plan. `_WebSpacePageState` performs the IO
-/// (`captureNavigationState`, `disposeWebView`, `schedulePendingRestoreState`,
+/// (`captureNavigationState`, `disposeWebView`, `tabBinding.queue`,
 /// `setState`, persistence). No Flutter, no platform channels, no setState.
 library;
 

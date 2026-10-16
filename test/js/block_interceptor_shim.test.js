@@ -127,3 +127,38 @@ test('the observer reports each host once, in one batch', async () => {
   await new Promise((r) => setTimeout(r, 300));
   assert.deepEqual(JSON.parse(JSON.stringify(batches)), [['a.example', 'b.example']]);
 });
+
+// A list that lands while the page is open reaches it. The page asked
+// for the bloom when its document started; the app asks it to again.
+// DNS-023
+test('a reload of the bloom blocks what the old one let through', async () => {
+  const dom = makeDom();
+  const w = dom.window;
+  let bloom = EMPTY;
+  const fetched = [];
+  w.fetch = function (input) {
+    fetched.push(typeof input === 'string' ? input : input.url);
+    return Promise.resolve('response');
+  };
+  w.flutter_inappwebview = {
+    callHandler(name, arg) {
+      if (name === 'getBlockBloom') return Promise.resolve(bloom);
+      if (name === 'blockCheck') {
+        return Promise.resolve(VERDICTS[new URL(arg).hostname] ?? false);
+      }
+      return Promise.resolve(null);
+    },
+  };
+  runInDom(dom, INTERCEPTOR);
+  await tick();
+  await w.fetch('https://blocked.example/before.js');
+  assert.deepEqual(fetched, ['https://blocked.example/before.js'],
+    'the empty bloom is a hard allow, cached by host');
+
+  bloom = SATURATED;
+  w.__wsReloadBlockBloom();
+  await tick();
+  await assert.rejects(w.fetch('https://blocked.example/after.js'));
+  assert.deepEqual(fetched, ['https://blocked.example/before.js'],
+    'the host allowed under the old bloom must not stay allowed from cache');
+});

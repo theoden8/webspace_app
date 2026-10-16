@@ -30,13 +30,13 @@ The app used an `IndexedStack` widget to manage webviews, which creates ALL chil
 
 ### Requirement: LAZY-001 - Track Visited Webviews
 
-The system SHALL track which webview indices have been visited by the user.
+The system SHALL track which sites have been visited by the user, as sites rather than their rows.
 
 #### Scenario: Initialize tracking set
 
 **Given** the app starts fresh
 **When** no sites have been selected
-**Then** the loaded indices set is empty
+**Then** the loaded set is empty
 **And** no webviews are created
 
 ---
@@ -74,7 +74,7 @@ Implementation: see the auto-load loop in `StartupController.restore` ([lib/main
 
 **Given** the user has not visited DuckDuckGo yet
 **When** the user taps on DuckDuckGo in the drawer
-**Then** the DuckDuckGo index is added to loaded indices
+**Then** DuckDuckGo is added to the loaded set
 **And** only the DuckDuckGo webview is created
 **And** other sites remain as empty placeholders
 
@@ -113,91 +113,67 @@ The system SHALL preserve webview state (scroll position, form data, cookies) wh
 
 ### Requirement: LAZY-005 - Handle Site Deletion
 
-The system SHALL update loaded indices correctly when a site is deleted.
+The system SHALL keep the loaded set naming the sites it named when a site is deleted.
 
-#### Scenario: Delete a site and shift indices
+#### Scenario: Delete a site above loaded ones
 
-**Given** sites 0, 2, and 5 have been visited
-**When** site 1 is deleted
-**Then** loaded indices are shifted down (0, 1, 4)
-**And** indices >= deleted index are decremented
+**Given** the sites at rows 0, 2, and 5 have been visited
+**When** the site at row 1 is deleted
+**Then** the same three sites are loaded, now at rows 0, 1 and 4
+**And** deleting a loaded site takes it out of the loaded set
 
 ---
 
 ### Requirement: LAZY-006 - Clear State on Import
 
-The system SHALL clear loaded indices when importing settings.
+The system SHALL clear the loaded set when importing settings.
 
 #### Scenario: Import new settings
 
 **Given** the user has visited several sites
 **When** settings are imported from a backup
-**Then** loaded indices are cleared
+**Then** the loaded set is cleared
 **And** new sites start fresh without preloading
+
+---
+
+### Requirement: LAZY-007 - The Site On Screen Is Built
+
+Whenever no activation is in flight, the site on screen SHALL be in the loaded set (`Inv_CurrentLoaded` in `formal/kernel.tla`). A switch whose residency step unloaded the site on screen (a domain conflict, a proxy mismatch) and that a change then supersedes without choosing a site (a delete or an archive close of another site) SHALL leave for the webspace list, as a change that removes the site on screen does, never LAZY-003's placeholder. The loaded set, the site on screen and every flow's target SHALL be held as sites, not rows, so no row move or removal can make any of them name another site; a removal takes its sites out of the loaded set and the screen. A row move SHALL supersede nothing: a switch it lands in finishes on the site it was opening (BUG-029). A home reset of the site on screen SHALL keep it loaded, its webview let go of so the frame builds it afresh at its home page (`SiteActivationController.unload`). The activation walks (`test/site_activation_walk_test.dart`) and every schedule within a bound (`test/activation_schedules_test.dart`) check both, and `formal/activation.tla`, whose `loaded` and `current` are sites, catches the mistake `nohome` in its delete world.
+
+#### Scenario: A delete supersedes a switch that unloaded the site on screen
+
+**Given** site A is on screen under the legacy engine
+**And** the user taps site B on A's base domain, whose switch unloads A
+**When** a third site is deleted before the switch finishes
+**Then** the switch bails
+**And** the webspace list is shown, not A's placeholder
+
+#### Scenario: A home reset of the site on screen
+
+**Given** site A always opens home and is on screen
+**When** a link into A resets it to its home page
+**Then** A stays loaded and is built afresh at its home page
+**And** LAZY-003's placeholder is never shown
+
+#### Scenario: A row move lands while a switch is opening a site
+
+**Given** site A is on screen and the user taps site B
+**When** the user moves a row before B's switch finishes
+**Then** the switch finishes and B is on screen, loaded
+
+#### Scenario: A row move lands during a memory-pressure unload
+
+**Given** sites A, on screen, and B are loaded, and memory pressure is unloading B
+**When** a row move shifts both before B's capture finishes
+**Then** B leaves the loaded set
+**And** A stays loaded
 
 ---
 
 ## Implementation
 
-### Loaded Indices Set
-
-```dart
-// Track which webview indices have been loaded (for lazy loading)
-// Only webviews in this set will be created - others remain as placeholders
-final Set<int> _sites.loaded = {};
-```
-
-### Set Current Index Helper
-
-```dart
-/// Set the current index and mark it as loaded for lazy webview creation.
-/// This ensures only visited webviews are created, not all webviews at once.
-void setCurrentIndex(int? index) {
-  _sites.current = index;
-  if (index != null && index >= 0 && index < _sites.models.length) {
-    _sites.loaded.add(index);
-  }
-}
-```
-
-### Lazy IndexedStack
-
-```dart
-IndexedStack(
-  index: _sites.current!,
-  children: _sites.models.asMap().entries.map<Widget>((entry) {
-    final index = entry.key;
-    final webViewModel = entry.value;
-
-    // Only create actual webview if this index has been loaded
-    if (!_sites.loaded.contains(index)) {
-      return const SizedBox.shrink(); // Placeholder for unvisited sites
-    }
-
-    return Column(
-      children: [
-        // ... FindToolbar, UrlBar (only for current index)
-        Expanded(
-          child: webViewModel.getWebView(...)
-        ),
-      ],
-    );
-  }).toList(),
-)
-```
-
-### Handle Site Deletion
-
-```dart
-// Update _sites.loaded after deletion (shift indices down)
-_sites.loaded.remove(index);
-_sites.loaded.removeWhere((i) => i >= _sites.models.length);
-final updatedIndices = _sites.loaded
-    .map((i) => i > index ? i - 1 : i)
-    .toSet();
-_sites.loaded.clear();
-_sites.loaded.addAll(updatedIndices);
-```
+[`SiteRuntime`](../../../lib/controllers/site_runtime.dart) holds the sites with a built webview (`loaded`, least recently used first) and the site on screen (`shown`) as sites; `current` and `loadedRows` are the rows read off them. [`SiteWebViewStack`](../../../lib/widgets/site_webview_stack.dart) draws an `IndexedStack` over those rows and builds a webview only for a loaded one. `SiteRuntime.apply` takes a removed site out of both; a move leaves them as they are. An activation is `SiteActivationController.activate`.
 
 ---
 
@@ -230,7 +206,7 @@ _sites.loaded.addAll(updatedIndices);
 ### Modified
 - `lib/main.dart`
   - Added `_sites.loaded` Set to `_WebSpacePageState`
-  - Added `setCurrentIndex()` helper method
+  - Added `activate()` helper method
   - Updated all `_sites.current` assignments to use helper
   - Modified `IndexedStack` to check `_sites.loaded` before creating widgets
   - Added index shifting logic in site deletion handler

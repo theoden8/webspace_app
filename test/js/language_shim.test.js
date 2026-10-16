@@ -53,7 +53,7 @@ test('Intl.DateTimeFormat().resolvedOptions().locale reports spoofed lang', () =
 // in the per-site language, not merely report it. Node is full-ICU so the
 // output is real.
 
-test('locale-less Intl.NumberFormat FORMATS in the spoofed language', () => {
+test('locale-less Intl.NumberFormat FORMATS in the spoofed language (LANG-002)', () => {
   const fr = loadShim(pageJs('language', { language: 'fr-FR' }));
   // French uses a comma decimal separator; English a dot. If only the label
   // were spoofed (the old bug) this would still format as "0.5".

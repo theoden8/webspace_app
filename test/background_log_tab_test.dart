@@ -5,7 +5,6 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
-import 'helpers/mock_cookie_manager.dart';
 import 'helpers/localized.dart';
 
 /// DEVTOOLS-012: the Background tab exists only in developer mode, shows what
@@ -37,7 +36,6 @@ void main() {
 
   Future<void> pump(WidgetTester tester, {bool startOnBackground = false}) async {
     await pumpLocalized(tester, home: DevToolsScreen(
-      cookieManager: MockCookieManager(),
       startOnBackground: startOnBackground,
     ));
     await tester.pumpAndSettle();
@@ -125,12 +123,11 @@ void main() {
     expect(find.textContaining('the newest line'), findsOneWidget);
   });
 
-  testWidgets('notification diagnostics follow the same developer-mode flag',
+  testWidgets('notification diagnostics follow the same developer-mode flag (NOTIF-008)',
       (tester) async {
     Future<void> pumpWithWake() async {
       await pumpLocalized(tester, home: DevToolsScreen(
         key: UniqueKey(),
-        cookieManager: MockCookieManager(),
         onSimulateBackgroundRefresh: () async {},
       ));
       await tester.pumpAndSettle();

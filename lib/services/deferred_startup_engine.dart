@@ -1,6 +1,19 @@
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/settings/site_ids.dart';
 
+/// How a background load of a site ended.
+enum PreloadOutcome {
+  loaded,
+
+  /// Gone, already loaded, or its base domain held by a loaded site on the
+  /// shared jar (ISO-001): nothing to retry.
+  skipped,
+
+  /// An activation was in flight, or an input superseded the load: worth
+  /// another try once activations settle.
+  busy,
+}
+
 /// The per-site fields the deferred-startup orchestration reads. `siteId` is the
 /// stable identity used across `await`s; list position is never used, which is
 /// what makes the engine immune to the stale-index races that bit the old
@@ -39,19 +52,20 @@ abstract class DeferredStartupHost {
   /// Site still present — the engine skips it after an await when false.
   bool isLive(SiteId siteId);
 
-  bool isLoaded(SiteId siteId);
-  void markLoaded(SiteId siteId);
+  /// Builds the site's webview off screen, its cached HTML, saved
+  /// navigation state (PAUSE-035) and session or container in place first
+  /// (`SiteActivationController.preload`).
+  Future<PreloadOutcome> preload(SiteId siteId);
 
-  Future<void> preloadHtml(SiteId siteId);
+  /// Completes once no activation is in flight.
+  Future<void> activationSettled();
+
+  /// Completes once the site the launch opened has finished its first load,
+  /// or [kLaunchLoadWait] after it was asked, whichever comes first; at once
+  /// when the launch opened none.
+  Future<void> launchedSiteLoaded();
+
   Future<void> applyTheme(SiteId siteId);
-
-  /// Queue the site's saved nav-state bytes (if any) on its model so the
-  /// first webview build applies `restoreState` — the cross-restart
-  /// back/forward restore for sites loaded outside `setCurrentIndex`
-  /// (PAUSE-019). No-op when nothing is saved or a controller already
-  /// exists.
-  Future<void> queueNavStateRestore(SiteId siteId);
-  void requestRebuild();
 
   Future<bool> loadTimezoneDataset();
   String? resolveTimezone(double latitude, {required double longitude});
@@ -71,43 +85,37 @@ abstract class DeferredStartupHost {
       Set<SiteId> activeSiteIds, {required Set<SiteId> nonIncognitoSiteIds});
 }
 
+/// How long the notification auto-load waits for the launched site's first
+/// load: a page that never settles must not keep every notification site
+/// from loading.
+const Duration kLaunchLoadWait = Duration(seconds: 10);
+
 /// Orchestration that runs *after* first paint (so the UI is interactive and
 /// the site list can mutate underneath it). Pure: no Flutter, no `setState`, no
 /// widget state — it only sequences calls into [DeferredStartupHost].
 class DeferredStartupEngine {
   DeferredStartupEngine._();
 
-  /// Auto-load notification sites off the first-frame path: preload each one's
-  /// HTML, theme it, then mark it loaded. Re-checks `isMounted`/`isLive` after
-  /// every await, so a site deleted during the (potentially multi-second) HTML
-  /// decrypt is simply skipped — never indexed by a stale position, never
-  /// loaded after deletion.
+  /// Auto-load notification sites off the first-frame path, one at a time,
+  /// each preloaded once [themeRemaining] has themed it. A preload an
+  /// activation is in the way of, or that an input superseded, is tried
+  /// again once activations settle; a site deleted meanwhile is skipped,
+  /// never addressed by a stale position.
   static Future<void> autoLoadNotificationSites(DeferredStartupHost host) async {
+    // The launched page loads first: its requests and its renderer are what
+    // the user is waiting on, and every preload competes with both.
+    await host.launchedSiteLoaded();
+    if (!host.isMounted) return;
     final notifIds = [
       for (final s in host.currentSites())
         if (s.notificationsEnabled) s.siteId,
     ];
-    var added = false;
     for (final siteId in notifIds) {
-      if (!host.isMounted) return;
-      if (!host.isLive(siteId) || host.isLoaded(siteId)) continue;
-      await host.preloadHtml(siteId);
-      if (!host.isMounted) return;
-      if (!host.isLive(siteId)) continue;
-      await host.applyTheme(siteId);
-      if (!host.isMounted) return;
-      if (!host.isLive(siteId) || host.isLoaded(siteId)) continue;
-      // Before markLoaded: once the site is in _loadedIndices,
-      // setCurrentIndex skips its restore fetch, so this is the only
-      // point where the previous session's back/forward stack can be
-      // queued for an auto-loaded site (PAUSE-019).
-      await host.queueNavStateRestore(siteId);
-      if (!host.isMounted) return;
-      if (!host.isLive(siteId) || host.isLoaded(siteId)) continue;
-      host.markLoaded(siteId);
-      added = true;
+      while (host.isMounted && host.isLive(siteId)) {
+        if (await host.preload(siteId) != PreloadOutcome.busy) break;
+        await host.activationSettled();
+      }
     }
-    if (added && host.isMounted) host.requestRebuild();
   }
 
   /// Re-resolve and persist `spoofTimezone` for sites that derive it from their
@@ -143,15 +151,13 @@ class DeferredStartupEngine {
     if (changed) await host.persist();
   }
 
-  /// Post-paint maintenance off the first-frame path: theme the not-yet-built
-  /// models, persist the load-time migration, then sweep orphan storage —
-  /// sequenced (persist before sweep) so they don't race the same secure-
-  /// storage keys. Theming is siteId-keyed and skips sites themed pre-paint;
-  /// the sweep reads LIVE site sets so a site added post-paint isn't reclaimed.
-  static Future<void> runPostPaintMaintenance(
+  /// Themes the models not themed before the first paint, by siteId, so a
+  /// site deleted meanwhile is skipped. Their controllers are not built yet;
+  /// a build's first document picks its prelude from the theme, so it runs
+  /// before the notification sites preload.
+  static Future<void> themeRemaining(
     DeferredStartupHost host, {
     required Set<SiteId> alreadyThemedSiteIds,
-    required bool needsResave,
   }) async {
     final ids = [for (final s in host.currentSites()) s.siteId];
     for (final siteId in ids) {
@@ -161,6 +167,15 @@ class DeferredStartupEngine {
       }
       await host.applyTheme(siteId);
     }
+  }
+
+  /// Writes the load-time migration back, then sweeps orphan storage against
+  /// the LIVE site sets, so a site added since launch is not reclaimed.
+  /// Persist first: both touch the same secure-storage keys.
+  static Future<void> persistAndSweep(
+    DeferredStartupHost host, {
+    required bool needsResave,
+  }) async {
     if (!host.isMounted) return;
     if (needsResave) await host.persist();
     if (!host.isMounted) return;

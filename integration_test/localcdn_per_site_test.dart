@@ -22,7 +22,6 @@ import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 const _kSrcProbe = 'window.__wsSrc || null';
 
@@ -31,7 +30,7 @@ String _pageFor(String scriptUrl) =>
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   late HttpServer server;
   late String base;
@@ -63,18 +62,18 @@ void main() {
     cacheDir = await Directory.systemTemp.createTemp('localcdn_per_site');
     final cached = File('${cacheDir.path}/probe.js')
       ..writeAsStringSync("window.__wsSrc = 'cache';");
-    await WebInterceptNative.sendCdnPatterns([
+    await WebInterceptNative.initialize().sendCdnPatterns([
       r'^http://127\.0\.0\.1:\d+/npm/([^@/]+)@([^/]+)/(.+)$',
     ]);
-    await WebInterceptNative.sendCdnCacheIndex({
+    await WebInterceptNative.initialize().sendCdnCacheIndex({
       'wslib/1.0.0/probe.js': cached.path,
       'wslib/1.0.1/probe.js': cached.path,
     });
   });
 
   tearDownAll(() async {
-    await WebInterceptNative.sendCdnPatterns(const []);
-    await WebInterceptNative.sendCdnCacheIndex(const {});
+    await WebInterceptNative.initialize().sendCdnPatterns(const []);
+    await WebInterceptNative.initialize().sendCdnCacheIndex(const {});
     await server.close(force: true);
     await cacheDir.delete(recursive: true);
   });

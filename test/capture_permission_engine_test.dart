@@ -101,7 +101,7 @@ void main() {
   });
 
   group('a camera-only request (CAM-001, CAM-004)', () {
-    test('is granted for a real site holding the camera permission', () async {
+    test('is granted for a real site holding the camera permission (CAM-003)', () async {
       final host = _Host(open: {CaptureKind.camera});
       expect(await _answer(_cam, host: host), DeviceAnswer.grant);
       expect(host.asked, [CaptureKind.camera, 'camera permission']);

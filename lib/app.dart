@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 
 import 'package:webspace/theme/accent_theme.dart';
+import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/app_locale.dart';
@@ -11,6 +12,10 @@ import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/webspace_page.dart';
 
 class WebSpaceApp extends StatefulWidget {
+  const WebSpaceApp({super.key, required this.launch});
+
+  final ProcessLaunch launch;
+
   @override
   _WebSpaceAppState createState() => _WebSpaceAppState();
 }
@@ -55,7 +60,10 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
       themeMode: _themeSettings.themeMode,
-      home: WebSpacePage(onThemeSettingsChanged: _setThemeSettings),
+      home: WebSpacePage(
+        onThemeSettingsChanged: _setThemeSettings,
+        launch: widget.launch,
+      ),
       debugShowCheckedModeBanner: false,
     );
   }

@@ -74,7 +74,7 @@ void main() {
     });
   });
 
-  group('describeUserAgent validity issues', () {
+  group('describeUserAgent validity issues (DM-006)', () {
     test('stock WKWebView default carries the webview tell (BUG-005)', () {
       final id = describeUserAgent(
           'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) '

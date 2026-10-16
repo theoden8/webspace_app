@@ -176,6 +176,22 @@ void main() {
       expect(opts.any((o) => o.$2.contains('obfs4')), isFalse);
     });
 
+    // The only torrc lines Dart sends: none can open or move the control
+    // channel, or turn its cookie off.
+    test('every transport sets only the bridge keys (LEAK-014)', () {
+      for (final transport in TorTransport.values) {
+        final cfg = TorBridgeConfig(
+          enabled: true,
+          transport: transport,
+          lines: [line(_obfs4), line('snowflake 192.0.2.3:80 2B280B23E110')],
+        );
+        for (final (key, _) in torBridgeOptions(cfg, transportPort: 47000)) {
+          expect(key, isIn(['UseBridges', 'ClientTransportPlugin', 'Bridge']),
+              reason: '${transport.name} sets $key');
+        }
+      }
+    });
+
     test('produces nothing at all when disabled', () {
       final cfg = TorBridgeConfig(
         transport: TorTransport.obfs4,

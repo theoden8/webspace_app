@@ -1,16 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/site_posture.dart';
 
@@ -19,8 +19,7 @@ import 'package:webspace/services/site_posture.dart';
 /// surface, or a path that builds one early, cannot leave a prompt out.
 final class WebViewHostHooks {
   const WebViewHostHooks({
-    required this.cookieManager,
-    required this.containerCookieManager,
+    required this.isolation,
     required this.globalUserScripts,
     required this.save,
     required this.rebuild,
@@ -38,10 +37,9 @@ final class WebViewHostHooks {
     required this.media,
   });
 
-  /// The engine's cookie readers: [containerCookieManager] under the
-  /// container engine, [cookieManager] (the shared jar) otherwise.
-  final CookieManager cookieManager;
-  final ContainerCookieManager? containerCookieManager;
+  /// How the sites' cookies are kept apart, and the jars that go with it;
+  /// read when a webview is built, which is after the restore decides it.
+  final Isolation Function() isolation;
 
   /// Takes [blocked] out of the jar of [controller]'s webview after a load
   /// (ISO-011, CONT-006). A delete the jar refuses leaves that cookie for the
@@ -51,25 +49,10 @@ final class WebViewHostHooks {
     required WebViewController? controller,
     required Uri url,
   }) async {
-    final container = containerCookieManager;
+    final jar = isolation();
     for (final c in blocked) {
       try {
-        if (container != null) {
-          await container.deleteCookie(
-            controller: controller,
-            url: url,
-            name: c.name,
-            domain: c.domain,
-            path: c.path ?? '/',
-          );
-        } else {
-          await cookieManager.deleteCookie(
-            url: url,
-            name: c.name,
-            domain: c.domain,
-            path: c.path ?? '/',
-          );
-        }
+        await jar.deleteCookie(c, url: url, controller: controller);
       } on CookieJarFailure catch (e) {
         LogTag.cookieManager.warning(
             'Blocked cookie ${c.name} left for the next load: $e',
@@ -122,8 +105,7 @@ final class WebViewHostHooks {
   /// headless check (NOTIF-016): it opens nothing, and every question the
   /// host would put to the user is declined.
   WebViewHostHooks unattended() => WebViewHostHooks(
-        cookieManager: cookieManager,
-        containerCookieManager: containerCookieManager,
+        isolation: isolation,
         globalUserScripts: globalUserScripts,
         save: save,
         rebuild: rebuild,

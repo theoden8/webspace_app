@@ -60,9 +60,16 @@ port
 **When** the backup JSON is inspected
 **Then** no Tor control-cookie byte sequence appears anywhere in
 the file
-**And** the regression test
-`test/settings_backup_test.dart::Tor secrets never appear in exports`
-asserts this property
+**Because** the cookie never reaches Dart: the Swift plugin reads it only
+to authenticate, and no app code reads the control socket's path
+(`test/js/tor_control_private.test.js`)
+
+#### Scenario: Dart cannot reconfigure the control channel
+
+**Given** any bridge configuration
+**When** Dart hands tor its torrc options
+**Then** they set only `UseBridges`, `ClientTransportPlugin` and `Bridge`,
+so none opens, moves or unauthenticates the control channel
 
 ---
 

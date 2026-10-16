@@ -371,7 +371,7 @@ class TorEngine {
 
   /// Pin changes, one at a time. Two in flight could land in tor out of
   /// order and leave the older one in force.
-  final SerialQueue _pins = SerialQueue();
+  final SerialQueue _pins = SerialQueue('torExitPins');
 
   /// Where the GeoIP table for a country pin comes from. Null where the
   /// runtime is expected to have its own.

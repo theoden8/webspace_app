@@ -22,7 +22,7 @@ void main() {
           UaEngine.gecko);
     });
 
-    test('WebKit: Safari, FxiOS, and CriOS (iOS is always WebKit)', () {
+    test('WebKit: Safari, FxiOS, and CriOS (iOS is always WebKit) (UAID-001)', () {
       expect(inferUaEngine(_safariMac), UaEngine.webkit);
       expect(inferUaEngine(buildFirefoxIosUserAgent('152.0')), UaEngine.webkit);
       // CriOS carries no "Chrome/" token and is iOS => WebKit, not Blink.

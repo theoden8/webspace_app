@@ -14,6 +14,7 @@ import 'package:webspace/widgets/web_search_sheet.dart';
 
 import 'helpers/fake_webview_controller.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'helpers/model_fixture.dart';
 
 /// The page as the link flows see it, recording what they ask of it in order.
 class _Page implements LinkHost {
@@ -43,13 +44,13 @@ class _Page implements LinkHost {
   @override
   Future<void> commitSites(SiteSetChange change) async {
     calls.add('commit ${change.runtimeType}');
-    sites.apply(change);
+    sites.applied(change);
   }
 
   @override
-  Future<void> activate(int index) async {
-    calls.add('activate $index');
-    sites.current = index;
+  Future<void> activate(WebViewModel site) async {
+    calls.add('activate ${sites.models.indexOf(site)}');
+    sites.seed(shown: site);
   }
 
   @override
@@ -59,8 +60,8 @@ class _Page implements LinkHost {
   void evictCache(String siteId) => calls.add('evict $siteId');
 
   @override
-  Future<void> revealSite(WebViewModel model, {required int index}) async =>
-      calls.add('reveal $index');
+  Future<void> revealSite(WebViewModel model) async =>
+      calls.add('reveal ${sites.models.indexOf(model)}');
 
   @override
   Future<void> registerSite(WebViewModel model, {bool activate = true}) async =>
@@ -85,9 +86,9 @@ class _Page implements LinkHost {
       calls.add('openNested ${action.siteId} ${action.url}');
 
   @override
-  Future<void> unloadSite(int index, {required UnloadReason reason}) async {
-    calls.add('unload $index ${reason.name}');
-    sites.loaded.remove(index);
+  Future<void> unloadSite(WebViewModel site, {required UnloadReason reason}) async {
+    calls.add('unload ${sites.models.indexOf(site)} ${reason.name}');
+    sites.retiredInTest(site);
   }
 
   @override
@@ -139,7 +140,7 @@ void main() {
   late LinkController links;
 
   void setUpSites(List<WebViewModel> models) {
-    sites = SiteRuntime()..apply(SitesLoaded(models));
+    sites = SiteRuntime()..applied(SitesLoaded(models));
     page = _Page(sites);
     prompts = _Prompts();
     links = LinkController(
@@ -163,8 +164,7 @@ void main() {
       ..cookies = const [];
     final other = WebViewModel(initUrl: 'https://example.org/');
     setUpSites([github, other]);
-    sites.loaded.addAll({0, 1});
-    sites.current = 1;
+    sites.seed(loaded: [github, other], shown: other);
 
     await links.dispatchInbound(
         InboundUrl(Uri.parse('https://github.com/theoden8/webspace_app')));

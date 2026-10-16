@@ -8,9 +8,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/host_resolution.dart';
+import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/user_script.dart';
+
+import 'fake_platform_controller.dart';
 
 const String kScriptHandlerPrefix = '__ws_s_';
 const String kInlineHandlerPrefix = '__ws_i_';
@@ -22,8 +26,38 @@ const String kFetchHandlerPrefix = '__ws_f_';
 /// `ContentWorld`.
 class FakeUserScriptController extends Fake
     implements inapp.InAppWebViewController {
+  FakeUserScriptController() {
+    phases.on(PageEvent.viewCreated, view: platform);
+  }
+
   final Map<String, Function> handlers = {};
   final List<String> evaluated = [];
+
+  @override
+  final inapp.PlatformInAppWebViewController platform =
+      FakePlatformController();
+
+  /// The view's documents, as its callbacks would report them.
+  final PagePhases phases = PagePhases(
+    blocking: (
+      clearUrls: false,
+      dns: false,
+      dnsLevel: null,
+      contentBlock: false,
+      localCdn: false,
+      httpsUpgrade: false,
+      contributesStats: false,
+      blockedCookies: const {},
+    ),
+    dnsLevel: () => kDnsLevelOff,
+  );
+
+  /// The document the view shows now, as a handler takes it.
+  PageScope page() => phases.page(this);
+
+  /// The main frame loads another page: the document shown until now is
+  /// gone.
+  void navigate() => phases.on(PageEvent.loadStarted, view: platform);
 
   @override
   void addJavaScriptHandler({
@@ -33,12 +67,17 @@ class FakeUserScriptController extends Fake
     handlers[handlerName] = callback;
   }
 
+  /// Called as each script lands, for a test that moves the page between
+  /// two of them.
+  void Function(String source)? onEvaluate;
+
   @override
   Future<dynamic> evaluateJavascript({
     required String source,
     inapp.ContentWorld? contentWorld,
   }) async {
     evaluated.add(source);
+    onEvaluate?.call(source);
     return null;
   }
 

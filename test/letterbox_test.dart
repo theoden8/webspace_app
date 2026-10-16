@@ -84,7 +84,7 @@ void main() {
       }
     });
 
-    test('fixed size is used exactly when it fits', () {
+    test('fixed size is used exactly when it fits (ETP-021)', () {
       final t = computeLetterboxTarget(
         availableWidth: 1920,
         availableHeight: 1080,

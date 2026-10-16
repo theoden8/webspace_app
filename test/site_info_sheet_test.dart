@@ -8,6 +8,8 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'helpers/localized.dart';
 import 'package:webspace/services/webview_proxy.dart';
 
+import 'helpers/isolations.dart';
+
 Widget _host(Widget child, {TextDirection? direction}) => localizedApp(Scaffold(
   body: direction == null
       ? child
@@ -52,22 +54,30 @@ void main() {
   group('the container rule', () {
     test('a site owns a profile only where containers exist', () {
       expect(
-        siteOwnsContainerProfile(containersSupported: true, incognito: false),
+        siteOwnsContainerProfile(isolation: fakeContainers(), incognito: false),
         isTrue,
       );
       expect(
-        siteOwnsContainerProfile(containersSupported: false, incognito: false),
+        siteOwnsContainerProfile(isolation: fakeSharedJar(), incognito: false),
         isFalse,
       );
     });
 
-    test('containerIdFor binds nothing before containers are known', () {
-      // cachedSupported is false until the startup probe resolves, which a
-      // unit test never runs.
+    test('containerIdFor names the site\'s container only under containers', () {
       expect(
-          containerIdFor(
-              key: ContainerKey.ofSite(SiteId('gh')), incognito: false),
-          isNull);
+        containerIdFor(
+            isolation: fakeContainers(),
+            key: ContainerKey.ofSite(SiteId('gh')),
+            incognito: false),
+        'ws-gh',
+      );
+      expect(
+        containerIdFor(
+            isolation: fakeSharedJar(),
+            key: ContainerKey.ofSite(SiteId('gh')),
+            incognito: false),
+        isNull,
+      );
     });
   });
 

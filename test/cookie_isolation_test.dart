@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/step_table.dart';
 
 // Use getNormalizedDomain from web_view_model.dart for domain comparison tests
 
@@ -224,7 +225,7 @@ void main() {
       expect(ip1, isNot(equals(ip2)));
     });
 
-    test('private suffixes isolate per subdomain, not per registrant', () {
+    test('private suffixes isolate per subdomain, not per registrant (ISO-013)', () {
       // `victim.github.io` and `attacker.github.io` are different people.
       // Collapsing them to `github.io` shares one cookie container between
       // them and makes a hop between them read as same-site navigation.
@@ -403,7 +404,7 @@ void main() {
 
       // Simulate having a webview (we can't create real ones in tests)
       // The fields are nullable, so we just verify they get set to null
-      model.disposeWebView();
+      model.disposeWebView(commit: const Commit.fixture());
 
       expect(model.webview, isNull);
       expect(model.controller, isNull);

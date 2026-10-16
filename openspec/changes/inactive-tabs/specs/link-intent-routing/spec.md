@@ -271,8 +271,10 @@ Every engine that reads a loaded slot's proxy or Tor pin (`SiteUnloadEngine.indi
 
 On Android without router mode, and on Linux:
 
-- A rebind of the visible slot (tab switch, a back-at-start close, Keep as tab, a move, Run as) to a tab whose running identity's effective proxy is not equivalent to the applied one SHALL run the PROXY-008 sequence for that identity before the rebuild: unload the mismatched slots, apply the proxy, and fail closed, with no rebuild, when it cannot be applied.
-- A rebind of a slot that is not visible SHALL leave the slot disposed and out of the loaded set when its new identity's proxy is not equivalent to the applied one; its next activation rebuilds it.
+- A slot's running identity SHALL change only in the turn its webview is disposed, whatever changes it (a rebind, the routing reconcile of LIR-034): a plan between the two would read the new identity's proxy for a webview still on the old one ([BUG-037](../../../../../docs/bugs/037-background-load-on-another-route.md)).
+- A rebind of the visible slot (tab switch, a back-at-start close, Keep as tab, a move, Run as) to a tab whose running identity's effective proxy is not equivalent to the applied one, and the reconcile of the visible slot's active tab to such an identity, SHALL take the slot out of the loaded set in that turn and start its activation in the same turn, which runs the PROXY-008 sequence for the new identity before the rebuild: unload the mismatched slots, apply the proxy, and fail closed, with no rebuild, when it cannot be applied.
+- A rebind or a reconcile of a slot that is not visible SHALL leave the slot disposed and out of the loaded set when its new identity's proxy is not equivalent to the applied one; its next activation rebuilds it.
+- A reconcile of a slot an activation in flight is opening SHALL start that activation again in the turn the identity moves, so it plans for the new identity and supersedes the plan made for the old.
 
 Under router mode (PROXY-013) no slot is evicted for a mismatch, and a slot running a hosted tab presents its host's credential because it runs in its host's profile.
 
@@ -289,6 +291,13 @@ Under router mode (PROXY-013) no slot is evicted for a mismatch, and a slot runn
 - **WHEN** the tab list closes Mastodon's active tab and the tab taking over is hosted by a site on P2
 - **THEN** Mastodon's slot is left disposed and out of the loaded set
 - **AND** it is rebuilt, under the PROXY-008 sequence, when the user next opens Mastodon
+
+#### Scenario: A tap during a routing change plans for what runs
+
+- **GIVEN** Android without router mode, the visible site on P1, and a background slot on P1 whose active tab a link opened, which runs as a site on P2 once its opener routes links
+- **WHEN** the opener's routing switch is turned on and its settings close, and the user taps the site on P2 before the reconcile ends
+- **THEN** the background slot left the loaded set in the turn its tab's identity moved
+- **AND** no webview runs on P1 once P2 is applied (`reroute (LIR-024)` in `test/activation_schedules_test.dart`)
 
 #### Scenario: The host's own slot is not evicted for itself
 

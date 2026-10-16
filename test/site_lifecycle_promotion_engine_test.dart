@@ -150,6 +150,7 @@ void main() {
     });
   });
 
+  // PAUSE-012
   group('SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets', () {
     final four = {0: resident, 1: resident, 2: resident, 3: resident};
     for (final c in [

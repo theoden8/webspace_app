@@ -49,6 +49,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/services/step_table.dart';
 
 const List<MapEntry<String?, String>> _languages = [
   MapEntry(null, 'System default'),
@@ -93,6 +94,11 @@ class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
+
+  /// Run before a changed proxy takes effect: the sites the site now
+  /// contends with go first (PROXY-008).
+  final Future<void> Function()? onProxyChanging;
+
   /// Clears the site's cookies, or its whole container's data. Fails with
   /// [CookieJarFailure] when the jar refuses, which the screen reports
   /// instead of saying it is done.
@@ -123,11 +129,12 @@ class SettingsScreen extends StatefulWidget {
   SettingsScreen({
     required this.webViewModel,
     this.onSettingsSaved,
+    this.onProxyChanging,
     this.onClearCookies,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onScriptsChanged,
-    this.useContainers = false,
+    required this.useContainers,
     this.notificationsBlockedBySite,
     this.otherSites = const [],
     this.routingTargets = const [],
@@ -501,6 +508,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       LogTag.proxy.info(
           'Saving per-site proxy for siteId=${m.siteId}: '
           '${_proxySettings.describeForLogs()}', sensitive: true);
+      await widget.onProxyChanging?.call();
       await m.updateProxySettings(_proxySettings);
     } else {
       final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
@@ -586,7 +594,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     // Dispose the webview so it gets recreated with the new settings, at
     // the URL it was showing.
     final currentUrl = m.currentUrl;
-    m.disposeWebView();
+    m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     m.currentUrl = currentUrl;
 
     // Pop first so the Settings route leaves the tree before the parent
@@ -649,7 +657,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   /// The picked coordinates as the permission row shows them, or null when
-  /// none are set. Built as data before it reaches `Text(` (LOC-002): a
+  /// none are set. Built as data before it reaches `Text(` (L10N-002): a
   /// latitude and a longitude are numbers, not translatable copy.
   String? _coordinatesPreview() {
     final (lat, lng) = (_latitude, _longitude);
@@ -883,7 +891,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         : (torExitCountryFor(pin)?.label ?? pin.toUpperCase());
 
     // A proxy type, an address and a country are data, not translatable copy
-    // (LOC-002).
+    // (L10N-002).
     final on = <String>[
       if (inheritsAppProxy) loc.networkSummaryAppProxy,
       // A saved proxy or gateway goes by its name; one that no longer

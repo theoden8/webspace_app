@@ -83,18 +83,12 @@ String? validateProxyAddress(
   required String? value,
 }) {
   if (!type.typesAddress) return null;
-  if (value == null || value.isEmpty) {
-    return loc.siteSettingsProxyAddressRequired;
-  }
-  final parts = value.split(':');
-  if (parts.length != 2) {
-    return loc.siteSettingsProxyAddressFormatError;
-  }
-  final port = int.tryParse(parts[1]);
-  if (port == null || port < 1 || port > 65535) {
-    return loc.siteSettingsProxyInvalidPort;
-  }
-  return null;
+  return switch (ProxyAddressParse.of(value)) {
+    ProxyAddress() => null,
+    ProxyAddressMissing() => loc.siteSettingsProxyAddressRequired,
+    ProxyAddressMalformed() => loc.siteSettingsProxyAddressFormatError,
+    ProxyAddressBadPort() => loc.siteSettingsProxyInvalidPort,
+  };
 }
 
 /// Per-site network screen: where the site's traffic goes (proxy, WebRTC) and

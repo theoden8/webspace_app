@@ -29,7 +29,7 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
         onPressed: () => Navigator.push<void>(
           context,
           MaterialPageRoute(
-            builder: (_) => SettingsScreen(webViewModel: model),
+            builder: (_) => SettingsScreen(webViewModel: model, useContainers: false),
           ),
         ),
         child: const Text('open'),
@@ -74,7 +74,7 @@ void main() {
     expect(y('Privacy'), lessThan(y('Permissions')));
   });
 
-  testWidgets('no network control is left on the settings screen',
+  testWidgets('no network control is left on the settings screen (NET-001)',
       (tester) async {
     await _pump(tester, model: WebViewModel(initUrl: 'https://example.com/'));
     expect(find.byType(DropdownButton<ProxyType>), findsNothing);
@@ -91,7 +91,7 @@ void main() {
 
   testWidgets('a site without its own proxy names the app-wide one',
       (tester) async {
-    GlobalOutboundProxy.setForTest(
+    GlobalOutboundProxy.setInMemory(
       UserProxySettings(type: ProxyType.SOCKS5, address: '10.0.0.1:1080'),
     );
     await _pump(
@@ -106,7 +106,7 @@ void main() {
 
   testWidgets('a Default that Tracking Protection raises reads as Relay only',
       (tester) async {
-    GlobalOutboundProxy.setForTest(
+    GlobalOutboundProxy.setInMemory(
       UserProxySettings(type: ProxyType.SOCKS5, address: '10.0.0.1:1080'),
     );
     await _pump(tester, model: WebViewModel(initUrl: 'https://example.com/'));

@@ -11,7 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, blockAfter } = require('./helpers/source');
 
-const rel = 'lib/controllers/site_activation_controller.dart';
+const rel = 'lib/controllers/activation_table.dart';
 const src = read(rel);
 const engineRel = 'lib/services/site_unload_engine.dart';
 const plan = blockAfter(read(engineRel), 'static ResidencyPlan plan(', undefined, engineRel);
@@ -29,7 +29,9 @@ function planCase(event) {
 function unloadsBeforePin(fn, label, event, calls) {
   const pin = fn.indexOf(calls.pin);
   assert.notEqual(pin, -1, `${label} no longer puts the pin in force`);
-  const planned = fn.indexOf(`${calls.plan}${event}(`);
+  // The plan may switch on the flow's kind between the call and the event.
+  const planned = fn.search(new RegExp(
+    `${calls.plan.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^;]{0,200}?${event}\\(`));
   assert.notEqual(planned, -1,
     `${label} changes the pin without asking which loaded sites disagree with it`);
   const applied = fn.indexOf(calls.apply);
@@ -44,9 +46,17 @@ test('the plan asks Tor which sites disagree with the pin', () => {
 });
 
 test('activating a site unloads the siblings its pin disagrees with first', () => {
-  unloadsBeforePin(blockAfter(src, 'Future<void> setCurrentIndex(', undefined, rel),
-    'setCurrentIndex', 'Activating',
-    { plan: 'residencyPlan(', apply: 'applyResidency(', pin: '_host.syncTorExitPin(' });
+  // The plan is made at the plan step, the unload table nested after it,
+  // and the pin put in force at the applied step once the plan is spent.
+  const from = src.indexOf('static ResidencyPlan _planOf(');
+  assert.notEqual(from, -1, `${rel} no longer plans at the plan step`);
+  unloadsBeforePin(src.slice(from), 'the activation', 'Activating',
+    { plan: 'residencyPlan(', apply: 'Within(_inUnload)', pin: 'then: [_torPin]' });
+  assert.match(src, /static final _torPin = Note<ActivationFlow>\(\s*\(c\) => ActivationFlow\.page\.from\(c\)\.syncTorExitPin\(/,
+    '_torPin must put the pin in force through syncTorExitPin');
+  const flow = 'lib/controllers/activation_flow.dart';
+  assert.match(blockAfter(read(flow), 'void syncTorExitPin(', undefined, flow),
+    /_r\.host\.syncTorExitPin\(/, "the page port's pin is the host's");
 });
 
 test('saving settings unloads the sites the new pin disagrees with first', () => {

@@ -6,6 +6,10 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
 
 Simplicity comes first: every structure here exists to make the code easier to hold in the head; one that makes it harder has failed, however correct it is. Within that: one owner per fact, joins are types, and every invariant is caught at the earliest point it can be violated. A bug then has one suspect.
 
+Reasoning stays local as the system grows. Adding a component costs the same to write, to read and to check, whatever else exists. Components meet only through what they share, so the first question for any new piece is what it shares with the rest, and a good answer is small and explicit. Interleavings multiply with every component that touches the same state: two pieces that share nothing can be understood and checked apart, and two that share a variable must be understood and checked together. A design in which every new piece interacts with every old one has stopped scaling, however correct each piece is.
+
+Design is proved by the compiler and timing by the model checker, each over its own unit: a type for a fact, and for timing what runs between two awaits. The model is printed from the code, so when the two disagree the suspects are the code, the printer and the fakes, never the printed text, and the trace names which. A check counts once it has caught a planted mistake, and the mistake stays as its proof. Debt is a list in a gate that only shrinks. Verification only grows: a refactor prints the same model and still catches every planted mistake, no count of checks, mistakes caught or obligations proved falls ([`formal/levels.tsv`](formal/levels.tsv)), and a check retires only when its replacement has caught the same mistakes.
+
 ### The ladder
 
 Each invariant sits on one rung. Put it on the highest rung Dart allows; step down only with a one-line reason next to the check.
@@ -30,7 +34,7 @@ An invariant written as a comment is on rung 6. `tab_lifecycle_engine.dart` says
 2. **Small typed joins.** Between compartments passes a record, class or sealed type, never a parameter list, map or string. More than four parameters is a missing type. A call names its arguments: parameters are named (`required` where there is no default), so the call site says what each value is, a reordered parameter cannot shift meaning, and an inserted one fails to compile until every call names it. Positional only where the signature is fixed from outside (an override, a Flutter callback type, an operator) or for one leading argument the function's name already names (`Host(raw)`, `messenger.toast(message)`, `LogTag.x.debug(message)`, a `BuildContext`); never a `bool`, never two of one type. A reader needs about four entities to follow a change; more means a join is misplaced. An abstraction earns its place by removing a copy, a forgotten-item failure or a parameter list; one that only adds a hop (a single caller, a generic parameter nobody varies, a wrapper that renames) is inlined. Every hop is a join that has to be proven valid too (a type, an assert, a boundary test), so an unneeded one is paid for twice: once in reading, once in validation. *Check*: did a join in the map change shape? One line why. A positional parameter past the first, or a positional `bool`? [`test/named_arguments_test.dart`](test/named_arguments_test.dart) fails on it (rung 5: no lint counts positional parameters); a declaration torn off as a callback whose type is not ours goes in its exemptions, named with that type.
 3. **Fixed cost per axis.** Adding one item (a per-site field, a pref, a capture kind, a settings row) touches a fixed set of places through one funnel, and forgetting it anywhere fails to compile. *Check*: edit sites against the budget table; over budget, build the funnel first in its own commit.
 4. **Layers point down.** UI → model → services → values → platform (the map lists the directories). A file imports its own layer or lower. Engines (`*_engine.dart`) decide and are pure: no Flutter import, no I/O, no `context`; tests import them with fakes that model the interface. *Check*: [`test/js/layers.test.js`](test/js/layers.test.js) (rung 5: Dart has no module boundary a type can enforce); its debt list only shrinks.
-5. **Ids are types.** `extension type SiteId._(String raw) implements String`; a `String siteId` parameter is a square where a move was meant (`SiteId` in `settings/site_ids.dart` and `Host` in `services/url_host.dart` are the model). Constant data is `const`; a field is declared once and every serializer iterates the declaration. *Check*: any new `String` id, startup-built table, or hand-written per-field line?
+5. **Ids are types.** `extension type SiteId._(String raw) implements String`; a `String siteId` parameter is a square where a move was meant (`SiteId` in `settings/site_ids.dart` and `Host` in `services/url_host.dart` are the model). Constant data is `const`; a field is declared once and every serializer iterates the declaration. A list of what a compartment declares (its variables, its operators, its tables, a record's fields) is the declaration's own enumeration, an enum's `values` or a `switch` over it the compiler holds exhaustive, never a hand-written list beside it: a hand list is right where it is written and wrong where the declaration grows, and nothing says so, so a component's validity would change at its callers. *Check*: any new `String` id, startup-built table, hand-written per-field line, or a list that restates an enum?
 
 ### Fixing a bug
 
@@ -63,17 +67,40 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |
 | `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | enum over three mode enums, `grantOf`/`withGrant` switches; sealed `GrantStore` |
 | `AppPref` (`settings/app_prefs.dart`) | every global pref, its default, what a backup carries | `AppPref.x.value` / `.set(v)`; backups iterate `AppPref.values` |
+| `SiteField` (`settings/site_field.dart`) | every key a site's JSON carries, its older names, and whether a QR share carries it | an exhaustive `switch` each for save and read in `web_view_model_json.dart`; `SiteSettingsQrCodec.includedKeys` and the compat test iterate `SiteField.values` |
 | `SecureJsonStore` / `Keystores` / `KeychainAead` | secrets at rest and their keychain options | `SecureJsonStore<T>` on a `Keystores` set |
 | `host_platform` (`platform/`) | dart:io primitives, importable from plain Dart | conditional export |
 | `ShellStore` (`controllers/shell_store.dart`) | what the page saves beside its sites: theme, global user scripts, suggested sites, webspaces, the site on screen | `_shell.theme` etc.; `save*` per value |
-| `SiteActivationController` | which site is on screen, and the residency, capture and teardown that move with it | `setCurrentIndex(int?)`; talks back through `ActivationHost` |
+| `SiteActivationController`, running `ActivationTable` (`controllers/activation_table.dart`) | which site is on screen, and the residency, capture and teardown that move with it; a site loaded off screen (`preload`); a nested screen that runs as a site beside them (`openNested`, the model's `nested`); a webspace switch's unloads (`switchWebspace`, WEBSPACE-013); a site a reset sends home (`unload`) | `activate(WebViewModel?)` (null shows the webspace list), `preload(siteId)`, `openNested(site, opening:)`, `switchWebspace(leaving:)`, `unload(site, reason:)`; talks back through `ActivationHost` and a `NestedScreenHost` (`controllers/activation_host.dart`) |
+| `SiteSetCommit` (`controllers/site_set_commit.dart`) | the order every change to the set of sites runs its steps in; which steps a change needs is `SiteSetChange.effects`, and a site that leaves the list leaves the loaded set, the screen and its webview in `SiteRuntime.apply` | `commit(change)`, or `stage(change)` where a table's step lands it in its own turn (`SiteSetStage`: `prepare`, `land(commit:)`, `follow`); talks back through `SiteSetCommitHost`, which the page and the walk implement |
+| `SiteDeletion` (`controllers/site_deletion.dart`) | a site's delete, in the order an archive's close keeps: the commit takes it off the list, the frame unmounts its webview, then its container goes (CONT-010) | `delete(site)`; talks back through `SiteDeletionHost` |
 | `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
+| `RuntimeVars` / `Shared<T>` (`services/runtime_vars.dart`, `services/step_table.dart`) | the model's variables the runtime owns (`loaded`, `current`, `version`, `marker`, `nested`, `headless`, `fore`), read anywhere, written only by a table's `Write` (`Mutable.over`), by `apply` and by `retired`, those two with a `Commit`, so a write outside a table's arm has no handle; and the model's operators over them alone (`Evictable`, `Running`), each a `Def` that runs there and prints; a test starts from `seed` | `_sites.vars.loaded`; `host.vars.isEvictable(site)`; `Mutable.over('loaded', of: (c) => c.world.host.vars.loaded)` |
+| `Commit`, `SharedAt`, `CommitView` (`services/step_table.dart`) | that a write of the model's state the code holds runs in a step's turn: only the runner makes a `Commit`, for an arm's writes and for an `Act`'s or a `Call`'s `then` (a `CommitView`), `commitInput` for an input marked by hand, `Commit.environment(Environment)` for a write of an environment action `activation.tla` states by hand (the frame's bind and take), and `Commit.unmodeled(Unmodeled)` names a write no step takes yet (a rebuild, a renderer gone among them), so a write outside them does not compile (`test/declare_to_use_test.dart`); `UnmodeledWrites` stamps each such write, and a step that reads a stamped variable once its flow's await is over records a meet, a timing TLC did not check, which the walks and schedules hold to `owedMeets` (`test/helpers/walk/unmodeled_meets.dart`) | `WebViewModel.tabsCell.write(at:, to:, commit:)`, `Indexed.over(variable, cell:)`; `tabBinding.queue(bytes, tab:, commit: c.commit)`; `model.disposeWebView(commit:)`; `SiteRuntime.apply(change, commit:)` |
+| `StepView`, `Port`, `Constant` (`services/step_table.dart`) | what a table's own code reaches of its engine's world: the flow's fields and the leaves, constants and ports its table declares, each port naming the model's variables it reads and changes, so an undeclared access does not compile (`test/declare_to_use_test.dart`) | `Port(name, reads:, changes:, of:)`; `port.from(c)` in a guard or an effect, `Call.on(port, run: (c) => c.api..., writes:)` and `field.receivesOn(port, ...)` for a call, whose writes the port must change; `Constant('Name', read: (w) => ...).value` |
+| `Reads`, `BaseOp`, `RowRead`, `Need` (`services/model_names.dart`) | what a value of a step reads of the shared state: each leaf its variable, each operator the union of its operands', a hand-written string what it names, and the fields of other flows' rows it reads, by kind; what it needs of the model's constants (`Need`), necessary and held to every world's coverage; an action's footprint is a function of these and of the kinds its row can hold, read off the arms, printed as `activation_footprints.tsv` and held to the printed text by `formal/footprint.py`, a flow's own `fl` row being its own | `Expr.op(tla, run:, reads: const Reads(vars: {...}))`; `Expr.inFlight(FlowKind.dns, run:)`; `StepTable.footprints()` |
+| `ModelVar`, `FlowField`, `ModelDef`, `ModelConst` (`services/model_names.dart`) | the model's variables, a flow's fields, the engines' operators and the model's constants, each named once: every leaf, `Field`, `Def` and constant leaf (`Constant`, `Members`, `Indexed.fixed`, `Expr.ofConstant`) takes its name there, and the printer iterates them (`activation_vars`, each action's frame, `activation_ops`), so a declaration left out of a registry cannot happen | `Var(ModelVar.loaded, ...)`, `Field(FlowField.site)`, `Def(ModelDef.capture, ...)`; `definition(ModelDef)` in `formal_model/models.dart` |
+| `TabVars` (`controllers/tab_vars.dart`), `tab_leaves.dart` (services) | the tabs' variables of the model (`tabs`, `active`, `built`, `hist`, `queued`, `file`) as the code reads them, the platform-held ones by name from an engine, and the rules over them (`Capture`, `Bound`, `Shown`, `Taken`, `Staged`) the activation and the tab tables write with | `TabVars.captured(site)`, `TabVars.framed(site)`, `TabVars.rebound(site, tab:, label:, loaded:)`; `webViewGone(site)`, `captured(site)` from an engine |
+| `NavCapture` / `captureSteps` (`services/nav_capture.dart`) | a capture of a site's back stack as its two awaits, keyed by the tab its webview was built for as it began and dropped when that tab closed or moved before the webview answered (TAB-003); every flow that captures places the same two steps | `beginNavCapture(model)` on the hosts; `captureSteps(read:, save:, savePlace:, site:, built:, begin:, marks:, after:)` in a table; a world that captures is `Capturing` |
+| `JarTurn` (`services/cookie_isolation.dart`) | that the running code holds the shared jar's turn (ISO-003): only the engine's `_turn` makes one, and every read of the jar it saves and every write it makes takes one, so code outside a turn cannot reach them; a table's steps find it on their world | `_snapshot(turn, of:)`, `_empty(turn)`, `_setCookies(turn, site:, cookies:)`, `_loadStored` / `_saveStored(turn, site:)` |
+| `LockOrder` (`utils/concurrency.dart`) | deadlock freedom of every primitive that makes a caller wait: no wait on what the running code holds, no lock order seen both ways; `SerialQueue`, `SingleFlight` and the tab gate take part | `SerialQueue('name').run` / `.enqueue`; a `...Held` step asserts `queue.isHeld` |
 | `PageJs` (`services/page_js.dart`) | every script the app runs in a page (`lib/js/`), and how a value reaches one | `PageJs.x.script`; `PageJs.x.withConfig({...})`; shared parts by `// @include` |
 | `LogTag` (`services/log_service.dart`) | every log tag and the label it shows | `LogTag.x.debug(msg, sensitive: true)`; `LogService.log` takes a `LogTag` |
+| `ViewBlockers` / `DnsTable` (`services/view_blockers.dart`, `services/dns_block_service.dart`) | the DNS level each live site webview's native interceptor was told (the model's `told`), and every user-driven write of the DNS lists and the app-wide level (a download, a level a site asks for, the clear) as a step table whose one write tells the views (DNS-022) | `DnsBlockService.instance.views.built(view, site:, siteLevel:, localCdn:)` and `.gone(view)`; `downloadList` / `downloadLevel` run `DnsBlockService.table` |
 | `FileDialog`, `socksConnect`, `engineImage`, `ProxyRefused`, `TorRuntimeFailure`, `FileStore` (`services/file_dialog.dart`, `socks_connect.dart`, `engine_image.dart`, `proxy_refused.dart`, `tor_engine.dart`, `file_store.dart`) | what a platform or third-party call fails with, named once where the app calls it: the file picker's channel and Linux portal, socks5_proxy's handshake, dart:ui's codec, the proxy rule, the Tor runtime, the documents directory | `on FileDialogFailure`, `on SocksHandshakeFailure` (an `IOException`), `on EngineImageFailure`, `on ProxyRefused`, `on TorRuntimeFailure`; a `FileStore` fails with `IOException` only |
 | `HostBrowser` (`services/host_user_agent.dart`) | the user agent a site sends when the user set none (UAID-005) | `webViewUserAgent(override)` at both native settings writers |
 | `ArbMessages` (`l10n/runtime/arb_messages.dart`) | the active locale's messages, read from its ARB asset at run time | `AppLocalizations.of(context).key`, generated by `tool/gen_l10n.dart` |
 | `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
+| `ActivationStep` (`services/activation_step.dart`) | the steps of an activation, a memory-pressure plan and an unload as `formal/activation.tla` names them, their outcomes and the platform calls each may wait on; a flow's steps are a `StepTable` (`ActivationTable.activationFlow`, nesting `SiteUnloadEngine.unloadFlow` and the jar's; `TabsController.tabInputs` and `tabFlow` for a tab's; `BackgroundWakeEngine.table` for a wake's; `ArchiveController.closeTable`, `SiteDeletion.deleteTable` for an archive close's), which marks them | `ActivationSteps.mark(step, outcome:, site:)` for an input; a `Step` of a table otherwise |
+| `FlowInput` / `Await` / `When` / `Ends` (`services/step_flow.dart`) | a flow written in the order it runs, compiled to a table's steps: each arm goes on to the await that follows it, and a decision over a reply is plain Dart run per value as the flow is built, so it cannot reach the shared state | `FlowInput(step, at: place, decide: Ends(..., next: Await(step, at: place, ...)))`; its `steps` answer the table's places (`ActivationTable._spaceFlow`) |
+| `ActivationWorld` / `Witness` / `Mutant` / `HandMistake` (`formal_model/checks.dart`), `printWorlds` / `EnvAction` (`formal_model/worlds.dart`) | every check of `activation.tla`: a world's constants and the invariants that hold there, a behavior it must reach, a planted mistake and the invariant it breaks in each world it is caught in, so a mistake that names no check does not compile; and a world printed for every two actions that meet where no written world gives both their needs | one enum value per check; `models.dart` prints a config each, the printed worlds' too, and `checks.tsv`, which `check.sh` runs |
+| `Planted` (`services/step_table.dart`), `planted` (`formal_model/models.dart`) | a mutant of the model run as code: the tables and definitions the runner takes in place of the code's while a test runs, so the schedules must catch what TLC catches | `planted(m).run(() => ...)`; `test/planted_mistakes_test.dart` names the script each breaks, or owes why none reaches it |
+| Startup witnesses (`NativeIntercept`, `DnsLoaded`, `BlockerLoaded`, `CdnLoaded`, `TrustedHostsLoaded`) | that a service's load has run: only its `initialize()` makes one, and it carries what the load made (the service itself; for `NativeIntercept`, the sends), so startup work that needs the load is a method on it; main() starts every load at once and reads the rest after they all end | `WebInterceptNative.initialize()`; `dns.mirrorInto(native)`, `blocker.seedHostsInto(dns)` |
+| `Reached<P>` / `LaunchPhase` (`controllers/startup_controller.dart`) | the page's launch as facts that are types: a call that needs one takes its proof, which only the restore makes, and a later phase extends those it implies, so the order is the compiler's | `refreshPinned(after: Reached<SitesOnPage>)`, `handleWarmLaunch(after: Reached<Launched>)`; `StartupController.launched()` |
+| `ProcessRoute` (`services/process_route.dart`) | the process-wide proxy rule where one covers every webview (Android outside router mode, Linux): the route in force and what runs on it (a site's webview, a nested screen, a wake's check); every write a claim taken in turn, asserting nothing else running needs another route (PROXY-008) | `ProxyManager().setProxySettings(settings, siteId:, occupant:)`; `ProcessRoute.instance.release(occupant)` |
+| `Isolation` (`services/isolation.dart`) | how the sites' cookies are kept apart, decided once by `Isolation.probe` in the restore: `Containers` holds the container engine and cookie manager, `SharedJar` the legacy engine, so each is in hand only where it exists; a site's bound container is resolved from it into its posture | `switch (_sites.isolation)`; `isolation.cookiesAt` / `deleteCookie`; `SitePosture.container.containerId`; `useContainers` derives from it |
+| `WebViewTabBinding` (`services/webview_tab_binding.dart`) | which tab's history a site's one webview shows: the tab it was built for, and the back stack queued for the next build, tagged with the tab it was read for (TAB-003, BUG-036) | `model.tabBinding.queue(bytes, tab:)`; the build's `bind` / `take(tab:)`; `captureNavigationState()` returns a `CapturedNavState` |
+| `PagePhases` (`services/page_phase.dart`) | one webview's life as its callbacks report it: which callbacks may act, what a load needs before it starts (`PagePrerequisite`), and which document a script decided across an await lands in (`PageScope`, US-007) | `phases.on(PageEvent.x, view: controller.platform)` at the top of each callback (the plugin passes a new wrapper per callback; the platform controller is the view); `phases.asks(mainFrame:)` in `shouldOverrideUrlLoading`; `phases.page(controller).evaluate(js)` |
 | `SiteId` (`settings/site_ids.dart`), the names made from it (`ContainerKey` and its native `ContainerName`, `ws-<key>`; `RouterIdentity`; `TorTag`), `TabId` (`services/site_tab.dart`), `WebspaceId` (`webspace_model.dart`), `UserScriptId` (`settings/user_script.dart`), `FilterListId` (`settings/filter_list_id.dart`), `ShortcutId` (`settings/shortcut_id.dart`), and the proxy library's `GatewayId`, `CredentialsId`, `SavedProxyId` (`settings/proxy_ids.dart`) | a site's identity, each name it goes by outside the app (its container, an archive-tier site's opaque; its proxy-router credential; its Tor circuit), a tab's within its site, a webspace's, a user script's, a filter list's, an Android home screen tile's, and each proxy library entry's; a reference to an entry is a sealed `LibraryEntry` whose case carries its kind's id | `X.parse` where one comes in (JSON, a channel, a file name), `X.mint()` for a new one; `model.containerKey`, `RouterIdentity.ofSite`, `TorTag.ofSite` |
 
 Layers: UI `screens`, `widgets`, `controllers`, `theme`, `main.dart`, `app.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.
@@ -82,13 +109,15 @@ Debt, files importing upward (the gate's list, target 0): services → model (en
 
 | Axis | Budget | Now | Funnel |
 |---|---|---|---|
-| per-site field | 3 | ~7 edits, 4 files | `SitePosture` group; debt: a field registry for the model's constructor, `toJson`, `fromJson` |
+| per-site field | 3 | ~7 edits, 4 files; a save, a read or a QR decision left out fails to compile | `SiteField` + `SitePosture` group; debt: the model's constructor |
 | pref | 2 | 2 | `AppPref` |
 | capture kind | ~5 files | ~5 files | `CaptureKind` |
 | settings row | 1–3 lines | 1–3 | `SettingTile` / `ChoiceTile` |
 | page script | 3 | 3 (the file, a `PageJs` value, a sample in `test/js/helpers/page_js_samples.js`) | `PageJs` |
 | release | 3 | 3 (version, changelog, fixtures) | the `pubspec.yaml` version line; the changelog and fixture gates key off it ([docs/releasing.md](docs/releasing.md)) |
 | secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
+| await step in an engine | 1 (a `Step`) | 2 (the `Step`, its `ActivationStep`); the model's action and its proof case are printed, an input's own step (`Step.input`) included. Debt: the environment's actions (`Move`, `Login`, `ClearJar`, `ViewBuilt`, `ViewGone`, `Frame`) are hand-written in `activation.tla`; the DNS lists' prune, import and startup load write them outside `DnsBlockService.table`, and a headless check's attach takes no part in `ViewBlockers`; the plan's picks by the loaded-site cap and its cache clears are printed as any choice of evictable sites of the size the caps leave, so the code's recency order is one the model checks, not one it knows; a tab input on a site off screen (an activation inside the tab gate) and the LIR-024 reroute are listed in `steps_uncovered.tsv` | `StepTable`, the model and its proof cases printed from it |
+| flow in the model | its own checks and one per flow it shares a variable with | every activation-side flow in one `Next` of `activation.tla` | footprints ([formal/README.md](formal/README.md#composition-by-footprint)) |
 
 Flag for review before changing: persisted formats, the Dart to page-script bridge, any join above.
 
@@ -102,6 +131,10 @@ Health, monthly: `node tool/architecture_health.js` prints files per fix commit,
   it carries facts a reader can act on (what changed, what it means, what is
   still open), never a recap of the headings above it. Short answers get none.
 - Don't use the phrase "load-bearing".
+- **A PR body or a long answer is structured, not prose.** No paragraph over two lines
+  without a list, a table or a heading carrying it; a reviewer scans before reading.
+- **A run is green when its exit status says so.** The last visible test passing is not;
+  read the exit line before reporting a suite, a gate or a verify as passing.
 - Code first; explain only the non-obvious.
 - Default to **no code comments**. Only add when the *why* is non-obvious (hidden constraint, workaround for a specific bug, surprising behavior). Never restate what the code does. Never reference the current task or PR.
 - Commit messages: short subject (<70 chars, imperative), 1-2 line body for the *why* if needed. No marketing prose, no bullet lists of every changed file, no "this commit also...".
@@ -178,6 +211,12 @@ missing piece: [docs/releasing.md](docs/releasing.md).
   history nobody reviewed. Resolve conflicts commit by commit so the
   translation split below survives the replay.
 - Before pushing a branch, check it still exists on remote; if merged+deleted, branch fresh from master.
+- **A change under `formal/`, to a step table or to the printer is pushed only after
+  `./formal/verify.sh` passes locally.** CI runs it too, an hour later; a red push costs
+  everyone that hour.
+- **A long branch is re-cut into theme commits before review**, each one thing a reviewer
+  reads whole (walks and schedules; the model and its replay; tables and the printer; a bug
+  each), authors kept, translations still their own commit.
 - **Translations ride their own commit.** A change that adds or renames a user-facing
   string commits the code plus `lib/l10n/app_en.arb`; the other 66 `app_*.arb` files
   go in a second commit on top of it. A 67-file translation diff otherwise buries the
@@ -229,6 +268,13 @@ curl -fsSLO https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz
 tar zxf swiftly-$(uname -m).tar.gz
 ./swiftly init --quiet-shell-followup --assume-yes
 . "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
+
+# elan: only to run formal/verify.sh's Lean check (formal/lean/). Skip it if
+# `command -v lake` already prints a path. With no default toolchain,
+# formal/lean/lean-toolchain alone picks the Lean release, as .fvmrc picks
+# Flutter's. Without lake the step skips locally and fails with CI=true.
+curl -fsSL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+export PATH="$HOME/.elan/bin:$PATH"
 ```
 
 ## Commands
@@ -265,13 +311,13 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 - `WebViewModel` ([lib/web_view_model.dart](lib/web_view_model.dart)) — site with URL, cookies, per-site settings (language, incognito, proxy, etc.). Unique `siteId` keys cookie isolation.
 - `Webspace` ([lib/webspace_model.dart](lib/webspace_model.dart)) — named collection of site indices. `__all_webspace__` shows all.
 
-**Main** — [lib/main.dart](lib/main.dart) runs the startup steps and `runApp`; [lib/app.dart](lib/app.dart) is `WebSpaceApp` (root MaterialApp); [lib/screens/webspace_page.dart](lib/screens/webspace_page.dart) is `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, loaded positions, current site, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (startup, activation, shortcuts, archives, backup, webspaces, site editing, site resets, full screen, back gesture, surface repaint, background sites, app lifecycle, site network, tabs, links). Their dialogs are `Dialog*Prompts` in [lib/widgets/](lib/widgets/). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of webspace_page.dart; `lib/services` never imports a controller.
+**Main** — [lib/main.dart](lib/main.dart) runs the startup steps and `runApp`; [lib/app.dart](lib/app.dart) is `WebSpaceApp` (root MaterialApp); [lib/screens/webspace_page.dart](lib/screens/webspace_page.dart) is `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, the loaded sites and the one on screen, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (startup, activation, shortcuts, archives, backup, webspaces, site editing, site resets, full screen, back gesture, surface repaint, background sites, app lifecycle, site network, tabs, links). Their dialogs are `Dialog*Prompts` in [lib/widgets/](lib/widgets/). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of webspace_page.dart; `lib/services` never imports a controller.
 
-**Site-set changes** — every add, delete, move, edit, import, archive open/close goes through `_commitSites(SiteSetChange)` ([site_set_change.dart](lib/controllers/site_set_change.dart)). The sealed change's `effects` record (every field required) decides what follows it, and the funnel runs those steps in one fixed order, so a new kind of change does not compile until it answers each one.
+**Site-set changes** — every add, delete, move, edit, import, archive open/close goes through `SiteSetCommit.commit(SiteSetChange)` ([site_set_commit.dart](lib/controllers/site_set_commit.dart), [site_set_change.dart](lib/controllers/site_set_change.dart)). The sealed change's `effects` record (every field required) decides what follows it, and the funnel runs those steps in one fixed order, so a new kind of change does not compile until it answers each one.
 
 **Services** ([lib/services/](lib/services/)) — `cookie_secure_storage`, `html_cache_service` (AES, clears on upgrade), `icon_service`, `dns_block_service`, `webview` (CookieManager wrapper, WebViewTheme).
 
-**Cookie isolation — two engines, runtime-selected.** `SiteRuntime.useContainers` caches `await ContainerNative.instance.isSupported()` at startup and gates the path.
+**Cookie isolation — two engines, runtime-selected.** The restore decides once (`Isolation.probe`, [isolation.dart](lib/services/isolation.dart)) and sets `SiteRuntime.isolation`: `Containers` holds the container engine and cookie manager, `SharedJar` the legacy engine, so code that needs either takes it from a `switch` on the witness.
 
 - **Container engine** ([container_isolation_engine.dart](lib/services/container_isolation_engine.dart)) — Android System WebView reporting `MULTI_PROFILE` (runtime-detected, no published milestone version), iOS 17+, macOS 14+, Linux WPE WebKit 2.40+. Each `siteId` → native container `ws-<siteId>` (`androidx.webkit.Profile` / `WKWebsiteDataStore(forIdentifier:)` / `WebKitNetworkSession` cached under `<XDG_DATA_HOME>/flutter_inappwebview/containers/`) owning its cookies, localStorage, IDB, ServiceWorkers, HTTP cache. Same-base-domain sites load concurrently — no conflict-unload, no capture-nuke-restore. Bridge: [`ContainerNative`](lib/services/container_native.dart). Lifecycle ops route through fork's `inapp.ContainerController`; only the Android `MULTI_PROFILE` feature gate lives in [`WebSpaceContainerPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceContainerPlugin.kt). Bind happens in `InAppWebView.prepare()` / `preWKWebViewConfiguration` / Linux `webkit_web_view_set_property("network-session", ...)`, driven by stock `inapp.InAppWebViewSettings.containerId` set by `WebViewFactory.createWebView`. Spec: [openspec/specs/per-site-containers/spec.md](openspec/specs/per-site-containers/spec.md).
 - **Legacy engine** ([cookie_isolation.dart](lib/services/cookie_isolation.dart)) — Windows, web, anywhere `ContainerController.isClassSupported` is false. Sites with matching base domains can't load simultaneously; switching unloads the conflict and runs capture-nuke-restore on the shared cookie jar. Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
@@ -285,6 +331,8 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 ## Tests
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
+
+Random walks ([test/helpers/walk/](test/helpers/walk/)) drive the real engines with seeded action sequences landing between platform replies, as events do, plus noise that must change nothing it does not predict; each runs twice and must match itself, and a broken one shrinks to a list that pastes as a regression. CI runs fixed seeds; `WALK_SEED=n` reruns one, `WALK_SEEDS=k` explores. Within a bound the same world is enumerated whole: every schedule of replies and arrivals with at most two preemptions ([schedules.dart](test/helpers/walk/schedules.dart)), less those that only move a flow's own reply ahead of steps whose footprints share no variable with it (sleep sets; held to the full search on sample worlds, `SCHEDULE_REDUCTION=off` runs it), with each bug found kept as a named script ([activation_schedules_test.dart](test/activation_schedules_test.dart)). A change to state other features read adds its actions and invariants to a world there ([site_activation_walk_test.dart](test/site_activation_walk_test.dart)).
 
 ## Design (`tool/design_gallery/`)
 
@@ -312,6 +360,9 @@ A **recurring bug** is one whose symptom was fixed before and resurfaced through
 new code path (the fix was partial). When you hit one, do NOT just patch the new path
 silently — record it so the next person sees the whole lineage and the still-open gaps.
 
+- A bug fixed once at the code that owns it, or a flake in one test's fixture, is not
+  recurring: its gist, and any limit the fix leaves, goes in the doc comment of the test
+  that pins it, and the spec names that test. A file here is for a class.
 - One file per bug, numbered: `docs/bugs/NNN-<slug>.md` (e.g. `001-white-screen.md`).
   Number bugs sequentially; the number is the bug's stable ID (`BUG-NNN`), used in the
   file header. Reuse the existing file when the same bug recurs — never start a new one.
@@ -353,28 +404,103 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
   contract). Independent (leaf) specs share no state and compose for free — keep them OUT.
 - Cite requirement IDs (`PAUSE-018`, `ARCH-001`, …) on the actions/properties that encode
   them so spec ↔ model stays grep-able.
+- **`./formal/verify.sh` runs all of it** (`--fast`: the printed modules and `activation.tla`
+  only), and CI's `validate` job runs nothing else for `formal/`.
 - **Adding a spec that touches shared state → run the mix gate:** add its actions to `Next`
-  and its property to the `.cfg`, then `./formal/check.sh`. A counterexample means it does
+  and its property to the `.cfg`, then `./formal/verify.sh`. A counterexample means it does
   not mix; the trace names the breaking interleaving. Fix the design, not the model.
 - Standalone models (no shared kernel state) live beside the kernel: `archive.tla`
   (ARCH-001 byte-identity, a 2-safety hyperproperty via self-composition), `renderer.tla`
   (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion),
-  `kiosk.tla` (KIOSK-001/002/003 locked-shell sealing).
+  `kiosk.tla` (KIOSK-001/002/003 locked-shell sealing), `activation.tla` (a switch split
+  at its awaits, with memory pressure, row moves and the jar's turns between them).
 - Each model carries **negative** demonstrators (a mutation that MUST be caught) and
   **positive** reachability witnesses (a legal behavior that MUST be reachable) — run by
-  `./formal/check.sh`. `trace/` validates real `LogService` traces against the kernel's
+  `./formal/check.sh`, which `verify.sh` calls. `trace/` validates real `LogService` traces against the kernel's
   observable projection (the model↔code bridge).
 - `formal/proofs/` holds **unbounded TLAPS proofs** (machine-checked by `tlapm`): every
   kernel safety invariant *and* the surface-repaint liveness `RepaintLiveness` for all N,
-  not just TLC's N = 3. Run via `proofs/check_proofs.sh` (in the `validate` CI job).
+  not just TLC's N = 3. Run via `proofs/check_proofs.sh`.
+- `formal/lean/` (Lean 4, no Mathlib) proves when a check may be split, over any action well
+  formed over its footprint: `commute`, `frame_preserves`, `cone` (an invariant holds iff it
+  holds where only its cone runs) and `pairwise_unsound` (the footprint gate's pairs are
+  coverage, not soundness); over the printed `lean/Footprints.lean` it decides that every
+  invariant is checked in a world taking its whole cone. Never a build dependency: only
+  `verify.sh`'s LEAN step and CI's `validate` job use it. [formal/README.md](formal/README.md#what-a-footprint-licenses).
+- **An engine written as a step table is its own model.** A guard of a
+  [`StepTable`](lib/services/step_table.dart) is one tree that runs and prints; its leaves are
+  the model's variables, each declared once with how the engine reads it (`Var`) and takes a
+  new value (`Mutable`, `Indexed`; `.remote` where only a platform call reaches it), its sets
+  known by membership (`Members`), quantified and filtered over a `Bound` (`forAll`, `where`),
+  and the model's operators: a `Def` in the engine that owns its variables, run there and
+  printed (`activation_ops`), or called by name (`Expr.op`) elsewhere. A write is a `Write`
+  the runner applies (`Act.of`); what a call reads as it starts, for a write its reply
+  makes, the flow records as the call is issued (`Call.reads`, printed on the arm that enters
+  the place); a ghost the model keeps for an invariant is an assert in
+  the code (`ghost`); and after every step the runner asserts the frame the model prints as
+  `UNCHANGED`: a step changed only the variables its arm declares (`vars:`). The walks hold
+  that frame over every variable the code holds, not only the ones a table reads: each
+  stretch of code between two awaits is compared before and after and charged to its flow's
+  next mark, so a table that declares less than its code writes fails a schedule
+  (`FrameMistake`, planted in `activation_schedules_test.dart`). A field takes
+  only its own type, and a table answers every place in an exhaustive `switch`.
+  [lib/formal_model/main.dart](lib/formal_model/main.dart), a separate entry point as the
+  design app is, prints the tables' actions for `activation.tla` to extend
+  (`SiteUnloadEngine.unloadFlow`, with `CookieIsolationEngine`'s tables nested at the jar's
+  places), their TLAPS cases (`activation_tables_proof`, which `proofs/activation_turns.tla`
+  takes whole), and every engine's declared model as `models.json`; a new
+  engine's model is one entry in [models.dart](lib/formal_model/models.dart). Change the table, not the model;
+  a mistake in a table or a definition is a mutant there, a copy with the fault. The printed
+  modules are derivatives, written under `build/formal/`.
+- **What a step table holds to**, each line a mistake the replay or TLC caught once:
+  - **A step is one await.** A call that awaits twice (a capture: the webview's reply, then the
+    file write) is two steps, since a check between its awaits is invisible to a one-step model;
+    the walks fail a step that waited on several calls unless it names why that is safe
+    (`ActivationStep.severalAwaits`: the page's pauses, which write nothing the model holds).
+    A caller outside any table runs the same pieces in sequence (`captureStateBytes` over
+    `NavCapture`), never a second copy of the sequence.
+  - **A call reads at its start, the model writes at its reply.** What the write needs of the
+    state at the start is a flow field recorded as the call is issued (`Call.reads`), never an
+    expression over the reply's state.
+  - **A field a call receives reads as the reply within its step**, not as its value before.
+  - **An arm's effects read the state the step found**, so an effect over what another effect
+    of the same arm writes is given it (`TabVars.framed(site, loaded:)`: a preload's commit
+    loads the site its frame binds). Within one `Act.of` the runner reads every write's value
+    before any lands, as TLA+ reads a primed write's.
+  - **A variable the model keeps for a subset** (`Tabbed`) is read under that membership in every
+    guard, so an unfollowed site takes the outcome the code takes.
+  - **A step whose arms pick marks the pick** (`tab:`): two picks sharing one label make the model
+    ambiguous and the replay stalls there.
+  - **A call the platform can refuse has its refusal as an arm** (`Refused`, with the failure's
+    type as a `Refusal`): the model's alternative to the reply where a world lets it, never a
+    catch beside the table, which the model cannot see (ISO-014).
+  - **A mutant is the bug's shape**, one fact moved and the other left (the key at the reply,
+    the bytes from the start); a mutant TLC accepts is a consistent design alternative, not a
+    planted mistake, and says nothing.
+  - **TLC passing proves the model; only the replay proves it is the code's.** A change to a
+    table, a definition or the printer is not done until `check_steps.sh` passes.
+  - **A planted mistake is its own `Mutant`**, its tables a definition in `models.dart`,
+    never a flag on the production definition it mutates.
+  - **A check is stated apart from what it checks.** An assert or invariant that reads the
+    guard's own definition weakens with it, and a mutant of that definition goes uncaught
+    (`Inv_OneRoute` reads the proxy and Tor rules, not `RouteFree`).
+  - **A new step on a hot flow is measured.** It multiplies the interleavings: name the base
+    config's `Finished in` before and after in the PR (the two-step capture doubled it).
+- `trace/check_steps.sh` replays every step the code marks (`ActivationStep`) in every schedule
+  `test/activation_schedules_test.dart` runs, as a step of `activation.tla` ending in the state the
+  code was in; the model's `Outcomes` is printed from the enum, the walk fails on a platform call
+  no step declares, and each branch is taken or listed in `trace/steps_uncovered.tsv`. A new await
+  in those engines is a new `Step` of its table, which prints its action; the replay holds the
+  hand-written inputs and the tables' leaves to the code.
 - A bug's recurrence is also gated in **code**: structural Node tests under `test/js/`
   (`surface_repaint_funnel`, `renderer_gone_recovery`) fail CI if a new path skips the fix.
-- Don't commit `tla2tools.jar`, `states/`, `.tlacache/`, or generated `mc_*.tla` (derivatives).
+- Don't commit `tla2tools.jar`, `states/`, `.tlacache/`, generated `mc_*.tla`, or anything
+  under `build/formal/` (derivatives).
 - Full method + the new-spec workflow: [formal/README.md](formal/README.md).
 
 ## OpenSpec features
 
-Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the relevant spec before modifying a feature.** A slug marked *(change)* is still in flight: its requirements live at `openspec/changes/<change>/specs/<slug>/spec.md`, where the change is not always named after the capability (`tor-proxy` sits in `add-ios-tor-proxy`) and more than one change can hold a slice of it, so grep the requirement id when the obvious path is absent. Slugs:
+Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the relevant spec before modifying a feature.** **Every requirement is named by the check that verifies it** (its id in a test's name, a model's action or an assert's message), or listed in [openspec/unverified.tsv](openspec/unverified.tsv) with why not yet; [test/js/spec_verification.test.js](test/js/spec_verification.test.js) fails on neither, on a listed one a check now names, and on an id two requirements share. `node tool/spec_map.js` prints which checks name each requirement, strongest first. A slug marked *(change)* is still in flight: its requirements live at `openspec/changes/<change>/specs/<slug>/spec.md`, where the change is not always named after the capability (`tor-proxy` sits in `add-ios-tor-proxy`) and more than one change can hold a slice of it, so grep the requirement id when the obvious path is absent. Slugs:
 
 | Slug | One-liner (when not obvious) |
 |------|------|
@@ -532,8 +658,8 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
 
 - Add the key + a non-empty `description` (and `placeholders` for interpolation) to [lib/l10n/app_en.arb](lib/l10n/app_en.arb). Reference it via `AppLocalizations.of(context).<key>`.
 - **Commit the 66 translated ARBs separately from the code** (see Git above): code + `app_en.arb` first, translations second, pushed together.
-- The ARB files ship as assets and the app reads the active locale's at run time (LOC-012); only the typed `AppLocalizations` API is generated, into `lib/l10n/gen/`, which is **gitignored**. `tool/gen_l10n.dart` writes it and fails on an ARB that does not parse; Gradle, Xcode and CMake run it before compiling Dart, and `flutter test`, `flutter analyze` and a web build need `fvm dart tool/gen_l10n.dart` after `pub get`. Don't commit its output.
-- Pure-data display (e.g. `host:port`) goes into a local variable first; never a string literal inside `Text(`/`tooltip:` etc., or the LOC-002 guard fails.
+- The ARB files ship as assets and the app reads the active locale's at run time (L10N-012); only the typed `AppLocalizations` API is generated, into `lib/l10n/gen/`, which is **gitignored**. `tool/gen_l10n.dart` writes it and fails on an ARB that does not parse; Gradle, Xcode and CMake run it before compiling Dart, and `flutter test`, `flutter analyze` and a web build need `fvm dart tool/gen_l10n.dart` after `pub get`. Don't commit its output.
+- Pure-data display (e.g. `host:port`) goes into a local variable first; never a string literal inside `Text(`/`tooltip:` etc., or the L10N-002 guard fails.
 - [test/js/l10n_no_hardcoded_text.test.js](test/js/l10n_no_hardcoded_text.test.js) and [design_tokens_no_literals](test/js/design_tokens_no_literals.test.js) scan `lib/main.dart`, `lib/app.dart` and every file under `lib/{screens,widgets}`, so a new UI file there needs no edit. Each keeps a shrinking exemption list: drop a file from it once converted.
 - Every key MUST carry a non-empty `description` (enforced by [test/js/l10n_coverage.test.js](test/js/l10n_coverage.test.js)) — that description is the context a translator/general model uses, so write it for someone who can't see the screen.
 - To add a locale: hand `app_en.arb` (values + descriptions) to any general-purpose model, ask it to translate the values keeping `{placeholder}` tokens verbatim, save as `app_<locale>.arb`. No committed script or API key. Coverage (key + placeholder parity, no empties) is enforced by [test/js/l10n_coverage.test.js](test/js/l10n_coverage.test.js).
@@ -579,10 +705,10 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 - **Polyfill**: JS `Notification` constructor + `requestPermission()` are polyfilled at `DOCUMENT_START` (`ShimFrames.all`); calls bridge to `NotificationService` via `addJavaScriptHandler('webNotification', ...)`.
 - **No per-instance pause**: `WebViewModel.pauseWebView()` early-returns for notification sites — iOS's `pauseTimers()` alert hack would freeze the JS thread between site switches and queue setTimeouts into one burst on resume.
 - **No app-background JS pause while one is loaded** (NOTIF-011): Android's `pauseTimers()` is process-global, so any loaded notification site vetoes it, not only an active one.
-- **Auto-load + retention priority**: notification sites are added to `SiteRuntime.loaded` on startup and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
+- **Auto-load + retention priority**: notification sites load at launch once the launched site's first load settles (at most `kLaunchLoadWait`), each as a preload (an activation that does not show, NOTIF-017), and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
 - **iOS background contract** (NOTIF-005-I): `BackgroundTaskService` calls `UIApplication.beginBackgroundTask` on app-pause for a ~30s grace window and registers a `BGAppRefreshTask` (`org.codeberg.theoden8.webspace.notification-refresh`) that reloads notif sites opportunistically. Native bridge: [`ios/Runner/BackgroundTaskPlugin.swift`](ios/Runner/BackgroundTaskPlugin.swift).
 - **A wake ends when its pages have loaded** (NOTIF-013): returning from `onBackgroundRefresh` completes the OS task, so `BackgroundSitesController.wake` awaits `BackgroundWakeEngine`, which waits for the reloads to settle. A reload shows what arrived but a site need not notify for it, so a site that stayed silent while its title's unread count rose gets one post on its behalf (NOTIF-014). iOS has no way to run a page between wakes: no foreground service, no Web Push in WKWebView apps, and keep-awake tricks fail App Store review.
-- **A wake checks every notification site** (NOTIF-016), not only loaded ones with a webview: in a process the OS launched for the wake there is no webview at all. `BackgroundWakeEngine.plan` decides from `wakeCandidateFor` (live: reload; else `WebViewFactory.openHeadlessCheck` with `WebViewModel.headlessCheckConfig`, which takes the site's `SitePosture` as `getWebView` does and the host hooks `unattended()`; else skip with a `WakeSkip` reason). Lineage: [BUG-024](docs/bugs/024-background-notifications-never-arrive.md).
+- **A wake checks every notification site** (NOTIF-016), not only loaded ones with a webview: in a process the OS launched for the wake there is no webview at all. `BackgroundWakeEngine.plan` decides from `wakeCandidateFor` (live: reload; else `WebViewFactory.openHeadlessCheck` with `WebViewModel.headlessCheckConfig`, which takes the site's `SitePosture` as `getWebView` does and the host hooks `unattended()`; else skip with a `WakeSkip` reason). Each headless check asks the activation's `RouteFree` as it opens and waits out an activation in flight; the wake runs from a step table `activation.tla` takes whole. Lineage: [BUG-024](docs/bugs/024-background-notifications-never-arrive.md), [BUG-037](docs/bugs/037-background-load-on-another-route.md).
 - **Android background contract** (NOTIF-005-A): same `BackgroundTaskService` — Android side uses `WorkManager` `PeriodicWorkRequest` (15-min minimum, 15-min initial delay so the first period is not due at enqueue time, unique-work `webspace-notification-refresh`) and no foreground service: apps that notify from the background are woken by a push channel rather than staying resident, and `FOREGROUND_SERVICE_SPECIAL_USE` is intractable for Play review. A keep-alive `specialUse` service was built and withdrawn for this reason: a foreground service for notifications is off limits (NOTIF-015, gated by `test/js/notification_no_foreground_service.test.js`). When no Flutter engine is reachable the worker starts one with no activity (`WorkerFlutterEngine`, plugins from `EnginePlugins`, `main` told by `--background-wake` to build no site webview), waits for Dart's `backgroundRefreshReady`, and destroys it after; `MainActivity.provideFlutterEngine` stops it first if the app is opened. Native bridge: [`android/app/src/main/kotlin/.../BackgroundTaskAndroidPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundTaskAndroidPlugin.kt) + [`NotificationRefreshWorker.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/NotificationRefreshWorker.kt). One-time background-limits info dialog shows on first toggle on either platform. The CI lifecycle tier runs the worker through `NotificationRefreshDebugReceiver` (`android/app/src/debug/`, debug builds only) — `cmd jobscheduler run -f` cannot drive periodic work, since WorkManager refuses a `WorkSpec` executed before its next run time.
 - **Test delivery the way sites deliver** (NOTIF-012): a fixture that posts on page load proves only that a reload happened. Scenario P in the lifecycle tier serves a page whose unread count lives on the server and which posts only when the server sends it something; it checks the live path with the site behind a plain one, then records a message while the app sits in the background past the freezer, drives the wake, and requires the wake's fallback post.
 
@@ -612,7 +738,9 @@ outbound link cannot drop the site's posture. Spec: NESTED-010; history:
 
 When you add a per-site field:
 
-1. `WebViewModel.toJson`/`fromJson`.
+1. A `SiteField` case ([lib/settings/site_field.dart](lib/settings/site_field.dart):
+   its key, any older keys, whether a QR carries it) and its arms in the save
+   and read switches of [web_view_model_json.dart](lib/web_view_model_json.dart).
 2. A field in the matching `SitePosture` group, resolved in
    `WebViewModel.sitePosture` ([lib/web_view_model.dart](lib/web_view_model.dart)).
    An archive-tier or Tracking Protection override is applied there, through
@@ -639,7 +767,7 @@ If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., 
 
 Orchestration (which sites unload on switch, how indices shift after delete, what cookies move during activation) → pure-Dart engine in `lib/services/*_engine.dart`. Template: [cookie_isolation.dart](lib/services/cookie_isolation.dart). Native webview / platform channels / `setState` stays at the call site.
 
-- Mutating `SiteRuntime`'s models, loaded positions or webspaces with >1 line of index arithmetic? Engine.
+- Mutating `SiteRuntime`'s models, loaded sites or webspaces with >1 line of index arithmetic? Engine.
 - Which loaded sites go, and why? A `ResidencyEvent` case in `SiteUnloadEngine.plan` ([site_unload_engine.dart](lib/services/site_unload_engine.dart)), run by `SiteUnloadEngine.apply`; every eviction picks through `evictionOrder`. Never unload from a loop at a call site.
 - `await native_call` then mutate shared state with scenario-dependent logic? Engine.
 - Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
@@ -682,7 +810,7 @@ observe:
 
 ## DRY: tests delegate, don't reimplement
 
-Test harness re-implementing `switchToSite`/`deleteSite` = un-extracted engine. Wrap the real engine; never re-write the flow in a test. See `CookieIsolationTestHarness` in [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart), whose deletion goes through `SiteListState` ([test/helpers/site_list_state.dart](test/helpers/site_list_state.dart)) and so through `SiteLifecycleEngine`.
+Test harness re-implementing `switchToSite`/`deleteSite` = un-extracted engine. Wrap the real engine; never re-write the flow in a test. See `CookieIsolationTestHarness` in [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart), whose site list is `SiteListState` ([test/helpers/site_list_state.dart](test/helpers/site_list_state.dart)), the production `SiteRuntime`.
 
 ## Code flows new → stable
 
@@ -694,5 +822,6 @@ Async UI handlers (button callbacks, `onPopInvokedWithResult`, gestures) get re-
 
 - **Rapid input**: a handler that `await`s before acting can be entered twice concurrently.
 - **Guard**: a [`ReentryGuard`](lib/services/reentry_guard.dart) field, `await _guard.run(() async {...})`; `run` owns the `finally`, so no exit path leaves it held.
+- **Waiting, not dropping**: a `SerialQueue` named for its lock class. It is not re-entrant: a step that runs inside the turn is a `...Held` function asserting `queue.isHeld`, never a second `run` (which `LockOrder` refuses as a self-wait), and work queued behind the turn is `enqueue`. A recursive mutex is no fix in Dart: a hold is a zone, and work the holder left running would get back in mid-change.
 - **State across awaits**: re-check `mounted`, indices, shared state — another handler may have mutated.
 - **Drawer/dialog flash**: opening UI in an unguarded async callback lets a second tap close it immediately.

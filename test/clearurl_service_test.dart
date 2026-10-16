@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/clearurl_service.dart';
+
+import 'helpers/fake_path_provider.dart';
 
 void main() {
   group('ClearUrlService', () {
@@ -48,7 +53,7 @@ void main() {
         expect(result, equals('https://www.google.com/search?q=test'));
       });
 
-      test('strips multiple tracking parameters', () {
+      test('strips multiple tracking parameters (CURL-003)', () {
         final result = service.cleanUrl(
           'https://www.google.com/search?q=test&utm_source=newsletter&utm_medium=email&utm_campaign=summer',
         );
@@ -96,7 +101,7 @@ void main() {
         });
       });
 
-      test('skips cleaning for exception URLs', () {
+      test('skips cleaning for exception URLs (CURL-007)', () {
         final url = 'https://example.com/keep?utm_source=test';
         expect(service.cleanUrl(url), equals(url));
       });
@@ -125,7 +130,7 @@ void main() {
         });
       });
 
-      test('returns empty string for blocked providers', () {
+      test('returns empty string for blocked providers (CURL-006)', () {
         expect(service.cleanUrl('https://tracker.com/pixel'), equals(''));
       });
 
@@ -151,7 +156,7 @@ void main() {
         });
       });
 
-      test('extracts redirect target from URL', () {
+      test('extracts redirect target from URL (CURL-005)', () {
         final result = service.cleanUrl(
           'https://redirect.example.com/go?url=https%3A%2F%2Ftarget.com%2Fpage&tracking=123',
         );
@@ -194,7 +199,7 @@ void main() {
         });
       });
 
-      test('applies rawRules regex replacement', () {
+      test('applies rawRules regex replacement (CURL-004)', () {
         final result = service.cleanUrl(
           'https://example.com/page#tracking-abc',
         );
@@ -344,6 +349,47 @@ void main() {
       });
     });
 
+    // A cleaned URL is navigated to and comes back through the same check,
+    // so a second pass that changed it again would loop.
+    group('idempotence (CURL-009)', () {
+      setUp(() {
+        service.loadRulesFromJson({
+          'providers': {
+            'mixed': {
+              'urlPattern': r'(example\.com|redirect\.example\.com)',
+              'completeProvider': false,
+              'rules': [r'^utm_[a-z]+$', r'^fbclid$', r'^ref$'],
+              'rawRules': [r'#tracking-[a-z]+'],
+              'exceptions': [],
+              'redirections': [r'redirect\.example\.com.*[?&]url=([^&]+)'],
+            },
+          },
+        });
+      });
+
+      test('a repeated key keeps every value when a tracker goes', () {
+        expect(
+            service.cleanUrl('https://example.com/p?tag=a&tag=b&utm_source=x'),
+            'https://example.com/p?tag=a&tag=b');
+      });
+
+      test('a cleaned URL cleans to itself', () {
+        for (final url in const [
+          'https://example.com/page?q=test&utm_source=a&utm_medium=b',
+          'https://example.com/page?utm_source=a&q=test&fbclid=x&ref=y',
+          'https://example.com/page?q=test#tracking-abc',
+          'https://example.com/a/b?x=1&x=2&utm_campaign=c',
+          'https://example.com/?utm_source=only',
+          'https://redirect.example.com/go?url=https%3A%2F%2Fexample.com%2Fp%3Futm_source%3Da%26q%3D1',
+          'https://www.google.com/url?q=https%3A%2F%2Fexample.com%2Fp%3Fref%3Dz&sa=D',
+          'https://other.test/page?utm_source=a',
+        ]) {
+          final once = service.cleanUrl(url);
+          expect(service.cleanUrl(once), once, reason: url);
+        }
+      });
+    });
+
     group('built-in redirector providers', () {
       // The built-in providers ship with the service even when the
       // downloaded ClearURLs catalog is empty, missing, or
@@ -454,6 +500,47 @@ void main() {
             cleaned: ''),
         isEmpty,
       );
+    });
+  });
+
+  // What a launch reads: the rules the last download left, with no network.
+  group('rules on disk at launch (CURL-002)', () {
+    late Directory docs;
+
+    setUp(() async {
+      docs = await Directory.systemTemp.createTemp('clearurl_rules');
+      useFakePathProvider(docs);
+      ClearUrlService.instance.resetForTest();
+    });
+    tearDown(() async {
+      ClearUrlService.instance.resetForTest();
+      await docs.delete(recursive: true);
+    });
+
+    test('a launch with the file cleans at once', () async {
+      await File('${docs.path}/clearurl_rules.json').writeAsString(jsonEncode({
+        'providers': {
+          'cached': {
+            'urlPattern': r'example\.com',
+            'completeProvider': false,
+            'rules': [r'^utm_source$'],
+            'rawRules': [],
+            'exceptions': [],
+            'redirections': [],
+          },
+        },
+      }));
+      await ClearUrlService.instance.initialize();
+      expect(
+          ClearUrlService.instance.cleanUrl('https://example.com/p?utm_source=a'),
+          'https://example.com/p');
+    });
+
+    test('a first launch with no file passes URLs through', () async {
+      await ClearUrlService.instance.initialize();
+      expect(ClearUrlService.instance.hasRules, isFalse);
+      const url = 'https://example.com/p?utm_source=a';
+      expect(ClearUrlService.instance.cleanUrl(url), url);
     });
   });
 }

@@ -15,8 +15,6 @@ import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
 import 'package:webspace/services/worker_shim.dart';
-import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -288,13 +286,14 @@ abstract final class PageScripts {
 
   /// WebKit's sub-resource accounting and blocking, which Android does
   /// natively. The observer runs whether or not a list is loaded, since the
-  /// per-site log reflects the visit rather than the blockers.
+  /// per-site log reflects the visit rather than the blockers. The
+  /// interceptor goes in whenever the site asks for a blocker, data or not:
+  /// a list that lands later reaches it through its bloom, where one left
+  /// out at build would leave the view unblocked for its life.
   static List<inapp.UserScript> _blockInterceptorShims(WebViewConfig config) {
     if (hostIsAndroid) return const [];
-    final blocks = (config.effectiveDnsLevel > kDnsLevelOff &&
-            DnsBlockService.instance.hasBlocklist) ||
-        (config.posture.blocking.contentBlock &&
-            ContentBlockerService.instance.hasRules);
+    final blocks =
+        config.posture.blocking.dns || config.posture.blocking.contentBlock;
     return [
       pageShim('block_resource_observer', js: PageJs.blockResourceObserver.script,
           frames: ShimFrames.all),

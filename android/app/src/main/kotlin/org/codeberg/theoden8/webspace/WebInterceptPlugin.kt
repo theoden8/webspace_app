@@ -1,6 +1,5 @@
 package org.codeberg.theoden8.webspace
 
-import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceResponse
@@ -22,12 +21,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.PatternSyntaxException
 
 /**
- * [activity] is null in an engine the notification worker started with no
- * activity (NOTIF-016): there the only webviews are headless ones, which the
- * flutter_inappwebview plugin holds outside any view tree.
+ * Each webview is found by its own handle, a platform view id or a headless
+ * id, never in the activity's view tree: an engine the notification worker
+ * started has no activity (NOTIF-016), and a view joins the tree only after
+ * Dart hears of it.
  */
 class WebInterceptPlugin(
-    private val activity: Activity?,
     private val flutterEngine: FlutterEngine,
 ) {
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -66,10 +65,10 @@ class WebInterceptPlugin(
                         // request thread fail-closed-waits in awaitReady; the
                         // first sub-resource request is seconds out, so the
                         // worker always wins.
-                        dnsBlocklist.beginBuild()
+                        val build = dnsBlocklist.beginBuild()
                         Thread {
                             val t0 = System.nanoTime()
-                            dnsBlocklist.replaceFromBlob(blob)
+                            build.complete(blob)
                             val buildMs = (System.nanoTime() - t0) / 1_000_000
                             log("WebIntercept",
                                 "setDnsBlockedDomains: native build ${buildMs}ms " +
@@ -148,28 +147,18 @@ class WebInterceptPlugin(
                         result.error("INVALID_ARGS", "index map required", null)
                     }
                 }
-                "attachToWebViews" -> {
-                    val siteId = call.argument<String>("siteId")
-                    val dnsLevel = call.argument<Int>("dnsLevel")
-                    val localCdn = call.argument<Boolean>("localCdn")
-                    val count = attachToAllWebViews(siteId, dnsLevel, localCdn)
-                    result.success(count)
+                "attachToWebViews" -> result.success(refreshAttached())
+                "attachToView" -> {
+                    // Dart holds the view's first load until this replies, so
+                    // its first document's sub-resources meet the site's
+                    // blockers: the view is found by its platform view id,
+                    // as soon as it exists and whether or not it is on screen.
+                    val webView = call.argument<Int>("viewId")?.let { platformWebView(it) }
+                    result.success(attachTo(webView, call))
                 }
                 "attachToHeadless" -> {
-                    val headlessId = call.argument<String>("headlessId")
-                    val siteId = call.argument<String>("siteId")
-                    val dnsLevel = call.argument<Int>("dnsLevel")
-                    val localCdn = call.argument<Boolean>("localCdn")
-                    val webView = headlessId?.let { headlessWebView(it) }
-                    if (webView == null || siteId == null) {
-                        result.success(false)
-                    } else {
-                        if (dnsLevel != null) siteDnsLevel[siteId] = dnsLevel
-                        if (localCdn != null) siteLocalCdn[siteId] = localCdn
-                        siteIdMap[webView] = siteId
-                        attachInterceptor(webView, siteId)
-                        result.success(true)
-                    }
+                    val webView = call.argument<String>("headlessId")?.let { headlessWebView(it) }
+                    result.success(attachTo(webView, call))
                 }
                 "fetchBlockEvents" -> drain(call, result) { siteId ->
                     blockEvents.take(siteId).map { (event, count) -> event.toChannel(count) }
@@ -215,64 +204,66 @@ class WebInterceptPlugin(
         }
     }
 
-    private fun attachToAllWebViews(
-        newSiteId: String?,
-        dnsLevel: Int? = null,
-        localCdn: Boolean? = null
-    ): Int {
-        if (newSiteId != null && dnsLevel != null) siteDnsLevel[newSiteId] = dnsLevel
-        if (newSiteId != null && localCdn != null) siteLocalCdn[newSiteId] = localCdn
-        val webViews = collectWebViews()
-        val alreadyAttached = webViews.count {
-            it.contentBlockerHandler is FastSubresourceInterceptor
-        }
-        log("WebIntercept",
-            "attachToAllWebViews(newSiteId=$newSiteId): " +
-            "found=${webViews.size} alreadyAttached=$alreadyAttached " +
-            "willAttach=${webViews.size - alreadyAttached}")
-
-        // PlatformView attachment race: onWebViewCreated fires on the
-        // Dart side BEFORE the native android.view.WebView has been
-        // added to the activity's view tree (Flutter's hybrid composition
-        // path materialises the platform view asynchronously). When we
-        // get called too early, decorView traversal finds zero views
-        // and we silently no-op — and the new site loads its first
-        // resources without an interceptor attached. Schedule retries
-        // with exponential backoff until we actually find something.
-        if (webViews.isEmpty() && newSiteId != null) {
-            scheduleAttachRetry(newSiteId, attempt = 1)
-        }
-
-        // Prune `siteIdMap` of entries whose webview is no longer in the
-        // activity tree. Without this the map retains hard refs to disposed
-        // InAppWebView instances forever, which keeps their native peer
-        // alive past the point chromium thinks it's gone — exactly the
-        // kind of lifetime mismatch that surfaces as a dangling raw_ptr
-        // crash on the IO thread.
-        if (siteIdMap.isNotEmpty()) {
-            val live = HashSet<InAppWebView>(webViews)
-            val it = siteIdMap.keys.iterator()
-            while (it.hasNext()) {
-                if (!live.contains(it.next())) it.remove()
-            }
-        }
-
-        for (webView in webViews) {
-            val existing = webView.contentBlockerHandler as? FastSubresourceInterceptor
-            if (existing == null && newSiteId != null) {
-                siteIdMap[webView] = newSiteId
-            }
-            val siteId = siteIdMap[webView] ?: "unknown"
-            if (existing != null) {
-                // Already attached: the settings edit only moves the level.
-                // The host cache holds masks, not decisions, so it survives.
-                existing.dnsLevel = levelFor(siteId)
-                existing.localCdnEnabled = localCdnFor(siteId)
-                continue
-            }
+    /// Attaches the interceptor to [webView] for the site [call] names, at
+    /// the level and LocalCDN setting it names, and to that view alone: a
+    /// view is labelled only by its own attach, so a site's sub-resources
+    /// never run at another's level or count against another's report.
+    private fun attachTo(webView: InAppWebView?, call: MethodCall): Boolean {
+        val siteId = call.argument<String>("siteId")
+        if (webView == null || siteId == null) return false
+        pruneDisposed()
+        call.argument<Int>("dnsLevel")?.let { siteDnsLevel[siteId] = it }
+        call.argument<Boolean>("localCdn")?.let { siteLocalCdn[siteId] = it }
+        call.argument<Boolean>("contentBlock")?.let { siteContentBlock[siteId] = it }
+        siteIdMap[webView] = siteId
+        val existing = webView.contentBlockerHandler as? FastSubresourceInterceptor
+        if (existing != null) {
+            existing.dnsLevel = levelFor(siteId)
+            existing.localCdnEnabled = localCdnFor(siteId)
+            existing.abpEnabled = contentBlockFor(siteId)
+        } else {
             attachInterceptor(webView, siteId)
         }
-        return webViews.size
+        return true
+    }
+
+    /// Re-reads each attached view's site settings into its interceptor, after
+    /// a dataset or setting changed. Returns how many views are attached.
+    /// Walks the views attached, not the view tree, which an offstage one
+    /// may not be in.
+    private fun refreshAttached(): Int {
+        pruneDisposed()
+        for ((webView, siteId) in siteIdMap) {
+            val interceptor = webView.contentBlockerHandler as? FastSubresourceInterceptor ?: continue
+            interceptor.dnsLevel = levelFor(siteId)
+            interceptor.localCdnEnabled = localCdnFor(siteId)
+            interceptor.abpEnabled = contentBlockFor(siteId)
+        }
+        log("WebIntercept", "refreshAttached: attached=${siteIdMap.size}")
+        return siteIdMap.size
+    }
+
+    /// Drops the views the plugin has disposed (it clears their `plugin`).
+    /// Without this the map retains hard refs to disposed InAppWebView
+    /// instances, which keeps their native peer alive past the point
+    /// chromium thinks it's gone — exactly the kind of lifetime mismatch
+    /// that surfaces as a dangling raw_ptr crash on the IO thread.
+    private fun pruneDisposed() {
+        val it = siteIdMap.keys.iterator()
+        while (it.hasNext()) {
+            if (it.next().plugin == null) it.remove()
+        }
+    }
+
+    /// The webview behind platform view [viewId], found by id rather than in
+    /// the view tree, which a view joins only after Dart hears of it and an
+    /// offstage one may not join at all.
+    private fun platformWebView(viewId: Int): InAppWebView? {
+        val view = flutterEngine.platformViewsControllerDelegator
+            .getPlatformViewById(viewId) ?: return null
+        val found = mutableListOf<InAppWebView>()
+        findInAppWebViews(view, found)
+        return found.firstOrNull()
     }
 
     /// A site's own level, remembered across re-attach so a call that names
@@ -285,20 +276,25 @@ class WebInterceptPlugin(
     /// Unknown sites keep the pre-per-site behaviour: serve the cache.
     private fun localCdnFor(siteId: String) = siteLocalCdn[siteId] ?: true
 
+    /// Unknown sites fail closed: the filter lists judge them.
+    private fun contentBlockFor(siteId: String) = siteContentBlock[siteId] ?: true
+
     private fun attachInterceptor(webView: InAppWebView, siteId: String) {
         val level = levelFor(siteId)
         val cdn = localCdnFor(siteId)
+        val abp = contentBlockFor(siteId)
         webView.contentBlockerHandler = FastSubresourceInterceptor(
             dnsBlocklist = dnsBlocklist,
             dnsLevel = level,
             localCdnEnabled = cdn,
+            abpEnabled = abp,
             cdnTables = cdnTables,
             onBlockChecked = { blockEvents.record(siteId, it) },
             onCdnReplaced = { cdnEvents.record(siteId, it) },
             onLog = { tag, message -> log(tag, message) }
         )
         log("WebIntercept",
-            "Attached interceptor: siteId=$siteId dnsLevel=$level localCdn=$cdn " +
+            "Attached interceptor: siteId=$siteId dnsLevel=$level localCdn=$cdn abp=$abp " +
             "dns=${dnsBlocklist.size} " +
             "cdnPatterns=${cdnTables.patterns.size} " +
             "cdnCache=${cdnTables.index.size}")
@@ -312,21 +308,9 @@ class WebInterceptPlugin(
         inAppWebViewPlugin()?.headlessInAppWebViewManager?.webViews?.get(id)
             ?.flutterWebView?.webView
 
-    /// Every webview this engine runs: those in the activity's view tree,
-    /// and the headless ones, which are in no tree while no activity is.
-    private fun collectWebViews(): MutableList<InAppWebView> {
-        val webViews = mutableListOf<InAppWebView>()
-        activity?.window?.decorView?.rootView?.let { findInAppWebViews(it, webViews) }
-        val headless = inAppWebViewPlugin()?.headlessInAppWebViewManager?.webViews?.values
-        if (headless != null) {
-            for (h in headless) {
-                val w = h?.flutterWebView?.webView ?: continue
-                if (w !in webViews) webViews.add(w)
-            }
-        }
-        return webViews
-    }
-
+    /// Every attached webview, by the site it was attached for: a view joins
+    /// only through its own attach and leaves when the plugin disposes it.
+    /// Main thread only.
     private val siteIdMap = HashMap<InAppWebView, String>()
 
     /// Last DNS severity level Dart reported for each site. Read on every
@@ -338,38 +322,9 @@ class WebInterceptPlugin(
     /// attach like [siteDnsLevel]. Main thread only.
     private val siteLocalCdn = HashMap<String, Boolean>()
 
-    /// Exponential backoff: 50, 100, 200, 400, 800 ms. The platform-
-    /// view materialisation lag is usually 1-2 frames; this gives us
-    /// up to ~1.5s before we give up. If we still find nothing the
-    /// site simply doesn't have a visible webview (e.g. lazy-loaded
-    /// site in IndexedStack waiting for first navigation) and the
-    /// next `attachToWebViews` call from Dart at navigation time
-    /// will pick it up cleanly.
-    private val attachRetryDelaysMs = intArrayOf(50, 100, 200, 400, 800)
-
-    private fun scheduleAttachRetry(siteId: String, attempt: Int) {
-        if (attempt > attachRetryDelaysMs.size) {
-            log("WebIntercept",
-                "attachToAllWebViews retries exhausted for siteId=$siteId — " +
-                "webview not yet in tree, will reattach on next navigation")
-            return
-        }
-        val delayMs = attachRetryDelaysMs[attempt - 1].toLong()
-        mainHandler.postDelayed({
-            val webViews = collectWebViews()
-            if (webViews.isEmpty()) {
-                log("WebIntercept",
-                    "attach retry $attempt for siteId=$siteId: still found=0, " +
-                    "will retry in ${if (attempt < attachRetryDelaysMs.size)
-                        attachRetryDelaysMs[attempt] else "—"}ms")
-                scheduleAttachRetry(siteId, attempt + 1)
-                return@postDelayed
-            }
-            log("WebIntercept",
-                "attach retry $attempt for siteId=$siteId: found=${webViews.size}, attaching")
-            attachToAllWebViews(siteId)
-        }, delayMs)
-    }
+    /// Last per-site content-blocker decision Dart reported (CB-006), read on
+    /// every attach like [siteDnsLevel]. Main thread only.
+    private val siteContentBlock = HashMap<String, Boolean>()
 
     private fun findInAppWebViews(view: View, results: MutableList<InAppWebView>) {
         if (view is InAppWebView) {
@@ -390,9 +345,9 @@ class WebInterceptPlugin(
     /// `dnsBlocklist` swaps in the new set so the interceptor sees the
     /// new contents on the next cache miss; this call ensures there IS a miss.
     private fun clearAllHostDecisionCaches() {
-        val webViews = collectWebViews()
+        pruneDisposed()
         var cleared = 0
-        for (webView in webViews) {
+        for (webView in siteIdMap.keys) {
             (webView.contentBlockerHandler as? FastSubresourceInterceptor)?.let {
                 it.clearHostDecisionCache()
                 cleared++
@@ -477,6 +432,7 @@ class FastSubresourceInterceptor(
     private val dnsBlocklist: DnsHostBlocklist,
     dnsLevel: Int = DnsHostBlocklist.MAX_LEVEL,
     localCdnEnabled: Boolean = true,
+    abpEnabled: Boolean = true,
     private val cdnTables: LocalCdnTables,
     private val onBlockChecked: (BlockEvent) -> Unit,
     private val onCdnReplaced: (CdnEvent) -> Unit,
@@ -495,6 +451,13 @@ class FastSubresourceInterceptor(
     /// (LCDN-007). Volatile for the same reason as [dnsLevel].
     @Volatile
     var localCdnEnabled: Boolean = localCdnEnabled
+
+    /// Whether this site's sub-resources meet the filter lists (CB-006). The
+    /// engine is app-wide, so this is the only thing that keeps a site with
+    /// its content blocker off from being judged by it. Volatile for the same
+    /// reason as [dnsLevel].
+    @Volatile
+    var abpEnabled: Boolean = abpEnabled
 
     private val checkCount = AtomicInteger()
 
@@ -588,7 +551,7 @@ class FastSubresourceInterceptor(
         // user-curated host blocklist. Engine decisions are not cached
         // in `hostDecision` because the answer depends on the URL +
         // sourceUrl + requestType, not just the host.
-        if (decision == Decision.ALLOWED && AdblockEngineNative.active) {
+        if (decision == Decision.ALLOWED && abpEnabled && AdblockEngineNative.active) {
             // shouldInterceptRequest runs on chromium's IO thread, so
             // we CANNOT call webView.getUrl() here — WebView methods
             // are main-thread-only and StrictMode flags the violation.

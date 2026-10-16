@@ -3,6 +3,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/settings/site_ids.dart';
 
+import 'package:webspace/controllers/startup_controller.dart' show Launched, Reached;
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -24,6 +25,7 @@ import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart'
     show
         DispatchChoice,
@@ -36,6 +38,7 @@ import 'package:webspace/widgets/external_url_prompt.dart'
 import 'package:webspace/widgets/url_bar.dart' show UrlBarSearchSite;
 import 'package:webspace/widgets/web_search_sheet.dart' show WebSearchRequest;
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/step_table.dart';
 
 /// What the web search sheet is asked (LIR-029).
 typedef WebSearchAsk = ({
@@ -82,7 +85,7 @@ abstract interface class LinkPrompts {
 abstract interface class LinkHost implements PageHost {
   bool get kioskLocked;
 
-  Future<void> activate(int index);
+  Future<void> activate(WebViewModel site);
 
   Future<void> saveCurrentIndex();
 
@@ -91,7 +94,7 @@ abstract interface class LinkHost implements PageHost {
 
   /// WEBSPACE-012: switches to "All" when the selected webspace hides
   /// [model].
-  Future<void> revealSite(WebViewModel model, {required int index});
+  Future<void> revealSite(WebViewModel model);
 
   /// Adds [model] and, with [activate], puts it on screen.
   Future<void> registerSite(WebViewModel model, {bool activate = true});
@@ -106,10 +109,11 @@ abstract interface class LinkHost implements PageHost {
   Future<void> launchNestedFor(WebViewModel model, {required String url,
      bool opensFromTab = true});
 
-  /// LIR-011 / LIR-015 through [NestedOpenEngine], over [source] when routed.
+  /// LIR-011 / LIR-015 through `SiteActivationController.openNested`, over
+  /// [source] when routed.
   Future<void> openNested(DispatchOpenNested action, {WebViewModel? source});
 
-  Future<void> unloadSite(int index, {required UnloadReason reason});
+  Future<void> unloadSite(WebViewModel site, {required UnloadReason reason});
 
   Future<void> wipeContainer(ContainerKey key);
 
@@ -139,7 +143,7 @@ class LinkController {
 
   /// Takes the share or deep link the OS handed the app, at a cold start and
   /// on every resume.
-  Future<void> handleShareIntent() async {
+  Future<void> handleShareIntent({required Reached<Launched> after}) async {
     if (_shareIntentGuard.busy) {
       LogTag.linkIntent.debug('poll skipped: re-entry guarded');
       return;
@@ -691,7 +695,7 @@ class LinkController {
         }
         if (action.asTab && parked) {
           await _tabs.openLinkInNewTab(
-              _sites.models.indexOf(owner), url: url.toString(),
+              owner, url: url.toString(),
               hostSiteId: site.siteId,
               openerSiteId: source.siteId,
               homeUrl: url.toString());
@@ -761,15 +765,13 @@ class LinkController {
   /// LIR-011: dispose first when alwaysOpenHome / incognito; wipe
   /// container + clear cookies when incognito. Then activate and load.
   Future<void> _executeOpenInMain(DispatchOpenInMain a) async {
-    final index =
-        _sites.models.indexWhere((m) => m.siteId == a.siteId);
-    if (index < 0) {
+    final model = _sites.byId(a.siteId);
+    if (model == null) {
       LogTag.linkIntent.warning(
           'OpenInMain bailed: site ${a.siteId} not found', sensitive: true);
       return;
     }
-    final model = _sites.models[index];
-    await _host.revealSite(model, index: index);
+    await _host.revealSite(model);
     if (!_host.mounted) return;
     if (model.runsHostedTab || model.runsForeignTab) {
       // An owner URL never loads into a slot running as another site, nor
@@ -779,15 +781,11 @@ class LinkController {
     }
     if (a.disposeBeforeLoad) {
       _host.evictCache(model.siteId);
-      // Re-resolve by identity: `_sites.loaded` is positional and the site
-      // list may have shifted (a lower-indexed delete) across the await, so
-      // the captured `index` could now name a different site.
-      final idx = _sites.models.indexOf(model);
-      if (_sites.loaded.contains(idx)) {
-        await _host.unloadSite(idx, reason: UnloadReason.homeReset);
+      if (_sites.loaded.contains(model)) {
+        await _host.unloadSite(model, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
       } else {
-        model.disposeWebView();
+        model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
       }
       model.currentUrl = model.initUrl;
     }
@@ -798,16 +796,15 @@ class LinkController {
       model.cookies = const [];
     }
     if (!_host.mounted) return;
-    final activateIndex = _sites.models.indexOf(model);
-    if (activateIndex < 0) return; // deleted during the awaits above
+    if (!_sites.models.contains(model)) return; // deleted during the awaits
     // A search opens its own tab (LIR-030). Tabs can have been switched off
     // since the engine decided; the search then loads in place.
-    if (a.newTab && _tabs.enabledAt(activateIndex)) {
-      await _tabs.newTab(activateIndex, url: a.url);
+    if (a.newTab && _tabs.enabledFor(model)) {
+      await _tabs.newTab(model, url: a.url);
       return;
     }
-    if (activateIndex != _sites.current) {
-      await _host.activate(activateIndex);
+    if (!identical(model, _sites.shown)) {
+      await _host.activate(model);
     }
     if (!_host.mounted) return;
     final controller = _host.controllerOf(model);
@@ -900,10 +897,10 @@ class LinkController {
   /// browser (NESTED-010). A bare `loadUrl` would put a foreign page inside
   /// the site's container, because Android does not run
   /// `shouldOverrideUrlLoading` for a programmatic load.
-  Future<void> openLinkAsTapped(int index, {required String url}) async {
-    if (index < 0 || index >= _sites.models.length) return;
-    final model = _sites.models[index];
-    final active = index == _sites.current;
+  Future<void> openLinkAsTapped(WebViewModel model,
+      {required String url}) async {
+    if (!_sites.models.contains(model)) return;
+    final active = identical(model, _sites.shown);
     // A hosted tab navigates by its host's rules (LIR-018), except that a
     // link back into the owner's domain returns to the owner.
     final identity = model.runningIdentity;

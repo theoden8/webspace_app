@@ -50,7 +50,7 @@ void main() {
       expect(fb.host, 'profile');
     });
 
-    test('parses Google Maps intent:// with fallback URL', () {
+    test('parses Google Maps intent:// with fallback URL (EXT-001)', () {
       const url =
           'intent://www.google.com/maps?entry=ml&utm_campaign=ml-ardi-wv&coh=230964'
           '#Intent;scheme=https;package=com.google.android.apps.maps;'
@@ -90,6 +90,7 @@ void main() {
     });
   });
 
+  // EXT-002
   group('ExternalUrlParser.intentToWebUrl', () {
     test('returns null for non-intent schemes', () {
       final tel = ExternalUrlParser.parse('tel:+14155551234')!;
@@ -137,7 +138,7 @@ void main() {
   });
 
   group('ExternalUrlParser.toWebUrl', () {
-    test('x-safari-https strips to https (x.com Safari bounce)', () {
+    test('x-safari-https strips to https (x.com Safari bounce) (EXT-008)', () {
       final info =
           ExternalUrlParser.parse('x-safari-https://redirect.x.com/?ct=rw-null')!;
       expect(info.scheme, 'x-safari-https');

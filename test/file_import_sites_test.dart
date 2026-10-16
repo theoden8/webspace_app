@@ -77,7 +77,7 @@ void main() {
       expect(result['htmlContent'], isNull);
     });
 
-    test('url for imported file uses file:/// scheme (three slashes)', () {
+    test('url for imported file uses file:/// scheme (three slashes) (IMPORT-003)', () {
       final url = importedFileSite('report.html').url;
 
       // Three-slash form: empty authority, real path. The two-slash

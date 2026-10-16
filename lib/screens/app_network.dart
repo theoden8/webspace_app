@@ -137,17 +137,12 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
   String? _validateOutboundProxyAddress(String value) {
     final loc = AppLocalizations.of(context);
     if (!_outboundProxy.type.typesAddress) return null;
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return loc.appSettingsProxyAddressRequired;
-    final parts = trimmed.split(':');
-    if (parts.length != 2 || parts[0].isEmpty || parts[1].isEmpty) {
-      return loc.appSettingsProxyFormatHostPort;
-    }
-    final port = int.tryParse(parts[1]);
-    if (port == null || port < 1 || port > 65535) {
-      return loc.appSettingsProxyInvalidPort;
-    }
-    return null;
+    return switch (ProxyAddressParse.of(value)) {
+      ProxyAddress() => null,
+      ProxyAddressMissing() => loc.appSettingsProxyAddressRequired,
+      ProxyAddressMalformed() => loc.appSettingsProxyFormatHostPort,
+      ProxyAddressBadPort() => loc.appSettingsProxyInvalidPort,
+    };
   }
 
   bool _saving = false;

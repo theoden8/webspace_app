@@ -14,7 +14,7 @@
 //   2. Detector sensitivity control: a genuinely white page must classify
 //      as uniformBlank, proving the sampler reads webview pixels and the
 //      assertions in the other scenarios are not vacuously green.
-//   3. Loaded-site switch (setCurrentIndex reuse path, Attempt 3).
+//   3. Loaded-site switch (activate reuse path, Attempt 3).
 //   4. Reload funnel (reloadAndRepaint + load-settled re-nudge, Attempt 9).
 //   5. OS memory pressure against the visible site (Attempt 7).
 //   6. Fresh activation with other sites live (controller-attach nudge,
@@ -276,7 +276,7 @@ Future<WindowRegionSample> pollSite(
   Duration timeout = const Duration(seconds: 90),
 }) =>
     pollSlot(tester,
-        slot: find.byKey(ValueKey(siteId)),
+        slot: siteSlot(siteId),
         description: description,
         accept: accept,
         timeout: timeout);
@@ -323,7 +323,7 @@ Future<WindowRegionSample> pollSite(
   }
 
   testWidgets(
-    'BUG-001 entry paths keep the composited webview pixels non-blank',
+    'BUG-001 entry paths keep the composited webview pixels non-blank (INTEG-010)',
     (tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 30));
@@ -367,7 +367,7 @@ Future<WindowRegionSample> pollSite(
               SurfaceDiagNative.classify(s) ==
                   WindowSampleVerdict.uniformBlank);
 
-      // Scenario 3: switch back to an already-loaded site (setCurrentIndex
+      // Scenario 3: switch back to an already-loaded site (activate
       // reuse path, Attempt 3's chokepoint).
       await openSiteDrawer(tester);
       await tapSite(tester, siteName: 'Dark',
@@ -447,7 +447,7 @@ Future<WindowRegionSample> pollSite(
           diagnose: (c) => dumpDiagnostics(tester, context: c));
       await pollSlot(
           tester,
-          slot: find.byKey(const ValueKey('ws-slow')),
+          slot: siteSlot('ws-slow'),
           description: 'scenario 7: late-committing first document paints blue',
           accept: blueVisible,
           timeout: const Duration(seconds: 45));
@@ -474,7 +474,7 @@ Future<WindowRegionSample> pollSite(
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       await pollSlot(tester,
-          slot: find.byKey(const ValueKey('ws-slow')),
+          slot: siteSlot('ws-slow'),
           description:
               'scenario 8: returning from a pushed route repaints the surface',
           accept: blueVisible,
@@ -494,7 +494,7 @@ Future<WindowRegionSample> pollSite(
           diagnose: (c) => dumpDiagnostics(tester, context: c));
       await pollSlot(
           tester,
-          slot: find.byKey(const ValueKey('ws-opener')),
+          slot: siteSlot('ws-opener'),
           description: 'scenario 9: the opener paints before the hop',
           accept: darkVisible,
           timeout: const Duration(seconds: 45));
@@ -544,7 +544,7 @@ Future<WindowRegionSample> pollSite(
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       await pollSlot(tester,
-          slot: find.byKey(const ValueKey('ws-opener')),
+          slot: siteSlot('ws-opener'),
           description:
               'scenario 9: returning from the nested screen repaints the site',
           accept: darkVisible,

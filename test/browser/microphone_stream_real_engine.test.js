@@ -63,7 +63,7 @@ async function openPage(decision) {
   return { page, server };
 }
 
-test('virtual microphone plays the picked clip and keeps looping', async (t) => {
+test('virtual microphone plays the picked clip and keeps looping (MIC-008)', async (t) => {
   if (!requireBrowser(browser, t)) return;
   const { page, server } = await openPage({
     mode: 'virtual',

@@ -39,7 +39,7 @@ void main() {
     expect(find.text('All'), findsWidgets);
   });
 
-  testWidgets('a tap on a notification while the app runs opens its site',
+  testWidgets('a tap on a notification while the app runs opens its site (NAV-013)',
       (tester) async {
     // On a device the activation's reads outlast the frame the tap asks for.
     debugWebViewStateStorageOverride = _SlowNavStates();

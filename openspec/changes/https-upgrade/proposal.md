@@ -46,7 +46,7 @@ host nothing has vouched for yet, which is every host on Android and Linux and
 the unknown ones on Apple. HTTPS-006 keeps the flag on rather than
 re-implementing what it already does earlier and better.
 
-This is also the one item in [BUG-013](../../../docs/bugs/013-captcha-verification-stalls.md)
+This is also the one item in [BUG-016](../../../docs/bugs/016-captcha-verification-stalls.md)
 that is not about captchas: gap 5, recorded there because it arrived with the
 same report.
 
@@ -97,7 +97,7 @@ the umbrella off returns the setting to the user's own value rather than to
 **Out.** Sub-resources and sub-frames. They are governed by the engine's own
 mixed-content rules, and intercepting them on Android means going through
 `FastSubresourceInterceptor`, where a blocked request already returns an empty
-`200` rather than an error (BUG-013 gap 4). Turning a scheme decision into that
+`200` rather than an error (BUG-016 gap 4). Turning a scheme decision into that
 shape would produce silent, bodyless successes on the upgrade path, which is the
 failure mode this repo has spent the most time on.
 

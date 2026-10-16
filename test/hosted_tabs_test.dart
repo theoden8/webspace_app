@@ -7,6 +7,8 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_search.dart';
+import 'helpers/model_fixture.dart';
 
 /// LIR-018, LIR-022, LIR-023 at the model and engine level, and the per-site
 /// search fields of LIR-028 and LIR-031.
@@ -62,7 +64,7 @@ void main() {
       expect(identical(m.runningIdentity, ddg), isTrue);
       expect(m.runsHostedTab, isTrue);
       expect(m.activeHostMissing, isFalse);
-      m.activeTabId = kPrimaryTabId;
+      m.setActiveTab(kPrimaryTabId);
       expect(identical(m.runningIdentity, m), isTrue);
     });
 
@@ -85,7 +87,7 @@ void main() {
       expect(m.stateKeyForTab(TabId('t1')), 'ddg.t1');
     });
 
-    test('an incognito owner keeps its hosted tabs, not their back stacks', () {
+    test('an incognito owner keeps its hosted tabs, not their back stacks (INC-008)', () {
       add(WebViewModel(siteId: SiteId('ddg'), initUrl: 'https://duckduckgo.com/'));
       final m = add(WebViewModel(
         siteId: SiteId('gh'),

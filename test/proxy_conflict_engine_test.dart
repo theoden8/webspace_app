@@ -210,7 +210,7 @@ void main() {
     });
 
     test('a DEFAULT site shares the route of the proxy it inherits', () {
-      GlobalOutboundProxy.setForTest(_http('10.0.0.1:3128'));
+      GlobalOutboundProxy.setInMemory(_http('10.0.0.1:3128'));
       expect(
         ProxyConflictEngine.canEnable(
           targetProxy: _default(),

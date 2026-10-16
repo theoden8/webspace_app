@@ -1,3 +1,5 @@
+import 'package:webspace/services/model_names.dart';
+import 'package:webspace/services/step_table.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -8,7 +10,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_color_engine.dart';
-import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
@@ -19,7 +20,7 @@ import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/opensearch_engine.dart'
-    show DiscoveredSearch, SiteSearchTarget;
+    show SiteSearchTarget;
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -34,10 +35,11 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
-import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
+import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
+import 'package:webspace/services/webview_tab_binding.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
@@ -49,10 +51,13 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/web_view_model_json.dart';
+import 'package:webspace/web_view_model_zone.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -73,11 +78,26 @@ class WebViewModel implements MediaGrantRecord {
   /// This site's tabs, in tree order (a child follows its parent). Never
   /// empty. Exactly one of them — [activeTabId] — is bound to the site's
   /// single webview; the rest are parked and hold no renderer. See
-  /// [lib/services/site_tab.dart] and TAB-001/TAB-002.
-  late List<SiteTab> tabs;
+  /// [lib/services/site_tab.dart] and TAB-001/TAB-002. The model's `tabs`,
+  /// written only through [tabsCell].
+  List<SiteTab> get tabs => _tabs;
+  late List<SiteTab> _tabs;
 
-  /// The tab the site's webview is showing. Always names a member of [tabs].
-  late TabId activeTabId;
+  /// The tab the site's webview is showing. Always names a member of
+  /// [tabs]. The model's `active`, written only through [activeTabCell].
+  TabId get activeTabId => _activeTabId;
+  late TabId _activeTabId;
+
+  static final tabsCell = SharedAt<WebViewModel, List<SiteTab>>(
+    ModelVar.tabs,
+    read: (m) => m._tabs,
+    write: (m, {required to}) => m._tabs = to,
+  );
+  static final activeTabCell = SharedAt<WebViewModel, TabId>(
+    ModelVar.active,
+    read: (m) => m._activeTabId,
+    write: (m, {required to}) => m._activeTabId = to,
+  );
 
   SiteTab get activeTab {
     final tab = tabs.where((t) => t.id == activeTabId).firstOrNull;
@@ -155,10 +175,14 @@ class WebViewModel implements MediaGrantRecord {
 
   /// Whether the active tab's back stack may be written (LIR-022): its record
   /// persists with this site's tab list, and the site it runs as keeps state.
-  bool get activeTabPersistsNavState {
+  bool get activeTabPersistsNavState => tabPersistsNavState(activeTab);
+
+  /// Whether [tab]'s back stack may be written: as
+  /// [activeTabPersistsNavState], for any tab of this site.
+  bool tabPersistsNavState(SiteTab tab) {
     if (!persistsNavState) return false;
-    if (!runsHostedTab) return true;
-    final host = hostOf(activeTab);
+    if (tab.hostSiteId == null) return true;
+    final host = hostOf(tab);
     return host != null && host.persistsNavState;
   }
 
@@ -199,8 +223,9 @@ class WebViewModel implements MediaGrantRecord {
       final landing = TabLifecycleEngine.homeLanding(tabs,
           activeTabId: activeTabId, initUrl: initUrl);
       if (landing == null) return;
-      tabs = landing.tabs;
-      activeTabId = landing.activeTabId;
+      const commit = Commit.unmodeled(Unmodeled.homeLanding);
+      tabsCell.write(at: this, to: landing.tabs, commit: commit);
+      activeTabCell.write(at: this, to: landing.activeTabId, commit: commit);
       return;
     }
     bindOwnerRunTab();
@@ -216,12 +241,13 @@ class WebViewModel implements MediaGrantRecord {
     if (!runsHostedTab && !runsForeignTab) return;
     final id = TabLifecycleEngine.ownerRunTab(tabs, activeTabId: activeTabId,
         isForeign: isForeignTab);
+    const commit = Commit.unmodeled(Unmodeled.ownerRunTab);
     if (id != null) {
-      activeTabId = id;
+      activeTabCell.write(at: this, to: id, commit: commit);
     } else {
       final tab = SiteTab(url: initUrl);
-      tabs = [...tabs, tab];
-      activeTabId = tab.id;
+      tabsCell.write(at: this, to: [...tabs, tab], commit: commit);
+      activeTabCell.write(at: this, to: tab.id, commit: commit);
     }
     activeTab.lastActiveAt = DateTime.now();
   }
@@ -450,49 +476,12 @@ class WebViewModel implements MediaGrantRecord {
   /// a SearXNG instance's.
   bool discoveredSearchesWeb;
 
-  /// How this site searches, if it does (LIR-028).
-  SearchCapability? get searchCapability => WebSearchEngine.capabilityOf(
-        initUrl: initUrl,
-        searchAddress: searchAddress,
-        searchesWeb: searchesWeb,
-        discoveredAddress: discoveredSearchAddress,
-        discoveredWeb: discoveredSearchesWeb,
-        listedAddress: SiteSearchListService.instance.addressFor(initUrl),
-      );
-
-  /// Take [found] as what this site's pages declared. True when it changed
-  /// anything, for the caller to persist.
-  bool offerDiscoveredSearch(DiscoveredSearch found) {
-    if (discoveredSearchAddress == found.address &&
-        discoveredSearchesWeb == found.web) {
-      return false;
-    }
-    discoveredSearchAddress = found.address;
-    discoveredSearchesWeb = found.web;
-    return true;
-  }
-
   /// The search sites a search from this site offers; empty offers them all.
   List<SiteId> searchSites;
 
   /// The search site a search from this site starts with; null falls back to
   /// the app default.
   SiteId? searchDefault;
-
-  /// Drop the [searchSites] and [searchDefault] entries that name no
-  /// candidate (LIR-031). True when anything was dropped.
-  bool pruneSearchReferences(bool Function(SiteId siteId) isCandidate) {
-    final kept = [
-      for (final id in searchSites)
-        if (isCandidate(id)) id,
-    ];
-    final def = searchDefault;
-    final dropDefault = def != null && !isCandidate(def);
-    if (kept.length == searchSites.length && !dropDefault) return false;
-    searchSites = kept;
-    if (dropDefault) searchDefault = null;
-    return true;
-  }
 
   /// View used by the resolver: the explicit `domainClaims` if the user has
   /// set them, otherwise the synthesized `[baseDomain(getBaseDomain(initUrl))]`
@@ -725,21 +714,30 @@ class WebViewModel implements MediaGrantRecord {
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
       route: routeOutboundLinks, mode: externalLinkMode);
 
+  /// The native container this site's webview binds under [isolation], as
+  /// its posture and its site info sheet name it (NAV-011).
+  ContainerName? boundContainerId(Isolation isolation) => containerIdFor(
+      isolation: isolation, key: containerKey, incognito: effectiveIncognito);
+
   /// Everything a webview that runs as this site applies (CLAUDE.md, "Per-site
   /// settings MUST apply to nested webviews"). The archive tier's overrides
   /// come from the `effective*` getters above; Tracking Protection's forced
   /// subordinates are applied here, by the rules in site_overrides.dart
   /// (ETP-002). Read at the moment a surface is built, so a link opened later
   /// carries the decisions made since. [globalUserScripts] is the app's list,
-  /// of which the site opts into some.
-  SitePosture sitePosture({required List<UserScriptConfig> globalUserScripts}) {
+  /// of which the site opts into some; [isolation] decides its container.
+  SitePosture sitePosture({
+    required List<UserScriptConfig> globalUserScripts,
+    required Isolation isolation,
+  }) {
+    assert(zoneLookedUp, 'a webview at the real zone: none was looked up');
     final tp = trackingProtectionEnabled;
     bool forced(TrackingProtectionForce force, {required bool stored}) =>
         _forcedByTrackingProtection(force, stored: stored);
     return SitePosture(
       siteId: siteId,
       container: (
-        containerKey: containerKey,
+        containerId: boundContainerId(isolation),
         incognito: effectiveIncognito,
         proxy: outboundProxySettings,
         thirdPartyCookies: effectiveThirdPartyCookiesEnabled,
@@ -798,7 +796,7 @@ class WebViewModel implements MediaGrantRecord {
   /// Android hybrid-composition surface, which can re-attach blank-white
   /// when a new platform view mounts. Re-activation of an already-loaded
   /// webview does NOT recreate the controller, so it does not fire here —
-  /// that path is nudged explicitly by `setCurrentIndex`.
+  /// that path is nudged explicitly by `activate`.
   Function? onControllerReady;
   /// Host hook fired when a reload is issued for this model's webview
   /// ([reloadAndRepaint], the funnel every reload goes through). A reload
@@ -812,6 +810,12 @@ class WebViewModel implements MediaGrantRecord {
   /// closest Dart-side signal to the reloaded document committing onto
   /// the surface, which is the moment the repaint has to land (PAUSE-021).
   VoidCallback? onLoadSettled;
+
+  /// Completes when this site's first main-frame load settles, loaded or
+  /// failed. A webview disposed before then leaves it pending.
+  Future<void> get firstLoadSettled => _firstLoadSettled.future;
+  final Completer<void> _firstLoadSettled = Completer<void>();
+
   /// Host hook fired when the WebView commits its first visible frame for a
   /// navigation (Android `onPageCommitVisible`). Unlike [onLoadSettled] this
   /// reports that pixels exist rather than that a load finished, so it is the
@@ -954,9 +958,9 @@ class WebViewModel implements MediaGrantRecord {
       activeTabId: activeTabId,
       fallbackUrl: currentUrl ?? initUrl,
     );
-    this.tabs = seeded.tabs;
-    this.activeTabId = seeded.activeTabId;
-    for (final t in this.tabs) {
+    _tabs = seeded.tabs;
+    _activeTabId = seeded.activeTabId;
+    for (final t in _tabs) {
       if (t.hostSiteId == this.siteId) t.hostSiteId = null;
     }
   }
@@ -1015,7 +1019,7 @@ class WebViewModel implements MediaGrantRecord {
     }
     // Read before the first await: onControllerCreated consumes the pending
     // restore right after calling us, and that path issues its own load.
-    final restorePending = _pendingRestoreState != null;
+    final restorePending = tabBinding.queuedFor == tabBinding.built;
     final ready = Completer<bool>();
     _proxyReady = ready;
     // Apply proxy settings first (before loading any URLs)
@@ -1042,6 +1046,12 @@ class WebViewModel implements MediaGrantRecord {
         HostBrowser.defaultUserAgent ?? await c.getDefaultUserAgent();
   }
 
+  /// What this slot's own webview claims of the process-wide proxy rule: its
+  /// occupant, running as the site whose proxy and Tor tag it takes
+  /// (LIR-024).
+  ({RouteOccupant occupant, WebViewModel runsAs}) get routeClaim =>
+      (occupant: (use: RouteUse.webview, site: siteId), runsAs: runningIdentity);
+
   /// Android: routes through the global `inapp.ProxyController`. Takes
   /// effect on next request without reload.
   ///
@@ -1053,10 +1063,13 @@ class WebViewModel implements MediaGrantRecord {
   /// site that stopped naming one clears it here (PROXY-029).
   Future<bool> _applyProxySettings() async {
     final proxyManager = ProxyManager();
-    // LIR-024: the process-global proxy follows the site the slot runs as.
-    final id = runningIdentity;
+    final (:occupant, :runsAs) = routeClaim;
     try {
-      await proxyManager.setProxySettings(id.proxySettings, siteId: id.siteId);
+      await proxyManager.setProxySettings(
+        runsAs.proxySettings,
+        siteId: runsAs.siteId,
+        occupant: occupant,
+      );
       final release = _containerProxyToRelease;
       _containerProxyToRelease = null;
       if (release != null) await proxyManager.releaseContainerProxy(release);
@@ -1074,7 +1087,8 @@ class WebViewModel implements MediaGrantRecord {
       // load instead of leaking. `setProxySettings` throws on the effective
       // proxy, so a DEFAULT site inheriting an unusable global proxy blanks
       // too (LEAK-003).
-      if (resolveEffectiveProxy(id.proxySettings, siteId: id.siteId).type !=
+      if (resolveEffectiveProxy(runsAs.proxySettings, siteId: runsAs.siteId)
+              .type !=
           ProxyType.DEFAULT) {
         await controller?.stopLoading();
         await controller?.loadUrl('about:blank');
@@ -1108,13 +1122,17 @@ class WebViewModel implements MediaGrantRecord {
   /// reconstructs it with the new `inapp.InAppWebViewSettings.proxySettings`
   /// dictionary. The caller MUST trigger a rebuild (typically via
   /// `setState`) so the IndexedStack actually re-creates the slot.
+  ///
+  /// Elsewhere only a live webview takes the new rule now; one built later
+  /// takes it then, so a site with none never moves the process-wide rule
+  /// under the sites that run (PROXY-008).
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
     if (hostIsIOS || hostIsMacOS) {
-      disposeWebView();
+      disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
       return;
     }
-    await _applyProxySettings();
+    if (controller != null) await _applyProxySettings();
   }
 
   /// The site as itself, at its home page, for a headless check in a
@@ -1122,7 +1140,8 @@ class WebViewModel implements MediaGrantRecord {
   /// [getWebView]'s config, so every per-site field reaches the check, under
   /// [hooks] that answer no one: nothing is on screen.
   WebViewConfig headlessCheckConfig(WebViewHostHooks hooks) => WebViewConfig(
-        posture: sitePosture(globalUserScripts: hooks.globalUserScripts()),
+        posture: sitePosture(
+            globalUserScripts: hooks.globalUserScripts(), isolation: hooks.isolation()),
         hooks: hooks.unattended(),
         initialUrl: initUrl,
       );
@@ -1181,7 +1200,8 @@ bool dispatch(NavigationDecision decision,
           if (!takenOver()) {
             hooks.launchNested(
               url,
-              posture: id.sitePosture(globalUserScripts: globalUserScripts),
+              posture: id.sitePosture(
+                  globalUserScripts: globalUserScripts, isolation: hooks.isolation()),
               homeTitle: id.name,
             );
           }
@@ -1210,6 +1230,8 @@ bool dispatch(NavigationDecision decision,
       return null;
     }
     if (webview == null) {
+      final builtTab = activeTabId;
+      tabBinding.bind(builtTab, commit: const Commit.environment(Environment.frame));
       LogTag.webView.debug(
           'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
           '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
@@ -1242,11 +1264,12 @@ bool dispatch(NavigationDecision decision,
       // restored entry from onControllerCreated; iOS/macOS keep the
       // initialUrlRequest load and replace state in place via interactionState.
       final bool deferRestoreLoad = deferInitialLoadForRestore(
-        hasPendingRestoreState: _pendingRestoreState != null,
+        hasPendingRestoreState: tabBinding.queuedFor == builtTab,
         isAndroid: hostIsAndroid,
         isFileImport: currentUrl.startsWith('file://'),
       );
-      final posture = id.sitePosture(globalUserScripts: globalUserScripts);
+      final posture = id.sitePosture(
+          globalUserScripts: globalUserScripts, isolation: hooks.isolation());
       final storeBinding = WebViewFactory.storeBinding(posture);
       _containerProxyToRelease = storeBinding.releasesContainerProxy
           ? storeBinding.containerId
@@ -1317,7 +1340,10 @@ bool dispatch(NavigationDecision decision,
             // A settled load is the reloaded document committing onto the
             // surface; the host repaints there rather than at reload-issue
             // time, when there is nothing yet to paint (PAUSE-021).
-            if (!loading) onLoadSettled?.call();
+            if (!loading) {
+              if (!_firstLoadSettled.isCompleted) _firstLoadSettled.complete();
+              onLoadSettled?.call();
+            }
             // Trigger a UI rebuild so the URL-bar action button can
             // swap between Refresh and Stop. saveFunc is intentionally
             // NOT called here — the loading bool is transient runtime
@@ -1490,9 +1516,11 @@ bool dispatch(NavigationDecision decision,
           // depend on the restore completing. Clear the field
           // *before* awaiting so a back-to-back rebuild doesn't
           // re-apply the same bytes.
-          final pending = _pendingRestoreState;
+          final pending = tabBinding.take(
+            tab: builtTab,
+            commit: const Commit.environment(Environment.frame),
+          );
           if (pending != null) {
-            _pendingRestoreState = null;
             // On Android the webview was built with no initial load
             // (deferRestoreLoad), so restoreState applies to a pristine
             // back/forward list. Android does not restore display data, so
@@ -1528,7 +1556,7 @@ bool dispatch(NavigationDecision decision,
           // recomposite it if this is the visible site (Android blank-white
           // surface recovery). Fires for every fresh controller, so it
           // covers goHome, renderer-gone rebuild, and savedForRestore
-          // re-creation in one place — paths setCurrentIndex's own nudge
+          // re-creation in one place — paths activate's own nudge
           // does not reach because they don't go through it.
           onControllerReady?.call();
         },
@@ -1548,26 +1576,11 @@ bool dispatch(NavigationDecision decision,
   /// Deletes every cookie this site knows of from its jar, then forgets
   /// them. Fails with [CookieJarFailure] when the jar refuses one, and the
   /// site keeps its list, since those cookies may still be there.
-  Future<void> deleteCookies(CookieManager cookieManager, {
-      required ContainerCookieManager? containerCookieManager}) async {
+  Future<void> deleteCookies(Isolation isolation) async {
     final url = Uri.parse(initUrl);
     for (final Cookie cookie in cookies) {
-      if (containerCookieManager != null) {
-        await containerCookieManager.deleteCookie(
-          controller: controller,
-          url: url,
-          name: cookie.name,
-          domain: cookie.domain,
-          path: cookie.path ?? "/",
-        );
-      } else {
-        await cookieManager.deleteCookie(
-          url: url,
-          name: cookie.name,
-          domain: cookie.domain,
-          path: cookie.path ?? "/",
-        );
-      }
+      await isolation.deleteCookie(cookie,
+          url: url, controller: controller);
     }
     cookies = [];
   }
@@ -1586,6 +1599,8 @@ bool dispatch(NavigationDecision decision,
         'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
     webview = null;
     controller = null;
+    ProcessRoute.instance.release(routeClaim.occupant);
+    tabBinding.unbind(commit: const Commit.unmodeled(Unmodeled.rendererGone));
     resumeReload.reset();
     stateSetterF?.call();
   }
@@ -1718,13 +1733,16 @@ bool dispatch(NavigationDecision decision,
         sensitive: true);
   }
 
-  /// Used when unloading a site due to domain conflict.
-  void disposeWebView() {
+  /// Lets go of the webview, in [commit]: an unload's, the commit that takes
+  /// the site off the list, or a named rebuild.
+  void disposeWebView({required Commit commit}) {
     LogTag.webView.debug(
         'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
         sensitive: true);
     webview = null;
     controller = null;
+    ProcessRoute.instance.release(routeClaim.occupant);
+    tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the
     // webview. Without this the OS transport controls outlive it and their
@@ -1850,7 +1868,8 @@ bool dispatch(NavigationDecision decision,
     }
   }
 
-  /// Capture the WebView's navigation state as bytes. Returns null
+  /// Capture the WebView's navigation state as bytes, with the tab the
+  /// webview was built for, whose history they are. Returns null
   /// when there's nothing to save (controller is null, page never
   /// navigated, or the platform refused). Pair with the matching
   /// `restoreState` on a freshly-created controller in
@@ -1858,12 +1877,13 @@ bool dispatch(NavigationDecision decision,
   /// the back/forward stack and (Apple only) form-field values.
   ///
   /// Live JS heap and DOM are NOT preserved.
-  Future<Uint8List?> captureNavigationState() async {
-    if (controller == null) return null;
-    if (incognito) return null;
-    final state = await controller!.saveState();
+  Future<CapturedNavState?> captureNavigationState() async {
+    final ctrl = controller;
+    final tab = tabBinding.built;
+    if (ctrl == null || tab == null || incognito) return null;
+    final state = await ctrl.saveState();
     if (state == null || state.isEmpty) return null;
-    return state;
+    return (tab: tab, bytes: state);
   }
 
   /// Current memory-tier state. Drives the
@@ -1872,23 +1892,30 @@ bool dispatch(NavigationDecision decision,
   /// (the resume/pause distinction is orthogonal to memory tier).
   /// Promoted on memory pressure events; reset to `live` on
   /// re-activation when the webview is rebuilt.
-  SiteLifecycleState lifecycleState = SiteLifecycleState.resident;
+  SiteLifecycleState get lifecycleState => _lifecycleState;
+  SiteLifecycleState _lifecycleState = SiteLifecycleState.resident;
 
-  /// Bytes from a prior `controller.saveState()`, queued by the
-  /// activation flow when re-activating a [SiteLifecycleState.savedForRestore]
-  /// site. Consumed once by [getWebView]'s `onControllerCreated`
-  /// handler and then cleared, so subsequent activations don't
-  /// re-apply stale state.
-  ///
-  /// Caller (typically `setCurrentIndex` in `_WebSpacePageState`)
-  /// fetches bytes from [WebViewStateStorage] before letting the
-  /// webview rebuild, so the IndexedStack repaint and the
-  /// `restoreState` call land in the same render cycle.
-  Uint8List? _pendingRestoreState;
+  /// The model's `tier`, written only through a [Commit].
+  static final tierCell = SharedAt<WebViewModel, SiteLifecycleState>(
+    ModelVar.tier,
+    read: (m) => m._lifecycleState,
+    write: (m, {required to}) => m._lifecycleState = to,
+  );
 
-  /// An archive-tier site's opaque container key (ARCH-007), HMAC-derived
-  /// from the archive key; null on the app tier, keyed by [siteId] instead.
+  /// The tab the webview was built for and the back stack queued for the
+  /// next build. The activation and the tab switch queue the bytes before the
+  /// rebuild, so the repaint and `restoreState` land in one render cycle;
+  /// [getWebView]'s `onControllerCreated` takes them.
+  final WebViewTabBinding tabBinding = WebViewTabBinding();
+
+  /// Opaque per-site container key for archive-tier sites (ARCH-007).
+  /// Format mirrors [siteId] (radix-36-dash-radix-36) so a listing of the
+  /// on-disk container directory shows uniform-looking names; the value
+  /// itself is HMAC-derived from the archive key and the original siteId.
+  /// Null for app-tier sites, which keep their container under [siteId].
   ContainerKey? archiveContainerKey;
+
+  /// The container this site's data lives in under containers.
   ContainerKey get containerKey =>
       archiveContainerKey ?? ContainerKey.ofSite(siteId);
 
@@ -1943,13 +1970,6 @@ bool dispatch(NavigationDecision decision,
     }
   }
 
-  /// Schedule [state] to be applied to the next freshly-created
-  /// controller for this model. Cleared automatically once the
-  /// `onControllerCreated` callback consumes it.
-  void schedulePendingRestoreState(Uint8List state) {
-    _pendingRestoreState = state;
-  }
-
   String getDisplayName() {
     return name;
   }
@@ -1971,6 +1991,7 @@ bool dispatch(NavigationDecision decision,
     Map<String, dynamic> json, {
     required Function? stateSetterF,
     bool isArchiveTier = false,
-  }) => webViewModelFromJson(json,
-      stateSetterF: stateSetterF, isArchiveTier: isArchiveTier);
+  }) =>
+      webViewModelFromJson(json,
+          stateSetterF: stateSetterF, isArchiveTier: isArchiveTier);
 }

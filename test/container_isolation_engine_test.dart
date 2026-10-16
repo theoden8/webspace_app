@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
@@ -6,28 +9,6 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'helpers/mock_container_native.dart';
 
 void main() {
-  group('ContainerIsolationEngine — unsupported platform fall-through', () {
-    test('every method short-circuits when isSupported() returns false',
-        () async {
-      final native = MockContainerNative(supported: false);
-      final engine = ContainerIsolationEngine(containerNative: native);
-
-      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
-      await engine.onSiteDeleted(ContainerKey.ofSite(SiteId('site-A')));
-      final cleared = await engine.clearForSite(ContainerKey.ofSite(SiteId('site-A')));
-      final gced = await engine.garbageCollectOrphans({ContainerKey.ofSite(SiteId('site-A'))});
-
-      expect(cleared, isFalse);
-      expect(gced, 0);
-      expect(native.profiles, isEmpty);
-      expect(
-        native.calls.where((c) => c != 'isSupported').toList(),
-        isEmpty,
-        reason: 'Only the supported-check should have run',
-      );
-    });
-  });
-
   group('ContainerIsolationEngine — ensureContainer', () {
     test('is idempotent — repeated calls reuse the same profile', () async {
       final native = MockContainerNative();
@@ -105,6 +86,71 @@ void main() {
       final ok = await engine.clearForSite(ContainerKey.ofSite(SiteId('ghost')));
 
       expect(ok, isFalse);
+    });
+  });
+
+  // CONT-004: the grid takes a tap before the launch sweep is done, and a
+  // container bound first is one deleteContainer cannot reliably remove.
+  group('ContainerIsolationEngine — the launch sweep', () {
+    test('a container asked for while it runs is made after it (INC-005)', () async {
+      final native = MockContainerNative();
+      native.profiles['gone'] = 'ws-gone';
+      native.profiles['private'] = 'ws-private';
+      final list = Completer<void>();
+      native.pace = (call) async {
+        if (call == PlatformCall.containerList) await list.future;
+      };
+      final engine = ContainerIsolationEngine(containerNative: native);
+
+      final sweep = engine.sweepBeforeBind(
+        {ContainerKey.ofSite(SiteId('site-A')), ContainerKey.ofSite(SiteId('private'))},
+        incognito: {ContainerKey.ofSite(SiteId('private'))},
+      );
+      final tap = engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      await pumpEventQueue();
+      expect(native.calls, isNot(contains('getOrCreateContainer(site-A)')));
+
+      list.complete();
+      await sweep;
+      await tap;
+      expect(native.calls, containsAllInOrder([
+        'listContainers',
+        'deleteContainer(gone)',
+        'deleteContainer(private)',
+        'getOrCreateContainer(site-A)',
+      ]));
+      expect(native.profiles.keys, ['site-A']);
+    });
+
+    test('a sweep that failed holds back no container after it', () async {
+      final native = MockContainerNative();
+      // ContainerNative absorbs its channel failures, so a sweep fails only
+      // by a bug, an Error, which the container waiting on it sees.
+      native.pace = (call) async {
+        if (call == PlatformCall.containerList) {
+          throw StateError('listing failed');
+        }
+      };
+      final engine = ContainerIsolationEngine(containerNative: native);
+      await expectLater(
+        engine.sweepBeforeBind({ContainerKey.ofSite(SiteId('site-A'))}, incognito: const {}),
+        throwsStateError,
+      );
+      native.pace = null;
+      await expectLater(
+        engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A'))),
+        throwsStateError,
+      );
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-B')));
+      expect(native.profiles.keys, containsAll(['site-B']));
+    });
+
+    test('a container asked for after it waits for nothing', () async {
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
+      await engine.sweepBeforeBind({ContainerKey.ofSite(SiteId('site-A'))}, incognito: const {});
+      await engine.ensureContainer(ContainerKey.ofSite(SiteId('site-A')));
+      expect(native.profiles.keys, ['site-A']);
     });
   });
 

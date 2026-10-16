@@ -4,7 +4,7 @@
 //
 //   node tool/architecture_health.js [--since=2026-04-01]
 const { execFileSync } = require('node:child_process');
-const { read, files, code } = require('../test/js/helpers/source');
+const { read, files, code, enclosed } = require('../test/js/helpers/source');
 const { upward } = require('../test/js/helpers/layers');
 
 const since = (process.argv.find((a) => a.startsWith('--since=')) || '--since=6.months').slice(8);
@@ -12,11 +12,25 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer
 
 const lib = files('lib', /\.dart$/).filter((f) => !f.startsWith('lib/l10n/'));
 let lines = 0, comments = 0, asserts = 0, swallowed = 0, stringIds = 0, jsonPairs = 0;
+// Awaits the model checker does not see: outside a step table's body, in
+// the layers that decide (the I/O leaves under services count too, so the
+// number only says which way the code moves).
+const unmodelled = { controllers: 0, screens: 0, services: 0 };
+const TABLE = /\b(StepTable|captureSteps)\s*<[^(]*?>\s*\(/g;
 for (const f of lib) {
   const raw = read(f);
   const rows = raw.split('\n');
   // Strings and comments blanked: a `catch (_)` in a JS shim string is not Dart.
   const src = code(raw, { strings: true });
+  const layer = f.split('/')[1];
+  if (layer in unmodelled && !/(step_table|nav_capture)\.dart$/.test(f)) {
+    let outside = src;
+    for (const m of [...src.matchAll(TABLE)]) {
+      const { open, close } = enclosed(raw, m.index, '(', f);
+      outside = outside.slice(0, open) + ' '.repeat(close - open) + outside.slice(close);
+    }
+    unmodelled[layer] += (outside.match(/\bawait\b/g) || []).length;
+  }
   lines += rows.length;
   comments += rows.filter((l) => /^\s*(\/\/|\/\*|\*)/.test(l)).length;
   asserts += (src.match(/\bassert\(/g) || []).length;
@@ -46,6 +60,11 @@ if (current !== null) perFix.push(current);
 perFix.sort((a, b) => a - b);
 const pct = (q) => (perFix.length ? perFix[Math.min(perFix.length - 1, Math.floor(q * perFix.length))] : 0);
 
+// Each step a table marks is an action of the model.
+const modelSteps = (code(read('lib/services/activation_step.dart'), { strings: true })
+  .split('enum ActivationStep {')[1].split(';')[0]
+  .match(/^\s{2}[a-z]\w*\(/gm) || []).length;
+
 const per1k = (n) => ((1000 * n) / lines).toFixed(2);
 console.log([
   `files per fix commit since ${since}: median ${pct(0.5)}, p90 ${pct(0.9)} (${perFix.length} commits) ↓`,
@@ -56,4 +75,6 @@ console.log([
   `String ids ${stringIds} → 0`,
   `hand-kept toJson/fromJson classes ${jsonPairs} → 0`,
   `layer violations ${upward().length} → 0`,
+  `steps the model checker holds ${modelSteps} ↑`,
+  `awaits outside a step table: controllers ${unmodelled.controllers}, screens ${unmodelled.screens}, services ${unmodelled.services} ↓`,
 ].join('\n'));

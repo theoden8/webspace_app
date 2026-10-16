@@ -10,6 +10,7 @@ import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
+import 'helpers/isolations.dart';
 
 const _camSrc = VirtualVisualSource(
   kind: 'image',
@@ -59,8 +60,8 @@ WebViewModel _site({required bool tp, required bool archived}) {
   return m;
 }
 
-SitePosture _posture(WebViewModel m) =>
-    m.sitePosture(globalUserScripts: const <UserScriptConfig>[]);
+SitePosture _posture(WebViewModel m) => m.sitePosture(
+    globalUserScripts: const <UserScriptConfig>[], isolation: fakeContainers());
 
 void main() {
   group('Tracking Protection x tier', () {
@@ -85,7 +86,7 @@ void main() {
             final m = _site(tp: tp, archived: archived);
             final c = _posture(m).container;
             expect(c.incognito, archived, reason: cell);
-            expect(c.containerKey, archived ? 'opaque-a' : m.siteId,
+            expect(m.containerKey, archived ? 'opaque-a' : m.siteId,
                 reason: cell);
             expect(c.thirdPartyCookies, !tp, reason: cell);
             expect(
@@ -98,7 +99,7 @@ void main() {
         );
 
         test(
-          '$cell: media and page follow tier and TP (ETP-023, ARCH-006)',
+          '$cell: media and page follow tier and TP (ETP-023, ARCH-006, NOTIF-004)',
           () {
             final p = _posture(_site(tp: tp, archived: archived));
             expect(
@@ -147,7 +148,8 @@ void main() {
   });
 
   group('a nested screen runs under the opening site\'s posture', () {
-    test('everything but the capture grants is the root\'s, unchanged', () {
+    // LOC-007, STATS-007
+    test('everything but the capture grants is the root\'s, unchanged (ETP-016)', () {
       for (final tp in [false, true]) {
         for (final archived in [false, true]) {
           final root = _posture(_site(tp: tp, archived: archived));
@@ -191,6 +193,22 @@ void main() {
       }
     });
 
+    test('a screen share mode is inherited as it is: there is no real one '
+        '(SHARE-014)', () {
+      for (final mode in ScreenShareMode.values) {
+        final p = _posture(
+          WebViewModel(
+            initUrl: 'https://share.example',
+            captures: CaptureGrants.none.copyWith(
+              screenShare: (mode: mode, source: null),
+            ),
+          ),
+        ).forNested();
+        expect(p.media.capture.screenShare.mode, mode);
+      }
+    });
+
+    // ETP-018
     test('TP with picked coordinates keeps the resolved zone one hop out '
         '(BUG-025)', () {
       final root = _posture(_site(tp: true, archived: false));
@@ -208,7 +226,7 @@ void main() {
       final m = WebViewModel(initUrl: 'https://a.example')
         ..enabledGlobalScriptIds = {UserScriptId('g1')};
       final scripts = m
-          .sitePosture(globalUserScripts: [global])
+          .sitePosture(globalUserScripts: [global], isolation: fakeContainers())
           .forNested()
           .page
           .userScripts;
@@ -232,9 +250,28 @@ void main() {
       final m = WebViewModel(initUrl: 'https://a.example')
         ..enabledGlobalScriptIds = {UserScriptId('g1')};
       final script =
-          m.sitePosture(globalUserScripts: [global]).page.userScripts.single;
+          m.sitePosture(globalUserScripts: [global], isolation: fakeContainers()).page.userScripts.single;
       expect(script.toJson(), {...global.toJson(), 'enabled': true});
     });
+  });
+
+  test('a global script runs only where a site opted it in (US-001b)', () {
+    UserScriptConfig global(String id) => UserScriptConfig(
+        id: UserScriptId(id), name: id, source: '$id()', enabled: true);
+    final library = [global('g1'), global('g2')];
+    final none = WebViewModel(initUrl: 'https://a.example');
+    final one = WebViewModel(initUrl: 'https://b.example')
+      ..enabledGlobalScriptIds = {UserScriptId('g2')};
+    List<String> scriptsOf(WebViewModel m) => [
+          for (final s in m
+              .sitePosture(globalUserScripts: library, isolation: fakeContainers())
+              .page
+              .userScripts)
+            s.source,
+        ];
+    expect(scriptsOf(none), isEmpty,
+        reason: 'enabled in the library is not opted in anywhere');
+    expect(scriptsOf(one), ['g2()']);
   });
 
   test('a posture is only ever resolved, never assembled by hand', () {

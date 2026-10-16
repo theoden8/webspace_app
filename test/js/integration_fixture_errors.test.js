@@ -35,7 +35,7 @@ test('the integration tests still stand up server fixtures', () => {
   );
 });
 
-test('every server fixture subscribes through listenFixture', () => {
+test('every server fixture subscribes through listenFixture (INTEG-015)', () => {
   for (const { name, text } of withFixtures) {
     // A bare `.listen(` on the server or an accepted socket, where the
     // subscription is not this file's own error-handling one.

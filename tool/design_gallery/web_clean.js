@@ -1,4 +1,4 @@
-// Reports which UI files can appear in the design gallery.
+// Reports which UI files can appear in the design gallery (DESIGN-001).
 //
 // A widget is usable only if nothing in its transitive import closure reaches
 // dart:io or dart:ffi, since neither compiles for web. Blocked files print the

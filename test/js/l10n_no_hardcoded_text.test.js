@@ -1,4 +1,4 @@
-// Localization invariant LOC-002, ported from the former Dart
+// Localization invariant L10N-002, ported from the former Dart
 // test/l10n_no_hardcoded_text_test.dart so it runs in the Node checks job. A
 // UI file must never pass a raw string literal into a user-facing display
 // sink; every readable string goes through AppLocalizations.

@@ -63,7 +63,7 @@ void main() {
       expect(service.engine.allTimeTotal, 5);
     });
 
-    test('an archive-tier site is ignored and leaves no persisted trace',
+    test('an archive-tier site is ignored and leaves no persisted trace (STATS-005)',
         () async {
       final service = BlockStatsService.instance;
       await service.initialize(detailStore: detailStore);

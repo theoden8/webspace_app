@@ -34,16 +34,19 @@ Cookies SHALL be stored in Flutter Secure Storage (encrypted) as the primary sto
 
 ---
 
-### Requirement: COOKIE-002 - Fallback to SharedPreferences
+### Requirement: COOKIE-002 - Keystore Failure
 
-The system SHALL fall back to SharedPreferences when secure storage is unavailable.
+The system SHALL keep working when secure storage is unavailable, and SHALL
+NOT write a secure cookie anywhere else in its place: an `isSecure=true`
+cookie is lost rather than kept in plaintext (COOKIE-006).
 
 #### Scenario: Handle secure storage failure
 
 **Given** Flutter Secure Storage is unavailable (e.g., macOS without entitlements)
-**When** the system attempts to save cookies
-**Then** cookies are saved to SharedPreferences instead
-**And** the app continues to function normally
+**When** the system saves a site's cookies
+**Then** its `isSecure=false` cookies are saved to SharedPreferences as always
+**And** its `isSecure=true` cookies are written nowhere
+**And** the save completes and the app continues to function normally
 
 ---
 
@@ -123,9 +126,9 @@ Cookies SHALL be stored based on their `isSecure` flag:
 
 1. Load webViewModels from SharedPreferences (without cookies)
 2. Load cookies from CookieSecureStorage:
-   a. Try Flutter Secure Storage
-   b. If empty, try SharedPreferences fallback key
-   c. If empty, try legacy webViewModels cookies (migration)
+   a. Secure cookies from Flutter Secure Storage
+   b. Non-secure cookies from SharedPreferences (`cookies_fallback`)
+   c. If both are empty, legacy webViewModels cookies (migration)
 3. Merge cookies into loaded models
 4. Re-save to ensure cookies are in secure storage
 
@@ -133,8 +136,8 @@ Cookies SHALL be stored based on their `isSecure` flag:
 
 1. Collect cookies from all webViewModels
 2. Save cookies to CookieSecureStorage:
-   a. Try Flutter Secure Storage
-   b. On failure, mark unavailable and use SharedPreferences fallback
+   a. Secure cookies to Flutter Secure Storage; on failure they are dropped
+   b. Non-secure cookies to SharedPreferences
 3. Save webViewModels to SharedPreferences (with empty cookies array)
 
 ---
@@ -148,7 +151,8 @@ macOS Keychain access requires proper app signing with a development team. Witho
 PlatformException(Code: -34018, Message: A required entitlement isn't present.)
 ```
 
-**Solution**: The code gracefully falls back to SharedPreferences.
+**Solution**: The save completes without the secure cookies (COOKIE-002), so the
+site signs in again after a restart rather than keeping its session in plaintext.
 
 ### iOS
 

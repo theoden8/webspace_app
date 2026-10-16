@@ -183,7 +183,7 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 **When** the user drags a site to a new position in the tab strip or drawer grid
 **Then** `_sites.models` is reordered to match
 **And** the active site stays active (its `_sites.current` follows it to its new position)
-**And** any loaded webviews keep their in-memory state (IndexedStack children are keyed by `siteId`, not position)
+**And** any loaded webviews keep their in-memory state (each webview is keyed by its site, not its position: ISO-009)
 **And** the new order is persisted
 
 #### Scenario: Single site is not draggable
@@ -191,6 +191,52 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 **Given** the selected view contains only one site
 **When** the user long-presses that site
 **Then** no drag begins (there is nothing to reorder)
+
+---
+
+### Requirement: WEBSPACE-013 - A Switch Supersedes an Opening Site, Keeps It Loading and Spares the Screen
+
+Choosing a webspace on the list SHALL supersede an activation still in
+flight, as a return to the list does, so the list stays on screen. The site
+that activation was opening SHALL go on loading behind the list, as a
+preload does, once the switch knows whether the device is online, unless
+an input has superseded the switch meanwhile or what a preload waits for
+holds it back (another preload in flight, a loaded site on its base domain
+on the shared jar, another route). Once the device answers that it is
+online, the switch SHALL unload, on the shared cookie jar only, the loaded
+sites the new webspace stops showing, except the site on screen, the target
+of the live activation and the site it keeps loading. An unload the switch
+planned SHALL back off if its site becomes one of those before it is
+disposed (PAUSE-006). Offline, every webview stays, so a cached page can
+still be read.
+
+#### Scenario: A switch while a tapped site is opening
+
+**Given** site A is loaded behind the list and the user has just tapped it
+**And** A's activation has not committed yet
+**When** the user chooses a webspace that does not show A
+**Then** A's activation is superseded and the list stays on screen
+**And** A stays loaded behind the list, never disposed under a screen showing it
+
+#### Scenario: A tapped site not loaded yet goes on loading
+
+**Given** the user has just tapped site A, which is not loaded
+**And** A's activation has not committed yet
+**When** the user chooses a webspace that does not show A
+**Then** the list stays on screen
+**And** A loads behind it, as a preload does
+
+#### Scenario: A site opened while a switch unloads it
+
+**Given** a webspace switch is unloading site A, which it left behind
+**When** A is opened (a shortcut, a link) before its webview is disposed
+**Then** the switch's unload backs off and A stays loaded
+
+#### Scenario: Containers keep every site across a switch
+
+**Given** sites run in per-site containers
+**When** the user switches webspaces
+**Then** no site is unloaded for the switch (CONT-003)
 
 ---
 
@@ -224,14 +270,6 @@ production):
   - `filteredSiteIndices({selectedWebspaceId, webspaces, siteCount})` —
     implements WEBSPACE-004 (filtered drawer) including the `All`
     special-case and out-of-bounds filtering.
-  - `indicesToUnloadOnWebspaceSwitch({loadedIndices, previousWebspaceIndices,
-    newWebspaceIndices})` — returns the loaded sites that leave the
-    visible set on a webspace switch. The offline short-circuit
-    (preserve-all-loaded when disconnected) is a policy decision owned
-    by the caller, not the engine. The container-mode short-circuit
-    (sites stay resident across switches when isolated by their own
-    native container) lives in [`SiteUnloadEngine`](../../../lib/services/site_unload_engine.dart),
-    which delegates here in legacy mode.
   - `cleanupWebspaceIndices({webspaces, siteCount})` — strips
     out-of-bounds entries in place.
 - [`SiteUnloadEngine`](../../../lib/services/site_unload_engine.dart):
@@ -240,9 +278,14 @@ production):
     `WebspaceSwitched`, `TorExitSettled`, `NestedOpening`,
     `SlotIdentityChanged`); the rules below are its parts. `apply` runs
     the plan through the one unload, following each site by identity.
-  - `indicesToUnloadOnWebspaceSwitch({useContainers, ...})` — returns
-    `{}` under container mode (sites are isolated and stay loaded);
-    delegates to `WebspaceSelectionEngine` in legacy mode.
+  - `indicesToUnloadOnWebspaceSwitch({useContainers, loadedIndices,
+    leaving})` — returns `{}` under container mode (sites are isolated
+    and stay loaded), else the loaded sites the switch stops showing;
+    `plan` keeps those that may go (WEBSPACE-013).
+- [`SiteActivationController.switchWebspace`](../../../lib/controllers/site_activation_controller.dart)
+  runs the switch as a flow of the activation table (`space`, `sOnline`,
+  then the unload's places), printed into `formal/activation.tla`
+  (WEBSPACE-013).
   - `indicesToUnloadForProxyMismatch({targetIndex, models, loadedIndices,
     topology})` — on Android (process-global proxy), returns the
     loaded sites whose effective proxy differs from the activating
@@ -261,24 +304,18 @@ production):
     never an `active` or `activating` site. The active webspace's sites
     rank `webspace`, above other loaded sites, so context-relevant
     sites are evicted last.
-- [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart)
-  — returns the rewritten `siteIndices` for every affected webspace
-  when a site is removed from `_sites.models`, implementing
-  WEBSPACE-010. The rewrite drops the deleted index and shifts every
-  `i > deletedIndex` down by one.
-- [`SiteLifecycleEngine.computeReorderPatch`](../../../lib/services/site_lifecycle_engine.dart)
-  — implements the "All" branch of WEBSPACE-011. Given a move of the
-  model at `oldIndex` to `newIndex` (`removeAt` + `insert`), it remaps
-  `_sites.loaded` and `_sites.current` to the positions their elements
-  occupy after the move, so the active site and every loaded webview
-  keep pointing at the same `siteId`. Reordering within a named
-  webspace needs no engine: it rewrites the webspace's siteId-keyed
-  `siteIds` list directly (`WebspacesController._reorderSiteInWebspace`), and
-  `_resolveWebspaceIndices` rebuilds the positional view.
+- [`SiteRuntime.apply`](../../../lib/controllers/site_runtime.dart)
+  implements WEBSPACE-010 and the "All" branch of WEBSPACE-011. Webspaces
+  hold site ids, and the loaded sites and the one on screen are held as
+  sites, so a delete or a move rewrites no position: the delete takes its
+  site out of every webspace's `siteIds`, and `resolveWebspaceIndices`
+  rebuilds the positional view after either. Reordering within a named
+  webspace rewrites that webspace's `siteIds` list directly
+  (`WebspacesController._reorderSiteInWebspace`).
 
 Tests live in [test/webspace_selection_engine_test.dart](../../../test/webspace_selection_engine_test.dart),
 [test/site_unload_engine_test.dart](../../../test/site_unload_engine_test.dart),
-and [test/site_lifecycle_engine_test.dart](../../../test/site_lifecycle_engine_test.dart).
+and [test/site_runtime_test.dart](../../../test/site_runtime_test.dart).
 
 ---
 
@@ -289,10 +326,8 @@ and [test/site_lifecycle_engine_test.dart](../../../test/site_lifecycle_engine_t
 - `lib/screens/webspaces_list.dart` - Main webspaces screen
 - `lib/screens/webspace_detail.dart` - Edit webspace screen
 - `lib/services/webspace_selection_engine.dart` - Filter + unload-on-switch logic
-- `lib/services/site_lifecycle_engine.dart` - Deletion-patch index rewrite
 - `test/webspace_model_test.dart` - Unit tests
 - `test/webspace_selection_engine_test.dart` - Selection/unload/cleanup tests
-- `test/site_lifecycle_engine_test.dart` - Deletion patch tests
 
 ### Modified
 - `lib/main.dart` - Webspace state management and UI integration

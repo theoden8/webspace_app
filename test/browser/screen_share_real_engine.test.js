@@ -87,7 +87,7 @@ function sampleStream() {
   };
 }
 
-test('a virtual grant serves the picked surface under real Chromium',
+test('a virtual grant serves the picked surface under real Chromium (SHARE-008)',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
     const server = await startBlankServer();

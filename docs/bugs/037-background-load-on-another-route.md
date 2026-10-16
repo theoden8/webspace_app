@@ -1,0 +1,265 @@
+# BUG-037 — A site loaded in the background runs on another site's proxy
+
+Status: open
+
+**Spec:** [proxy](../../openspec/specs/proxy/spec.md) PROXY-008 ("Android —
+no background load on another route"), [web-push-notifications](../../openspec/specs/web-push-notifications/spec.md)
+NOTIF-016, NOTIF-017
+**Model:** [formal/activation.tla](../../formal/activation.tla)
+(`Inv_OneRoute` under `activation_proxy.cfg`, its containers twin, the
+router's and the Tor config; the `preloadmismatch` mistake is the preload's
+guard without the route check, and TLC breaks it under the proxy and the Tor
+configs)
+**Tests:** [test/activation_schedules_test.dart](../../test/activation_schedules_test.dart)
+(every schedule of the launches with mismatched proxies, the router's shared
+session and two Tor exits), [test/site_unload_engine_test.dart](../../test/site_unload_engine_test.dart)
+
+## Symptom
+
+On Android outside router mode, a site's requests leave through another
+site's proxy: the user configured proxy P1 for one site and P2 for a
+notification site, opened the first, and the notification site loaded at
+launch. Building its webview set P2 as the process-wide override, so the
+site on screen ran on P2. The same holds for two Tor sites pinned to
+different exit countries: the one Tor runtime takes the last pin.
+
+## Root mechanism / invariant
+
+On Android one `ProxyController.setProxyOverride` covers every webview in
+the process, and one Tor runtime has one `ExitNodes`. Loaded sites in one
+proxy scope must therefore share one route, and loaded Tor sites one exit
+(PROXY-008, TOR-025). An activation keeps this by unloading the sites on
+another route before it builds its webview. Any load that does not run an
+activation's plan skips that, and a webview built on another route moves
+the override under the sites already loaded.
+
+## Fix attempts
+
+1. **2026-04-30, #262 (`318fbf25`).** `SiteUnloadEngine`'s activation plan
+   unloads loaded sites whose effective proxy differs before the override
+   flips (`indicesToUnloadForProxyMismatch`); #272 then dropped the
+   save-time mirror that had copied one proxy into every site.
+   *Why:* Android cannot scope a proxy per webview, so sites on different
+   proxies must not be loaded together. *Partial:* it held for an
+   activation only. The launch's auto-load of notification sites, added
+   later (#423, `d6bb960c`), marked them loaded with no plan and no check.
+2. **2026-09-24, #619 (`1e8274a4`).** The plan also unloads Tor sites
+   pinned to another exit country. *Why:* the Tor runtime's exit pin is
+   process-wide as well. *Partial:* the same path, an activation only.
+3. **2026-10-07, #675 (`97304131`).** A background wake's headless check
+   skips a site whose route differs from the one the wake runs under
+   (`WakeSkip.proxyConflict`). *Why:* the headless webview is built with
+   the site's posture, which applies its proxy. *Partial:* the wake only;
+   the launch's auto-load still loaded without a check.
+4. **2026-10-13, PR #696.** The launch's auto-load is a preload (an
+   activation that does not show), and its guard takes `RouteFree` from the
+   unload engine's printed `ProxyContenders` and `TorDissenters`: a
+   notification site on another route waits until the user opens it, whose
+   activation unloads the others first. `Inv_OneRoute` states the rule from
+   the definitions, not from the guard, and the `preloadmismatch` mutant
+   (the guard without the check) is caught. *Why:* every load the model
+   holds is now an activation or a preload, so the check is the plan's
+   definitions in both. *Partial:* the nested open, the settings save and
+   the wake still wrote the rule outside it.
+5. **2026-10-13, PR #696.** One owner of the rule, `ProcessRoute`: every
+   write is a claim in its turn by what will run on it (a site's webview,
+   a nested screen, a wake's check), released when that goes, and a debug
+   build asserts nothing else running needs another route. Its first use
+   found two more paths. The nested open fixed its mismatched set before
+   its unload awaits, so a site that loaded meanwhile ran under the new
+   proxy; it now asks again after every unload and stands down when a tap
+   superseded it. A settings save moved the rule at once for the edited
+   site, live or not, under sites still on the old route; it now runs the
+   residency plan first, and only a live webview takes the rule. The
+   writes, which await the relay before the override, now take turns.
+   *Why:* a fact with three writers and no owner; the owner makes each
+   writer say what runs on the rule. *Partial:* the nested open's fix was
+   one engine's loop, which no model held, and a launch preload still did
+   not see a nested screen.
+6. **2026-10-13, PR #696.** The nested open is a flow of the activation
+   table (`openNested`), and the proxy rules range over the running sites,
+   the loaded ones and the one a nested screen runs as (`Running`), so the
+   preload's check, the plan's and `Inv_OneRoute` all see the screen. TLC
+   then found four more paths. A tap in flight committed beside the
+   screen, which never superseded it: a nested open now supersedes the
+   activation in flight as a tap does. A tap during the open's unloads had
+   its site disposed, since only a tap's unloads backed off: the open's back
+   off too. An open that unloaded the site on screen left it blank after
+   the pop, inbound or outbound: the flow goes on as that site's
+   activation. A nested screen for a Tor site went straight up beside a
+   loaded Tor site on another exit: the open now checks the exit whatever
+   the proxy scope, and pins it. A preload asks again at its commit.
+   `nestedonce` and `preloadunchecked` are the shapes before, caught.
+   *Why:* the open's steps were outside every model, so its races were
+   found one at a time. *Partial:* see below.
+7. **2026-10-13, PR #696.** A nested open whose proxy moved, then found a
+   site loaded on another route, went back to unload it still holding its
+   claim on the rule; an input that superseded it during that round ended
+   the flow with the claim never released, so the next write of the rule
+   failed `ProcessRoute`'s assert. The claim now goes with the round, and
+   the walks claim through a `ProcessRoute` of their own and require it
+   empty once settled. *Why:* the claim was released only where the screen
+   was known gone, not on every way out. *Partial:* the model holds which
+   sites run, not where the rule points, so a claim left behind is caught
+   by the walks only.
+8. **2026-10-13, PR #696.** A background wake took the route in force from
+   the live notification sites alone. With the site the user left on screen
+   loaded and its notifications off, and a notification site on another
+   proxy or Tor exit with no webview, the wake applied the headless site's
+   route under the live one, and nothing put it back: on return the site
+   on screen ran through the other proxy or exit. The plan now takes the
+   route in force from every live site (`BackgroundWakeEngine.plan`), with
+   two engine tests. *Why:* the plan read the wake's own candidates, not
+   what runs. *Partial:* the wake is still outside the model; a loaded site
+   whose webview builds during a wake claims the rule under its checks,
+   which only `ProcessRoute`'s assert sees.
+9. **2026-10-13, PR #696.** Back in the foreground during a wake, the
+   checks were released from the rule before they were disposed, one after
+   another, so a site the user opened meanwhile could move the proxy under
+   a check still loading. A check now leaves the rule once disposed, in the
+   rule's turn (`ProcessRoute.vacate`), and a write asked for meanwhile
+   waits for it, with a boundary test. *Why:* the release was bookkeeping,
+   not a turn of the rule. *Partial:* the wake is still outside the model.
+
+10. **2026-10-13, PR #696.** The background wake is a step table the
+   model prints (`WakeTable`), and its headless checks are running sites
+   (`headless` in `Running`), so a check asks the activation's own
+   `RouteFree` before it claims its place, and a preload sees a check as
+   it sees a loaded site. The app's lifecycle is the table's `Background`
+   and `Foreground` inputs (`fore`), one wake at a time, and a wake asked
+   for while one runs joins it. TLC then found a check that went up beside
+   a tap still in flight from before the app left the screen: the tap's
+   plan had run before the check existed, and its commit put a site on
+   another route beside it. A check now passes over every site while an
+   activation is in flight, as a preload does (`activationInFlight`). The
+   walks then found a check whose claim was queued just before the app's
+   return: the return took its list of checks at the call, so the claim
+   stayed on the rule with nothing running on it, and the next site the
+   user opened failed the rule's assert. The return now takes every check
+   in the rule's turn, after any open still under way has ended
+   (`ProcessRoute.vacateEvery`), and a check that never opens drops its
+   claim at once. `wakeunchecked` (the ask without the rule) and
+   `wakebesidetap` (the ask without the activation in flight) are caught.
+   *Why:* the wake's rule was its own (`wakeRouteFor`), outside every
+   model. *Partial:* the model's `Foreground` empties `headless` at once,
+   while the code holds the rule's turn until the opens end; a write that
+   waits for that turn is held by `ProcessRoute`, not by the model.
+
+11. **2026-10-13, PR #696.** A claim took its occupant off the rule as it
+   began and put it back once its write returned, so a webview disposed
+   while its write was out came back as an occupant on the route it was
+   leaving, and the next site's claim on another route failed the assert.
+   The rule now remembers whose write is out, and a release during it
+   leaves the occupant off (`ProcessRoute._writing`); a failed write leaves
+   no claim behind. *Why:* the walks drive the nested open's and the
+   wake's claims, whose releases come only after their writes or in the
+   rule's turn; a webview's claim, made as its controller arrives, is in no
+   walk. *Partial:* the webview's claim is still outside the model and the
+   walks.
+
+12. **2026-10-13, PR #696.** The rule's claims, turns and releases as a
+   model of their own (`formal/process_route.tla`) found attempt 11
+   partial: a release that lands while the claim still waits for the turn
+   cleared nothing, since nothing was out yet, and the write then ran and
+   listed the occupant. Each claim now takes a ticket as it is made; a
+   release voids it, so a claim released before its turn writes nothing
+   and one released during its write is not listed after it, and a claim
+   made again replaces the old ticket. The walks claim on every webview
+   they build under a global rule and hold the occupants to the loaded
+   sites at settle. Mutants caught: `readd` (the write lists its occupant
+   whatever the ticket), `midwrite` (no ticket on the write in flight),
+   `noturn` (two writes out at once). *Why:* attempt 11 reasoned about
+   the write in flight and not the queue before it; a model with both
+   found the gap in one step. *Partial:* the model is standalone; the
+   activation's model still holds which sites run, not the route each
+   write sets.
+13. **2026-10-14, PR #696.** A slot's running identity moved before its
+   webview went. The routing reconcile (LIR-034) and a tab switch onto a
+   tab that runs as another site (LIR-024) rewrote the identity first and
+   disposed the webview after an await (the reconcile's state removals, the
+   switch's reroute plan). A plan in that window read the new identity's
+   route for a webview still on the old one, so a tap there left a site on
+   the old route loaded beside the new one and the rule moved under it.
+   Now the identity and the webview change in one turn: under one
+   process-wide proxy the slot leaves the loaded sites in that turn, and
+   when it is on screen, or the target of an activation planned for the
+   identity it left, its activation starts again in the same turn and
+   runs PROXY-008 for the new identity, superseding the old plan; the
+   switch's separate reroute step is gone. Found by the reroute world of
+   the schedules (a link tab that follows its opener, under mismatched
+   proxies). Mistakes planted and caught: the old order, a reopen of the
+   screen's slot only (a tap in flight commits the old plan), a switch
+   that reroutes nothing, and an activation started after the turn.
+   *Why:* one fact, the active tab's host, was read both as what to plan
+   for and as what runs, and the two diverged across an await. *Partial:*
+   the reroute world is held by the schedules alone; the model's `Route`
+   is per site, so `activation.tla` takes no slot identity yet.
+14. **2026-10-15, PR #696.** A wake's check opened beside a nested open
+   in flight. Attempt 10's check waited out an activation by its marker,
+   and a nested open sets none: its screen not yet up, the check of a
+   notification site on another route passed `RouteFree`, and the pop
+   that followed brought the site on screen back on its own route beside
+   the check. Now a check also waits out a nested open in flight
+   (`BackgroundWakeHost.nestedOpening`, the model's `"nested"` in flight)
+   and is skipped as an activation in flight. Found by a world the
+   printer made for a pair no written world took together (the nested
+   open and the wake's ask, in containers with two routes); the world is
+   now written (`activation_nested_wake_containers.cfg`) and the old guard
+   is planted as `wakebesidenested`, caught by `Inv_OneRoute`. *Why:*
+   attempt 10 read "an activation in flight" as the marker, which a
+   nested open does not set, and no written world had links and wakes
+   together, so TLC never ran the two side by side. *Partial:* the
+   guard still names each kind of flow it waits for; a new kind that
+   moves the route is caught once a printed world takes it beside the
+   wake, not where the guard is written.
+15. **2026-10-15, PR #696.** Attempt 13's reopen was code the tab table
+   did not print. The rebind's unload arm called `_reopen` from inside its
+   act, so the printed `TabRebind` took the slot out of `loaded` and
+   started nothing, and any world with a tabbed site on a routed slot broke
+   `Inv_ShownLoaded`. The printer held those worlds back as a gap of the
+   model (`_modelGaps`), and `RoutesReply`/`TabRebind` stayed footprint
+   debt. Now a step table declares an input it starts in its own turn
+   (`Spawn`), with the input's step (`Tap`), the site it picks and the
+   condition it starts under (`_reopened`: the site is on screen or the
+   marker's target, the one owner `_reopen` reads too). The runner starts
+   it after the arm's other effects and the step's mark, and asserts that
+   the input landed once. An input that lands in a step's turn any other
+   way fails an assert, so the code cannot start a flow the model does not
+   print. The printer prints the input's effects in the same action, on the
+   flow numbered next (`Starts`, which `Input` now uses too), over the
+   state the arm leaves. The guard's model reading gained `Containers`
+   (only containers let a tab run as another site): on the shared jar the
+   printed arm dropped a signed-in session, which the code cannot reach.
+   The gap list is gone, the routed tabs world is written
+   (`activation_tabs_router_containers.cfg`, witness `Reach_Reopened`), and
+   the arm without its spawn is planted as `noreopen`, caught by
+   `Inv_ShownLoaded`. `RoutesReply`/`TabRebind` leaves the footprint debt,
+   and so does `SpaceOnlineReply`/`TabRebind`: the spawn's version bump
+   meets the webspace switch, and a written tabs world that reaches the
+   list by going home (`activation_tabs_spaces.cfg`) takes all three.
+   *Why:* the reopen was a side effect inside an act's
+   code, which the printer does not read. *Partial:* the printed guard
+   (`Containers /\ site \in Routed`) still stands in for "the target tab
+   runs as another site under one process-wide proxy". The model keeps no
+   slot identity, so the reroute world's traces are not replayed and
+   `TabRebind unload` stays in `steps_uncovered.tsv`. A behavior that would
+   start a flow past the last input ends there (`Done`).
+
+## Known open gaps
+
+- Turning router mode off with sites on different routes loaded leaves them
+  on one rule; nothing unloads them.
+- The model holds which sites run, not the route the rule is set to: the
+  order of two writes (a nested open's apply against a webview build, a
+  webview build against the app's return closing a wake's checks) is
+  checked by `ProcessRoute`'s assert, which the walks drive for every
+  webview, the nested open and the wake; its claims and releases are
+  checked on their own in `formal/process_route.tla`, not with the
+  activation's flows.
+- The model checks the route rule against the activation's flows only. A
+  load outside the activation table (none known today) would not be seen.
+- A slot's identity (a hosted tab, the routing reconcile) is checked by the
+  reroute world's schedules, not by the model, whose `Route` is per site:
+  the model prints the reroute's reopen (attempt 15) under a guard that
+  stands in for the identity change, and replays none of that world's
+  traces.

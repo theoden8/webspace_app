@@ -69,12 +69,13 @@ class ProxyRelay implements ProxyRelayApi {
         upstream.credentialsId != null) {
       return null;
     }
-    final address = upstream.address;
+    final address = switch (ProxyAddressParse.of(upstream.address)) {
+      final ProxyAddress parsed => parsed,
+      ProxyAddressMissing() ||
+      ProxyAddressMalformed() ||
+      ProxyAddressBadPort() => null,
+    };
     if (address == null) return null;
-    final parts = address.split(':');
-    if (parts.length != 2) return null;
-    final port = int.tryParse(parts[1]);
-    if (port == null) return null;
     final type = switch (upstream.type) {
       ProxyType.HTTPS => 'https',
       ProxyType.SOCKS5 => 'socks5',
@@ -83,8 +84,8 @@ class ProxyRelay implements ProxyRelayApi {
     try {
       final res = await _channel.invokeMethod<Map<dynamic, dynamic>>('start', {
         'type': type,
-        'host': parts[0],
-        'port': port,
+        'host': address.socketHost,
+        'port': address.port,
         'username': upstream.username,
         'password': upstream.password,
       });

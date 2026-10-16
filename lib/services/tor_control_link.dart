@@ -125,7 +125,7 @@ final class TorControlLink {
         final pin => (exitNodes: pin, strictNodes: '1', confluxEnabled: '0'),
       };
 
-  final SerialQueue _queue = SerialQueue();
+  final SerialQueue _queue = SerialQueue('torControlLink');
   final StreamController<TorControlLinkEvent> _changes =
       StreamController<TorControlLinkEvent>.broadcast();
   StreamSubscription<TorControlReply>? _eventSub;

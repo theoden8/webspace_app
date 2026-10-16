@@ -401,6 +401,7 @@ test('block mode leaves the platform device list alone', async () => {
   );
 });
 
+// MIC-010
 test('no bridge fails closed', async () => {
   const { window, calls } = setupMicDom({ noBridge: true });
   await assert.rejects(

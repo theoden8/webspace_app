@@ -281,7 +281,7 @@ The blocked domains are sent to Java once at startup via MethodChannel. Each han
 
 #### Blocking: shouldOverrideUrlLoading (all platforms)
 
-Fires for navigation-level requests (link clicks, page loads, redirects). Inserted AFTER the captcha challenge allowlist and BEFORE ClearURLs processing. Records all navigations (allowed + blocked). Blocks navigations to blocklisted domains.
+Fires for navigation-level requests (link clicks, page loads, redirects). Judged after the tracking-domain block and the external-scheme hand-off, and BEFORE ClearURLs processing and the captcha allow (CAPTCHA-008). Records all navigations (allowed + blocked). Blocks navigations to blocklisted domains.
 
 **Catches:** Link clicks, typed URLs, redirects, `window.location` changes
 **Does NOT catch:** Sub-resources
@@ -322,26 +322,20 @@ disentangleable.
 
 To minimize Dart roundtrips, the iOS interceptor uses three tiers:
 
-**1. Global domain cache** — instant lookup:
-Dart maintains a single `_domainCache: Map<String, bool>` keyed by host (NOT
-per-site — trackers and CDNs are shared across sites, so one site learning
-about `googleapis.com` benefits all sites). Updated transparently via
-`recordVerdict` whenever any webview reports a block decision (via native
-handler, JS `blockCheck`, or the JS `blockResourceLoadedBatch` observer). Persisted in
-SharedPreferences under `dns_domain_cache`, write-debounced to 2 seconds.
-Capped at 5000 entries with FIFO eviction. Invalidated (cleared) when the
-blocklist changes, since cached decisions may become stale.
-
-On the JS side (iOS), each webview also maintains `allowedCache` /
-`blockedCache` for instant in-webview lookup without MethodChannel calls.
-Hydrated on webview creation from the Dart global cache via the
-`getBlockBloom` handler (which returns `{bits, bitCount, k, cache}`).
-Capped at 500 entries with FIFO eviction.
+**1. Per-document host cache** — instant lookup:
+Each document's interceptor keeps a host -> verdict cache (500 entries, FIFO)
+filled from the bloom's misses and Dart's answers, so a host costs at most one
+round trip per document. There is no app-wide host cache: one would record
+every host every site requested, readable by any page through the bridge
+(DNS-018) and kept in plaintext preferences, and nothing read it for a
+decision. A build that wrote one under `dns_domain_cache` has the value removed
+at launch.
 
 **2. Bloom filter (JS byte array)** — microsecond lookup:
 Built from the merged DNS ∪ ABP blocked domains (~430 KB for 588K domains
-at 5% false positive rate). Sent to JS once on webview creation via
-`getBlockBloom`. Uses FNV-1a hash with Kirsch-Mitzenmacher double-hashing
+at 5% false positive rate). Fetched by each document through
+`getBlockBloom`, and fetched again, with the host cache emptied, when the
+lists change under an open page (DNS-023). Uses FNV-1a hash with Kirsch-Mitzenmacher double-hashing
 for k hash functions. JS implementation byte-compatible with Dart
 `BloomFilter` class. Rebuilt lazily; invalidated whenever either the DNS
 blocklist or the aggregated ABP rule set changes.
@@ -354,8 +348,7 @@ Only ~5% of first-time allowed URLs + all blocked URLs hit Dart. Dart does
 the proper O(1) HashSet lookup with hierarchy walk-up and records the request.
 
 On a typical page with 50 unique domains: ~47 pass the Bloom filter instantly,
-~3 trigger Dart roundtrips (bloom false positives, cached after). Second page
-load on same site: 0 roundtrips (all cached, persisted to disk).
+~3 trigger Dart roundtrips (bloom false positives, cached for the document).
 
 **Catches:** `fetch()`, `XMLHttpRequest`, dynamically created resource elements,
 property-set src/href, elements inserted into DOM after script runs.
@@ -380,16 +373,18 @@ cleared — some privacy leak), WebSocket, cross-origin iframe contents,
 
 #### Scenario: Hook ordering in shouldOverrideUrlLoading
 
-**Given** a URL matches a captcha challenge domain
+**Given** a URL matches a captcha challenge domain that the DNS blocklist names
 **When** `shouldOverrideUrlLoading` is called
-**Then** the URL is allowed (captcha takes priority over DNS blocking)
+**Then** the navigation is cancelled: the blocklist is judged before the
+captcha allow, which only lets an unlisted challenge load in place (CAPTCHA-008)
 
 #### Scenario: Blocked URL skips ClearURLs
 
 **Given** a URL is on the DNS blocklist
 **When** `shouldOverrideUrlLoading` is called
 **Then** navigation is cancelled immediately
-**And** ClearURLs processing is not performed (no point cleaning a blocked URL)
+**And** ClearURLs processing is not performed (no point cleaning a blocked URL),
+so no cleaned copy of it is reissued
 
 ---
 
@@ -435,7 +430,7 @@ Existing sites without `dnsBlockEnabled` in their stored JSON SHALL default to `
 
 ---
 
-### Requirement: DNS-018 - Severity Level in Settings Backup
+### Requirement: DNS-024 - Severity Level in Settings Backup
 
 The chosen DNS severity level SHALL round-trip through settings
 export/import as user intent. The downloaded domain blob, last-updated
@@ -610,36 +605,22 @@ The per-site settings screen SHALL display a compact DNS stats summary below the
 
 ---
 
-### Requirement: DNS-016 - Host Decision Caches
+### Requirement: DNS-016 - Host Decision Cache
 
-The system SHALL maintain two host-decision caches with distinct
-lifecycles. Both SHALL be bounded at 5000 entries with FIFO eviction
-on insert, and cap-enforced on load (corrupted or oversized prefs blobs
-SHALL NOT be allowed to load past the cap).
+The system SHALL keep one host-decision cache, in memory and DNS-only
+(`_dnsBlockCache`): keyed by host, its value is the host's **level mask** (0
+when no downloaded list names it) rather than a blocked/allowed bit, so a
+site's level bit-tests the cached answer instead of being baked into it. Read
+and written by `hostLevelMask()`, which `isBlocked()` and its level-aware
+siblings share. It SHALL be bounded at 5000 entries with FIFO eviction on
+insert, ring-buffer-backed for O(1) eviction without iterator allocation, and
+cleared when the level groups change.
 
-**Merged cache** (`_domainCache`): keyed by host, value is the merged
-DNS ∪ ABP decision. Populated by `recordVerdict` from webview hooks
-after the caller has combined both signals. Persisted to
-SharedPreferences under `dns_domain_cache`. It is app-wide and
-Dart-side only: it SHALL NOT be handed to page JS (DNS-018).
-Invalidated when **either** the DNS blocklist **or** the ABP rule set
-changes.
-
-**DNS-only hot-path cache** (`_dnsBlockCache`): keyed by host, value is the
-host's **level mask** (0 when no downloaded list names it) rather than a
-blocked/allowed bit, so a site's level bit-tests the cached answer instead of
-being baked into it. Read and written by `hostLevelMask()`, which
-`isBlocked()` and its level-aware siblings share. In-memory only,
-ring-buffer-backed for O(1) eviction without iterator allocation. Invalidated
-when the groups change.
-
-#### Scenario: Cached decision reused across sites
-
-**Given** site A's webview has previously checked `cdn.example.com` and
-Dart recorded it as allowed
-**When** site B's webview later encounters `cdn.example.com`
-**Then** the decision is served from the merged cache on the Dart side
-without re-walking the blocklist
+No record of the hosts a site requested SHALL be written to disk. An earlier
+build kept a merged DNS and ABP cache under `dns_domain_cache` in plaintext
+preferences, naming every host every site asked for, archive-tier and
+incognito sites' included, and nothing read it for a decision (BUG-035); it
+is never written, and a launch removes the stored value.
 
 #### Scenario: Two sites at different levels share one cached walk
 
@@ -648,46 +629,22 @@ Light does not
 **Then** the suffix walk runs once and the mask is cached
 **And** A allows the request while B blocks it
 
-#### Scenario: Merged cache survives app restart
+#### Scenario: The cache is cleared when the lists change
 
-**Given** the merged domain cache contains decisions
-**When** the app is restarted
-**Then** the cache is loaded from SharedPreferences (`dns_domain_cache`)
-**And** loading stops at the 5000-entry cap even if the on-disk blob is larger
+**Given** a host whose answer is cached
+**When** a level is downloaded or the lists are cleared
+**Then** the next check of that host walks the new groups
 
-#### Scenario: Both caches invalidated on blocklist update
+#### Scenario: The cache stays within its cap
 
-**Given** the user downloads a new blocklist level
-**When** the download completes
-**Then** the merged cache is cleared and `dns_domain_cache` is removed
-**And** the DNS-only hot-path cache is cleared
-**Because** previously cached masks may be invalidated by the new groups
+**Given** a page that requests far more than 5000 distinct hosts
+**Then** the cache evicts the oldest entries and every answer stays correct
 
-#### Scenario: Merged cache invalidated on ABP rule change
+#### Scenario: A launch removes the retired host cache
 
-**Given** the user toggles or downloads a content-blocker filter list
-**When** `ContentBlockerService` notifies its listeners
-**Then** the merged cache is cleared via `invalidateMergedBloom`
-**And** the DNS-only hot-path cache is left intact
-**Because** ABP changes do not affect DNS-only decisions
-
-#### Scenario: Cache size capped
-
-**Given** either cache has grown to 5000 entries
-**When** a new distinct host is inserted
-**Then** the oldest (first-inserted) entry is evicted (FIFO)
-**And** repeated inserts under load complete in O(1) time per insert
-(no iterator allocation per evict on the hot path)
-
-#### Scenario: Persistence is write-debounced
-
-**Given** many DNS decisions occur in rapid succession
-**When** `recordVerdict` is called repeatedly
-**Then** SharedPreferences is written once after a 2-second idle window
-**And** individual writes do not block the recording path
-**And** the DNS-only hot-path cache, being in-memory, is not affected
-
----
+**Given** an earlier build left a value under `dns_domain_cache`
+**When** the app launches
+**Then** the value is removed and nothing writes it again
 
 ### Requirement: DNS-018 - Bloom delivery carries no host list
 
@@ -953,6 +910,16 @@ use
 **Then** the Light bit is cleared from every domain
 **And** the domains no other level named are freed
 
+#### Scenario: A level that lands while the sweep waits is kept
+
+**Given** the deferred startup sweep has read the levels the sites ask for
+**And** a download the user started (the app-wide level, or a site's level fetched before its Save) is still in flight ahead of it
+**When** the download lands and the sweep runs
+**Then** the level it brought is kept: a prune keeps every level folded in after its set was read, and the app-wide level as it is when the prune runs
+**And** the app-wide level never names a level the sweep dropped
+
+Test: `test/dns_block_level_storage_test.dart` ("a level that lands after the sweep read the levels is kept", "a site level fetched before its Save survives the sweep").
+
 ---
 
 ### Requirement: DNS-022 - Android Sub-Resources Honour the Site's Level
@@ -968,9 +935,25 @@ name it. A blob with no marker SHALL load as level 1 so an older payload still
 parses.
 
 The interceptor's per-host cache SHALL hold level masks, so a level change
-moves the site's decisions without invalidating the cache. An attach call that names no
+moves the site's decisions without invalidating the cache. A refresh that names no
 level SHALL reuse the level last reported for that site rather than assuming
 full strength.
+
+The interceptor SHALL attach to each webview by its platform view id, for its
+own site alone, and the webview's first load SHALL wait for the attach to reply:
+the fork makes a widget's initial load as it creates the native view, before
+Dart hears of it, so a load handed to the widget would send the first
+document's sub-resources past the site's level, the adblock engine and LocalCDN.
+
+#### Scenario: The first load waits for the attach
+
+**Given** a site webview is being created on Android
+**When** the platform reports the view created
+**Then** it carries no initial load: the factory asks the interceptor to attach to that view by its id
+**And** the page's URL or cached snapshot loads only once the attach replies, as does any first load another path issues (the back/forward restore, the proxy path's deferred load, a reload)
+**And** no other webview is labelled with the site's id by that attach, so a site's sub-resources never run at another's level or count against another's report
+
+Test: `test/webview_controller_lifetime_test.dart` ("Android holds the first load until the interceptor attaches").
 
 #### Scenario: A site with DNS blocking off fetches a sub-resource
 
@@ -984,6 +967,57 @@ full strength.
 **When** the site is moved to Light and the webview re-attaches
 **Then** the interceptor evaluates at Light
 **And** the cached host masks are still used
+
+#### Scenario: The list of the site's level lands while its webview is attached
+
+**Given** a site asks for Pro, whose list is not downloaded, so its webview attached at the app-wide level
+**When** the Pro list lands, or any change moves the level the site resolves to
+**Then** the attached view is attached again at the level the site now resolves to, without a rebuild
+**And** so is a popup the site opened (`window.open`), which is one of its views
+**And** a view that has left the tree is not
+
+Tests: `test/webview_controller_lifetime_test.dart` ("a level that lands later reaches the attached view", "a level that lands later reaches the site's popup").
+
+#### Scenario: The app-wide level moves while a webview is attached
+
+**Given** an attached interceptor for a site that follows the app-wide level, at Light
+**When** the user downloads Pro as the app-wide level
+**Then** the attached view is attached again at Pro, without a rebuild
+**And** every listener told of the download reads Pro as the app-wide level: the partition and the level are put in force together, so the view's follower does not compare the old level with itself and stay where it was
+
+Tests: `test/webview_controller_lifetime_test.dart` ("an app-wide download reaches the attached view"), `test/dns_block_level_storage_test.dart` ("a listener told of the download reads the new app-wide level").
+
+#### Scenario: Every live view runs its site's level under every interleaving
+
+**Given** live site webviews whose sites follow the app-wide level, ask for a level of their own, or have DNS blocking off
+**When** downloads of the app-wide level and of a site's level, and the clear, interleave with activations that build and drop those webviews
+**Then** at every step each live view's interceptor was last told the level its site resolves to under the lists in force (`Inv_Told` in `formal/activation.tla`)
+**And** the download, the level a site asks for and the clear run from one step table (`DnsTable`), whose fold writes the lists, the app-wide level and what each view was told as one step and asserts the views were told what the model says
+
+Tests: `test/view_blockers_test.dart`; `test/activation_schedules_test.dart` ("DNS downloads"), replayed against the model by `formal/trace/check_steps.sh`; `formal/check.sh` (`activation_dns*.cfg`, the `foldbeforelevel` mutant).
+
+### Requirement: DNS-023 - WebKit Pages Follow a List Change
+
+On iOS and macOS the sub-resource interceptor SHALL be injected into every
+webview whose site asks for the DNS blocklist or the content blocker, whether
+or not either has data when the webview is built: an empty bloom misses every
+host at no cost, while an interceptor left out at build leaves the webview
+unblocked for its life. When the DNS level sets or the filter-list rules change,
+each live webview whose site asks for a blocker SHALL fetch the bloom again and
+drop the verdicts its document cached against the old lists; the old bloom
+answers until the new one lands.
+
+Known limit: the refetch is evaluated in the top document. A frame keeps the
+bloom it loaded with until it navigates.
+
+#### Scenario: A list downloaded while a page is open blocks on that page
+
+**Given** a site with the DNS blocklist on, opened before any list was downloaded
+**When** the user downloads a list
+**Then** the page's interceptor fetches the new bloom
+**And** a host it had allowed under the empty one is checked again rather than allowed from its cache
+
+Test: `test/js/block_interceptor_shim.test.js` ("a reload of the bloom blocks what the old one let through").
 
 ## Implementation Details
 
@@ -1070,24 +1104,9 @@ zero allocation per evict. Cleared whenever `_blockedDomains` changes
 restart is one cheap walk per first-seen host, and skipping persistence
 keeps `isBlocked()` purely synchronous.
 
-**`_domainCache`** (merged DNS ∪ ABP, persisted, iOS JS hydration)
-
-Populated by `recordVerdict` from `webview.dart` after the caller has
-combined DNS and ABP signals. Kept as a `Map<String, bool>` because
-it is read and written per host on the Dart side. It stays
-Dart-side: shipping it to page JS would hand any site the hosts every
-other site requested (DNS-018). Persisted to SharedPreferences under
-`dns_domain_cache`, write-debounced 2 seconds. Cleared when **either** the DNS blocklist
-**or** the ABP rule set changes, since merged decisions go stale on
-both inputs.
-
-Both caches share the same cap (`_maxDomainCacheEntries = 5000`) and
-defensive cap on load (`_loadDomainCache` stops loading after the cap
-is reached, in case a previous version or tampered prefs blob wrote
-past it). `isBlocked()` does not read or write `_domainCache`: the
-merged cache holds DNS∪ABP decisions, and using it in a DNS-specific
-check would conflate ABP-only blocks with DNS blocks and break per-site
-`dnsBlockEnabled` gating.
+The cap is `_maxDomainCacheEntries = 5000`. The merged cache an earlier build
+persisted is gone; its key survives only as `_retiredDomainCacheKey`, which the
+load removes (DNS-016).
 
 ### Mirror Fallback
 
@@ -1153,8 +1172,9 @@ class FastSubresourceInterceptor(
 
 The `WebInterceptPlugin` manages the lifecycle:
 1. `setDnsBlockedDomains` — receives the DNS host-only list from Dart, stores it in a Java `HashSet`; ABP rules live in the native adblock-rust engine instead (pushed via `setAdblockEngine`), and the interceptor consults it for any URL the DNS host-only check let through
-2. `attachToWebViews(siteId)` — traverses view hierarchy, finds `InAppWebView`
-   instances, replaces `contentBlockerHandler` field with `FastSubresourceInterceptor`
+2. `attachToView(viewId, siteId)` — finds the webview behind the platform view
+   id, replaces its `contentBlockerHandler` with a `FastSubresourceInterceptor`
+   for that site; `attachToWebViews()` re-reads each attached view's settings
 3. **Pull-based event delivery** — Java accumulates blocked events in a
    per-site list. On first block, signals Dart via `dnsBlockedReady(siteId)`
    (siteId-only payload, no data). If more blocks arrive while the signal is

@@ -92,7 +92,7 @@ String torRouteLabel(AppLocalizations loc, {bool? external}) =>
         ? loc.externalTor
         : ProxyType.TOR.name;
 
-/// A route as data (LOC-002): the type name and the address.
+/// A route as data (L10N-002): the type name and the address.
 String routeLabel(UserProxySettings route) =>
     '${route.type.name} ${route.address ?? ''}'.trim();
 

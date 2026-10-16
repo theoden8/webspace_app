@@ -35,18 +35,16 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 
-/// One site as the sheet needs to see it. Keeps the sheet off `_currentIndex`
-/// arithmetic: the host resolves indices, the sheet names sites by index.
+/// One site as the sheet needs to see it. The sheet names a site by its
+/// model, never a row: the sites can move while the sheet is up.
 class TabsSheetSite {
   const TabsSheetSite({
-    required this.index,
     required this.model,
     required this.isCurrent,
     required this.isLoaded,
     this.inView = true,
   });
 
-  final int index;
   final WebViewModel model;
 
   /// Whether this site is the one on screen.
@@ -85,17 +83,18 @@ class TabsSheet extends StatefulWidget {
   /// Index into [sites] of the site whose tabs open first.
   final int currentIndex;
 
-  final void Function(int siteIndex, {required TabId tabId}) onOpenTab;
-  final void Function(int siteIndex) onNewTab;
+  final void Function(WebViewModel site, {required TabId tabId}) onOpenTab;
+  final void Function(WebViewModel site) onNewTab;
 
   /// Opens web search for the site on screen (LIR-029); null hides it.
   final VoidCallback? onWebSearch;
-  final void Function(int siteIndex, {required TabId tabId}) onCloseTab;
-  final void Function(int siteIndex, {required TabId tabId}) onCloseSubtree;
+  final void Function(WebViewModel site, {required TabId tabId}) onCloseTab;
+  final void Function(WebViewModel site, {required TabId tabId})
+      onCloseSubtree;
 
   /// A tab dragged onto a row or past the last row (TAB-015). Returns whether
   /// the move was made. Null leaves the rows where they are.
-  final bool Function(int siteIndex,
+  final bool Function(WebViewModel site,
       {required TabId tabId, required TabDrop drop})? onMoveTab;
 
   /// A site's heading dropped on another's in the All sites view (TAB-016):
@@ -114,9 +113,9 @@ class TabsSheet extends StatefulWidget {
 
 /// What a drag carries: the tab, its site, and the ids it may not land in.
 class _DraggedTab {
-  const _DraggedTab(this.siteIndex, {required this.tabId, required this.subtree});
+  const _DraggedTab(this.site, {required this.tabId, required this.subtree});
 
-  final int siteIndex;
+  final WebViewModel site;
   final TabId tabId;
   final Set<String> subtree;
 }
@@ -286,7 +285,7 @@ class _TabsSheetState extends State<TabsSheet> {
             action(Icons.travel_explore, label: loc.webSearchMenu, withLabel: searchLabel,
                 onPressed: widget.onWebSearch!),
           action(Icons.add, label: loc.tabsNewTab, withLabel: newTabLabel,
-              onPressed: () => widget.onNewTab(site.index)),
+              onPressed: () => widget.onNewTab(site.model)),
         ],
       );
     });
@@ -565,16 +564,17 @@ class _TabsSheetState extends State<TabsSheet> {
     final collapsed = _collapsed.contains(collapseKey);
     final shape = BorderRadius.circular(Radii.lg);
     Widget close(String tooltip, {required IconData icon,
-            required void Function(int siteIndex, {required TabId tabId}) onClose}) =>
+            required void Function(WebViewModel site, {required TabId tabId})
+                onClose}) =>
         IconButton(
           visualDensity: VisualDensity.compact,
           iconSize: IconSizes.action,
           tooltip: tooltip,
           icon: Icon(icon),
-          onPressed: _closing(() => onClose(site.index, tabId: tab.id)),
+          onPressed: _closing(() => onClose(site.model, tabId: tab.id)),
         );
     final rowBody = InkWell(
-      onTap: _closing(() => widget.onOpenTab(site.index, tabId: tab.id)),
+      onTap: _closing(() => widget.onOpenTab(site.model, tabId: tab.id)),
       borderRadius: shape,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
@@ -684,7 +684,7 @@ class _TabsSheetState extends State<TabsSheet> {
     final key = _keyOf(site, tabId: tab.id);
     final rowKey = _rowKeys.putIfAbsent(key, GlobalKey.new);
     final expanded = row.childCount > 0 && !_collapsed.contains(key);
-    final dragged = _DraggedTab(site.index, tabId: tab.id, subtree: {
+    final dragged = _DraggedTab(site.model, tabId: tab.id, subtree: {
       tab.id,
       ...TabLifecycleEngine.descendants(site.model.tabs, id: tab.id)
           .map((t) => t.id),
@@ -700,7 +700,7 @@ class _TabsSheetState extends State<TabsSheet> {
     }
 
     bool accepts(_DraggedTab d) =>
-        d.siteIndex == site.index && !d.subtree.contains(tab.id);
+        identical(d.site, site.model) && !d.subtree.contains(tab.id);
 
     return DragTarget<_DraggedTab>(
       onWillAcceptWithDetails: (d) => accepts(d.data),
@@ -766,7 +766,7 @@ class _TabsSheetState extends State<TabsSheet> {
   Widget _endTarget(TabsSheetSite site, {required ThemeData theme}) {
     final key = 'end:${site.model.siteId}';
     return DragTarget<_DraggedTab>(
-      onWillAcceptWithDetails: (d) => d.data.siteIndex == site.index,
+      onWillAcceptWithDetails: (d) => identical(d.data.site, site.model),
       onMove: (_) => _hover(key),
       onLeave: (_) => _unhover(key),
       onAcceptWithDetails: (d) => _drop(d.data, drop: const TabDrop.toEnd()),
@@ -789,7 +789,7 @@ class _TabsSheetState extends State<TabsSheet> {
   void _drop(_DraggedTab d, {required TabDrop drop,String? expand}) {
     _stopAutoScroll();
     final moved =
-        widget.onMoveTab?.call(d.siteIndex, tabId: d.tabId, drop: drop) ??
+        widget.onMoveTab?.call(d.site, tabId: d.tabId, drop: drop) ??
             false;
     setState(() {
       _dropKey = _dropZone = null;

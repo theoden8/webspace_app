@@ -32,10 +32,29 @@ typedef SiteSetEffects = ({
 });
 
 /// One change to the set of sites, or to what the page must reconcile
-/// after one. `_commitSites` is the only way a change is made, and its
+/// after one. `SiteSetCommit` is the only way a change is made, and its
 /// order is fixed; what each kind needs is decided once, in [effects].
 sealed class SiteSetChange {
   const SiteSetChange();
+
+  /// The sites the change brings onto the page from outside it, whose zones
+  /// are resolved before the grid can build them.
+  List<WebViewModel> get arriving => switch (this) {
+        SitesLoaded(:final sites) ||
+        SitesReplaced(:final sites) ||
+        ArchiveOpened(:final sites) =>
+          sites,
+        SiteAdded(:final site) => [site],
+        SitesEdited() ||
+        SiteSettingsSaved() ||
+        SiteSettingsClosed() ||
+        SiteRemoved() ||
+        SitesMoved() ||
+        ArchiveClosed() ||
+        SiteArchived() ||
+        SiteUnarchived() =>
+          const [],
+      };
 
   SiteSetEffects get effects => switch (this) {
         SitesEdited() => (
@@ -91,7 +110,7 @@ sealed class SiteSetChange {
             savesWebspaces: true,
             prunesReferences: true,
             followsOpeners: false,
-            closesIneligibleTabs: false,
+            closesIneligibleTabs: true,
             reschedulesBackground: true,
             sweepsOrphans: true,
           ),

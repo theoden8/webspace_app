@@ -3,10 +3,11 @@
 // Drives the IndexedStack-of-placeholders contract in
 // lib/screens/webspace_page.dart: the IndexedStack is only rendered once at least one
 // site has been visited, and slots for never-visited sites stay as
-// `SizedBox.shrink()` placeholders (no `ValueKey(siteId)`). The
+// `SizedBox.shrink()` placeholders (no slot keyed by the site). The
 // per-slot key is the only public signal that a webview was actually
 // constructed for that site, so the test asserts on its presence /
-// absence rather than counting `inapp.InAppWebView` widgets directly.
+// absence (`siteSlot`) rather than counting `inapp.InAppWebView` widgets
+// directly.
 //
 // Site activation triggers a real WebView mount; the wayland +
 // WEBKIT_DISABLE_SANDBOX chroot harness is required (see
@@ -23,6 +24,8 @@ import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+
+import 'helpers/ui.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -69,10 +72,10 @@ void main() {
     // so no per-slot keys are in the tree yet — check including
     // offstage descendants since IndexedStack hides non-visible
     // children behind Offstage.
-    expect(find.byKey(const ValueKey('lazy-a'), skipOffstage: false),
+    expect(siteSlot('lazy-a', skipOffstage: false),
         findsNothing,
         reason: 'no site has been visited; site A slot must not exist yet');
-    expect(find.byKey(const ValueKey('lazy-b'), skipOffstage: false),
+    expect(siteSlot('lazy-b', skipOffstage: false),
         findsNothing,
         reason: 'no site has been visited; site B slot must not exist yet');
 
@@ -111,10 +114,8 @@ void main() {
           'Timed out after ${timeout.inSeconds}s waiting for: $description');
     }
 
-    bool hasKey(String siteId) => find
-        .byKey(ValueKey(siteId), skipOffstage: false)
-        .evaluate()
-        .isNotEmpty;
+    bool hasKey(String siteId) =>
+        siteSlot(siteId, skipOffstage: false).evaluate().isNotEmpty;
 
     // LAZY-002 forward + LAZY-003: visiting Lazy A materialises its
     // slot but leaves Lazy B as SizedBox.shrink() (no key). The
@@ -129,10 +130,10 @@ void main() {
       description: 'Lazy A slot to materialise',
     );
 
-    expect(find.byKey(const ValueKey('lazy-a'), skipOffstage: false),
+    expect(siteSlot('lazy-a', skipOffstage: false),
         findsOneWidget,
         reason: 'Lazy A slot should materialise after first visit (LAZY-002)');
-    expect(find.byKey(const ValueKey('lazy-b'), skipOffstage: false),
+    expect(siteSlot('lazy-b', skipOffstage: false),
         findsNothing,
         reason: 'Lazy B should remain a placeholder until visited (LAZY-003)');
   });

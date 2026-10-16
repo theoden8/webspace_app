@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'bare_site.dart';
@@ -23,11 +23,10 @@ import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   final applies = hostIsIOS || hostIsMacOS;
 
@@ -58,7 +57,7 @@ void main() {
     // container as a result. Without it each WebView gets
     // `WKWebsiteDataStore.default()`, a process singleton the app never uses
     // for a proxied site.
-    containers = await ContainerNative.instance.isSupported();
+    containers = bareIsolation is Containers;
     socks = await Socks5Fixture.bind();
     altSocks = await Socks5Fixture.bind();
 
@@ -194,7 +193,7 @@ String? body(String host, {required String path}) =>
         reason: 'the same second navigation, issued from Dart, went direct');
   });
 
-  testWidgets('two proxied sites reach their own proxies, not each other\'s',
+  testWidgets('two proxied sites reach their own proxies, not each other\'s (PROXY-002)',
       (tester) async {
     if (!usable()) return;
 

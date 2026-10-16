@@ -22,9 +22,9 @@ import 'package:webspace/settings/user_script.dart';
 
 /// The store the site binds and what it keeps there.
 typedef SiteContainer = ({
-  // What the on-disk container is named by: the siteId, or an archive-tier
-  // site's opaque key (ARCH-007).
-  ContainerKey containerKey,
+  // The native container the webview binds, or null for none
+  // (`containerIdFor`).
+  ContainerName? containerId,
   bool incognito,
   // Outbound form: a Tor proxy carries the siteId as its isolation tag.
   UserProxySettings proxy,

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 
 /// Holds the Hagezi `hagezi-<level name>.txt` bodies and the EasyList family
 /// as `<list id>.txt`, as downloaded; see README.md beside this file.
@@ -76,7 +77,7 @@ class BlockerDisk {
     final service = ContentBlockerService.instance
       ..reset()
       ..store = lists;
-    await service.initialize();
+    await service.initialize(native: WebInterceptNative.initialize());
     expect(service.hasRules, isTrue, reason: 'needs libwebspace_adblock');
   }
 }

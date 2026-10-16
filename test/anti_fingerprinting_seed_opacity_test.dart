@@ -13,7 +13,7 @@ void main() {
           resetNonce: 'reset-xyz',
         )!;
 
-    test('siteId, reset nonce and launch nonce are absent from the shim', () {
+    test('siteId, reset nonce and launch nonce are absent from the shim (ETP-027)', () {
       final js = source();
       expect(js, isNot(contains('site-A')));
       expect(js, isNot(contains('reset-xyz')));

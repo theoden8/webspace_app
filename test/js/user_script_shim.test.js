@@ -300,7 +300,7 @@ function setupFetch({ url = 'https://site.example/', rejectWith } = {}) {
   return { dom, calls, err };
 }
 
-test('the shim does not replace window.fetch', () => {
+test('the shim does not replace window.fetch (US-DR-006)', () => {
   const dom = makeDom({ url: 'https://site.example/' });
   const original = function stubFetch() { return Promise.reject(new Error('x')); };
   dom.window.fetch = original;

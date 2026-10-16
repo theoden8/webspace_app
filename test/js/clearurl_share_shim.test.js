@@ -27,7 +27,7 @@ function setup() {
   return { w, written, shared };
 }
 
-test('a copied URL is cleaned before it reaches the clipboard', async () => {
+test('a copied URL is cleaned before it reaches the clipboard (CURL-013)', async () => {
   const { w, written } = setup();
   await w.navigator.clipboard.writeText(`${CLEAN}?utm_source=x`);
   assert.deepEqual(written, [CLEAN]);

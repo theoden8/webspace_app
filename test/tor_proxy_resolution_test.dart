@@ -22,7 +22,7 @@ UserProxySettings _socks(TorRoute route) => switch (route) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
-    GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
+    GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
     // Stand in for a bootstrapped runtime on a port nothing hardcodes.
     torProxyResolver = (tag) => TorRouteUp(UserProxySettings(
           type: ProxyType.SOCKS5,
@@ -34,7 +34,7 @@ void main() {
 
   tearDown(() {
     torProxyResolver = null;
-    GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
+    GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
     resetOutboundHttp();
   });
 
@@ -48,7 +48,7 @@ void main() {
     });
 
     test('a DEFAULT site inheriting global TOR gets the app-global tag', () {
-      GlobalOutboundProxy.setForTest(_tor());
+      GlobalOutboundProxy.setInMemory(_tor());
 
       // The site asked for "whatever the app uses", not for a circuit of its
       // own; handing it one would give every uncustomized site its own exit.
@@ -61,13 +61,13 @@ void main() {
     });
 
     test('an explicit per-site TOR beats an inherited global TOR', () {
-      GlobalOutboundProxy.setForTest(_tor());
+      GlobalOutboundProxy.setInMemory(_tor());
       final resolved = resolveEffectiveProxy(_tor(), siteId: SiteId('site-a'));
       expect(resolved.username, 'site-a');
     });
 
     test('app-global traffic with no site resolves to the reserved tag', () {
-      GlobalOutboundProxy.setForTest(_tor());
+      GlobalOutboundProxy.setInMemory(_tor());
       final resolved = resolveEffectiveProxy(
         UserProxySettings(type: ProxyType.DEFAULT),
         siteId: null,
@@ -100,7 +100,7 @@ void main() {
       expect(m.outboundProxySettings.username, m.siteId);
     });
 
-    test('the stored manual config survives selecting TOR', () {
+    test('the stored manual config survives selecting TOR (PROXY-020)', () {
       final m = WebViewModel(
         initUrl: 'https://example.com',
         proxySettings: UserProxySettings(

@@ -8,8 +8,9 @@ import 'package:webspace/services/outbound_http_types.dart'
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/webview_proxy.dart'
-    show PlatformInfo, containerIdFor;
+    show PlatformInfo;
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
@@ -93,7 +94,7 @@ class SiteInfo {
 Future<void> showSiteInfoFor(
   BuildContext context, {
   required WebViewModel site,
-  required bool useContainers,
+  required Isolation isolation,
 }) {
   final id = site.runningIdentity;
   return showSiteInfoSheet(
@@ -104,12 +105,9 @@ Future<void> showSiteInfoFor(
       pageUrl: site.currentUrl,
       proxy: PlatformInfo.isProxySupported ? id.proxySettings : null,
       siteId: id.siteId,
-      containerId: containerIdFor(
-        key: id.containerKey,
-        incognito: id.effectiveIncognito,
-      ),
+      containerId: id.boundContainerId(isolation),
       incognito: id.effectiveIncognito,
-      containerColor: useContainers ? id.drawnContainerColor : null,
+      containerColor: isolation is Containers ? id.drawnContainerColor : null,
     ),
   );
 }

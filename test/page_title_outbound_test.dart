@@ -42,7 +42,7 @@ void main() {
   });
 
   test('a site on DEFAULT resolves through the global proxy', () async {
-    GlobalOutboundProxy.setForTest(
+    GlobalOutboundProxy.setInMemory(
       UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:9050'),
     );
     final factory = _titleFactory();

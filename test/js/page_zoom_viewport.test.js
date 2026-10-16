@@ -96,7 +96,7 @@ test('Android: page-shipped width=device-width becomes an explicit layout width'
   );
 });
 
-test('Android: the emitted meta always names a width (980px quirk guard)', () => {
+test('Android: the emitted meta always names a width (980px quirk guard) (ZOOM-006)', () => {
   // The regression this guards: `initial-scale=z` with no width. Any
   // future edit that drops the width directive on Android puts every
   // zoomed site back on the 980px desktop layout.
@@ -146,6 +146,7 @@ test('a page shipping no viewport meta gets one injected', () => {
   );
 });
 
+// ZOOM-005
 test('viewport meta added later is rewritten via MutationObserver', async () => {
   const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
@@ -186,7 +187,7 @@ test('a box wider than the view extent does not widen the layout', () => {
   );
 });
 
-test('repeated resizes do not compound the zoom', () => {
+test('repeated resizes do not compound the zoom (ZOOM-004)', () => {
   const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
@@ -227,7 +228,7 @@ test('without view extents the innerWidth sample carries the pin', () => {
   assert.equal(viewportContent(dom), `width=${layoutWidth(0.8, 360)}, initial-scale=0.8`);
 });
 
-test('a pin wider than the WebView is snapped back after layout', () => {
+test('a pin wider than the WebView is snapped back after layout (ZOOM-007)', () => {
   // The view extents describe the window, not the box: letterbox mode and
   // split screen make the WebView narrower. Once the page has laid out the
   // engine reports the box as the visual viewport, and a layout viewport

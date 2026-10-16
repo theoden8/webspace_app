@@ -35,6 +35,7 @@ class SiteEventInboxTest {
         assertEquals(listOf("a", "b"), wakes.map { it.siteId })
     }
 
+    // DNS-017
     @Test
     fun anEventAfterTheDrainWakesBeforeDartAnswers() {
         // Dart's handler drains, then returns; the answer arrives after the

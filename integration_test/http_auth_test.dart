@@ -34,7 +34,6 @@ import 'fixture_server.dart';
 import 'secure_storage_fake.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 const _user = 'alice';
 const _password = 's3cret';
@@ -68,7 +67,7 @@ const _probeJs = '''
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   late HttpServer server;
   late String base;
@@ -145,9 +144,12 @@ void main() {
   // Integration tests drive the real soft keyboard, which comes and goes on
   // the IME's schedule, and each inset change resizes the dialog. A target
   // scrolled into view after a fixed pause can be below the scroll viewport
-  // by the next frame (BUG-020), so scroll it in again every frame and tap
-  // only once its centre hit-tests to it. No frame runs between that check
-  // and the pointer-down, so the tap lands on the layout just checked.
+  // by the next frame, so scroll it in again every frame and tap only once
+  // its centre hit-tests to it. No frame runs between that check and the
+  // pointer-down, so the tap lands on the layout just checked. Re-tapping
+  // with `warnIfMissed: false` instead can land on Cancel or Sign in. A test
+  // that taps in a scroll view after text entry with fixed pauses fails only
+  // on the emulator, now and then (HTTPAUTH-007).
   Future<void> tapWhenHittable(
     WidgetTester tester, {
     required Finder target,

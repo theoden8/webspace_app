@@ -29,9 +29,9 @@ for free.
 | Threat                                           | Defended? | Mechanism |
 |--------------------------------------------------|-----------|-----------|
 | Sender leaks proxy password via QR               | Yes       | `UserProxySettings.toJson` omits password by default; codec relies on the default `toJson` |
-| Sender leaks session cookies (incl. `isSecure`)  | Yes       | `cookies` is in `excludedKeys`; never written to the payload |
-| Sender leaks user-supplied JavaScript            | Yes       | `userScripts` and `enabledGlobalScriptIds` are in `excludedKeys` |
-| Sender leaks user's site identity / browse state | Yes       | `siteId`, `currentUrl`, `pageTitle` are in `excludedKeys`; receiver mints a fresh `siteId` |
+| Sender leaks session cookies (incl. `isSecure`)  | Yes       | `cookies` is `QrShare.withheld` on its `SiteField`; never written to the payload |
+| Sender leaks user-supplied JavaScript            | Yes       | `userScripts` and `enabledGlobalScriptIds` are `QrShare.withheld` |
+| Sender leaks user's site identity / browse state | Yes       | `siteId`, `currentUrl`, `pageTitle` are `QrShare.withheld`; receiver mints a fresh `siteId` |
 | Hostile sender smuggles a key past the strip     | Yes       | Receiver re-applies the `includedKeys` whitelist on decode (defence in depth) |
 | Hostile sender supplies wrong-typed values       | No        | Codec only type-checks `initUrl`; other fields are pass-through. A crafted payload that decodes but has e.g. `spoofLatitude: "x"` propagates through `WebViewModel.fromJson` and throws `TypeError` in `SiteEditingController.addSite`. See QR-007 for the gap. |
 | Future sender ships a `vN > 1` payload to v1 app | Yes       | Receiver returns `null` from decode when `version > currentVersion` |
@@ -89,7 +89,7 @@ both encode and decode.
 **When** `SiteSettingsQrCodec.shareableSubset` is called
 **Then** the result contains exactly the keys in `includedKeys` that
 were present in the input
-**And** no `excludedKeys` entry survives
+**And** no withheld field's key survives
 
 #### Scenario: Decode re-applies the whitelist
 
@@ -100,13 +100,14 @@ into the JSON)
 **Then** the returned map contains only keys from `includedKeys` —
 the smuggled keys are dropped before the result reaches the caller.
 
-#### Scenario: Drift detection in test suite
+#### Scenario: Every field says whether a QR carries it
 
-**Given** any new field added to `WebViewModel.toJson`
-**When** `test/site_settings_qr_codec_test.dart` runs
-**Then** the test fails unless the new key is classified into either
-`includedKeys` or `excludedKeys`. This forces every per-site field to
-be reviewed for shareability before it can ship.
+**Given** a new field added to a site's JSON
+**When** it is added, as every site key is, as a `SiteField`
+(`lib/settings/site_field.dart`)
+**Then** it does not compile until it declares `qr:`, `QrShare.carried`
+or `QrShare.withheld`. Every per-site field is reviewed for shareability
+before it can ship, and `includedKeys` is the carried fields' keys.
 
 ---
 
@@ -345,7 +346,7 @@ neither shows up in any boolean the dialog already reports.
 
 A site created from a deep link SHALL NOT be activated: `_registerNewSite`
 is called with `activate: false`, so the site is added to the list and
-persisted but `_setCurrentIndex` is not called and the current site keeps
+persisted but `activate` is not called and the current site keeps
 the screen. A site created from the in-app scanner IS activated — the user
 went looking for it.
 
@@ -395,7 +396,7 @@ string, so a value `fromJson` would coerce cannot slip past the review
 **Given** the user accepts the review dialog for a deep-link payload
 **When** `_registerNewSite(model, activate: false)` runs
 **Then** the model is appended to `_webViewModels` and persisted
-**And** `_setCurrentIndex` is NOT called, so the currently-visible site
+**And** `activate` is NOT called, so the currently-visible site
 stays visible
 
 #### Scenario: Link handling off drops the QR deep link
@@ -479,9 +480,9 @@ No new persisted fields. The QR is a transient JSON projection of the
 existing `WebViewModel` config surface. Two helper sets define the
 projection:
 
-- `SiteSettingsQrCodec.includedKeys` — the whitelist that rides the wire
-- `SiteSettingsQrCodec.excludedKeys` — keys deliberately stripped, used
-  by the drift test to ensure every model key is classified
+- `SiteSettingsQrCodec.includedKeys` — the whitelist that rides the wire,
+  the keys of every `SiteField` whose `qr` is `QrShare.carried`; every
+  other field is withheld, and each one must say which
 
 `hydrateForFromJson` is the receiver-side helper that pads the stripped
 subset with the empty placeholders `WebViewModel.fromJson` requires

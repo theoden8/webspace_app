@@ -69,6 +69,7 @@ class ProxyRelayTest {
         }
     }
 
+    // PROXY-021
     @Test
     fun httpProxyUpstream_connectInjectsProxyAuthorization() {
         val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
@@ -312,6 +313,7 @@ class ProxyRelayTest {
         )
     }
 
+    // PROXY-024
     @Test
     fun listener_bindsARandomLoopbackAddressNotJust127001() {
         // The peer check cannot reject anything from API 29, so on a modern
@@ -356,6 +358,7 @@ class ProxyRelayTest {
         }
     }
 
+    // PROXY-023
     @Test
     fun foreignPeer_isRefusedBeforeAnyUpstreamConnect() {
         val upstreamHits = AtomicReference(0)
@@ -443,6 +446,7 @@ class ProxyRelayTest {
         }
     }
 
+    // PROXY-022
     @Test
     fun failClosed_unreachableUpstreamYields502NotDirect() {
         // Upstream points at a closed port: the relay must answer 502 and
@@ -469,6 +473,7 @@ class ProxyRelayTest {
         }
     }
 
+    // PROXY-012
     @Test
     fun httpsUpstream_rejectsCertificateIssuedForAnotherHost() {
         // The upstream's certificate chains to a trusted root but is issued

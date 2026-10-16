@@ -240,24 +240,59 @@ recognise a user across a data wipe. Gated by
 
 ### Requirement: ETP-005 - Canvas 2D fingerprinting
 
-The shim SHALL patch `CanvasRenderingContext2D.prototype.getImageData`,
-`HTMLCanvasElement.prototype.toDataURL`, and
-`HTMLCanvasElement.prototype.toBlob` so the underlying pixel buffer is
-perturbed by a seeded noise pass before reads.
+The shim SHALL noise every read of a 2D canvas (`getImageData` on
+`CanvasRenderingContext2D` and `OffscreenCanvasRenderingContext2D`,
+`HTMLCanvasElement.toDataURL` and `toBlob`, `OffscreenCanvas.convertToBlob`)
+with one seeded function of each pixel's raw 3x3 block, so that no two ways
+of reading the same pixels disagree: a pixel read through any rectangle, an
+encode decoded and read again, a copy drawn onto another canvas and a read
+put back all read as the first read did. Only an opaque pixel that differs
+from at least three of its four neighbours SHALL change, and only in its
+lowest red bit, so a solid fill, a straight edge and a one-pixel line read
+back as drawn, and a partly transparent pixel keeps the values premultiplied
+alpha allows. Pixels the page wrote with `putImageData` SHALL read back as
+written while they stand. The shim SHALL NOT draw on the page's canvas, and
+SHALL NOT give a context to a canvas that has none. A context or canvas from
+another frame SHALL be read through that frame's own shim.
 
-#### Scenario: getImageData call delegates to original and returns ImageData
+Not hidden: a page that writes a pattern with `putImageData`, copies it to
+a second canvas and reads both sees the copy noised where the written one
+is not.
+
+#### Scenario: A pixel reads the same through any rectangle
+
+**Given** the shim is loaded and a canvas holds text over a fill
+**When** the page reads it whole, pixel by pixel, in strips, and as a copy
+drawn onto another canvas
+**Then** every read of a pixel returns the same bytes
+
+#### Scenario: An encode leaves the canvas as drawn
+
+**Given** the shim is loaded and a canvas holds text over a fill
+**When** the page reads it, encodes it with `toDataURL`, and reads it again
+**Then** both reads are equal
+**And** the encode, decoded and drawn onto another canvas, reads as the first
+read
+**And** two encodes are equal
+
+#### Scenario: A solid block, a line and a put read back as written
 
 **Given** the shim is loaded
-**When** `ctx.getImageData(0, 0, w, h)` is called
-**Then** the original `getImageData` is invoked once
-**And** an ImageData with `data` of length `w*h*4` is returned
+**When** the page fills a block, draws a one-pixel line, and puts a pattern
+with `putImageData`
+**Then** each reads back exactly as written
 
-#### Scenario: toDataURL nudges a pixel before reading
+#### Scenario: The noise still moves a text canvas, alike on every load
 
-**Given** the shim is loaded
-**When** `canvas.toDataURL()` is called
-**Then** a single seeded `fillRect(x, y, 1, 1)` is issued first
-**And** the original `toDataURL` is then invoked
+**Given** a canvas of text read with and without the shim
+**Then** the shimmed read differs from the engine's
+**And** two loads under one seed read alike, and two seeds differ
+
+#### Scenario: A canvas with no context is encoded as it is
+
+**Given** a canvas no context was asked of
+**When** the page encodes it
+**Then** the original encode runs on it, and no context is made
 
 ---
 
@@ -271,8 +306,10 @@ The shim SHALL patch `WebGLRenderingContext.prototype` and
   UNMASKED_VENDOR_WEBGL / UNMASKED_RENDERER_WEBGL).
 * `getSupportedExtensions()` returns a constant minimal list:
   `['OES_texture_float', 'OES_element_index_uint', 'WEBGL_depth_texture']`.
-* `readPixels(...)` invokes the original then applies seeded noise to
-  the destination pixel array.
+* `readPixels(...)` into memory as `RGBA`/`UNSIGNED_BYTE` invokes the
+  original, then applies the canvas noise of ETP-005 to the destination,
+  so a pixel reads the same through any rectangle; a read into a bound
+  buffer or in another format is the engine's own.
 
 #### Scenario: getParameter masks vendor / renderer
 
@@ -400,6 +437,12 @@ answered by `'deviceMemory' in navigator` in one expression with no
 measurement — the same self-incrimination as the own-property leak below,
 and the rule worker scope already follows for `plugins` / `mimeTypes`
 (WORK-003).
+
+Not hidden: Chromium sends the device's own memory in the `Device-Memory`
+and `Sec-CH-Device-Memory` client hints to a site that asks for them
+(`Accept-CH`), so there the spoofed `navigator.deviceMemory` disagrees with
+a header. The spoof stays: it hides the value from every site that does not
+ask, and nothing the shim can reach rewrites the header.
 
 The shim SHALL ALSO wrap `window.matchMedia` so every `device-width`,
 `device-height` and `device-aspect-ratio` feature in a query resolves
@@ -743,20 +786,57 @@ without the injection
 
 ### Requirement: ETP-012 - Timing quantization
 
-The shim SHALL patch `performance.now()` and `Date.now()` so the
-returned value is quantized to 100 ms.
+The shim SHALL round every high-resolution clock a page or worker reads
+directly to a 5 ms step whose rounding point is drawn per step from the
+site's seed: `performance.now()`, `Date.now()`, `Event.prototype.timeStamp`,
+the timestamp a `requestAnimationFrame` callback receives, and
+`performance.timeOrigin`. Before a step's rounding point a clock reads the
+step's start; from it on, the next step's start. Each clock therefore reads
+a multiple of 5 and never runs backwards, and a script that waits for a tick
+cannot tell where in real time the tick fell. `performance.now()`, event
+timestamps and frame timestamps are one clock, so an event never reads later
+than a `performance.now()` taken after it.
 
-#### Scenario: performance.now is divisible by 100
+A coarser step costs pages that yield to input on elapsed time (React's
+scheduler yields after 5 ms): under the 100 ms floor this replaced, such a
+renderer held the main thread 37 ms per slice on average instead of 5, while
+`event.timeStamp`, which the floor left unrounded, gave any script 0.25 ms
+anyway. `test/browser/perf/clock_precision_bench.js` measures both sides for
+each candidate.
+
+#### Scenario: performance.now reads whole steps and never runs backwards
 
 **Given** the shim is loaded
-**When** `performance.now()` is called
-**Then** the returned value is divisible by 100
+**When** `performance.now()` is read repeatedly
+**Then** every value is a multiple of 5
+**And** no value is lower than the one before it
 
-#### Scenario: Date.now is divisible by 100
+#### Scenario: Date.now reads whole steps
 
 **Given** the shim is loaded
 **When** `Date.now()` is called
-**Then** the returned value is divisible by 100
+**Then** the returned value is a multiple of 5
+
+#### Scenario: an event's timestamp is on the same clock
+
+**Given** the shim is loaded
+**When** an event is dispatched and `performance.now()` is read after it
+**Then** the event's `timeStamp` is a multiple of 5
+**And** it is not greater than that `performance.now()`
+
+#### Scenario: where a step rounds up is drawn from the seed
+
+**Given** two pages of one site, and a page of another site
+**When** each reads the clock as real time crosses the same steps
+**Then** within one site the rounding point is the same at each step and
+differs from step to step
+**And** the other site's rounding points differ from the first site's
+
+#### Scenario: a worker reads the page's clock
+
+**Given** a page and a worker it starts, both under the shim
+**When** both read `Date.now()` at the same real time
+**Then** both read the same multiple of 5
 
 ---
 
@@ -1046,7 +1126,7 @@ Protection"
 
 The umbrella SHALL apply the fork's Android-only privacy `InAppWebViewSettings` whenever `trackingProtectionEnabled` is true, and leave each at its native default (`null`) when false. These settings are serialized but ignored by the iOS/macOS/Linux plugins.
 
-- `requestedWithHeaderOriginAllowList` SHALL be the empty set (suppresses the `X-Requested-With: <package>` header for every origin).
+- `requestedWithHeaderOriginAllowList` SHALL be the empty set (suppresses the `X-Requested-With: <package>` header for every origin). Unverified on a device: Fauxx measured this allow-list without effect on WebView 151 (the header still carried its package), so a probe of the headers a site receives on the emulator is owed before this counts as checked.
 - `attributionRegistrationBehavior` SHALL be `WebSettingsCompat.ATTRIBUTION_BEHAVIOR_DISABLED` (no Attribution Reporting source/trigger registration).
 - `webViewMediaIntegrityApiStatus` SHALL be `WEBVIEW_MEDIA_INTEGRITY_API_ENABLED_WITHOUT_APP_IDENTITY`, not `DISABLED`: the integrity token stays available for legitimate site anti-fraud, but no longer carries this app's package/signing identity, closing the cross-site app-identity leak. This is independent of the protected-media (Widevine/EME) permission, which governs DRM playback rather than attestation.
 

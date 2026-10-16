@@ -25,7 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'bare_site.dart';
@@ -35,11 +35,10 @@ import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   final applies = hostIsIOS || hostIsMacOS;
 
@@ -63,7 +62,7 @@ void main() {
   setUpAll(() async {
     if (!applies) return;
     await PlatformInfo.initialize();
-    containers = await ContainerNative.instance.isSupported();
+    containers = bareIsolation is Containers;
     before = await Socks5Fixture.bind();
     after = await Socks5Fixture.bind();
     before.syntheticKeepAlive = true;
@@ -155,7 +154,7 @@ List<String> served(Socks5Fixture f,
 
   final waitReal = RealWait(log: log, timeout: Duration(seconds: 20));
 
-  testWidgets('after a proxy change, nothing rides a connection from the old route',
+  testWidgets('after a proxy change, nothing rides a connection from the old route (PROXY-028)',
       (tester) async {
     if (!usable()) return;
     final site = SiteId('proxy-rebind-same-host');
@@ -231,7 +230,7 @@ List<String> served(Socks5Fixture f,
         reason: 'a new host after the change never reached the new proxy');
   });
 
-  testWidgets('a site that first loaded direct uses the proxy it is given',
+  testWidgets('a site that first loaded direct uses the proxy it is given (PROXY-003)',
       (tester) async {
     if (!usable()) return;
     final site = SiteId('proxy-rebind-after-direct');

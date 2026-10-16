@@ -74,7 +74,7 @@ void main() {
   });
 
   group('Spacing', () {
-    test('is a strictly ascending scale on a 4pt grid', () {
+    test('is a strictly ascending scale on a 4pt grid (DESIGN-005)', () {
       final scale = [Spacing.xs, Spacing.sm, Spacing.md, Spacing.lg, Spacing.xl];
       _ascending(scale, what: 'Spacing');
       for (final s in scale) {

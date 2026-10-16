@@ -24,28 +24,7 @@ void main() {
       expect(model.cookies, isEmpty);
     });
 
-    test('WebViewModel name updates from page title', () {
-      final model = WebViewModel(
-        initUrl: 'http://localhost:5000',
-      );
-
-      // Initially name is domain
-      expect(model.name, 'localhost');
-
-      // Simulate page title being fetched
-      model.pageTitle = 'MLflow - Experiment Tracking';
-      
-      // If name is still default domain, it should auto-update
-      // (This happens in onUrlChanged callback in real usage)
-      if (model.name == extractDomain(model.initUrl)) {
-        model.name = model.pageTitle!;
-      }
-
-      expect(model.name, 'MLflow - Experiment Tracking');
-      expect(model.getDisplayName(), 'MLflow - Experiment Tracking');
-    });
-
-    test('WebViewModel serialization preserves page title', () {
+    test('WebViewModel serialization preserves page title (EDIT-007)', () {
       final model = WebViewModel(
         initUrl: 'http://localhost:5000',
       );
@@ -188,45 +167,6 @@ void main() {
       
       // Should not have color-scheme
       expect(noTheme.contains('name="color-scheme"'), false);
-    });
-  });
-
-  group('Protocol Inference', () {
-    test('infers https when no protocol specified', () {
-      String inferProtocol(String url) {
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          return 'https://$url';
-        }
-        return url;
-      }
-
-      expect(inferProtocol('localhost:8080'), 'https://localhost:8080');
-      expect(inferProtocol('example.com'), 'https://example.com');
-      expect(inferProtocol('192.168.1.1'), 'https://192.168.1.1');
-    });
-
-    test('preserves explicit http protocol', () {
-      String inferProtocol(String url) {
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          return 'https://$url';
-        }
-        return url;
-      }
-
-      expect(inferProtocol('http://localhost:5000'), 'http://localhost:5000');
-      expect(inferProtocol('http://example.com'), 'http://example.com');
-    });
-
-    test('preserves explicit https protocol', () {
-      String inferProtocol(String url) {
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          return 'https://$url';
-        }
-        return url;
-      }
-
-      expect(inferProtocol('https://github.com'), 'https://github.com');
-      expect(inferProtocol('https://localhost:8080'), 'https://localhost:8080');
     });
   });
 

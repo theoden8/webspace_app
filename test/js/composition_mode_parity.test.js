@@ -73,16 +73,20 @@ test('the mode is set once, at launch', () => {
       assignments.push(`${file}:${src.slice(0, m.index).split('\n').length}`);
     }
   }
-  assert.equal(assignments.length, 1,
-    `WebViewFactory.hybridComposition must be assigned exactly once (at launch), ` +
-    `found: ${assignments.join(', ')}. Changing it while webviews exist would ` +
-    'hand them a mode they were not created in.');
-  assert.match(assignments[0], /^lib\/main\.dart:/);
+  // A second decision that differs is the owner's assert; this keeps the
+  // decision in the entry points, before any webview exists.
+  const entryPoints = /^lib\/(main|design_app\/main|design_gallery\/main)\.dart:/;
+  assert.deepEqual(assignments.filter((a) => !entryPoints.test(a)), [],
+    'WebViewFactory.hybridComposition is decided by an entry point at launch; ' +
+    'changing it while webviews exist would hand them a mode they were not ' +
+    'created in.');
+  assert.equal(assignments.filter((a) => a.startsWith('lib/main.dart:')).length, 1);
 });
 
 test('hybrid composition is the default, texture mode an experiment', () => {
   const webview = read('lib/services/webview.dart');
-  assert.match(webview, /static bool hybridComposition = true;/);
+  assert.match(webview, /static bool\? _hybridComposition;/,
+    'the owner holds no default of its own: main decides');
   const main = read('lib/main.dart');
   assert.match(main,
     /WebViewFactory\.hybridComposition = !ExperimentalFeaturesService\.instance\s*\.isEnabled\(ExperimentalFeature\.textureRendering\);/,

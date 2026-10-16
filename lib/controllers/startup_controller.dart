@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:webspace/settings/site_ids.dart';
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
@@ -14,19 +14,22 @@ import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/image_cache_service.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/settings_import_engine.dart' show promoteLegacySiteIndices;
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/services/timezone_location_service.dart';
-import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/web_view_model.dart';
 
 /// What the cold start asks of the page.
 abstract interface class StartupHost implements PageHost {
@@ -34,13 +37,44 @@ abstract interface class StartupHost implements PageHost {
   void enterFullscreen();
   void themeChanged();
 
-  /// [SiteRuntime.useContainers] is decided: bind the cookie jar that goes
-  /// with it.
-  void bindCookieJar();
+  /// The legacy engine, which the restore binds where containers are not
+  /// supported.
+  CookieIsolationEngine get legacyJar;
 
   Future<void> activateRouter();
-  Future<void> handleShareIntent();
+  Future<void> handleShareIntent({required Reached<Launched> after});
 }
+
+/// A fact of the launch, as a type: holding a [Reached] of one is the proof
+/// that it holds, and a call that needs the fact takes the proof. A later
+/// phase extends what it implies, so its proof stands in for theirs.
+sealed class LaunchPhase {}
+
+abstract final class PrefsLoaded extends LaunchPhase {}
+
+/// The webspaces and the global user scripts.
+abstract final class ShellLoaded extends LaunchPhase {}
+
+/// The restored sites are on the page, their zones resolved and their
+/// script opt-in migrated: the grid shows them and takes taps.
+abstract final class SitesOnPage extends LaunchPhase {}
+
+/// The launched site's activation has ended, or the list is shown.
+abstract final class Launched extends SitesOnPage {}
+
+/// Proof that [P] has been reached. Only the restore makes one, and a test
+/// that stands in for it.
+final class Reached<P extends LaunchPhase> {
+  const Reached._();
+
+  @visibleForTesting
+  const Reached.inTest();
+}
+
+typedef _Loaded = ({List<WebViewModel> sites, bool needsResave});
+
+/// The site a shortcut or a tapped notification names, held by identity.
+typedef _LaunchTarget = ({WebViewModel? shortcutSite, WebViewModel? site});
 
 /// The cold start: what the page loads, what it sweeps before any webview
 /// binds, the site it opens, and the work [DeferredStartupEngine] runs after
@@ -50,6 +84,7 @@ abstract interface class StartupHost implements PageHost {
 class StartupController implements DeferredStartupHost {
   StartupController(
     this._sites, {
+    required ProcessLaunch launch,
     required StartupHost host,
     required ShellStore shell,
     required SiteListStore siteStore,
@@ -57,7 +92,8 @@ class StartupController implements DeferredStartupHost {
     required SiteActivationController activation,
     required BackgroundSitesController background,
     required PageOrphanSweep sweep,
-  }) : _host = host,
+  }) : _launch = launch,
+       _host = host,
        _shell = shell,
        _siteStore = siteStore,
        _shortcuts = shortcuts,
@@ -66,6 +102,7 @@ class StartupController implements DeferredStartupHost {
        _sweep = sweep;
 
   final SiteRuntime _sites;
+  final ProcessLaunch _launch;
   final StartupHost _host;
   final ShellStore _shell;
   final SiteListStore _siteStore;
@@ -74,246 +111,292 @@ class StartupController implements DeferredStartupHost {
   final BackgroundSitesController _background;
   final PageOrphanSweep _sweep;
 
+  final _launched = Completer<Reached<Launched>?>();
+
+  /// The launched site's activation has ended; null when the restore gave up
+  /// before it, which it logged. A resume needs the proof for what the cold
+  /// launch would undo (a warm shortcut, a share intent).
+  Future<Reached<Launched>?> launched() => _launched.future;
+
+  /// Each step takes the proofs of the steps it follows and returns its own,
+  /// so a step called before its prerequisites does not compile; steps that
+  /// take nothing in common run at once.
   Future<void> restore() async {
     final activationVersionAtRestore = _sites.activationVersion;
     final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    try {
+      final prefs = _loadPrefs();
+      final shell = _loadShell();
+      final isolation = _bindIsolation();
+      final loaded = _loadSites();
+      final icons = isDemoMode
+          ? Future<void>.value()
+          : SiteIconStore.instance.initialize();
+      final swept = _sweepContainers(await isolation, loaded: await loaded);
+      final onPage = await _putSitesOnPage(
+        prefs: await prefs,
+        shell: await shell,
+        isolation: await isolation,
+        loaded: await loaded,
+      );
+      if (onPage == null) return;
+      final suggested = _loadSuggestedSites(after: await prefs);
+      final routes = _host.activateRouter();
+      await _shortcuts.pruneAgainst(_sites.siteIds, after: onPage);
+      final target = await _launchTarget(after: onPage);
+      if (target == null) return;
+      final pins = _shortcuts.refreshPinned(after: onPage);
+      final themed = await _themeLaunch(target, prefs: await prefs);
+      await routes;
+      final launched = await _activate(
+        target,
+        themed: themed,
+        activationVersionAtRestore: activationVersionAtRestore,
+      );
+      if (launched == null) return;
+      _launched.complete(launched);
+      if (swRestore != null) {
+        LogTag.startup.debug(
+          'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms',
+        );
+      }
+      // Not awaited before the launch: a container the activation makes waits
+      // for the sweep on its own (CONT-004).
+      await Future.wait([
+        icons,
+        suggested,
+        pins,
+        swept,
+        _afterLaunch(launched, themed: themed, loaded: await loaded),
+      ]);
+    } finally {
+      if (!_launched.isCompleted) _launched.complete(null);
+    }
+  }
+
+  Future<Reached<PrefsLoaded>> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
     AppPref.loadAll(prefs);
     _shell.loadTheme(prefs);
     _shortcuts.load(prefs);
     _host.themeChanged();
     _host.rebuild();
+    return const Reached._();
+  }
+
+  Future<Reached<ShellLoaded>> _loadShell() async {
     await _shell.loadWebspaces();
     _host.rebuild();
     await _shell.loadGlobalUserScripts();
-    // Before the sites are committed: whether hosted tabs can exist at all
-    // depends on the engine (LIR-019), and the commit settles them. Every
-    // path downstream branches on it synchronously. False on Android System
-    // WebView without MULTI_PROFILE, iOS <17, macOS <14 and unsupported
-    // platforms.
-    _sites.useContainers = await ContainerNative.instance.isSupported();
-    _host.bindCookieJar();
-    LogTag.container.debug(
-      _sites.useContainers
-          ? 'Container API supported — using ContainerIsolationEngine + ContainerCookieManager'
-          : 'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
+    return const Reached._();
+  }
+
+  /// Before the sites are committed: whether hosted tabs can exist at all
+  /// depends on the engine (LIR-019), and the commit settles them. On the
+  /// shared jar the launch clear is queued before this returns (ISO-012).
+  Future<Isolation> _bindIsolation() async {
+    final decided = await Isolation.probe(
+      native: ContainerNative.instance,
+      legacy: () => _host.legacyJar,
     );
-    final (sites: restored, :needsResave) = await _siteStore.load(
-      onChange: _host.rebuild,
-    );
-    if (swRestore != null) {
-      LogTag.startup.debug(
-        'load ${restored.length} site(s) + cookies: ${swRestore.elapsedMilliseconds}ms',
+    final isolation = _sites.isolation = decided;
+    // Queued before the commit makes the grid tappable, so it is the jar's
+    // first turn and every restore waits behind it (ISO-003).
+    if (isolation case SharedJar(:final jar)) {
+      // A jar that refuses is left as it is: the next activation empties it
+      // before any site shows (ISO-012), and the launch goes on.
+      final cleared = jar.clearUnloaded(loaded: _sites.loaded);
+      unawaited(
+        cleared.catchError(
+          (Object e) => LogTag.startup.warning('Launch jar clear failed: $e'),
+          test: (e) => e is CookieJarFailure,
+        ),
       );
     }
-    // Legacy positional membership resolves against the restored order,
-    // before the commit rebuilds every webspace's positions from siteIds.
-    if (promoteLegacySiteIndices(_sites.webspaces, sites: restored)) {
+    LogTag.container.debug(switch (isolation) {
+      Containers() =>
+        'Container API supported — using ContainerIsolationEngine + ContainerCookieManager',
+      SharedJar() =>
+        'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
+    });
+    return isolation;
+  }
+
+  Future<_Loaded> _loadSites() =>
+      _siteStore.load(onChange: _host.rebuild);
+
+  /// The sweep of containers no site will bind, started before the sites are
+  /// committed so it is under way before the grid can make one: a container
+  /// bound first is one `deleteContainer` cannot reliably remove (CONT-004).
+  /// Incognito sites are orphans for any session-scoped GC, so their
+  /// containers do not outlive the process (#298).
+  Future<void> _sweepContainers(
+    Isolation isolation, {
+    required _Loaded loaded,
+  }) => switch (isolation) {
+    Containers(:final engine) => engine.sweepBeforeBind(
+      {for (final m in loaded.sites) m.containerKey},
+      incognito: {
+        for (final m in loaded.sites)
+          if (m.incognito) m.containerKey,
+      },
+    ),
+    SharedJar() => Future<void>.value(),
+  };
+
+  /// The sites committed: the grid shows them and takes taps from here.
+  /// Null once the page has gone.
+  Future<Reached<SitesOnPage>?> _putSitesOnPage({
+    required Reached<PrefsLoaded> prefs,
+    required Reached<ShellLoaded> shell,
+    required Isolation isolation,
+    required _Loaded loaded,
+  }) async {
+    if (!_host.mounted) return null;
+    // Against the restored order, before the commit rebuilds every
+    // webspace's positions from siteIds.
+    if (promoteLegacySiteIndices(_sites.webspaces, sites: loaded.sites)) {
       await _shell.saveWebspaces();
     }
     // Sites restored with ProxyType.TOR need the runtime coming up before
     // their first navigation, or each opens on the bootstrap interstitial;
     // the commit's Tor sync does that.
-    await _host.commitSites(SitesLoaded(restored));
+    await _host.commitSites(SitesLoaded(loaded.sites));
     if (await _shell.migrateGlobalScriptOptIn()) {
       await _host.commitSites(const SitesEdited());
     }
+    return _host.mounted ? const Reached._() : null;
+  }
+
+  Future<void> _loadSuggestedSites({
+    required Reached<PrefsLoaded> after,
+  }) async {
     _shell.suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
+  }
 
-    await _host.activateRouter();
+  /// Every launch starts on the webspace list unless a shortcut or the
+  /// notification the user tapped names a site, held by identity from here:
+  /// the grid takes edits while the restore awaits.
+  Future<_LaunchTarget?> _launchTarget({
+    required Reached<SitesOnPage> after,
+  }) async {
+    final shortcutSite = await _shortcuts.resolveColdLaunch(after: after);
+    if (!_host.mounted) return null;
+    final tappedSite = await _background.wireTaps();
+    if (!_host.mounted) return null;
+    return (shortcutSite: shortcutSite, site: shortcutSite ?? tappedSite);
+  }
 
-    // Startup GC. The container sweeps run here (before any WebView binds —
-    // `deleteContainer` is only reliable in that unbound window). The
-    // secure-storage / HTML / cookie-jar sweeps are pure housekeeping for
-    // sites deleted in previous sessions, so they're deferred until after the
-    // launched site has painted (see `runPostPaintMaintenance` below): the
-    // activated site reads its cookies from its already-hydrated model (legacy
-    // mode re-nukes + restores the jar inside `_restoreCookiesForSite`;
-    // container mode reads from its own container), so none of those sweeps is
-    // on the first-paint path.
-    final activeSiteIdsAtStartup = _sites.models.map((m) => m.siteId).toSet();
-    await _shortcuts.pruneAgainst(activeSiteIdsAtStartup);
-    // Incognito sites are treated as orphans for any session-scoped GC
-    // (cookies, html cache, navigation state, container) so on-disk
-    // remnants don't outlive the process — see issue #298. Their config
-    // (proxy passwords, imported HTML for file:// sites) stays put.
-    await _sweep.containersBeforeBind(
-      {for (final m in _sites.models) m.containerKey},
-      nonIncognito: {
-        for (final m in _sites.models)
-          if (!m.incognito) m.containerKey,
-      },
-    );
-    // Left uninitialised in demo mode, which keeps the store memory-only
-    // there.
-    if (!isDemoMode) {
-      unawaited(SiteIconStore.instance.initialize());
-    }
-
-    // Every launch starts on the webspace list unless a shortcut or the
-    // notification the user tapped names a site.
-    final shortcutIndex = await _shortcuts.resolveColdLaunch();
-    if (!_host.mounted) return;
-    final tappedIndex = await _background.wireTaps();
-    if (!_host.mounted) return;
-    final indexToRestore = shortcutIndex ?? tappedIndex;
-
-    // Notification sites auto-load so they poll and fire notifications without
-    // the user opening them. In container mode this is deferred to AFTER the
-    // launched site paints (below) so a large notif import doesn't block the
-    // shortcut target. In legacy (non-container) mode they must load pre-paint
-    // so `setCurrentIndex`'s conflict-unload can arbitrate same-base-domain
-    // collisions; preload each one's HTML so its first build's getHtmlSync hits.
-    if (!_sites.useContainers && !launchedForBackgroundWake) {
-      for (int i = 0; i < _sites.models.length; i++) {
-        if (_sites.models[i].effectiveNotificationsEnabled) {
-          await _activation.ensureSiteHtml(i);
-          // PAUSE-019: same pre-queue as the container-mode deferred
-          // path — once in _sites.loaded the activation restore is
-          // skipped, so the back/forward stack must be queued now.
-          await queueNavStateRestore(_sites.models[i].siteId);
-          _sites.loaded.add(i);
-        }
-      }
-    }
-
-    // Apply saved theme BEFORE setCurrentIndex so the first build sees the
-    // right currentTheme — initialHtml reads it to pick the dark prelude for
-    // cached HTML (file:// imports especially, which never reload to live and
-    // so paint with whatever prelude the first build chose). Models default to
-    // WebViewTheme.light, so without this the first frame on a dark theme
-    // flashes white before the controller is created and re-applies via
-    // setController(). Only the models built this frame (launched site + any
-    // auto-loaded notification sites) need it now; the rest are themed after
-    // paint — their controllers aren't created until activated, and
-    // setController re-applies the theme then.
+  /// Before the activation so its first build sees the right theme:
+  /// initialHtml picks the dark prelude for cached HTML from it (file://
+  /// imports never reload to live), and models default to light, so a dark
+  /// theme would otherwise flash white. Only the models built now need it;
+  /// the rest are themed after paint. Returns their siteIds.
+  Future<Set<SiteId>> _themeLaunch(
+    _LaunchTarget target, {
+    required Reached<PrefsLoaded> prefs,
+  }) async {
     final webViewTheme = _shell.theme.themeMode.webViewTheme;
-    final preThemeIndices = <int>{..._sites.loaded, ?indexToRestore};
-    for (final i in preThemeIndices) {
-      if (i >= 0 && i < _sites.models.length) {
-        await _sites.models[i].setTheme(webViewTheme);
-      }
+    final models = <WebViewModel>{..._sites.loaded, ?target.site};
+    for (final m in models) {
+      await m.setTheme(webViewTheme);
     }
+    return {for (final m in models) m.siteId};
+  }
 
-    // Parity: a launched from-location site whose timezone hasn't been baked
-    // into `spoofTimezone` yet (data saved before tz-baking existed) must still
-    // spoof tz on this launch, matching the old resolve-at-build behavior. The
-    // background `_refreshLocationTimezones` would only fix it next launch, so
-    // resolve it synchronously here — but only for the launched site, only when
-    // unbaked, so the polygon dataset stays off the path for everyone else.
-    if (indexToRestore != null) {
-      final m = _sites.models[indexToRestore];
-      final unbaked = m.spoofTimezone == null || m.spoofTimezone!.isEmpty;
-      if (unbaked &&
-          derivesTimezoneFromLocation(
-            spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
-            trackingProtectionEnabled: m.trackingProtectionEnabled,
-            spoofLatitude: m.spoofLatitude,
-            spoofLongitude: m.spoofLongitude,
-          )) {
-        if (await TimezoneLocationService.instance.loadFromCacheIfPresent()) {
-          final tz = TimezoneLocationService.instance.lookup(
-            m.spoofLatitude!,
-            longitude: m.spoofLongitude!,
-          );
-          if (tz != null) m.spoofTimezone = tz;
-        }
-      }
-    }
-
+  /// The launched site activated, or the list shown, and the shortcut's
+  /// fullscreen policy. Null once the page has gone.
+  Future<Reached<Launched>?> _activate(
+    _LaunchTarget target, {
+    required Set<SiteId> themed,
+    required int activationVersionAtRestore,
+  }) async {
     final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
+    final launchAt = switch (target.site) {
+      final m? when _sites.models.contains(m) => m,
+      _ => null,
+    };
+    _launchedSite = launchAt;
     if (StartupRestoreEngine.shouldActivateAfterRestore(
-      indexToRestore: indexToRestore,
+      opensSite: launchAt != null,
       activatedDuringRestore:
           _sites.activationVersion != activationVersionAtRestore,
     )) {
-      await _activation.setCurrentIndex(indexToRestore);
+      await _activation.activate(launchAt);
     }
     if (swActivate != null) {
       LogTag.startup.debug(
-        'activate target site (setCurrentIndex): ${swActivate.elapsedMilliseconds}ms',
+        'activate target site: ${swActivate.elapsedMilliseconds}ms',
       );
     }
-    if (!_host.mounted) return;
+    if (!_host.mounted) return null;
     // The FS-008 shortcut-launch fullscreen policy; a notification launch is
-    // not a shortcut and opens the site as a tap on it would.
-    // KIOSK-003: a locked kiosk launch always goes fullscreen, overriding the
-    // per-site / fullscreenOnShortcut policy.
-    if (shortcutIndex != null &&
-        (_host.kioskLocked ||
-            StartupRestoreEngine.shouldEnterFullscreen(
-              viaShortcut: true,
-              fullscreenOnShortcut: AppPref.fullscreenOnShortcut.value,
-              perSiteFullscreenMode:
-                  _sites.models[shortcutIndex].fullscreenMode,
-            ))) {
+    // not a shortcut and opens the site as a tap would. KIOSK-003: a locked
+    // kiosk launch always goes fullscreen.
+    if (target.shortcutSite case final site?
+        when _sites.byId(site.siteId) != null &&
+            (_host.kioskLocked ||
+                StartupRestoreEngine.shouldEnterFullscreen(
+                  viaShortcut: true,
+                  fullscreenOnShortcut: AppPref.fullscreenOnShortcut.value,
+                  perSiteFullscreenMode: site.fullscreenMode,
+                ))) {
       _host.enterFullscreen();
     }
     _host.rebuild();
-    if (swRestore != null) {
-      LogTag.startup.debug(
-        'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms',
-      );
-    }
+    return const Reached._();
+  }
 
-    // Container mode: auto-load notification sites now that the launched site
-    // has painted — off the first-frame path. Each one's cached/imported HTML
-    // is decrypted before it enters _sites.loaded so its build's getHtmlSync
-    // hits; doing it here keeps a large notif import from blocking the shortcut
-    // target's first paint. (Legacy mode already loaded them pre-paint above.)
-    if (_sites.useContainers && !launchedForBackgroundWake) {
-      unawaited(
-        DeferredStartupEngine.autoLoadNotificationSites(
-          this,
-        ).then((_) => _background.reschedule()),
-      );
-    }
-
-    // Off the first-paint path: theme the remaining (not-yet-built) models,
-    // persist the load-time migration, and sweep orphan storage — all behind
-    // the siteId-keyed DeferredStartupEngine so a post-paint add/delete can't
-    // race it (see test/deferred_startup_engine_test.dart). The launched site
-    // waits on none of it.
-    final preThemeSiteIds = <SiteId>{
-      for (final i in preThemeIndices)
-        if (i >= 0 && i < _sites.models.length) _sites.models[i].siteId,
-    };
-    unawaited(
-      DeferredStartupEngine.runPostPaintMaintenance(
-        this,
-        alreadyThemedSiteIds: preThemeSiteIds,
-        needsResave: needsResave,
-      ),
+  /// Off the first paint: what the launched site waits on none of.
+  Future<void> _afterLaunch(
+    Reached<Launched> launched, {
+    required Set<SiteId> themed,
+    required _Loaded loaded,
+  }) {
+    _launchedProof = launched;
+    final themeRest = DeferredStartupEngine.themeRemaining(
+      this,
+      alreadyThemedSiteIds: themed,
     );
-
+    final background = _background.install();
     _shortcuts.promptParkedAfterFrame();
-
-    // Refresh the iOS App Intents picker on every launch, not just on save.
-    // iOS queries `suggestedEntities()` (and may re-materialize the per-site
-    // App Shortcuts) whenever Shortcuts.app is touched; if the App Group was
-    // never repopulated this session it can serve a stale single entry whose
-    // bound target no longer matches its title. Re-syncing here also re-fires
-    // `updateAppShortcutParameters()` so iOS re-reads the current site list.
+    // Every launch, not just on save: iOS queries `suggestedEntities()`
+    // whenever Shortcuts.app is touched, and an App Group not repopulated
+    // this session can serve a stale entry whose bound target no longer
+    // matches its title.
     _shortcuts.syncSites();
-
     _background.startForegroundPoll();
-
-    // Off the cold-start critical path. Neither gates the first frame or the
-    // launched site: the image cache's upgrade-clear only matters on a version
-    // bump, and the favicon URL cache is consulted progressively by the tab
-    // strip / add-site UI (a miss just triggers a fresh fetch).
-    unawaited(ImageCacheService.clearCacheOnUpgrade());
-    unawaited(FaviconUrlCache.initialize());
-
-    // Off the cold-start critical path: re-resolve the persisted timezone for
-    // any from-location site (migrates sites saved before the tz was baked
-    // into `spoofTimezone`, and refreshes after a dataset update). The dataset
-    // load + parse happen on a background isolate after the first frame.
-    unawaited(DeferredStartupEngine.refreshLocationTimezones(this));
-
-    await _background.install();
-    // Cold-start path for share intents; the resume handles the warm one.
-    unawaited(_host.handleShareIntent());
+    return Future.wait([
+      themeRest,
+      background,
+      // Notification sites auto-load so they poll and notify without the
+      // user opening them, themed and with their posts wired. Each is a
+      // preload: on the shared jar its session is restored before its
+      // webview is built, and it yields to a same-domain site already loaded
+      // (ISO-001).
+      Future.wait([themeRest, background]).then((_) async {
+        switch (_launch) {
+          case ProcessLaunch.user:
+            await DeferredStartupEngine.autoLoadNotificationSites(this);
+          case ProcessLaunch.backgroundWake:
+            // The wake checks them headless (NOTIF-016).
+        }
+      }),
+      DeferredStartupEngine.persistAndSweep(
+        this,
+        needsResave: loaded.needsResave,
+      ),
+      ImageCacheService.clearCacheOnUpgrade(),
+      // Consulted progressively by the tab strip and add-site UI; a miss
+      // only fetches afresh.
+      FaviconUrlCache.initialize(),
+      // Migrates sites saved before the tz was baked into `spoofTimezone`,
+      // and refreshes after a dataset update. The dataset parses on a
+      // background isolate.
+      DeferredStartupEngine.refreshLocationTimezones(this),
+      // Cold-start path for share intents; the resume handles the warm one.
+      _host.handleShareIntent(after: launched),
+    ]);
   }
 
   @override
@@ -335,22 +418,39 @@ class StartupController implements DeferredStartupHost {
   @override
   bool isLive(SiteId siteId) => _sites.byId(siteId) != null;
 
+  /// The launch, for the preloads it starts: set once, by [_afterLaunch].
+  late final Reached<Launched> _launchedProof;
+
   @override
-  bool isLoaded(SiteId siteId) {
-    final i = _sites.models.indexWhere((m) => m.siteId == siteId);
-    return i >= 0 && _sites.loaded.contains(i);
+  Future<PreloadOutcome> preload(SiteId siteId) =>
+      _activation.preload(siteId, after: _launchedProof);
+
+  @override
+  Future<void> activationSettled() => _sites.activationSettled();
+
+  /// The site a shortcut or a notification opened at launch, once the
+  /// restore has activated it.
+  WebViewModel? _launchedSite;
+
+  /// Completes when the page goes, so no wait it started outlives it.
+  final Completer<void> _disposed = Completer<void>();
+
+  void dispose() {
+    if (!_disposed.isCompleted) _disposed.complete();
   }
 
   @override
-  void markLoaded(SiteId siteId) {
-    final i = _sites.models.indexWhere((m) => m.siteId == siteId);
-    if (i >= 0) _sites.loaded.add(i);
-  }
-
-  @override
-  Future<void> preloadHtml(SiteId siteId) async {
-    final m = _sites.byId(siteId);
-    if (m != null) await _activation.ensureSiteHtmlForModel(m);
+  Future<void> launchedSiteLoaded() async {
+    final site = _launchedSite;
+    if (site == null) return;
+    final cap = Completer<void>();
+    final timer = Timer(kLaunchLoadWait, cap.complete);
+    try {
+      await Future.any(
+          [site.firstLoadSettled, cap.future, _disposed.future]);
+    } finally {
+      timer.cancel();
+    }
   }
 
   @override
@@ -360,14 +460,6 @@ class StartupController implements DeferredStartupHost {
       await m.setTheme(_shell.theme.themeMode.webViewTheme);
     }
   }
-
-  /// PAUSE-019: see [SiteActivationController.queueRestoreFor].
-  @override
-  Future<void> queueNavStateRestore(SiteId siteId) =>
-      _activation.queueRestoreFor(siteId);
-
-  @override
-  void requestRebuild() => _host.rebuild();
 
   @override
   Future<bool> loadTimezoneDataset() =>

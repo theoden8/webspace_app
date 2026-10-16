@@ -460,7 +460,7 @@ void main() {
       expect(logs, ['get wv2#3: refused, another request is pending']);
     });
 
-    test('an answer is completed, and no log line names the origin', () async {
+    test('an answer is completed, and no log line names the origin (PASSKEY-009)', () async {
       final gate = PasskeyCeremonyGate();
       final logs = <String>[];
       final response = jsonEncode({
@@ -499,7 +499,7 @@ void main() {
   group('access per host (PASSKEY-001, PASSKEY-013)', () {
     bool onScreen() => true;
 
-    test('Android asks Credential Manager through the bridge', () {
+    test('Android asks Credential Manager through the bridge (PASSKEY-010)', () {
       final access = PasskeyAccess.forHost(
           enabled: true, isOnScreen: onScreen, android: true, apple: false);
       expect(access?.backend, PasskeyBackend.credentialManager);

@@ -86,7 +86,7 @@ test('baseline: no zoom shim lays out at the device width', async (t) => {
   assert.equal(m.wide768, false);
 });
 
-test('80%: the layout viewport widens to deviceWidth/z and reflows', async (t) => {
+test('80%: the layout viewport widens to deviceWidth/z and reflows (ZOOM-001)', async (t) => {
   const m = await measure(t, pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851 }));
   if (!m) return;
   // Browser zoom means more CSS pixels fit across the same screen.
@@ -123,7 +123,7 @@ test('150%: the layout viewport narrows to deviceWidth/z', async (t) => {
   assert.ok(m.scrollWidth <= m.layoutWidth + 1);
 });
 
-test('the pinned Android width lays out identically to the WebKit meta', async (t) => {
+test('the pinned Android width lays out identically to the WebKit meta (ZOOM-003)', async (t) => {
   // The two builds write different directives for the same zoom — Android
   // pins the width, WebKit lets the engine resolve extend-to-zoom. On an
   // engine that honours both, they must land on the same layout, or the
@@ -155,7 +155,7 @@ test('an under-estimated pin is raised back to extend-to-zoom', async (t) => {
   );
 });
 
-test('a WebView narrower than the view is corrected after layout', async (t) => {
+test('a WebView narrower than the view is corrected after layout (ZOOM-007)', async (t) => {
   // The fixture's view extents say 393, but the box here is 320 — the
   // letterbox and split-screen case. Left uncorrected the page lays out at
   // 393/0.8 and hangs off the right edge; the post-layout snap has to

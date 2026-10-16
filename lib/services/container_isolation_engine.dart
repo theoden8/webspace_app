@@ -1,5 +1,6 @@
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/demo_mode.dart';
 
 /// Pure-Dart orchestration layer over [ContainerNative]. Four rules:
 ///
@@ -17,7 +18,10 @@ import 'package:webspace/services/log_service.dart';
 ///    a site deleted in a previous session) are swept on app startup
 ///    against the live key set.
 ///
-/// The engine is stateless beyond [containerNative]; tests inject a mock
+/// Only an `Isolation` of `Containers` holds one, which the restore makes
+/// once the probe says containers are supported, so no operation here asks
+/// again. The engine keeps nothing beyond [containerNative] and the launch
+/// sweep in flight; tests inject a mock
 /// that models per-container cookie partitioning, the same pattern as
 /// `MockCookieManager` in
 /// [test/cookie_isolation_integration_test.dart].
@@ -26,10 +30,23 @@ class ContainerIsolationEngine {
 
   ContainerIsolationEngine({required this.containerNative});
 
+  /// The launch sweep while it runs, which every container made waits for.
+  Future<void>? _sweeping;
+
   /// Idempotent: ensures [key]'s container exists in the native
-  /// store. Safe to call on every site activation.
+  /// store. Safe to call on every site activation. Waits for the launch
+  /// sweep: the grid takes a tap before it is done, and a container bound
+  /// first would be one `deleteContainer` cannot reliably remove (CONT-004).
   Future<void> ensureContainer(ContainerKey key) async {
-    if (!await containerNative.isSupported()) return;
+    if (_sweeping case final sweep?) {
+      try {
+        await sweep;
+      } finally {
+        // Done either way: a failed sweep must not hold every later
+        // container behind it.
+        if (identical(_sweeping, sweep)) _sweeping = null;
+      }
+    }
     await containerNative.getOrCreateContainer(key);
   }
 
@@ -40,7 +57,6 @@ class ContainerIsolationEngine {
   /// the live-container clear path; this is for site deletion and
   /// orphan GC.
   Future<void> onSiteDeleted(ContainerKey key) async {
-    if (!await containerNative.isSupported()) return;
     final deleted = await containerNative.deleteContainer(key);
     LogTag.container.debug(
         'Deleted container ws-$key (success=$deleted)', sensitive: true);
@@ -56,7 +72,6 @@ class ContainerIsolationEngine {
   /// platform clear didn't reach (notably Android's per-WebView HTTP
   /// cache).
   Future<bool> clearForSite(ContainerKey key) async {
-    if (!await containerNative.isSupported()) return false;
     final ok = await containerNative.clearContainerData(key);
     LogService.instance.log(
       LogTag.container,
@@ -69,12 +84,29 @@ class ContainerIsolationEngine {
     return ok;
   }
 
+  /// The launch sweep, once per process, as soon as the sites are read:
+  /// [garbageCollectOrphans], then each of [incognito]'s containers, so its
+  /// directory does not grow across sessions (#298). [ensureContainer]
+  /// waits for it. In demo mode it sweeps nothing: a seeded or test site
+  /// list is not the user's, and measured against it every one of their
+  /// sites is an orphan.
+  Future<void> sweepBeforeBind(
+    Set<ContainerKey> active, {
+    required Set<ContainerKey> incognito,
+  }) {
+    assert(_sweeping == null, 'the launch sweep runs once, before any bind');
+    if (isDemoMode) return _sweeping = Future<void>.value();
+    return _sweeping = () async {
+      await garbageCollectOrphans(active);
+      for (final key in incognito) {
+        await onSiteDeleted(key);
+      }
+    }();
+  }
+
   /// Sweeps containers whose owning site no longer exists in
-  /// [active]. Returns the number of containers deleted. Run at
-  /// app startup, after the active site set is known but before any
-  /// site is activated.
+  /// [active]. Returns the number of containers deleted.
   Future<int> garbageCollectOrphans(Set<ContainerKey> active) async {
-    if (!await containerNative.isSupported()) return 0;
     final stored = await containerNative.listContainers();
     int deleted = 0;
     for (final key in stored) {

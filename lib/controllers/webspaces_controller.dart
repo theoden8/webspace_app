@@ -6,9 +6,7 @@ import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
-import 'package:webspace/services/connectivity_service.dart';
-import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -54,14 +52,15 @@ class WebspacesController {
   /// Set while a webspace switch unloads sites; opening a site waits on it
   /// so the unload finishes before anything new loads.
   Completer<void>? _switchCompleter;
-  int _selectVersion = 0;
 
   Future<void>? get switchInFlight => _switchCompleter?.future;
 
   /// WEBSPACE-012 helper: switch the active webspace to "All" if [model]
   /// isn't a member of the current named webspace, with a snackbar.
-  Future<void> revealSite(WebViewModel model, {required int index}) async {
-    if (_sites.selectedWebspaceId == null ||
+  Future<void> revealSite(WebViewModel model) async {
+    final index = _sites.models.indexOf(model);
+    if (index < 0 ||
+        _sites.selectedWebspaceId == null ||
         _sites.selectedWebspaceId == WebspaceId.all) {
       return;
     }
@@ -160,7 +159,7 @@ class WebspacesController {
     }
     _host.rebuild();
     if (wasSelected) {
-      await _activation.setCurrentIndex(null);
+      await _activation.activate(null);
       if (!_host.mounted) return;
     }
     await _shell.saveWebspaces();
@@ -174,18 +173,15 @@ class WebspacesController {
       return;
     }
 
-    // Version counter guards against rapid taps: if another call arrives
-    // while we are awaiting, the stale call will detect the version mismatch
-    // and bail out instead of corrupting state.
-    final version = ++_selectVersion;
-
     // Signal that a webspace switch is in progress. Site selection (onTap)
     // awaits this so the unload finishes before any new site is loaded.
     final completer = Completer<void>();
     _switchCompleter = completer;
 
     try {
-      final previousIndices = _sites.filteredIndices().toSet();
+      Set<WebViewModel> shown() =>
+          {for (final i in _sites.filteredIndices()) _sites.models[i]};
+      final previous = shown();
 
       _sites.selectedWebspaceId = webspace.id;
       _host.rebuild();
@@ -193,26 +189,12 @@ class WebspacesController {
       // Open drawer immediately so the user sees instant feedback on tap
       _host.openDrawer();
 
-      final newIndices = _sites.filteredIndices().toSet();
-
-      // Only unload sites when online - preserve live webviews when offline
-      // so users can still view cached content
-      final online = await ConnectivityService.instance.isOnline();
-      if (!_host.mounted || version != _selectVersion) return;
-
-      if (online) {
-        final plan = _activation.residencyPlan(
-          WebspaceSwitched(previous: previousIndices, next: newIndices),
-        );
-        if (!await _activation.applyResidency(
-          plan,
-          isStale: () => !_host.mounted || version != _selectVersion,
-        )) {
-          return;
-        }
-      } else {
-        LogTag.webspaceSwitch.debug('Offline - preserving loaded webviews');
-      }
+      // A newer input supersedes the switch's unloads, as it would an
+      // activation's (WEBSPACE-013).
+      await _activation.switchWebspace(
+        leaving: previous.difference(shown()),
+      );
+      if (!_host.mounted) return;
 
       _host.rebuild();
       await _shell.saveSelectedWebspaceId();
@@ -226,14 +208,12 @@ class WebspacesController {
   }
 
   void reorder(int oldIndex, {required int newIndex}) {
-    // Don't allow reordering if "All" is involved (it stays at index 0)
-    if (oldIndex == 0 || newIndex == 0) return;
-
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-    final webspace = _sites.webspaces.removeAt(oldIndex);
-    _sites.webspaces.insert(newIndex, webspace);
+    final moved = WebspaceSelectionEngine.reorder(
+      _sites.webspaces,
+      from: oldIndex,
+      to: newIndex,
+    );
+    if (!moved) return;
     _host.rebuild();
     unawaited(_shell.saveWebspaces());
   }
@@ -281,8 +261,8 @@ class WebspacesController {
   }
 
   /// Moves the site at [oldModelIndex] to [newModelIndex] in the "All"
-  /// order. The IndexedStack children are keyed by siteId, so each webview
-  /// keeps its State.
+  /// order. Each webview in the stack is keyed by its site, so it keeps its
+  /// State.
   Future<void> _reorderAllSites(
     int oldModelIndex, {
     required int newModelIndex,

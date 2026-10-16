@@ -1,6 +1,7 @@
 import 'package:webspace/services/outbound_http_types.dart'
     show resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// Pure-Dart engine for the Android process-wide proxy constraint
 /// (NOTIF-005-A). `androidx.webkit.ProxyController.setProxyOverride`
@@ -28,6 +29,12 @@ class ProxyConflictEngine {
   /// sites naming different saved proxies do not.
   static ProxyRouteKey fingerprint(UserProxySettings p) =>
       resolveEffectiveProxy(p, siteId: null).routeKey;
+
+  /// The route [siteId]'s traffic takes when set to [p], its Tor tag
+  /// included (PROXY-011): what the process-wide rule is set to for it and
+  /// what two of its occupants compare (PROXY-008).
+  static ProxyRouteKey routeOf(UserProxySettings p, {required SiteId siteId}) =>
+      resolveEffectiveProxy(p, siteId: siteId).routeKey;
 
   /// True iff the candidate site can be flipped to background-poll
   /// without breaking the process-wide proxy constraint.

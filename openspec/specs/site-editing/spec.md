@@ -128,7 +128,7 @@ Because it lives in the model JSON it automatically rides settings backups, and
 for archive-tier sites it is persisted only inside the encrypted archive slice —
 no per-`siteId` plaintext file is written (ARCH-006 audit: no disk, background
 scheduling, or OS-UI surface beyond the existing home-shortcut path). The field
-is excluded from the QR share payload (`SiteSettingsQrCodec.excludedKeys`):
+is excluded from the QR share payload (`QrShare.withheld` on its `SiteField`):
 image bytes would blow QR capacity and an icon is device-local cosmetics.
 
 #### Scenario: Set a custom icon

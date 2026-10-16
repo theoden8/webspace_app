@@ -17,6 +17,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const YAML = require('yaml');
 const { read } = require('./helpers/source');
 
 const WORKFLOW = '.github/workflows/build-and-test.yml';
@@ -86,6 +87,62 @@ for (const block of blocks) {
     }
   });
 }
+
+// Which shell runs a step: its own `shell`, else the job's or the workflow's
+// default, else what GitHub picks, `sh` (dash) inside a container job and
+// `bash` on the runner. A bash-only form in an `sh` step, such as a
+// here-string, is a syntax error only when the step runs (BUG-034), so each
+// block is parsed by the shell that will run it.
+function stepShell(workflow, job, step) {
+  const shell = step.shell ?? job.defaults?.run?.shell ?? workflow.defaults?.run?.shell
+      ?? (job.container ? 'sh' : 'bash');
+  return shell.split(/\s+/)[0];
+}
+
+function hasDash() {
+  try {
+    execFileSync('dash', ['-c', ':'], { stdio: 'pipe' });
+    return true;
+  } catch (e) {
+    if (e.code === 'ENOENT') return false;
+    throw e;
+  }
+}
+
+test('every run block parses under the shell that runs it', (t) => {
+  if (!hasDash()) {
+    if (process.env.CI === 'true') assert.fail('dash is needed to parse the sh steps');
+    t.skip('no dash on PATH');
+    return;
+  }
+  const workflow = YAML.parse(read(WORKFLOW));
+  const parser = { sh: 'dash', bash: 'bash' };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wf-run-'));
+  const failures = [];
+  let parsed = 0;
+  try {
+    for (const [jobName, job] of Object.entries(workflow.jobs)) {
+      for (const [i, step] of (job.steps ?? []).entries()) {
+        if (typeof step.run !== 'string') continue;
+        const shell = stepShell(workflow, job, step);
+        if (!parser[shell]) continue;
+        const file = path.join(dir, `${jobName}-${i}.sh`);
+        fs.writeFileSync(file, step.run.replace(/\$\{\{[^}]*\}\}/g, 'X'));
+        try {
+          execFileSync(parser[shell], ['-n', file], { stdio: 'pipe' });
+        } catch (e) {
+          failures.push(`${jobName} / ${step.name ?? `step ${i}`} (${shell}): `
+              + `${e.stderr?.toString().trim()}`);
+        }
+        parsed++;
+      }
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  assert.ok(parsed > 20, `parsed only ${parsed} run blocks; has the workflow changed shape?`);
+  assert.deepEqual(failures, []);
+});
 
 // The `[ci-only: ...]` marker exists so a bisection that reads one tier does
 // not pay for the other four. Its failure modes are asymmetric: a job that

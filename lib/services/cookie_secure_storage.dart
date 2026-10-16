@@ -29,7 +29,7 @@ class CookieSecureStorage {
   /// from an in-memory snapshot must not interleave with a per-site
   /// `saveCookiesForSite`, or one clobbers the other (dropped session, or an
   /// archive-tier cookie re-persisted into app-tier storage — ARCH-001).
-  static final SerialQueue _writes = SerialQueue();
+  static final SerialQueue _writes = SerialQueue('cookieWrites');
 
   final SecureJsonStore<Map<String, List<Cookie>>> _secure;
 
@@ -48,8 +48,33 @@ class CookieSecureStorage {
   /// Loads cookies for all sites from both storages:
   /// - isSecure=true cookies from Flutter Secure Storage
   /// - isSecure=false cookies from SharedPreferences
-  /// Returns a merged map of site URL to list of cookies.
+  /// Returns a merged map of site URL to list of cookies. The one-time
+  /// migration of legacy cookies writes in the store's turn.
   Future<Map<String, List<Cookie>>> loadCookies() async {
+    final result = await _read();
+    if (result.isNotEmpty) return result;
+    if ((await _loadLegacyFromSharedPreferences()).isEmpty) return result;
+    // Read again in the turn: a write may have landed since.
+    return _writes.run(_loadCookiesHeld);
+  }
+
+  /// [loadCookies] for a mutator already in the store's turn.
+  Future<Map<String, List<Cookie>>> _loadCookiesHeld() async {
+    assert(_writes.isHeld, 'the cookie store read for a write outside its turn');
+    final result = await _read();
+    if (result.isNotEmpty) return result;
+    final legacy = await _loadLegacyFromSharedPreferences();
+    if (legacy.isEmpty) return result;
+    await _migrateHeld(legacy);
+    return legacy;
+  }
+
+  Future<void> _migrateHeld(Map<String, List<Cookie>> legacy) async {
+    await _saveCookiesHeld(legacy);
+    await _markMigrationComplete();
+  }
+
+  Future<Map<String, List<Cookie>>> _read() async {
     final Map<String, List<Cookie>> result = {};
 
     final secureCookies = await _secure.read();
@@ -66,17 +91,6 @@ class CookieSecureStorage {
       }
     });
 
-    if (result.isEmpty) {
-      final legacyCookies = await _loadLegacyFromSharedPreferences();
-      if (legacyCookies.isNotEmpty) {
-        // Unlocked: loadCookies runs inside the locked compound mutators
-        // below, so calling the locked saveCookies here would self-deadlock.
-        await _saveCookiesUnlocked(legacyCookies);
-        await _markMigrationComplete();
-        return legacyCookies;
-      }
-    }
-
     return result;
   }
 
@@ -84,7 +98,7 @@ class CookieSecureStorage {
   /// - isSecure=true cookies → Flutter Secure Storage only
   /// - isSecure=false cookies → SharedPreferences
   Future<void> saveCookies(Map<String, List<Cookie>> cookiesByUrl) {
-    return _writes.run(() => _saveCookiesUnlocked(cookiesByUrl));
+    return _writes.run(() => _saveCookiesHeld(cookiesByUrl));
   }
 
   /// Build the full app-tier cookie map INSIDE the write lock, then persist
@@ -97,10 +111,11 @@ class CookieSecureStorage {
   /// (ARCH-001). `build` runs synchronously at lock-acquisition time, after
   /// any already-committed flip+clear, so the snapshot is always consistent.
   Future<void> saveCookiesBuilt(Map<String, List<Cookie>> Function() build) {
-    return _writes.run(() => _saveCookiesUnlocked(build()));
+    return _writes.run(() => _saveCookiesHeld(build()));
   }
 
-  Future<void> _saveCookiesUnlocked(Map<String, List<Cookie>> cookiesByUrl) async {
+  Future<void> _saveCookiesHeld(Map<String, List<Cookie>> cookiesByUrl) async {
+    assert(_writes.isHeld, 'the cookie store written outside its turn');
     if (isDemoMode) return;
 
     final Map<String, List<Cookie>> secure = {};
@@ -133,13 +148,13 @@ class CookieSecureStorage {
       {required List<Cookie> cookies}) {
     if (isDemoMode) return Future.value();
     return _writes.run(() async {
-      final existingCookies = await loadCookies();
+      final existingCookies = await _loadCookiesHeld();
       if (cookies.isEmpty) {
         existingCookies.remove(siteId);
       } else {
         existingCookies[siteId] = cookies;
       }
-      await _saveCookiesUnlocked(existingCookies);
+      await _saveCookiesHeld(existingCookies);
     });
   }
 
@@ -149,14 +164,14 @@ class CookieSecureStorage {
     if (isDemoMode) return;
     final siteIdsToRemove = <String>[];
     await _writes.run(() async {
-      final allCookies = await loadCookies();
+      final allCookies = await _loadCookiesHeld();
       siteIdsToRemove.addAll(allCookies.keys
           .where((siteId) => !activeSiteIds.contains(siteId)));
       if (siteIdsToRemove.isEmpty) return;
       for (final siteId in siteIdsToRemove) {
         allCookies.remove(siteId);
       }
-      await _saveCookiesUnlocked(allCookies);
+      await _saveCookiesHeld(allCookies);
     });
     if (siteIdsToRemove.isEmpty) return;
     LogTag.cookieStorage.info(

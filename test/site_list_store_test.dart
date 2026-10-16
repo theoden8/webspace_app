@@ -26,6 +26,29 @@ void main() {
     );
   });
 
+  // Two site-set commits can run at once (SiteSettingsClosed and
+  // SiteSettingsSaved after one Save). They take no lock between them, which
+  // would sit in a cycle with the tab gate the commit's own steps take; the
+  // save converges instead, since it reads the live list only once the saves
+  // before it have written.
+  test('two overlapping saves leave the later state, whatever applied between',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final a = WebViewModel(initUrl: 'https://a.example.com', name: 'A');
+    final b = WebViewModel(initUrl: 'https://b.example.com', name: 'B');
+    final models = [a];
+    final first = store.save(models);
+    models.add(b);
+    a.name = 'A renamed';
+    final second = store.save(models);
+    await Future.wait([first, second]);
+
+    final json = (await SharedPreferences.getInstance())
+        .getStringList('webViewModels')!;
+    expect([for (final j in json) (jsonDecode(j) as Map)['name']],
+        ['A renamed', 'B']);
+  });
+
   test('nothing persisted reads as no sites and nothing to write back',
       () async {
     SharedPreferences.setMockInitialValues({});
@@ -34,6 +57,7 @@ void main() {
     expect(loaded.needsResave, isFalse);
   });
 
+  // PWD-001, PWD-002
   test('a save reads back without archive-tier sites or proxy passwords in '
       'the site JSON (ARCH-001, PWD-005)', () async {
     SharedPreferences.setMockInitialValues({});
@@ -68,6 +92,7 @@ void main() {
         reason: 'hydrated from secure storage');
   });
 
+  // PWD-003
   test('a legacy plaintext proxy password moves to secure storage and a '
       'malformed site is dropped', () async {
     final legacy = WebViewModel(initUrl: 'https://a.example.com').toJson();

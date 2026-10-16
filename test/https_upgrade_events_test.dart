@@ -33,8 +33,8 @@ class _Site {
   /// Deadlines armed but not yet fired: upgraded URL -> generation at arming.
   final Map<String, int> _armed = <String, int>{};
 
-  /// Stands in for `navigationGen`, which the real call site bumps at the top
-  /// of every `shouldOverrideUrlLoading`.
+  /// Stands in for `PagePhases.asked`, which the real call site bumps at the
+  /// top of every `shouldOverrideUrlLoading`.
   int generation = 0;
 
   bool navigate(String url) {
@@ -105,7 +105,7 @@ void main() {
     });
   });
 
-  group('failures, in each order the platform can deliver them', () {
+  group('failures, in each order the platform can deliver them (HTTPS-008)', () {
     test('error first, then the deadline', () {
       site.navigate('http://dead.example/a');
       site.loadFailed('https://dead.example/a');

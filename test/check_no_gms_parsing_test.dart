@@ -72,7 +72,7 @@ C d 1 1 40 androidx.webkit.WebViewCompat
         reason: 'stdout:\n${result.stdout}\nstderr:\n${result.stderr}');
   });
 
-  test('defined gms class still fails', () async {
+  test('defined gms class still fails (CONT-007)', () async {
     final result = await runWithStub('''
 P d 1 1 40 com.google.android.gms.common
 C d 1 1 40 com.google.android.gms.common.GoogleApiAvailability

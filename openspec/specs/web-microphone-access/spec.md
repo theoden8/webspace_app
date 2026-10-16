@@ -65,8 +65,10 @@ which is what draws the row and its badge in the error colour via
 A nested `InAppWebViewScreen` (cross-domain navigation) SHALL forward
 microphone requests to the same popup and remember the answer in-memory for
 that screen's lifetime only, mirroring the camera pattern. Nested screens have
-no persisted model; the parent site's stored decision is not inherited across
-the origin change.
+no persisted model. A screen starts from the opening site's nested posture,
+where a device grant (`real`) is back to `ask`, so the parent's grant of the
+device does not follow the origin change; `block` and `virtual` are inherited
+as they are.
 
 #### Scenario: Outbound link to a page that wants audio
 
@@ -101,7 +103,7 @@ site leaves the archive.
 ### Requirement: MIC-007 — Decision never rides the settings QR
 
 `microphoneMode` and `virtualMicrophoneSource` SHALL be in
-`SiteSettingsQrCodec.excludedKeys`: a remembered permission decision is trust
+`QrShare.withheld` on its `SiteField`: a remembered permission decision is trust
 the user gave one device's popup, and the picked clip is local user content
 (it would also blow QR capacity) — neither is shareable configuration.
 

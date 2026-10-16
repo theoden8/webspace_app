@@ -88,7 +88,7 @@ test('Intl.DateTimeFormat with explicit timeZone is left alone', async (t) => {
   });
 });
 
-test('Date.getTimezoneOffset returns DST-correct offset for Europe/Paris',
+test('Date.getTimezoneOffset returns DST-correct offset for Europe/Paris (SHIM-TEST-005)',
   async (t) => {
     // Paris is CET (UTC+1, offset -60) in January and CEST (UTC+2,
     // offset -120) in July. If the shim were doing a fixed offset,
@@ -163,7 +163,7 @@ test('getCurrentPosition resolves to spoofed coords (within jitter)',
     });
   });
 
-test('Geolocation.prototype.getCurrentPosition is also overridden',
+test('Geolocation.prototype.getCurrentPosition is also overridden (LOC-002)',
   async (t) => {
     // Sites can read the prototype reference before navigator.geolocation
     // is touched. The shim must patch both surfaces.

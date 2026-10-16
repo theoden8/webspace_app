@@ -27,7 +27,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/webview.dart';
@@ -37,11 +37,10 @@ import 'socks5_fixture.dart';
 import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
-import 'package:webspace/services/page_js.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   final applies = hostIsIOS || hostIsMacOS;
 
@@ -63,7 +62,7 @@ void main() {
   setUpAll(() async {
     if (!applies) return;
     await PlatformInfo.initialize();
-    containers = await ContainerNative.instance.isSupported();
+    containers = bareIsolation is Containers;
     upstreamA = await Socks5Fixture.bind();
     upstreamB = await Socks5Fixture.bind();
     ProxyRouterService.appleRelayEnabled = true;

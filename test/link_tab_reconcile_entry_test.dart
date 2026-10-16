@@ -83,14 +83,19 @@ void main() {
       expect(cancel, lessThan(flip));
     });
 
-    test('a live slot that changed identity is rebuilt as the new one', () {
-      expect(body, contains('identityBefore.putIfAbsent(owner, () => owner.runningIdentity);'));
-      final apply = body.indexOf(RegExp(
-          r'await _applySlotIdentityChange\(model,\s*identityBefore: entry\.value\)'));
-      expect(apply, isNot(-1));
-      expect(body.indexOf('model.disposeWebView();'), greaterThan(apply));
-      expect(body, contains('if (!_sites.models.contains(model)) continue;'),
-          reason: 'a site deleted meanwhile is not rebuilt');
+    // What the turn does under a process-wide proxy, against taps and tab
+    // switches, is the reroute world of activation_schedules_test.
+    test('a live slot lets go of its webview in the turn its identity moves '
+        '(LIR-024)', () {
+      final start = body.indexOf('for (final owner in _sites.models)');
+      final pass = body.substring(start, body.indexOf('if (!changed) return;'));
+      expect(pass.indexOf('_letGoOfIdentity(owner);'),
+          greaterThan(pass.indexOf('tab.hostSiteId = host;')),
+          reason: 'a plan between the two would read the new identity\'s '
+              'route for a webview still on the old one');
+      final letGo = tabsBody('void _letGoOfIdentity(');
+      expect(letGo, contains('model.disposeWebView(\n      commit: const Commit.unmodeled(Unmodeled.identityChange),\n    );'));
+      expect(letGo, matches(RegExp(r'_sites\.retired\(\s*model,')));
     });
 
     test('a vanished opener leaves the tab where it is', () {
@@ -102,15 +107,12 @@ void main() {
       );
     });
 
-    // Which changes run it is SiteSetChange.effects (site_runtime_test).
-    test('runs in the commit, before ineligible hosted tabs close', () {
-      final calls =
-          RegExp(r'await _tabs\.reconcileLinkTabs\(\);').allMatches(main);
-      expect(calls, hasLength(1));
-      final commit = bodyOf('Future<void> _commitSites(');
-      expect(commit.indexOf('await _tabs.reconcileLinkTabs();'),
-          lessThan(commit.indexOf('await _tabs.closeIneligibleHostedTabs();')),
-          reason: 'the host a tab now runs as must still be checked');
+    // Which changes run it is SiteSetChange.effects (site_runtime_test), and
+    // that it runs before ineligible hosted tabs close is
+    // site_set_commit_test.
+    test('runs in the commit, after the settings screen closes', () {
+      final calls = RegExp(r'_tabs\.reconcileLinkTabs\(\)').allMatches(main);
+      expect(calls, hasLength(1), reason: 'the commit is its one caller');
       final settings = bodyOf('Future<void> _openSiteSettings(');
       expect(
         settings.indexOf('_commitSites(const SiteSettingsClosed())'),
@@ -132,23 +134,34 @@ void main() {
 
   group('state capture across a flip', () {
     test('keys the bytes by what the tab was when the capture started', () {
-      final body = bodyIn(
-          File('lib/controllers/site_activation_controller.dart')
-              .readAsStringSync(),
-          signature: 'Future<CaptureOutcome> captureStateBytes(');
-      final key = body.indexOf('final key = model.activeStateKey;');
-      final tab = body.indexOf('final tabId = model.activeTabId;');
-      final capture = body.indexOf('await model.captureNavigationState()');
-      expect(key, isNot(-1));
-      expect(tab, isNot(-1));
-      expect(key, lessThan(capture));
-      expect(tab, lessThan(capture));
-      final check = body.indexOf(
-          'if (model.activeTabId != tabId || model.activeStateKey != key)');
-      expect(check, greaterThan(capture),
+      final source = File('lib/controllers/site_activation_controller.dart')
+          .readAsStringSync();
+      final begin = bodyIn(source, signature: 'NavCapture? beginNavCapture(');
+      expect(begin, contains('t.id == model.tabBinding.built'));
+      expect(begin, isNot(contains('await')),
+          reason: 'the key is read before any await');
+      final captureSource =
+          File('lib/controllers/site_nav_capture.dart').readAsStringSync();
+      final start = captureSource
+          .indexOf('final class SiteNavCapture implements NavCapture {');
+      expect(start, isNot(-1));
+      final capture = captureSource.substring(
+          start, captureSource.indexOf('\n}\n', start));
+      expect(capture, contains('key = model.stateKeyForTab(tab.id)'));
+      final read = capture.indexOf('await model.captureNavigationState()');
+      final check = capture.indexOf(
+          'model.tabs.contains(tab) && model.stateKeyForTab(tab.id) == key');
+      final save = capture.indexOf('saveState(key, state: bytes)');
+      expect(read, isNot(-1));
+      expect(check, greaterThan(read),
           reason: 'a capture that outlived its tab or identity is dropped');
-      expect(body.indexOf('saveState(key, state: bytes)'), greaterThan(check));
-      expect(body, isNot(contains('saveState(model.activeStateKey')));
+      expect(save, greaterThan(check));
+      expect(capture, isNot(contains('activeStateKey')));
+      final whole =
+          bodyIn(source, signature: 'Future<bool> captureStateBytes(');
+      final holds = whole.indexOf('capture.stillHolds()');
+      expect(holds, greaterThan(whole.indexOf('await capture.read()')));
+      expect(whole.indexOf('capture.save(bytes)'), greaterThan(holds));
     });
   });
 
@@ -171,7 +184,7 @@ void main() {
     });
 
     test('a duplicate keeps it', () {
-      final body = tabsBody('Future<void> duplicateTab(');
+      final body = tabsBody('static SiteTab _copyOf(SiteTab source) {');
       expect(body, contains('openerSiteId: source.openerSiteId,'));
       expect(body, contains('homeUrl: source.homeUrl,'));
       expect(body, contains('hostSiteId: source.hostSiteId,'));
@@ -217,30 +230,15 @@ void main() {
     });
   });
 
+  // Which sites get a colour and when is site_set_commit_test.
   group('container colours (TAB-018)', () {
-    test('only app-tier sites are counted or given one (ARCH-001)', () {
-      final body = bodyOf('void _assignContainerColors(');
-      expect(body, contains('if (!m.isArchiveTier) m,'));
-      expect(body, contains('ContainerColorEngine.assign('));
-      expect(body, contains('kContainerPaletteSize'));
-    });
-
-    test('every site has one before it is written or drawn', () {
-      final commit = bodyOf('Future<void> _commitSites(');
-      final assign = commit.indexOf('_assignContainerColors();');
-      expect(assign, greaterThan(commit.indexOf('_sites.apply(change);')),
-          reason: 'every change, startup and import included, colours the '
-              'sites it brings');
-      expect(assign, lessThan(commit.indexOf('_persistSites()')),
-          reason: 'demo sessions, which never write, draw marks too');
-    });
-
     test('site info shows the colour only where containers exist', () {
       expect(
         File('lib/widgets/site_info_sheet.dart').readAsStringSync(),
-        contains('containerColor: useContainers ? id.drawnContainerColor : null,'),
+        contains(
+            'containerColor: isolation is Containers ? id.drawnContainerColor : null,'),
       );
-      expect(main, contains('useContainers: _sites.useContainers'));
+      expect(main, contains('site: model, isolation: _sites.isolation'));
     });
   });
 }

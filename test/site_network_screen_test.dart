@@ -106,7 +106,7 @@ void main() {
       expect(validateProxyAddress(loc, type: ProxyType.TOR, value: ''), isNull);
     });
 
-    test('a manual proxy needs host:port with a real port', () {
+    test('a manual proxy needs host:port with a real port (PROXY-005)', () {
       expect(validateProxyAddress(loc, type: ProxyType.SOCKS5, value: ''),
           loc.siteSettingsProxyAddressRequired);
       expect(
@@ -122,9 +122,17 @@ void main() {
               type: ProxyType.SOCKS5, value: '127.0.0.1:1080'),
           isNull);
     });
+
+    test('the screen takes what the proxy itself takes (PROXY-017)', () {
+      expect(
+          validateProxyAddress(loc, type: ProxyType.SOCKS5, value: '[::1]:1080'),
+          isNull);
+      expect(validateProxyAddress(loc, type: ProxyType.HTTP, value: ':8080'),
+          loc.siteSettingsProxyAddressFormatError);
+    });
   });
 
-  testWidgets('proxy and WebRTC both live on this screen', (tester) async {
+  testWidgets('proxy and WebRTC both live on this screen (NET-001)', (tester) async {
     await _pump(tester, values: _values());
     expect(find.text('Network'), findsOneWidget);
     expect(find.text('Proxy'), findsOneWidget);
@@ -135,7 +143,7 @@ void main() {
     expect(_addressField, findsNothing);
   });
 
-  testWidgets('no proxy group where the platform cannot bind one',
+  testWidgets('no proxy group where the platform cannot bind one (PROXY-006)',
       (tester) async {
     await _pump(tester, values: _values(), proxySupported: false);
     expect(find.text('Proxy'), findsNothing);
@@ -165,7 +173,7 @@ void main() {
     expect(form.address.text, 'proxy.example.com:8080');
   });
 
-  testWidgets('a malformed address is flagged on the screen that holds it',
+  testWidgets('a malformed address is flagged on the screen that holds it (NET-003)',
       (tester) async {
     await _pump(tester, values: _values(proxyType: ProxyType.SOCKS5));
     await tester.enterText(_addressField, 'proxy.example.com');

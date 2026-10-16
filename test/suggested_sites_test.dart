@@ -66,7 +66,7 @@ void main() {
       expect(result, isNull);
     });
 
-    test('saveSuggestedSites and loadSuggestedSites round-trip', () async {
+    test('saveSuggestedSites and loadSuggestedSites round-trip (SUGGEST-004)', () async {
       final sites = [
         const SiteSuggestion(name: 'Test', url: 'https://test.com', domain: 'test.com'),
         const SiteSuggestion(name: 'Example', url: 'https://example.org', domain: 'example.org'),
@@ -175,7 +175,7 @@ void main() {
     });
   });
 
-  group('SettingsBackup suggestedSites integration', () {
+  group('SettingsBackup suggestedSites integration (SUGGEST-005)', () {
     test('backup with suggestedSites serializes correctly', () {
       final backup = SettingsBackup(
         version: 1,

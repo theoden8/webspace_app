@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 
@@ -9,6 +8,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/page_js.dart';
+import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
@@ -176,20 +176,10 @@ Future<({String? source, String? error})> fetchUserScriptSource(
   }
 }
 
-/// Evaluate JS without triggering "unsupported type" serialization errors.
-/// WebKit (macOS/iOS) errors when evaluateJavascript returns `undefined`;
-/// appending `;null;` returns a serializable value, and try-catch ensures
-/// a stale error never breaks callers.
-Future<void> _safeEval(inapp.InAppWebViewController c,
-    {required String source}) async {
-  try {
-    await c.evaluateJavascript(source: '$source\n;null;');
-  } on PlatformException catch (e) {
-    LogTag.userScript.debug('evaluateJavascript non-fatal: $e');
-  } on MissingPluginException catch (e) {
-    LogTag.userScript.debug('evaluateJavascript non-fatal: $e');
-  }
-}
+/// Adds a JavaScript handler to a webview: the controller's
+/// `addJavaScriptHandler`, torn off.
+typedef JsHandlerRegistrar =
+    void Function({required String handlerName, required Function callback});
 
 /// Manages user script injection, external dependency resolution, and
 /// CORS-bypassing fetch for webviews.
@@ -358,19 +348,25 @@ class UserScriptService {
     return true;
   }
 
-  /// Register JS handlers on the controller for script fetching and
-  /// CORS-bypassing resource fetching.
-  void registerHandlers(inapp.InAppWebViewController controller) {
+  /// Register JS handlers through [addHandler] for script fetching and
+  /// CORS-bypassing resource fetching. A script a handler evaluates lands in
+  /// the document [page] showed as the call came in, or nowhere: the
+  /// service holds no controller to evaluate with but [page]'s.
+  void registerHandlers(
+    JsHandlerRegistrar addHandler, {
+    required PageScope Function() page,
+  }) {
     // No bridge, no handlers: the shim that reaches them is not injected
     // either, and a handler nothing can call is still a handler anything on
     // the page could call if it learned the name.
     if (!hasPrivilegedBridge) return;
 
     // Script handler: fetches URL and injects content as JS via evaluateJavascript.
-    controller.addJavaScriptHandler(
+    addHandler(
       handlerName: _scriptHandlerName,
       callback: (args) async {
         if (args.isEmpty || args[0] is! String) return false;
+        final caller = page();
         final url = args[0] as String;
         if (!await _allowScriptFetch(url)) return false;
         LogTag.userScript.debug(
@@ -400,7 +396,11 @@ class UserScriptService {
             }
             LogTag.userScript.debug(
                 'Injecting fetched script (${response.body.length} bytes)');
-            await _safeEval(controller, source: response.body);
+            if (!caller.current) {
+              LogTag.userScript.debug('Fetched script dropped: the page moved on');
+              return false;
+            }
+            await caller.evaluate(response.body);
             return true;
           }
           LogTag.userScript.debug('Fetch failed: HTTP ${response.statusCode}');
@@ -420,7 +420,7 @@ class UserScriptService {
     // Inline-script handler: takes a captured <script>{textContent} source
     // string and evaluates it via the privileged Dart bridge, bypassing
     // page CSP. Fire-and-forget — the JS side doesn't await a result.
-    controller.addJavaScriptHandler(
+    addHandler(
       handlerName: _inlineScriptHandlerName,
       callback: (args) async {
         if (args.isEmpty || args[0] is! String) return null;
@@ -428,7 +428,7 @@ class UserScriptService {
         if (source.isEmpty) return null;
         LogTag.userScript.debug(
             'Inline script bridged (${source.length} bytes)');
-        await _safeEval(controller, source: source);
+        await page().evaluate(source);
         return null;
       },
     );
@@ -436,7 +436,7 @@ class UserScriptService {
     // Resource fetch handler: fetches URL and returns body as text.
     // Used by window.__wsFetch() for CORS-bypassing fetch (e.g., reading
     // cross-origin stylesheets).
-    controller.addJavaScriptHandler(
+    addHandler(
       handlerName: _fetchHandlerName,
       callback: (args) async {
         if (args.isEmpty || args[0] is! String) return {'status': 400};
@@ -504,12 +504,10 @@ class UserScriptService {
   /// persists across navigations. Re-injecting large libraries via
   /// evaluateJavascript at onLoadStart races with the JS context setup and
   /// causes ReferenceErrors.
-  Future<void> reinjectOnLoadStart(
-    inapp.InAppWebViewController controller,
-  ) async {
+  Future<void> reinjectOnLoadStart(PageScope page) async {
     if (!hasScripts) return;
     if (shimScript != null) {
-      await _safeEval(controller, source: shimScript!);
+      await page.evaluate(shimScript!);
     }
     for (final script in _scripts) {
       if (!script.enabled) continue;
@@ -522,7 +520,7 @@ class UserScriptService {
         LogTag.userScript.debug(
             'onLoadStart: re-injecting "${script.name}" (${src.length} chars)',
             sensitive: true);
-        await _safeEval(controller, source: _guarded(script.id, source: src));
+        await page.evaluate(_guarded(script.id, source: src));
       }
     }
   }
@@ -531,9 +529,7 @@ class UserScriptService {
   ///
   /// Scripts with [urlSource] are skipped — same rationale as
   /// [reinjectOnLoadStart].
-  Future<void> reinjectOnLoadStop(
-    inapp.InAppWebViewController controller,
-  ) async {
+  Future<void> reinjectOnLoadStop(PageScope page) async {
     if (!hasScripts) return;
     for (final script in _scripts) {
       if (!script.enabled) continue;
@@ -544,7 +540,7 @@ class UserScriptService {
         LogTag.userScript.debug(
             'onLoadStop: re-injecting "${script.name}" (${src.length} chars)',
             sensitive: true);
-        await _safeEval(controller, source: _guarded(script.id, source: src));
+        await page.evaluate(_guarded(script.id, source: src));
       }
     }
   }
@@ -556,9 +552,7 @@ class UserScriptService {
   /// On SPA navigations the JS context persists, so the library (urlSource)
   /// is still loaded. We only re-run the user's [source] code to re-trigger
   /// initialization (e.g. re-running a library's enable() call).
-  Future<void> reinjectOnSpaNavigation(
-    inapp.InAppWebViewController controller,
-  ) async {
+  Future<void> reinjectOnSpaNavigation(PageScope page) async {
     if (!hasScripts) return;
     for (final script in _scripts) {
       if (!script.enabled || script.source.isEmpty) continue;
@@ -566,10 +560,8 @@ class UserScriptService {
           'SPA nav: re-running "${script.name}" source (${script.source.length} chars)',
           sensitive: true);
       final safeName = script.name.replaceAll('"', '\\"');
-      await _safeEval(
-        controller,
-        source:
-            'console.log("__ws: SPA re-inject: $safeName");\n${script.source}',
+      await page.evaluate(
+        'console.log("__ws: SPA re-inject: $safeName");\n${script.source}',
       );
     }
   }

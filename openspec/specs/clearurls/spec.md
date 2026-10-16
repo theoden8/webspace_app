@@ -249,6 +249,18 @@ Cleaning SHALL be idempotent: applying `cleanUrl()` to an already-cleaned URL SH
 **Then** the same URL is returned
 **And** no further redirect occurs
 
+#### Scenario: A redirector's target is cleaned in the same pass
+
+**Given** a redirector URL whose target carries tracking parameters
+**When** `cleanUrl()` unwraps it
+**Then** the target comes back with its tracking parameters stripped, so its own navigation is not rewritten again
+
+#### Scenario: A repeated parameter keeps every value
+
+**Given** `https://example.com/p?tag=a&tag=b&utm_source=x`
+**When** it is cleaned
+**Then** the result is `https://example.com/p?tag=a&tag=b`
+
 ---
 
 ### Requirement: CURL-010 - Last Updated Display

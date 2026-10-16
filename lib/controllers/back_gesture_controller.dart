@@ -165,7 +165,7 @@ class BackGestureController {
   /// Navigate the visible webview back one history entry, then recomposite the
   /// Android surface. A back/forward-cache restore re-attaches a fresh
   /// hybrid-composition SurfaceView that can come back blank-white, and back
-  /// navigation passes through neither `setCurrentIndex` nor `onControllerReady`
+  /// navigation passes through neither `activate` nor `onControllerReady`
   /// (the existing nudge chokepoints), so it would otherwise stay uncovered.
   /// No-op off Android.
   Future<void> _goBackAndRepaint(WebViewController controller) async {

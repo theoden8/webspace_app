@@ -24,9 +24,10 @@ const kotlin = [...files('android/app/src/main', /\.kt$/), ...files('android/app
 // Properties holding a bare mutable collection that only one thread touches.
 const CONFINED = {
   [`${ROOT}/WebInterceptPlugin.kt`]: {
-    siteIdMap: 'read and written only by attachToAllWebViews, on the main thread',
-    siteDnsLevel: 'read and written only by attachToAllWebViews, on the main thread',
-    siteLocalCdn: 'read and written only by attachToAllWebViews, on the main thread',
+    siteIdMap: 'read and written only by the attach and refresh handlers, on the main thread',
+    siteDnsLevel: 'read and written only by the attach and refresh handlers, on the main thread',
+    siteLocalCdn: 'read and written only by the attach and refresh handlers, on the main thread',
+    siteContentBlock: 'read and written only by the attach and refresh handlers, on the main thread',
   },
   [`${ROOT}/CapturePermissionPlugin.kt`]: {
     pending: 'method calls and onRequestPermissionsResult both arrive on the main thread',
@@ -39,7 +40,7 @@ const LOCKS = {
   [`${ROOT}/DnsHostBlocklist.kt`]:
     'wait/notify for the fail-closed build wait, which Guarded cannot express',
   [`${ROOT}/AdblockEngineNative.kt`]:
-    'read/write lock: concurrent readers on the IO hot path, exclusive free (attempt 1)',
+    'read/write lock: concurrent readers on the IO hot path, exclusive swap and free (attempts 1, 9)',
   [`${ROOT}/proxy/ProxyRelay.kt`]:
     'serialises writers; accept threads read @Volatile immutable snapshots',
 };
@@ -211,5 +212,25 @@ test('every exemption still names something', () => {
   }
   for (const rel of Object.keys(LOCKS)) {
     assert.ok(LOCK.test(code(read(rel), { strings: true })), `${rel} takes no lock; drop it from LOCKS`);
+  }
+});
+
+// BUG-007 attempt 9: the engine was parsed under the write lock, with the
+// pointer at 0 the whole time, so the lock-free `active` read false and the
+// interceptor let every sub-resource through. A build runs before the lock,
+// which guards only the swap and the free. Rung 5: no Kotlin type says what
+// may run while a lock is held.
+test('the adblock engine is built outside its write lock', () => {
+  const rel = `${ROOT}/AdblockEngineNative.kt`;
+  const source = code(read(rel), { strings: true });
+  const held = [...source.matchAll(/rwLock\.write\s*\{|writeLock\.lock\(\)/g)].map((m) => {
+    const from = m.index;
+    const end = source.indexOf(m[0].startsWith('rwLock') ? '\n        }' : 'unlock()', from);
+    return source.slice(from, end < 0 ? source.length : end);
+  });
+  assert.ok(held.length > 0, `${rel} takes no write lock; the swap is unguarded`);
+  for (const region of held) {
+    assert.doesNotMatch(region, /nativeEngine(?:New|FromSerialized)\s*\(|\bbuild\s*\(\)/,
+      'build the next engine before taking the write lock');
   }
 });

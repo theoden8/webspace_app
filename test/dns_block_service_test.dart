@@ -58,7 +58,7 @@ void main() {
       expect(service.isBlocked('https://anything.com/'), isFalse);
     });
 
-    test('domain hierarchy walk-up works correctly', () {
+    test('domain hierarchy walk-up works correctly (DNS-004)', () {
       service.loadDomainsFromString('ads.example.com');
       // Exact match
       expect(service.isBlocked('https://ads.example.com/'), isTrue);
@@ -97,7 +97,7 @@ void main() {
       expect(dnsBlockLevelNames[5], equals('Ultimate'));
     });
 
-    test('isBlocked() result is invalidated when blocklist reloads', () {
+    test('isBlocked() result is invalidated when blocklist reloads (DNS-016)', () {
       // Cache holds true for tracker.net via the first lookup.
       service.loadDomainsFromString('tracker.net');
       expect(service.isBlocked('https://tracker.net/'), isTrue);
@@ -119,7 +119,7 @@ void main() {
       expect(service.isBlocked('https://tracker.net/'), isFalse);
     });
 
-    test('isBlocked() cache is bounded — many distinct hosts do not blow memory', () {
+    test('isBlocked() cache is bounded — many distinct hosts do not blow memory (DNS-016)', () {
       service.loadDomainsFromString('tracker.net');
       // Hammer the cache with 20K distinct *unblocked* hosts. The cap is
       // 5000, so the cache must FIFO-evict and never grow past it. We can't
@@ -284,7 +284,7 @@ void main() {
           service.isBlockedAtLevel('https://light.example/', level: 1), isTrue);
     });
 
-    test('the host cache serves every level from one walk', () {
+    test('the host cache serves every level from one walk (DNS-016)', () {
       // Same host, three levels, one cached mask: an answer that had baked in
       // a level would have to be wrong for two of these.
       expect(service.hostLevelMask('shared.example'),

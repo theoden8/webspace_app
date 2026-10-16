@@ -222,6 +222,20 @@ The cache index SHALL be persisted via SharedPreferences and the resource files 
 - **When** the app is restarted
 - **Then** the cache index is loaded from SharedPreferences and cached resources are available immediately
 
+### LCDN-015: A Clear Wins Over a Download in Progress
+
+Every change to the cache directory and its index SHALL run one at a time. A
+Clear pressed while the popular resources download SHALL stop the download,
+and nothing it fetched before the Clear SHALL be written, indexed or dated.
+
+#### Scenario: Clear during the popular download
+
+- **Given** the popular resources are downloading
+- **When** the user clears the cache
+- **Then** the cache stays empty with no last-updated date once the download returns
+
+Test: `test/localcdn_service_test.dart` ("a clear during the popular download is not refilled behind it").
+
 ### LCDN-013: Platform Support and Interception Scope
 
 LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest`. On iOS/macOS, the feature SHALL degrade gracefully. LocalCDN does NOT intercept `fetch()` or `XMLHttpRequest` CDN requests — in practice this is a non-issue because CDN resources are almost always loaded via static HTML tags (`<script>`, `<link>`), not JS-initiated requests.

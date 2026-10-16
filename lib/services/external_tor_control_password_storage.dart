@@ -18,7 +18,7 @@ class ExternalTorControlPasswordStorage {
           encode: (password) => password,
           isEmpty: (password) => password.isEmpty,
           onFailure: KeystoreFailurePolicy.retry,
-          queue: SerialQueue(),
+          queue: SerialQueue('externalTorControlPassword'),
         );
 
   final SecureJsonStore<String> _store;

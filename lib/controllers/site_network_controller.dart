@@ -6,7 +6,7 @@ import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -15,6 +15,7 @@ import 'package:webspace/services/proxy_router_probe.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -34,14 +35,12 @@ class SiteNetworkController {
     required PageHost host,
     required this.residency,
     required this.background,
-    required this.containers,
   }) : _host = host;
 
   final SiteRuntime _sites;
   final PageHost _host;
   final ResidencyHost residency;
   final BackgroundSitesController background;
-  final ContainerIsolationEngine containers;
 
   StreamSubscription<TrustedHostEntry>? _untrustSub;
   StreamSubscription<TorStatus>? _torStatusSub;
@@ -80,7 +79,7 @@ class SiteNetworkController {
       anyTorSite = true;
       // A site with no webview shows the placeholder; the rebuild below
       // builds the real one.
-      if (m.webview != null) m.disposeWebView();
+      if (m.webview != null) m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     }
     if (!anyTorSite) return;
     // Router mode encodes a Tor route against the endpoint it saw last
@@ -93,7 +92,7 @@ class SiteNetworkController {
   /// the handshake, so their next load asks again.
   Future<void> pinRevoked(TrustedHostEntry entry) async {
     LogTag.tls.debug('pin revoked for ${entry.host}:${entry.port} '
-        '(loaded=${_sites.loaded.toList()..sort()}, '
+        '(loaded=${_sites.loadedRows.toList()..sort()}, '
         'webViewModels=${_sites.models.length})', sensitive: true);
     final host = entry.host.toLowerCase();
     // Android's cert-acceptance state lives in multiple layers:
@@ -111,9 +110,7 @@ class SiteNetworkController {
     // the network service from reusing a remembered "trusted" verdict.
     WebViewController? matching;
     WebViewController? anyLive;
-    for (final i in _sites.loaded) {
-      if (i >= _sites.models.length) continue;
-      final m = _sites.models[i];
+    for (final m in _sites.loaded) {
       final c = m.controller;
       if (c == null) continue;
       anyLive ??= c;
@@ -146,15 +143,18 @@ class SiteNetworkController {
     if (!_host.mounted) return;
     var changed = false;
     final wiped = <ContainerKey>[];
-    for (var i = 0; i < _sites.models.length; i++) {
-      final model = _sites.models[i];
+    for (final model in _sites.models) {
       if (!_pinnedBy(model, host: host, port: entry.port)) continue;
       unawaited(HtmlCacheService.instance.deleteCache(model.siteId));
       // Outside the unload funnel on purpose: the session is wiped so the
-      // next load re-handshakes (BUG-026).
-      if (_sites.loaded.contains(i)) {
-        model.disposeWebView();
-        _sites.loaded.remove(i);
+      // next load re-handshakes (ISO-002).
+      if (_sites.retired(
+        model,
+        commit: const Commit.unmodeled(Unmodeled.trustRevoked),
+      )) {
+        model.disposeWebView(
+          commit: const Commit.unmodeled(Unmodeled.trustRevoked),
+        );
         background.noteUnloaded(model, reason: 'certificate trust revoked');
         changed = true;
       }
@@ -171,10 +171,11 @@ class SiteNetworkController {
     // cookies/localStorage/IndexedDB — acceptable for self-signed
     // hosts where the user has no meaningful session, and the in-app
     // pin had to be approved again for the site to load anyway.
-    if (wiped.isNotEmpty) {
+    if ((wiped.isNotEmpty, _sites.isolation)
+        case (true, Containers(:final engine))) {
       var cleared = 0;
       for (final key in wiped) {
-        if (await containers.clearForSite(key)) cleared++;
+        if (await engine.clearForSite(key)) cleared++;
       }
       LogTag.tls.debug(
           'cleared $cleared of ${wiped.length} container(s) after '
@@ -216,16 +217,17 @@ class SiteNetworkController {
     // used; a saved change can leave two loaded sites wanting different
     // pins, and the one that loses is unloaded before the pin moves, as
     // activation does, or it is rebuilt under a country it never chose.
-    final order = <int>{?_sites.current, ..._sites.loaded.toList().reversed};
-    final plan = SiteUnloadEngine.plan(residency, event: TorExitSettled(order));
+    final order = {?_sites.shown, ..._sites.loaded.toList().reversed};
+    final rows = [for (final m in order) _sites.models.indexOf(m)];
+    final plan = SiteUnloadEngine.plan(residency, event: TorExitSettled(rows));
     await SiteUnloadEngine.apply(residency, plan: plan,
         isStale: () => !_host.mounted);
     if (plan.unloads.isNotEmpty && _host.mounted) _host.rebuild();
     syncTorExitPin(order);
   }
 
-  /// Put in force the exit pin the sites in [pinned] want (TOR-014),
-  /// without waiting for it.
+  /// Put in force the exit pin the sites in [pinned] want, the first
+  /// deciding (TOR-014), without waiting for it.
   ///
   /// Nothing here may wait: the change is a control-port round trip, and a
   /// control socket iOS reclaimed while the app slept never answers. When
@@ -233,12 +235,13 @@ class SiteNetworkController {
   /// (BUG-018). Waiting is not needed either: the engine holds every
   /// Tor-bound site behind the interstitial from this call until the pin
   /// lands, and bounds the round trip itself.
-  void syncTorExitPin(Set<int> pinned) {
+  void syncTorExitPin(Iterable<WebViewModel> pinned) {
+    final rows = [for (final m in pinned) _sites.models.indexOf(m)];
+    final identities = _sites.slotIdentities();
     unawaited(TorService.instance.setExitCountry(
-      SiteUnloadEngine.torExitNodesFor(
-          indices: pinned, models: _sites.slotIdentities()),
+      SiteUnloadEngine.torExitNodesFor(indices: rows, models: identities),
       mayFetchGeoIp: !SiteUnloadEngine.torExitPinIsArchiveOnly(
-          indices: pinned, models: _sites.slotIdentities()),
+          indices: rows, models: identities),
     ));
   }
 
@@ -255,7 +258,7 @@ class SiteNetworkController {
   /// Whether [model] gets a container profile, and so a Chromium network
   /// session, of its own.
   bool ownsContainerProfile(WebViewModel model) => siteOwnsContainerProfile(
-        containersSupported: _sites.useContainers,
+        isolation: _sites.isolation,
         incognito: model.effectiveIncognito,
       );
 
@@ -274,7 +277,7 @@ class SiteNetworkController {
   /// and their traffic still has to reach the right upstream. Only their
   /// *persistence* is partitioned (ARCH-001), and no route is written to
   /// disk.
-  Map<RouterIdentity, UserProxySettings> _routeTable({int? activeIndex}) =>
+  Map<RouterIdentity, UserProxySettings> _routeTable({WebViewModel? active}) =>
       ProxyRouterEngine.routeTable(
         sites: [
           for (final m in _sites.models)
@@ -285,9 +288,8 @@ class SiteNetworkController {
             ),
         ],
         sharedProfilePriority: [
-          ?activeIndex,
-          ?_sites.current,
-          ..._sites.loaded,
+          for (final m in [?active, ?_sites.shown, ..._sites.loaded])
+            _sites.models.indexOf(m),
         ],
       );
 
@@ -316,18 +318,18 @@ class SiteNetworkController {
       probe: runAttributionProbe,
     );
     // A null return stands the router down but never clears the override:
-    // the `setCurrentIndex` that follows re-applies the site's PROXY-008
+    // the `activate` that follows re-applies the site's PROXY-008
     // proxy, and until it does a dead relay port fails closed.
   }
 
   /// Re-install routes after sites, proxies, or the global proxy changed.
   ///
-  /// [activeIndex] names the site about to be activated, so the
-  /// shared-profile identity is repointed before that site's first
-  /// request rather than after it.
-  Future<void> refreshRoutes({int? activeIndex}) async {
+  /// [active] is the site about to be activated, so the shared-profile
+  /// identity is repointed before that site's first request rather than
+  /// after it.
+  Future<void> refreshRoutes({WebViewModel? active}) async {
     if (!ProxyRouterService.instance.isActive) return;
     await ProxyRouterService.instance.refreshRoutes(
-        perSiteProxies: _routeTable(activeIndex: activeIndex));
+        perSiteProxies: _routeTable(active: active));
   }
 }

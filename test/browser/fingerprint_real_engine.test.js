@@ -95,7 +95,7 @@ test('FingerprintJS: macos fixture → platform component reports MacIntel',
     });
   });
 
-test('FingerprintJS: windows fixture → platform component reports Win32',
+test('FingerprintJS: windows fixture → platform component reports Win32 (SHIM-TEST-007)',
   async (t) => {
     await withShim(t, WINDOWS, async (page) => {
       const c = await runFingerprintJS(page);

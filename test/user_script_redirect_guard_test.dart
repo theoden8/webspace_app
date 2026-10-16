@@ -42,7 +42,7 @@ void main() {
       }, terminal: (_) => http.Response('IAM_CREDENTIALS', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res =
           await ctrl.handler(kFetchHandlerPrefix)(['https://evil.example/hop']);
@@ -64,7 +64,7 @@ void main() {
         final factory = redirectingFactory({'https://evil.example/hop': target});
         outboundHttp = factory;
         final ctrl = FakeUserScriptController();
-        serviceWith(oneScript).registerHandlers(ctrl);
+        serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
         final res = await ctrl
             .handler(kFetchHandlerPrefix)(['https://evil.example/hop']);
@@ -78,7 +78,7 @@ void main() {
       final factory = redirectingFactory({'https://a.example/hop': '/next'});
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res =
           await ctrl.handler(kFetchHandlerPrefix)(['https://a.example/hop']);
@@ -94,7 +94,7 @@ void main() {
       }, terminal: (_) => http.Response('PAYLOAD', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res =
           await ctrl.handler(kFetchHandlerPrefix)(['https://a.example/x']);
@@ -109,7 +109,7 @@ void main() {
           headers: {'location': 'https://loop.example/next'}));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript).registerHandlers(ctrl);
+      serviceWith(oneScript).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res =
           await ctrl.handler(kFetchHandlerPrefix)(['https://loop.example/a']);
@@ -131,7 +131,7 @@ void main() {
       serviceWith(oneScript, confirm: (url) async {
         asked.add(url);
         return true;
-      }).registerHandlers(ctrl);
+      }).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl
           .handler(kScriptHandlerPrefix)(['https://cdn.jsdelivr.net/npm/x/x.js']);
@@ -151,7 +151,7 @@ void main() {
       serviceWith(oneScript, confirm: (url) async {
         asked.add(url);
         return false;
-      }).registerHandlers(ctrl);
+      }).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl
           .handler(kScriptHandlerPrefix)(['https://cdn.jsdelivr.net/npm/x/x.js']);
@@ -167,7 +167,7 @@ void main() {
         'https://cdn.jsdelivr.net/npm/x/x.js': 'https://elsewhere.example/x.js',
       }, terminal: (_) => http.Response('ELSEWHERE();', 200));
       final ctrl = FakeUserScriptController();
-      serviceWith(oneScript, confirm: (_) async => true).registerHandlers(ctrl);
+      serviceWith(oneScript, confirm: (_) async => true).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final ok = await ctrl
           .handler(kScriptHandlerPrefix)(['https://cdn.jsdelivr.net/npm/x/x.js']);

@@ -12,7 +12,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read, blockAfter, dartFiles, jsFiles } = require('./helpers/source');
+const { read, dartFiles, jsFiles } = require('./helpers/source');
 
 const MAIN = 'lib/controllers/site_activation_controller.dart';
 
@@ -20,11 +20,13 @@ const src = read(MAIN);
 const lines = src.split('\n');
 
 // Every deactivation path (go-home, site switch, the sweep of the sites left
-// in the background) runs the same step list through one funnel, so the
-// ordering is asserted once, where it is decided. See NAV-010.
+// in the background) runs the same step list (_pauseSteps) through one funnel
+// (_teardown), so the ordering is asserted once, where it is decided. See
+// NAV-010.
 test(`${MAIN}: the deactivation funnel stops capture before it pauses`, () => {
-  const funnel = blockAfter(
-    src, 'Future<void> _quiesceOutgoingSite(', ') async {', MAIN);
+  const at = src.indexOf('List<SiteTeardownStep> _pauseSteps(');
+  assert.notEqual(at, -1, `${MAIN} no longer lists the pause steps`);
+  const funnel = src.slice(at, src.indexOf('];', at));
   const stopIdx = funnel.indexOf('stopRealCapture');
   const pauseIdx = funnel.indexOf('pauseWebView');
   assert.notEqual(stopIdx, -1,
@@ -43,7 +45,7 @@ test(`${MAIN}: the deactivation funnel stops capture before it pauses`, () => {
 // not covered here.
 const pauseSites = lines
   .map((line, i) => ({ line, i }))
-  .filter(({ line }) => /\.pauseWebView\(\)/.test(line));
+  .filter(({ line }) => /\.pauseWebView\b/.test(line));
 
 for (const { line, i } of pauseSites) {
   test(`${MAIN}:${i + 1}: capture stop precedes the pause`, () => {
@@ -56,12 +58,12 @@ for (const { line, i } of pauseSites) {
       .join('\n');
     assert.match(
       window,
-      /stopRealCapture\(\)/,
+      /stopRealCapture\b/,
       `a site being backgrounded must have its device capture ended first ` +
         `(CAM-012). Offending pause: ${line.trim()}`,
     );
-    const stopIdx = window.indexOf('stopRealCapture()');
-    const pauseIdx = window.indexOf('pauseWebView()');
+    const stopIdx = window.indexOf('stopRealCapture');
+    const pauseIdx = window.indexOf('pauseWebView');
     assert.ok(
       stopIdx < pauseIdx,
       'the stop must be posted before the pause, or iOS freezes the JS ' +

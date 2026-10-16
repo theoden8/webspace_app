@@ -13,7 +13,7 @@ String format(
   String locale = 'en',
 }) => IcuMessage.parse(source).format(args: args, locale: locale);
 
-// LOC-012: translations are read from the ARB at run time; these hold the
+// L10N-012: translations are read from the ARB at run time; these hold the
 // grammar and plural rules gen_l10n compiled in before.
 void main() {
   group('IcuMessage', () {

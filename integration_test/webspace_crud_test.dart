@@ -25,7 +25,7 @@ void main() {
     isDemoMode = true;
   });
 
-  testWidgets('create, rename, and delete a webspace through the UI',
+  testWidgets('create, rename, and delete a webspace through the UI (WEBSPACE-007)',
       (tester) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 30));

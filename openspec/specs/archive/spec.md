@@ -256,7 +256,7 @@ The archive open/close lifecycle SHALL keep `MK_arch` in memory only, persisting
 **Then** the same app-tier sites stay loaded and the same one stays on screen
 **And** a site of the archive that was on screen leaves the page on the webspace list
 **And** a Tor site of the archive no longer holds the Tor runtime up (TOR-002)
-**Because** the close goes through `_commitSites(ArchiveClosed(...))`, whose `SiteRuntime.apply` removes each row through `SiteLifecycleEngine.computeDeletionPatch`, and which reconciles the Tor refcount after every change (BUG-029)
+**Because** the close goes through `_commitSites(ArchiveClosed(...))`, whose `SiteRuntime.apply` takes each closed site out of the loaded set and off the screen, which hold sites rather than rows, and which reconciles the Tor refcount after every change (BUG-029)
 
 #### Scenario: Close on process exit
 
@@ -308,7 +308,7 @@ The override matrix:
 | Auto-load at startup | never | Archive `siteId`s never enter `_loadedIndices` at startup regardless of any per-site flag — loading happens only after archive open. |
 | Tracking-protection's LocalCDN sub-component | silently no-op | The umbrella ETP feature still applies (ClearURLs, DNS, content blocker, fingerprinting shim — all runtime-only); only the LocalCDN sub-component is skipped. |
 | HTML cache (`HtmlCacheService.saveHtml` / `getHtmlSync`) | disabled | The cache file path is keyed by `siteId`; even though the bytes are AES-encrypted, the file's existence correlates to specific archive sites on disk inspection. Gated by `htmlSourceFor` ([html_source.dart](../../../../../lib/services/html_source.dart)), which returns `HtmlSource.none` for archive-tier sites, read by the HTML save path in `lib/main.dart` and the first-paint path in `lib/widgets/site_webview_stack.dart`. Archive sites always load live from URL; first paint is slightly slower but on-disk footprint stays empty. |
-| Webview navigation state (`SecureWebViewStateStorage.saveState` / `loadState`) | disabled | Same shape as HTML cache: per-`siteId` encrypted file containing `controller.saveState()` bytes (back/forward URL stack, Apple form data). Gated by an explicit `isArchiveTier` check in `_captureStateBytes` and the load path in `_setCurrentIndex`. Archive sites lose the in-process back/forward stack on memory-pressure eviction; acceptable trade for not leaking the URL stack to disk. `_closeArchive` calls `removeState(siteId)` for every owned site as a defensive back-erasure pass — covers any pre-fix bytes plus future code paths that forget the gate. |
+| Webview navigation state (`SecureWebViewStateStorage.saveState` / `loadState`) | disabled | Same shape as HTML cache: per-`siteId` encrypted file containing `controller.saveState()` bytes (back/forward URL stack, Apple form data). Gated by an explicit `isArchiveTier` check in `_captureStateBytes` and the load path in `activate`. Archive sites lose the in-process back/forward stack on memory-pressure eviction; acceptable trade for not leaking the URL stack to disk. `_closeArchive` calls `removeState(siteId)` for every owned site as a defensive back-erasure pass — covers any pre-fix bytes plus future code paths that forget the gate. |
 | `cameraMode` (web camera access) | effectively `block` | `effectiveCameraMode` denies without prompting: the Block/Use-file/Allow popup, the file picker, and Android's OS permission dialog are OS-level UI, and a real grant lights the system camera indicator. Stored mode and any picked `virtualCameraSource` preserved for when the site leaves the archive. See [web-camera-access](../web-camera-access/spec.md) CAM-006. |
 | Cookie persistence in the legacy engine | never written | `CookieIsolationEngine` reads `effectiveIncognito`, not the raw `incognito` field, at every guard. The raw field made an archive site's non-Secure cookies land in plaintext SharedPreferences (`cookies_fallback`) keyed by its cleartext `siteId` — underneath `_saveWebViewModels`'s `!isArchiveTier` filter, and a direct ARCH-001 break. See [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md) ISO-005. |
 | Tor exit-country pin | uses a kept GeoIP table, never downloads one | The table a pin needs (TOR-014) is a file outside the archive's keyspace; downloaded for an archived site alone, its presence and timestamp would say one pinned a country. `SiteUnloadEngine.torExitPinIsArchiveOnly` decides it. With no table kept, the pin fails closed (`exitCountryData`) rather than being dropped, since dropping it would route the site through a country it did not ask for. |
@@ -360,7 +360,7 @@ nothing reaches `NotificationService`
 
 For archive-tier sites on container-capable platforms, per-site containers SHALL use opaque, key-derived identifiers and SHALL be torn down on archive close. The archive feature is unavailable on platforms without container support.
 
-Every webview that runs as an archive-tier site SHALL bind by that opaque identifier: the site's own webview, and a nested `InAppWebViewScreen` opened from its links, from its URL bar, or routed to it (link-intent-routing LIR-015). The site's container key is therefore part of its `SitePosture` (`container.containerKey`), which the nested chain (`LaunchUrlFunc`, `launchUrl`, `InAppWebViewScreen`) carries whole (NESTED-010). A nested screen that bound `ws-<siteId>` instead would, on Android, where incognito sites still bind a named profile, run in a persistent profile named after the archived site's cleartext id, signed out of the site, and left on disk by the close.
+Every webview that runs as an archive-tier site SHALL bind by that opaque identifier: the site's own webview, and a nested `InAppWebViewScreen` opened from its links, from its URL bar, or routed to it (link-intent-routing LIR-015). The bound container is therefore part of the site's `SitePosture` (`container.containerId`), which the nested chain (`LaunchUrlFunc`, `launchUrl`, `InAppWebViewScreen`) carries whole (NESTED-010). A nested screen that bound `ws-<siteId>` instead would, on Android, where incognito sites still bind a named profile, run in a persistent profile named after the archived site's cleartext id, signed out of the site, and left on disk by the close.
 
 Every operation on an archive-tier site's container (clearing its data, wiping it before a link opens in it, deleting the site) SHALL address the same opaque container its webviews bind. Native containers are named by a `ContainerKey`, which a site's model gives as `containerKey`: its `SiteId` on the app tier, the opaque key on the archive tier; no container operation takes a `SiteId`.
 
@@ -560,6 +560,65 @@ The sealed form is `WebViewModel.toArchiveJson`, read back by `WebViewModel.from
 **When** the user moves it into an archive and back out
 **Then** its tabs and active tab are as they were
 
+### Requirement: ARCH-013 — Archive operations run one at a time
+
+Opening, creating and closing an archive, moving a site in or out, exporting
+the open archives and restoring sections SHALL run one at a time, and a
+prompt SHALL run outside that order. A move found its archive open in the
+same turn it moves the site in; one that creates its archive creates it and
+moves in one turn after the prompt. A close that ran between a move's steps
+would seal a state the move then changes, or leave a site on the archive tier
+with its app-tier data erased and no archive to hold it.
+
+#### Scenario: A close lands while a move reads the site's cookies
+
+**Given** an open archive and an app-tier site being moved into it
+**When** the archive is closed while the move reads the site's cookies
+**Then** the close waits for the move, and seals the moved site with the rest
+
+#### Scenario: Two closes, and an open during a close
+
+**Given** an open archive
+**When** it is closed twice at once, or opened again while it closes
+**Then** it is sealed once, and the open brings each of its sites back once
+
+Tests: `test/archive_round_trip_test.dart` ("archive operations one at a time").
+
+### Requirement: ARCH-014 — A close takes its sites off the list before it deletes their containers
+
+A close SHALL take the archive's sites off the lists, and so out of the
+loaded sites and off the screen, in the page's one commit before it deletes
+any of their containers; the commit supersedes an activation in flight. It
+SHALL then wait for the frame that unmounts their webviews before deleting
+the containers, since a container a mounted webview still binds is not
+deleted. An activation the close superseded that made the container of a
+site no longer on the list SHALL delete it again. Once the close has run,
+none of the archive's sites is loaded, on screen or mounted, and none's
+container is on disk (best-effort, see Limitations).
+
+Disposing the sites' webviews first and taking them off the list last left
+them loaded across every await of the close: a frame in between built a
+disposed site again on the container the close was deleting, and a delete
+that ran while a webview still bound the container left it on disk.
+
+#### Scenario: A frame during a close builds no archived site again
+
+**Given** an open archive whose site S is loaded behind the site on screen
+**When** the archive is closed and a frame lands while the close waits on
+its storage
+**Then** the frame mounts no webview for S
+**And** S's container is deleted
+
+#### Scenario: A tap in flight on an archived site leaves no container
+
+**Given** a tap opening archived site S waits on the platform
+**When** the archive closes before the tap's container call returns
+**Then** the tap bails and deletes S's container again
+
+Checks: `activation_archive_containers` with `Inv_Sealed` and the
+`closenoframe` mutant (`lib/formal_model/checks.dart`); the archive
+schedules in `test/activation_schedules_test.dart`.
+
 ## Implementation Details
 
 ### Crypto primitives
@@ -692,6 +751,7 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 ## Limitations
 
 - **Best-effort deletion.** Flutter `flutter_secure_storage` and underlying OS-level secure stores do not guarantee bit-level erasure of overwritten or deleted entries. The same caveat applies to per-site container directory deletion — the underlying filesystem may retain freed blocks. Documented; not addressable at app layer.
+- **A container the process has used.** Android's WebView keeps a profile loaded until the process exits once any webview or cookie call has used it, and refuses to delete it until then; iOS and macOS refuse to delete a data store a webview still holds, which a close waits out (ARCH-014). On Android a close therefore leaves the containers of the archive's sites it opened on disk until the next launch, whose container sweep deletes every container no open site owns (`ContainerIsolationEngine.garbageCollectOrphans`).
 - **Memory zeroization is best-effort.** Dart strings are immutable; the passphrase string can't be reliably zero-filled. We keep the passphrase as a `String` only for the brief moment between dialog submit and KDF call, then immediately drop it. The derived `MK_arch` is held in `Uint8List` and zero-filled on close.
 - **Live-device forensics is out of scope.** An adversary executing code inside the running app process while an archive is open can read `MK_arch` and the archive's plaintext from memory. There is no software-only mitigation at the app layer.
 - **Slot size cap.** An archive holds at most 128 KiB of packed state (cookies, webspace JSON and tab lists). A close, move or import that would exceed it is refused with nothing changed (ARCH-011). v1 does not split archives across slots.

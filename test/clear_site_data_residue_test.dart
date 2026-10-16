@@ -18,7 +18,7 @@ void main() {
 
   setUpAll(() {
     final source = File('lib/screens/webspace_page.dart').readAsStringSync();
-    final start = source.indexOf('Future<void> _clearSiteData(int index) async {');
+    final start = source.indexOf('Future<void> _clearSiteData(WebViewModel model) async {');
     if (start < 0) {
       throw StateError('_clearSiteData not found in lib/screens/webspace_page.dart');
     }
@@ -60,10 +60,10 @@ void main() {
   });
 
   test('the removals are unconditional, not inside an engine-mode branch', () {
-    // `SiteDataClearEngine.planClear` gates the container / legacy specifics;
+    // The switch on the isolation holds the container / legacy specifics;
     // this residue exists in both modes, and the legacy engine has no
     // container wipe to lean on at all. A statement at the method's own
-    // indent sits outside every `if (plan...)` block.
+    // indent sits outside every case of it.
     expect(
       clearSiteData.contains('\n    await _stateStorage.removeStatesForSite('),
       isTrue,

@@ -141,8 +141,10 @@ the request through to the platform untouched
 A nested `InAppWebViewScreen` (cross-domain navigation) SHALL forward
 camera requests to the same popup and remember the answer in-memory for
 that screen's lifetime only, mirroring the protected-content pattern.
-Nested screens have no persisted model; the parent site's stored
-decision is not inherited across the origin change.
+Nested screens have no persisted model. A screen starts from the opening
+site's nested posture, where a device grant (`real`) is back to `ask`, so
+the parent's grant of the device does not follow the origin change;
+`block` and `virtual` are inherited as they are.
 
 #### Scenario: Outbound link to a camera page
 
@@ -176,7 +178,7 @@ and any picked source are preserved for when the site leaves the archive.
 ### Requirement: CAM-007 — Decision never rides the settings QR
 
 `cameraMode` and `virtualCameraSource` SHALL be in
-`SiteSettingsQrCodec.excludedKeys`: a remembered permission grant is
+`QrShare.withheld` on its `SiteField`: a remembered permission grant is
 trust the user gave one device's popup, and the picked media is local
 user content (it would also blow QR capacity) — neither is shareable
 configuration.
@@ -318,8 +320,7 @@ generation time — it decodes what it just encoded, walks the presented frames,
 and refuses to write the fixture unless the first flip lands on frame 1 — and
 `test/browser/camera_stream_real_engine.test.js` re-derives it from the
 committed bytes in CI. This tightens the freeze check rather than loosening it,
-since a stream stuck on frame 0 still reports a single colour. Lineage:
-[docs/bugs/010-camera-clip-flip-flake.md](../../../docs/bugs/010-camera-clip-flip-flake.md).
+since a stream stuck on frame 0 still reports a single colour.
 
 #### Scenario: Blocked site is denied on-device
 

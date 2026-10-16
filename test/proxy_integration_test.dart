@@ -77,7 +77,7 @@ void main() {
       expect(viewModel.proxySettings.address, null);
     });
 
-    test('Workflow: Persist and restore proxy settings', () {
+    test('Workflow: Persist and restore proxy settings (PROXY-004)', () {
       // User configures SOCKS5 proxy
       final originalProxy = UserProxySettings(
         type: ProxyType.SOCKS5,
@@ -146,30 +146,17 @@ void main() {
       expect(site3.proxySettings.address, null);
     });
 
-    test('Workflow: Error handling for invalid proxy address', () {
-      // Test that invalid addresses can be detected
-      final invalidAddresses = [
+    test('Workflow: an invalid proxy address is refused', () {
+      for (final address in [
         'no-port',
         'invalid:abc',
         ':8080',
         'host:0',
         'host:99999',
         '',
-      ];
-
-      for (final address in invalidAddresses) {
-        final parts = address.split(':');
-        bool isValid = parts.length == 2 && 
-                      parts[0].isNotEmpty && 
-                      parts[1].isNotEmpty;
-
-        if (isValid) {
-          final port = int.tryParse(parts[1]);
-          isValid = port != null && port >= 1 && port <= 65535;
-        }
-
-        expect(isValid, false, 
-          reason: 'Address "$address" should be detected as invalid');
+      ]) {
+        expect(ProxyAddressParse.of(address), isNot(isA<ProxyAddress>()),
+            reason: 'Address "$address" should be detected as invalid');
       }
     });
 

@@ -54,24 +54,27 @@ void main() {
     expect(count('backInNewTab: _tabs.forShownSite(_tabs.openBackInNewTab),'),
         1);
     expect(
-        RegExp(r'forShownSite\(Future<void> Function\(int index\) act\) =>\s*'
-                r'enabledAt\(_sites\.current\)\s*\?')
+        RegExp(r'forShownSite\(Future<void> Function\(WebViewModel site\) act\) =>\s*'
+                r'enabledFor\(_sites\.shown\)\s*\?')
             .hasMatch(tabs),
         isTrue,
         reason: 'both long presses offer nothing where the site has no tabs');
   });
 
   test('a duplicate opens parked: it never re-binds the webview', () {
-    final start = tabs.indexOf('Future<void> duplicateTab(');
+    // The duplicate is the tab table's read, write and insert steps.
+    final start = tabs.indexOf('TabPlace.tDupRead => Step(');
     expect(start, isNot(-1));
-    final end = tabs.indexOf('\n  }\n', start);
+    final end = tabs.indexOf('TabPlace.tDupRemove => Step(', start);
+    expect(end, isNot(-1));
     final body = tabs.substring(start, end);
     // The page on screen stays put: no switch, no dispose (TAB-002).
-    expect(body.contains('switchActiveTab('), isFalse);
+    expect(body.contains('TabPlace.tCap'), isFalse);
+    expect(body.contains('TabPlace.tNav'), isFalse);
     expect(body.contains('disposeWebView('), isFalse);
     // Its back stack is written under the copy's own key, never the source's.
-    expect(body.contains('saveState(copyKey'), isTrue);
-    expect(body.contains('TabLifecycleEngine.insertAfter('), isTrue);
+    expect(body.contains('saveState(_copyKey(c)'), isTrue);
+    expect(tabs.contains('TabLifecycleEngine.insertAfter('), isTrue);
   });
 
   group('TAB-012 / TAB-013: tabs are per site', () {
@@ -86,8 +89,8 @@ void main() {
 
     test('the gate is the site\'s own Tabs', () {
       expect(
-        RegExp(r'bool enabledAt\(int\? index\) =>[^;]*'
-                r'_sites\.models\[index\]\.effectiveTabsEnabled;')
+        RegExp(r'bool enabledFor\(WebViewModel\? site\) =>[^;]*'
+                r'site\.effectiveTabsEnabled;')
             .hasMatch(tabs),
         isTrue,
         reason: 'a kiosk site has no tabs',
@@ -100,14 +103,14 @@ void main() {
 
     test('every way into tabs returns first when they are off', () {
       for (final (src, signature, gate) in [
-        (tabs, 'Future<void> newTab(', '!enabledAt(index)'),
-        (tabs, 'Future<void> duplicateTab(', '!enabledAt(index)'),
-        (tabs, 'Future<void> openBackInNewTab(', '!enabledAt(index)'),
-        (tabs, 'Future<bool> _closeChildTabOnBack(', '!enabledAt(_sites.current)'),
-        (tabs, 'Future<bool> _returnFromJumpOnBack(', '!enabledAt(_sites.current)'),
-        (source, 'Future<void> _showTabsSheet(', '!_tabs.enabledAt(_sites.current)'),
+        (tabs, 'Future<void> newTab(', '!enabledFor(model)'),
+        (tabs, 'Future<void> duplicateTab(', '!enabledFor(model)'),
+        (tabs, 'Future<void> openBackInNewTab(', '!enabledFor(model)'),
+        (tabs, 'Future<bool> _closeChildTabOnBack(', '!enabledFor(_sites.shown)'),
+        (tabs, 'Future<bool> _returnFromJumpOnBack(', '!enabledFor(_sites.shown)'),
+        (source, 'Future<void> _showTabsSheet(', '!_tabs.enabledFor(_sites.shown)'),
         (tabs, 'Future<void> openChildTab(', '!owner.effectiveTabsEnabled'),
-        (tabs, 'bool moveTab(', '!enabledAt(index)'),
+        (tabs, 'bool moveTab(', '!enabledFor(model)'),
       ]) {
         expect(firstStatement(src, signature: signature), contains(gate),
             reason: '$signature must return before doing anything while '
@@ -119,7 +122,7 @@ void main() {
       final start = source.indexOf('Future<void> _showLinkLongPressMenu(');
       expect(start, isNot(-1));
       final menu = source.substring(start, source.indexOf('\n  }\n', start));
-      expect(menu, contains('final tabs = _tabs.enabledAt(index);'));
+      expect(menu, contains('final tabs = _tabs.enabledFor(model);'));
       expect(RegExp(r'newTab: !tabs\s*\?\s*null').hasMatch(menu), isTrue,
           reason: 'the New tab row is the menu\'s one way into tabs');
       expect(menu, contains('tabRoute = !tabs ||'),
@@ -189,7 +192,7 @@ void main() {
         return from.substring(start, from.indexOf('\n  }\n', start));
       }
 
-      expect(tabs, contains('_gate.runWhenIdle(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
+      expect(tabs, contains('_gate.runWhenIdle(_closeIneligibleHostedTabsHeld)'));
       expect(body('Future<void> _parkChild(', src: tabs),
           contains('await _gate.runWhenIdle('),
           reason: 'a background insert must not be lost to a close in flight');
@@ -214,12 +217,12 @@ void main() {
       expect(start, isNot(-1));
       final body = tabs.substring(start, tabs.indexOf('\n  }\n', start));
       expect(
-        RegExp(r'for \(final i in view\)\s*if \(enabledAt\(i\)\)')
+        RegExp(r'for \(final i in view\)\s*if \(enabledFor\(_sites\.models\[i\]\)\)')
             .hasMatch(body),
         isTrue,
       );
       expect(
-        RegExp(r'if \(!shown\.contains\(i\) && enabledAt\(i\)\)')
+        RegExp(r'if \(!shown\.contains\(i\) && enabledFor\(_sites\.models\[i\]\)\)')
             .hasMatch(body),
         isTrue,
         reason: 'a site the webspace hides is listed for TAB-017 only when '
@@ -230,7 +233,7 @@ void main() {
     test('nothing tab-shaped is drawn while they are off', () {
       expect(
         RegExp(r'if \(currentModel != null && '
-                r'_tabs\.enabledAt\(_sites\.current\)\)\s*TabCountButton\(')
+                r'_tabs\.enabledFor\(currentModel\)\)\s*TabCountButton\(')
             .hasMatch(source),
         isTrue,
         reason: 'the tab count in the app bar',
@@ -241,7 +244,7 @@ void main() {
             '          state.tabsOn ? (Icons.add, loc.tabsNewTab) : null,'),
         reason: 'New tab, in the overflow menus',
       );
-      expect(source, contains('tabsOn: _tabs.enabledAt(_sites.current),'),
+      expect(source, contains('tabsOn: _tabs.enabledFor(_sites.shown),'),
           reason: 'the menus read tabs as the site on screen has them');
 void guarded(String src,
     {required int count, required RegExp guard, required String reason}) {
@@ -258,9 +261,9 @@ void guarded(String src,
           guard: RegExp(r'^if \(site\.effectiveTabsEnabled && '),
           reason: 'the strip chip counts tabs only where the site has them');
       expect(File('lib/widgets/site_drawer.dart').readAsStringSync(),
-          matches(RegExp(r'showTabCount:\s*showsTabCount\(index\) &&')),
+          matches(RegExp(r'showTabCount:\s*showsTabCount\(site\) &&')),
           reason: 'the drawer tile');
-      expect(source, contains('showsTabCount: _tabs.enabledAt,'),
+      expect(source, contains('showsTabCount: _tabs.enabledFor,'),
           reason: 'the drawer counts tabs only where the site has them');
       guarded(File('lib/widgets/site_grid_tile.dart').readAsStringSync(),
           count: 2,
@@ -276,7 +279,7 @@ void guarded(String src,
       final at = resets.indexOf('Future<void> resetHomeOnLaunch(');
       expect(at, isNot(-1));
       final reset = resets.substring(at, resets.indexOf('\n  }\n', at));
-      expect(reset, contains('if (_tabs.enabledAt(i)) _sites.models[i]'));
+      expect(reset, contains('if (_tabs.enabledFor(m)) m'));
       expect(reset, contains('await _tabs.landOnHomeTab(m);'));
       final land = tabs.substring(tabs.indexOf('Future<void> landOnHomeTab('));
       expect(land.substring(0, land.indexOf('\n  }\n')),
@@ -292,9 +295,9 @@ void guarded(String src,
               'resetHomeOnLaunch, flagged by Always open Home, is the one '
               'way home');
       final cold = shortcuts.substring(
-          shortcuts.indexOf('Future<int?> resolveColdLaunch('));
+          shortcuts.indexOf('Future<WebViewModel?> resolveColdLaunch('));
       expect(cold.substring(0, cold.indexOf('\n  }\n')),
-          contains('await _host.resetHomeOnLaunch(index);'));
+          contains('await _host.resetHomeOnLaunch(site);'));
     });
   });
 

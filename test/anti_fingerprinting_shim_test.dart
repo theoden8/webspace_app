@@ -130,12 +130,12 @@ void main() {
       expect(js, contains('getVoices'));
     });
 
-    test('quantizes performance.now and Date.now', () {
-      // 100ms granularity defeats high-resolution-timer side channels
-      // without breaking normal animation/loading code.
+    test('steps performance.now and Date.now (ETP-012)', () {
+      // Seeded 5 ms steps, one clock per time base; the behaviour is held by
+      // test/js/anti_fingerprinting_shim.test.js and the browser tier.
       expect(js, contains('performance.now'));
       expect(js, contains('Date.now'));
-      expect(js, contains('100'));
+      expect(js, contains('CLOCK_STEP = 5'));
     });
 
     test('jitters Element/Range bounding rects', () {

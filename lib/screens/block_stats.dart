@@ -216,7 +216,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
   Widget _buildHero(AppLocalizations loc,
       {required ThemeData theme, required int total}) {
     // Pure-data display goes through a variable, never a literal inside
-    // Text(...) — LOC-002.
+    // Text(...) — L10N-002.
     final totalLabel = '$total';
     return Container(
       width: double.infinity,

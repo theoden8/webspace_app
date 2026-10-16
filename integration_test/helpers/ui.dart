@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/web_view_model.dart';
 
 /// Pumps frames in 100ms slices for [total]. pumpAndSettle deadlocks once a
 /// webview is live, so a bounded run of slices is how these tests advance
@@ -94,3 +95,16 @@ Future<void> tapSite(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
 }
+
+/// The webview slot of the site [siteId], none until the site is first
+/// visited (LAZY-002): the page keys a slot by the site it holds
+/// (`GlobalObjectKey(site)`, so a move takes its webview along, ISO-009).
+Finder siteSlot(String siteId, {bool skipOffstage = true}) =>
+    find.byWidgetPredicate(
+      (w) => switch (w.key) {
+        GlobalObjectKey(value: final WebViewModel site) =>
+          site.siteId == siteId,
+        _ => false,
+      },
+      skipOffstage: skipOffstage,
+    );

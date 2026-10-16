@@ -68,7 +68,7 @@ Attach ==
 (* Module: webview-pause-lifecycle   (owns: surface, owed)                 *)
 (***************************************************************************)
 
-\* Bring a site onstage (_setCurrentIndex). The legacy cookie engine runs
+\* Bring a site onstage (activate). The legacy cookie engine runs
 \* capture-nuke-restore so the shared jar now holds the activated site's
 \* cookies: jarOwner' = s (see per-site-cookie-isolation below).
 Activate(s) ==

@@ -12,7 +12,7 @@ void main() {
           ['trigger=reload -> nudge']);
     });
 
-    test('a metrics burst collapses to one line plus one summary', () {
+    test('a metrics burst collapses to one line plus one summary (PAUSE-029)', () {
       final t = RepaintLogThrottle();
       final emitted = <String>[
         ...t.note('metrics-resume', coalesced: false, now: at(0)),

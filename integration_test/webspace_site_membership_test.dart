@@ -44,7 +44,7 @@ void main() {
   });
 
   testWidgets(
-    'WebspaceDetail multi-select adds the chosen site to the new webspace',
+    'WebspaceDetail multi-select adds the chosen site to the new webspace (WEBSPACE-001)',
     (tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 30));

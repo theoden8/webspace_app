@@ -230,7 +230,7 @@ void main() {
       expect(icon.color, Theme.of(context).colorScheme.error);
     });
 
-    testWidgets('each badge carries a localized label for screen readers',
+    testWidgets('each badge carries a localized label for screen readers (PERMBADGE-003)',
         (tester) async {
       await tester.pumpWidget(harness(site(cameraMode: CameraAccessMode.real)));
       final context = tester.element(find.byType(SitePermissionBadges));

@@ -185,7 +185,7 @@ void main() {
   });
 
   group('SettingsBackupService.createBackup', () {
-    test('should create backup with all settings', () {
+    test('should create backup with all settings (BACKUP-007)', () {
       final webViewModels = [
         WebViewModel(initUrl: 'https://example.com', name: 'Example'),
         WebViewModel(initUrl: 'https://test.com', name: 'Test'),
@@ -260,7 +260,7 @@ void main() {
       expect(backup.webspaces.every((ws) => ws['id'] != WebspaceId.all), isTrue);
     });
 
-    test('should preserve site settings with non-secure cookies only', () {
+    test('should preserve site settings with non-secure cookies only (BACKUP-004)', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
         currentUrl: 'https://example.com/page',
@@ -438,7 +438,7 @@ void main() {
   });
 
   group('SettingsBackupService.restoreWebspaces', () {
-    test('should restore webspaces with "All" at the start', () {
+    test('should restore webspaces with "All" at the start (BACKUP-005)', () {
       final backup = _backupOf(webspaces: [
         {'id': 'ws-1', 'name': 'Work', 'siteIndices': [0, 1]},
         {'id': 'ws-2', 'name': 'Personal', 'siteIndices': [2]},
@@ -488,7 +488,7 @@ void main() {
   });
 
   group('Export/Import Round-trip', () {
-    test('should preserve all data through export and import', () {
+    test('should preserve all data through export and import (BACKUP-002)', () {
       // Create original data
       final originalSites = [
         WebViewModel(
@@ -634,7 +634,7 @@ void main() {
           reason: 'global proxy password leaked into exported JSON');
     });
 
-    test('secure cookies never appear in export, non-secure cookies preserved', () {
+    test('secure cookies never appear in export, non-secure cookies preserved (BACKUP-003)', () {
       // Create site with mixed cookies
       final siteWithCookies = WebViewModel(
         initUrl: 'https://example.com',
@@ -802,7 +802,32 @@ void main() {
           equals('attacker.example:1080'));
     });
 
-    test('imported user scripts are restored switched off', () {
+    test('a backup carries site and global user scripts (US-005)', () {
+      final site = WebViewModel(
+        initUrl: 'https://a.com',
+        userScripts: [
+          UserScriptConfig(
+              id: UserScriptId('s1'), name: 'tidy', source: 'tidy()'),
+        ],
+        enabledGlobalScriptIds: {UserScriptId('g1')},
+      );
+      final global =
+          UserScriptConfig(id: UserScriptId('g1'), name: 'dark', source: 'dark()');
+      final backup = _reimport(SettingsBackupService.createBackup(
+        webViewModels: [site],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        globalUserScripts: [global.toJson()],
+      ));
+      final restored =
+          WebViewModel.fromJson(backup.sites.single, stateSetterF: () {});
+      expect(restored.userScripts.single.source, 'tidy()');
+      expect(restored.enabledGlobalScriptIds, {UserScriptId('g1')},
+          reason: 'the file keeps the opt-ins; the import drops them');
+      expect(backup.globalUserScripts!.single['id'], 'g1');
+    });
+
+    test('imported user scripts are restored switched off (US-005)', () {
       final siteJson = WebViewModel(
         initUrl: 'https://a.com',
         userScripts: [
@@ -866,7 +891,8 @@ void main() {
   });
 
   group('Downloaded-data blocker prefs', () {
-    test('DNS level and content-blocker selection round-trip through JSON', () {
+    // DNS-024, BACKUP-009
+    test('DNS level and content-blocker selection round-trip through JSON (CB-011)', () {
       final backup = SettingsBackupService.createBackup(
         webViewModels: [],
         webspaces: [Webspace.all()],

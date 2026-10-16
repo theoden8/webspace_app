@@ -62,6 +62,26 @@ The system SHALL route every adblock decision — network blocking, cosmetic sel
 
 Test: `test/content_blocker_engine_cache_test.dart`.
 
+#### Scenario: A rebuild keeps the engine in place until its replacement is built
+
+**Given** an engine built from the enabled lists
+**When** a list mutation, a mask change or the uBO toggle starts a rebuild
+**Then** the engine in use stays in `_rustEngine` while the rebuild reads, hashes and parses, and the new engine and its prefilter replace it in one step once built
+**And** a webview built meanwhile gets the blocker shims, and a request judged meanwhile is blocked by the engine in use
+**And** the rebuild reads one state of the lists, taken as it starts, so a list added, removed or switched off meanwhile neither breaks its iteration nor mixes into its cache key; the rebuild queued after the change has the last word
+**And** the engine cache's writes and clears run on the rebuild queue, so two writes never interleave and a rebuild never reads a cache half written
+
+Test: `test/content_blocker_engine_cache_test.dart` ("a rebuild keeps the engine in place until its replacement is built", "lists changed while a rebuild reads them leave it whole").
+
+#### Scenario: No page starts loading before the engine is loaded
+
+**Given** a site whose content blocking is on
+**When** its webview reports a main-frame load starting
+**Then** `ContentBlockerService.loaded` is true: `initialize` ran to its end, so the engine is the one the lists on disk build, or none when they build none
+**And** a load that starts before it is an assert at `PagePhases.on` (`PagePrerequisite.contentBlocker`), as one before the DNS level sets are read is (`PagePrerequisite.dnsBlocklist`, DNS-003)
+
+Test: `test/page_phase_test.dart`.
+
 #### Scenario: Cache miss falls back to parse
 
 **Given** the on-disk blob is missing, corrupt, or from a different adblock-rust ABI
@@ -354,6 +374,15 @@ inherits them.
 **When** the site loads
 **Then** no domain blocking, CSS hiding, or text hiding is applied
 
+#### Scenario: A site with the blocker off fetches a listed sub-resource on Android
+
+**Given** a site has the content blocker off, and Tracking Protection does not force it on
+**When** its page fetches a sub-resource a filter list blocks, on Android
+**Then** the request is allowed: the attach tells the native interceptor the site runs no list, and the interceptor consults the app-wide engine only for a site that does
+**And** an interceptor attached before the site's settings are known judges by the lists, as an unknown site's level is the strongest
+
+Test: `test/webview_controller_lifetime_test.dart` ("a site with its content blocker off attaches without the lists").
+
 #### Scenario: Default enabled
 
 **Given** a new site is created
@@ -449,7 +478,7 @@ Whenever the engine is rebuilt (download, toggle, remove, add custom list, uBO t
 **Given** the engine is loaded or rebuilt
 **When** `_rebuildEngine` finishes loading the Dart-side engine
 **Then** `WebInterceptNative.sendAdblockEngine(SerializedEngine(blob), ...)` hands the native side the same engine, serialized, and `_rebuildEngine` awaits the reply
-**And** the native side hydrates it off the main thread, freeing the old engine and building the new one under the write lock, so a sub-resource checked meanwhile waits for the new engine
+**And** the native side hydrates it off the main thread while the engine in use still answers, then swaps it in under the write lock and frees the old one, so a sub-resource checked meanwhile is judged by the engine in use and never by none (BUG-007 attempt 9)
 **And** when the reply reports the engine inactive, the rules text is pushed instead (`EngineRulesText`) and parsed natively: without an engine the interceptor applies no ABP rule to sub-resources, so it never runs without the engine Dart runs
 **And** clears its per-host decision cache so stale `ALLOWED` verdicts don't shadow the new rules
 
@@ -1038,6 +1067,38 @@ Runner's `ContentRuleListPlugin`.
 **Then** the webview keeps its lists
 
 ---
+
+### Requirement: CB-021 - A List Change Lands Whole
+
+Every change to the set of filter lists (add, edit, remove, toggle, a backup's
+list selection, a uBO import) and its save SHALL run one at a time. A download
+SHALL fetch outside that turn and land inside it: its text and metadata go to
+the list of the same id and URL in the set as it is then, or nowhere, so an
+import or a removal made while it fetched is never undone and no list the set
+no longer has gets a file. A list file SHALL be written beside its name and
+renamed over it, so a kill mid-write leaves the old file or the new one and an
+engine is never built from a list cut short.
+
+A stored list entry without a string id, name and URL SHALL be dropped, and a
+wrong-typed optional field read as absent. The service's launch read SHALL end
+in one of three states, pending, ready or unreadable; a page that wants the
+content blocker may start loading once it is ready or unreadable, and an
+unreadable one blocks nothing and reads as not configured.
+
+#### Scenario: A list removed while it downloads
+
+**Given** a filter list is downloading
+**When** the user removes it before the download ends
+**Then** the download lands nothing: no file, no rules, no entry
+
+#### Scenario: An import replaces the set while a list downloads
+
+**Given** a filter list is downloading
+**When** a backup's list selection replaces the set, keeping that list's id and URL
+**Then** the download lands on the imported entry, with its date and rule count
+**But** when the import gives the id another URL, the download lands nothing
+
+Tests: `test/filter_list_preparser_test.dart` ("a download whose list changed while it fetched"), `test/file_store_test.dart`, `test/content_blocker_service_test.dart` ("an entry a wrong type would break reads as absent, not a throw").
 
 ## Implementation Details
 

@@ -25,7 +25,7 @@ test('Firefox-Android: Gecko vendor / productSub', () => {
   assert.equal(nav.productSub, '20100101');
 });
 
-test('Firefox-Android: Gecko-only oscpu / buildID present with frozen values', () => {
+test('Firefox-Android: Gecko-only oscpu / buildID present with frozen values (UAID-002)', () => {
   const dom = loadShim(FX_ANDROID);
   const nav = dom.window.navigator;
   assert.equal('oscpu' in nav, true);
@@ -53,7 +53,7 @@ test('Firefox-desktop: Gecko identity with desktop oscpu and platform', () => {
   assert.equal(nav.platform, 'Linux x86_64');
 });
 
-test('desktop platform agrees with the desktop-mode shim (no contradiction)', () => {
+test('desktop platform agrees with the desktop-mode shim (no contradiction) (UAID-004)', () => {
   const identity = loadShim(FX_LINUX_DESKTOP).window.navigator.platform;
   const desktop = loadShim(pageJs('desktop_mode', { platform: 'Linux x86_64' })).window.navigator.platform;
   assert.equal(identity, desktop);
@@ -67,7 +67,7 @@ test('FxiOS: WebKit vendor / productSub', () => {
   assert.equal(nav.productSub, '20030107');
 });
 
-test('FxiOS: oscpu / buildID are ABSENT (in === false), not undefined', () => {
+test('FxiOS: oscpu / buildID are ABSENT (in === false), not undefined (UAID-003)', () => {
   const nav = loadShim(FXIOS).window.navigator;
   assert.equal('oscpu' in nav, false);
   assert.equal('buildID' in nav, false);

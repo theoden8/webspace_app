@@ -189,10 +189,12 @@ jobs:
 
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
-      # Formal verification kernel (TLA+/TLC). Checks the cross-spec state
-      # machine: surface-repaint liveness + the "does a new module mix?" gate.
-      # check.sh fetches tla2tools.jar and asserts the good composition passes
-      # and the non-mix demonstrator fails. Node-light, so it lives here.
+      # Formal verification (TLA+/TLC, TLAPS). formal/verify.sh is the one
+      # way to run it: Flutter prints the parts of the models the code
+      # defines and writes the walks' and schedules' traces, then TLC checks
+      # every model, the traces are replayed against them, and tlapm checks
+      # the proofs. Flutter is here for that print, so the models, the
+      # traces and the proofs are one job.
       - name: Set up Java for TLC
         uses: actions/setup-java@v4
         with:
@@ -235,12 +237,8 @@ jobs:
       # here, and the warnings and infos the code already carries do not.
       - name: Analyze (errors only)
         run: fvm flutter analyze --no-fatal-infos --no-fatal-warnings
-      - name: Verify formal kernel
-        run: ./formal/check.sh
       # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in
-      # formal/proofs/ -- formal verification of the same specs, so it sits in
-      # the validate tier next to OpenSpec validation and the TLC kernel. It
-      # reuses the Java set up above, so a separate runner buys nothing.
+      # formal/proofs/.
       #
       # Install the prebuilt 1.6.0-pre tarball, NOT the 1.5.0 .bin installer:
       # that installer compiles Isabelle/Pure with its bundled Poly/ML 5.4.0,
@@ -251,6 +249,7 @@ jobs:
       # (reattached on every main commit) and is the only prebuilt release
       # upstream publishes, so this dependency is unpinned by necessity.
       - name: Install TLAPS
+        id: tlapm
         run: |
           curl -fsSL --retry 4 --retry-delay 2 -o /tmp/tlapm.tar.gz \
             https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz
@@ -258,8 +257,53 @@ jobs:
           rm -f /tmp/tlapm.tar.gz
           echo "$HOME/tlapm/bin" >> "$GITHUB_PATH"
           "$HOME/tlapm/bin/tlapm" --version
-      - name: Verify TLAPS proofs
-        run: ./formal/proofs/check_proofs.sh
+          echo "version=$("$HOME/tlapm/bin/tlapm" --version)" >> "$GITHUB_OUTPUT"
+      # The fingerprints of what tlapm proved, so an obligation proved in an
+      # earlier run is not proved again (formal/proofs/check_proofs.sh). They
+      # are per obligation: a changed module reproves only what changed, and
+      # a stale cache costs nothing but a miss. A new tlapm starts from none.
+      # Saved only by a job that passed, so a failed attempt is not kept.
+      - name: Cache the TLAPS fingerprints
+        uses: actions/cache@v4
+        with:
+          path: formal/proofs/.tlacache
+          key: tlapm-${{ runner.os }}-${{ steps.tlapm.outputs.version }}-${{ hashFiles('formal/**/*.tla', 'lib/**/*.dart') }}
+          restore-keys: |
+            tlapm-${{ runner.os }}-${{ steps.tlapm.outputs.version }}-
+      # What formal/check.sh keeps between runs (FORMAL_CACHE): each TLC
+      # run's time, which sizes the next run's pool, and the output of each
+      # run that behaved, keyed by a hash of every input it reads, so a run
+      # whose inputs are unchanged is remembered instead of run again
+      # (formal/README.md, "Remembered runs").
+      - name: Cache the formal runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/webspace-formal
+          key: formal-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            formal-${{ runner.os }}-
+      # elan installs the Lean release formal/lean/lean-toolchain names, as
+      # fvm reads .fvmrc; verify.sh's Lean step fails without lake in CI.
+      - name: Cache elan and the Lean toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ runner.os }}-${{ hashFiles('formal/lean/lean-toolchain') }}
+      - name: Install elan
+        run: |
+          [ -x "$HOME/.elan/bin/elan" ] || curl -fsSL --retry 4 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none --no-modify-path
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Verify the formal models
+        run: ./formal/verify.sh
+      # The printed modules and the walk and step traces a failed check read,
+      # zipped, so a counterexample can be replayed without rerunning.
+      - name: Upload the formal models and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-build
+          path: build/formal
+          if-no-files-found: ignore
       # Idempotent: if the cache restored a matching Chromium, this
       # step prints "already installed" and exits in <1s. Otherwise it
       # downloads ~280 MB into ~/.cache/puppeteer. Running it as a

@@ -1,9 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/isolation.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_retention_priority.dart';
+import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/fake_nav_capture.dart';
 import 'helpers/mock_cookie_manager.dart';
 import 'helpers/site_list_state.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -12,6 +19,9 @@ import 'package:webspace/services/cookie_manager.dart';
 /// the REAL [CookieIsolationEngine] — the tests exercise production code,
 /// not duplicated harness code.
 class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
+  @override
+  ResidencyCaps get caps => kResidencyCaps;
+
   final MockCookieManager cookieManager;
   final MockCookieSecureStorage storage = MockCookieSecureStorage();
   late final CookieIsolationEngine engine = CookieIsolationEngine(
@@ -25,14 +35,29 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   @override
   List<WebViewModel> get models => sites;
 
+  /// The runtime's variables with this harness's own [version], which it
+  /// bumps as `SiteActivationController` does.
   @override
-  CookieIsolationEngine get sharedJar => engine;
+  late final RuntimeVars<WebViewModel> vars = RuntimeVars(
+    loaded: runtime.vars.loaded,
+    current: runtime.vars.current,
+    marker: runtime.vars.marker,
+    nested: runtime.vars.nested,
+    headless: runtime.vars.headless,
+    fore: runtime.vars.fore,
+    version: Shared(ModelVar.version, read: () => version, write: (to) => version = to),
+  );
+
+  @override
+  late final Isolation isolation = SharedJar(engine);
 
   final List<WebViewModel> navStateCaptured = [];
 
   @override
-  Future<void> captureNavState(WebViewModel model) async =>
-      navStateCaptured.add(model);
+  NavCapture? beginNavCapture(WebViewModel model) {
+    navStateCaptured.add(model);
+    return FakeNavCapture();
+  }
 
   @override
   void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
@@ -55,7 +80,11 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
 
   /// Mirrors `SiteActivationController.unload`.
   Future<void> unload(int index, {required UnloadReason reason}) =>
-      SiteUnloadEngine.unload(this, index: index, reason: reason);
+      SiteUnloadEngine.apply(
+        this,
+        plan: ResidencyPlan(unloads: [(site: sites[index], reason: reason)]),
+        isStale: () => false,
+      );
 
   /// Monotonic counter mirroring `SiteRuntime.activationVersion`. Every `switchToSite` call bumps it; the engine
   /// reads it via a closure so concurrent activations can bail.
@@ -69,11 +98,12 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     ));
   }
 
-  /// Mirrors `SiteActivationController.setCurrentIndex`: bumps the version, runs the
+  /// Mirrors `SiteActivationController.activate`: bumps the version, runs the
   /// activation's residency plan, then delegates cookie restore to the real
   /// engine, so the harness can't drift from prod.
   Future<void> switchToSite(int index) async {
     if (index < 0 || index >= sites.length) return;
+    final target = sites[index];
     final v = ++version;
 
     final plan = SiteUnloadEngine.plan(this, event: Activating(index));
@@ -82,17 +112,16 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
       return;
     }
 
-    await engine.restoreCookiesForSite(
-      index: index,
-      models: sites,
-      loadedIndices: loadedIndices,
+    if (!await engine.restoreCookiesForSite(
+      site: target,
+      vars: vars,
       versionAtEntry: v,
-      currentVersion: () => version,
-    );
+    )) {
+      return;
+    }
     if (v != version) return;
 
-    currentIndex = index;
-    loadedIndices.add(index);
+    show(target);
   }
 
   /// Mirrors `SiteEditingController.deleteSite` cookie/storage/state bookkeeping.
@@ -100,9 +129,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     final deletedModel = sites[index];
     await engine.preDeleteCookieCleanup(
       deletedModel: deletedModel,
-      deletedIndex: index,
-      models: sites,
-      loadedIndices: loadedIndices,
+      loaded: runtime.loaded,
     );
 
     removeSiteAt(index);
@@ -126,16 +153,15 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   /// Go to the home screen — `currentIndex = null` but loaded webviews
   /// remain mounted.
   void goHome() {
-    currentIndex = null;
+    runtime.seed(shown: null);
   }
 
   /// Simulate a cold process restart: loaded state cleared, cookies
   /// in the native jar cleared, but encrypted storage persists.
   void simulateAppRestart() {
-    loadedIndices.clear();
-    currentIndex = null;
+    runtime.seed(loaded: const [], shown: null);
     for (final site in sites) {
-      site.disposeWebView();
+      site.disposeWebView(commit: const Commit.fixture());
       site.cookies = [];
     }
   }
@@ -343,7 +369,7 @@ void main() {
       expect(site0Saved, hasLength(1));
     });
 
-    test('incognito sites do not participate in domain conflicts', () async {
+    test('incognito sites do not participate in domain conflicts (ISO-005)', () async {
       harness.addSite('https://github.com', name: 'GitHub Normal');
       harness.sites.add(WebViewModel(
         initUrl: 'https://github.com/private',
@@ -369,7 +395,7 @@ void main() {
       expect(cookies.any((c) => c.value == 'normal123'), isTrue);
     });
 
-    test('cookie persistence across domain switches', () async {
+    test('cookie persistence across domain switches (ISO-006)', () async {
       harness.addSite('https://github.com/account1', name: 'Account 1');
       harness.addSite('https://github.com/account2', name: 'Account 2');
 
@@ -404,7 +430,7 @@ void main() {
       expect(account2Saved.any((c) => c.value == 'account2'), isTrue);
     });
 
-    test('new site on same domain starts with clean cookies', () async {
+    test('new site on same domain starts with clean cookies (ISO-004)', () async {
       harness.addSite('https://github.com/existing', name: 'Existing Account');
 
       // Login to existing account
@@ -487,7 +513,10 @@ void main() {
     // Every activation empties the shared jar after saving it for the
     // loaded sites only, so an unloaded site keeps what it set since its own
     // activation only if its unload captured the jar first. The webspace
-    // switch once unloaded without that capture.
+    // switch, a domain conflict's back stack and a home reset once each
+    // skipped a step; every unload now goes through SiteUnloadEngine.unloadFlow,
+    // which captures whatever the reason, and a new UnloadReason does not
+    // compile until it answers keepsNavState.
     for (final reason in UnloadReason.values) {
       test('a ${reason.label} unload keeps the session the site just set',
           () async {
@@ -498,6 +527,8 @@ void main() {
         await harness.simulateLogin(0, cookies: [
           Cookie(name: 'session', value: 'fresh', domain: 'github.com'),
         ]);
+        // A cap or memory-pressure eviction never picks the site on screen.
+        harness.goHome();
 
         await harness.unload(0, reason: reason);
         expect(harness.loadedIndices, isNot(contains(0)));
@@ -527,7 +558,7 @@ void main() {
       harness = CookieIsolationTestHarness();
     });
 
-    test('deleting sole site on domain clears cookie jar', () async {
+    test('deleting sole site on domain clears cookie jar (ISO-010)', () async {
       harness.addSite('https://linkedin.com', name: 'LinkedIn');
 
       await harness.switchToSite(0);
@@ -1372,11 +1403,9 @@ void main() {
       ++harness.version; // v=2, the "newer" call bumps it right away
 
       await harness.engine.restoreCookiesForSite(
-        index: 0,
-        models: harness.sites,
-        loadedIndices: harness.loadedIndices,
+        site: harness.sites[0],
+        vars: harness.vars,
         versionAtEntry: staleVersion,
-        currentVersion: () => harness.version,
       );
 
       // Stale run bailed at the first version check — nothing was restored
@@ -1397,11 +1426,9 @@ void main() {
 
       final v = ++harness.version;
       await harness.engine.restoreCookiesForSite(
-        index: 0,
-        models: harness.sites,
-        loadedIndices: harness.loadedIndices,
+        site: harness.sites[0],
+        vars: harness.vars,
         versionAtEntry: v,
-        currentVersion: () => harness.version,
       );
 
       final ex = await harness.cookieManager.getCookies(
@@ -1447,7 +1474,7 @@ void main() {
     });
 
     test('ISO-014: a restore that cannot read the jar saves nothing, '
-        'empties nothing and fails', () async {
+        'empties nothing and leaves its target unshown', () async {
       harness.addSite('https://github.com', name: 'GitHub');
       harness.addSite('https://example.com', name: 'Example');
       await harness.switchToSite(0);
@@ -1456,8 +1483,7 @@ void main() {
       ]);
 
       harness.cookieManager.failing.add(JarCall.read);
-      await expectLater(
-          harness.switchToSite(1), throwsA(isA<CookieJarFailure>()));
+      await harness.switchToSite(1);
 
       expect(harness.cookieManager.all.map((c) => c.value), ['saved'],
           reason: 'the jar is not emptied past a failed read');
@@ -1468,7 +1494,7 @@ void main() {
     });
 
     test('ISO-014: a refill that refuses one cookie writes the rest, '
-        'then fails', () async {
+        'and leaves its target unshown', () async {
       harness.addSite('https://github.com', name: 'GitHub');
       harness.addSite('https://example.com', name: 'Example');
       await harness.switchToSite(0);
@@ -1480,12 +1506,28 @@ void main() {
           cookies: [Cookie(name: 'ex', value: 'e', domain: 'example.com')]);
 
       harness.cookieManager.refusing.add('session');
-      await expectLater(
-          harness.switchToSite(1), throwsA(isA<CookieJarFailure>()));
+      await harness.switchToSite(1);
 
       expect(harness.cookieManager.all.map((c) => c.name).toSet(),
           {'ex', 'prefs'},
           reason: 'a cookie the jar refuses does not keep the others out');
+      expect(harness.loadedIndices, isNot(contains(1)));
+    });
+
+    test(
+        'ISO-014: a launch jar clear the jar refuses fails alone: the turn '
+        "passes on, and the launch leaves the jar to the next activation's",
+        () async {
+      harness.cookieManager.failing.add(JarCall.clear);
+      await expectLater(harness.engine.clearUnloaded(loaded: const []),
+          throwsA(isA<CookieJarFailure>()));
+
+      harness.cookieManager.failing.clear();
+      await harness.engine.clearUnloaded(loaded: const []);
+      expect(
+          File('lib/controllers/startup_controller.dart').readAsStringSync(),
+          contains('test: (e) => e is CookieJarFailure'),
+          reason: 'the launch goes on past a clear the jar refuses');
     });
 
     test('ISO-014: a deletion whose jar cleanup fails still drops the '
@@ -1504,9 +1546,7 @@ void main() {
       harness.cookieManager.failing.add(JarCall.read);
       await harness.engine.preDeleteCookieCleanup(
         deletedModel: harness.sites[0],
-        deletedIndex: 0,
-        models: harness.sites,
-        loadedIndices: harness.loadedIndices,
+        loaded: harness.runtime.loaded,
       );
 
       expect(

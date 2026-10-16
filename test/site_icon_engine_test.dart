@@ -80,7 +80,7 @@ void main() {
       expect(engine.onIcon(png(128))?.edge, 128);
     });
 
-    test('takes an icon that reaches Dart before the first page\'s start', () {
+    test('takes an icon that reaches Dart before the first page\'s start (ICON-016)', () {
       final engine = SiteIconEngine('https://example.com/');
       expect(engine.onIcon(png(32)), isNull);
       expect(

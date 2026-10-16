@@ -100,7 +100,7 @@ test('early_css at document start leaves the page its own root (CB-019)',
     });
   });
 
-test('early_css: !important <style> overrides page-defined display: block',
+test('early_css: !important <style> overrides page-defined display: block (CB-004)',
   async (t) => {
     await withShim(t, EARLY_CSS, async (page) => {
       const r = await page.evaluate(() => ({

@@ -3,12 +3,16 @@
 // The post-paint deferred init runs while the UI is interactive, so the site
 // list can mutate (add/delete/reorder) between the engine's awaits. These tests
 // inject exactly those mutations at each await point via the fake host, and the
-// host asserts the engine never acts on a dead site (markLoaded /
-// setSpoofTimezone / preloadHtml on a deleted siteId is an INVARIANT failure).
+// host asserts the engine never acts on a dead site (preload /
+// setSpoofTimezone / applyTheme on a deleted siteId is an INVARIANT failure).
 //
 // This is the test that would have caught the stale-index races the engine
 // replaced: revert the engine to index-based and the "delete during await"
-// cases below fail (wrong-site markLoaded / RangeError).
+// cases below fail (wrong-site load / RangeError). What a preload does inside
+// (its HTML, navigation state and session before the webview) is
+// SiteActivationController.preload's, driven by the activation walks.
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
@@ -38,7 +42,6 @@ class _FakeHost implements DeferredStartupHost {
 
   final Set<String> loaded = {};
   bool mountedFlag = true;
-  int rebuilds = 0;
   int persists = 0;
   int datasetLoads = 0;
   bool datasetReady = true;
@@ -47,15 +50,17 @@ class _FakeHost implements DeferredStartupHost {
   final List<String> markedLoaded = [];
   final List<String> tzSet = [];
   final List<String> themed = [];
-  final List<({Set<SiteId> active, Set<SiteId> nonIncognito})> sweeps = [];
+  final List<({Set<String> active, Set<String> nonIncognito})> sweeps = [];
   final List<String> opLog = []; // 'persist' / 'sweep' — to assert ordering
 
-  final List<String> restoreQueued = [];
+  /// What each preload of a site answers, oldest first; loaded once spent.
+  final Map<String, List<PreloadOutcome>> answers = {};
+  int settles = 0;
 
   // Await-point hooks: run *inside* the awaited call, i.e. "during the await".
-  void Function(SiteId siteId)? onPreloadHtml;
-  void Function(SiteId siteId)? onApplyTheme;
-  void Function(SiteId siteId)? onQueueNavStateRestore;
+  void Function(String siteId)? onPreload;
+  void Function(String siteId)? onApplyTheme;
+  void Function()? onSettle;
   void Function()? onLoadDataset;
 
   _FakeSite? _find(String id) {
@@ -84,47 +89,47 @@ class _FakeHost implements DeferredStartupHost {
   bool get isMounted => mountedFlag;
 
   @override
-  bool isLive(SiteId siteId) => _find(siteId) != null;
+  bool isLive(String siteId) => _find(siteId) != null;
+
+  bool isLoaded(String siteId) => loaded.contains(siteId);
 
   @override
-  bool isLoaded(SiteId siteId) => loaded.contains(siteId);
-
-  @override
-  void markLoaded(SiteId siteId) {
+  Future<PreloadOutcome> preload(String siteId) async {
     expect(isLive(siteId), isTrue,
-        reason: 'INVARIANT: markLoaded on dead site $siteId');
-    loaded.add(siteId);
-    markedLoaded.add(siteId);
+        reason: 'INVARIANT: preload of dead site $siteId');
+    onPreload?.call(siteId);
+    if (!isLive(siteId) || !mountedFlag) return PreloadOutcome.skipped;
+    final queued = answers[siteId];
+    final outcome = queued == null || queued.isEmpty
+        ? PreloadOutcome.loaded
+        : queued.removeAt(0);
+    if (outcome == PreloadOutcome.loaded) {
+      loaded.add(siteId);
+      markedLoaded.add(siteId);
+    }
+    return outcome;
   }
 
   @override
-  Future<void> preloadHtml(SiteId siteId) async {
-    expect(isLive(siteId), isTrue,
-        reason: 'INVARIANT: preloadHtml on dead site $siteId');
-    onPreloadHtml?.call(siteId);
+  Future<void> activationSettled() async {
+    settles++;
+    onSettle?.call();
   }
 
+  /// The launched site's first load; done unless a test holds it.
+  Completer<void> launchLoad = Completer<void>()..complete();
+
   @override
-  Future<void> applyTheme(SiteId siteId) async {
+  Future<void> launchedSiteLoaded() => launchLoad.future;
+
+  @override
+  Future<void> applyTheme(String siteId) async {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: applyTheme on dead site $siteId');
     themed.add(siteId);
     onApplyTheme?.call(siteId);
   }
 
-  @override
-  Future<void> queueNavStateRestore(SiteId siteId) async {
-    expect(isLive(siteId), isTrue,
-        reason: 'INVARIANT: queueNavStateRestore on dead site $siteId');
-    expect(isLoaded(siteId), isFalse,
-        reason: 'INVARIANT: restore queued after markLoaded for $siteId — '
-            'the first build may already have consumed (no) bytes');
-    restoreQueued.add(siteId);
-    onQueueNavStateRestore?.call(siteId);
-  }
-
-  @override
-  void requestRebuild() => rebuilds++;
 
   @override
   Future<bool> loadTimezoneDataset() async {
@@ -138,7 +143,7 @@ class _FakeHost implements DeferredStartupHost {
       lookupFn(latitude, longitude: longitude);
 
   @override
-  bool setSpoofTimezone(SiteId siteId, {required String timezone}) {
+  bool setSpoofTimezone(String siteId, {required String timezone}) {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: setSpoofTimezone on dead site $siteId');
     final s = _find(siteId)!;
@@ -181,49 +186,80 @@ void main() {
       ]);
       await DeferredStartupEngine.autoLoadNotificationSites(host);
       expect(host.markedLoaded.toSet(), {'a', 'b'});
-      expect(host.isLoaded(SiteId('plain')), isFalse);
-      expect(host.rebuilds, 1);
+      expect(host.isLoaded('plain'), isFalse);
     });
 
-    test('queues nav-state restore before marking loaded (PAUSE-019)',
+    test('nothing loads before the launched site has (NOTIF-017)', () async {
+      final host = _FakeHost([
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('b'), notif: true),
+      ])..launchLoad = Completer<void>();
+      final run = DeferredStartupEngine.autoLoadNotificationSites(host);
+      await pumpEventQueue();
+      expect(host.markedLoaded, isEmpty,
+          reason: 'a preload started while the launched page still loads');
+      host.launchLoad.complete();
+      await run;
+      expect(host.markedLoaded, ['a', 'b']);
+    });
+
+    test('a page that goes away while the launch loads ends the auto-load',
         () async {
+      final host = _FakeHost([_FakeSite(SiteId('a'), notif: true)])
+        ..launchLoad = Completer<void>();
+      final run = DeferredStartupEngine.autoLoadNotificationSites(host);
+      host.mountedFlag = false;
+      host.launchLoad.complete();
+      await run;
+      expect(host.markedLoaded, isEmpty);
+    });
+
+    test('a busy preload is tried again once activations settle', () async {
       final host = _FakeHost([
         _FakeSite(SiteId('a'), notif: true),
         _FakeSite(SiteId('b'), notif: true),
       ]);
+      host.answers['a'] = [PreloadOutcome.busy, PreloadOutcome.busy];
       await DeferredStartupEngine.autoLoadNotificationSites(host);
-      // The fake host's queueNavStateRestore asserts !isLoaded at call
-      // time, so this also proves the ordering, not just the coverage.
-      expect(host.restoreQueued, ['a', 'b']);
+      expect(host.markedLoaded, ['a', 'b']);
+      expect(host.settles, 2);
     });
 
-    test('site deleted during its restore queue is not loaded (no throw)',
-        () async {
+    test('a skipped site is not tried again', () async {
       final host = _FakeHost([
         _FakeSite(SiteId('a'), notif: true),
         _FakeSite(SiteId('b'), notif: true),
       ]);
-      host.onQueueNavStateRestore = (siteId) {
-        if (siteId == 'a') host.delete('a');
-      };
+      host.answers['a'] = [PreloadOutcome.skipped];
       await DeferredStartupEngine.autoLoadNotificationSites(host);
-      expect(host.isLoaded(SiteId('a')), isFalse, reason: 'deleted mid-flight');
-      expect(host.isLoaded(SiteId('b')), isTrue);
+      expect(host.markedLoaded, ['b']);
+      expect(host.settles, 0);
     });
 
-    test('site deleted during its own HTML preload is not loaded (no throw)',
+    test('a site deleted while its retry waits is not loaded', () async {
+      final host = _FakeHost([
+        _FakeSite(SiteId('a'), notif: true),
+        _FakeSite(SiteId('b'), notif: true),
+      ]);
+      host.answers['a'] = [PreloadOutcome.busy];
+      host.onSettle = () => host.delete('a');
+      await DeferredStartupEngine.autoLoadNotificationSites(host);
+      expect(host.markedLoaded, ['b']);
+    });
+
+    test('site deleted during its own preload is not loaded (no throw)',
         () async {
       final host = _FakeHost([
         _FakeSite(SiteId('a'), notif: true),
         _FakeSite(SiteId('b'), notif: true),
       ]);
       // Delete 'a' while 'a' is mid-preload — the classic stale-index window.
-      host.onPreloadHtml = (siteId) {
+      host.onPreload = (siteId) {
         if (siteId == 'a') host.delete('a');
       };
       await DeferredStartupEngine.autoLoadNotificationSites(host);
-      expect(host.isLoaded(SiteId('a')), isFalse, reason: 'deleted mid-flight');
-      expect(host.isLoaded(SiteId('b')), isTrue);
+      expect(host.isLoaded('a'), isFalse, reason: 'deleted mid-flight');
+      expect(host.isLoaded('b'), isTrue);
     });
 
     test('a different site deleted mid-loop is skipped, not mis-targeted',
@@ -235,12 +271,12 @@ void main() {
       ]);
       // While loading 'a', delete the not-yet-processed 'c' (a reorder/delete
       // would shift indices; siteId-keying must just skip it).
-      host.onPreloadHtml = (siteId) {
+      host.onPreload = (siteId) {
         if (siteId == 'a') host.delete('c');
       };
       await DeferredStartupEngine.autoLoadNotificationSites(host);
       expect(host.markedLoaded.toSet(), {'a', 'b'});
-      expect(host.isLive(SiteId('c')), isFalse);
+      expect(host.isLive('c'), isFalse);
     });
 
     test('unmount mid-flight stops further loads', () async {
@@ -248,14 +284,13 @@ void main() {
         _FakeSite(SiteId('a'), notif: true),
         _FakeSite(SiteId('b'), notif: true),
       ]);
-      host.onPreloadHtml = (siteId) {
+      host.onPreload = (siteId) {
         if (siteId == 'a') host.mountedFlag = false;
       };
       await DeferredStartupEngine.autoLoadNotificationSites(host);
-      // 'a' was being preloaded when we unmounted; engine bails before marking
-      // it, and never reaches 'b'.
+      // 'a' was being preloaded when we unmounted; it does not load, and the
+      // engine never reaches 'b'.
       expect(host.markedLoaded, isEmpty);
-      expect(host.rebuilds, 0);
     });
   });
 
@@ -318,43 +353,13 @@ void main() {
     });
   });
 
-  group('runPostPaintMaintenance', () {
-    test('themes the not-pre-themed live sites, persists, then sweeps',
-        () async {
+  group('themeRemaining', () {
+    test('themes the live sites not themed before the first paint', () async {
       final host = _FakeHost(
           [_FakeSite(SiteId('a')), _FakeSite(SiteId('b')), _FakeSite(SiteId('c'), incognito: true)]);
-      await DeferredStartupEngine.runPostPaintMaintenance(
-        host,
-        alreadyThemedSiteIds: {SiteId('a')}, // a was themed pre-paint
-        needsResave: true,
-      );
+      await DeferredStartupEngine.themeRemaining(host,
+          alreadyThemedSiteIds: {SiteId('a')});
       expect(host.themed.toSet(), {'b', 'c'}, reason: 'a already themed');
-      expect(host.persists, 1);
-      expect(host.sweeps.length, 1);
-      expect(host.sweeps.single.active, {'a', 'b', 'c'});
-      expect(host.sweeps.single.nonIncognito, {'a', 'b'});
-      // persist must run before the orphan sweep (same secure-storage keys).
-      expect(host.opLog, ['persist', 'sweep']);
-    });
-
-    test('orphan sweep reads LIVE sets — a site added post-paint is kept',
-        () async {
-      final host = _FakeHost([_FakeSite(SiteId('a')), _FakeSite(SiteId('b'))]);
-      // Simulate the user adding a site while theming is in flight.
-      host.onApplyTheme = (siteId) {
-        if (siteId == 'a' && host.isLive(SiteId('added')) == false) {
-          host.sites.add(_FakeSite(SiteId('added')));
-        }
-      };
-      await DeferredStartupEngine.runPostPaintMaintenance(
-        host,
-        alreadyThemedSiteIds: const {},
-        needsResave: false,
-      );
-      expect(host.sweeps.single.active, contains('added'),
-          reason: 'fresh snapshot must include the post-paint site, '
-              'so it is not swept as an orphan');
-      expect(host.persists, 0); // needsResave: false
     });
 
     test('site deleted during theming is skipped, not themed', () async {
@@ -362,24 +367,46 @@ void main() {
       host.onApplyTheme = (siteId) {
         if (siteId == 'a') host.delete('b');
       };
-      await DeferredStartupEngine.runPostPaintMaintenance(
-        host,
-        alreadyThemedSiteIds: const {},
-        needsResave: false,
-      );
+      await DeferredStartupEngine.themeRemaining(host,
+          alreadyThemedSiteIds: const {});
       expect(host.themed, ['a'], reason: 'b deleted before it was themed');
     });
 
-    test('unmount mid-theming stops before persist/sweep', () async {
+    test('unmount mid-theming stops it', () async {
       final host = _FakeHost([_FakeSite(SiteId('a')), _FakeSite(SiteId('b'))]);
       host.onApplyTheme = (siteId) {
         if (siteId == 'a') host.mountedFlag = false;
       };
-      await DeferredStartupEngine.runPostPaintMaintenance(
-        host,
-        alreadyThemedSiteIds: const {},
-        needsResave: true,
-      );
+      await DeferredStartupEngine.themeRemaining(host,
+          alreadyThemedSiteIds: const {});
+      expect(host.themed, ['a']);
+    });
+  });
+
+  group('persistAndSweep', () {
+    test('persists, then sweeps against the live sets', () async {
+      final host = _FakeHost(
+          [_FakeSite(SiteId('a')), _FakeSite(SiteId('b')), _FakeSite(SiteId('c'), incognito: true)]);
+      await DeferredStartupEngine.persistAndSweep(host, needsResave: true);
+      expect(host.persists, 1);
+      expect(host.sweeps.single.active, {'a', 'b', 'c'});
+      expect(host.sweeps.single.nonIncognito, {'a', 'b'});
+      // persist must run before the orphan sweep (same secure-storage keys).
+      expect(host.opLog, ['persist', 'sweep']);
+    });
+
+    test('orphan sweep reads LIVE sets: a site added since launch is kept',
+        () async {
+      final host = _FakeHost([_FakeSite(SiteId('a'))]);
+      host.sites.add(_FakeSite(SiteId('added')));
+      await DeferredStartupEngine.persistAndSweep(host, needsResave: false);
+      expect(host.sweeps.single.active, contains('added'));
+      expect(host.persists, 0);
+    });
+
+    test('unmounted, it neither persists nor sweeps', () async {
+      final host = _FakeHost([_FakeSite(SiteId('a'))])..mountedFlag = false;
+      await DeferredStartupEngine.persistAndSweep(host, needsResave: true);
       expect(host.persists, 0);
       expect(host.sweeps, isEmpty);
     });

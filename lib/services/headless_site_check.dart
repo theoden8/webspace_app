@@ -13,6 +13,7 @@ import 'package:webspace/services/http_auth_challenge.dart';
 import 'package:webspace/services/webview_tls.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_handlers.dart';
+import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/webview.dart';
 
 /// The headless webview a background wake opens for a site that has no live
@@ -44,6 +45,11 @@ abstract final class HeadlessSiteChecks {
     final check = HeadlessSiteCheck._();
     final created = Completer<inapp.InAppWebViewController>();
     String? loadStartUrl;
+    // The check's documents, which a script its handlers evaluate lands in.
+    final phases = PagePhases(
+      blocking: posture.blocking,
+      dnsLevel: () => config.effectiveDnsLevel,
+    );
     final headless = inapp.HeadlessInAppWebView(
       initialSettings: WebViewFactory.siteSettings(
         binding,
@@ -60,11 +66,15 @@ abstract final class HeadlessSiteChecks {
         ..mediaPlaybackRequiresUserGesture = true,
       initialUserScripts: UnmodifiableListView(page.userScripts),
       onWebViewCreated: (controller) {
+        phases.on(PageEvent.viewCreated, view: controller.platform);
         PageHandlers.registerPageHandlers(
           controller,
           config: config,
           userScriptService: page.userScriptService,
-          sourceUrl: () => loadStartUrl,
+          page: (
+            sourceUrl: () => loadStartUrl,
+            document: () => phases.page(controller),
+          ),
         );
         if (!created.isCompleted) created.complete(controller);
       },
@@ -74,7 +84,8 @@ abstract final class HeadlessSiteChecks {
           WebViewFactory.onSiteNavigationPolicy(config, navigationAction: navigationAction,
               allowCaptcha: false,
               refusePlainHttp: posture.blocking.httpsUpgrade),
-      onLoadStart: (_, url) {
+      onLoadStart: (controller, url) {
+        phases.on(PageEvent.loadStarted, view: controller.platform);
         loadStartUrl = url?.toString();
         check._loading = true;
       },
@@ -108,8 +119,14 @@ abstract final class HeadlessSiteChecks {
             session: httpAuth,
             challenge: challenge,
           ),
-      onRenderProcessGone: (_, _) => check._gone = true,
-      onWebContentProcessDidTerminate: (_) => check._gone = true,
+      onRenderProcessGone: (controller, _) {
+        phases.on(PageEvent.rendererGone, view: controller.platform);
+        check._gone = true;
+      },
+      onWebContentProcessDidTerminate: (controller) {
+        phases.on(PageEvent.rendererGone, view: controller.platform);
+        check._gone = true;
+      },
     );
     check._webview = headless;
     final inapp.InAppWebViewController controller;
@@ -134,6 +151,7 @@ abstract final class HeadlessSiteChecks {
         siteId: posture.siteId,
         dnsLevel: config.effectiveDnsLevel,
         localCdn: posture.blocking.localCdn,
+        contentBlock: posture.blocking.contentBlock,
       );
       if (!attached &&
           (posture.blocking.dns ||

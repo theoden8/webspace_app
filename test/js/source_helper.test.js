@@ -117,7 +117,7 @@ test('callSites skips declarations, comments and strings', () => {
 
 test('files lists recursively, repo-relative and sorted; read fails on a missing file', () => {
   const listed = src.dartFiles('lib/services');
-  assert.ok(listed.includes('lib/services/site_lifecycle_engine.dart'));
+  assert.ok(listed.includes('lib/services/site_unload_engine.dart'));
   assert.deepEqual(listed, [...listed].sort());
   assert.throws(() => src.read('lib/no_such_file.dart'), /does not exist/);
 });

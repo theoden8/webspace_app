@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/background_wake_engine.dart';
-import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/runtime_vars.dart';
 
 /// A page that loads for [loadTicks] polls after a reload, then shows
 /// [titleAfter], and posts its own notification on load when [postsOnLoad].
@@ -25,18 +25,23 @@ class _Page {
   String? get title => _ticksLeft == null ? titleBefore : (loading ? null : titleAfter);
 }
 
-/// The app as the wake sees it. A page is live when it has a webview a reload
-/// reaches; any other notification page needs a headless webview, which this
-/// host opens and closes like the app does (NOTIF-016).
-class _Host implements BackgroundWakeHost {
+/// A site's process-wide route as this host models it: a proxy the rule
+/// is pointed at, or Tor's one exit country; a site with neither needs no
+/// process-wide route (per-site proxies, as on iOS).
+typedef _Route = ({String? proxy, String? torExit});
+
+/// The app as the wake sees it, off screen. A page is live when it has a
+/// webview a reload reaches; any other notification page needs a headless
+/// webview, which this host opens and closes like the app does (NOTIF-016).
+class _Host implements BackgroundWakeHost<SiteId> {
   _Host(this.pages, {Set<String>? live, this.notificationsOff = const {}})
-      : live = live ?? pages.keys.toSet();
+      : live = {for (final id in live ?? pages.keys) SiteId(id)};
 
   final Map<String, _Page> pages;
-  final Set<String> live;
+  final Set<SiteId> live;
   final Set<String> notificationsOff;
   final Map<String, WakeSkip> blocked = {};
-  final Map<String, WakeRoute> routes = {};
+  final Map<String, _Route> routes = {};
   final Map<String, WakeSkip> refuseOpen = {};
   bool routeApplies = true;
   bool titleThrows = false;
@@ -44,6 +49,46 @@ class _Host implements BackgroundWakeHost {
   final posts = <String>[];
   final events = <String>[];
   final headless = <String>{};
+
+  /// Runs as a route starts to apply, with the site it is for.
+  void Function(SiteId siteId)? onApply;
+
+  /// The sites already among the running ones as each route applied.
+  final runningAtApply = <SiteId, Set<SiteId>>{};
+
+  @override
+  late final vars = RuntimeVars<SiteId>.ofSet(live, onScreen: false);
+
+  @override
+  SiteId siteOf(SiteId siteId) => siteId;
+
+  /// No activation runs here, so no nested open is in flight.
+  @override
+  bool get nestedOpening => false;
+
+  /// The activation's rule as this host models it: one proxy and one Tor
+  /// exit for everything running.
+  @override
+  bool routeFree(SiteId site) => vars.running.every(
+    (other) =>
+        other == site || !_clash(routes[site], theirs: routes[other]),
+  );
+
+  static bool _clash(_Route? mine, {required _Route? theirs}) =>
+      mine != null &&
+      theirs != null &&
+      ((mine.proxy != null &&
+              theirs.proxy != null &&
+              mine.proxy != theirs.proxy) ||
+          (mine.torExit != null &&
+              theirs.torExit != null &&
+              mine.torExit != theirs.torExit));
+
+  @override
+  void closeAllHeadless() {
+    events.add('close all');
+    headless.clear();
+  }
 
   @override
   List<WakeCandidate> wakeCandidates() => [
@@ -53,7 +98,6 @@ class _Host implements BackgroundWakeHost {
             notificationsEnabled: !notificationsOff.contains(id),
             live: live.contains(id),
             headlessBlocked: blocked[id],
-            route: routes[id],
           ),
       ];
 
@@ -64,18 +108,24 @@ class _Host implements BackgroundWakeHost {
   }
 
   @override
-  Future<bool> applyRoute(String siteId) async {
+  Future<bool> applyRoute(SiteId siteId) async {
     events.add('route $siteId');
+    runningAtApply[siteId] = vars.running;
+    onApply?.call(siteId);
     return routeApplies;
   }
 
   @override
-  Future<void> releaseRoute() async => events.add('release route');
+  void releaseRoute() => events.add('release route');
+
+  @override
+  void leave(SiteId siteId) => events.add('leave $siteId');
 
   @override
   Future<WakeSkip?> openHeadless(String siteId) async {
     final refused = refuseOpen[siteId];
     if (refused != null) return refused;
+    if (vars.fore.value) return WakeSkip.appInForeground;
     events.add('open $siteId');
     headless.add(siteId);
     pages[siteId]!._ticksLeft = pages[siteId]!.loadTicks;
@@ -132,20 +182,16 @@ class _Host implements BackgroundWakeHost {
     }
     events.add('delay ${d.inMilliseconds}');
   }
+
+  /// What the wake did to the platform, without the polls.
+  List<String> get calls => [
+    for (final e in events)
+      if (!e.startsWith('delay')) e,
+  ];
 }
 
-WakeRoute _route(String address) => (
-      proxy: (
-        type: ProxyType.SOCKS5,
-        address: address,
-        username: null,
-        password: null,
-      ),
-      torExit: null,
-    );
-
-final _p = _route('127.0.0.1:1080');
-final _q = _route('127.0.0.1:1081');
+const _Route _p = (proxy: '127.0.0.1:1080', torExit: null);
+const _Route _q = (proxy: '127.0.0.1:1081', torExit: null);
 
 void main() {
   group('unreadCountFromTitle', () {
@@ -188,7 +234,7 @@ void main() {
       final page = _Page(titleBefore: '(1) Chat', titleAfter: '(1) Chat',
           loadTicks: 6);
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine();
+      final engine = BackgroundWakeEngine<SiteId>();
       await engine.wake(host);
       expect(page.loading, isFalse,
           reason: 'returning ends the OS task; a page still loading never '
@@ -200,7 +246,7 @@ void main() {
         () async {
       final page = _Page(titleBefore: null, titleAfter: null, loadTicks: 1000);
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine();
+      final engine = BackgroundWakeEngine<SiteId>();
       final start = host.now();
       await engine.wake(host);
       final spent = host.now().difference(start);
@@ -212,7 +258,7 @@ void main() {
       final page = _Page(titleBefore: null, titleAfter: null, loadTicks: 1000)
         ..gone = true;
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine();
+      final engine = BackgroundWakeEngine<SiteId>();
       final start = host.now();
       await engine.wake(host);
       expect(host.now().difference(start),
@@ -225,7 +271,7 @@ void main() {
         () async {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       expect((await engine.wake(host)).posted, 1);
       expect(host.posts, ['Site a: (5) Chat']);
@@ -235,7 +281,7 @@ void main() {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat',
           postsOnLoad: true);
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       expect((await engine.wake(host)).posted, 0);
     });
@@ -243,7 +289,7 @@ void main() {
     test('one rise posts once across wakes', () async {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       await engine.wake(host);
       await engine.wake(host);
@@ -254,13 +300,13 @@ void main() {
         () async {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine();
+      final engine = BackgroundWakeEngine<SiteId>();
       expect((await engine.wake(host)).posted, 0);
       expect(engine.baseline(SiteId('a')), 5);
     });
 
     test('forget drops sites that are gone', () {
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(1) A')
         ..noteBaseline(SiteId('b'), title: '(1) B');
       engine.forget({SiteId('a')});
@@ -273,7 +319,7 @@ void main() {
     test('a notification site with no webview is checked headless', () async {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');
       final host = _Host({'a': page}, live: {});
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       final report = await engine.wake(host);
       expect(report.sites.single.mode, WakeMode.headless,
@@ -281,9 +327,10 @@ void main() {
               'so a site evicted or never built was never checked');
       expect(report.sites.single.settle!.kind, WakeSettleKind.loaded);
       expect(host.posts, ['Site a: (5) Chat']);
-      expect(host.events.first, 'open a');
-      expect(host.events.last, 'close a');
+      expect(host.calls.take(2), ['route a', 'open a']);
+      expect(host.calls.skip(host.calls.length - 2), ['close a', 'release route']);
       expect(host.headless, isEmpty);
+      expect(host.vars.headless.value, isEmpty);
     });
 
     test('a process launched for the wake has no webviews: every site is '
@@ -293,7 +340,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: '(2) B'),
         'c': _Page(titleBefore: null, titleAfter: null),
       }, live: {});
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect(report.count(WakeMode.headless), 3);
       expect(report.skipped, 0);
     });
@@ -303,8 +350,10 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null),
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'});
-      final report = await BackgroundWakeEngine().wake(host);
-      expect(host.events.take(2), ['reload a', 'open b']);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      expect(host.calls.take(3), ['route b', 'open b', 'reload a'],
+          reason: 'the checks open first, so they load while the live sites '
+              'reload');
       expect([for (final o in report.sites) o.mode],
           [WakeMode.live, WakeMode.headless]);
     });
@@ -314,7 +363,7 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null),
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {}, notificationsOff: {'b'});
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect([for (final o in report.sites) o.site.siteId], ['a']);
       expect(host.events, isNot(contains('open b')));
     });
@@ -326,7 +375,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
         ..blocked['b'] = WakeSkip.torDown;
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       final b = report.sites.firstWhere((o) => o.site.siteId == 'b');
       expect(b.skip, WakeSkip.torDown);
       expect(host.events, isNot(contains('open b')));
@@ -339,7 +388,7 @@ void main() {
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: null)},
           live: {})
         ..refuseOpen['a'] = WakeSkip.blockersNotAttached;
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect(report.sites.single.skip, WakeSkip.blockersNotAttached);
       expect(host.events, isNot(contains('close a')));
     });
@@ -350,9 +399,39 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
         ..titleThrows = true;
-      await expectLater(BackgroundWakeEngine().wake(host), throwsStateError);
+      await expectLater(BackgroundWakeEngine<SiteId>().wake(host), throwsStateError);
       expect(host.headless, isEmpty);
       expect(host.events, containsAll(['close a', 'close b']));
+    });
+
+    test('back on screen mid-wake: the checks close and no other opens',
+        () async {
+      final engine = BackgroundWakeEngine<SiteId>();
+      final host = _Host({
+        'a': _Page(titleBefore: null, titleAfter: null),
+        'b': _Page(titleBefore: null, titleAfter: null),
+      }, live: {});
+      host.onApply = (_) {
+        if (!host.vars.fore.value) engine.foreground(host);
+      };
+      final report = await engine.wake(host);
+      expect([for (final o in report.sites) o.skip],
+          [WakeSkip.appInForeground, WakeSkip.appInForeground]);
+      expect(host.calls, ['route a', 'close all', 'leave a'],
+          reason: 'the return closes the checks in the rule\'s turn, and the '
+              'site the user opens next takes the rule (NOTIF-016)');
+      expect(host.vars.headless.value, isEmpty);
+    });
+
+    test('a wake asked for while one runs joins it', () async {
+      final engine = BackgroundWakeEngine<SiteId>();
+      final host = _Host({'a': _Page(titleBefore: null, titleAfter: null)},
+          live: {});
+      final first = engine.wake(host);
+      final second = engine.wake(host);
+      expect(identical(await first, await second), isTrue);
+      expect(host.calls.where((e) => e.startsWith('open')), ['open a']);
+      expect(engine.waking, isFalse);
     });
 
     test('a headless load issued late still gets its start grace', () async {
@@ -360,7 +439,7 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null, loadTicks: 1),
         'b': _Page(titleBefore: null, titleAfter: '(1) B', loadTicks: 0),
       }, live: {});
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect(report.sites.map((o) => o.settle!.kind),
           everyElement(isNot(WakeSettleKind.timedOut)));
     });
@@ -375,14 +454,14 @@ void main() {
         'c': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'})
         ..routes.addAll({'a': _p, 'b': _q, 'c': _p});
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       final byId = {for (final o in report.sites) o.site.siteId: o};
       expect(byId['a']!.mode, WakeMode.live);
       expect(byId['b']!.skip, WakeSkip.proxyConflict);
       expect(byId['c']!.mode, WakeMode.headless);
-      expect(host.events.where((e) => e.startsWith('route')), isEmpty,
-          reason: 'the live site\'s route is already in force; repointing it '
-              'would move the live site too');
+      expect(host.events.where((e) => e.startsWith('route')), ['route c'],
+          reason: 'only a check on the live site\'s own route takes the rule, '
+              'which then moves under nobody');
     });
 
     test('with no live site, the first headless route is applied first',
@@ -392,10 +471,10 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
         ..routes.addAll({'a': _p, 'b': _q});
-      final report = await BackgroundWakeEngine().wake(host);
-      expect(host.events.first, 'route a');
-      expect(host.events[1], 'open a');
-      expect(report.sites[1].skip, WakeSkip.proxyConflict);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      expect(host.calls.take(2), ['route a', 'open a']);
+      expect(report.sites[1].skip, WakeSkip.proxyConflict,
+          reason: 'a runs once its check opens, so b may not move the rule');
       expect(host.events.last, 'release route',
           reason: 'the route goes back to what the loaded sites need once '
               'the headless checks are closed');
@@ -409,9 +488,38 @@ void main() {
         'tor': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'})
         ..routes['tor'] = (proxy: null, torExit: 'de');
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect(report.sites[1].mode, WakeMode.headless);
-      expect(host.events.first, 'route tor');
+      expect(host.calls.first, 'route tor');
+    });
+
+    test('a live site with notifications off still holds the route '
+        '(BUG-037)', () async {
+      final host = _Host({
+        'shown': _Page(titleBefore: null, titleAfter: null),
+        'b': _Page(titleBefore: null, titleAfter: null),
+      }, live: {'shown'}, notificationsOff: {'shown'})
+        ..routes.addAll({'shown': _p, 'b': _q});
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      expect(report.sites.single.skip, WakeSkip.proxyConflict);
+      expect(host.events.where((e) => e.startsWith('route')), isEmpty,
+          reason: 'the site the user left on screen runs on its route; '
+              'moving the rule would send its traffic through b\'s proxy');
+    });
+
+    test('a live Tor site with notifications off keeps its exit (TOR-014)',
+        () async {
+      final host = _Host({
+        'shown': _Page(titleBefore: null, titleAfter: null),
+        'tor': _Page(titleBefore: null, titleAfter: null),
+      }, live: {'shown'}, notificationsOff: {'shown'})
+        ..routes.addAll({
+          'shown': (proxy: null, torExit: 'de'),
+          'tor': (proxy: null, torExit: 'fr'),
+        });
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      expect(report.sites.single.skip, WakeSkip.proxyConflict);
+      expect(host.events.where((e) => e.startsWith('route')), isEmpty);
     });
 
     test('a route that will not apply starts no headless load', () async {
@@ -420,47 +528,49 @@ void main() {
       }, live: {})
         ..routes['a'] = _p
         ..routeApplies = false;
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect(report.sites.single.skip, WakeSkip.proxyUnavailable);
       expect(host.events, isNot(contains('open a')));
     });
 
-    test('per-site proxies need no route', () {
-      final plan = BackgroundWakeEngine.plan([
-        for (final id in ['a', 'b'])
-          WakeCandidate(
-            site: WakeSite(siteId: SiteId(id), name: id),
-            notificationsEnabled: true,
-            live: false,
-          ),
-      ]);
-      expect(plan.routeOwner, isNull);
-      expect(plan.entries.map((e) => e.mode), everyElement(WakeMode.headless));
+    test('a check runs among the running sites before its route awaits',
+        () async {
+      final host = _Host({
+        'a': _Page(titleBefore: null, titleAfter: null),
+        'b': _Page(titleBefore: null, titleAfter: null),
+      }, live: {})
+        ..routes.addAll({'a': _p, 'b': _p});
+      await BackgroundWakeEngine<SiteId>().wake(host);
+      expect(host.runningAtApply[SiteId('a')], {SiteId('a')},
+          reason: 'a preload landing while the route applies must see the '
+              'check, or it could load on another route beside it');
+      expect(host.runningAtApply[SiteId('b')], {SiteId('a'), SiteId('b')});
+      expect(host.vars.headless.value, isEmpty);
     });
   });
 
   group('NOTIF-014 baselines outlive the process', () {
     test('a restored baseline posts on the first wake after a relaunch',
         () async {
-      final before = BackgroundWakeEngine()
+      final before = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       final kept = before.baselinesOf({SiteId('a')});
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: '(4) Chat')},
           live: {});
-      final after = BackgroundWakeEngine()..restoreBaselines(kept);
+      final after = BackgroundWakeEngine<SiteId>()..restoreBaselines(kept);
       expect((await after.wake(host)).posted, 1);
       expect(host.posts, ['Site a: (4) Chat']);
     });
 
     test('only the sites asked for are handed to the store', () {
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(1) A')
         ..noteBaseline(SiteId('incognito'), title: '(3) B');
       expect(engine.baselinesOf({SiteId('a')}), {'a': 1});
     });
 
     test('a baseline taken in this process beats a restored one', () {
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('a'), title: '(7) A')
         ..restoreBaselines({SiteId('a'): 2});
       expect(engine.baseline(SiteId('a')), 7);
@@ -475,7 +585,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null, loadTicks: 0),
         'c': _Page(titleBefore: null, titleAfter: null)..gone = true,
       });
-      final engine = BackgroundWakeEngine()..noteBaseline(SiteId('a'), title: '(2) A');
+      final engine = BackgroundWakeEngine<SiteId>()..noteBaseline(SiteId('a'), title: '(2) A');
       final report = await engine.wake(host);
       final byId = {for (final o in report.sites) o.site.siteId: o};
       expect(byId['a']!.settle!.kind, WakeSettleKind.loaded);
@@ -492,7 +602,7 @@ void main() {
       final host = _Host({
         'a': _Page(titleBefore: null, titleAfter: null, loadTicks: 1000),
       });
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect(report.sites.single.settle!.kind, WakeSettleKind.timedOut);
     });
 
@@ -500,7 +610,7 @@ void main() {
         () async {
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: null)},
           notificationsOff: {'a'});
-      final report = await BackgroundWakeEngine().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>().wake(host);
       expect(report.sites, isEmpty);
       expect(host.events, isEmpty);
     });
@@ -509,7 +619,7 @@ void main() {
       final host = _Host({
         'secret-id': _Page(titleBefore: '(1) Inbox', titleAfter: '(3) Inbox'),
       });
-      final engine = BackgroundWakeEngine()
+      final engine = BackgroundWakeEngine<SiteId>()
         ..noteBaseline(SiteId('secret-id'), title: '(1) Inbox');
       final report = await engine.wake(host);
       final line = describeWakeSite(report.sites.single, position: 1, count: 1);

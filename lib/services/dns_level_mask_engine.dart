@@ -1,4 +1,5 @@
 import 'package:webspace/services/host_lookup.dart';
+import 'package:webspace/services/step_table.dart';
 
 /// Level 0 ("Off") names no list, so it is always resolvable without any
 /// downloaded data.
@@ -163,6 +164,59 @@ class DnsLevelSetsBuilder {
   }
 }
 
+/// A site's own level as the model takes it: -1 to follow the app-wide one.
+const int kDnsLevelFollow = -1;
+
+/// The model's `ResolveLevel(sl, g, d)`, which [resolveDnsLevel] runs: the
+/// level a site asking for `sl` runs at under the app-wide level `g` with
+/// the levels `d` downloaded.
+Def<int, W> resolveLevelDef<W>() {
+  final sl = Bound<int, W>('sl');
+  final g = Bound<int, W>('g');
+  final d = Bound<Iterable<int>, W>('d');
+  return Def(
+    ModelDef.resolveLevel,
+    params: [sl, g, d],
+    body: Expr.choose(
+      when: sl.it.eq(Expr.constant(kDnsLevelFollow)),
+      then: g.it,
+      otherwise: Expr.choose(
+        when: sl.it.isAtMost(Expr.constant(kDnsLevelOff)),
+        then: Expr.constant(kDnsLevelOff),
+        otherwise: Expr.choose(
+          when: sl.it.exceeds(Expr.constant(kDnsMaxLevel)),
+          then: g.it,
+          otherwise: Expr.choose(
+            when: d.it.has(sl.it),
+            then: sl.it,
+            otherwise: g.it,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// What [resolveDnsLevel] is asked: the definition's three arguments.
+typedef _LevelAsk = ({int siteLevel, int globalLevel, Set<int> downloaded});
+
+/// [resolveLevelDef] over its arguments, built once: the request path runs
+/// it per request.
+final _resolveAsked = resolveLevelDef<_LevelAsk>().call([
+  _arg('sl', of: (w) => w.siteLevel),
+  _arg('g', of: (w) => w.globalLevel),
+  _arg('d', of: (w) => w.downloaded),
+]);
+
+/// One of the definition's arguments, read off what it is asked; it
+/// reaches no variable of the model.
+Expr<T, _LevelAsk> _arg<T>(String name, {required T Function(_LevelAsk w) of}) =>
+    Expr.op(
+      name,
+      run: Port<T, _LevelAsk>(name, reads: const {}, changes: const {}, of: of).from,
+      reads: Reads.none,
+    );
+
 /// Level a site actually runs at.
 ///
 /// A site level only means what it says when that level's list has been
@@ -174,13 +228,11 @@ int resolveDnsLevel({
   required int? siteLevel,
   required int globalLevel,
   required Set<int> downloadedLevels,
-}) {
-  if (siteLevel == null) return globalLevel;
-  if (siteLevel <= kDnsLevelOff) return kDnsLevelOff;
-  if (siteLevel > kDnsMaxLevel) return globalLevel;
-  if (downloadedLevels.contains(siteLevel)) return siteLevel;
-  return globalLevel;
-}
+}) => _resolveAsked.run(StepContext((
+  siteLevel: siteLevel ?? kDnsLevelFollow,
+  globalLevel: globalLevel,
+  downloaded: downloadedLevels,
+)));
 
 /// Whether [siteLevel] is asking for a list the app has not fetched. Drives
 /// the settings row's download affordance and its "not configured" warning.

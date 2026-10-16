@@ -95,7 +95,7 @@ void main() {
       }
     });
 
-    test('log caps at 500 entries with FIFO eviction', () {
+    test('log caps at 500 entries with FIFO eviction (DNS-012)', () {
       final s = DnsStats();
       // Fill past the cap. The oldest 100 must be dropped.
       for (var i = 0; i < 600; i++) {

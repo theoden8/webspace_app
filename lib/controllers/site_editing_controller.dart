@@ -1,6 +1,7 @@
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
+import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/theme/app_theme.dart';
@@ -27,7 +28,7 @@ abstract interface class SiteEditingPrompts {
 
 /// What the site editing flows ask of the page.
 abstract interface class SiteEditingHost implements PageHost {
-  Future<void> activate(int? index);
+  Future<void> activate(WebViewModel? site);
   void closeDrawer();
 }
 
@@ -39,16 +40,19 @@ class SiteEditingController {
     required SiteEditingPrompts prompts,
     required ShellStore shell,
     required ShortcutController shortcuts,
+    required SiteDeletion deletion,
   }) : _host = host,
        _prompts = prompts,
        _shell = shell,
-       _shortcuts = shortcuts;
+       _shortcuts = shortcuts,
+       _deletion = deletion;
 
   final SiteRuntime _sites;
   final SiteEditingHost _host;
   final SiteEditingPrompts _prompts;
   final ShellStore _shell;
   final ShortcutController _shortcuts;
+  final SiteDeletion _deletion;
 
   /// Adds [model] to the selected named webspace too, persists, and with
   /// [activate] puts it on screen. Pass false when the app, not the user,
@@ -61,7 +65,7 @@ class SiteEditingController {
     await model.setTheme(_shell.theme.themeMode.webViewTheme);
     await _host.commitSites(SiteAdded(model));
     if (!activate || !_host.mounted) return;
-    await _host.activate(_sites.models.indexOf(model));
+    await _host.activate(model);
     if (!_host.mounted) return;
     _host.rebuild();
     await _shell.saveCurrentIndex();
@@ -151,14 +155,10 @@ class SiteEditingController {
     await registerSite(model, activate: deepLinkQrSettings == null);
   }
 
-  Future<void> editSite(int index) async {
-    final model = _sites.models[index];
+  Future<void> editSite(WebViewModel model) async {
     final result = await _prompts.editSite(model);
     if (result == null || !_host.mounted) return;
-    // Apply by the captured model identity, not the index: a concurrent
-    // delete of a lower-indexed site while the dialog was open shifts
-    // positions, so `index` could now target a different site. Bail if this
-    // model was deleted meanwhile.
+    // Deleted while the dialog was open.
     if (!_sites.models.contains(model)) return;
 
     final (:name, :url, :icon) = result;
@@ -183,17 +183,17 @@ class SiteEditingController {
     await _host.commitSites(const SitesEdited());
   }
 
-  Future<void> deleteSite(int index) async {
-    final confirmed = await _prompts.confirmDelete(_sites.models[index]);
+  /// Deletes the site the user confirmed, wherever it sits by then: a row
+  /// read after the dialog could name another site.
+  Future<void> deleteSite(WebViewModel deletedModel) async {
+    final confirmed = await _prompts.confirmDelete(deletedModel);
 
     if (confirmed != true || !_host.mounted) return;
-    if (index >= _sites.models.length) return;
-
-    final deletedModel = _sites.models[index];
+    if (!_sites.models.contains(deletedModel)) return;
     // HS-013: the tiles reaching the site, read before it goes.
     final reachingTiles = await _shortcuts.tilesReaching(deletedModel);
     if (!_host.mounted) return;
-    await _host.commitSites(SiteRemoved(deletedModel));
+    await _deletion.delete(deletedModel);
     await _shortcuts.siteDeleted(deletedModel, tiles: reachingTiles);
 
     if (!_host.mounted) return;

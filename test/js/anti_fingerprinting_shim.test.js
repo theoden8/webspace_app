@@ -56,10 +56,22 @@ function installFpStubs(window) {
     record('webgl.getSupportedExtensions', []);
     return ['STUB_EXT_A', 'STUB_EXT_B', 'STUB_EXT_VENDOR_LEAK'];
   };
+  WebGLRenderingContext.prototype.RGBA = 0x1908;
+  WebGLRenderingContext.prototype.UNSIGNED_BYTE = 0x1401;
+  // Opaque pixels that are a function of their position, as the 2D fake's.
   WebGLRenderingContext.prototype.readPixels = function(x, y, w, h, fmt, type, pixels) {
     record('webgl.readPixels', [x, y, w, h]);
-    if (pixels) for (let i = 0; i < pixels.length; i++) pixels[i] = 128;
+    if (!pixels) return;
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        for (let k = 0; k < 4; k++) {
+          pixels[(j * w + i) * 4 + k] =
+            k === 3 ? 255 : ((x + i) * 31 + (y + j) * 17 + k * 7) % 251;
+        }
+      }
+    }
   };
+
   function WebGL2RenderingContext() {}
   WebGL2RenderingContext.prototype = Object.create(WebGLRenderingContext.prototype);
   window.WebGLRenderingContext = WebGLRenderingContext;
@@ -68,13 +80,31 @@ function installFpStubs(window) {
   // --- Canvas 2D context (jsdom returns null without `canvas` npm) ---
   // Replace HTMLCanvasElement.prototype.getContext with a stub that
   // returns a fresh CanvasRenderingContext2D object — our shim then
-  // wraps the prototype methods.
+  // wraps the prototype methods. A canvas is modelled as opaque pixels
+  // that are a function of their position, so every read of one pixel
+  // sees the same raw value and neighbours differ, as on an edge.
+  function pixelsAt(x, y, w, h) {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        for (let k = 0; k < 4; k++) {
+          data[(j * w + i) * 4 + k] =
+            k === 3 ? 255 : ((x + i) * 31 + (y + j) * 17 + k * 7) % 251;
+        }
+      }
+    }
+    return { data, width: w, height: h, colorSpace: 'srgb' };
+  }
   function CanvasRenderingContext2D() {}
   CanvasRenderingContext2D.prototype.getImageData = function(x, y, w, h) {
     record('ctx.getImageData', [x, y, w, h]);
-    const data = new Uint8ClampedArray(w * h * 4);
-    for (let i = 0; i < data.length; i++) data[i] = 100;
-    return { data, width: w, height: h, colorSpace: 'srgb' };
+    return pixelsAt(x, y, w, h);
+  };
+  CanvasRenderingContext2D.prototype.putImageData = function(img, dx, dy) {
+    record('ctx.putImageData', [dx, dy, this]);
+  };
+  CanvasRenderingContext2D.prototype.getContextAttributes = function() {
+    return { colorSpace: 'srgb' };
   };
   CanvasRenderingContext2D.prototype.measureText = function(text) {
     record('ctx.measureText', [text]);
@@ -105,11 +135,11 @@ function installFpStubs(window) {
     return null;
   };
   HTMLCanvasElement.prototype.toDataURL = function(type) {
-    record('canvas.toDataURL', [type]);
+    record('canvas.toDataURL', [type, this]);
     return 'data:image/png;base64,STUB';
   };
   HTMLCanvasElement.prototype.toBlob = function(cb) {
-    record('canvas.toBlob', []);
+    record('canvas.toBlob', [this]);
     cb && cb(new (window.Blob || function() {})(['stub']));
   };
 
@@ -122,9 +152,13 @@ function installFpStubs(window) {
   };
   OffscreenCanvasRenderingContext2D.prototype.getImageData = function(x, y, w, h) {
     record('osc.getImageData', [x, y, w, h]);
-    const data = new Uint8ClampedArray(w * h * 4);
-    for (let i = 0; i < data.length; i++) data[i] = 100;
-    return { data, width: w, height: h, colorSpace: 'srgb' };
+    return pixelsAt(x, y, w, h);
+  };
+  OffscreenCanvasRenderingContext2D.prototype.putImageData = function(img, dx, dy) {
+    record('osc.putImageData', [dx, dy, this]);
+  };
+  OffscreenCanvasRenderingContext2D.prototype.getContextAttributes = function() {
+    return { colorSpace: 'srgb' };
   };
   OffscreenCanvasRenderingContext2D.prototype.fillRect = function() {
     record('osc.fillRect', [...arguments]);
@@ -135,7 +169,15 @@ function installFpStubs(window) {
     set(v) { this._fillStyle = v; },
   });
   window.OffscreenCanvasRenderingContext2D = OffscreenCanvasRenderingContext2D;
-  function OffscreenCanvas(w, h) { this.width = w || 300; this.height = h || 150; }
+  // Width and height are prototype accessors, as on the platform's.
+  function OffscreenCanvas(w, h) { this._w = w || 300; this._h = h || 150; }
+  for (const [name, key] of [['width', '_w'], ['height', '_h']]) {
+    Object.defineProperty(OffscreenCanvas.prototype, name, {
+      configurable: true, enumerable: true,
+      get() { return this[key]; },
+      set(v) { this[key] = v; },
+    });
+  }
   OffscreenCanvas.prototype.getContext = function(type) {
     record('osc.getContext', [type]);
     if (type === '2d') {
@@ -145,7 +187,7 @@ function installFpStubs(window) {
     return null;
   };
   OffscreenCanvas.prototype.convertToBlob = function() {
-    record('osc.convertToBlob', []);
+    record('osc.convertToBlob', [this]);
     return Promise.resolve(new (window.Blob || function() {})(['stub']));
   };
   window.OffscreenCanvas = OffscreenCanvas;
@@ -520,7 +562,7 @@ test('the emptied collections are not arrays and carry no own properties', () =>
   }
 });
 
-test('navigator.getBattery resolves to fixed values', async () => {
+test('navigator.getBattery resolves to fixed values (ETP-011)', async () => {
   const dom = loadShim(ALPHA, undefined, seedChromiumNav);
   const battery = await dom.window.navigator.getBattery();
   assert.equal(battery.charging, true);
@@ -629,13 +671,17 @@ test('OffscreenCanvasRenderingContext2D.getImageData is noised like the on-scree
   assert.notDeepEqual(a, read(BETA));
 });
 
-test('OffscreenCanvas.convertToBlob nudges the canvas once (SEC-018)', async () => {
+test('OffscreenCanvas.convertToBlob encodes a noised copy, never the canvas (SEC-018)', async () => {
   const dom = loadShim(ALPHA);
   const c = new dom.window.OffscreenCanvas(8, 8);
+  c.getContext('2d');
   await c.convertToBlob();
-  await c.convertToBlob();
-  const fills = dom.window.__calls.filter(x => x.name === 'osc.fillRect');
-  assert.equal(fills.length, 1);
+  const calls = dom.window.__calls;
+  assert.equal(calls.filter(x => x.name === 'osc.fillRect').length, 0);
+  const encoded = calls.filter(x => x.name === 'osc.convertToBlob');
+  assert.equal(encoded.length, 1);
+  assert.notEqual(encoded[0].args[0], c, 'the encode read the page\'s canvas');
+  assert.equal(calls.filter(x => x.name === 'osc.putImageData').length, 1);
   assert.match(
     dom.window.Function.prototype.toString.call(dom.window.OffscreenCanvas.prototype.convertToBlob),
     /\[native code\]/,
@@ -649,29 +695,42 @@ test('CanvasRenderingContext2D.prototype.getImageData calls original and returns
   assert.equal(img.width, 4);
   assert.equal(img.height, 4);
   assert.equal(img.data.length, 64);
-  // The original was invoked exactly once via the wrapper.
+  // The original read the rectangle, then it with a border: the noise of
+  // a pixel is its 3x3 block's.
   const calls = dom.window.__calls.filter(c => c.name === 'ctx.getImageData');
-  assert.equal(calls.length, 1);
+  assert.deepEqual(calls.map(c => c.args), [[0, 0, 4, 4], [-1, -1, 6, 6]]);
 });
 
-test('the noise nudge is applied once per canvas, not once per read', () => {
-  // The nudge paints onto the canvas, so re-running it on the next read
-  // stacks a second pixel and two reads of one canvas disagree — the
-  // averaging weakness the noise exists to resist.
+test('an encode paints nothing onto the page\'s canvas (ETP-005)', () => {
+  // A painted pixel made the canvas change under the page's own reads and
+  // two encodes of one canvas disagree.
   const dom = loadShim(ALPHA);
   const canvas = dom.window.document.createElement('canvas');
   canvas.width = 32; canvas.height = 32;
+  canvas.getContext('2d');
   canvas.toDataURL('image/png');
   canvas.toDataURL('image/png');
-  canvas.getContext('2d').getImageData(0, 0, 4, 4);
-  const fills = dom.window.__calls.filter((c) => c.name === 'ctx.fillRect');
-  assert.equal(fills.length, 1);
+  const calls = dom.window.__calls;
+  assert.equal(calls.filter((c) => c.name === 'ctx.fillRect').length, 0);
+  assert.ok(calls.filter((c) => c.name === 'ctx.putImageData')
+    .every((c) => c.args[2] !== canvas.getContext('2d')),
+  'the noised pixels were put onto the page\'s canvas');
+});
 
-  // A second canvas still gets its own.
-  const other = dom.window.document.createElement('canvas');
-  other.width = 32; other.height = 32;
-  other.toDataURL('image/png');
-  assert.equal(dom.window.__calls.filter((c) => c.name === 'ctx.fillRect').length, 2);
+test('a canvas pixel reads the same through any rectangle (ETP-005)', () => {
+  const dom = loadShim(ALPHA);
+  const ctx = new dom.window.CanvasRenderingContext2D();
+  const whole = ctx.getImageData(0, 0, 16, 16).data;
+  assert.ok(whole.some((v, i) => i % 4 === 0 && v !== ((i >> 2) % 16 * 31 + ((i >> 2) >> 4) * 17) % 251),
+    'no pixel was noised');
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const one = ctx.getImageData(x, y, 1, 1).data;
+      assert.deepEqual(Array.from(one),
+        Array.from(whole.slice((y * 16 + x) * 4, (y * 16 + x) * 4 + 4)),
+        `pixel ${x},${y} read alone disagrees with the whole read`);
+    }
+  }
 });
 
 test('performance.now is quantized without becoming an own property', () => {
@@ -681,27 +740,35 @@ test('performance.now is quantized without becoming an own property', () => {
   const dom = loadShim(ALPHA);
   assert.deepEqual(Object.getOwnPropertyNames(dom.window.performance), []);
   const t = dom.window.performance.now();
-  assert.equal(t % 100, 0);
+  assert.equal(t % 5, 0);
 });
 
-test('Canvas toDataURL invokes the original after a noise nudge', () => {
+test('Canvas toDataURL invokes the original on a noised copy (ETP-005)', () => {
   const dom = loadShim(ALPHA);
   const canvas = dom.window.document.createElement('canvas');
   canvas.width = 8;
   canvas.height = 8;
+  canvas.getContext('2d');
   const url = canvas.toDataURL('image/png');
   assert.match(url, /^data:image\/png;base64,STUB$/);
-  // Wrapper should have requested a 2d context to nudge a pixel BEFORE
-  // calling the original toDataURL.
-  const ctxCalls = dom.window.__calls.filter(c => c.name === 'canvas.getContext');
-  const fillCalls = dom.window.__calls.filter(c => c.name === 'ctx.fillRect');
   const tdu = dom.window.__calls.filter(c => c.name === 'canvas.toDataURL');
-  assert.ok(ctxCalls.length >= 1, 'getContext was not called by the wrapper');
-  assert.equal(fillCalls.length, 1, 'noise nudge fillRect did not fire');
   assert.equal(tdu.length, 1, 'original toDataURL was not invoked');
+  assert.notEqual(tdu[0].args[1], canvas, 'the encode read the page\'s canvas');
+  assert.equal(tdu[0].args[0], 'image/png');
 });
 
-test('measureText returns jittered numeric fields and preserves shape', () => {
+test('a canvas with no context is encoded as it is, and given none (ETP-005)', () => {
+  // Making a 2D context to read it would leave a canvas the page meant
+  // for WebGL unable to get one.
+  const dom = loadShim(ALPHA);
+  const canvas = dom.window.document.createElement('canvas');
+  canvas.toDataURL();
+  const calls = dom.window.__calls;
+  assert.equal(calls.filter(c => c.name === 'canvas.getContext').length, 0);
+  assert.equal(calls.find(c => c.name === 'canvas.toDataURL').args[1], canvas);
+});
+
+test('measureText returns jittered numeric fields and preserves shape (ETP-008)', () => {
   const dom = loadShim(ALPHA);
   const ctx = new dom.window.CanvasRenderingContext2D();
   const m = ctx.measureText('hello');
@@ -743,7 +810,7 @@ test('measureText jitter differs per seed (cross-site uniqueness)', () => {
 
 // --- WebGL ---
 
-test('WebGL.getParameter masks UNMASKED_VENDOR_WEBGL / UNMASKED_RENDERER_WEBGL', () => {
+test('WebGL.getParameter masks UNMASKED_VENDOR_WEBGL / UNMASKED_RENDERER_WEBGL (ETP-006)', () => {
   const dom = loadShim(ALPHA);
   const gl = new dom.window.WebGLRenderingContext();
   // 37445 = UNMASKED_VENDOR_WEBGL, 37446 = UNMASKED_RENDERER_WEBGL.
@@ -795,15 +862,28 @@ test('WebGL.getSupportedExtensions returns an independent array per call', () =>
   assert.deepEqual([...a].sort(), [...b].sort());
 });
 
-test('WebGL.readPixels invokes original and applies seeded noise', () => {
+test('WebGL.readPixels is noised alike through any rectangle (ETP-006)', () => {
   const dom = loadShim(ALPHA);
   const gl = new dom.window.WebGLRenderingContext();
-  const buf = new Uint8Array(64);
-  gl.readPixels(0, 0, 4, 4, 0, 0, buf);
-  // Stub fills with 128; some pixels will be jittered to 127 or 129 by
-  // the seeded noise pass. The exact count is deterministic per seed.
-  const distinctValues = new Set(buf);
-  assert.ok(distinctValues.size >= 1);
+  const raw = (x, y) => [0, 1, 2].map((k) => (x * 31 + y * 17 + k * 7) % 251);
+  const whole = new dom.window.Uint8Array(16 * 16 * 4);
+  gl.readPixels(0, 0, 16, 16, gl.RGBA, gl.UNSIGNED_BYTE, whole);
+  let moved = 0;
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const at = (y * 16 + x) * 4;
+      if (whole[at] !== raw(x, y)[0]) moved++;
+      const one = new dom.window.Uint8Array(4);
+      gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, one);
+      assert.deepEqual(Array.from(one), Array.from(whole.slice(at, at + 4)),
+        `pixel ${x},${y} read alone disagrees with the whole read`);
+    }
+  }
+  assert.ok(moved > 0, 'no pixel was noised');
+  // A read in another format is the engine's own.
+  const floats = new dom.window.Uint8Array(4);
+  gl.readPixels(3, 3, 1, 1, 0, 0, floats);
+  assert.deepEqual(Array.from(floats), [...raw(3, 3), 255]);
 });
 
 test('WebGL2 inherits the same patches as WebGL1', () => {
@@ -817,7 +897,7 @@ test('WebGL2 inherits the same patches as WebGL1', () => {
 
 // --- Audio ---
 
-test('AudioBuffer.getChannelData applies per-sample noise', () => {
+test('AudioBuffer.getChannelData applies per-sample noise (ETP-007)', () => {
   const dom = loadShim(ALPHA);
   const buf = new dom.window.AudioBuffer();
   const data = buf.getChannelData(0);
@@ -847,33 +927,86 @@ test('AnalyserNode.getFloatFrequencyData applies dB-scale noise', () => {
 
 // --- Timing ---
 
-test('performance.now is quantized to 100ms', () => {
-  const dom = loadShim(ALPHA);
-  const t = dom.window.performance.now();
-  assert.equal(t % 100, 0, `performance.now()=${t} not quantized`);
+// The engine's clock under the shim, set by the test: `clock.t` is what
+// performance.now() and Date.now() would read unrounded.
+function stubClocks(window, clock) {
+  Object.getPrototypeOf(window.performance).now = function now() { return clock.t; };
+  window.Date.now = function now() { return 1700000000000 + clock.t; };
+}
+
+// Where each of the first `steps` 5 ms steps rounds up, offset into its step.
+function roundingPoints(source, steps) {
+  const clock = { t: 0 };
+  const dom = loadShim(source, undefined, (w) => stubClocks(w, clock));
+  const points = [];
+  for (let step = 0; step < steps; step++) {
+    let t = step * 5;
+    clock.t = t;
+    while (dom.window.performance.now() === step * 5) clock.t = (t += 0.01);
+    points.push(Math.round((t - step * 5) * 100) / 100);
+  }
+  return points;
+}
+
+test('performance.now reads whole steps and never runs backwards', () => {
+  const clock = { t: 0 };
+  const dom = loadShim(ALPHA, undefined, (w) => stubClocks(w, clock));
+  let last = -Infinity;
+  for (let i = 0; i < 400; i++) {
+    clock.t += 0.37;
+    const t = dom.window.performance.now();
+    assert.equal(t % 5, 0, `performance.now()=${t} is not a whole step`);
+    assert.ok(t >= last, `performance.now() ran back from ${last} to ${t}`);
+    assert.ok(Math.abs(t - clock.t) <= 5, `${t} is more than a step from ${clock.t}`);
+    last = t;
+  }
 });
 
-test('Date.now is quantized to 100ms', () => {
+test('Date.now, timeOrigin and event timestamps read whole steps', () => {
   const dom = loadShim(ALPHA);
-  const t = dom.window.Date.now();
-  assert.equal(t % 100, 0, `Date.now()=${t} not quantized`);
+  assert.equal(dom.window.Date.now() % 5, 0);
+  assert.equal(dom.window.performance.timeOrigin % 5, 0);
+  assert.equal(new dom.window.Event('x').timeStamp % 5, 0);
+});
+
+test('where a step rounds up is drawn from the seed', () => {
+  const alpha = roundingPoints(ALPHA, 12);
+  for (const p of alpha) assert.ok(p > 0 && p <= 5, `rounding point ${p} is outside its step`);
+  assert.ok(new Set(alpha).size > 6, `rounding points barely move: ${alpha}`);
+  assert.deepEqual(roundingPoints(ALPHA, 12), alpha, 'one seed rounds at the same points');
+  assert.notDeepEqual(roundingPoints(BETA, 12), alpha, 'another seed rounds at other points');
 });
 
 // --- ClientRects ---
 
-test('Element.getBoundingClientRect returns a rect with sub-pixel jitter', () => {
+test('Element.getBoundingClientRect returns a rect with sub-pixel jitter (ETP-013)', () => {
   const dom = loadShim(ALPHA);
   const div = dom.window.document.createElement('div');
   dom.window.document.body.appendChild(div);
   const r = div.getBoundingClientRect();
-  // jsdom returns x=0 y=0 width=0 height=0 for unlaid elements; jitter
-  // is ±0.001 added to x/y.
-  assert.equal(typeof r.x, 'number');
-  assert.equal(typeof r.y, 'number');
-  assert.equal(typeof r.width, 'number');
-  // jitter magnitude bound
-  assert.ok(Math.abs(r.x) < 0.01, `x=${r.x} jitter outside bound`);
-  assert.ok(Math.abs(r.y) < 0.01, `y=${r.y} jitter outside bound`);
+  // jsdom lays nothing out, so the raw rect is all zeros: whatever x and y
+  // hold is the jitter.
+  for (const key of ['x', 'y', 'left', 'top', 'right', 'bottom']) {
+    assert.notEqual(r[key], 0, `${key} is the raw value`);
+    assert.ok(Math.abs(r[key]) < 0.001, `${key}=${r[key]} outside the jitter`);
+  }
+  assert.equal(r.width, 0, 'width is not jittered');
+  assert.equal(r.height, 0, 'height is not jittered');
+  assert.equal(JSON.stringify(r), JSON.stringify(r.toJSON()));
+  assert.equal(r.toJSON().x, r.x);
+});
+
+test('Range.getBoundingClientRect carries the jitter too (ETP-013)', () => {
+  // jsdom has no layout for a Range; the engine's zero rect stands in for it.
+  const dom = loadShim(ALPHA, undefined, (w) => {
+    w.Range.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      return new w.DOMRect(0, 0, 0, 0);
+    };
+  });
+  const range = dom.window.document.createRange();
+  const r = range.getBoundingClientRect();
+  assert.notEqual(r.x, 0, 'a Range rect is the raw value');
+  assert.ok(Math.abs(r.x) < 0.001, `x=${r.x} outside the jitter`);
 });
 
 test('getBoundingClientRect returns a real DOMRect', () => {
@@ -922,7 +1055,7 @@ test('getBoundingClientRect is deterministic per (seed, element identity)', () =
 
 // --- document.fonts.check ---
 
-test('document.fonts.check answers true only for common platform fonts', () => {
+test('document.fonts.check answers true only for common platform fonts (ETP-009)', () => {
   const dom = loadShim(ALPHA);
   // Common families: should answer true.
   assert.equal(dom.window.document.fonts.check('12px Arial'), true);
@@ -937,7 +1070,7 @@ test('document.fonts.check answers true only for common platform fonts', () => {
 
 // --- Function.prototype.toString hardening ---
 
-test('wrapped methods stringify as [native code]', () => {
+test('wrapped methods stringify as [native code] (ETP-014)', () => {
   // Detection by toString-probing is the most common way a fingerprint
   // script verifies an API is genuine. asNative(...) keys the function
   // into __wsFnStubs so toString returns the native stub. Must call the
@@ -961,7 +1094,7 @@ test('Function.prototype.toString itself stringifies as native', () => {
 
 // --- Re-entrance guard ---
 
-test('re-running the shim does not double-wrap (idempotent)', () => {
+test('re-running the shim does not double-wrap (idempotent) (ETP-015)', () => {
   // Both Android System WebView and WKWebView re-execute initialUserScripts
   // on every frame. The guard `__ws_anti_fp_shim__` must short-circuit
   // the second run so wrappers don't wrap themselves.

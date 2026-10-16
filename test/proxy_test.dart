@@ -146,52 +146,54 @@ void main() {
     });
   });
 
-  group('Proxy Address Validation', () {
-    test('Valid proxy addresses', () {
-      final validAddresses = [
-        'localhost:8080',
-        'proxy.example.com:3128',
-        '192.168.1.1:1080',
-        'my-proxy.company.net:8888',
-        'proxy:9050',
-        '127.0.0.1:8080',
-      ];
-      
-      for (final address in validAddresses) {
-        final parts = address.split(':');
-        expect(parts.length, 2, reason: 'Address should have host:port format: $address');
-        
-        final port = int.tryParse(parts[1]);
-        expect(port, isNotNull, reason: 'Port should be numeric: $address');
-        expect(port! >= 1 && port <= 65535, true, reason: 'Port should be valid: $address');
+  group('Proxy address parsing (PROXY-005, PROXY-017)', () {
+    test('host:port, an IPv4 literal and a bracketed IPv6 literal parse', () {
+      for (final (address, host, port) in [
+        ('localhost:8080', 'localhost', 8080),
+        ('proxy.example.com:3128', 'proxy.example.com', 3128),
+        ('192.168.1.1:1080', '192.168.1.1', 1080),
+        ('my-proxy.company.net:8888', 'my-proxy.company.net', 8888),
+        ('proxy:9050', 'proxy', 9050),
+        ('[::1]:8080', '[::1]', 8080),
+        ('  127.0.0.1:8080 ', '127.0.0.1', 8080),
+      ]) {
+        final parsed = ProxyAddressParse.of(address);
+        expect(parsed, isA<ProxyAddress>(), reason: address);
+        expect((parsed as ProxyAddress).host, host, reason: address);
+        expect(parsed.port, port, reason: address);
       }
     });
 
-    test('Invalid proxy addresses', () {
-      final invalidAddresses = [
-        'proxy.example.com', // Missing port
-        'proxy.example.com:abc', // Non-numeric port
-        'proxy.example.com:0', // Invalid port (0)
-        'proxy.example.com:70000', // Port out of range
-        ':8080', // Missing host
-        'proxy.example.com:8080:extra', // Too many colons
-        '', // Empty
-      ];
-      
-      for (final address in invalidAddresses) {
-        final parts = address.split(':');
-        
-        bool isValid = parts.length == 2 && 
-                      parts[0].isNotEmpty && 
-                      parts[1].isNotEmpty;
-        
-        if (isValid) {
-          final port = int.tryParse(parts[1]);
-          isValid = port != null && port >= 1 && port <= 65535;
-        }
-        
-        expect(isValid, false, reason: 'Address should be invalid: $address');
+    test('a socket gets an IPv6 host without its brackets', () {
+      expect((ProxyAddressParse.of('[::1]:8080') as ProxyAddress).socketHost,
+          '::1');
+      expect(
+          (ProxyAddressParse.of('proxy:9050') as ProxyAddress).socketHost,
+          'proxy');
+    });
+
+    test('each wrong address is refused for what is wrong with it', () {
+      for (final address in [
+        'proxy.example.com',
+        ':8080',
+        'proxy.example.com:8080:extra',
+        '::1:8080',
+        '[]:8080',
+      ]) {
+        expect(ProxyAddressParse.of(address), isA<ProxyAddressMalformed>(),
+            reason: address);
       }
+      for (final address in [
+        'proxy.example.com:abc',
+        'proxy.example.com:0',
+        'proxy.example.com:70000',
+        'proxy.example.com:',
+      ]) {
+        expect(ProxyAddressParse.of(address), isA<ProxyAddressBadPort>(),
+            reason: address);
+      }
+      expect(ProxyAddressParse.of(''), isA<ProxyAddressMissing>());
+      expect(ProxyAddressParse.of(null), isA<ProxyAddressMissing>());
     });
   });
 

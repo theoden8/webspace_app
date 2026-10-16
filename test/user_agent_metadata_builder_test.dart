@@ -5,6 +5,7 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'helpers/user_agents.dart';
 
 void main() {
+  // DM-003
   group('buildUserAgentMetadata', () {
     test('returns null for empty / null UA', () {
       // Empty UA → fall back to the platform default UA-CH metadata. We

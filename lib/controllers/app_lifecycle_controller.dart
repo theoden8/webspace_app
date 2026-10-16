@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart' show AppLifecycleState;
+import 'package:webspace/controllers/startup_controller.dart' show Launched, Reached;
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -27,7 +28,10 @@ abstract interface class LifecycleHost implements PageHost {
   void reapplyFullscreen();
 
   /// A share intent that arrived while the app was away.
-  Future<void> handleShareIntent();
+  Future<void> handleShareIntent({required Reached<Launched> after});
+
+  /// The cold start's launched site is up; null when the restore gave up.
+  Future<Reached<Launched>?> launched();
 }
 
 /// The app leaving and returning to the foreground: what pauses, what is
@@ -93,7 +97,7 @@ class AppLifecycleController {
     final pausePlan = AppLifecycleEngine.backgroundPlan(
       currentIndex: _sites.current,
       siteCount: _sites.models.length,
-      loadedIndices: _sites.loaded,
+      loadedIndices: _sites.loadedRows,
       notificationsEnabled: (i) => _sites.models[i].effectiveNotificationsEnabled,
       backgroundAudioEnabled: (i) =>
           _sites.models[i].effectiveBackgroundAudioEnabled,
@@ -103,10 +107,8 @@ class AppLifecycleController {
     // notification/background-audio exemption kept it running, with the
     // inputs to that decision (BGAUDIO-002, NOTIF-011), or a jsPause=true
     // line reads as a bug when no loaded site has the toggle on.
-    int loadedWith(bool Function(WebViewModel m) flag) => _sites.loaded
-        .where(
-            (i) => i >= 0 && i < _sites.models.length && flag(_sites.models[i]))
-        .length;
+    int loadedWith(bool Function(WebViewModel m) flag) =>
+        _sites.loaded.where(flag).length;
     final loadedBgAudio = loadedWith((m) => m.effectiveBackgroundAudioEnabled);
     final loadedNotif = loadedWith((m) => m.effectiveNotificationsEnabled);
     _backgroundedAt = DateTime.now();
@@ -179,10 +181,9 @@ class AppLifecycleController {
   }
 
   void _setBackgroundPlayback({required bool background}) {
-    for (final i in _sites.loaded) {
-      if (i < 0 || i >= _sites.models.length) continue;
-      if (!_sites.models[i].effectiveBackgroundAudioEnabled) continue;
-      unawaited(_sites.models[i].setBackgroundPlayback(active: background));
+    for (final m in _sites.loaded) {
+      if (!m.effectiveBackgroundAudioEnabled) continue;
+      unawaited(m.setBackgroundPlayback(active: background));
     }
   }
 
@@ -194,13 +195,18 @@ class AppLifecycleController {
   Future<void> _onResumed() async {
     await _resumeGuard.run(() async {
       await _resumeAfterPause();
+      // A resume can land mid-restore, where a warm shortcut, share intent or
+      // pin read would run under the cold launch's own.
+      final launched = await _host.launched();
       if (!_host.mounted) return;
-      await shortcuts.handleWarmLaunch();
-      if (!_host.mounted) return;
-      await _host.handleShareIntent();
-      if (!_host.mounted) return;
-      // Pins can come and go from the launcher while the app is away.
-      unawaited(shortcuts.refreshPinned());
+      if (launched != null) {
+        await shortcuts.handleWarmLaunch(after: launched);
+        if (!_host.mounted) return;
+        await _host.handleShareIntent(after: launched);
+        if (!_host.mounted) return;
+        // Pins can come and go from the launcher while the app is away.
+        unawaited(shortcuts.refreshPinned(after: launched));
+      }
       // The activity may have been recreated with a blank surface (PAUSE-015).
       surface.nudge('resume');
       unawaited(_diagReload());
@@ -210,7 +216,7 @@ class AppLifecycleController {
       final retryIdx = AppLifecycleEngine.activeLoadedIndex(
         currentIndex: _sites.current,
         siteCount: _sites.models.length,
-        loadedIndices: _sites.loaded,
+        loadedIndices: _sites.loadedRows,
       );
       if (retryIdx != null) {
         unawaited(_retryIncompleteLoad(_sites.models[retryIdx]));
@@ -226,7 +232,7 @@ class AppLifecycleController {
     final resumeIdx = AppLifecycleEngine.resumeJsIndex(
       currentIndex: _sites.current,
       siteCount: _sites.models.length,
-      loadedIndices: _sites.loaded,
+      loadedIndices: _sites.loadedRows,
       notificationsEnabled: (i) => _sites.models[i].effectiveNotificationsEnabled,
       backgroundAudioEnabled: (i) =>
           _sites.models[i].effectiveBackgroundAudioEnabled,
@@ -237,7 +243,7 @@ class AppLifecycleController {
     final probeIdx = AppLifecycleEngine.activeLoadedIndex(
       currentIndex: _sites.current,
       siteCount: _sites.models.length,
-      loadedIndices: _sites.loaded,
+      loadedIndices: _sites.loadedRows,
     );
     if (probeIdx != null) {
       unawaited(probeRenderer(_sites.models[probeIdx], trigger: 'resume'));
@@ -316,10 +322,8 @@ class AppLifecycleController {
   /// The system text scale changed: every built webview follows it.
   void textScaleChanged() {
     final zoom = WebViewFactory.systemTextZoomPercent();
-    for (final i in _sites.loaded) {
-      if (i < _sites.models.length) {
-        unawaited(_sites.models[i].controller?.setTextZoom(zoom));
-      }
+    for (final m in _sites.loaded) {
+      unawaited(m.controller?.setTextZoom(zoom));
     }
   }
 }

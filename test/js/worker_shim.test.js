@@ -121,7 +121,7 @@ test('Worker is constructed with a wrapper blob, not the original URL', () => {
   assert.match(ctx.created[0].script, /^blob:/);
 });
 
-test('wrapper loads the shim first, then the original script, synchronously', () => {
+test('wrapper loads the shim first, then the original script, synchronously (WORK-001)', () => {
   const ctx = pageWithStubs(COMBINED);
   new ctx.window.Worker('w.js');
   const wrapper = wrapperFor(ctx);
@@ -141,7 +141,7 @@ test('the original script URL is resolved to an absolute URL', () => {
     /importScripts\("https:\/\/example\.com\/app\/nested\/w\.js"\)/);
 });
 
-test('SharedWorker with the same script reuses one wrapper URL (sharing intact)', () => {
+test('SharedWorker with the same script reuses one wrapper URL (sharing intact) (WORK-004)', () => {
   // SharedWorker identity is keyed on the script URL. A fresh blob per call
   // would silently turn one shared worker into N unshared ones.
   const ctx = pageWithStubs(COMBINED);
@@ -519,13 +519,20 @@ test('worker hardware values are the spoofed ones, matching the page', () => {
   assert.ok(page);
 });
 
-test('worker timing is quantized', () => {
-  const { worker } = loadPayloadInWorker();
-  assert.equal(worker.run('performance.now()') % 100, 0);
-  assert.equal(worker.run('Date.now()') % 100, 0);
+test('worker clocks read whole steps, the page\'s at the same time', () => {
+  // ETP-012: the page and its workers round one real time to one value.
+  const at = () => { Date.now = () => 1700000000002.6; };
+  const { worker } = loadPayloadInWorker({ prelude: at });
+  assert.equal(worker.run('performance.now()') % 5, 0);
+  const pageDom = new JSDOM('<!doctype html>', { runScripts: 'outside-only' });
+  pageDom.window.eval(scriptOf(at));
+  pageDom.window.eval(pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: false }));
+  assert.equal(worker.run('Date.now()') % 5, 0);
+  assert.equal(worker.run('Date.now()'), pageDom.window.Date.now());
 });
 
-test('window-only navigator properties are NOT added to a worker', () => {
+// WORK-003
+test('window-only navigator properties are NOT added to a worker (UAID-004)', () => {
   // A real WorkerNavigator has no plugins/mimeTypes/getBattery and no
   // oscpu/buildID; defining them would be a fresh leak, worse than the one
   // we are closing.

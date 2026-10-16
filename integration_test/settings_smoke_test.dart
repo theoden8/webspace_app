@@ -41,7 +41,7 @@ void main() {
     isDemoMode = true;
   });
 
-  testWidgets('App boots on desktop and reaches App Settings', (tester) async {
+  testWidgets('App boots on desktop and reaches App Settings (INTEG-007)', (tester) async {
     app.main();
     // pumpAndSettle drives the splash → first frame → first idle
     // sequence. 30s is generous for the slow CI runner; locally this

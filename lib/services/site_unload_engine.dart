@@ -1,10 +1,14 @@
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/nav_capture.dart';
+import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
-import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -33,53 +37,86 @@ enum UnloadReason {
 
   /// Whether the back stack is saved for the next activation (PAUSE-007).
   bool get keepsNavState => switch (this) {
-        UnloadReason.domainConflict ||
-        UnloadReason.proxyMismatch ||
-        UnloadReason.torExitMismatch ||
-        UnloadReason.loadedSiteCap ||
-        UnloadReason.memoryPressure ||
-        UnloadReason.webspaceSwitch =>
-          true,
-        // It goes back to its home page, which is the point (always-open-home).
-        UnloadReason.homeReset => false,
-      };
+    UnloadReason.domainConflict ||
+    UnloadReason.proxyMismatch ||
+    UnloadReason.torExitMismatch ||
+    UnloadReason.loadedSiteCap ||
+    UnloadReason.memoryPressure ||
+    UnloadReason.webspaceSwitch => true,
+    // It goes back to its home page, which is the point (always-open-home).
+    UnloadReason.homeReset => false,
+  };
+
+  /// Whether the plan chose the site rather than being bound to unload it:
+  /// retention priority's picks, a webspace switch's (WEBSPACE-013) and a
+  /// home reset's.
+  /// A choice spares the site on screen and an activation's target when it
+  /// is made, and backs off if its site has become one of them by the time
+  /// it would be disposed (PAUSE-006, BUG-033).
+  bool get chosen => switch (this) {
+    UnloadReason.loadedSiteCap ||
+    UnloadReason.memoryPressure ||
+    UnloadReason.webspaceSwitch ||
+    UnloadReason.homeReset => true,
+    UnloadReason.domainConflict ||
+    UnloadReason.proxyMismatch ||
+    UnloadReason.torExitMismatch => false,
+  };
 
   /// An unload the user did not ask for and will notice logs as a warning.
   LogLevel get logLevel => switch (this) {
-        UnloadReason.domainConflict ||
-        UnloadReason.proxyMismatch ||
-        UnloadReason.torExitMismatch ||
-        UnloadReason.memoryPressure =>
-          LogLevel.warning,
-        UnloadReason.loadedSiteCap ||
-        UnloadReason.webspaceSwitch ||
-        UnloadReason.homeReset =>
-          LogLevel.info,
-      };
+    UnloadReason.domainConflict ||
+    UnloadReason.proxyMismatch ||
+    UnloadReason.torExitMismatch ||
+    UnloadReason.memoryPressure => LogLevel.warning,
+    UnloadReason.loadedSiteCap ||
+    UnloadReason.webspaceSwitch ||
+    UnloadReason.homeReset => LogLevel.info,
+  };
 }
 
-/// What [SiteUnloadEngine.unload] reads and writes on the page.
+/// What [SiteUnloadEngine.unloadFlow] reads and writes on the page.
 abstract interface class SiteUnloadHost {
   List<WebViewModel> get models;
-  Set<int> get loadedIndices;
 
-  /// The legacy engine, whose sites share one cookie jar; null under
-  /// containers, where each site's jar is its own.
-  CookieIsolationEngine? get sharedJar;
+  /// The runtime's variables: the loaded sites, which an unload's dispose
+  /// takes its site out of, and the site on screen and the activation in
+  /// flight, which say whether a site may go.
+  RuntimeVars<WebViewModel> get vars;
 
-  /// Saves [model]'s back stack for its next activation.
-  Future<void> captureNavState(WebViewModel model);
+  /// Under containers each site's jar is its own; the legacy engine's sites
+  /// share one, which an unload captures from in its turn.
+  Isolation get isolation;
+
+  /// A capture of [model]'s back stack for its next activation; null when
+  /// it keeps none.
+  NavCapture? beginNavCapture(WebViewModel model);
 
   void noteUnloaded(WebViewModel model, {required UnloadReason reason});
+
+  /// How hard the site at [index] is to evict, read again when an unload
+  /// [UnloadReason.chosen] reaches its dispose.
+  SiteRetentionPriority priorityOf(int index);
 }
 
 /// What [SiteUnloadEngine.plan] reads beyond what an unload needs.
+/// How many sites may stay loaded, and how many of those resident before
+/// the proactive cache clear; a test runs smaller ones so its few sites
+/// reach them (`MaxLoaded`, `MaxResident`).
+typedef ResidencyCaps = ({int loaded, int resident});
+
+/// The caps a device runs with.
+const ResidencyCaps kResidencyCaps = (
+  loaded: kMaxLoadedSites,
+  resident: kMaxResidentSites,
+);
+
 abstract interface class ResidencyHost implements SiteUnloadHost {
+  ResidencyCaps get caps;
+
   /// What each slot runs as (LIR-024): a slot showing a hosted tab reads as
   /// its host. The slot at [except] reads as its own site.
   List<WebViewModel> identities({int? except});
-
-  SiteRetentionPriority priorityOf(int index);
 
   ProxyTopology get proxyTopology;
 
@@ -103,19 +140,13 @@ final class Activating extends ResidencyEvent {
   final int target;
 }
 
-/// The OS asked for memory back: one loaded site moves one tier down
-/// (PAUSE-006).
-final class MemoryPressure extends ResidencyEvent {
-  const MemoryPressure();
-}
-
-/// The selected webspace changed from the sites at [previous] to those at
-/// [next]. Only a shared cookie jar unloads for it (CONT-003).
+/// The selected webspace changed, and stopped showing the sites at
+/// [leaving]. Only a shared cookie jar unloads for it (CONT-003), and only
+/// the ones that may go (WEBSPACE-013).
 final class WebspaceSwitched extends ResidencyEvent {
-  const WebspaceSwitched({required this.previous, required this.next});
+  const WebspaceSwitched({required this.leaving});
 
-  final Set<int> previous;
-  final Set<int> next;
+  final Set<int> leaving;
 }
 
 /// A setting changed under loaded sites: the first Tor site in [order]
@@ -166,6 +197,14 @@ final class ResidencyPlan {
 sealed class ProxyTopology {
   const ProxyTopology();
 
+  /// Whether a site running as [model] shares the proxy scope another site's
+  /// activation repoints (`Contending` in the model).
+  bool contends(WebViewModel model) => switch (this) {
+    PerSessionProxy() => false,
+    ProcessGlobalProxy() => true,
+    RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(model),
+  };
+
   /// Linux has no router. Android is process-global until the router runs;
   /// [sharesDefaultSession] then names the sites that still share one
   /// credential. iOS and macOS bind per session.
@@ -204,6 +243,15 @@ final class RoutedProxy extends ProxyTopology {
   final bool Function(WebViewModel model) sharesDefaultSession;
 }
 
+/// What the proxy and Tor rules read: the site each slot runs as, by row,
+/// the rows whose traffic runs (loaded, or up in a nested screen), and how
+/// the host scopes a proxy.
+typedef ProxySlots = ({
+  List<WebViewModel> slots,
+  Set<int> running,
+  ProxyTopology topology,
+});
+
 /// Pure-Dart unload policy engine.
 ///
 /// Owns the three orthogonal "should this site be unloaded?" rules:
@@ -223,48 +271,15 @@ final class RoutedProxy extends ProxyTopology {
 ///      order: lowest priority (highest enum index) first, LRU within each
 ///      tier.
 class SiteUnloadEngine {
-  /// The one way a loaded site is unloaded. Under the legacy engine the
-  /// shared jar is captured first whatever the [reason] (ISO-002): the next
-  /// activation empties it after attributing it to the loaded sites only, so
-  /// a site unloaded without the capture loses what it set since its own
-  /// activation.
-  static Future<void> unload(
-    SiteUnloadHost host, {
-    required int index,
-    required UnloadReason reason,
-  }) async {
-    if (index < 0 || index >= host.models.length) return;
-    final model = host.models[index];
-    LogService.instance.log(
-      LogTag.siteUnload,
-      message: 'Unloading site $index "${model.name}": ${reason.label}',
-      level: reason.logLevel,
-      sensitivity: LogSensitivity.sensitive,
-    );
-    if (reason.keepsNavState) await host.captureNavState(model);
-    // A lower-indexed delete can shift the list across the capture.
-    final at = host.models.indexOf(model);
-    if (at < 0) return;
-    final jar = host.sharedJar;
-    if (jar == null) {
-      model.disposeWebView();
-      host.loadedIndices.remove(at);
-    } else {
-      await jar.unloadSiteForDomainSwitch(
-        index: at,
-        models: host.models,
-        loadedIndices: host.loadedIndices,
-      );
-    }
-    host.noteUnloaded(model, reason: reason);
-  }
-
   /// Every rule deciding which loaded sites go, and in what order, for
   /// [event]. Each rule reads the loaded set the rules before it leave.
-  static ResidencyPlan plan(ResidencyHost host,
-      {required ResidencyEvent event}) {
+  static ResidencyPlan plan(
+    ResidencyHost host, {
+    required ResidencyEvent event,
+  }) {
     final models = host.models;
-    final loaded = {...host.loadedIndices};
+    // Rows hold for the plan, which awaits nothing; it names sites.
+    final loaded = {for (final m in host.vars.loaded.value) models.indexOf(m)};
     final unloads = <({WebViewModel site, UnloadReason reason})>[];
     void unload(Iterable<int> indices, {required UnloadReason reason}) {
       for (final i in indices.toList()) {
@@ -288,68 +303,48 @@ class SiteUnloadEngine {
           )
         : const {};
     Map<int, SiteLifecycleState> tiers() => {
-          for (final i in loaded)
-            if (i >= 0 && i < models.length) i: models[i].lifecycleState,
-        };
+      for (final i in loaded)
+        if (i >= 0 && i < models.length) i: models[i].lifecycleState,
+    };
 
     switch (event) {
       case Activating(:final target):
-        // Under containers each site's jar is its own, so same-base-domain
-        // sites coexist (CONT-003).
-        if (host.sharedJar != null) {
-          final conflict = SiteActivationEngine.findDomainConflict(
-            targetIndex: target,
-            models: models,
-            loadedIndices: loaded,
-          );
-          unload([?conflict], reason: UnloadReason.domainConflict);
-        }
+        unload(
+          [
+            for (final m in conflictsOf(host, site: models[target]))
+              models.indexOf(m),
+          ],
+          reason: UnloadReason.domainConflict,
+        );
         unload(proxyContenders(target), reason: UnloadReason.proxyMismatch);
         unload(torDissenters(target), reason: UnloadReason.torExitMismatch);
         unload(
           indicesToEvictForLruCap(
             targetIndex: target,
             loadedIndices: loaded,
-            maxLoadedSites: kMaxLoadedSites,
+            maxLoadedSites: host.caps.loaded,
             priorityOf: host.priorityOf,
           ),
           reason: UnloadReason.loadedSiteCap,
         );
         final cacheClears =
             SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
-          loadedIndices: loaded,
-          states: tiers(),
-          maxResidentSites: kMaxResidentSites,
-          priorityOf: host.priorityOf,
-        );
+              loadedIndices: loaded,
+              states: tiers(),
+              maxResidentSites: host.caps.resident,
+              priorityOf: host.priorityOf,
+            );
         return ResidencyPlan(
           unloads: unloads,
           cacheClears: [for (final i in cacheClears) models[i]],
         );
-      case MemoryPressure():
-        final victim = SiteLifecyclePromotionEngine.pickPromotionTarget(
-          loadedIndices: loaded,
-          states: tiers(),
-          priorityOf: host.priorityOf,
-        );
-        if (victim == null || victim >= models.length) return ResidencyPlan.none;
-        final site = models[victim];
-        return switch (
-            SiteLifecyclePromotionEngine.nextState(site.lifecycleState)) {
-          SiteLifecycleState.cacheCleared => ResidencyPlan(cacheClears: [site]),
-          // The unload's state capture is what makes it savedForRestore.
-          SiteLifecycleState.savedForRestore => ResidencyPlan(
-              unloads: [(site: site, reason: UnloadReason.memoryPressure)]),
-          SiteLifecycleState.resident || null => ResidencyPlan.none,
-        };
-      case WebspaceSwitched(:final previous, :final next):
+      case WebspaceSwitched(:final leaving):
         unload(
           indicesToUnloadOnWebspaceSwitch(
-            useContainers: host.sharedJar == null,
+            useContainers: host.isolation is Containers,
             loadedIndices: loaded,
-            previousWebspaceIndices: previous,
-            newWebspaceIndices: next,
-          ),
+            leaving: leaving,
+          ).where((i) => host.vars.isEvictable(models[i])),
           reason: UnloadReason.webspaceSwitch,
         );
       case TorExitSettled(:final order):
@@ -359,63 +354,526 @@ class SiteUnloadEngine {
         }
       case NestedOpening(:final target):
         // The nested screen runs as [target] itself, whatever its slot shows.
-        unload(proxyContenders(target, except: target),
-            reason: UnloadReason.proxyMismatch);
+        unload(
+          proxyContenders(target, except: target),
+          reason: UnloadReason.proxyMismatch,
+        );
+        unload(torDissenters(target), reason: UnloadReason.torExitMismatch);
       case SlotIdentityChanged(:final slot):
         unload(proxyContenders(slot), reason: UnloadReason.proxyMismatch);
     }
     return ResidencyPlan(unloads: unloads);
   }
 
-  /// Runs [plan] through [unload]. A site no longer loaded when its turn
-  /// comes is skipped. False when [isStale] turned true across an await, in
-  /// which case the rest of the plan did not run.
+  /// The loaded sites [site] cannot share the jar with: those on its base
+  /// domain, under the legacy engine (ISO-001); under containers each site's
+  /// jar is its own, so same-base-domain sites coexist (CONT-003), and an
+  /// incognito site keeps nothing in the jar.
+  static final conflicts = () {
+    final loaded = Var<Iterable<WebViewModel>, SiteUnloadHost>(
+      ModelVar.loaded,
+      read: (w) => w.vars.loaded.value,
+    );
+    final containers = Constant<bool, SiteUnloadHost>(
+      ModelConst.containers,
+      read: (w) => w.isolation is Containers,
+    ).value;
+    final base = baseOf<SiteUnloadHost>();
+    final incognito = incognitoOf<SiteUnloadHost>();
+    const s = Bound<WebViewModel, SiteUnloadHost>('s');
+    const t = Bound<WebViewModel, SiteUnloadHost>('t');
+    return Def<List<WebViewModel>, SiteUnloadHost>(
+      ModelDef.conflicts,
+      params: const [s],
+      body: Expr.choose(
+        when: containers | incognito.has(s.it),
+        then: Expr.none(),
+        otherwise: loaded.value
+            .minus(incognito)
+            .where(
+              t,
+              holds: t.it.neq(s.it) & base.at(t.it).eq(base.at(s.it)),
+            ),
+      ),
+    );
+  }();
+
+  static List<WebViewModel> conflictsOf(
+    SiteUnloadHost host, {
+    required WebViewModel site,
+  }) => conflicts
+      .call([Expr<WebViewModel, SiteUnloadHost>(run: (_) => site, tla: 'site', reads: Reads.none)])
+      .run(StepContext(host));
+
+  /// Runs [plan] through [unloadFlow]. A site no longer loaded when its
+  /// turn comes is skipped. False when [isStale] turned true across an
+  /// await, in which case the rest of the plan did not run.
   static Future<bool> apply(
     SiteUnloadHost host, {
     required ResidencyPlan plan,
     required bool Function() isStale,
   }) async {
-    for (final (:site, :reason) in plan.unloads) {
-      final i = host.models.indexOf(site);
-      if (i < 0 || !host.loadedIndices.contains(i)) continue;
-      await unload(host, index: i, reason: reason);
-      if (isStale()) return false;
-    }
-    bool stillResident(WebViewModel site) {
-      final i = host.models.indexOf(site);
-      return i >= 0 &&
-          host.loadedIndices.contains(i) &&
-          site.lifecycleState == SiteLifecycleState.resident;
-    }
-
-    for (final site in plan.cacheClears) {
-      if (!stillResident(site)) continue;
-      LogTag.siteUnload.debug(
-          'Clearing the cache of site "${site.name}"', sensitive: true);
-      await site.clearWebViewCache();
-      if (isStale()) return false;
-      // A concurrent path may have promoted or unloaded it meanwhile.
-      if (stillResident(site)) {
-        site.lifecycleState = SiteLifecycleState.cacheCleared;
-      }
-    }
+    final flow = _start(
+      host,
+      plan: plan,
+      isStale: isStale,
+      victims: [for (final u in plan.unloads) u.site],
+    );
+    final left = await unloadFlow.run(
+      flow,
+      from: _afterUnloads(
+        victims: _victims.value,
+        clears: _clears.value,
+      ).run(flow),
+    );
+    if (left == UnloadPlace.exit) return false;
+    ActivationSteps.mark(ActivationStep.applied);
     return true;
   }
 
-  /// Webspace-switch unload set. Returns the indices to dispose.
+  static StepContext<UnloadFlow> _start(
+    SiteUnloadHost host, {
+    required ResidencyPlan plan,
+    required bool Function() isStale,
+    required List<WebViewModel> victims,
+  }) {
+    final flow = StepContext(
+      UnloadFlow(host: host, plan: plan, isStale: isStale),
+    );
+    _victims.put(flow, value: victims);
+    _clears.put(flow, value: plan.cacheClears);
+    _pickedVictims.put(flow, value: pickedOf(plan));
+    return flow;
+  }
+
+  /// The sites [plan] chose, which an unload asks again about before it
+  /// disposes (`fl[f].picked`).
+  static List<WebViewModel> pickedOf(ResidencyPlan plan) => [
+    for (final u in plan.unloads)
+      if (u.reason.chosen) u.site,
+  ];
+
+  // ── The steps ───────────────────────────────────────────────────────────
+
+  static const _victims = Field<List<WebViewModel>, UnloadFlow>(FlowField.victims);
+  static const _clears = Field<List<WebViewModel>, UnloadFlow>(FlowField.clears);
+  static const _pickedVictims = Field<List<WebViewModel>, UnloadFlow>(FlowField.picked);
+  static const _victim = Field<WebViewModel, UnloadFlow>(FlowField.victim);
+  static final _eachVictim = Pick(_victims.value);
+  static final _eachClear = Pick(_clears.value);
+  static final _loaded = Mutable<Iterable<WebViewModel>, UnloadFlow>.over(
+    ModelVar.loaded,
+    of: (w) => w.host.vars.loaded,
+  );
+  static final _tier = tierOf<UnloadFlow>();
+
+  /// What the plan's maker answers and the page is told, none of it the
+  /// model's: the activation's `Stale`, run by name, a victim's reason, the
+  /// note of its dispose and the start of its capture, and the isolation
+  /// the jar's steps are nested under.
+  static final _plan = Port<PlanAnswers, UnloadFlow>(
+    'plan',
+    reads: const {},
+    changes: const {},
+    of: (w) => (
+      isStale: w.isStale,
+      reasonOf: w.reasonOf,
+      disposed: w.disposed,
+      beginNavCapture: w.host.beginNavCapture,
+      isolation: w.host.isolation,
+    ),
+  );
+
+  /// The runtime's variables, for the definitions over them run by name.
+  static final _vars = RuntimeVars.port<WebViewModel, UnloadFlow>(
+    reads: {ModelVar.marker, ModelVar.version},
+    of: (w) => w.host.vars,
+  );
+
+  /// The plan was superseded: the plan's maker says (the activation's
+  /// `Stale`; a plan outside the model, a settings save's or a tab's,
+  /// carries its own).
+  static final stale = ModelDef.stale.ofFlow<bool, UnloadFlow>(
+    run: (c) => _plan.from(c).isStale(),
+  );
+
+  /// The plan chose the victim: a pressure plan's pick, the loaded-site
+  /// cap's, or a webspace switch's (UnloadReason.chosen).
+  static final picked = Def<bool, UnloadFlow>.ofFlow(
+    ModelDef.picked,
+    body: _pickedVictims.value.has(_victim.value),
+  );
+  static final _picked = picked.value;
+  static final _evictable = ModelDef.evictable.over<bool, UnloadFlow>(
+    [_victim.value],
+    run: (c) => _vars.from(c).isEvictable(_victim.of(c)),
+  );
+
+  /// Asked again just before the dispose, with no await between them: a
+  /// superseded plan's unload backs off, and so does one picked by priority
+  /// whose site is no longer evictable (BUG-033). [stale] and [retry] name
+  /// the disjuncts, so a mutant of the rule is one left out.
+  static Def<bool, UnloadFlow> spareOf({
+    required bool stale,
+    required bool retry,
+  }) => Def.ofFlow(
+    ModelDef.spare,
+    body: [
+      if (stale) SiteUnloadEngine.stale,
+      if (retry) _picked & ~_evictable,
+    ].reduce((a, b) => a | b),
+  );
+  static final spare = spareOf(stale: true, retry: true);
+  static final _spare = spare.value;
+
+  /// The victim left the loaded sites while the unload waited: another plan
+  /// disposed it, or a delete took it. Asked at every wait, so a site
+  /// captured when it left is never captured again over a jar refilled
+  /// without it (BUG-032).
+  static final gone = Def<bool, UnloadFlow>.ofFlow(
+    ModelDef.gone,
+    body: ~_loaded.value.has(_victim.value),
+  );
+  static final _containers = Constant<bool, UnloadFlow>(
+    ModelConst.containers,
+    read: (w) => w.host.isolation is Containers,
+  ).value;
+  static Expr<bool, UnloadFlow> _resident(Expr<WebViewModel, UnloadFlow> s) =>
+      _tier.at(s).eq(Expr.constant(SiteLifecycleState.resident));
+  static final _dispose = disposeOf<UnloadFlow>(
+    _victim,
+    over: (
+      loaded: _loaded,
+      picked: _picked,
+      current: Var<WebViewModel?, UnloadFlow>(
+        ModelVar.current,
+        read: (w) => w.host.vars.current.value,
+      ).value,
+      liveTarget: Expr.op(
+        'LiveTarget',
+        run: (c) => _vars.from(c).liveTarget,
+        reads: const Reads(base: {BaseOp.liveTarget}),
+      ),
+    ),
+    then: (c) => _plan.from(c).disposed(_victim.of(c)),
+  );
+  static final _clearTier = Act.of([
+    _tier.except(
+      _victim.value,
+      to: Expr.constant(SiteLifecycleState.cacheCleared, tla: '"cleared"'),
+    ),
+  ]);
+
+  /// Where the plan goes on once a victim or a clear is spent: the next of
+  /// either, else back to the activation. One rule for every table that
+  /// runs the plan, each naming its own places.
+  static Expr<P, W> afterUnloads<P extends Enum, W>({
+    required Expr<List<WebViewModel>, W> victims,
+    required Expr<List<WebViewModel>, W> clears,
+    required P next,
+    required P nextClear,
+    required P applied,
+  }) => Expr.choose(
+    when: ~victims.isEmpty,
+    then: to(next),
+    otherwise: Expr.choose(
+      when: ~clears.isEmpty,
+      then: to(nextClear),
+      otherwise: to(applied),
+    ),
+  );
+
+  static Expr<UnloadPlace, UnloadFlow> _afterUnloads({
+    required Expr<List<WebViewModel>, UnloadFlow> victims,
+    required Expr<List<WebViewModel>, UnloadFlow> clears,
+  }) => afterUnloads(
+    victims: victims,
+    clears: clears,
+    next: UnloadPlace.next,
+    nextClear: UnloadPlace.nextClear,
+    applied: UnloadPlace.applied,
+  );
+
+  /// The jar's places are the jar engine's table, run in the jar's turn
+  /// over a view of this flow (ISO-002).
+  static Future<UnloadPlace> _inJar(
+    StepView<UnloadFlow> c, {
+    required UnloadPlace from,
+  }) => switch (_plan.from(c).isolation) {
+    SharedJar(:final jar) => jar.unloadInTurn(
+      StepContext.sharing(
+        c,
+        world: UnloadWorld(
+          engine: jar,
+          vars: _vars.from(c),
+          answers: (
+            spared: () => _spare.run(c),
+            disposed: () => _plan.from(c).disposed(_victim.of(c)),
+            picked: () => _picked.run(c),
+            gone: () => gone.value.run(c),
+          ),
+        ),
+      ),
+      from: from,
+    ),
+    Containers() => throw StateError(
+      'a flow at ${from.name} under containers: the jar\'s places are '
+      'reached only by the jar path out of uNav',
+    ),
+  };
+
+  /// The plan's unloads, then its cache clears.
+  /// The victim's back stack captured before it goes, when its reason
+  /// keeps one.
+  static final _capture = captureSteps<WebViewModel, UnloadFlow, UnloadPlace>(
+    names: (read: ActivationStep.unloadNavReply, save: ActivationStep.unloadNavSave),
+    places: (save: UnloadPlace.uNavSave, after: to(UnloadPlace.uCaptured)),
+    of: (
+      site: _victim.value,
+      built: (s) => s.tabBinding.built,
+      begin: (c) {
+        final site = _victim.of(c);
+        final plan = _plan.from(c);
+        final reason = plan.reasonOf(site);
+        LogService.instance.log(
+          LogTag.siteUnload,
+          message: 'Unloading site "${site.name}": ${reason.label}',
+          level: reason.logLevel,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        return _keeps.run(c) ? plan.beginNavCapture(site) : null;
+      },
+      marks: _victim.value,
+      keeps: _keeps,
+    ),
+  );
+
+  /// Whether the victim's reason keeps its back stack (PAUSE-007): a home
+  /// reset's does not, which the model knows by its flow's kind.
+  static final _keeps = () {
+    final notReset = const Field<FlowKind, UnloadFlow>(FlowField.kind).value
+        .neq(Expr.constant(FlowKind.unload));
+    return Expr<bool, UnloadFlow>(
+      run: (c) {
+        final keeps = _plan.from(c).reasonOf(_victim.of(c)).keepsNavState;
+        assert(
+          !const Field<FlowKind, UnloadFlow>(FlowField.kind).isSet(c) ||
+              keeps == notReset.run(c),
+          'a home reset, and no other unload, keeps no back stack',
+        );
+        return keeps;
+      },
+      tla: notReset.tla,
+      reads: notReset.reads,
+    );
+  }();
+
+  static final unloadFlow = StepTable<UnloadFlow, UnloadPlace>(
+    UnloadPlace.values,
+    awaited: {UnloadPlace.afterUnload},
+    vars: [_loaded],
+    at: (place) => switch (place) {
+      // The next site of the plan, unloaded if still loaded.
+      UnloadPlace.next => Step(
+        ActivationStep.nextUnload,
+        holds: null,
+        pick: _eachVictim,
+        site: _eachVictim.it,
+        branches: [
+          Branch(
+            StepOutcome.skip,
+            when: ~_loaded.value.has(_eachVictim.it),
+            then: [_victims.becomes(_victims.value.without(_eachVictim.it))],
+            next: _afterUnloads(
+              victims: _victims.value.without(_eachVictim.it),
+              clears: _clears.value,
+            ),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.unload,
+          then: [
+            _victims.becomes(_victims.value.without(_eachVictim.it)),
+            _victim.becomes(_eachVictim.it),
+          ],
+          next: to(UnloadPlace.uNav),
+        ),
+      ),
+      // The victim's back stack captured, in the capture's two steps.
+      UnloadPlace.uNav => _capture.read,
+      UnloadPlace.uNavSave => _capture.save,
+      // The container path disposes here, the jar path waits for the jar's
+      // turn.
+      UnloadPlace.uCaptured => Step(
+        ActivationStep.unloadCaptured,
+        holds: null,
+        site: _victim.value,
+        branches: [
+          Branch(
+            StepOutcome.gone,
+            when: gone.value,
+            then: unloadReturn(_victim, disposed: false),
+            next: to(UnloadPlace.afterUnload),
+          ),
+          Branch(
+            StepOutcome.spared,
+            when: _spare,
+            then: [backoff(), ...unloadReturn(_victim, disposed: false)],
+            next: to(UnloadPlace.afterUnload),
+          ),
+          Branch(
+            StepOutcome.disposed,
+            when: _containers,
+            then: [
+              _dispose,
+              evictedMid(),
+              ...unloadReturn(_victim, disposed: true),
+            ],
+            next: to(UnloadPlace.afterUnload),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.queued,
+          then: [
+            modelOnly(
+              'Enqueue(f)',
+              writes: {ModelVar.queue, ModelVar.seen},
+              reads: const Reads(base: {BaseOp.enqueue}),
+            ),
+          ],
+          next: to(UnloadPlace.uTurn),
+        ),
+      ),
+      UnloadPlace.uTurn ||
+      UnloadPlace.uCap ||
+      UnloadPlace.uSave ||
+      UnloadPlace.uKept => const Within(_inJar),
+      // isStale between unloads.
+      UnloadPlace.afterUnload => Step(
+        ActivationStep.afterUnload,
+        holds: null,
+        branches: [
+          Branch(
+            StepOutcome.stale,
+            when: stale,
+            then: [],
+            next: to(UnloadPlace.exit),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [],
+          next: _afterUnloads(victims: _victims.value, clears: _clears.value),
+        ),
+      ),
+      // The plan's next cache clear, run if the site is still a loaded
+      // resident.
+      UnloadPlace.nextClear => Step(
+        ActivationStep.nextClear,
+        holds: null,
+        pick: _eachClear,
+        site: _eachClear.it,
+        branches: [
+          Branch(
+            StepOutcome.clear,
+            when: _loaded.value.has(_eachClear.it) & _resident(_eachClear.it),
+            then: [
+              _clears.becomes(_clears.value.without(_eachClear.it)),
+              _victim.becomes(_eachClear.it),
+            ],
+            next: to(UnloadPlace.cc),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.skip,
+          then: [_clears.becomes(_clears.value.without(_eachClear.it))],
+          next: _afterUnloads(
+            victims: _victims.value,
+            clears: _clears.value.without(_eachClear.it),
+          ),
+        ),
+      ),
+      // clearWebViewCache returns: the site moves to "cleared" if it is
+      // still a loaded resident; a concurrent path may have promoted or
+      // unloaded it meanwhile.
+      UnloadPlace.cc => Step(
+        ActivationStep.cacheReply,
+        holds: null,
+        call: Call(
+          run: (c) {
+            final site = _victim.of(c);
+            LogTag.siteUnload.debug(
+              'Clearing the cache of site "${site.name}"',
+              sensitive: true,
+            );
+            return site.clearWebViewCache();
+          },
+          writes: const [],
+        ),
+        site: _victim.value,
+        branches: [
+          Branch(
+            StepOutcome.stale,
+            when: stale,
+            then: [_victim.cleared(none: 0)],
+            next: to(UnloadPlace.exit),
+          ),
+          Branch(
+            StepOutcome.cleared,
+            when: _loaded.value.has(_victim.value) & _resident(_victim.value),
+            then: [_clearTier, _victim.cleared(none: 0)],
+            next: _afterUnloads(victims: _victims.value, clears: _clears.value),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.kept,
+          then: [_victim.cleared(none: 0)],
+          next: _afterUnloads(victims: _victims.value, clears: _clears.value),
+        ),
+      ),
+      UnloadPlace.applied || UnloadPlace.exit => const Leaves(),
+    },
+  );
+
+  /// The loaded sites a webspace switch leaves behind: none under
+  /// containers, where each keeps its own jar; on the shared jar, those it
+  /// stops showing.
   static Set<int> indicesToUnloadOnWebspaceSwitch({
     required bool useContainers,
     required Set<int> loadedIndices,
-    required Set<int> previousWebspaceIndices,
-    required Set<int> newWebspaceIndices,
-  }) {
-    if (useContainers) return const <int>{};
-    return WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
-      loadedIndices: loadedIndices,
-      previousWebspaceIndices: previousWebspaceIndices,
-      newWebspaceIndices: newWebspaceIndices,
-    );
-  }
+    required Set<int> leaving,
+  }) => useContainers ? const <int>{} : loadedIndices.intersection(leaving);
+
+  /// The running sites [site]'s activation would repoint the proxy of.
+  static List<WebViewModel> proxyContendersOf(
+    ResidencyHost host, {
+    required WebViewModel site,
+  }) => [
+    for (final i in indicesToUnloadForProxyMismatch(
+      targetIndex: host.models.indexOf(site),
+      models: host.identities(),
+      loadedIndices: _runningRows(host),
+      topology: host.proxyTopology,
+    ))
+      host.models[i],
+  ];
+
+  /// The running sites whose Tor exit [site]'s activation would repoint.
+  static List<WebViewModel> torDissentersOf(
+    ResidencyHost host, {
+    required WebViewModel site,
+  }) => [
+    for (final i in indicesToUnloadForTorExitMismatch(
+      targetIndex: host.models.indexOf(site),
+      models: host.identities(),
+      loadedIndices: _runningRows(host),
+    ))
+      host.models[i],
+  ];
+
+  static Set<int> _runningRows(SiteUnloadHost host) => {
+    for (final m in host.vars.running) host.models.indexOf(m),
+  };
 
   /// Sites that must be unloaded because activating [targetIndex] would
   /// repoint a proxy they share out from under them: every mismatched
@@ -426,35 +884,114 @@ class SiteUnloadEngine {
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
     required ProxyTopology topology,
+  }) => _overSlots(
+    proxyContenders,
+    target: targetIndex,
+    slots: (slots: models, running: loadedIndices, topology: topology),
+  );
+
+  /// The loaded slots that share the proxy scope [s] contends for and run
+  /// another route: activating [s] would repoint their proxy (PROXY-008).
+  /// With the site id, two Tor sites differ by their isolation tags, so one
+  /// rule never carries both and puts them on one circuit (TOR-003).
+  static final proxyContenders = () {
+    const s = Bound<int, ProxySlots>('s');
+    const t = Bound<int, ProxySlots>('t');
+    return Def<List<int>, ProxySlots>(
+      ModelDef.proxyContenders,
+      params: const [s],
+      body: Expr.choose(
+        when: ~_contending.has(s.it),
+        then: Expr.none(),
+        otherwise: _slotsRunning.where(
+          t,
+          holds:
+              t.it.neq(s.it) &
+              _contending.has(t.it) &
+              _route.at(t.it).neq(_route.at(s.it)),
+        ),
+      ),
+    );
+  }();
+
+  /// The loaded slots whose Tor exit constraint differs from [s]'s, when
+  /// [s] routes through Tor: activating it repoints the one `ExitNodes`.
+  static final torDissenters = () {
+    const s = Bound<int, ProxySlots>('s');
+    const t = Bound<int, ProxySlots>('t');
+    return Def<List<int>, ProxySlots>(
+      ModelDef.torDissenters,
+      params: const [s],
+      body: Expr.choose(
+        when: _exit.at(s.it).eq(_noExit),
+        then: Expr.none(),
+        otherwise: _slotsRunning.where(
+          t,
+          holds:
+              t.it.neq(s.it) &
+              _exit.at(t.it).neq(_noExit) &
+              _exit.at(t.it).neq(_exit.at(s.it)),
+        ),
+      ),
+    );
+  }();
+
+  /// The slots whose traffic runs, by row, as the proxy rules read them:
+  /// the loaded ones and a nested screen's (the model's `Running`).
+  static final _slots = Port<Iterable<int>, ProxySlots>(
+    'slots',
+    reads: const {},
+    changes: const {},
+    of: (w) => w.running,
+  );
+  static final _slotsRunning = ModelDef.running.named<Iterable<int>, ProxySlots>(
+    run: _slots.from,
+  );
+
+  /// The slots that share a contended proxy scope (`Contending`): every
+  /// slot under a process-global proxy, those in the default session under
+  /// the router, none per session.
+  static final _contending = Members<int, ProxySlots>(
+    ModelConst.contending,
+    test: (w, {required member}) =>
+        w.topology.contends(w.slots[member]),
+  );
+
+  /// The route a slot's traffic takes (`Route`): the effective settings of
+  /// the site it runs as.
+  static final _route = Indexed<int, ProxyRouteKey, ProxySlots>.fixed(
+    ModelConst.route,
+    read: (w, {required at}) => ProxyConflictEngine.routeOf(
+      w.slots[at].proxySettings,
+      siteId: w.slots[at].siteId,
+    ),
+  );
+
+  /// A slot's Tor exit constraint (`TorExit`), `0` when it does not route
+  /// through Tor.
+  static final _exit = Indexed<int, String?, ProxySlots>.fixed(
+    ModelConst.torExit,
+    read: (w, {required at}) => _torExitPin(w.slots[at]),
+  );
+  static final _noExit = Expr.constant<String?, ProxySlots>(null, tla: '0');
+
+  /// [rule] for the slot [target] over [slots], skipping rows no slot has.
+  static Set<int> _overSlots(
+    Def<List<int>, ProxySlots> rule, {
+    required int target,
+    required ProxySlots slots,
   }) {
-    if (targetIndex < 0 || targetIndex >= models.length) return const <int>{};
-    final target = models[targetIndex];
-    final bool Function(WebViewModel model) contends;
-    switch (topology) {
-      case PerSessionProxy():
-        return const <int>{};
-      case ProcessGlobalProxy():
-        contends = (_) => true;
-      case RoutedProxy(:final sharesDefaultSession):
-        if (!sharesDefaultSession(target)) return const <int>{};
-        contends = sharesDefaultSession;
-    }
-    // With the site id, two Tor sites differ by their isolation tags, so
-    // one rule never carries both and puts them on one circuit (TOR-003).
-    final targetEffective =
-        resolveEffectiveProxy(target.proxySettings, siteId: target.siteId);
-    final result = <int>{};
-    for (final i in loadedIndices) {
-      if (i == targetIndex) continue;
-      if (i < 0 || i >= models.length) continue;
-      if (!contends(models[i])) continue;
-      final effective = resolveEffectiveProxy(models[i].proxySettings,
-          siteId: models[i].siteId);
-      if (targetEffective.routeKey != effective.routeKey) {
-        result.add(i);
-      }
-    }
-    return result;
+    final n = slots.slots.length;
+    if (target < 0 || target >= n) return const <int>{};
+    final world = (
+      slots: slots.slots,
+      running: {for (final i in slots.running) if (i >= 0 && i < n) i},
+      topology: slots.topology,
+    );
+    return rule
+        .call([Expr.constant<int, ProxySlots>(target)])
+        .run(StepContext(world))
+        .toSet();
   }
 
   /// Sites that must be unloaded because activating [targetIndex] would
@@ -482,20 +1019,15 @@ class SiteUnloadEngine {
     required int targetIndex,
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
-  }) {
-    if (targetIndex < 0 || targetIndex >= models.length) return const <int>{};
-    final target = _torExitPin(models[targetIndex]);
-    if (target == null) return const <int>{};
-    final result = <int>{};
-    for (final i in loadedIndices) {
-      if (i == targetIndex) continue;
-      if (i < 0 || i >= models.length) continue;
-      final other = _torExitPin(models[i]);
-      if (other == null) continue;
-      if (target != other) result.add(i);
-    }
-    return result;
-  }
+  }) => _overSlots(
+    torDissenters,
+    target: targetIndex,
+    slots: (
+      slots: models,
+      running: loadedIndices,
+      topology: const PerSessionProxy._(),
+    ),
+  );
 
   /// The `ExitNodes` value that should be in force while [indices] are the
   /// loaded sites, or null when nothing among them wants a pinned exit.
@@ -574,8 +1106,10 @@ class SiteUnloadEngine {
   static String? torExitConstraint(WebViewModel model) => _torExitPin(model);
 
   static String? _torExitPin(WebViewModel model) {
-    final effective =
-        resolveEffectiveProxy(model.proxySettings, siteId: model.siteId);
+    final effective = resolveEffectiveProxy(
+      model.proxySettings,
+      siteId: model.siteId,
+    );
     if (effective.type != ProxyType.TOR) return null;
     return effective.exitNodesValue ?? _torUnpinned;
   }
@@ -598,4 +1132,33 @@ class SiteUnloadEngine {
       priorityOf: priorityOf,
     ).take(overflow).toList();
   }
+}
+
+/// What an unload's steps ask of the plan's maker and tell the page
+/// ([SiteUnloadEngine]'s `plan` port).
+typedef PlanAnswers = ({
+  bool Function() isStale,
+  UnloadReason Function(WebViewModel site) reasonOf,
+  void Function(WebViewModel site) disposed,
+  NavCapture? Function(WebViewModel site) beginNavCapture,
+  Isolation isolation,
+});
+
+/// What the unload engine's flow runs against: the plan, its page, and
+/// whether the activation that made it was superseded.
+final class UnloadFlow implements Capturing {
+  UnloadFlow({required this.host, required this.plan, required this.isStale});
+
+  final SiteUnloadHost host;
+  final ResidencyPlan plan;
+  final bool Function() isStale;
+
+  @override
+  NavCapture? capture;
+
+  UnloadReason reasonOf(WebViewModel site) =>
+      plan.unloads.firstWhere((u) => u.site == site).reason;
+
+  void disposed(WebViewModel site) =>
+      host.noteUnloaded(site, reason: reasonOf(site));
 }

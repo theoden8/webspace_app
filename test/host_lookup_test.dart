@@ -123,7 +123,7 @@ void main() {
       expect(hostInSet('other.example.com', set: set), isFalse);
     });
 
-    test('FQDN form reaches the set through extractHost', () {
+    test('FQDN form reaches the set through extractHost (DNS-004)', () {
       // `https://ads.doubleclick.net./x` resolves and renders exactly like
       // the dotless form, so it must not walk past the blocklist.
       const set = {'doubleclick.net'};

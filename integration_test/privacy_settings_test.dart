@@ -32,6 +32,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'bare_site.dart';
@@ -39,7 +41,7 @@ import 'fixture_server.dart';
 import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 
 class _Req {
   _Req(this.path, {required this.xrw});
@@ -55,7 +57,7 @@ class _Mounted {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   late HttpServer server;
   late int port;
@@ -68,6 +70,10 @@ void main() {
   }
 
   setUpAll(() async {
+    // As main() does before any page loads: a site that blocks never starts
+    // one before its blockers have read what is on disk.
+    await ContentBlockerService.instance.initialize(native: WebInterceptNative.initialize());
+    await DnsBlockService.instance.initialize();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
     listenFixture(server, onEvent: (req) {

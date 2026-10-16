@@ -109,7 +109,7 @@ void main() {
     messenger.setMockMethodCallHandler(proxyChannel, null);
   });
 
-  testWidgets('the proxy router comes up only where it can be honoured',
+  testWidgets('the proxy router comes up only where it can be honoured (PROXY-014)',
       (tester) async {
     app.main();
     await tester.pumpAndSettle(const Duration(seconds: 30));

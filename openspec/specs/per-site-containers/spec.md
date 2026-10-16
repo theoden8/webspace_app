@@ -141,7 +141,7 @@ Each site gets a named profile. Lifecycle:
 | Site activated | `ContainerIsolationEngine.ensureContainer(siteId)` (idempotent). |
 | WebView created | Nothing to do: the WebView was built with `InAppWebViewSettings.containerId`, which the fork reads before any session-bound operation (CONT-005). |
 | User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. The app-side per-`siteId` residue the container never held — saved nav state and the HTML snapshot — is dropped alongside it in both engine modes ([tracking-protection](../tracking-protection/spec.md) ETP-022). |
-| Site deleted | `ContainerIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView`. |
+| Site deleted | `SiteDeletion` (CONT-010): the commit takes the site off the list and lets go of its webview, the next frame unmounts it, then `ContainerIsolationEngine.onSiteDeleted(siteId)`. |
 | Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
 
 The engine selection lives in
@@ -163,11 +163,11 @@ check resolved at app startup.
   reporting `WebViewFeature.MULTI_PROFILE` true
 **When** `StartupController.restore` runs
 **Then** `_useContainers` resolves to `true`
-**And** every subsequent `setCurrentIndex(index)` skips
+**And** every subsequent `activate(site)` skips
   `SiteActivationEngine.findDomainConflict` and the capture-nuke-
   restore cycle — superseding the legacy
   [ISO-001](../per-site-cookie-isolation/spec.md) mutex
-**And** `setCurrentIndex(index)` calls
+**And** `activate(site)` calls
   `ContainerIsolationEngine.ensureContainer(target.siteId)` instead
 
 #### Scenario: Profile API supported on iOS / macOS
@@ -198,7 +198,7 @@ check resolved at app startup.
   web (or Linux without the fork override resolved)
 **When** `StartupController.restore` runs
 **Then** `_useContainers` resolves to `false`
-**And** `setCurrentIndex` runs the existing capture-nuke-restore flow
+**And** `activate` runs the existing capture-nuke-restore flow
   unchanged
 **And** `ContainerIsolationEngine` touches no ProfileStore
 
@@ -273,13 +273,41 @@ container that nothing references.
 
 **Given** site A exists with profile `ws-<siteA.siteId>`
 **When** the user deletes site A
-**Then** `ContainerIsolationEngine.onSiteDeleted` is called
+**Then** `ContainerIsolationEngine.onSiteDeleted` is called once the
+  frame after the commit has unmounted A's webview (CONT-010)
 **And** `ContainerNative.deleteContainer("<siteA.siteId>")` removes
-  the profile and all of its on-disk data (the live WebView for A has
-  already been disposed, so the in-use no-op trap doesn't apply)
+  the profile and all of its on-disk data, since nothing binds it
 **And** the legacy `CookieIsolationEngine.preDeleteCookieCleanup` is
   NOT called (cookies live in the profile, so it would be a no-op
   anyway)
+
+### Requirement: CONT-010 — A delete takes its site off the list before it deletes its container
+
+A site's delete SHALL take it off the list, and with it the loaded set and
+the screen, and let go of its webview, in the page's commit, which also
+closes the tabs it hosted (LIR-023) and sweeps what the app kept for it
+(CONT-004's stores); its container SHALL be deleted only after the next
+frame has unmounted the site's webview. A delete that deleted the container
+first, as one did, left the site on the list while it awaited: a frame or a
+tap built its webview again, on the container being deleted, which iOS and
+macOS then keep and Android recreates ([BUG-038](../../../docs/bugs/038-container-deleted-under-a-live-view.md)).
+An archive's close keeps the same order (ARCH-014).
+
+#### Scenario: A tap during a delete does not keep the container
+
+**Given** site A is on screen
+**When** the user deletes A and taps it before the commit lands
+**Then** the tap's activation is superseded by the commit, or, if it
+  reached the container step, deletes the container it made
+**And** once the delete ends A is not listed, loaded, on screen or mounted,
+  and its container is not on disk (`Inv_Retired` in the delete world of
+  `formal/activation.tla`)
+
+#### Scenario: A second delete of a site already off the list changes nothing
+
+**Given** two deletes of site A are in flight
+**When** the second's commit lands after the first's
+**Then** the lists and the activation version are as the first left them
 
 ### Requirement: CONT-003 — Same-Base-Domain Sites Coexist
 
@@ -351,14 +379,25 @@ under this policy, two backstops apply:
   `didHaveMemoryPressure` between the version bump and the eventual
   webview resume
 **Then** A is NOT picked as the eviction victim
-**Because** `setCurrentIndex` records its target in
+**Because** `activate` records its target in
   `SiteRuntime.activating` (set in the try block, cleared in
   finally); `SiteRuntime.retentionPriority` ranks it `activating`,
   which no eviction takes, alongside the `active` current site. Without the in-flight
   guard, mid-activation eviction would dispose A's webview, leaving
-  `setCurrentIndex` to call `resumeWebView()` on a null controller
+  `activate` to call `resumeWebView()` on a null controller
   (no-op) — the IndexedStack would re-create a fresh webview on next
   paint, silently wiping the user's URL/scroll/session.
+
+#### Scenario: Memory pressure during a double tap does not strand state
+
+**Given** site A is loaded but not the currently-active site
+**When** the user taps A twice before the first activation lands
+**And** the OS fires `didHaveMemoryPressure` while the second is in flight
+**Then** A is NOT picked as the eviction victim
+**Because** `SiteRuntime.activating` records the `activationVersion` the
+  activation began at with its target, and only that activation clears it:
+  the superseded first tap, whose target is the same, leaves the second's
+  marker in place.
 
 ### Requirement: CONT-004 — Orphan Garbage Collection
 
@@ -382,6 +421,16 @@ The system SHALL sweep profiles whose owning site no longer exists.
 **When** GC runs
 **Then** no profile is deleted
 **And** the call returns 0
+
+#### Scenario: A tap during the launch sweep binds after it
+
+**Given** the launch sweep (`ContainerIsolationEngine.sweepBeforeBind`) has started, which restore does as soon as the site list is read
+**And** the grid already takes taps, from the sites' commit on
+**When** an activation asks for its site's container before the sweep is done
+**Then** `ensureContainer` waits for the sweep, so no container is bound while `deleteContainer` may still remove it
+**And** a sweep that failed holds back no container after it
+
+Test: `test/container_isolation_engine_test.dart` ("the launch sweep").
 
 ### Requirement: CONT-005 — Native-Side Bind Before Construction
 
@@ -673,13 +722,10 @@ abstract Dart interface with two implementations:
 - `_StubContainerNative` (iOS, macOS, fallback) — every method is a
   no-op; `isSupported()` returns `false`.
 
-The Android plugin uses the same view-tree-walk pattern as
-[`WebInterceptPlugin.attachToAllWebViews`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebInterceptPlugin.kt)
-to find the WebViews flutter_inappwebview created internally —
-`activity.window.decorView.rootView` is recursively scanned for
-`InAppWebView` instances. This avoids forking the plugin: we attach
-profile binding *after* the WebView exists, by inspection of the
-live view hierarchy.
+The Android plugin finds the WebViews flutter_inappwebview created
+internally by inspection rather than by forking the plugin: profile
+binding attaches *after* the WebView exists. (`WebInterceptPlugin` finds
+its view by platform view id instead, DNS-022.)
 
 ### Per-WebView Bind Site
 
@@ -723,9 +769,9 @@ populated during `StartupController.restore` (the same pass that resolves
 then no site has been activated yet, so this case never fires in
 practice.
 
-`Future.microtask` is still used for
-`WebInterceptNative.attachToWebViews`, which is race-insensitive
-(the ContentBlockerHandler can be set post-load).
+The native interceptor is not race-insensitive: a ContentBlockerHandler set
+after the first load lets that document's sub-resources through, so the first
+load waits for `WebInterceptNative.attachToView` (DNS-022).
 
 ### Per-Site Settings Still Apply
 
@@ -747,7 +793,7 @@ JS gets injected*.
 - `android/app/src/main/kotlin/.../MainActivity.kt` —
   instantiates `WebSpaceContainerPlugin`
 - `lib/main.dart` — caches `_useContainers`, gates engine selection in
-  `setCurrentIndex` and `SiteEditingController.deleteSite`, runs orphan GC in
+  `activate` and `SiteEditingController.deleteSite`, runs orphan GC in
   `StartupController.restore`
 - `lib/services/webview.dart` — sets `InAppWebViewSettings.containerId`
   (`containerIdFor`) when it builds a site's WebView

@@ -47,11 +47,14 @@ class SiteWebViewStack extends StatelessWidget {
 }
 
 class _SiteWebView extends StatelessWidget {
+  // Keyed globally, so a delete or move that shifts this site's row takes its
+  // webview along: IndexedStack wraps each child in an unkeyed Visibility, so
+  // a local key never meets its old element (ISO-009).
   _SiteWebView({
     required this.site,
     required this.hooks,
     required this.showStatsBanner,
-  }) : super(key: ValueKey(site.siteId));
+  }) : super(key: GlobalObjectKey(site));
 
   final WebViewModel site;
   final WebViewHostHooks hooks;

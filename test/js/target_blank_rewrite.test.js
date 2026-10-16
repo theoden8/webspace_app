@@ -39,7 +39,7 @@ function clickAnchor(dom, el) {
   return ev;
 }
 
-test('target="_blank" http anchor is rewritten to _self on click', () => {
+test('target="_blank" http anchor is rewritten to _self on click (NESTED-008)', () => {
   const dom = bootDom();
   const a = dom.window.document.createElement('a');
   a.href = 'https://github.com/theoden8/webspace_app';

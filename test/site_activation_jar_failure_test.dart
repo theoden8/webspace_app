@@ -1,27 +1,31 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/services/container_isolation_engine.dart';
-import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/isolation.dart';
+import 'package:webspace/services/nav_capture.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
 
-import 'helpers/mock_container_native.dart';
+import 'helpers/isolations.dart';
 import 'helpers/mock_cookie_manager.dart';
+import 'helpers/model_fixture.dart';
 
 /// The page as an activation sees it, recording what it tells the user.
-class _Page implements ActivationHost, SurfaceHost {
+final class _Page implements ActivationHost, SurfaceHost {
   final toasts = <String Function(AppLocalizations)>[];
   var exitedFullscreen = false;
 
   @override
-  bool mounted = true;
+  bool get mounted => true;
 
   @override
   void rebuild() {}
@@ -47,10 +51,16 @@ class _Page implements ActivationHost, SurfaceHost {
   void exitFullscreen() => exitedFullscreen = true;
 
   @override
-  Future<void> refreshRoutes({int? activeIndex}) async {}
+  Future<void> refreshRoutes({WebViewModel? active}) async {}
 
   @override
-  void syncTorExitPin(Set<int> indices) {}
+  Future<bool> isOnline() async => true;
+
+  @override
+  Future<void> spawned(Future<void> Function() flow) => flow();
+
+  @override
+  void syncTorExitPin(Iterable<WebViewModel> sites) {}
 
   @override
   Future<void> probeRenderer(WebViewModel model,
@@ -60,32 +70,37 @@ class _Page implements ActivationHost, SurfaceHost {
   void backgroundSitesChanged() {}
 }
 
-/// The legacy engine's residency over [sites]: one shared jar.
-class _SharedJar implements ResidencyHost {
-  _SharedJar(this.sites, {required this.sharedJar});
+/// The residency of [sites] on the jar they hold.
+final class _Residency implements ResidencyHost {
+  _Residency(this.sites);
 
   final SiteRuntime sites;
 
   @override
-  final CookieIsolationEngine sharedJar;
+  ResidencyCaps get caps => kResidencyCaps;
 
   @override
   List<WebViewModel> get models => sites.models;
 
   @override
-  Set<int> get loadedIndices => sites.loaded;
+  RuntimeVars<WebViewModel> get vars => sites.vars;
 
   @override
-  Future<void> captureNavState(WebViewModel model) async {}
+  Isolation get isolation => sites.isolation;
+
+  @override
+  NavCapture? beginNavCapture(WebViewModel model) => null;
 
   @override
   void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
 
   @override
-  List<WebViewModel> identities({int? except}) => sites.models;
+  List<WebViewModel> identities({int? except}) =>
+      sites.slotIdentities(except: except);
 
   @override
-  SiteRetentionPriority priorityOf(int index) => SiteRetentionPriority.loaded;
+  SiteRetentionPriority priorityOf(int index) =>
+      sites.retentionPriority(index);
 
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
@@ -103,31 +118,35 @@ class _SharedJar implements ResidencyHost {
 /// site's session (ISO-001).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test(
       'ISO-014: an activation whose cookie restore fails shows the webspace '
       'list and says why, not the site', () async {
     final en = await AppLocalizations.delegate.load(const Locale('en'));
-    final jar = MockCookieManager()..failing.add(JarCall.read);
-    final site = WebViewModel(initUrl: 'https://github.com/', name: 'GitHub');
-    final sites = SiteRuntime()..apply(SitesLoaded([site]));
+    final jar = MockCookieManager();
+    final shown = WebViewModel(initUrl: 'https://example.com/', name: 'Example');
+    final target = WebViewModel(initUrl: 'https://github.com/', name: 'GitHub');
+    final sites = SiteRuntime()
+      ..isolation = fakeSharedJar(cookies: jar)
+      ..applied(SitesLoaded([shown, target]));
     final page = _Page();
     final activation = SiteActivationController(
       sites,
       host: page,
-      residency: _SharedJar(sites,
-          sharedJar: CookieIsolationEngine(
-              cookieManager: jar, storage: MockCookieSecureStorage())),
+      residency: _Residency(sites),
       navStates: InMemoryWebViewStateStorage(),
-      containers:
-          ContainerIsolationEngine(containerNative: MockContainerNative()),
       surface: SurfaceRepaintController(page, repaints: false, traceSuffix: ''),
     );
+    await activation.activate(shown);
+    expect(sites.shown, shown);
 
-    await activation.setCurrentIndex(0);
+    jar.failing.add(JarCall.read);
+    await activation.activate(target);
 
-    expect(sites.current, isNull);
-    expect(sites.loaded, isEmpty);
+    expect(sites.shown, isNull,
+        reason: 'the list, not the site on screen before the tap');
+    expect(sites.loaded, isNot(contains(target)));
     expect(page.exitedFullscreen, isTrue);
     expect(page.toasts.map((m) => m(en)),
         ['Could not open GitHub: its cookies could not be restored']);

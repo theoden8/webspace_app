@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 
@@ -20,10 +20,8 @@ import 'package:webspace/services/proxy_library.dart';
 /// gzip-compressed UTF-8 JSON. base64url padding is stripped on encode and
 /// reapplied on decode.
 ///
-/// When you add a new per-site field to [WebViewModel], decide whether it
-/// belongs in [includedKeys]. The drift test in
-/// `test/site_settings_qr_codec_test.dart` fails on any unknown key in
-/// `toJson` so an unreviewed field cannot silently flow into shared QRs.
+/// Whether a field rides a QR is its [SiteField]'s `qr`, which every field
+/// must declare, so an unreviewed field cannot reach a shared code.
 class SiteSettingsQrCodec {
   SiteSettingsQrCodec._();
 
@@ -32,90 +30,9 @@ class SiteSettingsQrCodec {
   static const String _path = 'qr/site';
 
   /// Per-site keys the QR is allowed to carry.
-  static const Set<String> includedKeys = {
-    'initUrl',
-    'name',
-    'proxySettings',
-    'javascriptEnabled',
-    'userAgent',
-    'thirdPartyCookiesEnabled',
-    'httpsUpgradeEnabled',
-    'incognito',
-    'alwaysOpenHome',
-    'kioskMode',
-    'tabsEnabled',
-    'language',
-    'zoomPercent',
-    'clearUrlEnabled',
-    'dnsBlockEnabled',
-    'dnsBlockLevel',
-    'contentBlockEnabled',
-    'disabledFilterLists',
-    'trackingProtectionEnabled',
-    'localCdnEnabled',
-    'fullscreenMode',
-    'blockScreenshots',
-    'htmlCachingEnabled',
-    'notificationsEnabled',
-    'backgroundAudioEnabled',
-    'locationMode',
-    'spoofLatitude',
-    'spoofLongitude',
-    'spoofAccuracy',
-    'spoofTimezone',
-    'spoofTimezoneFromLocation',
-    'liveLocationGranularity',
-    'webRtcPolicy',
-    'routeOutboundLinks',
-    // How to search the site: configuration, no site ids (LIR-031).
-    'searchAddress',
-    'searchesWeb',
-  };
-
-  /// Per-site keys deliberately stripped on share. Listed so the drift
-  /// test can detect a brand-new key that the dev forgot to classify.
-  static final Set<String> excludedKeys = {
-    'siteId',
-    'currentUrl',
-    'pageTitle',
-    // Session, not configuration (TAB-009).
-    'tabs',
-    'cookies',
-    'userScripts',
-    'enabledGlobalScriptIds',
-    'blockedCookies',
-    // Remembered permission decisions are trust the user gave one device's
-    // popup, not shareable configuration; the virtual capture sources are
-    // user-picked local media that would also blow QR capacity.
-    'protectedContentAllowed',
-    for (final kind in CaptureKind.values) ...kind.jsonKeys,
-    // Base64 PNG bytes: would blow QR capacity, and an icon is
-    // device-local cosmetics, not shareable configuration.
-    'customIconPng',
-    // Each entry names a device-local siteId, which the receiver's sites
-    // do not have (QR-003).
-    'outboundPreferences',
-    'searchSites',
-    'searchDefault',
-    // Learned from the site's own pages; the receiver's copy learns it the
-    // same way (LIR-035).
-    'discoveredSearchAddress',
-    'discoveredSearchesWeb',
-    // A scanned site is a new container, which gets its own colour (TAB-018).
-    'containerColor',
-    // A scanned code must not make a site claim domains: claims decide
-    // where other sites' links and shared URLs go.
-    'domainClaims',
-    // The seed that makes this site's fingerprint differ from every other
-    // device's.
-    'fingerprintResetNonce',
-    // Never shared so far. Sharing one of these is its own decision, not a
-    // side effect of the drift check reaching them.
-    'externalLinkMode',
-    'tabBarButtonCorner',
-    'letterboxEnabled',
-    'spoofWindowWidth',
-    'spoofWindowHeight',
+  static final Set<String> includedKeys = {
+    for (final field in SiteField.values)
+      if (field.qr == QrShare.carried) ...field.keys,
   };
 
   /// Strip a full `WebViewModel.toJson()` to the QR-shareable subset.

@@ -90,7 +90,7 @@ void main() {
       e.dispose();
     }, skip: libExists ? false : 'library not built');
 
-    test('honors @@ exception rules', () {
+    test('honors @@ exception rules (CB-003)', () {
       final e = AdblockEngine.load('||tracker.com^\n@@||cdn.tracker.com^\n')!;
       expect(
         e.shouldBlock('https://tracker.com/x',

@@ -71,7 +71,7 @@ EventRecover ==
     /\ eventArmed' = FALSE
     /\ UNCHANGED visible
 
-\* The site becomes visible (activation / _setCurrentIndex). With the probe
+\* The site becomes visible (activation / activate). With the probe
 \* (PAUSE-014), a dead renderer is rebuilt on the way in; without it, the site
 \* comes up still dead.
 Activate ==

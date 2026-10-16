@@ -140,6 +140,7 @@ void main() {
     if (tmpDir.existsSync()) tmpDir.deleteSync(recursive: true);
   });
 
+  // BACKUP-001, INTEG-007
   testWidgets('export omits proxy password (PWD-005); import warns user',
       (tester) async {
     app.main();

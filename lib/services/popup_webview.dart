@@ -1,14 +1,18 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/http_auth_challenge.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview_tls.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_handlers.dart';
+import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/webview.dart';
 
 /// The webview a site's `window.open` gets, built from its parent's posture.
@@ -52,20 +56,55 @@ abstract final class PopupWebView {
       desktopMode: page.desktopMode,
     );
     PlatformWebViewController? view;
+    Object? attachedView;
+    // The popup's documents, which a script its handlers evaluate lands in.
+    final phases = PagePhases(
+      blocking: parent.posture.blocking,
+      dnsLevel: () => parent.effectiveDnsLevel,
+    );
     final popup = inapp.InAppWebView(
       windowId: windowId,
       initialSettings: settings,
       initialUserScripts: UnmodifiableListView(page.userScripts),
       onWebViewCreated: (controller) {
+        phases.on(PageEvent.viewCreated, view: controller.platform);
+        // The opener drives the popup's first load, so it cannot be held;
+        // the interceptor attaches as soon as the view exists.
+        // It is one of the site's views, told its level as the lists move
+        // (DNS-022).
+        final viewId = controller.getViewId();
+        if (WebInterceptNative.isSupported && viewId != null) {
+          attachedView = viewId as Object;
+          unawaited(WebInterceptNative.attachToView(
+            viewId: viewId,
+            siteId: parent.posture.siteId,
+            dnsLevel: DnsBlockService.instance.views.built(
+              viewId,
+              site: parent.posture.siteId,
+              siteLevel: parent.siteDnsAsk,
+              localCdn: parent.posture.blocking.localCdn,
+              contentBlock: parent.posture.blocking.contentBlock,
+            ),
+            localCdn: parent.posture.blocking.localCdn,
+            contentBlock: parent.posture.blocking.contentBlock,
+          ));
+        }
         view = PlatformWebViewController(controller,
-            pauseHack: PauseTimersHackState(), settings: settings);
+            pauseHack: PauseTimersHackState(),
+            settings: settings,
+            loadsAfter: Future<void>.value());
         PageHandlers.registerPageHandlers(
           controller,
           config: parent,
           userScriptService: page.userScriptService,
-          sourceUrl: () => parent.initialUrl,
+          page: (
+            sourceUrl: () => parent.initialUrl,
+            document: () => phases.page(controller),
+          ),
         );
       },
+      onLoadStart: (controller, _) =>
+          phases.on(PageEvent.loadStarted, view: controller.platform),
       // The popup exists for one challenge: its documents pass the site's
       // DNS and content-blocker checks, and its top document stays on a
       // captcha host or the site's own domain (CAPTCHA-010).
@@ -92,7 +131,11 @@ abstract final class PopupWebView {
           ),
     );
     return ControllerScope(
-      onUnmount: () => view?.markDisposed(),
+      onUnmount: () {
+        phases.unmounted();
+        view?.markDisposed();
+        if (attachedView case final id?) DnsBlockService.instance.views.gone(id);
+      },
       child: popup,
     );
   }

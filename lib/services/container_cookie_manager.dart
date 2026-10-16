@@ -5,26 +5,13 @@ import 'package:webspace/services/webview_controller.dart';
 /// Per-site cookie operations that target the bound WebView's container
 /// via the WebSpace fork's `inapp.CookieManager`.
 ///
-/// Sibling of [`CookieManager`](webview.dart) — never composed, never
-/// mixed. `_WebSpacePageState` instantiates exactly one based on
-/// `_useContainers`:
-///
-///   - `_useContainers == false`: `CookieManager` (global default jar)
-///     drives every per-site cookie op. The legacy
-///     `CookieIsolationEngine` capture-nuke-restore cycle uses the
-///     same instance.
-///   - `_useContainers == true`: `ContainerCookieManager` is created;
-///     each call passes `webViewController:` so the WebSpace fork of
-///     `flutter_inappwebview` walks to the WebView's bound container
-///     and routes the operation to its per-container cookie store.
-///     HttpOnly cookies are deletable too; `getCookies` returns full
-///     attributes (domain/path/expiresDate/isSecure/isHttpOnly).
-///
-/// There is intentionally no shared base class — call sites branch
-/// explicitly on which manager is non-null. With only two real impls
-/// and one of them being the existing thin `CookieManager` wrapper
-/// over [cookieChannel], an interface here would be indirection without
-/// payoff.
+/// Sibling of [`CookieManager`](webview.dart), never composed or mixed:
+/// only an `Isolation` of `Containers` holds one, and each call passes
+/// `webViewController:` so the WebSpace fork of `flutter_inappwebview`
+/// walks to the WebView's bound container and routes the operation to its
+/// per-container cookie store. HttpOnly cookies are deletable too;
+/// `getCookies` returns full attributes
+/// (domain/path/expiresDate/isSecure/isHttpOnly).
 class ContainerCookieManager {
   /// Read the cookies the page at [url] can see in the jar of the container
   /// [controller]'s webview is bound to. Fails with [CookieJarFailure]: a

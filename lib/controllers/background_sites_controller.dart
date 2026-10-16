@@ -14,10 +14,13 @@ import 'package:webspace/services/foreground_poll_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/notification_service.dart';
+import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/refresh_schedule_engine.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/wake_baseline_store.dart';
 import 'package:webspace/services/webview.dart';
@@ -29,7 +32,7 @@ import 'package:webspace/services/headless_site_check.dart';
 
 /// What the background-site flows ask of the page.
 abstract interface class BackgroundSitesHost implements PageHost {
-  Future<void> activate(int index);
+  Future<void> activate(WebViewModel site);
 
   /// A notification tap is an app entry point: nothing pushed over the page
   /// may stay on top of the site it opens.
@@ -37,11 +40,18 @@ abstract interface class BackgroundSitesHost implements PageHost {
 
   /// Points Tor's exit country at what the sites at [indices] agree on
   /// (TOR-014).
-  void syncTorExitPin(Set<int> indices);
+  void syncTorExitPin(Iterable<WebViewModel> sites);
 
   /// What the page answers for every site webview; a headless check takes
   /// them unattended.
   WebViewHostHooks get webViewHooks;
+
+  /// Whether [site] may run beside what runs now: the activation's
+  /// `RouteFree` (PROXY-008, TOR-014), which a wake's check asks.
+  bool routeFree(WebViewModel site);
+
+  /// Whether a nested open is in flight, which a wake's check waits out.
+  bool get nestedOpening;
 }
 
 /// Sites that work while another is on screen or the app is away:
@@ -54,12 +64,16 @@ class BackgroundSitesController {
 
   final SiteRuntime _sites;
   final BackgroundSitesHost _host;
-  final BackgroundWakeEngine _wakeEngine = BackgroundWakeEngine();
+  final BackgroundWakeEngine<WebViewModel> _wakeEngine = BackgroundWakeEngine();
   Timer? _foregroundPollTimer;
 
-  /// The wake in progress, so a return to the foreground can close its
-  /// headless checks (NOTIF-016).
-  _WakeHost? _activeWake;
+  /// The wake's side of the app: its checks, the route they run on, and
+  /// the app's lifecycle as the wake's table hears it (NOTIF-016).
+  late final _WakeHost _wakeHost = _WakeHost(_sites, host: _host);
+
+  /// The wake's table, printed into the model.
+  StepTable<WakeFlow<WebViewModel>, WakePlace> get wakeTable =>
+      _wakeEngine.table;
 
   /// What the background log reports instead of names: sites with
   /// notifications on, how many of them are loaded, and how many have a live
@@ -68,11 +82,10 @@ class BackgroundSitesController {
     var enabled = 0;
     var loaded = 0;
     var live = 0;
-    for (var i = 0; i < _sites.models.length; i++) {
-      final m = _sites.models[i];
+    for (final m in _sites.models) {
       if (!m.effectiveNotificationsEnabled) continue;
       enabled++;
-      if (!_sites.loaded.contains(i)) continue;
+      if (!_sites.loaded.contains(m)) continue;
       loaded++;
       if (m.controller != null) live++;
     }
@@ -142,13 +155,7 @@ class BackgroundSitesController {
   /// has background audio on; active playback under it (with the `audio`
   /// background mode) keeps iOS from suspending the app. Idempotent.
   Future<void> updateAudioSession() async {
-    var any = false;
-    for (var i = 0; i < _sites.models.length; i++) {
-      if (!_sites.models[i].effectiveBackgroundAudioEnabled) continue;
-      if (!_sites.loaded.contains(i)) continue;
-      any = true;
-      break;
-    }
+    final any = _sites.loaded.any((m) => m.effectiveBackgroundAudioEnabled);
     await BackgroundTaskService.instance.setBackgroundAudioActive(active: any);
     // With nothing to drive it, the media surface goes; on iOS that also
     // removes the Now Playing entry WebKit publishes for any page that plays,
@@ -180,11 +187,13 @@ class BackgroundSitesController {
     final plan = ForegroundPollEngine.plan(
       siteCount: _sites.models.length,
       currentIndex: _sites.current,
-      loadedIndices: _sites.loaded,
+      loadedIndices: _sites.loadedRows,
       isPolled: (i) => _sites.models[i].effectiveNotificationsEnabled,
     );
+    final reload = [for (final i in plan.reload) _sites.models[i]];
+    final unloaded = plan.unloaded;
     var reloaded = 0;
-    for (final m in [for (final i in plan.reload) _sites.models[i]]) {
+    for (final m in reload) {
       if (m.controller == null) continue;
       await m.reloadAndRepaint();
       reloaded++;
@@ -192,8 +201,8 @@ class BackgroundSitesController {
     BackgroundLog.instance.record(
       LogTag.backgroundTask,
       message: 'refresh notif sites: reloaded=$reloaded, '
-          'skipped(unloaded)=${plan.unloaded}, '
-          'skipped(no controller)=${plan.reload.length - reloaded}',
+          'skipped(unloaded)=$unloaded, '
+          'skipped(no controller)=${reload.length - reloaded}',
     );
   }
 
@@ -210,14 +219,10 @@ class BackgroundSitesController {
     // foreground, so the resume check tor's listener needs has not run yet
     // (TOR-024), and a Tor notification site would reload through a dead one.
     await TorService.instance.revive();
-    final host = _WakeHost(_sites, host: _host);
-    _activeWake = host;
-    final WakeReport report;
-    try {
-      report = await _wakeEngine.wake(host);
-    } finally {
-      if (identical(_activeWake, host)) _activeWake = null;
-    }
+    // The OS wakes the app only off screen; a process it started for the
+    // wake has heard no lifecycle event to say so.
+    if (_sites.fore) _wakeEngine.background(_wakeHost);
+    final report = await _wakeEngine.wake(_wakeHost);
     for (var i = 0; i < report.sites.length; i++) {
       final o = report.sites[i];
       final line =
@@ -251,14 +256,13 @@ class BackgroundSitesController {
   /// unread count as the user can still see it, so a later wake posts only
   /// for what arrived after (NOTIF-014).
   void noteBackgrounded() {
+    if (_sites.fore) _wakeEngine.background(_wakeHost);
     _stopForegroundPoll();
     if (!anyNotificationSites) return;
     unawaited(BackgroundTaskService.instance.beginGracePeriod());
     _wakeEngine.forget({for (final m in _sites.models) m.siteId});
     final reads = <Future<void>>[];
-    for (final i in _sites.loaded) {
-      if (i < 0 || i >= _sites.models.length) continue;
-      final m = _sites.models[i];
+    for (final m in _sites.loaded) {
       final c = m.controller;
       if (!m.effectiveNotificationsEnabled || c == null) continue;
       // A refused read is already null: the controller owns that failure.
@@ -274,7 +278,7 @@ class BackgroundSitesController {
     // A wake's headless checks end here: on Android the site the user opens
     // next moves the one process-wide proxy, and a check still loading would
     // follow it (NOTIF-016).
-    unawaited(_activeWake?.closeAllHeadless());
+    if (!_sites.fore) _wakeEngine.foreground(_wakeHost);
     startForegroundPoll();
     unawaited(BackgroundTaskService.instance.endGracePeriod());
   }
@@ -297,34 +301,33 @@ class BackgroundSitesController {
   }
 
   void _onNotificationTapped(SiteId siteId) {
-    final index = _indexOfTapped(siteId);
-    if (index == null) return;
+    final site = _siteTapped(siteId);
+    if (site == null) return;
     _host.popToRoot();
-    unawaited(_host.activate(index));
+    unawaited(_host.activate(site));
     _host.rebuild();
   }
 
-  int? _indexOfTapped(SiteId siteId) {
-    final index = _sites.models.indexWhere((m) => m.siteId == siteId);
-    if (index < 0) {
+  WebViewModel? _siteTapped(SiteId siteId) {
+    final site = _sites.byId(siteId);
+    if (site == null) {
       LogTag.notification.warning(
           'Tap for unknown siteId: $siteId', sensitive: true);
       return null;
     }
     LogTag.notification.debug(
-        'Tap routing to site $index: "${_sites.models[index].name}"',
-        sensitive: true);
-    return index;
+        'Tap routing to site "${site.name}"', sensitive: true);
+    return site;
   }
 
   /// Taps on posted notifications open their site from here on. Returns the
   /// site whose notification started this process, for the cold start to open
   /// in place of the webspace list; the tap that launched the app reaches no
   /// callback.
-  Future<int?> wireTaps() async {
+  Future<WebViewModel?> wireTaps() async {
     NotificationService.instance.onNotificationTapped = _onNotificationTapped;
     final siteId = await NotificationService.instance.launchSiteId();
-    return siteId == null ? null : _indexOfTapped(siteId);
+    return siteId == null ? null : _siteTapped(siteId);
   }
 
   void startForegroundPoll() {
@@ -386,17 +389,27 @@ class BackgroundSitesController {
   void dispose() => _stopForegroundPoll();
 }
 
-class _WakeHost implements BackgroundWakeHost {
+class _WakeHost implements BackgroundWakeHost<WebViewModel> {
   _WakeHost(this._sites, {required BackgroundSitesHost host}) : _host = host;
 
   final SiteRuntime _sites;
   final BackgroundSitesHost _host;
 
-  /// The headless webviews this wake opened (NOTIF-016), by site.
-  final Map<String, HeadlessSiteCheck> _headless = {};
+  /// The headless webviews the wake opened (NOTIF-016), by site; the sites
+  /// themselves are the runtime's `headless`, which the table writes.
+  final Map<SiteId, HeadlessSiteCheck> _headless = {};
 
-  /// Set once the app is back on screen: no further check opens.
-  bool _foreground = false;
+  @override
+  RuntimeVars<WebViewModel> get vars => _sites.vars;
+
+  @override
+  WebViewModel siteOf(SiteId siteId) => _sites.byId(siteId)!;
+
+  @override
+  bool routeFree(WebViewModel site) => _host.routeFree(site);
+
+  @override
+  bool get nestedOpening => _host.nestedOpening;
 
   /// Android outside router mode: one proxy override for the process.
   static bool get _proxyIsGlobal =>
@@ -407,17 +420,17 @@ class _WakeHost implements BackgroundWakeHost {
     final env = WakeEnvironment(
       containers: _sites.useContainers,
       torUp: TorService.instance.status.isUp,
-      proxyIsGlobal: _proxyIsGlobal,
     );
     final models = _sites.models;
     return [
       for (var i = 0; i < models.length; i++)
         wakeCandidateFor(
           models[i],
-          loaded: _sites.loaded.contains(i),
+          loaded: _sites.loaded.contains(models[i]),
           hasWebview: models[i].controller != null,
           proxyBindable: !WebViewFactory.storeBinding(models[i].sitePosture(
-                  globalUserScripts: _host.webViewHooks.globalUserScripts()))
+                  globalUserScripts: _host.webViewHooks.globalUserScripts(),
+                  isolation: _sites.isolation))
               .proxyUnavailable,
           env: env,
         ),
@@ -436,13 +449,17 @@ class _WakeHost implements BackgroundWakeHost {
     if (m == null) return false;
     try {
       if (_proxyIsGlobal) {
-        await ProxyManager().setProxySettings(m.proxySettings, siteId: m.siteId);
+        await ProxyManager().setProxySettings(
+          m.proxySettings,
+          siteId: m.siteId,
+          occupant: (use: RouteUse.headless, site: m.siteId),
+        );
       }
       if (TorService.instance.isAvailable &&
           SiteUnloadEngine.torExitConstraint(m) != null) {
         // Tor holds its `up` status while a new pin is applied, so up again
         // means this site's exit country is in force (TOR-014).
-        _host.syncTorExitPin({_sites.models.indexOf(m)});
+        _host.syncTorExitPin([m]);
         if (!await _torUpWithin(_torPinDeadline)) return false;
       }
       return true;
@@ -478,41 +495,77 @@ class _WakeHost implements BackgroundWakeHost {
   // before it loads (WebViewModel.setController). Tor's exit country is put
   // back to what the loaded sites agree on (TOR-014).
   @override
-  Future<void> releaseRoute() async {
+  void releaseRoute() {
+    ProcessRoute.instance.releaseEvery(RouteUse.headless);
     if (TorService.instance.isAvailable) {
-      _host.syncTorExitPin({..._sites.loaded});
+      _host.syncTorExitPin(_sites.loaded);
     }
   }
 
   @override
   Future<WakeSkip?> openHeadless(SiteId siteId) async {
+    final ended = Completer<void>();
+    _opening.add(ended.future);
+    try {
+      return await _openHeadless(siteId);
+    } finally {
+      _opening.remove(ended.future);
+      ended.complete();
+    }
+  }
+
+  /// The opens under way, which the app's return waits out before the rule
+  /// may move: each disposes its check once it sees the app back.
+  final Set<Future<void>> _opening = {};
+
+  Future<WakeSkip?> _openHeadless(SiteId siteId) async {
     final m = _sites.byId(siteId);
     if (m == null) return WakeSkip.headlessFailed;
-    if (_foreground) return WakeSkip.appInForeground;
+    if (_sites.fore) return WakeSkip.appInForeground;
     final (check, skip) = await HeadlessSiteChecks.openHeadlessCheck(
         m.headlessCheckConfig(_host.webViewHooks));
     if (check == null) return skip;
-    if (_foreground) {
+    if (_sites.fore) {
       await check.dispose();
       return WakeSkip.appInForeground;
     }
+    // On the rule since its route was applied (applyRoute's claim).
     _headless[siteId] = check;
     return null;
   }
 
+  // A check leaves the rule once it is disposed, in the rule's turn: a
+  // webview the user opens meanwhile waits to move the rule until no check
+  // still loads on the old route (NOTIF-016).
   @override
-  Future<void> closeHeadless(SiteId siteId) async {
-    await _headless.remove(siteId)?.dispose();
+  Future<void> closeHeadless(SiteId siteId) {
+    final check = _headless.remove(siteId);
+    return ProcessRoute.instance.vacate(
+      [(use: RouteUse.headless, site: siteId)],
+      close: () async => check?.dispose(),
+    );
   }
 
-  Future<void> closeAllHeadless() async {
-    _foreground = true;
-    final open = [..._headless.values];
+  @override
+  void closeAllHeadless() => unawaited(_closeAll());
+
+  Future<void> _closeAll() {
+    final open = {..._headless};
     _headless.clear();
-    for (final c in open) {
-      await c.dispose();
-    }
+    return ProcessRoute.instance.vacateEvery(
+      RouteUse.headless,
+      close: () async {
+        await Future.wait([..._opening]);
+        for (final c in open.values) {
+          await c.dispose();
+        }
+      },
+    );
   }
+
+  @override
+  void leave(SiteId siteId) =>
+      ProcessRoute.instance.release((use: RouteUse.headless, site: siteId));
 
   @override
   bool? isLoading(SiteId siteId) {

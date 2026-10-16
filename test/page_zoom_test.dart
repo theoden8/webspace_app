@@ -24,7 +24,7 @@ PageZoomPlan _plan({
     );
 
 void main() {
-  group('zoom channel selection', () {
+  group('zoom channel selection (ZOOM-002)', () {
     test('100% carries no zoom shim on any platform', () {
       for (final plan in [
         _plan(zoom: 100, android: true),
@@ -37,7 +37,7 @@ void main() {
       }
     });
 
-    test('Android takes the viewport meta with a pinned layout width', () {
+    test('Android takes the viewport meta with a pinned layout width (ZOOM-003)', () {
       for (final zoom in [50, 80, 90, 110, 150, 200]) {
         final plan = _plan(zoom: zoom, android: true);
         expect(plan.channel, PageZoomChannel.viewportMeta);

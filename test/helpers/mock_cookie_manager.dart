@@ -1,3 +1,4 @@
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
@@ -19,6 +20,10 @@ enum JarCall { read, write, delete, clear }
 class MockCookieManager implements CookieManager {
   final List<Cookie> _cookies = [];
 
+  /// Awaited before every call, named by its method: a test that schedules
+  /// the platform's replies decides here when each one lands.
+  Future<void> Function(PlatformCall call)? pace;
+
   /// Calls that fail the way the real wrapper reports a broken channel: with
   /// [CookieJarFailure], leaving the jar as it was.
   final Set<JarCall> failing = {};
@@ -36,6 +41,9 @@ class MockCookieManager implements CookieManager {
   /// All cookies in the jar (for assertions).
   List<Cookie> get all => List.unmodifiable(_cookies);
 
+  /// Puts [cookie] in the jar at once, as a previous run left it.
+  void seed(Cookie cookie) => _cookies.add(cookie);
+
   /// Unique domains present in the jar.
   Set<String> get domainsWithCookies => {
         for (final c in _cookies)
@@ -44,6 +52,7 @@ class MockCookieManager implements CookieManager {
 
   @override
   Future<List<Cookie>> getCookies({required Uri url}) async {
+    await pace?.call(PlatformCall.cookiesGet);
     _answer(JarCall.read);
     final host = url.host.toLowerCase();
     final path = url.path.isEmpty ? '/' : url.path;
@@ -56,6 +65,7 @@ class MockCookieManager implements CookieManager {
 
   @override
   Future<List<Cookie>> getAllCookies({List<Uri>? candidateUrls}) async {
+    await pace?.call(PlatformCall.cookiesGetAll);
     // The real iOS/macOS path ignores candidateUrls. On Android the wrapper
     // aggregates per-URL; for tests the mock returns everything so we don't
     // need to thread a platform switch through the tests.
@@ -74,6 +84,7 @@ class MockCookieManager implements CookieManager {
     bool? isSecure,
     bool? isHttpOnly,
   }) async {
+    await pace?.call(PlatformCall.cookieSet);
     _answer(JarCall.write);
     if (refusing.contains(name)) throw CookieJarFailure('$name refused');
     final effectiveDomain = (domain ?? url.host).toLowerCase();
@@ -100,6 +111,7 @@ class MockCookieManager implements CookieManager {
     String? domain,
     String? path,
   }) async {
+    await pace?.call(PlatformCall.cookieDelete);
     _answer(JarCall.delete);
     if (refusing.contains(name)) throw CookieJarFailure('$name refused');
     final effectiveDomain = (domain ?? url.host).toLowerCase();
@@ -112,12 +124,14 @@ class MockCookieManager implements CookieManager {
 
   @override
   Future<void> deleteAllCookies() async {
+    await pace?.call(PlatformCall.cookiesDeleteAll);
     _answer(JarCall.clear);
     _cookies.clear();
   }
 
   @override
   Future<void> deleteAllCookiesForUrl(Uri url) async {
+    await pace?.call(PlatformCall.cookiesDeleteAllForUrl);
     final cookies = await getCookies(url: url);
     for (final c in cookies) {
       await deleteCookie(url: url, name: c.name, domain: c.domain, path: c.path);
@@ -229,14 +243,19 @@ class AndroidScopedCookieManager extends MockCookieManager {
 class MockCookieSecureStorage implements CookieSecureStorage {
   final Map<String, List<Cookie>> _storage = {};
 
+  /// As [MockCookieManager.pace].
+  Future<void> Function(PlatformCall call)? pace;
+
   @override
   Future<List<Cookie>> loadCookiesForSite(String siteId) async {
+    await pace?.call(PlatformCall.cookieStoreLoad);
     return List.from(_storage[siteId] ?? const []);
   }
 
   @override
   Future<void> saveCookiesForSite(String siteId,
       {required List<Cookie> cookies}) async {
+    await pace?.call(PlatformCall.cookieStoreSave);
     if (cookies.isEmpty) {
       _storage.remove(siteId);
     } else {
@@ -246,10 +265,15 @@ class MockCookieSecureStorage implements CookieSecureStorage {
 
   @override
   Future<void> removeOrphanedCookies(Set<String> activeSiteIds) async {
+    await pace?.call(PlatformCall.cookieStoreRemoveOrphans);
     _storage.removeWhere((siteId, _) => !activeSiteIds.contains(siteId));
   }
 
   Map<String, List<Cookie>> get allStorage => Map.from(_storage);
+
+  /// Stores [cookies] for [siteId] at once, as a previous run saved them.
+  void seed(String siteId, {required List<Cookie> cookies}) =>
+      _storage[siteId] = List.from(cookies);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

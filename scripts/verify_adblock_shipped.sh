@@ -65,7 +65,7 @@ case "$platform" in
     apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
     [ ${#apks[@]} -gt 0 ] || { echo "::error::android: no fdroid APK to scan" >&2; exit 1; }
     for apk in "${apks[@]}"; do
-      if ! unzip -l "$apk" | grep -qE 'lib/[^/]+/libwebspace_adblock\.so'; then
+      if ! grep -qE 'lib/[^/]+/libwebspace_adblock\.so' <<<"$(unzip -l "$apk")"; then
         echo "::error::android: libwebspace_adblock.so missing from $apk" >&2
         unzip -l "$apk" | grep -E 'lib/' | head || true
         exit 1

@@ -66,7 +66,14 @@ void checkFileStoreName(String name) {
       name.contains('..')) {
     throw ArgumentError.value(name, 'name', 'escapes the store directory');
   }
+  if (name.endsWith(kFileStoreStagedSuffix)) {
+    throw ArgumentError.value(name, 'name', 'names a write in progress');
+  }
 }
+
+/// The suffix of a write not yet renamed over its file, which no listing
+/// shows.
+const kFileStoreStagedSuffix = '.partial';
 
 /// In-memory [FileStore]. The web implementation and the fake tests reach for:
 /// same semantics, no disk.

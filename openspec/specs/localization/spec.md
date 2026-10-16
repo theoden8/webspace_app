@@ -29,7 +29,7 @@ localization infrastructure (`generate: true` in pubspec belonged to
 
 ARB files under `lib/l10n/`, with `app_en.arb` as the template. The
 translations ship as data: the app reads the active locale's ARB from its
-assets at run time (LOC-012). `tool/gen_l10n.dart` generates only the typed
+assets at run time (L10N-012). `tool/gen_l10n.dart` generates only the typed
 `AppLocalizations` API into `lib/l10n/gen/` (gitignored), with the signatures
 Flutter's `gen_l10n` produced. The `MaterialApp` wires `AppLocalizations`
 delegates and `supportedLocales`. Every key carries a `description` so a translator (human or
@@ -42,7 +42,7 @@ whose enforced scope only grows.
 
 ## Requirements
 
-### Requirement: LOC-001 - ARB source of truth
+### Requirement: L10N-001 - ARB source of truth
 
 The English ARB SHALL be the single authored source of all UI strings, and
 generated localization code SHALL NOT be committed.
@@ -60,7 +60,7 @@ generated localization code SHALL NOT be committed.
 - **Then** a sibling `@k` block exists with a non-empty `description`
 - **And** `test/js/l10n_coverage.test.js` fails if any key lacks it
 
-### Requirement: LOC-002 - No unkeyed user-facing text
+### Requirement: L10N-002 - No unkeyed user-facing text
 
 A UI file SHALL NOT pass a raw string literal into a user-facing display
 sink; all on-screen text SHALL resolve through `AppLocalizations`.
@@ -78,7 +78,7 @@ sink; all on-screen text SHALL resolve through `AppLocalizations`.
 - **When** it is added, with no edit to the guard
 - **Then** the guard scans it like every other UI file
 
-### Requirement: LOC-003 - Translation coverage gate
+### Requirement: L10N-003 - Translation coverage gate
 
 Every non-template locale ARB SHALL define exactly the template's keys, with
 matching placeholder tokens and no empty values.
@@ -117,7 +117,7 @@ matching placeholder tokens and no empty values.
   names like `WebSpace`, `LocalCDN`, `ClearURLs`; acronyms like `DNS`, `GPS`,
   `SHA-256`; example hosts/URLs; and `auto`) so they never trip the guard
 
-### Requirement: LOC-004 - Description-driven translation
+### Requirement: L10N-004 - Description-driven translation
 
 Every template message SHALL carry a `description` so the strings can be
 translated by handing the English ARB to any general-purpose model (or a human),
@@ -136,7 +136,7 @@ with no committed translation script, API key, or prompt in the repo.
 - **Then** the coverage test passes (key + placeholder parity, no empties)
 - **And** no script, endpoint, or credential is required
 
-### Requirement: LOC-005 - Phased migration
+### Requirement: L10N-005 - Phased migration
 
 String migration SHALL proceed file-by-file, with the guard's enforced set
 only growing.
@@ -148,7 +148,7 @@ only growing.
 - **Then** it is removed from `exempt`
 - **And** the migration is complete when `exempt` is empty
 
-### Requirement: LOC-006 - MaterialApp wiring
+### Requirement: L10N-006 - MaterialApp wiring
 
 The root `MaterialApp` SHALL register the localization delegates and supported
 locales.
@@ -160,7 +160,7 @@ locales.
 - **And** `supportedLocales: AppLocalizations.supportedLocales`
 - **And** the OS window title resolves via `onGenerateTitle` -> `appTitle`
 
-### Requirement: LOC-012 - Translations ship as data
+### Requirement: L10N-012 - Translations ship as data
 
 The app SHALL read each locale's messages from its ARB file at run time, so the
 compiled code carries one copy of the localization API rather than one class

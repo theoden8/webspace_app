@@ -467,7 +467,7 @@ test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
   });
 });
 
-test('the worker an inline script builds at document start is rebuilt', async (t) => {
+test('the worker an inline script builds at document start is rebuilt (WORK-008)', async (t) => {
   // The historical shape of this failure (#560): the worker exists before the
   // page has run a line of its own script, and the refusal reaches it as an
   // error event with no constructor left to fall open on.

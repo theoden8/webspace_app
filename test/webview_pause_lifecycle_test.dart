@@ -35,7 +35,7 @@ void main() {
       expect(c.calls, ['resume']);
     });
 
-    test('pauseWebView() does NOT invoke pauseAllJsTimers (no global timer pause on site switch)', () async {
+    test('pauseWebView() does NOT invoke pauseAllJsTimers (no global timer pause on site switch) (PAUSE-001)', () async {
       final c = FakeWebViewController();
       await _modelWith(c).pauseWebView();
       expect(c.calls, isNot(contains('pauseAllJsTimers')),
@@ -43,7 +43,7 @@ void main() {
               'a per-site pauseWebView() would freeze every other loaded webview.');
     });
 
-    test('pauseForAppLifecycle() invokes per-instance pause AND global timer pause, in order', () async {
+    test('pauseForAppLifecycle() invokes per-instance pause AND global timer pause, in order (PAUSE-002)', () async {
       final c = FakeWebViewController();
       await _modelWith(c).pauseForAppLifecycle();
       expect(c.calls, ['pause', 'pauseAllJsTimers']);
@@ -368,7 +368,7 @@ void main() {
     });
   });
 
-  group('WebViewModel pause/resume null-safety', () {
+  group('WebViewModel pause/resume null-safety (PAUSE-004)', () {
     test('pauseWebView() with no controller is a no-op', () async {
       final m = _modelWith(null);
       await m.pauseWebView();

@@ -2,6 +2,8 @@
 // comment, so `!#if` and `!#include` are resolved before the engine sees the
 // text; each case here pins behaviour to uBO's `utils.preparser` and
 // `assets.fetchFilterList`.
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -238,6 +240,60 @@ void main() {
       expect(await service.downloadList(id), isFalse);
       expect(service.lists.singleWhere((l) => l.id == id).lastUpdated, isNull);
       expect(service.abpNetworkBlockHosts, isNot(contains('main.example')));
+    });
+
+    // The fetch takes seconds, and the list set can change under it.
+    // CB-021
+    group('a download whose list changed while it fetched', () {
+      late Completer<void> release;
+      setUp(() {
+        release = Completer<void>();
+        outboundHttp = FakeOutbound(responder: (req) async {
+          await release.future;
+          return http.Response('||late.example^\n', 200);
+        });
+      });
+
+      test('lands nowhere once the list is removed', () async {
+        final id = await service.addCustomList(
+            'late', url: 'https://lists.example/late.txt');
+        final download = service.downloadList(id);
+        await service.removeList(id);
+        release.complete();
+        expect(await download, isFalse);
+        expect(service.lists.where((l) => l.id == id), isEmpty);
+        expect(service.abpNetworkBlockHosts, isNot(contains('late.example')));
+      });
+
+      test('lands on the list an import put in its place', () async {
+        final id = await service.addCustomList(
+            'late', url: 'https://lists.example/late.txt');
+        final download = service.downloadList(id);
+        await service.importListSelection([
+          {'id': id, 'name': 'late', 'url': 'https://lists.example/late.txt',
+           'enabled': false},
+        ]);
+        release.complete();
+        expect(await download, isTrue);
+        final list = service.lists.singleWhere((l) => l.id == id);
+        expect(list.lastUpdated, isNotNull,
+            reason: 'the download wrote its file; the entry must say so');
+        expect(list.enabled, isTrue);
+        expect(service.abpNetworkBlockHosts, contains('late.example'));
+      });
+
+      test('lands nowhere when an import gave the id another url', () async {
+        final id = await service.addCustomList(
+            'late', url: 'https://lists.example/late.txt');
+        final download = service.downloadList(id);
+        await service.importListSelection([
+          {'id': id, 'name': 'other', 'url': 'https://lists.example/other.txt'},
+        ]);
+        release.complete();
+        expect(await download, isFalse);
+        expect(service.lists.single.lastUpdated, isNull);
+        expect(service.abpNetworkBlockHosts, isNot(contains('late.example')));
+      });
     });
   });
 }

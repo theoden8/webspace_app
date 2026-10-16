@@ -13,7 +13,6 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'helpers/mock_container_native.dart';
-import 'helpers/mock_cookie_manager.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -168,13 +167,14 @@ void main() {
     final user = SiteId('user-site');
     final demo = SiteId('demo-site');
     late MockContainerNative native;
+    late ContainerIsolationEngine containers;
     late ProxyPasswordSecureStorage proxyPasswords;
     late PageOrphanSweep sweep;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       native = MockContainerNative();
-      final containers = ContainerIsolationEngine(containerNative: native);
+      containers = ContainerIsolationEngine(containerNative: native);
       await containers.ensureContainer(ContainerKey.ofSite(user));
       proxyPasswords = ProxyPasswordSecureStorage(
           secureStorage: MockFlutterSecureStorage());
@@ -186,16 +186,14 @@ void main() {
             CookieSecureStorage(secureStorage: MockFlutterSecureStorage()),
         proxyPasswords: proxyPasswords,
         navStates: InMemoryWebViewStateStorage(),
-        cookies: MockCookieManager(),
-        containers: containers,
       );
     });
 
     test('a seeded site list deletes nothing the user\'s sites keep',
         () async {
       isDemoMode = true;
-      await sweep.containersBeforeBind({ContainerKey.ofSite(demo)},
-          nonIncognito: {ContainerKey.ofSite(demo)});
+      await containers.sweepBeforeBind({ContainerKey.ofSite(demo)},
+          incognito: const {});
       await sweep.atLaunch({demo}, nonIncognitoSiteIds: {demo});
       await sweep.afterRemoval();
 
@@ -206,8 +204,8 @@ void main() {
 
     test('outside demo mode the same launch sweep reclaims the container',
         () async {
-      await sweep.containersBeforeBind({ContainerKey.ofSite(demo)},
-          nonIncognito: {ContainerKey.ofSite(demo)});
+      await containers.sweepBeforeBind({ContainerKey.ofSite(demo)},
+          incognito: const {});
 
       expect(native.profiles.keys, isNot(contains(user)));
     });

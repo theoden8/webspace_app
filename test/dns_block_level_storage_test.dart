@@ -84,6 +84,28 @@ void main() {
       expect(prefs.getString('dns_block_last_updated'), isNotNull);
     });
 
+    test('a listener told of the download reads the new app-wide level',
+        () async {
+      // Every live view's follower re-attaches its native interceptor only
+      // when its effective level moved; told before the level, it kept the
+      // old one until the view was rebuilt.
+      outboundHttp = _mirror({
+        1: _body(1, extra: ['c.example']),
+        2: _body(2, extra: ['a.example']),
+        4: _body(4, extra: ['b.example']),
+      });
+      final heard = <int>[];
+      void listen() => heard.add(service.effectiveLevelFor(null));
+      service.addBlocklistChangedListener(listen);
+      addTearDown(() => service.removeBlocklistChangedListener(listen));
+
+      await service.downloadList(2);
+      await service.downloadList(4);
+      await service.downloadLevel(1);
+
+      expect(heard, [2, 4, 4]);
+    });
+
     test('a second level folds in without duplicating a shared domain',
         () async {
       outboundHttp = _mirror({
@@ -176,7 +198,7 @@ void main() {
   });
 
   group('reload from disk (DNS-019)', () {
-    test('a cold start reproduces every level exactly', () async {
+    test('a cold start reproduces every level exactly (DNS-003)', () async {
       outboundHttp = _mirror({
         3: _body(3, extra: ['shared.example', 'pro-only.example']),
         1: _body(1, extra: ['shared.example', 'light-only.example']),
@@ -263,6 +285,14 @@ void main() {
           isFalse);
     });
 
+    test('a cold start removes the retired host cache (DNS-016)', () async {
+      SharedPreferences.setMockInitialValues(
+          {'dns_domain_cache': '{"tracker.example":true}'});
+      await coldStart();
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey('dns_domain_cache'), isFalse);
+    });
+
     test('a cold start with no file leaves the service empty', () async {
       await coldStart();
       expect(service.hasBlocklist, isFalse);
@@ -339,6 +369,45 @@ void main() {
           isFalse);
     });
 
+    // The startup sweep reads the levels when it is called, and a download
+    // the user started can land before the sweep runs: the level it brought
+    // was dropped, and every app-level site blocked nothing.
+    test('a level that lands after the sweep read the levels is kept',
+        () async {
+      outboundHttp = _mirror({
+        1: _body(1, extra: ['light-only.example']),
+        3: _body(3, extra: ['pro-only.example']),
+      });
+      await service.downloadList(1);
+
+      final download = service.downloadList(3);
+      final sweep = service.pruneLevels(
+          requiredDnsLevels(globalLevel: service.level, siteLevels: const []));
+      await download;
+      await sweep;
+
+      expect(service.level, 3);
+      expect(service.downloadedLevels, contains(3));
+      expect(service.isHostBlockedAtLevel('pro-only.example', level: 3),
+          isTrue);
+    });
+
+    test('a site level fetched before its Save survives the sweep', () async {
+      outboundHttp = _mirror({
+        3: _body(3, extra: ['pro-only.example']),
+        1: _body(1, extra: ['light-only.example']),
+      });
+      await service.downloadList(3);
+
+      final fetch = service.downloadLevel(1);
+      final sweep = service.pruneLevels(
+          requiredDnsLevels(globalLevel: service.level, siteLevels: const []));
+      await fetch;
+      await sweep;
+
+      expect(service.downloadedLevels, {1, 3});
+    });
+
     test('pruning nothing rewrites nothing', () async {
       outboundHttp = _mirror({3: _body(3, extra: ['a.example'])});
       await service.downloadList(3);
@@ -370,7 +439,7 @@ void main() {
       expect(service.hasBlocklist, isFalse);
     });
 
-    test('an imported level drops the cache and keeps the intent', () async {
+    test('an imported level drops the cache and keeps the intent (DNS-024)', () async {
       outboundHttp = _mirror({3: _body(3, extra: ['a.example'])});
       await service.downloadList(3);
 

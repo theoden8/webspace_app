@@ -30,7 +30,7 @@ function dartFiles(rel) {
       : e.name.endsWith('.dart') ? [`${rel}/${e.name}`] : []);
 }
 
-test('a title row gets its hint button through HintedTitle', () => {
+test('a title row gets its hint button through HintedTitle (HINT-001)', () => {
   const offenders = scanRoots.flatMap(dartFiles).filter((rel) =>
     !(rel in ALLOWED)
     && /\bHintButton\(/.test(fs.readFileSync(path.join(repoRoot, rel), 'utf8')));

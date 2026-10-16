@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -74,7 +75,7 @@ void main() {
       });
       service.store = MemoryFileStore();
 
-      await service.initialize();
+      await service.initialize(native: WebInterceptNative.initialize());
 
       expect(service.debugListMasks, {
         'easylist': {'a.example', 'b.example'},
@@ -88,7 +89,7 @@ void main() {
         });
         service.store = MemoryFileStore();
 
-        await service.initialize();
+        await service.initialize(native: WebInterceptNative.initialize());
 
         expect(service.debugListMasks.values.expand((h) => h), isEmpty,
             reason: bad);
@@ -103,7 +104,7 @@ void main() {
       });
       service.store = MemoryFileStore();
 
-      await service.initialize();
+      await service.initialize(native: WebInterceptNative.initialize());
 
       expect(service.debugListMasks, {
         'easylist': {'a.example'},
@@ -140,7 +141,7 @@ void main() {
           reason: 'the engine reparses every list, so a no-op must stay one');
     });
 
-    test('adding a host to an existing mask rebuilds', () async {
+    test('adding a host to an existing mask rebuilds (CB-008)', () async {
       await service.setListMasks({
         'easylist': {'a.example'},
       });

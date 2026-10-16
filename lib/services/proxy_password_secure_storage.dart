@@ -55,7 +55,7 @@ class ProxyPasswordSecureStorage {
   /// `GlobalOutboundProxy`) that both write this key, and an unsynchronized
   /// load-modify-save on one would otherwise clobber a concurrent write from
   /// the other (silently dropping a just-saved proxy password).
-  static final SerialQueue _writes = SerialQueue();
+  static final SerialQueue _writes = SerialQueue('proxyPasswordWrites');
 
   final SecureJsonStore<Map<ProxyPasswordKey, String>> _store;
 

@@ -14,7 +14,7 @@ void main() {
       expect(plan.unloaded, 0);
     });
 
-    test('excludes the current active site', () {
+    test('excludes the current active site (NOTIF-006)', () {
       final plan = ForegroundPollEngine.plan(
         siteCount: 3,
         currentIndex: 1,

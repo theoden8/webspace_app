@@ -35,7 +35,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:socks5_proxy/socks_client.dart' as socks5;
 
 import 'package:webspace/settings/site_ids.dart';
-import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_geoip_io.dart';
@@ -46,7 +46,6 @@ import 'bare_site.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
-import 'package:webspace/services/page_js.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
 final bool torRequired = Platform.environment['WEBSPACE_TOR_NETWORK'] == '1';
@@ -427,7 +426,7 @@ class TorProbe {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(PageJs.load);
+  setUpAll(bareSetUp);
 
   late StreamSubscription<TorStatus> sub;
   final seen = <TorStatus>[];
@@ -1078,7 +1077,7 @@ void main() {
     }
     // Where a site has its own WKWebsiteDataStore, which is what outlives
     // the WebView and carried the old route on a device.
-    if (!await ContainerNative.instance.isSupported()) {
+    if (bareIsolation is! Containers) {
       markTestSkipped('no per-site container on this OS');
       return;
     }

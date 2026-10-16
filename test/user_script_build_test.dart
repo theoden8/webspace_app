@@ -74,7 +74,7 @@ void main() {
       expect(scripts.single.source, contains('MARK_A();'));
     });
 
-    test('disabled and empty-source scripts are skipped', () {
+    test('disabled and empty-source scripts are skipped (US-002)', () {
       final svc = UserScriptService(
         scripts: [
           UserScriptConfig(name: 'a', source: 'KEEP_A();'),

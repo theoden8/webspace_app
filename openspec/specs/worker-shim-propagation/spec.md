@@ -411,8 +411,6 @@ working (WORK-006). What it replaces SHALL read as the engine's own once the
 payload loads: same `toString`, `name` and `length`, `location` with no own
 properties, `Request.prototype.constructor === Request`.
 
-History: [BUG-032](../../../docs/bugs/032-wrapped-worker-relative-urls.md).
-
 #### Scenario: A wrapped worker loads relative URLs
 
 **Given** a site with an active per-site shim, and a classic, module or shared

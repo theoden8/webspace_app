@@ -68,7 +68,7 @@ for SHA in $COMMITS; do
         EXIT_CODE=1
     fi
 
-    if printf '%s\n' "$BODY" | grep -q '^Cherry-picked-from:'; then
+    if grep -q '^Cherry-picked-from:' <<<"$BODY"; then
         AUTHOR=$(git show -s --format='%an <%ae>' "$SHA")
         COMMITTER=$(git show -s --format='%cn <%ce>' "$SHA")
         if [ "$AUTHOR" = "$COMMITTER" ]; then

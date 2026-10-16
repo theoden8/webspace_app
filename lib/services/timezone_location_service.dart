@@ -65,6 +65,10 @@ class TimezoneLocationService {
   /// True iff a polygon dataset is parsed and ready for lookups.
   bool get isReady => _zones != null && _zones!.isNotEmpty;
 
+  /// Whether a lookup has been tried in this process: the dataset is in
+  /// memory, or its load ran and found none to read.
+  bool get lookedUp => _zones != null || _loadAttempted;
+
   /// Number of IANA zones in the loaded dataset (0 if not loaded).
   int get zoneCount => _zones?.length ?? 0;
 

@@ -372,7 +372,7 @@ void main() {
 
     test('a blocked route names what the runtime is doing', () async {
       String reason(TorEngine e) =>
-          (e.routeFor(TorTag.ofSite(SiteId('a1'))) as TorRouteBlocked).reason;
+          (e.routeFor(TorTag.fromWire('a1')) as TorRouteBlocked).reason;
       final e = build();
       expect(reason(e), 'Tor is not running.');
 
@@ -389,7 +389,7 @@ void main() {
 
       runtime.emit(TorUp('127.0.0.1', port: 9999));
       await pumpEventQueue();
-      final up = e.routeFor(TorTag.ofSite(SiteId('a1'))) as TorRouteUp;
+      final up = e.routeFor(TorTag.fromWire('a1')) as TorRouteUp;
       expect(up.socks, isA<UserProxySettings>());
       expect(up.socks.username, 'a1');
       await e.dispose();

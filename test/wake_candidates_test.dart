@@ -9,11 +9,7 @@ import 'package:webspace/web_view_model.dart';
 /// alone could not see that every site in a process launched for the wake was
 /// dropped before the engine ran.
 void main() {
-  const env = WakeEnvironment(
-    containers: true,
-    torUp: true,
-    proxyIsGlobal: false,
-  );
+  const env = WakeEnvironment(containers: true, torUp: true);
 
   WebViewModel site(String url,
           {bool notifications = true,
@@ -75,8 +71,7 @@ void main() {
     expect(
       planFor(
         [site('https://a.test')],
-        environment: const WakeEnvironment(
-            containers: false, torUp: true, proxyIsGlobal: false),
+        environment: const WakeEnvironment(containers: false, torUp: true),
       ).single.skip,
       WakeSkip.legacyIsolation,
     );
@@ -88,17 +83,14 @@ void main() {
     expect(
       planFor(
         [tor],
-        environment: const WakeEnvironment(
-            containers: true, torUp: false, proxyIsGlobal: false),
+        environment: const WakeEnvironment(containers: true, torUp: false),
       ).single.skip,
       WakeSkip.torDown,
     );
   });
 
-  test('Android: a site behind another proxy than the live one is skipped',
+  test('the plan leaves the route to each check, which asks it as it opens',
       () {
-    const android =
-        WakeEnvironment(containers: true, torUp: true, proxyIsGlobal: true);
     final entries = planFor(
       [
         site('https://a.test',
@@ -108,31 +100,10 @@ void main() {
       ],
       loaded: {0},
       withWebview: {0},
-      environment: android,
     );
     expect(entries[0].mode, WakeMode.live);
-    expect(entries[1].skip, WakeSkip.proxyConflict);
-  });
-
-  test('Android: sites on the same proxy share one route', () {
-    const android =
-        WakeEnvironment(containers: true, torUp: true, proxyIsGlobal: true);
-    final a = site('https://a.test');
-    final b = site('https://b.test');
-    expect(wakeRouteFor(a, proxyIsGlobal: android.proxyIsGlobal),
-        wakeRouteFor(b, proxyIsGlobal: android.proxyIsGlobal));
-    expect(planFor([a, b], environment: android).map((e) => e.mode),
-        everyElement(WakeMode.headless));
-  });
-
-  test('per-site proxies carry no route unless the site uses Tor', () {
-    expect(wakeRouteFor(site('https://a.test'), proxyIsGlobal: false), isNull);
-    expect(
-      wakeRouteFor(
-          site('https://a.test',
-              proxy: UserProxySettings(type: ProxyType.TOR)),
-          proxyIsGlobal: false),
-      isA<WakeRoute>().having((r) => r.torExit, 'torExit', isNotNull),
-    );
+    expect(entries[1].mode, WakeMode.headless,
+        reason: 'whether b may run beside a is the activation\'s RouteFree, '
+            'asked when its check opens (BackgroundWakeEngine)');
   });
 }

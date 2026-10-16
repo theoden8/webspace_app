@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/services/container_names.dart';
 import 'package:webspace/settings/proxy_ids.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -73,6 +74,7 @@ import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
+import 'package:webspace/services/webview.dart';
 
 class GalleryCard {
   const GalleryCard({
@@ -161,7 +163,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _loadRoboto();
   _seedSavedProxies();
+  GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
   _seedAppPrefs();
+  // The web build draws no webview; the mode any settings builder reads.
+  WebViewFactory.hybridComposition = true;
   final q = Uri.base.queryParameters;
   runApp(GalleryApp(
     cardId: q['card'],
@@ -879,6 +884,7 @@ Widget _siteBehaviour(BuildContext _) {
   return SiteBehaviourScreen(
     host: 'duckduckgo.com',
     incognito: false,
+    containersActive: true,
     values: const SiteBehaviourValues(
       archived: false,
       alwaysOpenHome: false,
@@ -1019,14 +1025,13 @@ WebViewModel _siteWithTabs(String name,
     required TabId active,
     SiteId? siteId,
     int? containerColor}) {
-  final m = WebViewModel(
+  return WebViewModel(
       initUrl: initUrl,
       name: name,
       siteId: siteId,
-      containerColor: containerColor);
-  m.tabs = tabs;
-  m.activeTabId = active;
-  return m;
+      containerColor: containerColor,
+      tabs: tabs,
+      activeTabId: active);
 }
 
 SearchSite _site(SiteId id, {required String name, required String url}) =>
@@ -1102,6 +1107,7 @@ class _SiteSearchListCardState extends State<_SiteSearchListCard> {
 Widget _siteBehaviourSearch(BuildContext _) => SiteBehaviourScreen(
       host: 'searx.lan',
       incognito: false,
+      containersActive: true,
       values: SiteBehaviourValues(
         archived: false,
         alwaysOpenHome: false,
@@ -1282,9 +1288,8 @@ abstract final class _TabsDemo {
   static void bindLookup() => WebViewModel.siteLookup = (id) => _byId[id];
 
   static List<TabsSheetSite> sites({required WebViewModel current}) => [
-        for (final (i, m) in all.indexed)
+        for (final m in all)
           TabsSheetSite(
-            index: i,
             model: m,
             isCurrent: identical(m, current),
             isLoaded: identical(m, current) || identical(m, mastodon),
@@ -1337,9 +1342,9 @@ Widget _tabsSheetWayBack(BuildContext _) {
     'GitHub',
     current: 0,
     sites: [
-      TabsSheetSite(index: 0, model: github, isCurrent: true, isLoaded: true),
-      for (final (i, m) in _TabsDemo.all.skip(1).indexed)
-        TabsSheetSite(index: i + 1, model: m, isCurrent: false, isLoaded: identical(m, _TabsDemo.duckduckgo)),
+      TabsSheetSite(model: github, isCurrent: true, isLoaded: true),
+      for (final m in _TabsDemo.all.skip(1))
+        TabsSheetSite(model: m, isCurrent: false, isLoaded: identical(m, _TabsDemo.duckduckgo)),
     ],
     wayBack: TabReturn(
         fromSiteId: SiteId('ddg'), fromTabId: kPrimaryTabId, toSiteId: SiteId('gh'), toTabId: TabId('search')),
