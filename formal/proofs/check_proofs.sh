@@ -80,7 +80,7 @@ min_obligations() {
 # (activation_tables_proof, the tables' cases of activation_turns) are checked here
 # on their own.
 work="$(mktemp -d)"
-trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$work"' EXIT
+trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "$work"' EXIT
 check() {
   local f="$1" name out proved want
   name="$(basename "$f")"
