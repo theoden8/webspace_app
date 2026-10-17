@@ -62,6 +62,8 @@ fi
 
 SLOTS="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
 [ "$SLOTS" -ge 1 ] 2>/dev/null || { echo "FORMAL_SLOTS is not a count of cores: $SLOTS" >&2; exit 2; }
+PROGRESS="${FORMAL_PROGRESS_SECONDS:-60}"
+[ "$PROGRESS" -ge 1 ] 2>/dev/null || { echo "FORMAL_PROGRESS_SECONDS is not a positive interval: $PROGRESS" >&2; exit 2; }
 CACHE="${FORMAL_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/webspace-formal}"
 TIMES="$CACHE/times" MEMO="$CACHE/memo"
 mkdir -p "$TIMES" "$MEMO"
@@ -145,8 +147,8 @@ key() {
 # run gets the share of the cores its last time (seconds by workers) is of
 # all of theirs, at least one and, beside others, one fewer than every
 # core. The longest start first, one with no time yet as long as the
-# mean of those with one: a world the code has just grown may be long,
-# but the base config, which reruns with most changes, is known to be.
+# mean of those with one. Without a time, split the cores between two runs:
+# starting every cold run with one worker strands the longest on one core.
 plan() {
   local name job secs w cost
   while IFS=$'\t' read -r name job; do
@@ -160,7 +162,9 @@ plan() {
       cap = (NR > 1 && slots > 1) ? slots - 1 : slots
       mean = known ? total / known : 0
       for (i = 1; i <= NR; i++) {
-        w = cost[i] > 0 ? int((slots * cost[i] + total - 1) / total) : 1
+        w = cost[i] > 0 ? int((slots * cost[i] + total - 1) / total) : int(slots / 2)
+        if (NR == 1) w = slots
+        if (w < 1) w = 1
         if (w > cap) w = cap
         print (cost[i] < 0 ? mean : cost[i]), i, name[i], w, job[i]
       }
@@ -180,6 +184,7 @@ pool() {
     [ "$lib" != - ] || lib=""
     [ "$cover" != - ] || cover=""
     mkdir -p "$RUNS/$name.tmp"
+    echo "$SECONDS $w" >"$RUNS/$name.started"
     java "-Djava.io.tmpdir=$RUNS/$name.tmp" ${lib:+"-DTLA-Library=$lib"} -cp "$JAR" \
       tlc2.TLC -workers "$w" ${cover:+-coverage 100000} \
       -metadir "$RUNS/$name.states" -config "$cfg" "$spec" >"$RUNS/$name.out" 2>&1 &
@@ -252,7 +257,20 @@ expect() {
   fi
   RAN=$((RAN + 1))
   # A pool that died leaves the run unfinished, which reads as a failure.
-  while [ ! -f "$RUNS/$name.done" ] && kill -0 "$POOL" 2>/dev/null; do sleep 0.2; done
+  local next=$((SECONDS + PROGRESS)) started workers progress
+  while [ ! -f "$RUNS/$name.done" ] && kill -0 "$POOL" 2>/dev/null; do
+    if [ "$SECONDS" -ge "$next" ]; then
+      if read -r started workers 2>/dev/null <"$RUNS/$name.started"; then
+        printf '  RUN  %s: %s workers, %ss elapsed\n' "$(basename "$1")" "$workers" "$((SECONDS - started))"
+        progress="$(grep -E '^Progress|states generated' "$RUNS/$name.out" 2>/dev/null | tail -1 || true)"
+        [ -z "$progress" ] || printf '       %s\n' "$progress"
+      else
+        printf '  WAIT %s: queued for workers\n' "$(basename "$1")"
+      fi
+      next=$((SECONDS + PROGRESS))
+    fi
+    sleep 0.2
+  done
   local out; out="$(cat "$RUNS/$name.out" 2>/dev/null || true)"
   if [ -n "${COVERAGE:-}" ]; then
     mkdir -p "$COVERAGE"

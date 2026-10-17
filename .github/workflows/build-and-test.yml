@@ -262,12 +262,14 @@ jobs:
       # earlier run is not proved again (formal/proofs/check_proofs.sh). They
       # are per obligation: a changed module reproves only what changed, and
       # a stale cache costs nothing but a miss. A new tlapm starts from none.
-      # Saved only by a job that passed, so a failed attempt is not kept.
+      # Each backend's version is checked by --safefp; failed obligations
+      # are retried without fingerprints by check_proofs.sh.
       - name: Cache the TLAPS fingerprints
-        uses: actions/cache@v4
+        id: tlapm-cache
+        uses: actions/cache/restore@v4
         with:
           path: formal/proofs/.tlacache
-          key: tlapm-${{ runner.os }}-${{ steps.tlapm.outputs.version }}-${{ hashFiles('formal/**/*.tla', 'lib/**/*.dart') }}
+          key: tlapm-${{ runner.os }}-${{ steps.tlapm.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             tlapm-${{ runner.os }}-${{ steps.tlapm.outputs.version }}-
       # What formal/check.sh keeps between runs (FORMAL_CACHE): each TLC
@@ -276,7 +278,8 @@ jobs:
       # whose inputs are unchanged is remembered instead of run again
       # (formal/README.md, "Remembered runs").
       - name: Cache the formal runs
-        uses: actions/cache@v4
+        id: formal-cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/webspace-formal
           key: formal-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -294,7 +297,24 @@ jobs:
           [ -x "$HOME/.elan/bin/elan" ] || curl -fsSL --retry 4 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none --no-modify-path
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Verify the formal models
+        id: formal-verify
+        # Leave time inside the six-hour job limit to save completed work.
+        timeout-minutes: 300
         run: ./formal/verify.sh
+      # check.sh remembers each validated run as it ends. A later failure
+      # must not throw away those results and the worker timing history.
+      - name: Save the formal runs
+        if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/webspace-formal
+          key: ${{ steps.formal-cache.outputs.cache-primary-key }}
+      - name: Save the TLAPS fingerprints
+        if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
+        uses: actions/cache/save@v4
+        with:
+          path: formal/proofs/.tlacache
+          key: ${{ steps.tlapm-cache.outputs.cache-primary-key }}
       # The printed modules and the walk and step traces a failed check read,
       # zipped, so a counterexample can be replayed without rerunning.
       - name: Upload the formal models and traces

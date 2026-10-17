@@ -61,8 +61,11 @@ if [ "$FAST" -eq 0 ]; then
   shards="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
   pids=""
   for i in $(seq 0 $((shards - 1))); do
+    printf '  START schedule shard %s/%s\n' "$((i + 1))" "$shards"
+    # GitHub's default reporter has no timestamped loading line for the
+    # startup handshake below, so it would serialize the entire shards.
     MODEL_STEPS_DIR="$OUT/steps/$i" SCHEDULE_SHARD="$i/$shards" \
-      $FLUTTER test test/activation_schedules_test.dart >"$OUT/steps.$i.log" 2>&1 &
+      $FLUTTER test --reporter expanded test/activation_schedules_test.dart >"$OUT/steps.$i.log" 2>&1 &
     pid=$!
     pids="$pids $pid"
     # Each flutter test copies the test assets under build/ as it starts,
