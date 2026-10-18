@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "સાઇટના નામ ધરાવતી એન્ટ્રીઓ બતાવી રહ્યું છે. તે ફક્ત મેમરીમાં રખાય છે અને એપ્લિકેશન રીસ્ટાર્ટ પર રીસેટ થાય છે.",
   "devToolsBackgroundCopySensitiveBody": "બતાવેલી એન્ટ્રીઓમાંથી {count} એન્ટ્રીમાં સાઇટના નામ અથવા પેજ શીર્ષકો અને સૂચનાનું લખાણ છે. ક્લિપબોર્ડ ઉપકરણની બહાર સિંક થઈ શકે છે.",
   "cookieStoreFailed": "કૂકી સ્ટોર નિષ્ફળ: {error}",
-  "siteCookiesNotRestored": "{site} ખોલી શકાયું નહીં: તેની કૂકીઝ પુનઃસ્થાપિત કરી શકાઈ નહીં"
+  "siteCookiesNotRestored": "{site} ખોલી શકાયું નહીં: તેની કૂકીઝ પુનઃસ્થાપિત કરી શકાઈ નહીં",
+  "libraryWebspaces": "વેબસ્પેસ",
+  "librarySites": "સાઇટ્સ",
+  "librarySearchWebspaces": "વેબસ્પેસ શોધો",
+  "librarySearchSites": "સાઇટ્સ શોધો",
+  "libraryNoResults": "કોઈ પરિણામ નથી"
 }

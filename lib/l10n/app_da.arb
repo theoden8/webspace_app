@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Viser poster, der nævner websteder. De gemmes kun i hukommelsen og nulstilles ved genstart af appen.",
   "devToolsBackgroundCopySensitiveBody": "{count} af de viste poster nævner websteder eller indeholder sidetitler og notifikationstekst. Udklipsholderen kan synkronisere uden for enheden.",
   "cookieStoreFailed": "Cookielageret fejlede: {error}",
-  "siteCookiesNotRestored": "Kunne ikke åbne {site}: dets cookies kunne ikke gendannes"
+  "siteCookiesNotRestored": "Kunne ikke åbne {site}: dets cookies kunne ikke gendannes",
+  "libraryWebspaces": "Webområder",
+  "librarySites": "Websteder",
+  "librarySearchWebspaces": "Søg i webområder",
+  "librarySearchSites": "Søg efter websteder",
+  "libraryNoResults": "Ingen resultater"
 }

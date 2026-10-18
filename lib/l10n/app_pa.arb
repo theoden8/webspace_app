@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "ਸਾਈਟਾਂ ਦੇ ਨਾਂ ਵਾਲੀਆਂ ਐਂਟਰੀਆਂ ਦਿਖਾ ਰਹੇ ਹਾਂ। ਇਹ ਸਿਰਫ਼ ਮੈਮਰੀ ਵਿੱਚ ਰੱਖੀਆਂ ਜਾਂਦੀਆਂ ਹਨ ਅਤੇ ਐਪ ਮੁੜ-ਸ਼ੁਰੂ 'ਤੇ ਰੀਸੈਟ ਹੁੰਦੀਆਂ ਹਨ।",
   "devToolsBackgroundCopySensitiveBody": "ਦਿਖਾਈਆਂ ਗਈਆਂ ਐਂਟਰੀਆਂ ਵਿੱਚੋਂ {count} ਵਿੱਚ ਸਾਈਟਾਂ ਦੇ ਨਾਂ ਜਾਂ ਪੰਨੇ ਦੇ ਸਿਰਲੇਖ ਅਤੇ ਸੂਚਨਾ ਦਾ ਪਾਠ ਹੈ। ਕਲਿੱਪਬੋਰਡ ਡੀਵਾਈਸ ਤੋਂ ਬਾਹਰ ਸਿੰਕ ਹੋ ਸਕਦਾ ਹੈ।",
   "cookieStoreFailed": "ਕੂਕੀ ਸਟੋਰ ਅਸਫ਼ਲ: {error}",
-  "siteCookiesNotRestored": "{site} ਖੋਲ੍ਹ ਨਹੀਂ ਸਕਿਆ: ਇਸ ਦੀਆਂ ਕੂਕੀਜ਼ ਮੁੜ-ਬਹਾਲ ਨਹੀਂ ਕੀਤੀਆਂ ਜਾ ਸਕੀਆਂ"
+  "siteCookiesNotRestored": "{site} ਖੋਲ੍ਹ ਨਹੀਂ ਸਕਿਆ: ਇਸ ਦੀਆਂ ਕੂਕੀਜ਼ ਮੁੜ-ਬਹਾਲ ਨਹੀਂ ਕੀਤੀਆਂ ਜਾ ਸਕੀਆਂ",
+  "libraryWebspaces": "ਵੈੱਬਸਪੇਸ",
+  "librarySites": "ਸਾਈਟਾਂ",
+  "librarySearchWebspaces": "ਵੈੱਬਸਪੇਸ ਖੋਜੋ",
+  "librarySearchSites": "ਸਾਈਟਾਂ ਖੋਜੋ",
+  "libraryNoResults": "ਕੋਈ ਨਤੀਜੇ ਨਹੀਂ"
 }

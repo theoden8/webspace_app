@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "正在顯示提及網站的項目。這些項目只保存在記憶體中，應用程式重新啟動時重設。",
   "devToolsBackgroundCopySensitiveBody": "顯示的項目中有 {count} 項提及網站，或包含網頁標題與通知文字。剪貼簿可能會同步到裝置之外。",
   "cookieStoreFailed": "Cookie 儲存區失敗：{error}",
-  "siteCookiesNotRestored": "無法開啟 {site}：無法還原其 Cookie"
+  "siteCookiesNotRestored": "無法開啟 {site}：無法還原其 Cookie",
+  "libraryWebspaces": "網頁空間",
+  "librarySites": "網站",
+  "librarySearchWebspaces": "搜尋網頁空間",
+  "librarySearchSites": "搜尋網站",
+  "libraryNoResults": "沒有符合項目"
 }

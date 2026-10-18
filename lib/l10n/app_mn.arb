@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Сайтуудыг нэрлэсэн бичлэгүүдийг харуулж байна. Эдгээр нь зөвхөн санах ойд хадгалагдаж, апп дахин эхлэхэд шинэчлэгдэнэ.",
   "devToolsBackgroundCopySensitiveBody": "Харагдаж буй бичлэгүүдийн {count} нь сайтуудыг нэрлэсэн эсвэл хуудасны гарчиг болон мэдэгдлийн текст агуулна. Түр санах ой төхөөрөмжөөс гадагш синк хийгдэж болно.",
   "cookieStoreFailed": "Cookie-ийн сан алдаа гаргалаа: {error}",
-  "siteCookiesNotRestored": "{site}-г нээж чадсангүй: түүний cookie-г сэргээж чадсангүй"
+  "siteCookiesNotRestored": "{site}-г нээж чадсангүй: түүний cookie-г сэргээж чадсангүй",
+  "libraryWebspaces": "Вэб орон зай",
+  "librarySites": "Сайтууд",
+  "librarySearchWebspaces": "Вэб орон зай хайх",
+  "librarySearchSites": "Сайт хайх",
+  "libraryNoResults": "Илэрц олдсонгүй"
 }

@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Iontrálacha a ainmníonn suíomhanna á dtaispeáint. Ní choinnítear iad ach sa chuimhne agus athshocraítear iad ar atosú na haipe.",
   "devToolsBackgroundCopySensitiveBody": "Ainmníonn {count} de na hiontrálacha atá ar taispeáint suíomhanna nó tá teidil leathanach agus téacs fógraí iontu. Is féidir leis an ngearrthaisce sioncronú lasmuigh den ghléas.",
   "cookieStoreFailed": "Theip ar stór na bhfianán: {error}",
-  "siteCookiesNotRestored": "Níorbh fhéidir {site} a oscailt: níorbh fhéidir a fhianáin a athchur"
+  "siteCookiesNotRestored": "Níorbh fhéidir {site} a oscailt: níorbh fhéidir a fhianáin a athchur",
+  "libraryWebspaces": "Spásanna gréasáin",
+  "librarySites": "Suíomhanna",
+  "librarySearchWebspaces": "Cuardaigh spásanna gréasáin",
+  "librarySearchSites": "Cuardaigh suíomhanna",
+  "libraryNoResults": "Gan torthaí"
 }

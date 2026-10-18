@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "সাইটের নাম থাকা এন্ট্রি দেখানো হচ্ছে। এগুলো শুধু মেমরিতে রাখা হয় এবং অ্যাপ রিস্টার্টে রিসেট হয়।",
   "devToolsBackgroundCopySensitiveBody": "প্রদর্শিত এন্ট্রিগুলির মধ্যে {count}টিতে সাইটের নাম অথবা পৃষ্ঠার শিরোনাম ও বিজ্ঞপ্তির লেখা রয়েছে। ক্লিপবোর্ড ডিভাইসের বাইরে সিঙ্ক হতে পারে।",
   "cookieStoreFailed": "কুকি স্টোর ব্যর্থ: {error}",
-  "siteCookiesNotRestored": "{site} খোলা যায়নি: এর কুকি পুনরুদ্ধার করা যায়নি"
+  "siteCookiesNotRestored": "{site} খোলা যায়নি: এর কুকি পুনরুদ্ধার করা যায়নি",
+  "libraryWebspaces": "ওয়েবস্পেস",
+  "librarySites": "সাইট",
+  "librarySearchWebspaces": "ওয়েবস্পেস খুঁজুন",
+  "librarySearchSites": "সাইট খুঁজুন",
+  "libraryNoResults": "কোনো ফলাফল নেই"
 }

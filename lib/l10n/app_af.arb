@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Wys inskrywings wat werwe noem. Hulle word net in die geheue gehou en by app-herbegin teruggestel.",
   "devToolsBackgroundCopySensitiveBody": "{count} van die inskrywings wat gewys word, noem werwe of bevat bladsytitels en kennisgewingteks. Die knipbord kan van die toestel af sinkroniseer.",
   "cookieStoreFailed": "Koekiestoor het misluk: {error}",
-  "siteCookiesNotRestored": "Kon nie {site} oopmaak nie: sy koekies kon nie herstel word nie"
+  "siteCookiesNotRestored": "Kon nie {site} oopmaak nie: sy koekies kon nie herstel word nie",
+  "libraryWebspaces": "Webruimtes",
+  "librarySites": "Webwerwe",
+  "librarySearchWebspaces": "Soek webruimtes",
+  "librarySearchSites": "Soek webwerwe",
+  "libraryNoResults": "Geen resultate"
 }

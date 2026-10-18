@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "កំពុងបង្ហាញធាតុដែលដាក់ឈ្មោះគេហទំព័រ។ ពួកវាត្រូវបានរក្សាទុកតែក្នុងអង្គចងចាំ ហើយកំណត់ឡើងវិញនៅពេលចាប់ផ្ដើមកម្មវិធីឡើងវិញ។",
   "devToolsBackgroundCopySensitiveBody": "ធាតុដែលបង្ហាញចំនួន {count} ដាក់ឈ្មោះគេហទំព័រ ឬមានចំណងជើងទំព័រ និងអត្ថបទជូនដំណឹង។ ក្ដារតម្បៀតខ្ទាស់អាចធ្វើសមកាលកម្មចេញក្រៅឧបករណ៍។",
   "cookieStoreFailed": "ឃ្លាំង Cookie បានបរាជ័យ: {error}",
-  "siteCookiesNotRestored": "មិនអាចបើក {site} បានទេ: មិនអាចស្ដារ Cookies របស់វាបានទេ"
+  "siteCookiesNotRestored": "មិនអាចបើក {site} បានទេ: មិនអាចស្ដារ Cookies របស់វាបានទេ",
+  "libraryWebspaces": "លំហបណ្ដាញ",
+  "librarySites": "គេហទំព័រ",
+  "librarySearchWebspaces": "ស្វែងរកលំហបណ្ដាញ",
+  "librarySearchSites": "ស្វែងរកគេហទំព័រ",
+  "libraryNoResults": "គ្មានលទ្ធផល"
 }

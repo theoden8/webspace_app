@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Qed jintwerew entrati li jsemmu siti. Jinżammu fil-memorja biss u jirrisettjaw meta tinbeda mill-ġdid l-app.",
   "devToolsBackgroundCopySensitiveBody": "{count} mill-entrati murija jsemmu siti jew fihom titoli ta' paġni u test tan-notifiki. Il-klipbord jista' jissinkronizza barra mill-apparat.",
   "cookieStoreFailed": "Il-ħażna tal-cookies falliet: {error}",
-  "siteCookiesNotRestored": "Ma setax jinfetaħ {site}: il-cookies tiegħu ma setgħux jiġu rrestawrati"
+  "siteCookiesNotRestored": "Ma setax jinfetaħ {site}: il-cookies tiegħu ma setgħux jiġu rrestawrati",
+  "libraryWebspaces": "Spazji tal-web",
+  "librarySites": "Siti",
+  "librarySearchWebspaces": "Fittex spazji tal-web",
+  "librarySearchSites": "Fittex siti",
+  "libraryNoResults": "Ebda riżultat"
 }

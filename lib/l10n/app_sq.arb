@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Po shfaqen hyrjet që përmendin sajte. Ruhen vetëm në kujtesë dhe rivendosen në rinisjen e aplikacionit.",
   "devToolsBackgroundCopySensitiveBody": "{count} nga hyrjet e shfaqura përmendin sajte ose përmbajnë tituj faqesh dhe tekst njoftimesh. Kujtesa e fragmenteve mund të sinkronizohet jashtë pajisjes.",
   "cookieStoreFailed": "Depoja e cookie-ve dështoi: {error}",
-  "siteCookiesNotRestored": "Nuk u hap dot {site}: cookie-t e tij nuk u rikthyen dot"
+  "siteCookiesNotRestored": "Nuk u hap dot {site}: cookie-t e tij nuk u rikthyen dot",
+  "libraryWebspaces": "Hapësirat e uebit",
+  "librarySites": "Sajtet",
+  "librarySearchWebspaces": "Kërko hapësira uebi",
+  "librarySearchSites": "Kërko sajte",
+  "libraryNoResults": "Nuk ka rezultate"
 }

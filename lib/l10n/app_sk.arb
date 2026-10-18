@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Zobrazujú sa záznamy, ktoré menujú stránky. Uchovávajú sa len v pamäti a pri reštarte aplikácie sa vynulujú.",
   "devToolsBackgroundCopySensitiveBody": "{count} zobrazených záznamov menuje stránky alebo obsahuje titulky stránok a text upozornení. Schránka sa môže synchronizovať mimo zariadenia.",
   "cookieStoreFailed": "Úložisko súborov cookie zlyhalo: {error}",
-  "siteCookiesNotRestored": "{site} sa nepodarilo otvoriť: jeho súbory cookie sa nepodarilo obnoviť"
+  "siteCookiesNotRestored": "{site} sa nepodarilo otvoriť: jeho súbory cookie sa nepodarilo obnoviť",
+  "libraryWebspaces": "Webové priestory",
+  "librarySites": "Weby",
+  "librarySearchWebspaces": "Hľadať webové priestory",
+  "librarySearchSites": "Hľadať weby",
+  "libraryNoResults": "Žiadne výsledky"
 }

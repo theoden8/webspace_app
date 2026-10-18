@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "A mostrar entradas que nomeiam sites. São guardadas apenas na memória e repõem-se ao reiniciar a aplicação.",
   "devToolsBackgroundCopySensitiveBody": "{count} das entradas mostradas nomeiam sites ou contêm títulos de página e texto de notificações. A área de transferência pode sincronizar fora do dispositivo.",
   "cookieStoreFailed": "Falha no armazenamento de cookies: {error}",
-  "siteCookiesNotRestored": "Não foi possível abrir {site}: não foi possível restaurar os respetivos cookies"
+  "siteCookiesNotRestored": "Não foi possível abrir {site}: não foi possível restaurar os respetivos cookies",
+  "libraryWebspaces": "Espaços web",
+  "librarySites": "Sites",
+  "librarySearchWebspaces": "Pesquisar espaços web",
+  "librarySearchSites": "Pesquisar sites",
+  "libraryNoResults": "Sem resultados"
 }

@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Affichage des entrées qui nomment des sites. Elles sont conservées en mémoire uniquement et réinitialisées au redémarrage de l'application.",
   "devToolsBackgroundCopySensitiveBody": "{count} des entrées affichées nomment des sites ou contiennent des titres de page et du texte de notification. Le presse-papiers peut se synchroniser en dehors de l'appareil.",
   "cookieStoreFailed": "Échec du stockage des cookies : {error}",
-  "siteCookiesNotRestored": "Impossible d'ouvrir {site} : ses cookies n'ont pas pu être restaurés"
+  "siteCookiesNotRestored": "Impossible d'ouvrir {site} : ses cookies n'ont pas pu être restaurés",
+  "libraryWebspaces": "Espaces web",
+  "librarySites": "Sites",
+  "librarySearchWebspaces": "Rechercher des espaces web",
+  "librarySearchSites": "Rechercher des sites",
+  "libraryNoResults": "Aucun résultat"
 }

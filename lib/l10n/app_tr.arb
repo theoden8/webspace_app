@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Siteleri adlandıran girdiler gösteriliyor. Yalnızca bellekte tutulur ve uygulama yeniden başlatıldığında sıfırlanır.",
   "devToolsBackgroundCopySensitiveBody": "Gösterilen girdilerin {count} tanesi siteleri adlandırıyor veya sayfa başlıkları ve bildirim metni içeriyor. Pano cihaz dışına eşitlenebilir.",
   "cookieStoreFailed": "Çerez deposu başarısız oldu: {error}",
-  "siteCookiesNotRestored": "{site} açılamadı: çerezleri geri yüklenemedi"
+  "siteCookiesNotRestored": "{site} açılamadı: çerezleri geri yüklenemedi",
+  "libraryWebspaces": "Web alanları",
+  "librarySites": "Siteler",
+  "librarySearchWebspaces": "Web alanlarında ara",
+  "librarySearchSites": "Sitelerde ara",
+  "libraryNoResults": "Eşleşme yok"
 }

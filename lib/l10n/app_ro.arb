@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Se afișează intrările care numesc site-uri. Sunt păstrate doar în memorie și se resetează la repornirea aplicației.",
   "devToolsBackgroundCopySensitiveBody": "{count} dintre intrările afișate numesc site-uri sau conțin titluri de pagină și textul notificărilor. Clipboardul se poate sincroniza în afara dispozitivului.",
   "cookieStoreFailed": "Depozitul de cookie-uri a eșuat: {error}",
-  "siteCookiesNotRestored": "Nu s-a putut deschide {site}: cookie-urile sale nu au putut fi restaurate"
+  "siteCookiesNotRestored": "Nu s-a putut deschide {site}: cookie-urile sale nu au putut fi restaurate",
+  "libraryWebspaces": "Spații web",
+  "librarySites": "Site-uri",
+  "librarySearchWebspaces": "Caută spații web",
+  "librarySearchSites": "Caută site-uri",
+  "libraryNoResults": "Niciun rezultat"
 }

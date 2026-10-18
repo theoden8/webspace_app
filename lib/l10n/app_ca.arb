@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Mostrant entrades que anomenen llocs. Només es guarden a la memòria i es restableixen en reiniciar l'app.",
   "devToolsBackgroundCopySensitiveBody": "{count} de les entrades mostrades anomenen llocs o contenen títols de pàgina i text de notificació. El porta-retalls es pot sincronitzar fora del dispositiu.",
   "cookieStoreFailed": "Error del magatzem de galetes: {error}",
-  "siteCookiesNotRestored": "No s'ha pogut obrir {site}: no se n'han pogut restaurar les galetes"
+  "siteCookiesNotRestored": "No s'ha pogut obrir {site}: no se n'han pogut restaurar les galetes",
+  "libraryWebspaces": "Espais web",
+  "librarySites": "Llocs web",
+  "librarySearchWebspaces": "Cerca espais web",
+  "librarySearchSites": "Cerca llocs web",
+  "libraryNoResults": "Cap coincidència"
 }

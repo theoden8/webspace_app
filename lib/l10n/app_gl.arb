@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Amosando entradas que nomean sitios. Só se gardan na memoria e restablécense ao reiniciar a aplicación.",
   "devToolsBackgroundCopySensitiveBody": "{count} das entradas amosadas nomean sitios ou conteñen títulos de páxina e texto de notificacións. O portapapeis pode sincronizarse fóra do dispositivo.",
   "cookieStoreFailed": "Erro no almacén de cookies: {error}",
-  "siteCookiesNotRestored": "Non se puido abrir {site}: non se puideron restaurar as súas cookies"
+  "siteCookiesNotRestored": "Non se puido abrir {site}: non se puideron restaurar as súas cookies",
+  "libraryWebspaces": "Espazos web",
+  "librarySites": "Sitios",
+  "librarySearchWebspaces": "Buscar espazos web",
+  "librarySearchSites": "Buscar sitios",
+  "libraryNoResults": "Sen coincidencias"
 }

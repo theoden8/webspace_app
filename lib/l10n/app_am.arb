@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "ጣቢያዎችን የሚጠቅሱ ግቤቶች በማሳየት ላይ። በማህደረ ትውስታ ውስጥ ብቻ ይቀመጣሉ፣ መተግበሪያው እንደገና ሲጀምር ይጸዳሉ።",
   "devToolsBackgroundCopySensitiveBody": "ከሚታዩት ግቤቶች ውስጥ {count} ጣቢያዎችን ይጠቅሳሉ ወይም የገጽ ርዕሶችንና የማሳወቂያ ጽሑፍን ይዘዋል። ቅንጥብ ሰሌዳው ከመሣሪያው ውጭ ሊመሳሰል ይችላል።",
   "cookieStoreFailed": "የኩኪ ማከማቻ አልተሳካም: {error}",
-  "siteCookiesNotRestored": "{site}ን መክፈት አልተቻለም: ኩኪዎቹን መመለስ አልተቻለም"
+  "siteCookiesNotRestored": "{site}ን መክፈት አልተቻለም: ኩኪዎቹን መመለስ አልተቻለም",
+  "libraryWebspaces": "የድር ቦታዎች",
+  "librarySites": "ድረ ገጾች",
+  "librarySearchWebspaces": "የድር ቦታዎችን ፈልግ",
+  "librarySearchSites": "ድረ ገጾችን ፈልግ",
+  "libraryNoResults": "ምንም ውጤት የለም"
 }

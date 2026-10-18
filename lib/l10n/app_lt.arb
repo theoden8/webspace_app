@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Rodomi įrašai, kuriuose nurodomos svetainės. Jie laikomi tik atmintyje ir atstatomi iš naujo paleidus programą.",
   "devToolsBackgroundCopySensitiveBody": "{count} iš rodomų įrašų nurodo svetaines arba turi puslapių pavadinimų ir pranešimų teksto. Iškarpinė gali būti sinchronizuojama už įrenginio ribų.",
   "cookieStoreFailed": "Slapukų saugyklos klaida: {error}",
-  "siteCookiesNotRestored": "Nepavyko atidaryti {site}: nepavyko atkurti jos slapukų"
+  "siteCookiesNotRestored": "Nepavyko atidaryti {site}: nepavyko atkurti jos slapukų",
+  "libraryWebspaces": "Žiniatinklio erdvės",
+  "librarySites": "Svetainės",
+  "librarySearchWebspaces": "Ieškoti žiniatinklio erdvių",
+  "librarySearchSites": "Ieškoti svetainių",
+  "libraryNoResults": "Atitikmenų nėra"
 }

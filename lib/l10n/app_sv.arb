@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Visar poster som nämner webbplatser. De sparas bara i minnet och återställs vid omstart av appen.",
   "devToolsBackgroundCopySensitiveBody": "{count} av posterna som visas nämner webbplatser eller innehåller sidtitlar och aviseringstext. Urklipp kan synkroniseras utanför enheten.",
   "cookieStoreFailed": "Cookielagringen misslyckades: {error}",
-  "siteCookiesNotRestored": "Kunde inte öppna {site}: dess cookies kunde inte återställas"
+  "siteCookiesNotRestored": "Kunde inte öppna {site}: dess cookies kunde inte återställas",
+  "libraryWebspaces": "Webbutrymmen",
+  "librarySites": "Webbplatser",
+  "librarySearchWebspaces": "Sök webbutrymmen",
+  "librarySearchSites": "Sök webbplatser",
+  "libraryNoResults": "Inga träffar"
 }

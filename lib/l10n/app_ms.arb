@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Memaparkan entri yang menamakan tapak. Ia hanya disimpan dalam memori dan diset semula apabila aplikasi dimulakan semula.",
   "devToolsBackgroundCopySensitiveBody": "{count} daripada entri yang dipaparkan menamakan tapak atau mengandungi tajuk halaman dan teks pemberitahuan. Papan keratan boleh disegerakkan ke luar peranti.",
   "cookieStoreFailed": "Stor kuki gagal: {error}",
-  "siteCookiesNotRestored": "Tidak dapat membuka {site}: kukinya tidak dapat dipulihkan"
+  "siteCookiesNotRestored": "Tidak dapat membuka {site}: kukinya tidak dapat dipulihkan",
+  "libraryWebspaces": "Ruang web",
+  "librarySites": "Laman",
+  "librarySearchWebspaces": "Cari ruang web",
+  "librarySearchSites": "Cari laman",
+  "libraryNoResults": "Tiada padanan"
 }

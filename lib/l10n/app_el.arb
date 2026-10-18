@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Εμφανίζονται καταχωρήσεις που κατονομάζουν ιστότοπους. Διατηρούνται μόνο στη μνήμη και επαναφέρονται στην επανεκκίνηση της εφαρμογής.",
   "devToolsBackgroundCopySensitiveBody": "{count} από τις εμφανιζόμενες καταχωρήσεις κατονομάζουν ιστότοπους ή περιέχουν τίτλους σελίδων και κείμενο ειδοποιήσεων. Το πρόχειρο μπορεί να συγχρονιστεί εκτός της συσκευής.",
   "cookieStoreFailed": "Ο χώρος αποθήκευσης cookies απέτυχε: {error}",
-  "siteCookiesNotRestored": "Δεν ήταν δυνατό το άνοιγμα του {site}: δεν ήταν δυνατή η επαναφορά των cookies του"
+  "siteCookiesNotRestored": "Δεν ήταν δυνατό το άνοιγμα του {site}: δεν ήταν δυνατή η επαναφορά των cookies του",
+  "libraryWebspaces": "Χώροι ιστού",
+  "librarySites": "Ιστότοποι",
+  "librarySearchWebspaces": "Αναζήτηση χώρων ιστού",
+  "librarySearchSites": "Αναζήτηση ιστοτόπων",
+  "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα"
 }

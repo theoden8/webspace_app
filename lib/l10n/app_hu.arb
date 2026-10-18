@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Webhelyeket megnevező bejegyzések megjelenítése. Csak a memóriában tárolódnak, és az alkalmazás újraindításakor visszaállnak.",
   "devToolsBackgroundCopySensitiveBody": "A megjelenített bejegyzések közül {count} webhelyeket nevez meg, vagy oldalcímeket és értesítési szöveget tartalmaz. A vágólap az eszközön kívülre is szinkronizálódhat.",
   "cookieStoreFailed": "A sütitár hibát jelzett: {error}",
-  "siteCookiesNotRestored": "A(z) {site} nem nyitható meg: a sütijeit nem sikerült visszaállítani"
+  "siteCookiesNotRestored": "A(z) {site} nem nyitható meg: a sütijeit nem sikerült visszaállítani",
+  "libraryWebspaces": "Webterek",
+  "librarySites": "Webhelyek",
+  "librarySearchWebspaces": "Webterek keresése",
+  "librarySearchSites": "Webhelyek keresése",
+  "libraryNoResults": "Nincs találat"
 }

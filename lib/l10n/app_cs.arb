@@ -1088,5 +1088,10 @@
   "devToolsBackgroundSensitiveShowing": "Zobrazují se záznamy, které jmenují weby. Uchovávají se jen v paměti a při restartu aplikace se resetují.",
   "devToolsBackgroundCopySensitiveBody": "{count} zobrazených záznamů jmenuje weby nebo obsahuje titulky stránek a text oznámení. Schránka se může synchronizovat mimo zařízení.",
   "cookieStoreFailed": "Úložiště cookies selhalo: {error}",
-  "siteCookiesNotRestored": "{site} se nepodařilo otevřít: jeho cookies nebylo možné obnovit"
+  "siteCookiesNotRestored": "{site} se nepodařilo otevřít: jeho cookies nebylo možné obnovit",
+  "libraryWebspaces": "Webové prostory",
+  "librarySites": "Weby",
+  "librarySearchWebspaces": "Hledat webové prostory",
+  "librarySearchSites": "Hledat weby",
+  "libraryNoResults": "Žádné výsledky"
 }
