@@ -13,7 +13,6 @@ import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
-import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
@@ -58,6 +57,7 @@ import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/web_view_model_json.dart';
+import 'package:webspace/web_view_model_domains.dart';
 import 'package:webspace/web_view_model_zone.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
@@ -66,6 +66,7 @@ import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/blocked_cookie.dart';
 import 'package:webspace/services/page_js.dart';
 
+export 'package:webspace/web_view_model_domains.dart';
 export 'package:webspace/services/url_host.dart'
     show extractDomain, getBaseDomain, getNormalizedDomain;
 export 'package:webspace/settings/blocked_cookie.dart';
@@ -445,6 +446,9 @@ class WebViewModel implements MediaGrantRecord {
   /// default). Serialised only when non-null so on-disk JSON for users who
   /// never touch the feature stays byte-identical.
   List<DomainClaim>? domainClaims;
+  /// Domain suggestions already shown, including declines, so first-load
+  /// prompts do not repeat on refresh, tab recreation, or an app restart.
+  Set<DomainClaim> offeredRedirectDomains = {};
 
   /// Outbound routing (LIR-013): a cross-domain link this site opens goes to
   /// the site that claims it, with that site's container and settings,
@@ -484,25 +488,6 @@ class WebViewModel implements MediaGrantRecord {
   /// The search site a search from this site starts with; null falls back to
   /// the app default.
   SiteId? searchDefault;
-
-  /// View used by the resolver: the explicit `domainClaims` if the user has
-  /// set them, otherwise what [initUrl] claims by itself (LIR-001).
-  List<DomainClaim> get effectiveDomainClaims {
-    final explicit = domainClaims;
-    return explicit != null && explicit.isNotEmpty
-        ? explicit
-        : DomainClaim.implicitFor(initUrl);
-  }
-
-  /// True when [url] is covered by one of this site's domain claims. Every
-  /// external-link mode keeps claimed cross-domain links in a nested webview;
-  /// only unclaimed ones go to the browser or are blocked.
-  bool matchesSiteClaim(String url) {
-    final uri = Uri.tryParse(url);
-    return uri != null &&
-        LinkRoutingService.urlMatchesAnyClaim(uri,
-            claims: effectiveDomainClaims);
-  }
 
   /// Where a link the user explicitly chose to open goes, decided exactly as
   /// a tap on it in this site's on-screen webview would be. For callers that
@@ -1251,6 +1236,11 @@ bool dispatch(NavigationDecision decision,
       // redirectHandled / previousSameDomainUrl / currentUrl; the engine
       // enforces the invariants (see its class-level doc).
       var urlChangedState = OnUrlChangedState.initial(currentUrl);
+      final navigationBoundary =
+          NavigationBoundary(homeUrl: navHome, initialUrl: currentUrl);
+      if (tabBinding.queuedFor == builtTab) {
+        navigationBoundary.useExistingDocument();
+      }
       // The URL we most recently fired the post-state-commit IPC chain
       // (`getTitle` + `setThemePreference`) for. `onUrlChanged` is wired
       // up to BOTH `onLoadStop` and `onUpdateVisitedHistory` in
@@ -1295,6 +1285,12 @@ bool dispatch(NavigationDecision decision,
           posture: posture,
           hooks: hooks,
           initialUrl: currentUrl,
+          navigationBoundary: navigationBoundary,
+          onFirstPageLoaded: (url) {
+            if (activeTabId == builtTab && !runsForeignTab && currentUrl == url) {
+              hooks.firstPageLoaded(this, url: url);
+            }
+          },
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
           // there is no Flutter route-pop edge-swipe here, so opt into
           // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
@@ -1328,6 +1324,7 @@ bool dispatch(NavigationDecision decision,
               now: now,
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
+              boundary: navigationBoundary,
             );
             lastSameDomainGestureTime = result.gestureUpdate
                 .applyTo(lastSameDomainGestureTime, now: now);
@@ -1378,6 +1375,7 @@ bool dispatch(NavigationDecision decision,
               state: urlChangedState,
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
+              boundary: navigationBoundary,
             );
             lastSameDomainGestureTime = handled.gestureUpdate
                 .applyTo(lastSameDomainGestureTime, now: now);

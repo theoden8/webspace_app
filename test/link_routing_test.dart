@@ -14,6 +14,27 @@ class _Site implements RoutableSite {
 }
 
 void main() {
+  test('claim validation shares base, wildcard, and port matching (LIR-003)', () {
+    for (final (candidate, existing, overlaps) in [
+      (DomainClaim.baseDomain('example.com'), DomainClaim.exactHost('www.example.com'), true),
+      (DomainClaim.exactHost('www.example.com'), DomainClaim.baseDomain('example.com'), true),
+      (DomainClaim.baseDomain('example.com'), DomainClaim.wildcardSubdomain('news.example.com'), true),
+      (DomainClaim.baseDomain('tenant.github.io'), DomainClaim.wildcardSubdomain('github.io'), true),
+      (DomainClaim.wildcardSubdomain('example.com'), DomainClaim.wildcardSubdomain('news.example.com'), true),
+      (DomainClaim.baseDomain('example.com'), DomainClaim.exactHost('www.example.com:8443'), false),
+      (DomainClaim.baseDomain('tenant.github.io'), DomainClaim.exactHost('other.github.io'), false),
+      (DomainClaim.baseDomain('::1'), DomainClaim.exactHost('::1'), true),
+    ]) {
+      final conflicts = LinkRoutingService.validateClaims(SiteId('edited'),
+        editedClaims: [candidate], others: [
+          _Site(SiteId('other'), initUrl: 'https://separate.invalid/',
+              domainClaims: [existing]),
+        ],
+      );
+      expect(conflicts.isNotEmpty, overlaps, reason: '$candidate / $existing');
+    }
+  });
+
   group('DomainClaim canonicalization', () {
     test('lowercases, strips scheme and default port, drops `*.` prefix', () {
       expect(DomainClaim.exactHost('Twitter.COM').value, 'twitter.com');

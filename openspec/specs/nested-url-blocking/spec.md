@@ -80,6 +80,24 @@ Blocked patterns:
 
 The system SHALL block cross-domain navigations that lack a user gesture, preventing automatic nested webview creation. This holds on every site: there is no per-site switch to let them through (NESTED-006 is withdrawn).
 
+The first live HTTP navigation is an exception: its server redirect chain
+SHALL finish in the same webview, and the final domain SHALL count as the
+site for subsequent navigation and URL persistence. On Android the native
+server-redirect flag SHALL establish this provenance; on WebKit the exception
+SHALL end at the first main-document commit. Subframes and inferred main-frame
+actions SHALL NOT establish a domain. Cached HTML and restored state can already
+contain a document and SHALL NOT receive this exception. A user navigation or a known non-redirect
+away from the initial URL SHALL end the exception. Subsequent cross-domain
+redirects SHALL continue to require a user gesture.
+
+#### Scenario: Initial canonical-domain redirect
+
+**Given** a site opens `https://theguardian.co.uk/` without cached HTML
+**When** its server returns 301 to `https://www.theguardian.com/`, then 302 to `/uk`
+**Then** the final page loads in the site's webview and its URL is persisted
+**And** links within `theguardian.com` stay in that webview
+**And** a later automatic redirect to another domain is still blocked
+
 This replaces the previous hardcoded `_trackingDomains` blocklist (Stripe, analytics domains) with gesture-based detection using `NavigationAction.hasGesture`.
 
 **Note:** A user tap on "Sign in with Google" has `hasGesture = true`, but the resulting script-initiated navigation to `accounts.google.com` may have `hasGesture = false`. This means gesture detection can block user-intended OAuth flows, most often on iOS and macOS, where a script navigation reports no gesture. A flow that starts with a tap on a same-site link (`/auth/google`) still works: the gesture carries into the cross-domain redirect for 10 seconds (NESTED-007). One that navigates by script straight from a button has no workaround; that is the accepted cost of never letting a page leave by script.

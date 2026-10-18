@@ -39,6 +39,62 @@ enum NavigationDecision {
 /// in `onUrlChanged` judges it if it turns out to be the page itself.
 enum NavigationFrame { top, sub, unverified }
 
+/// The declared site and the domain its initial HTTP navigation resolves to.
+/// Only the first document may establish a canonical domain; later redirects
+/// are judged by the usual gesture and outbound-link rules.
+class NavigationBoundary {
+  final String _homeDomain;
+  final String _initialUrl;
+  String _resolvedDomain;
+  bool _awaitingDocument;
+
+  NavigationBoundary({required String homeUrl, required String initialUrl})
+    : _homeDomain = getNormalizedDomain(homeUrl),
+      _initialUrl = initialUrl,
+      _resolvedDomain = getNormalizedDomain(initialUrl),
+      _awaitingDocument = Host.ofWebUrl(initialUrl) != null;
+
+  bool contains(String url) {
+    final domain = getNormalizedDomain(url);
+    return domain == _homeDomain || domain == _resolvedDomain;
+  }
+
+  /// Android vouches for server redirects through [isRedirect]. WebKit has
+  /// no such flag: before its first main-document commit there is no page
+  /// script to initiate a navigation. Never learn from a guessed main frame.
+  void onNavigation(
+    String url, {
+    required NavigationFrame frame,
+    required bool hasGesture,
+    required bool? isRedirect,
+  }) {
+    if (!_awaitingDocument || frame != NavigationFrame.top) return;
+    if (hasGesture || (isRedirect == false && url != _initialUrl)) {
+      _awaitingDocument = false;
+      return;
+    }
+    if (Host.ofWebUrl(url) != null) {
+      _resolvedDomain = getNormalizedDomain(url);
+    } else if (url != 'about:blank' && url != 'about:srcdoc') {
+      _awaitingDocument = false;
+    }
+  }
+
+  /// Native main-document commit, also used when a WebKit redirect bypasses
+  /// the navigation-action callback. Blank placeholders do not finish it.
+  void onCommit(String url) {
+    if (!_awaitingDocument || url == 'about:blank' || url == 'about:srcdoc') return;
+    if (Host.ofWebUrl(url) != null) {
+      _resolvedDomain = getNormalizedDomain(url);
+    }
+    _awaitingDocument = false;
+  }
+
+  /// Cached HTML and restored state can already contain executable page code,
+  /// so neither receives an initial-network exception.
+  void useExistingDocument() => _awaitingDocument = false;
+}
+
 /// The decision for a cross-domain navigation that survived the gesture and
 /// background checks: a claimed target stays in the app, anything else goes
 /// where the site's [mode] sends it (NESTED-009).
@@ -268,6 +324,7 @@ class NavigationDecisionEngine {
     required DateTime now,
     ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
     bool Function(String url)? matchesSiteClaim,
+    NavigationBoundary? boundary,
   }) {
     if (targetUrl == 'about:blank' || targetUrl == 'about:srcdoc') {
       return const NavigationDecisionResult(NavigationDecision.allow);
@@ -279,7 +336,7 @@ class NavigationDecisionEngine {
 
     final targetDomain = getNormalizedDomain(targetUrl);
     final baseDomain = getNormalizedDomain(initUrl);
-    if (targetDomain == baseDomain) {
+    if (targetDomain == baseDomain || boundary?.contains(targetUrl) == true) {
       return NavigationDecisionResult(
         NavigationDecision.allow,
         gestureUpdate: hasGesture ? GestureStateUpdate.record : null,
@@ -357,6 +414,7 @@ class NavigationDecisionEngine {
     required bool Function(String url) isCaptchaChallenge,
     ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
     bool Function(String url)? matchesSiteClaim,
+    NavigationBoundary? boundary,
   }) {
     final scheme = Uri.tryParse(newUrl)?.scheme ?? '';
     if (scheme == 'data' || scheme == 'blob' || scheme == 'about') {
@@ -365,7 +423,7 @@ class NavigationDecisionEngine {
 
     final targetDomain = getNormalizedDomain(newUrl);
     final baseDomain = getNormalizedDomain(initUrl);
-    if (targetDomain == baseDomain) {
+    if (targetDomain == baseDomain || boundary?.contains(newUrl) == true) {
       return const NavigationDecisionResult(NavigationDecision.allow);
     }
 
@@ -431,9 +489,11 @@ class NavigationDecisionEngine {
     required OnUrlChangedState state,
     ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
     bool Function(String url)? matchesSiteClaim,
+    NavigationBoundary? boundary,
   }) {
     final initDomain = getNormalizedDomain(initUrl);
     final urlDomain = getNormalizedDomain(newUrl);
+    final sameDomain = urlDomain == initDomain || boundary?.contains(newUrl) == true;
 
     if (!state.redirectHandled) {
       final result = decideOnUrlChanged(
@@ -445,6 +505,7 @@ class NavigationDecisionEngine {
         isCaptchaChallenge: isCaptchaChallenge,
         externalLinkMode: externalLinkMode,
         matchesSiteClaim: matchesSiteClaim,
+        boundary: boundary,
       );
       if (result.decision != NavigationDecision.allow) {
         final navigateBackTo = state.previousSameDomainUrl ?? initUrl;
@@ -468,7 +529,7 @@ class NavigationDecisionEngine {
     // Cross-domain URL arriving after a handled redirect — typically the
     // duplicate event from the other of onLoadStop/onUpdateVisitedHistory.
     // Don't pollute currentUrl / previousSameDomainUrl with it.
-    if (state.redirectHandled && urlDomain != initDomain) {
+    if (state.redirectHandled && !sameDomain) {
       return OnUrlChangedHandled(
         decision: null,
         navigateBackTo: null,
@@ -504,7 +565,7 @@ class NavigationDecisionEngine {
     }
 
     var nextState = state;
-    if (urlDomain == initDomain) {
+    if (sameDomain) {
       // Only advance previousSameDomainUrl when the URL actually
       // changed. Duplicate onUrlChanged events (onLoadStop +
       // onUpdateVisitedHistory both fire for the same URL) would

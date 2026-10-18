@@ -7,6 +7,10 @@ import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/page_title.dart';
+import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/redirect_domain_engine.dart';
+import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
@@ -23,6 +27,7 @@ abstract interface class SiteEditingPrompts {
 
   Future<SiteEdit?> editSite(WebViewModel site);
   Future<bool> confirmDelete(WebViewModel site);
+  Future<bool> addRedirectDomain(DomainClaim claim);
 }
 
 /// What the site editing flows ask of the page.
@@ -52,6 +57,36 @@ class SiteEditingController {
   final ShellStore _shell;
   final ShortcutController _shortcuts;
   final SiteDeletion _deletion;
+  final _redirectDomainGuard = ReentryGuard();
+
+  /// A first live page reached an unclaimed domain. Remember showing the
+  /// question, and change routing only after its explicit Add action.
+  Future<void> offerRedirectDomain(WebViewModel source, {required String url}) async {
+    await _redirectDomainGuard.run(() async {
+      if (!_host.mounted || !_sites.fore || !identical(_sites.shown, source) ||
+          !_sites.models.contains(source) || source.runsForeignTab ||
+          source.currentUrl != url) {
+        return;
+      }
+      final site = source.runningIdentity;
+      if (!_sites.models.contains(site)) return;
+      final resolved = Uri.tryParse(url);
+      if (resolved == null) return;
+      DomainClaim? candidate() => redirectDomainClaim(SiteRoute(site),
+          resolvedUrl: resolved, sites: _sites.models.map(SiteRoute.new).toList());
+      final claim = candidate();
+      if (claim == null || !site.offeredRedirectDomains.add(claim)) return;
+      final home = site.initUrl;
+      final accepted = await _prompts.addRedirectDomain(claim);
+      if (!_host.mounted || !_sites.models.contains(site)) return;
+      if (accepted && site.initUrl == home && identical(_sites.shown, source) &&
+          identical(source.runningIdentity, site) && candidate() == claim) {
+        site.domainClaims = LinkRoutingService.mergeClaims(site.effectiveDomainClaims,
+            additions: [claim]);
+      }
+      await _host.commitSites(const SitesEdited());
+    });
+  }
 
   /// Adds [model] to the selected named webspace too, persists, and with
   /// [activate] puts it on screen. Pass false when the app, not the user,

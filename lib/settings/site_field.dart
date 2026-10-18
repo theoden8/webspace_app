@@ -81,6 +81,8 @@ enum SiteField {
   // A scanned code must not make a site claim domains: claims decide where
   // other sites' links and shared URLs go.
   domainClaims('domainClaims', qr: QrShare.withheld),
+  // Whether a redirected domain was already offered is local prompt history.
+  offeredRedirectDomains('offeredRedirectDomains', qr: QrShare.withheld),
   routeOutboundLinks('routeOutboundLinks', qr: QrShare.carried),
   // Each entry names a device-local siteId (QR-003).
   outboundPreferences('outboundPreferences', qr: QrShare.withheld),

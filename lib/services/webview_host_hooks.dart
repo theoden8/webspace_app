@@ -28,6 +28,7 @@ final class WebViewHostHooks {
     required this.openInBrowser,
     required this.routeOutbound,
     required this.linkMenu,
+    required this.firstPageLoaded,
     required this.openSiteSettings,
     required this.showPopup,
     required this.externalScheme,
@@ -85,6 +86,8 @@ final class WebViewHostHooks {
 
   /// A long-press on a link in [source]'s webview (TAB-006).
   final void Function(WebViewModel source, {required String url}) linkMenu;
+  /// Offers an unclaimed domain reached by this slot's first live page.
+  final void Function(WebViewModel source, {required String url}) firstPageLoaded;
   final void Function(SiteId siteId) openSiteSettings;
   final Future<void> Function(int windowId, {required String url}) showPopup;
 
@@ -115,6 +118,7 @@ final class WebViewHostHooks {
         routeOutbound:
             (_, {required url, required decision, required hadGesture}) => true,
         linkMenu: (_, {required url}) {},
+        firstPageLoaded: (_, {required url}) {},
         openSiteSettings: (_) {},
         showPopup: (_, {required url}) async {},
         externalScheme: (_, {required loadIn}) async {},

@@ -109,6 +109,9 @@
         {"kind": "exactHost", "value": "mail.example.com"},
         {"kind": "wildcardSubdomain", "value": "example.com"}
       ],
+      "offeredRedirectDomains": [
+        {"kind": "baseDomain", "value": "example.net"}
+      ],
       "routeOutboundLinks": true,
       "outboundPreferences": [
         {"claim": {"kind": "exactHost", "value": "private.example.net"}, "targetSiteId": "compat-site-b"}

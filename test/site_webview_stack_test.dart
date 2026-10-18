@@ -23,6 +23,7 @@ WebViewHostHooks _hooks() => WebViewHostHooks(
       routeOutbound:
           (_, {required url, required decision, required hadGesture}) => false,
       linkMenu: (_, {required url}) {},
+      firstPageLoaded: (_, {required url}) {},
       openSiteSettings: (_) {},
       showPopup: (_, {required url}) async {},
       externalScheme: (_, {required loadIn}) async {},

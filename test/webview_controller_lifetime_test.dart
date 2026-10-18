@@ -21,6 +21,7 @@ import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/isolation.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
@@ -113,6 +114,7 @@ WebViewHostHooks _hooks({
           {required WebViewController? loadIn})?
       externalScheme,
   Isolation Function()? isolation,
+  void Function(WebViewModel source, {required String url})? firstPageLoaded,
 }) =>
     WebViewHostHooks(
       isolation: isolation ?? fakeSharedJar,
@@ -125,6 +127,7 @@ WebViewHostHooks _hooks({
       routeOutbound:
           (_, {required url, required decision, required hadGesture}) => false,
       linkMenu: (_, {required url}) {},
+      firstPageLoaded: firstPageLoaded ?? (_, {required url}) {},
       openSiteSettings: (_) {},
       showPopup: (_, {required url}) async {},
       externalScheme: externalScheme ?? (_, {required loadIn}) async {},
@@ -142,6 +145,7 @@ Widget _webView({
   VoidCallback? onReloadIssued,
   void Function(WebViewController)? onControllerCreated,
   void Function(List<Cookie>)? onCookiesChanged,
+  void Function(String url)? onFirstPageLoaded,
 }) =>
     MaterialApp(
       home: WebViewFactory.createWebView(
@@ -156,6 +160,7 @@ Widget _webView({
           cacheFirst: cacheFirst,
           onReloadIssued: onReloadIssued,
           onCookiesChanged: onCookiesChanged,
+          onFirstPageLoaded: onFirstPageLoaded,
         ),
         onControllerCreated: onControllerCreated ?? (_) {},
       ),
@@ -216,6 +221,132 @@ void main() {
         );
   });
   tearDown(ConnectivityService.reset);
+
+  testWidgets('failed main-frame HTTP responses do not offer a domain', (tester) async {
+    final offered = <String>[];
+    await tester.pumpWidget(_webView(onFirstPageLoaded: offered.add));
+    final (:params, :native) = await _attach(tester);
+    final url = inapp.WebUri('https://example.com/');
+    await tester.runAsync(() async {
+      params.onReceivedHttpError!(native,
+        inapp.WebResourceRequest(url: url, isForMainFrame: true),
+        inapp.WebResourceResponse(statusCode: 503),
+      );
+      params.onLoadStop!(native, url);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(offered, isEmpty);
+  });
+
+  testWidgets('the live page after the engine cache is offered once', (tester) async {
+    ConnectivityService.onlineOverride = Future.value(true);
+    final offered = <String>[];
+    await tester.pumpWidget(_webView(cacheFirst: true,
+        onFirstPageLoaded: offered.add));
+    final (:params, :native) = await _attach(tester);
+    final url = inapp.WebUri('https://example.com/');
+    await tester.runAsync(() async {
+      params.onLoadStop!(native, url);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(offered, isEmpty, reason: 'the cache-first page is not live');
+    await tester.runAsync(() async {
+      params.onLoadStop!(native, url);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      params.onLoadStop!(native, url);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(offered, ['https://example.com/']);
+  });
+
+  test('a popup recognizes the resolved domain without admitting another site', () {
+    const home = 'https://theguardian.co.uk/';
+    const canonical = 'https://www.theguardian.com/uk';
+    final boundary = NavigationBoundary(homeUrl: home, initialUrl: home)
+      ..onCommit(canonical);
+    final config = WebViewConfig(
+      posture: _site.sitePosture(globalUserScripts: const [], isolation: fakeSharedJar()),
+      hooks: _hooks(),
+      initialUrl: home,
+      cacheFirst: false,
+      navigationBoundary: boundary,
+    );
+    for (final (url, expected) in [
+      (canonical, inapp.NavigationActionPolicy.ALLOW),
+      ('https://other.example/', inapp.NavigationActionPolicy.CANCEL),
+    ]) {
+      expect(WebViewFactory.onSiteNavigationPolicy(config,
+        navigationAction: inapp.NavigationAction(
+          request: inapp.URLRequest(url: inapp.WebUri(url)),
+          isForMainFrame: true,
+        ),
+        allowCaptcha: false,
+      ), expected);
+    }
+  });
+
+  testWidgets('file imports cannot establish a new initial domain', (tester) async {
+    const home = 'file:///import/site.html';
+    final guardian = WebViewModel(initUrl: home);
+    await tester.pumpWidget(MaterialApp(home: guardian.getWebView(
+      _hooks(), cacheFirst: false, initialHtml: '<p>Imported page with scripts</p>',
+    )));
+    final (:params, :native) = await _attach(tester);
+    await tester.runAsync(() async {
+      final target = inapp.WebUri('https://other.example/');
+      params.onPageCommitVisible!(native, target);
+      params.onUpdateVisitedHistory!(native, target, false);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(guardian.currentUrl, home);
+  });
+
+  testWidgets('initial Guardian redirect commits and keeps article URLs in the site',
+      (tester) async {
+    final guardian = WebViewModel(initUrl: 'https://theguardian.co.uk/');
+    final offered = <String>[];
+    await tester.pumpWidget(MaterialApp(home: guardian.getWebView(_hooks(
+      firstPageLoaded: (_, {required url}) => offered.add(url),
+    ), cacheFirst: false)));
+    final (:params, :native) = await _attach(tester);
+    const canonical = 'https://www.theguardian.com/uk';
+    final policy = await tester.runAsync(() async =>
+        params.shouldOverrideUrlLoading!(native, inapp.NavigationAction(
+          request: inapp.URLRequest(url: inapp.WebUri(canonical)),
+          isForMainFrame: true,
+          hasGesture: false,
+          isRedirect: true,
+        )));
+    expect(policy, inapp.NavigationActionPolicy.ALLOW);
+    await tester.runAsync(() async {
+      params.onPageCommitVisible!(native, inapp.WebUri(canonical));
+      params.onUpdateVisitedHistory!(native, inapp.WebUri(canonical), false);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(guardian.currentUrl, canonical);
+    await tester.runAsync(() async {
+      params.onLoadStop!(native, inapp.WebUri(canonical));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(offered, [canonical]);
+    const article = 'https://www.theguardian.com/world/article';
+    await tester.runAsync(() async {
+      params.onUpdateVisitedHistory!(native, inapp.WebUri(article), false);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(guardian.currentUrl, article);
+    await tester.runAsync(() async {
+      params.onLoadStop!(native, inapp.WebUri(article));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(offered, [canonical], reason: 'only the first settled page is offered');
+    await tester.runAsync(() async {
+      params.onUpdateVisitedHistory!(native, inapp.WebUri('https://other.example/'), false);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    expect(guardian.currentUrl, article,
+        reason: 'later automatic cross-domain changes are still refused');
+  });
 
   // The plugin hands onWebViewCreated one InAppWebViewController and every
   // later callback another, both over one platform controller: told apart by

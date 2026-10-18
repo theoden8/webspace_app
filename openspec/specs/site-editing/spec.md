@@ -214,6 +214,44 @@ field
 
 ---
 
+### Requirement: EDIT-010 - Offer a Redirected Domain
+
+After the first successful live page load of the visible site reaches an
+unclaimed domain, the app SHALL offer to add that domain to the site's existing
+Domain claims. Add SHALL preserve existing claims and the saved home address;
+Cancel or dismissal SHALL add no claim. A default-port destination SHALL suggest
+its base domain; a non-default port SHALL suggest only that exact host and port.
+The existing claim validator SHALL suppress an offer that conflicts with another
+site. The site identity, home address, and conflicts SHALL be rechecked after the
+answer, and concurrent load callbacks SHALL show at most one question.
+
+The app SHALL remember which domains it has offered, including declines, so a
+refresh, recreated tab, or restart does not repeat the question. This prompt
+history SHALL follow URL privacy for incognito and always-open-home sites and
+SHALL be excluded from QR shares. Cached markup, failed loads, background sites,
+and foreign tabs SHALL NOT produce the question.
+
+ARCH-006 audit: the history rides the existing site JSON and backup path; for
+archive-tier sites it stays inside the encrypted archive slice. The feature adds
+no external store, background schedule, or OS-level UI.
+
+#### Scenario: Accept the Guardian's canonical domain
+
+**Given** a site whose home is `https://theguardian.co.uk/`
+**When** its first live load finishes at `https://www.theguardian.com/uk`
+**And** the user accepts the domain suggestion
+**Then** `theguardian.com` is added to the existing Domain claims
+**And** future links to that domain resolve to this site
+**And** the saved home address is unchanged
+
+#### Scenario: Dismiss once
+
+**When** the user dismisses a redirected-domain suggestion
+**Then** no new domain is claimed
+**And** the same domain is not offered again after a restart
+
+---
+
 ## Data Model
 
 ```dart

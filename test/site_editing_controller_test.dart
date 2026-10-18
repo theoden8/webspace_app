@@ -8,6 +8,8 @@ import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_editing_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
+import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
 import 'package:webspace/controllers/site_set_commit.dart';
@@ -43,10 +45,20 @@ class _Host implements SiteEditingHost, ShortcutHost, SiteDeletionHost {
 /// The edit dialog, answering with [answer]; [whileOpen] is what happens
 /// to the page before the user saves.
 class _Prompts implements SiteEditingPrompts, ShortcutPrompts {
-  _Prompts(this.answer, {this.whileOpen});
+  _Prompts(this.answer, {this.whileOpen, this.addDomain = false});
 
   final SiteEdit? answer;
   final void Function()? whileOpen;
+  final bool addDomain;
+  final List<DomainClaim> domainOffers = [];
+
+  @override
+  Future<bool> addRedirectDomain(DomainClaim claim) async {
+    domainOffers.add(claim);
+    await Future<void>.delayed(Duration.zero);
+    whileOpen?.call();
+    return addDomain;
+  }
 
   @override
   Future<SiteEdit?> editSite(WebViewModel site) async {
@@ -89,6 +101,96 @@ void main() {
         shortcuts: ShortcutController(sites, host: host, prompts: prompts),
         deletion: SiteDeletion(sites, host: host),
       );
+
+  group('redirected domain suggestions (EDIT-010)', () {
+    const canonical = 'https://www.theguardian.com/uk';
+    setUp(() {
+      site.initUrl = 'https://theguardian.co.uk/';
+      site.currentUrl = canonical;
+      sites.seed(shown: site);
+    });
+
+    test('Add preserves the home and existing claims and saves the new domain', () async {
+      final prompts = _Prompts(null, addDomain: true);
+      await controller(prompts).offerRedirectDomain(site, url: canonical);
+      expect(prompts.domainOffers, [DomainClaim.baseDomain('theguardian.com')]);
+      expect(site.initUrl, 'https://theguardian.co.uk/');
+      expect(site.matchesSiteClaim('https://theguardian.co.uk/'), isTrue);
+      expect(site.matchesSiteClaim('https://theguardian.com/world'), isTrue);
+      final restored = WebViewModel.fromJson(site.toJson(), stateSetterF: null);
+      expect(restored.domainClaims, site.domainClaims);
+      expect(restored.offeredRedirectDomains, site.offeredRedirectDomains);
+      expect(host.commits.single, isA<SitesEdited>());
+    });
+
+    test('Cancel changes no claims and the saved dismissal prevents another offer', () async {
+      final prompts = _Prompts(null);
+      final editing = controller(prompts);
+      await editing.offerRedirectDomain(site, url: canonical);
+      await editing.offerRedirectDomain(site, url: canonical);
+      expect(prompts.domainOffers, hasLength(1));
+      expect(site.domainClaims, isNull);
+      final restored = WebViewModel.fromJson(site.toJson(), stateSetterF: null);
+      expect(restored.offeredRedirectDomains,
+          {DomainClaim.baseDomain('theguardian.com')});
+      expect(restored.matchesSiteClaim(canonical), isFalse);
+    });
+
+    test('duplicate callbacks while a question is open show it once', () async {
+      final prompts = _Prompts(null, addDomain: true);
+      final editing = controller(prompts);
+      await Future.wait([
+        editing.offerRedirectDomain(site, url: canonical),
+        editing.offerRedirectDomain(site, url: canonical),
+      ]);
+      expect(prompts.domainOffers, hasLength(1));
+    });
+
+    test('a known domain, a background site, and an uncommitted URL show nothing', () async {
+      final prompts = _Prompts(null);
+      final editing = controller(prompts);
+      await editing.offerRedirectDomain(site, url: 'https://uncommitted.example/');
+      sites.seed(shown: null);
+      await editing.offerRedirectDomain(site, url: canonical);
+      sites.seed(shown: site);
+      site.domainClaims = [DomainClaim.baseDomain('theguardian.com')];
+      await editing.offerRedirectDomain(site, url: canonical);
+      expect(prompts.domainOffers, isEmpty);
+      expect(site.offeredRedirectDomains, isEmpty);
+    });
+
+    test('another site owning the destination suppresses the offer', () async {
+      sites.models.add(WebViewModel(initUrl: 'https://theguardian.com/'));
+      final prompts = _Prompts(null, addDomain: true);
+      await controller(prompts).offerRedirectDomain(site, url: canonical);
+      expect(prompts.domainOffers, isEmpty);
+      expect(site.domainClaims, isNull);
+    });
+
+    test('a conflict appearing while the prompt is open is rechecked', () async {
+      final prompts = _Prompts(null, addDomain: true, whileOpen: () {
+        sites.models.add(WebViewModel(initUrl: 'https://theguardian.com/'));
+      });
+      await controller(prompts).offerRedirectDomain(site, url: canonical);
+      expect(prompts.domainOffers, hasLength(1));
+      expect(site.domainClaims, isNull);
+    });
+
+    test('deleting the site while the prompt is open cannot recreate it', () async {
+      final prompts = _Prompts(null, addDomain: true,
+          whileOpen: () => sites.models.remove(site));
+      await controller(prompts).offerRedirectDomain(site, url: canonical);
+      expect(site.domainClaims, isNull);
+      expect(host.commits, isEmpty);
+    });
+
+    test('prompt history follows URL privacy and stays out of QR shares', () {
+      site.offeredRedirectDomains.add(DomainClaim.baseDomain('theguardian.com'));
+      expect(SiteSettingsQrCodec.includedKeys, isNot(contains('offeredRedirectDomains')));
+      site.incognito = true;
+      expect(site.toJson(), isNot(contains('offeredRedirectDomains')));
+    });
+  });
 
   test('an edited name is the one the site shows (EDIT-003)', () async {
     final webview = SizedBox.fromSize();
