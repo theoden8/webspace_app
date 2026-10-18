@@ -254,7 +254,9 @@ class.
   shards side by side, each every nth test (`SCHEDULE_SHARD`, so the heavy worlds declared
   together spread out), each into its own directory, and the replay
   merges a configuration's shards into one trie, a node by its parent, label and state, so
-  what it replays and counts does not depend on how many shards ran.
+  what it replays and counts does not depend on how many shards ran. The expanded test
+  reporter is selected explicitly: the startup handshake waits for its loading line
+  before starting the next shard, which GitHub's default reporter does not emit.
 
 ## Run it
 
