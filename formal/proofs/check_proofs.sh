@@ -40,9 +40,10 @@ STRETCH="${TLAPM_STRETCH:-10}"
 # or Isabelle version wrote.
 CACHE="${TLAPM_CACHE_DIR:-$(pwd)/.tlacache}"
 # The modules share nothing and tlapm gains little from threads within one
-# (activation_turns: 309 s on one, 274 s on four), so TLAPM_JOBS of them
-# prove side by side, each with its share of the cores.
-JOBS="${TLAPM_JOBS:-2}"
+# (activation_turns: 309 s on one, 274 s on four): it prepares each
+# obligation on one thread, and that, not the backends, is most of a run.
+# So TLAPM_JOBS of them, one a core by default, prove side by side.
+JOBS="${TLAPM_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 THREADS=$(( $(getconf _NPROCESSORS_ONLN) / JOBS ))
 [ "$THREADS" -ge 1 ] || THREADS=1
 prove() {

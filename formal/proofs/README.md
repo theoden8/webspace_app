@@ -120,15 +120,15 @@ read as green. If you add or remove proof steps, update the count here *and* in
 `check_proofs.sh` skips (exit 0) when `tlapm` is not on `PATH`, so a workstation without
 it still runs the rest of the suite. CI installs it in the `validate` job, where the
 proofs are a hard gate alongside the TLC suite. Backend timeouts are wall-clock, so the
-script passes `--stretch 5` to survive a loaded runner; override with `TLAPM_STRETCH`.
+script passes `--stretch 10` to survive a loaded runner; override with `TLAPM_STRETCH`.
 
 tlapm fingerprints every obligation it settles, here under `.tlacache/` (`TLAPM_CACHE_DIR`
 moves it) and in CI between runs, so a run proves only what no earlier run proved. A
 remembered failure is replayed as a proof is, without a retry, so a module that fails is
 proved again ignoring the cache before it counts as failed.
 
-The modules share nothing and tlapm gains little from threads within one, so
-`TLAPM_JOBS` of them (default 2) prove side by side, each with its share of the cores,
+The modules share nothing, and tlapm prepares each obligation on one thread, which is
+most of a run, so `TLAPM_JOBS` of them (default one a core) prove side by side,
 the printed tables' proofs first as the longest; the report keeps the list's order.
 
 ## Why both TLC and TLAPS
