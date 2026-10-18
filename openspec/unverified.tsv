@@ -189,11 +189,7 @@ NOTIF-001	no check: the Dart webNotificationRequestPermission handler in lib/ser
 SHARE-002	no check: no widget test opens the Screen sharing row and asserts the Ask/Simulated/Block choices, the disabled 'Allowed' option with its reason, the file prompt or the preview; only the JSON half is tested (partly: test/capture_test.dart, "an untouched site writes no capture key")
 SHARE-016	no check: the strip functions are unit-tested, but nothing checks that the visual pick path runs them before the source lands on the model, nor the PNG-with-XMP case (partly: test/media_metadata_strip_test.dart, "other formats become PNG with the same pixels")
 # webspaces
-WEBSPACE-002	no check: no test taps a webspace card and asserts it becomes selected and the drawer is filtered; only the pure filter is unit-tested (partly: test/webspace_selection_engine_test.dart, "returns the webspace siteIndices when selected")
-WEBSPACE-003	no check: no test renders the webspaces list and asserts the selected card's highlight, check icon, bold text or elevation
 WEBSPACE-005	no check: no test restarts the app (or reruns the restore) and asserts the selected webspace and its drawer come back; only the Webspace JSON round-trip is tested (partly: test/webspace_model_test.dart, "JSON round-trip preserves siteIds")
-WEBSPACE-006	no check: the only UI edit test renames a webspace; none adds and removes member sites through edit and asserts the new membership (partly: integration_test/webspace_crud_test.dart, "create, rename, and delete a webspace through the UI")
-WEBSPACE-008	no check: no test opens the drawer, taps Back to Webspaces and asserts the webspaces list is shown
 WEBSPACE-010	no check: no test deletes a site and asserts webspace siteIds/siteIndices shrink and shift; the loaded/active-site scenario alone is tested (partly: test/site_runtime_test.dart, "a delete before the shown site shifts it and the loaded set")
 WEBSPACE-011	no check: no test reorders within a named webspace or asserts the new order persists; only the All-order move keeping loaded and shown sites is tested (partly: test/site_runtime_test.dart, "a move in the "All" order takes the loaded sites with it")
 # webview-hints

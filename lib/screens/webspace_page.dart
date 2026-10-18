@@ -137,6 +137,7 @@ class WebSpacePage extends StatefulWidget {
 
 class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
+  final _libraryKey = GlobalKey<WebspacesListScreenState>();
   final SiteRuntime _sites = SiteRuntime();
   late final ShortcutController _shortcuts = ShortcutController(_sites,
       host: _PageHost(this), prompts: DialogShortcutPrompts(context));
@@ -1294,6 +1295,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _backToWebspacesFromDrawer() async {
+    _libraryKey.currentState?.showWebspaces();
     await _activation.activate(null);
     if (!mounted) return;
     setState(() {});
@@ -1366,7 +1368,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // both edges so it stays clear of any bars that persist, or that the user
       // revealed under `immersive` (FS-011); when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
-      top: _fullscreen.active,
+      top: _fullscreen.active || _sites.shown == null,
       bottom: !hasBottomStrip && inputBar == null,
       // Out of fullscreen, inset around a landscape display cutout so chrome
       // and content avoid the notch. In fullscreen let the webview fill the
@@ -1392,15 +1394,25 @@ class _WebSpacePageState extends State<WebSpacePage>
                 Offstage(
                   offstage: _sites.current != null && _sites.current! < _sites.models.length,
                   child: WebspacesListScreen(
+                    key: _libraryKey,
                     webspaces: _sites.webspaces,
                     selectedWebspaceId: _sites.selectedWebspaceId,
-                    totalSitesCount: _sites.models.length,
-                    accentColor: _shell.theme.accentColor,
+                    sites: _sites.models,
+                    currentSite: _sites.shown,
+                    showsTabCount: _tabs.enabledFor,
                     onSelectWebspace: _webspaces.select,
                     onAddWebspace: _webspaces.add,
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
+                    onOpenSite: (site) => unawaited(_openSiteFromDrawer(site)),
+                    onSiteMenu: _showSiteContextMenu,
+                    onReorderSite: _webspaces.canReorderView
+                        ? (from, {required to}) =>
+                              _webspaces.reorderSite(from, newListIndex: to)
+                        : null,
+                    onAddSite: () => unawaited(_editing.addSite()),
+                    onOpenSettings: _openAppSettings,
                   ),
                 ),
                 if (_sites.loaded.isNotEmpty)
@@ -1533,8 +1545,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Disable the drawer edge-swipe whenever a webview is active so the back
       // gesture never opens the drawer. The drawer is reached via the AppBar
       // menu button instead.
-      drawerEdgeDragWidth: webviewIsVisible ? 0 : null,
-      appBar: _fullscreen.active ? null : _buildAppBar(),
+      drawerEdgeDragWidth: 0,
+      appBar: _fullscreen.active || !webviewIsVisible ? null : _buildAppBar(),
       // KIOSK-002: no drawer when locked — removes the site grid, "back to
       // webspaces", add-site, and the auto app-bar hamburger / edge swipe.
       drawer: _kioskLocked ? null : SiteDrawer(
@@ -1554,12 +1566,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       ),
       body: _buildBodyWithBottomBar(),
       bottomNavigationBar: _buildTabStrip(at: TabStripEdge.bottom),
-      floatingActionButton:
-          !(_sites.current == null || _sites.current! >= _sites.models.length) ? null
-          : FloatingActionButton(
-              onPressed: () => unawaited(_editing.addSite()),
-              child: Icon(Icons.add),
-            ),
     ),
     );
   }
@@ -1751,7 +1757,13 @@ class _PageHost
   void closeDrawer() => _s._scaffoldKey.currentState?.closeDrawer();
 
   @override
-  void openDrawer() => _s._scaffoldKey.currentState?.openDrawer();
+  void openDrawer() {
+    if (_s._sites.shown == null) {
+      _s._libraryKey.currentState?.showSelectedWebspace();
+    } else {
+      _s._scaffoldKey.currentState?.openDrawer();
+    }
+  }
 
   @override
   void themeChanged() => _s.widget.onThemeSettingsChanged(_s._shell.theme);

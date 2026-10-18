@@ -681,24 +681,67 @@ class _WebspacesCard extends StatefulWidget {
 }
 
 class _WebspacesCardState extends State<_WebspacesCard> {
-  final List<Webspace> _webspaces = _demoWebspaces();
+  final _libraryKey = GlobalKey<WebspacesListScreenState>();
+  final List<WebViewModel> _sites = [
+    WebViewModel(
+      siteId: SiteId('a'),
+      initUrl: 'https://github.com',
+      name: 'GitHub',
+    ),
+    WebViewModel(
+      siteId: SiteId('b'),
+      initUrl: 'https://news.ycombinator.com',
+      name: 'Hacker News',
+    ),
+    WebViewModel(
+      siteId: SiteId('c'),
+      initUrl: 'https://wandb.ai',
+      name: 'Weights & Biases',
+    ),
+    WebViewModel(
+      siteId: SiteId('d'),
+      initUrl: 'https://wikipedia.org',
+      name: 'Wikipedia',
+    ),
+    WebViewModel(
+      siteId: SiteId('e'),
+      initUrl: 'https://reddit.com',
+      name: 'Reddit',
+    ),
+    WebViewModel(
+      siteId: SiteId('f'),
+      initUrl: 'https://example.com',
+      name: 'Banking',
+    ),
+  ];
+  final List<Webspace> _webspaces = [Webspace.all(), ..._demoWebspaces()];
   WebspaceId? _selected;
 
   @override
   Widget build(BuildContext context) => WebspacesListScreen(
-        webspaces: _webspaces,
-        selectedWebspaceId: _selected,
-        totalSitesCount: 6,
-        accentColor: AccentColor.blue,
-        onSelectWebspace: (w) => setState(() => _selected = w.id),
-        onAddWebspace: () {},
-        onEditWebspace: (_) {},
-        onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
-        onReorder: (from, {required newIndex}) => setState(() {
-          final moved = _webspaces.removeAt(from);
-          _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);
-        }),
-      );
+    key: _libraryKey,
+    webspaces: _webspaces,
+    selectedWebspaceId: _selected,
+    sites: _sites,
+    currentSite: null,
+    showsTabCount: (site) => site.effectiveTabsEnabled,
+    onSelectWebspace: (w) {
+      setState(() => _selected = w.id);
+      _libraryKey.currentState?.showSelectedWebspace();
+    },
+    onAddWebspace: () {},
+    onEditWebspace: (_) {},
+    onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
+    onOpenSite: (_) {},
+    onSiteMenu: (context, {required site, required position}) {},
+    onReorderSite: null,
+    onAddSite: () {},
+    onOpenSettings: () async {},
+    onReorder: (from, {required newIndex}) => setState(() {
+      final moved = _webspaces.removeAt(from);
+      _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);
+    }),
+  );
 }
 
 /// The real WebspaceDetailScreen: which sites belong to one collection.

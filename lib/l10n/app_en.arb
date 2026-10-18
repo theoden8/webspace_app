@@ -5263,5 +5263,25 @@
         "type": "int"
       }
     }
+  },
+  "libraryWebspaces": "Webspaces",
+  "@libraryWebspaces": {
+    "description": "Title and bottom navigation label for the grid of named webspace folders."
+  },
+  "librarySites": "Sites",
+  "@librarySites": {
+    "description": "Title and bottom navigation label for the library of all saved websites."
+  },
+  "librarySearchWebspaces": "Search webspaces",
+  "@librarySearchWebspaces": {
+    "description": "Search field hint for filtering webspace folders by name."
+  },
+  "librarySearchSites": "Search sites",
+  "@librarySearchSites": {
+    "description": "Search field hint for filtering saved websites by their names or addresses."
+  },
+  "libraryNoResults": "No matches",
+  "@libraryNoResults": {
+    "description": "Empty search results message in the webspace and site library."
   }
 }
