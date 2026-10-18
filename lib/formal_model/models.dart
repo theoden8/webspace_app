@@ -826,26 +826,25 @@ String _stepInd(
 /// outgrow the backends (a step of several arms that spawns). The flow at
 /// the step's place is one an input started, so it is numbered within
 /// `inputs` (`Fresh`), which an arm that keeps the flow, or starts the
-/// next, needs and finds less easily.
+/// next, needs and finds less easily: every arm starts at the step's place,
+/// so that is proved once, before the split. Only an arm unfolds `IndInv`:
+/// the split and the QED close as they stand, and unfolded they time out.
 String _armsInd(Step<Object?, Enum> s, {required List<String> arms}) => [
   'LEMMA ${s.action}_Ind ==',
   '    ASSUME Good, IndInv, NEW f \\in Flows, ${s.action}(f)',
   "    PROVE  IndInv'",
-  '  <1> USE DEF Good, IndInv, FlowsOK, Fresh, Inv_Places, NoFlow, Flows, Did',
   '  <1>1. ${[for (final a in arms) '($a)'].join(' \\/ ')}',
   '    BY DEF ${s.action}',
+  '  <1>2. fl[f].pc # "done"',
+  '    BY <1>1',
+  '  <1>3. f <= inputs',
+  '    BY <1>2 DEF Good, IndInv, Fresh, Flows',
   for (final (n, a) in arms.indexed) ...[
-    '  <1>${n + 2}. CASE $a',
-    '    <2>1. f <= inputs',
-    '      BY <1>${n + 2}',
-    '    <2> QED',
-    '      BY <1>${n + 2}, <2>1${switch (_operators(s)) {
-      [] => '',
-      final ops => ' DEF ${ops.join(', ')}',
-    }}',
+    '  <1>${n + 4}. CASE $a',
+    '    BY <1>${n + 4}, <1>3 DEF ${['Good', 'IndInv', 'FlowsOK', 'Fresh', 'Inv_Places', 'NoFlow', 'Flows', 'Did', ..._operators(s)].join(', ')}',
   ],
   '  <1> QED',
-  '    BY ${[for (var n = 1; n <= arms.length + 1; n++) '<1>$n'].join(', ')}',
+  '    BY ${['<1>1', for (var n = 4; n < arms.length + 4; n++) '<1>$n'].join(', ')}',
   '',
 ].join('\n');
 
