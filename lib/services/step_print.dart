@@ -1,6 +1,9 @@
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/step_table.dart';
 
+/// One alternative of a printed action, marking an exposed unconditional spawn.
+typedef StepAlternative = ({String tla, bool spawns});
+
 /// What a step table is in the model, beside how it runs: what each place
 /// needs, what a flow records on entering a place, each step's footprint
 /// and its TLA+ action, all read off the declarations the runner runs.
@@ -109,12 +112,11 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       if (s.input) ModelVar.inputs,
       for (final w in call?.writes ?? <Write<W>>[]) w.variable,
       for (final arm in arms)
-        for (final e in [
-          ...arm.then,
-          for (final i in started(arm)) ...i.then,
-        ])
-          if (e case Act(:final writes)) ...writes
-          else if (e is Spawn<W>) ModelVar.inputs,
+        for (final e in [...arm.then, for (final i in started(arm)) ...i.then])
+          if (e case Act(:final writes))
+            ...writes
+          else if (e is Spawn<W>)
+            ModelVar.inputs,
     };
     // An arm is taken only once the branches before it did not hold: it
     // needs what each needs not to hold, and a branch on the flow's kind
@@ -228,7 +230,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
   /// side of an arm's spawn), each the step's guard and the conditions that
   /// lead to the arm beside it: their disjunction is the action, so a proof
   /// can take one arm at a time.
-  Map<ActivationStep, List<String>> alternatives({
+  Map<ActivationStep, List<StepAlternative>> alternatives({
     required List<ModelVar> variables,
     Map<String, List<Assign<Object?>>>? entered,
     Map<ActivationStep, Step<Object?, Enum>> starts = const {},
@@ -246,7 +248,8 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         ).alternatives,
   };
 
-  static ({String text, List<String> alternatives}) _action<W, P extends Enum>(
+  static ({String text, List<StepAlternative> alternatives})
+  _action<W, P extends Enum>(
     Step<W, P> s, {
     required P place,
     required List<ModelVar> variables,
@@ -276,7 +279,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         '($reply)',
       ),
     };
-    ({String text, List<String> sides}) branch(Arm<W, P> arm) {
+    ({String text, List<StepAlternative> sides}) branch(Arm<W, P> arm) {
       final refused = arm is Refused;
       final got = refused ? (String tla) => tla : replied;
       final callWrites = refused ? <Write<W>>[] : s.call?.writes ?? <Write<W>>[];
@@ -331,9 +334,8 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       ];
       assert(
         acts.every(
-          (a) => a.writes.every(
-            (w) => !callWrites.any((cw) => cw.variable == w),
-          ),
+          (a) =>
+              a.writes.every((w) => !callWrites.any((cw) => cw.variable == w)),
         ),
         '${s.name} writes a variable its call writes',
       );
@@ -365,7 +367,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       assert(spawns.length < 2, '${s.name} spawns twice in one arm');
       final plain = body();
       var text = plain;
-      var sides = [plain];
+      var sides = [(tla: plain, spawns: false)];
       if (spawns.firstOrNull case final spawn?) {
         final started = _start(
           spawn,
@@ -378,12 +380,19 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         final spawning =
             '(LET ${started.pick} == ${got(spawn.site.tla)} IN ${body(started: started)})';
         text = 'IF $when\n         THEN $spawning\n         ELSE ($plain)';
-        sides = ['($when) /\\ $spawning', '~($when) /\\ ($plain)'];
+        sides = [
+          (tla: '($when) /\\ $spawning', spawns: true),
+          (tla: '~($when) /\\ ($plain)', spawns: false),
+        ];
       }
       if (arm.pick case final p?) {
         // The spawn's condition may read the pick, so the arm stays whole.
+        // Its conditional spawn is not exposed as an unconditional one.
         final picked = '\\E ${p.name} \\in ${got(p.from.tla)} : ($text)';
-        return (text: picked, sides: [picked]);
+        return (
+          text: picked,
+          sides: [(tla: picked, spawns: false)],
+        );
       }
       return (text: text, sides: sides);
     }
@@ -400,16 +409,22 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     var alternatives = [
       for (final (i, arm) in [...arms, otherwise].indexed)
         for (final side in arm.sides)
-          [
-            for (final w in whens.take(i)) '~$w',
-            if (i < whens.length) whens[i],
-            '($side)',
-          ].join(' /\\ '),
+          (
+            tla: [
+              for (final w in whens.take(i)) '~$w',
+              if (i < whens.length) whens[i],
+              '(${side.tla})',
+            ].join(' /\\ '),
+            spawns: side.spawns,
+          ),
     ];
     if (s.refused case final r?) {
       final refused = '(${r.when.tla}) /\\ (${branch(r).text})';
       choice = '($choice)\n         \\/ ($refused)';
-      alternatives = [...alternatives, refused];
+      alternatives = [
+        ...alternatives,
+        (tla: refused, spawns: false),
+      ];
     }
     final guarded = switch (s.enabled) {
       null => choice,
@@ -428,16 +443,20 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       ].join('\n'),
       alternatives: [
         for (final a in alternatives)
-          [
-            for (final g in guard) '($g)',
-            switch ((s.enabled, s.pick)) {
-              (null, null) => '($a)',
-              (final e?, null) => '(${e.tla}) /\\ ($a)',
-              (null, final p?) => '(\\E ${p.name} \\in ${p.from.tla} : ($a))',
-              (final e?, final p?) =>
-                '(\\E ${p.name} \\in ${p.from.tla} : ((${e.tla}) /\\ ($a)))',
-            },
-          ].join(' /\\ ').replaceAll(RegExp(r'\n\s*'), ' '),
+          (
+            tla: [
+              for (final g in guard) '($g)',
+              switch ((s.enabled, s.pick)) {
+                (null, null) => '(${a.tla})',
+                (final e?, null) => '(${e.tla}) /\\ (${a.tla})',
+                (null, final p?) =>
+                  '(\\E ${p.name} \\in ${p.from.tla} : (${a.tla}))',
+                (final e?, final p?) =>
+                  '(\\E ${p.name} \\in ${p.from.tla} : ((${e.tla}) /\\ (${a.tla})))',
+              },
+            ].join(' /\\ ').replaceAll(RegExp(r'\n\s*'), ' '),
+            spawns: a.spawns,
+          ),
       ],
     );
   }
@@ -458,9 +477,10 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     final arm = input.otherwise;
     final primed = after.difference({ModelVar.fl, ModelVar.last});
     assert(
-      [spawn.when, spawn.site].every(
-        (e) => e.reads.vars.intersection(primed).isEmpty,
-      ),
+      [
+        spawn.when,
+        spawn.site,
+      ].every((e) => e.reads.vars.intersection(primed).isEmpty),
       'the spawn of ${spawn.input} reads what its arm writes',
     );
     assert(

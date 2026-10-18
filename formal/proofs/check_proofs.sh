@@ -61,6 +61,8 @@ min_obligations() {
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
     activation_tables_proof.tla) echo 85 ;;
+    activation_tables_3_proof.tla) echo 309 ;;
+    activation_tables_4_proof.tla) echo 207 ;;
     activation_invariants_proof.tla) echo 287 ;;
     containers_disjoint.tla)   echo 39 ;;
     current_loaded.tla)        echo 52 ;;

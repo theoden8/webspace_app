@@ -761,6 +761,12 @@ String activationTablesProof(Tables t) => [
 List<PrintedFile> activationTablesParts(Tables t) {
   final steps = _flowSteps(t);
   final arms = _alternatives(t);
+  final footprints = {for (final f in _footprintsOf(t)) f.step: f};
+  final held = {
+    for (final table in _all(t))
+      for (final (:place, :step) in table.steps)
+        if (step.holds != null) place.name,
+  };
   return [
     for (var i = 0; i < steps.length; i += _partSize)
       (
@@ -772,7 +778,13 @@ List<PrintedFile> activationTablesParts(Tables t) {
           'EXTENDS activation, TLAPS',
           '',
           for (final s in steps.skip(i).take(_partSize))
-            _armsInd(s, arms: arms[s.name]!),
+            _armsInd(
+              s,
+              arms: arms[s.name]!,
+              places: [for (final table in _all(t)) ...table.placesTla],
+              footprint: footprints[s.name]!,
+              held: held,
+            ),
           '=============================================================================',
           '',
         ].join('\n'),
@@ -783,7 +795,7 @@ List<PrintedFile> activationTablesParts(Tables t) {
 const _partSize = 8;
 
 /// Every step's action as its alternatives ([TablePrint.alternatives]).
-Map<ActivationStep, List<String>> _alternatives(Tables t) => {
+Map<ActivationStep, List<StepAlternative>> _alternatives(Tables t) => {
   for (final table in _all(t))
     ...table.alternatives(
       variables: ModelVar.values,
@@ -827,26 +839,162 @@ String _stepInd(
 /// the step's place is one an input started, so it is numbered within
 /// `inputs` (`Fresh`), which an arm that keeps the flow, or starts the
 /// next, needs and finds less easily: every arm starts at the step's place,
-/// so that is proved once, before the split. Only an arm unfolds `IndInv`:
+/// so that is proved once, before the split, as is its distinction from
+/// the next input's row. Only an arm unfolds `IndInv`:
 /// the split and the QED close as they stand, and unfolded they time out.
-String _armsInd(Step<Object?, Enum> s, {required List<String> arms}) => [
-  'LEMMA ${s.action}_Ind ==',
-  '    ASSUME Good, IndInv, NEW f \\in Flows, ${s.action}(f)',
-  "    PROVE  IndInv'",
-  '  <1>1. ${[for (final a in arms) '($a)'].join(' \\/ ')}',
-  '    BY DEF ${s.action}',
-  '  <1>2. fl[f].pc # "done"',
-  '    BY <1>1',
-  '  <1>3. f <= inputs',
-  '    BY <1>2 DEF Good, IndInv, Fresh, Flows',
-  for (final (n, a) in arms.indexed) ...[
-    '  <1>${n + 4}. CASE $a',
-    '    BY <1>${n + 4}, <1>3 DEF ${['Good', 'IndInv', 'FlowsOK', 'Fresh', 'Inv_Places', 'NoFlow', 'Flows', 'Did', ..._operators(s)].join(', ')}',
-  ],
-  '  <1> QED',
-  '    BY ${['<1>1', for (var n = 4; n < arms.length + 4; n++) '<1>$n'].join(', ')}',
-  '',
-].join('\n');
+String _armsInd(
+  Step<Object?, Enum> s, {
+  required List<StepAlternative> arms,
+  required List<String> places,
+  required Footprint footprint,
+  required Set<String> held,
+}) {
+  final spawning = s.allArms.any((a) => a.then.any((e) => e is Spawn));
+  return [
+    'LEMMA ${s.action}_Ind ==',
+    '    ASSUME Good, IndInv, NEW f \\in Flows, ${s.action}(f)',
+    "    PROVE  IndInv'",
+    if (spawning) ...['  <1>0. Good /\\ IndInv', '    OBVIOUS'],
+    '  <1>1. ${[for (final a in arms) '(${a.tla})'].join(' \\/ ')}',
+    '    BY DEF ${s.action}',
+    if (spawning) '  <1> HIDE ${s.action}(f)',
+    '  <1>2. fl[f].pc # "done"',
+    '    BY <1>1',
+    '  <1>3. ${spawning ? 'f \\in Nat /\\ ' : ''}f <= inputs${spawning ? ' /\\ f # inputs + 1' : ''}',
+    '    BY <1>2 DEF Good, IndInv, Fresh, Flows',
+    for (final (n, a) in arms.indexed) ...[
+      '  <1>${n + 4}. CASE ${a.tla}',
+      if (a.spawns)
+        ..._rowsInd(
+          s,
+          arm: n + 4,
+          places: places,
+          footprint: footprint,
+          held: held,
+        )
+      else
+        '    BY <1>${n + 4}, <1>3 DEF ${['Good', 'IndInv', 'FlowsOK', 'Fresh', 'Inv_Places', 'NoFlow', 'Flows', 'Did', ..._operators(s)].join(', ')}',
+    ],
+    '  <1> QED',
+    '    BY ${['<1>1', for (var n = 4; n < arms.length + 4; n++) '<1>$n'].join(', ')}',
+    '',
+  ].join('\n');
+}
+
+/// A spawning arm can update both its own row and the next input's, with
+/// several fields in each. Split on the row before asking the backends to
+/// simplify those updates: a single obligation over every row and every
+/// conjunct of IndInv can exhaust Zenon's memory. Prove the next places
+/// from the action first, with only the row's field and index facts; a
+/// place outside every held place then needs no record updates unfolded.
+List<String> _rowsInd(
+  Step<Object?, Enum> s, {
+  required int arm,
+  required List<String> places,
+  required Footprint footprint,
+  required Set<String> held,
+}) {
+  final next = {
+    'done',
+    for (final a in footprint.arms) ...[
+      ...a.next.keys,
+      for (final spawn in a.spawns) ...spawn.next.keys,
+    ],
+  };
+  final fields =
+      '{${[for (final f in FlowField.values) '"${f.name}"'].join(', ')}}';
+  final frame = [
+    for (final v in ModelVar.values)
+      if (!footprint.writes.contains(v)) v.name,
+  ];
+  final changesHeld = footprint.writes.any(
+    (v) =>
+        v != ModelVar.fl &&
+        places.any((p) => RegExp('\\b${v.name}\\b').hasMatch(p)),
+  );
+  final claims = [
+    "DOMAIN fl'[g] = DOMAIN NoFlow",
+    "g > inputs' => fl'[g].pc = \"done\"",
+    for (final p in places) "(${p.replaceAll(RegExp(r'\bf\b'), 'g')})'",
+  ];
+  final before = [
+    'g \\in Nat /\\ inputs \\in Nat',
+    'g \\in DOMAIN fl /\\ DOMAIN fl[g] = DOMAIN NoFlow',
+    '$fields \\subseteq DOMAIN fl[g]',
+    'g > inputs => fl[g].pc = "done"',
+    'NoFlow.pc = "done"',
+    for (final p in places) p.replaceAll(RegExp(r'\bf\b'), 'g'),
+  ];
+  return [
+    '    <2>0. Starts',
+    '      BY ONLY <1>$arm',
+    "    <2>1. inputs' \\in Nat /\\ inputs <= inputs' /\\ f <= inputs'",
+    '      BY ONLY <1>0, <2>0, <1>3 DEF IndInv, Starts',
+    "    <2>2. DOMAIN fl' = Flows",
+    '      BY ONLY <1>0, <1>$arm DEF IndInv, FlowsOK, Flows',
+    '    <2>4. UNCHANGED << ${frame.join(', ')} >>',
+    '      BY ONLY <1>$arm',
+    '    <2>5. DOMAIN NoFlow = $fields /\\ NoFlow.pc = "done"',
+    '      BY ONLY DEF NoFlow',
+    '    <2>3. \\A g \\in Flows :',
+    for (final c in claims) '        /\\ ($c)',
+    '      <3> SUFFICES ASSUME NEW g \\in Flows',
+    '                   PROVE',
+    for (final c in claims) '                     /\\ ($c)',
+    '        OBVIOUS',
+    '      <3>4. g \\in Flows',
+    '        OBVIOUS',
+    '      <3>0.',
+    for (final b in before) '          /\\ ($b)',
+    '        BY ONLY <1>0, <3>4, <2>5 DEF IndInv, FlowsOK, Fresh, Inv_Places, Flows',
+    for (final (n, c) in [
+      'g = f',
+      'g = inputs + 1',
+      'g # f /\\ g # inputs + 1',
+    ].indexed) ...[
+      '      <3>${n + 1}. CASE $c',
+      if (n == 2) ...[
+        '        <4>0. fl\'[g] = fl[g]',
+        '          BY ONLY <3>0, <3>${n + 1}, <1>$arm',
+      ],
+      '        <4>1. ${claims[0]}',
+      if (n == 2)
+        '          BY ONLY <3>0, <4>0'
+      else
+        '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',
+      '        <4>2. ${claims[1]}',
+      if (n == 0)
+        '          BY ONLY <3>0, <3>1, <2>1'
+      else if (n == 1)
+        '          BY ONLY <3>0, <3>2, <2>0 DEF Starts'
+      else
+        '          BY ONLY <3>0, <4>0, <2>1',
+      if (n < 2) ...[
+        '        <4>4. fl\'[g].pc \\in {${[for (final p in next) '"$p"'].join(', ')}}',
+        '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',
+        '        <4>5.',
+        for (final p in claims.skip(2)) '            /\\ ($p)',
+        if (next.intersection(held).isEmpty)
+          '          BY ONLY <4>4'
+        else
+          '          BY ONLY <4>4, <3>0, <3>${n + 1}, <1>$arm, <1>0, <1>3 DEF ${['Good', 'Did', ..._operators(s)].join(', ')}',
+      ] else ...[
+        '        <4>5.',
+        for (final p in claims.skip(2)) '            /\\ ($p)',
+        if (changesHeld)
+          '          BY ONLY <4>0, <3>0, <1>$arm, <1>0 DEF ${['Good', 'Did', ..._operators(s)].join(', ')}'
+        else
+          '          BY ONLY <4>0, <3>0, <2>4',
+      ],
+      '        <4> QED',
+      '          BY <4>1, <4>2, <4>5',
+    ],
+    '      <3> QED',
+    '        BY <3>1, <3>2, <3>3',
+    '    <2> QED',
+    '      BY <2>1, <2>2, <2>3 DEF IndInv, FlowsOK, Fresh, Inv_Places',
+  ];
+}
 
 /// For each invariant every step keeps as it stands ([Inv.inductive]): a
 /// case per step, each closed by the step's definition, and the theorem
