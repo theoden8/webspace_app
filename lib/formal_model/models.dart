@@ -707,17 +707,34 @@ String activationTablesProof(Tables t) => [
   '(* Not committed; edit the tables instead.                                *)',
   'EXTENDS activation, TLAPS',
   '',
-  _stepInd('TableStepInd', over: 'TableStep', steps: _flowSteps(t)),
-  _stepInd('InputStepInd', over: 'InputTableStep', steps: _inputSteps(t)),
+  _stepInd('TableStepInd', over: 'TableStep', steps: _flowSteps(t), arms: _alternatives(t)),
+  _stepInd('InputStepInd', over: 'InputTableStep', steps: _inputSteps(t), arms: const {}),
   '=============================================================================',
   '',
 ].join('\n');
 
+/// Every step's action as its alternatives ([TablePrint.alternatives]).
+Map<ActivationStep, List<String>> _alternatives(Tables t) => {
+  for (final table in _all(t))
+    ...table.alternatives(
+      variables: ModelVar.values,
+      entered: _entered(t),
+      starts: _starts(t),
+    ),
+};
+
 /// The lemma that every step of [over] keeps `IndInv`, one case per step.
+/// A step [arms] names is proved an arm at a time: its action is unfolded
+/// once, into its alternatives, and each is closed by itself, since one
+/// obligation over the whole action can outgrow the backends (a step of
+/// several arms that spawns). The flow at a step's place is one an input
+/// started, so it is numbered within `inputs` (`Fresh`), which an arm that
+/// keeps the flow, or starts the next, needs and finds less easily.
 String _stepInd(
   String name, {
   required String over,
   required List<Step<Object?, Enum>> steps,
+  required Map<ActivationStep, List<String>> arms,
 }) => [
   'LEMMA $name ==',
   '    ASSUME Good, IndInv, NEW f \\in Flows, $over(f)',
@@ -725,7 +742,28 @@ String _stepInd(
   '  <1> USE DEF Good, IndInv, FlowsOK, Fresh, Inv_Places, NoFlow, Flows, Did',
   for (final (i, s) in steps.indexed) ...[
     '  <1>${i + 1}. CASE ${s.action}(f)',
-    '    BY <1>${i + 1} DEF ${[s.action, if (s.input) 'Input', ..._operators(s)].join(', ')}',
+    ...switch (arms[s.name]) {
+      null => [
+        '    BY <1>${i + 1} DEF ${[s.action, if (s.input) 'Input', ..._operators(s)].join(', ')}',
+      ],
+      final alts => [
+        '    <2>1. fl[f].pc # "done"',
+        '      BY <1>${i + 1} DEF ${s.action}',
+        '    <2>2. f <= inputs',
+        '      BY <2>1',
+        '    <2>3. ${[for (final a in alts) '($a)'].join(' \\/ ')}',
+        '      BY <1>${i + 1} DEF ${s.action}',
+        for (final (n, a) in alts.indexed) ...[
+          '    <2>${n + 4}. CASE $a',
+          '      BY <2>${n + 4}, <2>2${switch (_operators(s)) {
+            [] => '',
+            final ops => ' DEF ${ops.join(', ')}',
+          }}',
+        ],
+        '    <2> QED',
+        '      BY ${[for (var n = 3; n < alts.length + 4; n++) '<2>$n'].join(', ')}',
+      ],
+    },
   ],
   '  <1> QED',
   '    BY ${[for (var i = 1; i <= steps.length; i++) '<1>$i'].join(', ')}',

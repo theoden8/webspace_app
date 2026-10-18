@@ -221,10 +221,32 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         awaited: awaited.contains(place),
         entered: entered ?? readsByPlace,
         starts: starts,
-      ),
+      ).text,
   ].join('\n');
 
-  static String _action<W, P extends Enum>(
+  /// Each step's action as the alternatives it takes, one per arm (and per
+  /// side of an arm's spawn), each the step's guard and the conditions that
+  /// lead to the arm beside it: their disjunction is the action, so a proof
+  /// can take one arm at a time.
+  Map<ActivationStep, List<String>> alternatives({
+    required List<ModelVar> variables,
+    Map<String, List<Assign<Object?>>>? entered,
+    Map<ActivationStep, Step<Object?, Enum>> starts = const {},
+  }) => {
+    for (final (:place, :step) in steps)
+      if (!step.spawned)
+        step.name: _action(
+          step,
+          place: place,
+          variables: variables,
+          ending: ending,
+          awaited: awaited.contains(place),
+          entered: entered ?? readsByPlace,
+          starts: starts,
+        ).alternatives,
+  };
+
+  static ({String text, List<String> alternatives}) _action<W, P extends Enum>(
     Step<W, P> s, {
     required P place,
     required List<ModelVar> variables,
@@ -254,7 +276,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         '($reply)',
       ),
     };
-    String branch(Arm<W, P> arm) {
+    ({String text, List<String> sides}) branch(Arm<W, P> arm) {
       final refused = arm is Refused;
       final got = refused ? (String tla) => tla : replied;
       final callWrites = refused ? <Write<W>>[] : s.call?.writes ?? <Write<W>>[];
@@ -341,7 +363,9 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           if (e is Spawn<W>) e,
       ];
       assert(spawns.length < 2, '${s.name} spawns twice in one arm');
-      var text = body();
+      final plain = body();
+      var text = plain;
+      var sides = [plain];
       if (spawns.firstOrNull case final spawn?) {
         final started = _start(
           spawn,
@@ -350,24 +374,42 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           after: written,
           bound: {s.pick?.name, arm.pick?.name},
         );
-        text =
-            'IF ${got(spawn.when.tla)}\n         THEN (LET ${started.pick} == '
-            '${got(spawn.site.tla)} IN ${body(started: started)})\n'
-            '         ELSE ($text)';
+        final when = got(spawn.when.tla);
+        final spawning =
+            '(LET ${started.pick} == ${got(spawn.site.tla)} IN ${body(started: started)})';
+        text = 'IF $when\n         THEN $spawning\n         ELSE ($plain)';
+        sides = ['($when) /\\ $spawning', '~($when) /\\ ($plain)'];
       }
-      return switch (arm.pick) {
-        null => text,
-        final p => '\\E ${p.name} \\in ${got(p.from.tla)} : ($text)',
-      };
+      if (arm.pick case final p?) {
+        // The spawn's condition may read the pick, so the arm stays whole.
+        final picked = '\\E ${p.name} \\in ${got(p.from.tla)} : ($text)';
+        return (text: picked, sides: [picked]);
+      }
+      return (text: text, sides: sides);
     }
 
-    var choice = '(${branch(s.otherwise)})';
-    for (final b in s.branches.reversed) {
+    final arms = [for (final b in s.branches) branch(b)];
+    final otherwise = branch(s.otherwise);
+    var choice = '(${otherwise.text})';
+    for (final (i, b) in s.branches.indexed.toList().reversed) {
       choice =
-          'IF ${replied(b.when.tla)}\n         THEN (${branch(b)})\n         ELSE $choice';
+          'IF ${replied(b.when.tla)}\n         THEN (${arms[i].text})\n         ELSE $choice';
     }
+    // Branch i is taken when the ones before it do not hold and it does.
+    final whens = [for (final b in s.branches) '(${replied(b.when.tla)})'];
+    var alternatives = [
+      for (final (i, arm) in [...arms, otherwise].indexed)
+        for (final side in arm.sides)
+          [
+            for (final w in whens.take(i)) '~$w',
+            if (i < whens.length) whens[i],
+            '($side)',
+          ].join(' /\\ '),
+    ];
     if (s.refused case final r?) {
-      choice = '($choice)\n         \\/ ((${r.when.tla}) /\\ (${branch(r)}))';
+      final refused = '(${r.when.tla}) /\\ (${branch(r).text})';
+      choice = '($choice)\n         \\/ ($refused)';
+      alternatives = [...alternatives, refused];
     }
     final guarded = switch (s.enabled) {
       null => choice,
@@ -377,12 +419,27 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       null => guarded,
       final p => '\\E ${p.name} \\in ${p.from.tla} :\n         $guarded',
     };
-    return [
-      '${s.action}(f) ==',
-      for (final g in guard) '    /\\ $g',
-      '    /\\ $body',
-      '',
-    ].join('\n');
+    return (
+      text: [
+        '${s.action}(f) ==',
+        for (final g in guard) '    /\\ $g',
+        '    /\\ $body',
+        '',
+      ].join('\n'),
+      alternatives: [
+        for (final a in alternatives)
+          [
+            for (final g in guard) '($g)',
+            switch ((s.enabled, s.pick)) {
+              (null, null) => '($a)',
+              (final e?, null) => '(${e.tla}) /\\ ($a)',
+              (null, final p?) => '(\\E ${p.name} \\in ${p.from.tla} : ($a))',
+              (final e?, final p?) =>
+                '(\\E ${p.name} \\in ${p.from.tla} : ((${e.tla}) /\\ ($a)))',
+            },
+          ].join(' /\\ ').replaceAll(RegExp(r'\n\s*'), ' '),
+      ],
+    );
   }
 
   /// What [spawn]'s input prints in the action of the step that starts it:
