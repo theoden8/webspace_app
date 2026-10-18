@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Quaere situs",
   "libraryNoResults": "Nihil inventum",
   "appSettingsExperimentalFolderLibrary": "Bibliotheca fasciculorum",
-  "appSettingsExperimentalFolderLibraryHint": "Spatia operis ut fasciculos perlustra et situs eorum in reticulo aperi in quo quaerere potes."
+  "appSettingsExperimentalFolderLibraryHint": "Spatia operis ut fasciculos perlustra et situs eorum in reticulo aperi in quo quaerere potes.",
+  "siteRedirectDomainSuggestion": "Hic situs ad {domain} redirexit. Visne hoc dominium addere ut nexus futuri hic aperiantur?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Cuardaigh suíomhanna",
   "libraryNoResults": "Gan torthaí",
   "appSettingsExperimentalFolderLibrary": "Leabharlann fillteán",
-  "appSettingsExperimentalFolderLibraryHint": "Brabhsáil spásanna oibre mar fhillteáin agus oscail a suíomhanna i ngreille inchuardaithe."
+  "appSettingsExperimentalFolderLibraryHint": "Brabhsáil spásanna oibre mar fhillteáin agus oscail a suíomhanna i ngreille inchuardaithe.",
+  "siteRedirectDomainSuggestion": "Rinne an suíomh seo atreorú chuig {domain}. An bhfuil fonn ort an fearann seo a chur leis ionas go n-osclófar naisc anseo amach anseo?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

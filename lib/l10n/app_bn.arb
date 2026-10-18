@@ -1098,5 +1098,14 @@
   "librarySearchSites": "সাইট খুঁজুন",
   "libraryNoResults": "কোনো ফলাফল নেই",
   "appSettingsExperimentalFolderLibrary": "ফোল্ডার লাইব্রেরি",
-  "appSettingsExperimentalFolderLibraryHint": "কর্মক্ষেত্রগুলো ফোল্ডার হিসেবে দেখুন এবং সেগুলোর সাইট অনুসন্ধানযোগ্য গ্রিডে খুলুন।"
+  "appSettingsExperimentalFolderLibraryHint": "কর্মক্ষেত্রগুলো ফোল্ডার হিসেবে দেখুন এবং সেগুলোর সাইট অনুসন্ধানযোগ্য গ্রিডে খুলুন।",
+  "siteRedirectDomainSuggestion": "এই সাইটটি {domain}-এ পুনর্নির্দেশ করেছে। ভবিষ্যতের লিঙ্কগুলি এখানে খুলতে এই ডোমেনটি যোগ করবেন?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

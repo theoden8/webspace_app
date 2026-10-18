@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Търсене на сайтове",
   "libraryNoResults": "Няма резултати",
   "appSettingsExperimentalFolderLibrary": "Библиотека с папки",
-  "appSettingsExperimentalFolderLibraryHint": "Разглеждайте работните пространства като папки и отваряйте сайтовете им в мрежа с търсене."
+  "appSettingsExperimentalFolderLibraryHint": "Разглеждайте работните пространства като папки и отваряйте сайтовете им в мрежа с търсене.",
+  "siteRedirectDomainSuggestion": "Този сайт пренасочи към {domain}. Да се добави ли този домейн, за да се отварят бъдещите връзки тук?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

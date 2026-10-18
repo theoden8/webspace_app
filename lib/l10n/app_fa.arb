@@ -1098,5 +1098,14 @@
   "librarySearchSites": "جستجوی سایت‌ها",
   "libraryNoResults": "نتیجه‌ای یافت نشد",
   "appSettingsExperimentalFolderLibrary": "کتابخانهٔ پوشه‌ها",
-  "appSettingsExperimentalFolderLibraryHint": "فضاهای کاری را به‌شکل پوشه مرور کنید و سایت‌هایشان را در شبکه‌ای با قابلیت جست‌وجو باز کنید."
+  "appSettingsExperimentalFolderLibraryHint": "فضاهای کاری را به‌شکل پوشه مرور کنید و سایت‌هایشان را در شبکه‌ای با قابلیت جست‌وجو باز کنید.",
+  "siteRedirectDomainSuggestion": "این سایت به {domain} تغییر مسیر داد. این دامنه اضافه شود تا پیوندهای بعدی اینجا باز شوند؟",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

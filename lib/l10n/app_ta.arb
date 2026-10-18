@@ -1098,5 +1098,14 @@
   "librarySearchSites": "தளங்களைத் தேடு",
   "libraryNoResults": "பொருத்தங்கள் இல்லை",
   "appSettingsExperimentalFolderLibrary": "கோப்புறை நூலகம்",
-  "appSettingsExperimentalFolderLibraryHint": "பணியிடங்களைக் கோப்புறைகளாக உலாவி, அவற்றின் தளங்களைத் தேடக்கூடிய கட்டத்தில் திறக்கவும்."
+  "appSettingsExperimentalFolderLibraryHint": "பணியிடங்களைக் கோப்புறைகளாக உலாவி, அவற்றின் தளங்களைத் தேடக்கூடிய கட்டத்தில் திறக்கவும்.",
+  "siteRedirectDomainSuggestion": "இந்தத் தளம் {domain} க்குத் திருப்பிவிட்டது. இனிவரும் இணைப்புகள் இங்கே திறக்க இந்தக் களத்தைச் சேர்க்கவா?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1098,5 +1098,14 @@
   "librarySearchSites": "搜尋網站",
   "libraryNoResults": "沒有符合項目",
   "appSettingsExperimentalFolderLibrary": "文件夹库",
-  "appSettingsExperimentalFolderLibraryHint": "以文件夹形式浏览工作区，并在可搜索的网格中打开其中的网站。"
+  "appSettingsExperimentalFolderLibraryHint": "以文件夹形式浏览工作区，并在可搜索的网格中打开其中的网站。",
+  "siteRedirectDomainSuggestion": "這個網站重新導向至 {domain}。要新增這個網域，讓日後的連結在此開啟嗎？",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

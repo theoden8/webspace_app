@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Ieškoti svetainių",
   "libraryNoResults": "Atitikmenų nėra",
   "appSettingsExperimentalFolderLibrary": "Aplankų biblioteka",
-  "appSettingsExperimentalFolderLibraryHint": "Naršykite darbo sritis kaip aplankus ir atverkite jų svetaines tinklelyje su paieška."
+  "appSettingsExperimentalFolderLibraryHint": "Naršykite darbo sritis kaip aplankus ir atverkite jų svetaines tinklelyje su paieška.",
+  "siteRedirectDomainSuggestion": "Ši svetainė nukreipė į {domain}. Pridėti šį domeną, kad būsimos nuorodos būtų atidaromos čia?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

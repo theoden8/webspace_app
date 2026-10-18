@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Fittex siti",
   "libraryNoResults": "Ebda riżultat",
   "appSettingsExperimentalFolderLibrary": "Librerija tal-fowlders",
-  "appSettingsExperimentalFolderLibraryHint": "Ibbrawżja l-ispazji tax-xogħol bħala fowlders u iftaħ is-siti tagħhom fi grilja li tista' tfittex fiha."
+  "appSettingsExperimentalFolderLibraryHint": "Ibbrawżja l-ispazji tax-xogħol bħala fowlders u iftaħ is-siti tagħhom fi grilja li tista' tfittex fiha.",
+  "siteRedirectDomainSuggestion": "Dan is-sit idderieġa mill-ġdid lejn {domain}. Tixtieq iżżid dan id-dominju biex il-links futuri jinfetħu hawn?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

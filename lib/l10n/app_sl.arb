@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Poišči spletišča",
   "libraryNoResults": "Ni zadetkov",
   "appSettingsExperimentalFolderLibrary": "Knjižnica map",
-  "appSettingsExperimentalFolderLibraryHint": "Brskajte po delovnih prostorih kot po mapah in odpirajte njihova spletišča v mreži z iskanjem."
+  "appSettingsExperimentalFolderLibraryHint": "Brskajte po delovnih prostorih kot po mapah in odpirajte njihova spletišča v mreži z iskanjem.",
+  "siteRedirectDomainSuggestion": "To spletno mesto je preusmerilo na {domain}. Želite dodati to domeno, da se bodo prihodnje povezave odpirale tukaj?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

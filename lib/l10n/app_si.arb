@@ -1098,5 +1098,14 @@
   "librarySearchSites": "අඩවි සොයන්න",
   "libraryNoResults": "ප්‍රතිඵල නැත",
   "appSettingsExperimentalFolderLibrary": "ෆෝල්ඩර පුස්තකාලය",
-  "appSettingsExperimentalFolderLibraryHint": "වැඩ අවකාශ ෆෝල්ඩර ලෙස පිරික්සන්න, ඒවායේ අඩවි සෙවිය හැකි ජාලකයක විවෘත කරන්න."
+  "appSettingsExperimentalFolderLibraryHint": "වැඩ අවකාශ ෆෝල්ඩර ලෙස පිරික්සන්න, ඒවායේ අඩවි සෙවිය හැකි ජාලකයක විවෘත කරන්න.",
+  "siteRedirectDomainSuggestion": "මෙම අඩවිය {domain} වෙත යළි යොමු විය. ඉදිරි සබැඳි මෙහි විවෘත වීමට මෙම වසම එක් කරන්නද?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

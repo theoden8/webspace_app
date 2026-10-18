@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Kërko sajte",
   "libraryNoResults": "Nuk ka rezultate",
   "appSettingsExperimentalFolderLibrary": "Biblioteka e dosjeve",
-  "appSettingsExperimentalFolderLibraryHint": "Shfletoni hapësirat e punës si dosje dhe hapni sajtet e tyre në një rrjetë me kërkim."
+  "appSettingsExperimentalFolderLibraryHint": "Shfletoni hapësirat e punës si dosje dhe hapni sajtet e tyre në një rrjetë me kërkim.",
+  "siteRedirectDomainSuggestion": "Ky sajt ridrejtoi te {domain}. Ta shtojmë këtë domen që lidhjet e ardhshme të hapen këtu?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

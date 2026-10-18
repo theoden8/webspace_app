@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Sök webbplatser",
   "libraryNoResults": "Inga träffar",
   "appSettingsExperimentalFolderLibrary": "Mappbibliotek",
-  "appSettingsExperimentalFolderLibraryHint": "Bläddra bland arbetsytor som mappar och öppna deras webbplatser i ett rutnät med sökning."
+  "appSettingsExperimentalFolderLibraryHint": "Bläddra bland arbetsytor som mappar och öppna deras webbplatser i ett rutnät med sökning.",
+  "siteRedirectDomainSuggestion": "Den här webbplatsen omdirigerade till {domain}. Vill du lägga till domänen så att framtida länkar öppnas här?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

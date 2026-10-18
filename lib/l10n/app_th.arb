@@ -1098,5 +1098,14 @@
   "librarySearchSites": "ค้นหาเว็บไซต์",
   "libraryNoResults": "ไม่พบผลลัพธ์",
   "appSettingsExperimentalFolderLibrary": "คลังโฟลเดอร์",
-  "appSettingsExperimentalFolderLibraryHint": "เรียกดูพื้นที่ทำงานเป็นโฟลเดอร์และเปิดเว็บไซต์ในตารางที่ค้นหาได้"
+  "appSettingsExperimentalFolderLibraryHint": "เรียกดูพื้นที่ทำงานเป็นโฟลเดอร์และเปิดเว็บไซต์ในตารางที่ค้นหาได้",
+  "siteRedirectDomainSuggestion": "เว็บไซต์นี้เปลี่ยนเส้นทางไปยัง {domain} ต้องการเพิ่มโดเมนนี้เพื่อให้ลิงก์ในอนาคตเปิดที่นี่หรือไม่?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Otsi veebilehti",
   "libraryNoResults": "Vasteid pole",
   "appSettingsExperimentalFolderLibrary": "Kaustateek",
-  "appSettingsExperimentalFolderLibraryHint": "Sirvi tööruume kaustadena ja ava nende saidid otsitavas ruudustikus."
+  "appSettingsExperimentalFolderLibraryHint": "Sirvi tööruume kaustadena ja ava nende saidid otsitavas ruudustikus.",
+  "siteRedirectDomainSuggestion": "See sait suunas domeenile {domain}. Kas lisada see domeen, et edaspidi avaneksid lingid siin?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

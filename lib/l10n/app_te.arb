@@ -1098,5 +1098,14 @@
   "librarySearchSites": "సైట్‌లను వెతకండి",
   "libraryNoResults": "ఫలితాలు లేవు",
   "appSettingsExperimentalFolderLibrary": "ఫోల్డర్ లైబ్రరీ",
-  "appSettingsExperimentalFolderLibraryHint": "కార్యస్థలాలను ఫోల్డర్‌లుగా బ్రౌజ్ చేసి, వాటి సైట్‌లను శోధించగల గ్రిడ్‌లో తెరవండి."
+  "appSettingsExperimentalFolderLibraryHint": "కార్యస్థలాలను ఫోల్డర్‌లుగా బ్రౌజ్ చేసి, వాటి సైట్‌లను శోధించగల గ్రిడ్‌లో తెరవండి.",
+  "siteRedirectDomainSuggestion": "ఈ సైట్ {domain} కు మళ్లించింది. భవిష్యత్ లింకులు ఇక్కడ తెరుచుకునేలా ఈ డొమైన్‌ను జోడించాలా?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1098,5 +1098,14 @@
   "librarySearchSites": "ತಾಣಗಳನ್ನು ಹುಡುಕಿ",
   "libraryNoResults": "ಫಲಿತಾಂಶಗಳಿಲ್ಲ",
   "appSettingsExperimentalFolderLibrary": "ಫೋಲ್ಡರ್ ಗ್ರಂಥಾಲಯ",
-  "appSettingsExperimentalFolderLibraryHint": "ಕಾರ್ಯಸ್ಥಳಗಳನ್ನು ಫೋಲ್ಡರ್‌ಗಳಾಗಿ ಬ್ರೌಸ್ ಮಾಡಿ ಮತ್ತು ಅವುಗಳ ಸೈಟ್‌ಗಳನ್ನು ಹುಡುಕಬಹುದಾದ ಗ್ರಿಡ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ."
+  "appSettingsExperimentalFolderLibraryHint": "ಕಾರ್ಯಸ್ಥಳಗಳನ್ನು ಫೋಲ್ಡರ್‌ಗಳಾಗಿ ಬ್ರೌಸ್ ಮಾಡಿ ಮತ್ತು ಅವುಗಳ ಸೈಟ್‌ಗಳನ್ನು ಹುಡುಕಬಹುದಾದ ಗ್ರಿಡ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ.",
+  "siteRedirectDomainSuggestion": "ಈ ತಾಣವು {domain} ಗೆ ಮರುನಿರ್ದೇಶಿಸಿದೆ. ಮುಂದಿನ ಲಿಂಕ್‌ಗಳು ಇಲ್ಲಿ ತೆರೆಯುವಂತೆ ಈ ಡೊಮೇನ್ ಸೇರಿಸಬೇಕೆ?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

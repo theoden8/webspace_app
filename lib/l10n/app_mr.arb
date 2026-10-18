@@ -1098,5 +1098,14 @@
   "librarySearchSites": "साइट्स शोधा",
   "libraryNoResults": "कोणतेही परिणाम नाहीत",
   "appSettingsExperimentalFolderLibrary": "फोल्डर लायब्ररी",
-  "appSettingsExperimentalFolderLibraryHint": "कार्यक्षेत्रे फोल्डर म्हणून ब्राउझ करा आणि त्यांच्या साइट शोधता येणाऱ्या ग्रिडमध्ये उघडा."
+  "appSettingsExperimentalFolderLibraryHint": "कार्यक्षेत्रे फोल्डर म्हणून ब्राउझ करा आणि त्यांच्या साइट शोधता येणाऱ्या ग्रिडमध्ये उघडा.",
+  "siteRedirectDomainSuggestion": "या साइटने {domain} वर पुनर्निर्देशित केले. पुढील दुवे येथे उघडण्यासाठी हे डोमेन जोडायचे का?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

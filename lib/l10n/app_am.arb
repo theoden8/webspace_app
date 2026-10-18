@@ -1098,5 +1098,14 @@
   "librarySearchSites": "ድረ ገጾችን ፈልግ",
   "libraryNoResults": "ምንም ውጤት የለም",
   "appSettingsExperimentalFolderLibrary": "የአቃፊ ቤተ መጻሕፍት",
-  "appSettingsExperimentalFolderLibraryHint": "የሥራ ቦታዎችን እንደ አቃፊዎች ያስሱ እና ጣቢያዎቻቸውን መፈለግ በሚቻልበት ፍርግርግ ይክፈቱ።"
+  "appSettingsExperimentalFolderLibraryHint": "የሥራ ቦታዎችን እንደ አቃፊዎች ያስሱ እና ጣቢያዎቻቸውን መፈለግ በሚቻልበት ፍርግርግ ይክፈቱ።",
+  "siteRedirectDomainSuggestion": "ይህ ጣቢያ ወደ {domain} አዘዋውሯል። ወደፊት አገናኞች እዚህ እንዲከፈቱ ይህን ጎራ ይጨምሩ?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

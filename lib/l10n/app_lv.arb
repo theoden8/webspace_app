@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Meklēt vietnes",
   "libraryNoResults": "Nav atbilstību",
   "appSettingsExperimentalFolderLibrary": "Mapju bibliotēka",
-  "appSettingsExperimentalFolderLibraryHint": "Pārlūkojiet darbvietas kā mapes un atveriet to vietnes režģī ar meklēšanu."
+  "appSettingsExperimentalFolderLibraryHint": "Pārlūkojiet darbvietas kā mapes un atveriet to vietnes režģī ar meklēšanu.",
+  "siteRedirectDomainSuggestion": "Šī vietne novirzīja uz {domain}. Vai pievienot šo domēnu, lai turpmāk saites tiktu atvērtas šeit?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

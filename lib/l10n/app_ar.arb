@@ -1098,5 +1098,14 @@
   "librarySearchSites": "البحث في المواقع",
   "libraryNoResults": "لا توجد نتائج",
   "appSettingsExperimentalFolderLibrary": "مكتبة المجلدات",
-  "appSettingsExperimentalFolderLibraryHint": "تصفّح مساحات العمل كمجلدات وافتح مواقعها في شبكة قابلة للبحث."
+  "appSettingsExperimentalFolderLibraryHint": "تصفّح مساحات العمل كمجلدات وافتح مواقعها في شبكة قابلة للبحث.",
+  "siteRedirectDomainSuggestion": "أعاد هذا الموقع التوجيه إلى {domain}. هل تريد إضافة هذا النطاق لفتح روابطه هنا مستقبلاً؟",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

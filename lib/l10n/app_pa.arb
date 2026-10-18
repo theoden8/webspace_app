@@ -1098,5 +1098,14 @@
   "librarySearchSites": "ਸਾਈਟਾਂ ਖੋਜੋ",
   "libraryNoResults": "ਕੋਈ ਨਤੀਜੇ ਨਹੀਂ",
   "appSettingsExperimentalFolderLibrary": "ਫੋਲਡਰ ਲਾਇਬ੍ਰੇਰੀ",
-  "appSettingsExperimentalFolderLibraryHint": "ਵਰਕਸਪੇਸ ਨੂੰ ਫੋਲਡਰਾਂ ਵਜੋਂ ਬ੍ਰਾਊਜ਼ ਕਰੋ ਅਤੇ ਉਹਨਾਂ ਦੀਆਂ ਸਾਈਟਾਂ ਖੋਜਯੋਗ ਗ੍ਰਿਡ ਵਿੱਚ ਖੋਲ੍ਹੋ।"
+  "appSettingsExperimentalFolderLibraryHint": "ਵਰਕਸਪੇਸ ਨੂੰ ਫੋਲਡਰਾਂ ਵਜੋਂ ਬ੍ਰਾਊਜ਼ ਕਰੋ ਅਤੇ ਉਹਨਾਂ ਦੀਆਂ ਸਾਈਟਾਂ ਖੋਜਯੋਗ ਗ੍ਰਿਡ ਵਿੱਚ ਖੋਲ੍ਹੋ।",
+  "siteRedirectDomainSuggestion": "ਇਸ ਸਾਈਟ ਨੇ {domain} ਵੱਲ ਰੀਡਾਇਰੈਕਟ ਕੀਤਾ। ਭਵਿੱਖ ਦੇ ਲਿੰਕ ਇੱਥੇ ਖੋਲ੍ਹਣ ਲਈ ਇਹ ਡੋਮੇਨ ਸ਼ਾਮਲ ਕਰਨਾ ਹੈ?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Webhelyek keresése",
   "libraryNoResults": "Nincs találat",
   "appSettingsExperimentalFolderLibrary": "Mappatár",
-  "appSettingsExperimentalFolderLibraryHint": "Böngéssze a munkaterületeket mappákként, és nyissa meg webhelyeiket kereshető rácsban."
+  "appSettingsExperimentalFolderLibraryHint": "Böngéssze a munkaterületeket mappákként, és nyissa meg webhelyeiket kereshető rácsban.",
+  "siteRedirectDomainSuggestion": "Ez a webhely átirányított ide: {domain}. Hozzáadja ezt a domaint, hogy a jövőbeli hivatkozások itt nyíljanak meg?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

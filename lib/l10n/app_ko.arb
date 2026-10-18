@@ -1098,5 +1098,14 @@
   "librarySearchSites": "사이트 검색",
   "libraryNoResults": "일치하는 항목 없음",
   "appSettingsExperimentalFolderLibrary": "폴더 라이브러리",
-  "appSettingsExperimentalFolderLibraryHint": "작업 공간을 폴더로 탐색하고 해당 사이트를 검색 가능한 그리드에서 엽니다."
+  "appSettingsExperimentalFolderLibraryHint": "작업 공간을 폴더로 탐색하고 해당 사이트를 검색 가능한 그리드에서 엽니다.",
+  "siteRedirectDomainSuggestion": "이 사이트가 {domain}(으)로 리디렉션되었습니다. 앞으로 이 도메인의 링크를 여기서 열도록 추가할까요?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

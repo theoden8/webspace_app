@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Αναζήτηση ιστοτόπων",
   "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα",
   "appSettingsExperimentalFolderLibrary": "Βιβλιοθήκη φακέλων",
-  "appSettingsExperimentalFolderLibraryHint": "Περιηγηθείτε στους χώρους εργασίας ως φακέλους και ανοίξτε τους ιστοτόπους τους σε πλέγμα με αναζήτηση."
+  "appSettingsExperimentalFolderLibraryHint": "Περιηγηθείτε στους χώρους εργασίας ως φακέλους και ανοίξτε τους ιστοτόπους τους σε πλέγμα με αναζήτηση.",
+  "siteRedirectDomainSuggestion": "Αυτός ο ιστότοπος ανακατεύθυνε στο {domain}. Να προστεθεί αυτός ο τομέας ώστε οι μελλοντικοί σύνδεσμοι να ανοίγουν εδώ;",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

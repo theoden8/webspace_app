@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Bilatu webguneak",
   "libraryNoResults": "Ez dago emaitzarik",
   "appSettingsExperimentalFolderLibrary": "Karpeten liburutegia",
-  "appSettingsExperimentalFolderLibraryHint": "Arakatu lan-eremuak karpeta gisa eta ireki haien webguneak bilaketak onartzen dituen sareta batean."
+  "appSettingsExperimentalFolderLibraryHint": "Arakatu lan-eremuak karpeta gisa eta ireki haien webguneak bilaketak onartzen dituen sareta batean.",
+  "siteRedirectDomainSuggestion": "Gune honek {domain} domeinura birbideratu du. Domeinu hau gehitu nahi duzu etorkizuneko estekak hemen irekitzeko?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

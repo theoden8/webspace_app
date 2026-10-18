@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Websites zoeken",
   "libraryNoResults": "Geen resultaten",
   "appSettingsExperimentalFolderLibrary": "Mappenbibliotheek",
-  "appSettingsExperimentalFolderLibraryHint": "Blader door werkruimten als mappen en open hun websites in een doorzoekbaar raster."
+  "appSettingsExperimentalFolderLibraryHint": "Blader door werkruimten als mappen en open hun websites in een doorzoekbaar raster.",
+  "siteRedirectDomainSuggestion": "Deze website heeft doorgestuurd naar {domain}. Dit domein toevoegen zodat toekomstige links hier openen?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

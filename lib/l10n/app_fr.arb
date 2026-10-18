@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Rechercher des sites",
   "libraryNoResults": "Aucun résultat",
   "appSettingsExperimentalFolderLibrary": "Bibliothèque de dossiers",
-  "appSettingsExperimentalFolderLibraryHint": "Parcourez les espaces de travail sous forme de dossiers et ouvrez leurs sites dans une grille avec recherche."
+  "appSettingsExperimentalFolderLibraryHint": "Parcourez les espaces de travail sous forme de dossiers et ouvrez leurs sites dans une grille avec recherche.",
+  "siteRedirectDomainSuggestion": "Ce site a redirigé vers {domain}. Ajouter ce domaine pour que les prochains liens s’ouvrent ici ?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }

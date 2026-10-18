@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Maghanap ng mga site",
   "libraryNoResults": "Walang mga tugma",
   "appSettingsExperimentalFolderLibrary": "Aklatan ng mga folder",
-  "appSettingsExperimentalFolderLibraryHint": "Mag-browse ng mga workspace bilang mga folder at buksan ang mga site ng mga ito sa grid na may paghahanap."
+  "appSettingsExperimentalFolderLibraryHint": "Mag-browse ng mga workspace bilang mga folder at buksan ang mga site ng mga ito sa grid na may paghahanap.",
+  "siteRedirectDomainSuggestion": "Nag-redirect ang site na ito sa {domain}. Idagdag ang domain na ito para dito magbukas ang mga susunod na link?",
+  "@siteRedirectDomainSuggestion": {
+    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  }
 }
