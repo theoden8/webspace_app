@@ -66,9 +66,10 @@ TLC model it backs (same definitions — no re-modeling).
   no input has started is idle. It covers the launch too: the cold start's preloads and the jar
   clear queued for the first turn. Every flow step (the activation's own, the unload loop's and
   the jar's turns) is one case, `TableStep`, proved by the printed `activation_tables_proof` (a
-  case per table step, by its action and the operators its acts call), which `check_proofs.sh`
-  checks on its own, since tlapm takes an extended module's lemma as given; the hand-written
-  cases are the inputs and the pressure plan.
+  case per table step, by that step's lemma), which `check_proofs.sh` checks on its own, since
+  tlapm takes an extended module's lemma as given. Each step's lemma unfolds its action once and
+  closes it an arm at a time, eight steps a module (`activation_tables_<n>_proof`), so the
+  modules prove side by side; the hand-written cases are the inputs and the pressure plan.
   **54 obligations, all proved; `activation_tables_proof` 85.**
 - **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
   invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in

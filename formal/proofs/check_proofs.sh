@@ -60,7 +60,7 @@ min_obligations() {
   case "$1" in
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
-    activation_tables_proof.tla) echo 101 ;;
+    activation_tables_proof.tla) echo 85 ;;
     activation_invariants_proof.tla) echo 287 ;;
     containers_disjoint.tla)   echo 39 ;;
     current_loaded.tla)        echo 52 ;;
@@ -83,8 +83,10 @@ min_obligations() {
 work="$(mktemp -d)"
 trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "$work"' EXIT
 check() {
-  local f="$1" name out proved want
+  local f="$1" name out proved want start
   name="$(basename "$f")"
+  start=$(date +%s)
+  echo "  $name: started"
   # Capture, then match: piping straight into `grep -q` lets grep exit on the
   # first hit and SIGPIPE tlapm, which `pipefail` then reports as a failure.
   out="$(prove "$f")"
@@ -94,6 +96,7 @@ check() {
   # so a module that fails is proved again ignoring the cache: a timeout on a
   # loaded machine does not fail every run after it.
   if [ -z "$proved" ] || [ "$proved" -lt "$want" ]; then
+    echo "  $name: ${proved:-no} obligations proved after $(( $(date +%s) - start ))s, again without the cache"
     out="$(prove --nofp "$f")"
     proved="$(obligations "$out")"
   fi
@@ -110,6 +113,9 @@ check() {
     } >"$work/$name.out"
     touch "$work/$name.failed"
   fi
+  # The summary below prints once every module has ended, so a run the job's
+  # timeout kills says nothing; each module says when it ends instead.
+  echo "  $name: $(tail -1 "$work/$name.out" | sed 's/^ *//') in $(( $(date +%s) - start ))s"
 }
 # The printed proofs, the longest, start first.
 for f in "$FORMAL_MODEL"/*_proof.tla *.tla; do
