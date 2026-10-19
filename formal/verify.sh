@@ -109,7 +109,8 @@ FORMAL_MODEL="$OUT/model" "$ROOT/formal/proofs/check_proofs.sh" | tee "$OUT/proo
 echo "══ LEVELS: verification only grows (formal/levels.tsv) ══"
 logs=(--models "$OUT/models.log" --steps "$OUT/steps.log" --proofs "$OUT/proofs.log")
 python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" --out "$OUT/levels.tsv"
-if python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" \
+# Raise the measured counts: the committed floors may all have been exceeded.
+if python3 -I "$ROOT/formal/levels.py" "$OUT/levels.tsv" "${logs[@]}" \
     --out "$OUT/levels_planted.tsv" --plant >/dev/null 2>&1; then
   echo "FAIL: a floor raised by one passed, so the levels gate is vacuous" >&2; exit 1
 fi
