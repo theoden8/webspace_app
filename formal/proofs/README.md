@@ -129,7 +129,12 @@ read as green. If you add or remove proof steps, update the count here *and* in
 `check_proofs.sh` skips (exit 0) when `tlapm` is not on `PATH`, so a workstation without
 it still runs the rest of the suite. CI installs it in the `validate` job, where the
 proofs are a hard gate alongside the TLC suite. Backend timeouts are wall-clock, so the
-script passes `--stretch 10` to survive a loaded runner; override with `TLAPM_STRETCH`.
+script passes `--stretch 30`; override with `TLAPM_STRETCH`. This also gives SMT
+input preparation 150 seconds. In a cold `Plan_Ind` check with two preparations
+sharing one CPU, the old 50-second limit expired before the solver ran. With
+the larger limit, the same obligations proved after 90 seconds, with only
+0.2 seconds in Z3. The allowance avoids slow fallback methods and whole-module
+retries; the proof statements and obligation counts are unchanged.
 
 tlapm fingerprints every obligation it settles, here under `.tlacache/` (`TLAPM_CACHE_DIR`
 moves it) and in CI between runs, so a run proves only what no earlier run proved. A

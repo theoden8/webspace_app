@@ -27,12 +27,12 @@ if [ -z "${FORMAL_MODEL:-}" ] || [ ! -f "$FORMAL_MODEL/activation_tables.tla" ];
   echo "FORMAL_MODEL names no printed modules; run formal/verify.sh" >&2
   exit 2
 fi
-# Backend timeouts are wall-clock, so a loaded CI runner can fail an obligation
-# that a workstation proves. --stretch multiplies every timeout instead,
-# tlapm's own as well: preparing one case of the printed tables' proof takes
-# about 30 s on four cores, past the 25 s that a stretch of 5 allows, and a
-# backend tlapm gives up on keeps running until memory runs out.
-STRETCH="${TLAPM_STRETCH:-10}"
+# Timeouts include preparing the SMT input, before the solver runs. With two
+# cold preparations sharing a CPU, Plan_Ind hits the 50 s internal limit at
+# stretch 10 and falls back to slower methods; at stretch 30 it prepares in
+# 90 s and Z3 proves it in 0.2 s. Allow 150 s for preparation so a loaded
+# runner does not redo whole modules after those avoidable timeouts.
+STRETCH="${TLAPM_STRETCH:-30}"
 # One cache of fingerprints for every module, the printed ones too
 # (TLAPM_CACHE_DIR moves it; CI keeps it between runs): an obligation proved
 # before is not proved again. Fingerprints are per obligation, so an edit
@@ -46,6 +46,7 @@ CACHE="${TLAPM_CACHE_DIR:-$(pwd)/.tlacache}"
 JOBS="${TLAPM_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 THREADS=$(( $(getconf _NPROCESSORS_ONLN) / JOBS ))
 [ "$THREADS" -ge 1 ] || THREADS=1
+printf 'TLAPS: jobs=%s threads=%s timeout stretch=%s\n' "$JOBS" "$THREADS" "$STRETCH"
 prove() {
   tlapm -I "$KERNEL_DIR" ${FORMAL_MODEL:+-I "$FORMAL_MODEL"} --threads "$THREADS" \
     --cache-dir "$CACHE" --safefp --stretch "$STRETCH" "$@" 2>&1 || true
