@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/log_service.dart';
 
@@ -7,6 +9,86 @@ void main() {
   setUp(() {
     LogService.instance.resetForTest();
   });
+
+  for (final sensitivity in LogSensitivity.values) {
+    test('${sensitivity.name} retention survives repeated buffer wraps', () {
+      final printer = debugPrint;
+      debugPrint = (message, {wrapWidth}) {};
+      addTearDown(() => debugPrint = printer);
+      final log = LogService.instance;
+      var notifications = 0;
+      void listen() => notifications++;
+      log.addListener(listen);
+      addTearDown(() => log.removeListener(listen));
+      List<LogEntry> entries() => switch (sensitivity) {
+        LogSensitivity.normal => log.entries,
+        LogSensitivity.sensitive => log.sensitiveEntries,
+      };
+      final messages = <String>[];
+      List<LogEntry>? snapshot;
+      for (var i = 0; i < LogService.maxEntries * 3 + 7; i++) {
+        final message = '$i';
+        messages.add(message);
+        log.log(LogTag.test, message: message, sensitivity: sensitivity);
+        if (i == 0 || (i + 1) % LogService.maxEntries <= 1) {
+          expect(
+            entries().map((e) => e.message),
+            messages.skip(math.max(0, messages.length - LogService.maxEntries)),
+          );
+        }
+        if (i + 1 == LogService.maxEntries) snapshot = entries();
+      }
+      expect(
+        entries().map((e) => e.message),
+        messages.skip(messages.length - LogService.maxEntries),
+      );
+      final saved = snapshot!;
+      expect(saved.map((e) => e.message), messages.take(LogService.maxEntries));
+      expect(saved.clear, throwsUnsupportedError);
+      expect(notifications, messages.length);
+      expect(log.allEntriesMerged, unorderedEquals(entries()));
+      switch (sensitivity) {
+        case LogSensitivity.normal:
+          expect(log.sensitiveEntries, isEmpty);
+          expect(
+            log.export().split('\n').where((s) => s.isNotEmpty),
+            hasLength(LogService.maxEntries),
+          );
+        case LogSensitivity.sensitive:
+          expect(log.entries, isEmpty);
+          expect(log.export(), isEmpty);
+      }
+      log.clear();
+      expect(entries(), isEmpty);
+      expect(notifications, messages.length + 1);
+      log.log(LogTag.test, message: 'after clear', sensitivity: sensitivity);
+      expect(entries().single.message, 'after clear');
+    });
+
+    test(
+      '${sensitivity.name} recent filtering respects scan and limit after wraps',
+      () {
+        final printer = debugPrint;
+        debugPrint = (message, {wrapWidth}) {};
+        addTearDown(() => debugPrint = printer);
+        final matching = <int>[];
+        final count = LogService.maxEntries * 3 + 7;
+        for (var i = 0; i < count; i++) {
+          final tag = i % 3 == 0 ? LogTag.tabs : LogTag.test;
+          LogService.instance.log(tag, message: '$i', sensitivity: sensitivity);
+          if (tag == LogTag.tabs && i >= count - 31) matching.add(i);
+        }
+        expect(
+          LogService.instance
+              .recent({LogTag.tabs}, limit: 7, scan: 31)
+              .map((e) => e.message),
+          matching.skip(math.max(0, matching.length - 7)).map((i) => '$i'),
+        );
+        expect(LogService.instance.recent({LogTag.tabs}, limit: 0), isEmpty);
+        expect(LogService.instance.recent({LogTag.tabs}, scan: 0), isEmpty);
+      },
+    );
+  }
 
   group('LogService normal entries', () {
     test('reach the persisted entries sink', () {
@@ -29,8 +111,10 @@ void main() {
       LogTag.test.debug('secret-payload', sensitive: true);
       expect(LogService.instance.entries, isEmpty);
       expect(LogService.instance.sensitiveEntries, hasLength(1));
-      expect(LogService.instance.sensitiveEntries.first.message,
-          'secret-payload');
+      expect(
+        LogService.instance.sensitiveEntries.first.message,
+        'secret-payload',
+      );
     });
 
     test('never reach export() (memory-only contract)', () {
@@ -93,8 +177,10 @@ void main() {
       for (var i = 0; i < LogService.maxEntries + 50; i++) {
         LogTag.test.debug('sensitive-$i', sensitive: true);
       }
-      expect(LogService.instance.sensitiveEntries,
-          hasLength(LogService.maxEntries));
+      expect(
+        LogService.instance.sensitiveEntries,
+        hasLength(LogService.maxEntries),
+      );
       // The oldest entries should have rolled off.
       expect(
         LogService.instance.sensitiveEntries.first.message,

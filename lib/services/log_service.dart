@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 
 enum LogLevel { debug, info, warning, error }
@@ -128,8 +130,8 @@ class LogService extends ChangeNotifier {
   static final instance = LogService._();
   LogService._();
 
-  final List<LogEntry> _entries = [];
-  final List<LogEntry> _sensitiveEntries = [];
+  final _entries = ListQueue<LogEntry>();
+  final _sensitiveEntries = ListQueue<LogEntry>();
   static const maxEntries = 2000;
 
   @visibleForTesting
@@ -155,12 +157,12 @@ class LogService extends ChangeNotifier {
     if (sensitivity == LogSensitivity.sensitive) {
       _sensitiveEntries.add(entry);
       if (_sensitiveEntries.length > maxEntries) {
-        _sensitiveEntries.removeAt(0);
+        _sensitiveEntries.removeFirst();
       }
     } else {
       _entries.add(entry);
       if (_entries.length > maxEntries) {
-        _entries.removeAt(0);
+        _entries.removeFirst();
       }
       // Not release: a shipped build keeps its log ring in memory for Dev
       // Tools and puts nothing in logcat. Profile is in scope because the
@@ -186,8 +188,8 @@ class LogService extends ChangeNotifier {
     var j = _sensitiveEntries.length - 1;
     var seen = 0;
     while (out.length < limit && seen < scan && (i >= 0 || j >= 0)) {
-      final a = i >= 0 ? _entries[i] : null;
-      final b = j >= 0 ? _sensitiveEntries[j] : null;
+      final a = i >= 0 ? _entries.elementAt(i) : null;
+      final b = j >= 0 ? _sensitiveEntries.elementAt(j) : null;
       final LogEntry next;
       if (a == null) {
         next = b!;

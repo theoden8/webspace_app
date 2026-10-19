@@ -237,12 +237,14 @@ jobs:
       # here, and the warnings and infos the code already carries do not.
       - name: Analyze (errors only)
         run: fvm flutter analyze --no-fatal-infos --no-fatal-warnings
-      - name: Test the formal harness
+      - name: Test verification helpers and logging
         run: >-
           fvm flutter test --reporter expanded
           test/frame_segments_test.dart test/frame_parity_test.dart
           test/schedule_shards_test.dart test/declare_to_use_test.dart
           test/schedules_test.dart test/walk_runner_test.dart
+          test/log_service_test.dart test/log_clipboard_strip_test.dart
+          test/log_no_siteid_leak_test.dart
       # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in
       # formal/proofs/.
       #
