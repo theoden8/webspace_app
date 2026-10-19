@@ -250,7 +250,9 @@ class.
   elapsed time and latest TLC progress every minute (`FORMAL_PROGRESS_SECONDS`).
 - **`verify.sh`** — the one way to run all of it: prints the modules and writes the walk and
   step traces (`flutter test`), then `check.sh`, `trace/check_steps.sh` and the TLAPS
-  proofs. CI's `validate` job runs it. The schedules record their traces in `FORMAL_SLOTS`
+  proofs. CI runs its stages through [the formal workflow](../.github/workflows/formal.yml),
+  and the required `validate` job waits for their combined result.
+  The schedules record their traces in `FORMAL_SLOTS`
   shards side by side, dividing the largest sweeps by script and assigning other
   tests whole (`SCHEDULE_SHARD`), each into its own directory, and the replay
   merges a configuration's shards into one trie, a node by its parent, label and state, so
@@ -266,6 +268,27 @@ class.
 ./formal/verify.sh          # everything: needs Flutter, Java, Python 3, tlapm
 ./formal/verify.sh --fast   # the printed modules and activation.tla only
 ```
+
+A complete run without verification caches:
+
+```bash
+cold_dir="$(mktemp -d)"
+FORMAL_CACHE="$cold_dir/tlc" TLAPM_CACHE_DIR="$cold_dir/tlapm" \
+  FORMAL_RERUN=1 ./formal/verify.sh
+```
+
+CI starts schedule exploration alongside model printing and Lean. Four model jobs
+partition the full check registry; proofs run alongside them, and trace replay starts
+once schedules and models are printed. The final stage requires every job to succeed,
+matches every completed check to the independently prepared registry exactly once,
+then runs the global footprint, world-key, trace-conformance and verification-floor
+gates. Every job uses the same prepared modules and TLC jar. Search bounds and the
+checks themselves are the same as a local full run.
+
+To validate this path in GitHub Actions, dispatch **Build and Test** with
+`formal_cold=true`. This runs source validation and all formal stages, skips restoring
+TLC verdicts, timings and TLAPS fingerprints, clears those directories and forces TLC
+execution. Toolchain and package downloads may still use their normal caches.
 
 Or directly:
 
@@ -441,8 +464,9 @@ always runs again. `FORMAL_RERUN=1` runs every check and keeps what
 behaves; a kept run nothing has asked for in a fortnight is dropped.
 
 CI restores and saves these caches separately, saving completed work even when a
-later check fails. The verification step has a five-hour timeout inside the job's
-six-hour limit so cache saving has time to run. Each attempt saves a new cache;
+later check fails. Each model shard and the proof job has a five-hour verification
+timeout inside the job's six-hour limit so cache saving has time to run.
+Each attempt saves a new cache;
 restoring an older one does not prevent saving newly completed checks. TLAPS uses
 the same policy for its version-checked fingerprints and retries failed obligations
 without them. A timeout still fails verification; it does not count unfinished work.

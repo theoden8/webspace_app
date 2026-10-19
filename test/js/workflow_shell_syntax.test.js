@@ -115,27 +115,34 @@ test('every run block parses under the shell that runs it', (t) => {
     t.skip('no dash on PATH');
     return;
   }
-  const workflow = YAML.parse(read(WORKFLOW));
   const parser = { sh: 'dash', bash: 'bash' };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wf-run-'));
   const failures = [];
   let parsed = 0;
   try {
-    for (const [jobName, job] of Object.entries(workflow.jobs)) {
-      for (const [i, step] of (job.steps ?? []).entries()) {
-        if (typeof step.run !== 'string') continue;
-        const shell = stepShell(workflow, job, step);
-        if (!parser[shell]) continue;
-        const file = path.join(dir, `${jobName}-${i}.sh`);
-        fs.writeFileSync(file, step.run.replace(/\$\{\{[^}]*\}\}/g, 'X'));
-        try {
-          execFileSync(parser[shell], ['-n', file], { stdio: 'pipe' });
-        } catch (e) {
-          failures.push(`${jobName} / ${step.name ?? `step ${i}`} (${shell}): `
-              + `${e.stderr?.toString().trim()}`);
+    for (const source of [WORKFLOW, '.github/workflows/formal.yml',
+      '.github/actions/setup-formal/action.yml']) {
+      const workflow = YAML.parse(read(source));
+      const jobs = workflow.jobs ?? { composite: { steps: workflow.runs.steps } };
+      let sourceParsed = 0;
+      for (const [jobName, job] of Object.entries(jobs)) {
+        for (const [i, step] of (job.steps ?? []).entries()) {
+          if (typeof step.run !== 'string') continue;
+          const shell = stepShell(workflow, job, step);
+          if (!parser[shell]) continue;
+          const file = path.join(dir, `${jobName}-${i}.sh`);
+          fs.writeFileSync(file, step.run.replace(/\$\{\{[^}]*\}\}/g, 'X'));
+          try {
+            execFileSync(parser[shell], ['-n', file], { stdio: 'pipe' });
+          } catch (e) {
+            failures.push(`${source} / ${jobName} / ${step.name ?? `step ${i}`} (${shell}): `
+                + `${e.stderr?.toString().trim()}`);
+          }
+          parsed++;
+          sourceParsed++;
         }
-        parsed++;
       }
+      assert.ok(sourceParsed > 0, `no run blocks parsed in ${source}`);
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -152,7 +159,8 @@ test('every run block parses under the shell that runs it', (t) => {
 test('every heavy job is gated on the plan job', () => {
   const text = read(WORKFLOW);
   for (const [job, output] of [
-    ['validate', 'validate'],
+    ['validate-sources', 'validate'],
+    ['formal', 'validate'],
     ['design-web', 'design'],
     ['build-android', 'android'],
     ['build-linux', 'linux'],
@@ -162,16 +170,14 @@ test('every heavy job is gated on the plan job', () => {
     ['screenshots-macos', 'screenshots'],
     ['screenshots-linux', 'screenshots'],
   ]) {
-    const header = text.slice(text.indexOf(`\n  ${job}:\n`));
-    const block = header.slice(0, header.indexOf('\n    steps:'));
-    assert.match(
-      block,
-      /\n {4}needs: plan\n/,
+    const block = YAML.parse(text).jobs[job];
+    assert.ok(
+      [block.needs].flat().includes('plan'),
       `${job} does not depend on the plan job, so its guard cannot be read`,
     );
     assert.match(
-      block,
-      new RegExp(`if: needs\\.plan\\.outputs\\.${output} === ?'true'`.replace('===', '==')),
+      block.if,
+      new RegExp(`needs\\.plan\\.outputs\\.${output} === ?'true'`.replace('===', '==')),
       `${job} is not gated on needs.plan.outputs.${output}`,
     );
   }

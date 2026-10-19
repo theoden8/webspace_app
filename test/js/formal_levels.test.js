@@ -14,7 +14,7 @@ function verify(t, floor) {
   for (const folder of [formal, bin, ...['lean', 'trace', 'proofs'].map((s) => path.join(formal, s))]) {
     fs.mkdirSync(folder);
   }
-  for (const name of ['verify.sh', 'levels.py']) {
+  for (const name of ['verify.sh', 'levels.py', 'model_shards.py']) {
     fs.copyFileSync(path.resolve(__dirname, '../../formal', name), path.join(formal, name));
   }
   fs.writeFileSync(path.join(formal, 'levels.tsv'), Object.entries(floor)
@@ -33,7 +33,6 @@ function verify(t, floor) {
   // Stub the expensive stages, keeping the real verification and levels gate.
   const stages = {
     'lean/check.sh': '',
-    'check.sh': 'TALLY holds=2 caught=2 reached=2',
     'trace/check_steps.sh': '  OK   first 2 steps, 3 states replayed\n  OK   second 2 steps, 3 states replayed',
     'proofs/check_proofs.sh': '  OK: 2 obligations proved\n  OK: 2 obligations proved',
   };
@@ -42,6 +41,24 @@ function verify(t, floor) {
       console.log(text);
     }, output), { mode: 0o755 });
   }
+  fs.writeFileSync(path.join(formal, 'check.sh'), `#!${process.execPath}\n` + scriptOf(() => {
+    const fs = require('node:fs');
+    const records = ['holds', 'caught', 'reached', 'holds', 'caught', 'reached']
+      .map((kind, i) => `${i}\tcheck_${i}\t${kind}`);
+    switch (process.argv[2]) {
+      case '--jar':
+        fs.writeFileSync(process.env.TLA2TOOLS_JAR ?? 'formal/tla2tools.jar', 'stub');
+        return;
+      case '--gates':
+        return;
+    }
+    fs.writeFileSync(process.env.FORMAL_MANIFEST, ['SHARD\t0\t1',
+      ...records.map((r) => `CHECK\t${r}`), 'PLANNED\t6', ''].join('\n'));
+    if (process.argv[2] !== '--plan') {
+      for (const row of records) console.log(`RESULT\t${row}`);
+      console.log('TALLY holds=2 caught=2 reached=2');
+    }
+  }), { mode: 0o755 });
   const result = spawnSync('bash', [path.join(formal, 'verify.sh')], {
     env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FLUTTER: 'flutter', FORMAL_SLOTS: '1' },
     encoding: 'utf8',

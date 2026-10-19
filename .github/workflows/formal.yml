@@ -1,0 +1,182 @@
+name: Formal verification
+on:
+  workflow_call:
+    inputs:
+      cold:
+        type: boolean
+        default: false
+        description: Run every TLC check and proof without restoring verification caches.
+jobs:
+  prepare:
+    name: Print models and check Lean
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-formal
+        with:
+          flutter: 'true'
+          lean: 'true'
+      - run: ./formal/verify.sh --stage prepare
+      - uses: actions/upload-artifact@v4
+        with:
+          name: formal-model
+          path: build/formal/model
+          if-no-files-found: error
+  schedules:
+    name: Explore schedules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-formal
+        with:
+          flutter: 'true'
+      - run: ./formal/verify.sh --stage schedules
+        timeout-minutes: 300
+      - uses: actions/upload-artifact@v4
+        with:
+          name: formal-schedules
+          path: build/formal/steps
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: formal-schedule-failure
+          path: build/formal
+  models:
+    name: TLC models (${{ matrix.shard }})
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-formal
+      - uses: actions/download-artifact@v4
+        with:
+          name: formal-model
+          path: build/formal/model
+      - id: formal-cache
+        uses: actions/cache/restore@v4
+        if: ${{ !inputs.cold }}
+        with:
+          path: ~/.cache/webspace-formal
+          key: formal-v2-${{ runner.os }}-${{ strategy.job-total }}-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            formal-v2-${{ runner.os }}-${{ strategy.job-total }}-${{ strategy.job-index }}-
+            formal-${{ runner.os }}-
+      - id: formal-verify
+        run: |
+          if [ "${{ inputs.cold }}" = true ]; then rm -rf "$HOME/.cache/webspace-formal"; fi
+          ./formal/verify.sh --stage models
+        timeout-minutes: 300
+        env:
+          FORMAL_SHARD: ${{ strategy.job-index }}/${{ strategy.job-total }}
+          FORMAL_RERUN: ${{ inputs.cold && '1' || '' }}
+      - uses: actions/cache/save@v4
+        if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
+        with:
+          path: ~/.cache/webspace-formal
+          key: formal-v2-${{ runner.os }}-${{ strategy.job-total }}-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: formal-model-${{ strategy.job-index }}
+          path: build/formal/model-shards/local
+          if-no-files-found: error
+  steps:
+    name: Replay every step
+    needs: [prepare, schedules]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-formal
+      - uses: actions/download-artifact@v4
+        with:
+          name: formal-model
+          path: build/formal/model
+      - uses: actions/download-artifact@v4
+        with:
+          name: formal-schedules
+          path: build/formal/steps
+      - run: ./formal/verify.sh --stage steps
+        timeout-minutes: 300
+      - uses: actions/upload-artifact@v4
+        with:
+          name: formal-replay
+          path: build/formal/steps.log
+          if-no-files-found: error
+  proofs:
+    name: Prove every obligation
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: tools
+        uses: ./.github/actions/setup-formal
+        with:
+          proofs: 'true'
+      - uses: actions/download-artifact@v4
+        with:
+          name: formal-model
+          path: build/formal/model
+      - id: tlapm-cache
+        uses: actions/cache/restore@v4
+        if: ${{ !inputs.cold }}
+        with:
+          path: formal/proofs/.tlacache
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-version }}-
+      - id: formal-verify
+        run: |
+          if [ "${{ inputs.cold }}" = true ]; then rm -rf formal/proofs/.tlacache; fi
+          ./formal/verify.sh --stage proofs
+        timeout-minutes: 300
+      - uses: actions/cache/save@v4
+        if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
+        with:
+          path: formal/proofs/.tlacache
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-version }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: formal-proofs
+          path: build/formal/proofs.log
+          if-no-files-found: error
+  finish:
+    name: Verify complete coverage and floors
+    needs: [prepare, models, steps, proofs]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-formal
+      - uses: actions/download-artifact@v4
+        with:
+          name: formal-model
+          path: build/formal/model
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: formal-model-*
+          path: build/formal/model-shards
+      - uses: actions/download-artifact@v4
+        with:
+          name: formal-replay
+          path: build/formal
+      - uses: actions/download-artifact@v4
+        with:
+          name: formal-proofs
+          path: build/formal
+      - run: ./formal/verify.sh --stage finish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: formal-verification-report
+          path: |
+            build/formal/models.log
+            build/formal/steps.log
+            build/formal/proofs.log
+            build/formal/levels.tsv

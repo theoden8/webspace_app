@@ -16,44 +16,60 @@
 #   LEVELS   levels.py: no count of what was checked falls below
 #            formal/levels.tsv
 #
-# usage: verify.sh [--fast]
+# usage: verify.sh [--fast | --stage prepare|schedules|models|steps|proofs|finish]
 #   --fast   PRINT without the traces, LEAN, then check.sh's ACTIVATION
 #            section: the step tables against the model and their mutants,
 #            in about four minutes on four cores
 #
+# --stage runs the same phase independently for CI; finish requires the
+# complete prepared registry, all model shards, replay and proof summaries.
 # Needs Flutter (FLUTTER, default `fvm flutter`), Java, Python 3 and, without
 # --fast, tlapm on PATH; lake (elan) for LEAN, which skips without it unless
 # CI=true. Writes under build/formal/.
 set -euo pipefail
 
 FAST=0
+STAGE=all
 case "${1:-}" in
   --fast) FAST=1 ;;
+  --stage) STAGE="${2:-}" ;;
   "") ;;
-  *) echo "usage: $0 [--fast]" >&2; exit 2 ;;
+  *) echo "usage: $0 [--fast | --stage prepare|schedules|models|steps|proofs|finish]" >&2; exit 2 ;;
 esac
-
+case "$STAGE" in
+  all|prepare|schedules|models|steps|proofs|finish) ;;
+  *) echo "unknown formal stage: $STAGE" >&2; exit 2 ;;
+esac
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/build/formal"
 FLUTTER="${FLUTTER:-fvm flutter}"
-
 need() { command -v "$1" >/dev/null 2>&1 || { echo "verify.sh needs $1 on PATH${2:+ ($2)}" >&2; exit 2; }; }
 need java
 need python3
-[ "$FAST" -eq 1 ] || need tlapm "see formal/proofs/check_proofs.sh"
-
-rm -rf "$OUT"
+if [ "$FAST" -eq 0 ] && { [ "$STAGE" = all ] || [ "$STAGE" = proofs ]; }; then
+  need tlapm "see formal/proofs/check_proofs.sh"
+fi
+cd "$ROOT"
 mkdir -p "$OUT"
 
-echo "══ PRINT: the modules the code defines ══"
-cd "$ROOT"
-# A main, not a test: the runner exits 79 when it finds no tests to run.
-status=0
-FORMAL_OUT="$OUT/model" $FLUTTER test lib/formal_model/main.dart || status=$?
-[ "$status" -eq 0 ] || [ "$status" -eq 79 ] || exit "$status"
-[ -f "$OUT/model/models.json" ] || { echo "lib/formal_model/main.dart wrote nothing under $OUT/model" >&2; exit 1; }
-if [ "$FAST" -eq 0 ]; then
+prepare() {
+  echo "══ PRINT: the modules the code defines ══"
+  local status=0 jar="${TLA2TOOLS_JAR:-$ROOT/formal/tla2tools.jar}"
+  case "$jar" in /*) ;; *) jar="$ROOT/formal/$jar" ;; esac
+  FORMAL_OUT="$OUT/model" $FLUTTER test lib/formal_model/main.dart || status=$?
+  [ "$status" -eq 0 ] || [ "$status" -eq 79 ] || return "$status"
+  [ -f "$OUT/model/models.json" ] || { echo "lib/formal_model/main.dart wrote nothing under $OUT/model" >&2; return 1; }
+  FORMAL_MODEL="$OUT/model" TLA2TOOLS_JAR="$jar" "$ROOT/formal/check.sh" --jar
+  if [ ! "$jar" -ef "$OUT/model/tla2tools.jar" ]; then
+    cp "$jar" "$OUT/model/tla2tools.jar"
+  fi
+  FORMAL_MODEL="$OUT/model" FORMAL_MANIFEST="$OUT/model/checks_registry.tsv" \
+    TLA2TOOLS_JAR="$OUT/model/tla2tools.jar" "$ROOT/formal/check.sh" --plan
+}
+
+schedules() {
   echo "══ SCHEDULES: explore interleavings and record their traces ══"
+  rm -rf "$OUT/steps"
   # The schedules record their traces in FORMAL_SLOTS shards side by side,
   # each into its own directory. The largest sweeps split their scripts
   # across shards; other tests run every nth test (SCHEDULE_SHARD).
@@ -83,37 +99,85 @@ if [ "$FAST" -eq 0 ]; then
     cat "$OUT"/steps.*.log
     exit "$status"
   fi
-fi
+}
 
-echo "══ LEAN: how a check may be split (formal/lean/) ══"
-if command -v lake >/dev/null 2>&1; then
-  "$ROOT/formal/lean/check.sh" "$OUT/model/lean/Footprints.lean"
-elif [ "${CI:-}" = true ]; then
-  echo "verify.sh needs lake on PATH in CI (elan; formal/lean/lean-toolchain pins the version)" >&2
-  exit 2
-else
-  echo "  SKIP lake not on PATH: the Lean check did not run (formal/lean/check.sh)"
-fi
+lean() {
+  echo "══ LEAN: how a check may be split (formal/lean/) ══"
+  if command -v lake >/dev/null 2>&1; then
+    "$ROOT/formal/lean/check.sh" "$OUT/model/lean/Footprints.lean"
+  elif [ "${CI:-}" = true ]; then
+    echo "verify.sh needs lake on PATH in CI (elan; formal/lean/lean-toolchain pins the version)" >&2
+    exit 2
+  else
+    echo "  SKIP lake not on PATH: the Lean check did not run (formal/lean/check.sh)"
+  fi
+}
 
-if [ "$FAST" -eq 1 ]; then
-  echo "══ MODELS: activation.tla with the printed modules ══"
-  FORMAL_MODEL="$OUT/model" FORMAL_ONLY=ACTIVATION "$ROOT/formal/check.sh"
-  exit 0
-fi
+prepared_jar() {
+  export TLA2TOOLS_JAR="$OUT/model/tla2tools.jar"
+  [ -f "$TLA2TOOLS_JAR" ] || { echo "prepared model has no TLC jar; run --stage prepare first" >&2; return 2; }
+}
 
-echo "══ MODELS ══"
-FORMAL_MODEL="$OUT/model" "$ROOT/formal/check.sh" | tee "$OUT/models.log"
-echo "══ STEPS ══"
-"$ROOT/formal/trace/check_steps.sh" "$OUT/steps" "$OUT/model" | tee "$OUT/steps.log"
-echo "══ PROOFS ══"
-FORMAL_MODEL="$OUT/model" "$ROOT/formal/proofs/check_proofs.sh" | tee "$OUT/proofs.log"
-echo "══ LEVELS: verification only grows (formal/levels.tsv) ══"
-logs=(--models "$OUT/models.log" --steps "$OUT/steps.log" --proofs "$OUT/proofs.log")
-python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" --out "$OUT/levels.tsv"
-# Raise the measured counts: the committed floors may all have been exceeded.
-if python3 -I "$ROOT/formal/levels.py" "$OUT/levels.tsv" "${logs[@]}" \
-    --out "$OUT/levels_planted.tsv" --plant >/dev/null 2>&1; then
-  echo "FAIL: a floor raised by one passed, so the levels gate is vacuous" >&2; exit 1
-fi
-echo "  OK   planted: a floor above the run is caught"
-echo "Every formal check passed."
+models() {
+  echo "══ MODELS: shard ${FORMAL_SHARD:-0/1} ══"
+  prepared_jar
+  local report="$OUT/model-shards/local"
+  rm -rf "$report"
+  mkdir -p "$report"
+  FORMAL_MODEL="$OUT/model" FORMAL_MANIFEST="$report/manifest.tsv" \
+    FORMAL_COVERAGE="$report/coverage" FORMAL_DEFER_GATES=1 \
+    "$ROOT/formal/check.sh" | tee "$report/models.log"
+}
+
+steps() {
+  prepared_jar
+  echo "══ STEPS ══"
+  "$ROOT/formal/trace/check_steps.sh" "$OUT/steps" "$OUT/model" | tee "$OUT/steps.log"
+}
+
+proofs() {
+  echo "══ PROOFS ══"
+  FORMAL_MODEL="$OUT/model" "$ROOT/formal/proofs/check_proofs.sh" | tee "$OUT/proofs.log"
+}
+
+finish() {
+  prepared_jar
+  python3 -I "$ROOT/formal/model_shards.py" "$OUT/model-shards" \
+    --registry "$OUT/model/checks_registry.tsv" \
+    --out "$OUT/models.log" --coverage "$OUT/model/coverage"
+  FORMAL_MODEL="$OUT/model" "$ROOT/formal/check.sh" --gates | tee -a "$OUT/models.log"
+  echo "══ LEVELS: verification only grows (formal/levels.tsv) ══"
+  logs=(--models "$OUT/models.log" --steps "$OUT/steps.log" --proofs "$OUT/proofs.log")
+  python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" --out "$OUT/levels.tsv"
+  # Raise the measured counts: the committed floors may all have been exceeded.
+  if python3 -I "$ROOT/formal/levels.py" "$OUT/levels.tsv" "${logs[@]}" \
+      --out "$OUT/levels_planted.tsv" --plant >/dev/null 2>&1; then
+    echo "FAIL: a floor raised by one passed, so the levels gate is vacuous" >&2; exit 1
+  fi
+  echo "  OK   planted: a floor above the run is caught"
+  echo "Every formal check passed."
+}
+
+case "$STAGE" in
+  prepare) rm -rf "$OUT"; mkdir -p "$OUT"; prepare; lean ;;
+  schedules) schedules ;;
+  models) models ;;
+  steps) steps ;;
+  proofs) proofs ;;
+  finish) finish ;;
+  all)
+    rm -rf "$OUT"
+    mkdir -p "$OUT"
+    prepare
+    if [ "$FAST" -eq 0 ]; then schedules; fi
+    lean
+    if [ "$FAST" -eq 1 ]; then
+      FORMAL_MODEL="$OUT/model" FORMAL_ONLY=ACTIVATION "$ROOT/formal/check.sh"
+    else
+      models
+      steps
+      proofs
+      finish
+    fi
+    ;;
+esac

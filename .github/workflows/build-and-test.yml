@@ -24,6 +24,10 @@ on:
         type: choice
         options: [record, enforce, off]
         default: record
+      formal_cold:
+        description: 'Only validation, including every formal check without TLC or TLAPS result caches.'
+        type: boolean
+        default: false
       screenshots_only:
         description: 'Only the store screenshots: every device at once, into the one screenshots artifact. No build or test job runs.'
         type: boolean
@@ -84,6 +88,8 @@ jobs:
             only="$(git log -1 --pretty=%B \
               | sed -n 's/.*\[ci-only:[[:space:]]*\([^]]*\)\].*/\1/p' \
               | head -1 | tr -d '[:space:]')"
+          elif [ "${{ inputs.formal_cold }}" = true ]; then
+            only=validate
           elif [ "${{ inputs.screenshots_only }}" = true ]; then
             only=screenshots
           fi
@@ -134,8 +140,26 @@ jobs:
           fi
           echo "screenshots=$screenshots" >> "$GITHUB_OUTPUT"
 
+  formal:
+    name: Formal verification
+    needs: [plan, validate-sources]
+    if: needs.plan.outputs.validate == 'true'
+    uses: ./.github/workflows/formal.yml
+    with:
+      cold: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_cold }}
+
   validate:
     name: Validate Fastlane + OpenSpec + proofs
+    needs: [plan, validate-sources, formal]
+    if: ${{ always() && needs.plan.outputs.validate == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
+
+  validate-sources:
+    name: Validate sources
     runs-on: ubuntu-latest
     needs: plan
     if: needs.plan.outputs.validate == 'true'
@@ -189,12 +213,7 @@ jobs:
 
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
-      # Formal verification (TLA+/TLC, TLAPS). formal/verify.sh is the one
-      # way to run it: Flutter prints the parts of the models the code
-      # defines and writes the walks' and schedules' traces, then TLC checks
-      # every model, the traces are replayed against them, and tlapm checks
-      # the proofs. Flutter is here for that print, so the models, the
-      # traces and the proofs are one job.
+      # Flutter also compiles the harness and its negative compiler probes.
       - name: Set up Java for TLC
         uses: actions/setup-java@v4
         with:
@@ -245,93 +264,6 @@ jobs:
           test/schedules_test.dart test/walk_runner_test.dart
           test/log_service_test.dart test/log_clipboard_strip_test.dart
           test/log_no_siteid_leak_test.dart
-      # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in
-      # formal/proofs/.
-      #
-      # Install the prebuilt 1.6.0-pre tarball, NOT the 1.5.0 .bin installer:
-      # that installer compiles Isabelle/Pure with its bundled Poly/ML 5.4.0,
-      # which aborts on the runner image ("scanaddrs.cpp:107: Assertion
-      # `val.IsDataPtr()' failed", tlaplus/tlapm#88). The tarball ships prebuilt
-      # Isabelle heaps, so nothing is compiled at install time. This is the same
-      # artifact tlaplus/Examples' own CI installs. 1.6.0-pre is a rolling tag
-      # (reattached on every main commit) and is the only prebuilt release
-      # upstream publishes, so this dependency is unpinned by necessity.
-      - name: Install TLAPS
-        id: tlapm
-        run: |
-          curl -fsSL --retry 4 --retry-delay 2 -o /tmp/tlapm.tar.gz \
-            https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz
-          tar -xzf /tmp/tlapm.tar.gz -C "$HOME"
-          rm -f /tmp/tlapm.tar.gz
-          echo "$HOME/tlapm/bin" >> "$GITHUB_PATH"
-          "$HOME/tlapm/bin/tlapm" --version
-          echo "version=$("$HOME/tlapm/bin/tlapm" --version)" >> "$GITHUB_OUTPUT"
-      # The fingerprints of what tlapm proved, so an obligation proved in an
-      # earlier run is not proved again (formal/proofs/check_proofs.sh). They
-      # are per obligation: a changed module reproves only what changed, and
-      # a stale cache costs nothing but a miss. A new tlapm starts from none.
-      # Each backend's version is checked by --safefp; failed obligations
-      # are retried without fingerprints by check_proofs.sh.
-      - name: Cache the TLAPS fingerprints
-        id: tlapm-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: formal/proofs/.tlacache
-          key: tlapm-${{ runner.os }}-${{ steps.tlapm.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            tlapm-${{ runner.os }}-${{ steps.tlapm.outputs.version }}-
-      # What formal/check.sh keeps between runs (FORMAL_CACHE): each TLC
-      # run's time, which sizes the next run's pool, and the output of each
-      # run that behaved, keyed by a hash of every input it reads, so a run
-      # whose inputs are unchanged is remembered instead of run again
-      # (formal/README.md, "Remembered runs").
-      - name: Cache the formal runs
-        id: formal-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/.cache/webspace-formal
-          key: formal-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            formal-${{ runner.os }}-
-      # elan installs the Lean release formal/lean/lean-toolchain names, as
-      # fvm reads .fvmrc; verify.sh's Lean step fails without lake in CI.
-      - name: Cache elan and the Lean toolchain
-        uses: actions/cache@v4
-        with:
-          path: ~/.elan
-          key: elan-${{ runner.os }}-${{ hashFiles('formal/lean/lean-toolchain') }}
-      - name: Install elan
-        run: |
-          [ -x "$HOME/.elan/bin/elan" ] || curl -fsSL --retry 4 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none --no-modify-path
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: Verify the formal models
-        id: formal-verify
-        # Leave time inside the six-hour job limit to save completed work.
-        timeout-minutes: 300
-        run: ./formal/verify.sh
-      # check.sh remembers each validated run as it ends. A later failure
-      # must not throw away those results and the worker timing history.
-      - name: Save the formal runs
-        if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.cache/webspace-formal
-          key: ${{ steps.formal-cache.outputs.cache-primary-key }}
-      - name: Save the TLAPS fingerprints
-        if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
-        uses: actions/cache/save@v4
-        with:
-          path: formal/proofs/.tlacache
-          key: ${{ steps.tlapm-cache.outputs.cache-primary-key }}
-      # The printed modules and the walk and step traces a failed check read,
-      # zipped, so a counterexample can be replayed without rerunning.
-      - name: Upload the formal models and traces
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: formal-build
-          path: build/formal
-          if-no-files-found: ignore
       # Idempotent: if the cache restored a matching Chromium, this
       # step prints "already installed" and exits in <1s. Otherwise it
       # downloads ~280 MB into ~/.cache/puppeteer. Running it as a

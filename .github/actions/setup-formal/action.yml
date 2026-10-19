@@ -1,0 +1,78 @@
+name: Formal toolchain
+description: Install the pinned toolchains needed by a formal stage.
+inputs:
+  flutter:
+    default: 'false'
+    description: Install Flutter and the app's test dependencies.
+  lean:
+    default: 'false'
+    description: Install the Lean toolchain.
+  proofs:
+    default: 'false'
+    description: Install TLAPS.
+outputs:
+  tlapm-version:
+    value: ${{ steps.tlapm.outputs.version }}
+    description: The installed TLAPS version.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+    - uses: subosito/flutter-action@v2
+      if: inputs.flutter == 'true'
+      with:
+        flutter-version-file: '.fvmrc'
+        channel: stable
+    - uses: actions/cache@v4
+      if: inputs.flutter == 'true'
+      with:
+        path: ~/.fvm/versions
+        key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
+        restore-keys: fvm-${{ runner.os }}-
+    - shell: bash
+      if: inputs.flutter == 'true'
+      run: |
+        dart pub global activate fvm
+        echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+    - shell: bash
+      if: inputs.flutter == 'true'
+      run: |
+        fvm install
+        fvm use --force
+    - uses: actions/cache@v4
+      if: inputs.flutter == 'true'
+      with:
+        path: |
+          ~/.pub-cache
+          .dart_tool
+        key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+        restore-keys: pub-${{ runner.os }}-
+    - shell: bash
+      if: inputs.flutter == 'true'
+      run: |
+        fvm flutter pub get --enforce-lockfile
+        fvm dart tool/gen_l10n.dart
+    - uses: actions/cache@v4
+      if: inputs.lean == 'true'
+      with:
+        path: ~/.elan
+        key: elan-${{ runner.os }}-${{ hashFiles('formal/lean/lean-toolchain') }}
+    - shell: bash
+      if: inputs.lean == 'true'
+      run: |
+        [ -x "$HOME/.elan/bin/elan" ] || curl -fsSL --retry 4 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none --no-modify-path
+        echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+    - id: tlapm
+      shell: bash
+      if: inputs.proofs == 'true'
+      run: |
+        curl -fsSL --retry 4 --retry-delay 2 -o /tmp/tlapm.tar.gz \
+          https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz
+        tar -xzf /tmp/tlapm.tar.gz -C "$HOME"
+        rm -f /tmp/tlapm.tar.gz
+        echo "$HOME/tlapm/bin" >> "$GITHUB_PATH"
+        "$HOME/tlapm/bin/tlapm" --version
+        echo "version=$("$HOME/tlapm/bin/tlapm" --version)" >> "$GITHUB_OUTPUT"
