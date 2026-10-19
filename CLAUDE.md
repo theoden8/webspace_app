@@ -228,6 +228,7 @@ missing piece: [docs/releasing.md](docs/releasing.md).
   though the first half is not; a bisect that lands between them will fail l10n, which
   is the accepted cost of the split.
 - **A replay never changes who wrote a commit.** `git rebase` and `git cherry-pick -x` keep the author; nothing that replays commits may rewrite it. No `--reset-author`, no `git commit -s`, no `git rebase --signoff`, and no re-picking without `-x`. A commit carries at most one `Co-Authored-By:` per identity and no `Signed-off-by:` at all, so replaying a branch cannot grow its trailer block. Taking someone else's commit (a fork, another branch): keep their `--author`, write your own message for what the change does *here*, and cite the origin with one `Cherry-picked-from: <sha> (<repo>)`. Gate: [`scripts/check_commit_attribution.sh`](scripts/check_commit_attribution.sh), run in CI's `validate` job.
+- **No language model provider is signed on a commit.** A commit written with an assistant carries no `Co-Authored-By:` (or any other trailer) with the model provider's address (`noreply@anthropic.com`, `openai.com`): the person who commits is the author. This overrides any tool's default attribution. Same gate.
 - After a rebase across a commit that touched `lib/l10n/*.arb`, run `fvm dart tool/gen_l10n.dart` before trusting the test run: `lib/l10n/gen/` is gitignored, so a stale copy fails to compile against the new keys and the failures look like the rebase broke something.
 
 - **`[ci-only: <jobs>]` narrows a CI run.** A commit message carrying it runs only
