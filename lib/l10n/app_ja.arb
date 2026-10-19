@@ -947,7 +947,7 @@
   "torStateAppWide": "アプリのすべての通信",
   "torStateAppWideSubtitle": "アプリ設定の送信プロキシが Tor に設定されています",
   "torStateOtherSites": "{count, plural, other{ほか {count} 件のサイト}}",
-  "torStateExitCountryHint": "Tor がネットワークを出る国は一度に一つだけで、すべてのサイトで共通です。国は各サイトのネットワーク設定で選びます。別の国を指定したサイトを開くと、国が合わないサイトは閉じられます。",
+  "torStateSiteExitCountry": "出口の国: {country}",
   "torStateBridgesOff": "オフ",
   "torStateCircuits": "回線",
   "torStateCircuitsPerSite": "サイトごとに 1 つ",

@@ -947,7 +947,7 @@
   "torStateAppWide": "All apptrafikk",
   "torStateAppWideSubtitle": "Utgående proxy i App-innstillinger er satt til Tor",
   "torStateOtherSites": "{count, plural, one{Ett annet nettsted} other{{count} andre nettsteder}}",
-  "torStateExitCountryHint": "Tor går ut av nettverket fra ett land om gangen, for alle nettsteder samtidig. Et nettsted velger land under Nettverk i sine innstillinger, og å åpne et nettsted som er festet til et annet land, lukker nettstedene som ikke stemmer overens.",
+  "torStateSiteExitCountry": "Utgangsland: {country}",
   "torStateBridgesOff": "Av",
   "torStateCircuits": "Kretser",
   "torStateCircuitsPerSite": "Én per nettsted",

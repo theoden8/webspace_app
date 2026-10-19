@@ -947,7 +947,7 @@
   "torStateAppWide": "Sav promet aplikacije",
   "torStateAppWideSubtitle": "Izlazni proxy u Postavkama aplikacije postavljen je na Tor",
   "torStateOtherSites": "{count, plural, one{Još {count} stranica} few{Još {count} stranice} other{Još {count} stranica}}",
-  "torStateExitCountryHint": "Tor u jednom trenutku izlazi iz mreže samo kroz jednu državu, i to za sve stranice odjednom. Stranica bira državu u svojim postavkama mreže, a otvaranje stranice prikvačene uz drugu državu zatvara stranice koje se s njom ne slažu.",
+  "torStateSiteExitCountry": "Izlazna država: {country}",
   "torStateBridgesOff": "Isključeno",
   "torStateCircuits": "Krugovi",
   "torStateCircuitsPerSite": "Jedan po stranici",

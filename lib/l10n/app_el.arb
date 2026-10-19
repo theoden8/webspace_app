@@ -947,7 +947,7 @@
   "torStateAppWide": "Όλη η κίνηση της εφαρμογής",
   "torStateAppWideSubtitle": "Το εξερχόμενο proxy στις Ρυθμίσεις εφαρμογής είναι ορισμένο σε Tor",
   "torStateOtherSites": "{count, plural, one{Ένας ακόμη ιστότοπος} other{{count} ακόμη ιστότοποι}}",
-  "torStateExitCountryHint": "Το Tor βγαίνει από το δίκτυο μέσω μίας χώρας κάθε φορά, για όλους τους ιστότοπους ταυτόχρονα. Κάθε ιστότοπος επιλέγει τη χώρα στις ρυθμίσεις Δικτύου του, και το άνοιγμα ενός ιστότοπου καρφιτσωμένου σε άλλη χώρα κλείνει τους ιστότοπους που διαφωνούν.",
+  "torStateSiteExitCountry": "Χώρα εξόδου: {country}",
   "torStateBridgesOff": "Ανενεργές",
   "torStateCircuits": "Κυκλώματα",
   "torStateCircuitsPerSite": "Ένα ανά ιστότοπο",

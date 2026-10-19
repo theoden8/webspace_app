@@ -21,6 +21,7 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
@@ -225,6 +226,19 @@ class SiteNetworkController {
     if (plan.unloads.isNotEmpty && _host.mounted) _host.rebuild();
     syncTorExitPin(order);
   }
+
+  /// The sites the Tor screen may name, each with the country it pins, read
+  /// the way [syncTorExitPin] reads it. Archive-tier sites are left out, so
+  /// the screen counts them without naming them.
+  Map<SiteId, TorSiteLabel> torSites() => {
+        for (final (i, model) in _sites.models.indexed)
+          if (!model.isArchiveTier)
+            model.siteId: (
+              name: model.getDisplayName(),
+              exitNodes: SiteUnloadEngine.torExitNodesFor(
+                  indices: [i], models: _sites.models),
+            ),
+      };
 
   /// Put in force the exit pin the sites in [pinned] want, the first
   /// deciding (TOR-014), without waiting for it.

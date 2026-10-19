@@ -947,7 +947,7 @@
   "torStateAppWide": "Az alkalmazás teljes forgalma",
   "torStateAppWideSubtitle": "A kimenő proxy az Alkalmazás beállításaiban Torra van állítva",
   "torStateOtherSites": "{count, plural, one{Egy további webhely} other{További {count} webhely}}",
-  "torStateExitCountryHint": "A Tor egy időben csak egy országon át lép ki a hálózatból, minden webhely számára közösen. A webhely a saját Hálózat beállításaiban választ országot, és egy másik országhoz rögzített webhely megnyitása bezárja az eltérő országot használó webhelyeket.",
+  "torStateSiteExitCountry": "Kilépési ország: {country}",
   "torStateBridgesOff": "Ki",
   "torStateCircuits": "Áramkörök",
   "torStateCircuitsPerSite": "Webhelyenként egy",

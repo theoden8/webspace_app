@@ -947,7 +947,7 @@
   "torStateAppWide": "एपको सबै ट्राफिक",
   "torStateAppWideSubtitle": "एप सेटिङमा बहिर्गामी प्रॉक्सी Tor मा सेट गरिएको छ",
   "torStateOtherSites": "{count, plural, one{अर्को एउटा साइट} other{अन्य {count} साइटहरू}}",
-  "torStateExitCountryHint": "Tor ले एक पटकमा एउटै देशबाट, सबै साइटका लागि एकैसाथ सञ्जाल छोड्छ। साइटले आफ्नो सञ्जाल सेटिङमा देश छान्छ, र फरक देशमा पिन गरिएको साइट खोल्दा त्योसँग नमिल्ने साइटहरू बन्द हुन्छन्।",
+  "torStateSiteExitCountry": "निस्कने देश: {country}",
   "torStateBridgesOff": "बन्द",
   "torStateCircuits": "सर्किटहरू",
   "torStateCircuitsPerSite": "प्रति साइट एउटा",

@@ -947,7 +947,7 @@
   "torStateAppWide": "अ‍ॅपची सर्व रहदारी",
   "torStateAppWideSubtitle": "अॅप सेटिंग्जमधील आउटबाउंड प्रॉक्सी Tor वर सेट आहे",
   "torStateOtherSites": "{count, plural, one{आणखी एक साइट} other{आणखी {count} साइट}}",
-  "torStateExitCountryHint": "Tor एका वेळी फक्त एकाच देशातून नेटवर्क सोडते, सर्व साइटसाठी एकत्रितपणे. साइट तिच्या नेटवर्क सेटिंग्जमध्ये देश निवडते, आणि दुसऱ्या देशावर पिन केलेली साइट उघडल्यास त्याच्याशी न जुळणाऱ्या साइट बंद होतात.",
+  "torStateSiteExitCountry": "निर्गमन देश: {country}",
   "torStateBridgesOff": "बंद",
   "torStateCircuits": "सर्किट",
   "torStateCircuitsPerSite": "प्रत्येक साइटसाठी एक",

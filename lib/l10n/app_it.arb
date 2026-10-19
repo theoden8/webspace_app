@@ -947,7 +947,7 @@
   "torStateAppWide": "Tutto il traffico dell'app",
   "torStateAppWideSubtitle": "Il proxy in uscita nelle Impostazioni app è impostato su Tor",
   "torStateOtherSites": "{count, plural, one{Un altro sito} other{Altri {count} siti}}",
-  "torStateExitCountryHint": "Tor esce dalla rete da un solo paese alla volta, per tutti i siti insieme. Un sito sceglie il paese nelle proprie impostazioni di Rete, e aprire un sito vincolato a un paese diverso chiude i siti in conflitto.",
+  "torStateSiteExitCountry": "Paese di uscita: {country}",
   "torStateBridgesOff": "Disattivati",
   "torStateCircuits": "Circuiti",
   "torStateCircuitsPerSite": "Uno per sito",

@@ -947,7 +947,7 @@
   "torStateAppWide": "Semua trafik apl",
   "torStateAppWideSubtitle": "Proksi keluar dalam Tetapan Aplikasi ditetapkan kepada Tor",
   "torStateOtherSites": "{count, plural, other{{count} tapak lain}}",
-  "torStateExitCountryHint": "Tor keluar dari rangkaian melalui satu negara pada satu masa, untuk semua tapak sekali gus. Tapak memilih negara dalam tetapan Rangkaiannya, dan membuka tapak yang disemat pada negara lain akan menutup tapak yang tidak sepadan.",
+  "torStateSiteExitCountry": "Negara keluar: {country}",
   "torStateBridgesOff": "Mati",
   "torStateCircuits": "Litar",
   "torStateCircuitsPerSite": "Satu bagi setiap tapak",

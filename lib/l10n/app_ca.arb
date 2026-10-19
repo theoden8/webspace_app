@@ -947,7 +947,7 @@
   "torStateAppWide": "Tot el trànsit de l'app",
   "torStateAppWideSubtitle": "El servidor intermediari de sortida a Configuració de l'app és Tor",
   "torStateOtherSites": "{count, plural, one{Un altre lloc} many{{count} de llocs més} other{{count} llocs més}}",
-  "torStateExitCountryHint": "El Tor surt de la xarxa per un sol país alhora, per a tots els llocs a la vegada. Cada lloc tria el país a la seva configuració de Xarxa, i obrir un lloc fixat a un altre país tanca els llocs que no hi coincideixen.",
+  "torStateSiteExitCountry": "País de sortida: {country}",
   "torStateBridgesOff": "Desactivats",
   "torStateCircuits": "Circuits",
   "torStateCircuitsPerSite": "Un per lloc",

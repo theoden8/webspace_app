@@ -947,7 +947,7 @@
   "torStateAppWide": "It-traffiku kollu tal-app",
   "torStateAppWideSubtitle": "Il-proxy għall-ħruġ fis-Settings tal-App huwa ssettjat għal Tor",
   "torStateOtherSites": "{count, plural, one{Sit ieħor wieħed} two{Żewġ siti oħra} few{{count} siti oħra} many{{count}-il sit ieħor} other{{count} sit ieħor}}",
-  "torStateExitCountryHint": "Tor joħroġ min-netwerk minn pajjiż wieħed kull darba, għas-siti kollha f'daqqa. Sit jagħżel il-pajjiż fis-settings tan-Netwerk tiegħu, u l-ftuħ ta' sit marbut ma' pajjiż ieħor jagħlaq is-siti li ma jaqblux miegħu.",
+  "torStateSiteExitCountry": "Pajjiż tal-ħruġ: {country}",
   "torStateBridgesOff": "Mitfi",
   "torStateCircuits": "Ċirkwiti",
   "torStateCircuitsPerSite": "Wieħed għal kull sit",

@@ -947,7 +947,7 @@
   "torStateAppWide": "Целият трафик на приложението",
   "torStateAppWideSubtitle": "Изходящият прокси в Настройки на приложението е зададен на Tor",
   "torStateOtherSites": "{count, plural, one{Още един сайт} other{Още {count} сайта}}",
-  "torStateExitCountryHint": "Tor излиза от мрежата през една държава в даден момент, за всички сайтове едновременно. Всеки сайт избира държавата в своите настройки за Мрежа, а отварянето на сайт, закрепен към друга държава, затваря сайтовете, които не съвпадат с нея.",
+  "torStateSiteExitCountry": "Държава на изход: {country}",
   "torStateBridgesOff": "Изкл.",
   "torStateCircuits": "Вериги",
   "torStateCircuitsPerSite": "По една на сайт",

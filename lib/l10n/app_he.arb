@@ -947,7 +947,7 @@
   "torStateAppWide": "כל התעבורה של האפליקציה",
   "torStateAppWideSubtitle": "הפרוקסי היוצא בהגדרות האפליקציה מוגדר ל-Tor",
   "torStateOtherSites": "{count, plural, one{אתר אחד נוסף} two{שני אתרים נוספים} other{{count} אתרים נוספים}}",
-  "torStateExitCountryHint": "Tor יוצא מהרשת דרך מדינה אחת בכל פעם, עבור כל האתרים יחד. אתר בוחר את המדינה בהגדרות הרשת שלו, ופתיחת אתר שננעץ למדינה אחרת סוגרת את האתרים שאינם תואמים לה.",
+  "torStateSiteExitCountry": "מדינת יציאה: {country}",
   "torStateBridgesOff": "כבוי",
   "torStateCircuits": "מעגלים",
   "torStateCircuitsPerSite": "אחד לכל אתר",

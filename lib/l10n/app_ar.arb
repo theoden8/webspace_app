@@ -947,7 +947,7 @@
   "torStateAppWide": "كل حركة مرور التطبيق",
   "torStateAppWideSubtitle": "الوكيل الصادر في إعدادات التطبيق مضبوط على Tor",
   "torStateOtherSites": "{count, plural, zero{لا مواقع أخرى} one{موقع آخر واحد} two{موقعان آخران} few{{count} مواقع أخرى} many{{count} موقعًا آخر} other{{count} موقع آخر}}",
-  "torStateExitCountryHint": "يغادر Tor الشبكة عبر بلد واحد في كل مرة، لجميع المواقع معًا. يختار كل موقع البلد في إعدادات الشبكة الخاصة به، وفتح موقع مثبّت على بلد مختلف يغلق المواقع التي لا تتوافق معه.",
+  "torStateSiteExitCountry": "بلد الخروج: {country}",
   "torStateBridgesOff": "معطّلة",
   "torStateCircuits": "الدارات",
   "torStateCircuitsPerSite": "دارة لكل موقع",

@@ -947,7 +947,7 @@
   "torStateAppWide": "所有應用程式流量",
   "torStateAppWideSubtitle": "「應用程式設定」中的對外代理伺服器已設為 Tor",
   "torStateOtherSites": "{count, plural, other{另外 {count} 個網站}}",
-  "torStateExitCountryHint": "Tor 一次只從一個國家離開網路，且同時套用於所有網站。網站在其「網路」設定中選擇國家，開啟釘選到其他國家的網站時，會關閉設定不一致的網站。",
+  "torStateSiteExitCountry": "出口國家：{country}",
   "torStateBridgesOff": "關閉",
   "torStateCircuits": "線路",
   "torStateCircuitsPerSite": "每個網站一條",

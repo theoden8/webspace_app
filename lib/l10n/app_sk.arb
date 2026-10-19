@@ -947,7 +947,7 @@
   "torStateAppWide": "Všetka premávka aplikácie",
   "torStateAppWideSubtitle": "Odchádzajúca proxy v Nastaveniach aplikácie je nastavená na Tor",
   "torStateOtherSites": "{count, plural, one{Jedna ďalšia stránka} few{{count} ďalšie stránky} many{{count} ďalšej stránky} other{{count} ďalších stránok}}",
-  "torStateExitCountryHint": "Tor opúšťa sieť vždy z jednej krajiny, pre všetky stránky naraz. Stránka si krajinu vyberá vo svojich nastaveniach v časti Sieť a otvorenie stránky pripnutej k inej krajine zatvorí stránky s odlišným nastavením.",
+  "torStateSiteExitCountry": "Krajina výstupu: {country}",
   "torStateBridgesOff": "Vypnuté",
   "torStateCircuits": "Okruhy",
   "torStateCircuitsPerSite": "Jeden na stránku",
