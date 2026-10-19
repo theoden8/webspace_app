@@ -61,8 +61,11 @@ if [ "$FAST" -eq 0 ]; then
   shards="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
   pids=""
   for i in $(seq 0 $((shards - 1))); do
+    printf '  START schedule shard %s/%s\n' "$((i + 1))" "$shards"
+    # GitHub's default reporter has no timestamped loading line for the
+    # startup handshake below, so it would serialize the entire shards.
     MODEL_STEPS_DIR="$OUT/steps/$i" SCHEDULE_SHARD="$i/$shards" \
-      $FLUTTER test test/activation_schedules_test.dart >"$OUT/steps.$i.log" 2>&1 &
+      $FLUTTER test --reporter expanded test/activation_schedules_test.dart >"$OUT/steps.$i.log" 2>&1 &
     pid=$!
     pids="$pids $pid"
     # Each flutter test copies the test assets under build/ as it starts,
@@ -106,7 +109,8 @@ FORMAL_MODEL="$OUT/model" "$ROOT/formal/proofs/check_proofs.sh" | tee "$OUT/proo
 echo "══ LEVELS: verification only grows (formal/levels.tsv) ══"
 logs=(--models "$OUT/models.log" --steps "$OUT/steps.log" --proofs "$OUT/proofs.log")
 python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" --out "$OUT/levels.tsv"
-if python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" \
+# Raise the measured counts: the committed floors may all have been exceeded.
+if python3 -I "$ROOT/formal/levels.py" "$OUT/levels.tsv" "${logs[@]}" \
     --out "$OUT/levels_planted.tsv" --plant >/dev/null 2>&1; then
   echo "FAIL: a floor raised by one passed, so the levels gate is vacuous" >&2; exit 1
 fi

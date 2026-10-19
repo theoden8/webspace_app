@@ -204,6 +204,7 @@ List<PrintedFile> printedModels() => [
   (path: 'activation_ops.tla', text: activationOps(tables)),
   (path: 'activation_tables.tla', text: activationTables(tables)),
   (path: 'activation_tables_proof.tla', text: activationTablesProof(tables)),
+  ...activationTablesParts(tables),
   (
     path: 'activation_invariants_proof.tla',
     text: activationInvariantsProof(tables),
@@ -263,7 +264,10 @@ List<PrintedFile> printedModels() => [
     ].join('\n'),
   ),
   for (final m in Mutant.values) ...[
-    (path: 'mutants/${m.name}/activation_ops.tla', text: activationOps(mutated(m))),
+    (
+      path: 'mutants/${m.name}/activation_ops.tla',
+      text: activationOps(mutated(m)),
+    ),
     (
       path: 'mutants/${m.name}/activation_tables.tla',
       text: activationTables(mutated(m)),
@@ -330,7 +334,8 @@ Set<String> _inputsOf(FlowKind k) {
   return {
     for (final f in starters) f.step.action,
     for (final f in inputs)
-      if (f.writes.difference({ModelVar.fl, ModelVar.last, ModelVar.inputs})
+      if (f.writes
+          .difference({ModelVar.fl, ModelVar.last, ModelVar.inputs})
           .any(guard.contains))
         f.step.action,
   };
@@ -382,7 +387,10 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
             rows: {...r.rows, for (final b in r.base) ...b.rows},
             kinds: {
               if (!f.input) ...?flows[f.place]?.keys,
-              for (final a in f.arms) ...[?a.kind, for (final r in a.spawns) r.kind],
+              for (final a in f.arms) ...[
+                ?a.kind,
+                for (final r in a.spawns) r.kind,
+              ],
             },
             fields: f.arms.any((a) => a.ends)
                 ? null
@@ -479,8 +487,16 @@ String activationOps(Tables t) => [
 /// a flow can be and the places of every table.
 List<String> _types(Tables t) {
   final tables = <StepTable<Object?, Enum>>[
-    t.activation, t.tabInputs, t.tabFlow, t.unload, t.jar, t.restore,
-    t.wake, t.dns, t.archive, t.delete,
+    t.activation,
+    t.tabInputs,
+    t.tabFlow,
+    t.unload,
+    t.jar,
+    t.restore,
+    t.wake,
+    t.dns,
+    t.archive,
+    t.delete,
   ];
   final places = {
     FlowField.pc.none,
@@ -524,10 +540,7 @@ String activationFootprints(Tables t) {
     if (f.input) return f.needs;
     final byKind = flows[f.place];
     if (byKind == null || byKind.isEmpty) return null;
-    return {
-      ...byKind.values.reduce((a, b) => a.intersection(b)),
-      ...f.needs,
-    };
+    return {...byKind.values.reduce((a, b) => a.intersection(b)), ...f.needs};
   }
 
   String needs(Iterable<Need> all) =>
@@ -543,7 +556,8 @@ String activationFootprints(Tables t) {
           names([for (final v in f.writes) v.name]),
           names([for (final b in r.base) b.tla]),
           names({
-            for (final FlowKind k in f.input ? const [] : flows[f.place]?.keys ?? const [])
+            for (final FlowKind k
+                in f.input ? const [] : flows[f.place]?.keys ?? const [])
               k.name,
             for (final a in f.arms) ...[
               ?a.kind?.name,
@@ -554,7 +568,10 @@ String activationFootprints(Tables t) {
               ? '*'
               : names({
                   for (final a in f.arms)
-                    for (final f in [...a.fields, for (final r in a.spawns) ...r.fields])
+                    for (final f in [
+                      ...a.fields,
+                      for (final r in a.spawns) ...r.fields,
+                    ])
                       f.name,
                 }),
           names({
@@ -616,7 +633,16 @@ Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) {
 
   while (moved) {
     moved = false;
-    for (final (:place, :input, :arms, :needs, step: _, reads: _, writes: _, guard: _)
+    for (final (
+          :place,
+          :input,
+          :arms,
+          :needs,
+          step: _,
+          reads: _,
+          writes: _,
+          guard: _,
+        )
         in all) {
       final Map<FlowKind?, Set<Need>> here = input
           ? {null: const {}}
@@ -628,7 +654,11 @@ Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) {
           // the arm does to its own.
           for (final r in a.spawns) {
             for (final MapEntry(key: p, value: there) in r.next.entries) {
-              reach(p, kind: r.kind, need: {...got, ...needs, ...a.needs, ...r.needs, ...there});
+              reach(
+                p,
+                kind: r.kind,
+                need: {...got, ...needs, ...a.needs, ...r.needs, ...there},
+              );
             }
           }
           final out = a.kind ?? k;
@@ -699,39 +729,272 @@ List<Step<Object?, Enum>> _inputSteps(Tables t) => [
 
 /// The proof that each step of the tables keeps `IndInv`: a case per step,
 /// by its action and the model's operators its acts call, so a new step is
-/// a new case TLAPS proves or rejects with no hand edit.
-/// `proofs/activation_turns.tla` takes `TableStep` whole.
+/// a new case TLAPS proves or rejects with no hand edit. A flow step's case
+/// cites its lemma in [activationTablesParts], which tlapm takes as given
+/// here and proves in that module. `proofs/activation_turns.tla` takes
+/// `TableStep` whole.
 String activationTablesProof(Tables t) => [
   '------------------------ MODULE activation_tables_proof -----------------------',
   '(* Printed from the step tables by lib/formal_model/main.dart.            *)',
   '(* Not committed; edit the tables instead.                                *)',
-  'EXTENDS activation, TLAPS',
+  'EXTENDS ${[for (final (path: p, text: _) in activationTablesParts(t)) p.replaceAll('.tla', ''), 'TLAPS'].join(', ')}',
   '',
-  _stepInd('TableStepInd', over: 'TableStep', steps: _flowSteps(t)),
-  _stepInd('InputStepInd', over: 'InputTableStep', steps: _inputSteps(t)),
+  _stepInd(
+    'TableStepInd',
+    over: 'TableStep',
+    steps: _flowSteps(t),
+    byLemma: true,
+  ),
+  _stepInd(
+    'InputStepInd',
+    over: 'InputTableStep',
+    steps: _inputSteps(t),
+    byLemma: false,
+  ),
   '=============================================================================',
   '',
 ].join('\n');
 
-/// The lemma that every step of [over] keeps `IndInv`, one case per step.
+/// The flow steps' lemmas, [_partSize] steps a module: tlapm prepares a
+/// module's obligations on one thread, so modules are what proves in
+/// parallel (`proofs/check_proofs.sh`).
+List<PrintedFile> activationTablesParts(Tables t) {
+  final steps = _flowSteps(t);
+  final arms = _alternatives(t);
+  final footprints = {for (final f in _footprintsOf(t)) f.step: f};
+  final held = {
+    for (final table in _all(t))
+      for (final (:place, :step) in table.steps)
+        if (step.holds != null) place.name,
+  };
+  return [
+    for (var i = 0; i < steps.length; i += _partSize)
+      (
+        path: 'activation_tables_${i ~/ _partSize + 1}_proof.tla',
+        text: [
+          '---------------------- MODULE activation_tables_${i ~/ _partSize + 1}_proof ----------------------',
+          '(* Printed from the step tables by lib/formal_model/main.dart.            *)',
+          '(* Not committed; edit the tables instead.                                *)',
+          'EXTENDS activation, TLAPS',
+          '',
+          for (final s in steps.skip(i).take(_partSize))
+            _armsInd(
+              s,
+              arms: arms[s.name]!,
+              places: [for (final table in _all(t)) ...table.placesTla],
+              footprint: footprints[s.name]!,
+              held: held,
+            ),
+          '=============================================================================',
+          '',
+        ].join('\n'),
+      ),
+  ];
+}
+
+const _partSize = 8;
+
+/// Every step's action as its alternatives ([TablePrint.alternatives]).
+Map<ActivationStep, List<StepAlternative>> _alternatives(Tables t) => {
+  for (final table in _all(t))
+    ...table.alternatives(
+      variables: ModelVar.values,
+      entered: _entered(t),
+      starts: _starts(t),
+    ),
+};
+
+/// The lemma that every step of [over] keeps `IndInv`, one case per step:
+/// by the step's lemma ([_armsInd]) when [byLemma], else by its action.
+/// A lemma's case keeps `IndInv` folded: the lemma states it whole, and
+/// unfolding it there only gives the backends more to match.
 String _stepInd(
   String name, {
   required String over,
   required List<Step<Object?, Enum>> steps,
+  required bool byLemma,
 }) => [
   'LEMMA $name ==',
   '    ASSUME Good, IndInv, NEW f \\in Flows, $over(f)',
   "    PROVE  IndInv'",
-  '  <1> USE DEF Good, IndInv, FlowsOK, Fresh, Inv_Places, NoFlow, Flows, Did',
+  if (!byLemma)
+    '  <1> USE DEF Good, IndInv, FlowsOK, Fresh, Inv_Places, NoFlow, Flows, Did',
   for (final (i, s) in steps.indexed) ...[
     '  <1>${i + 1}. CASE ${s.action}(f)',
-    '    BY <1>${i + 1} DEF ${[s.action, if (s.input) 'Input', ..._operators(s)].join(', ')}',
+    if (byLemma)
+      '    BY <1>${i + 1}, ${s.action}_Ind'
+    else
+      '    BY <1>${i + 1} DEF ${[s.action, if (s.input) 'Input', ..._operators(s)].join(', ')}',
   ],
   '  <1> QED',
   '    BY ${[for (var i = 1; i <= steps.length; i++) '<1>$i'].join(', ')}',
   '       DEF $over',
   '',
 ].join('\n');
+
+/// The lemma that flow step [s] keeps `IndInv`, an arm at a time: its
+/// action is unfolded once, into its alternatives [arms], and each is
+/// closed by itself, since one obligation over the whole action can
+/// outgrow the backends (a step of several arms that spawns). The flow at
+/// the step's place is one an input started, so it is numbered within
+/// `inputs` (`Fresh`), which an arm that keeps the flow, or starts the
+/// next, needs and finds less easily: every arm starts at the step's place,
+/// so that is proved once, before the split, as is its distinction from
+/// the next input's row. Only an arm unfolds `IndInv`:
+/// the split and the QED close as they stand, and unfolded they time out.
+String _armsInd(
+  Step<Object?, Enum> s, {
+  required List<StepAlternative> arms,
+  required List<String> places,
+  required Footprint footprint,
+  required Set<String> held,
+}) {
+  final spawning = s.allArms.any((a) => a.then.any((e) => e is Spawn));
+  return [
+    'LEMMA ${s.action}_Ind ==',
+    '    ASSUME Good, IndInv, NEW f \\in Flows, ${s.action}(f)',
+    "    PROVE  IndInv'",
+    if (spawning) ...['  <1>0. Good /\\ IndInv', '    OBVIOUS'],
+    '  <1>1. ${[for (final a in arms) '(${a.tla})'].join(' \\/ ')}',
+    '    BY DEF ${s.action}',
+    if (spawning) '  <1> HIDE ${s.action}(f)',
+    '  <1>2. fl[f].pc # "done"',
+    '    BY <1>1',
+    '  <1>3. ${spawning ? 'f \\in Nat /\\ ' : ''}f <= inputs${spawning ? ' /\\ f # inputs + 1' : ''}',
+    '    BY <1>2 DEF Good, IndInv, Fresh, Flows',
+    for (final (n, a) in arms.indexed) ...[
+      '  <1>${n + 4}. CASE ${a.tla}',
+      if (a.spawns)
+        ..._rowsInd(
+          s,
+          arm: n + 4,
+          places: places,
+          footprint: footprint,
+          held: held,
+        )
+      else
+        '    BY <1>${n + 4}, <1>3 DEF ${['Good', 'IndInv', 'FlowsOK', 'Fresh', 'Inv_Places', 'NoFlow', 'Flows', 'Did', ..._operators(s)].join(', ')}',
+    ],
+    '  <1> QED',
+    '    BY ${['<1>1', for (var n = 4; n < arms.length + 4; n++) '<1>$n'].join(', ')}',
+    '',
+  ].join('\n');
+}
+
+/// A spawning arm can update both its own row and the next input's, with
+/// several fields in each. Split on the row before asking the backends to
+/// simplify those updates: a single obligation over every row and every
+/// conjunct of IndInv can exhaust Zenon's memory. Prove the next places
+/// from the action first, with only the row's field and index facts; a
+/// place outside every held place then needs no record updates unfolded.
+List<String> _rowsInd(
+  Step<Object?, Enum> s, {
+  required int arm,
+  required List<String> places,
+  required Footprint footprint,
+  required Set<String> held,
+}) {
+  final next = {
+    'done',
+    for (final a in footprint.arms) ...[
+      ...a.next.keys,
+      for (final spawn in a.spawns) ...spawn.next.keys,
+    ],
+  };
+  final fields =
+      '{${[for (final f in FlowField.values) '"${f.name}"'].join(', ')}}';
+  final frame = [
+    for (final v in ModelVar.values)
+      if (!footprint.writes.contains(v)) v.name,
+  ];
+  final changesHeld = footprint.writes.any(
+    (v) =>
+        v != ModelVar.fl &&
+        places.any((p) => RegExp('\\b${v.name}\\b').hasMatch(p)),
+  );
+  final claims = [
+    "DOMAIN fl'[g] = DOMAIN NoFlow",
+    "g > inputs' => fl'[g].pc = \"done\"",
+    for (final p in places) "(${p.replaceAll(RegExp(r'\bf\b'), 'g')})'",
+  ];
+  final before = [
+    'g \\in Nat /\\ inputs \\in Nat',
+    'g \\in DOMAIN fl /\\ DOMAIN fl[g] = DOMAIN NoFlow',
+    '$fields \\subseteq DOMAIN fl[g]',
+    'g > inputs => fl[g].pc = "done"',
+    'NoFlow.pc = "done"',
+    for (final p in places) p.replaceAll(RegExp(r'\bf\b'), 'g'),
+  ];
+  return [
+    '    <2>0. Starts',
+    '      BY ONLY <1>$arm',
+    "    <2>1. inputs' \\in Nat /\\ inputs <= inputs' /\\ f <= inputs'",
+    '      BY ONLY <1>0, <2>0, <1>3 DEF IndInv, Starts',
+    "    <2>2. DOMAIN fl' = Flows",
+    '      BY ONLY <1>0, <1>$arm DEF IndInv, FlowsOK, Flows',
+    '    <2>4. UNCHANGED << ${frame.join(', ')} >>',
+    '      BY ONLY <1>$arm',
+    '    <2>5. DOMAIN NoFlow = $fields /\\ NoFlow.pc = "done"',
+    '      BY ONLY DEF NoFlow',
+    '    <2>3. \\A g \\in Flows :',
+    for (final c in claims) '        /\\ ($c)',
+    '      <3> SUFFICES ASSUME NEW g \\in Flows',
+    '                   PROVE',
+    for (final c in claims) '                     /\\ ($c)',
+    '        OBVIOUS',
+    '      <3>4. g \\in Flows',
+    '        OBVIOUS',
+    '      <3>0.',
+    for (final b in before) '          /\\ ($b)',
+    '        BY ONLY <1>0, <3>4, <2>5 DEF IndInv, FlowsOK, Fresh, Inv_Places, Flows',
+    for (final (n, c) in [
+      'g = f',
+      'g = inputs + 1',
+      'g # f /\\ g # inputs + 1',
+    ].indexed) ...[
+      '      <3>${n + 1}. CASE $c',
+      if (n == 2) ...[
+        '        <4>0. fl\'[g] = fl[g]',
+        '          BY ONLY <3>0, <3>${n + 1}, <1>$arm',
+      ],
+      '        <4>1. ${claims[0]}',
+      if (n == 2)
+        '          BY ONLY <3>0, <4>0'
+      else
+        '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',
+      '        <4>2. ${claims[1]}',
+      if (n == 0)
+        '          BY ONLY <3>0, <3>1, <2>1'
+      else if (n == 1)
+        '          BY ONLY <3>0, <3>2, <2>0 DEF Starts'
+      else
+        '          BY ONLY <3>0, <4>0, <2>1',
+      if (n < 2) ...[
+        '        <4>4. fl\'[g].pc \\in {${[for (final p in next) '"$p"'].join(', ')}}',
+        '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',
+        '        <4>5.',
+        for (final p in claims.skip(2)) '            /\\ ($p)',
+        if (next.intersection(held).isEmpty)
+          '          BY ONLY <4>4'
+        else
+          '          BY ONLY <4>4, <3>0, <3>${n + 1}, <1>$arm, <1>0, <1>3 DEF ${['Good', 'Did', ..._operators(s)].join(', ')}',
+      ] else ...[
+        '        <4>5.',
+        for (final p in claims.skip(2)) '            /\\ ($p)',
+        if (changesHeld)
+          '          BY ONLY <4>0, <3>0, <1>$arm, <1>0 DEF ${['Good', 'Did', ..._operators(s)].join(', ')}'
+        else
+          '          BY ONLY <4>0, <3>0, <2>4',
+      ],
+      '        <4> QED',
+      '          BY <4>1, <4>2, <4>5',
+    ],
+    '      <3> QED',
+    '        BY <3>1, <3>2, <3>3',
+    '    <2> QED',
+    '      BY <2>1, <2>2, <2>3 DEF IndInv, FlowsOK, Fresh, Inv_Places',
+  ];
+}
 
 /// For each invariant every step keeps as it stands ([Inv.inductive]): a
 /// case per step, each closed by the step's definition, and the theorem
@@ -780,7 +1043,10 @@ String _holds(Inv i) {
     (r'\E f \in Flows : InputTableStep(f)', '${i.tla}_InputTableStep'),
     (r'\E f \in Flows : FlowStep(f)', '${i.tla}_TableStep DEF FlowStep'),
     for (final e in EnvAction.values)
-      (e.next, 'DEF ${e.op}${e == EnvAction.move || e == EnvAction.login ? ', Input' : ''}'),
+      (
+        e.next,
+        'DEF ${e.op}${e == EnvAction.move || e == EnvAction.login ? ', Input' : ''}',
+      ),
     ('Done', 'DEF Done, vars'),
     ('UNCHANGED vars', 'DEF vars'),
   ];
@@ -1093,9 +1359,7 @@ Tables mutated(Mutant m) => switch (m) {
     ops: _withDef(tables.ops, def: _routeFreeAlways()),
   ),
   // The build takes whatever back stack is queued, read for any tab.
-  Mutant.takeany => _with(
-    ops: _withDef(tables.ops, def: _takesAny()),
-  ),
+  Mutant.takeany => _with(ops: _withDef(tables.ops, def: _takesAny())),
   // An unload captures a site no longer loaded (BUG-032): no wait asks.
   Mutant.recapture => _with(
     ops: _withDef(
@@ -1155,20 +1419,24 @@ Tables mutated(Mutant m) => switch (m) {
                           FlowField.site,
                         ).value,
                       ),
-              then: Expr.constant<({WebViewModel target, int version})?,
-                  ActivationFlow>(null, tla: 'NoMarker'),
+              then:
+                  Expr.constant<
+                    ({WebViewModel target, int version})?,
+                    ActivationFlow
+                  >(null, tla: 'NoMarker'),
               otherwise: marker.value,
             ),
           ),
         ]);
-        List<Effect<ActivationFlow>> swap(List<Effect<ActivationFlow>> then) =>
-            [
-              for (final e in then)
-                if (e case Act(:final writes) when writes.contains(ModelVar.marker))
-                  byTarget
-                else
-                  e,
-            ];
+        List<Effect<ActivationFlow>> swap(
+          List<Effect<ActivationFlow>> then,
+        ) => [
+          for (final e in then)
+            if (e case Act(:final writes) when writes.contains(ModelVar.marker))
+              byTarget
+            else
+              e,
+        ];
         return s.withArms(
           branches: [
             for (final b in s.branches)
@@ -1218,9 +1486,12 @@ Tables mutated(Mutant m) => switch (m) {
                       const Field<WebViewModel, ActivationFlow>(
                         FlowField.site,
                       ).value,
-                      loaded: Mutable<Iterable<WebViewModel>, ActivationFlow>
-                          .remote(ModelVar.loaded)
-                          .value,
+                      loaded:
+                          Mutable<
+                                Iterable<WebViewModel>,
+                                ActivationFlow
+                              >.remote(ModelVar.loaded)
+                              .value,
                     )
                   else
                     e,
@@ -1298,9 +1569,7 @@ Tables mutated(Mutant m) => switch (m) {
       tables.activation,
       step: ActivationStep.spaceSwitch,
       arms: (s) => s.withArms(
-        otherwise: ActivationTable.spaceInputOf(
-          supersedes: false,
-        ).otherwise,
+        otherwise: ActivationTable.spaceInputOf(supersedes: false).otherwise,
       ),
     ),
   ),

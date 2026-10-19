@@ -244,14 +244,19 @@ class.
   rest still report, so each that did is remembered, and the suite fails at the end. A run
   takes the share of the cores its last time (kept under `FORMAL_CACHE`, default
   `~/.cache/webspace-formal`) is of all of theirs, and the longest start first, a run with
-  no time yet counted as the mean.
+  no time yet counted as the mean. A run with no timing history gets half the cores
+  (at least one); a sole uncached run gets all of them. The pool keeps their total
+  within `FORMAL_SLOTS`. While waiting for a result, the report prints its workers,
+  elapsed time and latest TLC progress every minute (`FORMAL_PROGRESS_SECONDS`).
 - **`verify.sh`** — the one way to run all of it: prints the modules and writes the walk and
   step traces (`flutter test`), then `check.sh`, `trace/check_steps.sh` and the TLAPS
   proofs. CI's `validate` job runs it. The schedules record their traces in `FORMAL_SLOTS`
   shards side by side, each every nth test (`SCHEDULE_SHARD`, so the heavy worlds declared
   together spread out), each into its own directory, and the replay
   merges a configuration's shards into one trie, a node by its parent, label and state, so
-  what it replays and counts does not depend on how many shards ran.
+  what it replays and counts does not depend on how many shards ran. The expanded test
+  reporter is selected explicitly: the startup handshake waits for its loading line
+  before starting the next shard, which GitHub's default reporter does not emit.
 
 ## Run it
 
@@ -432,6 +437,13 @@ collisions aside, at the odds the kept output printed), and a changed config, mo
 or expected line is another key, so it runs. Only runs that behaved are kept, so a failure
 always runs again. `FORMAL_RERUN=1` runs every check and keeps what
 behaves; a kept run nothing has asked for in a fortnight is dropped.
+
+CI restores and saves these caches separately, saving completed work even when a
+later check fails. The verification step has a five-hour timeout inside the job's
+six-hour limit so cache saving has time to run. Each attempt saves a new cache;
+restoring an older one does not prevent saving newly completed checks. TLAPS uses
+the same policy for its version-checked fingerprints and retries failed obligations
+without them. A timeout still fails verification; it does not count unfinished work.
 
 A run of `activation.tla` is keyed by what its world can reach instead
 ([world_key.py](world_key.py)): the hand-written modules whole, and of each printed

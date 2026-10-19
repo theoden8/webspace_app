@@ -66,9 +66,18 @@ TLC model it backs (same definitions — no re-modeling).
   no input has started is idle. It covers the launch too: the cold start's preloads and the jar
   clear queued for the first turn. Every flow step (the activation's own, the unload loop's and
   the jar's turns) is one case, `TableStep`, proved by the printed `activation_tables_proof` (a
-  case per table step, by its action and the operators its acts call), which `check_proofs.sh`
-  checks on its own, since tlapm takes an extended module's lemma as given; the hand-written
-  cases are the inputs and the pressure plan.
+  case per table step, by that step's lemma), which `check_proofs.sh` checks on its own, since
+  tlapm takes an extended module's lemma as given. Each step's lemma unfolds its action once and
+  closes it an arm at a time, eight steps a module (`activation_tables_<n>_proof`), so the
+  modules prove side by side. An arm that can spawn another input proves the row's fields,
+  freshness and place requirements separately, for its own row, the next input's row and
+  every untouched row. Possible next places come from the table's footprints and are
+  proved from its action before checking the place requirements. This keeps nested
+  record updates from exhausting the proof backends;
+  the invariant and the actions being proved are unchanged. The hand-written cases are
+  the inputs and the pressure plan.
+  The spawning modules' counts are pinned too: `activation_tables_3_proof` **309** and
+  `activation_tables_4_proof` **207** obligations.
   **54 obligations, all proved; `activation_tables_proof` 85.**
 - **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
   invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
@@ -120,15 +129,15 @@ read as green. If you add or remove proof steps, update the count here *and* in
 `check_proofs.sh` skips (exit 0) when `tlapm` is not on `PATH`, so a workstation without
 it still runs the rest of the suite. CI installs it in the `validate` job, where the
 proofs are a hard gate alongside the TLC suite. Backend timeouts are wall-clock, so the
-script passes `--stretch 5` to survive a loaded runner; override with `TLAPM_STRETCH`.
+script passes `--stretch 10` to survive a loaded runner; override with `TLAPM_STRETCH`.
 
 tlapm fingerprints every obligation it settles, here under `.tlacache/` (`TLAPM_CACHE_DIR`
 moves it) and in CI between runs, so a run proves only what no earlier run proved. A
 remembered failure is replayed as a proof is, without a retry, so a module that fails is
 proved again ignoring the cache before it counts as failed.
 
-The modules share nothing and tlapm gains little from threads within one, so
-`TLAPM_JOBS` of them (default 2) prove side by side, each with its share of the cores,
+The modules share nothing, and tlapm prepares each obligation on one thread, which is
+most of a run, so `TLAPM_JOBS` of them (default one a core) prove side by side,
 the printed tables' proofs first as the longest; the report keeps the list's order.
 
 ## Why both TLC and TLAPS
