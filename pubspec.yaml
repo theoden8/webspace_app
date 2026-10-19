@@ -91,6 +91,7 @@ dev_dependencies:
   # transitively via flutter_test); declared direct for the surface-repaint
   # nudge-loop race test.
   fake_async: ^1.3.3
+  stack_trace: ^1.12.1
   # The https arms of the proxy tiers mint their own certificate (with
   # pointycastle, a main dependency): the macOS integration tier runs an app
   # bundle, where no `openssl` binary is on PATH. Already locked transitively.

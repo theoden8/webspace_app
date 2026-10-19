@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stack_trace/stack_trace.dart';
 
 import 'helpers/walk/walk_rng.dart';
 import 'helpers/walk/walk_runner.dart';
@@ -46,9 +47,20 @@ final class _Drifting implements WalkWorld<int> {
 
 /// Action 1 starts work that fails after the action has returned.
 final class _Escaping implements WalkWorld<int> {
+  _Escaping({required this.withStack});
+
+  final bool withStack;
+
   @override
   Future<void> apply(int action) async {
-    if (action == 1) unawaited(Future<void>.error(StateError('escaped')));
+    if (action == 1) {
+      unawaited(
+        Future<void>.error(
+          StateError('escaped'),
+          withStack ? StackTrace.current : StackTrace.empty,
+        ),
+      );
+    }
   }
 
   @override
@@ -118,14 +130,34 @@ void main() {
     },
   );
 
-  test('an error from work an action left running breaks the walk', () async {
-    final outcome = await runActions(
-      world: _Escaping.new,
-      actions: const [0, 1, 0, 0],
-    );
-    expect(
-      outcome,
-      isA<WalkBroke>().having((b) => b.reason, 'reason', contains('escaped')),
-    );
-  });
+  for (final native in [false, true]) {
+    for (final withStack in [false, true]) {
+      test(
+        'an escaped error breaks the walk: native=$native, withStack=$withStack',
+        () async {
+          final outcome = await Chain.disable(
+            () => runActions(
+              world: () => _Escaping(withStack: withStack),
+              actions: const [0, 1, 0, 0],
+            ),
+            when: native,
+          );
+          expect(
+            outcome,
+            isA<WalkBroke>().having(
+              (b) => b.reason,
+              'reason',
+              contains('escaped'),
+            ),
+          );
+          if (withStack) {
+            expect(
+              (outcome as WalkBroke).stack.toString(),
+              contains('_Escaping'),
+            );
+          }
+        },
+      );
+    }
+  }
 }

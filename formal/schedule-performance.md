@@ -98,6 +98,22 @@ model write and the roughly 82-minute schedule stage in the last #740 run.
 Search bounds, preemption bounds, model actions, invariant definitions and
 verification floors are unchanged.
 
+## Diagnostic stack chains
+
+A further eight alternating runs compared `68c1fbb9` with the same search using
+native error stacks in place of Flutter's extra async stack chains. After discarding
+one warmup per version, median wall time fell from 15.782 to 13.755 seconds (12.8%)
+and median CPU time from 20.246 to 17.955 seconds (11.3%). All eight runs completed
+the same 1,307 schedules, stopped 288 paths and wrote byte-identical jar traces.
+These timings are a separate comparison against the already optimized baseline.
+
+Schedule tests use `Chain.disable` for this diagnostic setting; set
+`SCHEDULE_STACK_CHAINS=1` to restore extra async chains when debugging. Error
+handling, assertions and search bounds remain active. The harness tests compare
+both modes across all length-one-to-three toy scripts, full and reduced searches,
+and zero-to-two preemptions, including the lost-update counterexamples. They also
+require escaped errors to be caught in both modes and preserve supplied stacks.
+
 ## Reproducing and extending the measurements
 
 Resolve dependencies in both checkouts, then run the command above once

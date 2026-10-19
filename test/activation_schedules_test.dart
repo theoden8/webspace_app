@@ -12,13 +12,13 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stack_trace/stack_trace.dart';
 import 'package:webspace/formal_model/models.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 
 import 'helpers/fake_tor_runtime.dart';
-import 'helpers/mock_cookie_manager.dart';
 import 'helpers/walk/activation_world.dart';
 import 'helpers/walk/schedules.dart';
 import 'helpers/walk/shards.dart';
@@ -640,7 +640,16 @@ void _scheduleTest(
 }) {
   final assigned = _declared++ % _shard.of == _shard.at;
   if (!splitScripts && !assigned) return;
-  test(name, body, timeout: Timeout.none);
+  // Flutter captures a stack for every async callback. Keep native error
+  // stacks during exhaustive searches; opt into extra chains for debugging.
+  test(
+    name,
+    () => Chain.disable(
+      body,
+      when: Platform.environment['SCHEDULE_STACK_CHAINS'] != '1',
+    ),
+    timeout: Timeout.none,
+  );
 }
 
 /// One world of each kind with its setup and inputs, and the length of
