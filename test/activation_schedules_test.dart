@@ -839,8 +839,8 @@ void main() {
     'one site on screen': const [Tap(0)],
     'two sites loaded': const [Tap(1), Tap(0)],
   }.entries) {
-    test('mixed, containers, mismatched proxies, $setupName, nested opens '
-        'and background wakes: every schedule holds', () async {
+    _scheduleTest('mixed, containers, mismatched proxies, $setupName, nested opens '
+        'and background wakes: every schedule holds', body: () async {
       for (var length = 1; length <= _wakeLength; length++) {
         for (final script in _scripts(length, alphabet: _nestedWakeAlphabet)) {
           await _expectEvery(
@@ -856,7 +856,7 @@ void main() {
           );
         }
       }
-    }, timeout: Timeout.none);
+    });
   }
 
   for (final MapEntry(key: pageName, value: page) in {

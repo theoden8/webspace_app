@@ -53,6 +53,22 @@ compilation. CPU time includes child processes.
 Median wall time decreased by **19.0%**, and median CPU time by **17.5%**.
 All measured runs had the same schedule counts and byte-identical traces.
 
+## Cross-shard coverage check
+
+A broader local corpus passed all 94 logical tests on the unsharded baseline
+and across four optimized shards. Optional activation, launch, tab, wake,
+DNS and webspace sweep lengths were set to one for this comparison. Named
+regressions, fixed-length cases and the seven full-versus-reduced search
+comparisons retained their existing bounds.
+
+Both versions completed 5,005 schedules and stopped 917 paths. After merging
+the optimized shards, all 39 configurations had identical constants, sets
+of projected states and complete parent/action paths: 44,561 trie nodes and
+1,490 states across the configurations. The twelve distributed cases account
+for 130 test executions across the four shards; every other test, including
+each reduction comparison, ran once. This is a coverage comparison at the
+stated local bounds; the complete CI run uses its existing default bounds.
+
 ## Changes supported by the profile
 
 Frame snapshots now capture immutable scalar values, records and ordered
@@ -69,10 +85,11 @@ over half an hour before the last one. The largest activation and small-cap
 sweeps now distribute scripts across all shards instead of assigning each
 whole sweep to one shard. Every script index belongs to exactly one shard.
 
-The seven full-versus-reduced search comparisons previously bypassed the
-shard selector and ran in every process. Each comparison now runs whole
-on one shard. Named regressions also remain whole. These scheduling changes
-need a complete CI run to quantify their contribution to elapsed time.
+The seven full-versus-reduced search comparisons and two combined nested-open
+and background-wake sweeps previously bypassed the shard selector and ran in
+every process. Each now runs whole on one shard. Named regressions also
+remain whole. These scheduling changes need a complete CI run to quantify
+their contribution to elapsed time.
 
 The driver reports model generation and schedule exploration as separate
 phases. Its former `PRINT` heading covered both the roughly 21-second
