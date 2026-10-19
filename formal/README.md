@@ -251,12 +251,14 @@ class.
 - **`verify.sh`** — the one way to run all of it: prints the modules and writes the walk and
   step traces (`flutter test`), then `check.sh`, `trace/check_steps.sh` and the TLAPS
   proofs. CI's `validate` job runs it. The schedules record their traces in `FORMAL_SLOTS`
-  shards side by side, each every nth test (`SCHEDULE_SHARD`, so the heavy worlds declared
-  together spread out), each into its own directory, and the replay
+  shards side by side, dividing the largest sweeps by script and assigning other
+  tests whole (`SCHEDULE_SHARD`), each into its own directory, and the replay
   merges a configuration's shards into one trie, a node by its parent, label and state, so
   what it replays and counts does not depend on how many shards ran. The expanded test
   reporter is selected explicitly: the startup handshake waits for its loading line
   before starting the next shard, which GitHub's default reporter does not emit.
+  [The schedule profile](schedule-performance.md) records the measured frame-checking
+  costs, local before/after timings and how to repeat the measurements.
 
 ## Run it
 

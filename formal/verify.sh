@@ -4,8 +4,9 @@
 # run checks the code as it is now:
 #
 #   PRINT    lib/formal_model/main.dart prints the modules the code
-#            defines (FORMAL_OUT), and flutter test writes the traces the
-#            schedules ran (MODEL_STEPS_DIR)
+#            defines (FORMAL_OUT)
+#   SCHEDULES flutter test explores schedules and writes their traces
+#            (MODEL_STEPS_DIR)
 #   LEAN     formal/lean/check.sh: the theorems on how a check may be
 #            split, and the printed footprints' cone decision
 #   MODELS   check.sh: every TLC model, activation.tla with the printed
@@ -44,7 +45,7 @@ need python3
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-echo "══ PRINT: the modules the code defines$([ "$FAST" -eq 1 ] || echo ", and the traces") ══"
+echo "══ PRINT: the modules the code defines ══"
 cd "$ROOT"
 # A main, not a test: the runner exits 79 when it finds no tests to run.
 status=0
@@ -52,12 +53,12 @@ FORMAL_OUT="$OUT/model" $FLUTTER test lib/formal_model/main.dart || status=$?
 [ "$status" -eq 0 ] || [ "$status" -eq 79 ] || exit "$status"
 [ -f "$OUT/model/models.json" ] || { echo "lib/formal_model/main.dart wrote nothing under $OUT/model" >&2; exit 1; }
 if [ "$FAST" -eq 0 ]; then
+  echo "══ SCHEDULES: explore interleavings and record their traces ══"
   # The schedules record their traces in FORMAL_SLOTS shards side by side,
-  # each into its own directory, each every nth test (SCHEDULE_SHARD: the
-  # heavy worlds are declared together, so a contiguous cut leaves one
-  # shard with most of the work); the replay merges a configuration's
-  # shards into one trie, so what it replays and counts is the same however
-  # many ran.
+  # each into its own directory. The largest sweeps split their scripts
+  # across shards; other tests run every nth test (SCHEDULE_SHARD).
+  # The replay merges a configuration's shards into one trie, so what it
+  # replays and counts is the same however many ran.
   shards="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
   pids=""
   for i in $(seq 0 $((shards - 1))); do
