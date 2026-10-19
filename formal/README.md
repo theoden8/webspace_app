@@ -261,6 +261,8 @@ class.
   before starting the next shard, which GitHub's default reporter does not emit.
   [The schedule profile](schedule-performance.md) records the measured frame-checking
   costs, local before/after timings and how to repeat the measurements.
+  [The TLC profile](tlc-performance.md) records model-evaluation costs and
+  the checked guard-order optimization.
 
 ## Run it
 

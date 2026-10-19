@@ -4,6 +4,32 @@ import 'package:webspace/services/step_table.dart';
 /// One alternative of a printed action, marking an exposed unconditional spawn.
 typedef StepAlternative = ({String tla, bool spawns});
 
+/// The program counter can reject a step before TLC scans every flow for Calm.
+enum TlaGuardOrder {
+  declared,
+  pcFirst;
+
+  static const preferred = pcFirst;
+
+  List<String> arrange(List<String> guards) => switch (this) {
+    pcFirst when guards.length >= 2 && guards[0] == 'Calm' &&
+        guards[1].startsWith('fl[f].pc = ') => [
+      ...guards.take(2).toList().reversed,
+      ...guards.skip(2),
+    ],
+    declared || pcFirst => guards,
+  };
+}
+
+typedef _ActionContext<P extends Enum> = ({
+  List<ModelVar> variables,
+  Set<P> ending,
+  bool awaited,
+  Map<String, List<Assign<Object?>>> entered,
+  Map<ActivationStep, Step<Object?, Enum>> starts,
+  TlaGuardOrder guardOrder,
+});
+
 /// What a step table is in the model, beside how it runs: what each place
 /// needs, what a flow records on entering a place, each step's footprint
 /// and its TLA+ action, all read off the declarations the runner runs.
@@ -212,17 +238,21 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     required List<ModelVar> variables,
     Map<String, List<Assign<Object?>>>? entered,
     Map<ActivationStep, Step<Object?, Enum>> starts = const {},
+    TlaGuardOrder guardOrder = TlaGuardOrder.preferred,
   }) => [
     for (final (:place, :step) in steps)
       if (!step.spawned)
-      _action(
+      _action<W, P>(
         step,
         place: place,
-        variables: variables,
-        ending: ending,
-        awaited: awaited.contains(place),
-        entered: entered ?? readsByPlace,
-        starts: starts,
+        context: (
+          variables: variables,
+          ending: ending,
+          awaited: awaited.contains(place),
+          entered: entered ?? readsByPlace,
+          starts: starts,
+          guardOrder: guardOrder,
+        ),
       ).text,
   ].join('\n');
 
@@ -234,17 +264,21 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     required List<ModelVar> variables,
     Map<String, List<Assign<Object?>>>? entered,
     Map<ActivationStep, Step<Object?, Enum>> starts = const {},
+    TlaGuardOrder guardOrder = TlaGuardOrder.preferred,
   }) => {
     for (final (:place, :step) in steps)
       if (!step.spawned)
-        step.name: _action(
+        step.name: _action<W, P>(
           step,
           place: place,
-          variables: variables,
-          ending: ending,
-          awaited: awaited.contains(place),
-          entered: entered ?? readsByPlace,
-          starts: starts,
+          context: (
+            variables: variables,
+            ending: ending,
+            awaited: awaited.contains(place),
+            entered: entered ?? readsByPlace,
+            starts: starts,
+            guardOrder: guardOrder,
+          ),
         ).alternatives,
   };
 
@@ -252,13 +286,10 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
   _action<W, P extends Enum>(
     Step<W, P> s, {
     required P place,
-    required List<ModelVar> variables,
-    required Set<P> ending,
-    required bool awaited,
-    required Map<String, List<Assign<Object?>>> entered,
-    required Map<ActivationStep, Step<Object?, Enum>> starts,
+    required _ActionContext<P> context,
   }) {
-    final guard = [
+    final (:variables, :ending, :awaited, :entered, :starts, :guardOrder) = context;
+    final guard = guardOrder.arrange([
       if (s.input) ...[
         'Input',
         'f = inputs + 1',
@@ -267,7 +298,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         'fl[f].pc = "${place.name}"',
         if (s.granted) 'Granted(f)',
       ],
-    ];
+    ]);
     // The reply lands before the arms run, so within the step a read of
     // the field that keeps it is the reply; outside, the field. A refused
     // reply lands nothing: its arm writes none of the call's variables and

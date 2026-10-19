@@ -261,6 +261,7 @@ jobs:
           fvm flutter test --reporter expanded
           test/frame_segments_test.dart test/frame_parity_test.dart
           test/schedule_shards_test.dart test/declare_to_use_test.dart
+          test/formal_models_test.dart
           test/schedules_test.dart test/walk_runner_test.dart
           test/log_service_test.dart test/log_clipboard_strip_test.dart
           test/log_no_siteid_leak_test.dart

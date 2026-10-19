@@ -680,7 +680,10 @@ Map<String, Set<FlowKind>> kindsAt(List<Footprint> all) => {
 };
 
 /// The tables' actions and what each of their places needs.
-String activationTables(Tables t) => [
+String activationTables(
+  Tables t, {
+  TlaGuardOrder guardOrder = TlaGuardOrder.preferred,
+}) => [
   '---------------------------- MODULE activation_tables -------------------------',
   '(* Printed from the step tables of ActivationTable,                       *)',
   '(* SiteUnloadEngine and CookieIsolationEngine by lib/formal_model/main.dart. *)',
@@ -698,6 +701,7 @@ String activationTables(Tables t) => [
       variables: ModelVar.values,
       entered: _entered(t),
       starts: _starts(t),
+      guardOrder: guardOrder,
     ),
   r"\* Every flow step of the tables, which activation.tla's FlowStep takes",
   r'\* whole.',
