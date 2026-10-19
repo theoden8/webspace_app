@@ -44,12 +44,16 @@ Future<List<String>> _errorsIn(
     resourceProvider: files,
     sdkPath: _sdk(),
   );
-  final unit = await contexts.contextFor(path).currentSession.getResolvedUnit(path);
-  expect(unit, isA<ResolvedUnitResult>());
-  return [
-    for (final d in (unit as ResolvedUnitResult).diagnostics)
-      if (d.severity == Severity.error) d.diagnosticCode.lowerCaseName,
-  ];
+  try {
+    final unit = await contexts.contextFor(path).currentSession.getResolvedUnit(path);
+    expect(unit, isA<ResolvedUnitResult>());
+    return [
+      for (final d in (unit as ResolvedUnitResult).diagnostics)
+        if (d.severity == Severity.error) d.diagnosticCode.lowerCaseName,
+    ];
+  } finally {
+    await contexts.dispose();
+  }
 }
 
 const _site = '''
