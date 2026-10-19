@@ -60,9 +60,15 @@ min_obligations() {
   case "$1" in
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
-    activation_tables_proof.tla) echo 85 ;;
+    activation_tables_proof.tla) echo 315 ;;
+    activation_tables_1_proof.tla) echo 148 ;;
+    activation_tables_2_proof.tla) echo 120 ;;
     activation_tables_3_proof.tla) echo 309 ;;
     activation_tables_4_proof.tla) echo 207 ;;
+    activation_tables_5_proof.tla) echo 136 ;;
+    activation_tables_6_proof.tla) echo 140 ;;
+    activation_tables_7_proof.tla) echo 116 ;;
+    activation_tables_8_proof.tla) echo 88 ;;
     activation_invariants_proof.tla) echo 287 ;;
     containers_disjoint.tla)   echo 39 ;;
     current_loaded.tla)        echo 52 ;;
@@ -117,7 +123,10 @@ check() {
   fi
   # The summary below prints once every module has ended, so a run the job's
   # timeout kills says nothing; each module says when it ends instead.
-  echo "  $name: $(tail -1 "$work/$name.out" | sed 's/^ *//') in $(( $(date +%s) - start ))s"
+  # Not the summary's "OK: N obligations proved", which levels.py counts.
+  local result="$proved proved"
+  [ ! -e "$work/$name.failed" ] || result=failed
+  echo "  $name: $result in $(( $(date +%s) - start ))s"
 }
 # The printed proofs, the longest, start first.
 for f in "$FORMAL_MODEL"/*_proof.tla *.tla; do
