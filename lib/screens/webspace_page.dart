@@ -306,8 +306,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     WebViewModel.siteLookup = _sites.byId;
     WidgetsBinding.instance.addObserver(this);
     AppPref.anyChange.addListener(_onAppPrefChanged);
-    AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
-    AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
     debugStartupRestore = _startup.restore();
     unawaited(_shortcuts.probeAppIntents());
     _shortcuts.start();
@@ -320,11 +318,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _onAppPrefChanged() => _rebuild();
-
-  void _onTabStripPrefChanged() {
-    if (!AppPref.tabBarButton.value) _fullscreen.tabBarOverlayVisible = false;
-    if (_fullscreen.active) _fullscreen.apply();
-  }
 
   /// Push the per-site settings screen for the site at [index].
   ///
@@ -412,9 +405,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     _network.dispose();
     _shortcuts.dispose();
     AppPref.anyChange.removeListener(_onAppPrefChanged);
-    AppPref.tabStripInFullscreen.listenable
-        .removeListener(_onTabStripPrefChanged);
-    AppPref.tabBarButton.listenable.removeListener(_onTabStripPrefChanged);
     _fullscreen.dispose();
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
@@ -1105,9 +1095,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (_sites.filteredIndices().isEmpty) return false;
     if (_fullscreen.active) {
       if (AppPref.tabStripInFullscreen.value) return true;
-      return AppPref.tabBarButton.value && _fullscreen.tabBarOverlayVisible;
+      return AppPref.tabBarButton.value && _fullscreen.tabStripRevealed;
     }
-    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _fullscreen.tabBarOverlayVisible);
+    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _fullscreen.tabStripRevealed);
   }
 
   /// Whether the floating tab-bar button is currently shown. It reveals the
@@ -1122,7 +1112,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       return false;
     }
     if (_sites.filteredIndices().isEmpty) return false;
-    if (_fullscreen.tabBarOverlayVisible) return false;
+    if (_fullscreen.tabStripRevealed) return false;
     if (_fullscreen.active) return !AppPref.tabStripInFullscreen.value;
     return !AppPref.showTabStrip.value;
   }
@@ -1144,19 +1134,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       models: _sites.models,
       order: _sites.filteredIndices(),
       current: _sites.current,
-      revealed: _fullscreen.tabBarOverlayVisible,
-      onHide: () {
-        setState(() {
-          _fullscreen.tabBarOverlayVisible = false;
-        });
-        _surface.nudge('tab-overlay-hide');
-      },
+      revealed: _fullscreen.tabStripRevealed,
+      onHide: _fullscreen.hideTabStrip,
       onOpen: (site) async {
         await _activation.activate(site);
         if (!mounted) return;
-        setState(() {
-          _fullscreen.tabBarOverlayVisible = false;
-        });
+        setState(() {});
         await _shell.saveCurrentIndex();
       },
       onShowTabs: () => unawaited(_showTabsSheet()),
@@ -1483,10 +1466,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   Positioned.fill(
                     child: TabBarCornerOverlay(
                       corner: _tabBarButtonCornerEffective,
-                      onTap: () {
-                        setState(() => _fullscreen.tabBarOverlayVisible = true);
-                        _surface.nudge('tab-overlay-show');
-                      },
+                      onTap: _fullscreen.revealTabStrip,
                       // Remembered on the site on screen.
                       onCornerChosen: (corner) {
                         final site = _sites.shown;
@@ -1763,8 +1743,10 @@ class _PageHost
   set kioskLocked(bool locked) => _s._kioskLocked = locked;
 
   @override
-  void popToRoot() =>
-      Navigator.of(_s.context).popUntil((route) => route.isFirst);
+  void resetForEntry() {
+    Navigator.of(_s.context).popUntil((route) => route.isFirst);
+    _s._fullscreen.hideTabStrip();
+  }
 
   @override
   Future<void> activate(WebViewModel? site) => _s._activation.activate(site);
