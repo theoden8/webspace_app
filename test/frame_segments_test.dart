@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/model_names.dart';
 
 import 'helpers/walk/flows.dart';
 import 'helpers/walk/frame_values.dart';
+import 'helpers/walk/model_frame.dart';
 
 void main() {
   tearDown(() => segments = null);
@@ -44,9 +46,15 @@ void main() {
   test('nested segments charge changes to the flow that made them', () {
     final tabs = <Object?>['first'];
     var current = 'old';
-    final changes = <({int? flow, Set<Object> keys})>[];
+    final changes = <({int? flow, Set<ModelVar> keys})>[];
     segments = (
-      state: () => {'tabs': FrameValues(tabs), 'current': current},
+      state: () => ModelFrame.capture(
+        read: (v) => switch (v) {
+          ModelVar.tabs => FrameValues(tabs),
+          ModelVar.current => current,
+          _ => null,
+        },
+      ),
       changed: (flow, {required keys, required closes}) {
         if (keys.isNotEmpty) changes.add((flow: flow, keys: keys));
       },
@@ -66,29 +74,29 @@ void main() {
 
     expect(changes.map((change) => change.flow), [1, 2, 1]);
     expect(changes.map((change) => change.keys), [
-      {'tabs'},
-      {'current'},
-      {'tabs'},
+      {ModelVar.tabs},
+      {ModelVar.current},
+      {ModelVar.tabs},
     ]);
   });
 
   test('frame comparisons detect added and removed variables', () {
-    final state = <Object, Object>{'kept': 0, 'removed': false};
-    final changes = <Set<Object>>[];
+    final state = <ModelVar, Object>{ModelVar.current: 0, ModelVar.fore: false};
+    final changes = <Set<ModelVar>>[];
     segments = (
-      state: () => {...state},
+      state: () => ModelFrame.capture(read: (v) => state[v]),
       changed: (flow, {required keys, required closes}) {
         if (keys.isNotEmpty) changes.add(keys);
       },
     );
 
     runZoned(() {
-      state.remove('removed');
-      state['added'] = FrameValues([null]);
+      state.remove(ModelVar.fore);
+      state[ModelVar.tabs] = FrameValues([null]);
     }, zoneSpecification: segmentRuns);
 
     expect(changes, [
-      {'removed', 'added'},
+      {ModelVar.fore, ModelVar.tabs},
     ]);
   });
 }

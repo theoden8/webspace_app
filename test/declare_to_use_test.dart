@@ -27,10 +27,18 @@ String _sdk() {
   return '${Platform.resolvedExecutable.substring(0, at)}/bin/cache/dart-sdk';
 }
 
-Future<List<String>> _errorsIn(String source) async {
-  final path = '${Directory.current.path}/test/_declare_to_use_probe.dart';
+Future<List<String>> _errorsIn(
+  String source, {
+  String at = 'test/_declare_to_use_probe.dart',
+  Map<String, String> overlays = const {},
+}) async {
+  final path = '${Directory.current.path}/$at';
   final files = OverlayResourceProvider(PhysicalResourceProvider.INSTANCE)
     ..setOverlay(path, content: source, modificationStamp: 0);
+  for (final MapEntry(:key, :value) in overlays.entries) {
+    files.setOverlay('${Directory.current.path}/$key',
+        content: value, modificationStamp: 0);
+  }
   final contexts = AnalysisContextCollection(
     includedPaths: [path],
     resourceProvider: files,
@@ -60,6 +68,21 @@ final class W {
 ''';
 
 void main() {
+  test('a new model variable without a frame reader does not compile', () async {
+    const owner = 'lib/services/model_names.dart';
+    const reader = 'test/helpers/walk/activation_world.dart';
+    final names = File(owner).readAsStringSync();
+    final added = names.replaceFirst('enum ModelVar {', '''enum ModelVar {
+  parityProbe('the compiler must require a reader', type: 'TRUE'),''');
+    expect(added, isNot(names), reason: 'the planted variable must be inserted');
+    final source = File(reader).readAsStringSync();
+    expect(await _errorsIn(source, at: reader), isEmpty);
+    expect(
+      await _errorsIn(source, at: reader, overlays: {owner: added}),
+      contains('non_exhaustive_switch_expression'),
+    );
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
   test('step code that reaches the world does not compile', () async {
     final errors = await _errorsIn('''
 $_world

@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:webspace/services/model_names.dart';
+
+import 'model_frame.dart';
+
 const _flowKey = #scheduleFlow;
 
 /// Runs [body] as flow [flow]: every platform call its work makes, now or
@@ -20,8 +24,8 @@ int? currentFlow() => Zone.current[_flowKey] as int?;
 /// in flight.
 /// Values must be immutable snapshots, with equality by value.
 typedef SegmentWatch = ({
-  Map<Object, Object> Function() state,
-  void Function(int? flow, {required Set<Object> keys, required bool closes})
+  ModelFrame Function() state,
+  void Function(int? flow, {required Set<ModelVar> keys, required bool closes})
   changed,
 });
 
@@ -102,7 +106,7 @@ void Function() _onClock(void Function() f) => () {
 /// The stretches running now, innermost last: a stretch whose code runs
 /// another's inline takes back its share at the nested one's start and
 /// starts afresh at its end.
-final List<({int? flow, Map<Object, Object> at})> _open = [];
+final List<({int? flow, ModelFrame at})> _open = [];
 
 R _segment<R>(Zone zone, {required R Function() run}) {
   if (_clock == 0) stretchBegins?.call(zone[_flowKey] as int?);
@@ -133,16 +137,11 @@ void takeSegment() {
 /// the stretch ends there, so nothing more of it can follow.
 void _take(
   SegmentWatch watch, {
-  required Map<Object, Object> now,
+  required ModelFrame now,
   required bool closes,
 }) {
   final open = _open.last;
-  final keys = {
-    for (final entry in open.at.entries)
-      if (entry.value != now[entry.key]) entry.key,
-    for (final k in now.keys)
-      if (!open.at.containsKey(k)) k,
-  };
+  final keys = now.changedSince(open.at);
   watch.changed(open.flow, keys: keys, closes: closes);
   _open.last = (flow: open.flow, at: now);
 }

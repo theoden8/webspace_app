@@ -240,7 +240,8 @@ jobs:
       - name: Test the formal harness
         run: >-
           fvm flutter test --reporter expanded
-          test/frame_segments_test.dart test/schedule_shards_test.dart
+          test/frame_segments_test.dart test/frame_parity_test.dart
+          test/schedule_shards_test.dart test/declare_to_use_test.dart
           test/schedules_test.dart test/walk_runner_test.dart
       # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in
       # formal/proofs/.
