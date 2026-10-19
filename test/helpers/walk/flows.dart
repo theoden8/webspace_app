@@ -18,8 +18,9 @@ int? currentFlow() => Zone.current[_flowKey] as int?;
 /// flow that stretch belongs to, or to null outside any. Code runs alone
 /// between awaits, so a change there is the flow's own, whatever else is
 /// in flight.
+/// Values must be immutable snapshots, with equality by value.
 typedef SegmentWatch = ({
-  Map<Object, String> Function() state,
+  Map<Object, Object> Function() state,
   void Function(int? flow, {required Set<Object> keys, required bool closes})
   changed,
 });
@@ -101,7 +102,7 @@ void Function() _onClock(void Function() f) => () {
 /// The stretches running now, innermost last: a stretch whose code runs
 /// another's inline takes back its share at the nested one's start and
 /// starts afresh at its end.
-final List<({int? flow, Map<Object, String> at})> _open = [];
+final List<({int? flow, Map<Object, Object> at})> _open = [];
 
 R _segment<R>(Zone zone, {required R Function() run}) {
   if (_clock == 0) stretchBegins?.call(zone[_flowKey] as int?);
@@ -132,13 +133,15 @@ void takeSegment() {
 /// the stretch ends there, so nothing more of it can follow.
 void _take(
   SegmentWatch watch, {
-  required Map<Object, String> now,
+  required Map<Object, Object> now,
   required bool closes,
 }) {
   final open = _open.last;
   final keys = {
-    for (final k in {...open.at.keys, ...now.keys})
-      if (open.at[k] != now[k]) k,
+    for (final entry in open.at.entries)
+      if (entry.value != now[entry.key]) entry.key,
+    for (final k in now.keys)
+      if (!open.at.containsKey(k)) k,
   };
   watch.changed(open.flow, keys: keys, closes: closes);
   _open.last = (flow: open.flow, at: now);
