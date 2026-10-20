@@ -134,6 +134,8 @@ class LogService extends ChangeNotifier {
   final _sensitiveEntries = ListQueue<LogEntry>();
   static const maxEntries = 2000;
 
+  LogLevel consoleLevel = LogLevel.debug;
+
   @visibleForTesting
   void resetForTest() {
     _entries.clear();
@@ -168,7 +170,7 @@ class LogService extends ChangeNotifier {
       // Tools and puts nothing in logcat. Profile is in scope because the
       // adb tiers read these lines out of logcat, and profile is the build
       // mode that gets them an AOT, non-inspectable webview.
-      if (!kReleaseMode) {
+      if (!kReleaseMode && level.index >= consoleLevel.index) {
         debugPrint('[${entry.tag}/${entry.level.name}] ${entry.message}');
       }
     }

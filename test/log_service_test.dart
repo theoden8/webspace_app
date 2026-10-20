@@ -10,6 +10,63 @@ void main() {
     LogService.instance.resetForTest();
   });
 
+  group('console severity', () {
+    late LogLevel previousLevel;
+    late DebugPrintCallback previousPrinter;
+    late List<String> printed;
+
+    setUp(() {
+      previousLevel = LogService.instance.consoleLevel;
+      previousPrinter = debugPrint;
+      printed = [];
+      debugPrint = (message, {wrapWidth}) {
+        if (message != null) printed.add(message);
+      };
+    });
+
+    tearDown(() {
+      debugPrint = previousPrinter;
+      LogService.instance.consoleLevel = previousLevel;
+    });
+
+    test('quiet output keeps all levels in the ring and notifies listeners', () {
+      final log = LogService.instance;
+      log.consoleLevel = LogLevel.warning;
+      var notifications = 0;
+      void listen() => notifications++;
+      log.addListener(listen);
+      addTearDown(() => log.removeListener(listen));
+      for (final level in LogLevel.values) {
+        log.log(LogTag.test, message: level.name, level: level);
+      }
+
+      expect(printed, [
+        '[Test/warning] warning',
+        '[Test/error] error',
+      ]);
+      expect(log.entries.map((entry) => entry.level), LogLevel.values);
+      expect(notifications, LogLevel.values.length);
+      expect(log.export(), contains('[Test/debug] debug'));
+      expect(log.export(), contains('[Test/info] info'));
+    });
+
+    test('verbose output can restore debug details', () {
+      LogService.instance.consoleLevel = LogLevel.debug;
+      LogTag.cookieIsolation.debug('Currently loaded rows: {}');
+      expect(printed, [
+        '[CookieIsolation/debug] Currently loaded rows: {}',
+      ]);
+    });
+
+    test('sensitive errors stay silent even with verbose output', () {
+      LogService.instance.consoleLevel = LogLevel.debug;
+      LogTag.test.error('private detail', sensitive: true);
+      expect(printed, isEmpty);
+      expect(LogService.instance.sensitiveEntries.single.message,
+          'private detail');
+    });
+  });
+
   for (final sensitivity in LogSensitivity.values) {
     test('${sensitivity.name} retention survives repeated buffer wraps', () {
       final printer = debugPrint;
