@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Показано записи, що називають сайти. Вони зберігаються лише в пам'яті й скидаються під час перезапуску застосунку.",
   "devToolsBackgroundCopySensitiveBody": "{count} із показаних записів називають сайти або містять заголовки сторінок і текст сповіщень. Буфер обміну може синхронізуватися поза пристроєм.",
   "cookieStoreFailed": "Сховище cookie дало збій: {error}",
-  "siteCookiesNotRestored": "Не вдалося відкрити {site}: не вдалося відновити його cookie"
+  "siteCookiesNotRestored": "Не вдалося відкрити {site}: не вдалося відновити його cookie",
+  "libraryWebspaces": "Вебпростори",
+  "librarySites": "Сайти",
+  "librarySearchWebspaces": "Шукати вебпростори",
+  "librarySearchSites": "Шукати сайти",
+  "libraryNoResults": "Збігів немає",
+  "appSettingsExperimentalFolderLibrary": "Бібліотека папок",
+  "appSettingsExperimentalFolderLibraryHint": "Переглядайте робочі простори як папки та відкривайте їхні сайти в сітці з пошуком."
 }

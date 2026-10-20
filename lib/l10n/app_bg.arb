@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Показват се записите, които назовават сайтове. Пазят се само в паметта и се нулират при рестарт на приложението.",
   "devToolsBackgroundCopySensitiveBody": "{count} от показаните записи назовават сайтове или съдържат заглавия на страници и текст на известия. Клипбордът може да се синхронизира извън устройството.",
   "cookieStoreFailed": "Хранилището за бисквитки не успя: {error}",
-  "siteCookiesNotRestored": "{site} не можа да се отвори: бисквитките му не можаха да бъдат възстановени"
+  "siteCookiesNotRestored": "{site} не можа да се отвори: бисквитките му не можаха да бъдат възстановени",
+  "libraryWebspaces": "Уеб пространства",
+  "librarySites": "Сайтове",
+  "librarySearchWebspaces": "Търсене на уеб пространства",
+  "librarySearchSites": "Търсене на сайтове",
+  "libraryNoResults": "Няма резултати",
+  "appSettingsExperimentalFolderLibrary": "Библиотека с папки",
+  "appSettingsExperimentalFolderLibraryHint": "Разглеждайте работните пространства като папки и отваряйте сайтовете им в мрежа с търсене."
 }

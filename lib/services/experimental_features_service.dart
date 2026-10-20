@@ -26,7 +26,10 @@ enum ExperimentalFeature {
   /// iOS, macOS and Linux: the filter lists' network rules compiled into
   /// WebKit content rule lists (content-blocker CB-020). New, so off by
   /// default.
-  contentRuleLists(AppPref.experimentalContentRuleLists);
+  contentRuleLists(AppPref.experimentalContentRuleLists),
+
+  /// The folder and site grid library, leaving the existing interface as default.
+  folderLibrary(AppPref.experimentalFolderLibrary);
 
   const ExperimentalFeature(this.pref);
 

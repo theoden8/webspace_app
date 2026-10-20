@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Prikazuju se unosi koji imenuju stranice. Čuvaju se samo u memoriji i resetuju pri ponovnom pokretanju aplikacije.",
   "devToolsBackgroundCopySensitiveBody": "{count} prikazanih unosa imenuje stranice ili sadrži naslove stranica i tekst obavještenja. Međuspremnik se može sinhronizirati izvan uređaja.",
   "cookieStoreFailed": "Spremište kolačića nije uspjelo: {error}",
-  "siteCookiesNotRestored": "Nije moguće otvoriti {site}: njegove kolačiće nije bilo moguće vratiti"
+  "siteCookiesNotRestored": "Nije moguće otvoriti {site}: njegove kolačiće nije bilo moguće vratiti",
+  "libraryWebspaces": "Web prostori",
+  "librarySites": "Stranice",
+  "librarySearchWebspaces": "Pretraži web prostore",
+  "librarySearchSites": "Pretraži stranice",
+  "libraryNoResults": "Nema rezultata",
+  "appSettingsExperimentalFolderLibrary": "Biblioteka fascikli",
+  "appSettingsExperimentalFolderLibraryHint": "Pregledajte radne prostore kao fascikle i otvarajte njihove stranice u mreži s pretragom."
 }

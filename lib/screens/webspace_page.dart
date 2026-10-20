@@ -43,6 +43,8 @@ import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
+import 'package:webspace/screens/webspace_library.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -137,6 +139,9 @@ class WebSpacePage extends StatefulWidget {
 
 class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
+  final _libraryKey = GlobalKey<WebspaceLibraryState>();
+  bool get _folderLibraryEnabled => ExperimentalFeaturesService.instance
+      .isEnabled(ExperimentalFeature.folderLibrary);
   final SiteRuntime _sites = SiteRuntime();
   late final ShortcutController _shortcuts = ShortcutController(_sites,
       host: _PageHost(this), prompts: DialogShortcutPrompts(context));
@@ -1294,6 +1299,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _backToWebspacesFromDrawer() async {
+    _libraryKey.currentState?.showWebspaces();
     await _activation.activate(null);
     if (!mounted) return;
     setState(() {});
@@ -1366,7 +1372,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // both edges so it stays clear of any bars that persist, or that the user
       // revealed under `immersive` (FS-011); when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
-      top: _fullscreen.active,
+      top: _fullscreen.active || (_folderLibraryEnabled && _sites.shown == null),
       bottom: !hasBottomStrip && inputBar == null,
       // Out of fullscreen, inset around a landscape display cutout so chrome
       // and content avoid the notch. In fullscreen let the webview fill the
@@ -1391,7 +1397,27 @@ class _WebSpacePageState extends State<WebSpacePage>
               children: [
                 Offstage(
                   offstage: _sites.current != null && _sites.current! < _sites.models.length,
-                  child: WebspacesListScreen(
+                  child: _folderLibraryEnabled ? WebspaceLibrary(
+                    key: _libraryKey,
+                    webspaces: _sites.webspaces,
+                    selectedWebspaceId: _sites.selectedWebspaceId,
+                    sites: _sites.models,
+                    currentSite: _sites.shown,
+                    showsTabCount: _tabs.enabledFor,
+                    onSelectWebspace: _webspaces.select,
+                    onAddWebspace: _webspaces.add,
+                    onEditWebspace: _webspaces.edit,
+                    onDeleteWebspace: _webspaces.delete,
+                    onReorder: _webspaces.reorder,
+                    onOpenSite: (site) => unawaited(_openSiteFromDrawer(site)),
+                    onSiteMenu: _showSiteContextMenu,
+                    onReorderSite: _webspaces.canReorderView
+                        ? (from, {required to}) =>
+                              _webspaces.reorderSite(from, newListIndex: to)
+                        : null,
+                    onAddSite: () => unawaited(_editing.addSite()),
+                    onOpenSettings: _openAppSettings,
+                  ) : WebspacesListScreen(
                     webspaces: _sites.webspaces,
                     selectedWebspaceId: _sites.selectedWebspaceId,
                     totalSitesCount: _sites.models.length,
@@ -1533,8 +1559,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Disable the drawer edge-swipe whenever a webview is active so the back
       // gesture never opens the drawer. The drawer is reached via the AppBar
       // menu button instead.
-      drawerEdgeDragWidth: webviewIsVisible ? 0 : null,
-      appBar: _fullscreen.active ? null : _buildAppBar(),
+      drawerEdgeDragWidth: _folderLibraryEnabled || webviewIsVisible ? 0 : null,
+      appBar: _fullscreen.active || (_folderLibraryEnabled && !webviewIsVisible)
+          ? null : _buildAppBar(),
       // KIOSK-002: no drawer when locked — removes the site grid, "back to
       // webspaces", add-site, and the auto app-bar hamburger / edge swipe.
       drawer: _kioskLocked ? null : SiteDrawer(
@@ -1553,13 +1580,12 @@ class _WebSpacePageState extends State<WebSpacePage>
         onAddSite: () => unawaited(_editing.addSite()),
       ),
       body: _buildBodyWithBottomBar(),
-      bottomNavigationBar: _buildTabStrip(at: TabStripEdge.bottom),
-      floatingActionButton:
-          !(_sites.current == null || _sites.current! >= _sites.models.length) ? null
+      floatingActionButton: _folderLibraryEnabled || webviewIsVisible ? null
           : FloatingActionButton(
               onPressed: () => unawaited(_editing.addSite()),
               child: Icon(Icons.add),
             ),
+      bottomNavigationBar: _buildTabStrip(at: TabStripEdge.bottom),
     ),
     );
   }
@@ -1751,7 +1777,13 @@ class _PageHost
   void closeDrawer() => _s._scaffoldKey.currentState?.closeDrawer();
 
   @override
-  void openDrawer() => _s._scaffoldKey.currentState?.openDrawer();
+  void openDrawer() {
+    if (_s._folderLibraryEnabled && _s._sites.shown == null) {
+      _s._libraryKey.currentState?.showSelectedWebspace();
+    } else {
+      _s._scaffoldKey.currentState?.openDrawer();
+    }
+  }
 
   @override
   void themeChanged() => _s.widget.onThemeSettingsChanged(_s._shell.theme);

@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "సైట్‌లను పేర్కొనే ఎంట్రీలను చూపిస్తోంది. అవి మెమరీలో మాత్రమే ఉంచబడతాయి మరియు యాప్ పునఃప్రారంభంలో రీసెట్ అవుతాయి.",
   "devToolsBackgroundCopySensitiveBody": "చూపిన ఎంట్రీలలో {count} సైట్‌లను పేర్కొంటాయి లేదా పేజీ శీర్షికలు మరియు నోటిఫికేషన్ వచనాన్ని కలిగి ఉన్నాయి. క్లిప్‌బోర్డ్ పరికరం వెలుపలికి సింక్ కావచ్చు.",
   "cookieStoreFailed": "కుకీ స్టోర్ విఫలమైంది: {error}",
-  "siteCookiesNotRestored": "{site}ని తెరవడం సాధ్యం కాలేదు: దాని కుకీలను పునరుద్ధరించడం సాధ్యం కాలేదు"
+  "siteCookiesNotRestored": "{site}ని తెరవడం సాధ్యం కాలేదు: దాని కుకీలను పునరుద్ధరించడం సాధ్యం కాలేదు",
+  "libraryWebspaces": "వెబ్‌స్పేస్‌లు",
+  "librarySites": "సైట్‌లు",
+  "librarySearchWebspaces": "వెబ్‌స్పేస్‌లను వెతకండి",
+  "librarySearchSites": "సైట్‌లను వెతకండి",
+  "libraryNoResults": "ఫలితాలు లేవు",
+  "appSettingsExperimentalFolderLibrary": "ఫోల్డర్ లైబ్రరీ",
+  "appSettingsExperimentalFolderLibraryHint": "కార్యస్థలాలను ఫోల్డర్‌లుగా బ్రౌజ్ చేసి, వాటి సైట్‌లను శోధించగల గ్రిడ్‌లో తెరవండి."
 }

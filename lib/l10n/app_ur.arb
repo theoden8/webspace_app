@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "سائٹوں کے نام والے اندراجات دکھائے جا رہے ہیں۔ یہ صرف میموری میں رکھے جاتے ہیں اور ایپ کے دوبارہ شروع ہونے پر ری سیٹ ہو جاتے ہیں۔",
   "devToolsBackgroundCopySensitiveBody": "دکھائے گئے اندراجات میں سے {count} میں سائٹوں کے نام یا صفحات کے عنوان اور اطلاعات کا متن ہے۔ کلپ بورڈ ڈیوائس سے باہر مطابقت پذیر ہو سکتا ہے۔",
   "cookieStoreFailed": "کوکی اسٹور ناکام: {error}",
-  "siteCookiesNotRestored": "{site} نہیں کھولا جا سکا: اس کی کوکیز بحال نہیں کی جا سکیں"
+  "siteCookiesNotRestored": "{site} نہیں کھولا جا سکا: اس کی کوکیز بحال نہیں کی جا سکیں",
+  "libraryWebspaces": "ویب اسپیسز",
+  "librarySites": "سائٹس",
+  "librarySearchWebspaces": "ویب اسپیسز تلاش کریں",
+  "librarySearchSites": "سائٹس تلاش کریں",
+  "libraryNoResults": "کوئی نتیجہ نہیں ملا",
+  "appSettingsExperimentalFolderLibrary": "فولڈر لائبریری",
+  "appSettingsExperimentalFolderLibraryHint": "ورک اسپیس کو فولڈرز کی شکل میں براؤز کریں اور ان کی سائٹس کو قابل تلاش گرڈ میں کھولیں۔"
 }

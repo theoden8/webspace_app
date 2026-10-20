@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Mostrando entradas que nomeiam sites. Elas ficam só na memória e são redefinidas ao reiniciar o app.",
   "devToolsBackgroundCopySensitiveBody": "{count} das entradas exibidas nomeiam sites ou contêm títulos de página e texto de notificações. A área de transferência pode sincronizar fora do dispositivo.",
   "cookieStoreFailed": "Falha no armazenamento de cookies: {error}",
-  "siteCookiesNotRestored": "Não foi possível abrir {site}: não foi possível restaurar os cookies do site"
+  "siteCookiesNotRestored": "Não foi possível abrir {site}: não foi possível restaurar os cookies do site",
+  "libraryWebspaces": "Espaços web",
+  "librarySites": "Sites",
+  "librarySearchWebspaces": "Pesquisar espaços web",
+  "librarySearchSites": "Pesquisar sites",
+  "libraryNoResults": "Nenhum resultado",
+  "appSettingsExperimentalFolderLibrary": "Biblioteca de pastas",
+  "appSettingsExperimentalFolderLibraryHint": "Navegue pelos espaços de trabalho como pastas e abra os sites em uma grade com pesquisa."
 }

@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "サイトを示すエントリを表示しています。メモリ内にのみ保持され、アプリ再起動時にリセットされます。",
   "devToolsBackgroundCopySensitiveBody": "表示中のエントリのうち {count} 件がサイトを示すか、ページタイトルや通知テキストを含んでいます。クリップボードは端末外に同期されることがあります。",
   "cookieStoreFailed": "Cookie ストアでエラーが発生しました: {error}",
-  "siteCookiesNotRestored": "{site} を開けませんでした: Cookie を復元できませんでした"
+  "siteCookiesNotRestored": "{site} を開けませんでした: Cookie を復元できませんでした",
+  "libraryWebspaces": "ウェブスペース",
+  "librarySites": "サイト",
+  "librarySearchWebspaces": "ウェブスペースを検索",
+  "librarySearchSites": "サイトを検索",
+  "libraryNoResults": "一致する項目はありません",
+  "appSettingsExperimentalFolderLibrary": "フォルダーライブラリ",
+  "appSettingsExperimentalFolderLibraryHint": "ワークスペースをフォルダーとして表示し、そのサイトを検索可能なグリッドで開きます。"
 }

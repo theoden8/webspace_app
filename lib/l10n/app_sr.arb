@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Приказују се уноси који именују сајтове. Чувају се само у меморији и ресетују се при поновном покретању апликације.",
   "devToolsBackgroundCopySensitiveBody": "{count} приказаних уноса именује сајтове или садржи наслове страница и текст обавештења. Остава може да се синхронизује изван уређаја.",
   "cookieStoreFailed": "Складиште колачића није успело: {error}",
-  "siteCookiesNotRestored": "Није могуће отворити {site}: његове колачиће није било могуће вратити"
+  "siteCookiesNotRestored": "Није могуће отворити {site}: његове колачиће није било могуће вратити",
+  "libraryWebspaces": "Веб-простори",
+  "librarySites": "Сајтови",
+  "librarySearchWebspaces": "Претражи веб-просторе",
+  "librarySearchSites": "Претражи сајтове",
+  "libraryNoResults": "Нема резултата",
+  "appSettingsExperimentalFolderLibrary": "Библиотека фасцикли",
+  "appSettingsExperimentalFolderLibraryHint": "Прегледајте радне просторе као фасцикле и отварајте њихове сајтове у мрежи са претрагом."
 }

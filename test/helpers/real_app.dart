@@ -16,6 +16,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/webspace_folder_tile.dart';
 
 import 'fake_platform_controller.dart';
 import 'package:webspace/services/launch_context.dart';
@@ -25,8 +26,9 @@ import 'fake_path_provider.dart';
 /// file, since a store the app keeps across tests (SiteIconStore) holds on
 /// to it. Each test starts it empty, as it does prefs and secure storage, and
 /// removes it when done.
-final Directory _documents =
-    Directory.systemTemp.createTempSync('webspace_real_app_');
+final Directory _documents = Directory.systemTemp.createTempSync(
+  'webspace_real_app_',
+);
 
 void _freshDocuments() {
   void remove() {
@@ -103,14 +105,14 @@ Future<void> prepareRealApp(
     (call) async => switch (call.method) {
       'initialize' => true,
       'getNotificationAppLaunchDetails' => {
-          'notificationLaunchedApp': launchedByNotificationFor != null,
-          if (launchedByNotificationFor != null)
-            'notificationResponse': {
-              'notificationId': 1,
-              'notificationResponseType': 0,
-              'payload': jsonEncode({'siteId': launchedByNotificationFor}),
-            },
-        },
+        'notificationLaunchedApp': launchedByNotificationFor != null,
+        if (launchedByNotificationFor != null)
+          'notificationResponse': {
+            'notificationId': 1,
+            'notificationResponseType': 0,
+            'payload': jsonEncode({'siteId': launchedByNotificationFor}),
+          },
+      },
       _ => null,
     },
   );
@@ -127,7 +129,8 @@ Future<void> prepareRealApp(
 Future<void> settleRealApp(WidgetTester tester) async {
   for (var i = 0; i < 20; i++) {
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)));
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
@@ -139,18 +142,26 @@ WebViewModel appSite(String name) =>
 /// Pick a webspace on the start screen.
 Future<void> openWebspace(WidgetTester tester, {required String name}) async {
   final entry = find.descendant(
-    of: find.byType(ListTile),
+    of: find.byType(WebspaceFolderTile).evaluate().isNotEmpty
+        ? find.byType(WebspaceFolderTile)
+        : find.byType(ListTile),
     matching: find.text(name),
   );
   await tester.tap(entry.first);
   await settleRealApp(tester);
 }
 
-/// Bring the site named [name] on screen from the drawer.
-Future<void> openSiteFromDrawer(WidgetTester tester,
-    {required String name}) async {
-  await tester.tap(find.byTooltip('Open navigation menu'));
-  await settleRealApp(tester);
+/// Open a site from the library, or the drawer when a site is on screen.
+Future<void> openSiteFromDrawer(
+  WidgetTester tester, {
+  required String name,
+}) async {
+  final menu = find.byTooltip('Open navigation menu');
+  final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+  if (!scaffold.isDrawerOpen && menu.evaluate().isNotEmpty) {
+    await tester.tap(menu);
+    await settleRealApp(tester);
+  }
   await tester.tap(find.text(name).last);
   await settleRealApp(tester);
 }
@@ -185,14 +196,20 @@ Future<void> tapLink(WidgetTester tester, {required String url}) async {
 
 /// The page on screen moving to [url] without a load, as the platform reports
 /// a `history.pushState`/`replaceState`: many pages do it as the user types.
-Future<void> pageHistoryChanged(WidgetTester tester, {required String url}) async {
+Future<void> pageHistoryChanged(
+  WidgetTester tester, {
+  required String url,
+}) async {
   final views = find.byType(inapp.InAppWebView).evaluate().toList();
   expect(views, hasLength(1), reason: 'one page on screen');
   final view = views.single.widget as inapp.InAppWebView;
   final controller = await _controllerOf(tester, view: view);
   await tester.runAsync(() async {
     view.platform.params.onUpdateVisitedHistory!(
-        controller, inapp.WebUri(url), false);
+      controller,
+      inapp.WebUri(url),
+      false,
+    );
   });
 }
 

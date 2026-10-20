@@ -33,6 +33,48 @@ abstract final class Spacing {
   static const double xl = 24;
 }
 
+/// The folder library's surfaces and geometry, shared by its two grids.
+abstract final class LibraryStyle {
+  static const light = Color(0xFFFBFCFE);
+  static const dark = Color(0xFF171B22);
+  static const fieldLight = Color(0xFFF0F3F8);
+  static const fieldDark = Color(0xFF252C36);
+  static const folderLight = [
+    Color(0xFFEAF0F6),
+    Color(0xFFE5EFFF),
+    Color(0xFFE8F3EC),
+    Color(0xFFEEEFF2),
+  ];
+  static const folderDark = [
+    Color(0xFF2B3441),
+    Color(0xFF263B58),
+    Color(0xFF293F37),
+    Color(0xFF363440),
+  ];
+  static const double radius = 20;
+  static const double maxWidth = 960;
+  static const double folderMinWidth = 132;
+  static const double siteMinWidth = 96;
+  static const double siteIcon = 64;
+  static const double siteWell = 80;
+  static const double previewIcon = 40;
+  static const double previewWell = 56;
+  static const double target = 48;
+  static const double titleSize = 30;
+  static const double siteTitleSize = 14;
+  static const double domainSize = 12;
+
+  static Color background(Brightness brightness) =>
+      brightness == Brightness.dark ? dark : light;
+
+  static Color field(Brightness brightness) =>
+      brightness == Brightness.dark ? fieldDark : fieldLight;
+
+  static Color folder(Brightness brightness, {required int index}) =>
+      (brightness == Brightness.dark ? folderDark : folderLight)[index %
+          folderLight.length];
+}
+
 /// Fixed chrome around web content: not accent-derived, so these stay put when
 /// the user picks a different accent colour.
 abstract final class Chrome {

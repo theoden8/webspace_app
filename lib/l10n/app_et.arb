@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Näidatakse kirjeid, mis nimetavad saite. Neid hoitakse ainult mälus ja need lähtestuvad rakenduse taaskäivitusel.",
   "devToolsBackgroundCopySensitiveBody": "{count} kuvatud kirjet nimetavad saite või sisaldavad lehtede pealkirju ja teavituste teksti. Lõikelaud võib sünkroonida seadmest välja.",
   "cookieStoreFailed": "Küpsiste hoidla ebaõnnestus: {error}",
-  "siteCookiesNotRestored": "Saiti {site} ei saanud avada: selle küpsiseid ei õnnestunud taastada"
+  "siteCookiesNotRestored": "Saiti {site} ei saanud avada: selle küpsiseid ei õnnestunud taastada",
+  "libraryWebspaces": "Veebiruumid",
+  "librarySites": "Veebilehed",
+  "librarySearchWebspaces": "Otsi veebiruume",
+  "librarySearchSites": "Otsi veebilehti",
+  "libraryNoResults": "Vasteid pole",
+  "appSettingsExperimentalFolderLibrary": "Kaustateek",
+  "appSettingsExperimentalFolderLibraryHint": "Sirvi tööruume kaustadena ja ava nende saidid otsitavas ruudustikus."
 }

@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "ნაჩვენებია საიტების დამსახელებელი ჩანაწერები. ისინი მხოლოდ მეხსიერებაში ინახება და აპის გადატვირთვისას ნულდება.",
   "devToolsBackgroundCopySensitiveBody": "ნაჩვენები ჩანაწერებიდან {count} ასახელებს საიტებს ან შეიცავს გვერდის სათაურებსა და შეტყობინებების ტექსტს. ბუფერი შეიძლება მოწყობილობის გარეთ დასინქრონდეს.",
   "cookieStoreFailed": "ქუქიების საცავმა ვერ იმუშავა: {error}",
-  "siteCookiesNotRestored": "{site} ვერ გაიხსნა: მისი ქუქიების აღდგენა ვერ მოხერხდა"
+  "siteCookiesNotRestored": "{site} ვერ გაიხსნა: მისი ქუქიების აღდგენა ვერ მოხერხდა",
+  "libraryWebspaces": "ვებსივრცეები",
+  "librarySites": "საიტები",
+  "librarySearchWebspaces": "ვებსივრცეების ძიება",
+  "librarySearchSites": "საიტების ძიება",
+  "libraryNoResults": "შედეგები არ არის",
+  "appSettingsExperimentalFolderLibrary": "საქაღალდეების ბიბლიოთეკა",
+  "appSettingsExperimentalFolderLibraryHint": "დაათვალიერეთ სამუშაო სივრცეები საქაღალდეების სახით და გახსენით მათი საიტები საძიებო ბადეში."
 }

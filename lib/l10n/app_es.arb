@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Mostrando entradas que nombran sitios. Solo se guardan en memoria y se restablecen al reiniciar la app.",
   "devToolsBackgroundCopySensitiveBody": "{count} de las entradas mostradas nombran sitios o contienen títulos de página y texto de notificaciones. El portapapeles puede sincronizarse fuera del dispositivo.",
   "cookieStoreFailed": "Error en el almacén de cookies: {error}",
-  "siteCookiesNotRestored": "No se pudo abrir {site}: no se pudieron restaurar sus cookies"
+  "siteCookiesNotRestored": "No se pudo abrir {site}: no se pudieron restaurar sus cookies",
+  "libraryWebspaces": "Espacios web",
+  "librarySites": "Sitios",
+  "librarySearchWebspaces": "Buscar espacios web",
+  "librarySearchSites": "Buscar sitios",
+  "libraryNoResults": "Sin coincidencias",
+  "appSettingsExperimentalFolderLibrary": "Biblioteca de carpetas",
+  "appSettingsExperimentalFolderLibraryHint": "Explora los espacios de trabajo como carpetas y abre sus sitios en una cuadrícula con búsqueda."
 }

@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Viser oppføringer som nevner nettsteder. De lagres bare i minnet og tilbakestilles ved omstart av appen.",
   "devToolsBackgroundCopySensitiveBody": "{count} av oppføringene som vises nevner nettsteder eller inneholder sidetitler og varseltekst. Utklippstavlen kan synkroniseres utenfor enheten.",
   "cookieStoreFailed": "Lageret for informasjonskapsler mislyktes: {error}",
-  "siteCookiesNotRestored": "Kunne ikke åpne {site}: informasjonskapslene kunne ikke gjenopprettes"
+  "siteCookiesNotRestored": "Kunne ikke åpne {site}: informasjonskapslene kunne ikke gjenopprettes",
+  "libraryWebspaces": "Nettområder",
+  "librarySites": "Nettsteder",
+  "librarySearchWebspaces": "Søk i nettområder",
+  "librarySearchSites": "Søk etter nettsteder",
+  "libraryNoResults": "Ingen treff",
+  "appSettingsExperimentalFolderLibrary": "Mappebibliotek",
+  "appSettingsExperimentalFolderLibraryHint": "Bla gjennom arbeidsområder som mapper, og åpne nettstedene deres i et rutenett med søk."
 }

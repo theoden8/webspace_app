@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "साइटों के नाम वाली प्रविष्टियाँ दिखाई जा रही हैं। ये केवल मेमोरी में रखी जाती हैं और ऐप पुनः आरंभ पर रीसेट हो जाती हैं।",
   "devToolsBackgroundCopySensitiveBody": "दिखाई गई प्रविष्टियों में से {count} में साइटों के नाम या पेज शीर्षक और सूचना का पाठ है। क्लिपबोर्ड डिवाइस के बाहर सिंक हो सकता है।",
   "cookieStoreFailed": "कुकी स्टोर विफल: {error}",
-  "siteCookiesNotRestored": "{site} नहीं खोला जा सका: इसकी कुकीज़ पुनर्स्थापित नहीं की जा सकीं"
+  "siteCookiesNotRestored": "{site} नहीं खोला जा सका: इसकी कुकीज़ पुनर्स्थापित नहीं की जा सकीं",
+  "libraryWebspaces": "वेबस्पेस",
+  "librarySites": "साइटें",
+  "librarySearchWebspaces": "वेबस्पेस खोजें",
+  "librarySearchSites": "साइटें खोजें",
+  "libraryNoResults": "कोई मिलान नहीं",
+  "appSettingsExperimentalFolderLibrary": "फ़ोल्डर लाइब्रेरी",
+  "appSettingsExperimentalFolderLibraryHint": "कार्यक्षेत्रों को फ़ोल्डर के रूप में देखें और उनकी साइटें खोजने योग्य ग्रिड में खोलें।"
 }

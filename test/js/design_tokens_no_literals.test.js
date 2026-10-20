@@ -40,7 +40,6 @@ const EXEMPT = new Set([
   'lib/screens/trusted_certificates.dart',
   'lib/screens/user_scripts.dart',
   'lib/screens/webspace_detail.dart',
-  'lib/screens/webspaces_list.dart',
 ]);
 
 const SCANNED = ['lib/main.dart', 'lib/app.dart', ...dartFiles('lib/screens'), ...dartFiles('lib/widgets')];

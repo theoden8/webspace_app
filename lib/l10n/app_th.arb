@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "กำลังแสดงรายการที่ระบุชื่อไซต์ รายการเหล่านี้เก็บไว้ในหน่วยความจำเท่านั้นและจะรีเซ็ตเมื่อรีสตาร์ทแอป",
   "devToolsBackgroundCopySensitiveBody": "รายการที่แสดง {count} รายการระบุชื่อไซต์หรือมีชื่อหน้าและข้อความแจ้งเตือน คลิปบอร์ดอาจซิงก์ออกนอกอุปกรณ์",
   "cookieStoreFailed": "ที่เก็บคุกกี้ล้มเหลว: {error}",
-  "siteCookiesNotRestored": "ไม่สามารถเปิด {site}: ไม่สามารถกู้คืนคุกกี้ของไซต์ได้"
+  "siteCookiesNotRestored": "ไม่สามารถเปิด {site}: ไม่สามารถกู้คืนคุกกี้ของไซต์ได้",
+  "libraryWebspaces": "พื้นที่เว็บ",
+  "librarySites": "เว็บไซต์",
+  "librarySearchWebspaces": "ค้นหาพื้นที่เว็บ",
+  "librarySearchSites": "ค้นหาเว็บไซต์",
+  "libraryNoResults": "ไม่พบผลลัพธ์",
+  "appSettingsExperimentalFolderLibrary": "คลังโฟลเดอร์",
+  "appSettingsExperimentalFolderLibraryHint": "เรียกดูพื้นที่ทำงานเป็นโฟลเดอร์และเปิดเว็บไซต์ในตารางที่ค้นหาได้"
 }

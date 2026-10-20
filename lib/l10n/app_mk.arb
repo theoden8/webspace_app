@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Се прикажуваат записите што именуваат сајтови. Се чуваат само во меморијата и се ресетираат при рестарт на апликацијата.",
   "devToolsBackgroundCopySensitiveBody": "{count} од прикажаните записи именуваат сајтови или содржат наслови на страници и текст на известувања. Таблата со исечоци може да се синхронизира надвор од уредот.",
   "cookieStoreFailed": "Складот за колачиња не успеа: {error}",
-  "siteCookiesNotRestored": "Не можеше да се отвори {site}: неговите колачиња не можеа да се вратат"
+  "siteCookiesNotRestored": "Не можеше да се отвори {site}: неговите колачиња не можеа да се вратат",
+  "libraryWebspaces": "Веб-простори",
+  "librarySites": "Страници",
+  "librarySearchWebspaces": "Пребарај веб-простори",
+  "librarySearchSites": "Пребарај страници",
+  "libraryNoResults": "Нема резултати",
+  "appSettingsExperimentalFolderLibrary": "Библиотека со папки",
+  "appSettingsExperimentalFolderLibraryHint": "Прегледувајте ги работните простори како папки и отворајте ги нивните страници во мрежа со пребарување."
 }

@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Yn dangos cofnodion sy'n enwi gwefannau. Dim ond yn y cof y cânt eu cadw ac maent yn ailosod ar ailgychwyn yr ap.",
   "devToolsBackgroundCopySensitiveBody": "Mae {count} o'r cofnodion a ddangosir yn enwi gwefannau neu'n cynnwys teitlau tudalennau a thestun hysbysiadau. Gall y clipfwrdd gydweddu oddi ar y ddyfais.",
   "cookieStoreFailed": "Methodd y storfa gwcis: {error}",
-  "siteCookiesNotRestored": "Methwyd agor {site}: methwyd adfer ei gwcis"
+  "siteCookiesNotRestored": "Methwyd agor {site}: methwyd adfer ei gwcis",
+  "libraryWebspaces": "Gofodau gwe",
+  "librarySites": "Safleoedd",
+  "librarySearchWebspaces": "Chwilio gofodau gwe",
+  "librarySearchSites": "Chwilio safleoedd",
+  "libraryNoResults": "Dim canlyniadau",
+  "appSettingsExperimentalFolderLibrary": "Llyfrgell ffolderi",
+  "appSettingsExperimentalFolderLibraryHint": "Porwch fannau gwaith fel ffolderi ac agorwch eu gwefannau mewn grid y gellir ei chwilio."
 }

@@ -59,6 +59,7 @@ import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/screens/webspaces_list.dart';
+import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -100,6 +101,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: _trustedCertificates),
   GalleryCard(id: 'location-picker', label: 'Location picker screen', fullBleed: true, builder: _locationPicker),
   GalleryCard(id: 'webspaces', label: 'Webspaces screen', fullBleed: true, builder: (c) => const _WebspacesCard()),
+  GalleryCard(id: 'folder-library', label: 'Experimental folder library', fullBleed: true, builder: (c) => const _FolderLibraryCard()),
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: _webspaceDetail),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: _siteSettings),
   GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: _siteBehaviour),
@@ -698,6 +700,79 @@ class _WebspacesCardState extends State<_WebspacesCard> {
           _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);
         }),
       );
+}
+
+/// The real WebspaceLibrary: the collections a user switches between,
+/// with per-collection site counts and reordering.
+class _FolderLibraryCard extends StatefulWidget {
+  const _FolderLibraryCard();
+
+  @override
+  State<_FolderLibraryCard> createState() => _FolderLibraryCardState();
+}
+
+class _FolderLibraryCardState extends State<_FolderLibraryCard> {
+  final _libraryKey = GlobalKey<WebspaceLibraryState>();
+  final List<WebViewModel> _sites = [
+    WebViewModel(
+      siteId: SiteId('a'),
+      initUrl: 'https://github.com',
+      name: 'GitHub',
+    ),
+    WebViewModel(
+      siteId: SiteId('b'),
+      initUrl: 'https://news.ycombinator.com',
+      name: 'Hacker News',
+    ),
+    WebViewModel(
+      siteId: SiteId('c'),
+      initUrl: 'https://wandb.ai',
+      name: 'Weights & Biases',
+    ),
+    WebViewModel(
+      siteId: SiteId('d'),
+      initUrl: 'https://wikipedia.org',
+      name: 'Wikipedia',
+    ),
+    WebViewModel(
+      siteId: SiteId('e'),
+      initUrl: 'https://reddit.com',
+      name: 'Reddit',
+    ),
+    WebViewModel(
+      siteId: SiteId('f'),
+      initUrl: 'https://example.com',
+      name: 'Banking',
+    ),
+  ];
+  final List<Webspace> _webspaces = [Webspace.all(), ..._demoWebspaces()];
+  WebspaceId? _selected;
+
+  @override
+  Widget build(BuildContext context) => WebspaceLibrary(
+    key: _libraryKey,
+    webspaces: _webspaces,
+    selectedWebspaceId: _selected,
+    sites: _sites,
+    currentSite: null,
+    showsTabCount: (site) => site.effectiveTabsEnabled,
+    onSelectWebspace: (w) {
+      setState(() => _selected = w.id);
+      _libraryKey.currentState?.showSelectedWebspace();
+    },
+    onAddWebspace: () {},
+    onEditWebspace: (_) {},
+    onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
+    onOpenSite: (_) {},
+    onSiteMenu: (context, {required site, required position}) {},
+    onReorderSite: null,
+    onAddSite: () {},
+    onOpenSettings: () async {},
+    onReorder: (from, {required newIndex}) => setState(() {
+      final moved = _webspaces.removeAt(from);
+      _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);
+    }),
+  );
 }
 
 /// The real WebspaceDetailScreen: which sites belong to one collection.

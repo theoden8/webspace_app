@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Wyświetlanie wpisów wymieniających witryny. Są przechowywane tylko w pamięci i resetują się po ponownym uruchomieniu aplikacji.",
   "devToolsBackgroundCopySensitiveBody": "{count} z wyświetlonych wpisów wymienia witryny lub zawiera tytuły stron i treść powiadomień. Schowek może synchronizować się poza urządzeniem.",
   "cookieStoreFailed": "Błąd magazynu plików cookie: {error}",
-  "siteCookiesNotRestored": "Nie udało się otworzyć {site}: nie udało się przywrócić plików cookie tej witryny"
+  "siteCookiesNotRestored": "Nie udało się otworzyć {site}: nie udało się przywrócić plików cookie tej witryny",
+  "libraryWebspaces": "Przestrzenie WWW",
+  "librarySites": "Witryny",
+  "librarySearchWebspaces": "Szukaj przestrzeni WWW",
+  "librarySearchSites": "Szukaj witryn",
+  "libraryNoResults": "Brak wyników",
+  "appSettingsExperimentalFolderLibrary": "Biblioteka folderów",
+  "appSettingsExperimentalFolderLibraryHint": "Przeglądaj przestrzenie robocze jako foldery i otwieraj ich witryny w siatce z wyszukiwaniem."
 }

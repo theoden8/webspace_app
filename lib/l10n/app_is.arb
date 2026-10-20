@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Sýni færslur sem nefna vefsvæði. Þær eru aðeins geymdar í minni og endurstillast við endurræsingu forrits.",
   "devToolsBackgroundCopySensitiveBody": "{count} af sýndum færslum nefna vefsvæði eða innihalda síðutitla og tilkynningartexta. Klippiborðið getur samstillst út fyrir tækið.",
   "cookieStoreFailed": "Vefkökugeymslan brást: {error}",
-  "siteCookiesNotRestored": "Ekki tókst að opna {site}: ekki tókst að endurheimta vefkökur hans"
+  "siteCookiesNotRestored": "Ekki tókst að opna {site}: ekki tókst að endurheimta vefkökur hans",
+  "libraryWebspaces": "Vefsvæði",
+  "librarySites": "Vefir",
+  "librarySearchWebspaces": "Leita að vefsvæðum",
+  "librarySearchSites": "Leita að vefjum",
+  "libraryNoResults": "Engar niðurstöður",
+  "appSettingsExperimentalFolderLibrary": "Möppusafn",
+  "appSettingsExperimentalFolderLibraryHint": "Skoðaðu vinnusvæði sem möppur og opnaðu vefsvæði þeirra í reitasýn með leit."
 }

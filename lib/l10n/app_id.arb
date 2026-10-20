@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Menampilkan entri yang menyebut situs. Entri ini hanya disimpan di memori dan disetel ulang saat aplikasi dimulai ulang.",
   "devToolsBackgroundCopySensitiveBody": "{count} dari entri yang ditampilkan menyebut situs atau memuat judul halaman dan teks notifikasi. Papan klip dapat disinkronkan ke luar perangkat.",
   "cookieStoreFailed": "Penyimpanan cookie gagal: {error}",
-  "siteCookiesNotRestored": "Tidak dapat membuka {site}: cookie-nya tidak dapat dipulihkan"
+  "siteCookiesNotRestored": "Tidak dapat membuka {site}: cookie-nya tidak dapat dipulihkan",
+  "libraryWebspaces": "Ruang web",
+  "librarySites": "Situs",
+  "librarySearchWebspaces": "Cari ruang web",
+  "librarySearchSites": "Cari situs",
+  "libraryNoResults": "Tidak ada hasil",
+  "appSettingsExperimentalFolderLibrary": "Pustaka folder",
+  "appSettingsExperimentalFolderLibraryHint": "Jelajahi ruang kerja sebagai folder dan buka situsnya dalam kisi yang dapat ditelusuri."
 }

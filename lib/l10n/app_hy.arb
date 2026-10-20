@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Ցուցադրվում են կայքեր նշող գրառումները։ Դրանք պահվում են միայն հիշողության մեջ և վերականգնվում են հավելվածի վերագործարկման ժամանակ։",
   "devToolsBackgroundCopySensitiveBody": "Ցուցադրված գրառումներից {count}-ը նշում են կայքեր կամ պարունակում են էջերի վերնագրեր և ծանուցումների տեքստ։ Սեղմատախտակը կարող է համաժամացվել սարքից դուրս։",
   "cookieStoreFailed": "Cookie-ների պահոցը ձախողվեց՝ {error}",
-  "siteCookiesNotRestored": "Չհաջողվեց բացել {site}-ը՝ նրա cookie-ները հնարավոր չեղավ վերականգնել"
+  "siteCookiesNotRestored": "Չհաջողվեց բացել {site}-ը՝ նրա cookie-ները հնարավոր չեղավ վերականգնել",
+  "libraryWebspaces": "Վեբ տարածքներ",
+  "librarySites": "Կայքեր",
+  "librarySearchWebspaces": "Որոնել վեբ տարածքներ",
+  "librarySearchSites": "Որոնել կայքեր",
+  "libraryNoResults": "Համընկնումներ չկան",
+  "appSettingsExperimentalFolderLibrary": "Թղթապանակների գրադարան",
+  "appSettingsExperimentalFolderLibraryHint": "Դիտեք աշխատանքային տարածքները որպես թղթապանակներ և բացեք դրանց կայքերը որոնելի ցանցում։"
 }

@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Guneak aipatzen dituzten sarrerak erakusten. Memorian soilik gordetzen dira eta aplikazioa berrabiaraztean berrezartzen dira.",
   "devToolsBackgroundCopySensitiveBody": "Erakutsitako sarreretatik {count} sarrerak guneak aipatzen dituzte edo orri-izenburuak eta jakinarazpen-testua dituzte. Arbela gailutik kanpo sinkroniza daiteke.",
   "cookieStoreFailed": "Cookie-biltegiak huts egin du: {error}",
-  "siteCookiesNotRestored": "Ezin izan da {site} ireki: ezin izan dira bere cookieak leheneratu"
+  "siteCookiesNotRestored": "Ezin izan da {site} ireki: ezin izan dira bere cookieak leheneratu",
+  "libraryWebspaces": "Webgune-espazioak",
+  "librarySites": "Webguneak",
+  "librarySearchWebspaces": "Bilatu webgune-espazioak",
+  "librarySearchSites": "Bilatu webguneak",
+  "libraryNoResults": "Ez dago emaitzarik",
+  "appSettingsExperimentalFolderLibrary": "Karpeten liburutegia",
+  "appSettingsExperimentalFolderLibraryHint": "Arakatu lan-eremuak karpeta gisa eta ireki haien webguneak bilaketak onartzen dituen sareta batean."
 }

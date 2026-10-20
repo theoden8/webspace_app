@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Inscriptiones quae locos nominant ostenduntur. In memoria tantum servantur et reponuntur cum applicatio iterum incipit.",
   "devToolsBackgroundCopySensitiveBody": "{count} ex inscriptionibus ostensis locos nominant aut titulos paginarum et textum nuntiorum continent. Tabula transcriptionis extra machinam synchronizari potest.",
   "cookieStoreFailed": "Repositorium crustulorum defecit: {error}",
-  "siteCookiesNotRestored": "{site} aperiri non potuit: crustula eius restitui non potuerunt"
+  "siteCookiesNotRestored": "{site} aperiri non potuit: crustula eius restitui non potuerunt",
+  "libraryWebspaces": "Spatia interretialia",
+  "librarySites": "Situs",
+  "librarySearchWebspaces": "Quaere spatia interretialia",
+  "librarySearchSites": "Quaere situs",
+  "libraryNoResults": "Nihil inventum",
+  "appSettingsExperimentalFolderLibrary": "Bibliotheca fasciculorum",
+  "appSettingsExperimentalFolderLibraryHint": "Spatia operis ut fasciculos perlustra et situs eorum in reticulo aperi in quo quaerere potes."
 }

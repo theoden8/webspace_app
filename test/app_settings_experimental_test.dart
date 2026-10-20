@@ -136,6 +136,23 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
         reason: 'App Settings links the logs directly again');
   });
 
+  testWidgets('Developer offers the folder library experiment off by default', (tester) async {
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await openCategory(tester, title: 'Developer');
+    final title = find.text('Folder library');
+    await tester.scrollUntilVisible(title, 200, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    final row = find.ancestor(of: title, matching: find.byType(SwitchListTile));
+    expect(tester.widget<SwitchListTile>(row).value, isFalse);
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(row).value, isTrue);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(AppPref.experimentalFolderLibrary.key), isTrue);
+  });
+
   group('Tor in App settings (TOR-004, TOR-007)', () {
     late FakeTorRuntime runtime;
 

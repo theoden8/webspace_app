@@ -233,6 +233,7 @@
     "experimentalSiteIconsOnly": true,
     "experimentalTextureRendering": true,
     "experimentalContentRuleLists": true,
+    "experimentalFolderLibrary": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,
     "experimentalExternalTor": true,

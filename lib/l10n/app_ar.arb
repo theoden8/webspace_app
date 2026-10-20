@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "يتم عرض الإدخالات التي تذكر مواقع. تُحفظ في الذاكرة فقط وتُمسح عند إعادة تشغيل التطبيق.",
   "devToolsBackgroundCopySensitiveBody": "{count} من الإدخالات المعروضة تذكر مواقع أو تحمل عناوين صفحات ونص إشعارات. قد تتم مزامنة الحافظة خارج الجهاز.",
   "cookieStoreFailed": "فشل مخزن ملفات تعريف الارتباط: {error}",
-  "siteCookiesNotRestored": "تعذّر فتح {site}: تعذّرت استعادة ملفات تعريف الارتباط الخاصة به"
+  "siteCookiesNotRestored": "تعذّر فتح {site}: تعذّرت استعادة ملفات تعريف الارتباط الخاصة به",
+  "libraryWebspaces": "مساحات الويب",
+  "librarySites": "المواقع",
+  "librarySearchWebspaces": "البحث في مساحات الويب",
+  "librarySearchSites": "البحث في المواقع",
+  "libraryNoResults": "لا توجد نتائج",
+  "appSettingsExperimentalFolderLibrary": "مكتبة المجلدات",
+  "appSettingsExperimentalFolderLibraryHint": "تصفّح مساحات العمل كمجلدات وافتح مواقعها في شبكة قابلة للبحث."
 }

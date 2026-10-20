@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Tiek rādīti ieraksti, kuros minētas vietnes. Tie tiek glabāti tikai atmiņā un atiestatās pēc lietotnes restartēšanas.",
   "devToolsBackgroundCopySensitiveBody": "{count} no parādītajiem ierakstiem min vietnes vai satur lapu virsrakstus un paziņojumu tekstu. Starpliktuve var sinhronizēties ārpus ierīces.",
   "cookieStoreFailed": "Sīkdatņu krātuves kļūda: {error}",
-  "siteCookiesNotRestored": "Nevarēja atvērt {site}: tās sīkdatnes neizdevās atjaunot"
+  "siteCookiesNotRestored": "Nevarēja atvērt {site}: tās sīkdatnes neizdevās atjaunot",
+  "libraryWebspaces": "Tīmekļa telpas",
+  "librarySites": "Vietnes",
+  "librarySearchWebspaces": "Meklēt tīmekļa telpas",
+  "librarySearchSites": "Meklēt vietnes",
+  "libraryNoResults": "Nav atbilstību",
+  "appSettingsExperimentalFolderLibrary": "Mapju bibliotēka",
+  "appSettingsExperimentalFolderLibraryHint": "Pārlūkojiet darbvietas kā mapes un atveriet to vietnes režģī ar meklēšanu."
 }

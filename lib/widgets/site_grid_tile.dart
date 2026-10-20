@@ -6,6 +6,8 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 
+enum SiteGridTileLayout { compact, library }
+
 /// A site in the drawer's grid. Where the grid can be reordered a long press
 /// drags the tile and its menu sits behind a corner button; elsewhere a long
 /// press opens the menu.
@@ -19,6 +21,7 @@ class SiteGridTile extends StatelessWidget {
     required this.onOpen,
     required this.onMenu,
     required this.onReorder,
+    this.layout = SiteGridTileLayout.compact,
   });
 
   final WebViewModel site;
@@ -27,11 +30,12 @@ class SiteGridTile extends StatelessWidget {
   final int listIndex;
   final bool selected;
   final bool showTabCount;
+  final SiteGridTileLayout layout;
   final VoidCallback onOpen;
 
   /// The site's menu, at a global position.
   final void Function(BuildContext context, {required Offset globalPosition})
-      onMenu;
+  onMenu;
 
   /// A tile dragged from grid place `from` dropped on this one; null where
   /// the grid cannot be reordered.
@@ -62,10 +66,13 @@ class SiteGridTile extends StatelessWidget {
     site: site,
     selected: selected,
     showTabCount: showTabCount,
+    layout: layout,
   );
 
-  Widget _draggable(BuildContext context,
-      {required void Function(int from, {required int to}) reorder}) {
+  Widget _draggable(
+    BuildContext context, {
+    required void Function(int from, {required int to}) reorder,
+  }) {
     final theme = Theme.of(context);
     // A raw Listener rather than a GestureDetector for the tap: the gesture
     // arena against LongPressDraggable delays or drops taps.
@@ -81,8 +88,8 @@ class SiteGridTile extends StatelessWidget {
             elevation: 4,
             borderRadius: BorderRadius.circular(Radii.xl),
             child: SizedBox(
-              width: 80,
-              height: 88,
+              width: layout == SiteGridTileLayout.library ? 120 : 80,
+              height: layout == SiteGridTileLayout.library ? 184 : 88,
               child: Opacity(opacity: 0.85, child: _content()),
             ),
           ),
@@ -159,15 +166,18 @@ class _SiteGridTileContent extends StatelessWidget {
     required this.site,
     required this.selected,
     required this.showTabCount,
+    required this.layout,
   });
 
   final WebViewModel site;
   final bool selected;
   final bool showTabCount;
+  final SiteGridTileLayout layout;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (layout == SiteGridTileLayout.library) return _library(theme);
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > constraints.maxHeight * 1.5;
@@ -184,6 +194,69 @@ class _SiteGridTileContent extends StatelessWidget {
           child: isWide ? _wide(theme) : _narrow(theme),
         );
       },
+    );
+  }
+
+  Widget _library(ThemeData theme) {
+    final domain = extractDomain(site.initUrl);
+    return Column(
+      children: [
+        const SizedBox(height: Spacing.sm),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: LibraryStyle.siteWell,
+              height: LibraryStyle.siteWell,
+              decoration: BoxDecoration(
+                color: selected
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withAlpha(100),
+                ),
+              ),
+              alignment: Alignment.center,
+              clipBehavior: Clip.antiAlias,
+              child: UnifiedFaviconImage.site(
+                site,
+                size: LibraryStyle.siteIcon,
+              ),
+            ),
+            if (showTabCount)
+              PositionedDirectional(
+                top: -Spacing.xs,
+                end: -Spacing.xs,
+                child: TabCountPill(count: site.tabs.length, active: selected),
+              ),
+          ],
+        ),
+        const SizedBox(height: Spacing.sm),
+        Text(
+          site.getDisplayName(),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontSize: LibraryStyle.siteTitleSize,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Text(
+          domain,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: LibraryStyle.domainSize,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Flexible(
+          child: SitePermissionBadges(model: site, iconSize: IconSizes.inline),
+        ),
+      ],
     );
   }
 

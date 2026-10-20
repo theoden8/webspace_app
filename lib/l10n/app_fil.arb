@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Ipinapakita ang mga entry na nagbabanggit ng site. Sa memory lang itinatago ang mga ito at nire-reset kapag nag-restart ang app.",
   "devToolsBackgroundCopySensitiveBody": "{count} sa mga ipinapakitang entry ang nagbabanggit ng site o may pamagat ng page at teksto ng notification. Maaaring mag-sync ang clipboard sa labas ng device.",
   "cookieStoreFailed": "Nabigo ang imbakan ng cookie: {error}",
-  "siteCookiesNotRestored": "Hindi mabuksan ang {site}: hindi maibalik ang mga cookie nito"
+  "siteCookiesNotRestored": "Hindi mabuksan ang {site}: hindi maibalik ang mga cookie nito",
+  "libraryWebspaces": "Mga webspace",
+  "librarySites": "Mga site",
+  "librarySearchWebspaces": "Maghanap ng mga webspace",
+  "librarySearchSites": "Maghanap ng mga site",
+  "libraryNoResults": "Walang mga tugma",
+  "appSettingsExperimentalFolderLibrary": "Aklatan ng mga folder",
+  "appSettingsExperimentalFolderLibraryHint": "Mag-browse ng mga workspace bilang mga folder at buksan ang mga site ng mga ito sa grid na may paghahanap."
 }

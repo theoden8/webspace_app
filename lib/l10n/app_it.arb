@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Visualizzazione delle voci che nominano siti. Sono conservate solo in memoria e si reimpostano al riavvio dell'app.",
   "devToolsBackgroundCopySensitiveBody": "{count} delle voci mostrate nominano siti o contengono titoli di pagina e testo delle notifiche. Gli appunti possono sincronizzarsi fuori dal dispositivo.",
   "cookieStoreFailed": "Errore dell'archivio dei cookie: {error}",
-  "siteCookiesNotRestored": "Impossibile aprire {site}: non è stato possibile ripristinarne i cookie"
+  "siteCookiesNotRestored": "Impossibile aprire {site}: non è stato possibile ripristinarne i cookie",
+  "libraryWebspaces": "Spazi web",
+  "librarySites": "Siti",
+  "librarySearchWebspaces": "Cerca spazi web",
+  "librarySearchSites": "Cerca siti",
+  "libraryNoResults": "Nessun risultato",
+  "appSettingsExperimentalFolderLibrary": "Raccolta di cartelle",
+  "appSettingsExperimentalFolderLibraryHint": "Sfoglia gli spazi di lavoro come cartelle e apri i loro siti in una griglia con ricerca."
 }

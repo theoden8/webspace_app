@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "අඩවි නම් කරන ඇතුළත් කිරීම් පෙන්වමින්. ඒවා මතකයේ පමණක් තබා ගන්නා අතර යෙදුම යළි ආරම්භයේ යළි සකසයි.",
   "devToolsBackgroundCopySensitiveBody": "පෙන්වා ඇති ඇතුළත් කිරීම් අතරින් {count}ක් අඩවි නම් කරයි හෝ පිටු මාතෘකා සහ දැනුම්දීම් පෙළ දරයි. පසුරු පුවරුව උපාංගයෙන් පිටතට සමමුහුර්ත විය හැක.",
   "cookieStoreFailed": "කුකී ගබඩාව අසාර්ථකයි: {error}",
-  "siteCookiesNotRestored": "{site} විවෘත කළ නොහැකි විය: එහි කුකීස් ප්‍රතිසාධනය කළ නොහැකි විය"
+  "siteCookiesNotRestored": "{site} විවෘත කළ නොහැකි විය: එහි කුකීස් ප්‍රතිසාධනය කළ නොහැකි විය",
+  "libraryWebspaces": "වෙබ් අවකාශ",
+  "librarySites": "අඩවි",
+  "librarySearchWebspaces": "වෙබ් අවකාශ සොයන්න",
+  "librarySearchSites": "අඩවි සොයන්න",
+  "libraryNoResults": "ප්‍රතිඵල නැත",
+  "appSettingsExperimentalFolderLibrary": "ෆෝල්ඩර පුස්තකාලය",
+  "appSettingsExperimentalFolderLibraryHint": "වැඩ අවකාශ ෆෝල්ඩර ලෙස පිරික්සන්න, ඒවායේ අඩවි සෙවිය හැකි ජාලකයක විවෘත කරන්න."
 }

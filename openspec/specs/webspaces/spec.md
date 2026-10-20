@@ -13,6 +13,8 @@ The Webspaces feature allows users to organize their saved sites into separate w
 
 ## Requirements
 
+The folder library is an optional experiment (DEVTOOLS-011). Folder grids, their menus, library tabs, and search below apply only when developer mode and **Folder library** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
+
 ### Requirement: WEBSPACE-001 - Create Multiple Webspaces
 
 Users SHALL be able to create multiple webspaces to organize sites into logical groups.
@@ -20,7 +22,7 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 #### Scenario: Create a new webspace
 
 **Given** the user is on the webspaces list screen
-**When** the user taps "Create Webspace"
+**When** the user taps the create-webspace action (the library toolbar when the experiment is enabled, otherwise the Create Webspace button)
 **And** enters a name (e.g., "Work")
 **And** selects sites to include
 **And** taps the checkmark icon
@@ -35,9 +37,10 @@ Users SHALL be able to select and switch between webspaces to view filtered site
 #### Scenario: Select a webspace
 
 **Given** the user is viewing the webspaces list
-**When** the user taps on a webspace card
+**When** the user taps a webspace
 **Then** that webspace becomes selected
-**And** the drawer shows only sites belonging to that webspace
+**And** with the experiment enabled, its sites open in a full-screen grid within the Webspaces library tab without opening the drawer
+**And** with the experiment disabled, its filtered sites open in the existing drawer
 
 ---
 
@@ -49,17 +52,17 @@ The system SHALL provide clear visual indication of which webspace is currently 
 
 **Given** a webspace is selected
 **When** the user views the webspaces list
-**Then** the selected webspace displays:
-- Green highlighted background
-- Check icon next to the name
-- Bold text
-- Higher card elevation
+**Then** the selected webspace has an accent highlight and a check
+**And** with the experiment enabled, it appears as a folder
+**And** each folder previews up to four site favicons from its actual membership order
+**And** a folder with more than four sites previews three favicons and the remaining count
+**And** its site count reflects the current filtered membership, including all sites for the synthetic All folder
 
 ---
 
-### Requirement: WEBSPACE-004 - Filtered Drawer Navigation
+### Requirement: WEBSPACE-004 - Filtered Site Navigation
 
-The drawer SHALL only show sites belonging to the currently selected webspace.
+The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. The Sites library tab SHALL select All and show every saved site. Library searches SHALL filter the current view without changing membership or persisted order.
 
 #### Scenario: Filter drawer by webspace
 
@@ -74,7 +77,7 @@ The drawer SHALL only show sites belonging to the currently selected webspace.
 
 ### Requirement: WEBSPACE-005 - Persistent State
 
-Webspaces and selection state SHALL persist across app restarts.
+Webspaces and selection state SHALL persist across app restarts. The folder library navigation and search are transient UI state and SHALL NOT add persisted settings.
 
 #### Scenario: Restore webspace selection on restart
 
@@ -92,7 +95,7 @@ Users SHALL be able to edit existing webspaces.
 #### Scenario: Modify webspace contents
 
 **Given** a webspace "Work" exists with sites A and B
-**When** the user taps the edit icon on the webspace card
+**When** the user chooses Edit (from the folder menu when the experiment is enabled, otherwise the inline edit action)
 **And** adds site C and removes site A
 **And** saves changes
 **Then** "Work" now contains sites B and C
@@ -107,7 +110,7 @@ Users SHALL be able to delete webspaces.
 
 **Given** webspaces "Work" and "Personal" exist
 **And** "Work" is currently selected
-**When** the user taps delete on "Work"
+**When** the user chooses Delete for "Work" (from the folder menu when the experiment is enabled, otherwise the inline delete action)
 **And** confirms the deletion
 **Then** "Work" is removed
 **And** selection is cleared
@@ -117,7 +120,7 @@ Users SHALL be able to delete webspaces.
 
 ### Requirement: WEBSPACE-008 - Back to Webspaces Navigation
 
-Users SHALL be able to return to the webspaces list from the drawer.
+Users SHALL be able to return to the folder grid from a workspace site grid using its Back control or the system back action. Returning SHALL clear the library search. The browser drawer SHALL also retain its Back to Webspaces action.
 
 #### Scenario: Navigate back to webspaces list
 
@@ -164,7 +167,7 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 ### Requirement: WEBSPACE-011 - Reorder Sites by Dragging
 
 Users SHALL be able to change the display order of sites by dragging, in
-both the bottom tab strip and the drawer grid. The new order SHALL persist
+the library site grid in edit mode, the bottom tab strip and the drawer grid. The new order SHALL persist
 across app restarts. This reorders the sites *within* the selected view; it
 does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 "All" webspace card cannot be moved in the webspaces list).
@@ -172,7 +175,7 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 #### Scenario: Reorder sites within a named webspace
 
 **Given** the "Work" webspace is selected with sites [A, B, C] in that order
-**When** the user long-presses site C in the tab strip or drawer grid and drops it onto site A's position
+**When** the user long-presses site C in the tab strip, the drawer grid, or the library site grid in edit mode and drops it onto site A's position
 **Then** "Work"'s membership order becomes [C, A, B]
 **And** the change is written to the webspace's persisted `siteIds`
 **And** the global order of other webspaces is unaffected

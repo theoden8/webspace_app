@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Vermeldingen die sites noemen worden getoond. Ze worden alleen in het geheugen bewaard en gereset bij herstart van de app.",
   "devToolsBackgroundCopySensitiveBody": "{count} van de getoonde items noemen sites of bevatten paginatitels en meldingstekst. Het klembord kan buiten het apparaat synchroniseren.",
   "cookieStoreFailed": "Cookieopslag mislukt: {error}",
-  "siteCookiesNotRestored": "Kon {site} niet openen: de cookies konden niet worden hersteld"
+  "siteCookiesNotRestored": "Kon {site} niet openen: de cookies konden niet worden hersteld",
+  "libraryWebspaces": "Webruimtes",
+  "librarySites": "Websites",
+  "librarySearchWebspaces": "Webruimtes zoeken",
+  "librarySearchSites": "Websites zoeken",
+  "libraryNoResults": "Geen resultaten",
+  "appSettingsExperimentalFolderLibrary": "Mappenbibliotheek",
+  "appSettingsExperimentalFolderLibraryHint": "Blader door werkruimten als mappen en open hun websites in een doorzoekbaar raster."
 }

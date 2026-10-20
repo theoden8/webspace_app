@@ -1088,5 +1088,12 @@
   "devToolsBackgroundSensitiveShowing": "Inaonyesha maingizo yanayotaja tovuti. Huhifadhiwa kwenye kumbukumbu ya muda tu na hujirekebisha programu inapoanzishwa upya.",
   "devToolsBackgroundCopySensitiveBody": "Maingizo {count} kati ya yanayoonyeshwa yanataja tovuti au yana vichwa vya kurasa na maandishi ya arifa. Ubao wa kunakili unaweza kusawazishwa nje ya kifaa.",
   "cookieStoreFailed": "Hifadhi ya vidakuzi imeshindwa: {error}",
-  "siteCookiesNotRestored": "Haikuweza kufungua {site}: vidakuzi vyake havikuweza kurejeshwa"
+  "siteCookiesNotRestored": "Haikuweza kufungua {site}: vidakuzi vyake havikuweza kurejeshwa",
+  "libraryWebspaces": "Nafasi za wavuti",
+  "librarySites": "Tovuti",
+  "librarySearchWebspaces": "Tafuta nafasi za wavuti",
+  "librarySearchSites": "Tafuta tovuti",
+  "libraryNoResults": "Hakuna matokeo",
+  "appSettingsExperimentalFolderLibrary": "Maktaba ya folda",
+  "appSettingsExperimentalFolderLibraryHint": "Vinjari nafasi za kazi kama folda na ufungue tovuti zake katika gridi inayoweza kutafutwa."
 }
