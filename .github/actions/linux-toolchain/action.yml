@@ -72,7 +72,7 @@ runs:
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
     - name: Cache fvm Flutter SDK
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
         # GitHub Actions sets HOME=/github/home inside container jobs
         # (not /root, even though the container runs as root). fvm
@@ -114,7 +114,7 @@ runs:
         fvm use --force
 
     - name: Cache pub dependencies
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
         path: |
           /root/.pub-cache
@@ -131,7 +131,7 @@ runs:
       run: fvm dart tool/gen_l10n.dart
 
     - name: Cache cargo registry
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
         path: |
           /root/.cargo/registry

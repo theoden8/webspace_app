@@ -1,0 +1,41 @@
+name: Cache saved from master only
+description: >-
+  actions/cache on master, restore-only everywhere else. The repository's
+  cache budget evicts the least recently used entry, and a cache a pull
+  request saves is scoped to its branch, so a pull request's copy of a
+  toolchain is of use to nobody else and evicts master's.
+
+inputs:
+  path:
+    description: What to cache, as actions/cache takes it.
+    required: true
+  key:
+    description: The cache's key.
+    required: true
+  restore-keys:
+    description: Prefixes to restore from when the key misses.
+    required: false
+    default: ''
+
+outputs:
+  cache-hit:
+    description: Whether the key itself was restored.
+    value: ${{ steps.saved.outputs.cache-hit || steps.restored.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - id: saved
+      if: github.ref == 'refs/heads/master'
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+        restore-keys: ${{ inputs.restore-keys }}
+    - id: restored
+      if: github.ref != 'refs/heads/master'
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+        restore-keys: ${{ inputs.restore-keys }}

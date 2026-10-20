@@ -23,9 +23,9 @@ runs:
         brew link --force cocoapods
 
     - name: Cache fvm Flutter SDK
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
-        path: ~/.fvm/versions
+        path: ~/fvm/versions
         key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
         restore-keys: |
           fvm-${{ runner.os }}-
@@ -43,7 +43,7 @@ runs:
         fvm use --force
 
     - name: Cache pub dependencies
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
         path: |
           ~/.pub-cache
@@ -53,7 +53,7 @@ runs:
           pub-${{ runner.os }}-
 
     - name: Cache CocoaPods
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
         path: |
           ios/Pods
@@ -72,7 +72,7 @@ runs:
       run: fvm dart tool/gen_l10n.dart
 
     - name: Cache cargo registry
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
         path: |
           ~/.cargo/registry
