@@ -760,7 +760,7 @@ class ContentBlockerService {
       }
 
       await _rebuildEngine();
-      if ((hostIsIOS || hostIsMacOS) && !_watchingRuleListSwitch) {
+      if (_ruleLists != null && !_watchingRuleListSwitch) {
         _watchingRuleListSwitch = true;
         ExperimentalFeature.contentRuleLists.pref.listenable
             .addListener(_onRuleListSwitch);
@@ -1021,25 +1021,31 @@ class ContentBlockerService {
   /// rebuild turn, never inside one.
   final SerialQueue _edits = SerialQueue('filterListEdits');
 
-  /// The compiled WebKit content rule lists new webviews attach (CB-020).
-  final ContentRuleLists _ruleLists = ContentRuleLists(
-      store: MethodChannelContentRuleListStore(),
-      convert: AdblockEngine.contentRuleLists);
+  /// The compiled WebKit content rule lists new webviews attach (CB-020);
+  /// null where WebKit has no store to attach from.
+  final ContentRuleLists? _ruleLists =
+      switch (MethodChannelContentRuleListStore.here) {
+    final store? =>
+      ContentRuleLists(store: store, convert: AdblockEngine.contentRuleLists),
+    null => null,
+  };
   bool _watchingRuleListSwitch = false;
 
   /// What a webview created now names in `contentRuleListIdentifiers`: empty
-  /// off iOS and macOS, while the experiment is off, and until a set is in
-  /// WebKit's store.
-  List<String> get contentRuleListIdentifiers => _ruleLists.identifiers;
+  /// where WebKit has no store, while the experiment is off, and until a set
+  /// is in the store.
+  List<String> get contentRuleListIdentifiers =>
+      _ruleLists?.identifiers ?? const [];
 
   /// Points new webviews at the rule lists for the rule set [key] names, or
   /// at none. Reads [rulesText] only when the set has to be compiled.
   Future<void> _syncRuleLists(
       {required String? key, required Future<String> Function() rulesText}) {
-    if (!hostIsIOS && !hostIsMacOS) return Future<void>.value();
+    final ruleLists = _ruleLists;
+    if (ruleLists == null) return Future<void>.value();
     final on = ExperimentalFeaturesService.instance
         .isEnabled(ExperimentalFeature.contentRuleLists);
-    return _ruleLists.sync(
+    return ruleLists.sync(
         wanted: on && key != null ? RuleSetKey.of(key) : null,
         rulesText: rulesText);
   }
