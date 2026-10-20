@@ -54,7 +54,7 @@ function runner(t) {
       ? fs.readFileSync(calls, 'utf8').trim().split('\n').map((s) => JSON.parse(s)) : [],
     memo: path.join(dir, 'cache', 'memo'),
     times: path.join(dir, 'cache', 'times'),
-    run({ section = 'GOOD', delay = 0, failure = false } = {}) {
+    run({ section = 'GOOD', delay = 0, failure = false, shard = '0/1', rerun = false } = {}) {
       const result = spawnSync('bash', [path.join(formal, 'check.sh')], {
         env: {
           ...process.env,
@@ -63,9 +63,10 @@ function runner(t) {
           FORMAL_CACHE: path.join(dir, 'cache'),
           TLA2TOOLS_JAR: path.join(dir, 'tla2tools.jar'),
           FORMAL_ONLY: section,
+          FORMAL_SHARD: shard,
           FORMAL_SLOTS: '4',
           FORMAL_PROGRESS_SECONDS: '1',
-          FORMAL_RERUN: '',
+          FORMAL_RERUN: rerun ? '1' : '',
           TLC_TEST_CALLS: calls,
           TLC_TEST_DELAY: String(delay),
           TLC_TEST_FAIL: String(failure),
@@ -91,6 +92,33 @@ test('a sole cold TLC check uses every core and its result is reused', (t) => {
   assert.match(second.stdout, /\(remembered\)/);
   assert.match(second.stdout, /TALLY holds=1 caught=0 reached=0/);
   assert.equal(check.events().length, 2, 'a cache hit must not launch Java');
+});
+
+test('cold model shards cover every check once and preserve the combined tally', (t) => {
+  const check = runner(t);
+  const outputs = ['0/2', '1/2'].map((shard) => {
+    const result = check.run({ section: 'NEGATIVE', shard });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    return result.stdout;
+  });
+  const checks = check.events().filter((e) => e.event === 'start').map((e) => e.config);
+  assert.deepEqual(checks.sort(), [
+    'kernel_conflict_contaminate.cfg', 'kernel_conflict_evict.cfg', 'kernel_conflict_repaint.cfg',
+  ]);
+  assert.equal(outputs.flatMap((s) => s.match(/^RESULT\t.*$/gm) ?? []).length, 3);
+  const whole = check.run({ section: 'NEGATIVE' });
+  assert.equal(whole.status, 0, whole.stdout + whole.stderr);
+  assert.match(whole.stdout, /TALLY holds=0 caught=3 reached=0/);
+  assert.equal(check.events().filter((e) => e.event === 'start').length, 3);
+});
+
+test('a forced cold run executes TLC even when a valid cache exists', (t) => {
+  const check = runner(t);
+  assert.equal(check.run().status, 0);
+  const cold = check.run({ rerun: true });
+  assert.equal(cold.status, 0, cold.stdout + cold.stderr);
+  assert.doesNotMatch(cold.stdout, /remembered/);
+  assert.equal(check.events().filter((e) => e.event === 'start').length, 2);
 });
 
 test('cold checks share the cores and print progress before completing', (t) => {

@@ -44,6 +44,8 @@ if [ -z "$MODEL" ] || [ ! -f "$MODEL/activation_tables.tla" ]; then
 fi
 MODEL="$(cd "$MODEL" && pwd)"
 
+MODE="${1:-}"
+[ -z "$MODE" ] || { [ "$MODE" = --gates ] || [ "$MODE" = --jar ] || [ "$MODE" = --plan ]; } || { echo "usage: check.sh [--gates|--jar|--plan]" >&2; exit 2; }
 JAR="${TLA2TOOLS_JAR:-tla2tools.jar}"
 if [ ! -f "$JAR" ]; then
   echo "Fetching tla2tools.jar…"
@@ -60,6 +62,13 @@ if [ ! -f "$JAR" ]; then
     https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar
 fi
 
+[ "$MODE" != --jar ] || exit 0
+
+SHARD="${FORMAL_SHARD:-0/1}"
+[[ "$SHARD" =~ ^([0-9]+)/([1-9][0-9]*)$ ]] || { echo "invalid FORMAL_SHARD: $SHARD" >&2; exit 2; }
+SHARD_AT=$((10#${BASH_REMATCH[1]})) SHARD_COUNT=$((10#${BASH_REMATCH[2]}))
+[ "$SHARD_AT" -lt "$SHARD_COUNT" ] || { echo "invalid FORMAL_SHARD: $SHARD" >&2; exit 2; }
+COVERAGE_DIR="${FORMAL_COVERAGE:-$MODEL/coverage}"
 SLOTS="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
 [ "$SLOTS" -ge 1 ] 2>/dev/null || { echo "FORMAL_SLOTS is not a count of cores: $SLOTS" >&2; exit 2; }
 PROGRESS="${FORMAL_PROGRESS_SECONDS:-60}"
@@ -76,6 +85,9 @@ RUNS="$(cd "$(mktemp -d states/run.XXXXXX)" && pwd)"
 mkdir "$RUNS/facts"
 : >"$RUNS/jobs"
 POOL=""
+MANIFEST="${FORMAL_MANIFEST:-$RUNS/manifest.tsv}"
+mkdir -p "$(dirname "$MANIFEST")"
+printf 'SHARD\t%s\t%s\n' "$SHARD_AT" "$SHARD_COUNT" >"$MANIFEST"
 trap '[ -z "$POOL" ] || { kill "$POOL"; wait "$POOL"; } 2>/dev/null || true; rm -rf "$RUNS"' EXIT
 
 if command -v sha256sum >/dev/null 2>&1; then sha() { sha256sum | cut -d' ' -f1; }
@@ -225,7 +237,6 @@ remember() {
 PASS=collect
 ONLY="${FORMAL_ONLY:-}"
 SECTION=""
-RAN=0
 selected() { [ -z "$ONLY" ] || [ "$ONLY" = "$SECTION" ]; }
 reporting() { [ "$PASS" = report ] && selected; }
 # section <NAME> <what it checks>
@@ -241,7 +252,19 @@ section() {
 HOLDS=0 CAUGHT=0 REACHED=0 FAILED=""
 expect() {
   selected || return 0
-  local name; name="$(basename "$1" .cfg)"
+  local name kind ordinal="$ORDINAL"
+  ORDINAL=$((ORDINAL + 1))
+  name="$(basename "$1" .cfg)"
+  case "$3" in
+    "No error has been found") kind=holds ;;
+    Reach_*) kind=reached ;;
+    *) kind=caught ;;
+  esac
+  if [ "$PASS" = collect ]; then
+    printf 'CHECK\t%s\t%s\t%s\n' "$ordinal" "$name" "$kind" >>"$MANIFEST"
+    [ "$MODE" != --plan ] || return 0
+  fi
+  [ "$((ordinal % SHARD_COUNT))" -eq "$SHARD_AT" ] || return 0
   if [ "$PASS" = collect ]; then
     local covered=-; [ -z "${COVERAGE:-}" ] || covered=on
     local k; k="$(key "$1" "$2" "${5:-}" "$3" "$covered")"
@@ -255,7 +278,6 @@ expect() {
     fi
     return 0
   fi
-  RAN=$((RAN + 1))
   # A pool that died leaves the run unfinished, which reads as a failure.
   local next=$((SECONDS + PROGRESS)) started workers progress
   while [ ! -f "$RUNS/$name.done" ] && kill -0 "$POOL" 2>/dev/null; do
@@ -282,10 +304,11 @@ expect() {
     # always runs again.
     if [ -f "$RUNS/$name.remembered" ]; then mark=" (remembered)"; fi
     printf '  OK   %-34s %s%s\n' "$(basename "$1")" "$4" "$mark"
-    case "$3" in
-      "No error has been found") HOLDS=$((HOLDS + 1)) ;;
-      Reach_*) REACHED=$((REACHED + 1)) ;;
-      *) CAUGHT=$((CAUGHT + 1)) ;;
+    printf 'RESULT\t%s\t%s\t%s\n' "$ordinal" "$name" "$kind"
+    case "$kind" in
+      holds) HOLDS=$((HOLDS + 1)) ;;
+      reached) REACHED=$((REACHED + 1)) ;;
+      caught) CAUGHT=$((CAUGHT + 1)) ;;
     esac
   else
     # TLC's error and what follows it, else the run's last lines.
@@ -299,10 +322,9 @@ expect() {
   fi
 }
 
-# The list: every run and gate, in the order they report. A run is an
-# expect, which the first walk collects and the second reports; a gate
-# runs in the second, after the runs before it.
+# The first walk collects each run; the second reports it in the same order.
 checks() {
+ORDINAL=0
 section "GOOD" "full composition holds"
 expect kernel.cfg kernel.tla "No error has been found" "all properties hold"
 
@@ -461,6 +483,25 @@ section "ACTIVATION" "switches, pressure, moves and the jar at await granularity
 # footprint gate after it.
 # activation_runs: each check as its config, expected line, label and the
 # library TLC reads, a mutant's modules in front of the printed ones.
+if [ "$PASS" = collect ] && selected; then
+  activation_runs | cut -f1,4 | python3 world_key.py --spec activation.tla --out "$RUNS/worlds"
+fi
+if [ "$PASS" = collect ] && [ "$MODE" != --plan ]; then rm -rf "$COVERAGE_DIR"; fi
+while IFS=$'\t' read -r -u 3 cfg pattern label library; do
+  cover=""
+  if [ "$pattern" = "No error has been found" ]; then cover="$COVERAGE_DIR"; fi
+  COVERAGE="$cover" expect "$cfg" activation.tla "$pattern" "$label" "$library"
+done 3< <(activation_runs)
+
+section "PROXY FAIL-CLOSED" "a proxied site never egresses directly"
+expect proxy_failclosed.cfg proxy_failclosed.tla "No error has been found" \
+  "a proxied site blanks the load rather than falling back to direct"
+expect proxy_failclosed_leak.cfg proxy_failclosed.tla "Inv_NoDirectWhenProxied is violated" \
+  "a proxied-but-unbuildable config falling back to direct is caught"
+expect proxy_failclosed_reach.cfg proxy_failclosed.tla "Reach_Proxied is violated" \
+  "a proxied egress is reachable (fail-closed not vacuous)"
+}
+
 activation_runs() {
   local cfg pattern label mutant
   while IFS=$'\t' read -r cfg pattern label mutant; do
@@ -468,24 +509,18 @@ activation_runs() {
       "${mutant:+$MODEL/mutants/$mutant:}$MODEL"
   done <"$MODEL/checks.tsv"
 }
-if [ "$PASS" = collect ] && selected; then
-  activation_runs | cut -f1,4 | python3 world_key.py --spec activation.tla --out "$RUNS/worlds"
-fi
-rm -rf "$MODEL/coverage"
-while IFS=$'\t' read -r -u 3 cfg pattern label library; do
-  cover=""
-  if [ "$pattern" = "No error has been found" ]; then cover="$MODEL/coverage"; fi
-  COVERAGE="$cover" expect "$cfg" activation.tla "$pattern" "$label" "$library"
-done 3< <(activation_runs)
+
+gates() {
+  SECTION=ACTIVATION
 # FOOTPRINT_WRITE=1 rewrites the list of pairs checked apart from this run.
-if reporting && ! python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+if reporting && ! python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
     --debt footprint_debt.tsv ${FOOTPRINT_WRITE:+--write} | sed 's/^/  /'; then
   echo "FAIL: the footprint gate" >&2
   exit 1
 fi
 if reporting; then
   for plant in listed unlisted; do
-    if ! python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+    if ! python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
         --debt footprint_debt.tsv --plant "$plant" >/dev/null; then
       echo "  OK   planted: a $plant pair is caught by the footprint gate"
     elif [ "$plant" = listed ] || [ -n "$(grep -v '^#' footprint_debt.tsv)" ]; then
@@ -494,35 +529,35 @@ if reporting; then
     fi
   done
   # A table action that declares less than its text reads.
-  if python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
       --debt footprint_debt.tsv --plant declared >/dev/null; then
     echo "FAIL: the footprint gate passed a read dropped from a declaration" >&2
     exit 1
   fi
   echo "  OK   planted: a read dropped from a declaration is caught by the footprint gate"
   # An action no world takes, left off the list of those none can.
-  if python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
       --debt footprint_debt.tsv --plant untaken >/dev/null; then
     echo "FAIL: the footprint gate passed an action no world takes" >&2
     exit 1
   fi
   echo "  OK   planted: an action no world takes is caught by the footprint gate"
   # A table action that reads other flows' rows and declares none.
-  if python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
       --debt footprint_debt.tsv --plant rows >/dev/null; then
     echo "FAIL: the footprint gate passed a row read dropped from a declaration" >&2
     exit 1
   fi
   echo "  OK   planted: a row read dropped from a declaration is caught by the footprint gate"
   # An invariant that declares less than its text reads.
-  if python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
       --debt footprint_debt.tsv --plant invariant >/dev/null; then
     echo "FAIL: the footprint gate passed a read dropped from an invariant's declaration" >&2
     exit 1
   fi
   echo "  OK   planted: a read dropped from an invariant's declaration is caught by the footprint gate"
   # A need a world that takes the action does not give.
-  if python3 footprint.py --model "$MODEL" --coverage "$MODEL/coverage" \
+  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
       --debt footprint_debt.tsv --plant needs >/dev/null; then
     echo "FAIL: the footprint gate passed a need a world that takes its action does not give" >&2
     exit 1
@@ -544,20 +579,20 @@ if reporting; then
   echo "  OK   planted: a key that cuts a world's action, and one that keeps every module whole, are caught by its self-test"
 fi
 
-section "PROXY FAIL-CLOSED" "a proxied site never egresses directly"
-expect proxy_failclosed.cfg proxy_failclosed.tla "No error has been found" \
-  "a proxied site blanks the load rather than falling back to direct"
-expect proxy_failclosed_leak.cfg proxy_failclosed.tla "Inv_NoDirectWhenProxied is violated" \
-  "a proxied-but-unbuildable config falling back to direct is caught"
-expect proxy_failclosed_reach.cfg proxy_failclosed.tla "Reach_Proxied is violated" \
-  "a proxied egress is reachable (fail-closed not vacuous)"
-
 section "TRACE CONFORMANCE" "code stayed inside the model"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 if reporting; then TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'; fi
 }
 
+if [ "$MODE" = --gates ]; then
+  PASS=report
+  gates
+  exit 0
+fi
+
 checks
+printf 'PLANNED\t%s\n' "$ORDINAL" >>"$MANIFEST"
+[ "$MODE" != --plan ] || exit 0
 pool &
 POOL=$!
 PASS=report
@@ -565,6 +600,9 @@ checks
 
 echo "TALLY holds=$HOLDS caught=$CAUGHT reached=$REACHED"
 if [ -n "$FAILED" ]; then echo "FAIL: did not behave:$FAILED" >&2; exit 1
-elif [ "$RAN" -eq 0 ]; then echo "FAIL: no section is named $ONLY" >&2; exit 1
+elif [ "$ORDINAL" -eq 0 ]; then echo "FAIL: no section is named $ONLY" >&2; exit 1
 elif [ -n "$ONLY" ]; then echo "Section $ONLY behaved as expected."
+elif [ "$SHARD_COUNT" -gt 1 ]; then echo "Model shard $SHARD behaved as expected."
 else echo "All formal checks behaved as expected."; fi
+
+if [ "${FORMAL_DEFER_GATES:-0}" != 1 ]; then gates; fi

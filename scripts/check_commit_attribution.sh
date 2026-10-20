@@ -12,6 +12,7 @@
 #   2. at most one Co-Authored-By per identity
 #   3. a Cherry-picked-from commit is authored by someone other than the
 #      committer, which is what preserving the original author looks like
+#   4. no trailer carries a language model provider's address
 #
 # Base defaults to origin/master; override with $BASE. Skips when the base is
 # unreachable (a shallow clone with no base fetched) rather than failing.
@@ -65,6 +66,17 @@ for SHA in $COMMITS; do
             echo "  repeated trailer: $LINE"
         done
         echo "  Each co-author appears once. A replay must not stack another copy."
+        EXIT_CODE=1
+    fi
+
+    PROVIDERS=$(printf '%s\n' "$BODY" \
+        | grep -iE '^[A-Za-z-]+:.*@([a-z0-9.-]+\.)?(anthropic\.com|openai\.com)' || true)
+    if [ -n "$PROVIDERS" ]; then
+        echo "FAIL $SHORT $SUBJECT"
+        printf '%s\n' "$PROVIDERS" | while IFS= read -r LINE; do
+            echo "  model provider trailer: $LINE"
+        done
+        echo "  The person who commits is the author; drop the line."
         EXIT_CODE=1
     fi
 

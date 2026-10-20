@@ -59,6 +59,9 @@ import '../mock_cookie_manager.dart';
 import '../mock_secure_storage.dart';
 import '../paced_state_storage.dart';
 import 'schedules.dart';
+import 'frame_values.dart';
+import 'frame_declarations.dart';
+import 'model_frame.dart';
 import 'step_traces.dart';
 import '../model_fixture.dart';
 
@@ -576,6 +579,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// unless a planted mistake's ([frameMistake]).
   final Tables? declared;
 
+  late final _declarations = FrameDeclarations(of: declared);
+
   /// Whether the world follows the webviews and containers a close or a
   /// delete takes away (`Boxed`).
   bool get _boxed => archived || deletes;
@@ -891,11 +896,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   void _onChanged(
     int? flow, {
-    required Set<Object> keys,
+    required Set<ModelVar> keys,
     required bool closes,
   }) {
     if (flow == null) return;
-    final pending = (_changed[flow] ??= {})..addAll(keys.cast<ModelVar>());
+    final pending = (_changed[flow] ??= {})..addAll(keys);
     if (!closes) return;
     if (_markedHere.remove(flow)) {
       if (_lastMark[flow] case (:final step, :final outcome)?) {
@@ -930,7 +935,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     required Set<ModelVar> changed,
   }) {
     if (!_heldByTables(flow)) return;
-    final declares = declaredWrites(step, outcome: outcome, of: declared);
+    final declares = _declarations.writesFor(step, outcome: outcome);
     if (declares == null) return;
     final undeclared = changed.difference(declares);
     if (undeclared.isNotEmpty) {
@@ -993,50 +998,58 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// Each variable of the model the code holds, as the page and the fakes
   /// keep it now, by its id rather than the model's numbering, which a
   /// read here must not move; null for one only the model keeps.
-  Map<Object, String> _frameState() {
+  ModelFrame _frameState() {
     final bySite = [...sites.models, ..._followed.where(_gone)]
       ..sort((a, b) => a.siteId.compareTo(b.siteId));
-    String ids(Iterable<WebViewModel> ms) =>
-        ([for (final m in ms) '${m.siteId}']..sort()).join(',');
-    String each(Object? Function(WebViewModel m) of) =>
-        [for (final m in bySite) '${m.siteId}=${of(m)}'].join(';');
-    String cookies(Iterable<Cookie> cs) =>
-        ([for (final c in cs) '${c.name}=${c.value}']..sort()).join(',');
-    String? held(ModelVar v) => switch (v) {
-      ModelVar.rows => _rows.join(','),
+    FrameValues ids(Iterable<WebViewModel> ms) =>
+        FrameValues([for (final m in ms) m.siteId]..sort());
+    FrameValues each(Object? Function(WebViewModel m) of) =>
+        FrameValues([for (final m in bySite) (m.siteId, of(m))]);
+    FrameValues cookies(Iterable<Cookie> cs) =>
+        FrameValues([for (final c in cs) '${c.name}=${c.value}']..sort());
+    Object? held(ModelVar v) => switch (v) {
+      ModelVar.rows => FrameValues(_rows),
       ModelVar.loaded => ids(sites.loaded),
-      ModelVar.current => '${sites.shown?.siteId}',
-      ModelVar.version => '${sites.activationVersion}',
+      ModelVar.current => (sites.shown?.siteId,),
+      ModelVar.version => sites.activationVersion,
       ModelVar.marker => switch (sites.activating) {
-        null => '-',
-        final a => '${a.target.siteId}@${a.version}',
+        null => (null, null),
+        final a => (a.target.siteId, a.version),
       },
-      ModelVar.tier => each((m) => m.lifecycleState.name),
+      ModelVar.tier => each((m) => m.lifecycleState),
       ModelVar.jar => cookies(jar.all),
-      ModelVar.stored =>
-        each((m) => cookies(stored.allStorage[m.siteId] ?? const <Cookie>[])),
-      ModelVar.tabs => each((m) => [for (final t in m.tabs) t.id].join(',')),
+      ModelVar.stored => each(
+        (m) => cookies(stored.allStorage[m.siteId] ?? const <Cookie>[]),
+      ),
+      ModelVar.tabs => each((m) => FrameValues([for (final t in m.tabs) t.id])),
       ModelVar.active => each((m) => m.activeTabId),
       ModelVar.built => each((m) => m.tabBinding.built),
-      ModelVar.hist => each((m) => switch (m.controller) {
-        final FakeWebViewController c => _labelOf(c.history),
-        _ => null,
-      }),
-      ModelVar.queued => each((m) => switch (m.tabBinding.queued) {
-        (:final tab, :final bytes) => '$tab:${_labelOf(bytes)}',
-        null => null,
-      }),
-      ModelVar.file => ([
-        for (final MapEntry(:key, :value) in navStates.files.entries)
-          '$key=${_labelOf(value)}',
-      ]..sort()).join(','),
-      ModelVar.nested => '${sites.nested?.siteId}',
+      ModelVar.hist => each(
+        (m) => switch (m.controller) {
+          final FakeWebViewController c => _labelOf(c.history),
+          _ => null,
+        },
+      ),
+      ModelVar.queued => each(
+        (m) => switch (m.tabBinding.queued) {
+          (:final tab, :final bytes) => (tab, _labelOf(bytes)),
+          null => null,
+        },
+      ),
+      ModelVar.file => FrameValues([
+        for (final key in navStates.files.keys.toList()..sort())
+          (key, _labelOf(navStates.files[key]!)),
+      ]),
+      ModelVar.nested => (sites.nested?.siteId,),
       ModelVar.headless => ids(sites.headless),
-      ModelVar.fore => '${sites.fore}',
-      ModelVar.dns => '${DnsBlockService.instance.level} '
-          '${[...DnsBlockService.instance.downloadedLevels]..sort()}',
-      ModelVar.told =>
-        each((m) => DnsBlockService.instance.views.told[m.siteId]),
+      ModelVar.fore => sites.fore,
+      ModelVar.dns => (
+        DnsBlockService.instance.level,
+        FrameValues([...DnsBlockService.instance.downloadedLevels]..sort()),
+      ),
+      ModelVar.told => each(
+        (m) => DnsBlockService.instance.views.told[m.siteId],
+      ),
       ModelVar.gone => ids(_followed.where(_gone)),
       ModelVar.views => ids(_mounted.keys),
       ModelVar.boxes => ids([
@@ -1055,7 +1068,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelVar.seen ||
       ModelVar.last => null,
     };
-    return {for (final v in ModelVar.values) v: ?held(v)};
+    return ModelFrame.capture(read: held);
   }
 
   /// The script's flows as `formal/activation.tla` numbers them: by the

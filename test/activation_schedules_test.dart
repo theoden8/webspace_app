@@ -12,15 +12,16 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stack_trace/stack_trace.dart';
 import 'package:webspace/formal_model/models.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 
 import 'helpers/fake_tor_runtime.dart';
-import 'helpers/mock_cookie_manager.dart';
 import 'helpers/walk/activation_world.dart';
 import 'helpers/walk/schedules.dart';
+import 'helpers/walk/shards.dart';
 import 'helpers/walk/step_traces.dart';
 import 'helpers/walk/unmodeled_meets.dart';
 import 'helpers/walk/table_commutes.dart';
@@ -618,21 +619,39 @@ int get _dnsLength => _env('SCHEDULE_DNS_LENGTH', fallback: 3);
 
 int get _spaceLength => _env('SCHEDULE_SPACE_LENGTH', fallback: 2);
 
-/// Which of the tests this process runs: `SCHEDULE_SHARD=i/n`, as
-/// formal/verify.sh records the traces, runs every nth from the ith, so
-/// the heaviest worlds, declared side by side, land on different shards;
-/// unset, every one.
+/// `SCHEDULE_SHARD=i/n` divides the largest sweeps by script, so one heavy
+/// world cannot leave the other cores idle. Other tests run every nth from
+/// the ith, keeping each regression and reduction comparison whole.
+/// Unset, this process runs every script and test.
 final _shard = switch (Platform.environment['SCHEDULE_SHARD']?.split('/')) {
   [final i, final n] => (at: int.parse(i), of: int.parse(n)),
   _ => (at: 0, of: 1),
 };
 var _declared = 0;
 
+Iterable<List<SiteAction>> _shardedScripts(int length) =>
+    shardItems(_scripts(length), index: _shard.at, count: _shard.of);
+
 /// A schedule test, untimed: an exhaustive run takes as long as its bound.
-void _scheduleTest(String name, {required Future<void> Function() body}) {
-  if (_declared++ % _shard.of != _shard.at) return;
-  test(name, body, timeout: Timeout.none);
+void _scheduleTest(
+  String name, {
+  required Future<void> Function() body,
+  bool splitScripts = false,
+}) {
+  final assigned = _declared++ % _shard.of == _shard.at;
+  if (!splitScripts && !assigned) return;
+  // Flutter captures a stack for every async callback. Keep native error
+  // stacks during exhaustive searches; opt into extra chains for debugging.
+  test(
+    name,
+    () => Chain.disable(
+      body,
+      when: Platform.environment['SCHEDULE_STACK_CHAINS'] != '1',
+    ),
+    timeout: Timeout.none,
+  );
 }
+
 /// One world of each kind with its setup and inputs, and the length of
 /// script whose every schedule within two preemptions runs in seconds:
 /// where the reduced search is held to the full one.
@@ -726,9 +745,10 @@ void main() {
   for (final MapEntry(key: pageName, value: page) in _pages.entries) {
     for (final MapEntry(key: setupName, value: setup) in _setups.entries) {
       _scheduleTest('$pageName, $setupName: every schedule holds',
+          splitScripts: true,
           body: () async {
         for (var length = 1; length <= _length; length++) {
-          for (final script in _scripts(length)) {
+          for (final script in _shardedScripts(length)) {
             await _expectEvery(
               world: () => ActivationWorld(page),
               setup: setup,
@@ -828,8 +848,8 @@ void main() {
     'one site on screen': const [Tap(0)],
     'two sites loaded': const [Tap(1), Tap(0)],
   }.entries) {
-    test('mixed, containers, mismatched proxies, $setupName, nested opens '
-        'and background wakes: every schedule holds', () async {
+    _scheduleTest('mixed, containers, mismatched proxies, $setupName, nested opens '
+        'and background wakes: every schedule holds', body: () async {
       for (var length = 1; length <= _wakeLength; length++) {
         for (final script in _scripts(length, alphabet: _nestedWakeAlphabet)) {
           await _expectEvery(
@@ -845,7 +865,7 @@ void main() {
           );
         }
       }
-    }, timeout: Timeout.none);
+    });
   }
 
   for (final MapEntry(key: pageName, value: page) in {
@@ -914,9 +934,10 @@ void main() {
 
   // Caps three sites reach: two loaded, one of them resident.
   for (final MapEntry(key: name, value: page) in _pages.entries) {
-    _scheduleTest('$name, small caps: every schedule holds', body: () async {
+    _scheduleTest('$name, small caps: every schedule holds', splitScripts: true,
+        body: () async {
       for (var length = 1; length <= _length; length++) {
-        for (final script in _scripts(length)) {
+        for (final script in _shardedScripts(length)) {
           await _expectEvery(
             world: () =>
                 ActivationWorld(page, caps: (loaded: 2, resident: 1)),
@@ -1163,8 +1184,8 @@ void main() {
   group('the reduced search', () {
     for (final MapEntry(key: name, value: (:world, :setup, :alphabet, :length))
         in _samples.entries) {
-      test('$name: reaches every end and failure every schedule does',
-          () async {
+      _scheduleTest('$name: reaches every end and failure every schedule does',
+          body: () async {
         var every = 0;
         var reduced = 0;
         for (var n = 1; n <= length; n++) {
@@ -1191,7 +1212,7 @@ void main() {
           }
         }
         expect(reduced, lessThanOrEqualTo(every));
-      }, timeout: Timeout.none);
+      });
     }
   });
 }

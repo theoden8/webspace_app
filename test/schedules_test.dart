@@ -8,6 +8,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stack_trace/stack_trace.dart';
 import 'package:webspace/services/activation_step.dart';
 
 import 'helpers/walk/schedules.dart';
@@ -151,6 +152,39 @@ Future<ScheduleSearch> _search({
 );
 
 void main() {
+  test(
+    'diagnostic stack chains preserve schedules and counterexamples',
+    () async {
+      var scripts = <List<Toy>>[[]];
+      for (var length = 1; length <= 3; length++) {
+        scripts = [
+          for (final prefix in scripts)
+            for (final action in const [Wait(1), Wait(2), Inc(1), Inc(2)])
+              [...prefix, action],
+        ];
+        for (final script in scripts) {
+          for (final preemptions in [0, 1, 2]) {
+            for (final commutes in <Commutes?>[null, _toyCommutes]) {
+              Future<ScheduleSearch> search() => _search(
+                script: script,
+                preemptions: preemptions,
+                commutes: commutes,
+              );
+              final chained = await search();
+              final native = await Chain.disable(search);
+              expect(
+                (native.runs, native.stopped),
+                (chained.runs, chained.stopped),
+              );
+              expect(native.ends, chained.ends);
+              expect(native.failures, chained.failures);
+            }
+          }
+        }
+      }
+    },
+  );
+
   // Two flows of one reply each have three interleavings that start them in
   // order: A runs to its end (no preemption); B starts and finishes before
   // A's reply (one: starting B while A waits); and B starts, then A's reply

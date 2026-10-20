@@ -16,6 +16,23 @@ import 'package:webspace/services/step_table.dart';
 void main() {
   final printed = {for (final f in printedModels()) f.path: f.text};
 
+  test('pc-first printing only permutes the original guard conjuncts', () {
+    final prefix = RegExp(
+      r'(\w+\(f\) ==\n)(    /\\ fl\[f\]\.pc = "[^"\n]+"\n)(    /\\ Calm\n)',
+    );
+    String declaredOrder(String text) => text.replaceAllMapped(
+      prefix, (m) => '${m[1]}${m[3]}${m[2]}',
+    );
+    for (final of in [tables, for (final m in Mutant.values) mutated(m)]) {
+      final before = activationTables(of, guardOrder: TlaGuardOrder.declared);
+      final after = activationTables(of);
+      expect(after, isNot(before), reason: 'the optimized order must be exercised');
+      expect(declaredOrder(after), before);
+      expect(declaredOrder(after.replaceFirst('    /\\ Calm\n', '')), isNot(before));
+      expect(declaredOrder(after.replaceFirst('    /\\ Calm\n', '    /\\ FALSE\n')), isNot(before));
+    }
+  });
+
   test('every step prints with its outcomes', () {
     for (final s in ActivationStep.values) {
       expect(

@@ -15,6 +15,13 @@ function schedules(t, { failure = false } = {}) {
   fs.mkdirSync(bin);
   fs.copyFileSync(path.resolve(__dirname, '../../formal/verify.sh'), path.join(formal, 'verify.sh'));
   const node = `#!${process.execPath}\n`;
+  fs.writeFileSync(path.join(formal, 'check.sh'), node + scriptOf(() => {
+    if (process.argv[2] === '--jar') {
+      require('node:fs').writeFileSync('formal/tla2tools.jar', 'stub');
+    } else if (process.argv[2] !== '--plan') {
+      process.exitCode = 1;
+    }
+  }), { mode: 0o755 });
   for (const name of ['java', 'python3', 'tlapm', 'lake']) {
     fs.writeFileSync(path.join(bin, name), node, { mode: 0o755 });
   }
