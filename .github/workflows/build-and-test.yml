@@ -717,10 +717,11 @@ jobs:
       # this same harness extended; the smoke test pins the pipeline
       # so they can land as follow-up tests without re-litigating CI.
       - name: Run Linux integration tests
-        # 55, not 45: this tier gained a real proxy file when WPE started
-        # binding per-site proxies (proxy_simultaneous runs here), and one
-        # more full app build is what took the loop past the old cap.
-        timeout-minutes: 55
+        # 75, not 55: the webspace library (#745) added integration tests
+        # that each rebuild the app, which left the loop within a minute of
+        # the old cap on master (53m55s) and past it on a PR. 55 was for the
+        # proxy file WPE's per-site proxies added (proxy_simultaneous).
+        timeout-minutes: 75
         run: |
           set -x
           # The fail-closed origin, by address rather than by name: a dotless
