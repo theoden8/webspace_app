@@ -1093,5 +1093,7 @@
   "librarySites": "Situs",
   "librarySearchWebspaces": "Quaere spatia interretialia",
   "librarySearchSites": "Quaere situs",
-  "libraryNoResults": "Nihil inventum"
+  "libraryNoResults": "Nihil inventum",
+  "appSettingsExperimentalFolderLibrary": "Bibliotheca fasciculorum",
+  "appSettingsExperimentalFolderLibraryHint": "Spatia operis ut fasciculos perlustra et situs eorum in reticulo aperi in quo quaerere potes."
 }

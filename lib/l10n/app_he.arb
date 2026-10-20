@@ -1093,5 +1093,7 @@
   "librarySites": "אתרים",
   "librarySearchWebspaces": "חיפוש מרחבי רשת",
   "librarySearchSites": "חיפוש אתרים",
-  "libraryNoResults": "לא נמצאו התאמות"
+  "libraryNoResults": "לא נמצאו התאמות",
+  "appSettingsExperimentalFolderLibrary": "ספריית תיקיות",
+  "appSettingsExperimentalFolderLibraryHint": "עיון בסביבות עבודה כתיקיות ופתיחת האתרים שלהן בתצוגת רשת עם חיפוש."
 }

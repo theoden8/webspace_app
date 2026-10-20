@@ -1093,5 +1093,7 @@
   "librarySites": "Stranice",
   "librarySearchWebspaces": "Pretraži web prostore",
   "librarySearchSites": "Pretraži stranice",
-  "libraryNoResults": "Nema rezultata"
+  "libraryNoResults": "Nema rezultata",
+  "appSettingsExperimentalFolderLibrary": "Biblioteka mapa",
+  "appSettingsExperimentalFolderLibraryHint": "Pregledavajte radne prostore kao mape i otvarajte njihove stranice u mreži s pretraživanjem."
 }

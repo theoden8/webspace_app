@@ -1093,5 +1093,7 @@
   "librarySites": "Weby",
   "librarySearchWebspaces": "Hledat webové prostory",
   "librarySearchSites": "Hledat weby",
-  "libraryNoResults": "Žádné výsledky"
+  "libraryNoResults": "Žádné výsledky",
+  "appSettingsExperimentalFolderLibrary": "Knihovna složek",
+  "appSettingsExperimentalFolderLibraryHint": "Procházejte pracovní prostory jako složky a otevírejte jejich weby v prohledávatelné mřížce."
 }

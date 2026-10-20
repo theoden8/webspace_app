@@ -1093,5 +1093,7 @@
   "librarySites": "Сайтове",
   "librarySearchWebspaces": "Търсене на уеб пространства",
   "librarySearchSites": "Търсене на сайтове",
-  "libraryNoResults": "Няма резултати"
+  "libraryNoResults": "Няма резултати",
+  "appSettingsExperimentalFolderLibrary": "Библиотека с папки",
+  "appSettingsExperimentalFolderLibraryHint": "Разглеждайте работните пространства като папки и отваряйте сайтовете им в мрежа с търсене."
 }

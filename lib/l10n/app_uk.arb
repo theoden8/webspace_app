@@ -1093,5 +1093,7 @@
   "librarySites": "Сайти",
   "librarySearchWebspaces": "Шукати вебпростори",
   "librarySearchSites": "Шукати сайти",
-  "libraryNoResults": "Збігів немає"
+  "libraryNoResults": "Збігів немає",
+  "appSettingsExperimentalFolderLibrary": "Бібліотека папок",
+  "appSettingsExperimentalFolderLibraryHint": "Переглядайте робочі простори як папки та відкривайте їхні сайти в сітці з пошуком."
 }

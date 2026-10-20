@@ -1093,5 +1093,7 @@
   "librarySites": "Страници",
   "librarySearchWebspaces": "Пребарај веб-простори",
   "librarySearchSites": "Пребарај страници",
-  "libraryNoResults": "Нема резултати"
+  "libraryNoResults": "Нема резултати",
+  "appSettingsExperimentalFolderLibrary": "Библиотека со папки",
+  "appSettingsExperimentalFolderLibraryHint": "Прегледувајте ги работните простори како папки и отворајте ги нивните страници во мрежа со пребарување."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "Suíomhanna",
   "librarySearchWebspaces": "Cuardaigh spásanna gréasáin",
   "librarySearchSites": "Cuardaigh suíomhanna",
-  "libraryNoResults": "Gan torthaí"
+  "libraryNoResults": "Gan torthaí",
+  "appSettingsExperimentalFolderLibrary": "Leabharlann fillteán",
+  "appSettingsExperimentalFolderLibraryHint": "Brabhsáil spásanna oibre mar fhillteáin agus oscail a suíomhanna i ngreille inchuardaithe."
 }

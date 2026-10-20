@@ -1093,5 +1093,7 @@
   "librarySites": "Svetainės",
   "librarySearchWebspaces": "Ieškoti žiniatinklio erdvių",
   "librarySearchSites": "Ieškoti svetainių",
-  "libraryNoResults": "Atitikmenų nėra"
+  "libraryNoResults": "Atitikmenų nėra",
+  "appSettingsExperimentalFolderLibrary": "Aplankų biblioteka",
+  "appSettingsExperimentalFolderLibraryHint": "Naršykite darbo sritis kaip aplankus ir atverkite jų svetaines tinklelyje su paieška."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "Sitios",
   "librarySearchWebspaces": "Buscar espazos web",
   "librarySearchSites": "Buscar sitios",
-  "libraryNoResults": "Sen coincidencias"
+  "libraryNoResults": "Sen coincidencias",
+  "appSettingsExperimentalFolderLibrary": "Biblioteca de cartafoles",
+  "appSettingsExperimentalFolderLibraryHint": "Explora os espazos de traballo como cartafoles e abre os seus sitios nunha grade con busca."
 }

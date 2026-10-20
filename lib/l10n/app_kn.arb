@@ -1093,5 +1093,7 @@
   "librarySites": "ತಾಣಗಳು",
   "librarySearchWebspaces": "ವೆಬ್‌ಸ್ಪೇಸ್‌ಗಳನ್ನು ಹುಡುಕಿ",
   "librarySearchSites": "ತಾಣಗಳನ್ನು ಹುಡುಕಿ",
-  "libraryNoResults": "ಫಲಿತಾಂಶಗಳಿಲ್ಲ"
+  "libraryNoResults": "ಫಲಿತಾಂಶಗಳಿಲ್ಲ",
+  "appSettingsExperimentalFolderLibrary": "ಫೋಲ್ಡರ್ ಗ್ರಂಥಾಲಯ",
+  "appSettingsExperimentalFolderLibraryHint": "ಕಾರ್ಯಸ್ಥಳಗಳನ್ನು ಫೋಲ್ಡರ್‌ಗಳಾಗಿ ಬ್ರೌಸ್ ಮಾಡಿ ಮತ್ತು ಅವುಗಳ ಸೈಟ್‌ಗಳನ್ನು ಹುಡುಕಬಹುದಾದ ಗ್ರಿಡ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ."
 }

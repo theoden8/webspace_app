@@ -1093,5 +1093,7 @@
   "librarySites": "사이트",
   "librarySearchWebspaces": "웹스페이스 검색",
   "librarySearchSites": "사이트 검색",
-  "libraryNoResults": "일치하는 항목 없음"
+  "libraryNoResults": "일치하는 항목 없음",
+  "appSettingsExperimentalFolderLibrary": "폴더 라이브러리",
+  "appSettingsExperimentalFolderLibraryHint": "작업 공간을 폴더로 탐색하고 해당 사이트를 검색 가능한 그리드에서 엽니다."
 }

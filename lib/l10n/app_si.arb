@@ -1093,5 +1093,7 @@
   "librarySites": "අඩවි",
   "librarySearchWebspaces": "වෙබ් අවකාශ සොයන්න",
   "librarySearchSites": "අඩවි සොයන්න",
-  "libraryNoResults": "ප්‍රතිඵල නැත"
+  "libraryNoResults": "ප්‍රතිඵල නැත",
+  "appSettingsExperimentalFolderLibrary": "ෆෝල්ඩර පුස්තකාලය",
+  "appSettingsExperimentalFolderLibraryHint": "වැඩ අවකාශ ෆෝල්ඩර ලෙස පිරික්සන්න, ඒවායේ අඩවි සෙවිය හැකි ජාලකයක විවෘත කරන්න."
 }

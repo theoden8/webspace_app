@@ -1093,5 +1093,7 @@
   "librarySites": "साइटें",
   "librarySearchWebspaces": "वेबस्पेस खोजें",
   "librarySearchSites": "साइटें खोजें",
-  "libraryNoResults": "कोई मिलान नहीं"
+  "libraryNoResults": "कोई मिलान नहीं",
+  "appSettingsExperimentalFolderLibrary": "फ़ोल्डर लाइब्रेरी",
+  "appSettingsExperimentalFolderLibraryHint": "कार्यक्षेत्रों को फ़ोल्डर के रूप में देखें और उनकी साइटें खोजने योग्य ग्रिड में खोलें।"
 }

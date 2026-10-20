@@ -1093,5 +1093,7 @@
   "librarySites": "Llocs web",
   "librarySearchWebspaces": "Cerca espais web",
   "librarySearchSites": "Cerca llocs web",
-  "libraryNoResults": "Cap coincidència"
+  "libraryNoResults": "Cap coincidència",
+  "appSettingsExperimentalFolderLibrary": "Biblioteca de carpetes",
+  "appSettingsExperimentalFolderLibraryHint": "Exploreu els espais de treball com a carpetes i obriu-ne els llocs en una graella amb cerca."
 }

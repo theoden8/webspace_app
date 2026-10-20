@@ -1093,5 +1093,7 @@
   "librarySites": "Safleoedd",
   "librarySearchWebspaces": "Chwilio gofodau gwe",
   "librarySearchSites": "Chwilio safleoedd",
-  "libraryNoResults": "Dim canlyniadau"
+  "libraryNoResults": "Dim canlyniadau",
+  "appSettingsExperimentalFolderLibrary": "Llyfrgell ffolderi",
+  "appSettingsExperimentalFolderLibraryHint": "Porwch fannau gwaith fel ffolderi ac agorwch eu gwefannau mewn grid y gellir ei chwilio."
 }

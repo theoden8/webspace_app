@@ -1093,5 +1093,7 @@
   "librarySites": "సైట్‌లు",
   "librarySearchWebspaces": "వెబ్‌స్పేస్‌లను వెతకండి",
   "librarySearchSites": "సైట్‌లను వెతకండి",
-  "libraryNoResults": "ఫలితాలు లేవు"
+  "libraryNoResults": "ఫలితాలు లేవు",
+  "appSettingsExperimentalFolderLibrary": "ఫోల్డర్ లైబ్రరీ",
+  "appSettingsExperimentalFolderLibraryHint": "కార్యస్థలాలను ఫోల్డర్‌లుగా బ్రౌజ్ చేసి, వాటి సైట్‌లను శోధించగల గ్రిడ్‌లో తెరవండి."
 }

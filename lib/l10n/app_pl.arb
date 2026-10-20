@@ -1093,5 +1093,7 @@
   "librarySites": "Witryny",
   "librarySearchWebspaces": "Szukaj przestrzeni WWW",
   "librarySearchSites": "Szukaj witryn",
-  "libraryNoResults": "Brak wyników"
+  "libraryNoResults": "Brak wyników",
+  "appSettingsExperimentalFolderLibrary": "Biblioteka folderów",
+  "appSettingsExperimentalFolderLibraryHint": "Przeglądaj przestrzenie robocze jako foldery i otwieraj ich witryny w siatce z wyszukiwaniem."
 }

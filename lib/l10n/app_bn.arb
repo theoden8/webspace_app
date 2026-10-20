@@ -1093,5 +1093,7 @@
   "librarySites": "সাইট",
   "librarySearchWebspaces": "ওয়েবস্পেস খুঁজুন",
   "librarySearchSites": "সাইট খুঁজুন",
-  "libraryNoResults": "কোনো ফলাফল নেই"
+  "libraryNoResults": "কোনো ফলাফল নেই",
+  "appSettingsExperimentalFolderLibrary": "ফোল্ডার লাইব্রেরি",
+  "appSettingsExperimentalFolderLibraryHint": "কর্মক্ষেত্রগুলো ফোল্ডার হিসেবে দেখুন এবং সেগুলোর সাইট অনুসন্ধানযোগ্য গ্রিডে খুলুন।"
 }

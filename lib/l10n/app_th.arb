@@ -1093,5 +1093,7 @@
   "librarySites": "เว็บไซต์",
   "librarySearchWebspaces": "ค้นหาพื้นที่เว็บ",
   "librarySearchSites": "ค้นหาเว็บไซต์",
-  "libraryNoResults": "ไม่พบผลลัพธ์"
+  "libraryNoResults": "ไม่พบผลลัพธ์",
+  "appSettingsExperimentalFolderLibrary": "คลังโฟลเดอร์",
+  "appSettingsExperimentalFolderLibraryHint": "เรียกดูพื้นที่ทำงานเป็นโฟลเดอร์และเปิดเว็บไซต์ในตารางที่ค้นหาได้"
 }

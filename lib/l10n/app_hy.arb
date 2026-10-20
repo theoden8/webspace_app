@@ -1093,5 +1093,7 @@
   "librarySites": "Կայքեր",
   "librarySearchWebspaces": "Որոնել վեբ տարածքներ",
   "librarySearchSites": "Որոնել կայքեր",
-  "libraryNoResults": "Համընկնումներ չկան"
+  "libraryNoResults": "Համընկնումներ չկան",
+  "appSettingsExperimentalFolderLibrary": "Թղթապանակների գրադարան",
+  "appSettingsExperimentalFolderLibraryHint": "Դիտեք աշխատանքային տարածքները որպես թղթապանակներ և բացեք դրանց կայքերը որոնելի ցանցում։"
 }

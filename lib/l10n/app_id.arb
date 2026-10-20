@@ -1093,5 +1093,7 @@
   "librarySites": "Situs",
   "librarySearchWebspaces": "Cari ruang web",
   "librarySearchSites": "Cari situs",
-  "libraryNoResults": "Tidak ada hasil"
+  "libraryNoResults": "Tidak ada hasil",
+  "appSettingsExperimentalFolderLibrary": "Pustaka folder",
+  "appSettingsExperimentalFolderLibraryHint": "Jelajahi ruang kerja sebagai folder dan buka situsnya dalam kisi yang dapat ditelusuri."
 }

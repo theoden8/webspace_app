@@ -1093,5 +1093,7 @@
   "librarySites": "Laman",
   "librarySearchWebspaces": "Cari ruang web",
   "librarySearchSites": "Cari laman",
-  "libraryNoResults": "Tiada padanan"
+  "libraryNoResults": "Tiada padanan",
+  "appSettingsExperimentalFolderLibrary": "Pustaka folder",
+  "appSettingsExperimentalFolderLibraryHint": "Semak imbas ruang kerja sebagai folder dan buka tapaknya dalam grid yang boleh dicari."
 }

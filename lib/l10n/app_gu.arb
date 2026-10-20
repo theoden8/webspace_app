@@ -1093,5 +1093,7 @@
   "librarySites": "સાઇટ્સ",
   "librarySearchWebspaces": "વેબસ્પેસ શોધો",
   "librarySearchSites": "સાઇટ્સ શોધો",
-  "libraryNoResults": "કોઈ પરિણામ નથી"
+  "libraryNoResults": "કોઈ પરિણામ નથી",
+  "appSettingsExperimentalFolderLibrary": "ફોલ્ડર લાઇબ્રેરી",
+  "appSettingsExperimentalFolderLibraryHint": "કાર્યસ્થળોને ફોલ્ડર તરીકે બ્રાઉઝ કરો અને તેમની સાઇટને શોધી શકાય તેવી ગ્રીડમાં ખોલો."
 }

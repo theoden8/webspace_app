@@ -1093,5 +1093,7 @@
   "librarySites": "Vefir",
   "librarySearchWebspaces": "Leita að vefsvæðum",
   "librarySearchSites": "Leita að vefjum",
-  "libraryNoResults": "Engar niðurstöður"
+  "libraryNoResults": "Engar niðurstöður",
+  "appSettingsExperimentalFolderLibrary": "Möppusafn",
+  "appSettingsExperimentalFolderLibraryHint": "Skoðaðu vinnusvæði sem möppur og opnaðu vefsvæði þeirra í reitasýn með leit."
 }

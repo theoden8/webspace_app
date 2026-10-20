@@ -1093,5 +1093,7 @@
   "librarySites": "Sivustot",
   "librarySearchWebspaces": "Hae verkkotiloja",
   "librarySearchSites": "Hae sivustoja",
-  "libraryNoResults": "Ei osumia"
+  "libraryNoResults": "Ei osumia",
+  "appSettingsExperimentalFolderLibrary": "Kansiokirjasto",
+  "appSettingsExperimentalFolderLibraryHint": "Selaa työtiloja kansioina ja avaa niiden sivustot ruudukossa, jossa voi tehdä hakuja."
 }

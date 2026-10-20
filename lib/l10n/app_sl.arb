@@ -1093,5 +1093,7 @@
   "librarySites": "Spletišča",
   "librarySearchWebspaces": "Poišči spletne prostore",
   "librarySearchSites": "Poišči spletišča",
-  "libraryNoResults": "Ni zadetkov"
+  "libraryNoResults": "Ni zadetkov",
+  "appSettingsExperimentalFolderLibrary": "Knjižnica map",
+  "appSettingsExperimentalFolderLibraryHint": "Brskajte po delovnih prostorih kot po mapah in odpirajte njihova spletišča v mreži z iskanjem."
 }

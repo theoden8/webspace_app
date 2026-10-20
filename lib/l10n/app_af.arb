@@ -1093,5 +1093,7 @@
   "librarySites": "Webwerwe",
   "librarySearchWebspaces": "Soek webruimtes",
   "librarySearchSites": "Soek webwerwe",
-  "libraryNoResults": "Geen resultate"
+  "libraryNoResults": "Geen resultate",
+  "appSettingsExperimentalFolderLibrary": "Vouerbiblioteek",
+  "appSettingsExperimentalFolderLibraryHint": "Blaai deur werkruimtes as vouers en maak hul werwe in 'n soekbare rooster oop."
 }

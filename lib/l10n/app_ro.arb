@@ -1093,5 +1093,7 @@
   "librarySites": "Site-uri",
   "librarySearchWebspaces": "Caută spații web",
   "librarySearchSites": "Caută site-uri",
-  "libraryNoResults": "Niciun rezultat"
+  "libraryNoResults": "Niciun rezultat",
+  "appSettingsExperimentalFolderLibrary": "Bibliotecă de dosare",
+  "appSettingsExperimentalFolderLibraryHint": "Răsfoiește spațiile de lucru ca dosare și deschide site-urile lor într-o grilă cu căutare."
 }

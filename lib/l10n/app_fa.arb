@@ -1093,5 +1093,7 @@
   "librarySites": "سایت‌ها",
   "librarySearchWebspaces": "جستجوی فضاهای وب",
   "librarySearchSites": "جستجوی سایت‌ها",
-  "libraryNoResults": "نتیجه‌ای یافت نشد"
+  "libraryNoResults": "نتیجه‌ای یافت نشد",
+  "appSettingsExperimentalFolderLibrary": "کتابخانهٔ پوشه‌ها",
+  "appSettingsExperimentalFolderLibraryHint": "فضاهای کاری را به‌شکل پوشه مرور کنید و سایت‌هایشان را در شبکه‌ای با قابلیت جست‌وجو باز کنید."
 }

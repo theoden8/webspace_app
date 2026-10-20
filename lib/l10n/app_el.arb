@@ -1093,5 +1093,7 @@
   "librarySites": "Ιστότοποι",
   "librarySearchWebspaces": "Αναζήτηση χώρων ιστού",
   "librarySearchSites": "Αναζήτηση ιστοτόπων",
-  "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα"
+  "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα",
+  "appSettingsExperimentalFolderLibrary": "Βιβλιοθήκη φακέλων",
+  "appSettingsExperimentalFolderLibraryHint": "Περιηγηθείτε στους χώρους εργασίας ως φακέλους και ανοίξτε τους ιστοτόπους τους σε πλέγμα με αναζήτηση."
 }

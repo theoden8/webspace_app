@@ -1093,5 +1093,7 @@
   "librarySites": "Stranice",
   "librarySearchWebspaces": "Pretraži web prostore",
   "librarySearchSites": "Pretraži stranice",
-  "libraryNoResults": "Nema rezultata"
+  "libraryNoResults": "Nema rezultata",
+  "appSettingsExperimentalFolderLibrary": "Biblioteka fascikli",
+  "appSettingsExperimentalFolderLibraryHint": "Pregledajte radne prostore kao fascikle i otvarajte njihove stranice u mreži s pretragom."
 }

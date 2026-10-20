@@ -1093,5 +1093,7 @@
   "librarySites": "സൈറ്റുകൾ",
   "librarySearchWebspaces": "വെബ്‌സ്‌പെയ്‌സുകൾ തിരയുക",
   "librarySearchSites": "സൈറ്റുകൾ തിരയുക",
-  "libraryNoResults": "ഫലങ്ങളില്ല"
+  "libraryNoResults": "ഫലങ്ങളില്ല",
+  "appSettingsExperimentalFolderLibrary": "ഫോൾഡർ ലൈബ്രറി",
+  "appSettingsExperimentalFolderLibraryHint": "വർക്ക്‌സ്‌പെയ്‌സുകൾ ഫോൾഡറുകളായി ബ്രൗസ് ചെയ്യുകയും അവയുടെ സൈറ്റുകൾ തിരയാവുന്ന ഗ്രിഡിൽ തുറക്കുകയും ചെയ്യുക."
 }

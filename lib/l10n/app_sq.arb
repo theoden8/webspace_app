@@ -1093,5 +1093,7 @@
   "librarySites": "Sajtet",
   "librarySearchWebspaces": "Kërko hapësira uebi",
   "librarySearchSites": "Kërko sajte",
-  "libraryNoResults": "Nuk ka rezultate"
+  "libraryNoResults": "Nuk ka rezultate",
+  "appSettingsExperimentalFolderLibrary": "Biblioteka e dosjeve",
+  "appSettingsExperimentalFolderLibraryHint": "Shfletoni hapësirat e punës si dosje dhe hapni sajtet e tyre në një rrjetë me kërkim."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "Sitios",
   "librarySearchWebspaces": "Buscar espacios web",
   "librarySearchSites": "Buscar sitios",
-  "libraryNoResults": "Sin coincidencias"
+  "libraryNoResults": "Sin coincidencias",
+  "appSettingsExperimentalFolderLibrary": "Biblioteca de carpetas",
+  "appSettingsExperimentalFolderLibraryHint": "Explora los espacios de trabajo como carpetas y abre sus sitios en una cuadrícula con búsqueda."
 }

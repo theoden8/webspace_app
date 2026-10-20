@@ -1093,5 +1093,7 @@
   "librarySites": "Webhelyek",
   "librarySearchWebspaces": "Webterek keresése",
   "librarySearchSites": "Webhelyek keresése",
-  "libraryNoResults": "Nincs találat"
+  "libraryNoResults": "Nincs találat",
+  "appSettingsExperimentalFolderLibrary": "Mappatár",
+  "appSettingsExperimentalFolderLibraryHint": "Böngéssze a munkaterületeket mappákként, és nyissa meg webhelyeiket kereshető rácsban."
 }

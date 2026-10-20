@@ -1093,5 +1093,7 @@
   "librarySites": "Websites",
   "librarySearchWebspaces": "Webbereiche suchen",
   "librarySearchSites": "Websites suchen",
-  "libraryNoResults": "Keine Treffer"
+  "libraryNoResults": "Keine Treffer",
+  "appSettingsExperimentalFolderLibrary": "Ordnerbibliothek",
+  "appSettingsExperimentalFolderLibraryHint": "Arbeitsbereiche als Ordner durchsuchen und ihre Websites in einem durchsuchbaren Raster öffnen."
 }

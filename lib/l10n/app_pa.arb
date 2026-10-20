@@ -1093,5 +1093,7 @@
   "librarySites": "ਸਾਈਟਾਂ",
   "librarySearchWebspaces": "ਵੈੱਬਸਪੇਸ ਖੋਜੋ",
   "librarySearchSites": "ਸਾਈਟਾਂ ਖੋਜੋ",
-  "libraryNoResults": "ਕੋਈ ਨਤੀਜੇ ਨਹੀਂ"
+  "libraryNoResults": "ਕੋਈ ਨਤੀਜੇ ਨਹੀਂ",
+  "appSettingsExperimentalFolderLibrary": "ਫੋਲਡਰ ਲਾਇਬ੍ਰੇਰੀ",
+  "appSettingsExperimentalFolderLibraryHint": "ਵਰਕਸਪੇਸ ਨੂੰ ਫੋਲਡਰਾਂ ਵਜੋਂ ਬ੍ਰਾਊਜ਼ ਕਰੋ ਅਤੇ ਉਹਨਾਂ ਦੀਆਂ ਸਾਈਟਾਂ ਖੋਜਯੋਗ ਗ੍ਰਿਡ ਵਿੱਚ ਖੋਲ੍ਹੋ।"
 }

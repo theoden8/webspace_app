@@ -1093,5 +1093,7 @@
   "librarySites": "Vietnes",
   "librarySearchWebspaces": "Meklēt tīmekļa telpas",
   "librarySearchSites": "Meklēt vietnes",
-  "libraryNoResults": "Nav atbilstību"
+  "libraryNoResults": "Nav atbilstību",
+  "appSettingsExperimentalFolderLibrary": "Mapju bibliotēka",
+  "appSettingsExperimentalFolderLibraryHint": "Pārlūkojiet darbvietas kā mapes un atveriet to vietnes režģī ar meklēšanu."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "Webguneak",
   "librarySearchWebspaces": "Bilatu webgune-espazioak",
   "librarySearchSites": "Bilatu webguneak",
-  "libraryNoResults": "Ez dago emaitzarik"
+  "libraryNoResults": "Ez dago emaitzarik",
+  "appSettingsExperimentalFolderLibrary": "Karpeten liburutegia",
+  "appSettingsExperimentalFolderLibraryHint": "Arakatu lan-eremuak karpeta gisa eta ireki haien webguneak bilaketak onartzen dituen sareta batean."
 }

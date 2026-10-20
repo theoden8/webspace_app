@@ -1093,5 +1093,7 @@
   "librarySites": "Siti",
   "librarySearchWebspaces": "Fittex spazji tal-web",
   "librarySearchSites": "Fittex siti",
-  "libraryNoResults": "Ebda riżultat"
+  "libraryNoResults": "Ebda riżultat",
+  "appSettingsExperimentalFolderLibrary": "Librerija tal-fowlders",
+  "appSettingsExperimentalFolderLibraryHint": "Ibbrawżja l-ispazji tax-xogħol bħala fowlders u iftaħ is-siti tagħhom fi grilja li tista' tfittex fiha."
 }

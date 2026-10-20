@@ -1093,5 +1093,7 @@
   "librarySites": "網站",
   "librarySearchWebspaces": "搜尋網頁空間",
   "librarySearchSites": "搜尋網站",
-  "libraryNoResults": "沒有符合項目"
+  "libraryNoResults": "沒有符合項目",
+  "appSettingsExperimentalFolderLibrary": "文件夹库",
+  "appSettingsExperimentalFolderLibraryHint": "以文件夹形式浏览工作区，并在可搜索的网格中打开其中的网站。"
 }

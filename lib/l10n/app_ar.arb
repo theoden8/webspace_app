@@ -1093,5 +1093,7 @@
   "librarySites": "المواقع",
   "librarySearchWebspaces": "البحث في مساحات الويب",
   "librarySearchSites": "البحث في المواقع",
-  "libraryNoResults": "لا توجد نتائج"
+  "libraryNoResults": "لا توجد نتائج",
+  "appSettingsExperimentalFolderLibrary": "مكتبة المجلدات",
+  "appSettingsExperimentalFolderLibraryHint": "تصفّح مساحات العمل كمجلدات وافتح مواقعها في شبكة قابلة للبحث."
 }

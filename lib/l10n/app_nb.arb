@@ -1093,5 +1093,7 @@
   "librarySites": "Nettsteder",
   "librarySearchWebspaces": "Søk i nettområder",
   "librarySearchSites": "Søk etter nettsteder",
-  "libraryNoResults": "Ingen treff"
+  "libraryNoResults": "Ingen treff",
+  "appSettingsExperimentalFolderLibrary": "Mappebibliotek",
+  "appSettingsExperimentalFolderLibraryHint": "Bla gjennom arbeidsområder som mapper, og åpne nettstedene deres i et rutenett med søk."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "Websteder",
   "librarySearchWebspaces": "Søg i webområder",
   "librarySearchSites": "Søg efter websteder",
-  "libraryNoResults": "Ingen resultater"
+  "libraryNoResults": "Ingen resultater",
+  "appSettingsExperimentalFolderLibrary": "Mappebibliotek",
+  "appSettingsExperimentalFolderLibraryHint": "Gennemse arbejdsområder som mapper, og åbn deres websteder i et gitter med søgning."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "サイト",
   "librarySearchWebspaces": "ウェブスペースを検索",
   "librarySearchSites": "サイトを検索",
-  "libraryNoResults": "一致する項目はありません"
+  "libraryNoResults": "一致する項目はありません",
+  "appSettingsExperimentalFolderLibrary": "フォルダーライブラリ",
+  "appSettingsExperimentalFolderLibraryHint": "ワークスペースをフォルダーとして表示し、そのサイトを検索可能なグリッドで開きます。"
 }

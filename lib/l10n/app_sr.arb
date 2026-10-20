@@ -1093,5 +1093,7 @@
   "librarySites": "Сајтови",
   "librarySearchWebspaces": "Претражи веб-просторе",
   "librarySearchSites": "Претражи сајтове",
-  "libraryNoResults": "Нема резултата"
+  "libraryNoResults": "Нема резултата",
+  "appSettingsExperimentalFolderLibrary": "Библиотека фасцикли",
+  "appSettingsExperimentalFolderLibraryHint": "Прегледајте радне просторе као фасцикле и отварајте њихове сајтове у мрежи са претрагом."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "Mga site",
   "librarySearchWebspaces": "Maghanap ng mga webspace",
   "librarySearchSites": "Maghanap ng mga site",
-  "libraryNoResults": "Walang mga tugma"
+  "libraryNoResults": "Walang mga tugma",
+  "appSettingsExperimentalFolderLibrary": "Aklatan ng mga folder",
+  "appSettingsExperimentalFolderLibraryHint": "Mag-browse ng mga workspace bilang mga folder at buksan ang mga site ng mga ito sa grid na may paghahanap."
 }

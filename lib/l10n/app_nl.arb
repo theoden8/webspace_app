@@ -1093,5 +1093,7 @@
   "librarySites": "Websites",
   "librarySearchWebspaces": "Webruimtes zoeken",
   "librarySearchSites": "Websites zoeken",
-  "libraryNoResults": "Geen resultaten"
+  "libraryNoResults": "Geen resultaten",
+  "appSettingsExperimentalFolderLibrary": "Mappenbibliotheek",
+  "appSettingsExperimentalFolderLibraryHint": "Blader door werkruimten als mappen en open hun websites in een doorzoekbaar raster."
 }

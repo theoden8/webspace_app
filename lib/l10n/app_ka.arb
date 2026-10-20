@@ -1093,5 +1093,7 @@
   "librarySites": "საიტები",
   "librarySearchWebspaces": "ვებსივრცეების ძიება",
   "librarySearchSites": "საიტების ძიება",
-  "libraryNoResults": "შედეგები არ არის"
+  "libraryNoResults": "შედეგები არ არის",
+  "appSettingsExperimentalFolderLibrary": "საქაღალდეების ბიბლიოთეკა",
+  "appSettingsExperimentalFolderLibraryHint": "დაათვალიერეთ სამუშაო სივრცეები საქაღალდეების სახით და გახსენით მათი საიტები საძიებო ბადეში."
 }

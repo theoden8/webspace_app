@@ -1093,5 +1093,7 @@
   "librarySites": "Weby",
   "librarySearchWebspaces": "Hľadať webové priestory",
   "librarySearchSites": "Hľadať weby",
-  "libraryNoResults": "Žiadne výsledky"
+  "libraryNoResults": "Žiadne výsledky",
+  "appSettingsExperimentalFolderLibrary": "Knižnica priečinkov",
+  "appSettingsExperimentalFolderLibraryHint": "Prehliadajte pracovné priestory ako priečinky a otvárajte ich weby v prehľadávateľnej mriežke."
 }

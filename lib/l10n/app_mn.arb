@@ -1093,5 +1093,7 @@
   "librarySites": "Сайтууд",
   "librarySearchWebspaces": "Вэб орон зай хайх",
   "librarySearchSites": "Сайт хайх",
-  "libraryNoResults": "Илэрц олдсонгүй"
+  "libraryNoResults": "Илэрц олдсонгүй",
+  "appSettingsExperimentalFolderLibrary": "Хавтасны сан",
+  "appSettingsExperimentalFolderLibraryHint": "Ажлын талбаруудыг хавтас хэлбэрээр үзэж, сайтуудыг нь хайлт хийх боломжтой торон харагдацаар нээнэ үү."
 }

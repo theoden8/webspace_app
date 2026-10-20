@@ -1093,5 +1093,7 @@
   "librarySites": "Siti",
   "librarySearchWebspaces": "Cerca spazi web",
   "librarySearchSites": "Cerca siti",
-  "libraryNoResults": "Nessun risultato"
+  "libraryNoResults": "Nessun risultato",
+  "appSettingsExperimentalFolderLibrary": "Raccolta di cartelle",
+  "appSettingsExperimentalFolderLibraryHint": "Sfoglia gli spazi di lavoro come cartelle e apri i loro siti in una griglia con ricerca."
 }

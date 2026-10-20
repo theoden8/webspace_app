@@ -1093,5 +1093,7 @@
   "librarySites": "Tovuti",
   "librarySearchWebspaces": "Tafuta nafasi za wavuti",
   "librarySearchSites": "Tafuta tovuti",
-  "libraryNoResults": "Hakuna matokeo"
+  "libraryNoResults": "Hakuna matokeo",
+  "appSettingsExperimentalFolderLibrary": "Maktaba ya folda",
+  "appSettingsExperimentalFolderLibraryHint": "Vinjari nafasi za kazi kama folda na ufungue tovuti zake katika gridi inayoweza kutafutwa."
 }

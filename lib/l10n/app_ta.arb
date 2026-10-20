@@ -1093,5 +1093,7 @@
   "librarySites": "தளங்கள்",
   "librarySearchWebspaces": "வலைவெளிகளைத் தேடு",
   "librarySearchSites": "தளங்களைத் தேடு",
-  "libraryNoResults": "பொருத்தங்கள் இல்லை"
+  "libraryNoResults": "பொருத்தங்கள் இல்லை",
+  "appSettingsExperimentalFolderLibrary": "கோப்புறை நூலகம்",
+  "appSettingsExperimentalFolderLibraryHint": "பணியிடங்களைக் கோப்புறைகளாக உலாவி, அவற்றின் தளங்களைத் தேடக்கூடிய கட்டத்தில் திறக்கவும்."
 }

@@ -1093,5 +1093,7 @@
   "librarySites": "Sites",
   "librarySearchWebspaces": "Pesquisar espaços web",
   "librarySearchSites": "Pesquisar sites",
-  "libraryNoResults": "Sem resultados"
+  "libraryNoResults": "Sem resultados",
+  "appSettingsExperimentalFolderLibrary": "Biblioteca de pastas",
+  "appSettingsExperimentalFolderLibraryHint": "Explore os espaços de trabalho como pastas e abra os seus sites numa grelha com pesquisa."
 }

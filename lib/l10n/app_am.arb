@@ -1093,5 +1093,7 @@
   "librarySites": "ድረ ገጾች",
   "librarySearchWebspaces": "የድር ቦታዎችን ፈልግ",
   "librarySearchSites": "ድረ ገጾችን ፈልግ",
-  "libraryNoResults": "ምንም ውጤት የለም"
+  "libraryNoResults": "ምንም ውጤት የለም",
+  "appSettingsExperimentalFolderLibrary": "የአቃፊ ቤተ መጻሕፍት",
+  "appSettingsExperimentalFolderLibraryHint": "የሥራ ቦታዎችን እንደ አቃፊዎች ያስሱ እና ጣቢያዎቻቸውን መፈለግ በሚቻልበት ፍርግርግ ይክፈቱ።"
 }

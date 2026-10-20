@@ -1093,5 +1093,7 @@
   "librarySites": "Webbplatser",
   "librarySearchWebspaces": "Sök webbutrymmen",
   "librarySearchSites": "Sök webbplatser",
-  "libraryNoResults": "Inga träffar"
+  "libraryNoResults": "Inga träffar",
+  "appSettingsExperimentalFolderLibrary": "Mappbibliotek",
+  "appSettingsExperimentalFolderLibraryHint": "Bläddra bland arbetsytor som mappar och öppna deras webbplatser i ett rutnät med sökning."
 }
