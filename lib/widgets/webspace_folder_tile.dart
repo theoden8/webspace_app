@@ -52,10 +52,12 @@ class WebspaceFolderTile extends StatelessWidget {
       label: label,
       button: true,
       selected: selected,
+      onLongPress: editing ? null : onMenu,
       child: InkWell(
         borderRadius: BorderRadius.circular(LibraryStyle.radius),
         onTap: onOpen,
-        onLongPress: editing ? null : onMenu,
+        // Let the pointer finish before the sheet covers this tile.
+        onLongPressUp: editing ? null : onMenu,
         onSecondaryTap: onMenu,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
