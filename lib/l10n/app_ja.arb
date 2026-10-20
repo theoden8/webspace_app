@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "許可",
   "devToolsRefreshButton": "更新",
   "devToolsAbpSampleCount": "{count} サンプル",
-  "devToolsAbpEmptyNotConsulted": "DevTools を開いてからエンジンは参照されていません。\n\nサブリソースのチェックは JSブリッジの `blockCheck` ハンドラから発火します。bloom プレフィルターに該当するクロスオリジンのリクエストでのみ実行されます。\n\nお試し: DevTools を開いたまま広告の多いページを再読み込みしてください。",
+  "devToolsAbpEmptyNotConsulted": "DevTools を開いてからエンジンは参照されていません。\n\nサブリソースのチェックは JSブリッジの `blockCheckBatch` ハンドラから発火します。bloom プレフィルターに該当するクロスオリジンのリクエストでのみ実行されます。\n\nお試し: DevTools を開いたまま広告の多いページを再読み込みしてください。",
   "devToolsAbpEmptyBufferRolled": "エンジンは {count} 回参照されましたが、最近の判定リングバッファが空です。\nこれは通常バッファがロールオーバーしたことを意味します。更新をタップして最新のエントリを取得してください。",
   "devToolsLogsEmpty": "ログエントリはありません",
   "devToolsSensitiveShowing": "機密エントリ（siteId、URL、ホスト名）を表示しています。アプリ再起動時にリセットされます。",

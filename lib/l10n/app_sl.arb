@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "dovoljeno",
   "devToolsRefreshButton": "Osveži",
   "devToolsAbpSampleCount": "{count} vzorcev",
-  "devToolsAbpEmptyNotConsulted": "Motor od odprtja razvijalskih orodij ni bil uporabljen.\n\nPreverjanja podvirov se sprožijo iz upravljavca `blockCheck` v JS-mostu — izvedejo se samo pri medizvornih zahtevah, ki zadenejo predfilter bloom.\n\nPoskusite: znova naložite oglasno nasičeno stran z že odprtimi razvijalskimi orodji.",
+  "devToolsAbpEmptyNotConsulted": "Motor od odprtja razvijalskih orodij ni bil uporabljen.\n\nPreverjanja podvirov se sprožijo iz upravljavca `blockCheckBatch` v JS-mostu — izvedejo se samo pri medizvornih zahtevah, ki zadenejo predfilter bloom.\n\nPoskusite: znova naložite oglasno nasičeno stran z že odprtimi razvijalskimi orodji.",
   "devToolsAbpEmptyBufferRolled": "Motor je bil uporabljen {count}-krat, vendar je obročni medpomnilnik nedavnih odločitev prazen.\nTo običajno pomeni, da se je medpomnilnik prevrtel — tapnite Osveži za zajem najnovejših vnosov.",
   "devToolsLogsEmpty": "Ni vnosov v dnevniku",
   "devToolsSensitiveShowing": "Prikaz občutljivih vnosov (siteId, URL-ji, imena gostiteljev). Ponastavi se ob ponovnem zagonu aplikacije.",

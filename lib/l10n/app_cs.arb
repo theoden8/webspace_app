@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "povoleno",
   "devToolsRefreshButton": "Obnovit",
   "devToolsAbpSampleCount": "{count} vzorek/ků",
-  "devToolsAbpEmptyNotConsulted": "Engine nebyl od otevření DevTools dotázán.\n\nKontroly pod-zdrojů spouští obslužná rutina `blockCheck` v JS mostu – běží pouze u požadavků mezi původy, které projdou bloom předfiltrem.\n\nZkuste: znovu načíst stránku plnou reklam s již otevřeným DevTools.",
+  "devToolsAbpEmptyNotConsulted": "Engine nebyl od otevření DevTools dotázán.\n\nKontroly pod-zdrojů spouští obslužná rutina `blockCheckBatch` v JS mostu – běží pouze u požadavků mezi původy, které projdou bloom předfiltrem.\n\nZkuste: znovu načíst stránku plnou reklam s již otevřeným DevTools.",
   "devToolsAbpEmptyBufferRolled": "Engine byl dotázán {count}× , ale kruhový buffer nedávných rozhodnutí je prázdný.\nObvykle to znamená, že se buffer přeplnil – klepnutím na Obnovit zachytíte nejnovější záznamy.",
   "devToolsLogsEmpty": "Žádné záznamy protokolu",
   "devToolsSensitiveShowing": "Zobrazují se citlivé záznamy (siteId, URL, názvy hostitelů). Při restartu aplikace se resetuje.",

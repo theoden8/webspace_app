@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "yameruhusiwa",
   "devToolsRefreshButton": "Onyesha upya",
   "devToolsAbpSampleCount": "sampuli {count}",
-  "devToolsAbpEmptyNotConsulted": "Injini haijarejelewa tangu DevTools ifunguliwe.\n\nUkaguzi wa rasilimali ndogo hutoka kwa kishughulikiaji cha `blockCheck` cha daraja la JS — huendesha tu kwenye maombi ya asili tofauti yanayofikia kichujio cha bloom.\n\nJaribu: pakia upya ukurasa wenye matangazo mengi ukiwa na DevTools tayari imefunguliwa.",
+  "devToolsAbpEmptyNotConsulted": "Injini haijarejelewa tangu DevTools ifunguliwe.\n\nUkaguzi wa rasilimali ndogo hutoka kwa kishughulikiaji cha `blockCheckBatch` cha daraja la JS — huendesha tu kwenye maombi ya asili tofauti yanayofikia kichujio cha bloom.\n\nJaribu: pakia upya ukurasa wenye matangazo mengi ukiwa na DevTools tayari imefunguliwa.",
   "devToolsAbpEmptyBufferRolled": "Injini imerejelewa mara {count} lakini bafa ya pete ya maamuzi ya hivi karibuni ni tupu.\nKwa kawaida hii inamaanisha bafa imejaa na kuzunguka — gusa Onyesha upya ili kunasa maingizo ya hivi karibuni.",
   "devToolsLogsEmpty": "Hakuna maingizo ya kumbukumbu",
   "devToolsSensitiveShowing": "Inaonyesha maingizo nyeti (siteId, URL, majina ya mwenyeji). Hujirekebisha programu inapoanzishwa upya.",

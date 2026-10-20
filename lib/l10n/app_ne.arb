@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "अनुमति",
   "devToolsRefreshButton": "ताजा गर्नुहोस्",
   "devToolsAbpSampleCount": "{count} नमुना(हरू)",
-  "devToolsAbpEmptyNotConsulted": "DevTools खुलेदेखि इन्जिनसँग परामर्श गरिएको छैन।\n\nसब-रिसोर्स जाँचहरू JS-bridge `blockCheck` ह्यान्डलरबाट सुरु हुन्छन् — तिनी केवल bloom prefilter मा हिट हुने cross-origin अनुरोधहरूमा मात्र चल्छन्।\n\nप्रयास गर्नुहोस्: DevTools पहिले नै खुला राखेर विज्ञापनयुक्त पृष्ठ पुनः लोड गर्नुहोस्।",
+  "devToolsAbpEmptyNotConsulted": "DevTools खुलेदेखि इन्जिनसँग परामर्श गरिएको छैन।\n\nसब-रिसोर्स जाँचहरू JS-bridge `blockCheckBatch` ह्यान्डलरबाट सुरु हुन्छन् — तिनी केवल bloom prefilter मा हिट हुने cross-origin अनुरोधहरूमा मात्र चल्छन्।\n\nप्रयास गर्नुहोस्: DevTools पहिले नै खुला राखेर विज्ञापनयुक्त पृष्ठ पुनः लोड गर्नुहोस्।",
   "devToolsAbpEmptyBufferRolled": "इन्जिनसँग {count} पटक परामर्श गरियो तर हालैका निर्णयहरूको रिङ बफर खाली छ।\nयसले प्रायः बफर रोलओभर भएको जनाउँछ — पछिल्ला प्रविष्टिहरू समात्न ताजा गर्नुहोस् थिच्नुहोस्।",
   "devToolsLogsEmpty": "कुनै लग प्रविष्टि छैन",
   "devToolsSensitiveShowing": "संवेदनशील प्रविष्टिहरू (siteId, URL, होस्टनाम) देखाउँदै। एप पुनः सुरु हुँदा रिसेट हुन्छ।",

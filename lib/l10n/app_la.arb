@@ -408,7 +408,7 @@
   "devToolsAbpAllowed": "permissae",
   "devToolsRefreshButton": "Renovare",
   "devToolsAbpSampleCount": "{count} exempla",
-  "devToolsAbpEmptyNotConsulted": "Machina non consulta est ex quo instrumenta fabri aperta sunt.\n\nProbationes subfontium ex tractatore JS-pontis `blockCheck` oriuntur — solum currunt in petitionibus trans-originem quae cribrum bloom feriunt.\n\nConare: paginam plenam reclamationum renovare cum instrumentis fabri iam apertis.",
+  "devToolsAbpEmptyNotConsulted": "Machina non consulta est ex quo instrumenta fabri aperta sunt.\n\nProbationes subfontium ex tractatore JS-pontis `blockCheckBatch` oriuntur — solum currunt in petitionibus trans-originem quae cribrum bloom feriunt.\n\nConare: paginam plenam reclamationum renovare cum instrumentis fabri iam apertis.",
   "devToolsAbpEmptyBufferRolled": "Machina {count} vicibus consulta est sed circulus recentium decisionum vacuus est.\nHoc fere significat circulum revolutum esse — Renovare tange ad recentissima capienda.",
   "devToolsLogsEmpty": "Nullae inscriptiones actorum",
   "devToolsSensitiveShowing": "Inscriptiones sensibiles ostenduntur (siteId, URL, nomina hospitum). Reponuntur cum applicatio iterum incipit.",

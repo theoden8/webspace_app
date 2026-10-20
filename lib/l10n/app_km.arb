@@ -408,7 +408,7 @@
   "devToolsAbpAllowed": "អនុញ្ញាត",
   "devToolsRefreshButton": "ធ្វើឱ្យស្រស់",
   "devToolsAbpSampleCount": "{count} គំរូ",
-  "devToolsAbpEmptyNotConsulted": "Engine មិនទាន់ត្រូវបានពិគ្រោះតាំងពី DevTools បើក។\n\nការត្រួតពិនិត្យ sub-resource ធ្វើការពី JS-bridge `blockCheck` handler — វាដំណើរការតែលើ cross-origin request ដែលដល់ bloom prefilter ប៉ុណ្ណោះ។\n\nព្យាយាម: reload ទំព័រដែលមានការផ្សាយពាណិជ្ជកម្មច្រើន ដោយ DevTools បើករួចហើយ។",
+  "devToolsAbpEmptyNotConsulted": "Engine មិនទាន់ត្រូវបានពិគ្រោះតាំងពី DevTools បើក។\n\nការត្រួតពិនិត្យ sub-resource ធ្វើការពី JS-bridge `blockCheckBatch` handler — វាដំណើរការតែលើ cross-origin request ដែលដល់ bloom prefilter ប៉ុណ្ណោះ។\n\nព្យាយាម: reload ទំព័រដែលមានការផ្សាយពាណិជ្ជកម្មច្រើន ដោយ DevTools បើករួចហើយ។",
   "devToolsAbpEmptyBufferRolled": "Engine ត្រូវបានពិគ្រោះ {count} ដង ប៉ុន្តែ ring buffer ការសម្រេចចិត្តថ្មីៗទទេ។\nជាធម្មតានេះមានន័យថា buffer rolled over — ចុច Refresh ដើម្បីចាប់ entry ចុងក្រោយ។",
   "devToolsLogsEmpty": "គ្មាន log entries",
   "devToolsSensitiveShowing": "កំពុងបង្ហាញ entries រសើប (siteId, URLs, hostnames)។ Reset នៅពេល restart កម្មវិធី។",

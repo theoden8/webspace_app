@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "הותרו",
   "devToolsRefreshButton": "רענן",
   "devToolsAbpSampleCount": "{count} דגימות",
-  "devToolsAbpEmptyNotConsulted": "לא נועצו במנוע מאז שכלי המפתחים נפתחו.\n\nבדיקות תת-משאב מופעלות מהמטפל `blockCheck` של גשר ה-JS — הן רצות רק על בקשות בין-מקור שפוגעות במסנן ה-bloom המקדים.\n\nנסה: טען מחדש עמוד עתיר מודעות עם כלי המפתחים פתוחים כבר.",
+  "devToolsAbpEmptyNotConsulted": "לא נועצו במנוע מאז שכלי המפתחים נפתחו.\n\nבדיקות תת-משאב מופעלות מהמטפל `blockCheckBatch` של גשר ה-JS — הן רצות רק על בקשות בין-מקור שפוגעות במסנן ה-bloom המקדים.\n\nנסה: טען מחדש עמוד עתיר מודעות עם כלי המפתחים פתוחים כבר.",
   "devToolsAbpEmptyBufferRolled": "נועצו במנוע {count} פעמים אך מאגר ההחלטות האחרונות ריק.\nזה בדרך כלל אומר שהמאגר התגלגל — הקש על רענן כדי ללכוד את הרשומות האחרונות.",
   "devToolsLogsEmpty": "אין רשומות יומן",
   "devToolsSensitiveShowing": "מציג רשומות רגישות (siteId, כתובות URL, שמות מארח). מתאפס בהפעלה מחדש של האפליקציה.",

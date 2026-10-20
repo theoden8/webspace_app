@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "leista",
   "devToolsRefreshButton": "Atnaujinti",
   "devToolsAbpSampleCount": "{count} pavyzdys (-ių)",
-  "devToolsAbpEmptyNotConsulted": "Variklio nebuvo užklausta nuo DevTools atidarymo.\n\nIšteklių patikrinimai paleidžiami iš JS tilto `blockCheck` doroklio – jie vykdomi tik kitos kilmės užklausoms, patekusioms į bloom išankstinį filtrą.\n\nIšbandykite: iš naujo įkelkite reklamomis apkrautą puslapį su jau atidarytais DevTools.",
+  "devToolsAbpEmptyNotConsulted": "Variklio nebuvo užklausta nuo DevTools atidarymo.\n\nIšteklių patikrinimai paleidžiami iš JS tilto `blockCheckBatch` doroklio – jie vykdomi tik kitos kilmės užklausoms, patekusioms į bloom išankstinį filtrą.\n\nIšbandykite: iš naujo įkelkite reklamomis apkrautą puslapį su jau atidarytais DevTools.",
   "devToolsAbpEmptyBufferRolled": "Variklio užklausta {count} kartą (-ų), bet pastarųjų sprendimų žiedinis buferis tuščias.\nPaprastai tai reiškia, kad buferis persipildė – palieskite Atnaujinti, kad užfiksuotumėte naujausius įrašus.",
   "devToolsLogsEmpty": "Žurnalo įrašų nėra",
   "devToolsSensitiveShowing": "Rodomi jautrūs įrašai (siteId, URL, pagrindinių kompiuterių vardai). Atstatoma iš naujo paleidus programą.",

@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "permise",
   "devToolsRefreshButton": "Reîmprospătează",
   "devToolsAbpSampleCount": "{count} mostre",
-  "devToolsAbpEmptyNotConsulted": "Motorul nu a fost consultat de când s-a deschis DevTools.\n\nVerificările de sub-resurse pornesc din handlerul JS-bridge `blockCheck` — rulează doar pe cereri cross-origin care trec de prefiltrul bloom.\n\nÎncearcă: reîncarcă o pagină plină de reclame cu DevTools deja deschis.",
+  "devToolsAbpEmptyNotConsulted": "Motorul nu a fost consultat de când s-a deschis DevTools.\n\nVerificările de sub-resurse pornesc din handlerul JS-bridge `blockCheckBatch` — rulează doar pe cereri cross-origin care trec de prefiltrul bloom.\n\nÎncearcă: reîncarcă o pagină plină de reclame cu DevTools deja deschis.",
   "devToolsAbpEmptyBufferRolled": "Motorul a fost consultat de {count} ori, dar bufferul circular de decizii recente este gol.\nDe obicei aceasta înseamnă că bufferul s-a rotit — apasă Reîmprospătează pentru a captura cele mai recente intrări.",
   "devToolsLogsEmpty": "Nicio intrare de jurnal",
   "devToolsSensitiveShowing": "Se afișează intrări sensibile (siteId, URL-uri, nume de host). Se resetează la repornirea aplicației.",

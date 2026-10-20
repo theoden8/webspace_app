@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "tillatt",
   "devToolsRefreshButton": "Oppdater",
   "devToolsAbpSampleCount": "{count} prøve(r)",
-  "devToolsAbpEmptyNotConsulted": "Motoren har ikke blitt konsultert siden DevTools ble åpnet.\n\nSjekker av underressurser utløses fra JS-broens `blockCheck`-håndterer — de kjører bare på forespørsler på tvers av opphav som treffer bloom-forfilteret.\n\nPrøv: last inn en reklametung side på nytt med DevTools allerede åpen.",
+  "devToolsAbpEmptyNotConsulted": "Motoren har ikke blitt konsultert siden DevTools ble åpnet.\n\nSjekker av underressurser utløses fra JS-broens `blockCheckBatch`-håndterer — de kjører bare på forespørsler på tvers av opphav som treffer bloom-forfilteret.\n\nPrøv: last inn en reklametung side på nytt med DevTools allerede åpen.",
   "devToolsAbpEmptyBufferRolled": "Motoren ble konsultert {count} gang(er), men ringbufferen for nylige avgjørelser er tom.\nDette betyr vanligvis at bufferen ble overskrevet — trykk Oppdater for å fange de nyeste oppføringene.",
   "devToolsLogsEmpty": "Ingen loggoppføringer",
   "devToolsSensitiveShowing": "Viser sensitive oppføringer (siteId, URL-er, vertsnavn). Tilbakestilles ved omstart av appen.",

@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "lubatud",
   "devToolsRefreshButton": "Värskenda",
   "devToolsAbpSampleCount": "{count} näidist",
-  "devToolsAbpEmptyNotConsulted": "Mootorit pole DevTools'i avamisest saadik konsulteeritud.\n\nAlamressursi kontrollid käivituvad JS-silla `blockCheck` käsitlejast — need töötavad ainult ristpäritolu päringutel, mis tabavad bloom-eelfiltrit.\n\nProovi: laadi reklaamirohke leht uuesti, kui DevTools on juba avatud.",
+  "devToolsAbpEmptyNotConsulted": "Mootorit pole DevTools'i avamisest saadik konsulteeritud.\n\nAlamressursi kontrollid käivituvad JS-silla `blockCheckBatch` käsitlejast — need töötavad ainult ristpäritolu päringutel, mis tabavad bloom-eelfiltrit.\n\nProovi: laadi reklaamirohke leht uuesti, kui DevTools on juba avatud.",
   "devToolsAbpEmptyBufferRolled": "Mootorit konsulteeriti {count} korda, kuid hiljutiste otsuste rõngaspuhver on tühi.\nTavaliselt tähendab see, et puhver veeres üle — vajuta Värskenda, et hõivata uusimad kirjed.",
   "devToolsLogsEmpty": "Logikirjeid pole",
   "devToolsSensitiveShowing": "Näidatakse tundlikke kirjeid (siteId, URL-id, hostinimed). Lähtestub rakenduse taaskäivitusel.",

@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "已允許",
   "devToolsRefreshButton": "重新整理",
   "devToolsAbpSampleCount": "{count} 個樣本",
-  "devToolsAbpEmptyNotConsulted": "自 DevTools 開啟以來尚未諮詢引擎。\n\n子資源檢查由 JS-bridge 的 `blockCheck` 處理常式觸發——它們僅在命中 bloom 預過濾器的跨來源請求上執行。\n\n試試：在 DevTools 已開啟的情況下重新載入廣告繁多的頁面。",
+  "devToolsAbpEmptyNotConsulted": "自 DevTools 開啟以來尚未諮詢引擎。\n\n子資源檢查由 JS-bridge 的 `blockCheckBatch` 處理常式觸發——它們僅在命中 bloom 預過濾器的跨來源請求上執行。\n\n試試：在 DevTools 已開啟的情況下重新載入廣告繁多的頁面。",
   "devToolsAbpEmptyBufferRolled": "引擎已諮詢 {count} 次，但最近決策的環狀緩衝區為空。\n這通常表示緩衝區已滾動覆寫——點選「重新整理」以擷取最新項目。",
   "devToolsLogsEmpty": "沒有記錄項目",
   "devToolsSensitiveShowing": "正在顯示敏感項目（siteId、網址、主機名稱）。應用程式重新啟動時重設。",

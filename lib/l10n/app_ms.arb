@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "dibenarkan",
   "devToolsRefreshButton": "Muat semula",
   "devToolsAbpSampleCount": "{count} sampel",
-  "devToolsAbpEmptyNotConsulted": "Enjin tidak dirujuk sejak DevTools dibuka.\n\nPemeriksaan sub-sumber dicetuskan daripada pengendali `blockCheck` jambatan JS — ia hanya berjalan pada permintaan silang-asal yang melepasi prapenapis bloom.\n\nCuba: muat semula halaman padat iklan dengan DevTools sudah terbuka.",
+  "devToolsAbpEmptyNotConsulted": "Enjin tidak dirujuk sejak DevTools dibuka.\n\nPemeriksaan sub-sumber dicetuskan daripada pengendali `blockCheckBatch` jambatan JS — ia hanya berjalan pada permintaan silang-asal yang melepasi prapenapis bloom.\n\nCuba: muat semula halaman padat iklan dengan DevTools sudah terbuka.",
   "devToolsAbpEmptyBufferRolled": "Enjin dirujuk {count} kali tetapi penimbal cincin keputusan terkini kosong.\nIni biasanya bermakna penimbal telah berguling — ketik Muat semula untuk menangkap entri terkini.",
   "devToolsLogsEmpty": "Tiada entri log",
   "devToolsSensitiveShowing": "Memaparkan entri sensitif (siteId, URL, nama hos). Set semula apabila aplikasi dimulakan semula.",

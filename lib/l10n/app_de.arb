@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "zugelassen",
   "devToolsRefreshButton": "Aktualisieren",
   "devToolsAbpSampleCount": "{count} Stichprobe(n)",
-  "devToolsAbpEmptyNotConsulted": "Die Engine wurde seit dem Öffnen der DevTools nicht abgefragt.\n\nSub-Ressourcen-Prüfungen werden vom JS-Bridge-Handler `blockCheck` ausgelöst – sie laufen nur bei Cross-Origin-Anfragen, die den Bloom-Vorfilter treffen.\n\nVersuchen Sie: eine werbelastige Seite mit bereits geöffneten DevTools neu zu laden.",
+  "devToolsAbpEmptyNotConsulted": "Die Engine wurde seit dem Öffnen der DevTools nicht abgefragt.\n\nSub-Ressourcen-Prüfungen werden vom JS-Bridge-Handler `blockCheckBatch` ausgelöst – sie laufen nur bei Cross-Origin-Anfragen, die den Bloom-Vorfilter treffen.\n\nVersuchen Sie: eine werbelastige Seite mit bereits geöffneten DevTools neu zu laden.",
   "devToolsAbpEmptyBufferRolled": "Die Engine wurde {count}-mal abgefragt, aber der Ringpuffer der letzten Entscheidungen ist leer.\nDas bedeutet meist, dass der Puffer übergelaufen ist – tippen Sie auf Aktualisieren, um die neuesten Einträge zu erfassen.",
   "devToolsLogsEmpty": "Keine Protokolleinträge",
   "devToolsSensitiveShowing": "Sensible Einträge werden angezeigt (siteId, URLs, Hostnamen). Wird beim App-Neustart zurückgesetzt.",

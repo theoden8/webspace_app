@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "허용됨",
   "devToolsRefreshButton": "새로고침",
   "devToolsAbpSampleCount": "샘플 {count}개",
-  "devToolsAbpEmptyNotConsulted": "DevTools를 연 이후 엔진이 조회되지 않았습니다.\n\n하위 리소스 검사는 JS 브리지 `blockCheck` 핸들러에서 실행됩니다 — 블룸 사전 필터에 걸리는 교차 출처 요청에서만 실행됩니다.\n\n시도해 보세요: DevTools를 연 상태에서 광고가 많은 페이지를 새로고침하세요.",
+  "devToolsAbpEmptyNotConsulted": "DevTools를 연 이후 엔진이 조회되지 않았습니다.\n\n하위 리소스 검사는 JS 브리지 `blockCheckBatch` 핸들러에서 실행됩니다 — 블룸 사전 필터에 걸리는 교차 출처 요청에서만 실행됩니다.\n\n시도해 보세요: DevTools를 연 상태에서 광고가 많은 페이지를 새로고침하세요.",
   "devToolsAbpEmptyBufferRolled": "엔진이 {count}회 조회되었지만 최근 결정 링 버퍼가 비어 있습니다.\n보통 버퍼가 오버플로된 경우입니다 — 새로고침을 눌러 최신 항목을 캡처하세요.",
   "devToolsLogsEmpty": "로그 항목 없음",
   "devToolsSensitiveShowing": "민감한 항목(siteId, URL, 호스트 이름)을 표시 중입니다. 앱 재시작 시 초기화됩니다.",

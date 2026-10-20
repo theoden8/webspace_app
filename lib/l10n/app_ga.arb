@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "ceadaithe",
   "devToolsRefreshButton": "Athnuaigh",
   "devToolsAbpSampleCount": "{count} sampla",
-  "devToolsAbpEmptyNotConsulted": "Níor ceadaíodh an t-inneall ó osclaíodh DevTools.\n\nScaoiltear seiceálacha fo-acmhainne ón láimhseálaí `blockCheck` JS-droichid — ní ritheann siad ach amháin ar iarratais trasbhunaidh a bhuaileann an réamhscagaire bloom.\n\nBain triail as: athlódáil leathanach lán le fógraí agus DevTools oscailte cheana.",
+  "devToolsAbpEmptyNotConsulted": "Níor ceadaíodh an t-inneall ó osclaíodh DevTools.\n\nScaoiltear seiceálacha fo-acmhainne ón láimhseálaí `blockCheckBatch` JS-droichid — ní ritheann siad ach amháin ar iarratais trasbhunaidh a bhuaileann an réamhscagaire bloom.\n\nBain triail as: athlódáil leathanach lán le fógraí agus DevTools oscailte cheana.",
   "devToolsAbpEmptyBufferRolled": "Ceadaíodh an t-inneall {count} uair ach tá an maolán fáinne de chinntí le déanaí folamh.\nDe ghnáth ciallaíonn sé seo gur rolláil an maolán thart — tapáil Athnuaigh chun na hiontrálacha is déanaí a ghabháil.",
   "devToolsLogsEmpty": "Níl aon iontráil loga ann",
   "devToolsSensitiveShowing": "Iontrálacha íogaire á dtaispeáint (siteId, URLanna, óstainmneacha). Athshocraítear ar atosú na hAipe.",

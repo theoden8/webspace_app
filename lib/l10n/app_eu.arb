@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "baimenduta",
   "devToolsRefreshButton": "Berritu",
   "devToolsAbpSampleCount": "{count} lagin",
-  "devToolsAbpEmptyNotConsulted": "Ez da motorra kontsultatu DevTools ireki zenetik.\n\nAzpibaliabideen egiaztapenak JS-zubiaren `blockCheck` kudeatzailetik abiarazten dira — bloom-aurreiragazkia jotzen duten jatorri arteko eskaeretan soilik exekutatzen dira.\n\nSaiatu: birkargatu iragarki ugariko orri bat DevTools jada irekita dagoela.",
+  "devToolsAbpEmptyNotConsulted": "Ez da motorra kontsultatu DevTools ireki zenetik.\n\nAzpibaliabideen egiaztapenak JS-zubiaren `blockCheckBatch` kudeatzailetik abiarazten dira — bloom-aurreiragazkia jotzen duten jatorri arteko eskaeretan soilik exekutatzen dira.\n\nSaiatu: birkargatu iragarki ugariko orri bat DevTools jada irekita dagoela.",
   "devToolsAbpEmptyBufferRolled": "Motorra {count} aldiz kontsultatu da, baina azken erabakien ring buffer-a hutsik dago.\nHonek normalean buffer-a gainezka egin duela esan nahi du — sakatu Berritu azken sarrerak hartzeko.",
   "devToolsLogsEmpty": "Erregistro-sarrerarik ez",
   "devToolsSensitiveShowing": "Sarrera sentikorrak erakusten (siteId, URLak, ostalari-izenak). Aplikazioa berrabiaraztean berrezartzen da.",

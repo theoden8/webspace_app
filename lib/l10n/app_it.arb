@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "consentite",
   "devToolsRefreshButton": "Aggiorna",
   "devToolsAbpSampleCount": "{count} campione/i",
-  "devToolsAbpEmptyNotConsulted": "Il motore non è stato consultato da quando DevTools è stato aperto.\n\nI controlli sulle sotto-risorse partono dal gestore `blockCheck` del bridge JS: vengono eseguiti solo sulle richieste cross-origin che superano il prefiltro bloom.\n\nProva: ricarica una pagina piena di pubblicità con DevTools già aperto.",
+  "devToolsAbpEmptyNotConsulted": "Il motore non è stato consultato da quando DevTools è stato aperto.\n\nI controlli sulle sotto-risorse partono dal gestore `blockCheckBatch` del bridge JS: vengono eseguiti solo sulle richieste cross-origin che superano il prefiltro bloom.\n\nProva: ricarica una pagina piena di pubblicità con DevTools già aperto.",
   "devToolsAbpEmptyBufferRolled": "Motore consultato {count} volta/e ma il buffer circolare delle decisioni recenti è vuoto.\nDi solito significa che il buffer è stato sovrascritto: tocca Aggiorna per catturare le voci più recenti.",
   "devToolsLogsEmpty": "Nessuna voce di log",
   "devToolsSensitiveShowing": "Visualizzazione voci sensibili (siteId, URL, hostname). Si reimposta al riavvio dell'app.",

@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "pinayagan",
   "devToolsRefreshButton": "I-refresh",
   "devToolsAbpSampleCount": "{count} na sample",
-  "devToolsAbpEmptyNotConsulted": "Hindi pa nakonsulta ang engine mula nang buksan ang DevTools.\n\nAng mga pagsusuri sa sub-resource ay nagpapaputok mula sa `blockCheck` na handler ng JS-bridge — tumatakbo lamang ang mga ito sa mga cross-origin na kahilingang tumatama sa bloom prefilter.\n\nSubukan: i-reload ang isang pahinang puno ng ad habang nakabukas na ang DevTools.",
+  "devToolsAbpEmptyNotConsulted": "Hindi pa nakonsulta ang engine mula nang buksan ang DevTools.\n\nAng mga pagsusuri sa sub-resource ay nagpapaputok mula sa `blockCheckBatch` na handler ng JS-bridge — tumatakbo lamang ang mga ito sa mga cross-origin na kahilingang tumatama sa bloom prefilter.\n\nSubukan: i-reload ang isang pahinang puno ng ad habang nakabukas na ang DevTools.",
   "devToolsAbpEmptyBufferRolled": "Kinonsulta ang engine ng {count} beses ngunit walang laman ang ring buffer ng kamakailang mga desisyon.\nKaraniwang nangangahulugan ito na umikot na ang buffer — i-tap ang Refresh para makuha ang pinakabagong mga entry.",
   "devToolsLogsEmpty": "Walang log entry",
   "devToolsSensitiveShowing": "Ipinapakita ang mga sensitibong entry (siteId, URL, hostname). Nire-reset kapag nag-restart ang app.",

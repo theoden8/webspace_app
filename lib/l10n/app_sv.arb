@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "tillåtna",
   "devToolsRefreshButton": "Uppdatera",
   "devToolsAbpSampleCount": "{count} prov",
-  "devToolsAbpEmptyNotConsulted": "Motorn har inte konsulterats sedan DevTools öppnades.\n\nKontroller av underresurser utlöses från JS-bryggans `blockCheck`-hanterare — de körs bara på korsursprungsbegäran som träffar bloom-förfiltret.\n\nProva: ladda om en annonstung sida med DevTools redan öppet.",
+  "devToolsAbpEmptyNotConsulted": "Motorn har inte konsulterats sedan DevTools öppnades.\n\nKontroller av underresurser utlöses från JS-bryggans `blockCheckBatch`-hanterare — de körs bara på korsursprungsbegäran som träffar bloom-förfiltret.\n\nProva: ladda om en annonstung sida med DevTools redan öppet.",
   "devToolsAbpEmptyBufferRolled": "Motorn konsulterades {count} gång(er) men ringbufferten för senaste beslut är tom.\nDetta betyder oftast att bufferten rullade över — tryck på Uppdatera för att fånga de senaste posterna.",
   "devToolsLogsEmpty": "Inga loggposter",
   "devToolsSensitiveShowing": "Visar känsliga poster (siteId, URL:er, värdnamn). Återställs vid omstart av appen.",

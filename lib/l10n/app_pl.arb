@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "dozwolone",
   "devToolsRefreshButton": "Odśwież",
   "devToolsAbpSampleCount": "{count} próbek",
-  "devToolsAbpEmptyNotConsulted": "Silnik nie był wywoływany od otwarcia DevTools.\n\nSprawdzanie podzasobów odpala się z mostka JS przez procedurę obsługi `blockCheck` — uruchamia się tylko dla żądań cross-origin, które trafią na filtr wstępny bloom.\n\nSpróbuj: przeładuj stronę z dużą liczbą reklam, mając już otwarte DevTools.",
+  "devToolsAbpEmptyNotConsulted": "Silnik nie był wywoływany od otwarcia DevTools.\n\nSprawdzanie podzasobów odpala się z mostka JS przez procedurę obsługi `blockCheckBatch` — uruchamia się tylko dla żądań cross-origin, które trafią na filtr wstępny bloom.\n\nSpróbuj: przeładuj stronę z dużą liczbą reklam, mając już otwarte DevTools.",
   "devToolsAbpEmptyBufferRolled": "Silnik został wywołany {count} razy, ale bufor cykliczny ostatnich decyzji jest pusty.\nZwykle oznacza to, że bufor się przewinął — naciśnij Odśwież, aby przechwycić najnowsze wpisy.",
   "devToolsLogsEmpty": "Brak wpisów dziennika",
   "devToolsSensitiveShowing": "Wyświetlanie wrażliwych wpisów (siteId, adresy URL, nazwy hostów). Resetuje się po ponownym uruchomieniu aplikacji.",

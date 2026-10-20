@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "diizinkan",
   "devToolsRefreshButton": "Segarkan",
   "devToolsAbpSampleCount": "{count} sampel",
-  "devToolsAbpEmptyNotConsulted": "Mesin belum dikonsultasi sejak DevTools dibuka.\n\nPemeriksaan sub-sumber daya berasal dari penangan `blockCheck` jembatan JS — hanya berjalan pada permintaan lintas-asal yang menyentuh prafilter bloom.\n\nCoba: muat ulang halaman yang penuh iklan dengan DevTools sudah terbuka.",
+  "devToolsAbpEmptyNotConsulted": "Mesin belum dikonsultasi sejak DevTools dibuka.\n\nPemeriksaan sub-sumber daya berasal dari penangan `blockCheckBatch` jembatan JS — hanya berjalan pada permintaan lintas-asal yang menyentuh prafilter bloom.\n\nCoba: muat ulang halaman yang penuh iklan dengan DevTools sudah terbuka.",
   "devToolsAbpEmptyBufferRolled": "Mesin dikonsultasi {count} kali tetapi buffer cincin keputusan terbaru kosong.\nIni biasanya berarti buffer berputar — ketuk Segarkan untuk menangkap entri terbaru.",
   "devToolsLogsEmpty": "Tidak ada entri log",
   "devToolsSensitiveShowing": "Menampilkan entri sensitif (siteId, URL, nama host). Disetel ulang saat aplikasi dimulai ulang.",

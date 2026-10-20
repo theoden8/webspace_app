@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "leyfðar",
   "devToolsRefreshButton": "Endurnýja",
   "devToolsAbpSampleCount": "{count} sýni",
-  "devToolsAbpEmptyNotConsulted": "Ekki hefur verið leitað til vélarinnar frá því Þróunartól voru opnuð.\n\nUndirtilfangaathuganir kvikna frá JS-brúarmeðhöndlaranum `blockCheck` — þær keyra aðeins á þverupprunabeiðnum sem ná bloom-forsíunni.\n\nReyndu: endurhlaðu auglýsingaþungri síðu með Þróunartól þegar opin.",
+  "devToolsAbpEmptyNotConsulted": "Ekki hefur verið leitað til vélarinnar frá því Þróunartól voru opnuð.\n\nUndirtilfangaathuganir kvikna frá JS-brúarmeðhöndlaranum `blockCheckBatch` — þær keyra aðeins á þverupprunabeiðnum sem ná bloom-forsíunni.\n\nReyndu: endurhlaðu auglýsingaþungri síðu með Þróunartól þegar opin.",
   "devToolsAbpEmptyBufferRolled": "Leitað var til vélarinnar {count} sinnum en hringbiðminni nýlegra ákvarðana er tómt.\nÞetta þýðir venjulega að biðminnið rúllaði yfir — ýttu á Endurnýja til að ná nýjustu færslum.",
   "devToolsLogsEmpty": "Engar annálafærslur",
   "devToolsSensitiveShowing": "Sýni viðkvæmar færslur (siteId, URL, hýsilheiti). Endurstillist við endurræsingu forrits.",

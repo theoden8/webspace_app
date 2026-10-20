@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "permitidas",
   "devToolsRefreshButton": "Actualizar",
   "devToolsAbpSampleCount": "{count} mostra(s)",
-  "devToolsAbpEmptyNotConsulted": "O motor non foi consultado desde que se abriron as DevTools.\n\nAs comprobacións de subrecursos disparan desde o manexador `blockCheck` da ponte JS — só se executan en solicitudes de orixe cruzada que atinxen o prefiltro bloom.\n\nProba: recarga unha páxina con moitos anuncios coas DevTools xa abertas.",
+  "devToolsAbpEmptyNotConsulted": "O motor non foi consultado desde que se abriron as DevTools.\n\nAs comprobacións de subrecursos disparan desde o manexador `blockCheckBatch` da ponte JS — só se executan en solicitudes de orixe cruzada que atinxen o prefiltro bloom.\n\nProba: recarga unha páxina con moitos anuncios coas DevTools xa abertas.",
   "devToolsAbpEmptyBufferRolled": "O motor foi consultado {count} vez(es) pero o búfer circular de decisións recentes está baleiro.\nIsto normalmente significa que o búfer se rotou — toca Actualizar para capturar as entradas máis recentes.",
   "devToolsLogsEmpty": "Non hai entradas de rexistro",
   "devToolsSensitiveShowing": "Mostrando entradas sensibles (siteId, URL, nomes de servidor). Restablécese ao reiniciar a aplicación.",

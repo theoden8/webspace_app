@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "toegestaan",
   "devToolsRefreshButton": "Vernieuwen",
   "devToolsAbpSampleCount": "{count} steekproef(en)",
-  "devToolsAbpEmptyNotConsulted": "De motor is niet geraadpleegd sinds DevTools werd geopend.\n\nSub-resourcecontroles worden afgevuurd vanuit de JS-bridge `blockCheck`-handler — ze worden alleen uitgevoerd op cross-origin-verzoeken die de bloom-prefilter raken.\n\nProbeer: herlaad een advertentiezware pagina terwijl DevTools al open is.",
+  "devToolsAbpEmptyNotConsulted": "De motor is niet geraadpleegd sinds DevTools werd geopend.\n\nSub-resourcecontroles worden afgevuurd vanuit de JS-bridge `blockCheckBatch`-handler — ze worden alleen uitgevoerd op cross-origin-verzoeken die de bloom-prefilter raken.\n\nProbeer: herlaad een advertentiezware pagina terwijl DevTools al open is.",
   "devToolsAbpEmptyBufferRolled": "Motor {count} keer geraadpleegd, maar de ringbuffer met recente beslissingen is leeg.\nDit betekent meestal dat de buffer is omgerold — tik op Vernieuwen om de nieuwste vermeldingen vast te leggen.",
   "devToolsLogsEmpty": "Geen logvermeldingen",
   "devToolsSensitiveShowing": "Gevoelige vermeldingen worden getoond (siteId, URL's, hostnamen). Wordt gereset bij herstart van de app.",

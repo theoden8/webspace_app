@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "engedélyezve",
   "devToolsRefreshButton": "Frissítés",
   "devToolsAbpSampleCount": "{count} minta",
-  "devToolsAbpEmptyNotConsulted": "A motort nem kérdezték le a DevTools megnyitása óta.\n\nAz alerőforrás-ellenőrzések a JS-híd `blockCheck` kezelőjéből indulnak — csak olyan eredetközi kéréseknél futnak, amelyek elérik a bloom előszűrőt.\n\nPróbálja meg: töltsön újra egy reklámmal teli oldalt már megnyitott DevTools mellett.",
+  "devToolsAbpEmptyNotConsulted": "A motort nem kérdezték le a DevTools megnyitása óta.\n\nAz alerőforrás-ellenőrzések a JS-híd `blockCheckBatch` kezelőjéből indulnak — csak olyan eredetközi kéréseknél futnak, amelyek elérik a bloom előszűrőt.\n\nPróbálja meg: töltsön újra egy reklámmal teli oldalt már megnyitott DevTools mellett.",
   "devToolsAbpEmptyBufferRolled": "A motort {count} alkalommal kérdezték le, de a legutóbbi döntések gyűrűpuffere üres.\nEz általában azt jelenti, hogy a puffer túlcsordult — koppintson a Frissítés gombra a legfrissebb bejegyzések rögzítéséhez.",
   "devToolsLogsEmpty": "Nincsenek naplóbejegyzések",
   "devToolsSensitiveShowing": "Érzékeny bejegyzések megjelenítése (siteId, URL-ek, gazdagépnevek). Az alkalmazás újraindításakor visszaáll.",

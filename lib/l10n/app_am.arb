@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "ተፈቅዷል",
   "devToolsRefreshButton": "አድስ",
   "devToolsAbpSampleCount": "{count} ናሙና(ዎች)",
-  "devToolsAbpEmptyNotConsulted": "DevTools ከተከፈተ ጀምሮ ሞተሩ አልተማከረም።\n\nየንዑስ-መርጃ ፍተሻዎች ከ JS-ድልድይ `blockCheck` አስተናጋጅ ይነሳሉ — የሚሰሩት የ bloom ቅድመ-ማጣሪያን በሚመቱ መስቀለኛ-ምንጭ ጥያቄዎች ላይ ብቻ ነው።\n\nሞክር: DevTools አስቀድሞ ተከፍቶ ሳለ በማስታወቂያ-የተሞላ ገጽ እንደገና ጫን።",
+  "devToolsAbpEmptyNotConsulted": "DevTools ከተከፈተ ጀምሮ ሞተሩ አልተማከረም።\n\nየንዑስ-መርጃ ፍተሻዎች ከ JS-ድልድይ `blockCheckBatch` አስተናጋጅ ይነሳሉ — የሚሰሩት የ bloom ቅድመ-ማጣሪያን በሚመቱ መስቀለኛ-ምንጭ ጥያቄዎች ላይ ብቻ ነው።\n\nሞክር: DevTools አስቀድሞ ተከፍቶ ሳለ በማስታወቂያ-የተሞላ ገጽ እንደገና ጫን።",
   "devToolsAbpEmptyBufferRolled": "ሞተሩ {count} ጊዜ(ዎች) ተማከረ ግን የቅርብ ጊዜ ውሳኔዎች ቀለበት ቋት ባዶ ነው።\nይህ ብዙውን ጊዜ ቋቱ መሽከርከሩን ያመለክታል — የቅርብ ጊዜ ግቤቶችን ለማስያዝ አድስ ንካ።",
   "devToolsLogsEmpty": "ምንም የምዝግብ ግቤቶች የሉም",
   "devToolsSensitiveShowing": "ስሱ ግቤቶች በማሳየት ላይ (siteId, URLs, የአስተናጋጅ ስሞች)። መተግበሪያው ሲጀምር እንደገና ይጀምራል።",

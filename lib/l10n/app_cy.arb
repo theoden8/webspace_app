@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "caniatawyd",
   "devToolsRefreshButton": "Adnewyddu",
   "devToolsAbpSampleCount": "{count} sampl",
-  "devToolsAbpEmptyNotConsulted": "Nid yw'r injan wedi cael ei hymgynghori ers agor DevTools.\n\nMae gwiriadau is-adnodd yn tanio o drinydd `blockCheck` y JS-bont — dim ond ar geisiadau traws-darddiad sy'n taro'r rhag-hidlo bloom y maent yn rhedeg.\n\nCeisiwch: ail-lwytho tudalen sy'n llawn hysbysebion gyda DevTools eisoes ar agor.",
+  "devToolsAbpEmptyNotConsulted": "Nid yw'r injan wedi cael ei hymgynghori ers agor DevTools.\n\nMae gwiriadau is-adnodd yn tanio o drinydd `blockCheckBatch` y JS-bont — dim ond ar geisiadau traws-darddiad sy'n taro'r rhag-hidlo bloom y maent yn rhedeg.\n\nCeisiwch: ail-lwytho tudalen sy'n llawn hysbysebion gyda DevTools eisoes ar agor.",
   "devToolsAbpEmptyBufferRolled": "Ymgynghorwyd â'r injan {count} gwaith ond mae'r byffer cylch o benderfyniadau diweddar yn wag.\nMae hyn fel arfer yn golygu bod y byffer wedi rholio drosodd — tapiwch Adnewyddu i ddal y cofnodion diweddaraf.",
   "devToolsLogsEmpty": "Dim cofnodion log",
   "devToolsSensitiveShowing": "Yn dangos cofnodion sensitif (siteId, URLau, enwau gwesteiwyr). Yn ailosod ar ailgychwyn yr ap.",

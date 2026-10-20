@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "izin verildi",
   "devToolsRefreshButton": "Yenile",
   "devToolsAbpSampleCount": "{count} örnek",
-  "devToolsAbpEmptyNotConsulted": "DevTools açıldığından beri motora danışılmadı.\n\nAlt kaynak kontrolleri JS köprüsü `blockCheck` işleyicisinden tetiklenir — yalnızca bloom ön filtresine takılan kaynak çapraz isteklerde çalışır.\n\nDeneyin: reklam yoğun bir sayfayı DevTools açıkken yeniden yükleyin.",
+  "devToolsAbpEmptyNotConsulted": "DevTools açıldığından beri motora danışılmadı.\n\nAlt kaynak kontrolleri JS köprüsü `blockCheckBatch` işleyicisinden tetiklenir — yalnızca bloom ön filtresine takılan kaynak çapraz isteklerde çalışır.\n\nDeneyin: reklam yoğun bir sayfayı DevTools açıkken yeniden yükleyin.",
   "devToolsAbpEmptyBufferRolled": "Motora {count} kez danışıldı ancak son kararlar halka tamponu boş.\nBu genellikle tamponun döndüğü anlamına gelir — en son girişleri yakalamak için Yenile'ye dokunun.",
   "devToolsLogsEmpty": "Günlük girişi yok",
   "devToolsSensitiveShowing": "Hassas girişler gösteriliyor (siteId, URL'ler, ana makine adları). Uygulama yeniden başlatıldığında sıfırlanır.",

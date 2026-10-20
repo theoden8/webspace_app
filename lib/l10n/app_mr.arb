@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "अनुमत",
   "devToolsRefreshButton": "रिफ्रेश करा",
   "devToolsAbpSampleCount": "{count} नमुना(ने)",
-  "devToolsAbpEmptyNotConsulted": "DevTools उघडल्यापासून इंजिनचा सल्ला घेतला गेला नाही.\n\nउप-संसाधन तपासण्या JS-bridge `blockCheck` हँडलरमधून सुरू होतात — त्या फक्त bloom prefilter ला आदळणाऱ्या क्रॉस-ओरिजिन विनंत्यांवर चालतात.\n\nप्रयत्न करा: DevTools आधीच उघडे असताना जाहिरात-जड पृष्ठ पुन्हा लोड करा.",
+  "devToolsAbpEmptyNotConsulted": "DevTools उघडल्यापासून इंजिनचा सल्ला घेतला गेला नाही.\n\nउप-संसाधन तपासण्या JS-bridge `blockCheckBatch` हँडलरमधून सुरू होतात — त्या फक्त bloom prefilter ला आदळणाऱ्या क्रॉस-ओरिजिन विनंत्यांवर चालतात.\n\nप्रयत्न करा: DevTools आधीच उघडे असताना जाहिरात-जड पृष्ठ पुन्हा लोड करा.",
   "devToolsAbpEmptyBufferRolled": "इंजिनचा {count} वेळा सल्ला घेतला परंतु अलीकडील निर्णयांचा रिंग बफर रिकामा आहे.\nयाचा सहसा अर्थ बफर ओव्हरफ्लो झाला — नवीनतम नोंदी कॅप्चर करण्यासाठी रिफ्रेश टॅप करा.",
   "devToolsLogsEmpty": "कोणत्याही लॉग नोंदी नाहीत",
   "devToolsSensitiveShowing": "संवेदनशील नोंदी दाखवत आहे (siteId, URL, होस्टनावे). अॅप रीस्टार्टवर रीसेट होते.",

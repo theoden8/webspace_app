@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "atļauti",
   "devToolsRefreshButton": "Atsvaidzināt",
   "devToolsAbpSampleCount": "{count} paraugs(-i)",
-  "devToolsAbpEmptyNotConsulted": "Dzinis nav izmantots kopš DevTools atvēršanas.\n\nApakšresursu pārbaudes tiek izsauktas no JS tilta `blockCheck` apstrādātāja — tās darbojas tikai šķērsizcelsmes pieprasījumiem, kas sasniedz bloom priekšfiltru.\n\nIzmēģiniet: pārlādējiet ar reklāmām pilnu lapu ar jau atvērtu DevTools.",
+  "devToolsAbpEmptyNotConsulted": "Dzinis nav izmantots kopš DevTools atvēršanas.\n\nApakšresursu pārbaudes tiek izsauktas no JS tilta `blockCheckBatch` apstrādātāja — tās darbojas tikai šķērsizcelsmes pieprasījumiem, kas sasniedz bloom priekšfiltru.\n\nIzmēģiniet: pārlādējiet ar reklāmām pilnu lapu ar jau atvērtu DevTools.",
   "devToolsAbpEmptyBufferRolled": "Dzinis izmantots {count} reizi(-es), bet neseno lēmumu gredzenveida buferis ir tukšs.\nTas parasti nozīmē, ka buferis ir pārpildījies — pieskarieties Atsvaidzināt, lai uztvertu jaunākos ierakstus.",
   "devToolsLogsEmpty": "Nav žurnāla ierakstu",
   "devToolsSensitiveShowing": "Rāda sensitīvus ierakstus (siteId, URL, resursdatoru nosaukumi). Atiestatās pēc lietotnes restartēšanas.",

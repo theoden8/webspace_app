@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "อนุญาต",
   "devToolsRefreshButton": "รีเฟรช",
   "devToolsAbpSampleCount": "{count} ตัวอย่าง",
-  "devToolsAbpEmptyNotConsulted": "ไม่ได้เรียกใช้เอนจินเลยตั้งแต่เปิด DevTools\n\nการตรวจสอบทรัพยากรย่อยจะเริ่มจากตัวจัดการ `blockCheck` ของ JS-bridge — จะทำงานเฉพาะกับคำขอข้ามต้นทางที่ผ่านตัวกรองล่วงหน้าแบบ bloom เท่านั้น\n\nลอง: โหลดหน้าที่มีโฆษณาเยอะใหม่โดยเปิด DevTools ไว้แล้ว",
+  "devToolsAbpEmptyNotConsulted": "ไม่ได้เรียกใช้เอนจินเลยตั้งแต่เปิด DevTools\n\nการตรวจสอบทรัพยากรย่อยจะเริ่มจากตัวจัดการ `blockCheckBatch` ของ JS-bridge — จะทำงานเฉพาะกับคำขอข้ามต้นทางที่ผ่านตัวกรองล่วงหน้าแบบ bloom เท่านั้น\n\nลอง: โหลดหน้าที่มีโฆษณาเยอะใหม่โดยเปิด DevTools ไว้แล้ว",
   "devToolsAbpEmptyBufferRolled": "เรียกใช้เอนจิน {count} ครั้ง แต่บัฟเฟอร์วงแหวนการตัดสินใจล่าสุดว่างเปล่า\nโดยปกติหมายความว่าบัฟเฟอร์หมุนเวียนไปแล้ว — แตะ รีเฟรช เพื่อจับรายการล่าสุด",
   "devToolsLogsEmpty": "ไม่มีรายการบันทึก",
   "devToolsSensitiveShowing": "กำลังแสดงรายการที่ละเอียดอ่อน (siteId, URL, ชื่อโฮสต์) จะรีเซ็ตเมื่อรีสตาร์ทแอป",

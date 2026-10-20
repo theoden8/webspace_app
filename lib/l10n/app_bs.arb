@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "dozvoljeno",
   "devToolsRefreshButton": "Osvježi",
   "devToolsAbpSampleCount": "{count} uzorak(a)",
-  "devToolsAbpEmptyNotConsulted": "Motor nije konsultovan otkad su otvoreni razvojni alati.\n\nProvjere podresursa pokreću se iz JS-bridge `blockCheck` rukovaoca — pokreću se samo na zahtjevima različitog porijekla koji prođu bloom predfilter.\n\nPokušajte: ponovo učitajte stranicu prepunu oglasa dok su razvojni alati već otvoreni.",
+  "devToolsAbpEmptyNotConsulted": "Motor nije konsultovan otkad su otvoreni razvojni alati.\n\nProvjere podresursa pokreću se iz JS-bridge `blockCheckBatch` rukovaoca — pokreću se samo na zahtjevima različitog porijekla koji prođu bloom predfilter.\n\nPokušajte: ponovo učitajte stranicu prepunu oglasa dok su razvojni alati već otvoreni.",
   "devToolsAbpEmptyBufferRolled": "Motor je konsultovan {count} put(a) ali je prsten nedavnih odluka prazan.\nTo obično znači da se međuspremnik prepunio — dodirnite Osvježi da uhvatite najnovije unose.",
   "devToolsLogsEmpty": "Nema unosa u zapisu",
   "devToolsSensitiveShowing": "Prikazuju se osjetljivi unosi (siteId, URL-ovi, hostnameovi). Resetuje se pri ponovnom pokretanju aplikacije.",

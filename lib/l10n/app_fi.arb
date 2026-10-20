@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "sallittu",
   "devToolsRefreshButton": "Päivitä",
   "devToolsAbpSampleCount": "{count} näyte(ttä)",
-  "devToolsAbpEmptyNotConsulted": "Moottoria ei ole konsultoitu DevToolsin avaamisen jälkeen.\n\nAliresurssitarkistukset käynnistyvät JS-sillan `blockCheck`-käsittelijästä — ne suoritetaan vain eri alkuperää oleville pyynnöille, jotka osuvat bloom-esisuodattimeen.\n\nKokeile: lataa mainosraskas sivu uudelleen DevTools jo avoinna.",
+  "devToolsAbpEmptyNotConsulted": "Moottoria ei ole konsultoitu DevToolsin avaamisen jälkeen.\n\nAliresurssitarkistukset käynnistyvät JS-sillan `blockCheckBatch`-käsittelijästä — ne suoritetaan vain eri alkuperää oleville pyynnöille, jotka osuvat bloom-esisuodattimeen.\n\nKokeile: lataa mainosraskas sivu uudelleen DevTools jo avoinna.",
   "devToolsAbpEmptyBufferRolled": "Moottoria konsultoitiin {count} kerta(a), mutta viimeaikaisten päätösten rengaspuskuri on tyhjä.\nTämä tarkoittaa yleensä, että puskuri pyörähti yli — napauta Päivitä siepataksesi uusimmat merkinnät.",
   "devToolsLogsEmpty": "Ei lokimerkintöjä",
   "devToolsSensitiveShowing": "Näytetään arkaluonteiset merkinnät (siteId, URL-osoitteet, isäntänimet). Nollautuu sovelluksen uudelleenkäynnistyksessä.",

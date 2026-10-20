@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "permitidas",
   "devToolsRefreshButton": "Recarregar",
   "devToolsAbpSampleCount": "{count} amostra(s)",
-  "devToolsAbpEmptyNotConsulted": "O mecanismo não foi consultado desde que o DevTools foi aberto.\n\nVerificações de sub-recursos disparam do handler `blockCheck` da ponte JS — só rodam em requisições de origem cruzada que atingem o pré-filtro bloom.\n\nTente: recarregar uma página cheia de anúncios com o DevTools já aberto.",
+  "devToolsAbpEmptyNotConsulted": "O mecanismo não foi consultado desde que o DevTools foi aberto.\n\nVerificações de sub-recursos disparam do handler `blockCheckBatch` da ponte JS — só rodam em requisições de origem cruzada que atingem o pré-filtro bloom.\n\nTente: recarregar uma página cheia de anúncios com o DevTools já aberto.",
   "devToolsAbpEmptyBufferRolled": "O mecanismo foi consultado {count} vez(es), mas o buffer circular de decisões recentes está vazio.\nIsso geralmente significa que o buffer foi sobrescrito — toque em Recarregar para capturar as entradas mais recentes.",
   "devToolsLogsEmpty": "Nenhuma entrada de log",
   "devToolsSensitiveShowing": "Mostrando entradas sensíveis (siteId, URLs, nomes de host). Redefine ao reiniciar o app.",

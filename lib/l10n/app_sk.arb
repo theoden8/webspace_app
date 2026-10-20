@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "povolené",
   "devToolsRefreshButton": "Obnoviť",
   "devToolsAbpSampleCount": "{count} vzoriek",
-  "devToolsAbpEmptyNotConsulted": "Engine nebol od otvorenia DevTools konzultovaný.\n\nKontroly podradených zdrojov sa spúšťajú z handlera `blockCheck` JS mostíka — bežia len pri požiadavkách medzi rôznymi pôvodmi, ktoré zasiahnu bloom predfilter.\n\nSkúste: znova načítať stránku s množstvom reklám, keď je DevTools už otvorený.",
+  "devToolsAbpEmptyNotConsulted": "Engine nebol od otvorenia DevTools konzultovaný.\n\nKontroly podradených zdrojov sa spúšťajú z handlera `blockCheckBatch` JS mostíka — bežia len pri požiadavkách medzi rôznymi pôvodmi, ktoré zasiahnu bloom predfilter.\n\nSkúste: znova načítať stránku s množstvom reklám, keď je DevTools už otvorený.",
   "devToolsAbpEmptyBufferRolled": "Engine bol konzultovaný {count}-krát, ale kruhový buffer nedávnych rozhodnutí je prázdny.\nZvyčajne to znamená, že sa buffer pretočil — klepnutím na Obnoviť zachytíte najnovšie záznamy.",
   "devToolsLogsEmpty": "Žiadne záznamy v protokole",
   "devToolsSensitiveShowing": "Zobrazujú sa citlivé záznamy (siteId, URL, názvy hostiteľov). Vynuluje sa pri reštarte aplikácie.",

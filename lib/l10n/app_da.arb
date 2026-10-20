@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "tilladt",
   "devToolsRefreshButton": "Genopfrisk",
   "devToolsAbpSampleCount": "{count} prøve(r)",
-  "devToolsAbpEmptyNotConsulted": "Motoren er ikke blevet konsulteret, siden DevTools blev åbnet.\n\nUnderressourcetjek udløses fra JS-broens `blockCheck`-handler — de kører kun på cross-origin-anmodninger, der rammer bloom-præfilteret.\n\nPrøv: genindlæs en reklametung side med DevTools allerede åben.",
+  "devToolsAbpEmptyNotConsulted": "Motoren er ikke blevet konsulteret, siden DevTools blev åbnet.\n\nUnderressourcetjek udløses fra JS-broens `blockCheckBatch`-handler — de kører kun på cross-origin-anmodninger, der rammer bloom-præfilteret.\n\nPrøv: genindlæs en reklametung side med DevTools allerede åben.",
   "devToolsAbpEmptyBufferRolled": "Motoren blev konsulteret {count} gang(e), men ringbufferen med seneste beslutninger er tom.\nDette betyder normalt, at bufferen er rullet over — tryk på Genopfrisk for at fange de nyeste poster.",
   "devToolsLogsEmpty": "Ingen logposter",
   "devToolsSensitiveShowing": "Viser følsomme poster (siteId, URL'er, værtsnavne). Nulstilles ved genstart af appen.",

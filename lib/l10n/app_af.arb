@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "toegelaat",
   "devToolsRefreshButton": "Verfris",
   "devToolsAbpSampleCount": "{count} monster(s)",
-  "devToolsAbpEmptyNotConsulted": "Enjin is nie geraadpleeg sedert DevTools oopgemaak het nie.\n\nSub-hulpbron-kontroles vuur vanaf die JS-brug `blockCheck`-hanteerder — hulle loop slegs op kruis-oorsprong-versoeke wat die bloom-voorfilter tref.\n\nProbeer: herlaai 'n advertensie-swaar bladsy met DevTools reeds oop.",
+  "devToolsAbpEmptyNotConsulted": "Enjin is nie geraadpleeg sedert DevTools oopgemaak het nie.\n\nSub-hulpbron-kontroles vuur vanaf die JS-brug `blockCheckBatch`-hanteerder — hulle loop slegs op kruis-oorsprong-versoeke wat die bloom-voorfilter tref.\n\nProbeer: herlaai 'n advertensie-swaar bladsy met DevTools reeds oop.",
   "devToolsAbpEmptyBufferRolled": "Enjin {count} keer geraadpleeg maar die onlangse-besluite-ringbuffer is leeg.\nDit beteken gewoonlik die buffer het omgerol — tik Verfris om die jongste inskrywings vas te vang.",
   "devToolsLogsEmpty": "Geen loginskrywings nie",
   "devToolsSensitiveShowing": "Wys sensitiewe inskrywings (siteId, URL's, gasheername). Stel terug by app-herbegin.",

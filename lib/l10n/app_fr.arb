@@ -406,7 +406,7 @@
   "devToolsAbpAllowed": "autorisées",
   "devToolsRefreshButton": "Actualiser",
   "devToolsAbpSampleCount": "{count} échantillon(s)",
-  "devToolsAbpEmptyNotConsulted": "Le moteur n'a pas été consulté depuis l'ouverture des DevTools.\n\nLes vérifications de sous-ressources sont déclenchées par le gestionnaire `blockCheck` du pont JS — elles ne s'exécutent que pour les requêtes cross-origin qui atteignent le préfiltre bloom.\n\nEssayez : rechargez une page chargée de publicités avec les DevTools déjà ouverts.",
+  "devToolsAbpEmptyNotConsulted": "Le moteur n'a pas été consulté depuis l'ouverture des DevTools.\n\nLes vérifications de sous-ressources sont déclenchées par le gestionnaire `blockCheckBatch` du pont JS — elles ne s'exécutent que pour les requêtes cross-origin qui atteignent le préfiltre bloom.\n\nEssayez : rechargez une page chargée de publicités avec les DevTools déjà ouverts.",
   "devToolsAbpEmptyBufferRolled": "Le moteur a été consulté {count} fois mais le tampon circulaire des décisions récentes est vide.\nCela signifie généralement que le tampon a été écrasé — appuyez sur Actualiser pour capturer les dernières entrées.",
   "devToolsLogsEmpty": "Aucune entrée de journal",
   "devToolsSensitiveShowing": "Affichage des entrées sensibles (siteId, URL, noms d'hôte). Réinitialisé au redémarrage de l'application.",
