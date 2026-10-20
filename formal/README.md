@@ -472,6 +472,12 @@ Each attempt saves a new cache;
 restoring an older one does not prevent saving newly completed checks. TLAPS uses
 the same policy for its version-checked fingerprints and retries failed obligations
 without them. A timeout still fails verification; it does not count unfinished work.
+The repository's cache budget is shared with the toolchain caches and evicts the least
+recently used entry, so a stage's cache can be gone hours after master saved it. A push
+to master therefore also uploads each stage's kept work as an artifact, and a stage
+whose cache restore matched nothing takes master's newest one
+([restore_formal_artifact.sh](../scripts/restore_formal_artifact.sh)); without one it
+runs cold.
 
 A run of `activation.tla` is keyed by what its world can reach instead
 ([world_key.py](world_key.py)): the hand-written modules whole, and of each printed

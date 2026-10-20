@@ -33,7 +33,37 @@ for (const [name, id] of [['models', 'formal-cache'], ['proofs', 'tlapm-cache']]
         ['success', 'failure', 'cancelled'].includes(outcome), outcome);
     }
   });
+  test(`${id} falls back to master's newest artifact, which only master's pushes upload`, () => {
+    const restore = job.steps.find((s) => s.id === id);
+    const fallback = job.steps.find((s) => (s.run ?? '').includes('restore_formal_artifact.sh'));
+    const upload = job.steps.find((s) => s.uses === 'actions/upload-artifact@v4' &&
+      s.with.path === restore.with.path);
+    assert.equal(fallback.if, `\${{ !inputs.cold && steps.${id}.outputs.cache-matched-key == '' }}`);
+    assert.equal(fallback.env.GH_TOKEN, '${{ github.token }}');
+    assert.ok(job.steps.indexOf(restore) < job.steps.indexOf(fallback));
+    assert.ok(job.steps.indexOf(fallback) < job.steps.indexOf(verify));
+    assert.ok(job.steps.indexOf(upload) > job.steps.indexOf(verify));
+    const dest = restore.with.path.replace(/^~/, '$HOME');
+    assert.ok(fallback.run.endsWith(` "${upload.with.name}" "${dest}"`), fallback.run);
+    assert.equal(upload.with['include-hidden-files'], true);
+    assert.equal(upload.with.overwrite, true);
+    const guard = upload.if.trim().slice(3, -2)
+      .replaceAll('steps.formal-verify.outcome', 'outcome')
+      .replaceAll('github.event_name', 'event').replaceAll('github.ref', 'ref');
+    for (const [event, ref] of [['push', 'refs/heads/master'], ['push', 'refs/heads/x'],
+      ['pull_request', 'refs/heads/master'], ['workflow_dispatch', 'refs/heads/master']]) {
+      for (const outcome of ['success', 'failure', 'cancelled', 'skipped', '']) {
+        assert.equal(vm.runInNewContext(guard, { event, ref, outcome, always: () => true }),
+          event === 'push' && ref === 'refs/heads/master' &&
+            ['success', 'failure', 'cancelled'].includes(outcome), `${event} ${ref} ${outcome}`);
+      }
+    }
+  });
 }
+
+test("the formal stages' token may list and download this repository's artifacts", () => {
+  assert.deepEqual(main.jobs.formal.permissions, { contents: 'read', actions: 'read' });
+});
 
 test('cold model checks cannot use a valid memo or timing history', () => {
   const verify = jobs.models.steps.find((s) => s.id === 'formal-verify');

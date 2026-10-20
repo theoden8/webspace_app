@@ -145,6 +145,11 @@ jobs:
     needs: [plan, validate-sources]
     if: needs.plan.outputs.validate == 'true'
     uses: ./.github/workflows/formal.yml
+    # actions: read lets a stage whose cache was evicted take master's
+    # newest artifact instead (scripts/restore_formal_artifact.sh).
+    permissions:
+      contents: read
+      actions: read
     with:
       cold: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_cold }}
 
