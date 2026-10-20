@@ -16,12 +16,16 @@ import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
+import 'package:webspace/settings/app_prefs.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      AppPref.developerMode.key: true,
+      AppPref.experimentalFolderLibrary.key: true,
+    });
     isDemoMode = true;
   });
 

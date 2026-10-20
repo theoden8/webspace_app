@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
-import 'package:webspace/screens/webspaces_list.dart';
+import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/theme/accent_theme.dart';
@@ -22,7 +22,7 @@ class _LibraryHarness extends StatefulWidget {
 }
 
 class _LibraryHarnessState extends State<_LibraryHarness> {
-  final library = GlobalKey<WebspacesListScreenState>();
+  final library = GlobalKey<WebspaceLibraryState>();
   final sites = [
     for (var i = 0; i < 8; i++)
       WebViewModel(
@@ -57,7 +57,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
       siteIdsByPosition: [for (final site in sites) site.siteId],
     );
     return Scaffold(
-      body: WebspacesListScreen(
+      body: WebspaceLibrary(
         key: library,
         webspaces: webspaces,
         sites: sites,
@@ -236,7 +236,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      Directionality.of(tester.element(find.byType(WebspacesListScreen))),
+      Directionality.of(tester.element(find.byType(WebspaceLibrary))),
       TextDirection.rtl,
     );
     await tester.tap(_folder('Work'));

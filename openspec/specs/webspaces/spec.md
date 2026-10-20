@@ -13,6 +13,8 @@ The Webspaces feature allows users to organize their saved sites into separate w
 
 ## Requirements
 
+The folder library is an optional experiment (DEVTOOLS-011). Folder grids, their menus, library tabs, and search below apply only when developer mode and **Folder library** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
+
 ### Requirement: WEBSPACE-001 - Create Multiple Webspaces
 
 Users SHALL be able to create multiple webspaces to organize sites into logical groups.
@@ -20,7 +22,7 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 #### Scenario: Create a new webspace
 
 **Given** the user is on the webspaces list screen
-**When** the user taps the create-webspace action in the library toolbar
+**When** the user taps the create-webspace action (the library toolbar when the experiment is enabled, otherwise the Create Webspace button)
 **And** enters a name (e.g., "Work")
 **And** selects sites to include
 **And** taps the checkmark icon
@@ -35,10 +37,10 @@ Users SHALL be able to select and switch between webspaces to view filtered site
 #### Scenario: Select a webspace
 
 **Given** the user is viewing the webspaces list
-**When** the user taps a webspace folder
+**When** the user taps a webspace
 **Then** that webspace becomes selected
-**And** its sites open in a full-screen grid within the Webspaces library tab
-**And** selecting a folder does not open the browser drawer
+**And** with the experiment enabled, its sites open in a full-screen grid within the Webspaces library tab without opening the drawer
+**And** with the experiment disabled, its filtered sites open in the existing drawer
 
 ---
 
@@ -50,7 +52,8 @@ The system SHALL provide clear visual indication of which webspace is currently 
 
 **Given** a webspace is selected
 **When** the user views the webspaces list
-**Then** the selected webspace displays an accent-tinted folder and a check beside its name
+**Then** the selected webspace has an accent highlight and a check
+**And** with the experiment enabled, it appears as a folder
 **And** each folder previews up to four site favicons from its actual membership order
 **And** a folder with more than four sites previews three favicons and the remaining count
 **And** its site count reflects the current filtered membership, including all sites for the synthetic All folder
@@ -92,8 +95,7 @@ Users SHALL be able to edit existing webspaces.
 #### Scenario: Modify webspace contents
 
 **Given** a webspace "Work" exists with sites A and B
-**When** the user opens the folder menu by long press, secondary click, or its menu button in edit mode
-**And** chooses Edit
+**When** the user chooses Edit (from the folder menu when the experiment is enabled, otherwise the inline edit action)
 **And** adds site C and removes site A
 **And** saves changes
 **Then** "Work" now contains sites B and C
@@ -108,7 +110,7 @@ Users SHALL be able to delete webspaces.
 
 **Given** webspaces "Work" and "Personal" exist
 **And** "Work" is currently selected
-**When** the user opens the folder menu on "Work" and chooses Delete
+**When** the user chooses Delete for "Work" (from the folder menu when the experiment is enabled, otherwise the inline delete action)
 **And** confirms the deletion
 **Then** "Work" is removed
 **And** selection is cleared

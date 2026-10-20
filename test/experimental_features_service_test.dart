@@ -111,6 +111,18 @@ void main() {
         isFalse);
   });
 
+  test('folder library defaults off and persists its opt-in', () async {
+    await ExperimentalFeaturesService.instance.initialize();
+    DeveloperModeService.instance.debugSet(on: true);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isFalse);
+    await ExperimentalFeaturesService.instance.setSwitch(ExperimentalFeature.folderLibrary, on: true);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(AppPref.experimentalFolderLibrary.key), isTrue);
+    DeveloperModeService.instance.debugSet(on: false);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isFalse);
+  });
+
   test('a wrong-typed stored value reads as the default', () async {
     SharedPreferences.setMockInitialValues({AppPref.experimentalProxyRouter.key: 'yes'});
     await ExperimentalFeaturesService.instance.initialize();

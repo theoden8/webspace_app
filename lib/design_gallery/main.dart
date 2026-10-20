@@ -60,6 +60,7 @@ import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/screens/webspaces_list.dart';
+import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -101,6 +102,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: _trustedCertificates),
   GalleryCard(id: 'location-picker', label: 'Location picker screen', fullBleed: true, builder: _locationPicker),
   GalleryCard(id: 'webspaces', label: 'Webspaces screen', fullBleed: true, builder: (c) => const _WebspacesCard()),
+  GalleryCard(id: 'folder-library', label: 'Experimental folder library', fullBleed: true, builder: (c) => const _FolderLibraryCard()),
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: _webspaceDetail),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: _siteSettings),
   GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: _siteBehaviour),
@@ -681,7 +683,37 @@ class _WebspacesCard extends StatefulWidget {
 }
 
 class _WebspacesCardState extends State<_WebspacesCard> {
-  final _libraryKey = GlobalKey<WebspacesListScreenState>();
+  final List<Webspace> _webspaces = _demoWebspaces();
+  WebspaceId? _selected;
+
+  @override
+  Widget build(BuildContext context) => WebspacesListScreen(
+        webspaces: _webspaces,
+        selectedWebspaceId: _selected,
+        totalSitesCount: 6,
+        accentColor: AccentColor.blue,
+        onSelectWebspace: (w) => setState(() => _selected = w.id),
+        onAddWebspace: () {},
+        onEditWebspace: (_) {},
+        onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
+        onReorder: (from, {required newIndex}) => setState(() {
+          final moved = _webspaces.removeAt(from);
+          _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);
+        }),
+      );
+}
+
+/// The real WebspaceLibrary: the collections a user switches between,
+/// with per-collection site counts and reordering.
+class _FolderLibraryCard extends StatefulWidget {
+  const _FolderLibraryCard();
+
+  @override
+  State<_FolderLibraryCard> createState() => _FolderLibraryCardState();
+}
+
+class _FolderLibraryCardState extends State<_FolderLibraryCard> {
+  final _libraryKey = GlobalKey<WebspaceLibraryState>();
   final List<WebViewModel> _sites = [
     WebViewModel(
       siteId: SiteId('a'),
@@ -718,7 +750,7 @@ class _WebspacesCardState extends State<_WebspacesCard> {
   WebspaceId? _selected;
 
   @override
-  Widget build(BuildContext context) => WebspacesListScreen(
+  Widget build(BuildContext context) => WebspaceLibrary(
     key: _libraryKey,
     webspaces: _webspaces,
     selectedWebspaceId: _selected,

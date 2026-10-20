@@ -5283,5 +5283,13 @@
   "libraryNoResults": "No matches",
   "@libraryNoResults": {
     "description": "Empty search results message in the webspace and site library."
+  },
+  "appSettingsExperimentalFolderLibrary": "Folder library",
+  "appSettingsExperimentalFolderLibraryHint": "Browse webspaces as folders and open their sites in a searchable grid.",
+  "@appSettingsExperimentalFolderLibrary": {
+    "description": "Developer Experimental switch for the optional folder-based webspace and site library. Off by default."
+  },
+  "@appSettingsExperimentalFolderLibraryHint": {
+    "description": "Explanation behind the Folder library experiment hint button. Webspaces appear as folders, with sites in searchable grids."
   }
 }

@@ -142,7 +142,9 @@ WebViewModel appSite(String name) =>
 /// Pick a webspace on the start screen.
 Future<void> openWebspace(WidgetTester tester, {required String name}) async {
   final entry = find.descendant(
-    of: find.byType(WebspaceFolderTile),
+    of: find.byType(WebspaceFolderTile).evaluate().isNotEmpty
+        ? find.byType(WebspaceFolderTile)
+        : find.byType(ListTile),
     matching: find.text(name),
   );
   await tester.tap(entry.first);
@@ -155,7 +157,8 @@ Future<void> openSiteFromDrawer(
   required String name,
 }) async {
   final menu = find.byTooltip('Open navigation menu');
-  if (menu.evaluate().isNotEmpty) {
+  final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+  if (!scaffold.isDrawerOpen && menu.evaluate().isNotEmpty) {
     await tester.tap(menu);
     await settleRealApp(tester);
   }
