@@ -1099,11 +1099,11 @@
   "libraryNoResults": "គ្មានលទ្ធផល",
   "appSettingsExperimentalFolderLibrary": "បណ្ណាល័យថត",
   "appSettingsExperimentalFolderLibraryHint": "រកមើលកន្លែងធ្វើការជាថត ហើយបើកគេហទំព័ររបស់វាក្នុងក្រឡាចត្រង្គដែលអាចស្វែងរកបាន។",
-  "siteRedirectDomainSuggestion": "គេហទំព័រនេះបានប្ដូរទិសទៅ {domain}។ បន្ថែមដែននេះ ដើម្បីឱ្យតំណនាពេលអនាគតបើកនៅទីនេះឬ?",
-  "@siteRedirectDomainSuggestion": {
-    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+  "siteRedirectHomeSuggestion": "គេហទំព័រនេះបានបញ្ជូនបន្តទៅ {url}។ ប្រើអាសយដ្ឋាននេះជាទំព័រដើមរបស់វា? តំណទៅដែនថ្មីក៏នឹងបើកនៅទីនេះដែរ។",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
     "placeholders": {
-      "domain": {
+      "url": {
         "type": "String"
       }
     }

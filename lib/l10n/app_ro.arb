@@ -1099,11 +1099,11 @@
   "libraryNoResults": "Niciun rezultat",
   "appSettingsExperimentalFolderLibrary": "Bibliotecă de dosare",
   "appSettingsExperimentalFolderLibraryHint": "Răsfoiește spațiile de lucru ca dosare și deschide site-urile lor într-o grilă cu căutare.",
-  "siteRedirectDomainSuggestion": "Acest site a redirecționat către {domain}. Adaugi acest domeniu pentru ca linkurile viitoare să se deschidă aici?",
-  "@siteRedirectDomainSuggestion": {
-    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+  "siteRedirectHomeSuggestion": "Acest site a redirecționat către {url}. Folosiți această adresă ca pagină de pornire? Linkurile către noul domeniu se vor deschide tot aici.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
     "placeholders": {
-      "domain": {
+      "url": {
         "type": "String"
       }
     }

@@ -1099,11 +1099,11 @@
   "libraryNoResults": "कुनै नतिजा भेटिएन",
   "appSettingsExperimentalFolderLibrary": "फोल्डर पुस्तकालय",
   "appSettingsExperimentalFolderLibraryHint": "कार्यस्थानहरूलाई फोल्डरको रूपमा ब्राउज गर्नुहोस् र तिनका साइटहरू खोज्न मिल्ने ग्रिडमा खोल्नुहोस्।",
-  "siteRedirectDomainSuggestion": "यो साइटले {domain} मा रिडाइरेक्ट गर्‍यो। भविष्यका लिङ्कहरू यहाँ खोल्न यो डोमेन थप्ने?",
-  "@siteRedirectDomainSuggestion": {
-    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+  "siteRedirectHomeSuggestion": "यो साइट {url} मा रिडिरेक्ट भएको छ। यसलाई यसको गृहपृष्ठको रूपमा प्रयोग गर्ने? नयाँ डोमेनका लिङ्कहरू पनि यहाँ खुल्नेछन्।",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
     "placeholders": {
-      "domain": {
+      "url": {
         "type": "String"
       }
     }

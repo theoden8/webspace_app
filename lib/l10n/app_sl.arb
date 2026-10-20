@@ -1099,11 +1099,11 @@
   "libraryNoResults": "Ni zadetkov",
   "appSettingsExperimentalFolderLibrary": "Knjižnica map",
   "appSettingsExperimentalFolderLibraryHint": "Brskajte po delovnih prostorih kot po mapah in odpirajte njihova spletišča v mreži z iskanjem.",
-  "siteRedirectDomainSuggestion": "To spletno mesto je preusmerilo na {domain}. Želite dodati to domeno, da se bodo prihodnje povezave odpirale tukaj?",
-  "@siteRedirectDomainSuggestion": {
-    "description": "Question after the first successful load of a site reaches an unclaimed domain. Add saves that domain under this site’s Domain claims so future links route here; Cancel does not add it. The original home address is unchanged. {domain} is a hostname such as theguardian.com, or a host with a non-default port.",
+  "siteRedirectHomeSuggestion": "To spletno mesto je preusmerilo na {url}. Uporabim ta naslov kot njegovo domačo stran? Tudi povezave na novo domeno se bodo odpirale tukaj.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
     "placeholders": {
-      "domain": {
+      "url": {
         "type": "String"
       }
     }
