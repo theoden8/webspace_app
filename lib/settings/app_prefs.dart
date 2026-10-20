@@ -23,6 +23,8 @@ import 'package:webspace/settings/demo_mode.dart';
 /// on its own; it just never rides a backup.
 enum AppPref<T extends Object> {
   showUrlBar('showUrlBar', fallback: false),
+  tabsEnabled('tabsEnabled', fallback: true),
+  externalLinkMode('externalLinkMode', fallback: 'inApp'),
   showTabStrip('showTabStrip', fallback: false),
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.

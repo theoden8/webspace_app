@@ -117,25 +117,26 @@ Open in the app
 The "Link handling" group SHALL present the site's `externalLinkMode`
 (nested-url-blocking NESTED-009) as one row titled "External links" whose
 trailing control is a dropdown, like the other multiple-choice settings
-(WebRTC policy, proxy type), offering in this order "Open in the app"
+(WebRTC policy, proxy type), offering in this order "App default", "Open in the app"
 (`inApp`), "Open in browser" (`browser`) and "Block" (`block`). The stored
 mode SHALL be the selected item, and picking one SHALL report the whole value
 back through `onChanged`, so the edit joins the settings screen's
 dirty-snapshot diff (BUG-006).
 
 The row SHALL carry the explanation in a `HintButton` whose title is the row's
-own title (HINT-001), and SHALL have no subtitle: the dropdown shows the
-state, and what each option does lives in the hint.
+own title (HINT-001). While following the app, its subtitle SHALL show the
+resolved mode; explicit choices SHALL have no subtitle. What each option does
+lives in the hint.
 
 Outbound routing's rows (BEHAV-003) SHALL render directly under the row,
-indented, and only while "Open in the app" is selected. Picking another
+indented, and only while the resolved mode is "Open in the app". Picking another
 option hides them and keeps their stored values.
 
-#### Scenario: Three options, the stored one selected
+#### Scenario: The stored option is selected
 
 **Given** a site stored in the `block` mode
 **When** the Behaviour screen opens
-**Then** the External links dropdown offers Open in the app, Open in browser
+**Then** the External links dropdown offers App default, Open in the app, Open in browser
 and Block, with Block selected
 
 #### Scenario: Picking an option reports the whole value
@@ -147,6 +148,42 @@ Kiosk mode still on
 
 #### Scenario: Explanation lives behind the hint
 
-**Given** the Behaviour screen is open
+**Given** the Behaviour screen is open with an explicit External links choice
 **Then** the External links row has a `HintButton` titled "External links"
 **And** the row has no subtitle
+
+
+### Requirement: BEHAV-007 — App defaults with per-site choices
+
+App Settings → Behaviour SHALL offer app defaults for Tabs (on initially) and
+External links (Open in the app initially). New sites SHALL follow these live
+defaults. Both per-site pickers SHALL offer App default and explicit choices;
+choosing App default SHALL clear the override, participate in the dirty edit
+snapshot and persist through save, restart and backup. The inherited value
+SHALL be visible without opening another screen. Changing the app default
+SHALL affect following sites and preserve explicit overrides and open tabs.
+Kiosk mode SHALL still disable tabs and archive restrictions SHALL still fold
+browser links into the app after resolving inheritance.
+
+Persistence SHALL distinguish explicit null (follow app) from a missing key in
+older data (Tabs on, links in-app, or browser for the legacy true flag). New
+saves SHALL write both keys, including null, so a following site and an
+explicit choice each survive restart and backup without becoming the other.
+
+#### Scenario: Return to following the app
+
+**Given** a site overrides Tabs on and External links to Block
+**When** the user selects App default for both and saves
+**And** changes the app defaults to Tabs off and Open in browser
+**Then** the site runs with tabs off and browser links after a restart
+**And** another site with explicit choices retains them
+
+#### Scenario: Upgrade keeps prior behavior
+
+**Given** an older site's JSON omits Tabs and External links
+**When** it loads with app defaults of Tabs off and Block
+**Then** it retains explicit Tabs on and in-app links
+**And** saves those choices explicitly
+
+Validation: `test/behaviour_defaults_test.dart`,
+`test/site_behaviour_screen_test.dart`, `test/settings_backup_compat_test.dart`.

@@ -7,6 +7,7 @@ import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
@@ -17,9 +18,9 @@ SiteBehaviourValues _values({
   bool alwaysOpenHome = false,
   bool kioskMode = false,
   bool fullscreenMode = false,
-  bool tabsEnabled = true,
+  bool? tabsEnabled = true,
   bool htmlCaching = false,
-  ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
+  ExternalLinkMode? externalLinkMode = ExternalLinkMode.inApp,
   bool routeOutboundLinks = false,
   List<OutboundPreference> outboundPreferences = const [],
   String? searchAddress,
@@ -32,9 +33,9 @@ SiteBehaviourValues _values({
       alwaysOpenHome: alwaysOpenHome,
       kioskMode: kioskMode,
       fullscreenMode: fullscreenMode,
-      tabsEnabled: tabsEnabled,
+      tabsEnabled: Scoped.fromStored(tabsEnabled),
       htmlCachingEnabled: htmlCaching,
-      externalLinkMode: externalLinkMode,
+      externalLinkMode: Scoped.fromStored(externalLinkMode),
       routeOutboundLinks: routeOutboundLinks,
       outboundPreferences: outboundPreferences,
       searchAddress: searchAddress,
@@ -89,10 +90,10 @@ SwitchListTile _switchTitled(WidgetTester tester, {required String title}) {
   return tester.widget<SwitchListTile>(tile);
 }
 
-Finder get _modeDropdown => find.byType(DropdownButton<ExternalLinkMode>);
+Finder get _modeDropdown => find.byType(DropdownButton<Scoped<ExternalLinkMode>>);
 
 ExternalLinkMode? _selectedMode(WidgetTester tester) =>
-    tester.widget<DropdownButton<ExternalLinkMode>>(_modeDropdown).value;
+    tester.widget<DropdownButton<Scoped<ExternalLinkMode>>>(_modeDropdown).value?.stored;
 
 Future<void> _pickMode(WidgetTester tester, {required String label}) async {
   await tester.tap(_modeDropdown);
@@ -101,13 +102,35 @@ Future<void> _pickMode(WidgetTester tester, {required String label}) async {
   await tester.pumpAndSettle();
 }
 
+Finder get _tabsDropdown => find.byType(DropdownButton<Scoped<bool>>);
+
+bool _selectedTabs(WidgetTester tester) => tester
+    .widget<DropdownButton<Scoped<bool>>>(_tabsDropdown)
+    .value!.resolve(AppPref.tabsEnabled.value);
+
+Future<void> _pickTabs(WidgetTester tester, {required String label}) async {
+  await tester.tap(_tabsDropdown);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  setUp(() {
+    AppPref.tabsEnabled.debugValue = true;
+    AppPref.externalLinkMode.debugValue = 'inApp';
+  });
+  tearDown(() {
+    AppPref.tabsEnabled.debugValue = true;
+    AppPref.externalLinkMode.debugValue = 'inApp';
+  });
+
   group('SiteBehaviourValues', () {
     test('routing counts only in the in-app mode', () {
       final on = _values(routeOutboundLinks: true);
       expect(on.effectiveRouteOutboundLinks, isTrue);
       for (final mode in [ExternalLinkMode.browser, ExternalLinkMode.block]) {
-        final other = on.copyWith(externalLinkMode: mode);
+        final other = on.copyWith(externalLinkMode: Own(mode));
         expect(other.effectiveRouteOutboundLinks, isFalse, reason: mode.name);
         expect(other.routeOutboundLinks, isTrue);
       }
@@ -117,7 +140,7 @@ void main() {
         'not', () {
       expect(_values().effectiveTabsEnabled, isTrue);
       expect(_values(kioskMode: true).effectiveTabsEnabled, isFalse);
-      expect(_values(kioskMode: true).tabsEnabled, isTrue);
+      expect(_values(kioskMode: true).tabsEnabled.stored, isTrue);
       expect(_values(fullscreenMode: true).effectiveTabsEnabled, isTrue);
       expect(_values(tabsEnabled: false).effectiveTabsEnabled, isFalse);
     });
@@ -158,12 +181,37 @@ void main() {
   });
 
   group('external links (BEHAV-004)', () {
-    testWidgets('a dropdown of three, explained behind its hint',
+    testWidgets('returning to app default follows later changes', (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(tester,
+          values: _values(externalLinkMode: ExternalLinkMode.block),
+          onChanged: (v) => seen = v);
+      await _pickMode(tester, label: 'App default');
+      expect(seen!.externalLinkMode, const FollowApp<ExternalLinkMode>());
+      AppPref.externalLinkMode.debugValue = 'browser';
+      await tester.pumpAndSettle();
+      expect(seen!.effectiveExternalLinkMode, ExternalLinkMode.browser);
+      expect(find.text('Open in browser'), findsOneWidget);
+      expect(find.text('Route links to my sites'), findsNothing);
+    });
+
+    testWidgets('archive keeps inherited browser links in the app', (tester) async {
+      AppPref.externalLinkMode.debugValue = 'browser';
+      await _pump(tester, values: _values(archived: true, externalLinkMode: null));
+      expect(_selectedMode(tester), isNull);
+      expect(find.text('Open in the app'), findsOneWidget);
+      expect(find.text('Route links to my sites'), findsOneWidget);
+    });
+
+    testWidgets('app default and three modes, explained behind its hint',
         (tester) async {
       await _pump(tester, values: _values());
       final dropdown =
-          tester.widget<DropdownButton<ExternalLinkMode>>(_modeDropdown);
-      expect(dropdown.items!.map((i) => i.value), ExternalLinkMode.values);
+          tester.widget<DropdownButton<Scoped<ExternalLinkMode>>>(_modeDropdown);
+      expect(dropdown.items!.map((i) => i.value), [
+        const FollowApp<ExternalLinkMode>(),
+        for (final mode in ExternalLinkMode.values) Own(mode),
+      ]);
       expect(_selectedMode(tester), ExternalLinkMode.inApp);
       expect(find.text('Open in the app'), findsOneWidget);
       final header = find.ancestor(
@@ -216,7 +264,7 @@ void main() {
         onChanged: (v) => seen = v,
       );
       await _pickMode(tester, label: 'Block');
-      expect(seen!.externalLinkMode, ExternalLinkMode.block);
+      expect(seen!.externalLinkMode.stored, ExternalLinkMode.block);
       expect(seen!.kioskMode, isTrue);
       expect(_selectedMode(tester), ExternalLinkMode.block);
     });
@@ -247,9 +295,21 @@ void main() {
   });
 
   group('Tabs (TAB-013)', () {
+    testWidgets('returning to app default follows later changes', (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(tester, values: _values(tabsEnabled: false),
+          onChanged: (v) => seen = v);
+      await _pickTabs(tester, label: 'App default (On)');
+      expect(seen!.tabsEnabled, const FollowApp<bool>());
+      AppPref.tabsEnabled.debugValue = false;
+      await tester.pumpAndSettle();
+      expect(_selectedTabs(tester), isFalse);
+      expect(find.text('App default (Off)'), findsOneWidget);
+    });
+
     testWidgets('a site has tabs unless it says otherwise', (tester) async {
       await _pump(tester, values: _values());
-      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
+      expect(_selectedTabs(tester), isTrue);
     });
 
     testWidgets('turning tabs on turns kiosk off and leaves full screen',
@@ -260,13 +320,12 @@ void main() {
         values: _values(kioskMode: true, fullscreenMode: true),
         onChanged: (v) => seen = v,
       );
-      expect(_switchTitled(tester, title: 'Tabs').value, isFalse);
-      await tester.tap(find.text('Tabs'));
-      await tester.pumpAndSettle();
-      expect(seen!.tabsEnabled, isTrue);
+      expect(_selectedTabs(tester), isFalse);
+      await _pickTabs(tester, label: 'On');
+      expect(seen!.tabsEnabled.stored, isTrue);
       expect(seen!.kioskMode, isFalse);
       expect(seen!.fullscreenMode, isTrue);
-      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
+      expect(_selectedTabs(tester), isTrue);
       expect(_switchTitled(tester, title: 'Kiosk mode').value, isFalse);
       expect(_switchTitled(tester, title: 'Full screen mode').value, isTrue);
     });
@@ -280,18 +339,18 @@ void main() {
       );
       await tester.tap(find.text('Kiosk mode'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, title: 'Tabs').value, isFalse);
-      expect(seen!.tabsEnabled, isTrue, reason: 'the stored choice is kept');
+      expect(_selectedTabs(tester), isFalse);
+      expect(seen!.tabsEnabled.stored, isTrue, reason: 'the stored choice is kept');
       await tester.tap(find.text('Kiosk mode'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
+      expect(_selectedTabs(tester), isTrue);
     });
 
     testWidgets('full screen leaves tabs on', (tester) async {
       await _pump(tester, values: _values());
       await tester.tap(find.text('Full screen mode'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
+      expect(_selectedTabs(tester), isTrue);
     });
 
     testWidgets('turning tabs off leaves kiosk and full screen alone',
@@ -302,9 +361,8 @@ void main() {
         values: _values(),
         onChanged: (v) => seen = v,
       );
-      await tester.tap(find.text('Tabs'));
-      await tester.pumpAndSettle();
-      expect(seen!.tabsEnabled, isFalse);
+      await _pickTabs(tester, label: 'Off');
+      expect(seen!.tabsEnabled.stored, isFalse);
       expect(seen!.kioskMode, isFalse);
       expect(seen!.fullscreenMode, isFalse);
     });

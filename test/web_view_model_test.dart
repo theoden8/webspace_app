@@ -263,13 +263,14 @@ void main() {
       ]);
     });
 
-    test('externalLinkMode defaults to in-app; toJson omits the default', () {
+    test('externalLinkMode follows the app and persists that choice', () {
       final m = WebViewModel(initUrl: 'https://example.org/');
-      expect(m.externalLinkMode, ExternalLinkMode.inApp);
-      expect(m.toJson().containsKey('externalLinkMode'), isFalse,
-          reason: 'omitting the default keeps on-disk JSON byte-stable');
+      expect(m.externalLinkMode, isNull);
+      expect(m.toJson().containsKey('externalLinkMode'), isTrue);
+      expect(m.toJson()['externalLinkMode'], isNull);
+      expect(m.effectiveExternalLinkMode, ExternalLinkMode.inApp);
       final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
-      expect(back.externalLinkMode, ExternalLinkMode.inApp);
+      expect(back.externalLinkMode, isNull);
     });
 
     test('externalLinkMode round-trips through JSON', () {
@@ -285,7 +286,8 @@ void main() {
     });
 
     test('legacy externalLinksInBrowser reads as the browser mode', () {
-      final json = WebViewModel(initUrl: 'https://example.org/').toJson();
+      final json = WebViewModel(initUrl: 'https://example.org/').toJson()
+        ..remove('externalLinkMode');
       expect(
         WebViewModel.fromJson({...json, 'externalLinksInBrowser': true},
                 stateSetterF: null)
@@ -405,11 +407,12 @@ void main() {
           WebViewModel.fromJson(legacy, stateSetterF: null).kioskMode, isFalse);
     });
 
-    test('tabsEnabled defaults on and stays out of the JSON (TAB-013)', () {
+    test('tabsEnabled follows the app and persists that choice (TAB-013)', () {
       final m = WebViewModel(initUrl: 'https://example.org/');
-      expect(m.tabsEnabled, isTrue);
+      expect(m.tabsEnabled, isNull);
       expect(m.effectiveTabsEnabled, isTrue);
-      expect(m.toJson().containsKey('tabsEnabled'), isFalse);
+      expect(m.toJson().containsKey('tabsEnabled'), isTrue);
+      expect(m.toJson()['tabsEnabled'], isNull);
     });
 
     test('tabsEnabled=false round-trips through JSON (TAB-013)', () {
@@ -452,7 +455,7 @@ void main() {
     test('kiosk turns tabs off without forgetting them (TAB-013)', () {
       final m = WebViewModel(initUrl: 'https://example.org/', kioskMode: true);
       expect(m.effectiveTabsEnabled, isFalse);
-      expect(m.tabsEnabled, isTrue, reason: 'the stored choice is kept');
+      expect(m.tabsEnabled, isNull, reason: 'the inherited choice is kept');
       m.kioskMode = false;
       expect(m.effectiveTabsEnabled, isTrue);
     });

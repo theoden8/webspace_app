@@ -209,6 +209,8 @@
     }
   ],
   "globalPrefs": {
+    "tabsEnabled": false,
+    "externalLinkMode": "block",
     "showUrlBar": true,
     "showTabStrip": true,
     "tabStripInFullscreen": true,

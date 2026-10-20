@@ -8,6 +8,8 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
@@ -170,6 +172,20 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
         children: [
+          SettingsSection(loc.webSearchUseAppDefault),
+          SettingTile(
+            title: loc.siteSettingsTabs,
+            hint: loc.siteSettingsTabsHint,
+            control: const PrefToggle(AppPref.tabsEnabled),
+          ),
+          ChoiceTile<ExternalLinkMode>(
+            title: loc.siteSettingsExternalLinks,
+            hint: null,
+            values: ExternalLinkMode.values,
+            label: (mode) => mode.label(loc),
+            value: ExternalLinkMode.appDefault,
+            onChanged: (mode) => AppPref.externalLinkMode.set(mode.name),
+          ),
           SettingsSection(loc.appSettingsGroupTabStrip),
           _row(
             HintedTitle(loc.appSettingsSiteTabStrip,

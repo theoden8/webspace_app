@@ -12,6 +12,7 @@ import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/url_utils.dart';
@@ -80,10 +81,11 @@ String _read(String tag, {required String name}) =>
 bool _has(String tag, {required String name}) =>
     File('$_fixtureRoot/$tag/$name').existsSync();
 
-/// A fresh site's serialised defaults: what a key the release never wrote
-/// must come back as.
+/// Older releases omitted on/in-app. Those defaults stay explicit on import,
+/// while newly created sites follow the app (BEHAV-007).
 Map<String, dynamic> _freshSiteJson(String initUrl) {
-  final fresh = [WebViewModel(initUrl: initUrl)];
+  final fresh = [WebViewModel(initUrl: initUrl, tabsEnabled: true,
+      externalLinkMode: ExternalLinkMode.inApp)];
   sanitizeImportedSites(fresh, globalScripts: const []);
   return fresh.single.toJson();
 }
