@@ -214,15 +214,24 @@ field
 
 ---
 
-### Requirement: EDIT-010 - Offer a Redirected Domain
+### Requirement: EDIT-010 - Offer a Redirected Homepage
 
-After the first successful live page load of the visible site reaches an
-unclaimed domain, the app SHALL offer to add that domain to the site's existing
-Domain claims. Add SHALL preserve existing claims and the saved home address;
-Cancel or dismissal SHALL add no claim. A default-port destination SHALL suggest
-its base domain; a non-default port SHALL suggest only that exact host and port.
+After the first successful live page load of the visible site reaches a URL that
+the site's ordinary user-opened-link decision would handle as an external link,
+the app SHALL offer to use the full destination URL as its homepage. The existing
+navigation decision SHALL own this classification: opening a nested webview,
+opening the system browser, or blocking an outbound link SHALL qualify. A URL
+allowed in place, including an internal domain alias, SHALL NOT show the question.
+A claimed destination that would open in a nested webview SHALL still qualify.
+
+Save SHALL update the home address and add the destination's domain to the site's
+Domain claims, preserving existing claims, including the old home's implicit
+claim when no explicit claims existed.
+The loaded page SHALL stay open without a reload. Cancel or dismissal SHALL
+preserve both the saved homepage and claims. A default-port destination SHALL
+add its base domain; a non-default port SHALL add only that exact host and port.
 The existing claim validator SHALL suppress an offer that conflicts with another
-site. The site identity, home address, and conflicts SHALL be rechecked after the
+site. The site identity, visibility, current URL, home address, and conflicts SHALL be rechecked after the
 answer, and concurrent load callbacks SHALL show at most one question.
 
 The app SHALL remember which domains it has offered, including declines, so a
@@ -239,15 +248,30 @@ no external store, background schedule, or OS-level UI.
 
 **Given** a site whose home is `https://theguardian.co.uk/`
 **When** its first live load finishes at `https://www.theguardian.com/uk`
-**And** the user accepts the domain suggestion
+**And** the user saves the homepage suggestion
 **Then** `theguardian.com` is added to the existing Domain claims
 **And** future links to that domain resolve to this site
-**And** the saved home address is unchanged
+**And** the saved home address becomes `https://www.theguardian.com/uk`
+**And** the loaded page stays open
+
+#### Scenario: Same-domain redirect
+
+**Given** a site whose home is `https://theguardian.co.uk/`
+**When** its first live load finishes at `https://www.theguardian.co.uk/uk`
+**Then** no homepage suggestion is shown
+**And** the saved homepage is unchanged
+
+#### Scenario: Internal navigation alias
+
+**Given** a site whose home is `https://claude.ai/`
+**When** its first live load finishes at `https://www.anthropic.com/`
+**And** the ordinary link decision allows that URL in place as a domain alias
+**Then** no homepage suggestion is shown
 
 #### Scenario: Dismiss once
 
-**When** the user dismisses a redirected-domain suggestion
-**Then** no new domain is claimed
+**When** the user dismisses a redirected-homepage suggestion
+**Then** the homepage and Domain claims stay unchanged
 **And** the same domain is not offered again after a restart
 
 ---

@@ -446,7 +446,7 @@ class WebViewModel implements MediaGrantRecord {
   /// default). Serialised only when non-null so on-disk JSON for users who
   /// never touch the feature stays byte-identical.
   List<DomainClaim>? domainClaims;
-  /// Domain suggestions already shown, including declines, so first-load
+  /// Homepage suggestions already shown per domain, including declines, so
   /// prompts do not repeat on refresh, tab recreation, or an app restart.
   Set<DomainClaim> offeredRedirectDomains = {};
 

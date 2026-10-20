@@ -27,7 +27,7 @@ abstract interface class SiteEditingPrompts {
 
   Future<SiteEdit?> editSite(WebViewModel site);
   Future<bool> confirmDelete(WebViewModel site);
-  Future<bool> addRedirectDomain(DomainClaim claim);
+  Future<bool> updateRedirectHome(String url);
 }
 
 /// What the site editing flows ask of the page.
@@ -57,12 +57,11 @@ class SiteEditingController {
   final ShellStore _shell;
   final ShortcutController _shortcuts;
   final SiteDeletion _deletion;
-  final _redirectDomainGuard = ReentryGuard();
+  final _redirectHomeGuard = ReentryGuard();
 
-  /// A first live page reached an unclaimed domain. Remember showing the
-  /// question, and change routing only after its explicit Add action.
-  Future<void> offerRedirectDomain(WebViewModel source, {required String url}) async {
-    await _redirectDomainGuard.run(() async {
+  /// Keep the loaded page while saving its redirected address as the home.
+  Future<void> offerRedirectHome(WebViewModel source, {required String url}) async {
+    await _redirectHomeGuard.run(() async {
       if (!_host.mounted || !_sites.fore || !identical(_sites.shown, source) ||
           !_sites.models.contains(source) || source.runsForeignTab ||
           source.currentUrl != url) {
@@ -73,16 +72,21 @@ class SiteEditingController {
       final resolved = Uri.tryParse(url);
       if (resolved == null) return;
       DomainClaim? candidate() => redirectDomainClaim(SiteRoute(site),
-          resolvedUrl: resolved, sites: _sites.models.map(SiteRoute.new).toList());
+          resolvedUrl: resolved,
+          navigationDecision: site.decideUserOpenedLink(url, isActive: true),
+          sites: _sites.models.map(SiteRoute.new).toList());
       final claim = candidate();
       if (claim == null || !site.offeredRedirectDomains.add(claim)) return;
       final home = site.initUrl;
-      final accepted = await _prompts.addRedirectDomain(claim);
+      final accepted = await _prompts.updateRedirectHome(url);
       if (!_host.mounted || !_sites.models.contains(site)) return;
-      if (accepted && site.initUrl == home && identical(_sites.shown, source) &&
-          identical(source.runningIdentity, site) && candidate() == claim) {
+      if (accepted && _sites.fore && site.initUrl == home &&
+          identical(_sites.shown, source) && source.currentUrl == url &&
+          !source.runsForeignTab && identical(source.runningIdentity, site) &&
+          candidate() == claim) {
         site.domainClaims = LinkRoutingService.mergeClaims(site.effectiveDomainClaims,
             additions: [claim]);
+        site.initUrl = url;
       }
       await _host.commitSites(const SitesEdited());
     });

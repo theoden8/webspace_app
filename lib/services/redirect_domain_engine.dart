@@ -1,22 +1,27 @@
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/url_host.dart';
 
-/// A domain the site's first settled page could add to its existing claims.
+/// A claim that preserves routing when an externally handled URL becomes home.
 /// The usual claim validator keeps this offer from taking another site's links.
 DomainClaim? redirectDomainClaim(
   RoutableSite site, {
   required Uri resolvedUrl,
+  required NavigationDecision navigationDecision,
   required List<RoutableSite> sites,
 }) {
+  final leavesSite = switch (navigationDecision) {
+    NavigationDecision.blockOpenNested ||
+    NavigationDecision.blockOpenExternal ||
+    NavigationDecision.blockOutbound => true,
+    NavigationDecision.allow ||
+    NavigationDecision.blockSilent ||
+    NavigationDecision.blockSuppressed => false,
+  };
   final home = Uri.tryParse(site.initUrl);
-  if (Host.ofWebUrl(home?.toString()) == null ||
-      Host.ofWebUrl(resolvedUrl.toString()) == null ||
-      LinkRoutingService.hostAuthority(home!) ==
-          LinkRoutingService.hostAuthority(resolvedUrl) ||
-      LinkRoutingService.urlMatchesAnyClaim(
-        resolvedUrl,
-        claims: site.domainClaims,
-      )) {
+  if (!leavesSite ||
+      Host.ofWebUrl(home?.toString()) == null ||
+      Host.ofWebUrl(resolvedUrl.toString()) == null) {
     return null;
   }
   final claim = resolvedUrl.hasPort

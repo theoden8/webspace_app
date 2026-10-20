@@ -6,7 +6,6 @@ import 'package:webspace/controllers/site_editing_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen;
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/suggested_sites_service.dart'
     as suggested_sites;
@@ -26,12 +25,12 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
   final ShellStore shell;
 
   @override
-  Future<bool> addRedirectDomain(DomainClaim claim) {
+  Future<bool> updateRedirectHome(String url) {
     final loc = AppLocalizations.of(context);
     return confirm(context,
-      title: loc.linkHandlingAddClaimDialogTitle,
-      body: loc.siteRedirectDomainSuggestion(claim.value),
-      confirmLabel: loc.commonAdd,
+      title: loc.homeEditSiteTitle,
+      body: loc.siteRedirectHomeSuggestion(url),
+      confirmLabel: loc.commonSave,
       destructive: false,
     );
   }
