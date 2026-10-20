@@ -301,9 +301,9 @@ void main() {
     Act.of([
       _loaded.becomes(Expr.constant<Iterable<int>, _World>([3])),
       counted.becomes(
-        Expr(
+        Expr.handPaired(
+          'Cardinality(loaded)',
           run: (c) => _loaded.value.run(c).length,
-          tla: 'Cardinality(loaded)',
           reads: const Reads(vars: {ModelVar.loaded}),
         ),
       ),
@@ -419,9 +419,9 @@ void _definitions() {
   });
 
   test('a record\'s part reads the field the model names', () {
-    final marker = Expr<({int t, int v}), _World>(
+    final marker = Expr.handPaired<({int t, int v}), _World>(
+      'marker',
       run: (_) => (t: 2, v: 7),
-      tla: 'marker',
       reads: const Reads(vars: {ModelVar.marker}),
     );
     final v = marker.part('v', get: (m) => m.v);
@@ -628,7 +628,7 @@ void _definitions() {
             writes: [_loaded.becomes(Expr.constant<Set<int>, _World>({}, tla: '{}'))],
             reads: [
               got.becomes(
-                Expr(run: (c) => site.of(c) + 1, tla: 'fl[f].site + 1', reads: Reads.none),
+                Expr.handPaired('fl[f].site + 1', run: (c) => site.of(c) + 1, reads: Reads.none),
               ),
             ],
           ),

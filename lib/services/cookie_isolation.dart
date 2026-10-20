@@ -88,9 +88,9 @@ Act<W> disposeOf<W>(
   required void Function(StepView<W> c) then,
 }) {
   final kind = Field<Object?, W>(FlowField.kind);
-  final modeled = Expr<bool, W>(
+  final modeled = Expr.handPaired<bool, W>(
+    'fl[f].kind # "none"',
     run: kind.isSet,
-    tla: 'fl[f].kind # "none"',
     reads: Reads.none,
   );
   return Act.of(

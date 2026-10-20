@@ -1152,11 +1152,7 @@ Def<Map<WebViewModel, Map<TabId, TabId?>>, Object?> _captureAtReply() {
   final t = Bound<TabId?, Object?>('t');
   final h = Bound<TabId?, Object?>('h');
   final built = TabVars.built<Object?>().at(s.it);
-  final builtTab = Expr<TabId, Object?>(
-    run: (c) => built.run(c)!,
-    tla: built.tla,
-    reads: built.reads,
-  );
+  final builtTab = built.unwrapped;
   final file = TabVars.file<Object?>().value;
   return Def(
     ModelDef.capture,

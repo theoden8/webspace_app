@@ -68,9 +68,9 @@ captureSteps<S, W extends Capturing, P extends Enum>({
   final noBytes = Expr.constant<Uint8List?, W>(null, tla: '0');
   // The key names the tab's container too; no flip is modelled, so in the
   // model the tab's listing alone decides.
-  final holds = Expr<bool, W>(
+  final holds = Expr.handPaired<bool, W>(
+    '${tab.value.tla} \\in tabs[${of.site.tla}]',
     run: (c) => inFlight.from(c).capture?.stillHolds() ?? false,
-    tla: '${tab.value.tla} \\in tabs[${of.site.tla}]',
     reads: tab.value.reads + of.site.reads + const Reads(vars: {ModelVar.tabs}),
   );
   // A site whose tab keeps no back stack gives the capture nothing to
@@ -78,9 +78,9 @@ captureSteps<S, W extends Capturing, P extends Enum>({
   // flow that keeps none.
   final keeps = of.keeps;
   final noNavState = '${of.site.tla} \\in NoNavState';
-  final none = Expr<bool, W>(
+  final none = Expr.handPaired<bool, W>(
+    keeps == null ? noNavState : '($noNavState) \\/ ~(${keeps.tla})',
     run: (c) => inFlight.from(c).capture == null,
-    tla: keeps == null ? noNavState : '($noNavState) \\/ ~(${keeps.tla})',
     reads: of.site.reads + (keeps?.reads ?? Reads.none),
     needs: const {(of: ModelConst.noNavState, set: true)},
   );

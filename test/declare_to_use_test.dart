@@ -106,6 +106,23 @@ final call = Call.on(port, run: (c) async => c.world.loaded, writes: const []);
         reason: "a call's code reaches its port's interface, not the world");
   }, timeout: const Timeout(Duration(minutes: 2)));
 
+  test('a value of the model built outside the core does not compile', () async {
+    final errors = await _errorsIn('''
+$_world
+final raw = Expr<bool, W>(run: (_) => true, tla: 'FALSE', reads: Reads.none);
+''');
+    expect(errors, ['new_with_undefined_constructor_default'],
+        reason: 'a run beside a text is written only as a named kind');
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('the same pair named as hand-paired compiles', () async {
+    final errors = await _errorsIn('''
+$_world
+final named = Expr.handPaired<bool, W>('FALSE', run: (_) => false, reads: Reads.none);
+''');
+    expect(errors, isEmpty, reason: 'the probe fails only for the raw constructor');
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
   test('the same read through a declared port compiles', () async {
     final errors = await _errorsIn('''
 $_world

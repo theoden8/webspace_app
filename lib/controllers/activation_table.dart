@@ -416,11 +416,7 @@ abstract final class ActivationTable {
     run: (c) => ActivationFlow.page.from(c).liveTarget,
     reads: const Reads(base: {BaseOp.liveTarget}),
   );
-  static final _behindSite = Expr<WebViewModel, ActivationFlow>(
-    run: (c) => _behind.of(c)!,
-    tla: _behind.value.tla,
-    reads: _behind.value.reads,
-  );
+  static final _behindSite = _behind.value.unwrapped;
   static final _online = Expr.ofConstant<bool, ActivationFlow>(
     ModelConst.online,
     run: (c) => ActivationFlow.state.from(c).online,
@@ -440,19 +436,10 @@ abstract final class ActivationTable {
             _behind.value.neq(_u.it),
       ),
     );
-    return Expr<List<WebViewModel>, ActivationFlow>(
-      run: (c) {
-        final plan = _planOf(c);
-        assert(() {
-          final printed = rule.run(c).toSet();
-          final planned = {for (final u in plan.unloads) u.site};
-          return printed.length == planned.length &&
-              printed.containsAll(planned);
-        }(), 'the switch unloads what its printed rule names');
-        return [for (final u in plan.unloads) u.site];
-      },
-      tla: rule.tla,
-      reads: rule.reads,
+    return Expr.checked(
+      rule: rule,
+      run: (c) => [for (final u in _planOf(c).unloads) u.site],
+      why: 'the switch unloads what its printed rule names',
     );
   }();
 
@@ -548,21 +535,10 @@ abstract final class ActivationTable {
       NestedOpening(page.models.indexOf(_site.of(c))),
     );
   }
-  static final _screenVictims = Expr<List<WebViewModel>, ActivationFlow>(
-    run: (c) {
-      final planned = {for (final u in _nestedPlan(c).unloads) u.site};
-      assert(() {
-        final printed = _proxyContenders(_site.value)
-            .union(_torDissenters(_site.value))
-            .run(c)
-            .toSet();
-        return printed.length == planned.length &&
-            printed.containsAll(planned);
-      }(), 'a nested open unloads what its printed rules name');
-      return planned.toList();
-    },
-    tla: _proxyContenders(_site.value).union(_torDissenters(_site.value)).tla,
-    reads: _proxyContenders(_site.value).union(_torDissenters(_site.value)).reads,
+  static final _screenVictims = Expr.checked(
+    rule: _proxyContenders(_site.value).union(_torDissenters(_site.value)),
+    run: (c) => {for (final u in _nestedPlan(c).unloads) u.site},
+    why: 'a nested open unloads what its printed rules name',
   );
 
   /// A round of a nested open's unloads: the plan the unload loop runs, and
@@ -691,31 +667,20 @@ abstract final class ActivationTable {
 
   /// The sites a tap's residency unloads: what the rules name and the
   /// cap's picks; the code's plan is asserted to be exactly these.
-  static final _planVictims = Expr<List<WebViewModel>, ActivationFlow>(
-    run: (c) {
-      final plan = _planOf(c);
-      assert(() {
-        final printed = _ruled(_site.value).union(_capPick.it).run(c).toSet();
-        final planned = {for (final u in plan.unloads) u.site};
-        return printed.length == planned.length &&
-            printed.containsAll(planned);
-      }(), 'the plan unloads what its printed rules and picks name');
-      return [for (final u in plan.unloads) u.site];
-    },
-    tla: _ruled(_site.value).union(_capPick.it).tla,
-    reads: _ruled(_site.value).union(_capPick.it).reads,
+  static final _planVictims = Expr.checked(
+    rule: _ruled(_site.value).union(_capPick.it),
+    run: (c) => [for (final u in _planOf(c).unloads) u.site],
+    why: 'the plan unloads what its printed rules and picks name',
   );
-  static final _planClears = Expr<List<WebViewModel>, ActivationFlow>(
+  static final _planClears = Expr.chosen(
+    among: _clearPick.it,
     run: (c) => _planOf(c).cacheClears,
-    tla: _clearPick.it.tla,
-    reads: _clearPick.it.reads,
   );
 
   /// The plan's priority picks: the loaded-site cap's.
-  static final _planPicked = Expr<List<WebViewModel>, ActivationFlow>(
+  static final _planPicked = Expr.chosen(
+    among: _capPick.it,
     run: (c) => SiteUnloadEngine.pickedOf(_planOf(c)),
-    tla: _capPick.it.tla,
-    reads: _capPick.it.reads,
   );
 
   /// The residency plan for the target, made at the plan step the first

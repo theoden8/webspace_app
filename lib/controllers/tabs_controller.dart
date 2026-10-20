@@ -874,9 +874,9 @@ class TabsController {
   static final _noBytes = Expr.constant<Uint8List?, TabFlow>(null, tla: '0');
 
   /// The bytes' label, the model's alone: the code holds bytes.
-  static final _labelTla = Expr<TabId?, TabFlow>(
+  static final _labelTla = Expr.handPaired<TabId?, TabFlow>(
+    'fl[f].label',
     run: (_) => throw StateError('the label is the model\'s'),
-    tla: 'fl[f].label',
     reads: Reads.none,
   );
 
@@ -945,7 +945,8 @@ class TabsController {
 
   /// The lists the flows install, as the engine orders them and as the
   /// model's sets read them; each checks its ids against its reading.
-  static final _withFresh = Expr<List<SiteTab>, TabFlow>(
+  static final _withFresh = Expr.handPaired<List<SiteTab>, TabFlow>(
+    'tabs[current] \\cup {Mint(current)}',
     run: (c) {
       final f = _flow.from(c);
       return _asRead(
@@ -953,10 +954,10 @@ class TabsController {
         ids: {for (final t in f.site.tabs) t.id, f.fresh!.id},
       );
     },
-    tla: 'tabs[current] \\cup {Mint(current)}',
     reads: const Reads(vars: {ModelVar.current, ModelVar.tabs}, base: {BaseOp.mint}),
   );
-  static final _withCopy = Expr<List<SiteTab>, TabFlow>(
+  static final _withCopy = Expr.handPaired<List<SiteTab>, TabFlow>(
+    'tabs[fl[f].site] \\cup {fl[f].copy}',
     run: (c) {
       final f = _flow.from(c);
       return _asRead(
@@ -968,50 +969,49 @@ class TabsController {
         ids: {for (final t in f.site.tabs) t.id, f.fresh!.id},
       );
     },
-    tla: 'tabs[fl[f].site] \\cup {fl[f].copy}',
     reads: const Reads(vars: {ModelVar.tabs}),
   );
-  static final _resultTabs = Expr<List<SiteTab>, TabFlow>(
+  static final _resultTabs = Expr.handPaired<List<SiteTab>, TabFlow>(
+    'tabs[current] \\ {s}',
     run: (c) => _flow.from(c).result!.tabs,
-    tla: 'tabs[current] \\ {s}',
     reads: const Reads(vars: {ModelVar.current, ModelVar.tabs}),
   );
-  static final _closedIds = Expr<List<TabId>, TabFlow>(
+  static final _closedIds = Expr.handPaired<List<TabId>, TabFlow>(
+    '{s}',
     run: (c) => _flow.from(c).result!.closedIds,
-    tla: '{s}',
     reads: Reads.none,
   );
   static final _survivors = _tabIds(_current).without(_chosenTab);
-  static final _restIds = Expr<List<TabId>, TabFlow>(
+  static final _restIds = Expr.handPaired<List<TabId>, TabFlow>(
+    'fl[f].rest',
     run: (c) => _rest.isSet(c) ? [for (final t in _rest.of(c)) t.id] : const [],
-    tla: 'fl[f].rest',
     reads: Reads.none,
   );
-  static final _resultTabsAgain = Expr<List<SiteTab>, TabFlow>(
+  static final _resultTabsAgain = Expr.handPaired<List<SiteTab>, TabFlow>(
+    'fl[f].rest',
     run: (c) => _rest.of(c),
-    tla: 'fl[f].rest',
     reads: Reads.none,
   );
-  static final _onlyFresh = Expr<List<SiteTab>, TabFlow>(
+  static final _onlyFresh = Expr.handPaired<List<SiteTab>, TabFlow>(
+    '{Mint(fl[f].site)}',
     run: (c) => [_flow.from(c).fresh!],
-    tla: '{Mint(fl[f].site)}',
     reads: const Reads(base: {BaseOp.mint}),
   );
-  static final _installed = Expr<List<SiteTab>, TabFlow>(
+  static final _installed = Expr.handPaired<List<SiteTab>, TabFlow>(
+    'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
     run: (c) => _rest.isSet(c) ? _rest.of(c) : _flow.from(c).site.tabs,
-    tla: 'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
     reads: const Reads(vars: {ModelVar.tabs}),
   );
 
   /// The tabs the target has to be among: the list being installed, else
   /// the site's. A page gone away has none.
-  static final _targetIn = Expr<List<TabId>, TabFlow>(
+  static final _targetIn = Expr.handPaired<List<TabId>, TabFlow>(
+    'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
     run: (c) => !_page.from(c).mounted
         ? const []
         : _rest.isSet(c)
             ? [for (final t in _rest.of(c)) t.id]
             : [for (final t in _flow.from(c).site.tabs) t.id],
-    tla: 'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
     reads: const Reads(vars: {ModelVar.tabs}),
   );
   static SiteTab? _targetOf(StepView<TabFlow> c) {
@@ -1025,11 +1025,11 @@ class TabsController {
   static final _live = _currentVar.value.eq(_site.value) | _loaded.value.has(_site.value);
 
   /// The duplicate's source is still the site's (and the page is there).
-  static final _sourceStays = Expr<bool, TabFlow>(
+  static final _sourceStays = Expr.handPaired<bool, TabFlow>(
+    'fl[f].tab \\in tabs[fl[f].site]',
     run: (c) =>
         _page.from(c).mounted &&
         _flow.from(c).site.tabs.any((t) => t.id == _tab.of(c)),
-    tla: 'fl[f].tab \\in tabs[fl[f].site]',
     reads: const Reads(vars: {ModelVar.tabs}),
   );
   static final _residentIfLoaded = Expr.choose<SiteLifecycleState, TabFlow>(

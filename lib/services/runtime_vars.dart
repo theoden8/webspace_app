@@ -104,9 +104,7 @@ final class RuntimeVars<S extends Object> {
 
   late final _evictable = evictable<S>();
 
-  bool isEvictable(S site) => _evictable
-      .call([Expr<S, RuntimeVars<S>>(run: (_) => site, tla: 'site', reads: Reads.none)])
-      .run(StepContext(this));
+  bool isEvictable(S site) => _evictable.evaluate(this, args: [site]);
 
   /// These variables as a table reaches them through its world, for an
   /// operator of the model's own run by name ([Expr.op]): a read, so the

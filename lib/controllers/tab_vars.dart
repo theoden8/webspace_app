@@ -65,11 +65,7 @@ final class TabVars {
     final s = Bound<WebViewModel, W>('s');
     final t = Bound<TabId?, W>('t');
     final h = Bound<TabId?, W>('h');
-    final tab = Expr<TabId, W>(
-      run: (c) => t.it.run(c)!,
-      tla: t.name,
-      reads: t.it.reads,
-    );
+    final tab = t.it.unwrapped;
     // A site the model does not follow has no tab to key by (`Tabbed`).
     return Def(
       ModelDef.capture,
