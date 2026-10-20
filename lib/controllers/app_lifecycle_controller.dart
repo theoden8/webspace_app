@@ -106,17 +106,18 @@ class AppLifecycleController {
     // Non-sensitive decision line: whether the background froze JS or a
     // notification/background-audio exemption kept it running, with the
     // inputs to that decision (BGAUDIO-002, NOTIF-011), or a jsPause=true
-    // line reads as a bug when no loaded site has the toggle on.
+    // line cannot be told from a broken exemption.
     int loadedWith(bool Function(WebViewModel m) flag) =>
         _sites.loaded.where(flag).length;
     final loadedBgAudio = loadedWith((m) => m.effectiveBackgroundAudioEnabled);
-    final loadedNotif = loadedWith((m) => m.effectiveNotificationsEnabled);
+    final notif = background.counts();
     _backgroundedAt = DateTime.now();
     BackgroundLog.instance.record(
       LogTag.lifecycle,
       message: 'App background: jsPause=${pausePlan.jsPauseIndex != null} '
           'capture=${pausePlan.captureStateIndex != null} '
-          'bgAudio=$loadedBgAudio notif=$loadedNotif loaded',
+          'bgAudio=$loadedBgAudio loaded, '
+          'notif sites ${notif.enabled} enabled, ${notif.loaded} loaded',
     );
     // BGAUDIO-012: a player that stops when its page reports hidden (YouTube
     // and every other built for a tab) is told first.
