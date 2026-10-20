@@ -4,18 +4,11 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
-import 'package:webspace/widgets/theme_mode_button.dart';
-
-/// The label a theme mode goes by, on its chip and in the App Settings row.
-String themeModeLabel(AppLocalizations loc, {required ThemeMode mode}) =>
-    switch (mode) {
-      ThemeMode.light => loc.appSettingsThemeLight,
-      ThemeMode.dark => loc.appSettingsThemeDark,
-      ThemeMode.system => loc.appSettingsThemeSystem,
-    };
+import 'package:webspace/widgets/icon_choice_chips.dart';
+import 'package:webspace/widgets/theme_icon.dart';
 
 /// How the app itself looks: UI language, theme mode and accent colour.
 class AppAppearanceScreen extends StatefulWidget {
@@ -95,19 +88,15 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
             control: Opens(() => guardedOpen(_pickAppLanguage)),
           ),
           SettingsSection(loc.appSettingsTheme),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              spacing: 8,
-              children: [
-                for (final mode in const [
-                  ThemeMode.light,
-                  ThemeMode.dark,
-                  ThemeMode.system,
-                ])
-                  Expanded(child: _buildThemeModeChip(mode)),
-              ],
+          IconChoiceChips<ThemeMode>(
+            values: const [ThemeMode.light, ThemeMode.dark, ThemeMode.system],
+            face: (mode) => (
+              icon: mode.webViewTheme.icon,
+              label: mode.webViewTheme.label(loc),
             ),
+            value: _settings.themeMode,
+            onChanged: (mode) =>
+                _updateSettings(_settings.copyWith(themeMode: mode)),
           ),
           SettingsSection(loc.appSettingsAccentColor),
           Padding(
@@ -123,47 +112,6 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
           ),
           const SizedBox(height: 24),
         ],
-      ),
-    );
-  }
-
-  Widget _buildThemeModeChip(ThemeMode mode) {
-    final label = themeModeLabel(AppLocalizations.of(context), mode: mode);
-    final icon = themeModeIcon(mode);
-    final isSelected = _settings.themeMode == mode;
-    final accentColor = Theme.of(context).colorScheme.secondary;
-
-    return GestureDetector(
-      onTap: () => _updateSettings(_settings.copyWith(themeMode: mode)),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? accentColor.withOpacity(0.15) : Colors.transparent,
-          border: Border.all(
-            color: isSelected ? accentColor : Colors.grey.shade400,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(Radii.lg),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? accentColor : null,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? accentColor : null,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

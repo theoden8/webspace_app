@@ -9,6 +9,7 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 
 extension ExternalLinkModeLabel on ExternalLinkMode {
   String label(AppLocalizations loc) => switch (this) {
@@ -156,6 +157,23 @@ extension ScopedSwitchLabel on Scoped<bool> {
 
 String _onOff(AppLocalizations loc, {required bool on}) =>
     on ? loc.settingOn : loc.settingOff;
+
+extension WebViewThemeLabel on WebViewTheme {
+  String label(AppLocalizations loc) => switch (this) {
+    WebViewTheme.light => loc.appSettingsThemeLight,
+    WebViewTheme.dark => loc.appSettingsThemeDark,
+    WebViewTheme.system => loc.appSettingsThemeSystem,
+  };
+}
+
+extension ScopedThemeLabel on Scoped<WebViewTheme> {
+  /// [appValue] is the app's theme, which following it gives the site.
+  String label(AppLocalizations loc, {required WebViewTheme appValue}) =>
+      switch (this) {
+        FollowApp() => loc.settingFollowsApp(appValue.label(loc)),
+        Own(:final value) => value.label(loc),
+      };
+}
 
 extension UserScriptInjectionTimeLabel on UserScriptInjectionTime {
   String label(AppLocalizations loc) => switch (this) {

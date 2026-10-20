@@ -299,7 +299,7 @@ class StartupController implements DeferredStartupHost {
     final webViewTheme = _shell.theme.themeMode.webViewTheme;
     final models = <WebViewModel>{..._sites.loaded, ?target.site};
     for (final m in models) {
-      await m.setTheme(webViewTheme);
+      await m.setAppTheme(webViewTheme);
     }
     return {for (final m in models) m.siteId};
   }
@@ -457,7 +457,7 @@ class StartupController implements DeferredStartupHost {
   Future<void> applyTheme(SiteId siteId) async {
     final m = _sites.byId(siteId);
     if (m != null) {
-      await m.setTheme(_shell.theme.themeMode.webViewTheme);
+      await m.setAppTheme(_shell.theme.themeMode.webViewTheme);
     }
   }
 

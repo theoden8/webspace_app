@@ -9,6 +9,7 @@ import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
+import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/capture_shim.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
@@ -113,6 +114,11 @@ abstract final class PageScripts {
             frames: ShimFrames.all),
       if (scoped.language case final js?)
         pageShim('language_override', js: js, frames: ShimFrames.all),
+      // The first document gets it too; the controller replaces it when the
+      // theme changes.
+      pageShim(themeColorSchemeGroup,
+          js: buildThemeColorSchemeShim(posture.page.theme),
+          frames: ShimFrames.all),
       // An iframe can create its own workers.
       if (buildWorkerShimScript(workerScopeBodies(scoped)) case final js?)
         pageShim('worker_shim', js: js, frames: ShimFrames.all),

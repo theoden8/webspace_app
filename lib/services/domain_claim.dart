@@ -1,3 +1,5 @@
+import 'package:webspace/services/url_host.dart' show getBaseDomain;
+
 enum DomainClaimKind { exactHost, wildcardSubdomain, baseDomain }
 
 class DomainClaim {
@@ -17,6 +19,21 @@ class DomainClaim {
 
   factory DomainClaim.baseDomain(String host) =>
       DomainClaim(DomainClaimKind.baseDomain, value: host);
+
+  /// What a site at [initUrl] claims when it names no claims (LIR-001): its
+  /// host and port when the address carries a port, else its base domain,
+  /// and nothing for an address with no host.
+  static List<DomainClaim> implicitFor(String initUrl) {
+    final uri = Uri.tryParse(initUrl);
+    if (uri != null && uri.host.isNotEmpty && uri.hasPort) {
+      final h = uri.host.toLowerCase();
+      final wrapped = h.contains(':') && !h.startsWith('[') ? '[$h]' : h;
+      return [DomainClaim.exactHost('$wrapped:${uri.port}')];
+    }
+    final base = getBaseDomain(initUrl);
+    if (base.isEmpty) return const [];
+    return [DomainClaim.baseDomain(base)];
+  }
 
   static String _canon(DomainClaimKind kind, {required String s}) {
     var v = s.trim().toLowerCase();

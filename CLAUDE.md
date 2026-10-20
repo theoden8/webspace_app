@@ -571,7 +571,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | background-audio | per-site toggle: skips per-instance pause + app-background global JS pause (any-loaded veto), iOS `.playback` AVAudioSession + `audio` background mode; Android `mediaPlayback` foreground service + MediaStyle notification (BGAUDIO-006) driven by a page-JS media-session bridge; CI-tested via lifecycle injection + beaconing HTML fixture, plus a 3-tier notification gate (BGAUDIO-007: real-Chromium shim, channel contract, emulator assert on `getActiveNotifications()`) |
 | block-statistics | persistent app-wide protection report: per-category daily buckets, 7/30-day ranges, all-time total in plaintext prefs; the itemised half (blocked hosts, per-site counts) in an AES blob keyed from the keychain; archive-tier sites excluded from both |
 | webspaces | named site collections |
-| webview-hints | color-scheme, matchMedia, theme prelude cache |
+| webview-hints | per-site theme (follows the app's by default; no app-bar toggle), color-scheme, matchMedia, theme prelude cache |
 | webview-pause-lifecycle | per-instance vs process-global pause; "paused != frozen" |
 | worker-shim-propagation | installs the per-site shims into Worker/SharedWorker scopes (blob wrapper); page and worker must report identical values |
 

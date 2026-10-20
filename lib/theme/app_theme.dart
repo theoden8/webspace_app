@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/theme/accent_theme.dart';
-import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 
 enum AccentColor {
   blue(accentBlue),

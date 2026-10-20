@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/localized.dart';
@@ -17,6 +18,7 @@ Future<void> _clear(WidgetTester tester,
       size: const Size(1000, 4000),
       home: SettingsScreen(
         webViewModel: WebViewModel(initUrl: 'https://example.com/'),
+        appTheme: WebViewTheme.system,
         useContainers: false,
         onClearCookies: onClearCookies,
       ));

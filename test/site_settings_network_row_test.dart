@@ -10,6 +10,7 @@ import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/services/webview_proxy.dart';
@@ -29,7 +30,10 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
         onPressed: () => Navigator.push<void>(
           context,
           MaterialPageRoute(
-            builder: (_) => SettingsScreen(webViewModel: model, useContainers: false),
+            builder: (_) => SettingsScreen(
+                webViewModel: model,
+                appTheme: WebViewTheme.system,
+                useContainers: false),
           ),
         ),
         child: const Text('open'),
