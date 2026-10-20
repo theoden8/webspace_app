@@ -1795,7 +1795,7 @@ final class StepTable<W, P extends Enum> {
     final tab = (arm.tab ?? step.tab)?.run(c);
     Map<String, Object?>? found;
     assert(() {
-      found = {for (final v in vars) v.name: v.value.run(c)};
+      found = {for (final v in vars) v.name: _snapshot(v.value.run(c))};
       return true;
     }());
     final outer = _turn;
@@ -1856,14 +1856,28 @@ final class StepTable<W, P extends Enum> {
     return true;
   }
 
-  /// Equal as the model's values: a collection as a set of its elements.
+  /// [value] as a step found it: a collection copied, element by element,
+  /// so one the step changes in place is not the value compared after it.
+  static Object? _snapshot(Object? value) => switch (value) {
+    final Map<Object?, Object?> m => {
+      for (final MapEntry(:key, :value) in m.entries) key: _snapshot(value),
+    },
+    final Iterable<Object?> i => [for (final e in i) _snapshot(e)],
+    _ => value,
+  };
+
+  /// Equal as the model's values: a collection as the set of its elements,
+  /// a function as its entries, each compared so.
   static bool _same(Object? found, {required Object? now}) =>
       switch ((found, now)) {
-        (final Iterable<Object?> x, final Iterable<Object?> y) =>
-          x.length == y.length && x.every(y.contains),
         (final Map<Object?, Object?> x, final Map<Object?, Object?> y) =>
           x.length == y.length &&
-              x.entries.every((e) => y.containsKey(e.key) && y[e.key] == e.value),
+              x.entries.every(
+                (e) => y.containsKey(e.key) && _same(e.value, now: y[e.key]),
+              ),
+        (final Iterable<Object?> x, final Iterable<Object?> y) =>
+          x.every((e) => y.any((f) => _same(e, now: f))) &&
+              y.every((f) => x.any((e) => _same(e, now: f))),
         _ => found == now,
       };
 

@@ -5,9 +5,11 @@ import 'package:webspace/formal_model/models.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/step_table.dart';
 
-/// A world of one model variable, `loaded`, kept in use order.
+/// A world of one model variable, `loaded`, kept in use order, and a list
+/// the frame tests below read as the model's `headless`.
 final class _World {
   final Set<int> loaded = {1, 2};
+  final List<int> listed = [1, 1];
 }
 
 enum _Pairs implements Pairing { counted, share, marker, loadedCount, sitePlusOne, listed }
@@ -42,10 +44,13 @@ final _loadedPort = Port<Set<int>, _World>(
   of: (w) => w.loaded,
 );
 
-StepTable<_World, _Place> _table({required List<Effect<_World>> then}) =>
+StepTable<_World, _Place> _table({
+  required List<Effect<_World>> then,
+  List<Var<Object?, _World>>? vars,
+}) =>
     StepTable(
       _Place.values,
-      vars: [_loaded],
+      vars: vars ?? [_loaded],
       at: (place) => switch (place) {
         _Place.go => Step(
           ActivationStep.plan,
@@ -92,6 +97,58 @@ void main() {
           contains('changed loaded, which it does not write'),
         ),
       ),
+    );
+  });
+
+  test('a step that changes an undeclared collection in place is caught', () {
+    final live = Mutable<Iterable<int>, _World>(
+      ModelVar.loaded,
+      read: (w) => w.loaded,
+      write: (w, {required to}) => w.loaded
+        ..clear()
+        ..addAll(to),
+    );
+    final c = StepContext(_World());
+    final table = _table(
+      then: [Note((c) => _lying.from(c).loaded.add(3))],
+      vars: [live],
+    );
+    expect(
+      () => table.run(c, from: _Place.go),
+      throwsA(
+        isA<AssertionError>().having(
+          (e) => e.message,
+          'message',
+          contains('changed loaded, which it does not write'),
+        ),
+      ),
+      reason: 'the runner snapshots what a step found, not the live set',
+    );
+  });
+
+  test('a collection whose elements change but not its length is caught', () {
+    final listed = Mutable<Iterable<int>, _World>(
+      ModelVar.headless,
+      read: (w) => [...w.listed],
+      write: (w, {required to}) => w.listed
+        ..clear()
+        ..addAll(to),
+    );
+    final c = StepContext(_World());
+    final table = _table(
+      then: [Note((c) => _lying.from(c).listed[1] = 2)],
+      vars: [listed],
+    );
+    expect(
+      () => table.run(c, from: _Place.go),
+      throwsA(
+        isA<AssertionError>().having(
+          (e) => e.message,
+          'message',
+          contains('changed headless, which it does not write'),
+        ),
+      ),
+      reason: '[1, 1] and [1, 2] are the sets {1} and {1, 2}',
     );
   });
 
