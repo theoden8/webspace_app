@@ -949,35 +949,26 @@ class TabsController {
     reads: const Reads(vars: {ModelVar.minted}, base: {BaseOp.mint}),
   );
 
-  /// The lists the flows install, as the engine orders them and as the
-  /// model's sets read them; each checks its ids against its reading.
-  static final _withFresh = Expr.handPaired<List<SiteTab>, TabFlow>(
-    HandPaired.tabsWithFresh,
-    tla: 'tabs[current] \\cup {Mint(current)}',
+  /// The lists the flows install, as the engine orders them, held by their
+  /// ids to the model's sets.
+  static final _withFresh = Expr.checked(
+    rule: _tabIds(_current).union(_mint.asSet),
     run: (c) {
       final f = _flow.from(c);
-      return _asRead(
-        [...f.site.tabs, f.fresh!],
-        ids: {for (final t in f.site.tabs) t.id, f.fresh!.id},
-      );
+      return [...f.site.tabs, f.fresh!];
     },
-    reads: const Reads(vars: {ModelVar.current, ModelVar.tabs}, base: {BaseOp.mint}),
+    key: (SiteTab t) => t.id,
+    why: "a new tab installs the site's tabs and the fresh one",
   );
-  static final _withCopy = Expr.handPaired<List<SiteTab>, TabFlow>(
-    HandPaired.tabsWithCopy,
-    tla: 'tabs[fl[f].site] \\cup {fl[f].copy}',
-    run: (c) {
-      final f = _flow.from(c);
-      return _asRead(
-        TabLifecycleEngine.insertAfter(
-          f.site.tabs,
-          anchorId: _tab.of(c),
-          tab: f.fresh!,
-        ),
-        ids: {for (final t in f.site.tabs) t.id, f.fresh!.id},
-      );
-    },
-    reads: const Reads(vars: {ModelVar.tabs}),
+  static final _withCopy = Expr.checked(
+    rule: _tabIds(_site.value).union(_copy.value.asSet),
+    run: (c) => TabLifecycleEngine.insertAfter(
+      _flow.from(c).site.tabs,
+      anchorId: _tab.of(c),
+      tab: _flow.from(c).fresh!,
+    ),
+    key: (SiteTab t) => t.id,
+    why: "a duplicate installs the site's tabs and its copy",
   );
   static final _resultTabs = Expr.handPaired<List<SiteTab>, TabFlow>(
     HandPaired.tabsAfterClose,
@@ -998,17 +989,11 @@ class TabsController {
     run: (c) => _rest.isSet(c) ? [for (final t in _rest.of(c)) t.id] : const [],
     reads: Reads.none,
   );
-  static final _resultTabsAgain = Expr.handPaired<List<SiteTab>, TabFlow>(
-    HandPaired.restTabs,
-    tla: 'fl[f].rest',
-    run: (c) => _rest.of(c),
-    reads: Reads.none,
-  );
-  static final _onlyFresh = Expr.handPaired<List<SiteTab>, TabFlow>(
-    HandPaired.onlyFreshTab,
-    tla: '{Mint(fl[f].site)}',
+  static final _onlyFresh = Expr.checked(
+    rule: _mintSite.asSet,
     run: (c) => [_flow.from(c).fresh!],
-    reads: const Reads(base: {BaseOp.mint}),
+    key: (SiteTab t) => t.id,
+    why: 'a last close leaves the fresh tab alone',
   );
   static final _installed = Expr.handPaired<List<SiteTab>, TabFlow>(
     HandPaired.installedTabs,
@@ -1086,16 +1071,6 @@ class TabsController {
   static String _copyKey(StepView<TabFlow> c) {
     final copy = _flow.from(c).fresh!;
     return webViewStateKey(copy.hostSiteId ?? _site.of(c).siteId, tabId: copy.id);
-  }
-
-  /// [list] as the model reads it: its ids are [ids].
-  static List<SiteTab> _asRead(List<SiteTab> list, {required Set<TabId> ids}) {
-    assert(
-      {for (final t in list) t.id}.length == ids.length &&
-          list.every((t) => ids.contains(t.id)),
-      'the list installed is not the set the model reads',
-    );
-    return list;
   }
 
   /// A tab switch's one turn: the bytes read queued for the target, the
@@ -1450,7 +1425,7 @@ class TabsController {
           tab: _nextSurvivor.it,
           then: [
             Act.of([
-              _tabs.except(_site.value, to: _resultTabsAgain),
+              _tabs.except(_site.value, to: _rest.value),
               _active.except(
                 _site.value,
                 to: Expr.choose(

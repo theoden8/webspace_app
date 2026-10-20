@@ -181,18 +181,20 @@ final class Expr<T, W> {
   }) => Expr._(run: run, tla: tla, reads: reads, needs: needs);
 
   /// What the engine computes for a set the model states by [rule]: the
-  /// engine's value runs, asserted the same set as [rule]'s, which is what
-  /// prints. [why] names the rule for the assert.
-  static Expr<List<E>, W> checked<E, W>({
-    required Expr<Iterable<E>, W> rule,
+  /// engine's value runs, asserted the same set as [rule]'s by [key] (the
+  /// model's name for an element the engine holds), which is what prints.
+  /// [why] names the rule for the assert.
+  static Expr<List<E>, W> checked<E, K, W>({
+    required Expr<Iterable<K>, W> rule,
     required Iterable<E> Function(StepView<W> c) run,
+    required K Function(E e) key,
     required String why,
   }) => Expr._(
     run: (c) {
       final engine = run(c).toList();
       assert(() {
         final printed = rule.run(c).toSet();
-        final ran = engine.toSet();
+        final ran = {for (final e in engine) key(e)};
         return printed.length == ran.length && printed.containsAll(ran);
       }(), why);
       return engine;

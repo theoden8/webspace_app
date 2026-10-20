@@ -445,6 +445,7 @@ abstract final class ActivationTable {
     return Expr.checked(
       rule: rule,
       run: (c) => [for (final u in _planOf(c).unloads) u.site],
+      key: (s) => s,
       why: 'the switch unloads what its printed rule names',
     );
   }();
@@ -544,6 +545,7 @@ abstract final class ActivationTable {
   static final _screenVictims = Expr.checked(
     rule: _proxyContenders(_site.value).union(_torDissenters(_site.value)),
     run: (c) => {for (final u in _nestedPlan(c).unloads) u.site},
+    key: (s) => s,
     why: 'a nested open unloads what its printed rules name',
   );
 
@@ -676,6 +678,7 @@ abstract final class ActivationTable {
   static final _planVictims = Expr.checked(
     rule: _ruled(_site.value).union(_capPick.it),
     run: (c) => [for (final u in _planOf(c).unloads) u.site],
+    key: (s) => s,
     why: 'the plan unloads what its printed rules and picks name',
   );
   static final _planClears = Expr.chosen(
