@@ -28,9 +28,9 @@ EXPORT-002 and EXPORT-003; revisit it if either stops holding.
 
 **Exempt is not "no encryption".** The app implements AES-GCM-256, Argon2id,
 HKDF-SHA-256 and HMAC-SHA-256 in
-[archive_crypto.dart](../../../lib/services/archive_crypto.dart), AES over the
-page cache in
-[html_cache_service.dart](../../../lib/services/html_cache_service.dart), and
+[archive_crypto.dart](../../../lib/services/archive_crypto.dart), AES-GCM over the
+stores kept at rest in
+[keychain_aead.dart](../../../lib/services/keychain_aead.dart), and
 links tor's TLS and OpenSSL. Apple's OS-provided and authentication-only
 exemptions describe none of that. Reasoning from *those* exemptions is what
 led #344 to flip the key to `true`; they were never the basis here.

@@ -2677,8 +2677,6 @@ final class _WalkTabsHost implements TabsHost {
   @override
   void cancelPendingCapture(SiteId siteId) {}
 
-  @override
-  void evictCache(SiteId siteId) {}
 
   @override
   void enterFullscreen() {}

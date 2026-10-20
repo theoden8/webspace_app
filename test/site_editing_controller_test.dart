@@ -8,13 +8,10 @@ import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_editing_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
-import 'package:webspace/services/file_store.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
 import 'package:webspace/controllers/site_set_commit.dart';
 
-import 'helpers/mock_secure_storage.dart';
 import 'helpers/model_fixture.dart';
 
 /// The page as the editing flows see it: mounted, and recording each
@@ -78,9 +75,6 @@ void main() {
       buildNumber: '1',
       buildSignature: '',
     );
-    HtmlCacheService.resetForTesting();
-    await HtmlCacheService.instance.initialize(
-        store: MemoryFileStore(), secureStorage: MockFlutterSecureStorage());
     sites = SiteRuntime();
     site = WebViewModel(initUrl: 'https://example.com/', name: 'Example');
     sites.models.add(site);
@@ -112,9 +106,6 @@ void main() {
   });
 
   test('an edited URL rebuilds the webview at it (EDIT-004)', () async {
-    await HtmlCacheService.instance.saveHtml(site.siteId,
-        html: '<p>old</p>', url: 'https://example.com/');
-    expect(HtmlCacheService.instance.getHtmlSync(site.siteId), isNotNull);
     site.webview = SizedBox.fromSize();
     await controller(_Prompts(
             (name: 'Example', url: 'https://newsite.com/', icon: null)))
@@ -122,8 +113,6 @@ void main() {
     expect(site.initUrl, 'https://newsite.com/');
     expect(site.currentUrl, 'https://newsite.com/');
     expect(site.webview, isNull, reason: 'the next build loads the new URL');
-    expect(HtmlCacheService.instance.getHtmlSync(site.siteId), isNull,
-        reason: 'the snapshot belongs to the old URL');
     expect(host.commits.single, isA<SitesEdited>());
   });
 

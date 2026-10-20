@@ -30,7 +30,6 @@ enum PageJs {
   doNotTrack('do_not_track'),
   expirePageCookies('expire_page_cookies'),
   genericCosmetic('generic_cosmetic'),
-  htmlSnapshot('html_snapshot'),
   iconLinkWatcher('icon_link_watcher'),
   language('language'),
   locationSpoof('location_spoof'),

@@ -83,7 +83,7 @@ void main() {
       // Three-slash form: empty authority, real path. The two-slash
       // form `file://report.html` parses with `report.html` as the
       // host and chromium rejects it with ERR_INVALID_URL whenever the
-      // cached HTML is unavailable (incognito, post-upgrade wipe).
+      // stored HTML is unavailable (incognito).
       expect(url, 'file:///report.html');
       final parsed = Uri.tryParse(url);
       expect(parsed?.scheme, 'file');

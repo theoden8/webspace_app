@@ -1288,8 +1288,8 @@ abstract final class ActivationTable {
       ActivationPlace.rSetT ||
       ActivationPlace.rSetO ||
       ActivationPlace.rRefused => const Within(_inRestore),
-      // The site's cached or imported HTML decrypted into memory before its
-      // webview builds, so the build's synchronous getHtmlSync hits.
+      // A file import's HTML decrypted into memory before its webview
+      // builds, so the build's synchronous getHtmlSync hits.
       ActivationPlace.html => Step(
         ActivationStep.htmlReply,
         holds: null,

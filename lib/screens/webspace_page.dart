@@ -58,7 +58,6 @@ import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/settings/demo_mode.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/cookie_isolation.dart';
@@ -272,8 +271,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _maskBackground = false;
 
   // AES-encrypted on-disk storage for per-site `controller.saveState()`
-  // bytes. The same encryption pattern as the HTML cache: a 256-bit
-  // AES key in `FlutterSecureStorage`, per-site files under
+  // bytes. A 256-bit AES key in `FlutterSecureStorage`, per-site files under
   // `<docs>/webview_state/<siteId>.enc`. Bytes survive webspace
   // switches, LRU evictions, memory-pressure disposals, AND cold
   // starts (cleared on app-version upgrade alongside the key).
@@ -751,7 +749,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     final isolation = _sites.isolation;
     switch (isolation) {
       case Containers(:final engine):
-        _resets.evictCacheIfOnline(model.siteId);
         await engine.clearForSite(model.containerKey);
         setState(() {
           model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
@@ -768,16 +765,18 @@ class _WebSpacePageState extends State<WebSpacePage>
         // The snapshot names what to delete, and the jar's pre-delete
         // cleanup reads it, so it goes only with the cookies.
         await model.deleteCookies(isolation);
+        // No container holds this site's HTTP cache, so it outlives the
+        // cookies, and a cache-first load would serve the page from before
+        // the clear.
+        await clearEngineCache();
     }
     // Restorable residue the container/cookie wipes don't reach, both engines:
     // the saved `controller.saveState()` bytes are replayed on the next
     // activation, so a page that stashed an identifier in its URL via
     // history.pushState would be reloaded at that URL and read itself back —
-    // defeating the fingerprint reroll above (ETP-022). The encrypted HTML
-    // snapshot is the same story for the page body.
+    // defeating the fingerprint reroll above (ETP-022).
     _navStateDebouncer.cancel(model.siteId);
     await _stateStorage.removeStatesForSite(model.siteId);
-    await HtmlCacheService.instance.deleteCache(model.siteId);
     await _commitSites(const SitesEdited());
     if (!mounted) return;
     // A rebuilt webview loads afresh on its own.
@@ -1893,9 +1892,6 @@ class _PageHost
   @override
   void cancelPendingCapture(SiteId siteId) =>
       _s._navStateDebouncer.cancel(siteId);
-
-  @override
-  void evictCache(SiteId siteId) => _s._resets.evictCacheIfOnline(siteId);
 
   @override
   Future<void> saveCurrentIndex() => _s._shell.saveCurrentIndex();

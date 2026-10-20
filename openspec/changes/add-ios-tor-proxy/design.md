@@ -355,7 +355,7 @@ cryptography plus a full OpenSSL build *inside our binary*, so
 Apple's OS-provided (`URLSession` HTTPS) and authentication-only
 exemptions do not cover it. They never did: the app already
 implements AES at rest in `archive_crypto.dart` and
-`html_cache_service.dart`. EXPORT-001's basis is a different one
+`keychain_aead.dart`. EXPORT-001's basis is a different one
 entirely, publicly available source, and Tor does not touch it.
 
 This design shipped with the opposite conclusion and it cost

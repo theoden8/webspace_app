@@ -24,8 +24,6 @@ class _Page extends Fake implements TabsHost {
   @override
   Future<void> commitSites(SiteSetChange change) async {}
 
-  @override
-  void evictCache(String siteId) {}
 
   @override
   void noteUnloaded(WebViewModel model, {required String why}) =>

@@ -342,7 +342,6 @@ The system SHALL clean up all cookie-related data when a site is deleted.
 **When** the user deletes Site A
 **Then** all cookies for `linkedin.com` are deleted from the webview cookie jar
 **And** Site A's cookies are removed from secure storage (by siteId)
-**And** Site A's HTML cache is deleted
 
 #### Scenario: Delete one of multiple sites on same domain
 
@@ -351,9 +350,8 @@ The system SHALL clean up all cookie-related data when a site is deleted.
 **Then** cookies for Site A's URL(s) are deleted from the native cookie jar
   unconditionally
 **And** Site A's cookies are removed from secure storage (by siteId)
-**And** Site A's HTML cache is deleted
-**And** orphaned per-siteId entries are swept from encrypted storage and
-  HTML cache as defense in depth
+**And** orphaned per-siteId entries are swept from encrypted storage as
+  defense in depth
 **And** Site B continues to function with its cookies intact after next
   activation (which triggers restore from its siteId-keyed storage)
 
@@ -457,8 +455,7 @@ The boundaries:
 **And** `WKHTTPCookieStorage` still contains `.google.com` and
   `accounts.google.com` cookies from that session
 **When** the app launches
-**Then** orphaned siteId-keyed entries are swept from encrypted storage and
-  HTML cache
+**Then** orphaned siteId-keyed entries are swept from encrypted storage
 **And** the native cookie jar is cleared in the jar's first turn, before any
   site's restore
 **And** the first activated site restores only its own siteId-keyed cookies
@@ -477,11 +474,11 @@ The boundaries:
 **Given** the user deletes a site
 **When** the delete flow completes
 **Then** `OrphanSweepEngine` runs every store against the updated site set
-  (the non-incognito one for session stores such as cookies and HTML cache,
-  per incognito-mode INC-006)
+  (the non-incognito one for session stores such as cookies and saved
+  navigation state, per incognito-mode INC-006)
 **And** the shared cookie jar is not cleared
-**And** any encrypted-storage or HTML-cache entries not referenced by a
-  surviving site are removed
+**And** any encrypted-storage entries not referenced by a surviving site
+  are removed
 
 ### Requirement: ISO-014 - A Jar That Fails Is Never Read as Empty
 
@@ -681,10 +678,10 @@ activation through the same path and MUST NOT nuke afterwards.
 
 ### Orphan GC
 
-Per-siteId encrypted storage and HTML cache accumulate entries for deleted
-sites. `OrphanSweepEngine` sweeps every per-site store, including
-`CookieSecureStorage` and `HtmlCacheService`, for entries whose siteId is
-not live. It runs:
+Per-siteId encrypted storage accumulates entries for deleted sites.
+`OrphanSweepEngine` sweeps every per-site store, including
+`CookieSecureStorage` and `WebViewStateStorage`, for entries whose siteId
+is not live. It runs:
 - After the first paint of a launch (`sweepOrphanStorage`), followed by the
   legacy global jar clear
 - On site deletion (in `SiteEditingController.deleteSite`)

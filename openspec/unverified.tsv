@@ -181,7 +181,6 @@ ETP-019	no check: no test reads the InAppWebViewSettings the factory builds; att
 ETP-029	no check: not implemented: task 6.3 of upstream-webview-defects is open and no shim or test registers or probes the plugin's console wrappers
 # user-scripts
 US-001d	no check: no test drives the globalUserScriptsOptInMigrated one-time fill or asserts it does not run again
-US-002c	no check: no test asserts SiteResetController.resetShown/resetAll delete the HTML cache for the edited site or only for sites with global opt-ins, or the offline gate (partly: test/html_cache_service_test.dart, "drops in-memory entry synchronously even before disk delete completes")
 US-003	no check: no widget test drives the User Scripts screen (per-site vs library mode, delete confirmation, toggle, reorder, Make Global); only the editor's discard guard is tested (partly: test/editor_discard_guard_test.dart, "an unsaved edit asks first, and Keep editing keeps it")
 # web-push-notifications
 NOTIF-001	no check: the Dart webNotificationRequestPermission handler in lib/services/page_handlers.dart that answers from the toggle is untested; the JS test stubs the bridge to 'granted', and the hidden-toggle scenario has no test (partly: test/js/notification_polyfill_shim.test.js, "requestPermission asks the bridge and adopts its answer")

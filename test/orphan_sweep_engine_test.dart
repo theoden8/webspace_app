@@ -51,13 +51,12 @@ void main() {
     test('session-scoped storages measure against the non-incognito set',
         () async {
       // Incognito sites are deliberately treated as orphans for anything that
-      // must not outlive the process (INC-006): cookies, cached HTML, saved
-      // navigation state, the protection report's per-site rows, page icons.
+      // must not outlive the process (INC-006): cookies, saved navigation
+      // state, the protection report's per-site rows, page icons.
       final targets = await sweep();
 
       for (final store in [
         OrphanStore.cookies,
-        OrphanStore.htmlCaches,
         OrphanStore.webViewState,
         OrphanStore.blockStatsSites,
         OrphanStore.siteIcons,

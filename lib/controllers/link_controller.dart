@@ -89,9 +89,6 @@ abstract interface class LinkHost implements PageHost {
 
   Future<void> saveCurrentIndex();
 
-  /// Drops [siteId]'s cached HTML snapshot while online.
-  void evictCache(SiteId siteId);
-
   /// WEBSPACE-012: switches to "All" when the selected webspace hides
   /// [model].
   Future<void> revealSite(WebViewModel model);
@@ -780,7 +777,6 @@ class LinkController {
       if (!_host.mounted) return;
     }
     if (a.disposeBeforeLoad) {
-      _host.evictCache(model.siteId);
       if (_sites.loaded.contains(model)) {
         await _host.unloadSite(model, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;

@@ -309,7 +309,7 @@ Existing sites without `clearUrlEnabled` in their stored JSON SHALL default to `
 
 ### ClearUrlService Singleton
 
-`ClearUrlService` follows the same singleton pattern as `HtmlCacheService`:
+`ClearUrlService` follows the same singleton pattern as `HtmlImportStorage`:
 
 ```dart
 static ClearUrlService? _instance;

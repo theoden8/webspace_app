@@ -116,4 +116,29 @@ void main() {
       expect(lists.asked, ['dns:cdn.example@3', 'abp:cdn.example']);
     });
   });
+
+  group('pageBlockReplies', () {
+    test('one reply per URL of the batch, in its order', () {
+      final judged = <String>[];
+      final replies = pageBlockReplies(
+        ['https://a.example/1', 7, 'https://b.example/2', 'https://c.example/3'],
+        judge: (url) {
+          judged.add(url);
+          return switch (Uri.parse(url).host) {
+            'a.example' => const Allowed(),
+            'b.example' => const Blocked(BlockSource.abp),
+            _ => const Redirect('data:text/javascript,'),
+          };
+        },
+      );
+      expect(replies, [false, false, true, 'data:text/javascript,']);
+      expect(judged,
+          ['https://a.example/1', 'https://b.example/2', 'https://c.example/3'],
+          reason: 'each URL judged once, so each is recorded once');
+    });
+
+    test('an empty batch asks nothing', () {
+      expect(pageBlockReplies(const [], judge: (_) => fail('judged')), isEmpty);
+    });
+  });
 }

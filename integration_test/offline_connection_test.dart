@@ -4,10 +4,10 @@
 // every one of them is a negotiation between our Dart decisions and a
 // real engine's load lifecycle:
 //
-//   * offline — the connectivity gate must render the cached snapshot
+//   * offline — a cache-first build must render the engine's stored copy
 //     and issue no live fetch at all;
-//   * online  — the same construction must swap that snapshot for the
-//     live page exactly once (the cached-then-live path);
+//   * online  — the same build must swap that copy for the live page
+//     exactly once (the cache-first-then-live path);
 //   * slow    — a response that takes seconds must complete, and must
 //     never be reported as a load failure;
 //   * shaky   — a refused connection and a truncated response must both
@@ -22,12 +22,12 @@
 // socket rather than by waiting for a real flake.
 //
 // Assertion posture, following privacy_settings_test.dart: everything
-// decided in Dart (whether a reload was issued, whether a cache save was
-// attempted) is asserted strictly on every platform. Everything that
-// depends on the engine honoring a request (reloading an
-// `InAppWebViewInitialData` page back to its baseUrl, reporting a network
-// failure to the Dart layer at all) is asserted only once observed, and
-// logs a SKIP otherwise — Linux WPE maps `WEBKIT_NETWORK_ERROR_FAILED`
+// decided in Dart (whether a reload was issued) is asserted strictly on
+// every platform. A cache-first load is asserted strictly wherever
+// `engineLoadsCacheFirst` holds, since the app claims it there; WPE has no
+// per-load cache policy, so those scenarios SKIP on Linux. Reporting a
+// network failure to the Dart layer at all is asserted only once observed,
+// and logs a SKIP otherwise — Linux WPE maps `WEBKIT_NETWORK_ERROR_FAILED`
 // (299) to no `WebResourceErrorType`, so a plain connection failure never
 // reaches `onReceivedError` there.
 //
@@ -35,7 +35,6 @@
 // wedges the Flutter UI thread, so waits run on real wall-clock inside
 // tester.runAsync() and frames are pumped only to mount widgets.
 
-import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 
@@ -44,6 +43,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/html_source.dart' show engineLoadsCacheFirst;
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
@@ -52,33 +52,19 @@ import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
 
-/// Marker baked into the snapshot handed to the webview as `initialHtml`.
-const String _cachedMarker = 'WS_CACHED_SNAPSHOT_MARKER';
-
 /// Marker only the fixture server can produce, so its presence in the DOM
 /// proves a real network round-trip happened.
 const String _liveMarker = 'WS_LIVE_PAGE_MARKER';
 
-/// A live page whose layout a snapshot can lose: a path-relative stylesheet
-/// and a percentage height that only resolves in quirks mode.
-const String _styledPage = '<!doctype html><html><head>'
-    '<link rel="stylesheet" href="site.css"></head><body>'
-    '<div id="box">$_liveMarker</div>'
-    '<div id="half" style="height:50%"></div></body></html>';
-
-/// Why the cached-then-live swap is never issued on WKWebView and WPE: both
-/// report the snapshot's own `initialData` commit to `shouldOverrideUrlLoading`,
-/// which bumps the factory's navigation generation before the cached parse
-/// settles, and the swap only fires while that generation is still 0.
-const String _swapUnreachable = 'the engine reported the snapshot commit as '
-    'a navigation, which gates the cached-then-live swap off';
+/// The `/cached` route's page, stamped with which request served it. Sent as
+/// `no-cache`: the engine stores it, but any normal load or reload must
+/// revalidate, so only a cache-first load shows a stamp without a request.
+String _stampedPage(int request) =>
+    '<!doctype html><html><head><title>stamped</title></head>'
+    '<body><p>WS_STAMP_$request</p></body></html>';
 
 /// How long the `/slow` route sits on the request before answering.
 const Duration _slowDelay = Duration(seconds: 5);
-
-String _cachedSnapshot() =>
-    '<!doctype html><html><head><title>cached</title></head>'
-    '<body><p>$_cachedMarker</p></body></html>';
 
 String _livePage(String path) =>
     '<!doctype html><html><head><title>live</title></head>'
@@ -88,9 +74,11 @@ String _livePage(String path) =>
 class _Observed {
   WebViewController? controller;
   int reloadsIssued = 0;
+
+  /// How many requests the fixture had seen when the live reload was issued.
+  int? requestsAtReload;
   final List<bool> loadingStates = [];
   final List<MainFrameLoadSignal> signals = [];
-  final List<String> savedHtml = [];
 
   Iterable<MainFrameLoadSignal> get failures =>
       signals.where((s) => s.phase == MainFrameLoadPhase.failed);
@@ -104,6 +92,9 @@ void main() {
   late int port;
   late int deadPort;
   final requests = <String>[];
+  // Not cleared by primeCache, so the live page's stamp differs from the
+  // primed copy's.
+  var cachedServed = 0;
 
   void log(String m) {
     // ignore: avoid_print
@@ -119,15 +110,11 @@ void main() {
         case '/slow':
           await Future<void>.delayed(_slowDelay);
           break;
-        case '/styled/page':
-          final res = req.response..headers.contentType = ContentType.html;
-          res.write(_styledPage);
-          await res.close();
-          return;
-        case '/styled/site.css':
+        case '/cached':
           final res = req.response
-            ..headers.contentType = ContentType('text', 'css');
-          res.write('#box { width: 123px; }');
+            ..headers.contentType = ContentType.html
+            ..headers.set(HttpHeaders.cacheControlHeader, 'no-cache');
+          res.write(_stampedPage(++cachedServed));
           await res.close();
           return;
         case '/truncated':
@@ -168,7 +155,10 @@ void main() {
     await server.close(force: true);
   });
 
-  setUp(requests.clear);
+  setUp(() {
+    requests.clear();
+    cachedServed = 0;
+  });
 
   tearDown(ConnectivityService.reset);
 
@@ -183,7 +173,7 @@ void main() {
   Future<_Observed> mount(
     WidgetTester tester, {
     required String initialUrl,
-    String? initialHtml,
+    bool cacheFirst = false,
   }) async {
     final observed = _Observed();
     await tester.pumpWidget(MaterialApp(
@@ -202,11 +192,13 @@ void main() {
                 // blocker lists, no ETP shim.
                 posture: barePosture(initialUrl, siteId: SiteId('offline-connection')),
                 initialUrl: initialUrl,
-                initialHtml: initialHtml,
-                onReloadIssued: () => observed.reloadsIssued++,
+                cacheFirst: cacheFirst,
+                onReloadIssued: () {
+                  observed.reloadsIssued++;
+                  observed.requestsAtReload ??= requests.length;
+                },
                 onLoadingChanged: ({required loading}) => observed.loadingStates.add(loading),
                 onMainFrameLoad: observed.signals.add,
-                onHtmlLoaded: (_, {required html}) => observed.savedHtml.add(html),
               ),
               onControllerCreated: (c) => observed.controller = c,
             ),
@@ -236,150 +228,120 @@ Future<String> htmlOf(WidgetTester tester,
   return html;
 }
 
-Future<Object?> evalOf(WidgetTester tester,
-    {required _Observed observed, required String source}) async {
-  Object? result;
-  await tester.runAsync(() async {
-    result = await observed.controller
-        ?.evaluateJavascriptReturning(source)
-        .timeout(const Duration(seconds: 5));
-  });
-  return result;
-}
-
-  // OFFLINE-INTEG-001. The whole point of the snapshot: when the device is
-  // offline at construction time the user gets the last-seen page, and the
-  // app does not spend a round-trip proving the network is still down.
-  // Both halves are decided in Dart (`initialHtml` + the `isOnline()` gate
-  // inside the factory's one-shot live-reload), so both assert strictly on
-  // every engine.
-  testWidgets('offline: cached snapshot renders and no live load is issued',
-      (tester) async {
-    ConnectivityService.onlineOverride = Future.value(false);
-
-    final observed = await mount(
-      tester,
-      initialUrl: url('/fast'),
-      initialHtml: _cachedSnapshot(),
-    );
-
-    // The cached parse has to settle before the live-reload decision is
-    // even reachable, so wait for the settle rather than a fixed sleep.
+  /// A live load of `/cached` that leaves its first stamp in the engine's
+  /// cache, then clears the request log for the build under test.
+  Future<void> primeCache(WidgetTester tester) async {
+    final primed = await mount(tester, initialUrl: url('/cached'));
     final settled = await waitReal(
       tester,
-      done: () => observed.signals
+      done: () => primed.signals
           .any((s) => s.phase == MainFrameLoadPhase.settled),
-      label: 'cached parse settles',
+      label: 'priming load settles',
       timeout: const Duration(seconds: 20),
     );
-    // Give the (already-resolved) connectivity probe and any reload it
-    // could have scheduled a generous window to reach the server.
+    expect(settled, isTrue, reason: 'the priming load must settle');
+    expect(await htmlOf(tester, observed: primed), contains('WS_STAMP_1'));
+    requests.clear();
+  }
+
+  Future<bool> settledOnce(WidgetTester tester, {required _Observed observed}) =>
+      waitReal(
+        tester,
+        done: () => observed.signals
+            .any((s) => s.phase == MainFrameLoadPhase.settled),
+        label: 'cache-first load settles',
+        timeout: const Duration(seconds: 20),
+      );
+
+  // OFFLINE-INTEG-001. Offline at construction, the user gets the page the
+  // engine kept, and the app does not spend a round-trip proving the network
+  // is still down.
+  testWidgets('offline: a cache-first build renders the stored page, no fetch',
+      (tester) async {
+    if (!engineLoadsCacheFirst) {
+      log('SKIP: WPE has no per-load cache policy');
+      return;
+    }
+    ConnectivityService.onlineOverride = Future.value(false);
+    await primeCache(tester);
+
+    final observed =
+        await mount(tester, initialUrl: url('/cached'), cacheFirst: true);
+    expect(await settledOnce(tester, observed: observed), isTrue);
     await waitReal(
       tester,
-      done: () => countFor('/fast') > 0,
+      done: () => countFor('/cached') > 0,
       label: 'live fetch (must not happen)',
       timeout: const Duration(seconds: 8),
     );
 
     expect(observed.reloadsIssued, 0,
-        reason: 'offline must not fire the cached-then-live swap');
-    expect(countFor('/fast'), 0,
-        reason: 'offline must not reach the network at all');
-    expect(observed.failures, isEmpty,
-        reason: 'rendering a cached snapshot is not a load failure');
-
-    if (!settled) {
-      log('SKIP dom assertion: engine never settled the cached parse');
-      return;
-    }
-    final html = await htmlOf(tester, observed: observed);
-    expect(html, contains(_cachedMarker),
-        reason: 'offline construction must paint the cached snapshot');
+        reason: 'offline must not fire the live swap');
+    expect(countFor('/cached'), 0,
+        reason: 'a cache-first load must not reach the network');
+    expect(observed.failures, isEmpty);
+    expect(await htmlOf(tester, observed: observed), contains('WS_STAMP_1'),
+        reason: 'the stored copy is what renders');
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  // OFFLINE-INTEG-002. The converse gate: online, the snapshot is a first
-  // paint and nothing more — exactly one reload, then the live bytes.
-  testWidgets('online: cached snapshot is swapped for the live page once',
+  // OFFLINE-INTEG-002. Online, the stored copy is a first paint and nothing
+  // more: exactly one reload, then the live bytes.
+  testWidgets('online: the stored page is swapped for the live page once',
       (tester) async {
+    if (!engineLoadsCacheFirst) {
+      log('SKIP: WPE has no per-load cache policy');
+      return;
+    }
     ConnectivityService.onlineOverride = Future.value(true);
+    await primeCache(tester);
 
-    final observed = await mount(
-      tester,
-      initialUrl: url('/fast'),
-      initialHtml: _cachedSnapshot(),
-    );
-
+    final observed =
+        await mount(tester, initialUrl: url('/cached'), cacheFirst: true);
     final reloaded = await waitReal(
       tester,
       done: () => observed.reloadsIssued > 0,
-      label: 'live-reload issued',
+      label: 'live reload issued',
       timeout: const Duration(seconds: 20),
     );
-    if (!reloaded) {
-      final settled = observed.signals
-          .any((s) => s.phase == MainFrameLoadPhase.settled);
-      log(settled
-          ? 'SKIP: $_swapUnreachable'
-          : 'SKIP: engine never settled the cached parse, so the '
-              'cached-then-live swap was never reachable');
-      return;
-    }
-    expect(observed.reloadsIssued, 1,
-        reason: 'the live swap is a one-shot, not a loop');
-
-    final fetched = await waitReal(
-      tester,
-      done: () => countFor('/fast') > 0,
-      label: 'live fetch reaches the fixture server',
-    );
-    if (!fetched) {
-      log('SKIP dom assertion: engine did not reload an initialData page '
-          'back to its baseUrl');
-      return;
-    }
-    // The fetch reached the server; the commit follows.
+    expect(reloaded, isTrue, reason: 'online, the stored copy goes live');
+    expect(observed.requestsAtReload, 0,
+        reason: 'the first paint came from the cache');
     await waitReal(
       tester,
-      done: () => observed.loadingStates.length > 2,
-      label: 'settle after live fetch',
+      done: () => countFor('/cached') > 0 && observed.loadingStates.length > 2,
+      label: 'live reload settles',
       timeout: const Duration(seconds: 15),
     );
-    final html = await htmlOf(tester, observed: observed);
-    if (!html.contains(_liveMarker)) {
-      log('SKIP dom assertion: live bytes fetched but not committed yet '
-          '(html len=${html.length})');
-      return;
-    }
-    expect(html, contains(_liveMarker));
-    expect(observed.failures, isEmpty,
-        reason: 'a successful live swap reports no failure');
+    await waitReal(
+      tester,
+      done: () => observed.reloadsIssued > 1,
+      label: 'second live reload (must not happen)',
+      timeout: const Duration(seconds: 6),
+    );
+    expect(observed.reloadsIssued, 1,
+        reason: 'the live swap is a one-shot, not a loop');
+    expect(countFor('/cached'), 1,
+        reason: 'the reload revalidates once and nothing more');
+    expect(await htmlOf(tester, observed: observed), contains('WS_STAMP_2'),
+        reason: 'the live page replaces the stored one');
+    expect(observed.failures, isEmpty);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  // OFFLINE-INTEG-006. Offline when the snapshot settles is not offline for
-  // good: a renderer recreated on return from the background paints its
-  // snapshot before a per-app firewall lets the app back out (PAUSE-033).
-  testWidgets('network back after the snapshot settles: still swapped once',
+  // OFFLINE-INTEG-006. Offline when the stored page settles is not offline
+  // for good: a webview rebuilt on return from the background settles before
+  // a per-app firewall lets the app back out (PAUSE-033).
+  testWidgets('network back after the stored page settles: still swapped once',
       (tester) async {
-    ConnectivityService.onlineOverride = Future.value(false);
-
-    final observed = await mount(
-      tester,
-      initialUrl: url('/fast'),
-      initialHtml: _cachedSnapshot(),
-    );
-
-    final settled = await waitReal(
-      tester,
-      done: () => observed.signals
-          .any((s) => s.phase == MainFrameLoadPhase.settled),
-      label: 'cached parse settles',
-      timeout: const Duration(seconds: 20),
-    );
-    if (!settled) {
-      log('SKIP: engine never settled the cached parse, so the '
-          'cached-then-live swap was never reachable');
+    if (!engineLoadsCacheFirst) {
+      log('SKIP: WPE has no per-load cache policy');
       return;
     }
+    ConnectivityService.onlineOverride = Future.value(false);
+    await primeCache(tester);
+
+    final observed =
+        await mount(tester, initialUrl: url('/cached'), cacheFirst: true);
+    expect(await settledOnce(tester, observed: observed), isTrue);
     expect(observed.reloadsIssued, 0,
         reason: 'no swap while the probe reports offline');
     ConnectivityService.onlineOverride = Future.value(true);
@@ -387,77 +349,18 @@ Future<Object?> evalOf(WidgetTester tester,
     final reloaded = await waitReal(
       tester,
       done: () => observed.reloadsIssued > 0,
-      label: 'live-reload issued once online',
+      label: 'live reload issued once online',
       timeout: const Duration(seconds: 30),
     );
-    if (!reloaded) {
-      log('SKIP: $_swapUnreachable');
-      return;
-    }
+    expect(reloaded, isTrue);
     await waitReal(
       tester,
       done: () => observed.reloadsIssued > 1,
-      label: 'second live-reload (must not happen)',
+      label: 'second live reload (must not happen)',
       timeout: const Duration(seconds: 6),
     );
     expect(observed.reloadsIssued, 1,
         reason: 'the live swap is a one-shot, not a loop');
-  }, timeout: const Timeout(Duration(minutes: 3)));
-
-  // OFFLINE-INTEG-007. What the app saves is what it renders back offline,
-  // so the snapshot a live page leaves behind must lay out as the page did
-  // (PAUSE-033): the doctype survives, so the parse is in standards mode, and
-  // the `<base>` keeps a path-relative stylesheet resolving at another
-  // currentUrl. The Chromium tier proves the script; this proves the app's
-  // save path returns it on WKWebView and WPE.
-  testWidgets('a saved snapshot renders in standards mode with its stylesheet',
-      (tester) async {
-    ConnectivityService.onlineOverride = Future.value(false);
-    final pageUrl = url('/styled/page');
-
-    final live = await mount(tester, initialUrl: pageUrl);
-    final saved = await waitReal(
-      tester,
-      done: () => live.savedHtml.isNotEmpty,
-      label: 'live page snapshot saved',
-    );
-    expect(saved, isTrue, reason: 'a settled live page leaves a snapshot');
-    final snapshot = live.savedHtml.first;
-    expect(snapshot, startsWith('<!DOCTYPE html>'),
-        reason: 'without the doctype the snapshot renders in quirks mode');
-    expect(snapshot, contains('<base href="$pageUrl">'));
-    expect(snapshot, contains(_liveMarker));
-
-    final cached = await mount(
-      tester,
-      initialUrl: url('/elsewhere/deep/path'),
-      initialHtml: snapshot,
-    );
-    final settled = await waitReal(
-      tester,
-      done: () => cached.signals
-          .any((s) => s.phase == MainFrameLoadPhase.settled),
-      label: 'snapshot parse settles',
-      timeout: const Duration(seconds: 20),
-    );
-    if (!settled) {
-      log('SKIP layout assertion: engine never settled the cached parse');
-      return;
-    }
-    final layout = await evalOf(
-      tester,
-      observed: cached,
-      source: 'JSON.stringify({mode: document.compatMode, '
-      'width: getComputedStyle(document.getElementById("box")).width, '
-      'half: document.getElementById("half").offsetHeight})',
-    );
-    log('snapshot layout: $layout');
-    expect(layout, isA<String>());
-    expect(jsonDecode(layout! as String), {
-      'mode': 'CSS1Compat',
-      'width': '123px',
-      'half': 0,
-    });
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   // OFFLINE-INTEG-003. A slow link is not a broken link. The failure mode
@@ -557,42 +460,5 @@ Future<Object?> evalOf(WidgetTester tester,
       initialUrl: url('/truncated'),
       label: 'truncated response',
     );
-  }, timeout: const Timeout(Duration(minutes: 3)));
-
-  // OFFLINE-INTEG-005. The snapshot must survive the flake that makes it
-  // matter. A failed navigation still commits an engine error page, and
-  // `onLoadStop` fires for it; caching those bytes replaces the user's
-  // last-good page with "connection refused", which is then what the next
-  // offline cold start renders.
-  testWidgets('shaky: a failed load never overwrites the offline snapshot',
-      (tester) async {
-    ConnectivityService.onlineOverride = Future.value(true);
-
-    final observed =
-        await mount(tester, initialUrl: 'http://127.0.0.1:$deadPort/refused');
-
-    final failed = await waitReal(
-      tester,
-      done: () => observed.failures.isNotEmpty,
-      label: 'refused load reports a failure',
-      timeout: const Duration(seconds: 30),
-    );
-    if (!failed) {
-      log('SKIP: engine reported no main-frame failure, so there is no '
-          'error-page commit to guard against');
-      return;
-    }
-    // The error page commits after the failure; give the settle (and the
-    // getHtml() it would trigger) room to land before asserting.
-    await waitReal(
-      tester,
-      done: () => observed.savedHtml.isNotEmpty,
-      label: 'cache save (must not happen)',
-      timeout: const Duration(seconds: 10),
-    );
-    expect(observed.savedHtml, isEmpty,
-        reason: 'a navigation that failed has no page worth caching; '
-            'saving the engine error page clobbers the snapshot the '
-            'offline path depends on');
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

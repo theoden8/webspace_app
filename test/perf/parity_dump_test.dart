@@ -292,7 +292,10 @@ Iterable<Object?> _serviceRows(ContentBlockerService s, {required _Corpus c}) sy
   yield {
     'prefilterHosts': _sorted(s.abpNetworkBlockHosts),
     'untokenizable': s.hasUntokenizableNetworkRules,
-    'tokenBloom': s.genericNetworkTokenBloom?.toMap(),
+    'tokenBloom': switch (s.genericNetworkTokenBloom) {
+      final b? => {'bits': b.bits, 'bitCount': b.bitCount, 'k': b.k},
+      null => null,
+    },
   };
   for (final q in c.queries) {
     yield [

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 
-/// HTML rendered when a file-import site has no cached HTML available
-/// (incognito session, post-upgrade cache wipe, …). Loaded via
+/// HTML rendered when a file-import site has no stored HTML available
+/// (an incognito session, an import whose bytes are gone). Loaded via
 /// `InAppWebViewInitialData` so chromium never tries to fetch the synthetic
 /// `file:///<filename>` URL — that would surface as `ERR_INVALID_URL` /
 /// `ERR_FILE_NOT_FOUND` since no real file exists on disk for the import.

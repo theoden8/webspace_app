@@ -24,8 +24,8 @@ abstract class BlockStatsDetailStore {
 }
 
 /// The detail sealed by [KeychainAead] in `<docs>/block_stats/detail.enc`.
-/// Unlike the HTML cache the file survives app upgrades: a report wiped by
-/// an update is the complaint this answers.
+/// The file survives app upgrades: a report wiped by an update is the
+/// complaint this answers.
 ///
 /// Blocked hosts and `siteId`s are browsing-derived, so they never join the
 /// counters in plaintext SharedPreferences (STATS-005). Every failure path
@@ -96,7 +96,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     // A pre-GCM blob or a tampered one reads as "no detail": the report
     // rebuilds from the plaintext counters rather than trusting the bytes.
     if (wire == null || wire.isEmpty) return null;
-    return aead.unseal(wire);
+    return await aead.unseal(wire);
   }
 
   @override
@@ -106,7 +106,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final aead = _aead;
     if (store == null || aead == null) return false;
     try {
-      await store.writeText(_fileName, contents: aead.seal(payload));
+      await store.writeText(_fileName, contents: await aead.seal(payload));
       return true;
     } on IOException catch (e) {
       LogTag.blockStats.warning('Detail write failed: $e');

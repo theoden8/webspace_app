@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/services/connectivity_service.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
@@ -62,8 +61,8 @@ class _SiteWebView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The HTML cache is a snapshot of the site's own page; a hosted tab
-    // neither reads nor writes it (LIR-018).
+    // The site's own page is what its cache holds; a hosted tab opens
+    // another page, live (LIR-018).
     final htmlSource = site.runsHostedTab || site.runsForeignTab
         ? HtmlSource.none
         : htmlSourceFor(
@@ -82,26 +81,13 @@ class _SiteWebView extends StatelessWidget {
           Expanded(
             child: _withInterstitial(site.getWebView(
               hooks,
-              // file:// imports are user data, the only copy on the device,
-              // not a re-fetchable snapshot, so they skip the save path.
-              onHtmlLoaded: htmlSource != HtmlSource.cache
-                  ? null
-                  : (url, {required html}) => HtmlCacheService.instance.saveHtml(
-                      site.siteId,
-                      html: html,
-                      url: url,
-                    ),
-              // Skips the per-onLoadStop snapshot IPC into chromium when a
-              // save would be debounced anyway: every SPA pseudo-navigation
-              // serialized the renderer DOM, each a candidate for racing
-              // chromium's frame-lifecycle teardown. Archive-tier sites skip
-              // the cache write entirely (ARCH-006).
-              shouldFetchHtml: htmlSource != HtmlSource.cache
-                  ? null
-                  : () => HtmlCacheService.instance.shouldSave(site.siteId),
-              initialHtml: htmlSource == HtmlSource.none
-                  ? null
-                  : _initialHtml(context, isFileImport: htmlSource == HtmlSource.import),
+              cacheFirst: loadsCacheFirst(htmlSource,
+                  htmlCaching: site.htmlCachingEnabled,
+                  online: ConnectivityService.instance.lastKnownOnline,
+                  engineCan: engineLoadsCacheFirst),
+              initialHtml: htmlSource == HtmlSource.import
+                  ? _importedHtml(context)
+                  : null,
             )),
           ),
         ],
@@ -142,20 +128,9 @@ class _SiteWebView extends StatelessWidget {
     );
   }
 
-  /// The first paint, before the live load swaps in (the factory's
-  /// `pendingLiveReload` skips the swap offline). A file:// import renders
-  /// its stored bytes, having no live page. A URL site reads its cache only
-  /// with `htmlCachingEnabled` or when offline at construction, so an online
-  /// cold start never shows stale content.
-  String? _initialHtml(BuildContext context, {required bool isFileImport}) {
-    if (!isFileImport &&
-        !site.htmlCachingEnabled &&
-        (ConnectivityService.instance.lastKnownOnline ?? true)) {
-      return null;
-    }
-    final cached = isFileImport
-        ? HtmlImportStorage.instance.getHtmlSync(site.siteId)
-        : HtmlCacheService.instance.getHtmlSync(site.siteId);
+  /// A file:// import's stored bytes, which it renders, having no live page.
+  String? _importedHtml(BuildContext context) {
+    final cached = HtmlImportStorage.instance.getHtmlSync(site.siteId);
     if (cached == null) return null;
     final isDark = switch (site.effectiveTheme) {
       WebViewTheme.dark => true,
@@ -163,6 +138,6 @@ class _SiteWebView extends StatelessWidget {
       WebViewTheme.system =>
         MediaQuery.platformBrightnessOf(context) == Brightness.dark,
     };
-    return HtmlCacheService.applyThemePrelude(cached, dark: isDark);
+    return HtmlImportStorage.applyThemePrelude(cached, dark: isDark);
   }
 }

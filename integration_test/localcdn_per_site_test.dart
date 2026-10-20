@@ -94,6 +94,7 @@ void main() {
       home: Scaffold(
         body: WebViewFactory.createWebView(
           config: WebViewConfig(
+            cacheFirst: false,
             hooks: bareHooks(),
             key: key,
             posture: barePosture('$base/blank',

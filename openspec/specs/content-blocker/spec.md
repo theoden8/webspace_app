@@ -21,7 +21,7 @@ The app instead routes every ABP decision through `adblock-rust`, the same engin
 Four-layer content blocking, all driven by the same engine instance:
 
 1. **Main-document blocking** — `ContentBlockerService.isBlocked(url, sourceUrl, requestType)` in `shouldOverrideUrlLoading` cancels navs that match the engine's blocking rules.
-2. **Sub-resource blocking** — Android uses a native `FastSubresourceInterceptor` that holds a JNI handle to the same engine; iOS/macOS route through the JS interceptor's `blockCheck` handler back into the Dart engine wrapper.
+2. **Sub-resource blocking** — Android uses a native `FastSubresourceInterceptor` that holds a JNI handle to the same engine; iOS/macOS route through the JS interceptor's `blockCheckBatch` handler back into the Dart engine wrapper.
 3. **CSS cosmetic filtering** — `<style>` tag injection at `DOCUMENT_START` for `##selector` hides, sourced from the engine's `cosmeticResources(url)` API plus the on-demand generic-class/id scan path (`hidden_class_id_selectors`).
 4. **Procedural actions** — `:has-text()`, `:upward(N)`, `:remove()`, `:remove-attr()`, `:remove-class()`, and `:style()` rules are emitted by the engine and run by the page-side procedural shim.
 
@@ -237,7 +237,7 @@ rules match exactly as before
 **Given** the engine is active on iOS or macOS
 **And** the DNS-only Bloom prefilter has been delivered to the webview's JS interceptor
 **When** the page issues a `fetch('https://tracker.example.com/beacon')` call
-**Then** the JS interceptor invokes the `blockCheck` handler, passing URL + `lastLoadStartUrl` as `sourceUrl`
+**Then** the JS interceptor invokes the `blockCheckBatch` handler, passing URL + `lastLoadStartUrl` as `sourceUrl`
 **And** the Dart handler routes through `ContentBlockerService.isBlocked` (engine call)
 **And** the result is honoured by the JS interceptor
 
@@ -256,7 +256,7 @@ rules match exactly as before
 **Then** the interceptor attributes the hit to `dns` (DNS is checked first)
 **And** the ABP block counter is not incremented for that request
 **And** every path that blocks or counts a request (navigations, popups,
-`blockCheck`, the PerformanceObserver batch, page-icon fetches) takes this
+`blockCheckBatch`, the PerformanceObserver batch, page-icon fetches) takes this
 order through `BlockDecision.decide`, which asks the engine nothing about a
 request DNS already blocked
 

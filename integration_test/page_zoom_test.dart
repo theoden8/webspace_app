@@ -141,6 +141,7 @@ void main() {
             height: _kBoxHeight,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                cacheFirst: false,
                 hooks: bareHooks(),
                 key: mountKey,
                 // Keep the surface to the zoom path: no blocker lists, no

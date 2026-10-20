@@ -137,7 +137,7 @@ final class ActivationFlow implements Capturing, ActivationState {
   /// What the activation's steps ask of the page and the rules it runs
   /// ([ActivationCalls]), and the effects that change nothing the steps do
   /// not write themselves: the redraws, the teardown, the routes, the
-  /// HTML snapshot, the Tor pin.
+  /// imported HTML, the Tor pin.
   static final page = Port<ActivationCalls, ActivationFlow>(
     'page',
     reads: const {},

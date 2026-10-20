@@ -9,7 +9,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/icon_service.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/diag_seed.dart';
 import 'package:webspace/services/site_search_list_service.dart';
@@ -21,6 +20,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -42,21 +42,16 @@ import 'package:webspace/settings/app_locale.dart';
 
 void main([List<String> args = const []]) async {
   final launch = ProcessLaunch.fromArgs(args);
+  LaunchTimeline.start();
   WidgetsFlutterBinding.ensureInitialized();
 
-  final swMain = kDebugMode ? (Stopwatch()..start()) : null;
-
   // Imported HTML files are the only copy of user-supplied content, so they
-  // live in their own persistent store and survive upgrades. The HTML cache
-  // (re-fetchable fetched-page snapshots, safe to drop on upgrade) must
-  // initialize after the import store: its pre-wipe hook copies imports left
-  // in the legacy cache (from versions before the import store existed) into
-  // HtmlImportStorage before they're nuked.
+  // live in their own persistent store and survive upgrades. The page
+  // snapshots earlier releases kept beside them go, after any import still
+  // among them is carried over.
   Future<void> htmlInit() async {
     await HtmlImportStorage.instance.initialize();
-    await HtmlCacheService.instance.initialize(
-      beforeUpgradeWipe: HtmlImportStorage.migrateFromCache,
-    );
+    await HtmlImportStorage.instance.retireSnapshotCache();
   }
 
   // MaterialApp resolves the platform locale on its first frame (the in-app
@@ -175,10 +170,8 @@ void main([List<String> args = const []]) async {
   // may go through (LEAK-004). Preset UAs re-render from the cached version
   // on the next build.
   unawaited(FirefoxUserAgentService.instance.maybeAutoRefresh());
-  if (swMain != null) {
-    LogTag.startup.debug(
-      'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms',
-    );
-  }
+  LaunchTimeline.reached(LaunchMark.runApp);
+  unawaited(WidgetsBinding.instance.waitUntilFirstFrameRasterized
+      .then((_) => LaunchTimeline.reached(LaunchMark.firstFrame)));
   runApp(WebSpaceApp(launch: launch));
 }

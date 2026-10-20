@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:webspace/settings/site_ids.dart';
 
-import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
@@ -19,6 +19,7 @@ import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/settings_import_engine.dart' show promoteLegacySiteIndices;
@@ -123,7 +124,6 @@ class StartupController implements DeferredStartupHost {
   /// take nothing in common run at once.
   Future<void> restore() async {
     final activationVersionAtRestore = _sites.activationVersion;
-    final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     try {
       final prefs = _loadPrefs();
       final shell = _loadShell();
@@ -140,6 +140,7 @@ class StartupController implements DeferredStartupHost {
         loaded: await loaded,
       );
       if (onPage == null) return;
+      LaunchTimeline.reached(LaunchMark.sitesOnPage);
       final suggested = _loadSuggestedSites(after: await prefs);
       final routes = _host.activateRouter();
       await _shortcuts.pruneAgainst(_sites.siteIds, after: onPage);
@@ -155,11 +156,7 @@ class StartupController implements DeferredStartupHost {
       );
       if (launched == null) return;
       _launched.complete(launched);
-      if (swRestore != null) {
-        LogTag.startup.debug(
-          'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms',
-        );
-      }
+      unawaited(_reportLaunch());
       // Not awaited before the launch: a container the activation makes waits
       // for the sweep on its own (CONT-004).
       await Future.wait([
@@ -288,9 +285,8 @@ class StartupController implements DeferredStartupHost {
   }
 
   /// Before the activation so its first build sees the right theme:
-  /// initialHtml picks the dark prelude for cached HTML from it (file://
-  /// imports never reload to live), and models default to light, so a dark
-  /// theme would otherwise flash white. Only the models built now need it;
+  /// initialHtml picks the dark prelude for a file import from it, and
+  /// models default to light, so a dark theme would otherwise flash white. Only the models built now need it;
   /// the rest are themed after paint. Returns their siteIds.
   Future<Set<SiteId>> _themeLaunch(
     _LaunchTarget target, {
@@ -311,7 +307,6 @@ class StartupController implements DeferredStartupHost {
     required Set<SiteId> themed,
     required int activationVersionAtRestore,
   }) async {
-    final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
     final launchAt = switch (target.site) {
       final m? when _sites.models.contains(m) => m,
       _ => null,
@@ -324,11 +319,7 @@ class StartupController implements DeferredStartupHost {
     )) {
       await _activation.activate(launchAt);
     }
-    if (swActivate != null) {
-      LogTag.startup.debug(
-        'activate target site: ${swActivate.elapsedMilliseconds}ms',
-      );
-    }
+    LaunchTimeline.reached(LaunchMark.activated);
     if (!_host.mounted) return null;
     // The FS-008 shortcut-launch fullscreen policy; a notification launch is
     // not a shortcut and opens the site as a tap would. KIOSK-003: a locked
@@ -345,6 +336,18 @@ class StartupController implements DeferredStartupHost {
     }
     _host.rebuild();
     return const Reached._();
+  }
+
+  /// The launch's timeline, once the launched page has settled or is no
+  /// longer waited for (DEVTOOLS-013).
+  Future<void> _reportLaunch() async {
+    final site = _launchedSite;
+    if (site != null) {
+      unawaited(site.firstLoadSettled
+          .then((_) => LaunchTimeline.reached(LaunchMark.pageSettled)));
+      await launchedSiteLoaded();
+    }
+    LaunchTimeline.end();
   }
 
   /// Off the first paint: what the launched site waits on none of.

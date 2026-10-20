@@ -21,10 +21,10 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 
 - [x] 3.1 Identity view in `getWebView` (design D9): every POSTURE field, the identity plumbing (`cookieSiteId`, the `onCookiesChanged` target model and its `saveFunc`, `blockedCookies`, fingerprint seed, block-stats and notification attribution) and the navigation rules (`initUrl`, claims, `blockAutoRedirects`, `externalLinksInBrowser`, the `onOutboundLink` source) read from the running identity; slot plumbing reads `this`.
 - [x] 3.2 Gate: extend `test/js/nested_webview_posture_parity.test.js` (or a sibling) so every POSTURE field in `getWebView`'s `WebViewConfig(...)` and in both `launchUrlFunc(...)` calls is read from the identity, never from `this`. *As `test/web_search_entry_test.dart` (the identity fields of `getWebView`) and `test/js/site_info_container_source.test.js` (the config binds `id.`), not an extension of the posture parity test.*
-- [x] 3.3 HTML cache: `onHtmlLoaded`, `shouldFetchHtml` and `initialHtml` are inert while the active tab has a host. *`htmlSource` is `HtmlSource.none` while a hosted tab is active.*
+- [x] 3.3 HTML caching: a hosted tab never loads cache-first. *`htmlSource` is `HtmlSource.none` while a hosted tab is active.*
 - [x] 3.4 Owner loads bind an own tab first (design D8): home-shortcut launch, the Always open Home reset, `_executeOpenInMain`. A pure helper `TabLifecycleEngine.ownTabFor(tabs, activeTabId)` returns the tab to bind or null (seed a root). *The helper is `TabLifecycleEngine.ownerRunTab`; `_bindOwnerRunTab` goes through `_switchActiveTab` when the slot is loaded.*
 - [x] 3.5 The tab sheet names the host on a hosted row.
-- [ ] 3.6 Tests: posture and cookie mirror follow the host (a fake `ContainerCookieManager` keyed by site); HTML cache untouched; a shortcut launch on a hosted active tab binds the own parent first. *Structural checks and `test/hosted_tabs_test.dart` only; no cookie-manager fake yet.*
+- [ ] 3.6 Tests: posture and cookie mirror follow the host (a fake `ContainerCookieManager` keyed by site); a hosted tab loads live; a shortcut launch on a hosted active tab binds the own parent first. *Structural checks and `test/hosted_tabs_test.dart` only; no cookie-manager fake yet.*
 
 ## 4. Hosted tabs: eligibility and creation
 

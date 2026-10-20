@@ -62,7 +62,7 @@ test('the controller handed to the model carries the import document', () => {
 test('initialData and the wrapper render the same import document', () => {
   assert.match(src, /final fileImport = FileImportDocument\.of\(/);
   assert.match(src,
-      /final initialHtmlToRender =\s*renderInitialData \? fileImport\?\.html \?\? config\.initialHtml! : null;/,
+      /final initialHtmlToRender =\s*renderInitialData \? fileImport\.html : null;/,
       'the first document must be fileImport.html for an import');
   assert.match(src, /data:\s*initialHtmlToRender,/,
       'initialData must render the first document');

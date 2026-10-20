@@ -83,6 +83,7 @@ void main() {
             key: key,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                cacheFirst: false,
                 hooks: bareHooks(),
                 posture: barePosture('http://$origin$path',
                     siteId: siteId, proxy: proxySettings),

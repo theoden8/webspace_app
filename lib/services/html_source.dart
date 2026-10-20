@@ -1,28 +1,27 @@
-/// Which on-device HTML store backs a site's synchronous first-paint read.
+/// How a site's webview takes its first page.
 ///
 /// This classification MUST be identical everywhere it's used, or a site can
-/// render blank (preloaded from one store, read from another) or have its live
-/// snapshot wrongly saved over a `file://` import. The call sites:
-///   - preload: `_WebSpacePageState.ensureSiteHtml` decrypts the right store
-///     before a site enters `_loadedIndices`.
-///   - read: the IndexedStack `initialHtml` callback reads it synchronously.
-///   - save: `onHtmlLoaded` / `shouldFetchHtml` persist live snapshots only for
-///     [HtmlSource.cache] sites.
-/// Centralising the rule here (instead of three inline `incognito || isArchive
-/// || initUrl.startsWith('file://')` checks) makes the parity testable and
-/// undriftable. See test/html_source_test.dart.
+/// render blank (preloaded from one store, read from another). The call sites:
+///   - preload: `SiteActivationController.ensureSiteHtmlForModel` decrypts a
+///     file import before the site's webview builds.
+///   - read: `SiteWebViewStack` hands the import's bytes to the build, and
+///     asks [loadsCacheFirst] whether a URL site starts from the engine's
+///     cache.
+/// See test/html_source_test.dart.
 library;
+
+import 'package:webspace/platform/host_platform.dart';
 
 enum HtmlSource {
   /// `file://` imports — the only copy of user-supplied content, in
-  /// `HtmlImportStorage`. Rendered from cache always (no live to fetch).
+  /// `HtmlImportStorage`. Rendered from those bytes always (no live to fetch).
   import,
 
-  /// URL sites — re-fetchable snapshots in `HtmlCacheService`. Read is
-  /// further gated by `htmlCachingEnabled`/offline at the call site.
+  /// URL sites, whose first load may come from the engine's own HTTP cache
+  /// ([loadsCacheFirst]).
   cache,
 
-  /// Incognito + archive-tier sites never read or persist on-device HTML.
+  /// Incognito + archive-tier sites always load live.
   none,
 }
 
@@ -37,3 +36,23 @@ HtmlSource htmlSourceFor({
   if (initUrl.startsWith('file://')) return HtmlSource.import;
   return HtmlSource.cache;
 }
+
+/// Whether a site's webview takes its first page from the engine's cache,
+/// then loads it live once the network answers: always when the site keeps
+/// its HTML (HTML caching), and when the last probe found no network. [online]
+/// is that probe's answer, null before one has run. [engineCan] is
+/// [engineLoadsCacheFirst] on this platform.
+bool loadsCacheFirst(
+  HtmlSource source, {
+  required bool htmlCaching,
+  required bool? online,
+  required bool engineCan,
+}) =>
+    engineCan &&
+    source == HtmlSource.cache &&
+    (htmlCaching || !(online ?? true));
+
+/// Whether this platform's webview can load a page from its cache first:
+/// Android and Apple's WebKit can be told to; WPE has no per-load cache
+/// policy, so Linux loads live.
+bool get engineLoadsCacheFirst => hostIsAndroid || hostIsIOS || hostIsMacOS;

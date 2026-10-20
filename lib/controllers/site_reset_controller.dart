@@ -1,13 +1,10 @@
 import 'dart:async';
 
 import 'package:webspace/controllers/page_host.dart';
-import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
-import 'package:webspace/services/connectivity_service.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/step_table.dart';
@@ -37,40 +34,6 @@ class SiteResetController {
   final TabsController _tabs;
   final SiteActivationController _activation;
 
-  /// Drop the cached HTML snapshot for a site so the next webview rebuild
-  /// boots clean — but only when we're (likely) online. When offline the
-  /// cached snapshot is the only content we can render, so preserve it
-  /// until a live reload can overwrite it (via the `onHtmlLoaded` callback
-  /// on the next successful `onLoadStop`).
-  ///
-  /// Synchronous in-memory eviction. Sync because callers like [goHome]
-  /// dispose the webview and trigger a rebuild in the same event-loop turn
-  /// — `getHtmlSync(siteId)` runs during that rebuild's build phase, so an
-  /// async eviction loses the race and the rebuilt webview boots with the
-  /// stale snapshot anyway. The eviction also bumps the
-  /// [HtmlCacheService] generation, so any `saveHtml` for the same siteId
-  /// already in flight (e.g. the previous snapshot IPC
-  /// resolving after dispose) is rejected at write time and cannot
-  /// resurrect the stale bytes the call site just dropped.
-  ///
-  /// Online gate uses [ConnectivityService.lastKnownOnline] (primed at
-  /// startup, refreshed by every probe). Treats unknown as online so
-  /// post-startup callers get the eviction; the only cost of a wrong
-  /// guess offline is losing the cached fallback for one rebuild —
-  /// `controller.reload()` is itself online-gated in [WebViewFactory], so
-  /// nothing tries to fetch a live page we can't reach.
-  ///
-  /// Disk file is left alone. The next live `saveHtml` overwrites it; if
-  /// the app is killed before that fires, `preloadCache` reads it back at
-  /// next launch and the cached-then-live rebuild path heals it on first
-  /// webview load. Use [HtmlCacheService.deleteCache] when the disk file
-  /// must also go (orphan cleanup, explicit site deletion).
-  void evictCacheIfOnline(SiteId siteId) {
-    if (ConnectivityService.instance.lastKnownOnline ?? true) {
-      HtmlCacheService.instance.evictInMemory(siteId);
-    }
-  }
-
   /// Dispose the current site's webview so the next render recreates it
   /// with fresh [initialUserScripts] and [initialSettings]. Used after
   /// the user edits the script list or any per-site setting baked at
@@ -80,14 +43,9 @@ class SiteResetController {
   /// mode flags; `controller.loadUrl` alone reloads the *page* but
   /// reuses those baked-in values, so e.g. a desktop UA set after the
   /// webview was created wouldn't activate the desktop_mode_shim.
-  ///
-  /// Also drops the cached HTML (online only): the snapshot was captured
-  /// with the previous script set applied, so showing it on next load
-  /// would render the pre-edit DOM before the new scripts re-run.
   void resetShown() {
     if (_sites.current == null || _sites.current! >= _sites.models.length)
       return;
-    evictCacheIfOnline(_sites.models[_sites.current!].siteId);
     _sites.models[_sites.current!].disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     _host.rebuild();
   }
@@ -113,15 +71,8 @@ class SiteResetController {
   }
 
   /// Dispose every loaded webview. Used after global user script edits,
-  /// which can affect any site that has opted in. Caches for sites that
-  /// have any global opt-in are dropped (online only) for the same reason
-  /// as [resetShown].
+  /// which can affect any site that has opted in.
   void resetAll() {
-    for (final model in _sites.models) {
-      if (model.enabledGlobalScriptIds.isNotEmpty) {
-        evictCacheIfOnline(model.siteId);
-      }
-    }
     for (final model in _sites.models) {
       model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     }
@@ -129,10 +80,9 @@ class SiteResetController {
   }
 
   /// User-driven reload of the current site (Refresh button, Clear-cookies).
-  /// Delegates to [WebViewModel.userDrivenReload] which drops the
-  /// HtmlCacheService snapshot and the chromium HTTP cache before the
-  /// reload, so the user actually gets fresh content instead of being
-  /// served the same stale page from disk cache (issue #290).
+  /// Delegates to [WebViewModel.userDrivenReload], which drops the engine's
+  /// HTTP cache before the reload while online, so the user gets fresh
+  /// content instead of the same page from disk cache (issue #290).
   Future<void> refreshShown() async {
     if (_sites.current == null || _sites.current! >= _sites.models.length)
       return;
@@ -177,7 +127,6 @@ class SiteResetController {
     for (final m in sites) {
       if (withTabs.contains(m)) continue;
       if (m.currentUrl == m.initUrl && m.webview == null) continue;
-      evictCacheIfOnline(m.siteId);
       await _tabs.bindOwnerRunTab(m);
       if (!_host.mounted) return;
       m.currentUrl = m.initUrl;
@@ -192,15 +141,10 @@ class SiteResetController {
 
   /// Navigate to the site's initial URL and clear navigation history.
   /// Disposes the webview so it's recreated fresh with no back history.
-  /// Evicts the in-memory HTML cache snapshot (online only) so the
-  /// rebuilt webview boots clean and goes straight to the live home URL
-  /// rather than flashing a stale cached frame. Offline: the cache is
-  /// preserved — it's the only content we can render without network.
   void goHome() {
     if (_sites.current == null || _sites.current! >= _sites.models.length)
       return;
     final model = _sites.models[_sites.current!];
-    evictCacheIfOnline(model.siteId);
     model.currentUrl = model.navigationHomeUrl;
     model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     _host.rebuild();

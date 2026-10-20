@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/clearurl_service.dart';
-import 'package:webspace/services/html_snapshot.dart';
+import 'package:webspace/services/live_swap.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/letterbox.dart';
@@ -45,6 +45,7 @@ import 'package:webspace/services/site_icon_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -450,26 +451,18 @@ class WebViewFactory {
     // same site re-asserts the same answer rather than flipping it.
     BlockStatsService.instance.setSiteContributes(config.posture.siteId,
         contributes: config.posture.blocking.contributesStats);
-    // Cached-HTML render: when the call site supplies
-    // `config.initialHtml`, feed it to chromium via
-    // `InAppWebViewInitialData(data, baseUrl: initialUrl)` for instant
-    // first paint. Once the cached parse settles (`onLoadStop` for the
-    // initialData), fire a one-shot `controller.reload()` to fetch the
-    // live URL — which is `baseUrl`, so chromium re-loads the same
-    // origin without losing the cached visual state during the
-    // network round-trip.
-    //
-    // file:// imports are the exception — their initialUrl is a
-    // synthetic `file://<filename>` handle with no fetchable form, so
-    // we render the cache and never reload to live.
+    // Cache first (`config.cacheFirst`): the first page comes from the
+    // engine's own cache, Android's webview-wide `cacheMode` or the first
+    // request's `cachePolicy` on Apple, and once it settles one
+    // `controller.reload()` fetches it live. A file:// import renders its
+    // stored bytes as `initialData` and never reloads: its URL is a synthetic
+    // handle with no fetchable form.
     //
     // The reload-to-live swap is what triggers the chromium
     // `partition_alloc_support.cc:770` dangling-raw_ptr SIGTRAP.
     // That FATAL is gated by the
     // `PartitionAllocUnretainedDanglingPtr` chromium feature flag —
     // enabled on AOSP userdebug builds, disabled in production Stable WebView.
-    // Production users get the speed-up of cached first paint without
-    // the dev-only crash.
     final binding = bindingFor(config);
     final containerId = binding.containerId;
     final inappProxy = binding.proxy;
@@ -480,25 +473,29 @@ class WebViewFactory {
       initialHtml: config.initialHtml,
     );
     final isFileImport = fileImport != null;
-    // Android restore: suppress every initial-load form (URL + cached HTML)
+    // Android restore: suppress every initial-load form (URL + import HTML)
     // so `restoreState` can apply to a pristine history. With this set, the
-    // cached-HTML reload-to-live machinery below also stays off — the
+    // cache-first reload-to-live machinery below also stays off — the
     // onControllerCreated restore handler owns the first navigation instead.
     final suppressInitialLoad = config.deferInitialLoad;
-    // A cached snapshot rendered against a live baseUrl fetches its
-    // subresources; never do that for a site whose proxy is not bound
-    // (SEC-009).
-    final renderInitialData = (config.initialHtml != null || isFileImport) &&
+    // A page rendered against a live baseUrl fetches its subresources; never
+    // do that for a site whose proxy is not bound (SEC-009).
+    final renderInitialData =
+        isFileImport && !suppressInitialLoad && !proxyUnavailable;
+    final cacheFirst = config.cacheFirst &&
+        !isFileImport &&
         !suppressInitialLoad &&
         !proxyUnavailable;
-    final usesCachedHtml =
-        config.initialHtml != null && !suppressInitialLoad && !proxyUnavailable;
-    // One-shot: when the cached HTML's first onLoadStop fires, do
+    // One-shot: when the cache-first page's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
-    // it false. Skip entirely for file:// imports and for builds
-    // where we KNOW we're offline at construction (no live to fetch).
-    var pendingLiveReload = usesCachedHtml && !isFileImport;
+    // it false.
+    var pendingLiveReload = cacheFirst;
+    var inCacheFirst = cacheFirst;
+    // The navigations asked as the first load started: WKWebView and WPE
+    // report a load the app issued to shouldOverrideUrlLoading too, so the
+    // live swap counts only those asked after it.
+    int? askedAtFirstLoad;
 
     final page = PageScripts.buildPageScripts(config);
     final httpAuth = httpAuthSessionFor(config);
@@ -550,20 +547,6 @@ class WebViewFactory {
     // Initial-load fallback is handled inside the engine.
     String? lastStableUrl;
 
-    // URL of the main-frame navigation that just failed for a network
-    // reason; cleared when the next navigation starts. A failed load still
-    // commits the engine's own error page and still fires `onLoadStop`, so
-    // without this the HtmlCache save below serialises "connection
-    // refused" over the site's last-good snapshot — which is precisely
-    // what the offline path renders on the next cold start. Only the
-    // ordinary-failure branch of `onReceivedError` sets it; the external
-    // scheme paths there leave whatever the page managed to render intact
-    // and cacheable. Compared for null rather than against `onLoadStop`'s
-    // URL: platforms disagree on whether the settle reports the failing
-    // URL or the error-page URL, and skipping one save costs nothing (the
-    // next successful load writes the snapshot) while a missed match costs
-    // the snapshot itself.
-    String? failedNavUrl;
 
     // One gate per mounted WebView, because the mounting navigation it tracks
     // is a property of the platform view and not of the site (LEAK-010).
@@ -606,9 +589,9 @@ class WebViewFactory {
       // Android: allow file and content access for Cloudflare Turnstile
       ..allowFileAccess = true
       ..allowContentAccess = true
-      // When cached HTML is used, set cache-first mode from the start so
-      // sub-resources (CSS/JS/images) resolve from browser cache immediately
-      ..cacheMode = usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null
+      // Android's cache first covers the page and everything it loads until
+      // the first settle sets it back (`leaveCacheFirst`).
+      ..cacheMode = cacheFirst ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null
       // iOS: play videos inline instead of auto-fullscreen
       ..allowsInlineMediaPlayback = true
       // Allow media to start without a direct tap. Android WebView defaults
@@ -664,9 +647,13 @@ class WebViewFactory {
     final initialRequest = (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
       url: inapp.WebUri(proxyUnavailable ? 'about:blank' : config.initialUrl),
       headers: proxyUnavailable || headers.isEmpty ? null : headers,
+      // Apple's cache first, for this request only; Android ignores it and
+      // reads `cacheMode`.
+      cachePolicy: cacheFirst
+          ? inapp.URLRequestCachePolicy.RETURN_CACHE_DATA_ELSE_LOAD
+          : null,
     );
-    final initialHtmlToRender =
-        renderInitialData ? fileImport?.html ?? config.initialHtml! : null;
+    final initialHtmlToRender = renderInitialData ? fileImport.html : null;
     // Android holds the first load until the native interceptor has attached
     // to this view: the fork makes a widget's initial load as it creates the
     // native view, before Dart hears of it, so a load handed to the widget
@@ -825,6 +812,7 @@ class WebViewFactory {
       },
       onWebViewCreated: (controller) async {
         if (!phases.on(PageEvent.viewCreated, view: controller.platform)) return;
+        LaunchTimeline.reached(LaunchMark.webViewBuilt);
         coverageGate = ProxyCoverageGate(
           binding: ProxyManager.binding,
           proxyConfigured: binding.proxyConfigured,
@@ -965,9 +953,9 @@ class WebViewFactory {
             },
           );
         }
-        // Cached-HTML → live-URL swap is wired up in onLoadStop below.
+        // The cache-first → live swap is wired up in onLoadStop below.
         // Don't fire loadUrl here — `onWebViewCreated` runs while chromium
-        // is still parsing the initialData, and a synchronous loadUrl in
+        // is still parsing the first page, and a synchronous loadUrl in
         // that window aborts the in-flight parse (load-while-loading),
         // which on Android System WebView trips a dangling-raw_ptr in the
         // renderer process at `partition_alloc_support.cc:770`.
@@ -1389,6 +1377,7 @@ class WebViewFactory {
             },
       onLoadStart: (controller, url) async {
         if (!phases.on(PageEvent.loadStarted, view: controller.platform)) return;
+        LaunchTimeline.reached(LaunchMark.pageStarted);
         LogTag.webViewLifecycle.debug(
             'onLoadStart siteId=${config.posture.siteId} url=$url',
             sensitive: true);
@@ -1424,8 +1413,8 @@ class WebViewFactory {
         }
 
         lastLoadStartUrl = url?.toString();
-        failedNavUrl = null;
-        // Counted here too, so the stats banner shows a cached-HTML load
+        askedAtFirstLoad ??= phases.asked;
+        // Counted here too, so the stats banner shows a first load
         // that never reached shouldOverrideUrlLoading.
         if (url != null && url.toString().startsWith('http')) {
           final page = url.toString();
@@ -1490,6 +1479,12 @@ class WebViewFactory {
         // depend on the snapshot logic below.
         config.onLoadingChanged?.call(loading: false);
         config.onMainFrameLoad?.call(const MainFrameLoadSignal.settled());
+        // The first settle ends cache first, whatever comes next: a page the
+        // user goes on to, and the live reload, load as any other does.
+        final leftCacheFirst = inCacheFirst
+            ? view?.leaveCacheFirst() ?? Future<void>.value()
+            : Future<void>.value();
+        inCacheFirst = false;
         if (url == null) return;
         final urlStr = url.toString();
 
@@ -1497,36 +1492,34 @@ class WebViewFactory {
         // schemes can reach here when controller.stopLoading() interrupts
         // an in-flight navigation (the download path does this to keep
         // the webview from rendering the attachment as a page). There's
-        // no real page to snapshot — onHtmlLoaded would end up writing
-        // either the previous page's HTML keyed under the download URL,
-        // or empty content, clobbering a legitimate offline cache entry.
-        // Skip all post-load work in that case; onDownloadStartRequest's
-        // revert handles URL bar restoration.
+        // no real page to act on. Skip all post-load work in that case;
+        // onDownloadStartRequest's revert handles URL bar restoration.
         if (!DownloadUrlRevertEngine.isRenderable(urlStr)) return;
 
-        // Cached-HTML one-shot live refresh. After the cached HTML
-        // parse settles, fire a single `controller.reload()` to fetch
+        // Cache-first one-shot live refresh. After the page from cache
+        // settles, fire a single `controller.reload()` to fetch
         // a fresh copy of the page over the network. The
         // `pendingLiveReload` flag is consumed on first use so the
         // subsequent (post-reload) onLoadStop doesn't recurse.
         //
-        // Gated on `phases.asked == 0` — i.e. no shouldOverrideUrlLoading
-        // has fired yet. If the user clicked anything during the cached
-        // parse, gen > 0 and we skip the reload; their navigation is the
+        // Gated on no shouldOverrideUrlLoading since the first load started.
+        // If the user clicked anything during the cached page's parse, the
+        // count moved and we skip the reload; their navigation is the
         // current intent. (`reload()` itself does not bump
         // the count on Android WebView.)
         //
         // Offline, the cached page is the answer until the network comes
         // back: `awaitOnlineForLiveSwap` re-probes for a bounded window,
-        // because a snapshot rendered on return from the background settles
+        // because a page rebuilt on return from the background settles
         // before a per-app firewall lets the app back out, and a single
-        // probe there stranded the snapshot for good.
+        // probe there stranded the cached page for good.
         //
         // Each probe is a DNS lookup with up to a 3s timeout — long enough
         // for the user to tap a link or trigger a back/forward gesture.
         // `phases.asked` is re-checked after every probe so the
         // live-reload doesn't clobber a navigation that started meanwhile.
-        final firedLiveReload = pendingLiveReload && phases.asked == 0;
+        final firedLiveReload =
+            pendingLiveReload && phases.asked == (askedAtFirstLoad ?? 0);
         if (firedLiveReload) {
           pendingLiveReload = false;
           final genAtSchedule = phases.asked;
@@ -1536,9 +1529,10 @@ class WebViewFactory {
           ).then((online) async {
             if (!online) {
               LogTag.webView.debug(
-                  'Cached snapshot kept: offline or navigated away');
+                  'Cached page kept: offline or navigated away');
               return;
             }
+            await leftCacheFirst;
             config.onReloadIssued?.call();
             await view?.reload();
           }));
@@ -1577,50 +1571,6 @@ class WebViewFactory {
           if (script != null) await page.evaluate(script);
         }
         await userScriptService.reinjectOnLoadStop(page);
-        // Cache HTML for offline viewing. Pre-gate the renderer IPC
-        // via shouldFetchHtml so the per-onLoadStop storm is collapsed
-        // before we ask chromium to serialize the DOM — the IPC, not
-        // the encrypt+write afterward, is the lifecycle-racing piece.
-        //
-        // Skip when we just fired the cached-then-live reload above:
-        // the reload IPC reaches the renderer before our snapshot
-        // does, so the serialized DOM here is the partial mid-reload
-        // markup (often a few-KB SPA shell) — and saving that clobbers
-        // the previously-cached fully-rendered snapshot. On next launch
-        // the corrupt shell loads as initialData and the SPA's hydration
-        // throws (`Cannot read properties of null`) leaving a blank
-        // page. The post-reload `onLoadStop` saves the live HTML
-        // instead; `_lastSaveAt` isn't bumped here, so its debounce
-        // stays open.
-        if (config.onHtmlLoaded != null
-            && !firedLiveReload
-            && failedNavUrl == null
-            && page.current
-            && (config.shouldFetchHtml?.call() ?? true)) {
-          final snapshot =
-              await view?.evaluateJavascriptReturning(PageJs.htmlSnapshot.script);
-          if (snapshot is String && snapshot.isNotEmpty) {
-            // `urlStr` was captured at onLoadStop entry. The snapshot is
-            // an async IPC into the renderer; if the user kicked off a
-            // back/forward gesture or a link tap during that round trip,
-            // the markup we got back belongs to the *new* page, not
-            // `urlStr`. Saving (urlStr, html-of-new-page) under `siteId`
-            // poisons the cache: next webview construction renders that
-            // mismatched HTML at `baseUrl=currentUrl`, so the user sees
-            // the wrong page when they swipe back into the cached entry.
-            // Re-read the URL post-snapshot and skip the save on
-            // mismatch — the next stable onLoadStop will write the
-            // right pair. A reload keeps the URL and not the document.
-            final liveUrl = (await view?.getUrl())?.toString();
-            if (page.current && liveUrl == urlStr) {
-              config.onHtmlLoaded!(urlStr, html: snapshot);
-            } else {
-              LogTag.webView.debug(
-                  'Skipping cache save: URL changed during snapshot '
-                  '($urlStr -> $liveUrl)', sensitive: true);
-            }
-          }
-        }
       },
       onUpdateVisitedHistory: (controller, url, androidIsReload) {
         if (!phases.live(view: controller.platform)) return;
@@ -1717,7 +1667,6 @@ class WebViewFactory {
           // above). Report it so the host can re-issue the load on the next
           // resume when the cause was the OS cutting the network out from
           // under a backgrounded process — PAUSE-022.
-          failedNavUrl = reqUrl;
           config.onMainFrameLoad?.call(MainFrameLoadSignal.failed(reqUrl,
               errorType: error.type.toValue()));
           return;

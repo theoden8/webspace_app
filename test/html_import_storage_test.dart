@@ -4,7 +4,9 @@ import 'dart:typed_data';
 
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_import_storage.dart';
 
@@ -15,8 +17,7 @@ import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
 /// (i.e. across simulated app upgrades), orphan cleanup, and graceful
 /// handling of corrupt entries.
 ///
-/// The defining property vs [HtmlCacheService]: imports survive an app
-/// upgrade. The cache wipes on version bump; this store does not.
+/// The defining property: imports survive an app upgrade.
 
 void main() {
   late Directory tempDir;
@@ -95,8 +96,7 @@ void main() {
     test('imports survive a simulated app upgrade (new instance)', () async {
       // Save under one instance, simulate cold start by spinning a fresh
       // instance with the SAME tempDir + SAME secure storage. This is the
-      // defining property: unlike HtmlCacheService, no version-based
-      // wipe happens.
+      // defining property: no version-based wipe happens.
       final first = await newStorage();
       await first.saveHtml(SiteId('persist'),
           html: '<p>kept</p>', url: 'file:///kept.html');
@@ -332,6 +332,42 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
       // Never deleted: imports are the user's only copy (see the robustness
       // group above).
       expect(await File('${tempDir.path}/html_imports/a.enc').exists(), isTrue);
+    });
+  });
+
+  group('retireSnapshotCache', () {
+    test('a fresh install, with no snapshot cache, touches nothing', () async {
+      SharedPreferences.setMockInitialValues({});
+      final cache = MemoryFileStore();
+      await cache.writeText('x.enc', contents: 'left alone');
+      final storage = HtmlImportStorage(
+          secureStorage: fakeStorage,
+          store: IoFileStore('html_imports', overrideRoot: tempDir),
+          retiredCache: cache);
+      await storage.initialize();
+      await storage.retireSnapshotCache();
+      expect(await cache.list(), ['x.enc'],
+          reason: 'no version stamp: no release ever kept snapshots here');
+      expect(fakeStorage.storage.containsKey('html_cache_encryption_key'),
+          isFalse);
+    });
+
+    test('a locked keychain deletes nothing, so the next start tries again',
+        () async {
+      SharedPreferences.setMockInitialValues({'html_cache_version': '0.3.2+1'});
+      final cache = MemoryFileStore();
+      await cache.writeText('s1.enc', contents: 'maybe an import');
+      final storage = HtmlImportStorage(
+          secureStorage: fakeStorage,
+          store: IoFileStore('html_imports', overrideRoot: tempDir),
+          retiredCache: cache);
+      await storage.initialize();
+      fakeStorage.throwOnRead = true;
+      await storage.retireSnapshotCache();
+      expect(await cache.list(), ['s1.enc'],
+          reason: 'an import kept there is unreadable without its key');
+      expect((await SharedPreferences.getInstance()).containsKey('html_cache_version'),
+          isTrue);
     });
   });
 }

@@ -15,7 +15,6 @@ import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/cookie_manager.dart';
-import 'package:webspace/services/page_js.dart';
 
 class FindMatchesResult {
   int activeMatchOrdinal = 0;
@@ -91,19 +90,11 @@ class WebViewConfig {
   /// use this to render a determinate loading bar while a navigation
   /// is in flight ([onLoadingChanged] gates visibility).
   final Function(int progress)? onProgressChanged;
-  /// Callback when page HTML should be cached. Called on page load with (url, html).
-  final Function(String url, {required String html})? onHtmlLoaded;
-  /// Optional pre-gate for the [onHtmlLoaded] path. Returning `false`
-  /// makes `onLoadStop` skip the [PageJs.htmlSnapshot] IPC entirely
-  /// (not just the encrypt+write that follows). The IPC is the
-  /// expensive, lifecycle-racing piece — the renderer has to walk and
-  /// serialize the live DOM, and during a frame teardown that walk
-  /// can hold a `raw_ptr` to a soon-to-be-freed Frame. Skipping the
-  /// IPC outright is the only way to drop the renderer pressure.
-  /// When unset, every `onLoadStop` fetches HTML (legacy behavior).
-  final bool Function()? shouldFetchHtml;
-  /// Optional cached HTML to display when offline. Sub-resources (CSS/JS/images)
-  /// load from the browser's HTTP cache via LOAD_CACHE_ELSE_NETWORK mode.
+  /// Take the first page from the engine's cache, then load it live once the
+  /// network answers (`loadsCacheFirst`). The surface decides: a site's own
+  /// webview asks for it, a nested screen or a wake's check never does.
+  final bool cacheFirst;
+  /// A file import's stored page, which it renders, having no live page.
   final String? initialHtml;
   /// Severity level every DNS check for this site runs at: 0 when the toggle
   /// is off, otherwise the resolved per-site level, which falls back to the
@@ -184,8 +175,7 @@ class WebViewConfig {
     this.onFindResult,
     this.shouldOverrideUrlLoading,
     this.onUnproxiedNavigationBlocked,
-    this.onHtmlLoaded,
-    this.shouldFetchHtml,
+    required this.cacheFirst,
     this.initialHtml,
     this.onConsoleMessage,
     this.onLinkLongPress,

@@ -16,7 +16,6 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_stats_detail_storage.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/file_store.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
@@ -103,9 +102,20 @@ void main() {
       await keychain.write(key: 'k', value: _key);
       final aead =
           await KeychainAead.open(keychain, keyName: 'k', logTag: LogTag.test);
-      expect(aead!.unseal(_oldSeal(_key, plaintext: 'hello')), 'hello');
-      expect(_oldUnseal(_key, wireBase64: aead.seal('world')), 'world');
+      expect(await aead!.unseal(_oldSeal(_key, plaintext: 'hello')), 'hello');
+      expect(_oldUnseal(_key, wireBase64: await aead.seal('world')), 'world');
       expect(keychain.storage, {'k': _key});
+    });
+
+    test('a page-sized blob, sealed off the UI isolate, is the old format',
+        () async {
+      final keychain = MockFlutterSecureStorage();
+      await keychain.write(key: 'k', value: _key);
+      final aead =
+          (await KeychainAead.open(keychain, keyName: 'k', logTag: LogTag.test))!;
+      final page = 'https://a\n${'<p>страница 页面 page</p>' * 60000}';
+      expect(await aead.unseal(_oldSeal(_key, plaintext: page)), page);
+      expect(_oldUnseal(_key, wireBase64: await aead.seal(page)), page);
     });
 
     test('a fresh key is 32 bytes, base64, under the given name', () async {
@@ -134,20 +144,20 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       final aead = (await KeychainAead.open(keychain,
           keyName: 'k', logTag: LogTag.test))!;
-      expect(aead.seal('same'), isNot(aead.seal('same')));
+      expect(await aead.seal('same'), isNot(await aead.seal('same')));
     });
 
     test('a tampered, truncated or foreign blob reads as null', () async {
       final keychain = MockFlutterSecureStorage();
       final aead = (await KeychainAead.open(keychain,
           keyName: 'k', logTag: LogTag.test))!;
-      final wire = base64.decode(aead.seal('secret'));
+      final wire = base64.decode(await aead.seal('secret'));
       wire[wire.length - 1] ^= 1;
-      expect(aead.unseal(base64.encode(wire)), isNull);
-      expect(aead.unseal('AAAA'), isNull);
-      expect(aead.unseal('not base64!'), isNull);
+      expect(await aead.unseal(base64.encode(wire)), isNull);
+      expect(await aead.unseal('AAAA'), isNull);
+      expect(await aead.unseal('not base64!'), isNull);
       expect(
-          aead.unseal(
+          await aead.unseal(
               _oldSeal(base64.encode(List.filled(32, 9)), plaintext: 'x')),
           isNull);
     });
@@ -159,24 +169,35 @@ void main() {
           keyName: 'k', logTag: LogTag.test))!;
       final legacy =
           _oldLegacyCbcSeal(_key, plaintext: 'https://a\n<p>old</p>');
-      expect(aead.unseal(legacy), isNull);
+      expect(await aead.unseal(legacy), isNull);
       expect(aead.unsealLegacyCbc(legacy), 'https://a\n<p>old</p>');
-      expect(aead.unsealLegacyCbc(aead.seal('gcm')), isNull);
+      expect(aead.unsealLegacyCbc(await aead.seal('gcm')), isNull);
     });
   });
 
   group('encrypted stores read what the old code wrote', () {
-    test('HTML cache', () async {
+    test('the retired snapshot cache: an import kept there is carried over',
+        () async {
+      SharedPreferences.setMockInitialValues({'html_cache_version': '0.3.2+1'});
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'html_cache_encryption_key', value: _key);
-      final store = MemoryFileStore();
-      await store.writeText('s1.enc',
-          contents: _oldSeal(_key, plaintext: 'https://a\n<p>a</p>'));
-      HtmlCacheService.resetForTesting();
-      await HtmlCacheService.instance
-          .initialize(store: store, secureStorage: keychain);
-      expect(await HtmlCacheService.instance.loadHtml(SiteId('s1')),
-          ('https://a', '<p>a</p>'));
+      final cache = MemoryFileStore();
+      await cache.writeText('s1.enc',
+          contents: _oldSeal(_key, plaintext: 'file:///a\n<p>a</p>'));
+      await cache.writeText('s2.enc',
+          contents: _oldSeal(_key, plaintext: 'https://b\n<p>b</p>'));
+      final imports = HtmlImportStorage(
+          secureStorage: keychain, store: MemoryFileStore(), retiredCache: cache);
+      await imports.initialize();
+      await imports.retireSnapshotCache();
+
+      expect(await imports.loadHtml(SiteId('s1')), ('file:///a', '<p>a</p>'));
+      expect(await imports.hasImport(SiteId('s2')), isFalse,
+          reason: 'a page snapshot is not an import');
+      expect(await cache.list(), isEmpty);
+      expect(keychain.storage.containsKey('html_cache_encryption_key'), isFalse);
+      expect((await SharedPreferences.getInstance()).containsKey('html_cache_version'),
+          isFalse);
     });
 
     test('HTML imports', () async {

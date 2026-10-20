@@ -57,9 +57,6 @@ class _Page implements LinkHost {
   Future<void> saveCurrentIndex() async => calls.add('saveCurrentIndex');
 
   @override
-  void evictCache(String siteId) => calls.add('evict $siteId');
-
-  @override
   Future<void> revealSite(WebViewModel model) async =>
       calls.add('reveal ${sites.models.indexOf(model)}');
 
@@ -171,7 +168,6 @@ void main() {
 
     expect(page.calls, [
       'reveal 0',
-      'evict ${github.siteId}',
       'unload 0 homeReset',
       'wipe ${github.siteId}',
       'activate 0',

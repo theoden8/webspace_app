@@ -14,7 +14,6 @@ import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/step_flow.dart';
@@ -587,7 +586,6 @@ final class CloseFlow {
     for (final sid in slice.siteIds) {
       await controller.navStates.removeStatesForSite(sid);
       await controller.cookieStore.saveCookiesForSite(sid, cookies: const []);
-      await HtmlCacheService.instance.deleteCache(sid);
     }
     for (final m in owned) {
       await FaviconUrlCache.invalidate(m.initUrl);
