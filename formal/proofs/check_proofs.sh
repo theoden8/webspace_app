@@ -136,6 +136,9 @@ check() {
   [ ! -e "$work/$name.failed" ] || result=failed
   echo "  $name: $result in $(( $(date +%s) - start ))s"
 }
+# A printed steps module restates the lemmas it cites, omitted, instead of
+# extending the modules that prove them: each is held to one proved here.
+python3 omitted.py "$FORMAL_MODEL"/*_proof.tla *.tla
 # The printed proofs, the longest, start first.
 for f in "$FORMAL_MODEL"/*_proof.tla *.tla; do
   while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 1; done

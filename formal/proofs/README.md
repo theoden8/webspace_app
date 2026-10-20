@@ -106,9 +106,15 @@ TLC model it backs (same definitions — no re-modeling).
   reaches it from, holds the field set: `Held_site`, `Held_tab`, `Held_kind`) and
   `Alone` (at most one tab flow, the tab gate). The `held` and `supports` families prove every
   row keeps them, module for module beside the types family
-  (`activation_held_<table>[<n>]_proof`, `activation_supports_<table>[<n>]_proof`), each
-  family's steps module extending only its own, since one module holding every family's rows
-  runs out of memory. `ConstantsType` is still assumed; TLC does not yet check it in each world.
+  (`activation_held_<table>[<n>]_proof`, `activation_supports_<table>[<n>]_proof`). Each
+  family's steps module restates the steps' lemmas it cites, `PROOF OMITTED`, over
+  `activation_types_proof` alone: extending the tables' modules put every row's lemma in each
+  obligation's context, which cost tlapm about 12 s an obligation, the trivial ones too (the
+  held family's steps module, 3,042 s; restated, 507 s). tlapm takes an extended module's
+  lemmas as given too, so the restatement is no weaker as long as each is the lemma proved:
+  [omitted.py](omitted.py), which `check_proofs.sh` runs first, fails on an omitted lemma that
+  no module of the run proves in the same words (`test/js/formal_omitted.test.js`).
+  `ConstantsType` is still assumed; TLC does not yet check it in each world.
   **`activation_types_proof` 313 obligations; the tables' modules 3,849 (types), 7,749 (held),
   4,925 (supports); the steps modules 85 (types), 255 (held), 170 (supports); all proved.**
 

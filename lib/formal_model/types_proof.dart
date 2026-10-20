@@ -113,9 +113,7 @@ List<({String path, String text})> activationTypesProofs({
                     row: _atPlace(row, of: s),
                     definitions: opened,
                   ),
-                'LEMMA Fl_${s.action} ==',
-                '    ASSUME TypeOK, IndInv, Held, Supports, NEW f \\in Flows, ${s.action}(f)',
-                "    PROVE  fl' \\in [Flows -> FlowRecord]",
+                ..._statement(_keptTyped, s: s),
                 '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'FlRow_${s.action}_$k'].join(', ')}',
                 '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', ..._placeDefs(s)].join(', ')}',
                 '',
@@ -136,9 +134,7 @@ List<({String path, String text})> activationTypesProofs({
                     need: needs[h]!,
                     definitions: opened,
                   ),
-                'LEMMA Hd_${h.field.name}_${s.action} ==',
-                '    ASSUME TypeOK, IndInv, ConstantsType, Held, Supports, NEW f \\in Flows, ${s.action}(f)',
-                "    PROVE  Held_${h.field.name}'",
+                ..._statement(_keptHeld(h), s: s),
                 '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'HdRow_${h.field.name}_${s.action}_$k'].join(', ')}',
                 '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
                 '',
@@ -150,9 +146,7 @@ List<({String path, String text})> activationTypesProofs({
           body: [
             for (final s in steps) ...[
               for (final (k, row) in s.rows.indexed) _rowAlone(s, at: k + 1, row: row),
-              'LEMMA Al_${s.action} ==',
-              '    ASSUME TypeOK, IndInv, ConstantsType, Alone, NEW f \\in Flows, ${s.action}(f)',
-              "    PROVE  Alone'",
+              ..._statement(_keptAlone, s: s),
               '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'AlRow_${s.action}_$k'].join(', ')}',
               '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv'].join(', ')}',
               '',
@@ -164,9 +158,7 @@ List<({String path, String text})> activationTypesProofs({
                   kinds: needs[_held.firstWhere((h) => h.field == FlowField.kind)]!,
                   definitions: opened,
                 ),
-              'LEMMA Sp_${s.action} ==',
-              '    ASSUME TypeOK, IndInv, ConstantsType, Held, Supports, Alone, NEW f \\in Flows, ${s.action}(f)',
-              "    PROVE  Supports'",
+              ..._statement(_keptSupports, s: s),
               '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'SpRow_${s.action}_$k'].join(', ')}',
               '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
               '',
@@ -174,13 +166,13 @@ List<({String path, String text})> activationTypesProofs({
           ]),
     for (final (:family, :kept) in _kept)
       _module('activation_${family}_steps_proof',
-          extending: [
-            for (final (:name, steps: _) in _parts(tables))
-              name.replaceFirst('activation_types_', 'activation_${family}_'),
-          ].join(', '),
+          extending: 'activation_types_proof',
           body: [
+            for (final k in kept)
+              for (final steps in tables.values)
+                for (final s in steps) ...[..._statement(k, s: s), '  PROOF OMITTED', ''],
             for (final (over, input) in [('TableStep', false), ('InputTableStep', true)])
-              for (final (:lemma, :fact) in kept) ...[
+              for (final (:lemma, assume: _, :fact) in kept) ...[
                 'LEMMA ${lemma}_$over ==',
                 '    ASSUME TypeOK, IndInv, ConstantsType, Held, Supports, Alone, NEW f \\in Flows, $over(f)',
                 '    PROVE  $fact',
@@ -192,19 +184,45 @@ List<({String path, String text})> activationTypesProofs({
   ];
 }
 
-/// Each family of modules a fact is proved kept in, with the facts: the
-/// lemma's prefix and what it keeps. Each family's steps module extends
-/// only its own modules, since one that held every family's would hold
-/// every row of every table at once.
-final _kept = <({String family, List<({String lemma, String fact})> kept})>[
-  (family: 'types', kept: [(lemma: 'Fl', fact: r"fl' \in [Flows -> FlowRecord]")]),
-  (
-    family: 'held',
-    kept: [
-      for (final h in _held) (lemma: 'Hd_${h.field.name}', fact: "Held_${h.field.name}'"),
-    ],
-  ),
-  (family: 'supports', kept: [(lemma: 'Al', fact: "Alone'"), (lemma: 'Sp', fact: "Supports'")]),
+/// A fact every step keeps: its lemmas' prefix, what they assume beside
+/// the step, and the fact.
+typedef _Kept = ({String lemma, String assume, String fact});
+
+const _keptTyped = (
+  lemma: 'Fl',
+  assume: 'TypeOK, IndInv, Held, Supports',
+  fact: r"fl' \in [Flows -> FlowRecord]",
+);
+_Kept _keptHeld(_Held h) => (
+  lemma: 'Hd_${h.field.name}',
+  assume: 'TypeOK, IndInv, ConstantsType, Held, Supports',
+  fact: "Held_${h.field.name}'",
+);
+const _keptAlone = (lemma: 'Al', assume: 'TypeOK, IndInv, ConstantsType, Alone', fact: "Alone'");
+const _keptSupports = (
+  lemma: 'Sp',
+  assume: 'TypeOK, IndInv, ConstantsType, Held, Supports, Alone',
+  fact: "Supports'",
+);
+
+/// [k]'s lemma for [s], as its table's module proves it and its family's
+/// steps module restates it.
+List<String> _statement(_Kept k, {required FlStep s}) => [
+  'LEMMA ${k.lemma}_${s.action} ==',
+  '    ASSUME ${k.assume}, NEW f \\in Flows, ${s.action}(f)',
+  '    PROVE  ${k.fact}',
+];
+
+/// Each family of modules a fact is proved kept in, with its facts. A
+/// family's steps module restates the steps' lemmas it cites, omitted,
+/// over `activation_types_proof` alone: extending the tables' modules put
+/// every row's lemma in each obligation's context, which cost tlapm 12 s an
+/// obligation, the trivial ones too. `formal/proofs/omitted.py` holds each
+/// restated lemma to the one its table's module proves.
+final _kept = <({String family, List<_Kept> kept})>[
+  (family: 'types', kept: [_keptTyped]),
+  (family: 'held', kept: [for (final h in _held) _keptHeld(h)]),
+  (family: 'supports', kept: [_keptAlone, _keptSupports]),
 ];
 
 /// The rows one module proves at most: tlapm holds every obligation of a
