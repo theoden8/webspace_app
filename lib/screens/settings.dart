@@ -173,7 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   late bool _letterboxEnabled;
   late bool _blockScreenshots;
   late bool _localCdnEnabled;
-  late ExternalLinkMode _externalLinkMode;
+  late ExternalLinkMode? _externalLinkMode;
   late bool _routeOutboundLinks;
   late List<OutboundPreference> _outboundPreferences;
   String? _searchAddress;
@@ -181,7 +181,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   late List<SiteId> _searchSites;
   SiteId? _searchDefault;
   late bool _fullscreenMode;
-  late bool _tabsEnabled;
+  late bool? _tabsEnabled;
   late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
   late bool _backgroundAudioEnabled;
@@ -791,9 +791,9 @@ class _SettingsScreenState extends State<SettingsScreen>
         alwaysOpenHome: _alwaysOpenHome,
         kioskMode: _kioskMode,
         fullscreenMode: _fullscreenMode,
-        tabsEnabled: _tabsEnabled,
+        tabsEnabled: Scoped.fromStored(_tabsEnabled),
         htmlCachingEnabled: _htmlCachingEnabled,
-        externalLinkMode: _externalLinkMode,
+        externalLinkMode: Scoped.fromStored(_externalLinkMode),
         routeOutboundLinks: _routeOutboundLinks,
         outboundPreferences: _outboundPreferences,
         searchAddress: _searchAddress,
@@ -852,9 +852,9 @@ class _SettingsScreenState extends State<SettingsScreen>
           _alwaysOpenHome = values.alwaysOpenHome;
           _kioskMode = values.kioskMode;
           _fullscreenMode = values.fullscreenMode;
-          _tabsEnabled = values.tabsEnabled;
+          _tabsEnabled = values.tabsEnabled.stored;
           _htmlCachingEnabled = values.htmlCachingEnabled;
-          _externalLinkMode = values.externalLinkMode;
+          _externalLinkMode = values.externalLinkMode.stored;
           _routeOutboundLinks = values.routeOutboundLinks;
           _outboundPreferences = values.outboundPreferences;
           _searchAddress = values.searchAddress;

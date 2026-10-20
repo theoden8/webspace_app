@@ -299,10 +299,11 @@ The system SHALL provide a per-site choice of where a cross-domain link not
 covered by the site's domain claims goes: a nested in-app webview, the
 device's default browser, or nowhere.
 
-**Field**: `externalLinkMode`: `inApp` (default), `browser` or `block`. It
-replaced the `externalLinksInBrowser` bool; a stored `externalLinksInBrowser:
+**Field**: `externalLinkMode`: null follows the app default (initially `inApp`),
+or an explicit `inApp`, `browser` or `block` (BEHAV-007). It replaced the `externalLinksInBrowser` bool; a stored `externalLinksInBrowser:
 true` with no `externalLinkMode` SHALL read as `browser`, and an unknown or
-wrong-typed value as `inApp`. `toJson` SHALL omit the field at `inApp`.
+wrong-typed value as `inApp`. An absent key in older data SHALL retain
+explicit `inApp`. `toJson` SHALL always write the field, including null.
 
 A navigation that the cross-domain decision would route to a nested webview
 (NESTED-004 "Direct link click allowed") SHALL, when its target matches one of
@@ -490,7 +491,7 @@ CLAUDE.md now forbids. Direct engine tests live in
   registration guarded by `test/target_blank_rewrite_test.dart`.
 
 #### `lib/web_view_model.dart`
-- `externalLinkMode` field (`ExternalLinkMode`, `lib/settings/external_links.dart`, default `inApp`) + `effectiveExternalLinkMode` getter (archive-tier `browser` reads as `inApp`, NESTED-009 / ARCH-006). Serialized only outside the default; `fromJson` reads the legacy `externalLinksInBrowser` bool as `browser`
+- `externalLinkMode` field (`ExternalLinkMode?`, `lib/settings/external_links.dart`, null follows app) + `effectiveExternalLinkMode` getter (archive-tier `browser` reads as `inApp`, NESTED-009 / ARCH-006). Serialized including null (BEHAV-007); `fromJson` reads the legacy `externalLinksInBrowser` bool as `browser`
 - `shouldOverrideUrlLoading` callback: delegates to `NavigationDecisionEngine`, applies the returned `GestureStateUpdate` to `lastSameDomainGestureTime`, dispatches on the decision enum (log + `launchUrlFunc` for `blockOpenNested`, `launchUrlInSystemBrowser` for `blockOpenExternal`, the host hook alone for `blockOutbound`, which shows the blocked message for a tapped link)
 - `onUrlChanged` callback: same pattern; on `blockOpenNested` navigates back to `previousSameDomainUrl` before opening the nested webview
 - `matchesSiteClaim` closure passes `effectiveDomainClaims` to the engine via `LinkRoutingService.urlMatchesAnyClaim` so a claimed cross-domain link stays nested in every external link mode

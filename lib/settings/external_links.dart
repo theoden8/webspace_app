@@ -1,3 +1,5 @@
+import 'package:webspace/settings/app_prefs.dart';
+
 /// Where a cross-domain link a site opens goes (NESTED-009). A link to a
 /// domain the site claims stays in the app whatever the mode says.
 ///
@@ -7,7 +9,12 @@
 /// - [block]: nowhere; the navigation is cancelled. Only top-level
 ///   navigations reach the decision, so images, scripts and frames from other
 ///   domains still load.
-enum ExternalLinkMode { inApp, browser, block }
+enum ExternalLinkMode {
+  inApp, browser, block;
+
+  static ExternalLinkMode get appDefault => externalLinkModeFromJson(
+      AppPref.externalLinkMode.value, legacyInBrowser: null);
+}
 
 /// Parse a stored mode name. [legacyInBrowser] is the `externalLinksInBrowser`
 /// bool this field replaced, read only when no mode is stored.

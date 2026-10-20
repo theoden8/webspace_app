@@ -77,7 +77,7 @@ extension WebViewModelJson on WebViewModel {
       SiteField.incognito => {key: incognito},
       SiteField.alwaysOpenHome => {key: alwaysOpenHome},
       SiteField.kioskMode => {key: kioskMode},
-      SiteField.tabsEnabled => {if (!tabsEnabled) key: false},
+      SiteField.tabsEnabled => {key: tabsEnabled},
       SiteField.containerColor => {
           if (containerColor != null) key: containerColor,
         },
@@ -95,10 +95,7 @@ extension WebViewModelJson on WebViewModel {
       SiteField.contentBlockEnabled => {key: contentBlockEnabled},
       SiteField.trackingProtectionEnabled => {key: trackingProtectionEnabled},
       SiteField.localCdnEnabled => {key: localCdnEnabled},
-      SiteField.externalLinkMode => {
-          if (externalLinkMode != ExternalLinkMode.inApp)
-            key: externalLinkMode.name,
-        },
+      SiteField.externalLinkMode => {key: externalLinkMode?.name},
       SiteField.fullscreenMode => {key: fullscreenMode},
       SiteField.blockScreenshots => {if (blockScreenshots) key: true},
       SiteField.tabBarButtonCorner => {
@@ -309,7 +306,10 @@ class _SiteJson {
       case SiteField.kioskMode:
         model.kioskMode = value<bool>(field) ?? false;
       case SiteField.tabsEnabled:
-        model.tabsEnabled = value<bool>(field) ?? true;
+        // Older saves omitted true; explicit null follows the app.
+        model.tabsEnabled = json.containsKey(field.key) && raw == null
+            ? null
+            : value<bool>(field) ?? true;
       case SiteField.containerColor:
         model.containerColor = switch (value<int>(field)) {
           final int i when i >= 0 => i,
@@ -340,8 +340,10 @@ class _SiteJson {
       case SiteField.localCdnEnabled:
         model.localCdnEnabled = value<bool>(field) ?? true;
       case SiteField.externalLinkMode:
-        model.externalLinkMode =
-            externalLinkModeFromJson(raw, legacyInBrowser: legacy(field));
+        // Older saves omitted inApp; explicit null follows the app.
+        model.externalLinkMode = json.containsKey(field.key) && raw == null
+            ? null
+            : externalLinkModeFromJson(raw, legacyInBrowser: legacy(field));
       case SiteField.fullscreenMode:
         model.fullscreenMode = value<bool>(field) ?? false;
       case SiteField.blockScreenshots:

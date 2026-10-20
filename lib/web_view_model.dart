@@ -195,15 +195,16 @@ class WebViewModel implements MediaGrantRecord {
       tabs.single.id == kPrimaryTabId &&
       tabs.single.parentId == null;
 
-  /// The user's per-site Tabs choice (TAB-013). Read [effectiveTabsEnabled]
+  /// Null follows the app-wide Tabs choice (TAB-013). Read [effectiveTabsEnabled]
   /// instead: a kiosk site runs as one page whatever this stores, and the
   /// stored value comes back when Kiosk mode is turned off.
-  bool tabsEnabled;
+  bool? tabsEnabled;
 
   /// A kiosk site runs as one page, never with tabs (TAB-013). Turning tabs
   /// off this way keeps the tab list, as the app-wide switch does (TAB-012).
-  bool get effectiveTabsEnabled =>
-      resolveTabs(tabs: tabsEnabled, kiosk: kioskMode);
+  bool get effectiveTabsEnabled => resolveTabs(
+      tabs: Scoped.fromStored(tabsEnabled).resolve(AppPref.tabsEnabled.value),
+      kiosk: kioskMode);
 
   /// The colour this site's container is drawn in, as an index into the
   /// container palette (TAB-018). Given once, when the site first needs one,
@@ -329,10 +330,10 @@ class WebViewModel implements MediaGrantRecord {
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   /// Where a cross-domain link that is not covered by this site's domain
-  /// claims goes: a nested in-app webview (the default), the system browser
+  /// claims goes: null follows the app, otherwise a nested webview, the browser
   /// (discussion #438) or nowhere (issue #629). Links to claimed domains
   /// open in-app in every mode.
-  ExternalLinkMode externalLinkMode;
+  ExternalLinkMode? externalLinkMode;
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
   /// While this site is on screen, the window is withheld from screenshots,
   /// recordings and the recent-apps preview (SCREENBLOCK-002). Android only;
@@ -701,12 +702,14 @@ class WebViewModel implements MediaGrantRecord {
   /// boundary (ARCH-006), so a stored [ExternalLinkMode.browser] keeps links
   /// in-app there. Blocking crosses nothing and stays in force.
   ExternalLinkMode get effectiveExternalLinkMode =>
-      ArchiveFold.externalLinks(externalLinkMode, archived: isArchiveTier);
+      ArchiveFold.externalLinks(
+          Scoped.fromStored(externalLinkMode).resolve(ExternalLinkMode.appDefault),
+          archived: isArchiveTier);
 
   /// Outbound routing is an option of the in-app mode (LIR-014): in any
   /// other mode the switch is hidden and its stored value inert.
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
-      route: routeOutboundLinks, mode: externalLinkMode);
+      route: routeOutboundLinks, mode: effectiveExternalLinkMode);
 
   /// The native container this site's webview binds under [isolation], as
   /// its posture and its site info sheet name it (NAV-011).
@@ -886,7 +889,7 @@ class WebViewModel implements MediaGrantRecord {
     this.incognito = false,
     this.alwaysOpenHome = false,
     this.kioskMode = false,
-    this.tabsEnabled = true,
+    this.tabsEnabled,
     this.containerColor,
     this.language,
     this.zoomPercent = kDefaultZoomPercent,
@@ -898,7 +901,7 @@ class WebViewModel implements MediaGrantRecord {
     this.disabledFilterLists = const <FilterListId>{},
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
-    this.externalLinkMode = ExternalLinkMode.inApp,
+    this.externalLinkMode,
     this.fullscreenMode = false,
     this.blockScreenshots = false,
     this.tabBarButtonCorner,

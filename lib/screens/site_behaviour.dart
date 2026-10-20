@@ -7,6 +7,8 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/web_view_model.dart';
@@ -30,8 +32,8 @@ class SiteBehaviourValues {
     required this.kioskMode,
     required this.fullscreenMode,
     required this.htmlCachingEnabled,
-    required this.externalLinkMode,
-    this.tabsEnabled = true,
+    this.externalLinkMode = const FollowApp(),
+    this.tabsEnabled = const FollowApp(),
     this.routeOutboundLinks = false,
     this.outboundPreferences = const [],
     this.searchAddress,
@@ -46,9 +48,9 @@ class SiteBehaviourValues {
   final bool alwaysOpenHome;
   final bool kioskMode;
   final bool fullscreenMode;
-  final bool tabsEnabled;
+  final Scoped<bool> tabsEnabled;
   final bool htmlCachingEnabled;
-  final ExternalLinkMode externalLinkMode;
+  final Scoped<ExternalLinkMode> externalLinkMode;
   final bool routeOutboundLinks;
   final List<OutboundPreference> outboundPreferences;
 
@@ -64,9 +66,9 @@ class SiteBehaviourValues {
     bool? alwaysOpenHome,
     bool? kioskMode,
     bool? fullscreenMode,
-    bool? tabsEnabled,
+    Scoped<bool>? tabsEnabled,
     bool? htmlCachingEnabled,
-    ExternalLinkMode? externalLinkMode,
+    Scoped<ExternalLinkMode>? externalLinkMode,
     bool? routeOutboundLinks,
     List<OutboundPreference>? outboundPreferences,
     Object? searchAddress = _keep,
@@ -96,17 +98,19 @@ class SiteBehaviourValues {
       resolveAlwaysOpenHome(
           alwaysOpenHome: alwaysOpenHome, incognito: incognito);
 
-  bool get effectiveTabsEnabled =>
-      resolveTabs(tabs: tabsEnabled, kiosk: kioskMode);
+  bool get effectiveTabsEnabled => resolveTabs(
+      tabs: tabsEnabled.resolve(AppPref.tabsEnabled.value), kiosk: kioskMode);
 
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
-      route: routeOutboundLinks, mode: externalLinkMode);
+      route: routeOutboundLinks, mode: effectiveExternalLinkMode);
 
   bool get effectiveHtmlCaching =>
       ArchiveFold.htmlCaching(stored: htmlCachingEnabled, archived: archived);
 
   ExternalLinkMode get effectiveExternalLinkMode =>
-      ArchiveFold.externalLinks(externalLinkMode, archived: archived);
+      ArchiveFold.externalLinks(
+          externalLinkMode.resolve(ExternalLinkMode.appDefault),
+          archived: archived);
 }
 
 /// Per-site behaviour screen: how the app hosts the site — where it opens, how
@@ -167,7 +171,8 @@ class SiteBehaviourScreen extends StatefulWidget {
   State<SiteBehaviourScreen> createState() => _SiteBehaviourScreenState();
 }
 
-class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
+class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
+    with RebuildOnAppPref {
   late SiteBehaviourValues _values = widget.values;
 
   void _update(SiteBehaviourValues next) {
@@ -224,14 +229,27 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ChoiceTile(
+        ChoiceTile<Scoped<ExternalLinkMode>>(
           title: loc.siteSettingsExternalLinks,
           hint: loc.siteSettingsExternalLinksHint,
-          values: ExternalLinkMode.values,
-          label: (m) => m.label(loc),
-          value: mode,
-          offered: (m) => !_values.archived || m != ExternalLinkMode.browser,
-          onChanged: (m) => _update(_values.copyWith(externalLinkMode: m)),
+          subtitle: _values.externalLinkMode is FollowApp
+              ? mode.label(loc)
+              : null,
+          values: [
+            const FollowApp(),
+            for (final m in ExternalLinkMode.values) Own(m),
+          ],
+          label: (choice) => switch (choice) {
+            FollowApp() => loc.webSearchUseAppDefault,
+            Own(:final value) => value.label(loc),
+          },
+          value: _values.externalLinkMode is Own &&
+                  mode != _values.externalLinkMode.stored
+              ? Own(mode)
+              : _values.externalLinkMode,
+          offered: (choice) => !_values.archived ||
+              choice != const Own(ExternalLinkMode.browser),
+          onChanged: (choice) => _update(_values.copyWith(externalLinkMode: choice)),
         ),
         if (mode == ExternalLinkMode.inApp)
           Padding(
@@ -419,14 +437,19 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
           // off, and Kiosk mode on shows tabs off without forgetting the
           // stored choice.
-          SettingTile(
+          ChoiceTile<Scoped<bool>>(
             title: loc.siteSettingsTabs,
             hint: loc.siteSettingsTabsHint,
-            control: Toggle(
-                _values.effectiveTabsEnabled,
-                onChanged: (value) => _update(value
-                    ? _values.copyWith(tabsEnabled: true, kioskMode: false)
-                    : _values.copyWith(tabsEnabled: false))),
+            values: const [FollowApp(), Own(true), Own(false)],
+            label: (choice) => choice.label(loc,
+                appValue: AppPref.tabsEnabled.value),
+            value: _values.kioskMode ? const Own(false) : _values.tabsEnabled,
+            onChanged: (choice) => _update(_values.copyWith(
+              tabsEnabled: choice,
+              kioskMode: choice.resolve(AppPref.tabsEnabled.value)
+                  ? false
+                  : _values.kioskMode,
+            )),
           ),
           SettingTile(
             title: loc.siteSettingsHtmlCaching,

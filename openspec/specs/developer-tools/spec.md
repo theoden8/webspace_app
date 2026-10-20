@@ -282,8 +282,25 @@ The app SHALL use a centralized LogService singleton (extending ChangeNotifier) 
 #### Scenario: Debug mode passthrough
 
 **Given** the app is running in debug mode
-**When** a log entry is created
+**When** a normal log entry at or above the console severity threshold is created
 **Then** it is also printed via debugPrint
+**And** the app's default console threshold is debug
+
+#### Scenario: Unit tests keep routine logs out of the console
+
+**Given** a unit test run without `WS_VERBOSE_TEST_LOGS=1`
+**When** normal entries are logged at debug, info, warning and error levels
+**Then** only warnings and errors are printed
+**And** all entries still reach their in-memory ring and notify listeners
+**And** sensitive entries stay memory-only at every level
+
+#### Scenario: Verbose unit-test diagnosis
+
+**Given** `WS_VERBOSE_TEST_LOGS=1 fvm flutter test`
+**When** normal debug entries are logged
+**Then** they are printed again
+
+Validation: `test/log_service_test.dart`.
 
 #### Scenario: Change notification
 

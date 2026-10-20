@@ -147,6 +147,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // Scroll the lazy list before checking a row below the first viewport.
+      await tester.scrollUntilVisible(
+        find.text('Home screen shortcuts'),
+        200,
+      );
+      await tester.pumpAndSettle();
       expect(find.text('3 shortcuts'), findsOneWidget);
 
       host.homeShortcuts.value = [pinned().first];
@@ -166,6 +172,8 @@ void main() {
           homeShortcuts: null,
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Link handling'), 200);
       await tester.pumpAndSettle();
       expect(find.text('Home screen shortcuts'), findsNothing);
     });
