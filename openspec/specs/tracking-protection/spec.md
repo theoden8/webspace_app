@@ -663,21 +663,21 @@ the user across the wipe. The nonce SHALL propagate to nested webviews via
 **Then** the non-incognito seed is `siteId:r1`
 **And** the incognito seed is `siteId:r1:launchNonce`
 
-Clearing a site's data SHALL additionally remove the two app-side artefacts
-that are keyed by `siteId` and replayed on the site's next activation, in
-**both** engine modes and outside every `SiteDataClearEngine` plan branch:
+Clearing a site's data SHALL additionally remove what a container wipe or
+a cookie delete does not reach and the site's next activation replays:
 
-- the saved `controller.saveState()` bytes
-  (`WebViewStateStorage.removeState`), plus any capture still pending on the
-  `NavStateCaptureDebouncer`;
-- the encrypted HTML snapshot (`HtmlCacheService.deleteCache`).
+- in **both** engine modes, outside every `SiteDataClearEngine` plan
+  branch, the saved `controller.saveState()` bytes of every tab
+  (`WebViewStateStorage.removeStatesForSite`), plus any capture still
+  pending on the `NavStateCaptureDebouncer`;
+- under the shared jar, the engine's HTTP cache (`clearEngineCache`), which
+  no container scopes there and which a cache-first load serves.
 
-Neither is reached by a container wipe or a cookie delete, and both restore
-the pre-clear URL. A page that ran
+The saved state restores the pre-clear URL. A page that ran
 `history.pushState(null, '', '/?uid=ABC')` before the clear is reloaded at
 that URL afterwards and reads its own identifier back, which defeats the
 reroll this requirement exists to guarantee. The delete-site and
-archive-close paths already removed both; the clear path had drifted.
+archive-close paths already removed it; the clear path had drifted.
 
 #### Scenario: Clearing site data rerolls the fingerprint
 
@@ -691,10 +691,11 @@ pre-clear seed
 #### Scenario: Clearing site data leaves nothing restorable
 
 **Given** a site that pushed `/?uid=ABC` into its own history and whose
-navigation state and HTML snapshot are on disk
+navigation state is on disk
 **When** the user taps "Clear Site Data"
 **Then** the pending debounced capture is cancelled
-**And** `removeState(siteId)` and `deleteCache(siteId)` both run
+**And** `removeStatesForSite(siteId)` runs
+**And** under the shared jar the engine's HTTP cache is cleared
 **And** the rebuilt webview loads `initUrl`, not `/?uid=ABC`
 **And** this holds whether the container engine or the legacy engine is live
 
@@ -1051,9 +1052,9 @@ discards their session on every restart. Grouping is by topic; forcing is
 reserved for settings whose worst case is a missing page element or a
 closed tracking channel.
 
-HTML caching SHALL NOT appear here. It decides whether a page is redrawn
-from disk on a cold start, which is a behaviour of the app rather than
-something a site learns; it lives with the other behaviour switches, on
+HTML caching SHALL NOT appear here. It decides whether a start takes the
+page from the engine's cache before the network, which is a behaviour of
+the app rather than something a site learns; it lives with the other behaviour switches, on
 the Behaviour screen (BEHAV-001).
 
 The anti-fingerprinting note under the letterbox group SHALL render only

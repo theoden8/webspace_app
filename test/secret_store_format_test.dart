@@ -16,7 +16,6 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_stats_detail_storage.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/file_store.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
@@ -177,17 +176,28 @@ void main() {
   });
 
   group('encrypted stores read what the old code wrote', () {
-    test('HTML cache', () async {
+    test('the retired snapshot cache: an import kept there is carried over',
+        () async {
+      SharedPreferences.setMockInitialValues({'html_cache_version': '0.3.2+1'});
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'html_cache_encryption_key', value: _key);
-      final store = MemoryFileStore();
-      await store.writeText('s1.enc',
-          contents: _oldSeal(_key, plaintext: 'https://a\n<p>a</p>'));
-      HtmlCacheService.resetForTesting();
-      await HtmlCacheService.instance
-          .initialize(store: store, secureStorage: keychain);
-      expect(await HtmlCacheService.instance.loadHtml(SiteId('s1')),
-          ('https://a', '<p>a</p>'));
+      final cache = MemoryFileStore();
+      await cache.writeText('s1.enc',
+          contents: _oldSeal(_key, plaintext: 'file:///a\n<p>a</p>'));
+      await cache.writeText('s2.enc',
+          contents: _oldSeal(_key, plaintext: 'https://b\n<p>b</p>'));
+      final imports = HtmlImportStorage(
+          secureStorage: keychain, store: MemoryFileStore(), retiredCache: cache);
+      await imports.initialize();
+      await imports.retireSnapshotCache();
+
+      expect(await imports.loadHtml(SiteId('s1')), ('file:///a', '<p>a</p>'));
+      expect(await imports.hasImport(SiteId('s2')), isFalse,
+          reason: 'a page snapshot is not an import');
+      expect(await cache.list(), isEmpty);
+      expect(keychain.storage.containsKey('html_cache_encryption_key'), isFalse);
+      expect((await SharedPreferences.getInstance()).containsKey('html_cache_version'),
+          isFalse);
     });
 
     test('HTML imports', () async {

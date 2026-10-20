@@ -140,7 +140,7 @@ Each site gets a named profile. Lifecycle:
 | App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ContainerIsolationEngine.garbageCollectOrphans`), then drop every incognito site's container outright with `onSiteDeleted` (pre-bind, `deleteContainer` is reliable here). |
 | Site activated | `ContainerIsolationEngine.ensureContainer(siteId)` (idempotent). |
 | WebView created | Nothing to do: the WebView was built with `InAppWebViewSettings.containerId`, which the fork reads before any session-bound operation (CONT-005). |
-| User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. The app-side per-`siteId` residue the container never held — saved nav state and the HTML snapshot — is dropped alongside it in both engine modes ([tracking-protection](../tracking-protection/spec.md) ETP-022). |
+| User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. The app-side per-`siteId` residue the container never held, the saved nav state, is dropped alongside it in both engine modes ([tracking-protection](../tracking-protection/spec.md) ETP-022). |
 | Site deleted | `SiteDeletion` (CONT-010): the commit takes the site off the list and lets go of its webview, the next frame unmounts it, then `ContainerIsolationEngine.onSiteDeleted(siteId)`. |
 | Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
 
@@ -265,9 +265,9 @@ container that nothing references.
   `IndexedStack` rebuild constructs a fresh `InAppWebView` bound to
   the now-empty profile
 **And** the app-side per-`siteId` residue is dropped too — the pending
-  debounced nav-state capture is cancelled, `removeState(siteId)` and
-  `HtmlCacheService.deleteCache(siteId)` run — since neither lives in the
-  container and both are replayed on the next activation (ETP-022)
+  debounced nav-state capture is cancelled and `removeStatesForSite(siteId)`
+  runs — since it does not live in the container and is replayed on the
+  next activation (ETP-022)
 
 #### Scenario: Profile deleted on site deletion
 
@@ -653,7 +653,7 @@ reintroduces the memo mislabel underneath the app-side gate.
   home-shortcut cold launch, with Site A loaded
 **When** the deferred startup GC runs `sweepOrphanStorage`
 **Then** every per-site storage sweep runs (cookies, proxy passwords,
-  HTML caches, HTML imports, webview state)
+  HTML imports, webview state)
 **And** `CookieManager.deleteAllCookies()` is NOT called
 **And** Site A's profile cookie jar still holds its session
 

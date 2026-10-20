@@ -35,9 +35,6 @@ abstract interface class TabsHost implements PageHost {
   /// read is about to go.
   void cancelPendingCapture(SiteId siteId);
 
-  /// Drops [siteId]'s cached HTML snapshot while online.
-  void evictCache(SiteId siteId);
-
   void enterFullscreen();
 
   Future<void> activate(WebViewModel site);
@@ -304,7 +301,6 @@ class TabsController {
   /// loaded sites, so nothing builds it on its new route beside the sites
   /// it contends with.
   void _letGoOfIdentity(WebViewModel model) {
-    _host.evictCache(model.siteId);
     final global = residency.proxyTopology is ProcessGlobalProxy;
     if (global &&
         _sites.retired(
@@ -1094,10 +1090,6 @@ class TabsController {
     if (_label.of(c) case final bytes?) {
       model.tabBinding.queue(bytes, tab: _tab.of(c), commit: c.commit);
     }
-    // The cached HTML snapshot is per site, so it holds the page the *other*
-    // tab was on; leaving it would flash that page into this tab's first
-    // frame. Offline it is the only thing renderable, so it stays.
-    _host.evictCache(model.siteId);
     model.disposeWebView(commit: c.commit);
     _host.rebuild();
     flow

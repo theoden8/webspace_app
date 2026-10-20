@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/html_snapshot.dart';
+import 'package:webspace/services/live_swap.dart';
 
 void main() {
   group('awaitOnlineForLiveSwap', () {

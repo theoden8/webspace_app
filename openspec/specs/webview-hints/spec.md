@@ -222,9 +222,9 @@ The theme hint is applied via JavaScript that:
 3. Maintains listeners for dynamic theme changes
 4. Updates color-scheme meta tag and CSS property
 
-### HTML Cache Theme Prelude
+### File Import Theme Prelude
 
-When `HtmlCacheService` returns a cached snapshot for rendering via `initialHtml`, `HtmlCacheService.applyThemePrelude()` is applied at **load time** (not save time) based on the webview's current theme. For dark themes it prepends this to the cached HTML's `<head>`:
+When a file import's stored HTML is rendered via `initialHtml`, `HtmlImportStorage.applyThemePrelude()` is applied at **load time** (not save time) based on the webview's current theme. For dark themes it prepends this to the import's `<head>`:
 
 ```html
 <meta name="color-scheme" content="dark">
@@ -233,7 +233,7 @@ html,body{background:#111 !important;color-scheme:dark}
 </style>
 ```
 
-This eliminates the white-frame flash while the cached HTML's stylesheets and user scripts re-run on the live load. The prelude is keyed on the live `WebViewModel.effectiveTheme` plus platform brightness (for `WebViewTheme.system`), so a theme switch takes effect on the next cache load without cache invalidation. The helper is idempotent — duplicate prelude insertion is detected via the `__ws_cache_prelude` id.
+This eliminates the white-frame flash while the import's stylesheets and user scripts run. The prelude is keyed on the live `WebViewModel.effectiveTheme` plus platform brightness (for `WebViewTheme.system`), so a theme switch takes effect on the next build without touching the stored bytes. A URL site's first page comes from the network or the engine's cache and gets no prelude. The helper is idempotent — duplicate prelude insertion is detected via the `__ws_cache_prelude` id.
 
 ---
 

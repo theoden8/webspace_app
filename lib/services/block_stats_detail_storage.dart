@@ -24,8 +24,8 @@ abstract class BlockStatsDetailStore {
 }
 
 /// The detail sealed by [KeychainAead] in `<docs>/block_stats/detail.enc`.
-/// Unlike the HTML cache the file survives app upgrades: a report wiped by
-/// an update is the complaint this answers.
+/// The file survives app upgrades: a report wiped by an update is the
+/// complaint this answers.
 ///
 /// Blocked hosts and `siteId`s are browsing-derived, so they never join the
 /// counters in plaintext SharedPreferences (STATS-005). Every failure path

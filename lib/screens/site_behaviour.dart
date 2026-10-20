@@ -3,6 +3,7 @@ import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
+import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/web_search_engine.dart';
@@ -103,6 +104,7 @@ class SiteBehaviourValues {
       route: routeOutboundLinks, mode: externalLinkMode);
 
   bool get effectiveHtmlCaching =>
+      engineLoadsCacheFirst &&
       ArchiveFold.htmlCaching(stored: htmlCachingEnabled, archived: archived);
 
   ExternalLinkMode get effectiveExternalLinkMode =>
@@ -428,14 +430,16 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
                     ? _values.copyWith(tabsEnabled: true, kioskMode: false)
                     : _values.copyWith(tabsEnabled: false))),
           ),
-          SettingTile(
-            title: loc.siteSettingsHtmlCaching,
-            hintTitle: loc.siteSettingsHtmlCachingHintTitle,
-            hint: loc.siteSettingsHtmlCachingHint,
-            lock: _values.archived ? const ArchiveLock() : null,
-            control: Toggle(_values.effectiveHtmlCaching,
-                onChanged: (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
-          ),
+          // WPE has no per-load cache policy, so there is nothing to switch.
+          if (engineLoadsCacheFirst)
+            SettingTile(
+              title: loc.siteSettingsHtmlCaching,
+              hintTitle: loc.siteSettingsHtmlCachingHintTitle,
+              hint: loc.siteSettingsHtmlCachingHint,
+              lock: _values.archived ? const ArchiveLock() : null,
+              control: Toggle(_values.effectiveHtmlCaching,
+                  onChanged: (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
+            ),
           SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,

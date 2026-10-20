@@ -21,6 +21,12 @@ in that group because the External links hint tells the reader to add domains
 there, and a reader following that sentence should not have to leave the
 screen.
 
+HTML caching SHALL be absent where the engine cannot load a page from its
+cache first (`engineLoadsCacheFirst`: Linux's WPE has no per-load cache
+policy, webview-pause-lifecycle PAUSE-033), and the Behaviour row's summary
+SHALL not name it there. The stored value is kept, so a backup or a QR
+share carries it to a device where it applies.
+
 Always open Home SHALL render `value: true` with `onChanged: null`, subtitled
 "Forced on by Incognito", while the site's `incognito` is on: incognito drops
 the stored URL on every restart, so the site opens at its home page whatever
@@ -41,6 +47,7 @@ stays with the screen that holds the model.
 **Given** the user opens the per-site Behaviour screen
 **Then** Always open Home, Kiosk mode, Full screen mode and HTML caching are
 shown as switches, and External links as a choice
+**And** where the engine cannot load cache first, HTML caching is not shown
 **And** none of them remains on the settings screen it was reached from
 
 #### Scenario: The claims editor follows the switch that names it

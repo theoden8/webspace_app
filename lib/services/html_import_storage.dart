@@ -1,15 +1,12 @@
-import 'package:flutter/services.dart'
-    show MissingPluginException, PlatformException;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
-import 'dart:convert';
 import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:webspace/services/html_cache_service.dart';
 
 /// The site an imported HTML file becomes, named after the file without its
 /// extension. Three slashes (empty authority): `file://name.html` parses the
@@ -22,11 +19,8 @@ import 'package:webspace/services/html_cache_service.dart';
 
 /// Persistent AES-encrypted storage for user-imported HTML files.
 ///
-/// Distinct from [HtmlCacheService]: imports are the only copy of the
-/// data the user picked off their device, so wiping them on app
-/// upgrade would destroy content they explicitly imported. This store
-/// survives upgrades. Cached snapshots of fetched pages stay in
-/// [HtmlCacheService] (re-fetchable, safe to drop).
+/// Imports are the only copy of the data the user picked off their device,
+/// so this store survives upgrades.
 class HtmlImportStorage {
   static const String _storageDir = 'html_imports';
   static const String _encryptionKeyKey = 'html_import_encryption_key';
@@ -39,11 +33,14 @@ class HtmlImportStorage {
   HtmlImportStorage({
     FlutterSecureStorage? secureStorage,
     FileStore? store,
+    FileStore? retiredCache,
   })  : _secureStorage = secureStorage ?? Keystores.aeadKeys,
-        _overrideStore = store;
+        _overrideStore = store,
+        _retiredCache = retiredCache;
 
   final FlutterSecureStorage _secureStorage;
   final FileStore? _overrideStore;
+  final FileStore? _retiredCache;
 
   FileStore? _store;
   KeychainAead? _aead;
@@ -61,9 +58,8 @@ class HtmlImportStorage {
     await _store!.ensure();
   }
 
-  /// Decrypt every file on disk into [_memoryStore]. Mirrors
-  /// [HtmlCacheService.preloadCache] so `getHtmlSync(siteId)` is
-  /// answerable synchronously during `WebSpacePage.build`.
+  /// Decrypt every file on disk into [_memoryStore], so `getHtmlSync(siteId)`
+  /// is answerable synchronously during `WebSpacePage.build`.
   Future<void> preloadAll() => _preloadAll();
 
   /// Decrypt a single import into the in-memory store so a subsequent
@@ -262,64 +258,86 @@ class HtmlImportStorage {
     }
   }
 
-  /// One-shot migration: copy file-import HTML out of [HtmlCacheService]
-  /// into [HtmlImportStorage] before the cache wipes itself on app
-  /// upgrade. Called from [HtmlCacheService.initialize] via the
-  /// `beforeUpgradeWipe` hook — at that point the cache's encryption is
-  /// initialized with the still-current key so [loadHtml] can decrypt.
-  ///
-  /// On a fresh install the WebViewModels list is absent and this is a
-  /// no-op. On every subsequent upgrade once imports stop landing in the
-  /// cache (this version onward), the lookup finds nothing and returns
-  /// silently — keeping the call wired keeps the path safe against
-  /// future regressions without behavioral cost.
-  static Future<void> migrateFromCache() async {
-    void failed(Exception e) =>
-        LogTag.htmlImport.error('File-import migration failed: $e');
+  /// The page snapshots releases before this one kept beside the imports,
+  /// each sealed under the cache's own key, and the version they last ran
+  /// under, which they wrote at every launch.
+  static const String _retiredCacheDir = 'html_cache';
+  static const String _retiredCacheKey = 'html_cache_encryption_key';
+  static const String _retiredCacheVersion = 'html_cache_version';
+
+  /// Deletes those snapshots: their files, their key and their version
+  /// stamp, once. A release before v0.3.3 kept imports among them, so an
+  /// import found only there is carried into this store first; while the
+  /// key cannot be read, nothing is deleted, and the next launch tries again.
+  Future<void> retireSnapshotCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey(_retiredCacheVersion)) return;
+    final cache = _retiredCache ?? defaultFileStore(_retiredCacheDir);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getStringList('webViewModels');
-      if (raw == null || raw.isEmpty) return;
-
-      var migrated = 0;
-      for (final entry in raw) {
-        // A malformed or unreadable entry is skipped: the cache wipe happens
-        // either way.
-        final Object? m;
-        try {
-          m = jsonDecode(entry);
-        } on FormatException {
-          continue;
-        }
-        if (m is! Map) continue;
-        final initUrl = m['initUrl'];
-        if (initUrl is! String || !initUrl.startsWith('file://')) continue;
-        final siteId = SiteId.parse(m['siteId']);
-        if (siteId == null) continue;
-
-        try {
-          if (await HtmlImportStorage.instance.hasImport(siteId)) continue;
-          final cached = await HtmlCacheService.instance.loadHtml(siteId);
-          if (cached == null) continue;
-          await HtmlImportStorage.instance
-              .saveHtml(siteId, html: cached.$2, url: cached.$1);
-          migrated++;
-        } on IOException catch (e) {
-          LogTag.htmlImport.error('File-import migration skipped $siteId: $e');
-        }
+      final names = await cache.list();
+      if (names.isNotEmpty) {
+        final aead = await KeychainAead.open(_secureStorage,
+            keyName: _retiredCacheKey, logTag: LogTag.htmlImport);
+        if (aead == null) return;
+        await _carryImports(cache, names: names, aead: aead);
       }
-      if (migrated > 0) {
-        LogTag.htmlImport.info(
-            'Migrated $migrated file-import page(s) from cache to import storage');
-      }
-    } on PlatformException catch (e) {
-      failed(e);
-    } on MissingPluginException catch (e) {
-      failed(e);
+      await cache.deleteAll();
+      await _secureStorage.delete(key: _retiredCacheKey);
+      await prefs.remove(_retiredCacheVersion);
     } on IOException catch (e) {
-      failed(e);
-    } on FormatException catch (e) {
-      failed(e);
+      LogTag.htmlImport.error('Retiring the snapshot cache failed: $e');
+    } on PlatformException catch (e) {
+      LogTag.htmlImport.error('Retiring the snapshot cache failed: $e');
     }
+  }
+
+  /// Each snapshot holds `url\nhtml`; one whose url is a file:// handle is
+  /// an import, kept unless this store already holds that site.
+  Future<void> _carryImports(FileStore cache,
+      {required List<String> names, required KeychainAead aead}) async {
+    var carried = 0;
+    for (final name in names) {
+      if (!name.endsWith('.enc')) continue;
+      final siteId = SiteId.parse(name.substring(0, name.length - 4));
+      if (siteId == null || await hasImport(siteId)) continue;
+      final wire = await cache.readText(name);
+      final opened = wire == null ? null : await aead.unseal(wire);
+      final nl = opened?.indexOf('\n') ?? -1;
+      if (opened == null || nl == -1) continue;
+      final url = opened.substring(0, nl);
+      if (!url.startsWith('file://')) continue;
+      await saveHtml(siteId, html: opened.substring(nl + 1), url: url);
+      carried++;
+    }
+    if (carried > 0) {
+      LogTag.htmlImport.info('Carried $carried import(s) out of the snapshot cache');
+    }
+  }
+
+  /// Inline style prepended to an import's page for a dark-theme site so the
+  /// pre-paint frame matches the app/webview theme instead of flashing white.
+  ///
+  /// `color-scheme: dark` hints the engine to use dark scrollbars and form
+  /// controls. The background rule is a hard override so content rendered
+  /// against `<html>`/`<body>` with no explicit background doesn't flash
+  /// default white. Real site styles still load afterward and take over.
+  static const String _darkPrelude =
+      '<meta name="color-scheme" content="dark">'
+      '<style id="__ws_cache_prelude">'
+      'html,body{background:#111 !important;color-scheme:dark}'
+      '</style>';
+
+  /// Prepend [_darkPrelude] to [html] when [dark] is true. No-op if the
+  /// prelude is already present.
+  static String applyThemePrelude(String html, {required bool dark}) {
+    if (!dark) return html;
+    if (html.contains('id="__ws_cache_prelude"')) return html;
+    final headMatch =
+        RegExp(r'<head(?:\s[^>]*)?>', caseSensitive: false).firstMatch(html);
+    if (headMatch != null) {
+      return html.replaceRange(headMatch.end, headMatch.end, _darkPrelude);
+    }
+    // No <head> tag — prepend so the prelude still reaches the parser.
+    return '$_darkPrelude$html';
   }
 }

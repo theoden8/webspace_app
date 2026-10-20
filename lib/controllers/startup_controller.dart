@@ -285,9 +285,8 @@ class StartupController implements DeferredStartupHost {
   }
 
   /// Before the activation so its first build sees the right theme:
-  /// initialHtml picks the dark prelude for cached HTML from it (file://
-  /// imports never reload to live), and models default to light, so a dark
-  /// theme would otherwise flash white. Only the models built now need it;
+  /// initialHtml picks the dark prelude for a file import from it, and
+  /// models default to light, so a dark theme would otherwise flash white. Only the models built now need it;
   /// the rest are themed after paint. Returns their siteIds.
   Future<Set<SiteId>> _themeLaunch(
     _LaunchTarget target, {

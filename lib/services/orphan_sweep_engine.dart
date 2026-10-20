@@ -17,7 +17,6 @@ enum OrphanStore {
   cookies(OrphanScope.session),
   proxyPasswords(OrphanScope.configuration),
   httpAuthCredentials(OrphanScope.configuration),
-  htmlCaches(OrphanScope.session),
   htmlImports(OrphanScope.configuration),
   webViewState(OrphanScope.session),
 

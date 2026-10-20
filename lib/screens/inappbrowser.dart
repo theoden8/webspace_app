@@ -238,6 +238,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         posture: p,
         hooks: widget.hooks,
         initialUrl: widget.url,
+        cacheFirst: false,
         // BUG-002 gap #1: the OS can kill this nested webview's renderer
         // (memory reclaim while backgrounded, or a page-induced crash),
         // leaving a dead black surface. Destroy-and-rebuild on the event,

@@ -19,9 +19,10 @@
 //
 // Not covered here, because it needs a device: Android WebView additionally
 // denies cookies to a `loadDataWithBaseURL` document, which is how
-// `InAppWebViewInitialData(data, baseUrl:)` renders a cached snapshot
-// (webview.dart `usesCachedHtml`). That is the app's own way of reaching the
-// same branch, and it is the one to check first when a user reports this line.
+// `InAppWebViewInitialData(data, baseUrl:)` renders a file import
+// (webview.dart `renderInitialData`). That is the app's own way of reaching
+// the same branch, and it is the one to check first when a user reports this
+// line from an imported page.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

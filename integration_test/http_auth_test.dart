@@ -232,6 +232,7 @@ void main() {
     required HttpAuthPrompt prompt,
   }) =>
       WebViewConfig(
+        cacheFirst: false,
         hooks: bareHooks(httpAuth: prompt),
         key: ValueKey('http-auth-$siteId'),
         posture: barePosture(url, siteId: siteId),

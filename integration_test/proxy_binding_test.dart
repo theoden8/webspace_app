@@ -124,6 +124,7 @@ String? body(String host, {required String path}) =>
               key: key,
               child: WebViewFactory.createWebView(
                 config: WebViewConfig(
+                  cacheFirst: false,
                   hooks: bareHooks(),
                   posture: barePosture(url,
                       siteId: siteId, proxy: proxySettings),

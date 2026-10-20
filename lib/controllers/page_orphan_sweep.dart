@@ -8,7 +8,6 @@ import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
@@ -45,8 +44,6 @@ class PageOrphanSweep implements OrphanSweepTargets {
         OrphanStore.proxyPasswords => proxyPasswords.removeOrphaned(liveSiteIds),
         OrphanStore.httpAuthCredentials =>
           HttpAuthSecureStorage.instance.removeOrphaned(liveSiteIds),
-        OrphanStore.htmlCaches =>
-          HtmlCacheService.instance.removeOrphanedCaches(liveSiteIds),
         OrphanStore.htmlImports =>
           HtmlImportStorage.instance.removeOrphanedImports(liveSiteIds),
         OrphanStore.webViewState =>

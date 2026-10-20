@@ -2,17 +2,18 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// "Clear Site Data" wiped the container / cookie jar but left two restorable
-/// artefacts behind: the `controller.saveState()` bytes and the encrypted HTML
-/// snapshot, both keyed by `siteId` and both replayed on the site's next
-/// activation. A page that stashed an identifier in its own URL
+/// "Clear Site Data" wiped the container / cookie jar but left restorable
+/// artefacts behind: the `controller.saveState()` bytes, keyed by `siteId` and
+/// replayed on the site's next activation, and, under the shared jar, the
+/// engine's HTTP cache, which no container scopes there and which a
+/// cache-first load serves. A page that stashed an identifier in its own URL
 /// (`history.pushState(null, '', '/?uid=ABC')`) before the clear was reloaded
 /// at that URL afterwards and read itself back, defeating the ETP-022
 /// fingerprint reroll the clear had just performed.
 ///
-/// The delete-site and archive-close paths already removed both. This gate
-/// keeps the clear path from drifting apart from them again; `_clearSiteData`
-/// lives on `_WebSpacePageState`, which no unit test can construct.
+/// This gate keeps the clear path from drifting apart from the delete-site
+/// and archive-close paths again; `_clearSiteData` lives on
+/// `_WebSpacePageState`, which no unit test can construct.
 void main() {
   late String clearSiteData;
 
@@ -50,27 +51,22 @@ void main() {
     );
   });
 
-  test('the clear drops the encrypted HTML snapshot', () {
+  test('under the shared jar the clear drops the engine cache too', () {
+    final legacy = clearSiteData.substring(clearSiteData.indexOf('case SharedJar():'));
     expect(
-      clearSiteData.contains('HtmlCacheService.instance.deleteCache('),
+      legacy.contains('await clearEngineCache();'),
       isTrue,
-      reason: 'the cached page body survives a container wipe and is served '
-          'to the rebuilt webview',
+      reason: 'no container scopes the HTTP cache there, and a cache-first '
+          'load would serve the page body from before the clear',
     );
   });
 
   test('the removals are unconditional, not inside an engine-mode branch', () {
     // The switch on the isolation holds the container / legacy specifics;
-    // this residue exists in both modes, and the legacy engine has no
-    // container wipe to lean on at all. A statement at the method's own
+    // this residue exists in both modes. A statement at the method's own
     // indent sits outside every case of it.
     expect(
       clearSiteData.contains('\n    await _stateStorage.removeStatesForSite('),
-      isTrue,
-    );
-    expect(
-      clearSiteData
-          .contains('\n    await HtmlCacheService.instance.deleteCache('),
       isTrue,
     );
   });

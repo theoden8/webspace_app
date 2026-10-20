@@ -10,7 +10,7 @@ import 'package:webspace/settings/site_ids.dart';
 /// write. A trailing debounce coalesces a navigation burst into one
 /// capture after it settles, while still guaranteeing the *last*
 /// navigation before an OS kill lands on disk — which a leading-edge
-/// throttle (the `HtmlCacheService.shouldSave` shape) would drop.
+/// throttle would drop.
 class NavStateCaptureDebouncer {
   NavStateCaptureDebouncer({this.delay = const Duration(seconds: 3)});
 

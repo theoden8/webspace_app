@@ -317,7 +317,7 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 
 **Site-set changes** — every add, delete, move, edit, import, archive open/close goes through `SiteSetCommit.commit(SiteSetChange)` ([site_set_commit.dart](lib/controllers/site_set_commit.dart), [site_set_change.dart](lib/controllers/site_set_change.dart)). The sealed change's `effects` record (every field required) decides what follows it, and the funnel runs those steps in one fixed order, so a new kind of change does not compile until it answers each one.
 
-**Services** ([lib/services/](lib/services/)) — `cookie_secure_storage`, `html_cache_service` (AES, clears on upgrade), `icon_service`, `dns_block_service`, `webview` (CookieManager wrapper, WebViewTheme).
+**Services** ([lib/services/](lib/services/)) — `cookie_secure_storage`, `html_import_storage` (AES, a file import's only copy), `icon_service`, `dns_block_service`, `webview` (CookieManager wrapper, WebViewTheme).
 
 **Cookie isolation — two engines, runtime-selected.** The restore decides once (`Isolation.probe`, [isolation.dart](lib/services/isolation.dart)) and sets `SiteRuntime.isolation`: `Containers` holds the container engine and cookie manager, `SharedJar` the legacy engine, so code that needs either takes it from a `switch` on the witness.
 
@@ -520,7 +520,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | dns-blocklist | Hagezi list, severity levels, per-site toggle; per-site level is a mask over the app level (the levels do not nest, so each domain carries a bit per level) |
 | downloads | http/https/data/blob, streamed progress + save dialog |
 | external-scheme-handling | intent:// auto-resolves to http(s) fallback (silent route); prompt only when no web equivalent |
-| file-import-sites | local HTML via HtmlCacheService |
+| file-import-sites | local HTML via HtmlImportStorage |
 | fullscreen-mode | hide app bar/tab strip/system UI; per-site auto |
 | home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
 | http-auth-prompt | a server's or proxy's 401/407 challenge as a per-site sign-in dialog; only the site's own hosts may ask, the credential is remembered in secure storage per site, never exported, and archive-tier sites keep none |
@@ -572,7 +572,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | background-audio | per-site toggle: skips per-instance pause + app-background global JS pause (any-loaded veto), iOS `.playback` AVAudioSession + `audio` background mode; Android `mediaPlayback` foreground service + MediaStyle notification (BGAUDIO-006) driven by a page-JS media-session bridge; CI-tested via lifecycle injection + beaconing HTML fixture, plus a 3-tier notification gate (BGAUDIO-007: real-Chromium shim, channel contract, emulator assert on `getActiveNotifications()`) |
 | block-statistics | persistent app-wide protection report: per-category daily buckets, 7/30-day ranges, all-time total in plaintext prefs; the itemised half (blocked hosts, per-site counts) in an AES blob keyed from the keychain; archive-tier sites excluded from both |
 | webspaces | named site collections |
-| webview-hints | per-site theme (follows the app's by default; no app-bar toggle), color-scheme, matchMedia, theme prelude cache |
+| webview-hints | per-site theme (follows the app's by default; no app-bar toggle), color-scheme, matchMedia, a file import's theme prelude |
 | webview-pause-lifecycle | per-instance vs process-global pause; "paused != frozen" |
 | worker-shim-propagation | installs the per-site shims into Worker/SharedWorker scopes (blob wrapper); page and worker must report identical values |
 

@@ -13,7 +13,6 @@ import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/log_service.dart';
@@ -391,8 +390,8 @@ class SiteActivationController {
         run: () => model.pauseWebView().then((_) => true)),
   ];
 
-  /// Decrypt the cached/imported HTML for [m] into memory before its webview
-  /// builds, so the build's synchronous `getHtmlSync` hits. Uses the same
+  /// Decrypt [m]'s imported HTML into memory before its webview builds, so
+  /// the build's synchronous `getHtmlSync` hits. Uses the same
   /// [htmlSourceFor] classification as the build's `initialHtml` read, so the
   /// preload can never target a different store than the read (a blank
   /// site). Cheap no-op when the site has nothing on disk.
@@ -404,9 +403,7 @@ class SiteActivationController {
     )) {
       case HtmlSource.import:
         await HtmlImportStorage.instance.preloadOne(m.siteId);
-      case HtmlSource.cache:
-        await HtmlCacheService.instance.preloadOne(m.siteId);
-      case HtmlSource.none:
+      case HtmlSource.cache || HtmlSource.none:
         break;
     }
   }

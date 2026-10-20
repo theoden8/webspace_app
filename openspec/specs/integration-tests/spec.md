@@ -1060,15 +1060,18 @@ promised body, so the failure is deterministic rather than waited for.
 
 Assertions SHALL be split by who owns the behavior:
 
-- **Dart-owned** — whether the cached-then-live reload was issued,
-  whether a load failure was reported, whether a cache save was
-  attempted. Asserted strictly on every platform.
-- **Engine-owned** — whether the engine reloads an
-  `InAppWebViewInitialData` page back to its `baseUrl`, and whether it
-  reports a network failure to the Dart layer at all. Asserted only once
-  observed; otherwise the test SHALL log a `SKIP` line naming what the
-  engine did not do, rather than assert a vacuous truth (the
-  `privacy_settings_test.dart` posture).
+- **Dart-owned** — whether the cache-first-then-live reload was issued,
+  whether a load failure was reported. Asserted strictly on every
+  platform.
+- **Claimed of the engine** — that a cache-first load renders the
+  engine's stored copy without a request, on the engines
+  `engineLoadsCacheFirst` names. Asserted strictly there, since the app
+  claims it; WPE has no per-load cache policy, so those scenarios SHALL
+  log a `SKIP` on Linux.
+- **Engine-owned** — whether the engine reports a network failure to the
+  Dart layer at all. Asserted only once observed; otherwise the test SHALL
+  log a `SKIP` line naming what the engine did not do, rather than assert
+  a vacuous truth (the `privacy_settings_test.dart` posture).
 
 The engine-owned split is not hypothetical: Linux WPE maps
 `WEBKIT_NETWORK_ERROR_FAILED` (299) to no `WebResourceErrorType`, and
@@ -1076,47 +1079,32 @@ The engine-owned split is not hypothetical: Linux WPE maps
 connection failure never reaches `onReceivedError` on that target. The
 macOS runner exercises the failure assertions for real.
 
-#### Scenario: Offline construction renders the snapshot and touches no network
+#### Scenario: Offline, a cache-first build renders the stored page and touches no network
 
-- **Given** a site with a cached snapshot and `ConnectivityService`
+- **Given** a page the engine stored on an earlier live load, served
+  `no-cache` so any normal load must revalidate, and `ConnectivityService`
   reporting offline
-- **When** the webview is constructed
-- **Then** the snapshot is painted, `onReloadIssued` never fires, the
-  fixture server records zero requests for the site's path, and no
-  main-frame failure is reported
+- **When** a cache-first webview of it is constructed
+- **Then** the stored page is painted, `onReloadIssued` never fires, the
+  fixture server records zero requests for its path, and no main-frame
+  failure is reported
 
-#### Scenario: Online construction swaps the snapshot for the live page once
+#### Scenario: Online, the stored page is swapped for the live page once
 
 - **Given** the same construction with `ConnectivityService` reporting
   online
-- **When** the cached parse settles
-- **Then** exactly one live reload is issued — not a loop — and the live
-  bytes replace the snapshot in the DOM
+- **When** the cached page settles
+- **Then** exactly one live reload is issued, with no request made before
+  it, and the live bytes replace the stored page in the DOM
 
-#### Scenario: The network comes back after the snapshot settles
+#### Scenario: The network comes back after the stored page settles
 
 - **Given** the same construction with `ConnectivityService` reporting
-  offline when the cached parse settles
+  offline when the cached page settles
 - **When** it reports online a moment later
-- **Then** exactly one live reload is issued (PAUSE-033): a snapshot
-  painted on return from the background is not stranded because the first
-  probe raced the firewall letting the app back out
-- **And** where the engine reports the snapshot's own commit to
-  `shouldOverrideUrlLoading` (WKWebView, WPE) the swap is never issued at
-  all, so this scenario and the online one above log `SKIP` naming that
-  rather than fail; they assert on an engine that does not (Android)
-
-#### Scenario: A saved snapshot lays out as the live page did
-
-- **Given** a live page with a doctype, a path-relative stylesheet and a
-  percentage height that only resolves in quirks mode
-- **When** the page settles and the factory saves its snapshot, and the
-  snapshot is then rendered as `initialHtml` at a different URL
-- **Then** the saved bytes start with the doctype and carry a `<base>` at
-  the page's URL, and the rendered snapshot is in standards mode with the
-  stylesheet applied (PAUSE-033). Strict on every engine: the snapshot is
-  the app's own script evaluated through the plugin, which the Chromium
-  tier cannot reach
+- **Then** exactly one live reload is issued (PAUSE-033): a page painted
+  on return from the background is not stranded because the first probe
+  raced the firewall letting the app back out
 
 #### Scenario: A slow response is never reported as a failure
 
@@ -1137,21 +1125,6 @@ macOS runner exercises the failure assertions for real.
   means PAUSE-022 recovery silently never fires for the exact case it
   exists for, which no unit test can catch because the unit tier feeds
   the engine the strings this test discovers
-
-#### Scenario: A failed load never overwrites the offline snapshot
-
-- **Given** a site whose main-frame navigation fails for a network
-  reason
-- **When** the engine commits its own error page and fires `onLoadStop`
-  for it
-- **Then** `onHtmlLoaded` is not invoked, so the site's last-good
-  snapshot survives the flake that makes the snapshot matter — caching
-  the error page is what the next offline cold start would render
-- **And** because neither desktop target can positively verify this
-  (Linux never delivers the failure, WKWebView never settles it), the
-  guard SHALL additionally be pinned structurally by
-  `test/js/offline_cache_failure_gate.test.js`, which fails if the
-  `onLoadStop` cache save stops being gated on the failure record
 
 ---
 

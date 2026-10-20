@@ -104,4 +104,36 @@ void main() {
       }
     });
   });
+
+  group('loadsCacheFirst', () {
+    test('a URL site: when it keeps its HTML, or when the probe found none',
+        () {
+      bool first({required bool caching, required bool? online}) =>
+          loadsCacheFirst(HtmlSource.cache,
+              htmlCaching: caching, online: online, engineCan: true);
+      expect(first(caching: false, online: true), isFalse);
+      expect(first(caching: false, online: null), isFalse,
+          reason: 'no probe yet reads as online');
+      expect(first(caching: false, online: false), isTrue);
+      expect(first(caching: true, online: true), isTrue);
+      expect(first(caching: true, online: false), isTrue);
+    });
+
+    test('never where the engine cannot, nor for an import or a site that '
+        'keeps nothing', () {
+      for (final source in HtmlSource.values) {
+        for (final caching in [false, true]) {
+          for (final online in [null, false, true]) {
+            final first = loadsCacheFirst(source,
+                htmlCaching: caching, online: online, engineCan: true);
+            if (source != HtmlSource.cache) expect(first, isFalse);
+            expect(
+                loadsCacheFirst(source,
+                    htmlCaching: caching, online: online, engineCan: false),
+                isFalse);
+          }
+        }
+      }
+    });
+  });
 }

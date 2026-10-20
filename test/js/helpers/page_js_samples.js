@@ -30,7 +30,6 @@ const SAMPLES = {
   do_not_track: pageJs('do_not_track'),
   expire_page_cookies: pageJs('expire_page_cookies'),
   generic_cosmetic: pageJs('generic_cosmetic'),
-  html_snapshot: pageJs('html_snapshot'),
   icon_link_watcher: pageJs('icon_link_watcher', {
     documentLoadedHandler: 'wsIconDocumentLoaded',
     linksHandler: 'wsIconLinks',

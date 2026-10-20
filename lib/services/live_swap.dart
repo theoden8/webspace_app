@@ -1,15 +1,13 @@
-/// Capturing a page for [HtmlCacheService] and swapping the rendered snapshot
-/// back to the live page. Pure Dart: the webview factory evaluates
-/// [PageJs.htmlSnapshot] and drives [awaitOnlineForLiveSwap].
+/// Swapping a page loaded from the engine's cache for the live page once the
+/// network answers. Pure Dart: the webview factory drives
+/// [awaitOnlineForLiveSwap].
 library;
 
-import 'package:webspace/services/page_js.dart';
-
-/// Waits between connectivity probes before a rendered snapshot gives up on
-/// the live page. The first probe can land while a per-app firewall that cut
-/// the app off in the background (CalyxOS/Datura, Android's own background
-/// restrictions) has not let it back out yet; a snapshot whose subresources
-/// fail fast settles inside that window.
+/// Waits between connectivity probes before a page loaded from cache gives
+/// up on the live page. The first probe can land while a per-app firewall
+/// that cut the app off in the background (CalyxOS/Datura, Android's own
+/// background restrictions) has not let it back out yet; a cached page whose
+/// subresources fail fast settles inside that window.
 const List<Duration> liveSwapProbeDelays = [
   Duration.zero,
   Duration(seconds: 2),

@@ -295,7 +295,7 @@ Injected at `DOCUMENT_START` with `buffered: true`, observes the Resource Timing
 
 #### Recording: onLoadStart (all platforms)
 
-Records the page URL when a navigation starts. Ensures the banner shows immediately even for cached HTML loads that bypass shouldOverrideUrlLoading.
+Records the page URL when a navigation starts. Ensures the banner shows immediately even for loads that bypass shouldOverrideUrlLoading (an imported file's `initialData`, a load the app issues).
 
 #### Blocking: iOS JS Interceptor
 
@@ -966,7 +966,7 @@ document's sub-resources past the site's level, the adblock engine and LocalCDN.
 **Given** a site webview is being created on Android
 **When** the platform reports the view created
 **Then** it carries no initial load: the factory asks the interceptor to attach to that view by its id
-**And** the page's URL or cached snapshot loads only once the attach replies, as does any first load another path issues (the back/forward restore, the proxy path's deferred load, a reload)
+**And** the page's URL or imported file loads only once the attach replies, as does any first load another path issues (the back/forward restore, the proxy path's deferred load, a reload)
 **And** no other webview is labelled with the site's id by that attach, so a site's sub-resources never run at another's level or count against another's report
 
 Test: `test/webview_controller_lifetime_test.dart` ("Android holds the first load until the interceptor attaches").

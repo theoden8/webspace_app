@@ -102,7 +102,7 @@ something to wait for. Keep each contributor's `--author` and cite
   `ConsoleLogJS` copies carry `_stringify`, so a rebase cannot silently drop two.
 - [ ] 8.4 #2243, the picker sandbox filter (CVE-2020-6563). Land it with task
   6.1: it covers `file://` only, and our `content://` provider surface is the
-  half that reaches `HtmlCacheService`.
+  half that reaches `HtmlImportStorage`.
 - [ ] 8.5 #2881, the two Linux commits that matter: the `skip_pixel_readback_`
   gate (issue #2861) and the raster-thread use-after-free on recycled textures.
   Record the second in BUG-007, it is the same class on a new platform.

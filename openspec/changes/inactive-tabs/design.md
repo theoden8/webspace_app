@@ -265,7 +265,7 @@ nobody trusts.
 | Archive tier (ARCH-001/006) | `tabs` ride the archive's encrypted state; no state bytes are written (`persistsNavState` false); app-tier prefs are byte-identical whether archives hold tabs or not. |
 | Notifications / background audio | Only the active tab runs JS; a parked tab cannot fire a notification or play. Retention tiers unchanged. |
 | Memory pressure / LRU cap | Unchanged: the unit is the site's one webview. A parked tab is never in memory. |
-| Settings backup | `tabs` ride `WebViewModel.toJson`; state bytes do not (same as the HTML cache). |
+| Settings backup | `tabs` ride `WebViewModel.toJson`; state bytes do not. |
 | Site QR share | Never carries tabs (session, not configuration). |
 | Site delete / `SiteTeardownEngine` | Removes every `webview_state/<siteId>.*.enc`. |
 | Nested screen (NESTED-010) | Unchanged. It is opened from the active tab and is not a tab. |
@@ -287,12 +287,12 @@ Specified here, implemented after the tab model (`tasks.md`). They build on outb
 | `cookieSiteId`, the model `onCookiesChanged` writes, the `blockedCookies` sweep | kiosk and fullscreen shell, back-forward gestures |
 | the fingerprint seed (`siteId` plus `fingerprintResetNonce`) | the tab list, the tab's url and title writes, back-at-start (TAB-007) |
 | same-domain test (`initUrl`, claims), `blockAutoRedirects`, `externalLinksInBrowser`, outbound routing source | device-access badges: the slot holds the live capture, and MIC-014 ends it on the slot's deactivation |
-| block-statistics and notification attribution; camera, microphone and location decisions from the host's stored modes | the HTML cache: off while a hosted tab is active |
+| block-statistics and notification attribution; camera, microphone and location decisions from the host's stored modes | HTML caching: a hosted tab always loads live |
 | Home (NAV-004) target: the host's `initUrl` | |
 
 The cookie mirror row is the easy one to get wrong. `getWebView` today does `cookies = newCookies; await saveFunc();` on `this`. Under a hosted tab, `this` is the owner, so a naive rebuild would write GitHub's session cookies into DuckDuckGo's cookie secure storage. The identity view (D9) makes it the host's model.
 
-The HTML cache is per site and paints the owner's own page on a cold first frame; a hosted page written there would flash on the owner's next start, and a host's page read from there would not be the host's. A tab switch already evicts the cache; hosted tabs simply never touch it.
+HTML caching is the owner's setting and starts the owner's own page from the engine's cache; a hosted tab's page is the host's, so it loads live whatever the owner chose.
 
 Any path that loads an owner URL into the owner's slot (home shortcut, the Always open Home reset, LIR-011 `DispatchOpenInMain`) first binds a tab the owner runs itself: the active tab if it has no host, else its nearest such ancestor, else a new root at `initUrl`. Loading `duckduckgo.com` into a slot bound to GitHub's container would put DuckDuckGo's page in GitHub's cookie jar.
 

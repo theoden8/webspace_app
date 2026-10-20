@@ -1,14 +1,11 @@
-import 'package:flutter/services.dart';
 import 'dart:async';
 
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/container_native.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_router_probe.dart';
@@ -132,21 +129,15 @@ class SiteNetworkController {
     }
     // Static: flushes the Chromium network service every WebView and
     // profile shares.
-    try {
-      await inapp.InAppWebViewController.clearAllCache(includeDiskFiles: true);
+    if (await clearEngineCache()) {
       LogTag.tls.debug('clearAllCache(disk=true) completed for revoke of '
           '${entry.host}:${entry.port}', sensitive: true);
-    } on PlatformException catch (e) {
-      LogTag.tls.error('clearAllCache failed: $e');
-    } on MissingPluginException catch (e) {
-      LogTag.tls.error('clearAllCache failed: $e');
     }
     if (!_host.mounted) return;
     var changed = false;
     final wiped = <ContainerKey>[];
     for (final model in _sites.models) {
       if (!_pinnedBy(model, host: host, port: entry.port)) continue;
-      unawaited(HtmlCacheService.instance.deleteCache(model.siteId));
       // Outside the unload funnel on purpose: the session is wiped so the
       // next load re-handshakes (ISO-002).
       if (_sites.retired(

@@ -135,6 +135,7 @@ void main() {
         height: 90,
         child: WebViewFactory.createWebView(
           config: WebViewConfig(
+            cacheFirst: false,
             hooks: bareHooks(),
             posture: barePosture(url, siteId: siteId),
             initialUrl: url,

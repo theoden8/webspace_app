@@ -1,6 +1,6 @@
 // A named directory of text files, behind an interface.
 //
-// The services that keep on-disk caches (HTML cache, LocalCDN, imported HTML,
+// The services that keep on-disk caches (LocalCDN, imported HTML,
 // blocklists) all do the same handful of things: read, write, delete, list and
 // wipe files under one directory. Naming that as a seam does two things at
 // once — the pure logic above it (encryption, eviction, parsing) becomes

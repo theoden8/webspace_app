@@ -253,6 +253,20 @@ void applyWebViewOptions(
     ..incognito = incognito ?? false;
 }
 
+/// Flushes the HTTP cache every webview and profile share; false when the
+/// platform refused.
+Future<bool> clearEngineCache() async {
+  try {
+    await inapp.InAppWebViewController.clearAllCache(includeDiskFiles: true);
+    return true;
+  } on PlatformException catch (e) {
+    LogTag.webView.error('clearAllCache failed: $e');
+  } on MissingPluginException catch (e) {
+    LogTag.webView.error('clearAllCache failed: $e');
+  }
+  return false;
+}
+
 /// The [WebViewController] over one native webview. Every native call goes
 /// through [_native], so a call on a webview that has left the tree is a
 /// no-op and a platform refusal reads as "nothing happened".
@@ -452,6 +466,15 @@ class PlatformWebViewController implements WebViewController {
     // DOCUMENT_START user script so future page loads pick up the new
     // value, then update the style element on the current page.
     await _rotateShim('system_text_zoom', shim: buildTextZoomShim(zoomPercent));
+  }
+
+  /// Ends the cache-first mode this webview was created in (Android's
+  /// `cacheMode`; Apple's lives on the first request alone), so what loads
+  /// next revalidates as any page does.
+  Future<void> leaveCacheFirst() async {
+    if (!hostIsAndroid) return;
+    _settings.cacheMode = inapp.CacheMode.LOAD_DEFAULT;
+    await _native(() => _c.setSettings(settings: _settings));
   }
 
   Future<void> _rotateShim(String group, {required String shim}) async {

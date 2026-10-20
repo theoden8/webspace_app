@@ -147,6 +147,7 @@ Future<Map<String, dynamic>> ceremony(WidgetTester tester,
 
 WebViewConfig config(SiteId siteId, {required PasskeyBackend backend}) =>
     WebViewConfig(
+      cacheFirst: false,
       hooks: bareHooks(),
       key: ValueKey('passkey-$siteId'),
       posture: barePosture(_rp, siteId: siteId),

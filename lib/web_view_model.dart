@@ -12,7 +12,6 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/passkey_engine.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
@@ -342,12 +341,10 @@ class WebViewModel implements MediaGrantRecord {
   /// active. Set by dragging the button itself; null = never dragged,
   /// falls back to the app-wide default.
   TabBarCorner? tabBarButtonCorner;
-  /// When true, the cached HTML snapshot is rendered as `initialData` for
-  /// instant first paint on construction, then swapped to a live load
-  /// once the cached parse settles. When false, the cached snapshot is
-  /// only used as a fallback when the device is offline at construction
-  /// time — online cold starts go straight to live. Saves to the cache
-  /// happen regardless so the offline fallback keeps working.
+  /// When true, every start takes the first page from the engine's own
+  /// HTTP cache and then reloads it live once the network answers. When
+  /// false, only a start the last probe found offline does
+  /// (`loadsCacheFirst`).
   bool htmlCachingEnabled;
   /// Allow this site to show system notifications. Implies background
   /// polling: the site is auto-loaded on startup, kept resident across
@@ -827,11 +824,11 @@ class WebViewModel implements MediaGrantRecord {
   VoidCallback? onNavigationCommitted;
   FindMatchesResult findMatches = FindMatchesResult();
   /// The app's theme as the page last handed it over, set before the first
-  /// build (the light default would otherwise flash the HTML cache prelude).
+  /// build (the light default would otherwise flash a file import's prelude).
   WebViewTheme _appTheme = WebViewTheme.light;
 
   /// What this site's pages are told to prefer: its own [theme], else the
-  /// app's. The HTML cache prelude reads it to paint a matching first frame.
+  /// app's. A file import's prelude reads it to paint a matching first frame.
   WebViewTheme get effectiveTheme => Scoped.fromStored(theme).resolve(_appTheme);
 
   /// The UA string webviews are actually built with: presets render fresh
@@ -1141,17 +1138,17 @@ class WebViewModel implements MediaGrantRecord {
             globalUserScripts: hooks.globalUserScripts(), isolation: hooks.isolation()),
         hooks: hooks.unattended(),
         initialUrl: initUrl,
+        cacheFirst: false,
       );
 
   /// The slot's webview, built on first call; null while the site waits for
-  /// Tor (TOR-008). [initialHtml] renders before the live load;
-  /// [onHtmlLoaded], gated by [shouldFetchHtml], keeps the offline snapshot.
-  /// All three are the slot's HTML cache, and absent when it has none.
+  /// Tor (TOR-008). [initialHtml] is a file import's page; [cacheFirst] takes
+  /// the first page from the engine's cache, then loads it live
+  /// (`loadsCacheFirst`).
   Widget? getWebView(
     WebViewHostHooks hooks, {
+    required bool cacheFirst,
     String? initialHtml,
-    void Function(String url, {required String html})? onHtmlLoaded,
-    bool Function()? shouldFetchHtml,
   }) {
     // LIR-018: a hosted tab runs as its host. Everything that decides the
     // container, the posture and the navigation rules reads [id]; the slot's
@@ -1233,7 +1230,7 @@ bool dispatch(NavigationDecision decision,
           'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
           '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
       LogTag.webView.debug(
-          'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
+          'First page: ${initialHtml != null ? 'import' : cacheFirst ? 'cache first' : 'live'}',
           sensitive: true);
       final pullToRefreshGate =
           PullToRefreshGate.forHost(onRefresh: userDrivenReload);
@@ -1454,8 +1451,7 @@ bool dispatch(NavigationDecision decision,
               stateSetterF!();
             }
           },
-          onHtmlLoaded: onHtmlLoaded,
-          shouldFetchHtml: shouldFetchHtml,
+          cacheFirst: cacheFirst,
           initialHtml: initialHtml,
           onRendererGone: handleRendererGone,
           onPageCommitVisible: () => onPageCommitVisible?.call(),
@@ -1563,7 +1559,7 @@ bool dispatch(NavigationDecision decision,
   }
 
   WebViewController? getController(WebViewHostHooks hooks) {
-    if (webview == null) getWebView(hooks);
+    if (webview == null) getWebView(hooks, cacheFirst: false);
     if (controller != null) {
       unawaited(setController());
     }
@@ -1762,25 +1758,12 @@ bool dispatch(NavigationDecision decision,
 
   /// User-driven hard reload (pull-to-refresh, Refresh button, Clear-cookies).
   ///
-  /// In addition to `controller.reload()`, drop:
-  ///   * the [HtmlCacheService] in-memory snapshot for this site, so any
-  ///     subsequent webview rebuild before the post-reload save lands
-  ///     can't feed the rebuilt webview the stale snapshot the user
-  ///     just told us to refresh — bumps the eviction generation, so
-  ///     an in-flight save from the disposed view is rejected at write
-  ///     time and can't resurrect the dropped bytes;
-  ///   * the chromium HTTP/image cache, so the reload actually hits
-  ///     the network instead of being satisfied from disk cache (a
-  ///     stale-cached HTML response is what bit issue #290 — the user
-  ///     pulled to refresh and saw the same stale page because chromium
-  ///     served the cached response).
-  ///
-  /// Online-gated for the HtmlCache eviction: offline users keep the
-  /// snapshot as their only renderable content. The HTTP cache clear
-  /// runs unconditionally — clearing it offline is harmless (no live
-  /// fetch will succeed anyway, and any post-online reload will
-  /// repopulate it) and avoids a second connectivity probe on the
-  /// hot path.
+  /// Before `controller.reload()`, drops the engine's HTTP/image cache, so
+  /// the reload hits the network instead of being satisfied from disk (a
+  /// stale-cached HTML response is what bit issue #290: the user pulled to
+  /// refresh and saw the same page because the engine served it from
+  /// cache). Online only: offline, that cache is what the site's next
+  /// start renders, and no live fetch would replace it.
   Future<void> userDrivenReload() async {
     if (controller == null) return;
     if (_userReloadInFlight) return;
@@ -1788,9 +1771,8 @@ bool dispatch(NavigationDecision decision,
     try {
       _beginPendingLoad();
       if (ConnectivityService.instance.lastKnownOnline ?? true) {
-        HtmlCacheService.instance.evictInMemory(siteId);
+        await clearWebViewCache();
       }
-      await clearWebViewCache();
       await reloadAndRepaint();
     } finally {
       _userReloadInFlight = false;

@@ -1114,6 +1114,7 @@ void main() {
                 key: key,
                 child: WebViewFactory.createWebView(
                   config: WebViewConfig(
+                    cacheFirst: false,
                     hooks: bareHooks(),
                     posture: barePosture(whereFrom.toString(),
                         siteId: site, proxy: proxy),

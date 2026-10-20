@@ -151,7 +151,7 @@ The system SHALL delete every incognito site's native container during app start
 
 ### Requirement: INC-006 - Encrypted Per-Site Storage Treats Incognito As Orphan
 
-The startup garbage-collection passes for session-scoped per-site stores SHALL treat incognito siteIds as orphaned, sweeping their entries even though the site itself is alive — this handles users who toggled an existing site to incognito after data accumulated. The session-scoped stores are: `CookieSecureStorage`, `HtmlCacheService`, and `WebViewStateStorage`. The non-session stores (`ProxyPasswordSecureStorage`, `HtmlImportStorage` for file:// imports) MUST be excluded from this treatment — they hold user configuration, not session data.
+The startup garbage-collection passes for session-scoped per-site stores SHALL treat incognito siteIds as orphaned, sweeping their entries even though the site itself is alive — this handles users who toggled an existing site to incognito after data accumulated. The session-scoped stores are those `OrphanStore` marks `OrphanScope.session`, among them `CookieSecureStorage` and `WebViewStateStorage`. The non-session stores (`ProxyPasswordSecureStorage`, `HtmlImportStorage` for file:// imports) MUST be excluded from this treatment — they hold user configuration, not session data.
 
 #### Scenario: Pre-toggle cookies are swept
 

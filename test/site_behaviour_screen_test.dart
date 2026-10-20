@@ -5,6 +5,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_behaviour.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -139,15 +140,19 @@ void main() {
 
   testWidgets('every behaviour switch lives on this screen (BEHAV-001)', (tester) async {
     await _pump(tester, values: _values());
-    for (final title in const [
+    for (final title in [
       'Always open Home',
       'Kiosk mode',
       'Full screen mode',
-      'HTML caching',
+      if (engineLoadsCacheFirst) 'HTML caching',
       'Route links to my sites',
     ]) {
       expect(_switchTitled(tester, title: title).onChanged, isNotNull,
           reason: title);
+    }
+    if (!engineLoadsCacheFirst) {
+      expect(find.text('HTML caching'), findsNothing,
+          reason: 'this engine cannot load a page from its cache first');
     }
     expect(find.text('Opening and display'), findsOneWidget);
     expect(find.text('Link handling'), findsOneWidget);

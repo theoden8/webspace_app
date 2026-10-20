@@ -52,7 +52,7 @@ abstract class DeferredStartupHost {
   /// Site still present — the engine skips it after an await when false.
   bool isLive(SiteId siteId);
 
-  /// Builds the site's webview off screen, its cached HTML, saved
+  /// Builds the site's webview off screen, its imported HTML, saved
   /// navigation state (PAUSE-035) and session or container in place first
   /// (`SiteActivationController.preload`).
   Future<PreloadOutcome> preload(SiteId siteId);
@@ -80,7 +80,7 @@ abstract class DeferredStartupHost {
   Set<SiteId> liveNonIncognitoSiteIds();
 
   /// Remove on-disk storage for sites NOT in the given live sets (cookies,
-  /// proxy passwords, HTML caches/imports, webview state, global cookie jar).
+  /// proxy passwords, HTML imports, webview state, global cookie jar).
   Future<void> sweepOrphanStorage(
       Set<SiteId> activeSiteIds, {required Set<SiteId> nonIncognitoSiteIds});
 }

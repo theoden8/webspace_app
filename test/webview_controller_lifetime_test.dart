@@ -45,6 +45,7 @@ class _NativeController implements inapp.InAppWebViewController {
   final inapp.PlatformInAppWebViewController platform;
 
   final List<String> calls = [];
+  final List<inapp.URLRequest> requests = [];
   Object? failWith;
 
   // A completed Future<Null> passes for every Future<T?> the factory awaits.
@@ -63,8 +64,10 @@ class _NativeController implements inapp.InAppWebViewController {
     required inapp.URLRequest urlRequest,
     Uri? iosAllowingReadAccessTo,
     inapp.WebUri? allowingReadAccessTo,
-  }) =>
-      _call('loadUrl');
+  }) {
+    requests.add(urlRequest);
+    return _call('loadUrl');
+  }
 
   @override
   Future<dynamic> evaluateJavascript({
@@ -135,11 +138,10 @@ WebViewHostHooks _hooks({
 Widget _webView({
   WebViewHostHooks? hooks,
   Key? key,
-  String? initialHtml,
+  bool cacheFirst = false,
   VoidCallback? onReloadIssued,
   void Function(WebViewController)? onControllerCreated,
   void Function(List<Cookie>)? onCookiesChanged,
-  void Function(String url, {required String html})? onHtmlLoaded,
 }) =>
     MaterialApp(
       home: WebViewFactory.createWebView(
@@ -151,10 +153,9 @@ Widget _webView({
                   isolation: fakeSharedJar()),
           hooks: hooks ?? _hooks(),
           initialUrl: 'https://example.com/',
-          initialHtml: initialHtml,
+          cacheFirst: cacheFirst,
           onReloadIssued: onReloadIssued,
           onCookiesChanged: onCookiesChanged,
-          onHtmlLoaded: onHtmlLoaded,
         ),
         onControllerCreated: onControllerCreated ?? (_) {},
       ),
@@ -231,6 +232,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: WebViewFactory.createWebView(
         config: WebViewConfig(
+          cacheFirst: false,
           posture:
               _site.sitePosture(
                   globalUserScripts: const <UserScriptConfig>[],
@@ -278,7 +280,7 @@ void main() {
     ConnectivityService.onlineOverride = Future.value(true);
     var reloads = 0;
     await tester.pumpWidget(_webView(
-      initialHtml: '<p>cached</p>',
+      cacheFirst: true,
       onReloadIssued: () => reloads++,
     ));
     final (:params, :native) = await _attach(tester);
@@ -431,16 +433,18 @@ void main() {
       expect(native.calls, contains('loadUrl'));
     });
 
-    testWidgets('a cached snapshot', (tester) async {
+    testWidgets('a cache-first load, which keeps its cache policy',
+        (tester) async {
       ConnectivityService.onlineOverride = Future.value(true);
-      await tester.pumpWidget(_webView(initialHtml: '<p>cached</p>'));
+      await tester.pumpWidget(_webView(cacheFirst: true));
       final native = await created(tester);
-      expect(native.calls, isNot(contains('loadData')));
+      expect(native.calls, isNot(contains('loadUrl')));
       await tester.runAsync(() async {
         attach.complete(true);
         await Future<void>.delayed(const Duration(milliseconds: 20));
       });
-      expect(native.calls, contains('loadData'));
+      expect(native.requests.single.cachePolicy,
+          inapp.URLRequestCachePolicy.RETURN_CACHE_DATA_ELSE_LOAD);
     });
 
     // The level a site follows can land after its view attached; the
@@ -519,6 +523,7 @@ void main() {
         ..store = MemoryFileStore();
       addTearDown(dns.resetForTest);
       final config = WebViewConfig(
+        cacheFirst: false,
         posture: _site.sitePosture(
             globalUserScripts: const <UserScriptConfig>[],
             isolation: fakeSharedJar()),
@@ -567,6 +572,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(
         home: WebViewFactory.createWebView(
           config: WebViewConfig(
+            cacheFirst: false,
             posture: site.sitePosture(
                 globalUserScripts: const <UserScriptConfig>[],
                 isolation: fakeSharedJar()),
@@ -637,7 +643,6 @@ void main() {
       await tester.pumpWidget(_webView(
         hooks: _hooks(isolation: () => fakeSharedJar(cookies: jar)),
         onCookiesChanged: mirrored.add,
-        onHtmlLoaded: (_, {required html}) {},
       ));
       final (:params, :native) = await _attach(tester);
       await tester.runAsync(() async {
@@ -646,8 +651,6 @@ void main() {
       });
       expect(mirrored, isEmpty,
           reason: 'a read that failed is not an empty jar to mirror');
-      expect(native.calls, contains('evaluateJavascript'),
-          reason: 'the page snapshot after the read is still asked for');
     });
 
     testWidgets(

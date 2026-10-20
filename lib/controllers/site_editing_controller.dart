@@ -5,7 +5,6 @@ import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/theme/app_theme.dart';
-import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
@@ -60,8 +59,8 @@ class SiteEditingController {
   /// page on screen.
   Future<void> registerSite(WebViewModel model, {bool activate = true}) async {
     // Before the first build: initialHtml reads effectiveTheme to pick the dark
-    // prelude for cached HTML (file:// imports especially, which never reload
-    // to live), and the model defaults to WebViewTheme.light.
+    // prelude for a file:// import, which never reloads to live, and the model
+    // defaults to WebViewTheme.light.
     await model.setAppTheme(_shell.theme.themeMode.webViewTheme);
     await _host.commitSites(SiteAdded(model));
     if (!activate || !_host.mounted) return;
@@ -140,9 +139,8 @@ class SiteEditingController {
       }
 
       // Imported HTML files are the only copy of the user's data, so they
-      // go into HtmlImportStorage (persistent) rather than HtmlCacheService
-      // (cleared on app upgrade). The webview reads from the import store
-      // for `initialHtml` on creation.
+      // go into HtmlImportStorage, which survives upgrades. The webview
+      // reads from it for `initialHtml` on creation.
       if (htmlContent != null && !incognito) {
         await HtmlImportStorage.instance.saveHtml(
           model.siteId,
@@ -167,17 +165,11 @@ class SiteEditingController {
     if (icon != null || name.isNotEmpty) _host.rebuild();
 
     if (url != model.initUrl) {
-      // Snapshot belongs to the old URL; deleteCache must run before the
-      // rebuild's getHtmlSync, which is why the sync in-memory eviction
-      // (inside deleteCache) is fired before the rebuild rather than awaited.
-      final siteId = model.siteId;
-      final deleteCache = HtmlCacheService.instance.deleteCache(siteId);
       model.initUrl = url;
       model.currentUrl = url;
       model.webview = null; // Force recreation with new URL
       model.controller = null;
       _host.rebuild();
-      await deleteCache;
     }
 
     await _host.commitSites(const SitesEdited());

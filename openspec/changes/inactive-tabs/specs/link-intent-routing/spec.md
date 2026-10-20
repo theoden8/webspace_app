@@ -13,7 +13,7 @@ A hosted tab is **owned** by the site whose tab list holds it: it is listed, act
 
 One exception returns the owner's own content to it. A link the host's rules would not load in place (nested, routed, or sent to the browser) whose normalized domain is the owner's navigation domain SHALL open as a child tab of the hosted tab, run as the owner, and take the slot, whatever the host's external-link mode and routing say. A redirect without a gesture that the host blocks stays blocked. An owner without tabs (TAB-013) has no tree to take the child, so the link leaves by the host's rules.
 
-What belongs to the webview slot stays with the owner: the `IndexedStack` slot and its key, membership of the loaded set, pause and retention tier, auto-load, the background-audio exemption, the kiosk and fullscreen shell, and the tab list with its url and title writes. The HTML cache, a per-site snapshot of the owner's own page, SHALL be neither read nor written while a hosted tab is active.
+What belongs to the webview slot stays with the owner: the `IndexedStack` slot and its key, membership of the loaded set, pause and retention tier, auto-load, the background-audio exemption, the kiosk and fullscreen shell, and the tab list with its url and title writes. A hosted tab's first page SHALL load live, never from the engine's cache first (`HtmlSource.none`), whatever the owner's HTML caching says.
 
 A hosted tab's `url` SHALL stay inside its host's navigation domain (`getNormalizedDomain(url) == getNormalizedDomain(host.initUrl)`), which is TAB-001's rule with the host in place of the owner. TAB-001 and TAB-002 make the same exception: such a tab is in its host's domain and shares its host's container and posture, not its owner's. Hosted tabs SHALL NOT add a webview: the host may be loaded in its own slot at the same time, and both webviews bind the host's container, as a nested screen already does.
 
@@ -51,11 +51,11 @@ The tab list SHALL mark a hosted tab with its host's name, since two rows with t
 - **THEN** it opens as a child tab of the hosted tab, run as DuckDuckGo, and becomes active
 - **AND** back at its start returns to the hosted GitHub tab
 
-#### Scenario: The HTML cache is left alone
+#### Scenario: HTML caching is left alone
 
 - **GIVEN** DuckDuckGo has HTML caching on
-- **WHEN** a hosted GitHub tab is active in its slot and a page finishes loading
-- **THEN** nothing is written to DuckDuckGo's HTML cache
+- **WHEN** its slot is rebuilt with a hosted GitHub tab active
+- **THEN** the GitHub page loads live, not cache-first
 - **AND** switching back to a DuckDuckGo tab paints nothing from GitHub's page
 
 #### Scenario: The host is loaded at the same time

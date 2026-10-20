@@ -77,7 +77,7 @@ Each spec file follows the OpenSpec format:
 | Site Editing | Completed | Edit URLs and custom names |
 | User Scripts | Completed | Per-site custom JavaScript injection with timing control |
 | Webspaces | Completed | Organize sites into named collections |
-| Webview Hints | Completed | Webview theme hints (color-scheme, matchMedia, HTML cache theme prelude) |
+| Webview Hints | Completed | Webview theme hints (color-scheme, matchMedia, file import theme prelude) |
 
 ## Usage
 
