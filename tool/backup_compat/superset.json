@@ -211,6 +211,7 @@
   "globalPrefs": {
     "tabsEnabled": false,
     "externalLinkMode": "block",
+    "routeOutboundLinks": true,
     "showUrlBar": true,
     "showTabStrip": true,
     "tabStripInFullscreen": true,

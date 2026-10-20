@@ -35,7 +35,7 @@ class SiteBehaviourValues {
     required this.htmlCachingEnabled,
     this.externalLinkMode = const FollowApp(),
     this.tabsEnabled = const FollowApp(),
-    this.routeOutboundLinks = false,
+    this.routeOutboundLinks = const FollowApp(),
     this.outboundPreferences = const [],
     this.searchAddress,
     this.searchesWeb = false,
@@ -52,7 +52,7 @@ class SiteBehaviourValues {
   final Scoped<bool> tabsEnabled;
   final bool htmlCachingEnabled;
   final Scoped<ExternalLinkMode> externalLinkMode;
-  final bool routeOutboundLinks;
+  final Scoped<bool> routeOutboundLinks;
   final List<OutboundPreference> outboundPreferences;
 
   /// LIR-028: how to search this site, and what a search from it offers.
@@ -70,7 +70,7 @@ class SiteBehaviourValues {
     Scoped<bool>? tabsEnabled,
     bool? htmlCachingEnabled,
     Scoped<ExternalLinkMode>? externalLinkMode,
-    bool? routeOutboundLinks,
+    Scoped<bool>? routeOutboundLinks,
     List<OutboundPreference>? outboundPreferences,
     Object? searchAddress = _keep,
     bool? searchesWeb,
@@ -103,7 +103,10 @@ class SiteBehaviourValues {
       tabs: tabsEnabled.resolve(AppPref.tabsEnabled.value), kiosk: kioskMode);
 
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
-      route: routeOutboundLinks, mode: effectiveExternalLinkMode);
+      route: routeOutboundLinks.stored,
+      appRoute: AppPref.routeOutboundLinks.value,
+      followsAppLinks: externalLinkMode is FollowApp,
+      mode: effectiveExternalLinkMode);
 
   bool get effectiveHtmlCaching =>
       engineLoadsCacheFirst &&
@@ -184,9 +187,9 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
 
   // --- Link handling -------------------------------------------------------
 
-  /// With tabs, the switch also decides which container a link's tab runs in
+  /// With tabs, this choice also decides which container a link's tab runs in
   /// (LIR-034), so the hint says so where that applies.
-  Widget _routeOutboundLinks(AppLocalizations loc) => SettingTile(
+  Widget _routeOutboundLinks(AppLocalizations loc) => ChoiceTile<Scoped<bool>>(
         title: loc.siteSettingsRouteOutboundLinks,
         hint: _values.effectiveTabsEnabled
             ? '${loc.siteSettingsRouteOutboundLinksHint}\n\n'
@@ -195,9 +198,12 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         lock: widget.containersActive
             ? null
             : Lock.because(loc.siteSettingsRouteOutboundLinksNeedsContainers),
-        control: Toggle(_values.routeOutboundLinks,
-            onChanged: (value) =>
-                _update(_values.copyWith(routeOutboundLinks: value))),
+        values: const [FollowApp(), Own(true), Own(false)],
+        label: (choice) => choice.label(loc,
+            appValue: AppPref.routeOutboundLinks.value),
+        value: _values.routeOutboundLinks,
+        onChanged: (choice) =>
+            _update(_values.copyWith(routeOutboundLinks: choice)),
       );
 
   Widget _outboundPreferences(AppLocalizations loc) {
@@ -253,13 +259,13 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
               choice != const Own(ExternalLinkMode.browser),
           onChanged: (choice) => _update(_values.copyWith(externalLinkMode: choice)),
         ),
-        if (mode == ExternalLinkMode.inApp)
+        if (_values.externalLinkMode is Own && mode == ExternalLinkMode.inApp)
           Padding(
             padding: const EdgeInsetsDirectional.only(start: 24),
             child: Column(
               children: [
                 _routeOutboundLinks(loc),
-                if (_values.routeOutboundLinks) _outboundPreferences(loc),
+                if (_values.effectiveRouteOutboundLinks) _outboundPreferences(loc),
               ],
             ),
           ),

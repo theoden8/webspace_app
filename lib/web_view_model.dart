@@ -448,8 +448,8 @@ class WebViewModel implements MediaGrantRecord {
 
   /// Outbound routing (LIR-013): a cross-domain link this site opens goes to
   /// the site that claims it, with that site's container and settings,
-  /// instead of a nested screen with this site's own. Off by default.
-  bool routeOutboundLinks;
+  /// instead of a nested screen with this site's own. Null follows the app.
+  bool? routeOutboundLinks;
 
   /// This site's own routing rules, consulted before the global claims
   /// (LIR-014).
@@ -705,9 +705,12 @@ class WebViewModel implements MediaGrantRecord {
           archived: isArchiveTier);
 
   /// Outbound routing is an option of the in-app mode (LIR-014): in any
-  /// other mode the switch is hidden and its stored value inert.
+  /// other mode the choice is hidden and its stored value inert.
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
-      route: routeOutboundLinks, mode: effectiveExternalLinkMode);
+      route: routeOutboundLinks,
+      appRoute: AppPref.routeOutboundLinks.value,
+      followsAppLinks: externalLinkMode == null,
+      mode: effectiveExternalLinkMode);
 
   /// The native container this site's webview binds under [isolation], as
   /// its posture and its site info sheet name it (NAV-011).
@@ -925,7 +928,7 @@ class WebViewModel implements MediaGrantRecord {
     this.fingerprintResetNonce,
     this.customIconPng,
     this.domainClaims,
-    this.routeOutboundLinks = false,
+    this.routeOutboundLinks,
     List<OutboundPreference>? outboundPreferences,
     this.searchAddress,
     this.searchesWeb = false,

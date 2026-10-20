@@ -992,7 +992,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
       ),
     );
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    await _commitSites(const SiteSettingsClosed());
   }
 
   Future<void> _openProtectionReport() async {

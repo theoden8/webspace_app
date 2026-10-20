@@ -172,20 +172,6 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
         children: [
-          SettingsSection(loc.webSearchUseAppDefault),
-          SettingTile(
-            title: loc.siteSettingsTabs,
-            hint: loc.siteSettingsTabsHint,
-            control: const PrefToggle(AppPref.tabsEnabled),
-          ),
-          ChoiceTile<ExternalLinkMode>(
-            title: loc.siteSettingsExternalLinks,
-            hint: null,
-            values: ExternalLinkMode.values,
-            label: (mode) => mode.label(loc),
-            value: ExternalLinkMode.appDefault,
-            onChanged: (mode) => AppPref.externalLinkMode.set(mode.name),
-          ),
           SettingsSection(loc.appSettingsGroupTabStrip),
           _row(
             HintedTitle(loc.appSettingsSiteTabStrip,
@@ -243,6 +229,28 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
                 : null,
           ),
           SettingsSection(loc.appSettingsGroupOpening),
+          SettingTile(
+            title: loc.siteSettingsTabs,
+            hint: loc.siteSettingsTabsHint,
+            control: const PrefToggle(AppPref.tabsEnabled),
+          ),
+          ChoiceTile<ExternalLinkMode>(
+            title: loc.siteSettingsExternalLinks,
+            hint: null,
+            values: ExternalLinkMode.values,
+            label: (mode) => mode.label(loc),
+            value: ExternalLinkMode.appDefault,
+            onChanged: (mode) => AppPref.externalLinkMode.set(mode.name),
+          ),
+          if (ExternalLinkMode.appDefault == ExternalLinkMode.inApp)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 24),
+              child: SettingTile(
+                title: loc.siteSettingsRouteOutboundLinks,
+                hint: loc.siteSettingsRouteOutboundLinksHint,
+                control: const PrefToggle(AppPref.routeOutboundLinks),
+              ),
+            ),
           SettingTile(
             title: loc.appSettingsFullscreenOnShortcut,
             hint: loc.appSettingsFullscreenOnShortcutHint,

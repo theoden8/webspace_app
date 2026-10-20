@@ -19,6 +19,7 @@ void main() {
   tearDown(() {
     AppPref.tabsEnabled.debugValue = true;
     AppPref.externalLinkMode.debugValue = 'inApp';
+    AppPref.routeOutboundLinks.debugValue = false;
   });
 
   test(
@@ -53,17 +54,59 @@ void main() {
     },
   );
 
+  test('routing follows live defaults while explicit choices stay fixed', () async {
+    final following = WebViewModel(initUrl: 'https://example.org/');
+    final off = WebViewModel(
+      initUrl: 'https://example.org/', routeOutboundLinks: false,
+      externalLinkMode: ExternalLinkMode.inApp);
+    final on = WebViewModel(
+      initUrl: 'https://example.org/', routeOutboundLinks: true,
+      externalLinkMode: ExternalLinkMode.inApp);
+    for (final appValue in [true, false]) {
+      await AppPref.routeOutboundLinks.set(appValue);
+      final restored = WebViewModel.fromJson(following.toJson(), stateSetterF: null);
+      expect(following.toJson().containsKey('routeOutboundLinks'), isTrue);
+      expect(restored.routeOutboundLinks, isNull);
+      expect(restored.effectiveRouteOutboundLinks, appValue);
+      expect(off.effectiveRouteOutboundLinks, isFalse);
+      expect(on.effectiveRouteOutboundLinks, isTrue);
+      expect(WebViewModel.fromJson(off.toJson(), stateSetterF: null)
+          .routeOutboundLinks, isFalse);
+    }
+    off.externalLinkMode = null;
+    on.externalLinkMode = null;
+    await AppPref.routeOutboundLinks.set(true);
+    expect(off.effectiveRouteOutboundLinks, isTrue);
+    await AppPref.routeOutboundLinks.set(false);
+    expect(on.effectiveRouteOutboundLinks, isFalse);
+    off.externalLinkMode = ExternalLinkMode.inApp;
+    on.externalLinkMode = ExternalLinkMode.inApp;
+    expect(off.effectiveRouteOutboundLinks, isFalse);
+    expect(on.effectiveRouteOutboundLinks, isTrue);
+    await AppPref.routeOutboundLinks.set(true);
+    await AppPref.externalLinkMode.set('browser');
+    for (final mode in ExternalLinkMode.values) {
+      following.externalLinkMode = mode;
+      expect(following.effectiveRouteOutboundLinks, mode == ExternalLinkMode.inApp);
+      expect(following.routeOutboundLinks, isNull);
+    }
+  });
+
   test('older omitted defaults migrate to explicit choices', () async {
     await AppPref.tabsEnabled.set(false);
     await AppPref.externalLinkMode.set('block');
+    await AppPref.routeOutboundLinks.set(true);
     final legacy = WebViewModel.fromJson({
       'initUrl': 'https://example.org/',
     }, stateSetterF: null);
     expect(legacy.effectiveTabsEnabled, isTrue);
     expect(legacy.effectiveExternalLinkMode, ExternalLinkMode.inApp);
+    expect(legacy.routeOutboundLinks, isFalse);
+    expect(legacy.effectiveRouteOutboundLinks, isFalse);
     final restored = WebViewModel.fromJson(legacy.toJson(), stateSetterF: null);
     expect(restored.tabsEnabled, isTrue);
     expect(restored.externalLinkMode, ExternalLinkMode.inApp);
+    expect(restored.routeOutboundLinks, isFalse);
   });
 
   test('kiosk and archive restrictions apply after app inheritance', () async {
@@ -88,15 +131,19 @@ void main() {
   test('app defaults persist and ride settings backup preferences', () async {
     await AppPref.tabsEnabled.set(false);
     await AppPref.externalLinkMode.set('browser');
+    await AppPref.routeOutboundLinks.set(true);
     final prefs = await SharedPreferences.getInstance();
     final exported = readExportedAppPrefs(prefs);
     expect(exported['tabsEnabled'], isFalse);
     expect(exported['externalLinkMode'], 'browser');
+    expect(exported['routeOutboundLinks'], isTrue);
     await AppPref.tabsEnabled.set(true);
     await AppPref.externalLinkMode.set('inApp');
+    await AppPref.routeOutboundLinks.set(false);
     await writeExportedAppPrefs(prefs, values: exported);
     expect(AppPref.tabsEnabled.load(prefs), isFalse);
     expect(ExternalLinkMode.appDefault, ExternalLinkMode.browser);
+    expect(AppPref.routeOutboundLinks.value, isTrue);
     await AppPref.externalLinkMode.set('unrecognized');
     expect(ExternalLinkMode.appDefault, ExternalLinkMode.inApp);
   });
@@ -116,20 +163,30 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Site defaults'), findsNothing);
+    expect(tester.getTopLeft(find.text('Tabs')).dy,
+        greaterThan(tester.getTopLeft(find.text('Opening and navigation')).dy));
+    await tester.scrollUntilVisible(find.text('Tabs'), 200);
     await tester.tap(find.text('Tabs'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Route links to my sites'));
+    await tester.pumpAndSettle();
+    expect(site.effectiveRouteOutboundLinks, isTrue);
     await tester.tap(find.byType(DropdownButton<ExternalLinkMode>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open in browser').last);
     await tester.pumpAndSettle();
     expect(site.effectiveTabsEnabled, isFalse);
     expect(site.effectiveExternalLinkMode, ExternalLinkMode.browser);
+    expect(site.effectiveRouteOutboundLinks, isFalse);
+    expect(find.text('Route links to my sites'), findsNothing);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('tabsEnabled'), isFalse);
     expect(prefs.getString('externalLinkMode'), 'browser');
+    expect(prefs.getBool('routeOutboundLinks'), isTrue);
   });
 
-  for (final setting in ['Tabs', 'External links']) {
+  for (final setting in ['Tabs', 'External links', 'Route links to my sites']) {
     testWidgets('$setting returning to app default is guarded and saved', (
       tester,
     ) async {
@@ -137,10 +194,13 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      final routing = setting == 'Route links to my sites';
+      final mode = routing ? ExternalLinkMode.inApp : ExternalLinkMode.block;
       final site = WebViewModel(
         initUrl: 'https://example.org/',
         tabsEnabled: false,
-        externalLinkMode: ExternalLinkMode.block,
+        externalLinkMode: mode,
+        routeOutboundLinks: true,
       );
       await tester.pumpWidget(
         MaterialApp(
@@ -155,7 +215,7 @@ void main() {
                       SettingsScreen(
                         webViewModel: site,
                         appTheme: WebViewTheme.system,
-                        useContainers: false,
+                        useContainers: routing,
                       ),
                 ),
               ),
@@ -169,13 +229,20 @@ void main() {
       await tester.tap(find.text('Behaviour'));
       await tester.pumpAndSettle();
       await tester.tap(
-        setting == 'Tabs'
-            ? find.byType(DropdownButton<Scoped<bool>>)
-            : find.byType(DropdownButton<Scoped<ExternalLinkMode>>),
+        find.descendant(
+          of: find.ancestor(of: find.text(setting), matching: find.byType(ListTile)),
+          matching: setting == 'External links'
+              ? find.byType(DropdownButton<Scoped<ExternalLinkMode>>)
+              : find.byType(DropdownButton<Scoped<bool>>),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(
-        find.text(setting == 'Tabs' ? 'App default (On)' : 'App default').last,
+        find.text(switch (setting) {
+          'Tabs' => 'App default (On)',
+          'Route links to my sites' => 'App default (Off)',
+          _ => 'App default',
+        }).last,
       );
       await tester.pumpAndSettle();
       await tester.pageBack();
@@ -184,7 +251,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Discard changes?'), findsOneWidget);
       expect(site.tabsEnabled, isFalse);
-      expect(site.externalLinkMode, ExternalLinkMode.block);
+      expect(site.externalLinkMode, mode);
+      expect(site.routeOutboundLinks, isTrue);
       await tester.tap(find.text('Keep editing'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save Settings'));
@@ -193,9 +261,16 @@ void main() {
       if (setting == 'Tabs') {
         expect(restored.tabsEnabled, isNull);
         expect(restored.externalLinkMode, ExternalLinkMode.block);
-      } else {
+      } else if (setting == 'External links') {
         expect(restored.tabsEnabled, isFalse);
         expect(restored.externalLinkMode, isNull);
+      } else {
+        expect(restored.tabsEnabled, isFalse);
+        expect(restored.externalLinkMode, mode);
+        expect(restored.routeOutboundLinks, isNull);
+        expect(restored.effectiveRouteOutboundLinks, isFalse);
+        await AppPref.routeOutboundLinks.set(true);
+        expect(restored.effectiveRouteOutboundLinks, isTrue);
       }
     });
   }

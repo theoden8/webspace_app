@@ -325,7 +325,8 @@ void main() {
 
     test('routing applies only in the in-app mode', () {
       final m = WebViewModel(
-          initUrl: 'https://example.org/', routeOutboundLinks: true);
+          initUrl: 'https://example.org/',
+          externalLinkMode: ExternalLinkMode.inApp, routeOutboundLinks: true);
       expect(m.effectiveRouteOutboundLinks, isTrue);
       m.externalLinkMode = ExternalLinkMode.browser;
       expect(m.effectiveRouteOutboundLinks, isFalse);

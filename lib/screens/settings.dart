@@ -174,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   late bool _blockScreenshots;
   late bool _localCdnEnabled;
   late ExternalLinkMode? _externalLinkMode;
-  late bool _routeOutboundLinks;
+  late bool? _routeOutboundLinks;
   late List<OutboundPreference> _outboundPreferences;
   String? _searchAddress;
   late bool _searchesWeb;
@@ -794,7 +794,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         tabsEnabled: Scoped.fromStored(_tabsEnabled),
         htmlCachingEnabled: _htmlCachingEnabled,
         externalLinkMode: Scoped.fromStored(_externalLinkMode),
-        routeOutboundLinks: _routeOutboundLinks,
+        routeOutboundLinks: Scoped.fromStored(_routeOutboundLinks),
         outboundPreferences: _outboundPreferences,
         searchAddress: _searchAddress,
         searchesWeb: _searchesWeb,
@@ -855,7 +855,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _tabsEnabled = values.tabsEnabled.stored;
           _htmlCachingEnabled = values.htmlCachingEnabled;
           _externalLinkMode = values.externalLinkMode.stored;
-          _routeOutboundLinks = values.routeOutboundLinks;
+          _routeOutboundLinks = values.routeOutboundLinks.stored;
           _outboundPreferences = values.outboundPreferences;
           _searchAddress = values.searchAddress;
           _searchesWeb = values.searchesWeb;

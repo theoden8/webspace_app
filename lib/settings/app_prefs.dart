@@ -25,6 +25,7 @@ enum AppPref<T extends Object> {
   showUrlBar('showUrlBar', fallback: false),
   tabsEnabled('tabsEnabled', fallback: true),
   externalLinkMode('externalLinkMode', fallback: 'inApp'),
+  routeOutboundLinks('routeOutboundLinks', fallback: false),
   showTabStrip('showTabStrip', fallback: false),
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.

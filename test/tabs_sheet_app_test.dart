@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 
@@ -22,27 +23,67 @@ void main() {
     ddg = WebViewModel(initUrl: 'https://duckduckgo.com', name: 'DuckDuckGo');
   });
 
-  testWidgets('a link GitHub routes runs as DuckDuckGo and is in its list',
+  for (final following in [false, true]) {
+    final choice = following ? 'app default' : 'explicit routing';
+    testWidgets('a link routes as DuckDuckGo with $choice',
+        (tester) async {
+      github.externalLinkMode = following ? null : ExternalLinkMode.inApp;
+      github.routeOutboundLinks = following ? null : true;
+      await pumpRealApp(tester, sites: [github, ddg],
+          prefs: {'routeOutboundLinks': following});
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'GitHub');
+      await tapLink(tester, url: 'https://duckduckgo.com/?q=webspace');
+
+      final link = appSite('GitHub').tabs.last;
+      expect(link.url, 'https://duckduckgo.com/?q=webspace');
+      expect(link.hostSiteId, ddg.siteId);
+      expect(link.openerSiteId, github.siteId);
+
+      await openSiteFromDrawer(tester, name: 'DuckDuckGo');
+      await openTabsSheet(tester);
+      expect(find.text('In GitHub'), findsOneWidget);
+      expect(find.text('https://duckduckgo.com/?q=webspace'), findsOneWidget);
+    });
+  }
+
+  testWidgets('changing app routing rehosts open tabs without closing them',
       (tester) async {
-    github.routeOutboundLinks = true;
     await pumpRealApp(tester, sites: [github, ddg]);
     await openWebspace(tester, name: 'All');
     await openSiteFromDrawer(tester, name: 'GitHub');
     await tapLink(tester, url: 'https://duckduckgo.com/?q=webspace');
+    final id = appSite('GitHub').tabs.last.id;
+    expect(appSite('GitHub').tabs.last.hostSiteId, isNull);
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await settleRealApp(tester);
+    await tester.tap(find.text('Back to Webspaces'));
+    await settleRealApp(tester);
 
-    final link = appSite('GitHub').tabs.last;
-    expect(link.url, 'https://duckduckgo.com/?q=webspace');
-    expect(link.hostSiteId, ddg.siteId);
-    expect(link.openerSiteId, github.siteId);
+    Future<void> toggleAppRouting() async {
+      await tester.tap(find.byTooltip('App Settings'));
+      await settleRealApp(tester);
+      await tester.tap(find.text('Behaviour'));
+      await settleRealApp(tester);
+      await tester.tap(find.text('Route links to my sites'));
+      await settleRealApp(tester);
+      await tester.pageBack();
+      await settleRealApp(tester);
+      await tester.pageBack();
+      await settleRealApp(tester);
+    }
 
-    await openSiteFromDrawer(tester, name: 'DuckDuckGo');
-    await openTabsSheet(tester);
-    expect(find.text('In GitHub'), findsOneWidget);
-    expect(find.text('https://duckduckgo.com/?q=webspace'), findsOneWidget);
+    await toggleAppRouting();
+    expect(appSite('GitHub').tabs.last.id, id);
+    expect(appSite('GitHub').tabs.last.hostSiteId, ddg.siteId);
+    await toggleAppRouting();
+    expect(appSite('GitHub').tabs.last.id, id);
+    expect(appSite('GitHub').tabs.last.hostSiteId, isNull);
   });
 
   testWidgets('the other way: a GitHub tab under a DuckDuckGo one is in '
       'GitHub\'s list with its parent', (tester) async {
+    ddg.externalLinkMode = ExternalLinkMode.inApp;
     ddg.routeOutboundLinks = true;
     await pumpRealApp(tester, sites: [github, ddg]);
     await openWebspace(tester, name: 'All');
@@ -74,6 +115,7 @@ void main() {
 
   testWidgets('an address of another site typed in the URL bar opens as a tab '
       'routed like a link', (tester) async {
+    github.externalLinkMode = ExternalLinkMode.inApp;
     github.routeOutboundLinks = true;
     await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
     await openWebspace(tester, name: 'All');
@@ -89,20 +131,26 @@ void main() {
     expect(find.byType(InAppWebViewScreen), findsNothing);
   });
 
-  testWidgets('with routing off the typed address is a tab run as GitHub',
-      (tester) async {
-    await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
-    await openWebspace(tester, name: 'All');
-    await openSiteFromDrawer(tester, name: 'GitHub');
-    await attachWebViews(tester);
-    await typeAddress(tester, url: 'https://duckduckgo.com/?q=typed');
+  for (final appRouting in [false, true]) {
+    testWidgets('routing off keeps a typed address in GitHub '
+        'with app routing $appRouting',
+        (tester) async {
+      github.externalLinkMode = appRouting ? ExternalLinkMode.inApp : null;
+      github.routeOutboundLinks = appRouting ? false : null;
+      await pumpRealApp(tester, sites: [github, ddg],
+          prefs: {'showUrlBar': true, 'routeOutboundLinks': appRouting});
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'GitHub');
+      await attachWebViews(tester);
+      await typeAddress(tester, url: 'https://duckduckgo.com/?q=typed');
 
-    final tab = appSite('GitHub').tabs.last;
-    expect(tab.url, 'https://duckduckgo.com/?q=typed');
-    expect(tab.hostSiteId, isNull);
-    expect(tab.openerSiteId, github.siteId);
-    expect(find.byType(InAppWebViewScreen), findsNothing);
-  });
+      final tab = appSite('GitHub').tabs.last;
+      expect(tab.url, 'https://duckduckgo.com/?q=typed');
+      expect(tab.hostSiteId, isNull);
+      expect(tab.openerSiteId, github.siteId);
+      expect(find.byType(InAppWebViewScreen), findsNothing);
+    });
+  }
 
   testWidgets('the Tabs list closes the keyboard before it opens',
       (tester) async {
@@ -140,6 +188,7 @@ void main() {
   /// search of its own; DuckDuckGo on screen with its Tabs list open.
   Future<SiteTab> onDuckDuckGoWithItsList(WidgetTester tester,
       {List<Webspace> webspaces = const [], String webspace = 'All'}) async {
+    github.externalLinkMode = ExternalLinkMode.inApp;
     github.routeOutboundLinks = true;
     final hosted = SiteTab(
       url: 'https://duckduckgo.com/?q=webspace',
@@ -249,6 +298,7 @@ void main() {
 
   testWidgets('a webspace without GitHub still lists it; a tap opens GitHub '
       'on the tab under All', (tester) async {
+    github.externalLinkMode = ExternalLinkMode.inApp;
     github.routeOutboundLinks = true;
     final tab = SiteTab(
       url: 'https://duckduckgo.com/?q=webspace',
@@ -314,6 +364,7 @@ void main() {
     });
 
     testWidgets('an address submitted twice opens one tab', (tester) async {
+      github.externalLinkMode = ExternalLinkMode.inApp;
       github.routeOutboundLinks = true;
       await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
       await openWebspace(tester, name: 'All');

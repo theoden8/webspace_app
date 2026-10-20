@@ -13,6 +13,7 @@ import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 SiteBehaviourValues _values({
   bool archived = false,
@@ -22,7 +23,7 @@ SiteBehaviourValues _values({
   bool? tabsEnabled = true,
   bool htmlCaching = false,
   ExternalLinkMode? externalLinkMode = ExternalLinkMode.inApp,
-  bool routeOutboundLinks = false,
+  bool? routeOutboundLinks = false,
   List<OutboundPreference> outboundPreferences = const [],
   String? searchAddress,
   bool searchesWeb = false,
@@ -37,7 +38,7 @@ SiteBehaviourValues _values({
       tabsEnabled: Scoped.fromStored(tabsEnabled),
       htmlCachingEnabled: htmlCaching,
       externalLinkMode: Scoped.fromStored(externalLinkMode),
-      routeOutboundLinks: routeOutboundLinks,
+      routeOutboundLinks: Scoped.fromStored(routeOutboundLinks),
       outboundPreferences: outboundPreferences,
       searchAddress: searchAddress,
       searchesWeb: searchesWeb,
@@ -103,7 +104,28 @@ Future<void> _pickMode(WidgetTester tester, {required String label}) async {
   await tester.pumpAndSettle();
 }
 
-Finder get _tabsDropdown => find.byType(DropdownButton<Scoped<bool>>);
+Finder _boolDropdown({required String title}) => find.descendant(
+      of: find.ancestor(
+        of: find.text(title),
+        matching: find.byType(ChoiceTile<Scoped<bool>>),
+      ),
+      matching: find.byType(DropdownButton<Scoped<bool>>),
+    );
+
+Finder get _tabsDropdown => _boolDropdown(title: 'Tabs');
+
+Finder get _routingDropdown => _boolDropdown(title: 'Route links to my sites');
+
+bool _selectedRouting(WidgetTester tester) => tester
+    .widget<DropdownButton<Scoped<bool>>>(_routingDropdown)
+    .value!.resolve(AppPref.routeOutboundLinks.value);
+
+Future<void> _pickRouting(WidgetTester tester, {required String label}) async {
+  await tester.tap(_routingDropdown);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
 
 bool _selectedTabs(WidgetTester tester) => tester
     .widget<DropdownButton<Scoped<bool>>>(_tabsDropdown)
@@ -120,10 +142,12 @@ void main() {
   setUp(() {
     AppPref.tabsEnabled.debugValue = true;
     AppPref.externalLinkMode.debugValue = 'inApp';
+    AppPref.routeOutboundLinks.debugValue = false;
   });
   tearDown(() {
     AppPref.tabsEnabled.debugValue = true;
     AppPref.externalLinkMode.debugValue = 'inApp';
+    AppPref.routeOutboundLinks.debugValue = false;
   });
 
   group('SiteBehaviourValues', () {
@@ -133,7 +157,7 @@ void main() {
       for (final mode in [ExternalLinkMode.browser, ExternalLinkMode.block]) {
         final other = on.copyWith(externalLinkMode: Own(mode));
         expect(other.effectiveRouteOutboundLinks, isFalse, reason: mode.name);
-        expect(other.routeOutboundLinks, isTrue);
+        expect(other.routeOutboundLinks.stored, isTrue);
       }
     });
 
@@ -168,11 +192,11 @@ void main() {
       'Kiosk mode',
       'Full screen mode',
       if (engineLoadsCacheFirst) 'HTML caching',
-      'Route links to my sites',
     ]) {
       expect(_switchTitled(tester, title: title).onChanged, isNotNull,
           reason: title);
     }
+    expect(_routingDropdown, findsOneWidget);
     if (!engineLoadsCacheFirst) {
       expect(find.text('HTML caching'), findsNothing,
           reason: 'this engine cannot load a page from its cache first');
@@ -186,6 +210,28 @@ void main() {
   });
 
   group('external links (BEHAV-004)', () {
+    testWidgets('App default inherits routing and hides its saved override',
+        (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(tester, values: _values(routeOutboundLinks: true),
+          onChanged: (v) => seen = v);
+      expect(find.text('Routing preferences'), findsOneWidget);
+      await _pickMode(tester, label: 'App default');
+      expect(find.text('Route links to my sites'), findsNothing);
+      expect(find.text('Routing preferences'), findsNothing);
+      expect(seen!.routeOutboundLinks, const Own(true));
+      expect(seen!.effectiveRouteOutboundLinks, isFalse);
+      AppPref.routeOutboundLinks.debugValue = true;
+      await tester.pumpAndSettle();
+      expect(seen!.effectiveRouteOutboundLinks, isTrue);
+      expect(find.text('Route links to my sites'), findsNothing);
+      AppPref.routeOutboundLinks.debugValue = false;
+      await tester.pumpAndSettle();
+      await _pickMode(tester, label: 'Open in the app');
+      expect(_selectedRouting(tester), isTrue);
+      expect(find.text('Routing preferences'), findsOneWidget);
+    });
+
     testWidgets('returning to app default follows later changes', (tester) async {
       SiteBehaviourValues? seen;
       await _pump(tester,
@@ -205,7 +251,7 @@ void main() {
       await _pump(tester, values: _values(archived: true, externalLinkMode: null));
       expect(_selectedMode(tester), isNull);
       expect(find.text('Open in the app'), findsOneWidget);
-      expect(find.text('Route links to my sites'), findsOneWidget);
+      expect(find.text('Route links to my sites'), findsNothing);
     });
 
     testWidgets('app default and three modes, explained behind its hint',
@@ -397,7 +443,30 @@ void main() {
       targetSiteId: SiteId('gh'),
     );
 
-    testWidgets('the switch is an option of opening links in the app',
+    testWidgets('App default follows routing and controls the preferences row',
+        (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(tester, values: _values(), onChanged: (v) => seen = v);
+      await _pickRouting(tester, label: 'App default (Off)');
+      expect(seen!.routeOutboundLinks, const FollowApp<bool>());
+      expect(_selectedRouting(tester), isFalse);
+      expect(find.text('Routing preferences'), findsNothing);
+      AppPref.routeOutboundLinks.debugValue = true;
+      await tester.pumpAndSettle();
+      expect(_selectedRouting(tester), isTrue);
+      expect(find.text('App default (On)'), findsOneWidget);
+      expect(find.text('Routing preferences'), findsOneWidget);
+      await _pickRouting(tester, label: 'Off');
+      expect(seen!.routeOutboundLinks, const Own(false));
+      expect(find.text('Routing preferences'), findsNothing);
+      AppPref.routeOutboundLinks.debugValue = false;
+      await tester.pumpAndSettle();
+      AppPref.routeOutboundLinks.debugValue = true;
+      await tester.pumpAndSettle();
+      expect(_selectedRouting(tester), isFalse);
+    });
+
+    testWidgets('the picker is an option of opening links in the app',
         (tester) async {
       await _pump(tester, values: _values());
       double y(String t) => tester.getTopLeft(find.text(t)).dy;
@@ -407,9 +476,9 @@ void main() {
           reason: 'indented under the choice it belongs to');
       final tile = find.ancestor(
         of: find.text('Route links to my sites'),
-        matching: find.byType(SwitchListTile),
+        matching: find.byType(ListTile),
       );
-      expect(tester.widget<SwitchListTile>(tile).subtitle, isNull);
+      expect(tester.widget<ListTile>(tile).subtitle, isNull);
       expect(
         find.descendant(of: tile, matching: find.byType(HintButton)),
         findsOneWidget,
@@ -423,8 +492,7 @@ void main() {
         values: _values(routeOutboundLinks: true, outboundPreferences: [pref]),
         routingTargets: [gh],
       );
-      expect(_switchTitled(tester, title: 'Route links to my sites').value,
-          isTrue);
+      expect(_selectedRouting(tester), isTrue);
       expect(find.text('1 preference'), findsOneWidget);
     });
 
@@ -454,17 +522,17 @@ void main() {
       );
       await _pickMode(tester, label: 'Open in browser');
       expect(find.text('Route links to my sites'), findsNothing);
-      expect(seen!.routeOutboundLinks, isTrue);
+      expect(seen!.routeOutboundLinks.stored, isTrue);
       await _pickMode(tester, label: 'Open in the app');
-      expect(_switchTitled(tester, title: 'Route links to my sites').value,
-          isTrue);
+      expect(_selectedRouting(tester), isTrue);
     });
 
     testWidgets('the legacy engine disables it with the reason',
         (tester) async {
       await _pump(tester, values: _values(), containersActive: false);
-      expect(_switchTitled(tester, title: 'Route links to my sites').onChanged,
-          isNull);
+      final tile = find.ancestor(
+        of: _routingDropdown, matching: find.byType(ListTile));
+      expect(tester.widget<ListTile>(tile).enabled, isFalse);
       expect(find.text('Needs per-site containers'), findsOneWidget);
     });
 
@@ -473,9 +541,8 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(tester, values: _values(), onChanged: (v) => seen = v);
       expect(find.text('Routing preferences'), findsNothing);
-      await tester.tap(find.text('Route links to my sites'));
-      await tester.pumpAndSettle();
-      expect(seen!.routeOutboundLinks, isTrue);
+      await _pickRouting(tester, label: 'On');
+      expect(seen!.routeOutboundLinks.stored, isTrue);
       expect(find.text('Routing preferences'), findsOneWidget);
       expect(find.text('Global routing only'), findsOneWidget);
     });
