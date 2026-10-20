@@ -663,7 +663,8 @@ final _closeSealPort = Port<CloseSeal, CloseFlow>(
 );
 
 final _closeOpen = Expr.op<bool, CloseFlow>(
-  r'Archive # {} /\ Archive \cap gone = {}',
+  HandPaired.archiveOpen,
+  tla: r'Archive # {} /\ Archive \cap gone = {}',
   run: (c) => _closeAsk.from(c).open(),
   reads: const Reads(vars: {ModelVar.gone}),
   needs: const {(of: ModelConst.archive, set: true)},
@@ -673,7 +674,8 @@ final _closeRunning = Expr.inFlight<CloseFlow>(
   run: (c) => _closeAsk.from(c).running(),
 );
 final _closeTooBig = Expr.op<bool, CloseFlow>(
-  'FALSE',
+  HandPaired.archiveTooBig,
+  tla: 'FALSE',
   run: (c) => _closeAsk.from(c).tooBig(),
   reads: Reads.none,
 );

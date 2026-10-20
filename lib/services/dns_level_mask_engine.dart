@@ -212,7 +212,8 @@ final _resolveAsked = resolveLevelDef<_LevelAsk>().call([
 /// reaches no variable of the model.
 Expr<T, _LevelAsk> _arg<T>(String name, {required T Function(_LevelAsk w) of}) =>
     Expr.op(
-      name,
+      HandPaired.levelAsk,
+      tla: name,
       run: Port<T, _LevelAsk>(name, reads: const {}, changes: const {}, of: of).from,
       reads: Reads.none,
     );

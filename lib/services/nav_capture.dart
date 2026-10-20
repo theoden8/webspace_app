@@ -69,7 +69,8 @@ captureSteps<S, W extends Capturing, P extends Enum>({
   // The key names the tab's container too; no flip is modelled, so in the
   // model the tab's listing alone decides.
   final holds = Expr.handPaired<bool, W>(
-    '${tab.value.tla} \\in tabs[${of.site.tla}]',
+    HandPaired.captureHolds,
+    tla: '${tab.value.tla} \\in tabs[${of.site.tla}]',
     run: (c) => inFlight.from(c).capture?.stillHolds() ?? false,
     reads: tab.value.reads + of.site.reads + const Reads(vars: {ModelVar.tabs}),
   );
@@ -79,7 +80,8 @@ captureSteps<S, W extends Capturing, P extends Enum>({
   final keeps = of.keeps;
   final noNavState = '${of.site.tla} \\in NoNavState';
   final none = Expr.handPaired<bool, W>(
-    keeps == null ? noNavState : '($noNavState) \\/ ~(${keeps.tla})',
+    HandPaired.captureNone,
+    tla: keeps == null ? noNavState : '($noNavState) \\/ ~(${keeps.tla})',
     run: (c) => inFlight.from(c).capture == null,
     reads: of.site.reads + (keeps?.reads ?? Reads.none),
     needs: const {(of: ModelConst.noNavState, set: true)},

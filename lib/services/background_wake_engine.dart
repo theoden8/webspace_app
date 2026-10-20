@@ -694,7 +694,8 @@ final class _WakeTable<S extends Object> {
     of: (w) => WakeCalls(w).offline,
   );
   late final _offline = Expr.op<List<S>, WakeFlow<S>>(
-    'IF Containers THEN Notified \\ loaded ELSE {}',
+    HandPaired.offlineNotified,
+    tla: 'IF Containers THEN Notified \\ loaded ELSE {}',
     run: _offlineSites.from,
     reads: const Reads(vars: {ModelVar.loaded}),
     needs: const {
@@ -726,7 +727,8 @@ final class _WakeTable<S extends Object> {
     run: (c) => _calls.from(c).refused,
   );
   late final _openRefused = Expr.op<bool, WakeFlow<S>>(
-    'FALSE',
+    HandPaired.headlessOpenRefused,
+    tla: 'FALSE',
     run: (c) => _calls.from(c).openRefused != null,
     reads: Reads.none,
   );
@@ -973,7 +975,8 @@ final class _WakeTable<S extends Object> {
   void closeFirst(StepContext<WakeFlow<S>> c) => _site
       .becomes(
         Expr.op(
-          'CHOOSE s \\in headless : TRUE',
+          HandPaired.anyHeadless,
+          tla: 'CHOOSE s \\in headless : TRUE',
           run: (c) => _headless.value.run(c).first,
           reads: const Reads(vars: {ModelVar.headless}),
         ),

@@ -1073,7 +1073,8 @@ final _dnsFlowing = Expr.inFlight<DnsFlow>(
 );
 
 final _dnsFails = Expr.op<bool, DnsFlow>(
-  'FALSE',
+  HandPaired.dnsFails,
+  tla: 'FALSE',
   run: (c) => _dnsFold.from(c).failed(),
   reads: Reads.none,
 );

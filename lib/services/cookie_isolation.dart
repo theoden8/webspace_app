@@ -89,7 +89,8 @@ Act<W> disposeOf<W>(
 }) {
   final kind = Field<Object?, W>(FlowField.kind);
   final modeled = Expr.handPaired<bool, W>(
-    'fl[f].kind # "none"',
+    HandPaired.modeledPlan,
+    tla: 'fl[f].kind # "none"',
     run: kind.isSet,
     reads: Reads.none,
   );
@@ -458,7 +459,8 @@ class CookieIsolationEngine {
         read: (w) => w.vars.current.value,
       ).value,
       liveTarget: Expr.op(
-        'LiveTarget',
+        HandPaired.jarLiveTarget,
+        tla: 'LiveTarget',
         run: (c) => _unloadVars.from(c).liveTarget,
         reads: const Reads(base: {BaseOp.liveTarget}),
       ),

@@ -53,7 +53,8 @@ abstract final class ActivationTable {
   /// The site on screen: the one a return home leaves, and the one a nested
   /// screen covers.
   static final _onScreen = Expr.op<WebViewModel, ActivationFlow>(
-    'current',
+    HandPaired.onScreen,
+    tla: 'current',
     run: (c) => ActivationFlow.page.from(c).shown!,
     reads: const Reads(vars: {ModelVar.current}),
   );
@@ -117,7 +118,8 @@ abstract final class ActivationTable {
   /// from the sites on the list (`Listed`).
   static final _eachSite = Pick<WebViewModel, ActivationFlow>(
     Expr.op(
-      'Listed',
+      HandPaired.listedSites,
+      tla: 'Listed',
       run: (c) => [ActivationFlow.state.from(c).target!], reads: const Reads(base: {BaseOp.listed}),
     ),
   );
@@ -127,7 +129,8 @@ abstract final class ActivationTable {
   /// name (`Resettable`).
   static final _eachResettable = Pick<WebViewModel, ActivationFlow>(
     Expr.op(
-      r'Listed \cap Resettable',
+      HandPaired.resettableSites,
+      tla: r'Listed \cap Resettable',
       run: (c) => [ActivationFlow.state.from(c).target!],
       reads: const Reads(base: {BaseOp.listed}),
       needs: const {(of: ModelConst.resettable, set: true)},
@@ -138,7 +141,8 @@ abstract final class ActivationTable {
   /// pick of what it stops showing.
   static final _eachKept = Pick<WebViewModel, ActivationFlow>(
     Expr.op(
-      'Listed',
+      HandPaired.keptSites,
+      tla: 'Listed',
       run: (c) => [ActivationFlow.state.from(c).target!],
       reads: const Reads(base: {BaseOp.listed}),
     ),
@@ -304,7 +308,8 @@ abstract final class ActivationTable {
     ModelVar.views,
   );
   static final _siteGone = Expr.op<bool, ActivationFlow>(
-    '${_site.value.tla} \\in gone',
+    HandPaired.activationSiteGone,
+    tla: '${_site.value.tla} \\in gone',
     run: (c) => !ActivationFlow.page.from(c).models.contains(_site.of(c)),
     reads: _site.value.reads + const Reads(vars: {ModelVar.gone}),
   );
@@ -412,7 +417,8 @@ abstract final class ActivationTable {
   /// The target of the activation in flight while no input has superseded
   /// it, the model's `LiveTarget`.
   static final _liveTarget = Expr.op<WebViewModel?, ActivationFlow>(
-    'LiveTarget',
+    HandPaired.liveTarget,
+    tla: 'LiveTarget',
     run: (c) => ActivationFlow.page.from(c).liveTarget,
     reads: const Reads(base: {BaseOp.liveTarget}),
   );

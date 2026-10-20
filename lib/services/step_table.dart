@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:webspace/services/activation_step.dart';
+import 'package:webspace/services/hand_paired.dart';
 import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/site_tab.dart';
 
+export 'package:webspace/services/hand_paired.dart';
 export 'package:webspace/services/model_names.dart';
 export 'package:webspace/services/step_print.dart';
 
@@ -148,9 +150,11 @@ final class Expr<T, W> {
       Expr._(run: (c) => c, tla: 'f', reads: Reads.none);
 
   /// An operator of the model's own ([tla], defined in `activation_base`),
-  /// beside the engine's rule for it, and what its text reads.
+  /// beside the engine's rule for it, and what its text reads; [pairing]
+  /// names the pair ([HandPaired]).
   static Expr<V, W> op<V, W>(
-    String tla, {
+    Pairing pairing, {
+    required String tla,
     required V Function(StepView<W> c) run,
     required Reads reads,
     Set<Need> needs = const {},
@@ -166,9 +170,11 @@ final class Expr<T, W> {
 
   /// Text of the model's beside code of the engine's, written side by side
   /// over what [reads] names: nothing but the replay holds the two to each
-  /// other, so each use is a pair still to close into a tree.
+  /// other, so each use is a pair still to close into a tree, which
+  /// [pairing] names ([HandPaired]).
   static Expr<V, W> handPaired<V, W>(
-    String tla, {
+    Pairing pairing, {
+    required String tla,
     required V Function(StepView<W> c) run,
     required Reads reads,
     Set<Need> needs = const {},

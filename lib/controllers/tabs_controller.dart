@@ -825,7 +825,8 @@ class TabsController {
   );
 
   static Expr<WebViewModel, TabFlow> get _current => Expr.op(
-        'current',
+        HandPaired.tabSiteOnScreen,
+        tla: 'current',
         run: (c) => _flow.from(c).site,
         reads: const Reads(vars: {ModelVar.current}),
       );
@@ -875,7 +876,8 @@ class TabsController {
 
   /// The bytes' label, the model's alone: the code holds bytes.
   static final _labelTla = Expr.handPaired<TabId?, TabFlow>(
-    'fl[f].label',
+    HandPaired.tabLabel,
+    tla: 'fl[f].label',
     run: (_) => throw StateError('the label is the model\'s'),
     reads: Reads.none,
   );
@@ -883,7 +885,8 @@ class TabsController {
   /// The input is the site on screen's; the model follows only the sites
   /// a config names (`Tabbed`).
   static final _tabbedCurrent = Expr.op<bool, TabFlow>(
-    'current \\in Tabbed',
+    HandPaired.tabbedOnScreen,
+    tla: 'current \\in Tabbed',
     run: (c) => _page.from(c).isShown(_flow.from(c).site),
     reads: const Reads(vars: {ModelVar.current}),
     needs: const {(of: ModelConst.tabbed, set: true)},
@@ -918,17 +921,20 @@ class TabsController {
 
   /// A fresh tab id (TabId.mint, never repeated): the model's pool.
   static final _hasFresh = Expr.op<bool, TabFlow>(
-    'HasFresh(current)',
+    HandPaired.hasFreshTab,
+    tla: 'HasFresh(current)',
     run: (_) => true, reads: const Reads(vars: {ModelVar.current},
     base: {BaseOp.hasFresh}),
   );
   static final _mint = Expr.op<TabId, TabFlow>(
-    'Mint(current)',
+    HandPaired.mintOnScreen,
+    tla: 'Mint(current)',
     run: (c) => _flow.from(c).fresh!.id,
     reads: const Reads(vars: {ModelVar.current}, base: {BaseOp.mint}),
   );
   static final _mintSite = Expr.op<TabId, TabFlow>(
-    'Mint(fl[f].site)',
+    HandPaired.mintForSite,
+    tla: 'Mint(fl[f].site)',
     run: (c) => _flow.from(c).fresh!.id,
     reads: const Reads(base: {BaseOp.mint}),
   );
@@ -946,7 +952,8 @@ class TabsController {
   /// The lists the flows install, as the engine orders them and as the
   /// model's sets read them; each checks its ids against its reading.
   static final _withFresh = Expr.handPaired<List<SiteTab>, TabFlow>(
-    'tabs[current] \\cup {Mint(current)}',
+    HandPaired.tabsWithFresh,
+    tla: 'tabs[current] \\cup {Mint(current)}',
     run: (c) {
       final f = _flow.from(c);
       return _asRead(
@@ -957,7 +964,8 @@ class TabsController {
     reads: const Reads(vars: {ModelVar.current, ModelVar.tabs}, base: {BaseOp.mint}),
   );
   static final _withCopy = Expr.handPaired<List<SiteTab>, TabFlow>(
-    'tabs[fl[f].site] \\cup {fl[f].copy}',
+    HandPaired.tabsWithCopy,
+    tla: 'tabs[fl[f].site] \\cup {fl[f].copy}',
     run: (c) {
       final f = _flow.from(c);
       return _asRead(
@@ -972,33 +980,39 @@ class TabsController {
     reads: const Reads(vars: {ModelVar.tabs}),
   );
   static final _resultTabs = Expr.handPaired<List<SiteTab>, TabFlow>(
-    'tabs[current] \\ {s}',
+    HandPaired.tabsAfterClose,
+    tla: 'tabs[current] \\ {s}',
     run: (c) => _flow.from(c).result!.tabs,
     reads: const Reads(vars: {ModelVar.current, ModelVar.tabs}),
   );
   static final _closedIds = Expr.handPaired<List<TabId>, TabFlow>(
-    '{s}',
+    HandPaired.closedTabIds,
+    tla: '{s}',
     run: (c) => _flow.from(c).result!.closedIds,
     reads: Reads.none,
   );
   static final _survivors = _tabIds(_current).without(_chosenTab);
   static final _restIds = Expr.handPaired<List<TabId>, TabFlow>(
-    'fl[f].rest',
+    HandPaired.restTabIds,
+    tla: 'fl[f].rest',
     run: (c) => _rest.isSet(c) ? [for (final t in _rest.of(c)) t.id] : const [],
     reads: Reads.none,
   );
   static final _resultTabsAgain = Expr.handPaired<List<SiteTab>, TabFlow>(
-    'fl[f].rest',
+    HandPaired.restTabs,
+    tla: 'fl[f].rest',
     run: (c) => _rest.of(c),
     reads: Reads.none,
   );
   static final _onlyFresh = Expr.handPaired<List<SiteTab>, TabFlow>(
-    '{Mint(fl[f].site)}',
+    HandPaired.onlyFreshTab,
+    tla: '{Mint(fl[f].site)}',
     run: (c) => [_flow.from(c).fresh!],
     reads: const Reads(base: {BaseOp.mint}),
   );
   static final _installed = Expr.handPaired<List<SiteTab>, TabFlow>(
-    'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
+    HandPaired.installedTabs,
+    tla: 'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
     run: (c) => _rest.isSet(c) ? _rest.of(c) : _flow.from(c).site.tabs,
     reads: const Reads(vars: {ModelVar.tabs}),
   );
@@ -1006,7 +1020,8 @@ class TabsController {
   /// The tabs the target has to be among: the list being installed, else
   /// the site's. A page gone away has none.
   static final _targetIn = Expr.handPaired<List<TabId>, TabFlow>(
-    'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
+    HandPaired.targetAmong,
+    tla: 'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
     run: (c) => !_page.from(c).mounted
         ? const []
         : _rest.isSet(c)
@@ -1026,7 +1041,8 @@ class TabsController {
 
   /// The duplicate's source is still the site's (and the page is there).
   static final _sourceStays = Expr.handPaired<bool, TabFlow>(
-    'fl[f].tab \\in tabs[fl[f].site]',
+    HandPaired.duplicateSourceStays,
+    tla: 'fl[f].tab \\in tabs[fl[f].site]',
     run: (c) =>
         _page.from(c).mounted &&
         _flow.from(c).site.tabs.any((t) => t.id == _tab.of(c)),
@@ -1054,7 +1070,8 @@ class TabsController {
         read: (w) => w._c._sites.useContainers,
       ).value &
       Expr.op<bool, TabFlow>(
-        'fl[f].site \\in Routed',
+        HandPaired.routedSite,
+        tla: 'fl[f].site \\in Routed',
         run: (c) {
           final site = _site.of(c);
           if (!_page.from(c).processGlobal) return false;

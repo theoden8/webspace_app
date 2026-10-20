@@ -55,7 +55,7 @@ final class TabVars {
   }) => tabbed<W>().has(s.it) & l.it.has(s.it);
 
   static Expr<QueuedStack, W> noQueued<W>() =>
-      Expr.op('NoQueued', run: (_) => (t: null, h: null), reads: Reads.none);
+      Expr.op(HandPaired.noQueued, tla: 'NoQueued', run: (_) => (t: null, h: null), reads: Reads.none);
 
   /// A capture's save stores the webview's bytes under the tab it was built
   /// for, [t], read as the capture started with the history [h] it showed;

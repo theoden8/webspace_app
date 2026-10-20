@@ -548,7 +548,8 @@ class SiteUnloadEngine {
         read: (w) => w.host.vars.current.value,
       ).value,
       liveTarget: Expr.op(
-        'LiveTarget',
+        HandPaired.unloadLiveTarget,
+        tla: 'LiveTarget',
         run: (c) => _vars.from(c).liveTarget,
         reads: const Reads(base: {BaseOp.liveTarget}),
       ),
@@ -652,7 +653,8 @@ class SiteUnloadEngine {
     final notReset = const Field<FlowKind, UnloadFlow>(FlowField.kind).value
         .neq(Expr.constant(FlowKind.unload));
     return Expr.handPaired<bool, UnloadFlow>(
-      notReset.tla,
+      HandPaired.unloadKeeps,
+      tla: notReset.tla,
       run: (c) {
         final keeps = _plan.from(c).reasonOf(_victim.of(c)).keepsNavState;
         assert(

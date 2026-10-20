@@ -10,6 +10,8 @@ final class _World {
   final Set<int> loaded = {1, 2};
 }
 
+enum _Pairs implements Pairing { counted, share, marker, loadedCount, sitePlusOne, listed }
+
 enum _Place { go, wait, done }
 
 /// What the platform answers a call it refuses with, in the tests below.
@@ -302,7 +304,8 @@ void main() {
       _loaded.becomes(Expr.constant<Iterable<int>, _World>([3])),
       counted.becomes(
         Expr.handPaired(
-          'Cardinality(loaded)',
+          _Pairs.counted,
+          tla: 'Cardinality(loaded)',
           run: (c) => _loaded.value.run(c).length,
           reads: const Reads(vars: {ModelVar.loaded}),
         ),
@@ -355,7 +358,8 @@ void main() {
   test('an operand is grouped only where an operator sits at its top', () {
     final a = Expr.constant<int, _World>(1, tla: 'x');
     final b = Expr.op<Iterable<int>, _World>(
-      'Share(s, f[1])',
+      _Pairs.share,
+      tla: 'Share(s, f[1])',
       run: (_) => [], reads: const Reads(defs: {ModelDef.share}),
     );
     expect(b.has(a).tla, 'x \\in Share(s, f[1])');
@@ -420,7 +424,8 @@ void _definitions() {
 
   test('a record\'s part reads the field the model names', () {
     final marker = Expr.handPaired<({int t, int v}), _World>(
-      'marker',
+      _Pairs.marker,
+      tla: 'marker',
       run: (_) => (t: 2, v: 7),
       reads: const Reads(vars: {ModelVar.marker}),
     );
@@ -442,7 +447,8 @@ void _definitions() {
             _loadedPort,
             run: (c) async => c.api.length,
             reply: Expr.op(
-              'Cardinality(loaded)',
+              _Pairs.loadedCount,
+              tla: 'Cardinality(loaded)',
               run: (c) => _loadedPort.from(c).length,
               reads: const Reads(vars: {ModelVar.loaded}),
             ),
@@ -628,7 +634,12 @@ void _definitions() {
             writes: [_loaded.becomes(Expr.constant<Set<int>, _World>({}, tla: '{}'))],
             reads: [
               got.becomes(
-                Expr.handPaired('fl[f].site + 1', run: (c) => site.of(c) + 1, reads: Reads.none),
+                Expr.handPaired(
+                  _Pairs.sitePlusOne,
+                  tla: 'fl[f].site + 1',
+                  run: (c) => site.of(c) + 1,
+                  reads: Reads.none,
+                ),
               ),
             ],
           ),
@@ -650,7 +661,8 @@ void _definitions() {
     const site = Field<int, _World>(FlowField.site);
     final each = Pick<int, _World>(
       Expr.op(
-        'Listed',
+        _Pairs.listed,
+        tla: 'Listed',
         run: (_) => [2],
         reads: const Reads(base: {BaseOp.listed}),
       ),

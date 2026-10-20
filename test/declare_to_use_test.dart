@@ -7,8 +7,10 @@
 // 1; this test is the planted mistake that proves each, resolving a probe
 // the compiler must reject beside a control it must accept. The probe lives
 // only in the analyzer's overlay, never on disk, so `flutter analyze` never
-// sees it. The last test is rung 5, since an enum value no code names still
-// compiles: every Unmodeled debt names a write the code still makes.
+// sees it. The last tests are rung 5, since an enum value no code names still
+// compiles: every Unmodeled debt names a write the code still makes, every
+// Environment action one it still writes in, and every HandPaired value the
+// one site that names it.
 
 import 'dart:io';
 
@@ -69,6 +71,8 @@ import 'package:webspace/services/step_table.dart';
 final class W {
   int loaded = 0;
 }
+
+enum P implements Pairing { p }
 ''';
 
 void main() {
@@ -90,7 +94,7 @@ void main() {
   test('step code that reaches the world does not compile', () async {
     final errors = await _errorsIn('''
 $_world
-final reach = Expr.op<int, W>('loaded', run: (c) => c.world.loaded, reads: Reads.none);
+final reach = Expr.op<int, W>(P.p, tla: 'loaded', run: (c) => c.world.loaded, reads: Reads.none);
 ''');
     expect(errors, ['undefined_getter'],
         reason: "a closure a table holds must not see the engine's world");
@@ -115,19 +119,30 @@ final raw = Expr<bool, W>(run: (_) => true, tla: 'FALSE', reads: Reads.none);
         reason: 'a run beside a text is written only as a named kind');
   }, timeout: const Timeout(Duration(minutes: 2)));
 
+  test('a hand pairing that names no pairing does not compile', () async {
+    final errors = await _errorsIn('''
+$_world
+final unnamed = Expr.handPaired<bool, W>(tla: 'FALSE', run: (_) => false, reads: Reads.none);
+final op = Expr.op<bool, W>(tla: 'FALSE', run: (_) => false, reads: Reads.none);
+''');
+    expect(errors, List.filled(2, 'not_enough_positional_arguments'),
+        reason: 'a run beside a text names its pair, so the code lists them');
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
   test('the same pair named as hand-paired compiles', () async {
     final errors = await _errorsIn('''
 $_world
-final named = Expr.handPaired<bool, W>('FALSE', run: (_) => false, reads: Reads.none);
+final named = Expr.handPaired<bool, W>(P.p, tla: 'FALSE', run: (_) => false, reads: Reads.none);
+final op = Expr.op<bool, W>(P.p, tla: 'FALSE', run: (_) => false, reads: Reads.none);
 ''');
-    expect(errors, isEmpty, reason: 'the probe fails only for the raw constructor');
+    expect(errors, isEmpty, reason: 'the probes fail only for the raw constructor and the missing name');
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('the same read through a declared port compiles', () async {
     final errors = await _errorsIn('''
 $_world
 final port = Port<W, W>('w', reads: {ModelVar.loaded}, changes: const {}, of: (w) => w);
-final reach = Expr.op<int, W>('loaded', run: (c) => port.from(c).loaded, reads: Reads.none);
+final reach = Expr.op<int, W>(P.p, tla: 'loaded', run: (c) => port.from(c).loaded, reads: Reads.none);
 final call = Call.on(port, run: (c) async => c.api.loaded, writes: const []);
 ''');
     expect(errors, isEmpty, reason: 'the probe fails only for the world');
@@ -206,5 +221,33 @@ void f(WebViewModel m) {
     expect(
         {for (final e in Environment.values) e.name}.difference(named), isEmpty,
         reason: 'an environment action no write names is gone: drop it');
+  });
+
+  test('every hand pairing in the code is one HandPaired value, each named once',
+      () {
+    final head = RegExp(r'Expr\.(op|handPaired)\b(<[^(]*>)?\(\s*');
+    final named = <String, List<String>>{};
+    final unnamed = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart') ||
+          f.path.endsWith('services/step_table.dart')) {
+        continue;
+      }
+      final source = f.readAsStringSync();
+      for (final m in head.allMatches(source)) {
+        final at = '${f.path}:${'\n'.allMatches(source.substring(0, m.start)).length + 1}';
+        final pair = RegExp(r'HandPaired\.(\w+),').matchAsPrefix(source, m.end);
+        if (pair == null) {
+          unnamed.add(at);
+        } else {
+          (named[pair[1]!] ??= []).add(at);
+        }
+      }
+    }
+    expect(unnamed, isEmpty, reason: 'a run beside a text names its HandPaired value');
+    expect({for (final MapEntry(:key, :value) in named.entries) if (value.length > 1) key: value},
+        isEmpty, reason: 'a value is one pairing: give each site its own');
+    expect({for (final h in HandPaired.values) h.name}.difference(named.keys.toSet()),
+        isEmpty, reason: 'a pairing no site names is paid: drop it from HandPaired');
   });
 }
