@@ -2,13 +2,15 @@ import 'dart:async';
 
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:webspace/services/activation_step.dart';
-import 'package:webspace/services/model_exprs.dart';
+import 'package:webspace/services/hand_paired.dart';
 import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/site_tab.dart';
 
-export 'package:webspace/services/model_exprs.dart';
+export 'package:webspace/services/hand_paired.dart';
 export 'package:webspace/services/model_names.dart';
 export 'package:webspace/services/step_print.dart';
+
+part 'model_exprs.dart';
 
 /// What a table's own code sees of one flow: the values its steps keep,
 /// the element a step picked, the names a quantifier bound. Not the
@@ -93,7 +95,7 @@ String tlaOf(Object? value) => switch (value) {
 /// operators ([Expr.op]); the operators below build the rest, so a guard
 /// is written once and read both ways.
 final class Expr<T, W> {
-  const Expr({
+  const Expr._({
     required this.run,
     required this.tla,
     required this.reads,
@@ -137,24 +139,26 @@ final class Expr<T, W> {
 
   /// A constant, printed from its value ([tlaOf]) unless [tla] says how.
   static Expr<V, W> constant<V, W>(V value, {String? tla}) =>
-      Expr(run: (_) => value, tla: tla ?? tlaOf(value), reads: Reads.none);
+      Expr._(run: (_) => value, tla: tla ?? tlaOf(value), reads: Reads.none);
 
   /// The empty set.
   static Expr<List<E>, W> none<E, W>() =>
-      Expr(run: (_) => <E>[], tla: '{}', reads: Reads.none);
+      Expr._(run: (_) => <E>[], tla: '{}', reads: Reads.none);
 
   /// The flow itself, `f`.
   static Expr<Object?, W> flow<W>() =>
-      Expr(run: (c) => c, tla: 'f', reads: Reads.none);
+      Expr._(run: (c) => c, tla: 'f', reads: Reads.none);
 
   /// An operator of the model's own ([tla], defined in `activation_base`),
-  /// beside the engine's rule for it, and what its text reads.
+  /// beside the engine's rule for it, and what its text reads; [pairing]
+  /// names the pair ([HandPaired]).
   static Expr<V, W> op<V, W>(
-    String tla, {
+    Pairing pairing, {
+    required String tla,
     required V Function(StepView<W> c) run,
     required Reads reads,
     Set<Need> needs = const {},
-  }) => Expr(
+  }) => Expr._(
     run: (c) {
       _noteReads(reads);
       return run(c);
@@ -164,12 +168,55 @@ final class Expr<T, W> {
     needs: needs,
   );
 
+  /// Text of the model's beside code of the engine's, written side by side
+  /// over what [reads] names: nothing but the replay holds the two to each
+  /// other, so each use is a pair still to close into a tree, which
+  /// [pairing] names ([HandPaired]).
+  static Expr<V, W> handPaired<V, W>(
+    Pairing pairing, {
+    required String tla,
+    required V Function(StepView<W> c) run,
+    required Reads reads,
+    Set<Need> needs = const {},
+  }) => Expr._(run: run, tla: tla, reads: reads, needs: needs);
+
+  /// What the engine computes for a set the model states by [rule]: the
+  /// engine's value runs, asserted the same set as [rule]'s by [key] (the
+  /// model's name for an element the engine holds), which is what prints.
+  /// [why] names the rule for the assert.
+  static Expr<List<E>, W> checked<E, K, W>({
+    required Expr<Iterable<K>, W> rule,
+    required Iterable<E> Function(StepView<W> c) run,
+    required K Function(E e) key,
+    required String why,
+  }) => Expr._(
+    run: (c) {
+      final engine = run(c).toList();
+      assert(() {
+        final printed = rule.run(c).toSet();
+        final ran = {for (final e in engine) key(e)};
+        return printed.length == ran.length && printed.containsAll(ran);
+      }(), why);
+      return engine;
+    },
+    tla: rule.tla,
+    reads: rule.reads,
+  );
+
+  /// The engine's choice where the model chooses ([among], a [Pick]'s
+  /// element or set): the replay holds the engine to a choice the model
+  /// allows.
+  static Expr<V, W> chosen<V, W>({
+    required Expr<V, W> among,
+    required V Function(StepView<W> c) run,
+  }) => Expr._(run: run, tla: among.tla, reads: among.reads);
+
   /// The model's constant [of], as the code knows it through what [run]
   /// reads: printed by its name, needing what reading it whole needs.
   static Expr<V, W> ofConstant<V, W>(
     ModelConst of, {
     required V Function(StepView<W> c) run,
-  }) => Expr(
+  }) => Expr._(
     run: run,
     tla: of.tla,
     reads: Reads.none,
@@ -184,7 +231,7 @@ final class Expr<T, W> {
   static Expr<bool, W> inFlight<W>(
     FlowKind kind, {
     required bool Function(StepView<W> c) run,
-  }) => Expr(
+  }) => Expr._(
     run: run,
     tla: '"${kind.name}" \\in Kinds',
     reads: Reads(
@@ -197,7 +244,7 @@ final class Expr<T, W> {
     required Expr<bool, W> when,
     required Expr<V, W> then,
     required Expr<V, W> otherwise,
-  }) => Expr(
+  }) => Expr._(
     run: (c) => when.run(c) ? then.run(c) : otherwise.run(c),
     tla: 'IF ${when.tla} THEN ${then.tla} ELSE ${otherwise.tla}',
     reads: when.reads + then.reads + otherwise.reads,
@@ -211,14 +258,14 @@ final class Expr<T, W> {
     ],
   );
 
-  Expr<bool, W> eq(Expr<T, W> other) => Expr(
+  Expr<bool, W> eq(Expr<T, W> other) => Expr._(
     run: (c) => run(c) == other.run(c),
     tla: '${tlaOperand(tla)} = ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
     unless: _differs(other),
   );
 
-  Expr<bool, W> neq(Expr<T, W> other) => Expr(
+  Expr<bool, W> neq(Expr<T, W> other) => Expr._(
     run: (c) => run(c) != other.run(c),
     tla: '${tlaOperand(tla)} # ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
@@ -243,7 +290,7 @@ final class Bound<E, W> {
   final String name;
 
   Expr<E, W> get it =>
-      Expr(run: (c) => c._bound[name] as E, tla: name, reads: Reads.none);
+      Expr._(run: (c) => c._bound[name] as E, tla: name, reads: Reads.none);
 
   R _with<R>(
     StepView<W> c, {
@@ -272,17 +319,17 @@ final class Bound<E, W> {
 extension DefCall on ModelDef {
   /// `Name(f)`, the definition over the flow.
   Expr<T, W> ofFlow<T, W>({required T Function(StepView<W> c) run}) =>
-      Expr(run: run, tla: '$tla(f)', reads: Reads(defs: {this}));
+      Expr._(run: run, tla: '$tla(f)', reads: Reads(defs: {this}));
 
   /// `Name`, a definition with no parameters.
   Expr<T, W> named<T, W>({required T Function(StepView<W> c) run}) =>
-      Expr(run: run, tla: tla, reads: Reads(defs: {this}));
+      Expr._(run: run, tla: tla, reads: Reads(defs: {this}));
 
   /// `Name(args)`.
   Expr<T, W> over<T, W>(
     List<Expr<Object?, W>> args, {
     required T Function(StepView<W> c) run,
-  }) => Expr(
+  }) => Expr._(
     run: run,
     tla: '$tla(${[for (final a in args) a.tla].join(', ')})',
     reads: Reads(defs: {this}) + Reads.of([for (final a in args) a.reads]),
@@ -319,7 +366,7 @@ final class Def<T, W> {
   /// `Name(args)`, run as the body over the arguments' values.
   Expr<T, W> call(List<Expr<Object?, W>> args) {
     assert(args.length == params.length, '$name takes ${params.length}');
-    return Expr(
+    return Expr._(
       run: (c) {
         final values = [for (final a in args) a.run(c)];
         if (Planted._current?.defs[id] case final planted?) {
@@ -340,6 +387,17 @@ final class Def<T, W> {
 
   /// A definition with no parameters, or over the flow, as a value.
   Expr<T, W> get value => call(const []);
+
+  /// The definition over [args] in [world], for code outside a table that
+  /// asks the model's rule of values in hand.
+  T evaluate(W world, {required List<Object?> args}) {
+    assert(args.length == params.length, '$name takes ${params.length}');
+    final c = StepContext(world);
+    if (Planted._current?.defs[id] case final planted?) {
+      return planted._apply(c, values: args) as T;
+    }
+    return _bind(c, values: args);
+  }
 
   T _bind(StepView<W> c, {required List<Object?> values}) {
     T bind(int i) => i == params.length
@@ -363,7 +421,7 @@ final class Def<T, W> {
 /// a [Bound] while its body runs.
 extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
   /// `S \ T`, [other] known by membership.
-  Expr<List<E>, W> minus(Members<E, W> other) => Expr(
+  Expr<List<E>, W> minus(Members<E, W> other) => Expr._(
     run: (c) => [
       for (final e in run(c))
         if (!other._test(c._world, member: e)) e,
@@ -374,7 +432,7 @@ extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `[x \in S |-> to]`: a function of the model over S, run as a map.
-  Expr<Map<E, V>, W> mapTo<V>(Bound<E, W> x, {required Expr<V, W> to}) => Expr(
+  Expr<Map<E, V>, W> mapTo<V>(Bound<E, W> x, {required Expr<V, W> to}) => Expr._(
     run: (c) => {
       for (final e in run(c)) e: x._with(c, value: e, body: () => to.run(c)),
     },
@@ -383,7 +441,7 @@ extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `\A x \in S : holds`.
-  Expr<bool, W> forAll(Bound<E, W> x, {required Expr<bool, W> holds}) => Expr(
+  Expr<bool, W> forAll(Bound<E, W> x, {required Expr<bool, W> holds}) => Expr._(
     run: (c) =>
         run(c).every((e) => x._with(c, value: e, body: () => holds.run(c))),
     tla: '\\A ${x.name} \\in ${tlaOperand(tla)} : ${holds.tla}',
@@ -392,7 +450,7 @@ extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `\E x \in S : holds`.
-  Expr<bool, W> exists(Bound<E, W> x, {required Expr<bool, W> holds}) => Expr(
+  Expr<bool, W> exists(Bound<E, W> x, {required Expr<bool, W> holds}) => Expr._(
     run: (c) =>
         run(c).any((e) => x._with(c, value: e, body: () => holds.run(c))),
     tla: '\\E ${x.name} \\in ${tlaOperand(tla)} : ${holds.tla}',
@@ -402,7 +460,7 @@ extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
 
   /// `{x \in S : holds}`, in the order of S.
   Expr<List<E>, W> where(Bound<E, W> x, {required Expr<bool, W> holds}) =>
-      Expr(
+      Expr._(
         run: (c) => [
           for (final e in run(c))
             if (x._with(c, value: e, body: () => holds.run(c))) e,
@@ -411,6 +469,13 @@ extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
         reads: reads + holds.reads,
         needs: {...needs, ...holds.needs},
       );
+}
+
+/// A value the code holds as nullable where the model has it set.
+extension UnwrappedExpr<T extends Object, W> on Expr<T?, W> {
+  /// The same text, run as the value itself.
+  Expr<T, W> get unwrapped =>
+      Expr._(run: (c) => run(c)!, tla: tla, reads: reads);
 }
 
 /// A variable of the model as the engine reads it: its name is its TLA+
@@ -426,7 +491,7 @@ class Var<T, W> {
   String get name => variable.name;
   final T Function(W world)? _read;
 
-  Expr<T, W> get value => Expr(
+  Expr<T, W> get value => Expr._(
     run: (c) {
       _reading?.add(variable);
       return switch (_read) {
@@ -449,7 +514,7 @@ final class Constant<T, W> {
   String get name => of.tla;
   final T Function(W world) _read;
 
-  Expr<T, W> get value => Expr(
+  Expr<T, W> get value => Expr._(
     run: (c) => _read(c._world),
     tla: name,
     reads: Reads.none,
@@ -843,7 +908,7 @@ final class Indexed<K, V, W> {
   final V Function(W world, {required K at})? _read;
   final void Function(W world, {required K at, required V to})? _write;
 
-  Expr<V, W> at(Expr<K, W> k) => Expr(
+  Expr<V, W> at(Expr<K, W> k) => Expr._(
     run: (c) {
       if (_variable case final v?) _reading?.add(v);
       return switch (_read) {
@@ -883,7 +948,7 @@ final class Members<E, W> {
   String get name => of.tla;
   final bool Function(W world, {required E member}) _test;
 
-  Expr<bool, W> has(Expr<E, W> e) => Expr(
+  Expr<bool, W> has(Expr<E, W> e) => Expr._(
     run: (c) => _test(c._world, member: e.run(c)),
     tla: '${tlaOperand(e.tla)} \\in $name',
     reads: e.reads,
@@ -963,12 +1028,12 @@ final class Field<T, W> {
   void put(StepView<W> flow, {required T value}) =>
       flow._fields[this] = value;
 
-  Expr<T, W> get value => Expr(run: of, tla: 'fl[f].$tla', reads: Reads.none);
+  Expr<T, W> get value => Expr._(run: of, tla: 'fl[f].$tla', reads: Reads.none);
 
   /// Its value, [none] until a step sets it, as the model's row starts.
   Expr<T, W> valueOr({required T none}) {
     assert(tlaOf(none) == field.none, '$tla starts as ${field.none}');
-    return Expr(
+    return Expr._(
       run: (c) => isSet(c) ? of(c) : none,
       tla: 'fl[f].$tla',
       reads: Reads.none,
@@ -1040,7 +1105,7 @@ final class Pick<E, W> {
 
   /// The element picked, [name] in the model.
   Expr<E, W> get it =>
-      Expr(run: (c) => c._picked[name] as E, tla: name, reads: Reads.none);
+      Expr._(run: (c) => c._picked[name] as E, tla: name, reads: Reads.none);
 
   void _make(StepView<W> c) {
     final among = from.run(c).toList();
@@ -1730,7 +1795,7 @@ final class StepTable<W, P extends Enum> {
     final tab = (arm.tab ?? step.tab)?.run(c);
     Map<String, Object?>? found;
     assert(() {
-      found = {for (final v in vars) v.name: v.value.run(c)};
+      found = {for (final v in vars) v.name: _snapshot(v.value.run(c))};
       return true;
     }());
     final outer = _turn;
@@ -1791,14 +1856,28 @@ final class StepTable<W, P extends Enum> {
     return true;
   }
 
-  /// Equal as the model's values: a collection as a set of its elements.
+  /// [value] as a step found it: a collection copied, element by element,
+  /// so one the step changes in place is not the value compared after it.
+  static Object? _snapshot(Object? value) => switch (value) {
+    final Map<Object?, Object?> m => {
+      for (final MapEntry(:key, :value) in m.entries) key: _snapshot(value),
+    },
+    final Iterable<Object?> i => [for (final e in i) _snapshot(e)],
+    _ => value,
+  };
+
+  /// Equal as the model's values: a collection as the set of its elements,
+  /// a function as its entries, each compared so.
   static bool _same(Object? found, {required Object? now}) =>
       switch ((found, now)) {
-        (final Iterable<Object?> x, final Iterable<Object?> y) =>
-          x.length == y.length && x.every(y.contains),
         (final Map<Object?, Object?> x, final Map<Object?, Object?> y) =>
           x.length == y.length &&
-              x.entries.every((e) => y.containsKey(e.key) && y[e.key] == e.value),
+              x.entries.every(
+                (e) => y.containsKey(e.key) && _same(e.value, now: y[e.key]),
+              ),
+        (final Iterable<Object?> x, final Iterable<Object?> y) =>
+          x.every((e) => y.any((f) => _same(e, now: f))) &&
+              y.every((f) => x.any((e) => _same(e, now: f))),
         _ => found == now,
       };
 

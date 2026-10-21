@@ -5,10 +5,14 @@ import 'package:webspace/formal_model/models.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/step_table.dart';
 
-/// A world of one model variable, `loaded`, kept in use order.
+/// A world of one model variable, `loaded`, kept in use order, and a list
+/// the frame tests below read as the model's `headless`.
 final class _World {
   final Set<int> loaded = {1, 2};
+  final List<int> listed = [1, 1];
 }
+
+enum _Pairs implements Pairing { counted, share, marker, loadedCount, sitePlusOne, listed }
 
 enum _Place { go, wait, done }
 
@@ -40,10 +44,13 @@ final _loadedPort = Port<Set<int>, _World>(
   of: (w) => w.loaded,
 );
 
-StepTable<_World, _Place> _table({required List<Effect<_World>> then}) =>
+StepTable<_World, _Place> _table({
+  required List<Effect<_World>> then,
+  List<Var<Object?, _World>>? vars,
+}) =>
     StepTable(
       _Place.values,
-      vars: [_loaded],
+      vars: vars ?? [_loaded],
       at: (place) => switch (place) {
         _Place.go => Step(
           ActivationStep.plan,
@@ -90,6 +97,58 @@ void main() {
           contains('changed loaded, which it does not write'),
         ),
       ),
+    );
+  });
+
+  test('a step that changes an undeclared collection in place is caught', () {
+    final live = Mutable<Iterable<int>, _World>(
+      ModelVar.loaded,
+      read: (w) => w.loaded,
+      write: (w, {required to}) => w.loaded
+        ..clear()
+        ..addAll(to),
+    );
+    final c = StepContext(_World());
+    final table = _table(
+      then: [Note((c) => _lying.from(c).loaded.add(3))],
+      vars: [live],
+    );
+    expect(
+      () => table.run(c, from: _Place.go),
+      throwsA(
+        isA<AssertionError>().having(
+          (e) => e.message,
+          'message',
+          contains('changed loaded, which it does not write'),
+        ),
+      ),
+      reason: 'the runner snapshots what a step found, not the live set',
+    );
+  });
+
+  test('a collection whose elements change but not its length is caught', () {
+    final listed = Mutable<Iterable<int>, _World>(
+      ModelVar.headless,
+      read: (w) => [...w.listed],
+      write: (w, {required to}) => w.listed
+        ..clear()
+        ..addAll(to),
+    );
+    final c = StepContext(_World());
+    final table = _table(
+      then: [Note((c) => _lying.from(c).listed[1] = 2)],
+      vars: [listed],
+    );
+    expect(
+      () => table.run(c, from: _Place.go),
+      throwsA(
+        isA<AssertionError>().having(
+          (e) => e.message,
+          'message',
+          contains('changed headless, which it does not write'),
+        ),
+      ),
+      reason: '[1, 1] and [1, 2] are the sets {1} and {1, 2}',
     );
   });
 
@@ -301,9 +360,10 @@ void main() {
     Act.of([
       _loaded.becomes(Expr.constant<Iterable<int>, _World>([3])),
       counted.becomes(
-        Expr(
-          run: (c) => _loaded.value.run(c).length,
+        Expr.handPaired(
+          _Pairs.counted,
           tla: 'Cardinality(loaded)',
+          run: (c) => _loaded.value.run(c).length,
           reads: const Reads(vars: {ModelVar.loaded}),
         ),
       ),
@@ -355,7 +415,8 @@ void main() {
   test('an operand is grouped only where an operator sits at its top', () {
     final a = Expr.constant<int, _World>(1, tla: 'x');
     final b = Expr.op<Iterable<int>, _World>(
-      'Share(s, f[1])',
+      _Pairs.share,
+      tla: 'Share(s, f[1])',
       run: (_) => [], reads: const Reads(defs: {ModelDef.share}),
     );
     expect(b.has(a).tla, 'x \\in Share(s, f[1])');
@@ -419,9 +480,10 @@ void _definitions() {
   });
 
   test('a record\'s part reads the field the model names', () {
-    final marker = Expr<({int t, int v}), _World>(
-      run: (_) => (t: 2, v: 7),
+    final marker = Expr.handPaired<({int t, int v}), _World>(
+      _Pairs.marker,
       tla: 'marker',
+      run: (_) => (t: 2, v: 7),
       reads: const Reads(vars: {ModelVar.marker}),
     );
     final v = marker.part('v', get: (m) => m.v);
@@ -442,7 +504,8 @@ void _definitions() {
             _loadedPort,
             run: (c) async => c.api.length,
             reply: Expr.op(
-              'Cardinality(loaded)',
+              _Pairs.loadedCount,
+              tla: 'Cardinality(loaded)',
               run: (c) => _loadedPort.from(c).length,
               reads: const Reads(vars: {ModelVar.loaded}),
             ),
@@ -628,7 +691,12 @@ void _definitions() {
             writes: [_loaded.becomes(Expr.constant<Set<int>, _World>({}, tla: '{}'))],
             reads: [
               got.becomes(
-                Expr(run: (c) => site.of(c) + 1, tla: 'fl[f].site + 1', reads: Reads.none),
+                Expr.handPaired(
+                  _Pairs.sitePlusOne,
+                  tla: 'fl[f].site + 1',
+                  run: (c) => site.of(c) + 1,
+                  reads: Reads.none,
+                ),
               ),
             ],
           ),
@@ -650,7 +718,8 @@ void _definitions() {
     const site = Field<int, _World>(FlowField.site);
     final each = Pick<int, _World>(
       Expr.op(
-        'Listed',
+        _Pairs.listed,
+        tla: 'Listed',
         run: (_) => [2],
         reads: const Reads(base: {BaseOp.listed}),
       ),

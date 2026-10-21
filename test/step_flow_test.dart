@@ -9,6 +9,8 @@ final class _World {
   bool stale = false;
 }
 
+enum _Pairs implements Pairing { stale, online }
+
 enum _Place { input, wait, done }
 
 final _world = Port<_World, _World>(
@@ -18,12 +20,14 @@ final _world = Port<_World, _World>(
   of: (w) => w,
 );
 final _stale = Expr.op<bool, _World>(
-  'Stale(f)',
+  _Pairs.stale,
+  tla: 'Stale(f)',
   run: (c) => _world.from(c).stale,
   reads: const Reads(defs: {ModelDef.stale}),
 );
 final _online = Expr.op<bool, _World>(
-  'Online',
+  _Pairs.online,
+  tla: 'Online',
   run: (c) => _world.from(c).online,
   reads: Reads.none,
 );

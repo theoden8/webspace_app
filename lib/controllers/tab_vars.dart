@@ -55,7 +55,7 @@ final class TabVars {
   }) => tabbed<W>().has(s.it) & l.it.has(s.it);
 
   static Expr<QueuedStack, W> noQueued<W>() =>
-      Expr.op('NoQueued', run: (_) => (t: null, h: null), reads: Reads.none);
+      Expr.op(HandPaired.noQueued, tla: 'NoQueued', run: (_) => (t: null, h: null), reads: Reads.none);
 
   /// A capture's save stores the webview's bytes under the tab it was built
   /// for, [t], read as the capture started with the history [h] it showed;
@@ -65,11 +65,7 @@ final class TabVars {
     final s = Bound<WebViewModel, W>('s');
     final t = Bound<TabId?, W>('t');
     final h = Bound<TabId?, W>('h');
-    final tab = Expr<TabId, W>(
-      run: (c) => t.it.run(c)!,
-      tla: t.name,
-      reads: t.it.reads,
-    );
+    final tab = t.it.unwrapped;
     // A site the model does not follow has no tab to key by (`Tabbed`).
     return Def(
       ModelDef.capture,

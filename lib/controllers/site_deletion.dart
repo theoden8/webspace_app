@@ -129,7 +129,8 @@ final _deleteSite = Field<WebViewModel, DeleteFlow>(FlowField.site);
 /// lets it delete (`Deletable`).
 final _eachDeletable = Pick<WebViewModel, DeleteFlow>(
   Expr.op(
-    r'Listed \cap Deletable',
+    HandPaired.deletableSites,
+    tla: r'Listed \cap Deletable',
     run: (c) => [_deleteNamed.from(c).site], reads: const Reads(base: {BaseOp.listed}),
     needs: const {(of: ModelConst.deletable, set: true)},
   ),
@@ -160,7 +161,8 @@ final _deleteNoSite = Expr.constant<WebViewModel?, DeleteFlow>(null, tla: '0');
 
 /// Another delete of the site took it off the list first.
 final _deleteAlreadyGone = Expr.op<bool, DeleteFlow>(
-  '${_deleteSite.value.tla} \\in gone',
+  HandPaired.deleteSiteGone,
+  tla: '${_deleteSite.value.tla} \\in gone',
   run: (c) => !_deleteNamed.from(c).listed(),
   reads: _deleteSite.value.reads + const Reads(vars: {ModelVar.gone}),
 );

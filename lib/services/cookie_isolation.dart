@@ -88,9 +88,10 @@ Act<W> disposeOf<W>(
   required void Function(StepView<W> c) then,
 }) {
   final kind = Field<Object?, W>(FlowField.kind);
-  final modeled = Expr<bool, W>(
-    run: kind.isSet,
+  final modeled = Expr.handPaired<bool, W>(
+    HandPaired.modeledPlan,
     tla: 'fl[f].kind # "none"',
+    run: kind.isSet,
     reads: Reads.none,
   );
   return Act.of(
@@ -458,7 +459,8 @@ class CookieIsolationEngine {
         read: (w) => w.vars.current.value,
       ).value,
       liveTarget: Expr.op(
-        'LiveTarget',
+        HandPaired.jarLiveTarget,
+        tla: 'LiveTarget',
         run: (c) => _unloadVars.from(c).liveTarget,
         reads: const Reads(base: {BaseOp.liveTarget}),
       ),

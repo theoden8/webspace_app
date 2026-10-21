@@ -415,10 +415,11 @@ class SiteActivationController {
 
   /// [ActivationTable.routeFree] for [site] beside what runs now, with no flow in hand: a
   /// wake's check asks it before it claims its place (NOTIF-016).
-  bool routeFreeFor(WebViewModel site) => ActivationTable.routeFree
-      .call([Expr<WebViewModel, ActivationFlow>(run: (_) => site, tla: 'site', reads: Reads.none)])
-      .run(StepContext(ActivationFlow(_reach,
-          target: null, launch: null, opening: null, leaving: null)));
+  bool routeFreeFor(WebViewModel site) => ActivationTable.routeFree.evaluate(
+    ActivationFlow(_reach,
+        target: null, launch: null, opening: null, leaving: null),
+    args: [site],
+  );
 
   /// What the activation does once its target's webview resumed: the probe,
   /// the sweep, the shell, the surface and the background schedule.

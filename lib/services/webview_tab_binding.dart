@@ -70,13 +70,6 @@ final class WebViewTabBinding {
   /// Whether a build for [tab] takes [queued], as the model's `Takes`
   /// decides it.
   static bool _takes(CapturedNavState queued, {required TabId tab}) =>
-      _takesDef.call([
-        Expr<QueuedStack, Object?>(
-          run: (_) => (t: queued.tab, h: null),
-          tla: 'queued',
-          reads: Reads.none,
-        ),
-        Expr<TabId?, Object?>(run: (_) => tab, tla: 'tab', reads: Reads.none),
-      ]).run(StepContext<Object?>(null));
+      _takesDef.evaluate(null, args: [(t: queued.tab, h: null), tab]);
   static final _takesDef = takesOf<Object?>();
 }

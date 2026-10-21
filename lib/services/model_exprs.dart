@@ -1,5 +1,4 @@
-import 'package:webspace/services/activation_step.dart';
-import 'package:webspace/services/step_table.dart';
+part of 'step_table.dart';
 
 /// The model's operators over values as [Expr]s: each runs on the code's
 /// value and prints as the model's text, grouped as the tree that runs.
@@ -25,13 +24,13 @@ String tlaOperand(String tla) {
 /// `{e}`.
 extension SingletonExpr<E, W> on Expr<E, W> {
   Expr<List<E>, W> get asSet =>
-      Expr(run: (c) => [run(c)], tla: '{$tla}', reads: reads);
+      Expr._(run: (c) => [run(c)], tla: '{$tla}', reads: reads);
 }
 
 /// A value the model writes 0 for when there is none, as a set: empty, or
 /// the value alone.
 extension OptionalExpr<E extends Object, W> on Expr<E?, W> {
-  Expr<List<E>, W> get orNone => Expr(
+  Expr<List<E>, W> get orNone => Expr._(
     run: (c) => [?run(c)],
     tla: 'IF ${tlaOperand(tla)} = 0 THEN {} ELSE {$tla}',
     reads: reads,
@@ -41,21 +40,21 @@ extension OptionalExpr<E extends Object, W> on Expr<E?, W> {
 /// `r.name`: one field of a record the model keeps as one variable.
 extension RecordExpr<R, W> on Expr<R, W> {
   Expr<V, W> part<V>(String name, {required V Function(R record) get}) =>
-      Expr(run: (c) => get(run(c)), tla: '${tlaOperand(tla)}.$name', reads: reads);
+      Expr._(run: (c) => get(run(c)), tla: '${tlaOperand(tla)}.$name', reads: reads);
 }
 
 /// A function of the model held whole (`file`, the platform's), indexed
 /// and updated an entry at a time.
 extension FunctionExpr<K, V, W> on Expr<Map<K, V>, W> {
   /// `F[k]`.
-  Expr<V, W> at(Expr<K, W> k) => Expr(
+  Expr<V, W> at(Expr<K, W> k) => Expr._(
     run: (c) => run(c)[k.run(c)] as V,
     tla: '${tlaOperand(tla)}[${k.tla}]',
     reads: reads + k.reads,
   );
 
   /// `[F EXCEPT ![k] = v]`.
-  Expr<Map<K, V>, W> except(Expr<K, W> k, {required Expr<V, W> to}) => Expr(
+  Expr<Map<K, V>, W> except(Expr<K, W> k, {required Expr<V, W> to}) => Expr._(
     run: (c) => {...run(c), k.run(c): to.run(c)},
     tla: '[${tlaOperand(tla)} EXCEPT ![${k.tla}] = ${to.tla}]',
     reads: reads + k.reads + to.reads,
@@ -66,7 +65,7 @@ extension FunctionExpr<K, V, W> on Expr<Map<K, V>, W> {
   Expr<Map<K, V>, W> exceptAll(
     Expr<Iterable<K>, W> ks, {
     required Expr<V, W> to,
-  }) => Expr(
+  }) => Expr._(
     run: (c) {
       final keys = ks.run(c).toSet();
       final v = to.run(c);
@@ -89,7 +88,7 @@ extension Function2Expr<K, J, V, W> on Expr<Map<K, Map<J, V>>, W> {
     Expr<K, W> k, {
     required Expr<J, W> at,
     required Expr<V, W> to,
-  }) => Expr(
+  }) => Expr._(
     run: (c) {
       final f = run(c);
       final key = k.run(c);
@@ -105,24 +104,24 @@ extension Function2Expr<K, J, V, W> on Expr<Map<K, Map<J, V>>, W> {
 
 extension IntExpr<W> on Expr<int, W> {
   Expr<int, W> plus(int n) =>
-      Expr(run: (c) => run(c) + n, tla: '${tlaOperand(tla)} + $n', reads: reads);
+      Expr._(run: (c) => run(c) + n, tla: '${tlaOperand(tla)} + $n', reads: reads);
 
   /// `a <= b`.
-  Expr<bool, W> isAtMost(Expr<int, W> other) => Expr(
+  Expr<bool, W> isAtMost(Expr<int, W> other) => Expr._(
     run: (c) => run(c) <= other.run(c),
     tla: '${tlaOperand(tla)} <= ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
   );
 
   /// `a > b`.
-  Expr<bool, W> exceeds(Expr<int, W> other) => Expr(
+  Expr<bool, W> exceeds(Expr<int, W> other) => Expr._(
     run: (c) => run(c) > other.run(c),
     tla: '${tlaOperand(tla)} > ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
   );
 
   /// The lesser of this and [other].
-  Expr<int, W> atMost(Expr<int, W> other) => Expr(
+  Expr<int, W> atMost(Expr<int, W> other) => Expr._(
     run: (c) {
       final a = run(c), b = other.run(c);
       return a < b ? a : b;
@@ -132,7 +131,7 @@ extension IntExpr<W> on Expr<int, W> {
   );
 
   /// How far this exceeds [cap], `0` when it does not.
-  Expr<int, W> over(Expr<int, W> cap) => Expr(
+  Expr<int, W> over(Expr<int, W> cap) => Expr._(
     run: (c) {
       final excess = run(c) - cap.run(c);
       return excess > 0 ? excess : 0;
@@ -149,7 +148,7 @@ extension IntExpr<W> on Expr<int, W> {
 Expr<V, W> record<V, W>(
   Map<String, Expr<Object?, W>> fields, {
   required V Function(StepView<W> c) run,
-}) => Expr(
+}) => Expr._(
   run: run,
   tla:
       '[${[for (final MapEntry(key: k, value: e) in fields.entries) '$k |-> ${e.tla}'].join(', ')}]',
@@ -157,7 +156,7 @@ Expr<V, W> record<V, W>(
 );
 
 extension BoolExpr<W> on Expr<bool, W> {
-  Expr<bool, W> operator &(Expr<bool, W> other) => Expr(
+  Expr<bool, W> operator &(Expr<bool, W> other) => Expr._(
     run: (c) => run(c) && other.run(c),
     tla: '${tlaOperand(tla)} /\\ ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
@@ -170,7 +169,7 @@ extension BoolExpr<W> on Expr<bool, W> {
     exactKinds: exactKinds && other.exactKinds,
   );
 
-  Expr<bool, W> operator |(Expr<bool, W> other) => Expr(
+  Expr<bool, W> operator |(Expr<bool, W> other) => Expr._(
     run: (c) => run(c) || other.run(c),
     tla: '${tlaOperand(tla)} \\/ ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
@@ -185,7 +184,7 @@ extension BoolExpr<W> on Expr<bool, W> {
 
   /// Holds where this does not: what it needs is what this needs not to
   /// hold, and a test of the flow's kind holds for the other kinds.
-  Expr<bool, W> operator ~() => Expr(
+  Expr<bool, W> operator ~() => Expr._(
     run: (c) => !run(c),
     tla: '~($tla)',
     reads: reads,
@@ -198,7 +197,7 @@ extension BoolExpr<W> on Expr<bool, W> {
 
 extension KindField<W> on Field<FlowKind, W> {
   /// `fl[f].kind = "<kind>"`: holds for a row of [kind] and no other.
-  Expr<bool, W> isKind(FlowKind kind) => Expr(
+  Expr<bool, W> isKind(FlowKind kind) => Expr._(
     run: (c) => of(c) == kind,
     tla: 'fl[f].$tla = "${kind.name}"',
     reads: Reads.none,
@@ -210,7 +209,7 @@ extension KindField<W> on Field<FlowKind, W> {
 /// A list or set of the code's as the model's set: its order and repeats
 /// are the code's alone.
 extension SetExpr<E, W> on Expr<Iterable<E>, W> {
-  Expr<bool, W> get isEmpty => Expr(
+  Expr<bool, W> get isEmpty => Expr._(
     run: (c) => run(c).isEmpty,
     tla: '${tlaOperand(tla)} = {}',
     reads: reads,
@@ -218,7 +217,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `S # {}`: needs what S needs to have members.
-  Expr<bool, W> get isNotEmpty => Expr(
+  Expr<bool, W> get isNotEmpty => Expr._(
     run: (c) => run(c).isNotEmpty,
     tla: '${tlaOperand(tla)} # {}',
     reads: reads,
@@ -227,7 +226,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
 
   /// `e \in S`; [e] may be of a wider type (`0` for no site), then it is
   /// not in.
-  Expr<bool, W> has(Expr<Object?, W> e) => Expr(
+  Expr<bool, W> has(Expr<Object?, W> e) => Expr._(
     run: (c) => run(c).contains(e.run(c)),
     tla: '${tlaOperand(e.tla)} \\in ${tlaOperand(tla)}',
     reads: reads + e.reads,
@@ -235,7 +234,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `S = {e}`.
-  Expr<bool, W> isOnly(Expr<E, W> e) => Expr(
+  Expr<bool, W> isOnly(Expr<E, W> e) => Expr._(
     run: (c) {
       final x = e.run(c);
       final s = run(c);
@@ -247,7 +246,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `S \ {e}`.
-  Expr<List<E>, W> without(Expr<E, W> e) => Expr(
+  Expr<List<E>, W> without(Expr<E, W> e) => Expr._(
     run: (c) {
       final x = e.run(c);
       return [
@@ -262,7 +261,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
 
   /// `S \cup T`; [other]'s elements come last, so a set the code keeps in
   /// use order (`SiteRuntime.loaded`) takes them as its newest.
-  Expr<List<E>, W> union(Expr<Iterable<E>, W> other) => Expr(
+  Expr<List<E>, W> union(Expr<Iterable<E>, W> other) => Expr._(
     run: (c) {
       final t = other.run(c).toList();
       return [
@@ -277,7 +276,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `S \ T`, [other] a set of the model.
-  Expr<List<E>, W> less(Expr<Iterable<E>, W> other) => Expr(
+  Expr<List<E>, W> less(Expr<Iterable<E>, W> other) => Expr._(
     run: (c) {
       final t = other.run(c).toSet();
       return [
@@ -291,7 +290,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// S itself, in the order the code keeps it.
-  Expr<List<E>, W> get inOrder => Expr(
+  Expr<List<E>, W> get inOrder => Expr._(
     run: (c) => run(c).toList(),
     tla: tla,
     reads: reads,
@@ -300,7 +299,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   );
 
   /// `Cardinality(S)`.
-  Expr<int, W> get size => Expr(
+  Expr<int, W> get size => Expr._(
     run: (c) => run(c).toSet().length,
     tla: 'Cardinality(${tlaOperand(tla)})',
     reads: reads,
@@ -313,7 +312,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   Expr<List<List<E>>, W> choices({
     required Expr<int, W> size,
     required List<E> Function(StepView<W> c) taken,
-  }) => Expr(
+  }) => Expr._(
     run: (c) {
       final pick = taken(c);
       assert(() {

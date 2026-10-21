@@ -401,9 +401,7 @@ class SiteUnloadEngine {
   static List<WebViewModel> conflictsOf(
     SiteUnloadHost host, {
     required WebViewModel site,
-  }) => conflicts
-      .call([Expr<WebViewModel, SiteUnloadHost>(run: (_) => site, tla: 'site', reads: Reads.none)])
-      .run(StepContext(host));
+  }) => conflicts.evaluate(host, args: [site]);
 
   /// Runs [plan] through [unloadFlow]. A site no longer loaded when its
   /// turn comes is skipped. False when [isStale] turned true across an
@@ -550,7 +548,8 @@ class SiteUnloadEngine {
         read: (w) => w.host.vars.current.value,
       ).value,
       liveTarget: Expr.op(
-        'LiveTarget',
+        HandPaired.unloadLiveTarget,
+        tla: 'LiveTarget',
         run: (c) => _vars.from(c).liveTarget,
         reads: const Reads(base: {BaseOp.liveTarget}),
       ),
@@ -653,7 +652,9 @@ class SiteUnloadEngine {
   static final _keeps = () {
     final notReset = const Field<FlowKind, UnloadFlow>(FlowField.kind).value
         .neq(Expr.constant(FlowKind.unload));
-    return Expr<bool, UnloadFlow>(
+    return Expr.handPaired<bool, UnloadFlow>(
+      HandPaired.unloadKeeps,
+      tla: notReset.tla,
       run: (c) {
         final keeps = _plan.from(c).reasonOf(_victim.of(c)).keepsNavState;
         assert(
@@ -663,7 +664,6 @@ class SiteUnloadEngine {
         );
         return keeps;
       },
-      tla: notReset.tla,
       reads: notReset.reads,
     );
   }();
