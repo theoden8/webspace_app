@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "搜尋網頁空間",
   "librarySearchSites": "搜尋網站",
   "libraryNoResults": "沒有符合項目",
-  "appSettingsExperimentalFolderLibrary": "文件夹库",
-  "appSettingsExperimentalFolderLibraryHint": "以文件夹形式浏览工作区，并在可搜索的网格中打开其中的网站。",
+  "appSettingsExperimentalFolderLibrary": "全新設計",
+  "appSettingsExperimentalFolderLibraryHint": "在啟動器網格中將網站整理為群組。",
   "siteRedirectHomeSuggestion": "這個網站重新導向至 {url}。要將這個網址設為首頁嗎？新網域的連結也會在此開啟。",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "項目大小",
+  "libraryItemSmall": "小",
+  "libraryItemMedium": "中",
+  "libraryItemLarge": "大"
 }

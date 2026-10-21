@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "ស្វែងរកលំហបណ្ដាញ",
   "librarySearchSites": "ស្វែងរកគេហទំព័រ",
   "libraryNoResults": "គ្មានលទ្ធផល",
-  "appSettingsExperimentalFolderLibrary": "បណ្ណាល័យថត",
-  "appSettingsExperimentalFolderLibraryHint": "រកមើលកន្លែងធ្វើការជាថត ហើយបើកគេហទំព័ររបស់វាក្នុងក្រឡាចត្រង្គដែលអាចស្វែងរកបាន។",
+  "appSettingsExperimentalFolderLibrary": "ការរចនាថ្មី",
+  "appSettingsExperimentalFolderLibraryHint": "រៀបចំគេហទំព័រជាក្រុមក្នុងក្រឡាចត្រង្គកម្មវិធីបើក។",
   "siteRedirectHomeSuggestion": "គេហទំព័រនេះបានបញ្ជូនបន្តទៅ {url}។ ប្រើអាសយដ្ឋាននេះជាទំព័រដើមរបស់វា? តំណទៅដែនថ្មីក៏នឹងបើកនៅទីនេះដែរ។",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "ទំហំធាតុ",
+  "libraryItemSmall": "តូច",
+  "libraryItemMedium": "មធ្យម",
+  "libraryItemLarge": "ធំ"
 }

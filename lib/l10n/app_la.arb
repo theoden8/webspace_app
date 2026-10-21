@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "Quaere spatia interretialia",
   "librarySearchSites": "Quaere situs",
   "libraryNoResults": "Nihil inventum",
-  "appSettingsExperimentalFolderLibrary": "Bibliotheca fasciculorum",
-  "appSettingsExperimentalFolderLibraryHint": "Spatia operis ut fasciculos perlustra et situs eorum in reticulo aperi in quo quaerere potes.",
+  "appSettingsExperimentalFolderLibrary": "Nova forma",
+  "appSettingsExperimentalFolderLibraryHint": "Situs in greges in reticulo ad aperiendum ordina.",
   "siteRedirectHomeSuggestion": "Hic situs ad {url} redirectus est. Hac inscriptione ut pagina initiali eius uti vis? Nexus ad novum dominium quoque hic aperientur.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Magnitudo elementi",
+  "libraryItemSmall": "Parva",
+  "libraryItemMedium": "Media",
+  "libraryItemLarge": "Magna"
 }

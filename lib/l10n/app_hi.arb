@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "वेबस्पेस खोजें",
   "librarySearchSites": "साइटें खोजें",
   "libraryNoResults": "कोई मिलान नहीं",
-  "appSettingsExperimentalFolderLibrary": "फ़ोल्डर लाइब्रेरी",
-  "appSettingsExperimentalFolderLibraryHint": "कार्यक्षेत्रों को फ़ोल्डर के रूप में देखें और उनकी साइटें खोजने योग्य ग्रिड में खोलें।",
+  "appSettingsExperimentalFolderLibrary": "नया डिज़ाइन",
+  "appSettingsExperimentalFolderLibraryHint": "लॉन्चर ग्रिड में साइटों को समूहों में व्यवस्थित करें।",
   "siteRedirectHomeSuggestion": "यह साइट {url} पर रीडायरेक्ट हुई है। इसे इसका होमपेज बनाएँ? नए डोमेन के लिंक भी यहीं खुलेंगे।",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "आइटम का आकार",
+  "libraryItemSmall": "छोटा",
+  "libraryItemMedium": "मध्यम",
+  "libraryItemLarge": "बड़ा"
 }

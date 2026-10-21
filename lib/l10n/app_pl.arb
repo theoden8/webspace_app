@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "Szukaj przestrzeni WWW",
   "librarySearchSites": "Szukaj witryn",
   "libraryNoResults": "Brak wyników",
-  "appSettingsExperimentalFolderLibrary": "Biblioteka folderów",
-  "appSettingsExperimentalFolderLibraryHint": "Przeglądaj przestrzenie robocze jako foldery i otwieraj ich witryny w siatce z wyszukiwaniem.",
+  "appSettingsExperimentalFolderLibrary": "Nowy wygląd",
+  "appSettingsExperimentalFolderLibraryHint": "Porządkuj witryny w grupy w siatce uruchamiania.",
   "siteRedirectHomeSuggestion": "Ta witryna przekierowała do {url}. Użyć tego adresu jako jej strony głównej? Linki do nowej domeny również będą otwierane tutaj.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Rozmiar elementu",
+  "libraryItemSmall": "Mały",
+  "libraryItemMedium": "Średni",
+  "libraryItemLarge": "Duży"
 }

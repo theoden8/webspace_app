@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "البحث في مساحات الويب",
   "librarySearchSites": "البحث في المواقع",
   "libraryNoResults": "لا توجد نتائج",
-  "appSettingsExperimentalFolderLibrary": "مكتبة المجلدات",
-  "appSettingsExperimentalFolderLibraryHint": "تصفّح مساحات العمل كمجلدات وافتح مواقعها في شبكة قابلة للبحث.",
+  "appSettingsExperimentalFolderLibrary": "التصميم الجديد",
+  "appSettingsExperimentalFolderLibraryHint": "نظّم المواقع في مجموعات ضمن شبكة تشغيل.",
   "siteRedirectHomeSuggestion": "أعاد هذا الموقع التوجيه إلى {url}. هل تريد استخدام هذا العنوان كصفحته الرئيسية؟ ستُفتح روابط النطاق الجديد هنا أيضًا.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "حجم العنصر",
+  "libraryItemSmall": "صغير",
+  "libraryItemMedium": "متوسط",
+  "libraryItemLarge": "كبير"
 }

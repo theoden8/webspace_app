@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "ವೆಬ್‌ಸ್ಪೇಸ್‌ಗಳನ್ನು ಹುಡುಕಿ",
   "librarySearchSites": "ತಾಣಗಳನ್ನು ಹುಡುಕಿ",
   "libraryNoResults": "ಫಲಿತಾಂಶಗಳಿಲ್ಲ",
-  "appSettingsExperimentalFolderLibrary": "ಫೋಲ್ಡರ್ ಗ್ರಂಥಾಲಯ",
-  "appSettingsExperimentalFolderLibraryHint": "ಕಾರ್ಯಸ್ಥಳಗಳನ್ನು ಫೋಲ್ಡರ್‌ಗಳಾಗಿ ಬ್ರೌಸ್ ಮಾಡಿ ಮತ್ತು ಅವುಗಳ ಸೈಟ್‌ಗಳನ್ನು ಹುಡುಕಬಹುದಾದ ಗ್ರಿಡ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ.",
+  "appSettingsExperimentalFolderLibrary": "ಹೊಸ ವಿನ್ಯಾಸ",
+  "appSettingsExperimentalFolderLibraryHint": "ಲಾಂಚರ್ ಗ್ರಿಡ್‌ನಲ್ಲಿ ಸೈಟ್‌ಗಳನ್ನು ಗುಂಪುಗಳಾಗಿ ಜೋಡಿಸಿ.",
   "siteRedirectHomeSuggestion": "ಈ ಸೈಟ್ {url} ಗೆ ಮರುನಿರ್ದೇಶಿಸಿದೆ. ಇದನ್ನು ಅದರ ಮುಖಪುಟವಾಗಿ ಬಳಸಬೇಕೇ? ಹೊಸ ಡೊಮೇನ್‌ನ ಲಿಂಕ್‌ಗಳೂ ಇಲ್ಲಿಯೇ ತೆರೆಯುತ್ತವೆ.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "ಐಟಂ ಗಾತ್ರ",
+  "libraryItemSmall": "ಚಿಕ್ಕದು",
+  "libraryItemMedium": "ಮಧ್ಯಮ",
+  "libraryItemLarge": "ದೊಡ್ಡದು"
 }

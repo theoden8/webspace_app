@@ -1097,8 +1097,8 @@
   "librarySearchWebspaces": "Ieškoti žiniatinklio erdvių",
   "librarySearchSites": "Ieškoti svetainių",
   "libraryNoResults": "Atitikmenų nėra",
-  "appSettingsExperimentalFolderLibrary": "Aplankų biblioteka",
-  "appSettingsExperimentalFolderLibraryHint": "Naršykite darbo sritis kaip aplankus ir atverkite jų svetaines tinklelyje su paieška.",
+  "appSettingsExperimentalFolderLibrary": "Naujas dizainas",
+  "appSettingsExperimentalFolderLibraryHint": "Tvarkykite svetaines grupėmis paleidimo tinklelyje.",
   "siteRedirectHomeSuggestion": "Ši svetainė nukreipė į {url}. Naudoti šį adresą kaip jos pradžios puslapį? Nuorodos į naująjį domeną taip pat bus atidaromos čia.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1107,5 +1107,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Elemento dydis",
+  "libraryItemSmall": "Mažas",
+  "libraryItemMedium": "Vidutinis",
+  "libraryItemLarge": "Didelis"
 }
