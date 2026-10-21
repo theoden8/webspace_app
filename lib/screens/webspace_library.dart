@@ -518,6 +518,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                     Spacing.sm))
             .floor()
             .clamp(1, 7);
+    final memberships = {
+      for (final i in shown)
+        i: _view == _LibraryView.webspaces
+            ? widget.webspaces
+                  .where(
+                    (w) =>
+                        !w.isAll && w.siteIds.contains(widget.sites[i].siteId),
+                  )
+                  .toList()
+            : const <Webspace>[],
+    };
     return SliverPadding(
       padding: const EdgeInsets.all(Spacing.lg),
       sliver: SliverGrid.builder(
@@ -525,14 +536,15 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
           crossAxisCount: columns,
           crossAxisSpacing: Spacing.sm,
           mainAxisSpacing: Spacing.lg,
-          mainAxisExtent:
-              shown
-                  .map(
-                    (i) => LibraryStyle.itemWell(widget.sites[i].launcherSize),
-                  )
-                  .reduce(math.max) +
-              Spacing.xl +
-              scale * 58,
+          mainAxisExtent: shown
+              .map(
+                (i) => SiteGridTile.extentFor(
+                  context,
+                  well: LibraryStyle.itemWell(widget.sites[i].launcherSize),
+                  webspaceCount: memberships[i]!.length,
+                ),
+              )
+              .reduce(math.max),
         ),
         itemCount: shown.length,
         itemBuilder: (context, index) {
@@ -544,6 +556,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
             selected: identical(site, widget.currentSite),
             showTabCount: widget.showsTabCount(site) && site.tabs.length > 1,
             layout: SiteGridTileLayout.library,
+            webspaces: memberships[shown[index]]!,
             onOpen: () {
               FocusScope.of(context).unfocus();
               widget.onOpenSite(site);

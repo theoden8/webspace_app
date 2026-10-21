@@ -61,6 +61,8 @@ abstract final class LibraryStyle {
   ];
   static const double radius = 20;
   static const double selectionWidth = 2;
+  static const int siteTintAlpha = 26;
+  static const int membershipLimit = 2;
   static const double maxWidth = 960;
   static const double tileMinWidth = 112;
   static const double siteIcon = 64;

@@ -7,6 +7,7 @@ import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/theme/accent_theme.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
@@ -518,6 +519,31 @@ void main() {
         expect(find.byType(SiteGridTile), findsOneWidget);
         final result = tester.widget<SiteGridTile>(find.byType(SiteGridTile));
         expect(result.site, same(state.sites[0]));
+        expect(result.webspaces.map((w) => w.name), ['Work', 'Privacy']);
+        for (final group in result.webspaces) {
+          expect(
+            find.descendant(
+              of: find.byType(SiteGridTile),
+              matching: find.text(group.name),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            tester
+                .widgetList<DecoratedBox>(
+                  find.descendant(
+                    of: find.byType(SiteGridTile),
+                    matching: find.byType(DecoratedBox),
+                  ),
+                )
+                .any(
+                  (box) =>
+                      (box.decoration as BoxDecoration).color ==
+                      LibraryStyle.group(Brightness.light, id: group.id),
+                ),
+            isTrue,
+          );
+        }
         expect(result.onReorder, isNull);
         await tester.tap(find.text('GitHub'));
         expect(state.opened, same(state.sites[0]));
@@ -526,6 +552,10 @@ void main() {
       await tester.enterText(find.byType(TextField), 'site7.example');
       await tester.pumpAndSettle();
       expect(find.byType(SiteGridTile), findsOneWidget);
+      expect(
+        tester.widget<SiteGridTile>(find.byType(SiteGridTile)).webspaces,
+        isEmpty,
+      );
       await tester.tap(find.text('Site 7'));
       expect(state.opened, same(state.sites[7]));
       expect(state.selected, state.webspaces[1].id);
@@ -541,6 +571,41 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(WebspaceGroupTile), findsNWidgets(4));
       expect(find.byType(SiteGridTile), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'site results bound membership labels and expose all names (WEBSPACE-004)',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        await pumpLocalized(tester, home: const _LibraryHarness());
+        await tester.pumpAndSettle();
+        final state = tester.state<_LibraryHarnessState>(
+          find.byType(_LibraryHarness),
+        );
+        state.webspaces[2].siteIds.add(state.sites[0].siteId);
+        state.webspaces.last.siteIds.add(state.sites[0].siteId);
+        state.webspaces.add(
+          Webspace(name: 'Research', siteIds: [state.sites[0].siteId]),
+        );
+        await tester.enterText(find.byType(TextField), 'GitHub');
+        await tester.pumpAndSettle();
+        final result = find.byType(SiteGridTile);
+        expect(result, findsOneWidget);
+        expect(find.text('Work'), findsOneWidget);
+        expect(find.text('Privacy'), findsOneWidget);
+        expect(find.text('+2'), findsOneWidget);
+        expect(find.text('Research'), findsNothing);
+        expect(find.text(state.webspaces[3].name), findsNothing);
+        expect(
+          tester.getSemantics(result).getSemanticsData().label,
+          contains('Work, Privacy, ${state.webspaces[3].name}, Research'),
+        );
+        expect(tester.takeException(), isNull);
+      } finally {
+        semantics.dispose();
+      }
     },
   );
 
@@ -660,6 +725,18 @@ void main() {
             await tester.tap(find.text('Sites'));
             await tester.pumpAndSettle();
             expect(find.byType(TabsSheet), findsOneWidget);
+            await tester.tap(find.text('Webspaces').last);
+            await tester.pumpAndSettle();
+            final state = tester.state<_LibraryHarnessState>(
+              find.byType(_LibraryHarness),
+            );
+            state.webspaces[1].name = state.webspaces.last.name;
+            state.webspaces[2].siteIds.add(state.sites[0].siteId);
+            state.webspaces.last.siteIds.add(state.sites[0].siteId);
+            await tester.enterText(find.byType(TextField), 'site0.example');
+            await tester.pumpAndSettle();
+            expect(find.byType(SiteGridTile), findsOneWidget);
+            expect(find.text('+1'), findsOneWidget);
             expect(tester.takeException(), isNull);
           },
         );

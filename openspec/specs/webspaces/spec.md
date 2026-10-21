@@ -71,7 +71,7 @@ The system SHALL provide clear visual indication of which webspace is currently 
 
 The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. The Sites library tab SHALL select All and show every saved site in an embedded tab tree. Sites with tabs enabled SHALL expose their parent/child tab hierarchy and the existing open, close, collapse, and reorder controls. Sites with tabs disabled SHALL remain single launchable entries. Tree searches SHALL retain the ancestors of matching tabs. Actions in the embedded tree SHALL NOT dismiss the library route. Library searches SHALL filter the current view without changing membership or persisted order.
 
-Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid.
+Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL use its existing container color and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tab tree and remain stable when selection changes.
 
 #### Scenario: Filter drawer by webspace
 
@@ -92,6 +92,8 @@ Searching the Webspaces group grid SHALL show matching workspace names and a sep
 **And** a query matching both a workspace and a site shows both sections
 **And** a query matching neither shows No matches
 **And** clearing the query restores the workspace grid
+**And** each site result uses its tab-tree color and labels up to two named workspaces it belongs to
+**And** a site in more than two named workspaces shows the remaining count and exposes all memberships to accessibility services
 
 Regression: `test/webspace_library_test.dart` and `test/webspace_library_app_test.dart`.
 
