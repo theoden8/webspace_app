@@ -433,11 +433,13 @@ A site's icon SHALL come only from the site itself:
   service. What there is: ICON-013's declared links and ICON-002's page
   scrape and `/favicon.ico`, which go to the hosts the site names, through its
   proxy.
-- **Nothing resolved earlier.** Releases up to v0.3.5 asked Google's and
-  DuckDuckGo's icon services and kept the URL they resolved in
-  `FaviconUrlCache` on disk. Such a URL SHALL read as absent
-  (`usableIconUrl`), so the icon is fetched again from the site and the
-  service is never asked to render it.
+- **Nothing resolved earlier.** Releases up to v0.3.5 asked third-party
+  icon services and kept the URL they resolved in `FaviconUrlCache` on disk,
+  under `favicon_url_`. The cache now keeps its URLs under `favicon_src_`,
+  and `FaviconUrlCache.initialize` SHALL drop every `favicon_url_` entry at
+  startup, so each icon is found again on its site and no URL an earlier
+  release resolved is ever rendered. The app holds no list of services to
+  recognise them by.
 - **A webview that reports its icon keeps it.** On Android, and on Linux
   from WPE 2.54, the site's icon is the one the webview itself downloads and
   reports through `onReceivedIcon` (ICON-009), through the site's container
@@ -459,14 +461,14 @@ shows a smaller one, or the scrape's, or the placeholder.
 **Given** a fresh install
 **When** the icon of `https://example.com/` is fetched
 **Then** every request goes to `example.com`
-**And** none goes to `www.google.com` or `icons.duckduckgo.com`
+**And** none goes to a host the site does not name
 
-#### Scenario: A service icon found by an earlier release is fetched again
+#### Scenario: An icon URL an earlier release kept is dropped
 
-**Given** a site whose icon an earlier release took from Google's service
+**Given** a site whose icon URL an earlier release kept under `favicon_url_`
 **When** the app starts after the upgrade
-**Then** the icon is fetched again from the site
-**And** the Google URL kept on disk is not used
+**Then** that entry is gone, and no other pref changes
+**And** the icon is fetched again from the site
 
 #### Scenario: Android takes its webview's icon
 
@@ -480,7 +482,7 @@ shows a smaller one, or the scrape's, or the placeholder.
 
 **Given** a device that stored `experimentalSiteIconsOnly` off
 **When** the icon of `https://example.com/` is fetched
-**Then** no request goes to `www.google.com` or `icons.duckduckgo.com`
+**Then** every request goes to `example.com`
 
 ---
 

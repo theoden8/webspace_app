@@ -9,7 +9,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, iconReloads, reloadAllIcons, usableIconUrl;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
@@ -23,18 +23,25 @@ import 'site_settings_qr.dart';
 
 /// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
-  static const String _prefix = 'favicon_url_';
+  static const String _prefix = 'favicon_src_';
+  // Releases up to v0.3.5 kept icon URLs here, some resolved through
+  // third-party icon services (ICON-014), so they are dropped and each icon
+  // is found again on its site.
+  static const String _retiredPrefix = 'favicon_url_';
   static const String _svgPrefix = 'favicon_svg_';
   static SharedPreferences? _prefs;
 
   static Future<void> initialize() async {
-    _prefs ??= await SharedPreferences.getInstance();
+    final prefs = _prefs ??= await SharedPreferences.getInstance();
+    for (final key in prefs.getKeys().toList()) {
+      if (key.startsWith(_retiredPrefix)) await prefs.remove(key);
+    }
     onSvgContentCached =
         (url, {required content}) => setSvg(url, svgContent: content);
   }
 
   static String? get(String siteUrl) =>
-      usableIconUrl(_prefs?.getString('$_prefix$siteUrl'));
+      _prefs?.getString('$_prefix$siteUrl');
 
   static Future<void> set(String siteUrl, {required String faviconUrl}) async {
     await _prefs?.setString('$_prefix$siteUrl', faviconUrl);
@@ -109,7 +116,7 @@ class UnifiedFaviconImage extends StatefulWidget {
 
   /// Whether the resolved favicon URL (and SVG body) may be written to
   /// plaintext SharedPreferences. False for archive-tier sites: a
-  /// `favicon_url_<initUrl>` key would name the archived site on disk
+  /// `favicon_src_<initUrl>` key would name the archived site on disk
   /// after the archive closes (ARCH-001). The in-memory caches still serve
   /// the session either way.
   final bool persist;

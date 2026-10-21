@@ -319,21 +319,6 @@ void wireFaviconTrustInvalidation() {
 
 final Set<String> _verifiedUrls = {};
 
-/// Whether [url] is an icon Google's or DuckDuckGo's service serves: one a
-/// release before ICON-014 may have resolved and kept on disk.
-bool isPublicIconServiceUrl(String url) {
-  final uri = Uri.tryParse(url);
-  if (uri == null) return false;
-  final host = uri.host.toLowerCase();
-  return (host == 'www.google.com' && uri.path == '/s2/favicons') ||
-      host == 'icons.duckduckgo.com';
-}
-
-/// [url], or null when it is a public icon service's (ICON-014): rendered,
-/// it would ask that service again.
-String? usableIconUrl(String? url) =>
-    url != null && isPublicIconServiceUrl(url) ? null : url;
-
 final StreamController<void> _reloadController =
     StreamController<void>.broadcast();
 
