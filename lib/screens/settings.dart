@@ -38,7 +38,7 @@ import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
-import 'package:webspace/widgets/icon_choice_chips.dart';
+import 'package:webspace/widgets/icon_segments.dart';
 import 'package:webspace/widgets/theme_icon.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show libraryRouteLabel, torRouteLabel;
@@ -1145,21 +1145,23 @@ IconButton zoomStep(IconData icon,
             title: loc.siteSettingsTheme,
             hint: loc.siteSettingsThemeHint,
             subtitle: _theme.label(loc, appValue: widget.appTheme),
-          ),
-          IconChoiceChips<Scoped<WebViewTheme>>(
-            values: [
-              const FollowApp(),
-              for (final theme in WebViewTheme.values) Own(theme),
-            ],
-            face: (choice) => (
-              icon: choice.icon,
-              label: switch (choice) {
-                FollowApp() => loc.siteSettingsThemeFollowAppShort,
-                Own(:final value) => value.label(loc),
-              },
+            control: Trailing(
+              IconSegments<Scoped<WebViewTheme>>(
+                segments: [
+                  for (final choice in <Scoped<WebViewTheme>>[
+                    const FollowApp(),
+                    for (final theme in WebViewTheme.values) Own(theme),
+                  ])
+                    ButtonSegment(
+                      value: choice,
+                      icon: Icon(choice.icon),
+                      tooltip: choice.label(loc, appValue: widget.appTheme),
+                    ),
+                ],
+                selected: _theme,
+                onChanged: (choice) => setState(() => _theme = choice),
+              ),
             ),
-            value: _theme,
-            onChanged: (choice) => setState(() => _theme = choice),
           ),
           SettingTile(
             title: loc.siteSettingsUserScripts,
