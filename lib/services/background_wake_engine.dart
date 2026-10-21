@@ -969,6 +969,7 @@ final class _WakeTable<S extends Object> {
   /// rule's turn, and the site the user opens next takes the rule.
   late final _release = Note<WakeFlow<S>>(
     (c) => _calls.from(c).release(fore: _fore.value.run(c)),
+    reads: _fore.value.reads,
   );
 
   /// Points the close at the first check still open, for a wake whose

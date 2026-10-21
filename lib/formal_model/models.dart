@@ -534,6 +534,40 @@ List<String> _types(Tables t) {
   ];
 }
 
+/// What each action may read of the shared state, by its printed
+/// footprint: the variables it reads and writes, those of the definitions
+/// it calls, resolved, and those of the base's operators. The walks hold
+/// what each step read as it ran ([StepReads]) to it.
+Map<ActivationStep, Set<ModelVar>> footprintReads(Tables t) {
+  final out = <ActivationStep, Set<ModelVar>>{};
+  for (final f in _footprintsOf(t)) {
+    final r = _resolved(f.reads, seen: const {});
+    (out[f.step] ??= {}).addAll({
+      ...r.vars,
+      ...f.writes,
+      for (final b in r.base) ...b.reads,
+    });
+  }
+  return out;
+}
+
+/// What the notes of each step read ([Note.reads]): the code's alone, for
+/// what the model does not hold, so it stays out of the printed footprint
+/// and the walks' read gate holds each note to it.
+Map<ActivationStep, Set<ModelVar>> noteReads(Tables t) {
+  final out = <ActivationStep, Set<ModelVar>>{};
+  for (final table in _all(t)) {
+    for (final MapEntry(key: step, value: reads) in table.noteReads.entries) {
+      final r = _resolved(reads, seen: const {});
+      (out[step] ??= {}).addAll({
+        ...r.vars,
+        for (final b in r.base) ...b.reads,
+      });
+    }
+  }
+  return out;
+}
+
 /// What each table action reads and writes of the shared state, from its
 /// declarations alone: the definitions it calls resolved through their
 /// bodies, and the base's operators it calls named, whose reads
@@ -543,12 +577,6 @@ List<String> _types(Tables t) {
 /// the action's row can hold, the fields of it the action writes (`*` when
 /// it ends the flow), and the fields of other rows it reads, by kind.
 String activationFootprints(Tables t) {
-  Reads resolve(Reads r, {required Set<ModelDef> seen}) => r.defs
-      .difference(seen)
-      .fold(
-        r,
-        (sum, d) => sum + resolve(definition(d).body.reads, seen: {...seen, d}),
-      );
   String names(Iterable<String> all) => (all.toList()..sort()).join(' ');
   final all = _footprintsOf(t);
   final flows = flowsAt(all);
@@ -567,7 +595,7 @@ String activationFootprints(Tables t) {
     '# action\treads\twrites\tbase operators called\tkinds\tfields written'
         '\trows read\tneeds',
     for (final f in all)
-      if (resolve(f.reads, seen: const {}) case final r)
+      if (_resolved(f.reads, seen: const {}) case final r)
         [
           f.step.action,
           names([for (final v in r.vars) v.name]),

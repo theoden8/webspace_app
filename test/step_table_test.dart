@@ -5,6 +5,8 @@ import 'package:webspace/formal_model/models.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/step_table.dart';
 
+import 'helpers/walk/footprint_reads.dart';
+
 /// A world of one model variable, `loaded`, kept in use order, and a list
 /// the frame tests below read as the model's `headless`.
 final class _World {
@@ -150,6 +152,43 @@ void main() {
       ),
       reason: '[1, 1] and [1, 2] are the sets {1} and {1, 2}',
     );
+  });
+
+  test('a step that reads past its printed footprint is caught', () async {
+    Map<ActivationStep, Set<ModelVar>> outside(StepTable<_World, _Place> table) =>
+        readsOutside(
+          StepReads.read,
+          allowed: {
+            for (final f in table.footprints())
+              f.step: {
+                ...f.reads.vars,
+                ...f.writes,
+                ...?table.noteReads[f.step]?.vars,
+              },
+          },
+        );
+    StepReads.forget();
+    final reads = _table(then: [Note((c) => _loadedPort.from(c).length)]);
+    await reads.run(StepContext(_World()), from: _Place.go);
+    expect(outside(reads), {ActivationStep.plan: {ModelVar.loaded}},
+        reason: 'a port the step reaches reads loaded, which nothing prints');
+    StepReads.forget();
+    final declared = _table(
+      then: [
+        Note(
+          (c) => _loadedPort.from(c).length,
+          reads: const Reads(vars: {ModelVar.loaded}),
+        ),
+      ],
+    );
+    await declared.run(StepContext(_World()), from: _Place.go);
+    expect(outside(declared), isEmpty,
+        reason: "a note's declared reads hold it, beside its step's footprint");
+    StepReads.forget();
+    final none = _table(then: []);
+    await none.run(StepContext(_World()), from: _Place.go);
+    expect(outside(none), isEmpty,
+        reason: "the frame check reads every variable, and is no read of the step's");
   });
 
   test('a call whose writes its port does not change is caught', () {

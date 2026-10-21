@@ -4,6 +4,7 @@ import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/startup_controller.dart';
 import 'package:webspace/services/activation_step.dart';
+import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/runtime_vars.dart';
@@ -162,12 +163,16 @@ final class ActivationFlow implements Capturing, ActivationState {
     of: (w) => w.reach.navStates,
   );
 
-  /// The site's container made or deleted, the model's `boxes`.
-  static final boxes = Port<Isolation, ActivationFlow>(
+  /// The site's container made or deleted, the model's `boxes`: the
+  /// container engine, which the shared jar has none of.
+  static final boxes = Port<ContainerIsolationEngine?, ActivationFlow>(
     'boxes',
     reads: const {},
     changes: {ModelVar.boxes},
-    of: (w) => w.reach.sites.isolation,
+    of: (w) => switch (w.reach.sites.isolation) {
+      Containers(:final engine) => engine,
+      SharedJar() => null,
+    },
   );
 
   /// What the unload and restore tables nested here run against.

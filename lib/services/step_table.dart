@@ -11,6 +11,7 @@ export 'package:webspace/services/model_names.dart';
 export 'package:webspace/services/step_print.dart';
 
 part 'model_exprs.dart';
+part 'step_reads.dart';
 
 /// What a table's own code sees of one flow: the values its steps keep,
 /// the element a step picked, the names a quantifier bound. Not the
@@ -713,20 +714,6 @@ typedef UnmodeledMeet = ({
   ModelVar variable,
 });
 
-/// The model's variables the step being landed has read so far: its
-/// leaves, the ports it reaches and the operators it calls add to it as
-/// they run. Null outside a landing.
-Set<ModelVar>? _reading;
-
-void _noteReads(Reads r) {
-  final into = _reading;
-  if (into == null) return;
-  into.addAll(r.vars);
-  for (final b in r.base) {
-    into.addAll(b.reads);
-  }
-}
-
 /// A planted mistake run as code: the tables and definitions the runner
 /// takes in place of the code's own while [run]'s body runs, so a test
 /// holds the code to a mistake the model's mutants plant (`mutated`,
@@ -1073,10 +1060,12 @@ final class Field<T, W> {
     required Future<T> Function(StepView<W> c) run,
     required Expr<Object?, W> reply,
     List<Assign<W>> reads = const [],
+    Set<ModelVar> reaches = const {},
   }) => Call._(
     run: (c) async => put(c, value: await run(c)),
     writes: const [],
     reads: reads,
+    reaches: reaches,
     keeps: (field: field, reply: reply.tla, reads: reply.reads),
   );
 
@@ -1086,7 +1075,12 @@ final class Field<T, W> {
     required Future<T> Function(PortView<I, W> c) run,
     required Expr<Object?, W> reply,
     List<Assign<W>> reads = const [],
-  }) => receives(run: (c) => run(port._view(c)), reply: reply, reads: reads);
+  }) => receives(
+    run: (c) => run(port._view(c)),
+    reply: reply,
+    reads: reads,
+    reaches: port.reads,
+  );
 
   @override
   String toString() => tla;
@@ -1141,7 +1135,10 @@ final class Port<I, W> {
     return _of(c._world);
   }
 
-  PortView<I, W> _view(StepView<W> c) => PortView._(c, api: from(c));
+  /// The interface a call on the port is made through. What the platform
+  /// reads while the call is out is its step's, at the reply
+  /// ([Call.reaches]), not a read of the turn that issues it.
+  PortView<I, W> _view(StepView<W> c) => PortView._(c, api: _of(c._world));
 
   bool _covers(Iterable<Write<W>> writes) =>
       writes.every((w) => changes.contains(w.variable));
@@ -1220,9 +1217,14 @@ final class Assign<W> extends Effect<W> {
 
 /// What only the code does: a log line, an in-memory copy the model does
 /// not name. It prints nothing, so it is where the code could do what the
-/// model does not see: keep it to state no invariant reads.
+/// model does not see: keep it to state no invariant reads. What it reads
+/// of the model's state is [reads]: the code's alone, so it is no part of
+/// the step's printed footprint, and the walks hold the note to it.
 final class Note<W> extends Effect<W> {
-  const Note(void Function(StepView<W> c) run) : super(run: run);
+  const Note(void Function(StepView<W> c) run, {this.reads = Reads.none})
+    : super(run: run);
+
+  final Reads reads;
 }
 
 /// Another table's input this step starts in its own turn, as the code
@@ -1314,6 +1316,7 @@ final class Call<W> {
     required Future<void> Function(StepView<W> c) run,
     required this.writes,
     this.reads = const [],
+    this.reaches = const {},
     this.then,
   }) : _run = run,
        keeps = null;
@@ -1322,6 +1325,7 @@ final class Call<W> {
     required Future<void> Function(StepView<W> c) run,
     required this.writes,
     required this.reads,
+    required this.reaches,
     required this.keeps,
   }) : _run = run,
        then = null;
@@ -1339,6 +1343,7 @@ final class Call<W> {
       run: (c) => run(port._view(c)),
       writes: writes,
       reads: reads,
+      reaches: port.reads,
       then: then,
     );
   }
@@ -1346,6 +1351,11 @@ final class Call<W> {
   final Future<void> Function(StepView<W> c) _run;
   final List<Write<W>> writes;
   final List<Assign<W>> reads;
+
+  /// What the platform reads of the model's variables while the call is
+  /// out ([Call.on]: its port's), which the model takes at the reply: a read
+  /// of the call's own step.
+  final Set<ModelVar> reaches;
 
   /// What the code does as the reply lands, in the step's turn before its
   /// arm's effects: its half of [writes] where the code holds the variable
@@ -1707,21 +1717,23 @@ final class StepTable<W, P extends Enum> {
           place = await run(c, from: place);
         case final Step<W, P> step:
           _assertHolds(step, place: place, flow: c, when: 'on the way in');
-          step.pick?._make(c);
-          assert(
-            step.enabled?.run(c) ?? true,
-            'the input ${step.name} ran while ${step.enabled?.tla} did not hold',
-          );
+          _enter(step, on: c);
           var refused = false;
           if (step.call case final call?) {
-            for (final r in call.reads) {
-              r.run(c);
-            }
+            final issued = _charged(
+              _enteredBy[c._fields] ?? step.name,
+              run: (_) {
+                for (final r in call.reads) {
+                  r.run(c);
+                }
+                return call._run(c);
+              },
+            );
             switch (step.refused) {
               case null:
-                await call._run(c);
+                await issued;
               case final r:
-                refused = await r.refusal._refuses(call._run(c));
+                refused = await r.refusal._refuses(issued);
                 assert(
                   !refused || r.when.run(c),
                   '${step.name} was refused where ${r.when.tla} does not hold',
@@ -1753,12 +1765,32 @@ final class StepTable<W, P extends Enum> {
     final step = at(from);
     assert(step is Step<W, P> && step.input, '${from.name} is no input');
     step as Step<W, P>;
-    step.pick?._make(c);
-    assert(
-      step.enabled?.run(c) ?? true,
-      'the input ${step.name} ran while ${step.enabled?.tla} did not hold',
-    );
+    _enter(step, on: c);
     return _land(step, on: c);
+  }
+
+  /// [step]'s pick made and its guard asserted on [on], read as its action
+  /// reads them. A spawned input's are its spawner's, whose spawn binds the
+  /// pick (`_spawned`, printed as the spawn's `site`), so what the set it
+  /// ranges over reads is read by neither.
+  void _enter(Step<W, P> step, {required StepContext<W> on}) {
+    void enter() {
+      if (step.spawned) {
+        _unread(() => step.pick?._make(on));
+      } else {
+        step.pick?._make(on);
+      }
+      assert(
+        step.enabled?.run(on) ?? true,
+        'the input ${step.name} ran while ${step.enabled?.tla} did not hold',
+      );
+    }
+
+    if (step.spawned) {
+      enter();
+    } else {
+      _charged(step.name, run: (_) => enter());
+    }
   }
 
   /// The step's reply landed, or its input ran: its first branch that
@@ -1770,14 +1802,26 @@ final class StepTable<W, P extends Enum> {
     bool refused = false,
   }) {
     final c = on;
-    final outerReading = _reading;
-    final reading = _reading = <ModelVar>{};
+    final outerLanding = _landing;
+    final action = _landing = step.spawned
+        ? outerLanding ?? step.name
+        : step.name;
     try {
-      final next = _landReading(step, on: c, refused: refused);
-      UnmodeledWrites._meet(step.name, read: reading, flow: c._fields);
-      return next;
+      return _charged(
+        action,
+        run: (reading) {
+          final next = _landReading(step, on: c, refused: refused);
+          assert(() {
+            (StepReads._read[action] ??= {}).addAll(step.call?.reaches ?? {});
+            return true;
+          }());
+          UnmodeledWrites._meet(step.name, read: reading, flow: c._fields);
+          _enteredBy[c._fields] = action;
+          return next;
+        },
+      );
     } finally {
-      _reading = outerReading;
+      _landing = outerLanding;
     }
   }
 
@@ -1795,7 +1839,9 @@ final class StepTable<W, P extends Enum> {
     final tab = (arm.tab ?? step.tab)?.run(c);
     Map<String, Object?>? found;
     assert(() {
-      found = {for (final v in vars) v.name: _snapshot(v.value.run(c))};
+      found = _unread(
+        () => {for (final v in vars) v.name: _snapshot(v.value.run(c))},
+      );
       return true;
     }());
     final outer = _turn;
@@ -1806,7 +1852,7 @@ final class StepTable<W, P extends Enum> {
         if (e is! Spawn<W>) e.run(c);
       }
       assert(turn.keptToSpawns);
-      assert(_framed(c, found: found!, step: step, arm: arm));
+      assert(_unread(() => _framed(c, found: found!, step: step, arm: arm)));
       ActivationSteps.mark(step.name, outcome: arm.outcome, site: site, tab: tab);
       for (final e in arm.then) {
         if (e is Spawn<W>) e.run(c);
@@ -1819,15 +1865,21 @@ final class StepTable<W, P extends Enum> {
   }
 
   /// Whether the input step at [place] would run on [c]: its pick made and
-  /// its [Step.enabled] holding. The caller of an input that is not decides
-  /// what to answer; the step asserts it again on the way in.
+  /// its [Step.enabled] holding, read as its action reads them. The caller
+  /// of an input that is not decides what to answer; the step asserts it
+  /// again on the way in.
   bool admits(P place, {required StepContext<W> on}) {
     final c = on;
     final step = at(place);
     assert(step is Step<W, P> && step.input, '${place.name} is no input');
     step as Step<W, P>;
-    step.pick?._make(c);
-    return step.enabled?.run(c) ?? true;
+    return _charged(
+      step.name,
+      run: (_) {
+        step.pick?._make(c);
+        return step.enabled?.run(c) ?? true;
+      },
+    );
   }
 
   bool _framed(
@@ -1888,7 +1940,7 @@ final class StepTable<W, P extends Enum> {
     required String when,
   }) {
     assert(
-      step.holds?.run(flow) ?? true,
+      _unread(() => step.holds?.run(flow) ?? true),
       'a flow at ${place.name} does not hold ${step.holds?.tla} $when',
     );
   }

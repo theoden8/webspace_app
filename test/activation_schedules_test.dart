@@ -29,6 +29,7 @@ import 'helpers/walk/activation_world.dart';
 import 'helpers/walk/schedules.dart';
 import 'helpers/walk/shards.dart';
 import 'helpers/walk/step_traces.dart';
+import 'helpers/walk/footprint_reads.dart';
 import 'helpers/walk/unmodeled_meets.dart';
 import 'helpers/walk/table_commutes.dart';
 
@@ -739,6 +740,7 @@ void main() {
   );
   tearDownAll(StepTraces.instance.writeIfAsked);
   tearDownAll(expectOnlyOwedMeets);
+  tearDownAll(expectReadsInFootprints);
   tearDownAll(() {
     if ((Platform.environment['SCHEDULE_STATS'] ?? '').isEmpty) return;
     // ignore: avoid_print
