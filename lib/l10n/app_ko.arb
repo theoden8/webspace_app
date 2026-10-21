@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "추적 방지 켜짐",
   "privacySummaryNothingOn": "활성화된 보호 없음",
   "siteSettingsForcedOffByTrackingProtection": "추적 방지에 의해 강제로 꺼짐",
+  "settingRestoreDefaultHint": "길게 누르면 앱 기본 설정으로 복원됩니다.",
   "settingOn": "켜짐",
   "settingOff": "꺼짐",
   "settingFollowsApp": "앱 기본값 ({value})",

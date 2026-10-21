@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "追蹤保護已開啟",
   "privacySummaryNothingOn": "未啟用任何保護",
   "siteSettingsForcedOffByTrackingProtection": "已被追蹤保護強制關閉",
+  "settingRestoreDefaultHint": "长按以恢复应用默认设置。",
   "settingOn": "開啟",
   "settingOff": "關閉",
   "settingFollowsApp": "應用程式預設 ({value})",

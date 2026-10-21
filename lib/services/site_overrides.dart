@@ -94,11 +94,15 @@ bool? resolveProtectedContent({
 /// A kiosk site runs as one page, never with tabs (TAB-013).
 bool resolveTabs({required bool tabs, required bool kiosk}) => tabs && !kiosk;
 
-/// Routing is an option of the in-app mode (LIR-014).
+/// Routing is an option of the in-app mode (LIR-014). Following the app's
+/// external-link policy also inherits its routing, so no hidden override acts.
 bool resolveRouteOutboundLinks({
   required bool route,
+  required bool appRoute,
+  required bool followsAppLinks,
   required ExternalLinkMode mode,
-}) => route && mode == ExternalLinkMode.inApp;
+}) => mode == ExternalLinkMode.inApp &&
+    (followsAppLinks ? appRoute : route);
 
 /// Incognito drops the stored URL on every restart, so the site opens at its
 /// home page whatever Always open Home stores.

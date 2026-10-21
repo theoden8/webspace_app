@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Mbrojtja nga gjurmimi aktive",
   "privacySummaryNothingOn": "Asnjë mbrojtje e aktivizuar",
   "siteSettingsForcedOffByTrackingProtection": "I detyruar joaktiv nga Mbrojtja nga gjurmimi",
+  "settingRestoreDefaultHint": "Mbajeni shtypur për të rikthyer cilësimin e parazgjedhur të aplikacionit.",
   "settingOn": "Aktiv",
   "settingOff": "Joaktiv",
   "settingFollowsApp": "Parazgjedhja e aplikacionit ({value})",

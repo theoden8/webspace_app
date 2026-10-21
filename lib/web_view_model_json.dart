@@ -155,7 +155,7 @@ extension WebViewModelJson on WebViewModel {
           if (domainClaims != null && domainClaims!.isNotEmpty)
             key: domainClaims!.map((c) => c.toJson()).toList(),
         },
-      SiteField.routeOutboundLinks => {if (routeOutboundLinks) key: true},
+      SiteField.routeOutboundLinks => {key: routeOutboundLinks},
       SiteField.outboundPreferences => {
           if (outboundPreferences.isNotEmpty)
             key: outboundPreferences.map((p) => p.toJson()).toList(),

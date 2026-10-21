@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Защитата от проследяване е включена",
   "privacySummaryNothingOn": "Няма включена защита",
   "siteSettingsForcedOffByTrackingProtection": "Принудително изключено от Защита от проследяване",
+  "settingRestoreDefaultHint": "Натиснете продължително, за да възстановите настройката по подразбиране на приложението.",
   "settingOn": "Вкл.",
   "settingOff": "Изкл.",
   "settingFollowsApp": "Като в приложението ({value})",

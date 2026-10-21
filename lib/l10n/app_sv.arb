@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Spårningsskydd på",
   "privacySummaryNothingOn": "Inget skydd aktiverat",
   "siteSettingsForcedOffByTrackingProtection": "Tvingad av av Spårningsskydd",
+  "settingRestoreDefaultHint": "Tryck länge för att återställa appens standardinställning.",
   "settingOn": "På",
   "settingOff": "Av",
   "settingFollowsApp": "Appstandard ({value})",

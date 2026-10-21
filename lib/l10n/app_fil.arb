@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Naka-on ang Tracking Protection",
   "privacySummaryNothingOn": "Walang proteksyong naka-enable",
   "siteSettingsForcedOffByTrackingProtection": "Pinilit na i-off ng Tracking Protection",
+  "settingRestoreDefaultHint": "Pindutin nang matagal para ibalik ang default ng app.",
   "settingOn": "Naka-on",
   "settingOff": "Naka-off",
   "settingFollowsApp": "Default ng app ({value})",

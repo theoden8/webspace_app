@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "トラッキング保護オン",
   "privacySummaryNothingOn": "保護は有効になっていません",
   "siteSettingsForcedOffByTrackingProtection": "トラッキング保護により強制的にオフ",
+  "settingRestoreDefaultHint": "長押しでアプリの既定設定に戻します。",
   "settingOn": "オン",
   "settingOff": "オフ",
   "settingFollowsApp": "アプリの既定 ({value})",

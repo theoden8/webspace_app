@@ -21,6 +21,8 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/scoped.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
@@ -981,6 +983,7 @@ Widget _siteBehaviour(BuildContext _) {
       kioskMode: false,
       fullscreenMode: false,
       htmlCachingEnabled: false,
+      externalLinkMode: Own(ExternalLinkMode.inApp),
       routeOutboundLinks: true,
     ),
     onChanged: (_) {},

@@ -81,11 +81,11 @@ String _read(String tag, {required String name}) =>
 bool _has(String tag, {required String name}) =>
     File('$_fixtureRoot/$tag/$name').existsSync();
 
-/// Older releases omitted on/in-app. Those defaults stay explicit on import,
+/// Older releases omitted on/in-app/routing off. Those stay explicit on import,
 /// while newly created sites follow the app (BEHAV-007).
 Map<String, dynamic> _freshSiteJson(String initUrl) {
   final fresh = [WebViewModel(initUrl: initUrl, tabsEnabled: true,
-      externalLinkMode: ExternalLinkMode.inApp)];
+      externalLinkMode: ExternalLinkMode.inApp, routeOutboundLinks: false)];
   sanitizeImportedSites(fresh, globalScripts: const []);
   return fresh.single.toJson();
 }

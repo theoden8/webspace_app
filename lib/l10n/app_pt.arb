@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Proteção contra rastreio ativada",
   "privacySummaryNothingOn": "Nenhuma proteção ativada",
   "siteSettingsForcedOffByTrackingProtection": "Desativado pela proteção contra rastreio",
+  "settingRestoreDefaultHint": "Prima continuamente para repor a predefinição da aplicação.",
   "settingOn": "Ligado",
   "settingOff": "Desligado",
   "settingFollowsApp": "Predefinição da aplicação ({value})",

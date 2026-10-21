@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Protection contre le pistage activée",
   "privacySummaryNothingOn": "Aucune protection activée",
   "siteSettingsForcedOffByTrackingProtection": "Désactivé par la protection contre le pistage",
+  "settingRestoreDefaultHint": "Appuyez longuement pour rétablir le réglage par défaut de l’application.",
   "settingOn": "Activé",
   "settingOff": "Désactivé",
   "settingFollowsApp": "Comme l'application ({value})",

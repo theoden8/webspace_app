@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "ট্র্যাকিং সুরক্ষা চালু",
   "privacySummaryNothingOn": "কোনো সুরক্ষা সক্ষম নয়",
   "siteSettingsForcedOffByTrackingProtection": "ট্র্যাকিং সুরক্ষা দ্বারা বন্ধ করা হয়েছে",
+  "settingRestoreDefaultHint": "অ্যাপের ডিফল্ট সেটিং ফিরিয়ে আনতে চেপে ধরে রাখুন।",
   "settingOn": "চালু",
   "settingOff": "বন্ধ",
   "settingFollowsApp": "অ্যাপ ডিফল্ট ({value})",

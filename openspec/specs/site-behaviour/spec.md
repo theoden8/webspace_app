@@ -136,8 +136,10 @@ resolved mode; explicit choices SHALL have no subtitle. What each option does
 lives in the hint.
 
 Outbound routing's rows (BEHAV-003) SHALL render directly under the row,
-indented, and only while the resolved mode is "Open in the app". Picking another
-option hides them and keeps their stored values.
+indented, and only while the site explicitly selects "Open in the app". App
+default SHALL hide both routing rows and inherit the app's routing choice as
+well as its external-link mode. Picking another option SHALL preserve the
+site's stored routing choice for a later return to explicit in-app links.
 
 #### Scenario: The stored option is selected
 
@@ -162,19 +164,38 @@ Kiosk mode still on
 
 ### Requirement: BEHAV-007 — App defaults with per-site choices
 
-App Settings → Behaviour SHALL offer app defaults for Tabs (on initially) and
-External links (Open in the app initially). New sites SHALL follow these live
-defaults. Both per-site pickers SHALL offer App default and explicit choices;
-choosing App default SHALL clear the override, participate in the dirty edit
+App Settings → Behaviour SHALL group its app defaults under "Opening and
+navigation": Tabs (on initially),
+External links (Open in the app initially) and Route links to my sites (off
+initially, shown under in-app links). New sites SHALL follow these live
+defaults. The External links picker SHALL offer App default and explicit
+choices. Routing SHALL be a plain on/off switch with no separate inheritance
+state or reset gesture; it inherits only through External links → App default.
+Tabs SHALL use a switch that is slightly dimmed while
+following the app and fully opaque for an explicit override. It SHALL remain
+interactive in both states and show an App default subtitle while following.
+Tapping SHALL create an explicit override. A long press SHALL clear it and
+restore inheritance, without also toggling on release. The hint SHALL explain
+the gesture and accessibility semantics SHALL expose the reset action.
+Restoring App default SHALL participate in the dirty edit
 snapshot and persist through save, restart and backup. The inherited value
 SHALL be visible without opening another screen. Changing the app default
 SHALL affect following sites and preserve explicit overrides and open tabs.
+Closing App Settings SHALL reconcile open link tabs with the live routing
+choice, retaining their tab identities when their container changes.
 Kiosk mode SHALL still disable tabs and archive restrictions SHALL still fold
-browser links into the app after resolving inheritance.
+browser links into the app after resolving inheritance. Routing SHALL apply
+only in the site's resolved in-app mode and where the container engine offers
+it. While External links explicitly selects Open in the app, the per-site
+routing switch SHALL show its saved on/off choice, and the
+routing-preferences row SHALL follow the resolved routing value. Following
+the app's external-link policy SHALL hide both routing rows, use the app's
+routing default and leave the site's stored routing override unchanged.
 
-Persistence SHALL distinguish explicit null (follow app) from a missing key in
-older data (Tabs on, links in-app, or browser for the legacy true flag). New
-saves SHALL write both keys, including null, so a following site and an
+Persistence SHALL distinguish explicit null (follow app) from a missing key for
+Tabs and External links in older data (Tabs on, links in-app, or browser for the
+legacy true flag). Routing SHALL store a boolean, defaulting to off for missing
+or null values. New saves SHALL write all three keys, so a following site and an
 explicit choice each survive restart and backup without becoming the other.
 
 #### Scenario: Return to following the app
@@ -185,11 +206,43 @@ explicit choice each survive restart and backup without becoming the other.
 **Then** the site runs with tabs off and browser links after a restart
 **And** another site with explicit choices retains them
 
+#### Scenario: Routing follows the app without discarding an override
+
+**Given** a site follows the app's External links policy, which opens in the app
+**When** the app routing default is enabled
+**Then** the site routes links to its own sites and hides the routing controls
+**When** the site explicitly selects Open in the app
+**Then** its routing switch shows the saved boolean, off initially
+**And** changing the app routing default does not change that explicit choice
+**When** the site selects External links → App default again
+**Then** routing follows the live app default and the routing controls disappear
+
+#### Scenario: Long press restores the Tabs default
+
+**Given** the app enables Tabs and a site explicitly disables them
+**When** the user long presses the Tabs switch
+**Then** the switch follows the app, is slightly dimmed and shows Tabs on
+**And** releasing the press does not create another override
+**When** the app disables Tabs
+**Then** the following switch shows Tabs off
+**When** the user taps it
+**Then** it stores an explicit Tabs-on choice and is fully opaque
+
+#### Scenario: Inherited external links have no hidden routing override
+
+**Given** a site explicitly opens links in the app with routing on
+**And** the app defaults to in-app links with routing off
+**When** the site selects App default for External links
+**Then** both routing rows are hidden and routing follows the app default
+**And** changing the app routing default updates the site while the rows stay hidden
+**When** the site returns to explicit Open in the app
+**Then** its saved routing-on choice and Routing preferences appear again
+
 #### Scenario: Upgrade keeps prior behavior
 
-**Given** an older site's JSON omits Tabs and External links
-**When** it loads with app defaults of Tabs off and Block
-**Then** it retains explicit Tabs on and in-app links
+**Given** an older site's JSON omits Tabs, External links and routing
+**When** it loads with app defaults of Tabs off, Block and routing on
+**Then** it retains explicit Tabs on, in-app links and routing off
 **And** saves those choices explicitly
 
 Validation: `test/behaviour_defaults_test.dart`,

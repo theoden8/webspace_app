@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Ochrona przed śledzeniem włączona",
   "privacySummaryNothingOn": "Żadna ochrona nie jest włączona",
   "siteSettingsForcedOffByTrackingProtection": "Wyłączone przez Ochronę przed śledzeniem",
+  "settingRestoreDefaultHint": "Przytrzymaj, aby przywrócić domyślne ustawienie aplikacji.",
   "settingOn": "Wł.",
   "settingOff": "Wył.",
   "settingFollowsApp": "Domyślne aplikacji ({value})",

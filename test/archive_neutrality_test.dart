@@ -23,6 +23,7 @@ import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/site_tab.dart';
@@ -422,6 +423,7 @@ void main() {
       WebViewModel ddg() => WebViewModel(
             siteId: SiteId('ddg'),
             initUrl: 'https://duckduckgo.com',
+            externalLinkMode: ExternalLinkMode.inApp,
             routeOutboundLinks: true,
             outboundPreferences: [
               OutboundPreference(

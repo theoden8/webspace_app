@@ -434,13 +434,15 @@ void main() {
   });
 
   group('LIR-013 model fields', () {
-    test('legacy JSON loads with defaults and writes neither field', () {
+    test('legacy JSON preserves routing off and writes it explicitly', () {
+      final json = WebViewModel(initUrl: 'https://duckduckgo.com/').toJson()
+        ..remove('routeOutboundLinks');
       final m = WebViewModel.fromJson(
-          WebViewModel(initUrl: 'https://duckduckgo.com/').toJson(),
+          json,
           stateSetterF: null);
       expect(m.routeOutboundLinks, isFalse);
       expect(m.outboundPreferences, isEmpty);
-      expect(m.toJson().containsKey('routeOutboundLinks'), isFalse);
+      expect(m.toJson()['routeOutboundLinks'], isFalse);
       expect(m.toJson().containsKey('outboundPreferences'), isFalse);
     });
 

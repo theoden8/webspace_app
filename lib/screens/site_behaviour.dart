@@ -103,7 +103,10 @@ class SiteBehaviourValues {
       tabs: tabsEnabled.resolve(AppPref.tabsEnabled.value), kiosk: kioskMode);
 
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
-      route: routeOutboundLinks, mode: effectiveExternalLinkMode);
+      route: routeOutboundLinks,
+      appRoute: AppPref.routeOutboundLinks.value,
+      followsAppLinks: externalLinkMode is FollowApp,
+      mode: effectiveExternalLinkMode);
 
   bool get effectiveHtmlCaching =>
       engineLoadsCacheFirst &&
@@ -182,9 +185,16 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
     widget.onChanged(next);
   }
 
+  void _setTabs(Scoped<bool> choice) => _update(_values.copyWith(
+        tabsEnabled: choice,
+        kioskMode: choice.resolve(AppPref.tabsEnabled.value)
+            ? false
+            : _values.kioskMode,
+      ));
+
   // --- Link handling -------------------------------------------------------
 
-  /// With tabs, the switch also decides which container a link's tab runs in
+  /// With tabs, this switch also decides which container a link's tab runs in
   /// (LIR-034), so the hint says so where that applies.
   Widget _routeOutboundLinks(AppLocalizations loc) => SettingTile(
         title: loc.siteSettingsRouteOutboundLinks,
@@ -253,13 +263,13 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
               choice != const Own(ExternalLinkMode.browser),
           onChanged: (choice) => _update(_values.copyWith(externalLinkMode: choice)),
         ),
-        if (mode == ExternalLinkMode.inApp)
+        if (_values.externalLinkMode is Own && mode == ExternalLinkMode.inApp)
           Padding(
             padding: const EdgeInsetsDirectional.only(start: 24),
             child: Column(
               children: [
                 _routeOutboundLinks(loc),
-                if (_values.routeOutboundLinks) _outboundPreferences(loc),
+                if (_values.effectiveRouteOutboundLinks) _outboundPreferences(loc),
               ],
             ),
           ),
@@ -439,19 +449,18 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
           // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
           // off, and Kiosk mode on shows tabs off without forgetting the
           // stored choice.
-          ChoiceTile<Scoped<bool>>(
+          SettingTile(
             title: loc.siteSettingsTabs,
-            hint: loc.siteSettingsTabsHint,
-            values: const [FollowApp(), Own(true), Own(false)],
-            label: (choice) => choice.label(loc,
-                appValue: AppPref.tabsEnabled.value),
-            value: _values.kioskMode ? const Own(false) : _values.tabsEnabled,
-            onChanged: (choice) => _update(_values.copyWith(
-              tabsEnabled: choice,
-              kioskMode: choice.resolve(AppPref.tabsEnabled.value)
-                  ? false
-                  : _values.kioskMode,
-            )),
+            hint: '${loc.siteSettingsTabsHint}\n\n${loc.settingRestoreDefaultHint}',
+            subtitle: _values.tabsEnabled is FollowApp
+                ? loc.webSearchUseAppDefault
+                : null,
+            control: Toggle(
+              _values.effectiveTabsEnabled,
+              followsApp: _values.tabsEnabled is FollowApp,
+              onChanged: (value) => _setTabs(Own(value)),
+              onRestoreDefault: () => _setTabs(const FollowApp()),
+            ),
           ),
           // WPE has no per-load cache policy, so there is nothing to switch.
           if (engineLoadsCacheFirst)

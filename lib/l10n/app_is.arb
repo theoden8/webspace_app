@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Rakningarvörn kveikt",
   "privacySummaryNothingOn": "Engin vörn virk",
   "siteSettingsForcedOffByTrackingProtection": "Þvingað af af rakningarvörn",
+  "settingRestoreDefaultHint": "Haltu inni til að endurheimta sjálfgefna stillingu forritsins.",
   "settingOn": "Á",
   "settingOff": "Af",
   "settingFollowsApp": "Sjálfgefið forritsins ({value})",

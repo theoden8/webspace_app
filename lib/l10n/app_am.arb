@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "የክትትል ጥበቃ በርቷል",
   "privacySummaryNothingOn": "ምንም ጥበቃ አልነቃም",
   "siteSettingsForcedOffByTrackingProtection": "በክትትል ጥበቃ ተገድዶ ጠፍቷል",
+  "settingRestoreDefaultHint": "የመተግበሪያውን ነባሪ ለመመለስ በረጅሙ ይጫኑ።",
   "settingOn": "በርቷል",
   "settingOff": "ጠፍቷል",
   "settingFollowsApp": "የመተግበሪያ ነባሪ ({value})",
