@@ -4,11 +4,10 @@
 // connects a `FlutterDriver` and writes each screenshot into SCREENSHOT_DIR.
 // The proxy arms report through their own fixtures and want none of that.
 //
-// It exists at all so the macOS tier can use `flutter drive --no-build`.
+// It exists at all so the macOS tier can launch one prebuilt app per file
+// (`flutter drive --use-application-binary`, scripts/integration_bundle.sh).
 // `flutter test -d macos` rebuilds the app on every invocation and has no
-// flag to skip it -- 38 builds and about 29 of the step's 60 minutes in run
-// 35659213308 -- while each arm still needs its own app process, because the
-// proxy slot is per process (BUG-014 gap -2).
+// flag to skip it, while each file still needs its own app process.
 import 'package:integration_test/integration_test_driver.dart';
 
 Future<void> main() => integrationDriver();

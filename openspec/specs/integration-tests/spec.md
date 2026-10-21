@@ -362,17 +362,25 @@ supplies natively what the Linux job builds by hand, so the platform
 setup is thin: no Xvfb/weston (the runner has a window server), no
 `xdg-user-dirs` (path_provider resolves the sandbox container), and no
 `pass-secret-service` (`flutter_secure_storage` reaches the login
-keychain). The step SHALL iterate one `flutter test` invocation per
-file (excluding `screenshot_test.dart`) exactly as the Linux step
-does, so adding a scenario per INTEG-008 needs no workflow edit on
-either target.
+keychain). The step SHALL run every file it takes (excluding
+`screenshot_test.dart`) in an app process of its own, as the Linux
+step does, so adding a scenario per INTEG-008 needs no workflow edit on
+either target. It SHALL build the app once for all of them:
+`scripts/integration_bundle.sh` writes one entrypoint holding every
+file, and each launch runs the file `WEBSPACE_INTEGRATION_FILE` names.
 
 #### Scenario: macOS step runs every non-screenshot scenario
 
 - **Given** the `build-apple` job has built the macOS app
 - **When** the `Run macOS integration tests` step runs
-- **Then** it invokes `fvm flutter test <file> -d macos` once per
-  `integration_test/*_test.dart`, skipping `screenshot_test.dart`
+- **Then** it builds the bundle with `fvm flutter build macos --debug --ci`
+  once, and launches it once per `integration_test/*_test.dart` it
+  takes, skipping `screenshot_test.dart`, through
+  `fvm flutter drive --use-application-binary` (Flutter 3.44.9 declares
+  drive's `--no-build` and never reads it, so without a prebuilt binary
+  each file paid a full Xcode build)
+- **And** when the bundle does not build or does not launch, each file
+  runs its own `fvm flutter test <file> -d macos --ci`
 - **And** a non-zero exit from any file is remembered and re-raised
   after the loop so one failure does not mask the others
 
@@ -444,9 +452,9 @@ either target.
   release app, so the iOS archive tree (`build/ios`) and the macOS
   release build tree (`build/macos`, Release config) both sit on the
   runner's tight disk
-- **And** the `Run macOS integration tests` step is about to rebuild the
-  macOS app once per file in the *debug* configuration, which Xcode keys
-  separately from the release objects and never reuses
+- **And** the `Run macOS integration tests` step is about to build the
+  macOS app in the *debug* configuration, which Xcode keys separately
+  from the release objects and never reuses
 - **When** a `Reclaim disk before macOS integration tests` step runs
   before the loop
 - **Then** it removes `build/macos/Build/Intermediates.noindex` (the
@@ -458,7 +466,7 @@ either target.
   webspace_adblock pod's always-out-of-date script phase re-invokes
   `scripts/build_rust.sh apple` on every debug build and an intact
   `target/` keeps cargo an incremental no-op instead of a full
-  five-slice recompile per file
+  five-slice recompile per debug build
 - **And** without this reclamation the loop exhausts the disk mid-run
   (observed: the 4th file failing on rsync `Input/output error` copying
   `App.framework`, then a truncated `Flutter-Generated.xcconfig` and a

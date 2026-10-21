@@ -934,7 +934,7 @@ jobs:
       # runner has a tight disk budget, and by this point three build trees
       # coexist: the iOS release archive (build/ios), the macOS *release*
       # tree (build/macos, Release config), and — about to be created — the
-      # macOS *debug* tree the loop rebuilds 12 times. That coexistence is
+      # macOS *debug* tree the integration steps build. That coexistence is
       # what filled the disk mid-loop: the run failed on the 4th test file
       # with cascading write errors (rsync "Input/output error" copying
       # App.framework, "unable to write manifest", a truncated
@@ -950,7 +950,7 @@ jobs:
       # Release, zipped after the loop). rust/webspace_adblock/target is
       # deliberately left intact — the pod's always-out-of-date script phase
       # re-runs `build_rust.sh apple` on every Debug build, and an intact
-      # target/ keeps cargo a fast no-op instead of a 4-minute recompile ×12.
+      # target/ keeps cargo a fast no-op instead of a 4-minute recompile each.
       - name: Reclaim disk before macOS integration tests
         run: |
           set -x
@@ -1150,54 +1150,6 @@ jobs:
           status=0
           failed=""
 
-          # One build for the whole tier, then every file reuses it.
-          #
-          # `flutter test -d macos` rebuilds the app on every invocation and
-          # has no flag to skip it. Measured on the BUG-014 branch, whose
-          # tier launches the same app more often than this one: 38 builds,
-          # about 29 of the step's 60 minutes, all of the same bundle. Each
-          # file still gets its own app process -- some suites depend on
-          # that, and a shared process would hide per-launch state -- which
-          # `flutter drive` gives while taking a prebuilt bundle.
-          #
-          # `--no-build` is deprecated and its help steers to
-          # `--use-application-binary`, which does not support desktop, so
-          # whether drive honours it here is not documented either way. `arm`
-          # falls back to `flutter test` rather than betting the tier on it,
-          # and says in the log which path it took.
-          DRIVE_OK=1
-          fvm flutter build macos --debug 2>&1 | tail -5 || DRIVE_OK=0
-
-          # arm <target> <logfile> [extra flutter args...] -> run's exit code
-          arm() {
-            target="$1"; log="$2"; shift 2
-            rc=0
-            if [ "$DRIVE_OK" = "1" ]; then
-              if [ -n "$TIMEOUT" ]; then
-                "$TIMEOUT" -k 30s 12m fvm flutter drive \
-                  --driver=test_driver/plain_driver.dart --target="$target" \
-                  -d macos --no-build "$@" 2>&1 | tee "$log"
-              else
-                fvm flutter drive \
-                  --driver=test_driver/plain_driver.dart --target="$target" \
-                  -d macos --no-build "$@" 2>&1 | tee "$log"
-              fi
-              rc=${PIPESTATUS[0]}
-              if [ $rc -ne 0 ] && grep -qiE 'use-application-binary|not supported|Could not find|No such file or directory' "$log"; then
-                echo "::warning::flutter drive --no-build did not take the prebuilt bundle; falling back to flutter test for the rest of the tier"
-                DRIVE_OK=0
-              else
-                return $rc
-              fi
-            fi
-            if [ -n "$TIMEOUT" ]; then
-              "$TIMEOUT" -k 30s 12m fvm flutter test "$target" -d macos --ci "$@" 2>&1 | tee "$log"
-            else
-              fvm flutter test "$target" -d macos --ci "$@" 2>&1 | tee "$log"
-            fi
-            return ${PIPESTATUS[0]}
-          }
-
           # The proxy arms, in no particular order: there is no "proxy slot"
           # and no frame boundary, so nothing here has to go first to be
           # readable. Each asserts, and each reaps the previous app process so
@@ -1208,25 +1160,14 @@ jobs:
           # not shared between sites, it holds at any distance from the first
           # frame, it works over CONNECT and over CONNECT+TLS, and the relay
           # path Apple keeps but does not take still routes by credential.
-          proxy_arm() {
-            reap_app "$(basename "$1" .dart)"
-            echo "::group::integration_test/$1"
-            if [ -n "$TIMEOUT" ]; then
-              "$TIMEOUT" -k 30s 12m \
-                fvm flutter test "integration_test/$1" -d macos --ci 2>&1 \
-                | tee "${RUNNER_TEMP:-/tmp}/tier-$(basename "$1" .dart).log" || true
-            else
-              fvm flutter test "integration_test/$1" -d macos --ci 2>&1 \
-                | tee "${RUNNER_TEMP:-/tmp}/tier-$(basename "$1" .dart).log" || true
-            fi
-            echo "::endgroup::"
-          }
-
-          proxy_arm proxy_binding_test.dart
-          proxy_arm proxy_frame_ladder_test.dart
-          proxy_arm proxy_http_connect_test.dart
-          proxy_arm proxy_connect_https_test.dart
-          proxy_arm proxy_apple_relay_parity_test.dart
+          proxy_arms=(
+            integration_test/proxy_binding_test.dart
+            integration_test/proxy_frame_ladder_test.dart
+            integration_test/proxy_http_connect_test.dart
+            integration_test/proxy_connect_https_test.dart
+            integration_test/proxy_apple_relay_parity_test.dart
+          )
+          files=()
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1252,16 +1193,74 @@ jobs:
             # Ran on its own above, first, so its verdict does not depend on
             # the 45-minute cap this loop spends.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
-            # Every proxy arm runs above, each reaped from the last. A second
-            # launch here would pay another full app build to repeat it.
-            case "$(basename "$t")" in
-              proxy_binding_test.dart|proxy_frame_ladder_test.dart) continue ;;
-              proxy_http_connect_test.dart|proxy_connect_https_test.dart) continue ;;
-              proxy_apple_relay_parity_test.dart) continue ;;
-            esac
+            # Every proxy arm runs on its own ahead of this loop, each reaped
+            # from the last. A second launch here would only repeat it.
+            case " ${proxy_arms[*]} " in *" $t "*) continue ;; esac
             # Needs an origin on a host this machine does not own, which only
             # the Linux job has (a service container). Skips here anyway.
             [ "$(basename "$t")" = "proxy_fail_closed_test.dart" ] && continue
+            files+=("$t")
+          done
+
+          # One build for the whole tier, then every file reuses it.
+          #
+          # `flutter test -d macos` builds the app on every invocation, and so
+          # does `flutter drive`: 3.44.9 still declares `--no-build` but never
+          # reads it. That was 30 to 70 s of Xcode per file, about half the
+          # step (runs 39489119149, 39502134208). `--use-application-binary`
+          # does skip the build and takes a macOS bundle, but a bundle runs the
+          # entrypoint it was built with, so scripts/integration_bundle.sh
+          # writes one that holds every file and runs the one a launch names.
+          # Each file still gets its own app process -- some suites depend on
+          # that, and a shared process would hide per-launch state.
+          #
+          # `--ci` builds it the way `flutter test --ci` builds a file, sandbox
+          # off (2. above). When the bundle does not build (one file that does
+          # not compile is enough) every file runs its own `flutter test`, so a
+          # broken file still costs only itself.
+          BUNDLE_MAIN="$(bash scripts/integration_bundle.sh entrypoint \
+            "${proxy_arms[@]}" "${files[@]}")"
+          BUNDLE_APP=""
+          bundle_log="${RUNNER_TEMP:-/tmp}/integration-bundle-build.log"
+          if fvm flutter build macos --debug --ci -t "$BUNDLE_MAIN" > "$bundle_log" 2>&1; then
+            BUNDLE_APP="$(ls -d build/macos/Build/Products/Debug/*.app | head -1)"
+          else
+            echo "::warning::the integration bundle did not build; each file runs its own flutter test"
+          fi
+          tail -20 "$bundle_log"
+
+          # The per-file cap, where a timeout binary was found.
+          capped() {
+            if [ -n "$TIMEOUT" ]; then "$TIMEOUT" -k 30s 12m "$@"; else "$@"; fi
+          }
+
+          # arm <file> <logfile> -> the file exit code
+          arm() {
+            if [ -n "$BUNDLE_APP" ]; then
+              capped bash scripts/integration_bundle.sh drive macos "$BUNDLE_APP" "$1" \
+                2>&1 | tee "$2"
+              rc=${PIPESTATUS[0]}
+              [ "$rc" -eq 0 ] && return 0
+              # Once the driver reaches the app the outcome is the file, pass
+              # or fail. Before that it is the bundle, and would be every file.
+              if grep -q 'VMServiceFlutterDriver: Connecting' "$2"; then
+                return "$rc"
+              fi
+              echo "::warning::the integration bundle did not launch for $1; it and every file after it run their own flutter test"
+              BUNDLE_APP=""
+            fi
+            capped fvm flutter test "$1" -d macos --ci 2>&1 | tee "$2"
+            return "${PIPESTATUS[0]}"
+          }
+
+          for t in "${proxy_arms[@]}"; do
+            reap_app "$(basename "$t" .dart)"
+            echo "::group::$t"
+            arm "$t" "${RUNNER_TEMP:-/tmp}/tier-$(basename "$t" .dart).log" || true
+            echo "::endgroup::"
+          done
+
+          for t in "${files[@]}"; do
             reap_app "$(basename "$t")"
             echo "::group::$t"
             # Kept per file so a failure can be re-printed at the end. Each
