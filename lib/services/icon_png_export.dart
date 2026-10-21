@@ -41,7 +41,7 @@ Uint8List? knownSiteIcon(
 
 /// Resolve, fetch, and normalize a site's favicon to PNG bytes.
 ///
-/// The favicon a site serves may be a PNG, an ICO (DuckDuckGo), or an SVG.
+/// The favicon a site serves may be a PNG, an ICO, or an SVG.
 /// This always returns a valid PNG: raster sources are decoded and
 /// re-encoded; SVG sources are rasterized at [size]x[size]. Returns null when
 /// no icon can be resolved/fetched (e.g. proxy fail-closed) or decoding fails.

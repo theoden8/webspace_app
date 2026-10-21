@@ -466,28 +466,19 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isFalse);
     });
 
-    testWidgets('offers Site icons only on every platform, off by default',
-        (tester) async {
+    testWidgets('Site icons only has no switch (ICON-014)', (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      final title = find.text('Site icons only');
-      await tester.scrollUntilVisible(title, 400,
+      await tester.scrollUntilVisible(find.text('Experimental'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-
-      final tile =
-          find.ancestor(of: title, matching: find.byType(SwitchListTile));
-      expect(tester.widget<SwitchListTile>(tile).value, isFalse,
-          reason: 'a new experiment starts off');
-      await tester.tap(tile);
-      await tester.pumpAndSettle();
       expect(
-          ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.siteIconsOnly),
-          isTrue);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(AppPref.experimentalSiteIconsOnly.key), isTrue);
+          find.ancestor(
+              of: find.text('Site icons only'),
+              matching: find.byType(SwitchListTile)),
+          findsNothing,
+          reason: 'every icon comes from the site itself');
     });
 
     testWidgets('Reset icon cache forgets every cached icon (ICON-015)', (tester) async {

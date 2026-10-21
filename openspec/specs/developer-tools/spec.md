@@ -172,7 +172,7 @@ The favicon SHALL be fetched through the same proxy-aware client as all other
 favicon requests (per-site proxy, fail-closed when it cannot be honored), so
 the action never leaks the device IP.
 
-Because a site's favicon may be a PNG, an ICO (DuckDuckGo), or an SVG, the
+Because a site's favicon may be a PNG, an ICO, or an SVG, the
 output SHALL always be a valid PNG: raster sources are decoded and re-encoded,
 and SVG sources are rasterized.
 
@@ -188,8 +188,7 @@ the site's `initUrl`) and fetched through the site's proxy
 
 #### Scenario: The page icon on screen is the one saved
 
-**Given** Site icons only is on and the drawer shows the PNG icon a GitHub page
-declared
+**Given** the drawer shows the PNG icon a GitHub page declared
 **And** `FaviconUrlCache` holds the SVG the home page scrape found
 **When** the user saves the icon
 **Then** the saved PNG is the drawer's icon
@@ -547,11 +546,12 @@ The features are:
 |---|---|---|---|
 | Webspace icon groups and a searchable tab tree (`webspaces` WEBSPACE-002) | New design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
-| A site's icon taken only from the site: no third-party icon service, and on Android the declared links in place of WebView's icon (`icon-fetching` ICON-014) | Site icons only | off | `publicIconServicesAllowed` in `icon_service.dart`, read on every icon fetch; `pageIconSource` in `site_icon_fetcher.dart`, read when a site's webview is created |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | iOS, macOS and Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
+
+A site's icon taken only from the site (`icon-fetching` ICON-014), with no third-party icon service and, on Android, the declared links in place of WebView's icon, was in the group with a Site icons only switch that defaulted off. Its first half graduated: no platform asks a third-party icon service. Android keeps the icon its WebView reports (ICON-009), and the switch's pref (`experimentalSiteIconsOnly`, written by v0.3.3 to v0.3.5) is no longer read.
 
 The proxy library and the connection indicator (`proxy` PROXY-030, PROXY-031) were in the group with a Saved proxies switch that defaulted off; they graduated, and are offered with developer mode on or off.
 
@@ -561,38 +561,24 @@ The embedded Tor client (`tor-proxy` TOR-007) was the first feature in the group
 
 Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were in the group with a Tor (external) switch that defaulted off; they graduated. The switch moved to App settings' Network screen, keeps its stored value, and is offered with developer mode on or off.
 
-#### Scenario: A feature needs both
-
-- **GIVEN** developer mode is on and the Site icons only switch is off
-- **WHEN** a site's icon is fetched
-- **THEN** Google's and DuckDuckGo's icon services are asked
-- **AND** after turning the switch on, the next fetch asks neither, with no restart
-
-#### Scenario: Developer mode off closes every feature
-
-- **GIVEN** the Site icons only switch is on
-- **WHEN** the user turns developer mode off
-- **THEN** the next icon fetch asks Google's and DuckDuckGo's icon services again
-- **AND** turning developer mode back on stops it again, with the switch still on
-
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with New design and Site icons only off and no Tor switch
+- **AND** after unlocking developer mode the Developer section shows it, with New design off and no Tor switch
 
 #### Scenario: Only what this platform can run
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and New design, Texture page rendering and Site icons only, off
+- **THEN** the Experimental group lists Proxy router, on, and New design and Texture page rendering, off
 
 #### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists New design, Site icons only and WebKit content blocking, off
+- **THEN** the Experimental group lists New design and WebKit content blocking, off
 
 #### Scenario: New design is opt-in and follows the gate live
 
@@ -603,13 +589,6 @@ Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were
 - **AND** turning either off restores the existing interface without changing sites, webspaces, or selection
 - **AND** turning developer mode back on restores the grouped site launcher if its switch is still on
 
-#### Scenario: Site icons only starts off
-
-- **GIVEN** an Android build with developer mode on and the Site icons only switch never touched
-- **WHEN** a site's icon is fetched
-- **THEN** Google's and DuckDuckGo's icon services are asked, and the site's webview reports its icon
-- **AND** after the user turns Site icons only on, neither service is asked, and a site opened afterwards gets the icon its page declares
-
 #### Scenario: The proxy router switch applies at next launch
 
 - **GIVEN** router mode is running on Android
@@ -619,7 +598,7 @@ Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were
 
 #### Scenario: Switches survive a backup round trip
 
-- **GIVEN** the Site icons only switch is on and the user exports settings
+- **GIVEN** the New design switch is on and the user exports settings
 - **WHEN** that backup is imported
 - **THEN** the switch is on without a restart
 

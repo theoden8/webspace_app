@@ -13,12 +13,6 @@ enum ExperimentalFeature {
   /// must not lose it to an upgrade.
   proxyRouter(AppPref.experimentalProxyRouter),
 
-  /// A site's icon taken only from the site: no third-party icon service, and
-  /// on Android the links its page declares, fetched as on every other
-  /// platform, in place of the icon WebView reports (icon-fetching ICON-014).
-  /// New, so off by default.
-  siteIconsOnly(AppPref.experimentalSiteIconsOnly),
-
   /// Android's texture-layer webview composition (PAUSE-032). Off by
   /// default: every release before it drew pages with hybrid composition.
   textureRendering(AppPref.experimentalTextureRendering),

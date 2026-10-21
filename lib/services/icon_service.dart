@@ -6,12 +6,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/engine_image.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
-import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
@@ -321,33 +319,8 @@ void wireFaviconTrustInvalidation() {
 
 final Set<String> _verifiedUrls = {};
 
-const Map<String, String> _domainSubstitutions = {
-  'gmail.com': 'mail.google.com',
-};
-
-String _applyDomainSubstitution(String domain) {
-  return _domainSubstitutions[domain] ?? domain;
-}
-
-bool _isIpAddress(String host) {
-  // IPv4: digits and dots only, with valid octet pattern
-  final ipv4Pattern = RegExp(r'^(\d{1,3}\.){3}\d{1,3}$');
-  if (ipv4Pattern.hasMatch(host)) return true;
-
-  // IPv6: contains colons (including bracketed form [::1])
-  if (host.contains(':')) return true;
-
-  if (host == 'localhost') return true;
-
-  return false;
-}
-
-/// Whether Google's and DuckDuckGo's icon services may be asked at all: not
-/// while a site's icon is taken only from the site (ICON-014).
-bool get publicIconServicesAllowed => !ExperimentalFeaturesService.instance
-    .isEnabled(ExperimentalFeature.siteIconsOnly);
-
-/// Whether [url] is an icon Google's or DuckDuckGo's service serves.
+/// Whether [url] is an icon Google's or DuckDuckGo's service serves: one a
+/// release before ICON-014 may have resolved and kept on disk.
 bool isPublicIconServiceUrl(String url) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
@@ -356,65 +329,23 @@ bool isPublicIconServiceUrl(String url) {
       host == 'icons.duckduckgo.com';
 }
 
-/// [url], or null when it is a public icon service's and those may not be
-/// asked: an icon resolved before site icons only was turned on.
+/// [url], or null when it is a public icon service's (ICON-014): rendered,
+/// it would ask that service again.
 String? usableIconUrl(String? url) =>
-    url != null && isPublicIconServiceUrl(url) && !publicIconServicesAllowed
-        ? null
-        : url;
+    url != null && isPublicIconServiceUrl(url) ? null : url;
 
-void _dropUnusableCachedIcon(String siteUrl) {
-  final cached = _faviconCache[siteUrl];
-  if (cached != null && usableIconUrl(cached) == null) {
-    _faviconCache.remove(siteUrl);
-    _faviconQualityCache.remove(siteUrl);
-  }
-}
+final StreamController<void> _reloadController =
+    StreamController<void>.broadcast();
 
-/// Why the icons on screen should be looked at again.
-enum IconReload {
-  /// Every icon cache was cleared, so every icon is fetched again.
-  all,
-
-  /// The sources an icon may come from changed (ICON-014), so an icon from a
-  /// source no longer allowed is fetched again.
-  sources,
-}
-
-final StreamController<IconReload> _reloadController =
-    StreamController<IconReload>.broadcast();
-
-/// Fires when icons already on screen should be looked at again.
-Stream<IconReload> get iconReloads => _reloadController.stream;
-
-/// Call after developer mode or the site icons only switch changes.
-void notifyIconSourcesChanged() {
-  for (final siteUrl in _faviconCache.keys.toList()) {
-    _dropUnusableCachedIcon(siteUrl);
-  }
-  _reloadController.add(IconReload.sources);
-}
+/// Fires when every icon cache was cleared, so every icon on screen is
+/// fetched again.
+Stream<void> get iconReloads => _reloadController.stream;
 
 /// Clear the in-memory caches and have every icon on screen fetched again.
 /// The caller clears what is kept on disk first.
 void reloadAllIcons() {
   clearFaviconCache();
-  _reloadController.add(IconReload.all);
-}
-
-bool _shouldUsePublicIconServices(Uri uri) {
-  if (!publicIconServicesAllowed) return false;
-
-  if (uri.scheme != 'https') return false;
-
-  if (_isIpAddress(uri.host)) return false;
-
-  // An onion name is never handed to a clearnet service, through any route:
-  // it would tell Google and DuckDuckGo which onion service is being opened
-  // (LEAK-016).
-  if (Host(uri.host).isOnion) return false;
-
-  return true;
+  _reloadController.add(null);
 }
 
 class _IconCandidate {
@@ -429,10 +360,6 @@ Future<bool> _verifyIconUrl(String iconUrl,
   if (_verifiedUrls.contains(iconUrl)) {
     return true;
   }
-  // Where a HEAD response cannot be read (a browser, cross-origin), accept the
-  // candidate and let the image element succeed or fall back.
-  if (!hostCanReadCrossOriginResponses) return true;
-
   final client = _proxiedClient(proxy);
   if (client == null) return false;
 
@@ -646,30 +573,18 @@ int _compareFavicons(Favicon a,
   return a.compareTo(b);
 }
 
-/// Progressive favicon loading - yields icons as they're found
-///
-/// Emits IconUpdate objects with increasing quality:
-/// 1. First emits fast sources (DuckDuckGo ~64px)
-/// 2. Then Google services (128px, 256px)
-/// 3. Finally the favicon package for site-specific high-res icons
-///
-/// Each emission only occurs if it's better quality than the previous.
-/// The final emission has isFinal=true.
+/// The best icon the site's home page declares (ICON-002), as one final
+/// [IconUpdate], or nothing when none is found. Every request goes to a host
+/// the page names, through [proxy]; no third-party icon service is asked
+/// (ICON-014).
 Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) async* {
-  Uri? uri = Uri.tryParse(url);
+  final uri = Uri.tryParse(url);
   if (uri == null || uri.host.isEmpty) {
     return;
   }
 
-  final effectiveProxy = _resolve(proxy);
-
-  String domain = _applyDomainSubstitution(uri.host);
-  int bestQuality = 0;
-  String? bestUrl;
-
-  _dropUnusableCachedIcon(url);
-  if (_faviconCache.containsKey(url) && _faviconCache[url] != null) {
-    final cachedUrl = _faviconCache[url]!;
+  final cachedUrl = _faviconCache[url];
+  if (cachedUrl != null) {
     final cachedQuality = _faviconQualityCache[url] ?? 100;
     LogTag.icon.debug(
         'Stream: Using cached icon for $url (quality: $cachedQuality)',
@@ -678,94 +593,16 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
     return;
   }
 
-  final usePublicServices = _shouldUsePublicIconServices(uri);
+  final found = await _tryFaviconPackage(url, proxy: _resolve(proxy));
+  _faviconCache[url] = found?.url;
+  _faviconQualityCache[url] = found?.quality ?? 0;
+  if (found != null) {
+    yield IconUpdate(found.url, quality: found.quality, isFinal: true);
+  }
 
   LogTag.icon.debug(
-      'Stream: Starting progressive fetch for $url (domain: $domain, usePublicServices: $usePublicServices)',
+      'Stream: Completed for $url, quality: ${found?.quality ?? 0}',
       sensitive: true);
-
-  // Phase 1 & 2: Public icon services (only for HTTPS + non-IP addresses).
-  // Site icons only can be turned on while a request is out, so the gate is
-  // read again before each phase and each result (ICON-014).
-  if (usePublicServices) {
-    // Phase 1: Quick sources (DuckDuckGo) - typically responds fast
-    final ddgResult = await _tryDuckDuckGo(domain, proxy: effectiveProxy);
-    if (ddgResult != null && publicIconServicesAllowed) {
-      bestUrl = ddgResult;
-      bestQuality = 64;
-      LogTag.icon.debug('Stream: Emitting DuckDuckGo icon (quality: 64)');
-      yield IconUpdate(ddgResult, quality: 64);
-    }
-
-    // Phase 2: Google services in parallel (128px and 256px)
-    if (publicIconServicesAllowed) {
-      final googleResults = await Future.wait([
-        _tryGoogleFavicon(domain, size: 128, proxy: effectiveProxy),
-        _tryGoogleFavicon(domain, size: 256, proxy: effectiveProxy),
-      ]);
-      final allowed = publicIconServicesAllowed;
-
-      if (allowed && googleResults[0] != null && 128 > bestQuality) {
-        bestUrl = googleResults[0];
-        bestQuality = 128;
-        LogTag.icon.debug('Stream: Emitting Google 128px icon');
-        yield IconUpdate(googleResults[0]!, quality: 128);
-      }
-
-      if (allowed && googleResults[1] != null && 256 > bestQuality) {
-        bestUrl = googleResults[1];
-        bestQuality = 256;
-        LogTag.icon.debug('Stream: Emitting Google 256px icon');
-        yield IconUpdate(googleResults[1]!, quality: 256);
-      }
-    }
-  }
-
-  // Phase 3: Favicon package (slowest but can find high-res site-specific icons)
-  final faviconResult = await _tryFaviconPackage(url, proxy: effectiveProxy);
-  if (bestUrl != null && usableIconUrl(bestUrl) == null) {
-    bestUrl = null;
-    bestQuality = 0;
-  }
-  if (faviconResult != null && faviconResult.quality > bestQuality) {
-    bestUrl = faviconResult.url;
-    bestQuality = faviconResult.quality;
-    LogTag.icon.debug(
-        'Stream: Emitting favicon package icon (quality: ${faviconResult.quality})');
-    yield IconUpdate(faviconResult.url,
-        quality: faviconResult.quality, isFinal: true);
-  } else if (bestUrl != null) {
-    yield IconUpdate(bestUrl, quality: bestQuality, isFinal: true);
-  }
-
-  _faviconCache[url] = bestUrl;
-  _faviconQualityCache[url] = bestQuality;
-
-  LogTag.icon.debug(
-      'Stream: Completed for $url, best quality: $bestQuality',
-      sensitive: true);
-}
-
-Future<String?> _tryGoogleFavicon(String domain,
-    {required int size, required UserProxySettings proxy}) async {
-  final googleUrl =
-      'https://www.google.com/s2/favicons?domain=$domain&sz=$size';
-  if (await _verifyIconUrl(googleUrl, proxy: proxy)) {
-    LogTag.icon.debug('Found Google favicon at ${size}px for $domain',
-        sensitive: true);
-    return googleUrl;
-  }
-  return null;
-}
-
-Future<String?> _tryDuckDuckGo(String domain,
-    {required UserProxySettings proxy}) async {
-  final ddgUrl = 'https://icons.duckduckgo.com/ip3/$domain.ico';
-  if (await _verifyIconUrl(ddgUrl, proxy: proxy)) {
-    LogTag.icon.debug('Found DuckDuckGo favicon for $domain', sensitive: true);
-    return ddgUrl;
-  }
-  return null;
 }
 
 Future<_IconCandidate?> _tryFaviconPackage(String url,
@@ -779,9 +616,8 @@ Future<_IconCandidate?> _tryFaviconPackage(String url,
     return null;
   }
   // Scraping the page for <link rel=icon> means reading a cross-origin
-  // response, which a browser refuses however the request is made. On web the
-  // other candidates (public icon services, rendered through an <img>) still
-  // work, so this returns nothing rather than raising a CORS error per site.
+  // response, which a browser refuses however the request is made, so on web
+  // a site shows the placeholder rather than raising a CORS error per site.
   if (!hostCanReadCrossOriginResponses) return null;
   try {
     final favicons = await FaviconFinder.getAll(url, proxy: proxy).timeout(Duration(seconds: 15));

@@ -145,6 +145,8 @@ const Map<String, String> _retiredKeys = {
       'the Experimental group; there is no switch to restore',
   'experimentalSiteTabs': 'TAB-012: site tabs graduated out of the '
       'Experimental group; there is no switch to restore',
+  'experimentalSiteIconsOnly': 'ICON-014: site icons only graduated out of '
+      'the Experimental group; there is no switch to restore',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

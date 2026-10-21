@@ -26,29 +26,34 @@ void main() {
 
   group('pageIconSourceFor', () {
     test('WebKit platforms fetch the declared links', () {
-      expect(
-          pageIconSourceFor(android: false, webkit: true, siteIconsOnly: false),
-          PageIconSource.declaredLinks);
-      expect(
-          pageIconSourceFor(android: false, webkit: true, siteIconsOnly: true),
+      expect(pageIconSourceFor(webviewReports: false, webkit: true),
           PageIconSource.declaredLinks);
     });
 
-    test('Android takes the webview icon unless icons come only from the site',
+    test('a webview that reports its icon is taken at its word (ICON-009)',
         () {
-      expect(
-          pageIconSourceFor(android: true, webkit: false, siteIconsOnly: false),
+      expect(pageIconSourceFor(webviewReports: true, webkit: false),
           PageIconSource.webview);
-      expect(
-          pageIconSourceFor(android: true, webkit: false, siteIconsOnly: true),
-          PageIconSource.declaredLinks);
+      expect(pageIconSourceFor(webviewReports: true, webkit: true),
+          PageIconSource.webview);
     });
 
     test('nothing where no webview hosts a site', () {
-      expect(
-          pageIconSourceFor(android: false, webkit: false, siteIconsOnly: true),
+      expect(pageIconSourceFor(webviewReports: false, webkit: false),
           PageIconSource.none);
     });
+  });
+
+  test('ICON-009: WPE reports page icons from 2.54', () {
+    expect(wpeReportsPageIcons('2.54.0'), isTrue);
+    expect(wpeReportsPageIcons('2.54.1'), isTrue);
+    expect(wpeReportsPageIcons('2.60.0'), isTrue);
+    expect(wpeReportsPageIcons('3.0.0'), isTrue);
+    expect(wpeReportsPageIcons('2.52.3'), isFalse);
+    expect(wpeReportsPageIcons('2.9.0'), isFalse);
+    expect(wpeReportsPageIcons(null), isFalse);
+    expect(wpeReportsPageIcons(''), isFalse);
+    expect(wpeReportsPageIcons('two.fifty'), isFalse);
   });
 
   group('decodeSiteIcon', () {

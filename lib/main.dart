@@ -11,6 +11,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/diag_seed.dart';
+import 'package:webspace/services/site_icon_fetcher.dart' show WpePageIcons;
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -124,6 +125,8 @@ void main([List<String> args = const []]) async {
     if (hostIsAndroid) blockServiceWorkerNetwork(),
     // Proxy support, detected before the UI loads.
     PlatformInfo.initialize(),
+    // Where a site's icon comes from on Linux, read as each webview is built.
+    WpePageIcons.initialize(),
     // ConnectivityService.lastKnownOnline before the first webview: the
     // offline cached-HTML render path needs a sync answer at construction.
     ConnectivityService.instance.primeLastKnownOnline(),
