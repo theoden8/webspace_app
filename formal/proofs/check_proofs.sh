@@ -71,6 +71,13 @@ min_obligations() {
     activation_tables_7_proof.tla) echo 116 ;;
     activation_tables_8_proof.tla) echo 88 ;;
     activation_invariants_proof.tla) echo 287 ;;
+    activation_types_proof.tla) echo 313 ;;
+    activation_types_steps_proof.tla) echo 85 ;;
+    activation_held_steps_proof.tla) echo 255 ;;
+    activation_supports_steps_proof.tla) echo 170 ;;
+    # The tables' typing, held and supports modules are as many as their
+    # rows need, so they are not pinned by name; formal/levels.tsv holds
+    # the sum of them all.
     containers_disjoint.tla)   echo 39 ;;
     current_loaded.tla)        echo 52 ;;
     jar_matches.tla)           echo 52 ;;
@@ -129,6 +136,9 @@ check() {
   [ ! -e "$work/$name.failed" ] || result=failed
   echo "  $name: $result in $(( $(date +%s) - start ))s"
 }
+# A printed steps module restates the lemmas it cites, omitted, instead of
+# extending the modules that prove them: each is held to one proved here.
+python3 omitted.py "$FORMAL_MODEL"/*_proof.tla *.tla
 # The printed proofs, the longest, start first.
 for f in "$FORMAL_MODEL"/*_proof.tla *.tla; do
   while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 1; done

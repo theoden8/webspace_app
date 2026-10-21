@@ -150,19 +150,6 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     Set<Need> passed(int i) => {
       for (final b in s.branches.take(i)) ...b.when.unless,
     };
-    // A refused reply takes its arm whatever the branches say.
-    Set<FlowKind>? only(int i) {
-      Set<FlowKind>? left = switch (arms[i]) {
-        Branch(when: final w) => w.kinds,
-        Otherwise() || Refused() => null,
-      };
-      if (arms[i] is Refused) return left;
-      for (final b in s.branches.take(i)) {
-        if (!b.when.exactKinds) continue;
-        left = (left ?? FlowKind.values.toSet()).difference(b.when.kinds!);
-      }
-      return left;
-    }
     ArmRow row(Arm<W, P> arm, {required int at}) {
       // Each place the arm may go to, with what going there needs.
       final next = <String, Set<Need>>{};
@@ -187,7 +174,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           if (arm case Branch(when: final w)) ...w.needs,
           ...?arm.pick?.from.needs,
         },
-        only: only(at),
+        only: _only(s, at: at),
         fields: ends
             ? FlowField.values.toSet()
             : {
@@ -303,72 +290,14 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     // the field that keeps it is the reply; outside, the field. A refused
     // reply lands nothing: its arm writes none of the call's variables and
     // reads the field as it was.
-    final replied = switch (s.call?.keeps) {
-      null => (String tla) => tla,
-      (:final field, :final reply, reads: _) => (String tla) => tla.replaceAll(
-        RegExp('fl\\[f\\]\\.${field.name}\\b'),
-        '($reply)',
-      ),
-    };
+    final replied = _replied(s);
     ({String text, List<StepAlternative> sides}) branch(Arm<W, P> arm) {
-      final refused = arm is Refused;
-      final got = refused ? (String tla) => tla : replied;
-      final callWrites = refused ? <Write<W>>[] : s.call?.writes ?? <Write<W>>[];
-      final ends = ending.any((p) => arm.next.tla == '"${p.name}"');
-      final own = [
-        if (s.call?.keeps case final k? when !refused)
-          (field: k.field.name, to: k.reply),
-        for (final e in arm.then)
-          if (e case Assign(:final field, :final to))
-            (field: field.name, to: got(to)),
-      ];
-      final acts = [
-        for (final e in arm.then)
-          if (e is Act<W>) e,
-      ];
-      final written = {
-        for (final w in callWrites) w.variable,
-        for (final a in acts) ...a.writes,
-        ModelVar.fl,
-        ModelVar.last,
-        if (s.input) ModelVar.inputs,
-      };
-      // The next place's call starts once the arm is done, so what it reads
-      // is the arm's own state: a field the arm sets reads as set (its value
-      // is the arm's, over the state the arm found), and a variable the arm
-      // writes it may not read, since the model would read the old value
-      // (an assert); the place is entered by name, since the reads are its
-      // arm's.
-      final next = got(arm.next.tla);
-      final entering = [
-        for (final MapEntry(key: p, value: rs) in entered.entries)
-          if (next == '"$p"') ...rs,
-      ];
-      assert(
-        entered.keys.every((p) => next == '"$p"' || !next.contains('"$p"')),
-        '${s.name} enters $next, a place whose call reads, not by name',
-      );
-      assert(
-        entering.every(
-          (r) => written
-              .difference({ModelVar.fl, ModelVar.last, ModelVar.inputs})
-              .every((v) => !RegExp('\\b${v.name}\\b').hasMatch(r.to)),
-        ),
-        '${s.name} writes what the next call reads at its start',
-      );
-      final reads = [
-        for (final r in entering) (field: r.field.name, to: _after(r.to, own: own)),
-      ];
-      final assigns = [
-        '![f].pc = $next',
-        for (final (:field, :to) in [...own, ...reads]) '![f].$field = $to',
-      ];
-      assert(
-        acts.every(
-          (a) =>
-              a.writes.every((w) => !callWrites.any((cw) => cw.variable == w)),
-        ),
-        '${s.name} writes a variable its call writes',
+      final (:got, :callWrites, :ends, :acts, :written, :assigns) = _parts(
+        s,
+        arm: arm,
+        replied: replied,
+        ending: ending,
+        entered: entered,
       );
       // A spawned input reads the state the arm leaves, as primed names,
       // so its row and its writes follow the arm's writes.
@@ -385,7 +314,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           for (final w in callWrites) w.tla,
           if (started == null) row,
           for (final a in acts) got(a.tla),
-          if (started != null) ...[...started.acts, row],
+          if (started != null) ...[for (final a in started.acts) a.tla, row],
           'Did("${s.action}", f, "${arm.outcome.tla}", ${got((arm.tab ?? s.tab ?? arm.site ?? s.site)?.tla ?? '0')})',
           if (held.isNotEmpty) 'UNCHANGED << ${held.join(', ')} >>',
         ].map((c) => '($c)').join(' /\\ ');
@@ -492,6 +421,226 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     );
   }
 
+  /// The branches before arm [at] of [s], which it is taken only once they
+  /// did not hold. A refused reply takes its arm whatever the branches say.
+  static List<Branch<W, P>> _passed<W, P extends Enum>(Step<W, P> s, {required int at}) =>
+      s.allArms[at] is Refused ? const [] : s.branches.take(at).toList();
+
+  /// The kinds of flow [arm]'s own branch holds for, null when it does not
+  /// test the kind.
+  static Set<FlowKind>? _tested<W, P extends Enum>(Arm<W, P> arm) => switch (arm) {
+    Branch(when: final w) => w.kinds,
+    Otherwise() || Refused() => null,
+  };
+
+  /// The kinds of flow arm [at] of [s] is taken for, null for any: those
+  /// its branch holds for, less those the branches before it took.
+  static Set<FlowKind>? _only<W, P extends Enum>(Step<W, P> s, {required int at}) {
+    var left = _tested(s.allArms[at]);
+    for (final b in _passed(s, at: at)) {
+      if (!b.when.exactKinds) continue;
+      left = (left ?? FlowKind.values.toSet()).difference(b.when.kinds!);
+    }
+    return left;
+  }
+
+  /// The step's reads of the field its call keeps, as the reply: the reply
+  /// lands before the arms run.
+  static String Function(String) _replied<W, P extends Enum>(Step<W, P> s) =>
+      switch (s.call?.keeps) {
+        null => (String tla) => tla,
+        (:final field, :final reply, reads: _) => (String tla) => tla.replaceAll(
+          RegExp('fl\\[f\\]\\.${field.name}\\b'),
+          '($reply)',
+        ),
+      };
+
+  /// Each step's writes of `fl` as its action prints them, for the proof
+  /// that every step keeps the flows' rows typed: per arm, the picks it
+  /// binds, the guards it is taken under and the clauses of its row, and for
+  /// an arm that starts a flow, a second row with the started flow's clauses
+  /// beside its own.
+  List<FlStep> flSteps({
+    Map<String, List<Assign<Object?>>>? entered,
+    Map<ActivationStep, Step<Object?, Enum>> starts = const {},
+  }) => [
+    for (final (:place, :step) in steps)
+      if (!step.spawned)
+        _flStep(
+          step,
+          place: place.name,
+          ending: ending,
+          entered: entered ?? readsByPlace,
+          starts: starts,
+        ),
+  ];
+
+  static FlStep _flStep<W, P extends Enum>(
+    Step<W, P> s, {
+    required String place,
+    required Set<P> ending,
+    required Map<String, List<Assign<Object?>>> entered,
+    required Map<ActivationStep, Step<Object?, Enum>> starts,
+  }) {
+    final replied = _replied(s);
+    return (
+      action: s.action,
+      input: s.input,
+      place: place,
+      rows: [
+        for (final (at, arm) in s.allArms.indexed) ...() {
+          final (:got, :ends, :assigns, :written, :callWrites, :acts) =
+              _parts(s, arm: arm, replied: replied, ending: ending, entered: entered);
+          final writes = [
+            for (final w in callWrites) (vars: {w.variable}, tla: w.tla),
+            for (final a in acts) (vars: a.writes, tla: got(a.tla)),
+          ];
+          final own = ends ? ['![f] = NoFlow'] : assigns;
+          final picks = [
+            if (s.pick case final p?) (name: p.name, from: p.from.tla),
+            if (arm.pick case final p?) (name: p.name, from: got(p.from.tla)),
+          ];
+          final given = [
+            ?s.enabled?.tla,
+            ...switch (arm) {
+              Branch(when: final b) => [replied(b.tla)],
+              Refused(when: final r) => [r.tla],
+              Otherwise() => const <String>[],
+            },
+          ];
+          final spawn = arm.then.whereType<Spawn<W>>().firstOrNull;
+          final tested = _tested(arm);
+          final passed = [
+            for (final b in _passed(s, at: at))
+              (
+                tla: '~(${replied(b.when.tla)})',
+                kinds: b.when.exactKinds ? b.when.kinds! : const <FlowKind>{},
+              ),
+          ];
+          return [
+            (
+              picks: picks,
+              lets: const <({String name, String to})>[],
+              given: given,
+              clauses: own,
+              tested: tested,
+              passed: passed,
+              writes: writes,
+            ),
+            if (spawn != null)
+              () {
+                final started = _start(
+                  spawn,
+                  starts: starts,
+                  entered: entered,
+                  after: written,
+                  bound: {s.pick?.name, arm.pick?.name},
+                );
+                return (
+                  picks: picks,
+                  lets: [(name: started.pick, to: got(spawn.site.tla))],
+                  given: [...given, got(spawn.when.tla)],
+                  clauses: [...own, ...started.assigns],
+                  tested: tested,
+                  passed: passed,
+                  writes: [...writes, ...started.acts],
+                );
+              }(),
+          ];
+        }(),
+      ],
+    );
+  }
+
+  /// What [arm] of [s] writes as its action prints it: the call's and the
+  /// acts' writes, and the clauses of its own row of `fl` (the place it goes
+  /// to and the fields it sets), read through [replied] unless the platform
+  /// refused the call; [ends] when the arm ends the flow, its row `NoFlow`.
+  static ({
+    String Function(String) got,
+    List<Write<W>> callWrites,
+    bool ends,
+    List<Act<W>> acts,
+    Set<ModelVar> written,
+    List<String> assigns,
+  })
+  _parts<W, P extends Enum>(
+    Step<W, P> s, {
+    required Arm<W, P> arm,
+    required String Function(String) replied,
+    required Set<P> ending,
+    required Map<String, List<Assign<Object?>>> entered,
+  }) {
+    final refused = arm is Refused;
+    final got = refused ? (String tla) => tla : replied;
+    final callWrites = refused ? <Write<W>>[] : s.call?.writes ?? <Write<W>>[];
+    final ends = ending.any((p) => arm.next.tla == '"${p.name}"');
+    final own = [
+      if (s.call?.keeps case final k? when !refused)
+        (field: k.field.name, to: k.reply),
+      for (final e in arm.then)
+        if (e case Assign(:final field, :final to))
+          (field: field.name, to: got(to)),
+    ];
+    final acts = [
+      for (final e in arm.then)
+        if (e is Act<W>) e,
+    ];
+    final written = {
+      for (final w in callWrites) w.variable,
+      for (final a in acts) ...a.writes,
+      ModelVar.fl,
+      ModelVar.last,
+      if (s.input) ModelVar.inputs,
+    };
+    // The next place's call starts once the arm is done, so what it reads
+    // is the arm's own state: a field the arm sets reads as set (its value
+    // is the arm's, over the state the arm found), and a variable the arm
+    // writes it may not read, since the model would read the old value
+    // (an assert); the place is entered by name, since the reads are its
+    // arm's.
+    final next = got(arm.next.tla);
+    final entering = [
+      for (final MapEntry(key: p, value: rs) in entered.entries)
+        if (next == '"$p"') ...rs,
+    ];
+    assert(
+      entered.keys.every((p) => next == '"$p"' || !next.contains('"$p"')),
+      '${s.name} enters $next, a place whose call reads, not by name',
+    );
+    assert(
+      entering.every(
+        (r) => written
+            .difference({ModelVar.fl, ModelVar.last, ModelVar.inputs})
+            .every((v) => !RegExp('\\b${v.name}\\b').hasMatch(r.to)),
+      ),
+      '${s.name} writes what the next call reads at its start',
+    );
+    final reads = [
+      for (final r in entering) (field: r.field.name, to: _after(r.to, own: own)),
+    ];
+    final assigns = [
+      '![f].pc = $next',
+      for (final (:field, :to) in [...own, ...reads]) '![f].$field = $to',
+    ];
+    assert(
+      acts.every(
+        (a) => a.writes.every(
+          (w) => !callWrites.any((cw) => cw.variable == w),
+        ),
+      ),
+      '${s.name} writes a variable its call writes',
+    );
+    return (
+      got: got,
+      callWrites: callWrites,
+      ends: ends,
+      acts: acts,
+      written: written,
+      assigns: assigns,
+    );
+  }
+
   /// What [spawn]'s input prints in the action of the step that starts it:
   /// its row's fields on the flow numbered next and its writes, over the
   /// state the arm leaves (each variable the arm writes, in [after], primed),
@@ -554,7 +703,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         ])
           '![inputs + 1].$field = ${fresh(to)}',
       ],
-      acts: [for (final a in acts) fresh(a.tla)],
+      acts: [for (final a in acts) (vars: a.writes, tla: fresh(a.tla))],
       written: written,
     );
   }
@@ -572,12 +721,33 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
   }
 }
 
+/// A row of `fl` an arm writes, as its action prints it: the picks bound
+/// around it, the names a started flow's pick is bound to, the guards it
+/// is taken under, the clauses of `[fl EXCEPT ...]`, the kinds of flow its
+/// own branch holds for (null when it does not test the kind), and the
+/// branches before it, which did not hold, each with the kinds it holds
+/// for exactly (none when it is not a test of the kind alone), and its
+/// writes of the other variables, each with those it writes.
+typedef FlRow = ({
+  List<({String name, String from})> picks,
+  List<({String name, String to})> lets,
+  List<String> given,
+  List<String> clauses,
+  Set<FlowKind>? tested,
+  List<({String tla, Set<FlowKind> kinds})> passed,
+  List<({Set<ModelVar> vars, String tla})> writes,
+});
+
+/// A step's action, whether it is an input, the place it runs from, and the
+/// rows of `fl` its arms write.
+typedef FlStep = ({String action, bool input, String place, List<FlRow> rows});
+
 /// What a spawned input prints in the action that starts it: the name its
 /// pick binds, its row's fields, its writes and the variables they write.
 typedef _Started = ({
   String pick,
   List<String> assigns,
-  List<String> acts,
+  List<({Set<ModelVar> vars, String tla})> acts,
   Set<ModelVar> written,
 });
 
