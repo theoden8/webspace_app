@@ -1196,12 +1196,9 @@ abstract final class ActivationTable {
         holds: null,
         call: Call.on(
           ActivationFlow.boxes,
-          run: (c) => switch (c.api) {
-            Containers(:final engine) => engine.ensureContainer(
-              _site.of(c).containerKey,
-            ),
-            SharedJar() => Future.value(),
-          },
+          run: (c) =>
+              c.api?.ensureContainer(_site.of(c).containerKey) ??
+              Future.value(),
           writes: [
             _boxes.becomes(
               Expr.choose(
@@ -1237,11 +1234,9 @@ abstract final class ActivationTable {
         holds: null,
         call: Call.on(
           ActivationFlow.boxes,
-          run: (c) => switch (c.api) {
-            Containers(:final engine) => engine.containerNative
-                .deleteContainer(_site.of(c).containerKey),
-            SharedJar() => Future.value(),
-          },
+          run: (c) =>
+              c.api?.containerNative.deleteContainer(_site.of(c).containerKey) ??
+              Future.value(),
           writes: [
             _boxes.becomes(
               _boxes.value.less(_site.value.asSet.less(_views.value)),

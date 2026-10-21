@@ -546,10 +546,6 @@ const _owed = <String, Set<String>>{
     'active',
     'tabs',
   },
-  // The port hands the whole Isolation witness, whose shared-jar half reads
-  // the jar's turn holder. Lifted by a port over the container engine
-  // alone, which is all the step calls.
-  'lib/controllers/activation_flow.dart boxes': {'holder'},
   // A stage lands and follows through the funnel (SiteRuntime.apply, the
   // archive's record of a closed site, the link tabs' reconcile), which
   // reads the screen, the version, the loaded sites and their tabs in the
