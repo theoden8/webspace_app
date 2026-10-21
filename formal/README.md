@@ -465,6 +465,16 @@ or expected line is another key, so it runs. Only runs that behaved are kept, so
 always runs again. `FORMAL_RERUN=1` runs every check and keeps what
 behaves; a kept run nothing has asked for in a fortnight is dropped.
 
+The replay keeps its runs the same way, under `FORMAL_CACHE/replay`
+([check_steps.py](trace/check_steps.py), `Memo`). A replay's key holds its module and
+config, which hold the trace, every module in formal/ and the printed model, and the
+jar. The traces change only when the code's behavior under the schedules does, so a
+change that leaves the printed model alone replays nothing again. A replay that runs is
+held to its key: each file TLC reports parsing must be one the key read. Two planted
+mistakes prove the key: the planted nuke reads the kept replays, so a key that left out
+the trace would remember it; and `--plant-key` replays under a key that leaves out the
+printed model, which the parse check must refuse.
+
 CI restores and saves these caches separately, saving completed work even when a
 later check fails. Each model shard and the proof job has a five-hour verification
 timeout inside the job's six-hour limit so cache saving has time to run.

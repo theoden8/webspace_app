@@ -21,7 +21,7 @@ def counts(models, steps, proofs):
         sys.exit("levels: check.sh printed %d tallies, not one" % len(tally))
     holds, caught, reached = (int(n) for n in tally[0])
     replayed = [int(n) for n in
-                re.findall(r"^  OK   \S+ +(\d+) steps, \d+ states replayed$",
+                re.findall(r"^  OK   \S+ +(\d+) steps, \d+ states replayed(?: \(remembered\))?$",
                            steps, re.M)]
     proved = [int(n) for n in
               re.findall(r"OK: (\d+) obligations? proved", proofs)]

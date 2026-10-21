@@ -33,7 +33,7 @@ function verify(t, floor) {
   // Stub the expensive stages, keeping the real verification and levels gate.
   const stages = {
     'lean/check.sh': '',
-    'trace/check_steps.sh': '  OK   first 2 steps, 3 states replayed\n  OK   second 2 steps, 3 states replayed',
+    'trace/check_steps.sh': '  OK   first 2 steps, 3 states replayed\n  OK   second 2 steps, 3 states replayed (remembered)',
     'proofs/check_proofs.sh': '  OK: 2 obligations proved\n  OK: 2 obligations proved',
   };
   for (const [name, output] of Object.entries(stages)) {

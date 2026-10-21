@@ -8,7 +8,7 @@ const { read } = require('./helpers/source');
 const jobs = YAML.parse(read('.github/workflows/formal.yml')).jobs;
 const main = YAML.parse(read('.github/workflows/build-and-test.yml'));
 
-for (const [name, id] of [['models', 'formal-cache'], ['proofs', 'tlapm-cache']]) {
+for (const [name, id] of [['models', 'formal-cache'], ['steps', 'replay-cache'], ['proofs', 'tlapm-cache']]) {
   const job = jobs[name];
   const verify = job.steps.find((s) => s.id === 'formal-verify');
   test(`${name} leaves time to save completed work after a timeout`, () => {
@@ -65,10 +65,12 @@ test("the formal stages' token may list and download this repository's artifacts
   assert.deepEqual(main.jobs.formal.permissions, { contents: 'read', actions: 'read' });
 });
 
-test('cold model checks cannot use a valid memo or timing history', () => {
-  const verify = jobs.models.steps.find((s) => s.id === 'formal-verify');
-  assert.equal(verify.env.FORMAL_RERUN, "${{ inputs.cold && '1' || '' }}");
-  assert.match(verify.run, /rm -rf "\$HOME\/\.cache\/webspace-formal"/);
+test('cold model checks and replays cannot use a valid memo or timing history', () => {
+  for (const name of ['models', 'steps']) {
+    const verify = jobs[name].steps.find((s) => s.id === 'formal-verify');
+    assert.equal(verify.env.FORMAL_RERUN, "${{ inputs.cold && '1' || '' }}", name);
+    assert.match(verify.run, /rm -rf "\$HOME\/\.cache\/webspace-formal"/, name);
+  }
   const proof = jobs.proofs.steps.find((s) => s.id === 'formal-verify');
   assert.match(proof.run, /rm -rf formal\/proofs\/\.tlacache/);
 });
