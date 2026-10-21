@@ -26,8 +26,12 @@ The system SHALL find a site's icon in what the site's home page serves, read
 through the site's proxy:
 
 1. HTML parsing: the `rel=icon` and `rel="shortcut icon"` links of the home
-   page
-2. `/favicon.ico` on the site's host
+   page, after its redirects (at most 5), resolved against the document they
+   landed on
+2. `/favicon.ico` on the site's host, and on the first other host a redirect
+   sends the home page to: `gmail.com` answers with a 301 to
+   `mail.google.com`, whose favicon is Gmail's, then redirects on to a
+   sign-in page on a third host, whose favicon is not and is never asked for
 
 and SHALL pick the best of them by ICON-003's score. The page icon the site's
 own webview produces once the site is open (ICON-009, ICON-013) wins over
@@ -46,6 +50,15 @@ this when present.
 **And** the site's host serves `/favicon.ico`
 **When** selection is made
 **Then** `/favicon.ico` is chosen
+
+#### Scenario: A home page that redirects to another host
+
+**Given** `https://gmail.com/` redirects to `https://mail.google.com/mail/u/0/`
+**And** that redirects to a sign-in page on `accounts.google.com`, which
+declares no icon
+**When** the icon is fetched
+**Then** `https://mail.google.com/favicon.ico` is chosen
+**And** `accounts.google.com/favicon.ico` is not requested
 
 ---
 
