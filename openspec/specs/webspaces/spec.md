@@ -71,6 +71,8 @@ The system SHALL provide clear visual indication of which webspace is currently 
 
 The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. The Sites library tab SHALL select All and show every saved site in an embedded tab tree. Sites with tabs enabled SHALL expose their parent/child tab hierarchy and the existing open, close, collapse, and reorder controls. Sites with tabs disabled SHALL remain single launchable entries. Tree searches SHALL retain the ancestors of matching tabs. Actions in the embedded tree SHALL NOT dismiss the library route. Library searches SHALL filter the current view without changing membership or persisted order.
 
+Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid.
+
 #### Scenario: Filter drawer by webspace
 
 **Given** the user has selected the "Work" webspace
@@ -79,6 +81,19 @@ The workspace site grid and the browser drawer SHALL only show sites belonging t
 **When** the user opens the drawer
 **Then** only sites A and B are displayed
 **And** site C is not visible
+
+#### Scenario: Find a site from the webspaces grid
+
+**Given** Work is selected and contains Alpha, while Beta belongs to another workspace
+**When** the user searches the Webspaces grid for Beta's name or homepage address
+**Then** Beta appears in the Sites section and can be opened directly
+**And** Work remains selected and workspace membership and saved order remain unchanged
+**And** a site shared by multiple groups appears only once
+**And** a query matching both a workspace and a site shows both sections
+**And** a query matching neither shows No matches
+**And** clearing the query restores the workspace grid
+
+Regression: `test/webspace_library_test.dart` and `test/webspace_library_app_test.dart`.
 
 ---
 

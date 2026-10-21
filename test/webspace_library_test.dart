@@ -268,7 +268,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(_group('All'));
       await tester.pumpAndSettle();
-      final grid = find.byType(GridView);
+      final grid = find.byType(CustomScrollView);
       await tester.drag(grid, const Offset(0, -150));
       await tester.pumpAndSettle();
       final scrollable = tester.state<ScrollableState>(
@@ -491,6 +491,83 @@ void main() {
       expect(
         tester.widget<TabsSheet>(find.byType(TabsSheet)).sites,
         hasLength(8),
+      );
+    },
+  );
+
+  testWidgets(
+    'webspace search finds sites by name and URL once across all groups (WEBSPACE-004)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      state.webspaces[2].siteIds.add(state.sites[0].siteId);
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      final membership = {
+        for (final group in state.webspaces) group.id: [...group.siteIds],
+      };
+      for (final query in ['  gItHuB  ', 'SITE0.EXAMPLE']) {
+        await tester.enterText(find.byType(TextField), query);
+        await tester.pumpAndSettle();
+        expect(find.byType(WebspaceGroupTile), findsNothing);
+        expect(find.byType(SiteGridTile), findsOneWidget);
+        final result = tester.widget<SiteGridTile>(find.byType(SiteGridTile));
+        expect(result.site, same(state.sites[0]));
+        expect(result.onReorder, isNull);
+        await tester.tap(find.text('GitHub'));
+        expect(state.opened, same(state.sites[0]));
+      }
+      // Site 7 belongs to no named group and is outside the selected Work group.
+      await tester.enterText(find.byType(TextField), 'site7.example');
+      await tester.pumpAndSettle();
+      expect(find.byType(SiteGridTile), findsOneWidget);
+      await tester.tap(find.text('Site 7'));
+      expect(state.opened, same(state.sites[7]));
+      expect(state.selected, state.webspaces[1].id);
+      expect({
+        for (final group in state.webspaces) group.id: group.siteIds,
+      }, membership);
+      await tester.enterText(find.byType(TextField), 'no-such-site');
+      await tester.pumpAndSettle();
+      expect(find.text('No matches'), findsOneWidget);
+      expect(find.byType(WebspaceGroupTile), findsNothing);
+      expect(find.byType(SiteGridTile), findsNothing);
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(find.byType(WebspaceGroupTile), findsNWidgets(4));
+      expect(find.byType(SiteGridTile), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'webspace search shows matching groups and sites together (WEBSPACE-004)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      state.sites[2].name = 'Work chat';
+      await tester.enterText(find.byType(TextField), 'wOrK');
+      await tester.pumpAndSettle();
+      expect(_group('Work'), findsOneWidget);
+      expect(find.byType(WebspaceGroupTile), findsOneWidget);
+      expect(find.byType(SiteGridTile), findsOneWidget);
+      expect(find.text('Work chat'), findsOneWidget);
+      expect(find.text('No matches'), findsNothing);
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      expect(find.byType(WebspaceGroupTile), findsNothing);
+      expect(find.byType(SiteGridTile), findsNWidgets(2));
+      expect(find.text('Work chat'), findsNothing);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
       );
     },
   );

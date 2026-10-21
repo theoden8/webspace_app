@@ -108,6 +108,54 @@ void main() {
     },
   );
 
+  testWidgets('webspace search opens a site outside the selected group', (
+    tester,
+  ) async {
+    final alpha = WebViewModel(
+      initUrl: 'https://alpha.example.test',
+      name: 'Alpha',
+    );
+    final beta = WebViewModel(
+      initUrl: 'https://beta.example.test',
+      name: 'Beta',
+    );
+    final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+    await pumpRealApp(
+      tester,
+      sites: [alpha, beta],
+      webspaces: [work],
+      prefs: {
+        AppPref.developerMode.key: true,
+        AppPref.experimentalFolderLibrary.key: true,
+        'selectedWebspaceId': work.id,
+      },
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final savedGroups = prefs.getStringList('webspaces');
+    final savedSites = prefs.getStringList('webViewModels');
+    await tester.enterText(
+      find.byKey(const ValueKey('library-search')),
+      'BETA.EXAMPLE',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(WebspaceGroupTile), findsNothing);
+    expect(find.byType(SiteGridTile), findsOneWidget);
+    await tester.tap(find.text('Beta'));
+    await settleRealApp(tester);
+    expect(find.byType(WebspaceLibrary), findsNothing);
+    expect(prefs.getInt('currentIndex'), 1);
+    expect(prefs.getString('selectedWebspaceId'), work.id);
+    expect(prefs.getStringList('webspaces'), savedGroups);
+    expect(prefs.getStringList('webViewModels'), savedSites);
+    await tester.tap(find.byTooltip('Back to Webspaces'));
+    await settleRealApp(tester);
+    expect(find.byType(WebspaceLibrary), findsOneWidget);
+    expect(find.byType(BackButton), findsNothing);
+    expect(find.text('Beta'), findsOneWidget);
+    expect(find.byType(SiteGridTile), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final enabled in [false, true]) {
     testWidgets('browser navigation follows Alternative design=$enabled', (
       tester,
