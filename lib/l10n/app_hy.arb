@@ -1096,8 +1096,8 @@
   "librarySearchWebspaces": "Որոնել վեբ տարածքներ",
   "librarySearchSites": "Որոնել կայքեր",
   "libraryNoResults": "Համընկնումներ չկան",
-  "appSettingsExperimentalFolderLibrary": "Թղթապանակների գրադարան",
-  "appSettingsExperimentalFolderLibraryHint": "Դիտեք աշխատանքային տարածքները որպես թղթապանակներ և բացեք դրանց կայքերը որոնելի ցանցում։",
+  "appSettingsExperimentalFolderLibrary": "Նոր ձևավորում",
+  "appSettingsExperimentalFolderLibraryHint": "Դասավորեք կայքերը խմբերով գործարկիչի ցանցում։",
   "siteRedirectHomeSuggestion": "Այս կայքը վերահղվել է դեպի {url}։ Օգտագործե՞լ այս հասցեն որպես իր գլխավոր էջ։ Նոր տիրույթի հղումները նույնպես կբացվեն այստեղ։",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1106,5 +1106,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Տարրի չափը",
+  "libraryItemSmall": "Փոքր",
+  "libraryItemMedium": "Միջին",
+  "libraryItemLarge": "Մեծ"
 }

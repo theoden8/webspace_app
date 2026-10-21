@@ -140,7 +140,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
     await openCategory(tester, title: 'Developer');
-    final title = find.text('Folder library');
+    final title = find.text('New design');
     await tester.scrollUntilVisible(title, 200, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     final row = find.ancestor(of: title, matching: find.byType(SwitchListTile));

@@ -545,7 +545,7 @@ The features are:
 
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
-| Webspace folders and searchable site grids (`webspaces` WEBSPACE-002) | Folder library | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
+| Webspace icon groups and a searchable tab tree (`webspaces` WEBSPACE-002) | New design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | A site's icon taken only from the site: no third-party icon service, and on Android the declared links in place of WebView's icon (`icon-fetching` ICON-014) | Site icons only | off | `publicIconServicesAllowed` in `icon_service.dart`, read on every icon fetch; `pageIconSource` in `site_icon_fetcher.dart`, read when a site's webview is created |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
@@ -580,28 +580,28 @@ Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with Folder library and Site icons only off and no Tor switch
+- **AND** after unlocking developer mode the Developer section shows it, with New design and Site icons only off and no Tor switch
 
 #### Scenario: Only what this platform can run
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and Folder library, Texture page rendering and Site icons only, off
+- **THEN** the Experimental group lists Proxy router, on, and New design, Texture page rendering and Site icons only, off
 
 #### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Folder library, Site icons only and WebKit content blocking, off
+- **THEN** the Experimental group lists New design, Site icons only and WebKit content blocking, off
 
-#### Scenario: Folder library is opt-in and follows the gate live
+#### Scenario: New design is opt-in and follows the gate live
 
-- **GIVEN** the Folder library switch has never been enabled
+- **GIVEN** the New design switch has never been enabled
 - **WHEN** the app opens with developer mode on or off
 - **THEN** the existing webspace list, app bar, add-site button, and drawer are shown
-- **AND** enabling both developer mode and Folder library replaces the home screen with the folder library, without restarting
+- **AND** enabling both developer mode and New design replaces the home screen with the grouped site launcher, without restarting
 - **AND** turning either off restores the existing interface without changing sites, webspaces, or selection
-- **AND** turning developer mode back on restores the folder library if its switch is still on
+- **AND** turning developer mode back on restores the grouped site launcher if its switch is still on
 
 #### Scenario: Site icons only starts off
 

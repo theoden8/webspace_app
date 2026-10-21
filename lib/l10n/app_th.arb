@@ -1096,8 +1096,8 @@
   "librarySearchWebspaces": "ค้นหาพื้นที่เว็บ",
   "librarySearchSites": "ค้นหาเว็บไซต์",
   "libraryNoResults": "ไม่พบผลลัพธ์",
-  "appSettingsExperimentalFolderLibrary": "คลังโฟลเดอร์",
-  "appSettingsExperimentalFolderLibraryHint": "เรียกดูพื้นที่ทำงานเป็นโฟลเดอร์และเปิดเว็บไซต์ในตารางที่ค้นหาได้",
+  "appSettingsExperimentalFolderLibrary": "ดีไซน์ใหม่",
+  "appSettingsExperimentalFolderLibraryHint": "จัดเว็บไซต์เป็นกลุ่มในตารางตัวเรียกใช้งาน",
   "siteRedirectHomeSuggestion": "เว็บไซต์นี้เปลี่ยนเส้นทางไปที่ {url} ใช้ที่อยู่นี้เป็นหน้าแรกของเว็บไซต์หรือไม่ ลิงก์ไปยังโดเมนใหม่จะเปิดที่นี่ด้วย",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1106,5 +1106,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "ขนาดรายการ",
+  "libraryItemSmall": "เล็ก",
+  "libraryItemMedium": "กลาง",
+  "libraryItemLarge": "ใหญ่"
 }

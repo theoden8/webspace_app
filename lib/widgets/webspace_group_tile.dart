@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
@@ -6,15 +5,14 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
-/// A collection represented by a folder containing previews of its sites.
-class WebspaceFolderTile extends StatelessWidget {
-  const WebspaceFolderTile({
+/// A launcher group represented by a compact cluster of its site icons.
+class WebspaceGroupTile extends StatelessWidget {
+  const WebspaceGroupTile({
     super.key,
     required this.webspace,
     required this.sites,
     required this.selected,
     required this.colorIndex,
-    required this.editing,
     required this.onOpen,
     required this.onMenu,
   });
@@ -23,18 +21,19 @@ class WebspaceFolderTile extends StatelessWidget {
   final List<WebViewModel> sites;
   final bool selected;
   final int colorIndex;
-  final bool editing;
   final VoidCallback onOpen;
   final VoidCallback onMenu;
 
-  static double extentFor(
-    double width, {
+  static double extentFor({
     required TextScaler textScaler,
     required TextTheme textTheme,
+    required double well,
   }) {
-    final title = textTheme.titleMedium!;
+    final title = textTheme.bodyMedium!.copyWith(
+      fontSize: LibraryStyle.siteTitleSize,
+    );
     final count = textTheme.bodySmall!;
-    return width * .94 +
+    return well +
         Spacing.md +
         Spacing.sm +
         textScaler.scale(title.fontSize!) * (title.height ?? 1) * 2 +
@@ -44,6 +43,7 @@ class WebspaceFolderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final well = LibraryStyle.itemWell(webspace.launcherSize);
     final count = AppLocalizations.of(
       context,
     ).webspacesListSiteCount(sites.length);
@@ -52,81 +52,64 @@ class WebspaceFolderTile extends StatelessWidget {
       label: label,
       button: true,
       selected: selected,
-      onLongPress: editing ? null : onMenu,
+      onLongPress: onMenu,
       child: InkWell(
         borderRadius: BorderRadius.circular(LibraryStyle.radius),
         onTap: onOpen,
         // Let the pointer finish before the sheet covers this tile.
-        onLongPressUp: editing ? null : onMenu,
+        onLongPressUp: onMenu,
         onSecondaryTap: onMenu,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                return SizedBox(
-                  height: width * .94,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: ExcludeSemantics(
-                          child: ClipPath(
-                            clipper: const _FolderClipper(),
-                            child: ColoredBox(
-                              color: selected
-                                  ? Color.alphaBlend(
-                                      theme.colorScheme.primary.withAlpha(24),
-                                      LibraryStyle.folder(
-                                        theme.brightness,
-                                        index: 0,
-                                      ),
-                                    )
-                                  : LibraryStyle.folder(
-                                      theme.brightness,
-                                      index: colorIndex,
-                                    ),
-                              child: Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  width * .12,
-                                  width * .19,
-                                  width * .12,
-                                  width * .10,
+            AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : Motion.libraryNavigation,
+              curve: Motion.libraryCurve,
+              width: well,
+              height: well,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: ExcludeSemantics(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? theme.colorScheme.primaryContainer
+                              : LibraryStyle.group(
+                                  theme.brightness,
+                                  index: colorIndex,
                                 ),
-                                child: _previews(theme, width: width),
-                              ),
-                            ),
+                          borderRadius: BorderRadius.circular(
+                            LibraryStyle.radius,
                           ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(Spacing.sm),
+                          child: _previews(theme),
                         ),
                       ),
-                      if (editing)
-                        PositionedDirectional(
-                          top: Spacing.sm,
-                          end: 0,
-                          child: IconButton(
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).showMenuTooltip,
-                            onPressed: onMenu,
-                            icon: const Icon(Icons.more_horiz),
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
             const SizedBox(height: Spacing.md),
             ExcludeSemantics(
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Flexible(
                     child: Text(
                       webspace.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: LibraryStyle.siteTitleSize,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -158,21 +141,24 @@ class WebspaceFolderTile extends StatelessWidget {
     );
   }
 
-  Widget _previews(ThemeData theme, {required double width}) {
+  Widget _previews(ThemeData theme) {
     final hasRemainder = sites.length > 4;
     final visible = hasRemainder ? 3 : sites.length;
     final remainder = '+${sites.length - visible}';
     Widget cell({required int index}) => DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withAlpha(index < visible ? 210 : 70),
-        borderRadius: BorderRadius.circular(Radii.xl),
+        borderRadius: BorderRadius.circular(Radii.sm),
       ),
       child: Center(
         child: index < visible
             ? UnifiedFaviconImage.site(
                 sites[index],
                 key: ValueKey(sites[index].siteId),
-                size: math.min(LibraryStyle.previewIcon, width * .22),
+                size:
+                    LibraryStyle.previewIcon *
+                    LibraryStyle.itemWell(webspace.launcherSize) /
+                    LibraryStyle.siteWell,
               )
             : index == 3 && hasRemainder
             ? FittedBox(
@@ -193,12 +179,12 @@ class WebspaceFolderTile extends StatelessWidget {
     return Column(
       children: [
         for (var row = 0; row < 2; row++) ...[
-          if (row > 0) const SizedBox(height: Spacing.sm),
+          if (row > 0) const SizedBox(height: Spacing.xs),
           Expanded(
             child: Row(
               children: [
                 Expanded(child: cell(index: row * 2)),
-                const SizedBox(width: Spacing.sm),
+                const SizedBox(width: Spacing.xs),
                 Expanded(child: cell(index: row * 2 + 1)),
               ],
             ),
@@ -207,29 +193,4 @@ class WebspaceFolderTile extends StatelessWidget {
       ],
     );
   }
-}
-
-class _FolderClipper extends CustomClipper<Path> {
-  const _FolderClipper();
-  @override
-  Path getClip(Size size) {
-    final r = math.min(LibraryStyle.radius, size.width / 8);
-    final tab = size.height * .10;
-    return Path()
-      ..moveTo(r, 0)
-      ..lineTo(size.width * .32, 0)
-      ..quadraticBezierTo(size.width * .38, 0, size.width * .42, tab)
-      ..lineTo(size.width - r, tab)
-      ..quadraticBezierTo(size.width, tab, size.width, tab + r)
-      ..lineTo(size.width, size.height - r)
-      ..quadraticBezierTo(size.width, size.height, size.width - r, size.height)
-      ..lineTo(r, size.height)
-      ..quadraticBezierTo(0, size.height, 0, size.height - r)
-      ..lineTo(0, r)
-      ..quadraticBezierTo(0, 0, r, 0)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(_FolderClipper oldClipper) => false;
 }

@@ -1096,8 +1096,8 @@
   "librarySearchWebspaces": "Caută spații web",
   "librarySearchSites": "Caută site-uri",
   "libraryNoResults": "Niciun rezultat",
-  "appSettingsExperimentalFolderLibrary": "Bibliotecă de dosare",
-  "appSettingsExperimentalFolderLibraryHint": "Răsfoiește spațiile de lucru ca dosare și deschide site-urile lor într-o grilă cu căutare.",
+  "appSettingsExperimentalFolderLibrary": "Design nou",
+  "appSettingsExperimentalFolderLibraryHint": "Organizează site-urile în grupuri într-o grilă de lansare.",
   "siteRedirectHomeSuggestion": "Acest site a redirecționat către {url}. Folosiți această adresă ca pagină de pornire? Linkurile către noul domeniu se vor deschide tot aici.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1106,5 +1106,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Dimensiunea elementului",
+  "libraryItemSmall": "Mică",
+  "libraryItemMedium": "Medie",
+  "libraryItemLarge": "Mare"
 }

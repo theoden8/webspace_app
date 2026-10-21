@@ -13,7 +13,7 @@ The Webspaces feature allows users to organize their saved sites into separate w
 
 ## Requirements
 
-The folder library is an optional experiment (DEVTOOLS-011). Folder grids, their menus, library tabs, and search below apply only when developer mode and **Folder library** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
+The grouped site launcher is an optional experiment (DEVTOOLS-011). Group grids, their menus, library tabs, and search below apply only when developer mode and **New design** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
 
 ### Requirement: WEBSPACE-001 - Create Multiple Webspaces
 
@@ -53,16 +53,16 @@ The system SHALL provide clear visual indication of which webspace is currently 
 **Given** a webspace is selected
 **When** the user views the webspaces list
 **Then** the selected webspace has an accent highlight and a check
-**And** with the experiment enabled, it appears as a folder
-**And** each folder previews up to four site favicons from its actual membership order
-**And** a folder with more than four sites previews three favicons and the remaining count
-**And** its site count reflects the current filtered membership, including all sites for the synthetic All folder
+**And** with the experiment enabled, it appears as a group
+**And** each group previews up to four site favicons from its actual membership order
+**And** a group with more than four sites previews three favicons and the remaining count
+**And** its site count reflects the current filtered membership, including all sites for the synthetic All group
 
 ---
 
 ### Requirement: WEBSPACE-004 - Filtered Site Navigation
 
-The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. The Sites library tab SHALL select All and show every saved site. Library searches SHALL filter the current view without changing membership or persisted order.
+The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. The Sites library tab SHALL select All and show every saved site in an embedded tab tree. Sites with tabs enabled SHALL expose their parent/child tab hierarchy and the existing open, close, collapse, and reorder controls. Sites with tabs disabled SHALL remain single launchable entries. Tree searches SHALL retain the ancestors of matching tabs. Actions in the embedded tree SHALL NOT dismiss the library route. Library searches SHALL filter the current view without changing membership or persisted order.
 
 #### Scenario: Filter drawer by webspace
 
@@ -77,7 +77,7 @@ The workspace site grid and the browser drawer SHALL only show sites belonging t
 
 ### Requirement: WEBSPACE-005 - Persistent State
 
-Webspaces and selection state SHALL persist across app restarts. The folder library navigation and search are transient UI state and SHALL NOT add persisted settings.
+Webspaces and selection state SHALL persist across app restarts. The group library navigation and search are transient UI state.
 
 #### Scenario: Restore webspace selection on restart
 
@@ -95,7 +95,7 @@ Users SHALL be able to edit existing webspaces.
 #### Scenario: Modify webspace contents
 
 **Given** a webspace "Work" exists with sites A and B
-**When** the user chooses Edit (from the folder menu when the experiment is enabled, otherwise the inline edit action)
+**When** the user chooses Edit (from the group menu when the experiment is enabled, otherwise the inline edit action)
 **And** adds site C and removes site A
 **And** saves changes
 **Then** "Work" now contains sites B and C
@@ -110,7 +110,7 @@ Users SHALL be able to delete webspaces.
 
 **Given** webspaces "Work" and "Personal" exist
 **And** "Work" is currently selected
-**When** the user chooses Delete for "Work" (from the folder menu when the experiment is enabled, otherwise the inline delete action)
+**When** the user chooses Delete for "Work" (from the group menu when the experiment is enabled, otherwise the inline delete action)
 **And** confirms the deletion
 **Then** "Work" is removed
 **And** selection is cleared
@@ -120,7 +120,9 @@ Users SHALL be able to delete webspaces.
 
 ### Requirement: WEBSPACE-008 - Back to Webspaces Navigation
 
-Users SHALL be able to return to the folder grid from a workspace site grid using its Back control or the system back action. Returning SHALL clear the library search. The browser drawer SHALL also retain its Back to Webspaces action.
+Users SHALL be able to return to the group grid from a workspace site grid using its Back control or the system back action. Returning SHALL clear the library search. The browser drawer SHALL also retain its Back to Webspaces action.
+
+With the group library enabled, opening and closing a group SHALL use continuous expand/collapse transitions without a blank frame between views, including the first group opened. Search and bottom navigation SHALL remain stationary. Departing grids SHALL stop accepting input immediately, Back SHALL remain usable during the transition, and the system's reduced-motion preference SHALL switch views without animation.
 
 #### Scenario: Navigate back to webspaces list
 
@@ -240,6 +242,19 @@ still be read.
 **Given** sites run in per-site containers
 **When** the user switches webspaces
 **Then** no site is unloaded for the switch (CONT-003)
+
+---
+
+### Requirement: WEBSPACE-014 - Individual Launcher Item Sizes
+
+With New design enabled, each group and site SHALL offer Small, Medium, and Large icon sizes from its item menu, defaulting to Medium. A size choice SHALL affect only that item, persist with it across restarts, and survive settings export/import. Opening, editing, sizing, and reordering items SHALL NOT require a global edit mode.
+
+#### Scenario: Resize one item
+
+**Given** two groups and two sites use Medium icons
+**When** the user chooses Large from one group's Item size menu and Small from one site's Item size menu
+**Then** only those two icons change size
+**And** their choices survive saving and restoring the items
 
 ---
 

@@ -1,4 +1,5 @@
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
@@ -23,6 +24,7 @@ extension type const WebspaceId._(String raw) implements String {
 class Webspace {
   WebspaceId id;
   String name;
+  LauncherItemSize launcherSize;
   /// Persisted membership by `siteId`, ordered by display order.
   /// Single source of truth: archive open/close, app-tier index
   /// reshuffling from add/delete, and move-to-archive all preserve
@@ -42,6 +44,7 @@ class Webspace {
   Webspace({
     WebspaceId? id,
     required this.name,
+    this.launcherSize = LauncherItemSize.medium,
     List<SiteId>? siteIds,
     List<int>? siteIndices,
     this.isArchiveTier = false,
@@ -52,6 +55,8 @@ class Webspace {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        if (launcherSize != LauncherItemSize.medium)
+          'launcherSize': launcherSize.name,
         'siteIds': siteIds,
       };
 
@@ -70,6 +75,7 @@ class Webspace {
     return Webspace(
       id: WebspaceId.parse(json['id']),
       name: json['name'] is String ? json['name'] as String : 'Untitled',
+      launcherSize: LauncherItemSize.fromJson(json['launcherSize']),
       siteIds: rawSiteIds?.map(SiteId.parse).nonNulls.toList(),
       siteIndices: legacyIndices?.whereType<int>().toList(),
     );
@@ -78,6 +84,7 @@ class Webspace {
   Webspace copyWith({
     WebspaceId? id,
     String? name,
+    LauncherItemSize? launcherSize,
     List<SiteId>? siteIds,
     List<int>? siteIndices,
     bool? isArchiveTier,
@@ -85,6 +92,7 @@ class Webspace {
     return Webspace(
       id: id ?? this.id,
       name: name ?? this.name,
+      launcherSize: launcherSize ?? this.launcherSize,
       siteIds: siteIds ?? List<SiteId>.of(this.siteIds),
       siteIndices: siteIndices ?? List<int>.from(this.siteIndices),
       isArchiveTier: isArchiveTier ?? this.isArchiveTier,

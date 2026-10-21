@@ -3,17 +3,19 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
-import 'package:webspace/widgets/webspace_folder_tile.dart';
+import 'package:webspace/widgets/launcher_size_picker.dart';
+import 'package:webspace/widgets/webspace_group_tile.dart';
 
 enum _LibraryView { webspaces, workspace, sites }
 
-enum _FolderAction { edit, delete }
+enum _GroupAction { edit, delete, resize }
 
-/// The folder library and the sites inside it; navigation state is UI-only.
+/// A launcher of site groups; navigation and search remain UI-only.
 class WebspaceLibrary extends StatefulWidget {
   const WebspaceLibrary({
     super.key,
@@ -26,12 +28,14 @@ class WebspaceLibrary extends StatefulWidget {
     required this.onAddWebspace,
     required this.onEditWebspace,
     required this.onDeleteWebspace,
+    required this.onResizeWebspace,
     required this.onReorder,
     required this.onOpenSite,
     required this.onSiteMenu,
     required this.onReorderSite,
     required this.onAddSite,
     required this.onOpenSettings,
+    required this.siteTreeBuilder,
   });
 
   final List<Webspace> webspaces;
@@ -43,6 +47,8 @@ class WebspaceLibrary extends StatefulWidget {
   final VoidCallback onAddWebspace;
   final ValueChanged<Webspace> onEditWebspace;
   final ValueChanged<Webspace> onDeleteWebspace;
+  final void Function(Webspace webspace, {required LauncherItemSize size})
+  onResizeWebspace;
   final void Function(int from, {required int newIndex})? onReorder;
   final ValueChanged<WebViewModel> onOpenSite;
   final void Function(
@@ -54,6 +60,8 @@ class WebspaceLibrary extends StatefulWidget {
   final void Function(int from, {required int to})? onReorderSite;
   final VoidCallback onAddSite;
   final Future<void> Function() onOpenSettings;
+  final Widget Function(BuildContext context, {required String query})
+  siteTreeBuilder;
 
   @override
   State<WebspaceLibrary> createState() => WebspaceLibraryState();
@@ -63,8 +71,9 @@ class WebspaceLibrary extends StatefulWidget {
 class WebspaceLibraryState extends State<WebspaceLibrary> {
   final _search = TextEditingController();
   _LibraryView _view = _LibraryView.webspaces;
-  bool _editing = false;
   bool _settingsOpen = false;
+  bool _animateNavigation = false;
+  double _navigationDirection = 1;
 
   void showSelectedWebspace() => _show(_LibraryView.workspace);
   void showWebspaces() => _show(_LibraryView.webspaces);
@@ -72,8 +81,10 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
   void _show(_LibraryView view) {
     _search.clear();
     setState(() {
+      _animateNavigation =
+          (_view == _LibraryView.workspace) != (view == _LibraryView.workspace);
+      _navigationDirection = view == _LibraryView.workspace ? 1 : -1;
       _view = view;
-      _editing = false;
     });
   }
 
@@ -109,8 +120,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final loc = AppLocalizations.of(context);
-    final folders = _view == _LibraryView.webspaces;
-    final title = folders
+    final groups = _view == _LibraryView.webspaces;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration = reduceMotion ? Duration.zero : Motion.libraryNavigation;
+    final backButton = SizedBox(
+      width: _view == _LibraryView.workspace ? LibraryStyle.target : 0,
+      height: LibraryStyle.target,
+      child: _view == _LibraryView.workspace
+          ? BackButton(onPressed: showWebspaces)
+          : null,
+    );
+    final title = groups
         ? loc.libraryWebspaces
         : _view == _LibraryView.sites
         ? loc.librarySites
@@ -124,7 +144,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
           showWebspaces();
         }
       },
-      child: ColoredBox(
+      child: Material(
         color: LibraryStyle.background(theme.brightness),
         child: Column(
           children: [
@@ -146,8 +166,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                         ),
                         child: Row(
                           children: [
-                            if (_view == _LibraryView.workspace)
-                              BackButton(onPressed: showWebspaces),
+                            backButton,
                             Expanded(
                               child: Text(
                                 title,
@@ -161,24 +180,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                               ),
                             ),
                             IconButton(
-                              tooltip: folders
+                              tooltip: groups
                                   ? loc.webspacesListCreateButton
                                   : loc.homeAddSite,
-                              onPressed: folders
+                              onPressed: groups
                                   ? widget.onAddWebspace
                                   : widget.onAddSite,
                               icon: const Icon(Icons.add),
                               color: theme.colorScheme.primary,
-                            ),
-                            IconButton(
-                              tooltip: _editing
-                                  ? loc.commonDone
-                                  : loc.commonEdit,
-                              onPressed: () =>
-                                  setState(() => _editing = !_editing),
-                              icon: Icon(
-                                _editing ? Icons.check : Icons.more_horiz,
-                              ),
                             ),
                           ],
                         ),
@@ -193,7 +202,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                           controller: _search,
                           onChanged: (_) => setState(() {}),
                           decoration: InputDecoration(
-                            hintText: folders
+                            hintText: groups
                                 ? loc.librarySearchWebspaces
                                 : loc.librarySearchSites,
                             prefixIcon: const Icon(Icons.search),
@@ -221,32 +230,72 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                           ),
                         ),
                       ),
-                      if (!folders)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            Spacing.lg,
-                            Spacing.lg,
-                            Spacing.lg,
-                            Spacing.xs,
-                          ),
-                          child: Align(
-                            alignment: AlignmentDirectional.centerStart,
-                            child: Text(
-                              loc.webspacesListSiteCount(
-                                _order(
-                                  _view == _LibraryView.sites
-                                      ? WebspaceId.all
-                                      : widget.selectedWebspaceId,
-                                ).length,
-                              ),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+                      Expanded(
+                        child: ClipRect(
+                          child: AnimatedSwitcher(
+                            key: ValueKey(reduceMotion),
+                            duration: duration,
+                            switchInCurve: Motion.libraryCurve,
+                            switchOutCurve: Motion.libraryExit,
+                            transitionBuilder: _transition,
+                            layoutBuilder: (current, previous) => Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                for (final page in previous)
+                                  ExcludeSemantics(
+                                    child: IgnorePointer(child: page),
+                                  ),
+                                ?current,
+                              ],
+                            ),
+                            child: Column(
+                              key: ValueKey((
+                                _view,
+                                groups ? null : widget.selectedWebspaceId,
+                              )),
+                              children: [
+                                if (!groups)
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      Spacing.lg,
+                                      Spacing.lg,
+                                      Spacing.lg,
+                                      Spacing.xs,
+                                    ),
+                                    child: Align(
+                                      alignment:
+                                          AlignmentDirectional.centerStart,
+                                      child: Text(
+                                        loc.webspacesListSiteCount(
+                                          _order(
+                                            _view == _LibraryView.sites
+                                                ? WebspaceId.all
+                                                : widget.selectedWebspaceId,
+                                          ).length,
+                                        ),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                Expanded(
+                                  child: groups
+                                      ? _groups(context)
+                                      : _view == _LibraryView.sites
+                                      ? widget.siteTreeBuilder(
+                                          context,
+                                          query: _search.text,
+                                        )
+                                      : _sites(context),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      Expanded(
-                        child: folders ? _folders(context) : _sites(context),
                       ),
                     ],
                   ),
@@ -260,34 +309,54 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
     );
   }
 
-  Widget _folders(BuildContext context) {
+  Widget _transition(Widget child, Animation<double> animation) =>
+      AnimatedBuilder(
+        animation: animation,
+        child: child,
+        builder: (context, child) {
+          final leaving = animation.status == AnimationStatus.reverse;
+          if (!_animateNavigation) {
+            return leaving ? const SizedBox.shrink() : child!;
+          }
+          return FadeTransition(
+            opacity: animation,
+            child: Transform.scale(
+              scale:
+                  1 +
+                  (1 - animation.value) *
+                      LibraryStyle.navigationScale *
+                      (leaving ? _navigationDirection : -_navigationDirection),
+              child: child,
+            ),
+          );
+        },
+      );
+
+  Widget _groups(BuildContext context) {
     final query = _search.text.trim().toLowerCase();
     final shown = widget.webspaces
         .where((w) => w.name.toLowerCase().contains(query))
         .toList();
-    if (shown.isEmpty) return _empty(context, folders: true);
+    if (shown.isEmpty) return _empty(context, groups: true);
     return LayoutBuilder(
       builder: (context, constraints) {
         final scaler = MediaQuery.textScalerOf(context);
         final minimum =
-            LibraryStyle.folderMinWidth * math.max(1, scaler.scale(1) * .7);
+            LibraryStyle.tileMinWidth * math.max(1, scaler.scale(1) * .7);
         final columns =
-            ((constraints.maxWidth - Spacing.lg * 2 + Spacing.xl) /
-                    (minimum + Spacing.xl))
+            ((constraints.maxWidth - Spacing.lg * 2 + Spacing.sm) /
+                    (minimum + Spacing.sm))
                 .floor()
                 .clamp(1, 4);
-        final width =
-            (constraints.maxWidth -
-                Spacing.lg * 2 -
-                Spacing.xl * (columns - 1)) /
-            columns;
-        final extent = WebspaceFolderTile.extentFor(
-          width,
+        final extent = WebspaceGroupTile.extentFor(
           textScaler: scaler,
           textTheme: Theme.of(context).textTheme,
+          well: shown
+              .map((w) => LibraryStyle.itemWell(w.launcherSize))
+              .reduce(math.max),
         );
         return GridView.builder(
-          key: const PageStorageKey('webspace-folders'),
+          key: const PageStorageKey('webspace-groups'),
           padding: const EdgeInsets.fromLTRB(
             Spacing.lg,
             Spacing.xl,
@@ -296,7 +365,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
           ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
-            crossAxisSpacing: Spacing.xl,
+            crossAxisSpacing: Spacing.sm,
             mainAxisSpacing: Spacing.xl,
             mainAxisExtent: extent,
           ),
@@ -304,64 +373,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
           itemBuilder: (context, index) {
             final webspace = shown[index];
             final position = widget.webspaces.indexOf(webspace);
-            final tile = WebspaceFolderTile(
+            return WebspaceGroupTile(
               key: ValueKey(webspace.id),
               webspace: webspace,
               sites: [for (final i in _order(webspace.id)) widget.sites[i]],
               selected: webspace.id == widget.selectedWebspaceId,
               colorIndex: position,
-              editing: _editing,
               onOpen: () {
                 FocusScope.of(context).unfocus();
                 widget.onSelectWebspace(webspace);
               },
               onMenu: () => unawaited(_menu(webspace)),
-            );
-            if (!_editing ||
-                query.isNotEmpty ||
-                widget.onReorder == null ||
-                webspace.isAll) {
-              return tile;
-            }
-            return DragTarget<WebspaceId>(
-              onWillAcceptWithDetails: (details) => details.data != webspace.id,
-              onAcceptWithDetails: (details) {
-                final from = widget.webspaces.indexWhere(
-                  (w) => w.id == details.data,
-                );
-                if (from > 0) {
-                  widget.onReorder!(
-                    from,
-                    newIndex: position > from ? position + 1 : position,
-                  );
-                }
-              },
-              builder: (context, candidates, rejected) =>
-                  LongPressDraggable<WebspaceId>(
-                    data: webspace.id,
-                    feedback: Material(
-                      color: Colors.transparent,
-                      child: SizedBox(
-                        width: width,
-                        height: extent,
-                        child: tile,
-                      ),
-                    ),
-                    childWhenDragging: Opacity(opacity: .3, child: tile),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: candidates.isEmpty
-                            ? null
-                            : Border.all(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                        borderRadius: BorderRadius.circular(
-                          LibraryStyle.radius,
-                        ),
-                      ),
-                      child: tile,
-                    ),
-                  ),
             );
           },
         );
@@ -381,13 +403,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
               widget.sites[i].initUrl.toLowerCase().contains(query),
         )
         .toList();
-    if (shown.isEmpty) return _empty(context, folders: false);
+    if (shown.isEmpty) return _empty(context, groups: false);
     return LayoutBuilder(
       builder: (context, constraints) {
         final scale = MediaQuery.textScalerOf(context).scale(1);
         final columns =
             ((constraints.maxWidth - Spacing.lg * 2 + Spacing.sm) /
-                    (LibraryStyle.siteMinWidth * math.max(1, scale * .7) +
+                    (LibraryStyle.tileMinWidth * math.max(1, scale * .7) +
                         Spacing.sm))
                 .floor()
                 .clamp(1, 7);
@@ -402,7 +424,15 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
             crossAxisCount: columns,
             crossAxisSpacing: Spacing.sm,
             mainAxisSpacing: Spacing.lg,
-            mainAxisExtent: LibraryStyle.siteWell + Spacing.xl + scale * 58,
+            mainAxisExtent:
+                shown
+                    .map(
+                      (i) =>
+                          LibraryStyle.itemWell(widget.sites[i].launcherSize),
+                    )
+                    .reduce(math.max) +
+                Spacing.xl +
+                scale * 58,
           ),
           itemCount: shown.length,
           itemBuilder: (context, index) {
@@ -423,7 +453,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                 site: site,
                 position: globalPosition,
               ),
-              onReorder: _editing && query.isEmpty && order.length > 1
+              onReorder: query.isEmpty && order.length > 1
                   ? widget.onReorderSite
                   : null,
             );
@@ -433,7 +463,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
     );
   }
 
-  Widget _empty(BuildContext context, {required bool folders}) {
+  Widget _empty(BuildContext context, {required bool groups}) {
     final loc = AppLocalizations.of(context);
     return Center(
       child: Padding(
@@ -441,7 +471,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
         child: Text(
           _search.text.trim().isNotEmpty
               ? loc.libraryNoResults
-              : folders
+              : groups
               ? loc.webspacesListEmpty
               : loc.homeNoSitesInWebspace,
           textAlign: TextAlign.center,
@@ -452,7 +482,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
 
   Future<void> _menu(Webspace webspace) async {
     final loc = AppLocalizations.of(context);
-    final action = await showModalBottomSheet<_FolderAction>(
+    final action = await showModalBottomSheet<_GroupAction>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
@@ -467,15 +497,20 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: Text(loc.commonEdit),
-              onTap: () => Navigator.pop(context, _FolderAction.edit),
+              onTap: () => Navigator.pop(context, _GroupAction.edit),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_size_select_large_outlined),
+              title: Text(loc.libraryItemSize),
+              onTap: () => Navigator.pop(context, _GroupAction.resize),
             ),
             if (!webspace.isAll)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: Text(loc.commonDelete),
-                onTap: () => Navigator.pop(context, _FolderAction.delete),
+                onTap: () => Navigator.pop(context, _GroupAction.delete),
               ),
-            if (_editing && widget.onReorder != null && !webspace.isAll)
+            if (widget.onReorder != null && !webspace.isAll)
               for (final delta in [-1, 1])
                 if (widget.webspaces.indexOf(webspace) + delta > 0 &&
                     widget.webspaces.indexOf(webspace) + delta <
@@ -504,10 +539,18 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
     );
     if (!mounted || !widget.webspaces.contains(webspace)) return;
     switch (action) {
-      case _FolderAction.edit:
+      case _GroupAction.edit:
         widget.onEditWebspace(webspace);
-      case _FolderAction.delete:
+      case _GroupAction.delete:
         widget.onDeleteWebspace(webspace);
+      case _GroupAction.resize:
+        final size = await showLauncherSizePicker(
+          context,
+          current: webspace.launcherSize,
+        );
+        if (size != null && mounted && widget.webspaces.contains(webspace)) {
+          widget.onResizeWebspace(webspace, size: size);
+        }
       case null:
         return;
     }
@@ -522,8 +565,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
         ? 0
         : 1;
     final items = [
-      (Icons.grid_view_rounded, loc.librarySites),
-      (Icons.folder_outlined, loc.libraryWebspaces),
+      (Icons.account_tree_outlined, loc.librarySites),
+      (Icons.apps_rounded, loc.libraryWebspaces),
       (Icons.settings_outlined, loc.homeSettingsMenu),
     ];
     return DecoratedBox(

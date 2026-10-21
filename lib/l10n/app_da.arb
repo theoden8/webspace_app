@@ -1096,8 +1096,8 @@
   "librarySearchWebspaces": "Søg i webområder",
   "librarySearchSites": "Søg efter websteder",
   "libraryNoResults": "Ingen resultater",
-  "appSettingsExperimentalFolderLibrary": "Mappebibliotek",
-  "appSettingsExperimentalFolderLibraryHint": "Gennemse arbejdsområder som mapper, og åbn deres websteder i et gitter med søgning.",
+  "appSettingsExperimentalFolderLibrary": "Nyt design",
+  "appSettingsExperimentalFolderLibraryHint": "Organiser websteder i grupper i et startgitter.",
   "siteRedirectHomeSuggestion": "Dette websted omdirigerede til {url}. Vil du bruge denne adresse som dets startside? Links til det nye domæne åbnes også her.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1106,5 +1106,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Elementstørrelse",
+  "libraryItemSmall": "Lille",
+  "libraryItemMedium": "Mellem",
+  "libraryItemLarge": "Stor"
 }

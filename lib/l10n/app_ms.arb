@@ -1096,8 +1096,8 @@
   "librarySearchWebspaces": "Cari ruang web",
   "librarySearchSites": "Cari laman",
   "libraryNoResults": "Tiada padanan",
-  "appSettingsExperimentalFolderLibrary": "Pustaka folder",
-  "appSettingsExperimentalFolderLibraryHint": "Semak imbas ruang kerja sebagai folder dan buka tapaknya dalam grid yang boleh dicari.",
+  "appSettingsExperimentalFolderLibrary": "Reka bentuk baharu",
+  "appSettingsExperimentalFolderLibraryHint": "Susun tapak dalam kumpulan pada grid pelancar.",
   "siteRedirectHomeSuggestion": "Laman ini telah mengubah hala ke {url}. Gunakan alamat ini sebagai laman utamanya? Pautan ke domain baharu juga akan dibuka di sini.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1106,5 +1106,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Saiz item",
+  "libraryItemSmall": "Kecil",
+  "libraryItemMedium": "Sederhana",
+  "libraryItemLarge": "Besar"
 }

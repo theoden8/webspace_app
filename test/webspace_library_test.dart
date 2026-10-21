@@ -10,13 +10,16 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
-import 'package:webspace/widgets/webspace_folder_tile.dart';
+import 'package:webspace/widgets/tabs_sheet.dart';
+import 'package:webspace/widgets/webspace_group_tile.dart';
+import 'package:webspace/settings/launcher_item_size.dart';
 import 'helpers/localized.dart';
 
 final Uint8List _icon = image.encodePng(image.Image(width: 2, height: 2));
 
 class _LibraryHarness extends StatefulWidget {
-  const _LibraryHarness();
+  const _LibraryHarness({this.mixedSizes = false});
+  final bool mixedSizes;
   @override
   State<_LibraryHarness> createState() => _LibraryHarnessState();
 }
@@ -51,6 +54,21 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   WebViewModel? opened;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.mixedSizes) {
+      for (var i = 0; i < webspaces.length; i++) {
+        webspaces[i].launcherSize =
+            LauncherItemSize.values[i % LauncherItemSize.values.length];
+      }
+      for (var i = 0; i < sites.length; i++) {
+        sites[i].launcherSize =
+            LauncherItemSize.values[i % LauncherItemSize.values.length];
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     WebspaceSelectionEngine.resolveIndices(
       webspaces,
@@ -71,6 +89,9 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
         onAddWebspace: () {},
         onEditWebspace: (webspace) => edited = webspace,
         onDeleteWebspace: (webspace) => deleted = webspace,
+        onResizeWebspace: (webspace, {required size}) => setState(() {
+          webspace.launcherSize = size;
+        }),
         onReorder: (from, {required newIndex}) => setState(() {
           WebspaceSelectionEngine.reorder(webspaces, from: from, to: newIndex);
         }),
@@ -79,17 +100,160 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
         onReorderSite: null,
         onAddSite: () {},
         onOpenSettings: () async {},
+        siteTreeBuilder: (context, {required query}) => TabsSheet(
+          embedded: true,
+          query: query,
+          sites: [
+            for (final site in sites)
+              TabsSheetSite(model: site, isCurrent: false, isLoaded: false),
+          ],
+          currentIndex: 0,
+          onOpenSite: (site) => opened = site,
+          onOpenTab: (site, {required tabId}) => opened = site,
+          onNewTab: (_) {},
+          onCloseTab: (_, {required tabId}) {},
+          onCloseSubtree: (_, {required tabId}) {},
+        ),
       ),
     );
   }
 }
 
-Finder _folder(String name) => find.descendant(
-  of: find.byType(WebspaceFolderTile),
+Finder _group(String name) => find.descendant(
+  of: find.byType(WebspaceGroupTile),
   matching: find.text(name),
 );
 
 void main() {
+  testWidgets('group expansion and collapse remain visible at normal speed', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.tap(_group('Work'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    final expanding = tester.getRect(find.byType(SiteGridTile).first).width;
+    await tester.pumpAndSettle();
+    final expanded = tester.getRect(find.byType(SiteGridTile).first).width;
+    expect(
+      expanding,
+      lessThan(expanded * .95),
+      reason: 'the expansion should still be visible after the tap',
+    );
+    await tester.tap(find.byType(BackButton));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    final collapsing = tester.getRect(_group('Work')).width;
+    await tester.pumpAndSettle();
+    final collapsed = tester.getRect(_group('Work')).width;
+    expect(
+      collapsing,
+      greaterThan(collapsed * 1.05),
+      reason: 'closing should visibly settle back into the group grid',
+    );
+  });
+
+  testWidgets('group navigation never fades both pages to an empty frame', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.tap(_group('Work'));
+    await tester.pump();
+    for (var frame = 0; frame < 6; frame++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      final outgoing = tester.widget<FadeTransition>(
+        find
+            .ancestor(of: _group('Work'), matching: find.byType(FadeTransition))
+            .first,
+      );
+      final incoming = tester.widget<FadeTransition>(
+        find
+            .ancestor(
+              of: find.byType(SiteGridTile).first,
+              matching: find.byType(FadeTransition),
+            )
+            .first,
+      );
+      expect(
+        outgoing.opacity.value + incoming.opacity.value,
+        greaterThan(.9),
+        reason: 'the launcher remains visible throughout opening',
+      );
+    }
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pump();
+    for (var frame = 0; frame < 6; frame++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      final outgoing = tester.widget<FadeTransition>(
+        find
+            .ancestor(
+              of: find.byType(SiteGridTile).first,
+              matching: find.byType(FadeTransition),
+            )
+            .first,
+      );
+      final incoming = tester.widget<FadeTransition>(
+        find
+            .ancestor(of: _group('Work'), matching: find.byType(FadeTransition))
+            .first,
+      );
+      expect(
+        outgoing.opacity.value + incoming.opacity.value,
+        greaterThan(.9),
+        reason: 'the launcher remains visible throughout closing',
+      );
+    }
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'folder navigation keeps chrome steady and accepts Back mid-transition',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final search = tester.getRect(find.byType(TextField));
+      final navigation = tester.getRect(find.text('Settings'));
+      await tester.tap(_group('Work'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byType(WebspaceGroupTile).hitTestable(), findsNothing);
+      expect(tester.getRect(find.byType(TextField)), search);
+      expect(tester.getRect(find.text('Settings')), navigation);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(_group('Work').hitTestable(), findsOneWidget);
+      expect(find.byType(SiteGridTile), findsNothing);
+      expect(tester.getRect(find.byType(TextField)), search);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'reduced motion opens and closes a folder without overlapping pages',
+    (tester) async {
+      await pumpLocalized(
+        tester,
+        home: const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: _LibraryHarness(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(_group('Work'));
+      await tester.pump();
+      expect(find.byType(WebspaceGroupTile), findsNothing);
+      expect(find.byType(SiteGridTile).hitTestable(), findsNWidgets(2));
+      await tester.tap(find.byType(BackButton));
+      await tester.pump();
+      expect(find.byType(SiteGridTile), findsNothing);
+      expect(_group('Work').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'folders preview the live members and count the hidden sites (WEBSPACE-003)',
     (tester) async {
@@ -97,7 +261,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('+5'), findsOneWidget);
       final all = find.byWidgetPredicate(
-        (widget) => widget is WebspaceFolderTile && widget.webspace.isAll,
+        (widget) => widget is WebspaceGroupTile && widget.webspace.isAll,
       );
       expect(
         find.descendant(of: all, matching: find.byIcon(Icons.check_circle)),
@@ -123,7 +287,7 @@ void main() {
     (tester) async {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
-      await tester.tap(_folder('Work'));
+      await tester.tap(_group('Work'));
       await tester.pumpAndSettle();
       expect(find.byType(SiteGridTile), findsNWidgets(2));
       expect(find.text('Site 2'), findsNothing);
@@ -140,14 +304,19 @@ void main() {
       );
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.byType(WebspaceFolderTile), findsWidgets);
+      expect(find.byType(WebspaceGroupTile), findsWidgets);
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty,
       );
       await tester.tap(find.text('Sites'));
       await tester.pumpAndSettle();
-      expect(find.byType(SiteGridTile), findsNWidgets(8));
+      expect(find.byType(SiteGridTile), findsNothing);
+      expect(find.byType(TabsSheet), findsOneWidget);
+      expect(
+        tester.widget<TabsSheet>(find.byType(TabsSheet)).sites,
+        hasLength(8),
+      );
     },
   );
 
@@ -157,7 +326,7 @@ void main() {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.delete_outline), findsNothing);
-      await tester.longPress(_folder('Work'));
+      await tester.longPress(_group('Work'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
@@ -165,18 +334,36 @@ void main() {
         find.byType(_LibraryHarness),
       );
       expect(state.edited, same(state.webspaces[1]));
-      await tester.longPress(_folder('All'));
+      await tester.longPress(_group('All'));
       await tester.pumpAndSettle();
       expect(find.text('Delete'), findsNothing);
       await tester.tapAt(const Offset(780, 10));
       await tester.pumpAndSettle();
-      await tester.longPress(_folder('Work'));
+      await tester.longPress(_group('Work'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       expect(state.deleted, same(state.webspaces[1]));
     },
   );
+
+  testWidgets('groups reorder directly from their item menu', (tester) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
+    await tester.longPress(_group('Work'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_downward));
+    await tester.pumpAndSettle();
+    final state = tester.state<_LibraryHarnessState>(
+      find.byType(_LibraryHarness),
+    );
+    expect(state.webspaces.map((w) => w.name).take(3), [
+      'All',
+      'Privacy',
+      'Work',
+    ]);
+  });
 
   for (final width in [320.0, 411.0, 800.0]) {
     for (final scale in [1.0, 1.3, 2.0]) {
@@ -192,7 +379,7 @@ void main() {
                     size: Size(width, 800),
                     textScaler: TextScaler.linear(scale),
                   ),
-                  child: const _LibraryHarness(),
+                  child: const _LibraryHarness(mixedSizes: true),
                 ),
                 theme: ThemeData(
                   colorScheme: buildAccentColorScheme(
@@ -205,19 +392,22 @@ void main() {
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull);
             await tester.scrollUntilVisible(
-              _folder('Work'),
+              _group('Work'),
               200,
               scrollable: find
                   .descendant(
-                    of: find.byKey(const PageStorageKey('webspace-folders')),
+                    of: find.byKey(const PageStorageKey('webspace-groups')),
                     matching: find.byType(Scrollable),
                   )
                   .first,
             );
             await tester.pumpAndSettle();
-            await tester.tap(_folder('Work'));
+            await tester.tap(_group('Work'));
             await tester.pumpAndSettle();
             expect(find.byType(SiteGridTile), findsNWidgets(2));
+            await tester.tap(find.text('Sites'));
+            await tester.pumpAndSettle();
+            expect(find.byType(TabsSheet), findsOneWidget);
             expect(tester.takeException(), isNull);
           },
         );
@@ -239,9 +429,16 @@ void main() {
       Directionality.of(tester.element(find.byType(WebspaceLibrary))),
       TextDirection.rtl,
     );
-    await tester.tap(_folder('Work'));
+    await tester.tap(_group('Work'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final entering = tester.getRect(find.byType(SiteGridTile).first);
     await tester.pumpAndSettle();
     expect(find.byType(SiteGridTile), findsNWidgets(2));
+    expect(
+      entering.width,
+      lessThan(tester.getRect(find.byType(SiteGridTile).first).width),
+    );
     expect(tester.takeException(), isNull);
   });
 }

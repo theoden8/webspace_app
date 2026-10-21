@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:webspace/settings/filter_list_id.dart';
+import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
@@ -344,6 +345,7 @@ class WebViewModel implements MediaGrantRecord {
   /// active. Set by dragging the button itself; null = never dragged,
   /// falls back to the app-wide default.
   TabBarCorner? tabBarButtonCorner;
+  LauncherItemSize launcherSize;
   /// When true, every start takes the first page from the engine's own
   /// HTTP cache and then reloads it live once the network answers. When
   /// false, only a start the last probe found offline does
@@ -892,6 +894,7 @@ class WebViewModel implements MediaGrantRecord {
     this.fullscreenMode = false,
     this.blockScreenshots = false,
     this.tabBarButtonCorner,
+    this.launcherSize = LauncherItemSize.medium,
     this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
     this.backgroundAudioEnabled = false,

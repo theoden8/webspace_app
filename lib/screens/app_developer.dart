@@ -39,7 +39,7 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         AppLocalizations loc,
         {required bool proxyRouterRunsHere}) =>
     [
-      (ExperimentalFeature.folderLibrary, Icons.folder_outlined,
+      (ExperimentalFeature.folderLibrary, Icons.apps_rounded,
           loc.appSettingsExperimentalFolderLibrary,
           loc.appSettingsExperimentalFolderLibraryHint),
       if (proxyRouterRunsHere)

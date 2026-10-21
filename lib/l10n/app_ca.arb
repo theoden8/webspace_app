@@ -1096,8 +1096,8 @@
   "librarySearchWebspaces": "Cerca espais web",
   "librarySearchSites": "Cerca llocs web",
   "libraryNoResults": "Cap coincidència",
-  "appSettingsExperimentalFolderLibrary": "Biblioteca de carpetes",
-  "appSettingsExperimentalFolderLibraryHint": "Exploreu els espais de treball com a carpetes i obriu-ne els llocs en una graella amb cerca.",
+  "appSettingsExperimentalFolderLibrary": "Disseny nou",
+  "appSettingsExperimentalFolderLibraryHint": "Organitzeu els llocs en grups dins d'una graella de llançament.",
   "siteRedirectHomeSuggestion": "Aquest lloc ha redirigit a {url}. Voleu utilitzar aquesta adreça com a pàgina d’inici? Els enllaços al domini nou també s’obriran aquí.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1106,5 +1106,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "Mida de l’element",
+  "libraryItemSmall": "Petita",
+  "libraryItemMedium": "Mitjana",
+  "libraryItemLarge": "Gran"
 }

@@ -1096,8 +1096,8 @@
   "librarySearchWebspaces": "වෙබ් අවකාශ සොයන්න",
   "librarySearchSites": "අඩවි සොයන්න",
   "libraryNoResults": "ප්‍රතිඵල නැත",
-  "appSettingsExperimentalFolderLibrary": "ෆෝල්ඩර පුස්තකාලය",
-  "appSettingsExperimentalFolderLibraryHint": "වැඩ අවකාශ ෆෝල්ඩර ලෙස පිරික්සන්න, ඒවායේ අඩවි සෙවිය හැකි ජාලකයක විවෘත කරන්න.",
+  "appSettingsExperimentalFolderLibrary": "නව සැලසුම",
+  "appSettingsExperimentalFolderLibraryHint": "දියත් කිරීමේ ජාලකයක අඩවි කණ්ඩායම් ලෙස සංවිධානය කරන්න.",
   "siteRedirectHomeSuggestion": "මෙම අඩවිය {url} වෙත යළි යොමු විය. මෙය එහි මුල් පිටුව ලෙස භාවිත කරන්නද? නව වසම වෙත සබැඳි ද මෙහි විවෘත වේ.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
@@ -1106,5 +1106,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "libraryItemSize": "අයිතමයේ ප්‍රමාණය",
+  "libraryItemSmall": "කුඩා",
+  "libraryItemMedium": "මධ්‍යම",
+  "libraryItemLarge": "විශාල"
 }

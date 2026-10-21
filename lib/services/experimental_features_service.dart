@@ -28,7 +28,7 @@ enum ExperimentalFeature {
   /// default.
   contentRuleLists(AppPref.experimentalContentRuleLists),
 
-  /// The folder and site grid library, leaving the existing interface as default.
+  /// The grouped site launcher, leaving the existing interface as default.
   folderLibrary(AppPref.experimentalFolderLibrary);
 
   const ExperimentalFeature(this.pref);
