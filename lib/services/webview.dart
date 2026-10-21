@@ -17,6 +17,7 @@ import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -323,6 +324,22 @@ class WebViewFactory {
     );
   }
 
+  /// Why a webview bound by [binding] must not load [url], or null when it
+  /// may. Asked of a first load before the view exists, so a refused one
+  /// never leaves the device, and of every load a view without a coverage
+  /// gate of its own is given (LEAK-016).
+  static Uncovered? refusesLoad(StoreBinding binding,
+          {required String url}) =>
+      switch (ProxyCoverageEngine.coverageFor(
+        binding: ProxyManager.binding,
+        proxyConfigured: binding.proxyConfigured,
+        destination: Host.inUrl(url),
+        isMountNavigation: true,
+      )) {
+        final Uncovered why => why,
+        NotClaimed() || Established() => null,
+      };
+
   /// One passkey ceremony at a time across every webview (PASSKEY-006).
   static final PasskeyCeremonyGate passkeyGate = PasskeyCeremonyGate();
 
@@ -466,7 +483,13 @@ class WebViewFactory {
     final binding = bindingFor(config);
     final containerId = binding.containerId;
     final inappProxy = binding.proxy;
-    final proxyUnavailable = binding.proxyUnavailable;
+    // A first load the site's route cannot carry is a blank page, never a
+    // direct one: a proxy it expects but cannot bind (SEC-009), or an onion
+    // service on a route with no proxy, which the interstitial then names
+    // (LEAK-016).
+    final firstLoadRefused =
+        refusesLoad(binding, url: config.initialUrl);
+    final blankFirstLoad = binding.proxyUnavailable || firstLoadRefused != null;
     ProxyManager.noteStoreProxy(containerId, proxy: inappProxy);
     final fileImport = FileImportDocument.of(
       initialUrl: config.initialUrl,
@@ -477,15 +500,17 @@ class WebViewFactory {
     // so `restoreState` can apply to a pristine history. With this set, the
     // cache-first reload-to-live machinery below also stays off — the
     // onControllerCreated restore handler owns the first navigation instead.
-    final suppressInitialLoad = config.deferInitialLoad;
+    // A refused first load restores nothing, so it takes the blank page.
+    final suppressInitialLoad =
+        config.deferInitialLoad && firstLoadRefused == null;
     // A page rendered against a live baseUrl fetches its subresources; never
     // do that for a site whose proxy is not bound (SEC-009).
     final renderInitialData =
-        isFileImport && !suppressInitialLoad && !proxyUnavailable;
+        isFileImport && !suppressInitialLoad && !blankFirstLoad;
     final cacheFirst = config.cacheFirst &&
         !isFileImport &&
         !suppressInitialLoad &&
-        !proxyUnavailable;
+        !blankFirstLoad;
     // One-shot: when the cache-first page's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
@@ -559,6 +584,27 @@ class WebViewFactory {
       proxyConfigured: binding.proxyConfigured,
       mountUrl: config.initialUrl,
     );
+
+    void reportBlocked(BlockedNavigation blocked) {
+      LogTag.proxy.warning(
+          'Navigation blocked: ${blocked.why.logLabel} for ${blocked.url} '
+          '(siteId=${config.posture.siteId})', sensitive: true);
+      config.onUnproxiedNavigationBlocked?.call(blocked);
+    }
+
+    // Asked of every top-frame load this webview makes after its first: the
+    // page's own, and each one the app issues for it, a reissued rewrite
+    // among them, since Android does not show those to
+    // shouldOverrideUrlLoading. True when it was cancelled, and the
+    // interstitial says why (LEAK-010, LEAK-016).
+    bool refused(String url) {
+      if (!url.startsWith('http')) return false;
+      if (coverageGate.evaluate(url) case final Uncovered why) {
+        reportBlocked((url: url, why: why));
+        return true;
+      }
+      return false;
+    }
 
     // iOS Universal Link bypass state (per-WebView). Tracks URLs we
     // just cancelled-and-reissued so the second-pass shouldOverrideUrlLoading
@@ -645,8 +691,8 @@ class WebViewFactory {
     PlatformWebViewController? view;
 
     final initialRequest = (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
-      url: inapp.WebUri(proxyUnavailable ? 'about:blank' : config.initialUrl),
-      headers: proxyUnavailable || headers.isEmpty ? null : headers,
+      url: inapp.WebUri(blankFirstLoad ? 'about:blank' : config.initialUrl),
+      headers: blankFirstLoad || headers.isEmpty ? null : headers,
       // Apple's cache first, for this request only; Android ignores it and
       // reads `cacheMode`.
       cachePolicy: cacheFirst
@@ -818,6 +864,9 @@ class WebViewFactory {
           proxyConfigured: binding.proxyConfigured,
           mountUrl: config.initialUrl,
         );
+        if (firstLoadRefused != null) {
+          reportBlocked((url: config.initialUrl, why: firstLoadRefused));
+        }
         final viewId = controller.getViewId();
         final attached = holdsFirstLoad && viewId != null
             ? WebInterceptNative.attachToView(
@@ -839,6 +888,7 @@ class WebViewFactory {
           pauseHack: pauseHack,
           settings: settings,
           loadsAfter: attached,
+          refuses: refused,
           fileImport: fileImport,
         );
         stopFollowingBlockers?.call();
@@ -1063,7 +1113,7 @@ class WebViewFactory {
               allow = config.shouldOverrideUrlLoading!(resolved,
                   hasGesture: hasGesture, frame: frame);
             }
-            if (allow) {
+            if (allow && !refused(resolved)) {
               unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
             }
             return inapp.NavigationActionPolicy.CANCEL;
@@ -1094,6 +1144,15 @@ class WebViewFactory {
             'shouldOverrideUrlLoading: isForMainFrame=${navigationAction.isForMainFrame} '
             'frame=${frame.name}');
         if (frame == NavigationFrame.sub) {
+          // An embedded frame is held to the site's route too, without the
+          // interstitial: the page around it is the one the user opened
+          // (LEAK-016).
+          if (coverageGate.evaluateFrame(url) case final Uncovered why) {
+            LogTag.proxy.warning(
+                'Frame blocked: ${why.logLabel} for $url '
+                '(siteId=${config.posture.siteId})', sensitive: true);
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
           return inapp.NavigationActionPolicy.ALLOW;
         }
         // URL rewrites (ClearURLs, $removeparam) drive a load on the TOP
@@ -1116,7 +1175,9 @@ class WebViewFactory {
               label:
                   ClearUrlService.strippedParamLabel(url, cleaned: cleanedUrl),
             );
-            unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl))));
+            if (!refused(cleanedUrl)) {
+              unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl))));
+            }
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
@@ -1141,8 +1202,10 @@ class WebViewFactory {
               ExternalUrlParser.isLoadableWebUrl(rewritten)) {
             LogTag.contentBlocker.debug(
                 '\$removeparam= rewrote $url → $rewritten', sensitive: true);
-            unawaited(controller.loadUrl(
-                urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten))));
+            if (!refused(rewritten)) {
+              unawaited(controller.loadUrl(
+                  urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten))));
+            }
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
@@ -1161,14 +1224,10 @@ class WebViewFactory {
         // store's proxy does cover. The rewrites above reach here on their
         // reissued pass, so a cleaned URL is judged on its own merits rather
         // than riding the original's decision.
-        if (url.startsWith('http') &&
-            coverageGate.evaluate(url) == ProxyCoverage.unprovable) {
-          LogTag.proxy.warning(
-              'Navigation blocked: proxy coverage not established for $url '
-              '(siteId=${config.posture.siteId})', sensitive: true);
-          config.onUnproxiedNavigationBlocked?.call(url);
-          return inapp.NavigationActionPolicy.CANCEL;
-        }
+        // An onion service on a site with no proxy is refused here too
+        // (LEAK-016): a link the routing decision keeps in this webview is a
+        // request it would make directly.
+        if (refused(url)) return inapp.NavigationActionPolicy.CANCEL;
         // HTTPS upgrade, decided AFTER the routing decision above for the same
         // reason the captcha allow is (HTTPS-004): taken first, a scheme
         // rewrite re-enters the pipeline with the gesture requirement and the
@@ -1338,7 +1397,7 @@ class WebViewFactory {
             // A window this webview did not ask for by gesture never loads
             // into it (NESTED-013); a real target="_blank" tap is rewritten
             // before it gets here (NESTED-008).
-            if (allow && hasGesture) {
+            if (allow && hasGesture && !refused(resolved)) {
               unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
             }
             return false;
@@ -1358,7 +1417,7 @@ class WebViewFactory {
           final allow =
               config.shouldOverrideUrlLoading!(url,
                   hasGesture: hasGesture, frame: NavigationFrame.top);
-          if (allow && hasGesture) {
+          if (allow && hasGesture && !refused(url)) {
             // Same-domain target="_blank": load in current webview
             unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url))));
           }
@@ -1553,7 +1612,8 @@ class WebViewFactory {
                   PlatformWebViewController(controller,
                       pauseHack: pauseHack,
                       settings: settings,
-                      loadsAfter: Future<void>.value()),
+                      loadsAfter: Future<void>.value(),
+                      refuses: refused),
             );
           } on CookieJarFailure catch (e) {
             // A read that failed is not an empty jar: the site keeps the

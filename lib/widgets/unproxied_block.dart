@@ -1,5 +1,6 @@
 // Shown in place of the page when a navigation was cancelled because the app
-// could not establish that it would go through the site's proxy (LEAK-010).
+// could not establish that it would go through the site's proxy (LEAK-010),
+// or because it named an onion service and the site has no proxy (LEAK-016).
 //
 // It sits at the widget level for the same reason the Tor bootstrap
 // interstitial does: the navigation never happened, so there is no page to
@@ -19,6 +20,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
 /// Empty-state glyph, sized as on the Tor bootstrap interstitial: it is the
@@ -33,7 +35,7 @@ class UnproxiedNavigationBlock extends StatelessWidget {
   const UnproxiedNavigationBlock({
     super.key,
     required this.siteName,
-    required this.blockedUrl,
+    required this.blocked,
     required this.onGoBack,
     required this.onOpenProxySettings,
   });
@@ -41,8 +43,8 @@ class UnproxiedNavigationBlock extends StatelessWidget {
   /// The site as the user named it, so the block is attributable.
   final String siteName;
 
-  /// Where the cancelled navigation was headed.
-  final String blockedUrl;
+  /// Where the cancelled navigation was headed, and why it was not made.
+  final BlockedNavigation blocked;
 
   final VoidCallback onGoBack;
 
@@ -53,7 +55,11 @@ class UnproxiedNavigationBlock extends StatelessWidget {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final destination = Uri.tryParse(blockedUrl)?.host ?? blockedUrl;
+    final destination = Uri.tryParse(blocked.url)?.host ?? blocked.url;
+    final (body, why) = switch (blocked.why) {
+      Unprovable() => (loc.unproxiedBlockBody(siteName), loc.unproxiedBlockWhy),
+      OnionNeedsProxy() => (loc.onionBlockBody(siteName), loc.onionBlockWhy),
+    };
 
     return Container(
       color: scheme.surface,
@@ -77,7 +83,7 @@ class UnproxiedNavigationBlock extends StatelessWidget {
                 ),
                 const SizedBox(height: Spacing.sm),
                 Text(
-                  loc.unproxiedBlockBody(siteName),
+                  body,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: scheme.onSurfaceVariant),
@@ -91,7 +97,7 @@ class UnproxiedNavigationBlock extends StatelessWidget {
                 ),
                 const SizedBox(height: Spacing.md),
                 Text(
-                  loc.unproxiedBlockWhy,
+                  why,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: scheme.onSurfaceVariant),

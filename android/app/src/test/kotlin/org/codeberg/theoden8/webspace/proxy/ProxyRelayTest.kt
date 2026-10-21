@@ -473,6 +473,48 @@ class ProxyRelayTest {
         }
     }
 
+    // LEAK-016
+    @Test
+    fun directRoute_refusesAnOnionHostBeforeAnyConnect() {
+        val logs = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val relay = ProxyRelay(logger = { logs.add(it) })
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(ProxyRelay.UpstreamType.DIRECT, "", 0, null, null)
+            )
+            for (request in listOf(
+                "CONNECT duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion:443 HTTP/1.1\r\n" +
+                    "Host: duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion:443\r\n\r\n",
+                "GET http://Forum.ONION./ HTTP/1.1\r\nHost: Forum.ONION.\r\n\r\n",
+            )) {
+                Socket().use { c ->
+                    c.connect(InetSocketAddress(relay.host, port), 2000)
+                    c.getOutputStream().write(request.toByteArray())
+                    c.getOutputStream().flush()
+                    val status = readPreamble(c.getInputStream()).requestLine
+                    assertTrue("expected 502, got: $status", status.contains("502"))
+                }
+            }
+            assertEquals(2, logs.count { it.startsWith("onion host refused") })
+            assertFalse(
+                "nothing was dialled: ${logs.joinToString()}",
+                logs.any { it.startsWith("upstream connecting") },
+            )
+        } finally {
+            relay.stop()
+        }
+    }
+
+    @Test
+    fun isOnionHost_matchesTheDartRule() {
+        assertTrue(ProxyRelay.isOnionHost("abc.onion"))
+        assertTrue(ProxyRelay.isOnionHost("A.B.ONION."))
+        assertTrue(ProxyRelay.isOnionHost("onion"))
+        assertFalse(ProxyRelay.isOnionHost("onion.example.com"))
+        assertFalse(ProxyRelay.isOnionHost("myonion"))
+        assertFalse(ProxyRelay.isOnionHost("example.com"))
+    }
+
     // PROXY-012
     @Test
     fun httpsUpstream_rejectsCertificateIssuedForAnotherHost() {

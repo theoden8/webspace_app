@@ -21,6 +21,7 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/opensearch_engine.dart'
     show SiteSearchTarget;
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -256,12 +257,12 @@ class WebViewModel implements MediaGrantRecord {
   String name;
   List<Cookie> cookies;
   Widget? webview;
-  /// Destination of the last main-frame navigation this site's webview
-  /// refused to make because the app could not establish that it would go
-  /// through the site's proxy (LEAK-010). Drives the interstitial over the
-  /// page; deliberately not persisted, since it describes one navigation and
-  /// not the site.
-  String? blockedNavigationUrl;
+  /// The last main-frame navigation this site's webview refused to make
+  /// because the app could not establish that it would go through the site's
+  /// proxy (LEAK-010), or because it named an onion service and the site has
+  /// none (LEAK-016). Drives the interstitial over the page; deliberately not
+  /// persisted, since it describes one navigation and not the site.
+  BlockedNavigation? blockedNavigation;
   WebViewController? controller;
   UserProxySettings proxySettings;
   bool javascriptEnabled;
@@ -1268,6 +1269,11 @@ bool dispatch(NavigationDecision decision,
       final posture = id.sitePosture(
           globalUserScripts: globalUserScripts, isolation: hooks.isolation());
       final storeBinding = WebViewFactory.storeBinding(posture);
+      // A first load the route refuses restores nothing either: the queued
+      // back stack is still taken, and dropped, since replaying it would
+      // load what the factory just refused (LEAK-016).
+      final restores =
+          WebViewFactory.refusesLoad(storeBinding, url: currentUrl) == null;
       _containerProxyToRelease = storeBinding.releasesContainerProxy
           ? storeBinding.containerId
           : null;
@@ -1300,7 +1306,7 @@ bool dispatch(NavigationDecision decision,
           ),
           pullToRefreshGate: pullToRefreshGate,
           onUnproxiedNavigationBlocked: (blocked) {
-            blockedNavigationUrl = blocked;
+            blockedNavigation = blocked;
             hooks.rebuild();
           },
           shouldOverrideUrlLoading: (url, {required hasGesture, required frame}) {
@@ -1516,7 +1522,7 @@ bool dispatch(NavigationDecision decision,
             tab: builtTab,
             commit: const Commit.environment(Environment.frame),
           );
-          if (pending != null) {
+          if (pending != null && restores) {
             // On Android the webview was built with no initial load
             // (deferRestoreLoad), so restoreState applies to a pristine
             // back/forward list. Android does not restore display data, so

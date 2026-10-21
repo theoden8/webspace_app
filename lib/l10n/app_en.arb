@@ -4859,6 +4859,19 @@
   "@unproxiedBlockWhy": {
     "description": "Second paragraph of the blocked-navigation screen, explaining why only some requests can be shown to go through the proxy. Keep it about what can be established, not about the proxy working or failing."
   },
+  "onionBlockBody": "{site} has no proxy, and onion addresses open only through Tor or a proxy. Opening this one directly would have shown it to this device's DNS resolver, so it was not opened.",
+  "@onionBlockBody": {
+    "description": "Body of the blocked-navigation screen when the page asked for an onion address (a Tor hidden service, ending in .onion) on a site that has no proxy set. {site} is the name the user gave the site. Do not render this as a failure or the site being unreachable: the request was never sent. Keep 'Tor' as it is.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "onionBlockWhy": "To open onion addresses on this site, set its proxy to Tor, or to a proxy that can reach onion services.",
+  "@onionBlockWhy": {
+    "description": "Second paragraph of the blocked-navigation screen for an onion address, telling the user which setting lets the site open it. 'Proxy' is the site's own proxy setting; keep 'Tor' as it is."
+  },
   "unproxiedBlockBack": "Go back",
   "@unproxiedBlockBack": {
     "description": "Button on the blocked-navigation screen that returns to the page the user was already on."

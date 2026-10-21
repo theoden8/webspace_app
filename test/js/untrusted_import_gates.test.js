@@ -80,8 +80,9 @@ test('the add-site preview only resolves hostnames when no proxy would', () => {
   const before = src.slice(Math.max(0, probe - 400), probe);
   assert.match(
     before,
-    /addSitePreviewMayResolveLocally\(\)/,
-    'the hostname probe is no longer guarded by addSitePreviewMayResolveLocally(); '
-      + 'with a proxy configured this leaks every site being added to the local resolver (LEAK-006)',
+    /addSitePreviewMayResolveLocally\(host\)/,
+    'the hostname probe is no longer guarded by addSitePreviewMayResolveLocally(host); '
+      + 'with a proxy configured this leaks every site being added to the local resolver (LEAK-006), '
+      + 'and without one every onion address (LEAK-016)',
   );
 });

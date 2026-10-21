@@ -23,6 +23,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/proxy_health_service.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/screens/saved_proxies.dart';
@@ -122,6 +123,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: _protectionCategory),
   GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: _addSite),
   GalleryCard(id: 'unproxied-block', label: 'Blocked navigation interstitial', fullBleed: true, builder: _unproxiedBlock),
+  GalleryCard(id: 'onion-block', label: 'Blocked onion address interstitial', fullBleed: true, builder: _onionBlock),
   GalleryCard(id: 'tabs-sheet', label: 'Tabs sheet', fullBleed: true, builder: _tabsSheet),
   GalleryCard(id: 'tabs-sheet-in-site', label: 'Tabs sheet, a site in other trees', fullBleed: true, builder: _tabsSheetInSite),
   GalleryCard(id: 'tabs-sheet-way-back', label: 'Tabs sheet, after a jump to another tree', fullBleed: true, builder: _tabsSheetWayBack),
@@ -436,7 +438,20 @@ class _GalleryIndex extends StatelessWidget {
 
 Widget _unproxiedBlock(BuildContext _) => const UnproxiedNavigationBlock(
   siteName: 'Acme Bank',
-  blockedUrl: 'https://analytics.tracker.example.org/collect?id=42',
+  blocked: (
+    url: 'https://analytics.tracker.example.org/collect?id=42',
+    why: Unprovable(),
+  ),
+  onGoBack: _noop,
+  onOpenProxySettings: _noop,
+);
+
+Widget _onionBlock(BuildContext _) => const UnproxiedNavigationBlock(
+  siteName: 'Forum',
+  blocked: (
+    url: 'http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/',
+    why: OnionNeedsProxy(),
+  ),
   onGoBack: _noop,
   onOpenProxySettings: _noop,
 );

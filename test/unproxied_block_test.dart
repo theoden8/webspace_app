@@ -1,4 +1,5 @@
-// What the blocked-navigation interstitial says and offers (LEAK-010).
+// What the blocked-navigation interstitial says and offers (LEAK-010,
+// LEAK-016).
 //
 // The two assertions that matter are negative: it never offers a way to make
 // the request anyway -- a retry included, which BUG-014 measured as a direct
@@ -9,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'helpers/localized.dart';
 
@@ -25,7 +27,7 @@ void main() {
       (t) async {
     await t.pumpWidget(_host(UnproxiedNavigationBlock(
       siteName: 'Acme Bank',
-      blockedUrl: 'https://tracker.example.org/a/b?c=1',
+      blocked: (url: 'https://tracker.example.org/a/b?c=1', why: const Unprovable()),
       onGoBack: () {},
       onOpenProxySettings: () {},
     )));
@@ -40,7 +42,7 @@ void main() {
     var settings = 0;
     await t.pumpWidget(_host(UnproxiedNavigationBlock(
       siteName: 'Acme',
-      blockedUrl: 'https://example.org/',
+      blocked: (url: 'https://example.org/', why: const Unprovable()),
       onGoBack: () => back++,
       onOpenProxySettings: () => settings++,
     )));
@@ -55,7 +57,7 @@ void main() {
     _tallView(t);
     await t.pumpWidget(_host(UnproxiedNavigationBlock(
       siteName: 'Acme',
-      blockedUrl: 'https://example.org/',
+      blocked: (url: 'https://example.org/', why: const Unprovable()),
       onGoBack: () {},
       onOpenProxySettings: () {},
     )));
@@ -70,12 +72,42 @@ void main() {
     );
   });
 
+  testWidgets('LEAK-016: an onion block says the site needs a proxy',
+      (t) async {
+    _tallView(t);
+    const onion =
+        'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion';
+    var settings = 0;
+    await t.pumpWidget(_host(UnproxiedNavigationBlock(
+      siteName: 'Forum',
+      blocked: (url: 'http://$onion/thread/1', why: const OnionNeedsProxy()),
+      onGoBack: () {},
+      onOpenProxySettings: () => settings++,
+    )));
+
+    final loc = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(loc.onionBlockBody('Forum')), findsOneWidget);
+    expect(find.text(loc.onionBlockWhy), findsOneWidget);
+    expect(find.text(loc.unproxiedBlockBody('Forum')), findsNothing,
+        reason: 'the site has no proxy, so the copy that says it has one '
+            'would be false');
+    expect(find.textContaining(onion), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((w) => w is ButtonStyleButton),
+      findsNWidgets(2),
+    );
+    await t.tap(find.text(loc.unproxiedBlockProxySettings));
+    expect(settings, 1);
+  });
+
   test('the copy says nothing failed, because nothing was tried', () async {
     final loc = await AppLocalizations.delegate.load(const Locale('en'));
     final copy = [
       loc.unproxiedBlockTitle,
       loc.unproxiedBlockBody('Acme'),
       loc.unproxiedBlockWhy,
+      loc.onionBlockBody('Acme'),
+      loc.onionBlockWhy,
     ].join(' ').toLowerCase();
 
     for (final forbidden in [

@@ -99,7 +99,7 @@ class _SiteWebView extends StatelessWidget {
   /// interstitial for a navigation its proxy could not cover (LEAK-010).
   Widget _withInterstitial(Widget? webView) {
     if (webView == null) return const TorBootstrapPlaceholder();
-    final blocked = site.blockedNavigationUrl;
+    final blocked = site.blockedNavigation;
     // Always the same Stack, whether or not the interstitial is in it: a
     // widget swapped in at this slot would unmount the platform view and
     // take the page the user is still on with it. `StackFit.expand` keeps
@@ -116,9 +116,9 @@ class _SiteWebView extends StatelessWidget {
           Positioned.fill(
             child: UnproxiedNavigationBlock(
               siteName: site.name,
-              blockedUrl: blocked,
+              blocked: blocked,
               onGoBack: () {
-                site.blockedNavigationUrl = null;
+                site.blockedNavigation = null;
                 hooks.rebuild();
               },
               onOpenProxySettings: () => hooks.openSiteSettings(site.siteId),

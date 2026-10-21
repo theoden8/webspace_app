@@ -433,6 +433,16 @@ class ProxyRelay(
             return
         }
 
+        // An onion service on a direct route (LEAK-016). Only Tor resolves
+        // the name, so a direct connect would hand it to the device's
+        // resolver and reach nothing. Refused before anything resolves it,
+        // whatever asked: a page, a frame, a redirect, a restored entry.
+        if (cfg.type == UpstreamType.DIRECT && isOnionHost(host)) {
+            log("onion host refused on a direct route for ${route.siteId}")
+            writeStatus(cout, 502, "Bad Gateway")
+            return
+        }
+
         log("upstream connecting via ${cfg.type} ${cfg.host}:${cfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
         // A CONNECT through SOCKS5 is answered before the upstream is reached.
         // Chromium on Android gives a proxy tunnel 10 s and the TLS handshake
@@ -900,6 +910,16 @@ class ProxyRelay(
         // RFC 2606 reserved TLD: a probe host can never resolve, so even
         // a bug that forwarded one could not reach a real server.
         const val PROBE_SUFFIX = ".webspace-probe.invalid"
+
+        /**
+         * Whether [host] names an onion service (RFC 7686). The same test as
+         * `Host.isOnion` in lib/services/url_host.dart, over the same
+         * normalization; keep the two in step.
+         */
+        fun isOnionHost(host: String): Boolean {
+            val h = host.trim().lowercase().removeSurrounding("[", "]").removeSuffix(".")
+            return h == "onion" || h.endsWith(".onion")
+        }
 
         // Stand-in siteId for single-upstream (non-router) mode, where
         // there is exactly one route and no attribution to make.

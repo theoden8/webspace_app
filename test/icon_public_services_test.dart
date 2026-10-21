@@ -49,6 +49,16 @@ void main() {
     expect(hosts(), containsAll({'www.google.com', 'icons.duckduckgo.com'}));
   });
 
+  test('LEAK-016: an onion service is never named to Google or DuckDuckGo',
+      () async {
+    const onion =
+        'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion';
+    await getFaviconUrlStream('https://$onion/').drain<void>();
+    expect(hosts(), {onion},
+        reason: 'the services would learn which onion service is opened, '
+            'whatever route carried the question');
+  });
+
   test('under Site icons only every request goes to the site', () async {
     siteIconsOnly(on: true);
     await getFaviconUrlStream(_site).drain<void>();

@@ -15,6 +15,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -149,9 +150,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// `goBack()` twice.
   final _backGuard = ReentryGuard();
 
-  /// Destination this screen refused to navigate to because the app could not
-  /// establish that it would go through the site's proxy (LEAK-010).
-  String? _blockedNavigationUrl;
+  /// The navigation this screen refused because the app could not establish
+  /// that it would go through the site's proxy (LEAK-010), or because it named
+  /// an onion service and the site has none (LEAK-016).
+  BlockedNavigation? _blockedNavigation;
 
   /// Same-domain gesture timestamp feeding `NavigationDecisionEngine`'s
   /// 10s propagation window, mirroring the parent webview's closure state.
@@ -250,7 +252,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         onPageCommitVisible: () => _surface.nudge('page-commit-visible'),
         onUnproxiedNavigationBlocked: (blocked) {
           if (!mounted) return;
-          setState(() => _blockedNavigationUrl = blocked);
+          setState(() => _blockedNavigation = blocked);
         },
         grants: _grants,
         // Only wired when the opening site actually blocks cookies: an
@@ -703,14 +705,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   fit: StackFit.expand,
                   children: [
                     _webView ?? const TorBootstrapPlaceholder(),
-                    if (_blockedNavigationUrl != null)
+                    if (_blockedNavigation != null)
                       Positioned.fill(
                         child: UnproxiedNavigationBlock(
                           siteName:
                               widget.homeTitle ?? extractDomain(_currentUrl),
-                          blockedUrl: _blockedNavigationUrl!,
+                          blocked: _blockedNavigation!,
                           onGoBack: () =>
-                              setState(() => _blockedNavigationUrl = null),
+                              setState(() => _blockedNavigation = null),
                           onOpenProxySettings: () => widget.hooks
                               .openSiteSettings(widget.posture.siteId),
                         ),

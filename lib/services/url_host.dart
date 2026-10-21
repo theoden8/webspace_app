@@ -35,6 +35,10 @@ extension type const Host._(String name) implements String {
   /// This host with one leading `www.` folded, so `example.com` and
   /// `www.example.com` read as the same site.
   Host get withoutWww => startsWith('www.') ? Host._(substring(4)) : this;
+
+  /// Whether this names an onion service (RFC 7686). Only Tor resolves one:
+  /// any other resolver answers nothing and has learned the name (LEAK-016).
+  bool get isOnion => this == 'onion' || endsWith('.onion');
 }
 
 /// The host of [url], or [url] itself when it has none (a bare domain).

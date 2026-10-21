@@ -1,19 +1,51 @@
 import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/url_host.dart';
 
-/// Whether a navigation a proxied site is about to issue can be shown to go
-/// through that proxy (LEAK-010).
-enum ProxyCoverage {
-  /// The site runs on DEFAULT with no global proxy behind it, so no claim
-  /// about a proxy is being made and nothing has to be established.
-  notClaimed,
-
-  /// The request is bound to the proxy the user configured.
-  established,
-
-  /// The app cannot establish that the request would be proxied. This is not
-  /// "the proxy is down" and not "the request failed": nothing was sent.
-  unprovable,
+/// Whether a navigation a site is about to issue can be shown to go through
+/// the route it needs (LEAK-010, LEAK-016).
+sealed class ProxyCoverage {
+  const ProxyCoverage();
 }
+
+/// The site runs on DEFAULT with no global proxy behind it and the
+/// destination needs none, so no claim about a proxy is being made and
+/// nothing has to be established.
+final class NotClaimed extends ProxyCoverage {
+  const NotClaimed();
+}
+
+/// The request is bound to the proxy the user configured.
+final class Established extends ProxyCoverage {
+  const Established();
+}
+
+/// The navigation is cancelled before any byte leaves the device. Which case
+/// it is decides what the interstitial tells the user.
+sealed class Uncovered extends ProxyCoverage {
+  const Uncovered();
+
+  /// What the `Proxy` log entry says was missing.
+  String get logLabel => switch (this) {
+        Unprovable() => 'proxy coverage not established',
+        OnionNeedsProxy() => 'an onion service on a site with no proxy',
+      };
+}
+
+/// The app cannot establish that the request would be proxied. This is not
+/// "the proxy is down" and not "the request failed": nothing was sent.
+final class Unprovable extends Uncovered {
+  const Unprovable();
+}
+
+/// The destination is an onion service and the site has no proxy: neither
+/// Tor, built in or external, nor one of the user's. Only Tor resolves the
+/// name, so going direct would only hand it to the device's resolver.
+final class OnionNeedsProxy extends Uncovered {
+  const OnionNeedsProxy();
+}
+
+/// A navigation the gate cancelled, as its interstitial names it.
+typedef BlockedNavigation = ({String url, Uncovered why});
 
 /// Decides [ProxyCoverage] for one navigation.
 ///
@@ -25,7 +57,7 @@ class ProxyCoverageEngine {
   /// that turns out to need the distinction has somewhere to put it.
   ///
   /// It used to: under [ProxyBinding.perSite] every post-mount navigation was
-  /// [ProxyCoverage.unprovable], on a measurement that could not have
+  /// [Unprovable], on a measurement that could not have
   /// read anything else (BUG-014 caution 2). **Those readings are void.** Every proxy arm behind them pointed its
   /// origins at an address of the test machine itself, which macOS routes
   /// over `lo0` and never proxies, so they read DIRECT whether or not the
@@ -41,13 +73,22 @@ class ProxyCoverageEngine {
   /// here: it carries the proxy on a `WebKitNetworkSession` the container
   /// owns, which the whole session's traffic goes through. PROXY-027 already
   /// calls that binding process-wide.
+  ///
+  /// [destination] is the host the navigation names, or null for none. Any
+  /// proxy the user chose may carry an onion service: Tor resolves it, and a
+  /// proxy is handed the name rather than an address, so only a site with no
+  /// proxy at all is refused one.
   static ProxyCoverage coverageFor({
     required ProxyBinding binding,
     required bool proxyConfigured,
+    required Host? destination,
     required bool isMountNavigation,
   }) {
-    if (!proxyConfigured) return ProxyCoverage.notClaimed;
-    return ProxyCoverage.established;
+    if (proxyConfigured) return const Established();
+    if (destination != null && destination.isOnion) {
+      return const OnionNeedsProxy();
+    }
+    return const NotClaimed();
   }
 }
 
@@ -75,6 +116,14 @@ class ProxyCoverageGate {
 
   bool _mountSlotSpent = false;
 
+  /// Answer for a frame the page embeds, which is never the mount.
+  ProxyCoverage evaluateFrame(String url) => ProxyCoverageEngine.coverageFor(
+        binding: binding,
+        proxyConfigured: proxyConfigured,
+        destination: Host.inUrl(url),
+        isMountNavigation: false,
+      );
+
   /// Answer for the navigation about to be issued, spending the mount slot.
   ProxyCoverage evaluate(String url) {
     final isMountNavigation = !_mountSlotSpent && url == mountUrl;
@@ -82,6 +131,7 @@ class ProxyCoverageGate {
     return ProxyCoverageEngine.coverageFor(
       binding: binding,
       proxyConfigured: proxyConfigured,
+      destination: Host.inUrl(url),
       isMountNavigation: isMountNavigation,
     );
   }

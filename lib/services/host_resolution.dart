@@ -109,6 +109,9 @@ enum HostRangeVerdict {
 /// the far end, so a local answer describes a different network than the one
 /// the request will traverse.
 Future<HostRangeVerdict> classifyResolvedHost(String host) async {
+  // Only Tor resolves an onion name; asked of this resolver it would answer
+  // nothing and keep the name (LEAK-016).
+  if (Host(host).isOnion) return HostRangeVerdict.unresolvable;
   final List<String>? addresses;
   try {
     addresses = await _lookup(host);

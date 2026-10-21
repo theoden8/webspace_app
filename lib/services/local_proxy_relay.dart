@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/socks_connect.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// A loopback HTTP CONNECT proxy that fans one endpoint out to one upstream
@@ -199,7 +200,9 @@ class LocalProxyRelay {
       switch (upstream.type) {
         case ProxyType.DEFAULT:
           // A site that resolves to no proxy still rides the relay, because
-          // every store points here; it just goes straight out.
+          // every store points here; it just goes straight out, never to an
+          // onion service, which only Tor resolves (LEAK-016).
+          if (Host(host).isOnion) return null;
           return await Socket.connect(host, port,
               timeout: const Duration(seconds: 15));
         case ProxyType.SOCKS5:
