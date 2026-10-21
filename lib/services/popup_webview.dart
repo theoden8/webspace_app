@@ -92,7 +92,9 @@ abstract final class PopupWebView {
         view = PlatformWebViewController(controller,
             pauseHack: PauseTimersHackState(),
             settings: settings,
-            loadsAfter: Future<void>.value());
+            loadsAfter: Future<void>.value(),
+            refuses: (url) =>
+                WebViewFactory.refusesLoad(binding, url: url) != null);
         PageHandlers.registerPageHandlers(
           controller,
           config: parent,

@@ -624,6 +624,7 @@ void main() {
       pauseHack: PauseTimersHackState(),
       settings: inapp.InAppWebViewSettings(),
       loadsAfter: Future<void>.value(),
+      refuses: (_) => false,
       fileImport: const FileImportDocument(
           url: 'file:///Notes.html', html: '<p>notes</p>'),
     );

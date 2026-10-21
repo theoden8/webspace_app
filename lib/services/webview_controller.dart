@@ -298,15 +298,22 @@ class PlatformWebViewController implements WebViewController {
   /// blockers see them, whichever path issues the first load.
   final Future<void> _loadsAfter;
 
+  /// Whether a load the app issues must not go out, which it has then said
+  /// (LEAK-010, LEAK-016). Asked here because Android shows a programmatic
+  /// load to no navigation callback.
+  final bool Function(String url) _refuses;
+
   PlatformWebViewController(
     this._c, {
     required PauseTimersHackState pauseHack,
     required inapp.InAppWebViewSettings settings,
     required Future<void> loadsAfter,
+    required bool Function(String url) refuses,
     FileImportDocument? fileImport,
   })  : _pauseHack = pauseHack,
         _settings = settings,
         _loadsAfter = loadsAfter,
+        _refuses = refuses,
         _import = fileImport;
 
   /// Null when the webview is gone or the platform refused: a native
@@ -360,6 +367,7 @@ class PlatformWebViewController implements WebViewController {
 
   /// [request] as the webview's next navigation, headers and all.
   Future<void> loadRequest(inapp.URLRequest request) async {
+    if (_refuses(request.url?.rawValue ?? '')) return;
     final fileImport = _import;
     if (fileImport != null &&
         fileImport.isLoadOf(request.url?.rawValue ?? '')) {

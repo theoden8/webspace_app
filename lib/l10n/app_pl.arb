@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "Witryna {site} ma ustawione proxy, ale aplikacja nie mogła ustalić, że to żądanie przez nie przejdzie. Wysłanie go mimo to pokazałoby drugiej stronie adres IP Twojego urządzenia, więc nie zostało wysłane.",
   "unproxiedBlockDestination": "Cel: {host}",
   "unproxiedBlockWhy": "Proxy ustawione dla witryny obejmuje żądanie, którym otwierana jest strona. To pojawiło się później, z wnętrza strony, i nie ma tu sposobu, by wykazać, że również przeszłoby przez proxy.",
+  "onionBlockBody": "Witryna {site} nie ma proxy, a adresy onion otwierają się tylko przez Tor lub proxy. Otwarcie tego adresu bezpośrednio pokazałoby go resolwerowi DNS tego urządzenia, więc nie został otwarty.",
+  "onionBlockWhy": "Aby otwierać adresy onion w tej witrynie, ustaw jej proxy na Tor albo na proxy, które dociera do usług onion.",
   "unproxiedBlockBack": "Wstecz",
   "unproxiedBlockProxySettings": "Ustawienia proxy",
   "proxyTestOk": "Serwer proxy działa",

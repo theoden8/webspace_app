@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} procuratore uti constitutus est, sed applicatio confirmare non potuit hanc petitionem per eum transituram esse. Si nihilominus missa esset, inscriptionem IP instrumenti tui alteri parti ostendisset, ideo missa non est.",
   "unproxiedBlockDestination": "Destinatio: {host}",
   "unproxiedBlockWhy": "Procurator situi constitutus petitionem qua pagina aperitur tegit. Haec postea venit, ex ipsa pagina, neque hic ulla ratio est ostendendi eam quoque per procuratorem transituram esse.",
+  "onionBlockBody": "{site} procuratorem non habet, et inscriptiones onion nisi per Tor aut procuratorem non aperiuntur. Si haec directe aperta esset, resolutori DNS huius instrumenti ostensa esset, ideo aperta non est.",
+  "onionBlockWhy": "Ut inscriptiones onion in hoc situ aperias, procuratorem eius ad Tor constitue, aut ad procuratorem qui servitia onion attingere potest.",
   "unproxiedBlockBack": "Redire",
   "unproxiedBlockProxySettings": "Optiones procuratoris",
   "proxyTestOk": "Procurator operatur",

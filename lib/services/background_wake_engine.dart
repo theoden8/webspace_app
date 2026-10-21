@@ -23,6 +23,7 @@ enum WakeSkip {
   localPage('it is an imported page, with nothing to fetch'),
   incognito('an incognito site keeps no session a headless check can use'),
   proxyUnavailable('its proxy cannot be bound'),
+  onionNeedsProxy('it is an onion service and its route has no proxy'),
   torDown('it routes through Tor and Tor is not up'),
   proxyConflict('its proxy differs from the one this wake runs under'),
   activationInFlight('a site was opening when the wake came; the next wake '

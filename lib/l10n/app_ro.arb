@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} este setat să folosească un proxy, dar aplicația nu a putut stabili că această cerere ar trece prin el. Trimiterea ei oricum ar fi arătat adresa IP a dispozitivului tău celuilalt capăt, așa că nu a fost trimisă.",
   "unproxiedBlockDestination": "Destinație: {host}",
   "unproxiedBlockWhy": "Un proxy setat pentru un site acoperă cererea cu care se deschide o pagină. Aceasta a venit după aceea, din interiorul paginii, iar aici nu există nicio modalitate de a arăta că ar trece și ea prin proxy.",
+  "onionBlockBody": "{site} nu are proxy, iar adresele onion se deschid doar prin Tor sau printr-un proxy. Deschiderea acesteia direct ar fi arătat-o resolverului DNS al acestui dispozitiv, așa că nu a fost deschisă.",
+  "onionBlockWhy": "Pentru a deschide adrese onion pe acest site, setează-i proxy-ul pe Tor sau pe un proxy care poate ajunge la servicii onion.",
   "unproxiedBlockBack": "Înapoi",
   "unproxiedBlockProxySettings": "Setările proxyului",
   "proxyTestOk": "Proxy-ul funcționează",

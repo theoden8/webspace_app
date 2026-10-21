@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} er satt opp til å bruke en mellomtjener, men appen kunne ikke fastslå at denne forespørselen ville gå gjennom den. Å sende den likevel ville vist enhetens IP-adresse til den andre enden, så den ble ikke sendt.",
   "unproxiedBlockDestination": "Mål: {host}",
   "unproxiedBlockWhy": "En mellomtjener satt opp for et nettsted dekker forespørselen en side åpnes med. Denne kom etterpå, innenfra siden, og her finnes ingen måte å vise at den også ville gå gjennom mellomtjeneren.",
+  "onionBlockBody": "{site} har ingen mellomtjener, og onion-adresser åpnes bare gjennom Tor eller en mellomtjener. Å åpne denne direkte ville vist den til enhetens DNS-resolver, så den ble ikke åpnet.",
+  "onionBlockWhy": "For å åpne onion-adresser på dette nettstedet, sett mellomtjeneren til Tor eller til en mellomtjener som når onion-tjenester.",
   "unproxiedBlockBack": "Tilbake",
   "unproxiedBlockProxySettings": "Innstillinger for mellomtjener",
   "proxyTestOk": "Proxyen virker",

@@ -11,10 +11,12 @@ import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/socks_connect.dart';
+import 'package:webspace/services/url_host.dart';
 
 /// Default factory backed by `dart:io`'s [HttpClient].
 ///
-/// - DEFAULT  → direct client (system proxy, if any, is honored by dart:io)
+/// - DEFAULT  → direct client (system proxy, if any, is honored by dart:io),
+///            which never connects to an onion service (LEAK-016)
 /// - HTTP     → [HttpClient.findProxy] override pointing at the host:port
 /// - HTTPS    → the same, over a TLS session to the proxy: `findProxy` alone
 ///            makes dart:io write `CONNECT` and `Proxy-Authorization` on a
@@ -46,7 +48,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     }
     switch (settings.type) {
       case ProxyType.DEFAULT:
-        return OutboundClientReady(IOClient(_newHttpClient()));
+        return OutboundClientReady(IOClient(_directHttpClient()));
 
       case ProxyType.HTTP:
       case ProxyType.HTTPS:
@@ -127,6 +129,31 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     final client = HttpClient();
     client.badCertificateCallback = (cert, host, port) =>
         _isTrustedBadCert(cert, host: host, port: port);
+    return client;
+  }
+
+  /// A client no proxy carries. It refuses an onion service before anything
+  /// resolves it: only Tor does, so a direct connection would only hand the
+  /// name to the device's resolver (LEAK-016). Asked per connection, so a
+  /// redirect to one is refused too. Otherwise it connects as dart:io would
+  /// without a factory.
+  static HttpClient _directHttpClient() {
+    final client = _newHttpClient();
+    client.connectionFactory = (uri, proxyHost, proxyPort) {
+      final host = Host(uri.host);
+      if (host.isOnion) return Future.error(OnionNeedsProxyFailure(host));
+      if (proxyHost != null && proxyPort != null) {
+        return Socket.startConnect(proxyHost, proxyPort);
+      }
+      return uri.scheme == 'https'
+          ? SecureSocket.startConnect(
+              uri.host,
+              uri.port,
+              onBadCertificate: (cert) =>
+                  _isTrustedBadCert(cert, host: uri.host, port: uri.port),
+            )
+          : Socket.startConnect(uri.host, uri.port);
+    };
     return client;
   }
 
@@ -225,6 +252,18 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     };
     return OutboundClientReady(IOClient(inner));
   }
+}
+
+/// A direct client was asked to connect to an onion service: nothing was
+/// sent, and the name never reached the device's resolver (LEAK-016). A
+/// [SocketException], so every caller reads it as the failed connection it
+/// is.
+final class OnionNeedsProxyFailure extends SocketException {
+  OnionNeedsProxyFailure(this.host)
+      : super('$host is an onion service, reached only through Tor or a '
+            'proxy');
+
+  final Host host;
 }
 
 /// A SOCKS5 connect cannot be aborted mid-handshake, so cancelling it only

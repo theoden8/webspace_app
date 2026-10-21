@@ -30,6 +30,7 @@ const CARDS = [
   { id: 'protection-report-category', width: 400, height: 740 },
   { id: 'add-site', width: 400, height: 740 },
   { id: 'unproxied-block', width: 400, height: 740 },
+  { id: 'onion-block', width: 400, height: 740 },
   { id: 'tabs-sheet', width: 400, height: 740 },
   { id: 'tabs-sheet-in-site', width: 400, height: 740 },
   { id: 'tabs-sheet-way-back', width: 400, height: 740 },

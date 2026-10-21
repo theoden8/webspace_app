@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
@@ -74,7 +75,17 @@ final Map<String, Widget Function()> _subjects = {
   // first is 320pt at 2.0, which is also the one a user in that setting sees.
   'unproxied-block': () => UnproxiedNavigationBlock(
         siteName: 'Acme Bank',
-        blockedUrl: 'https://tracker.example.org/a/b',
+        blocked: (url: 'https://tracker.example.org/a/b', why: const Unprovable()),
+        onGoBack: () {},
+        onOpenProxySettings: () {},
+      ),
+  // A v3 onion name is 56 characters with no break in it.
+  'onion-block': () => UnproxiedNavigationBlock(
+        siteName: 'Forum',
+        blocked: (
+          url: 'http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/',
+          why: const OnionNeedsProxy(),
+        ),
         onGoBack: () {},
         onOpenProxySettings: () {},
       ),

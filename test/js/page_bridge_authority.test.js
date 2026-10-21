@@ -180,7 +180,7 @@ test('NESTED-013: onCreateWindow loads into the top webview only on a gesture', 
   assert.notEqual(at, -1, 'onCreateWindow is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('onProgressChanged:', at));
   const loads = body.split('controller.loadUrl(').length - 1;
-  const gated = (body.match(/if \(allow && hasGesture\) \{/g) || []).length;
+  const gated = (body.match(/if \(allow && hasGesture(?: && !refused\(\w+\))?\) \{/g) || []).length;
   assert.ok(loads > 0, 'no loadUrl in onCreateWindow: the guard has nothing to gate');
   assert.equal(gated, loads,
     'every loadUrl in onCreateWindow must sit under `allow && hasGesture`: a '
@@ -352,6 +352,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
     + 'through the builder the site webview uses');
   for (const check of [
     'if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);',
+    'return (null, WakeSkip.onionNeedsProxy);',
     'PageHandlers.registerPageHandlers(',
     'onCreateWindow: (_, _) async => false,',
     'inapp.PermissionResponseAction.DENY',

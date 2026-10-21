@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} huwa mqiegħed biex juża proxy, iżda l-app ma setgħetx tistabbilixxi li din it-talba kienet tgħaddi minnu. Li ssir xorta waħda kienet turi l-indirizz IP tal-apparat tiegħek lin-naħa l-oħra, għalhekk ma saritx.",
   "unproxiedBlockDestination": "Destinazzjoni: {host}",
   "unproxiedBlockWhy": "Proxy imqiegħed għal sit ikopri t-talba li biha tinfetaħ paġna. Din waslet wara, minn ġewwa l-paġna, u hawn m'hemm l-ebda mod kif jintwera li kienet tgħaddi wkoll mill-proxy.",
+  "onionBlockBody": "{site} m'għandux proxy, u l-indirizzi onion jinfetħu biss permezz ta' Tor jew proxy. Li jinfetaħ dan direttament kien juri l-indirizz lir-riżolutur DNS ta' dan l-apparat, għalhekk ma nfetaħx.",
+  "onionBlockWhy": "Biex tiftaħ indirizzi onion f'dan is-sit, issettja l-proxy tiegħu għal Tor, jew għal proxy li jista' jilħaq servizzi onion.",
   "unproxiedBlockBack": "Lura",
   "unproxiedBlockProxySettings": "Settings tal-proxy",
   "proxyTestOk": "Il-proxy jaħdem",

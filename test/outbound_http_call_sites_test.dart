@@ -340,7 +340,17 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
 
   group('add-site preview DNS probe (LEAK-006)', () {
     test('probes locally only when no proxy is configured', () {
-      expect(addSitePreviewMayResolveLocally(), isTrue);
+      expect(addSitePreviewMayResolveLocally('example.com'), isTrue);
+    });
+
+    test('never probes an onion service (LEAK-016)', () {
+      expect(
+          addSitePreviewMayResolveLocally(
+              'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion'),
+          isFalse,
+          reason: 'only Tor resolves an onion name; the device resolver '
+              'would only learn it');
+      expect(addSitePreviewMayResolveLocally('a.b.ONION.'), isFalse);
     });
 
     test('is skipped once a global proxy is configured', () {
@@ -350,7 +360,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
         UserProxySettings(type: ProxyType.HTTPS, address: '10.0.0.1:8443'),
       ]) {
         GlobalOutboundProxy.setInMemory(proxy);
-        expect(addSitePreviewMayResolveLocally(), isFalse,
+        expect(addSitePreviewMayResolveLocally('example.com'), isFalse,
             reason: 'the proxy resolves the destination name, not the device');
       }
     });

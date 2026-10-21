@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} 已設定使用代理伺服器，但應用程式無法確認這個請求會經過它。即使照樣送出，也會把你裝置的 IP 位址透露給另一端，因此並未送出。",
   "unproxiedBlockDestination": "目的地：{host}",
   "unproxiedBlockWhy": "為網站設定的代理伺服器涵蓋頁面開啟時的那個請求。這一個是之後才出現的，來自頁面內部，而在這裡無法證明它也會經過代理伺服器。",
+  "onionBlockBody": "{site} 沒有設定代理伺服器，而 onion 位址只能透過 Tor 或代理伺服器開啟。直接開啟這個位址會讓這部裝置的 DNS 解析器得知它，因此並未開啟。",
+  "onionBlockWhy": "若要在這個網站開啟 onion 位址，請將它的代理伺服器設為 Tor，或設為能連上 onion 服務的代理伺服器。",
   "unproxiedBlockBack": "返回",
   "unproxiedBlockProxySettings": "代理伺服器設定",
   "proxyTestOk": "代理伺服器可正常運作",

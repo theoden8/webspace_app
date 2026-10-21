@@ -14,6 +14,7 @@ import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
+import '../services/url_host.dart';
 import '../settings/proxy.dart';
 import '../settings/site_suggestion.dart';
 import '../utils/url_utils.dart';
@@ -78,16 +79,19 @@ class FaviconUrlCache {
   }
 }
 
-/// Whether the add-site preview may run its DNS reachability probe on the
-/// device's own resolver. False as soon as any outbound proxy is configured —
-/// the preview is a convenience, and losing it costs the user nothing but a
-/// preview card that stays up for a host that turns out not to exist.
-bool addSitePreviewMayResolveLocally() =>
+/// Whether the add-site preview may run its DNS reachability probe for
+/// [host] on the device's own resolver. False as soon as any outbound proxy
+/// is configured — the preview is a convenience, and losing it costs the user
+/// nothing but a preview card that stays up for a host that turns out not to
+/// exist — and never for an onion service, which only Tor resolves
+/// (LEAK-016).
+bool addSitePreviewMayResolveLocally(String host) =>
+    !Host(host).isOnion &&
     resolveEffectiveProxy(
-      UserProxySettings(type: ProxyType.DEFAULT),
-      siteId: null,
-    ).type ==
-    ProxyType.DEFAULT;
+          UserProxySettings(type: ProxyType.DEFAULT),
+          siteId: null,
+        ).type ==
+        ProxyType.DEFAULT;
 
 // Unified favicon widget with progressive loading
 // Icons update as better quality versions are found:
@@ -411,7 +415,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       // user is about to add (LEAK-006). The proxy resolves the name itself
       // when the site is actually loaded.
       final resolves = _isDirectHost(host) ||
-          !addSitePreviewMayResolveLocally() ||
+          !addSitePreviewMayResolveLocally(host) ||
           await hostCanResolve(host);
       if (resolves) preview = '${uri!.scheme}://$host';
     }

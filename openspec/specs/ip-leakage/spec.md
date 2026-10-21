@@ -538,7 +538,8 @@ documented gap that the implementation already avoids leaking through.
 #### Scenario: Add-site preview still probes with no proxy
 
 **Given** no proxy is configured
-**When** the user types a hostname that does not resolve
+**When** the user types a hostname that does not resolve, and is not an
+onion address (LEAK-016)
 **Then** the reachability probe runs and the preview card stays hidden
 
 ---
@@ -795,6 +796,107 @@ address.
 
 **Given** the app applies a proxy override
 **Then** its bypass list is empty
+
+---
+
+### Requirement: LEAK-016 - An onion service opens only through a proxy
+
+A request for an onion service (a host that is `onion` or ends in
+`.onion`, RFC 7686) SHALL go out only on a route with a proxy: Tor, built
+in or external (TOR-025), or a proxy of the user's (HTTP, HTTPS, SOCKS5, a
+saved proxy or a gateway). On a route with none, which is a site on
+`DEFAULT` with no app-wide proxy behind it, the request SHALL NOT be made,
+and nothing SHALL ask the device's resolver for the name. Only Tor resolves
+an onion name: any other resolver answers nothing and has learned which
+onion service the user opened, and so has whoever runs it. A proxy is
+handed the name rather than an address, so any proxy keeps it off the
+device's resolver; whether that proxy can reach onion services is the
+proxy's to answer.
+
+One fact decides it, `Host.isOnion`
+([`url_host.dart`](../../../lib/services/url_host.dart)), and one decision,
+`ProxyCoverageEngine.coverageFor`, which answers `OnionNeedsProxy` for an
+onion destination on a route with no proxy. The surfaces ask them:
+
+- **The site's webview, a nested screen, a popup.** A first load is refused
+  before the view exists (`WebViewFactory.refusesLoad`): the view mounts on
+  `about:blank`, and a back stack queued for it is not restored, since
+  replaying it would load what was refused. Every later top-frame load
+  passes the LEAK-010 gate (`refused`): the page's own navigations in
+  `shouldOverrideUrlLoading`, and each load the app issues, through
+  `PlatformWebViewController.loadRequest` or as a reissued rewrite, because
+  Android shows a programmatic load to no navigation callback. An embedded
+  frame is refused the same way, without the interstitial.
+- **A background wake.** The headless check of an onion site on such a
+  route is skipped as `WakeSkip.onionNeedsProxy`.
+- **The router relays.** A `DIRECT` route answers `502` for an onion host
+  before anything resolves it, in Android's `ProxyRelay` and the Dart
+  `LocalProxyRelay`. Under router mode every request a webview makes passes
+  the relay, so this holds for sub-resources, redirects and history
+  navigations the Dart gates never see.
+- **Dart-side HTTP.** The direct client refuses an onion host in its
+  connection factory, on every hop, a redirect included, with
+  `OnionNeedsProxyFailure`, a `SocketException`. `DownloadEngine` refuses one
+  on each hop of a direct download. `classifyResolvedHost` answers
+  `unresolvable` without a lookup, and the add-site preview never probes one.
+- **Third parties.** An onion name is never sent to Google's or
+  DuckDuckGo's icon service, on any route: they would learn which onion
+  service is being opened.
+
+A refused navigation SHALL show the LEAK-010 interstitial with copy of its
+own: the site has no proxy, onion addresses open only through Tor or a
+proxy, and setting the site's proxy is the way to open one. It offers the
+same two actions, going back and this site's proxy settings, and no other.
+
+Known gaps, tracked rather than hidden: outside router mode, a sub-resource,
+a server redirect and a back or forward navigation on Android are not asked
+of the Dart gates, so they rest on the WebView. WebKit content rule lists
+could refuse onion hosts at the network layer on Apple and Linux; none is
+attached for it yet.
+
+#### Scenario: An onion address on a site with no proxy
+
+**Given** site "Forum" has proxy `DEFAULT` and no app-wide proxy is set
+**When** a page of Forum navigates to `http://abc…xyz.onion/`
+**Then** the navigation is cancelled before any byte leaves the device
+**And** the device's resolver is not asked for the name
+**And** the interstitial names Forum and the onion host, says the site has
+no proxy, and offers going back and Forum's proxy settings
+
+#### Scenario: A site whose home page is an onion address
+
+**Given** a site's URL is an onion address and its route has no proxy
+**When** its webview is built, or rebuilt after its proxy was set to
+`DEFAULT`
+**Then** the webview loads `about:blank` and shows the interstitial
+**And** a back stack queued for it is not restored
+**And** a background wake skips it as `onionNeedsProxy`
+
+#### Scenario: Tor, external Tor, or a proxy of the user's
+
+**Given** a site's effective proxy is `TOR`, served by the built-in tor or
+the external one, or is the user's HTTP, HTTPS or SOCKS5 proxy
+**When** it opens an onion address
+**Then** the request goes through that proxy and nothing is refused
+
+#### Scenario: A Dart-side fetch on a direct route
+
+**Given** no proxy applies to a favicon, page-title, user-script or
+download fetch
+**When** its URL, or a redirect it follows, names an onion host
+**Then** the fetch fails before any connection or lookup
+
+#### Scenario: The add-site preview
+
+**Given** no proxy is configured
+**When** the user types an onion address into Add Site
+**Then** no reachability probe is issued for it
+
+#### Scenario: Icon services
+
+**Given** a site at an onion address, on any route
+**When** its icon is fetched
+**Then** only the site itself is asked, never Google or DuckDuckGo
 
 ## Architecture
 

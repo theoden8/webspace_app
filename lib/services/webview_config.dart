@@ -3,6 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
+import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -62,11 +63,12 @@ class WebViewConfig {
   final Function(String url,
       {required bool hasGesture,
       required NavigationFrame frame})? shouldOverrideUrlLoading;
-  /// Fires when a main-frame navigation was cancelled because the app could
-  /// not establish that it would go through this site's proxy (LEAK-010).
-  /// Carries the destination that was not requested, so the host can render
-  /// the interstitial that says so.
-  final void Function(String url)? onUnproxiedNavigationBlocked;
+  /// Fires when a main-frame navigation, the first load among them, was
+  /// cancelled because the app could not establish that it would go through
+  /// this site's proxy (LEAK-010), or because it named an onion service and
+  /// the site has none (LEAK-016). Carries the destination that was not
+  /// requested and why, so the host can render the interstitial that says so.
+  final void Function(BlockedNavigation blocked)? onUnproxiedNavigationBlocked;
   /// Fires when the page enters or exits a loading state. Driven by
   /// `onLoadStart` (true) and `onLoadStop` (false). The call site can
   /// use this to swap a Refresh button with a Stop button while a

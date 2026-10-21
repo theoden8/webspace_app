@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "Saidile {site} on määratud puhverserver, kuid rakendus ei suutnud tuvastada, et see päring sealt läbi läheks. Selle siiski tegemine oleks näidanud sinu seadme IP-aadressi teisele poolele, seega jäi see tegemata.",
   "unproxiedBlockDestination": "Sihtkoht: {host}",
   "unproxiedBlockWhy": "Saidile määratud puhverserver katab päringu, millega leht avatakse. See päring tuli hiljem, lehe seest, ja siin ei saa kuidagi näidata, et ka see läheks puhverserverist läbi.",
+  "onionBlockBody": "Saidil {site} pole puhverserverit ning onion-aadressid avanevad ainult Tori või puhverserveri kaudu. Selle otse avamine oleks näidanud seda selle seadme DNS-lahendajale, seega jäi see avamata.",
+  "onionBlockWhy": "Et sellel saidil onion-aadresse avada, määra selle puhverserveriks Tor või puhverserver, mis jõuab onion-teenusteni.",
   "unproxiedBlockBack": "Tagasi",
   "unproxiedBlockProxySettings": "Puhverserveri seaded",
   "proxyTestOk": "Puhverserver töötab",

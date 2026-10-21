@@ -11,6 +11,7 @@ import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
@@ -407,6 +408,11 @@ bool _shouldUsePublicIconServices(Uri uri) {
   if (uri.scheme != 'https') return false;
 
   if (_isIpAddress(uri.host)) return false;
+
+  // An onion name is never handed to a clearnet service, through any route:
+  // it would tell Google and DuckDuckGo which onion service is being opened
+  // (LEAK-016).
+  if (Host(uri.host).isOnion) return false;
 
   return true;
 }
