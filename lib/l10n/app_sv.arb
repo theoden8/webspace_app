@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Sök webbutrymmen",
   "librarySearchSites": "Sök webbplatser",
   "libraryNoResults": "Inga träffar",
-  "appSettingsExperimentalFolderLibrary": "Ny design",
+  "appSettingsExperimentalFolderLibrary": "Alternativ design",
   "appSettingsExperimentalFolderLibraryHint": "Ordna webbplatser i grupper i ett startrutnät.",
   "siteRedirectHomeSuggestion": "Den här webbplatsen omdirigerade till {url}. Vill du använda adressen som dess startsida? Länkar till den nya domänen öppnas också här.",
   "@siteRedirectHomeSuggestion": {

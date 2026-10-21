@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Hľadať webové priestory",
   "librarySearchSites": "Hľadať weby",
   "libraryNoResults": "Žiadne výsledky",
-  "appSettingsExperimentalFolderLibrary": "Nový vzhľad",
+  "appSettingsExperimentalFolderLibrary": "Alternatívny vzhľad",
   "appSettingsExperimentalFolderLibraryHint": "Usporiadajte weby do skupín v mriežke spúšťača.",
   "siteRedirectHomeSuggestion": "Tento web presmeroval na {url}. Použiť túto adresu ako jeho domovskú stránku? Odkazy na novú doménu sa tiež budú otvárať tu.",
   "@siteRedirectHomeSuggestion": {

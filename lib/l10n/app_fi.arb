@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Hae verkkotiloja",
   "librarySearchSites": "Hae sivustoja",
   "libraryNoResults": "Ei osumia",
-  "appSettingsExperimentalFolderLibrary": "Uusi ulkoasu",
+  "appSettingsExperimentalFolderLibrary": "Vaihtoehtoinen ulkoasu",
   "appSettingsExperimentalFolderLibraryHint": "Järjestä sivustot ryhmiin käynnistysruudukossa.",
   "siteRedirectHomeSuggestion": "Tämä sivusto ohjasi osoitteeseen {url}. Käytetäänkö sitä sivuston aloitussivuna? Myös uuden verkkotunnuksen linkit avautuvat täällä.",
   "@siteRedirectHomeSuggestion": {

@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Претражи веб-просторе",
   "librarySearchSites": "Претражи сајтове",
   "libraryNoResults": "Нема резултата",
-  "appSettingsExperimentalFolderLibrary": "Нови дизајн",
+  "appSettingsExperimentalFolderLibrary": "Алтернативни дизајн",
   "appSettingsExperimentalFolderLibraryHint": "Организујте сајтове у групе у мрежи за покретање.",
   "siteRedirectHomeSuggestion": "Овај сајт је преусмерио на {url}. Користити ову адресу као његову почетну страницу? Везе ка новом домену ће се такође отварати овде.",
   "@siteRedirectHomeSuggestion": {

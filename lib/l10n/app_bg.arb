@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Търсене на уеб пространства",
   "librarySearchSites": "Търсене на сайтове",
   "libraryNoResults": "Няма резултати",
-  "appSettingsExperimentalFolderLibrary": "Нов дизайн",
+  "appSettingsExperimentalFolderLibrary": "Алтернативен дизайн",
   "appSettingsExperimentalFolderLibraryHint": "Организирайте сайтовете в групи в мрежа за стартиране.",
   "siteRedirectHomeSuggestion": "Този сайт пренасочи към {url}. Да се използва ли този адрес като начална страница? Връзките към новия домейн също ще се отварят тук.",
   "@siteRedirectHomeSuggestion": {

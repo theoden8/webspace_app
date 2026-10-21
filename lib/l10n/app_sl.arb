@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Poišči spletne prostore",
   "librarySearchSites": "Poišči spletišča",
   "libraryNoResults": "Ni zadetkov",
-  "appSettingsExperimentalFolderLibrary": "Nova zasnova",
+  "appSettingsExperimentalFolderLibrary": "Alternativna zasnova",
   "appSettingsExperimentalFolderLibraryHint": "Organizirajte spletišča v skupine v zagonski mreži.",
   "siteRedirectHomeSuggestion": "To spletno mesto je preusmerilo na {url}. Uporabim ta naslov kot njegovo domačo stran? Tudi povezave na novo domeno se bodo odpirale tukaj.",
   "@siteRedirectHomeSuggestion": {

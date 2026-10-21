@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Caută spații web",
   "librarySearchSites": "Caută site-uri",
   "libraryNoResults": "Niciun rezultat",
-  "appSettingsExperimentalFolderLibrary": "Design nou",
+  "appSettingsExperimentalFolderLibrary": "Design alternativ",
   "appSettingsExperimentalFolderLibraryHint": "Organizează site-urile în grupuri într-o grilă de lansare.",
   "siteRedirectHomeSuggestion": "Acest site a redirecționat către {url}. Folosiți această adresă ca pagină de pornire? Linkurile către noul domeniu se vor deschide tot aici.",
   "@siteRedirectHomeSuggestion": {

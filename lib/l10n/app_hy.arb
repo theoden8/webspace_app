@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Որոնել վեբ տարածքներ",
   "librarySearchSites": "Որոնել կայքեր",
   "libraryNoResults": "Համընկնումներ չկան",
-  "appSettingsExperimentalFolderLibrary": "Նոր ձևավորում",
+  "appSettingsExperimentalFolderLibrary": "Այլընտրանքային ձևավորում",
   "appSettingsExperimentalFolderLibraryHint": "Դասավորեք կայքերը խմբերով գործարկիչի ցանցում։",
   "siteRedirectHomeSuggestion": "Այս կայքը վերահղվել է դեպի {url}։ Օգտագործե՞լ այս հասցեն որպես իր գլխավոր էջ։ Նոր տիրույթի հղումները նույնպես կբացվեն այստեղ։",
   "@siteRedirectHomeSuggestion": {

@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Αναζήτηση χώρων ιστού",
   "librarySearchSites": "Αναζήτηση ιστοτόπων",
   "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα",
-  "appSettingsExperimentalFolderLibrary": "Νέα σχεδίαση",
+  "appSettingsExperimentalFolderLibrary": "Εναλλακτική σχεδίαση",
   "appSettingsExperimentalFolderLibraryHint": "Οργανώστε τους ιστοτόπους σε ομάδες σε ένα πλέγμα εκκίνησης.",
   "siteRedirectHomeSuggestion": "Αυτός ο ιστότοπος ανακατεύθυνε στο {url}. Να χρησιμοποιηθεί αυτή η διεύθυνση ως αρχική του σελίδα; Οι σύνδεσμοι προς τον νέο τομέα θα ανοίγουν επίσης εδώ.",
   "@siteRedirectHomeSuggestion": {

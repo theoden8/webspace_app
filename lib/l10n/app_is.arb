@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Leita að vefsvæðum",
   "librarySearchSites": "Leita að vefjum",
   "libraryNoResults": "Engar niðurstöður",
-  "appSettingsExperimentalFolderLibrary": "Ný hönnun",
+  "appSettingsExperimentalFolderLibrary": "Önnur hönnun",
   "appSettingsExperimentalFolderLibraryHint": "Raðaðu vefsvæðum í hópa í ræsingarsýn.",
   "siteRedirectHomeSuggestion": "Þetta vefsvæði vísaði á {url}. Nota þetta sem upphafssíðu þess? Tenglar á nýja lénið munu einnig opnast hér.",
   "@siteRedirectHomeSuggestion": {

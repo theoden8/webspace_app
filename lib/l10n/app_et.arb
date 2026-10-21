@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Otsi veebiruume",
   "librarySearchSites": "Otsi veebilehti",
   "libraryNoResults": "Vasteid pole",
-  "appSettingsExperimentalFolderLibrary": "Uus kujundus",
+  "appSettingsExperimentalFolderLibrary": "Alternatiivne kujundus",
   "appSettingsExperimentalFolderLibraryHint": "Korralda saidid rühmadesse käivitusruudustikus.",
   "siteRedirectHomeSuggestion": "See sait suunas aadressile {url}. Kas kasutada seda avalehena? Ka uue domeeni lingid avanevad siin.",
   "@siteRedirectHomeSuggestion": {

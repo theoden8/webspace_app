@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Ieškoti žiniatinklio erdvių",
   "librarySearchSites": "Ieškoti svetainių",
   "libraryNoResults": "Atitikmenų nėra",
-  "appSettingsExperimentalFolderLibrary": "Naujas dizainas",
+  "appSettingsExperimentalFolderLibrary": "Alternatyvus dizainas",
   "appSettingsExperimentalFolderLibraryHint": "Tvarkykite svetaines grupėmis paleidimo tinklelyje.",
   "siteRedirectHomeSuggestion": "Ši svetainė nukreipė į {url}. Naudoti šį adresą kaip jos pradžios puslapį? Nuorodos į naująjį domeną taip pat bus atidaromos čia.",
   "@siteRedirectHomeSuggestion": {

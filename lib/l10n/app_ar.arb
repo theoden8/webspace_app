@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "البحث في مساحات الويب",
   "librarySearchSites": "البحث في المواقع",
   "libraryNoResults": "لا توجد نتائج",
-  "appSettingsExperimentalFolderLibrary": "التصميم الجديد",
+  "appSettingsExperimentalFolderLibrary": "تصميم بديل",
   "appSettingsExperimentalFolderLibraryHint": "نظّم المواقع في مجموعات ضمن شبكة تشغيل.",
   "siteRedirectHomeSuggestion": "أعاد هذا الموقع التوجيه إلى {url}. هل تريد استخدام هذا العنوان كصفحته الرئيسية؟ ستُفتح روابط النطاق الجديد هنا أيضًا.",
   "@siteRedirectHomeSuggestion": {

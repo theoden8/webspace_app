@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "የድር ቦታዎችን ፈልግ",
   "librarySearchSites": "ድረ ገጾችን ፈልግ",
   "libraryNoResults": "ምንም ውጤት የለም",
-  "appSettingsExperimentalFolderLibrary": "አዲስ ንድፍ",
+  "appSettingsExperimentalFolderLibrary": "አማራጭ ንድፍ",
   "appSettingsExperimentalFolderLibraryHint": "ጣቢያዎችን በማስጀመሪያ ፍርግርግ ውስጥ በቡድኖች ያደራጁ።",
   "siteRedirectHomeSuggestion": "ይህ ጣቢያ ወደ {url} አዘዋውሯል። ይህን እንደ መነሻ ገጹ ይጠቀሙ? ወደ አዲሱ ጎራ የሚወስዱ አገናኞችም እዚህ ይከፈታሉ።",
   "@siteRedirectHomeSuggestion": {

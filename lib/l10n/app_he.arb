@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "חיפוש מרחבי רשת",
   "librarySearchSites": "חיפוש אתרים",
   "libraryNoResults": "לא נמצאו התאמות",
-  "appSettingsExperimentalFolderLibrary": "עיצוב חדש",
+  "appSettingsExperimentalFolderLibrary": "עיצוב חלופי",
   "appSettingsExperimentalFolderLibraryHint": "ארגון אתרים בקבוצות בתצוגת רשת להפעלה.",
   "siteRedirectHomeSuggestion": "אתר זה הפנה אל {url}. להשתמש בכתובת זו כדף הבית שלו? גם קישורים לדומיין החדש ייפתחו כאן.",
   "@siteRedirectHomeSuggestion": {

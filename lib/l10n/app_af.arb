@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Soek webruimtes",
   "librarySearchSites": "Soek webwerwe",
   "libraryNoResults": "Geen resultate",
-  "appSettingsExperimentalFolderLibrary": "Nuwe ontwerp",
+  "appSettingsExperimentalFolderLibrary": "Alternatiewe ontwerp",
   "appSettingsExperimentalFolderLibraryHint": "Rangskik werwe in groepe in 'n lanseerrooster.",
   "siteRedirectHomeSuggestion": "Hierdie werf het na {url} herlei. Gebruik dit as sy tuisblad? Skakels na die nuwe domein sal ook hier oopmaak.",
   "@siteRedirectHomeSuggestion": {

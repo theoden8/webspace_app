@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Webbereiche suchen",
   "librarySearchSites": "Websites suchen",
   "libraryNoResults": "Keine Treffer",
-  "appSettingsExperimentalFolderLibrary": "Neues Design",
+  "appSettingsExperimentalFolderLibrary": "Alternatives Design",
   "appSettingsExperimentalFolderLibraryHint": "Websites in Gruppen in einer Startübersicht anordnen.",
   "siteRedirectHomeSuggestion": "Diese Website hat zu {url} weitergeleitet. Diese Adresse als ihre Startseite verwenden? Links zur neuen Domain werden ebenfalls hier geöffnet.",
   "@siteRedirectHomeSuggestion": {
