@@ -355,6 +355,16 @@ world takes from TLC's coverage of the world's holding check, which `check.sh` r
   than its text does fails, and a read dropped from a declaration is planted on every run.
   The base's operators a table calls (`BaseOp`) are read from their text until the base is
   printed too.
+- **Declared and run agree:** the walks and schedules record what each step reads as it
+  runs (`StepReads`) and fail on a variable its printed footprint does not name. A step's
+  reads are its pick and guard, its landing, what its platform call reads while out
+  (`Call.reaches`, its port's) and what a call its arm enters reads as it is issued, the
+  last charged to the arm's action, which prints what the call records (`Call.reads`). A
+  `Note` declares what it reads, which only the code reads, so the gate holds the note to
+  it beside the footprint. A read no step's arm prints yet is listed in `owedReads`
+  (`test/helpers/walk/footprint_reads.dart`), which only shrinks. What a port's own code
+  reads is its declaration's, which nothing checks yet, so a port names only what its
+  calls reach (the jar's cookies and its stored sessions are two ports).
 - **A flow's row is its own:** every action writes `fl` only at its own flow
   (`fl EXCEPT ![f]`), so two actions meet on `fl` only where one reads another flow's row
   (`Kinds`, `LiveTarget`), never by both writing their own.

@@ -369,12 +369,20 @@ class CookieIsolationEngine {
   static Indexed<WebViewModel, List<Cookie>, W> _stored<W>() =>
       Indexed.remote(ModelVar.stored);
 
-  /// The jar and the stored sessions as a step in the turn reaches them.
+  /// The platform's jar as a step in the turn reaches it.
   static Port<_JarCalls, W> _jarPort<W extends JarWorld>() => Port(
     'jar',
-    reads: {ModelVar.jar, ModelVar.stored},
-    changes: {ModelVar.jar, ModelVar.stored},
+    reads: {ModelVar.jar},
+    changes: {ModelVar.jar},
     of: (w) => _JarCalls(engine: w.engine, turn: w.turn),
+  );
+
+  /// The stored sessions as a step in the turn reaches them.
+  static Port<_StoredCalls, W> _storedPort<W extends JarWorld>() => Port(
+    'stored',
+    reads: {ModelVar.stored},
+    changes: {ModelVar.stored},
+    of: (w) => _StoredCalls(engine: w.engine, turn: w.turn),
   );
 
   /// Past the step that grants it, a flow holds the jar's turn: no other
@@ -586,7 +594,7 @@ class CookieIsolationEngine {
         ActivationStep.unloadSaveReply,
         holds: _holdsTurn(),
         call: Call.on(
-          _jarPort(),
+          _storedPort(),
           run: (c) async {
             final victim = _victim.of(c);
             victim.cookies = _shareOf(_victim.value, of: _unloadSnap.value).run(c);
@@ -793,7 +801,7 @@ class CookieIsolationEngine {
         holds: _holdsTurn(),
         pick: _eachTodo,
         call: Call.on(
-          _jarPort(),
+          _storedPort(),
           run: (c) {
             final site = _picked.run(c);
             site.cookies = _shareOf(_picked, of: _snap.value).run(c);
@@ -846,7 +854,7 @@ class CookieIsolationEngine {
         ActivationStep.restoreLoadReply,
         holds: _holdsTurn(),
         call: _tmp.receivesOn(
-          _jarPort(),
+          _storedPort(),
           run: (c) async {
             final target = _target.of(c);
             final cookies = await c.api.load(site: target);
@@ -1092,8 +1100,8 @@ final class JarTurn {
 
 /// What a flow through one of the jar's tables runs against, holding the
 /// turn its steps run in, over the runtime's variables.
-/// The five operations a step in the jar's turn makes on the platform's jar
-/// and the stored sessions: what the jar's port hands a call.
+/// The operations a step in the jar's turn makes on the platform's jar:
+/// what the jar's port hands a call.
 final class _JarCalls {
   const _JarCalls({required this._engine, required this._turn});
 
@@ -1103,18 +1111,10 @@ final class _JarCalls {
   Future<List<Cookie>> snapshot({required Iterable<WebViewModel> of}) =>
       _engine._snapshot(_turn, of: of);
 
-  Future<void> save({
-    required WebViewModel site,
-    required List<Cookie> cookies,
-  }) => _engine._saveStored(_turn, site: site, cookies: cookies);
-
   Future<void> empty() async {
     await _engine._empty(_turn);
     _engine._emptied = true;
   }
-
-  Future<List<Cookie>> load({required WebViewModel site}) =>
-      _engine._loadStored(_turn, site: site);
 
   /// A refill's write: fails with the first cookie the jar refused, once
   /// the rest are written.
@@ -1127,6 +1127,23 @@ final class _JarCalls {
       throw refused;
     }
   }
+}
+
+/// The operations a step in the jar's turn makes on the stored sessions:
+/// what the stored sessions' port hands a call.
+final class _StoredCalls {
+  const _StoredCalls({required this._engine, required this._turn});
+
+  final CookieIsolationEngine _engine;
+  final JarTurn _turn;
+
+  Future<void> save({
+    required WebViewModel site,
+    required List<Cookie> cookies,
+  }) => _engine._saveStored(_turn, site: site, cookies: cookies);
+
+  Future<List<Cookie>> load({required WebViewModel site}) =>
+      _engine._loadStored(_turn, site: site);
 }
 
 abstract base class JarWorld {

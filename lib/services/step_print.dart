@@ -50,6 +50,23 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         place.name: reads,
   };
 
+  /// What each step's notes read ([Note.reads]), which its printed
+  /// footprint leaves out: the code's alone. The definitions they call by
+  /// name are their owners' to resolve.
+  Map<ActivationStep, Reads> get noteReads {
+    final out = <ActivationStep, Reads>{};
+    for (final (:step, place: _) in steps) {
+      for (final arm in step.allArms) {
+        for (final e in arm.then) {
+          if (e case Note(:final reads)) {
+            out[step.name] = (out[step.name] ?? Reads.none) + reads;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
   /// What each step's action reads and writes of the shared state, from
   /// the declarations it prints from: its guards, picks, effects, call and
   /// the reads recorded on entering the place it goes to ([entered], as
