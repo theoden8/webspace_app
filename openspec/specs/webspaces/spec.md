@@ -120,7 +120,7 @@ Users SHALL be able to delete webspaces.
 
 ### Requirement: WEBSPACE-008 - Back to Webspaces Navigation
 
-Users SHALL be able to return to the group grid from a workspace site grid using its Back control or the system back action. Returning SHALL clear the library search. The browser drawer SHALL also retain its Back to Webspaces action.
+Users SHALL be able to return to the group grid from a workspace site grid using its Back control, the system back action, or a horizontal back swipe across the site grid. The swipe SHALL follow the reading direction (rightwards for left-to-right interfaces, leftwards for right-to-left interfaces) and work in empty groups. Vertical scrolling, short incidental drags, and long-press site reordering SHALL remain available without navigating back. Returning SHALL clear the library search and dismiss its keyboard without changing the selected webspace or its membership. The browser drawer SHALL also retain its Back to Webspaces action.
 
 With the group library enabled, opening and closing a group SHALL use continuous expand/collapse transitions without a blank frame between views, including the first group opened. Search and bottom navigation SHALL remain stationary. Departing grids SHALL stop accepting input immediately, Back SHALL remain usable during the transition, and the system's reduced-motion preference SHALL switch views without animation.
 
@@ -130,6 +130,20 @@ With the group library enabled, opening and closing a group SHALL use continuous
 **When** the user opens the drawer
 **And** taps "Back to Webspaces"
 **Then** the webspaces list is displayed
+
+#### Scenario: Swipe back from a site group
+
+**Given** New design is enabled and the user is viewing a group's sites
+**When** the user swipes horizontally in the back direction
+**Then** the groups menu appears with the existing closing transition
+**And** the search and keyboard are cleared
+**And** the selected group and its sites are unchanged
+
+#### Scenario: Scroll or reorder sites in a group
+
+**Given** the user is viewing a group's sites
+**When** the user scrolls vertically or long-presses and drags a site
+**Then** the group stays open
 
 ---
 

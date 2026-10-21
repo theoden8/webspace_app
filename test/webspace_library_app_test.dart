@@ -20,6 +20,58 @@ void main() {
   setUp(() => ConnectivityService.onlineOverride = Future.value(true));
   tearDown(ConnectivityService.reset);
   testWidgets(
+    'reordering sites keeps the group open; a swipe returns to groups',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final beta = WebViewModel(
+        initUrl: 'https://beta.example.test',
+        name: 'Beta',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId, beta.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha, beta],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      final alphaTile = find.byKey(ValueKey(appSite('Alpha').siteId));
+      final betaTile = find.byKey(ValueKey(appSite('Beta').siteId));
+      final drag = await tester.startGesture(tester.getCenter(alphaTile));
+      await tester.pump(const Duration(milliseconds: 600));
+      await drag.moveTo(tester.getCenter(betaTile));
+      await tester.pump();
+      await drag.up();
+      await settleRealApp(tester);
+      expect(find.byType(BackButton), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs
+          .getStringList('webspaces')!
+          .map(
+            (raw) => Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>),
+          )
+          .singleWhere((group) => group.id == work.id);
+      expect(saved.siteIds, [beta.siteId, alpha.siteId]);
+      await tester.flingFrom(
+        tester.getCenter(betaTile),
+        const Offset(180, 0),
+        1000,
+      );
+      await settleRealApp(tester);
+      expect(find.byType(WebspaceGroupTile), findsNWidgets(2));
+      expect(find.byType(SiteGridTile), findsNothing);
+      expect(prefs.getString('selectedWebspaceId'), work.id);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'item sizes persist independently without an edit mode (WEBSPACE-014)',
     (tester) async {
       final alpha = WebViewModel(

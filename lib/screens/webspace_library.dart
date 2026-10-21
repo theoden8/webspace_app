@@ -74,9 +74,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
   bool _settingsOpen = false;
   bool _animateNavigation = false;
   double _navigationDirection = 1;
+  double _backSwipeDistance = 0;
 
   void showSelectedWebspace() => _show(_LibraryView.workspace);
-  void showWebspaces() => _show(_LibraryView.webspaces);
+  void showWebspaces() {
+    FocusScope.of(context).unfocus();
+    _show(_LibraryView.webspaces);
+  }
 
   void _show(_LibraryView view) {
     _search.clear();
@@ -290,7 +294,45 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                                           context,
                                           query: _search.text,
                                         )
-                                      : _sites(context),
+                                      : GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onHorizontalDragStart: (_) =>
+                                              _backSwipeDistance = 0,
+                                          onHorizontalDragUpdate: (details) =>
+                                              _backSwipeDistance +=
+                                                  details.delta.dx,
+                                          onHorizontalDragEnd: (details) {
+                                            if (_view !=
+                                                _LibraryView.workspace) {
+                                              return;
+                                            }
+                                            final direction =
+                                                Directionality.of(context) ==
+                                                    TextDirection.rtl
+                                                ? -1
+                                                : 1;
+                                            final distance =
+                                                _backSwipeDistance * direction;
+                                            final velocity =
+                                                (details.primaryVelocity ?? 0) *
+                                                direction;
+                                            if (distance >=
+                                                    LibraryStyle
+                                                        .backSwipeDistance ||
+                                                (distance > 0 &&
+                                                    velocity >=
+                                                        LibraryStyle
+                                                            .backSwipeVelocity)) {
+                                              showWebspaces();
+                                            }
+                                          },
+                                          child: Listener(
+                                            // Flutter ends accepted drags even on pointer cancellation.
+                                            onPointerCancel: (_) =>
+                                                _backSwipeDistance = 0,
+                                            child: _sites(context),
+                                          ),
+                                        ),
                                 ),
                               ],
                             ),

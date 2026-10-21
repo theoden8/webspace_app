@@ -125,6 +125,124 @@ Finder _group(String name) => find.descendant(
 );
 
 void main() {
+  for (final (direction, sign) in [
+    (TextDirection.ltr, 1.0),
+    (TextDirection.rtl, -1.0),
+  ]) {
+    for (final fast in [false, true]) {
+      testWidgets(
+        '${direction.name} ${fast ? 'fling' : 'swipe'} returns to groups and clears search',
+        (tester) async {
+          await pumpLocalized(
+            tester,
+            home: Directionality(
+              textDirection: direction,
+              child: const _LibraryHarness(),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(_group('Work'));
+          await tester.pumpAndSettle();
+          await tester.enterText(find.byType(TextField), 'GitHub');
+          await tester.pumpAndSettle();
+          final state = tester.state<_LibraryHarnessState>(
+            find.byType(_LibraryHarness),
+          );
+          final membership = [...state.webspaces[1].siteIds];
+          final start = tester.getCenter(find.byType(SiteGridTile).first);
+          if (fast) {
+            await tester.flingFrom(start, Offset(50 * sign, 0), 1000);
+          } else {
+            await tester.timedDragFrom(
+              start,
+              Offset(180 * sign, 0),
+              const Duration(milliseconds: 800),
+            );
+          }
+          await tester.pumpAndSettle();
+          expect(_group('Work').hitTestable(), findsOneWidget);
+          expect(find.byType(SiteGridTile), findsNothing);
+          expect(
+            tester.widget<TextField>(find.byType(TextField)).controller!.text,
+            isEmpty,
+          );
+          expect(
+            tester
+                .widget<EditableText>(find.byType(EditableText))
+                .focusNode
+                .hasFocus,
+            isFalse,
+          );
+          expect(state.selected, state.webspaces[1].id);
+          expect(state.webspaces[1].siteIds, membership);
+          expect(state.opened, isNull);
+        },
+      );
+    }
+  }
+
+  testWidgets('an empty group accepts a back swipe', (tester) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    final state = tester.state<_LibraryHarnessState>(
+      find.byType(_LibraryHarness),
+    );
+    await tester.tap(_group(state.webspaces.last.name));
+    await tester.pumpAndSettle();
+    expect(find.byType(SiteGridTile), findsNothing);
+    await tester.timedDragFrom(
+      tester.getCenter(find.byType(WebspaceLibrary)),
+      const Offset(180, 0),
+      const Duration(milliseconds: 800),
+    );
+    await tester.pumpAndSettle();
+    expect(_group('Work').hitTestable(), findsOneWidget);
+    expect(find.byType(BackButton), findsNothing);
+  });
+
+  testWidgets(
+    'scrolling, wrong-way, short and cancelled drags keep a group open',
+    (tester) async {
+      await pumpLocalized(
+        tester,
+        home: const _LibraryHarness(),
+        size: const Size(411, 600),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(_group('All'));
+      await tester.pumpAndSettle();
+      final grid = find.byType(GridView);
+      await tester.drag(grid, const Offset(0, -150));
+      await tester.pumpAndSettle();
+      final scrollable = tester.state<ScrollableState>(
+        find.descendant(of: grid, matching: find.byType(Scrollable)),
+      );
+      expect(scrollable.position.pixels, greaterThan(0));
+      final start = tester.getCenter(grid);
+      await tester.flingFrom(start, const Offset(-150, 0), 1000);
+      await tester.pumpAndSettle();
+      expect(find.byType(BackButton), findsOneWidget);
+      final cancelled = await tester.startGesture(start);
+      await cancelled.moveBy(const Offset(100, 0));
+      await cancelled.moveBy(const Offset(80, 0));
+      await cancelled.cancel();
+      await tester.pumpAndSettle();
+      expect(find.byType(BackButton), findsOneWidget);
+      await tester.timedDragFrom(
+        start,
+        const Offset(40, 0),
+        const Duration(seconds: 1),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(BackButton), findsOneWidget);
+      expect(find.byType(WebspaceGroupTile), findsNothing);
+      expect(
+        tester.state<_LibraryHarnessState>(find.byType(_LibraryHarness)).opened,
+        isNull,
+      );
+    },
+  );
+
   testWidgets('group expansion and collapse remain visible at normal speed', (
     tester,
   ) async {

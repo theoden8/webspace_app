@@ -65,6 +65,8 @@ abstract final class LibraryStyle {
   static const double previewIcon = 24;
   static const double target = 48;
   static const double navigationScale = .18;
+  static const double backSwipeDistance = 64;
+  static const double backSwipeVelocity = 500;
   static const double titleSize = 30;
   static const double siteTitleSize = 14;
 
