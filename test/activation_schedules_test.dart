@@ -9,6 +9,12 @@
 // locally; SCHEDULE_REDUCTION=off runs every schedule within one
 // preemption, none pruned, as the search did before, and SCHEDULE_STATS=1
 // prints how many schedules ran.
+//
+// CI runs this file once, sharded, in formal/verify.sh's schedules stage;
+// the whole-suite runs exclude the tag (test/js/schedules_run_once.test.js).
+@Tags(['schedules'])
+library;
+
 import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';

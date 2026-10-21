@@ -414,10 +414,12 @@ jobs:
           sudo apt-get install -y -qq tor tor-geoipdb
           sudo systemctl disable --now tor || true
 
+      # Not the schedule search: the formal job runs it, sharded, on this
+      # same OS (test/js/schedules_run_once.test.js).
       - name: Run tests
         env:
           WS_REAL_TOR: '1'
-        run: fvm flutter test
+        run: fvm flutter test --exclude-tags schedules
 
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
@@ -899,8 +901,11 @@ jobs:
       - name: Apple toolchain
         uses: ./.github/actions/apple-toolchain
 
+      # Not the schedule search: the formal job runs it, sharded, and it
+      # reads no host platform, so here it repeated that run for the last
+      # 33 of 45 minutes (test/js/schedules_run_once.test.js).
       - name: Run tests
-        run: fvm flutter test
+        run: fvm flutter test --exclude-tags schedules
 
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
