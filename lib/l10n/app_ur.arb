@@ -451,7 +451,6 @@
   "siteSettingsZoomIn": "زوم اِن",
   "siteSettingsTheme": "تھیم",
   "siteSettingsThemeHint": "سائٹ کے صفحات سے ہلکے یا گہرے رنگ استعمال کرنے کو کہتا ہے۔ ڈارک موڈ کے بغیر صفحات دونوں صورتوں میں ایک جیسے دکھائی دیتے ہیں۔",
-  "siteSettingsThemeFollowAppShort": "ایپ",
   "siteSettingsHttpsUpgrade": "HTTPS پر اپ گریڈ",
   "siteSettingsHttpsUpgradeHint": "پتہ http سے شروع ہونے کے باوجود صفحات کو خفیہ کردہ https کنکشن کے ذریعے لوڈ کرتا ہے، تاکہ آپ جو پڑھتے اور بھیجتے ہیں اسے نیٹ ورک پر دیکھا یا بدلا نہ جا سکے۔ جو سائٹیں خفیہ کردہ کنکشن فراہم نہیں کرتیں وہ سادہ http پر ہی لوڈ ہوتی ہیں اور دوبارہ اپ گریڈ نہیں کی جاتیں۔ اسے صرف اس سائٹ کے لیے بند کریں جس کے پاس یہ نہیں ہے۔",
   "siteSettingsThirdPartyCookies": "تھرڈ پارٹی کوکیز",

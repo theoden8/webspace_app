@@ -123,11 +123,12 @@ The theme hint mechanism SHALL work on all supported platforms.
 ### Requirement: HINTS-006 - Per-Site Theme
 
 Each site SHALL have a Theme setting with the values App default (the
-default), Light, Dark and System, picked from a row of icons with a short label
-under each, the same picker App Settings > Appearance uses for the app's theme.
-App default follows the app's theme mode and has an icon of its own; the row's
-subtitle names the theme it currently gives, such as App default (Dark). The
-others are the site's own. Every webview that runs as the site, including
+default), Light, Dark and System: one settings row, its title on the left and
+the four values as icon segments on the right, each naming its value in a
+tooltip, the same control the tab strip's rows in App Settings > Behaviour
+use. App default follows the app's theme mode and has an icon of its own; the
+row's subtitle names the theme it currently gives, such as App default (Dark).
+The others are the site's own. Every webview that runs as the site, including
 a nested screen or a popup it opens, SHALL receive the site's own value when
 it has one and the app's otherwise.
 

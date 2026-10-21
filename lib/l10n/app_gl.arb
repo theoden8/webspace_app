@@ -451,7 +451,6 @@
   "siteSettingsZoomIn": "Ampliar",
   "siteSettingsTheme": "Tema",
   "siteSettingsThemeHint": "Pide ás páxinas do sitio cores claras ou escuras. As páxinas sen modo escuro vense igual nos dous casos.",
-  "siteSettingsThemeFollowAppShort": "Aplicación",
   "siteSettingsHttpsUpgrade": "Actualización a HTTPS",
   "siteSettingsHttpsUpgradeHint": "Carga as páxinas a través da conexión https cifrada mesmo cando o enderezo comeza por http, de xeito que o que les e envías non se poida vixiar nin alterar na rede. Os sitios que non ofrecen conexión cifrada séguense cargando por http normal e non se volven actualizar. Desactívao só para un sitio que non a teña.",
   "siteSettingsThirdPartyCookies": "Cookies de terceiros",

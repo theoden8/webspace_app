@@ -453,7 +453,6 @@
   "siteSettingsZoomIn": "Amplificare",
   "siteSettingsTheme": "Schema",
   "siteSettingsThemeHint": "Paginas situs rogat ut colores claros aut obscuros adhibeant. Paginae sine modo obscuro utroque modo eaedem videntur.",
-  "siteSettingsThemeFollowAppShort": "Applicatio",
   "siteSettingsHttpsUpgrade": "Ad HTTPS promotio",
   "siteSettingsHttpsUpgradeHint": "Paginas per nexum https occultatum onerat etiam cum inscriptio ab http incipit, ne quae legis et mittis in rete spectari aut mutari possint. Loci qui nullum nexum occultatum praebent per http simplex adhuc onerantur neque iterum promoventur. Hoc exstingue tantum pro loco qui nullum habet.",
   "siteSettingsThirdPartyCookies": "Crustula tertiae partis",

@@ -2159,10 +2159,6 @@
   "@siteSettingsThemeHint": {
     "description": "Explanatory popup for the per-site Theme row: the site's pages are asked for light or dark colors, and pages that have no dark mode do not change."
   },
-  "siteSettingsThemeFollowAppShort": "App",
-  "@siteSettingsThemeFollowAppShort": {
-    "description": "Label under the first icon of a site's Theme picker, meaning the site follows the app's theme. It sits under an icon beside Light, Dark and System, so keep it to one short word; the row's subtitle names the theme in full."
-  },
   "siteSettingsHttpsUpgrade": "HTTPS upgrade",
   "@siteSettingsHttpsUpgrade": {
     "description": "Switch label for retrying plain-http page loads over an encrypted https connection."

@@ -12,6 +12,7 @@ import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
+import 'package:webspace/widgets/icon_segments.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
@@ -109,21 +110,6 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
         child: Row(children: [Expanded(child: title), trailing]),
       );
 
-  /// Icon segments for one choice; a null [onChanged] disables them.
-  Widget _picker<T extends Object>(
-    List<ButtonSegment<T>> segments, {
-    required T selected,
-    required ValueChanged<T>? onChanged,
-  }) =>
-      SegmentedButton<T>(
-        segments: segments,
-        selected: {selected},
-        showSelectedIcon: false,
-        onSelectionChanged: onChanged == null
-            ? null
-            : (selection) => onChanged(selection.first),
-      );
-
   /// Whether the tab strip can appear at all (pinned out of fullscreen, pinned
   /// in fullscreen, or revealed by the tab-bar button), so its position and
   /// width limit are meaningful.
@@ -176,8 +162,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           _row(
             HintedTitle(loc.appSettingsSiteTabStrip,
                 hint: loc.appSettingsSiteTabStripSubtitle),
-            trailing: _picker(
-              [for (final m in TabStrip.values) m.segment(loc)],
+            trailing: IconSegments(
+              segments: [for (final m in TabStrip.values) m.segment(loc)],
               selected: TabStrip.current,
               onChanged: _setTabStrip,
             ),
@@ -188,8 +174,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           if (TabStrip.current == TabStrip.pinned)
             _row(
               Text(loc.appSettingsFullscreenTabStrip),
-              trailing: _picker(
-                [TabStrip.hidden.segment(loc), TabStrip.pinned.segment(loc)],
+              trailing: IconSegments(
+                segments: [TabStrip.hidden.segment(loc), TabStrip.pinned.segment(loc)],
                 selected: AppPref.tabStripInFullscreen.value
                     ? TabStrip.pinned
                     : TabStrip.hidden,
@@ -199,8 +185,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             ),
           _row(
             Text(loc.appSettingsTabStripPosition),
-            trailing: _picker<TabStripEdge>(
-              [for (final e in TabStripEdge.values) e.segment(loc)],
+            trailing: IconSegments<TabStripEdge>(
+              segments: [for (final e in TabStripEdge.values) e.segment(loc)],
               selected: TabStripEdge.current,
               onChanged: _tabStripCanShow
                   ? (edge) => AppPref.tabStripEdge.set(edge.name)
