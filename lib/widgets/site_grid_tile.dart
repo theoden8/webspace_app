@@ -229,7 +229,7 @@ class _SiteGridTileContent extends StatelessWidget {
 
   Widget _library(BuildContext context) {
     final theme = Theme.of(context);
-    final well = LibraryStyle.itemWell(site.launcherSize);
+    const well = LibraryStyle.siteWell;
     final color = containerColorOf(site, brightness: theme.brightness);
     return Column(
       children: [

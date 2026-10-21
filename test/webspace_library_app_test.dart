@@ -10,7 +10,6 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
@@ -318,70 +317,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'item sizes persist independently without an edit mode (WEBSPACE-014)',
-    (tester) async {
-      final alpha = WebViewModel(
-        initUrl: 'https://alpha.example.test',
-        name: 'Alpha',
-      );
-      final beta = WebViewModel(
-        initUrl: 'https://beta.example.test',
-        name: 'Beta',
-      );
-      final work = Webspace(name: 'Work', siteIds: [alpha.siteId, beta.siteId]);
-      await pumpRealApp(
-        tester,
-        sites: [alpha, beta],
-        webspaces: [work],
-        prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
-        },
-      );
-      expect(find.byIcon(Icons.more_horiz), findsNothing);
-      await tester.longPress(find.text('Work'));
-      await settleRealApp(tester);
-      await tester.tap(find.text('Item size'));
-      await settleRealApp(tester);
-      await tester.tap(find.text('Large'));
-      await settleRealApp(tester);
-      final prefs = await SharedPreferences.getInstance();
-      final savedGroup = prefs
-          .getStringList('webspaces')!
-          .map(
-            (raw) => Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>),
-          )
-          .singleWhere((value) => value.id == work.id);
-      expect(savedGroup.launcherSize, LauncherItemSize.large);
-      await openWebspace(tester, name: 'Work');
-      final alphaTile = find.ancestor(
-        of: find.text('Alpha'),
-        matching: find.byType(SiteGridTile),
-      );
-      await tester.tap(
-        find.descendant(of: alphaTile, matching: find.byIcon(Icons.more_vert)),
-      );
-      await settleRealApp(tester);
-      await tester.tap(find.text('Item size'));
-      await settleRealApp(tester);
-      await tester.tap(find.text('Small'));
-      await settleRealApp(tester);
-      expect(appSite('Alpha').launcherSize, LauncherItemSize.small);
-      expect(appSite('Beta').launcherSize, LauncherItemSize.medium);
-      final savedSite = prefs
-          .getStringList('webViewModels')!
-          .map(
-            (raw) => WebViewModel.fromJson(
-              jsonDecode(raw) as Map<String, dynamic>,
-              stateSetterF: null,
-            ),
-          )
-          .singleWhere((value) => value.name == 'Alpha');
-      expect(savedSite.launcherSize, LauncherItemSize.small);
-      expect(tester.takeException(), isNull);
-    },
-  );
   testWidgets('Sites opens a nested tab through the app tab controller', (
     tester,
   ) async {

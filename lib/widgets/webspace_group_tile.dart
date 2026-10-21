@@ -41,7 +41,7 @@ class WebspaceGroupTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final well = LibraryStyle.itemWell(webspace.launcherSize);
+    const well = LibraryStyle.siteWell;
     final count = AppLocalizations.of(
       context,
     ).webspacesListSiteCount(sites.length);
@@ -160,10 +160,7 @@ class WebspaceGroupTile extends StatelessWidget {
             ? UnifiedFaviconImage.site(
                 sites[index],
                 key: ValueKey(sites[index].siteId),
-                size:
-                    LibraryStyle.previewIcon *
-                    LibraryStyle.itemWell(webspace.launcherSize) /
-                    LibraryStyle.siteWell,
+                size: LibraryStyle.previewIcon,
               )
             : index == 3 && hasRemainder
             ? FittedBox(

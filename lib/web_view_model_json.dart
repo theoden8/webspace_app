@@ -2,7 +2,6 @@ import 'dart:convert' show base64Decode, base64Encode;
 import 'dart:typed_data';
 
 import 'package:webspace/settings/filter_list_id.dart';
-import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/outbound_preference.dart';
@@ -79,9 +78,6 @@ extension WebViewModelJson on WebViewModel {
       SiteField.alwaysOpenHome => {key: alwaysOpenHome},
       SiteField.kioskMode => {key: kioskMode},
       SiteField.tabsEnabled => {key: tabsEnabled},
-      SiteField.launcherSize => {
-          if (launcherSize != LauncherItemSize.medium) key: launcherSize.name,
-        },
       SiteField.containerColor => {
           if (containerColor != null) key: containerColor,
         },
@@ -366,8 +362,6 @@ class _SiteJson {
                   false => TabBarCorner.bottomLeft,
                   _ => null,
                 };
-      case SiteField.launcherSize:
-        model.launcherSize = LauncherItemSize.fromJson(raw);
       case SiteField.htmlCachingEnabled:
         model.htmlCachingEnabled = value<bool>(field) ?? false;
       case SiteField.notificationsEnabled:

@@ -3,17 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
-import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
-import 'package:webspace/widgets/launcher_size_picker.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 
 enum _LibraryView { webspaces, workspace, sites }
 
-enum _GroupAction { edit, delete, resize }
+enum _GroupAction { edit, delete }
 
 /// A launcher of site groups; navigation and search remain UI-only.
 class WebspaceLibrary extends StatefulWidget {
@@ -28,7 +26,6 @@ class WebspaceLibrary extends StatefulWidget {
     required this.onAddWebspace,
     required this.onEditWebspace,
     required this.onDeleteWebspace,
-    required this.onResizeWebspace,
     required this.onReorder,
     required this.onOpenSite,
     required this.onSiteMenu,
@@ -47,8 +44,6 @@ class WebspaceLibrary extends StatefulWidget {
   final VoidCallback onAddWebspace;
   final ValueChanged<Webspace> onEditWebspace;
   final ValueChanged<Webspace> onDeleteWebspace;
-  final void Function(Webspace webspace, {required LauncherItemSize size})
-  onResizeWebspace;
   final void Function(int from, {required int newIndex})? onReorder;
   final ValueChanged<WebViewModel> onOpenSite;
   final void Function(
@@ -416,9 +411,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                     mainAxisExtent: WebspaceGroupTile.extentFor(
                       textScaler: scaler,
                       textTheme: Theme.of(context).textTheme,
-                      well: shown
-                          .map((w) => LibraryStyle.itemWell(w.launcherSize))
-                          .reduce(math.max),
+                      well: LibraryStyle.siteWell,
                     ),
                   ),
                   itemCount: shown.length,
@@ -540,7 +533,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
               .map(
                 (i) => SiteGridTile.extentFor(
                   context,
-                  well: LibraryStyle.itemWell(widget.sites[i].launcherSize),
+                  well: LibraryStyle.siteWell,
                   webspaceCount: memberships[i]!.length,
                 ),
               )
@@ -611,11 +604,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
               title: Text(loc.commonEdit),
               onTap: () => Navigator.pop(context, _GroupAction.edit),
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_size_select_large_outlined),
-              title: Text(loc.libraryItemSize),
-              onTap: () => Navigator.pop(context, _GroupAction.resize),
-            ),
             if (!webspace.isAll)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
@@ -655,14 +643,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
         widget.onEditWebspace(webspace);
       case _GroupAction.delete:
         widget.onDeleteWebspace(webspace);
-      case _GroupAction.resize:
-        final size = await showLauncherSizePicker(
-          context,
-          current: webspace.launcherSize,
-        );
-        if (size != null && mounted && widget.webspaces.contains(webspace)) {
-          widget.onResizeWebspace(webspace, size: size);
-        }
       case null:
         return;
     }

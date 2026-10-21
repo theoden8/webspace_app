@@ -54,7 +54,6 @@ import 'package:webspace/widgets/site_drawer.dart';
 import 'package:webspace/widgets/site_editing_prompts.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/site_list_menu.dart';
-import 'package:webspace/widgets/launcher_size_picker.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/url_bar.dart';
@@ -1283,7 +1282,6 @@ class _WebSpacePageState extends State<WebSpacePage>
           listIndex >= 0 &&
           listIndex < _sites.filteredIndices().length - 1,
       archived: site.isArchiveTier,
-      allowResize: _folderLibraryEnabled,
     );
     if (!_sites.models.contains(site)) return;
     switch (action) {
@@ -1297,12 +1295,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _archives.closeArchiveOf(site);
       case SiteListAction.edit:
         await _editing.editSite(site);
-      case SiteListAction.resize:
-        if (!context.mounted) return;
-        final size = await showLauncherSizePicker(context, current: site.launcherSize);
-        if (size == null || !mounted || !_sites.models.contains(site)) return;
-        setState(() => site.launcherSize = size);
-        await _commitSites(const SitesEdited());
       case SiteListAction.delete:
         await _editing.deleteSite(site);
       case SiteListAction.moveUp || SiteListAction.moveDown:
@@ -1433,7 +1425,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onAddWebspace: _webspaces.add,
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
-                    onResizeWebspace: _webspaces.resize,
                     onReorder: _webspaces.reorder,
                     onOpenSite: (site) => unawaited(_openSiteFromDrawer(site)),
                     onSiteMenu: _showSiteContextMenu,

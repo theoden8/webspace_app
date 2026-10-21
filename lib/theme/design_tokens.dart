@@ -10,7 +10,6 @@
 // here are the fixed chrome that does not.
 
 import 'package:flutter/material.dart';
-import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/utils/stable_palette.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -74,12 +73,6 @@ abstract final class LibraryStyle {
   static const double backSwipeVelocity = 500;
   static const double titleSize = 30;
   static const double siteTitleSize = 14;
-
-  static double itemWell(LauncherItemSize size) => switch (size) {
-    LauncherItemSize.small => 56,
-    LauncherItemSize.medium => siteWell,
-    LauncherItemSize.large => 104,
-  };
 
   static Color background(Brightness brightness) =>
       brightness == Brightness.dark ? dark : light;

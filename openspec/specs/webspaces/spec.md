@@ -293,19 +293,6 @@ still be read.
 
 ---
 
-### Requirement: WEBSPACE-014 - Individual Launcher Item Sizes
-
-With Alternative design enabled, each group and site SHALL offer Small, Medium, and Large icon sizes from its item menu, defaulting to Medium. A size choice SHALL affect only that item, persist with it across restarts, and survive settings export/import. Opening, editing, sizing, and reordering items SHALL NOT require a global edit mode.
-
-#### Scenario: Resize one item
-
-**Given** two groups and two sites use Medium icons
-**When** the user chooses Large from one group's Item size menu and Small from one site's Item size menu
-**Then** only those two icons change size
-**And** their choices survive saving and restoring the items
-
----
-
 ## Data Model
 
 ### Webspace

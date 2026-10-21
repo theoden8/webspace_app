@@ -13,15 +13,13 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
-import 'package:webspace/settings/launcher_item_size.dart';
 import 'helpers/localized.dart';
 import 'helpers/group_tile.dart';
 
 final Uint8List _icon = image.encodePng(image.Image(width: 2, height: 2));
 
 class _LibraryHarness extends StatefulWidget {
-  const _LibraryHarness({this.mixedSizes = false});
-  final bool mixedSizes;
+  const _LibraryHarness();
   @override
   State<_LibraryHarness> createState() => _LibraryHarnessState();
 }
@@ -56,21 +54,6 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   WebViewModel? opened;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.mixedSizes) {
-      for (var i = 0; i < webspaces.length; i++) {
-        webspaces[i].launcherSize =
-            LauncherItemSize.values[i % LauncherItemSize.values.length];
-      }
-      for (var i = 0; i < sites.length; i++) {
-        sites[i].launcherSize =
-            LauncherItemSize.values[i % LauncherItemSize.values.length];
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     WebspaceSelectionEngine.resolveIndices(
       webspaces,
@@ -91,9 +74,6 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
         onAddWebspace: () {},
         onEditWebspace: (webspace) => edited = webspace,
         onDeleteWebspace: (webspace) => deleted = webspace,
-        onResizeWebspace: (webspace, {required size}) => setState(() {
-          webspace.launcherSize = size;
-        }),
         onReorder: (from, {required newIndex}) => setState(() {
           WebspaceSelectionEngine.reorder(webspaces, from: from, to: newIndex);
         }),
@@ -696,7 +676,7 @@ void main() {
                     size: Size(width, 800),
                     textScaler: TextScaler.linear(scale),
                   ),
-                  child: const _LibraryHarness(mixedSizes: true),
+                  child: const _LibraryHarness(),
                 ),
                 theme: ThemeData(
                   colorScheme: buildAccentColorScheme(
