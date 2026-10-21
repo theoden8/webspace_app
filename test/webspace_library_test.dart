@@ -125,6 +125,35 @@ Finder _group(String name) => find.descendant(
 );
 
 void main() {
+  testWidgets('group expansion and collapse remain visible at normal speed', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.tap(_group('Work'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    final expanding = tester.getRect(find.byType(SiteGridTile).first).width;
+    await tester.pumpAndSettle();
+    final expanded = tester.getRect(find.byType(SiteGridTile).first).width;
+    expect(
+      expanding,
+      lessThan(expanded * .95),
+      reason: 'the expansion should still be visible after the tap',
+    );
+    await tester.tap(find.byType(BackButton));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    final collapsing = tester.getRect(_group('Work')).width;
+    await tester.pumpAndSettle();
+    final collapsed = tester.getRect(_group('Work')).width;
+    expect(
+      collapsing,
+      greaterThan(collapsed * 1.05),
+      reason: 'closing should visibly settle back into the group grid',
+    );
+  });
+
   testWidgets('group navigation never fades both pages to an empty frame', (
     tester,
   ) async {
