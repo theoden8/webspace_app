@@ -56,17 +56,28 @@ SitePosture barePosture(
 }
 
 /// A host with no app around the webview: every prompt answers no and nothing
-/// opens elsewhere. [httpAuth] stands in for the sign-in prompt.
-WebViewHostHooks bareHooks({HttpAuthPrompt? httpAuth}) => WebViewHostHooks(
+/// opens elsewhere. [httpAuth] stands in for the sign-in prompt; [leaving]
+/// hears each URL a navigation would have taken out of the site (a nested
+/// screen, the browser, another site's slot), which this host declines.
+WebViewHostHooks bareHooks({
+  HttpAuthPrompt? httpAuth,
+  void Function(String url)? leaving,
+}) =>
+    WebViewHostHooks(
       isolation: () => bareIsolation,
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},
       onScreen: (_) => true,
-      launchNested: (_, {required posture, homeTitle}) {},
-      openInBrowser: (_) async => false,
-      routeOutbound:
-          (_, {required url, required decision, required hadGesture}) => false,
+      launchNested: (url, {required posture, homeTitle}) => leaving?.call(url),
+      openInBrowser: (url) async {
+        leaving?.call(url);
+        return false;
+      },
+      routeOutbound: (_, {required url, required decision, required hadGesture}) {
+        leaving?.call(url);
+        return false;
+      },
       linkMenu: (_, {required url}) {},
       firstPageLoaded: (_, {required url}) {},
       openSiteSettings: (_) {},
