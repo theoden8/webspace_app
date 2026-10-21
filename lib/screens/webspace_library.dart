@@ -414,13 +414,11 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
           itemCount: shown.length,
           itemBuilder: (context, index) {
             final webspace = shown[index];
-            final position = widget.webspaces.indexOf(webspace);
             return WebspaceGroupTile(
               key: ValueKey(webspace.id),
               webspace: webspace,
               sites: [for (final i in _order(webspace.id)) widget.sites[i]],
               selected: webspace.id == widget.selectedWebspaceId,
-              colorIndex: position,
               onOpen: () {
                 FocusScope.of(context).unfocus();
                 widget.onSelectWebspace(webspace);

@@ -18,10 +18,96 @@ import 'package:webspace/widgets/site_drawer.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/real_app.dart';
+import 'helpers/group_tile.dart';
 
 void main() {
   setUp(() => ConnectivityService.onlineOverride = Future.value(true));
   tearDown(ConnectivityService.reset);
+  testWidgets(
+    'workspace colors survive edits, reordering and settings restore',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(
+        id: WebspaceId('workspace-work'),
+        name: 'Work',
+        siteIds: [alpha.siteId],
+      );
+      final personal = Webspace(
+        id: WebspaceId('workspace-personal'),
+        name: 'Personal',
+      );
+      final prefsValues = <String, Object>{
+        AppPref.developerMode.key: true,
+        AppPref.experimentalFolderLibrary.key: true,
+      };
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work, personal],
+        prefs: prefsValues,
+      );
+      final colors = {
+        for (final id in [WebspaceId.all, work.id, personal.id])
+          id: groupBackground(tester, id: id),
+      };
+      await openWebspace(tester, name: 'Work');
+      await tester.tap(find.byType(BackButton));
+      await settleRealApp(tester);
+      await tester.longPress(find.text('Work'));
+      await settleRealApp(tester);
+      await tester.tap(find.byIcon(Icons.arrow_downward));
+      await settleRealApp(tester);
+      for (final entry in colors.entries) {
+        expect(groupBackground(tester, id: entry.key), entry.value);
+      }
+      await tester.longPress(find.text('Work'));
+      await settleRealApp(tester);
+      await tester.tap(find.text('Edit'));
+      await settleRealApp(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Webspace Name'),
+        'Projects',
+      );
+      await tester.tap(find.bySemanticsLabel('Save'));
+      await settleRealApp(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('library-search')),
+        'Projects',
+      );
+      await tester.pumpAndSettle();
+      expect(groupBackground(tester, id: work.id), colors[work.id]);
+      final prefs = await SharedPreferences.getInstance();
+      final restored = prefs
+          .getStringList('webspaces')!
+          .map(
+            (raw) => Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>),
+          )
+          .singleWhere((group) => group.id == work.id);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await settleRealApp(tester);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [
+          restored,
+          Webspace(name: 'Added'),
+        ],
+        prefs: {...prefsValues, 'selectedWebspaceId': work.id},
+      );
+      expect(find.text('Projects'), findsOneWidget);
+      expect(find.text('Personal'), findsNothing);
+      expect(groupBackground(tester, id: work.id), colors[work.id]);
+      expect(
+        groupBackground(tester, id: WebspaceId.all),
+        colors[WebspaceId.all],
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final enabled in [false, true]) {
     testWidgets('browser navigation follows Alternative design=$enabled', (
       tester,

@@ -14,6 +14,7 @@ import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'package:webspace/settings/launcher_item_size.dart';
 import 'helpers/localized.dart';
+import 'helpers/group_tile.dart';
 
 final Uint8List _icon = image.encodePng(image.Image(width: 2, height: 2));
 
@@ -125,6 +126,62 @@ Finder _group(String name) => find.descendant(
 );
 
 void main() {
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'selection keeps group backgrounds stable in ${brightness.name}',
+      (tester) async {
+        await pumpLocalized(
+          tester,
+          home: const _LibraryHarness(),
+          theme: ThemeData(
+            colorScheme: buildAccentColorScheme(
+              accentBlue,
+              brightness: brightness,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final state = tester.state<_LibraryHarnessState>(
+          find.byType(_LibraryHarness),
+        );
+        final colors = {
+          for (final group in state.webspaces)
+            group.id: groupBackground(tester, id: group.id),
+        };
+        for (final name in ['Work', 'Privacy', 'All']) {
+          await tester.tap(_group(name));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
+          for (final entry in colors.entries) {
+            expect(groupBackground(tester, id: entry.key), entry.value);
+          }
+          final selected = find.byKey(ValueKey(state.selected));
+          final well = tester.widget<AnimatedContainer>(
+            find.descendant(
+              of: selected,
+              matching: find.byType(AnimatedContainer),
+            ),
+          );
+          final outline =
+              (well.foregroundDecoration! as BoxDecoration).border! as Border;
+          expect(
+            outline.top.color,
+            Theme.of(tester.element(selected)).colorScheme.primary,
+          );
+          expect(outline.top.width, greaterThan(0));
+          expect(
+            find.descendant(
+              of: selected,
+              matching: find.byIcon(Icons.check_circle),
+            ),
+            findsOneWidget,
+          );
+        }
+      },
+    );
+  }
+
   for (final (direction, sign) in [
     (TextDirection.ltr, 1.0),
     (TextDirection.rtl, -1.0),

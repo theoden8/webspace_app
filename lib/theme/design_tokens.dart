@@ -11,6 +11,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:webspace/settings/launcher_item_size.dart';
+import 'package:webspace/utils/stable_palette.dart';
+import 'package:webspace/webspace_model.dart';
 
 /// Corner radii, smallest to largest. A neutral scale rather than semantic
 /// names: the existing 22 call sites do not agree on what each step means, so
@@ -58,6 +60,7 @@ abstract final class LibraryStyle {
     Color(0xFF363440),
   ];
   static const double radius = 20;
+  static const double selectionWidth = 2;
   static const double maxWidth = 960;
   static const double tileMinWidth = 112;
   static const double siteIcon = 64;
@@ -82,9 +85,10 @@ abstract final class LibraryStyle {
   static Color field(Brightness brightness) =>
       brightness == Brightness.dark ? fieldDark : fieldLight;
 
-  static Color group(Brightness brightness, {required int index}) =>
-      (brightness == Brightness.dark ? groupDark : groupLight)[index %
-          groupLight.length];
+  static Color group(Brightness brightness, {required WebspaceId id}) {
+    final palette = brightness == Brightness.dark ? groupDark : groupLight;
+    return palette[stablePaletteIndex(id, paletteSize: palette.length)];
+  }
 }
 
 /// Fixed chrome around web content: not accent-derived, so these stay put when

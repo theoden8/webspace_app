@@ -8,6 +8,7 @@
 library;
 
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/utils/stable_palette.dart';
 
 /// How many container colours there are; `ContainerColors` holds one per
 /// index for each brightness.
@@ -74,11 +75,6 @@ abstract final class ContainerColorEngine {
   /// A colour for a site that has none stored, stable for its id. Only for
   /// sites the assignment never sees (an archive's, while it is open): the
   /// app-tier list must not depend on them (ARCH-001).
-  static int fallback(SiteId siteId, {required int paletteSize}) {
-    var hash = 0x811c9dc5;
-    for (final unit in siteId.codeUnits) {
-      hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
-    }
-    return hash % paletteSize;
-  }
+  static int fallback(SiteId siteId, {required int paletteSize}) =>
+      stablePaletteIndex(siteId, paletteSize: paletteSize);
 }

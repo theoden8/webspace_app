@@ -46,7 +46,7 @@ Users SHALL be able to select and switch between webspaces to view filtered site
 
 ### Requirement: WEBSPACE-003 - Visual Selection Indicator
 
-The system SHALL provide clear visual indication of which webspace is currently active.
+The system SHALL provide clear visual indication of which webspace is currently active. In Alternative design, a group's background color SHALL be stable for its persisted identity across revisiting, filtering, renaming, reordering, adding or removing other groups, and settings restore. Selecting a group SHALL show an accent outline and check without recoloring its background. Light and dark themes SHALL use paired shades for the same identity.
 
 #### Scenario: Display selected webspace indicator
 
@@ -57,6 +57,13 @@ The system SHALL provide clear visual indication of which webspace is currently 
 **And** each group previews up to four site favicons from its actual membership order
 **And** a group with more than four sites previews three favicons and the remaining count
 **And** its site count reflects the current filtered membership, including all sites for the synthetic All group
+
+#### Scenario: A group's color stays familiar
+
+**Given** the user has seen the Work and Personal groups in Alternative design
+**When** they open a group and return, reorder or rename it, filter the list, or restore their settings
+**Then** each group's background color stays the same within the current theme
+**And** the selected group is identified by its outline and check
 
 ---
 
