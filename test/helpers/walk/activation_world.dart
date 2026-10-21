@@ -43,7 +43,6 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/proxy_refused.dart';
@@ -1827,8 +1826,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           for (final m in sites.models) {
             if (_siteNumber(m) != 1) continue;
             m.externalLinkMode = ExternalLinkMode.inApp;
-            m.routeOutboundLinks =
-                !(m.routeOutboundLinks ?? AppPref.routeOutboundLinks.value);
+            m.routeOutboundLinks = !m.routeOutboundLinks;
           }
           _unmodeled.add(currentFlow());
           _track(_commit(const SiteSettingsClosed()));

@@ -28,7 +28,7 @@ void main() {
     testWidgets('a link routes as DuckDuckGo with $choice',
         (tester) async {
       github.externalLinkMode = following ? null : ExternalLinkMode.inApp;
-      github.routeOutboundLinks = following ? null : true;
+      github.routeOutboundLinks = !following;
       await pumpRealApp(tester, sites: [github, ddg],
           prefs: {'routeOutboundLinks': following});
       await openWebspace(tester, name: 'All');
@@ -136,7 +136,7 @@ void main() {
         'with app routing $appRouting',
         (tester) async {
       github.externalLinkMode = appRouting ? ExternalLinkMode.inApp : null;
-      github.routeOutboundLinks = appRouting ? false : null;
+      github.routeOutboundLinks = false;
       await pumpRealApp(tester, sites: [github, ddg],
           prefs: {'showUrlBar': true, 'routeOutboundLinks': appRouting});
       await openWebspace(tester, name: 'All');

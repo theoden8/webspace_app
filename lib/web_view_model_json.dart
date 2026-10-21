@@ -426,9 +426,7 @@ class _SiteJson {
               ]
             : null;
       case SiteField.routeOutboundLinks:
-        model.routeOutboundLinks = json.containsKey(field.key) && raw == null
-            ? null
-            : value<bool>(field) ?? false;
+        model.routeOutboundLinks = value<bool>(field) ?? false;
       case SiteField.outboundPreferences:
         model.outboundPreferences = OutboundPreference.dedupedByClaim(
           (value<List<dynamic>>(field) ?? const [])

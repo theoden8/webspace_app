@@ -168,8 +168,10 @@ App Settings → Behaviour SHALL group its app defaults under "Opening and
 navigation": Tabs (on initially),
 External links (Open in the app initially) and Route links to my sites (off
 initially, shown under in-app links). New sites SHALL follow these live
-defaults. The External links and routing pickers SHALL offer App default and
-explicit choices. Tabs SHALL use a switch that is slightly dimmed while
+defaults. The External links picker SHALL offer App default and explicit
+choices. Routing SHALL be a plain on/off switch with no separate inheritance
+state or reset gesture; it inherits only through External links → App default.
+Tabs SHALL use a switch that is slightly dimmed while
 following the app and fully opaque for an explicit override. It SHALL remain
 interactive in both states and show an App default subtitle while following.
 Tapping SHALL create an explicit override. A long press SHALL clear it and
@@ -185,14 +187,15 @@ Kiosk mode SHALL still disable tabs and archive restrictions SHALL still fold
 browser links into the app after resolving inheritance. Routing SHALL apply
 only in the site's resolved in-app mode and where the container engine offers
 it. While External links explicitly selects Open in the app, the per-site
-routing picker SHALL offer App default (On/Off), On and Off, and the
+routing switch SHALL show its saved on/off choice, and the
 routing-preferences row SHALL follow the resolved routing value. Following
 the app's external-link policy SHALL hide both routing rows, use the app's
 routing default and leave the site's stored routing override unchanged.
 
-Persistence SHALL distinguish explicit null (follow app) from a missing key in
-older data (Tabs on, links in-app, or browser for the legacy true flag, and
-routing off). New saves SHALL write all three keys, including null, so a following site and an
+Persistence SHALL distinguish explicit null (follow app) from a missing key for
+Tabs and External links in older data (Tabs on, links in-app, or browser for the
+legacy true flag). Routing SHALL store a boolean, defaulting to off for missing
+or null values. New saves SHALL write all three keys, so a following site and an
 explicit choice each survive restart and backup without becoming the other.
 
 #### Scenario: Return to following the app
@@ -205,14 +208,14 @@ explicit choice each survive restart and backup without becoming the other.
 
 #### Scenario: Routing follows the app without discarding an override
 
-**Given** a site opens external links in the app and follows the routing default
+**Given** a site follows the app's External links policy, which opens in the app
 **When** the app routing default is enabled
-**Then** the site routes links to its own sites and shows Routing preferences
-**And** a site with routing explicitly off keeps routing off
-**When** the following site changes External links to Block or Open in browser
-**Then** routing is inert and its saved inheritance remains unchanged
-**When** it returns to Open in the app
-**Then** routing follows the live app default again
+**Then** the site routes links to its own sites and hides the routing controls
+**When** the site explicitly selects Open in the app
+**Then** its routing switch shows the saved boolean, off initially
+**And** changing the app routing default does not change that explicit choice
+**When** the site selects External links → App default again
+**Then** routing follows the live app default and the routing controls disappear
 
 #### Scenario: Long press restores the Tabs default
 
