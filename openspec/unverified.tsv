@@ -63,6 +63,9 @@ EXT-005	no check: lib/widgets/external_url_prompt.dart has no test; nothing asse
 EXT-006	no check: _stripTrackingFromIntent and the ClearURLs pass on a resolved fallback have no test
 EXT-007	no check: ExternalUrlSuppressor, the gesture bypass, the Android-only about:blank clear and dialog marking are unchecked; the bypass reads hasGesture (Android) or the navigation type (Apple), and the test host is neither, so no Dart test can drive it without a platform seam
 EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects (the fork patch and the decline-path gate) are open
+EXT-010	no check: not implemented: magnet-link-support is a proposal, tasks 2 and 3 open
+EXT-011	no check: not implemented: magnet-link-support is a proposal, tasks 2 and 3 open
+EXT-012	no check: not implemented: magnet-link-support is a proposal, tasks 2 and 3 open
 # file-import-sites
 IMPORT-001	no check: no widget test pumps AddSiteScreen to find the 'Import HTML file' button
 IMPORT-002	no check: no test asserts the picker filters html/htm or that cancelling leaves the screen; the flow depends on FilePicker and is untested
@@ -74,6 +77,14 @@ FS-004	no check: AppLifecycleController calls host.reapplyFullscreen() on resume
 FS-005	no check: no test checks that activate(null) exits full screen; the walk world stubs exitFullscreen() as a no-op
 FS-006	no check: no test checks the body's top/bottom SafeArea inset in full screen under a persistent system bar (partly: test/fullscreen_system_bars_test.dart, "a kept tab strip moves above a revealed navigation bar, which is hidden again")
 FS-010	no check: LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES in MainActivity and dropping the left/right SafeArea in full screen are both untested
+# gemini-protocol
+GEMINI-001	no check: not implemented: gemini-protocol-support is a proposal, tasks 2 to 4 open
+GEMINI-002	no check: not implemented: gemini-protocol-support is a proposal, tasks 2 to 4 open
+GEMINI-003	no check: not implemented: gemini-protocol-support is a proposal, tasks 2 to 4 open
+GEMINI-004	no check: not implemented: gemini-protocol-support is a proposal, tasks 2 to 4 open
+GEMINI-005	no check: not implemented: gemini-protocol-support is a proposal, tasks 2 to 4 open
+GEMINI-006	no check: not implemented: gemini-protocol-support is a proposal, tasks 2 to 4 open
+GEMINI-007	no check: not implemented: gemini-protocol-support is a proposal, tasks 2 to 4 open
 # home-shortcut
 HS-009	no check: no test that persisting sites and the startup restore call ShortcutService.syncSites, nor of the Swift App Group write; shortcut_service_test only checks syncSites is a no-op off Apple
 HS-010	no check: no test of the iOS/macOS instructional dialog, its ShortcutsUIButton or Open Shortcuts button
@@ -101,6 +112,13 @@ IOS-UL-005	no check: no test or gate asserts the bypass is entered only when the
 IOS-UL-006	no check: no test asserts a nested InAppWebViewScreen's navigations run through the bypass gate
 # ip-leakage
 LEAK-012	no check: the native relay's injection and 502-not-direct are tested, but nothing asserts the Android ProxyController rule is http://127.0.0.1:<port> with no userinfo or that a relay that fails to start leaves no direct override (ProxyManager's Android branch is untested) (partly: android/app/src/test/kotlin/org/codeberg/theoden8/webspace/proxy/ProxyRelayTest.kt, "failClosed_unreachableUpstreamYields502NotDirect")
+# ipfs-protocol
+IPFS-001	no check: not implemented: ipfs-protocol-support is a proposal, tasks 2 and 3 open
+IPFS-002	no check: not implemented: ipfs-protocol-support is a proposal, tasks 2 and 3 open
+IPFS-003	no check: not implemented: ipfs-protocol-support is a proposal, tasks 2 and 3 open
+IPFS-004	no check: not implemented: ipfs-protocol-support is a proposal, tasks 2 and 3 open
+IPFS-005	no check: not implemented: ipfs-protocol-support is a proposal, tasks 2 and 3 open
+IPFS-006	no check: not implemented: ipfs-protocol-support is a proposal, tasks 2 and 3 open
 # js-shim-tests
 SHIM-TEST-002	no check: nothing stops a test from running its own copy of a script written as a function; the parity gate only holds pageJs() to PageJs, the lint only catches template copies, and installBrowserPolyfills' stubs are unchecked (partly: test/js/page_js.test.js, "this tier reads lib/js the way PageJs does")
 SHIM-TEST-006	no check: no gate asserts each test/browser file uses setupBrowser and evaluateOnNewDocument, nor that a post-load injection carries its comment; preInit ordering is checked only indirectly (partly: test/browser/location_spoof_real.test.js, "WRTC=relay — config.iceTransportPolicy is forced to relay")

@@ -522,9 +522,10 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | developer-tools | JS console, cookie inspector, HTML export, app logs; in developer mode a background log that outlives the process (native refresh steps, wakes, unloaded notification sites, OS gates) with site names kept in memory only |
 | dns-blocklist | Hagezi list, severity levels, per-site toggle; per-site level is a mask over the app level (the levels do not nest, so each domain carries a bit per level) |
 | downloads | http/https/data/blob, streamed progress + save dialog |
-| external-scheme-handling | intent:// auto-resolves to http(s) fallback (silent route); prompt only when no web equivalent |
+| external-scheme-handling | intent:// auto-resolves to http(s) fallback (silent route); prompt only when no web equivalent; the magnet-link-support change (EXT-010 to EXT-012) has the prompt name a magnet by name and hash, and refuses an external scheme as a site URL |
 | file-import-sites | local HTML via HtmlImportStorage |
 | fullscreen-mode | hide app bar/tab strip/system UI; per-site auto |
+| gemini-protocol *(change)* | `gemini://` capsules as sites: one TLS request per page on the site's route (Tor, SOCKS5, `CONNECT`), certificates pinned on first use, gemtext rendered as inert HTML; requirements at `openspec/changes/gemini-protocol-support/` |
 | home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
 | http-auth-prompt | a server's or proxy's 401/407 challenge as a per-site sign-in dialog; only the site's own hosts may ask, the credential is remembered in secure storage per site, never exported, and archive-tier sites keep none |
 | https-upgrade *(change)* | plain-http main-frame navigations retried over https, silent per-host fallback; default-on knob, forced on by Tracking Protection |
@@ -533,6 +534,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | incognito-mode | per-site: nothing the site stores survives an app restart (cookies, localStorage, IDB, SW, cache, last URL/title); typed configuration does |
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |
 | ip-leakage | proxy coverage contract; fail-closed on SOCKS5; WebRTC + DNS |
+| ipfs-protocol *(change)* | `ipfs://` and `ipns://` sites loaded from one configurable gateway in its subdomain form, an origin per CID, on the site's route; requirements at `openspec/changes/ipfs-protocol-support/` |
 | js-shim-tests | jsdom + node:test, with Dart drift check |
 | kiosk-mode | per-site toggle; shortcut launch opens chrome-less (no drawer/tab strip/menus/settings), plain app launch restores access; no passphrase |
 | language | Accept-Language + DOCUMENT_START navigator.language/Intl |
