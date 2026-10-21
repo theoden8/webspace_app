@@ -5289,13 +5289,13 @@
   "@libraryNoResults": {
     "description": "Empty search results message in the webspace and site library."
   },
-  "appSettingsExperimentalFolderLibrary": "New design",
+  "appSettingsExperimentalFolderLibrary": "Alternative design",
   "appSettingsExperimentalFolderLibraryHint": "Organize sites into groups in a launcher grid.",
   "@appSettingsExperimentalFolderLibrary": {
-    "description": "Developer Experimental switch for the optional new design. Off by default."
+    "description": "Developer Experimental switch for the optional alternative design. Off by default."
   },
   "@appSettingsExperimentalFolderLibraryHint": {
-    "description": "Explanation behind the New design experiment hint button. Each webspace is a cluster of site icons that expands into a launcher grid."
+    "description": "Explanation behind the Alternative design experiment hint button. Each webspace is a cluster of site icons that expands into a launcher grid."
   },
   "siteRedirectHomeSuggestion": "This site redirected to {url}. Use this as its homepage? Links to the new domain will also open here.",
   "@siteRedirectHomeSuggestion": {

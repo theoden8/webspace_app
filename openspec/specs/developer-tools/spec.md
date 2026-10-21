@@ -544,7 +544,7 @@ The features are:
 
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
-| Webspace icon groups and a searchable tab tree (`webspaces` WEBSPACE-002) | New design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
+| Webspace icon groups and a searchable tab tree (`webspaces` WEBSPACE-002) | Alternative design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | iOS, macOS and Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
@@ -566,26 +566,26 @@ Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with New design off and no Tor switch
+- **AND** after unlocking developer mode the Developer section shows it, with Alternative design off and no Tor switch
 
 #### Scenario: Only what this platform can run
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and New design and Texture page rendering, off
+- **THEN** the Experimental group lists Proxy router, on, and Alternative design and Texture page rendering, off
 
 #### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists New design and WebKit content blocking, off
+- **THEN** the Experimental group lists Alternative design and WebKit content blocking, off
 
-#### Scenario: New design is opt-in and follows the gate live
+#### Scenario: Alternative design is opt-in and follows the gate live
 
-- **GIVEN** the New design switch has never been enabled
+- **GIVEN** the Alternative design switch has never been enabled
 - **WHEN** the app opens with developer mode on or off
 - **THEN** the existing webspace list, app bar, add-site button, and drawer are shown
-- **AND** enabling both developer mode and New design replaces the home screen with the grouped site launcher, without restarting
+- **AND** enabling both developer mode and Alternative design replaces the home screen with the grouped site launcher, without restarting
 - **AND** turning either off restores the existing interface without changing sites, webspaces, or selection
 - **AND** turning developer mode back on restores the grouped site launcher if its switch is still on
 
@@ -598,7 +598,7 @@ Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were
 
 #### Scenario: Switches survive a backup round trip
 
-- **GIVEN** the New design switch is on and the user exports settings
+- **GIVEN** the Alternative design switch is on and the user exports settings
 - **WHEN** that backup is imported
 - **THEN** the switch is on without a restart
 

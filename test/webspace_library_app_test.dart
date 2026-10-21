@@ -23,7 +23,7 @@ void main() {
   setUp(() => ConnectivityService.onlineOverride = Future.value(true));
   tearDown(ConnectivityService.reset);
   for (final enabled in [false, true]) {
-    testWidgets('browser navigation follows New design=$enabled', (
+    testWidgets('browser navigation follows Alternative design=$enabled', (
       tester,
     ) async {
       final alpha = WebViewModel(
@@ -71,7 +71,7 @@ void main() {
     });
 
     testWidgets(
-      'Back opens the matching navigation with New design=$enabled',
+      'Back opens the matching navigation with Alternative design=$enabled',
       (tester) async {
         final alpha = WebViewModel(
           initUrl: 'https://alpha.example.test',
@@ -106,7 +106,7 @@ void main() {
     );
   }
 
-  testWidgets('New design keeps the default Back behavior while browsing', (
+  testWidgets('Alternative design keeps the default Back behavior while browsing', (
     tester,
   ) async {
     await pumpRealApp(

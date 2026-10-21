@@ -136,16 +136,16 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
         reason: 'App Settings links the logs directly again');
   });
 
-  testWidgets('Developer offers the folder library experiment off by default', (tester) async {
+  testWidgets('Developer offers Alternative design off by default', (tester) async {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
     await openCategory(tester, title: 'Developer');
-    final title = find.text('New design');
+    final title = find.text('Alternative design');
     await tester.scrollUntilVisible(title, 200, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     final row = find.ancestor(of: title, matching: find.byType(SwitchListTile));
     expect(tester.widget<SwitchListTile>(row).value, isFalse);
-    await tester.tap(row);
+    await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
     await tester.pumpAndSettle();
     expect(tester.widget<SwitchListTile>(row).value, isTrue);
     expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isTrue);

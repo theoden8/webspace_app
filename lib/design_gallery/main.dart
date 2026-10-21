@@ -105,7 +105,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: _trustedCertificates),
   GalleryCard(id: 'location-picker', label: 'Location picker screen', fullBleed: true, builder: _locationPicker),
   GalleryCard(id: 'webspaces', label: 'Webspaces screen', fullBleed: true, builder: (c) => const _WebspacesCard()),
-  GalleryCard(id: 'site-groups', label: 'New design', fullBleed: true, builder: (c) => const _SiteGroupsCard()),
+  GalleryCard(id: 'site-groups', label: 'Alternative design', fullBleed: true, builder: (c) => const _SiteGroupsCard()),
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: _webspaceDetail),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: _siteSettings),
   GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: _siteBehaviour),

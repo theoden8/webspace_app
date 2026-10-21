@@ -13,7 +13,7 @@ The Webspaces feature allows users to organize their saved sites into separate w
 
 ## Requirements
 
-The grouped site launcher is an optional experiment (DEVTOOLS-011). Group grids, their menus, library tabs, and search below apply only when developer mode and **New design** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
+The grouped site launcher is an optional experiment (DEVTOOLS-011). Group grids, their menus, library tabs, and search below apply only when developer mode and **Alternative design** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
 
 ### Requirement: WEBSPACE-001 - Create Multiple Webspaces
 
@@ -124,11 +124,11 @@ Users SHALL be able to return to the group grid from a workspace site grid using
 
 With the group library enabled, opening and closing a group SHALL use continuous expand/collapse transitions without a blank frame between views, including the first group opened. Search and bottom navigation SHALL remain stationary. Departing grids SHALL stop accepting input immediately, Back SHALL remain usable during the transition, and the system's reduced-motion preference SHALL switch views without animation.
 
-With New design enabled, the site browser SHALL use a grid button to return directly to the previous library view, retaining its selected group or Sites tab. It SHALL NOT create a navigation drawer or show a hamburger button. The return SHALL preserve the site's loaded state and tab selection. A locked kiosk session SHALL expose neither navigation affordance.
+With Alternative design enabled, the site browser SHALL use a grid button to return directly to the previous library view, retaining its selected group or Sites tab. It SHALL NOT create a navigation drawer or show a hamburger button. The return SHALL preserve the site's loaded state and tab selection. A locked kiosk session SHALL expose neither navigation affordance.
 
 #### Scenario: Return from browsing a site
 
-**Given** New design is enabled and the user opened a site from a group's grid or the Sites tab tree
+**Given** Alternative design is enabled and the user opened a site from a group's grid or the Sites tab tree
 **When** the user taps the browser's grid button
 **Then** the previous library view is shown with its selection retained
 **And** no drawer opens
@@ -143,7 +143,7 @@ With New design enabled, the site browser SHALL use a grid button to return dire
 
 #### Scenario: Swipe back from a site group
 
-**Given** New design is enabled and the user is viewing a group's sites
+**Given** Alternative design is enabled and the user is viewing a group's sites
 **When** the user swipes horizontally in the back direction
 **Then** the groups menu appears with the existing closing transition
 **And** the search and keyboard are cleared
@@ -271,7 +271,7 @@ still be read.
 
 ### Requirement: WEBSPACE-014 - Individual Launcher Item Sizes
 
-With New design enabled, each group and site SHALL offer Small, Medium, and Large icon sizes from its item menu, defaulting to Medium. A size choice SHALL affect only that item, persist with it across restarts, and survive settings export/import. Opening, editing, sizing, and reordering items SHALL NOT require a global edit mode.
+With Alternative design enabled, each group and site SHALL offer Small, Medium, and Large icon sizes from its item menu, defaulting to Medium. A size choice SHALL affect only that item, persist with it across restarts, and survive settings export/import. Opening, editing, sizing, and reordering items SHALL NOT require a global edit mode.
 
 #### Scenario: Resize one item
 
