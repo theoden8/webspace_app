@@ -25,7 +25,7 @@ runs:
 
     - name: AVD snapshot cache
       id: avd-cache
-      uses: actions/cache@v4
+      uses: ./.github/actions/master-cache
       with:
         path: |
           ~/.android/avd/*

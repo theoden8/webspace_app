@@ -190,7 +190,7 @@ jobs:
       # version bumps, so we never run tests against a Chromium that
       # mismatches the puppeteer client.
       - name: Cache Puppeteer Chromium
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
           path: ~/.cache/puppeteer
           key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -230,9 +230,9 @@ jobs:
           flutter-version-file: '.fvmrc'
           channel: 'stable'
       - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
-          path: ~/.fvm/versions
+          path: ~/fvm/versions
           key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
           restore-keys: |
             fvm-${{ runner.os }}-
@@ -245,7 +245,7 @@ jobs:
           fvm install
           fvm use --force
       - name: Cache pub dependencies
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
           path: |
             ~/.pub-cache
@@ -311,7 +311,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - name: Cache Puppeteer Chromium
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
           path: ~/.cache/puppeteer
           key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -325,9 +325,9 @@ jobs:
           flutter-version-file: '.fvmrc'
           channel: 'stable'
       - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
-          path: ~/.fvm/versions
+          path: ~/fvm/versions
           key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
           restore-keys: |
             fvm-${{ runner.os }}-
@@ -340,7 +340,7 @@ jobs:
           fvm install
           fvm use --force
       - name: Cache pub dependencies
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
           path: |
             ~/.pub-cache
@@ -1480,7 +1480,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Cache Fastlane frameit assets
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
           path: ~/.fastlane/frameit/latest
           key: frameit-${{ runner.os }}
@@ -1564,7 +1564,7 @@ jobs:
         run: git diff --exit-code -- ios/Runner/Info.plist
 
       - name: Cache Fastlane frameit assets
-        uses: actions/cache@v4
+        uses: ./.github/actions/master-cache
         with:
           path: ~/.fastlane/frameit/latest
           key: frameit-${{ runner.os }}
