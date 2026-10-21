@@ -7,7 +7,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/engine_image.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 
 /// Where a site's own icon comes from.
@@ -22,30 +21,21 @@ enum PageIconSource {
   none,
 }
 
-/// Whether a site's icon comes only from the site (ICON-014).
-bool get siteIconsOnly => ExperimentalFeaturesService.instance
-    .isEnabled(ExperimentalFeature.siteIconsOnly);
-
 /// Where a site's own icon comes from on this platform, read when a webview
 /// is created.
 PageIconSource get pageIconSource => pageIconSourceFor(
       android: hostIsAndroid,
       webkit: hostIsIOS || hostIsMacOS || hostIsLinux,
-      siteIconsOnly: siteIconsOnly,
     );
 
-/// WKWebView and WPE report no page icon, so the app fetches the declared
-/// links there. Android WebView reports one, but under [siteIconsOnly] every
-/// platform takes its icon the same way.
+/// Android WebView reports a page icon it fetched itself; WKWebView and WPE
+/// report none, so the app fetches the declared links there.
 @visibleForTesting
 PageIconSource pageIconSourceFor({
   required bool android,
   required bool webkit,
-  required bool siteIconsOnly,
 }) {
-  if (android) {
-    return siteIconsOnly ? PageIconSource.declaredLinks : PageIconSource.webview;
-  }
+  if (android) return PageIconSource.webview;
   return webkit ? PageIconSource.declaredLinks : PageIconSource.none;
 }
 

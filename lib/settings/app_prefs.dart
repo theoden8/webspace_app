@@ -69,7 +69,6 @@ enum AppPref<T extends Object> {
   // developer mode alone keeps running it for a user who had it before the
   // switch existed; the rest are new, so off.
   experimentalProxyRouter('experimentalProxyRouter', fallback: true),
-  experimentalSiteIconsOnly('experimentalSiteIconsOnly', fallback: false),
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
   experimentalContentRuleLists('experimentalContentRuleLists', fallback: false),
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),

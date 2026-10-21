@@ -9,7 +9,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, IconReload, iconReloads, reloadAllIcons, usableIconUrl;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, iconReloads, reloadAllIcons, usableIconUrl;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
@@ -93,13 +93,8 @@ bool addSitePreviewMayResolveLocally(String host) =>
         ).type ==
         ProxyType.DEFAULT;
 
-// Unified favicon widget with progressive loading
-// Icons update as better quality versions are found:
-// 1. DuckDuckGo (fast, ~64px) - shows first
-// 2. Google Favicons (128px, 256px) - upgrades the icon
-// 3. Site-specific high-res icons via HTML parsing - final upgrade
-// The icon the site's own webview reported (ICON-009) outranks all three and,
-// while present, stops the fetch.
+// A site's icon: the page icon the site's own webview produced (ICON-009/013)
+// when there is one, else the best its home page declares (ICON-002).
 class UnifiedFaviconImage extends StatefulWidget {
   final String url;
   final double size;
@@ -149,7 +144,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   StreamSubscription<IconUpdate>? _iconSub;
   StreamSubscription<String>? _invalidationSub;
   StreamSubscription<String?>? _siteIconSub;
-  StreamSubscription<IconReload>? _reloadSub;
+  StreamSubscription<void>? _reloadSub;
 
   bool _isSvgUrl(String url) =>
       url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
@@ -166,18 +161,10 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         _resetAndLoad();
       }
     });
-    _reloadSub = iconReloads.listen((reason) {
+    _reloadSub = iconReloads.listen((_) {
       if (!mounted || widget.customIcon != null) return;
-      if (reason == IconReload.sources &&
-          usableIconUrl(_currentIconUrl) == _currentIconUrl) {
-        return;
-      }
       // Clearing the site icons already restarted a load with nothing shown.
-      if (reason == IconReload.all &&
-          _currentIconUrl == null &&
-          _iconStream != null) {
-        return;
-      }
+      if (_currentIconUrl == null && _iconStream != null) return;
       setState(_resetAndLoad);
     });
     _siteIconSub = SiteIconStore.instance.changes.listen((siteUrl) {
@@ -220,7 +207,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
   void _resetAndLoad() {
     // The previous fetch would keep writing into the reset state and persist
-    // its result on done, including an icon from a source no longer allowed.
+    // its result on done.
     unawaited(_iconSub?.cancel());
     _iconSub = null;
     _currentIconUrl = null;

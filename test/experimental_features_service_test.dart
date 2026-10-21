@@ -68,6 +68,14 @@ void main() {
             'this gate (DEVTOOLS-011)');
   });
 
+  test('Site icons only graduated: it has no switch (ICON-014)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalSiteIconsOnly')),
+        reason: 'a graduated feature removes its switch and stops reading '
+            'this gate (DEVTOOLS-011)');
+  });
+
   test('the proxy router defaults on, so developer mode alone keeps it',
       () async {
     await ExperimentalFeaturesService.instance.initialize();
@@ -76,24 +84,6 @@ void main() {
         ExperimentalFeaturesService.instance
             .isEnabled(ExperimentalFeature.proxyRouter),
         isTrue);
-  });
-
-  test('site icons only defaults off, so developer mode alone keeps the '
-      'public icon services', () async {
-    await ExperimentalFeaturesService.instance.initialize();
-    DeveloperModeService.instance.debugSet(on: true);
-    expect(
-        ExperimentalFeaturesService.instance
-            .isEnabled(ExperimentalFeature.siteIconsOnly),
-        isFalse);
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.siteIconsOnly, on: true);
-    expect(
-        ExperimentalFeaturesService.instance
-            .isEnabled(ExperimentalFeature.siteIconsOnly),
-        isTrue);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppPref.experimentalSiteIconsOnly.key), isTrue);
   });
 
   test('a switch persists and is read back', () async {

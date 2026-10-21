@@ -174,7 +174,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       case DeveloperUnlockOutcome.alreadyEnabled:
         message = loc.appSettingsDeveloperModeAlreadyOn;
       case DeveloperUnlockOutcome.unlocked:
-        await _unlocking.run(() => setDeveloperMode(on: true));
+        await _unlocking
+            .run(() => DeveloperModeService.instance.setEnabled(on: true));
         if (!mounted) return;
         setState(() => _versionTaps = 0);
         message = loc.appSettingsDeveloperModeEnabled;

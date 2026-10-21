@@ -26,27 +26,17 @@ void main() {
 
   group('pageIconSourceFor', () {
     test('WebKit platforms fetch the declared links', () {
-      expect(
-          pageIconSourceFor(android: false, webkit: true, siteIconsOnly: false),
-          PageIconSource.declaredLinks);
-      expect(
-          pageIconSourceFor(android: false, webkit: true, siteIconsOnly: true),
+      expect(pageIconSourceFor(android: false, webkit: true),
           PageIconSource.declaredLinks);
     });
 
-    test('Android takes the webview icon unless icons come only from the site',
-        () {
-      expect(
-          pageIconSourceFor(android: true, webkit: false, siteIconsOnly: false),
+    test('Android takes the icon its webview reports (ICON-009)', () {
+      expect(pageIconSourceFor(android: true, webkit: false),
           PageIconSource.webview);
-      expect(
-          pageIconSourceFor(android: true, webkit: false, siteIconsOnly: true),
-          PageIconSource.declaredLinks);
     });
 
     test('nothing where no webview hosts a site', () {
-      expect(
-          pageIconSourceFor(android: false, webkit: false, siteIconsOnly: true),
+      expect(pageIconSourceFor(android: false, webkit: false),
           PageIconSource.none);
     });
   });

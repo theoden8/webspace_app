@@ -1,12 +1,13 @@
-// Which hosts the icon service asks (ICON-006, ICON-014): Google and
-// DuckDuckGo by default, only the site itself under Site icons only.
+// Which hosts the icon service asks (ICON-014): only the site itself, never
+// Google's or DuckDuckGo's icon service.
+
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -15,6 +16,8 @@ import 'helpers/fake_outbound.dart';
 
 const _site = 'https://example.com/';
 const _google = 'https://www.google.com/s2/favicons?domain=example.com&sz=256';
+final Uint8List _png64 =
+    Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,135 +26,84 @@ void main() {
 
   Set<String> hosts() => factory.requested.map((u) => u.host).toSet();
 
-  void siteIconsOnly({required bool on}) {
-    DeveloperModeService.instance.debugSet(on: on);
-    ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.siteIconsOnly, on: on);
-  }
-
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     GlobalOutboundProxy.resetForTest();
     clearFaviconCache();
-    factory = FakeOutbound(responder: 
-        (_) => http.Response('<html><head></head></html>', 200));
+    factory = FakeOutbound(responder: (req) => switch (req.url.path) {
+          '/' => http.Response(
+              '<html><head><link rel="icon" href="/icon.png"></head></html>',
+              200),
+          '/icon.png' => http.Response.bytes(_png64, 200,
+              headers: {'content-type': 'image/png'}),
+          _ => http.Response('', 404),
+        });
     outboundHttp = factory;
   });
 
   tearDown(() {
-    siteIconsOnly(on: false);
     resetOutboundHttp();
     clearFaviconCache();
   });
 
-  test('by default Google and DuckDuckGo are asked', () async {
-    await getFaviconUrlStream(_site).drain<void>();
-    expect(hosts(), containsAll({'www.google.com', 'icons.duckduckgo.com'}));
+  test('ICON-014: every request goes to the site', () async {
+    final updates = await getFaviconUrlStream(_site).toList();
+    expect(hosts(), {'example.com'});
+    final found = Uri.parse(updates.single.url);
+    expect((found.host, found.path), ('example.com', '/icon.png'));
   });
 
-  test('LEAK-016: an onion service is never named to Google or DuckDuckGo',
+  test('ICON-002: the largest declared icon wins, else /favicon.ico',
+      () async {
+    final icons = {
+      '/small.png': img.encodePng(img.Image(width: 32, height: 32)),
+      '/large.png': img.encodePng(img.Image(width: 96, height: 96)),
+      '/favicon.ico': _png64,
+    };
+    var page = '<link rel="icon" href="/small.png">'
+        '<link rel="icon" href="/large.png">';
+    outboundHttp = factory = FakeOutbound(responder: (req) {
+      final icon = icons[req.url.path];
+      if (icon != null) {
+        return http.Response.bytes(icon, 200,
+            headers: {'content-type': 'image/png'});
+      }
+      return http.Response('<html><head>$page</head></html>', 200);
+    });
+    final declared = await getFaviconUrlStream(_site).single;
+    expect(Uri.parse(declared.url).path, '/large.png');
+    expect(declared.quality, 96);
+
+    page = '';
+    clearFaviconCache();
+    final fallback = await getFaviconUrlStream(_site).single;
+    expect(Uri.parse(fallback.url).path, '/favicon.ico');
+  });
+
+  test('ICON-014: gmail.com is asked about only as itself', () async {
+    await getFaviconUrlStream('https://gmail.com/').drain<void>();
+    expect(hosts(), {'gmail.com'});
+  });
+
+  test('LEAK-016: an onion service is asked about only through itself',
       () async {
     const onion =
         'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion';
     await getFaviconUrlStream('https://$onion/').drain<void>();
     expect(hosts(), {onion},
-        reason: 'the services would learn which onion service is opened, '
-            'whatever route carried the question');
+        reason: 'any other host would learn which onion service is opened');
   });
 
-  test('under Site icons only every request goes to the site', () async {
-    siteIconsOnly(on: true);
-    await getFaviconUrlStream(_site).drain<void>();
-    expect(hosts(), {'example.com'});
-  });
-
-  test('the switch needs developer mode (DEVTOOLS-011)', () async {
-    ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.siteIconsOnly, on: true);
-    DeveloperModeService.instance.debugSet(on: false);
-    expect(publicIconServicesAllowed, isTrue);
-  });
-
-  test('a service icon found before the switch is not reused after it',
-      () async {
-    final before = await getFaviconUrlStream(_site).last;
-    expect(before.url, _google);
-
-    siteIconsOnly(on: true);
-    factory.requests.clear();
-    final after = await getFaviconUrlStream(_site).toList();
-    expect(after.map((u) => u.url), isNot(contains(_google)));
-    expect(hosts(), {'example.com'});
-  });
-
-  test('the switch turned on while DuckDuckGo answers stops the fetch there',
-      () async {
-    outboundHttp = factory = FakeOutbound(responder: (req) {
-      if (req.url.host == 'icons.duckduckgo.com') siteIconsOnly(on: true);
-      return http.Response('<html><head></head></html>', 200);
-    });
-    final updates = await getFaviconUrlStream(_site).toList();
-    expect(updates.where((u) => isPublicIconServiceUrl(u.url)), isEmpty);
-    expect(hosts(), isNot(contains('www.google.com')));
-  });
-
-  test('a service icon sent before the switch went on is not sent as final',
-      () async {
-    outboundHttp = factory = FakeOutbound(responder: (req) {
-      if (req.url.host == 'example.com') siteIconsOnly(on: true);
-      return http.Response('<html><head></head></html>', 200);
-    });
-    final updates = await getFaviconUrlStream(_site).toList();
-    expect(
-        updates.where((u) => u.isFinal && isPublicIconServiceUrl(u.url)),
-        isEmpty);
-  });
-
-  test('a service URL kept on disk reads as absent under the switch',
-      () async {
+  test('ICON-014: a service URL an earlier release kept on disk reads as '
+      'absent', () async {
     SharedPreferences.setMockInitialValues({
       'favicon_url_$_site': _google,
       'favicon_url_https://other.test/': 'https://other.test/icon.png',
     });
     await FaviconUrlCache.initialize();
-    expect(FaviconUrlCache.get(_site), _google);
-    siteIconsOnly(on: true);
     expect(FaviconUrlCache.get(_site), isNull);
     expect(FaviconUrlCache.get('https://other.test/'),
         'https://other.test/icon.png');
-  });
-
-  test('a quick small icon comes first, then better ones (ICON-001)',
-      () async {
-    final updates = await getFaviconUrlStream(_site).toList();
-    expect(updates.first.url, contains('icons.duckduckgo.com'));
-    expect(updates.first.isFinal, isFalse,
-        reason: 'shown before the slower sources answer');
-    // The final emission names the best one found, which may be the last
-    // upgrade again.
-    final qualities = [for (final u in updates) u.quality];
-    for (var i = 1; i < qualities.length - 1; i++) {
-      expect(qualities[i], greaterThan(qualities[i - 1]),
-          reason: 'each emission is an upgrade: $qualities');
-    }
-    expect(qualities.last, greaterThanOrEqualTo(qualities[qualities.length - 2]));
-    expect(qualities.length, greaterThan(2), reason: 'it upgraded at least once');
-    expect([for (final u in updates) u.isFinal], [
-      for (var i = 0; i < updates.length; i++) i == updates.length - 1,
-    ]);
-  });
-
-  test('gmail.com is asked about as mail.google.com (ICON-007)', () async {
-    await getFaviconUrlStream('https://gmail.com/').drain<void>();
-    final asked = [
-      for (final u in factory.requested)
-        if (u.host == 'www.google.com') u.queryParameters['domain']
-        else if (u.host == 'icons.duckduckgo.com') u.pathSegments.last,
-    ];
-    expect(asked, isNotEmpty);
-    for (final domain in asked) {
-      expect(domain, startsWith('mail.google.com'));
-    }
   });
 
   test('a repeat request is answered from the cache (ICON-008)', () async {

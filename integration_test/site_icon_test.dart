@@ -1,4 +1,4 @@
-// Site icon from the webview (ICON-009/010/011/013/014), end to end.
+// Site icon from the webview (ICON-009/010/011/013), end to end.
 //
 // Android: `onReceivedIcon` exists only in Android WebView. Chromium's
 // IconHelper downloads every `rel=icon` candidate once `WebIconDatabase.open`
@@ -12,9 +12,7 @@
 //
 // Elsewhere the webview reports no icon, and the app fetches the links the
 // watcher reports the page declared (ICON-013). The macOS integration job
-// runs this file for that path against WKWebView. Under Site icons only
-// (ICON-014) Android fetches them too: the emulator job runs this file a
-// second time with --dart-define=WS_SITE_ICONS_ONLY=true.
+// runs this file for that path against WKWebView.
 //
 // Every icon is a solid colour, so the test reads back which one was taken
 // from its pixels rather than trusting its size alone. The fixture server
@@ -32,8 +30,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/settings/site_ids.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
@@ -90,15 +86,13 @@ final Map<String, String> _pages = {
   '/plain': _page(''),
 };
 
-const _siteIconsOnly = bool.fromEnvironment('WS_SITE_ICONS_ONLY');
-
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(bareSetUp);
 
-  // The webview reports its own icons on Android only; elsewhere, and on
-  // Android under Site icons only, the app fetches the declared links.
-  final fetchPath = !Platform.isAndroid || _siteIconsOnly;
+  // The webview reports its own icons on Android only; elsewhere the app
+  // fetches the declared links.
+  final fetchPath = !Platform.isAndroid;
   // A second host with no DNS involved. macOS configures only 127.0.0.1 on
   // its loopback interface, so there the other name for it stands in.
   final otherHost = Platform.isMacOS ? 'localhost' : '127.0.0.2';
@@ -110,11 +104,6 @@ void main() {
   final timeline = <String>[];
 
   setUpAll(() async {
-    if (_siteIconsOnly) {
-      DeveloperModeService.instance.debugSet(on: true);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteIconsOnly, on: true);
-    }
     // Any address, so the same server answers as the other host.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;

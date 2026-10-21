@@ -31,10 +31,10 @@ The defended traffic categories are:
 
 1. **Webview HTTP(S) navigation** — top-frame and subframe page loads, AJAX,
    `fetch`, `<img>`, `<script>`, etc. Routed through the native webview.
-2. **Per-site Dart-side outbound HTTP** — favicon discovery (DuckDuckGo,
-   Google, the site's own HTML), per-site downloads (HTTP / data / blob
-   schemes), user-script remote fetches and `window.__wsFetch()` resource
-   fetches. Initiated from Dart, must respect the *site's* proxy.
+2. **Per-site Dart-side outbound HTTP** — favicon discovery (the site's own
+   HTML and the icon links its pages declare), per-site downloads (HTTP /
+   data / blob schemes), user-script remote fetches and `window.__wsFetch()`
+   resource fetches. Initiated from Dart, must respect the *site's* proxy.
 3. **App-global Dart-side outbound HTTP** — DNS blocklist downloads, ClearURLs
    rules, content-blocker filter lists, LocalCDN catalog, OSM map tiles in
    the location picker. Initiated from Dart with no site context, must
@@ -554,7 +554,7 @@ spec violation.
 |---|---|---|---|
 | Webview navigation (HTTP/HTTPS/CONNECT) | Site load, in-page request | Per-site (DEFAULT → global) | `ProxyManager.setProxySettings`, `lib/services/webview.dart:164` |
 | Webview WebRTC | RTCPeerConnection / STUN | Per-site `webRtcPolicy`, raised to relay only behind a proxy under Tracking Protection (ETP-031) | `lib/services/location_spoof_service.dart`, `WebViewModel.effectiveWebRtcPolicy` |
-| Favicon: DDG, Google, FaviconFinder, SVG body | `getFaviconUrl(Stream)`, `getSvgContent`, `FaviconFinder.getAll` | Per-site (DEFAULT → global) | `lib/services/icon_service.dart`, `lib/third_party/favicon/favicon.dart` |
+| Favicon: FaviconFinder, SVG body | `getFaviconUrl(Stream)`, `getSvgContent`, `FaviconFinder.getAll` | Per-site (DEFAULT → global) | `lib/services/icon_service.dart`, `lib/third_party/favicon/favicon.dart` |
 | Favicon raster render | Drawer / tab strip / site list paints an icon | Per-site (DEFAULT → global) | `getIconBytes` in `lib/services/icon_service.dart`, `lib/screens/favicon_image_io.dart` |
 | Per-site downloads (HTTP/HTTPS) | `onDownloadStartRequest` | Per-site (DEFAULT → global) | `DownloadEngine`, `lib/services/webview.dart:_handleHttpDownload` |
 | User-script remote fetches | `__ws_s_*` / `__ws_f_*` JS handlers | Per-site (DEFAULT → global) | `lib/services/user_script_service.dart` |
@@ -839,9 +839,9 @@ onion destination on a route with no proxy. The surfaces ask them:
   `OnionNeedsProxyFailure`, a `SocketException`. `DownloadEngine` refuses one
   on each hop of a direct download. `classifyResolvedHost` answers
   `unresolvable` without a lookup, and the add-site preview never probes one.
-- **Third parties.** An onion name is never sent to Google's or
-  DuckDuckGo's icon service, on any route: they would learn which onion
-  service is being opened.
+- **Third parties.** An onion name is never sent to a third-party icon
+  service, on any route: it would learn which onion service is being opened.
+  None is asked for any site (ICON-014).
 
 A refused navigation SHALL show the LEAK-010 interstitial with copy of its
 own: the site has no proxy, onion addresses open only through Tor or a

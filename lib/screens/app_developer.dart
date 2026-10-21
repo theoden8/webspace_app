@@ -9,17 +9,9 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/content_rule_lists.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/services/icon_service.dart'
-    show notifyIconSourcesChanged;
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
-
-/// Turns developer mode on or off, with everything it decides.
-Future<void> setDeveloperMode({required bool on}) async {
-  await DeveloperModeService.instance.setEnabled(on: on);
-  notifyIconSourcesChanged();
-}
 
 /// Opens the app logs, which every user can reach to report a bug.
 Future<void> openAppLogs(BuildContext context,
@@ -46,9 +38,6 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.proxyRouter, Icons.hub_outlined,
             loc.appSettingsExperimentalProxyRouter,
             loc.appSettingsExperimentalProxyRouterHint),
-      (ExperimentalFeature.siteIconsOnly, Icons.image_outlined,
-          loc.appSettingsExperimentalSiteIconsOnly,
-          loc.appSettingsExperimentalSiteIconsOnlyHint),
       if (hostIsAndroid)
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
@@ -97,7 +86,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
   Future<void> _turnOff() async {
     if (_turningOff) return;
     setState(() => _turningOff = true);
-    await setDeveloperMode(on: false);
+    await DeveloperModeService.instance.setEnabled(on: false);
     if (!mounted) return;
     // Only this route: a logs screen opened during the await stays.
     final route = ModalRoute.of(context);
@@ -150,7 +139,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
                 onTap: () => guardedOpen(
                     () => openAppLogs(context, startOnBackground: true))),
           ),
-          // Site icons only runs on every platform, so the group always has a
+          // New design runs on every platform, so the group always has a
           // row.
           SettingsSection(
             loc.appSettingsExperimental,
@@ -164,13 +153,8 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
               hint: hint,
               control: Toggle(
                 ExperimentalFeaturesService.instance.switchOn(feature),
-                onChanged: (value) async {
-                  await ExperimentalFeaturesService.instance
-                      .setSwitch(feature, on: value);
-                  if (feature == ExperimentalFeature.siteIconsOnly) {
-                    notifyIconSourcesChanged();
-                  }
-                },
+                onChanged: (value) => ExperimentalFeaturesService.instance
+                    .setSwitch(feature, on: value),
               ),
             ),
           SettingTile(

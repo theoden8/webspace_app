@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:webspace/services/url_host.dart';
 
-/// Smallest icon edge (px) that is preferred over the fetched favicon
-/// candidates (ICON-010). A 16px `favicon.ico` frame reads worse in the
-/// drawer than the 128-256px public-service icons it would displace.
+/// Smallest icon edge (px) that is preferred over the home page's icon
+/// (ICON-010). An upscaled 16px `favicon.ico` frame reads poorly in the
+/// drawer.
 const int kMinSiteIconEdge = 32;
 
 /// Largest icon edge (px) kept. Android WebView asks for favicons no larger

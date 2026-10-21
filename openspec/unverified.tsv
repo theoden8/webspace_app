@@ -80,7 +80,6 @@ HS-010	no check: no test of the iOS/macOS instructional dialog, its ShortcutsUIB
 HS-014	no check: the Swift SiteEntityQuery.entities(for:) live/tombstone/placeholder resolution is untested (RunnerTests has no case for it); only the Dart tombstone list's dedupe and cap are tested (partly: test/startup_restore_engine_test.dart, "ShortcutTombstones.add (iOS HS-011)")
 # http-auth-prompt
 # icon-fetching
-ICON-002	no check: only the two public services being asked is asserted; HTML parsing, the /favicon.ico fallback and picking the best of the parallel results are untested (partly: test/icon_public_services_test.dart, "by default Google and DuckDuckGo are asked")
 ICON-003	no check: no test of the quality scores or of _compareFavicons choosing a colored SVG over PNGs
 ICON-005	no check: no test renders an SVG with @media (prefers-color-scheme: dark) in dark mode; only the rejection of display:none toggles is checked (partly: test/icon_svg_selection_test.dart, "flags CSS display:none theme toggle")
 # inactive-tabs
