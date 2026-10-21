@@ -71,7 +71,7 @@ min_obligations() {
     activation_tables_7_proof.tla) echo 131 ;;
     activation_tables_8_proof.tla) echo 96 ;;
     activation_invariants_proof.tla) echo 287 ;;
-    activation_types_proof.tla) echo 313 ;;
+    activation_types_proof.tla) echo 516 ;;
     activation_types_steps_proof.tla) echo 85 ;;
     activation_held_steps_proof.tla) echo 255 ;;
     activation_supports_steps_proof.tla) echo 170 ;;

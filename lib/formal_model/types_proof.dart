@@ -24,6 +24,11 @@ List<({String path, String text})> activationTypesProofs({
   final needs = {for (final h in _held) h: _needs(h, steps: all)};
   return [
     _module('activation_types_proof', extending: 'activation, TLAPS', body: [
+      '\\* Zenon for a moment, then SMT: an action whose rows each keep a fact',
+      '\\* closes from their lemmas in a second by Zenon, where SMT can spend its',
+      '\\* whole timeout on a long action before Zenon is tried.',
+      'ZenonFirst == TRUE (*{ by (prover:"zenon"; timeout:1) by (prover:"smt3") }*)',
+      '',
       '\\* What some steps need of their flow beyond TypeOK and Held at the place',
       '\\* they run from (_supports in lib/formal_model/types_proof.dart).',
       for (final MapEntry(key: place, value: fact) in _supports.entries)
@@ -55,6 +60,29 @@ List<({String path, String text})> activationTypesProofs({
       '    PROVE  DOMAIN g[x] = {${[for (final f in FlowField.values) '"${f.name}"'].join(', ')}}',
       '  BY DEF FlowRecord',
       '',
+      // Each fact a row lemma reads of TypeOK or of a row's fields, proved
+      // once: a case that unfolds TypeOK or states a row's whole domain
+      // takes tlapm seconds to prepare for its backends, which then need
+      // none of it. A row lemma cites them with Zenon: tlapm tries SMT
+      // first, and preparing its input costs a second or more even where a
+      // cited fact is the step.
+      'LEMMA TypeFl ==',
+      '    ASSUME TypeOK PROVE fl \\in [Flows -> FlowRecord]',
+      '  BY Zenon DEF TypeOK',
+      '',
+      for (final v in ModelVar.values) ...[
+        'LEMMA Type_${v.name} ==',
+        '    ASSUME TypeOK PROVE ${v.type}',
+        '  BY Zenon DEF TypeOK',
+        '',
+      ],
+      for (final f in FlowField.values) ...[
+        'LEMMA Dom_${f.name} ==',
+        '    ASSUME NEW g \\in [Flows -> FlowRecord], NEW x \\in Flows',
+        '    PROVE  "${f.name}" \\in DOMAIN g[x]',
+        '  BY Pick, Zenon',
+        '',
+      ],
       '\\* What a world may set each constant to; a proof opens no default a world',
       '\\* may replace.',
       'ASSUME ConstantsType ==',
@@ -79,7 +107,7 @@ List<({String path, String text})> activationTypesProofs({
         'LEMMA Rd_${f.name} ==',
         '    ASSUME NEW g \\in [Flows -> FlowRecord], NEW x \\in Flows',
         '    PROVE  g[x].${f.name} \\in ${f.range}',
-        '  BY DEF FlowRecord',
+        '  BY Zenon DEF FlowRecord',
         '',
       ],
       'LEMMA NoFlowType == NoFlow \\in FlowRecord',
@@ -87,7 +115,9 @@ List<({String path, String text})> activationTypesProofs({
       for (final (i, f) in FlowField.values.indexed) ...[
         '  <1>${i + 1}. NoFlow.${f.name} \\in ${f.range}',
         switch (_enumerated(f)) {
-          null => '    OBVIOUS',
+          // Zenon does no arithmetic.
+          null when f.range.contains('..') => '    OBVIOUS',
+          null => '    BY Zenon',
           final set => '    BY ${set}_${f.none.replaceAll('"', '')}',
         },
       ],
@@ -114,7 +144,7 @@ List<({String path, String text})> activationTypesProofs({
                     definitions: opened,
                   ),
                 ..._statement(_keptTyped, s: s),
-                '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'FlRow_${s.action}_$k'].join(', ')}',
+                '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'FlRow_${s.action}_$k'].join(', ')}, ZenonFirst',
                 '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', ..._placeDefs(s)].join(', ')}',
                 '',
               ],
@@ -135,7 +165,7 @@ List<({String path, String text})> activationTypesProofs({
                     definitions: opened,
                   ),
                 ..._statement(_keptHeld(h), s: s),
-                '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'HdRow_${h.field.name}_${s.action}_$k'].join(', ')}',
+                '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'HdRow_${h.field.name}_${s.action}_$k'].join(', ')}, ZenonFirst',
                 '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
                 '',
               ],
@@ -147,7 +177,7 @@ List<({String path, String text})> activationTypesProofs({
             for (final s in steps) ...[
               for (final (k, row) in s.rows.indexed) _rowAlone(s, at: k + 1, row: row),
               ..._statement(_keptAlone, s: s),
-              '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'AlRow_${s.action}_$k'].join(', ')}',
+              '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'AlRow_${s.action}_$k'].join(', ')}, ZenonFirst',
               '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv'].join(', ')}',
               '',
               for (final (k, row) in s.rows.indexed)
@@ -159,7 +189,7 @@ List<({String path, String text})> activationTypesProofs({
                   definitions: opened,
                 ),
               ..._statement(_keptSupports, s: s),
-              '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'SpRow_${s.action}_$k'].join(', ')}',
+              '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'SpRow_${s.action}_$k'].join(', ')}, ZenonFirst',
               '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
               '',
             ],
@@ -341,10 +371,10 @@ String _rowHeld(
     '    ASSUME ${assume.join(',\n           ')}',
     "    PROVE  Held_$field'",
     '  <1>0. fl \\in [Flows -> FlowRecord]',
-    '    BY DEF TypeOK',
+    '    BY TypeFl, Zenon',
     if (spawns) ..._started,
     for (final v in ModelVar.values)
-      if (read.contains(v)) ...['  <1>${_typeStep(v)}. ${v.type}', '    BY DEF TypeOK'],
+      if (read.contains(v)) ...['  <1>${_typeStep(v)}. ${v.type}', '    BY Type_${v.name}, Zenon'],
     for (final p in proved) ...p.lines,
     ...steps,
     ..._others(spawns: spawns),
@@ -388,7 +418,7 @@ String _rowAlone(FlStep s, {required int at, required FlRow row}) {
     ].join(',\n           ')}',
     "    PROVE  Alone'",
     '  <1>0. fl \\in [Flows -> FlowRecord]',
-    '    BY DEF TypeOK',
+    '    BY TypeFl, Zenon',
     if (spawns) ..._started,
     ...steps,
     ..._others(spawns: spawns),
@@ -479,7 +509,7 @@ String _rowSupported(
     ].join(',\n           ')}',
     "    PROVE  Supports'",
     '  <1>0. fl \\in [Flows -> FlowRecord]',
-    '    BY DEF TypeOK',
+    '    BY TypeFl, Zenon',
     if (spawns) ..._started,
     ...steps,
     for (final r in reached) ...r.lines,
@@ -526,8 +556,8 @@ String _rowSupported(
       ]);
     } else {
       steps.addAll([
-        '  <1>d$i. DOMAIN fl[$at] = ${_set([for (final f in FlowField.values) f.name])}',
-        '    BY <1>0, ${started}Pick',
+        '  <1>d$i. ${[for (final f in {'pc', ...fields}) '"$f" \\in DOMAIN fl[$at]'].join(' /\\ ')}',
+        '    BY <1>0, $started${[for (final f in {'pc', ...fields}) 'Dom_$f'].join(', ')}, Zenon',
         "  <1>w$i. /\\ fl'[$at].pc \\in ${_set(places.toList()..sort())}",
         for (final f in fields) "        /\\ fl'[$at].$f = (${values[f] ?? 'fl[$at].$f'})",
         '    BY <1>0, <1>d$i, ${started}Zenon',
@@ -551,7 +581,7 @@ const _started = [
 /// was.
 List<String> _others({required bool spawns}) => [
   "  <1>o. \\A g \\in Flows : g # f${spawns ? r' /\ g # inputs + 1' : ''} => fl'[g] = fl[g]",
-  '    BY <1>0',
+  '    BY <1>0, Zenon',
 ];
 
 ({String path, String text}) _module(
@@ -622,12 +652,12 @@ String _rowTyped(
       '  <1>${2 * i + 2}. fl${i + 1} \\in [Flows -> FlowRecord]',
       '    BY ${i == 0 ? '<1>0' : '<1>${2 * i}'}, <1>${2 * i + 1}, '
           '${field == null ? 'Fl_row' : 'Fl_${field.name}'}'
-          '${index == 'f' ? '' : ', <1>s'} DEF fl${i + 1}',
+          '${index == 'f' ? '' : ', <1>s'}, Zenon DEF fl${i + 1}',
     ]);
   }
   steps.addAll([
     for (final v in ModelVar.values)
-      if (read.contains(v)) ...['  <1>${_typeStep(v)}. ${v.type}', '    BY DEF TypeOK'],
+      if (read.contains(v)) ...['  <1>${_typeStep(v)}. ${v.type}', '    BY Type_${v.name}, Zenon'],
     ...clauses,
   ]);
   final n = row.clauses.length;
@@ -636,12 +666,12 @@ String _rowTyped(
     '    ASSUME ${assume.join(',\n           ')}',
     "    PROVE  fl' \\in [Flows -> FlowRecord]",
     '  <1>0. fl \\in [Flows -> FlowRecord]',
-    '    BY DEF TypeOK',
+    '    BY TypeFl, Zenon',
     ...steps,
     "  <1>e. fl' = fl$n",
-    '    BY DEF ${[for (var i = 1; i <= n; i++) 'fl$i'].join(', ')}',
+    '    BY Zenon DEF ${[for (var i = 1; i <= n; i++) 'fl$i'].join(', ')}',
     '  <1> QED',
-    '    BY <1>${2 * n}, <1>e',
+    '    BY <1>${2 * n}, <1>e, Zenon',
     '',
   ].join('\n');
 }
