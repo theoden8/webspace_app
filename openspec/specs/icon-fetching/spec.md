@@ -207,8 +207,11 @@ post-import and post-delete sweeps drop files for sites no longer kept on disk.
 
 WKWebView has no public API for a page's icon, and the SPI that has one
 (`_WKIconLoadingDelegate`) cannot ship through the App Store (guideline
-2.5.1), so iOS and macOS keep the ICON-002 sources. WPE WebKit has no favicon
-property either.
+2.5.1), so iOS and macOS fetch the declared links instead (ICON-013). WPE
+WebKit had no favicon API before 2.54 (the `favicon` property is WebKitGTK's).
+WPE 2.54 added `WebKitWebView:page-icons`, which WebKit downloads through the
+view's network session and announces with `notify::page-icons`; the pinned
+fork does not wire it yet, so Linux fetches the declared links too.
 
 #### Scenario: Largest icon of the page wins
 
