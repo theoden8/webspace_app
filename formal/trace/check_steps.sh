@@ -8,7 +8,11 @@
 #                   the model ending in the state the code was in, and
 #                   every branch is taken or listed in steps_uncovered.tsv
 #   --plant      -> MUST be caught: a copy of a trace whose first nuke leaves
-#                   the jar full, a step the model cannot take (anti-vacuity)
+#                   the jar full, a step the model cannot take (anti-vacuity);
+#                   it reads the kept replays, so a key that does not read the
+#                   trace remembers it and fails here
+#   --plant-key  -> MUST be caught: a replay whose key does not read the
+#                   printed model, which TLC parsed
 #
 # usage: check_steps.sh <trace-dir> <model-dir>
 set -euo pipefail
@@ -38,3 +42,11 @@ if ! grep -qF "the model cannot take a step the code took" <<<"$bad"; then
   echo "$bad"; echo "FAIL: the planted nuke was not caught by the replay" >&2; exit 1
 fi
 echo "  OK   planted: a nuke that leaves the jar full is caught"
+
+if bad="$("$PY" -I check_steps.py "$TRACES" --plant-key --model "$MODEL" --jar "$JAR" 2>&1)"; then
+  echo "$bad"; echo "FAIL: a key that does not read the model passed, so a remembered replay could be stale" >&2; exit 1
+fi
+if ! grep -qF "the replay's key did not read what TLC parsed" <<<"$bad"; then
+  echo "$bad"; echo "FAIL: the key that does not read the model was not caught by the replay" >&2; exit 1
+fi
+echo "  OK   planted: a remembered replay's key that leaves out the model is caught"

@@ -20,16 +20,23 @@ The model is formal/activation.tla with the modules
 lib/formal_model/main.dart printed from the code into <model-dir>
 (activation_steps, its Outcomes from ActivationStep; activation_tables).
 
+A replay that behaved is kept under FORMAL_CACHE (Memo), and one whose
+every input is byte for byte a kept one's is not run again: it reports
+from what was kept, marked "(remembered)". FORMAL_RERUN=1 runs every one.
+
 usage: check_steps.py <trace-dir> --model <model-dir> --jar <tla2tools.jar>
 """
 import argparse
 import glob
+import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
 import tempfile
+import time
+import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FORMAL = os.path.dirname(HERE)
@@ -277,16 +284,104 @@ def piece_of(trace, keep):
         for i in keep])
 
 
-def run_tlc(name, trace, jar, model, work):
-    with open(os.path.join(work, name + ".tla"), "w") as f:
-        f.write(module(name, trace, model_vars(model)))
+class Memo:
+    """The replays that behaved, each kept by a hash of every byte its TLC
+    run reads: its module and config, which hold the trace, each module in
+    the directories TLC searches (formal/ and the printed model) and the jar
+    its standard modules come from (README.md, "Remembered runs"). A run
+    whose key is kept is not run again; one that runs is held to its key:
+    each file TLC parsed is one the key read, so a module the key leaves out
+    fails the replay instead of remembering it. [leave_out] names a
+    directory the key does not read, the planted mistake that check
+    catches."""
+
+    def __init__(self, model, jar, keep, leave_out=None):
+        cache = os.environ.get("FORMAL_CACHE") or os.path.expanduser(
+            "~/.cache/webspace-formal")
+        self.dir = os.path.join(cache, "replay")
+        self.rerun = bool(os.environ.get("FORMAL_RERUN"))
+        self.keep = keep
+        os.makedirs(self.dir, exist_ok=True)
+        stale = time.time() - 14 * 86400
+        for kept in glob.glob(os.path.join(self.dir, "*")):
+            if os.path.getmtime(kept) < stale:
+                os.remove(kept)
+        h = hashlib.sha256()
+        self.read = set()
+        self.searched = {os.path.realpath(d) for d in (FORMAL, model)}
+        for i, d in enumerate((FORMAL, model)):
+            if d == leave_out:
+                continue
+            for path in sorted(glob.glob(os.path.join(d, "*.tla"))):
+                self.read.add(os.path.realpath(path))
+                with open(path, "rb") as f:
+                    h.update(b"%d/%s\0" % (i, os.path.basename(path).encode())
+                             + f.read() + b"\0")
+        with open(jar, "rb") as f:
+            h.update(f.read())
+        with zipfile.ZipFile(jar) as z:
+            self.standard = {os.path.basename(n) for n in z.namelist()
+                             if n.startswith("tla2sany/StandardModules/")
+                             and n.endswith(".tla")}
+        self.base = h.digest()
+
+    def key(self, text, cfg):
+        return hashlib.sha256(self.base + text.encode() + b"\0"
+                              + cfg.encode()).hexdigest()
+
+    def get(self, key):
+        if self.rerun:
+            return None
+        path = os.path.join(self.dir, key)
+        try:
+            with open(path) as f:
+                reached = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return None
+        os.utime(path)
+        return reached
+
+    def unread(self, out, own):
+        """The files TLC parsed that the key did not read, beside the run's
+        own module and the jar's standard ones, which TLC unpacks outside
+        the directories it searches."""
+        own = os.path.realpath(own)
+        searched = self.searched | {os.path.dirname(own)}
+        return sorted(
+            p for p in re.findall(r"^Parsing file (\S+)", out, re.M)
+            if os.path.realpath(p) not in self.read | {own}
+            and not (os.path.basename(p) in self.standard
+                     and os.path.dirname(os.path.realpath(p)) not in searched))
+
+    def put(self, key, reached):
+        if not self.keep:
+            return
+        path = os.path.join(self.dir, key)
+        tmp = "%s.%d" % (path, os.getpid())
+        with open(tmp, "w") as f:
+            json.dump(reached, f)
+        os.replace(tmp, path)
+
+
+def run_tlc(name, trace, jar, model, work, memo):
+    """The nodes the replay of [trace] reached, numbered from 1, and None;
+    or None and why TLC did not replay it. Third, whether it was kept."""
+    text = module(name, trace, model_vars(model))
+    cfg = ("CONSTANTS\n    Mistake = \"none\"\n    MaxInputs = 4\n"
+           "    Allowed <- Inputs\n    MaxTabs <- StepMaxTabs\n"
+           + "".join("    %s <- Step%s\n" % (k, k)
+                     for k in trace["constants"])
+           + "INIT StepInit\nNEXT StepNext\nCONSTRAINT Reached\n")
+    key = memo.key(text, cfg)
+    kept = memo.get(key)
+    if kept is not None:
+        return kept, None, True
+    own = os.path.join(work, name + ".tla")
+    with open(own, "w") as f:
+        f.write(text)
     with open(os.path.join(work, name + ".cfg"), "w") as f:
-        f.write("CONSTANTS\n    Mistake = \"none\"\n    MaxInputs = 4\n"
-                "    Allowed <- Inputs\n    MaxTabs <- StepMaxTabs\n"
-                + "".join("    %s <- Step%s\n" % (k, k)
-                          for k in trace["constants"])
-                + "INIT StepInit\nNEXT StepNext\nCONSTRAINT Reached\n")
-    return subprocess.run(
+        f.write(cfg)
+    out = subprocess.run(
         ["java", "-XX:+UseParallelGC", "-XX:MaxRAMPercentage=50",
          "-DTLA-Library=" + os.pathsep.join([FORMAL, model]),
          "-cp", jar, "tlc2.TLC", "-deadlock",
@@ -298,26 +393,38 @@ def run_tlc(name, trace, jar, model, work):
          "-workers", "auto", "-metadir", os.path.join(work, "states", name),
          "-config", name + ".cfg", name + ".tla"],
         cwd=work, capture_output=True, text=True).stdout
+    if "No error has been found" not in out:
+        return None, "TLC did not run the replay:\n" + out[-3000:], False
+    unread = memo.unread(out, own)
+    if unread:
+        return None, ("the replay's key did not read what TLC parsed, so it "
+                      "would remember a run whose inputs changed:\n    "
+                      + "\n    ".join(unread)), False
+    reached = sorted({int(n) for n in re.findall(r'<<"reached", (\d+)>>', out)})
+    memo.put(key, reached)
+    return reached, None, False
 
 
-def replay(path, jar, model, work):
+def replay(path, jar, model, work, memo):
     trace = json.load(open(path))
     config = os.path.splitext(os.path.basename(path))[0]
     nodes = trace["nodes"]
     split = pieces(nodes)
     reached = set()
+    remembered = True
     for k, keep in enumerate(split):
         name = "mc_steps_" + config + ("_%d" % k if len(split) > 1 else "")
-        out = run_tlc(name, piece_of(trace, keep), jar, model, work)
-        if "No error has been found" not in out:
-            return trace, "TLC did not run the replay:\n" + out[-3000:]
-        reached |= {keep[int(n) - 1]
-                    for n in re.findall(r'<<"reached", (\d+)>>', out)}
+        got, err, kept = run_tlc(name, piece_of(trace, keep), jar, model, work, memo)
+        if err:
+            return trace, err
+        remembered = remembered and kept
+        reached |= {keep[n - 1] for n in got}
     missed = [i for i, nd in enumerate(nodes)
               if i not in reached and (nd[0] < 0 or nd[0] in reached)]
     if not missed:
-        print("  OK   %-16s %d steps, %d states replayed"
-              % (config, len(nodes), len(trace["states"])))
+        print("  OK   %-16s %d steps, %d states replayed%s"
+              % (config, len(nodes), len(trace["states"]),
+                 " (remembered)" if remembered else ""))
         return trace, None
     at = nodes[missed[0]][0]
     path_to = []
@@ -378,6 +485,10 @@ def main():
     ap.add_argument("--plant", action="store_true",
                     help="replay the first trace in <dir> with a nuke planted "
                          "to leave the jar full; the replay must refuse it")
+    ap.add_argument("--plant-key", action="store_true",
+                    help="replay the smallest trace in <dir> under a key that "
+                         "does not read the printed model; the replay must "
+                         "refuse to keep it")
     ap.add_argument("--model", required=True)
     ap.add_argument("--jar", required=True)
     args = ap.parse_args()
@@ -389,22 +500,36 @@ def main():
                               recursive=True))
     if not shards:
         failures.append("no step traces in %s" % args.dir)
-    merged_dir = tempfile.mkdtemp()
-    files = merge_shards(shards, into=merged_dir)
+    # Removed at exit, sys.exit included: a merge is as large as the traces.
+    merged = tempfile.TemporaryDirectory()
+    files = merge_shards(shards, into=merged.name)
+    jar = os.path.abspath(args.jar)
     if args.plant:
         with tempfile.TemporaryDirectory() as work:
             planted = next((p for p in (plant(f, work) for f in files) if p), None)
             if planted is None:
                 sys.exit("no trace in %s takes RestoreNukeReply" % args.dir)
-            _trace, err = replay(planted, os.path.abspath(args.jar), model_dir, work)
+            _trace, err = replay(planted, jar, model_dir, work,
+                                 Memo(model_dir, jar, keep=False))
         if err:
             sys.exit(err)
         print("the planted nuke was not caught")
         return
+    if args.plant_key:
+        smallest = min(files, key=os.path.getsize)
+        with tempfile.TemporaryDirectory() as work:
+            _trace, err = replay(smallest, jar, model_dir, work,
+                                 Memo(model_dir, jar, keep=False,
+                                      leave_out=model_dir))
+        if err:
+            sys.exit(err)
+        print("the key that does not read the printed model was not caught")
+        return
+    memo = Memo(model_dir, jar, keep=True)
     taken = set()
     with tempfile.TemporaryDirectory() as work:
         for path in files:
-            trace, err = replay(path, os.path.abspath(args.jar), model_dir, work)
+            trace, err = replay(path, jar, model_dir, work, memo)
             if err:
                 failures.append(err)
             taken |= {(n[1], n[3]) for n in trace["nodes"] if n[1] != "start"}
