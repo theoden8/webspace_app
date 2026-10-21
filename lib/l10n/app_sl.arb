@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "Za {site} je nastavljen posredniški strežnik, vendar aplikacija ni mogla ugotoviti, da bi ta zahteva šla skozenj. Če bi jo vseeno poslala, bi drugi strani pokazala naslov IP vaše naprave, zato je ni poslala.",
   "unproxiedBlockDestination": "Cilj: {host}",
   "unproxiedBlockWhy": "Posredniški strežnik, nastavljen za mesto, pokriva zahtevo, s katero se stran odpre. Ta je prišla pozneje, iz same strani, in tu ni načina, da bi pokazali, da bi tudi ona šla skozi posredniški strežnik.",
+  "onionBlockBody": "{site} nima posredniškega strežnika, naslovi onion pa se odprejo le prek omrežja Tor ali posredniškega strežnika. Če bi se ta odprl neposredno, bi ga videl razreševalnik DNS te naprave, zato se ni odprl.",
+  "onionBlockWhy": "Če želite na tem mestu odpirati naslove onion, mu kot posredniški strežnik nastavite Tor ali strežnik, ki doseže storitve onion.",
   "unproxiedBlockBack": "Nazaj",
   "unproxiedBlockProxySettings": "Nastavitve posredniškega strežnika",
   "proxyTestOk": "Posredniški strežnik deluje",

@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} je podešena da koristi proxy, ali aplikacija nije mogla utvrditi da bi ovaj zahtjev išao kroz njega. Da je zahtjev ipak upućen, pokazao bi IP adresu vašeg uređaja drugoj strani, pa nije upućen.",
   "unproxiedBlockDestination": "Odredište: {host}",
   "unproxiedBlockWhy": "Proxy podešen za stranicu pokriva zahtjev kojim se stranica otvara. Ovaj je došao poslije, iz same stranice, i ovdje ne postoji način da se pokaže da bi i on išao kroz proxy.",
+  "onionBlockBody": "{site} nema proxy, a onion adrese otvaraju se samo kroz Tor ili proxy. Da je ova otvorena direktno, bila bi pokazana DNS razrješivaču ovog uređaja, pa nije otvorena.",
+  "onionBlockWhy": "Da biste otvarali onion adrese na ovoj stranici, postavite njen proxy na Tor ili na proxy koji može doći do onion usluga.",
   "unproxiedBlockBack": "Nazad",
   "unproxiedBlockProxySettings": "Postavke proxyja",
   "proxyTestOk": "Proxy radi",

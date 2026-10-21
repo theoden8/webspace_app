@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} disetel memakai proksi, tetapi aplikasi tidak dapat memastikan bahwa permintaan ini akan melewatinya. Tetap mengirimnya akan menunjukkan alamat IP perangkat Anda kepada pihak seberang, jadi permintaan itu tidak dikirim.",
   "unproxiedBlockDestination": "Tujuan: {host}",
   "unproxiedBlockWhy": "Proksi yang disetel untuk sebuah situs mencakup permintaan pembuka sebuah halaman. Permintaan ini datang sesudahnya, dari dalam halaman, dan di sini tidak ada cara untuk menunjukkan bahwa ia juga akan melewati proksi.",
+  "onionBlockBody": "{site} tidak memakai proksi, dan alamat onion hanya terbuka melalui Tor atau proksi. Membukanya secara langsung akan menunjukkannya kepada resolver DNS perangkat ini, jadi alamat itu tidak dibuka.",
+  "onionBlockWhy": "Untuk membuka alamat onion di situs ini, setel proksinya ke Tor, atau ke proksi yang dapat menjangkau layanan onion.",
   "unproxiedBlockBack": "Kembali",
   "unproxiedBlockProxySettings": "Pengaturan proksi",
   "proxyTestOk": "Proxy berfungsi",

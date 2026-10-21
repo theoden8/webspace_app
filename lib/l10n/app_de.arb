@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "Für {site} ist ein Proxy eingestellt, aber die App konnte nicht feststellen, dass diese Anfrage darüber laufen würde. Sie trotzdem zu senden, hätte der Gegenseite die IP-Adresse deines Geräts gezeigt, also wurde sie nicht gesendet.",
   "unproxiedBlockDestination": "Ziel: {host}",
   "unproxiedBlockWhy": "Ein für eine Website eingestellter Proxy deckt die Anfrage ab, mit der eine Seite geöffnet wird. Diese kam danach, aus der Seite heraus, und hier lässt sich nicht zeigen, dass auch sie über den Proxy liefe.",
+  "onionBlockBody": "Für {site} ist kein Proxy eingestellt, und Onion-Adressen öffnen sich nur über Tor oder einen Proxy. Sie direkt zu öffnen, hätte sie dem DNS-Resolver dieses Geräts gezeigt, also wurde sie nicht geöffnet.",
+  "onionBlockWhy": "Um Onion-Adressen auf dieser Website zu öffnen, stelle ihren Proxy auf Tor oder auf einen Proxy, der Onion-Dienste erreichen kann.",
   "unproxiedBlockBack": "Zurück",
   "unproxiedBlockProxySettings": "Proxy-Einstellungen",
   "proxyTestOk": "Der Proxy funktioniert",

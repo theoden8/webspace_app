@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} está definido para usar um proxy, mas a aplicação não conseguiu determinar que este pedido passaria por ele. Fazê-lo mesmo assim teria mostrado o endereço IP do seu dispositivo à outra ponta, por isso não foi feito.",
   "unproxiedBlockDestination": "Destino: {host}",
   "unproxiedBlockWhy": "Um proxy definido para um site abrange o pedido com que uma página é aberta. Este veio depois, de dentro da página, e aqui não há forma de demonstrar que também passaria pelo proxy.",
+  "onionBlockBody": "{site} não tem proxy, e os endereços onion só abrem através do Tor ou de um proxy. Abrir este diretamente tê-lo-ia mostrado ao resolvedor DNS deste dispositivo, por isso não foi aberto.",
+  "onionBlockWhy": "Para abrir endereços onion neste site, defina o proxy dele como Tor ou como um proxy que consiga chegar a serviços onion.",
   "unproxiedBlockBack": "Voltar",
   "unproxiedBlockProxySettings": "Definições do proxy",
   "proxyTestOk": "O proxy funciona",

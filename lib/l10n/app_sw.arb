@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} imewekwa kutumia seva mbadala, lakini programu haikuweza kuthibitisha kwamba ombi hili lingepita humo. Kulituma hata hivyo kungeonyesha anwani ya IP ya kifaa chako kwa upande wa pili, hivyo halikutumwa.",
   "unproxiedBlockDestination": "Lengwa: {host}",
   "unproxiedBlockWhy": "Seva mbadala iliyowekwa kwa tovuti hufunika ombi linalofungua ukurasa. Hili lilikuja baadaye, kutoka ndani ya ukurasa, na hapa hakuna njia ya kuonyesha kwamba nalo lingepita kwenye seva mbadala.",
+  "onionBlockBody": "{site} haina seva mbadala, na anwani za onion hufunguka kupitia Tor au seva mbadala pekee. Kuifungua hii moja kwa moja kungeionyesha kwa kitatuzi cha DNS cha kifaa hiki, hivyo haikufunguliwa.",
+  "onionBlockWhy": "Ili kufungua anwani za onion kwenye tovuti hii, weka seva mbadala yake kuwa Tor, au seva mbadala inayoweza kufikia huduma za onion.",
   "unproxiedBlockBack": "Rudi nyuma",
   "unproxiedBlockProxySettings": "Mipangilio ya seva mbadala",
   "proxyTestOk": "Proksi inafanya kazi",

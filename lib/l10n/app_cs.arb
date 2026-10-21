@@ -1007,6 +1007,8 @@
   "unproxiedBlockBody": "{site} má nastaveno použití proxy, ale aplikace nedokázala doložit, že tento požadavek jí projde. Kdyby ho přesto odeslala, ukázala by druhé straně IP adresu vašeho zařízení, a proto ho neodeslala.",
   "unproxiedBlockDestination": "Cíl: {host}",
   "unproxiedBlockWhy": "Proxy nastavená pro web pokrývá požadavek, kterým se stránka otevírá. Tento přišel až potom, zevnitř stránky, a zde není jak doložit, že by prošel také přes proxy.",
+  "onionBlockBody": "{site} nemá žádnou proxy a adresy onion se otevírají jen přes Tor nebo proxy. Kdyby se tato otevřela napřímo, ukázala by se DNS resolveru tohoto zařízení, a proto se neotevřela.",
+  "onionBlockWhy": "Chcete-li na této stránce otevírat adresy onion, nastavte její proxy na Tor nebo na proxy, která dosáhne na služby onion.",
   "unproxiedBlockBack": "Zpět",
   "unproxiedBlockProxySettings": "Nastavení proxy",
   "proxyTestOk": "Proxy funguje",
