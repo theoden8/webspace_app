@@ -314,6 +314,8 @@ The escalation to leaving the app is bound to the drawer the gesture itself open
 
 Apple is excluded because the app cannot see the gesture: the root site webview owns the left edge natively (NAV-001) and the root route has no Flutter pop for `PopScope` to intercept, so a start-of-history swipe is resolved silently inside WKWebView. #565 claimed a strip of that edge with an app-side recognizer, which had to infer history from `goBack()` plus a URL diff and misread it often enough to open the drawer mid-history; it was reverted. Presenting a setting that does nothing is worse than not offering it. Lineage: [docs/bugs/011-back-at-history-start-apple.md](../../../docs/bugs/011-back-at-history-start-apple.md).
 
+With New design enabled, the menu action SHALL return directly to the previous library view instead of opening a drawer. The history and tab-return rules above SHALL still run first.
+
 #### Scenario: Setting off — start of history stays a no-op
 
 **Given** the setting is off
@@ -327,6 +329,14 @@ Apple is excluded because the app cannot see the gesture: the root site webview 
 **And** a webview is visible with no back history
 **When** the user triggers the system back gesture
 **Then** the drawer opens
+
+#### Scenario: Setting on with New design returns to the library
+
+**Given** New design and the back-opens-menu setting are on
+**And** a site is visible with no back history or tab return to spend
+**When** the user triggers the system back gesture
+**Then** the previous library view is shown with its selected group retained
+**And** no drawer opens
 
 #### Scenario: Setting on — second gesture leaves the app
 

@@ -124,6 +124,16 @@ Users SHALL be able to return to the group grid from a workspace site grid using
 
 With the group library enabled, opening and closing a group SHALL use continuous expand/collapse transitions without a blank frame between views, including the first group opened. Search and bottom navigation SHALL remain stationary. Departing grids SHALL stop accepting input immediately, Back SHALL remain usable during the transition, and the system's reduced-motion preference SHALL switch views without animation.
 
+With New design enabled, the site browser SHALL use a grid button to return directly to the previous library view, retaining its selected group or Sites tab. It SHALL NOT create a navigation drawer or show a hamburger button. The return SHALL preserve the site's loaded state and tab selection. A locked kiosk session SHALL expose neither navigation affordance.
+
+#### Scenario: Return from browsing a site
+
+**Given** New design is enabled and the user opened a site from a group's grid or the Sites tab tree
+**When** the user taps the browser's grid button
+**Then** the previous library view is shown with its selection retained
+**And** no drawer opens
+**And** opening the site again retains its tab selection
+
 #### Scenario: Navigate back to webspaces list
 
 **Given** the user is viewing sites in a selected webspace

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -13,12 +14,124 @@ import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
+import 'package:webspace/widgets/site_drawer.dart';
+import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/real_app.dart';
 
 void main() {
   setUp(() => ConnectivityService.onlineOverride = Future.value(true));
   tearDown(ConnectivityService.reset);
+  for (final enabled in [false, true]) {
+    testWidgets('browser navigation follows New design=$enabled', (
+      tester,
+    ) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final beta = WebViewModel(
+        initUrl: 'https://beta.example.test',
+        name: 'Beta',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha, beta],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: enabled,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      await openSiteFromDrawer(tester, name: 'Alpha');
+      expect(
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).hasDrawer,
+        !enabled,
+      );
+      expect(
+        find.byType(DrawerButton),
+        enabled ? findsNothing : findsOneWidget,
+      );
+      if (enabled) {
+        await tester.tap(find.byTooltip('Back to Webspaces'));
+        await settleRealApp(tester);
+        expect(find.byType(WebspaceLibrary), findsOneWidget);
+        expect(find.byType(SiteGridTile), findsOneWidget);
+        expect(find.text('Beta'), findsNothing);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('selectedWebspaceId'), work.id);
+      } else {
+        await tester.tap(find.byTooltip('Open navigation menu'));
+        await settleRealApp(tester);
+        expect(find.byType(SiteDrawer), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'Back opens the matching navigation with New design=$enabled',
+      (tester) async {
+        final alpha = WebViewModel(
+          initUrl: 'https://alpha.example.test',
+          name: 'Alpha',
+        );
+        final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+        await pumpRealApp(
+          tester,
+          sites: [alpha],
+          webspaces: [work],
+          prefs: {
+            AppPref.developerMode.key: true,
+            AppPref.experimentalFolderLibrary.key: enabled,
+            AppPref.backOpensMenu.key: true,
+          },
+        );
+        await openWebspace(tester, name: 'Work');
+        await openSiteFromDrawer(tester, name: 'Alpha');
+        await pressBack(tester);
+        expect(
+          find.byType(WebspaceLibrary),
+          enabled ? findsOneWidget : findsNothing,
+        );
+        expect(
+          tester.state<ScaffoldState>(find.byType(Scaffold).first).isDrawerOpen,
+          !enabled,
+        );
+        if (enabled) expect(find.byType(SiteGridTile), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+      skip: hostIsIOS || hostIsMacOS,
+    );
+  }
+
+  testWidgets('New design keeps the default Back behavior while browsing', (
+    tester,
+  ) async {
+    await pumpRealApp(
+      tester,
+      sites: [
+        WebViewModel(initUrl: 'https://alpha.example.test', name: 'Alpha'),
+      ],
+      prefs: {
+        AppPref.developerMode.key: true,
+        AppPref.experimentalFolderLibrary.key: true,
+        AppPref.backOpensMenu.key: false,
+      },
+    );
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'Alpha');
+    await pressBack(tester);
+    expect(find.byType(WebspaceLibrary), findsNothing);
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(find.byType(DrawerButton), findsNothing);
+    expect(
+      tester.state<ScaffoldState>(find.byType(Scaffold).first).isDrawerOpen,
+      isFalse,
+    );
+  });
+
   testWidgets(
     'reordering sites keeps the group open; a swipe returns to groups',
     (tester) async {
@@ -170,6 +283,13 @@ void main() {
     await settleRealApp(tester);
     expect(appSite('Alpha').activeTabId, child.id);
     expect(find.byType(WebspaceLibrary), findsNothing);
+    await tester.tap(find.byTooltip('Back to Webspaces'));
+    await settleRealApp(tester);
+    expect(find.byType(TabsSheet), findsOneWidget);
+    expect(find.text('Deep article'), findsOneWidget);
+    await tester.tap(find.text('Deep article'));
+    await settleRealApp(tester);
+    expect(appSite('Alpha').activeTabId, child.id);
     expect(tester.takeException(), isNull);
   });
   for (final (dev, on) in [
