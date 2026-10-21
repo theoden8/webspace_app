@@ -185,6 +185,13 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
     widget.onChanged(next);
   }
 
+  void _setTabs(Scoped<bool> choice) => _update(_values.copyWith(
+        tabsEnabled: choice,
+        kioskMode: choice.resolve(AppPref.tabsEnabled.value)
+            ? false
+            : _values.kioskMode,
+      ));
+
   // --- Link handling -------------------------------------------------------
 
   /// With tabs, this choice also decides which container a link's tab runs in
@@ -445,19 +452,18 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
           // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
           // off, and Kiosk mode on shows tabs off without forgetting the
           // stored choice.
-          ChoiceTile<Scoped<bool>>(
+          SettingTile(
             title: loc.siteSettingsTabs,
-            hint: loc.siteSettingsTabsHint,
-            values: const [FollowApp(), Own(true), Own(false)],
-            label: (choice) => choice.label(loc,
-                appValue: AppPref.tabsEnabled.value),
-            value: _values.kioskMode ? const Own(false) : _values.tabsEnabled,
-            onChanged: (choice) => _update(_values.copyWith(
-              tabsEnabled: choice,
-              kioskMode: choice.resolve(AppPref.tabsEnabled.value)
-                  ? false
-                  : _values.kioskMode,
-            )),
+            hint: '${loc.siteSettingsTabsHint}\n\n${loc.settingRestoreDefaultHint}',
+            subtitle: _values.tabsEnabled is FollowApp
+                ? loc.webSearchUseAppDefault
+                : null,
+            control: Toggle(
+              _values.effectiveTabsEnabled,
+              followsApp: _values.tabsEnabled is FollowApp,
+              onChanged: (value) => _setTabs(Own(value)),
+              onRestoreDefault: () => _setTabs(const FollowApp()),
+            ),
           ),
           // WPE has no per-load cache policy, so there is nothing to switch.
           if (engineLoadsCacheFirst)

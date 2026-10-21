@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -112,7 +113,11 @@ Finder _boolDropdown({required String title}) => find.descendant(
       matching: find.byType(DropdownButton<Scoped<bool>>),
     );
 
-Finder get _tabsDropdown => _boolDropdown(title: 'Tabs');
+Finder get _tabsTile => find.ancestor(
+      of: find.text('Tabs'), matching: find.byType(ListTile));
+
+Finder get _tabsSwitch => find.descendant(
+      of: _tabsTile, matching: find.byType(Switch));
 
 Finder get _routingDropdown => _boolDropdown(title: 'Route links to my sites');
 
@@ -127,16 +132,19 @@ Future<void> _pickRouting(WidgetTester tester, {required String label}) async {
   await tester.pumpAndSettle();
 }
 
-bool _selectedTabs(WidgetTester tester) => tester
-    .widget<DropdownButton<Scoped<bool>>>(_tabsDropdown)
-    .value!.resolve(AppPref.tabsEnabled.value);
+bool _selectedTabs(WidgetTester tester) =>
+    tester.widget<Switch>(_tabsSwitch).value;
 
-Future<void> _pickTabs(WidgetTester tester, {required String label}) async {
-  await tester.tap(_tabsDropdown);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(label).last);
+Future<void> _tapTabs(WidgetTester tester) async {
+  await tester.tap(_tabsSwitch);
   await tester.pumpAndSettle();
 }
+
+Future<void> _resetTabs(WidgetTester tester) async {
+  await tester.longPress(_tabsSwitch);
+  await tester.pumpAndSettle();
+}
+
 
 void main() {
   setUp(() {
@@ -346,16 +354,53 @@ void main() {
   });
 
   group('Tabs (TAB-013)', () {
+    testWidgets('inheritance dims an enabled switch and long press restores it',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        SiteBehaviourValues? seen;
+        var changes = 0;
+        await _pump(tester, values: _values(tabsEnabled: null), onChanged: (v) {
+          seen = v;
+          changes++;
+        });
+        double opacity() => tester.widget<Opacity>(find.ancestor(
+              of: _tabsSwitch, matching: find.byType(Opacity)).first).opacity;
+        expect(opacity(), lessThan(1));
+        expect(tester.widget<Switch>(_tabsSwitch).onChanged, isNotNull);
+        expect(tester.getSemantics(_tabsTile).getSemanticsData()
+            .hasAction(SemanticsAction.longPress), isTrue);
+        await _tapTabs(tester);
+        expect(seen!.tabsEnabled, const Own(false));
+        expect(opacity(), 1);
+        AppPref.tabsEnabled.debugValue = false;
+        await tester.pumpAndSettle();
+        expect(seen!.tabsEnabled, const Own(false),
+            reason: 'matching the app does not clear an explicit choice');
+        await _resetTabs(tester);
+        expect(seen!.tabsEnabled, const FollowApp<bool>());
+        expect(_selectedTabs(tester), isFalse);
+        expect(opacity(), lessThan(1));
+        expect(changes, 2, reason: 'releasing a long press must not also tap');
+        await _resetTabs(tester);
+        expect(seen!.tabsEnabled, const FollowApp<bool>());
+        expect(_selectedTabs(tester), isFalse);
+      } finally {
+        semantics.dispose();
+      }
+    });
+
     testWidgets('returning to app default follows later changes', (tester) async {
       SiteBehaviourValues? seen;
       await _pump(tester, values: _values(tabsEnabled: false),
           onChanged: (v) => seen = v);
-      await _pickTabs(tester, label: 'App default (On)');
+      await _resetTabs(tester);
       expect(seen!.tabsEnabled, const FollowApp<bool>());
       AppPref.tabsEnabled.debugValue = false;
       await tester.pumpAndSettle();
       expect(_selectedTabs(tester), isFalse);
-      expect(find.text('App default (Off)'), findsOneWidget);
+      expect(find.descendant(of: _tabsTile, matching: find.text('App default')),
+          findsOneWidget);
     });
 
     testWidgets('a site has tabs unless it says otherwise', (tester) async {
@@ -372,7 +417,7 @@ void main() {
         onChanged: (v) => seen = v,
       );
       expect(_selectedTabs(tester), isFalse);
-      await _pickTabs(tester, label: 'On');
+      await _tapTabs(tester);
       expect(seen!.tabsEnabled.stored, isTrue);
       expect(seen!.kioskMode, isFalse);
       expect(seen!.fullscreenMode, isTrue);
@@ -412,7 +457,7 @@ void main() {
         values: _values(),
         onChanged: (v) => seen = v,
       );
-      await _pickTabs(tester, label: 'Off');
+      await _tapTabs(tester);
       expect(seen!.tabsEnabled.stored, isFalse);
       expect(seen!.kioskMode, isFalse);
       expect(seen!.fullscreenMode, isFalse);

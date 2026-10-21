@@ -168,8 +168,14 @@ App Settings → Behaviour SHALL group its app defaults under "Opening and
 navigation": Tabs (on initially),
 External links (Open in the app initially) and Route links to my sites (off
 initially, shown under in-app links). New sites SHALL follow these live
-defaults. All three per-site pickers SHALL offer App default and explicit choices;
-choosing App default SHALL clear the override, participate in the dirty edit
+defaults. The External links and routing pickers SHALL offer App default and
+explicit choices. Tabs SHALL use a switch that is slightly dimmed while
+following the app and fully opaque for an explicit override. It SHALL remain
+interactive in both states and show an App default subtitle while following.
+Tapping SHALL create an explicit override. A long press SHALL clear it and
+restore inheritance, without also toggling on release. The hint SHALL explain
+the gesture and accessibility semantics SHALL expose the reset action.
+Restoring App default SHALL participate in the dirty edit
 snapshot and persist through save, restart and backup. The inherited value
 SHALL be visible without opening another screen. Changing the app default
 SHALL affect following sites and preserve explicit overrides and open tabs.
@@ -207,6 +213,17 @@ explicit choice each survive restart and backup without becoming the other.
 **Then** routing is inert and its saved inheritance remains unchanged
 **When** it returns to Open in the app
 **Then** routing follows the live app default again
+
+#### Scenario: Long press restores the Tabs default
+
+**Given** the app enables Tabs and a site explicitly disables them
+**When** the user long presses the Tabs switch
+**Then** the switch follows the app, is slightly dimmed and shows Tabs on
+**And** releasing the press does not create another override
+**When** the app disables Tabs
+**Then** the following switch shows Tabs off
+**When** the user taps it
+**Then** it stores an explicit Tabs-on choice and is fully opaque
 
 #### Scenario: Inherited external links have no hidden routing override
 

@@ -90,10 +90,16 @@ sealed class SettingControl {
 }
 
 final class Toggle extends SettingControl {
-  const Toggle(this.value, {required this.onChanged});
+  const Toggle(this.value, {
+    required this.onChanged,
+    this.onRestoreDefault,
+    this.followsApp = false,
+  }) : assert(!followsApp || onRestoreDefault != null);
 
   final bool value;
   final ValueChanged<bool> onChanged;
+  final VoidCallback? onRestoreDefault;
+  final bool followsApp;
 }
 
 /// A switch bound to an app pref: shows its live value and sets it.
@@ -175,6 +181,30 @@ Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
       value: value,
       onChanged: locked ? null : onChanged,
     );
+    if (control case Toggle(
+        :final value, :final onChanged, :final onRestoreDefault?, :final followsApp)) {
+      return MergeSemantics(
+        child: Semantics(
+          onLongPressHint: AppLocalizations.of(context).webSearchUseAppDefault,
+          child: ListTile(
+            leading: leading,
+            contentPadding: contentPadding,
+            enabled: !locked,
+            title: titleRow,
+            subtitle: subtitleText,
+            trailing: Opacity(
+              opacity: followsApp ? SettingStyle.inheritedOpacity : 1,
+              child: Switch(
+                value: value,
+                onChanged: locked ? null : onChanged,
+              ),
+            ),
+            onTap: locked ? null : () => onChanged(!value),
+            onLongPress: locked ? null : onRestoreDefault,
+          ),
+        ),
+      );
+    }
     if (control case Toggle(:final value, :final onChanged)) {
       return toggle(value: value, onChanged: onChanged);
     }

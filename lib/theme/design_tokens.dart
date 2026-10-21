@@ -33,6 +33,11 @@ abstract final class Spacing {
   static const double xl = 24;
 }
 
+/// Appearance of settings that inherit an app default.
+abstract final class SettingStyle {
+  static const double inheritedOpacity = 0.72;
+}
+
 /// The folder library's surfaces and geometry, shared by its two grids.
 abstract final class LibraryStyle {
   static const light = Color(0xFFFBFCFE);

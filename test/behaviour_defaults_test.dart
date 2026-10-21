@@ -228,22 +228,24 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Behaviour'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(
-          of: find.ancestor(of: find.text(setting), matching: find.byType(ListTile)),
-          matching: setting == 'External links'
-              ? find.byType(DropdownButton<Scoped<ExternalLinkMode>>)
-              : find.byType(DropdownButton<Scoped<bool>>),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.text(switch (setting) {
-          'Tabs' => 'App default (On)',
-          'Route links to my sites' => 'App default (Off)',
-          _ => 'App default',
-        }).last,
-      );
+      if (setting == 'Tabs') {
+        await tester.longPress(find.descendant(
+          of: find.ancestor(of: find.text('Tabs'), matching: find.byType(ListTile)),
+          matching: find.byType(Switch),
+        ));
+      } else {
+        await tester.tap(
+          find.descendant(
+            of: find.ancestor(of: find.text(setting), matching: find.byType(ListTile)),
+            matching: setting == 'External links'
+                ? find.byType(DropdownButton<Scoped<ExternalLinkMode>>)
+                : find.byType(DropdownButton<Scoped<bool>>),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(setting == 'External links'
+            ? 'App default' : 'App default (Off)').last);
+      }
       await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();

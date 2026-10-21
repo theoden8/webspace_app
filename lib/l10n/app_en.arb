@@ -4277,6 +4277,10 @@
   "@siteSettingsForcedOffByTrackingProtection": {
     "description": "Subtitle on a setting that Tracking Protection turns off and locks while it is on. The inverse of the 'Forced on by Tracking Protection' subtitle."
   },
+  "settingRestoreDefaultHint": "Long press to restore the app default.",
+  "@settingRestoreDefaultHint": {
+    "description": "Hint explaining that a long press on a per-site toggle clears its override and follows the app setting."
+  },
   "settingOn": "On",
   "@settingOn": {
     "description": "Choice on a per-site row that follows or overrides an app-wide switch: the setting is on for this site. One word."
