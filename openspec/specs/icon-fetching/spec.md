@@ -167,11 +167,15 @@ Fetched icons SHALL be cached to avoid redundant network requests.
 
 ### Requirement: ICON-009 - Page Icon From the Site's Own Webview
 
-On Android, the icon the site's own root webview reports through
-`WebChromeClient.onReceivedIcon` SHALL be preferred over every fetched
-candidate (ICON-002) while it is present, and no fetch SHALL run for the site
-while it is present. It is fetched by the webview itself, so it goes through
-the site's container and proxy and names no third party.
+On Android, and on Linux from WPE 2.54, the icon the site's own root webview
+reports SHALL be preferred over every fetched candidate (ICON-002) while it
+is present, and no fetch SHALL run for the site while it is present. It is
+fetched by the webview itself, so it goes through the site's container and
+proxy and names no third party. Android reports it through
+`WebChromeClient.onReceivedIcon`; WPE announces each finished set of a
+page's icons as `notify::page-icons`, which the fork forwards one PNG at a
+time as the same `onReceivedIcon`. The rules below were written for
+Android's callback and apply to both.
 
 The callback carries a bitmap and nothing else: no URL, no document. Chromium's
 WebView downloads every `rel=icon` candidate, so it fires once per candidate in
@@ -221,10 +225,15 @@ post-import and post-delete sweeps drop files for sites no longer kept on disk.
 WKWebView has no public API for a page's icon, and the SPI that has one
 (`_WKIconLoadingDelegate`) cannot ship through the App Store (guideline
 2.5.1), so iOS and macOS fetch the declared links instead (ICON-013). WPE
-WebKit had no favicon API before 2.54 (the `favicon` property is WebKitGTK's).
-WPE 2.54 added `WebKitWebView:page-icons`, which WebKit downloads through the
-view's network session and announces with `notify::page-icons`; the pinned
-fork does not wire it yet, so Linux fetches the declared links too.
+WebKit had no favicon API before 2.54 (the `favicon` property is WebKitGTK's),
+so an older WPE fetches them too. From 2.54 a view that wires `onReceivedIcon`
+has the fork turn favicons on for its network session; WebKit then keeps the
+icons in `icondatabase/WebpageIcons.db` under the container's cache
+directory, which `deleteContainer` removes, and an incognito or archive-tier
+site's ephemeral session keeps them in memory. The app reads the WPE version
+at startup (`WpePageIcons`): a plugin built against 2.54 needs it at run
+time, while one built against an older WPE forwards nothing even on a newer
+one, and its sites keep the ICON-002 icon.
 
 #### Scenario: Largest icon of the page wins
 
@@ -325,8 +334,8 @@ it on a later launch without the badge.
 
 ### Requirement: ICON-013 - Page Icon From the Links the Page Declares
 
-On iOS, macOS and Linux, where the webview reports no icon, the app SHALL
-fetch the icon links the top
+On iOS, macOS and Linux before WPE 2.54, where the webview reports no icon,
+the app SHALL fetch the icon links the top
 document declared at load, and SHALL apply ICON-009's host, size and store
 rules and ICON-010's floor to them. `pageIconSource` decides which of the two
 a site's webview uses when the webview is created.
@@ -429,13 +438,14 @@ A site's icon SHALL come only from the site itself:
   `FaviconUrlCache` on disk. Such a URL SHALL read as absent
   (`usableIconUrl`), so the icon is fetched again from the site and the
   service is never asked to render it.
-- **Android keeps its webview's icon.** On Android the site's icon is the one
-  WebView itself downloads and reports through `onReceivedIcon` (ICON-009),
-  through the site's container and proxy. The app SHALL NOT also fetch the
-  declared links there: the load report (`wsIconDocumentLoaded`) SHALL never
-  run beside `onReceivedIcon`, since it reaches Dart through a posted Java
-  message that the callback can overtake. The link report rides the same
-  bridge after the load report, in order, so the two cannot swap.
+- **A webview that reports its icon keeps it.** On Android, and on Linux
+  from WPE 2.54, the site's icon is the one the webview itself downloads and
+  reports through `onReceivedIcon` (ICON-009), through the site's container
+  and proxy. The app SHALL NOT also fetch the declared links there: the load
+  report (`wsIconDocumentLoaded`) SHALL never run beside `onReceivedIcon`,
+  since on Android it reaches Dart through a posted Java message that the
+  callback can overtake. The link report rides the same bridge after the load
+  report, in order, so the two cannot swap.
 
 It shipped first as the Site icons only experiment ([developer-tools](../developer-tools/spec.md)
 DEVTOOLS-011), off by default, which also sent Android to the declared links

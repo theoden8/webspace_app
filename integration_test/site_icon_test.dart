@@ -31,6 +31,7 @@ import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/site_icon_engine.dart';
+import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
@@ -90,9 +91,9 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(bareSetUp);
 
-  // The webview reports its own icons on Android only; elsewhere the app
-  // fetches the declared links.
-  final fetchPath = !Platform.isAndroid;
+  // The webview reports its own icons on Android, and on Linux from WPE 2.54;
+  // elsewhere the app fetches the declared links.
+  late bool fetchPath;
   // A second host with no DNS involved. macOS configures only 127.0.0.1 on
   // its loopback interface, so there the other name for it stands in.
   final otherHost = Platform.isMacOS ? 'localhost' : '127.0.0.2';
@@ -104,6 +105,8 @@ void main() {
   final timeline = <String>[];
 
   setUpAll(() async {
+    await WpePageIcons.initialize();
+    fetchPath = pageIconSource != PageIconSource.webview;
     // Any address, so the same server answers as the other host.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;

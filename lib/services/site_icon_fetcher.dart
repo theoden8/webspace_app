@@ -5,13 +5,18 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/engine_image.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 
 /// Where a site's own icon comes from.
 enum PageIconSource {
-  /// The icon the webview reports: Android's `onReceivedIcon` (ICON-009).
+  /// The icon the webview reports: Android's `onReceivedIcon`, and WPE's
+  /// `page-icons` forwarded as it (ICON-009).
   webview,
 
   /// The links the page declared, fetched by the app (ICON-013).
@@ -21,21 +26,53 @@ enum PageIconSource {
   none,
 }
 
+/// Whether this Linux build's WPE reports the page's icons, read once at
+/// startup.
+class WpePageIcons {
+  static bool _reported = false;
+
+  static Future<void> initialize() async {
+    if (!hostIsLinux) return;
+    try {
+      _reported = wpeReportsPageIcons(
+          await inapp.WebViewEnvironment.getAvailableVersion());
+    } on PlatformException catch (e) {
+      LogTag.icon.warning('WPE version unknown: $e');
+    } on MissingPluginException catch (e) {
+      LogTag.icon.warning('WPE version unknown: $e');
+    }
+  }
+}
+
+/// Whether WPE [version] has `WebKitWebView:page-icons` (2.54), which the
+/// fork forwards as `onReceivedIcon`. A plugin built against it needs it at
+/// run time too; one built against an older WPE does not forward it even on
+/// a newer one, and the site keeps its ICON-002 icon there.
+@visibleForTesting
+bool wpeReportsPageIcons(String? version) {
+  final parts = (version ?? '').split('.').map(int.tryParse).toList();
+  if (parts.length < 2) return false;
+  final [major, minor, ...] = parts;
+  if (major == null || minor == null) return false;
+  return major > 2 || (major == 2 && minor >= 54);
+}
+
 /// Where a site's own icon comes from on this platform, read when a webview
 /// is created.
 PageIconSource get pageIconSource => pageIconSourceFor(
-      android: hostIsAndroid,
+      webviewReports: hostIsAndroid || WpePageIcons._reported,
       webkit: hostIsIOS || hostIsMacOS || hostIsLinux,
     );
 
-/// Android WebView reports a page icon it fetched itself; WKWebView and WPE
-/// report none, so the app fetches the declared links there.
+/// Android WebView and WPE from 2.54 report a page icon they fetched
+/// themselves; WKWebView and an older WPE report none, so the app fetches
+/// the declared links there.
 @visibleForTesting
 PageIconSource pageIconSourceFor({
-  required bool android,
+  required bool webviewReports,
   required bool webkit,
 }) {
-  if (android) return PageIconSource.webview;
+  if (webviewReports) return PageIconSource.webview;
   return webkit ? PageIconSource.declaredLinks : PageIconSource.none;
 }
 
