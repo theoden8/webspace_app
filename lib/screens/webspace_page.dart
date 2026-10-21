@@ -1436,7 +1436,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         : null,
                     onAddSite: () => unawaited(_editing.addSite()),
                     onOpenSettings: _openAppSettings,
-                    siteTreeBuilder: (context, query) => _buildTabTree(embedded: true, query: query),
+                    siteTreeBuilder: (context, {required query}) => _buildTabTree(embedded: true, query: query),
                   ) : WebspacesListScreen(
                     webspaces: _sites.webspaces,
                     selectedWebspaceId: _sites.selectedWebspaceId,

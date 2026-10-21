@@ -797,7 +797,7 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     onReorderSite: null,
     onAddSite: () {},
     onOpenSettings: () async {},
-    siteTreeBuilder: (context, query) => TabsSheet(
+    siteTreeBuilder: (context, {required query}) => TabsSheet(
       embedded: true, query: query,
       sites: [for (final site in _sites) TabsSheetSite(model: site, isCurrent: false, isLoaded: false)],
       currentIndex: 0,

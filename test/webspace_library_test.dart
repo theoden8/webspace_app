@@ -100,7 +100,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
         onReorderSite: null,
         onAddSite: () {},
         onOpenSettings: () async {},
-        siteTreeBuilder: (context, query) => TabsSheet(
+        siteTreeBuilder: (context, {required query}) => TabsSheet(
           embedded: true,
           query: query,
           sites: [

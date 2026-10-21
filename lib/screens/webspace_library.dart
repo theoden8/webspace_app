@@ -60,7 +60,8 @@ class WebspaceLibrary extends StatefulWidget {
   final void Function(int from, {required int to})? onReorderSite;
   final VoidCallback onAddSite;
   final Future<void> Function() onOpenSettings;
-  final Widget Function(BuildContext context, String query) siteTreeBuilder;
+  final Widget Function(BuildContext context, {required String query})
+  siteTreeBuilder;
 
   @override
   State<WebspaceLibrary> createState() => WebspaceLibraryState();
@@ -287,7 +288,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                                       : _view == _LibraryView.sites
                                       ? widget.siteTreeBuilder(
                                           context,
-                                          _search.text,
+                                          query: _search.text,
                                         )
                                       : _sites(context),
                                 ),

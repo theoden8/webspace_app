@@ -187,15 +187,15 @@ class _TabsSheetState extends State<TabsSheet> {
 
   bool _matches(WebViewModel site) {
     final query = widget.query.trim().toLowerCase();
-    return query.isEmpty || _siteMatches(site, query) ||
-        (site.effectiveTabsEnabled && site.tabs.any((tab) => _tabMatches(tab, query)));
+    return query.isEmpty || _siteMatches(site, query: query) ||
+        (site.effectiveTabsEnabled && site.tabs.any((tab) => _tabMatches(tab, query: query)));
   }
 
-  bool _siteMatches(WebViewModel site, String query) =>
+  bool _siteMatches(WebViewModel site, {required String query}) =>
       site.getDisplayName().toLowerCase().contains(query) ||
       site.initUrl.toLowerCase().contains(query);
 
-  bool _tabMatches(SiteTab tab, String query) =>
+  bool _tabMatches(SiteTab tab, {required String query}) =>
       tab.url.toLowerCase().contains(query) ||
       (tab.title?.toLowerCase().contains(query) ?? false);
 
@@ -584,8 +584,8 @@ class _TabsSheetState extends State<TabsSheet> {
   List<Widget> _rowsFor(TabsSheetSite site,
       {required AppLocalizations loc, required ThemeData theme}) {
     final query = widget.query.trim().toLowerCase();
-    final rows = widget.embedded && query.isNotEmpty && !_siteMatches(site.model, query)
-        ? TabLifecycleEngine.rowsAround(site.model.tabs, keep: (tab) => _tabMatches(tab, query))
+    final rows = widget.embedded && query.isNotEmpty && !_siteMatches(site.model, query: query)
+        ? TabLifecycleEngine.rowsAround(site.model.tabs, keep: (tab) => _tabMatches(tab, query: query))
         : TabLifecycleEngine.treeOrder(site.model.tabs);
     final out = _rowsOf(site,
         rows: rows,
