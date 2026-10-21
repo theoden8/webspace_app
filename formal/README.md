@@ -362,9 +362,16 @@ world takes from TLC's coverage of the world's holding check, which `check.sh` r
   last charged to the arm's action, which prints what the call records (`Call.reads`). A
   `Note` declares what it reads, which only the code reads, so the gate holds the note to
   it beside the footprint. A read no step's arm prints yet is listed in `owedReads`
-  (`test/helpers/walk/footprint_reads.dart`), which only shrinks. What a port's own code
-  reads is its declaration's, which nothing checks yet, so a port names only what its
-  calls reach (the jar's cookies and its stored sessions are two ports).
+  (`test/helpers/walk/footprint_reads.dart`), which only shrinks.
+- **A port reads what it declares:** what a port's own code reads is plain Dart, which
+  no step notes, so `test/port_reads_test.dart` follows it from the resolved AST: each
+  port's `of:` closure and every member of the interface it hands a table, through every
+  call into this package (an interface call to every implementation), up to the first
+  await every path takes. A field that holds a variable of the model must be one the port
+  declares; what a port reads beyond its declaration is listed in the gate's `_owed`,
+  which only shrinks, and a planted port that reads `loaded` undeclared is caught. A port
+  names only what its calls reach (the jar's cookies and its stored sessions are two
+  ports).
 - **A flow's row is its own:** every action writes `fl` only at its own flow
   (`fl EXCEPT ![f]`), so two actions meet on `fl` only where one reads another flow's row
   (`Kinds`, `LiveTarget`), never by both writing their own.
