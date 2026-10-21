@@ -125,6 +125,61 @@ Finder _group(String name) => find.descendant(
 );
 
 void main() {
+  testWidgets('group navigation never fades both pages to an empty frame', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.tap(_group('Work'));
+    await tester.pump();
+    for (var frame = 0; frame < 6; frame++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      final outgoing = tester.widget<FadeTransition>(
+        find
+            .ancestor(of: _group('Work'), matching: find.byType(FadeTransition))
+            .first,
+      );
+      final incoming = tester.widget<FadeTransition>(
+        find
+            .ancestor(
+              of: find.byType(SiteGridTile).first,
+              matching: find.byType(FadeTransition),
+            )
+            .first,
+      );
+      expect(
+        outgoing.opacity.value + incoming.opacity.value,
+        greaterThan(.9),
+        reason: 'the launcher remains visible throughout opening',
+      );
+    }
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pump();
+    for (var frame = 0; frame < 6; frame++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      final outgoing = tester.widget<FadeTransition>(
+        find
+            .ancestor(
+              of: find.byType(SiteGridTile).first,
+              matching: find.byType(FadeTransition),
+            )
+            .first,
+      );
+      final incoming = tester.widget<FadeTransition>(
+        find
+            .ancestor(of: _group('Work'), matching: find.byType(FadeTransition))
+            .first,
+      );
+      expect(
+        outgoing.opacity.value + incoming.opacity.value,
+        greaterThan(.9),
+        reason: 'the launcher remains visible throughout closing',
+      );
+    }
+    await tester.pumpAndSettle();
+  });
+
   testWidgets(
     'folder navigation keeps chrome steady and accepts Back mid-transition',
     (tester) async {

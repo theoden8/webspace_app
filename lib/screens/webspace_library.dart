@@ -121,9 +121,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
     final loc = AppLocalizations.of(context);
     final groups = _view == _LibraryView.webspaces;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final duration = reduceMotion || !_animateNavigation
-        ? Duration.zero
-        : Motion.libraryNavigation;
+    final duration = reduceMotion ? Duration.zero : Motion.libraryNavigation;
     final backButton = SizedBox(
       width: _view == _LibraryView.workspace ? LibraryStyle.target : 0,
       height: LibraryStyle.target,
@@ -167,15 +165,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                         ),
                         child: Row(
                           children: [
-                            if (reduceMotion)
-                              backButton
-                            else
-                              AnimatedSize(
-                                duration: Motion.libraryNavigation,
-                                curve: Motion.libraryCurve,
-                                alignment: AlignmentDirectional.centerStart,
-                                child: backButton,
-                              ),
+                            backButton,
                             Expanded(
                               child: Text(
                                 title,
@@ -242,8 +232,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                       Expanded(
                         child: ClipRect(
                           child: AnimatedSwitcher(
+                            key: ValueKey(reduceMotion),
                             duration: duration,
-                            switchInCurve: Motion.libraryEnter,
+                            switchInCurve: Motion.libraryCurve,
                             switchOutCurve: Motion.libraryExit,
                             transitionBuilder: _transition,
                             layoutBuilder: (current, previous) => Stack(
@@ -323,6 +314,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
         child: child,
         builder: (context, child) {
           final leaving = animation.status == AnimationStatus.reverse;
+          if (!_animateNavigation) {
+            return leaving ? const SizedBox.shrink() : child!;
+          }
           return FadeTransition(
             opacity: animation,
             child: Transform.scale(

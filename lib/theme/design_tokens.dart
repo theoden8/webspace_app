@@ -64,7 +64,7 @@ abstract final class LibraryStyle {
   static const double siteWell = 80;
   static const double previewIcon = 24;
   static const double target = 48;
-  static const double navigationScale = .035;
+  static const double navigationScale = .10;
   static const double titleSize = 30;
   static const double siteTitleSize = 14;
 
@@ -132,10 +132,9 @@ abstract final class TapTargets {
 }
 
 abstract final class Motion {
-  static const Duration libraryNavigation = Duration(milliseconds: 180);
+  static const Duration libraryNavigation = Duration(milliseconds: 280);
   static const Curve libraryCurve = Curves.easeOutCubic;
-  static const Curve libraryEnter = Interval(.25, 1, curve: libraryCurve);
-  static const Curve libraryExit = Interval(.75, 1, curve: libraryCurve);
+  static const Curve libraryExit = Curves.easeInCubic;
 
   /// Press / release feedback. Short enough to feel attached to the finger.
   static const Duration press = Duration(milliseconds: 100);
