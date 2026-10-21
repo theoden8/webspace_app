@@ -1150,10 +1150,10 @@ jobs:
           status=0
           failed=""
 
-          # The proxy arms, in no particular order: there is no "proxy slot"
-          # and no frame boundary, so nothing here has to go first to be
-          # readable. Each asserts, and each reaps the previous app process so
-          # a hung WebView cannot be charged to the next file.
+          # The proxy arms first, in no particular order: there is no "proxy
+          # slot" and no frame boundary, so nothing here has to go first to be
+          # readable. Each asserts, and a red arm fails the tier like any other
+          # file.
           #
           # The arms that bisected the boundary are gone with it. What is left
           # is one arm per guarantee: the binding survives navigation, it is
@@ -1167,7 +1167,7 @@ jobs:
             integration_test/proxy_connect_https_test.dart
             integration_test/proxy_apple_relay_parity_test.dart
           )
-          files=()
+          files=("${proxy_arms[@]}")
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             # Android-only window-PixelCopy suite; skip its no-op build here.
@@ -1190,11 +1190,9 @@ jobs:
             # milliseconds; the emulator job runs them for real.
             [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
             [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
-            # Ran on its own above, first, so its verdict does not depend on
-            # the 45-minute cap this loop spends.
+            # Runs in a step of its own after this one, with a cap of its own.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
-            # Every proxy arm runs on its own ahead of this loop, each reaped
-            # from the last. A second launch here would only repeat it.
+            # Already at the head of the list.
             case " ${proxy_arms[*]} " in *" $t "*) continue ;; esac
             # Needs an origin on a host this machine does not own, which only
             # the Linux job has (a service container). Skips here anyway.
@@ -1218,8 +1216,7 @@ jobs:
           # off (2. above). When the bundle does not build (one file that does
           # not compile is enough) every file runs its own `flutter test`, so a
           # broken file still costs only itself.
-          BUNDLE_MAIN="$(bash scripts/integration_bundle.sh entrypoint \
-            "${proxy_arms[@]}" "${files[@]}")"
+          BUNDLE_MAIN="$(bash scripts/integration_bundle.sh entrypoint "${files[@]}")"
           BUNDLE_APP=""
           bundle_log="${RUNNER_TEMP:-/tmp}/integration-bundle-build.log"
           if fvm flutter build macos --debug --ci -t "$BUNDLE_MAIN" > "$bundle_log" 2>&1; then
@@ -1252,13 +1249,6 @@ jobs:
             capped fvm flutter test "$1" -d macos --ci 2>&1 | tee "$2"
             return "${PIPESTATUS[0]}"
           }
-
-          for t in "${proxy_arms[@]}"; do
-            reap_app "$(basename "$t" .dart)"
-            echo "::group::$t"
-            arm "$t" "${RUNNER_TEMP:-/tmp}/tier-$(basename "$t" .dart).log" || true
-            echo "::endgroup::"
-          done
 
           for t in "${files[@]}"; do
             reap_app "$(basename "$t")"
