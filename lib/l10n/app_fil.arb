@@ -451,7 +451,6 @@
   "siteSettingsZoomIn": "Mag-zoom in",
   "siteSettingsTheme": "Tema",
   "siteSettingsThemeHint": "Hinihiling sa mga pahina ng site na gumamit ng maliwanag o madilim na kulay. Pareho ang hitsura ng mga pahinang walang madilim na mode sa alinmang kaso.",
-  "siteSettingsThemeFollowAppShort": "App",
   "siteSettingsHttpsUpgrade": "Pag-upgrade sa HTTPS",
   "siteSettingsHttpsUpgradeHint": "Nilo-load ang mga pahina sa naka-encrypt na koneksyong https kahit na nagsisimula sa http ang address, kaya hindi mababantayan o mababago sa network ang binabasa at ipinapadala mo. Ang mga site na walang naka-encrypt na koneksyon ay nilo-load pa rin sa payak na http at hindi na inuulit ang pag-upgrade. I-off lamang ito para sa site na wala nito.",
   "siteSettingsThirdPartyCookies": "Mga third-party na cookie",

@@ -451,7 +451,6 @@
   "siteSettingsZoomIn": "Tuvināt",
   "siteSettingsTheme": "Tēma",
   "siteSettingsThemeHint": "Lūdz vietnes lapām izmantot gaišas vai tumšas krāsas. Lapas bez tumšā režīma abos gadījumos izskatās vienādi.",
-  "siteSettingsThemeFollowAppShort": "Lietotne",
   "siteSettingsHttpsUpgrade": "Pāreja uz HTTPS",
   "siteSettingsHttpsUpgradeHint": "Ielādē lapas, izmantojot šifrētu https savienojumu, pat ja adrese sākas ar http, lai tīklā nevarētu novērot vai mainīt to, ko lasāt un sūtāt. Vietnes, kas nepiedāvā šifrētu savienojumu, joprojām tiek ielādētas ar parasto http un atkārtoti netiek pārslēgtas. Izslēdziet to tikai vietnei, kurai tāda nav.",
   "siteSettingsThirdPartyCookies": "Trešo pušu sīkdatnes",

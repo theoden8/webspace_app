@@ -451,7 +451,6 @@
   "siteSettingsZoomIn": "ज़ूम इन",
   "siteSettingsTheme": "थीम",
   "siteSettingsThemeHint": "साइट के पेजों से हल्के या गहरे रंग इस्तेमाल करने को कहता है। जिन पेजों में डार्क मोड नहीं है, वे दोनों तरह एक जैसे दिखते हैं।",
-  "siteSettingsThemeFollowAppShort": "ऐप",
   "siteSettingsHttpsUpgrade": "HTTPS अपग्रेड",
   "siteSettingsHttpsUpgradeHint": "पता http से शुरू होने पर भी पृष्ठ एन्क्रिप्टेड https कनेक्शन पर लोड करता है, ताकि आप जो पढ़ते और भेजते हैं उसे नेटवर्क पर देखा या बदला न जा सके। जो साइटें एन्क्रिप्टेड कनेक्शन नहीं देतीं वे सामान्य http पर ही लोड होती हैं और दोबारा अपग्रेड नहीं की जातीं। इसे केवल उसी साइट के लिए बंद करें जिसके पास यह नहीं है।",
   "siteSettingsThirdPartyCookies": "तृतीय-पक्ष कुकीज़",

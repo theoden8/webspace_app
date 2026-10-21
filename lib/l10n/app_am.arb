@@ -451,7 +451,6 @@
   "siteSettingsZoomIn": "አጉላ",
   "siteSettingsTheme": "ገጽታ",
   "siteSettingsThemeHint": "የጣቢያውን ገጾች ፈዛዛ ወይም ጨለማ ቀለሞችን እንዲጠቀሙ ይጠይቃል። ጨለማ ሁነታ የሌላቸው ገጾች በሁለቱም ሁኔታ ተመሳሳይ ይመስላሉ።",
-  "siteSettingsThemeFollowAppShort": "መተግበሪያ",
   "siteSettingsHttpsUpgrade": "ወደ HTTPS ማሻሻል",
   "siteSettingsHttpsUpgradeHint": "አድራሻው በ http ቢጀምርም ገጾችን በተመሰጠረው https ግንኙነት ይጭናል፣ ስለዚህ የሚያነቡት እና የሚልኩት በአውታረ መረቡ ላይ ሊታይ ወይም ሊቀየር አይችልም። የተመሰጠረ ግንኙነት የማይሰጡ ጣቢያዎች አሁንም በተራ http ይጫናሉ እና እንደገና አይሻሻሉም። የሌለው ጣቢያ ላይ ብቻ ያጥፉት።",
   "siteSettingsThirdPartyCookies": "የሶስተኛ ወገን ኩኪዎች",
