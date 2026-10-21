@@ -1264,14 +1264,16 @@ jobs:
             [ "$(basename "$t")" = "proxy_fail_closed_test.dart" ] && continue
             reap_app "$(basename "$t")"
             echo "::group::$t"
-            rc=0
             # Kept per file so a failure can be re-printed at the end. Each
             # file prints thousands of lines, so by the time the loop is over
             # the one that failed is unreachable from the log's tail -- which
             # is all an API reader gets.
             out="${RUNNER_TEMP:-/tmp}/tier-$(basename "$t").log"
-            arm "$t" "$out"
-            rc=$?
+            # `|| rc=$?`, not `; rc=$?`: under `bash -e` the first red file
+            # ended the step, and every file after it never ran (run
+            # 39470955285 stopped at the 15th of 29 with no summary).
+            rc=0
+            arm "$t" "$out" || rc=$?
             if [ $rc -ne 0 ]; then
               status=$rc
               failed="$failed $(basename "$t")"
