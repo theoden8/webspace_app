@@ -69,16 +69,18 @@ TLC model it backs (same definitions — no re-modeling).
   case per table step, by that step's lemma), which `check_proofs.sh` checks on its own, since
   tlapm takes an extended module's lemma as given. Each step's lemma unfolds its action once and
   closes it an arm at a time, eight steps a module (`activation_tables_<n>_proof`), so the
-  modules prove side by side. An arm that can spawn another input proves the row's fields,
+  modules prove side by side. A case reads `NoFlow` only through `NoFlowPc`, its place
+  field, proved once in the printed `activation_tables_facts_proof`: a case that unfolds the
+  record spends minutes in tlapm's preparation for SMT. An arm that can spawn another input proves the row's fields,
   freshness and place requirements separately, for its own row, the next input's row and
   every untouched row. Possible next places come from the table's footprints and are
   proved from its action before checking the place requirements. This keeps nested
   record updates from exhausting the proof backends;
   the invariant and the actions being proved are unchanged. The hand-written cases are
   the inputs and the pressure plan.
-  The spawning modules' counts are pinned too: `activation_tables_3_proof` **309** and
-  `activation_tables_4_proof` **207** obligations.
-  **54 obligations, all proved; `activation_tables_proof` 85.**
+  The spawning modules' counts are pinned too: `activation_tables_3_proof` **329** and
+  `activation_tables_4_proof` **223** obligations.
+  **49 obligations, all proved; `activation_tables_proof` 316.**
 - **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
   invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
   `lib/formal_model/checks.dart`), beside `IndInv`, whose preservation is `activation_turns`'s
@@ -93,8 +95,10 @@ TLC model it backs (same definitions — no re-modeling).
   function of flow records updated in one field of one row, with a value in that field's range,
   is still one (`Fl_<field>`); a field read from one is in its range (`Rd_<field>`); `NoFlow` is
   a flow record; each place and each kind is a member of its set (`Places_<place>`,
-  `FlowKinds_<kind>`); and what a world may set each constant to (`ConstantsType`), since a
-  proof opens no default a world can replace. Then one module per table, or per twelve of its
+  `FlowKinds_<kind>`); what a world may set each constant to (`ConstantsType`), since a
+  proof opens no default a world can replace; and each fact a row lemma reads of `TypeOK` or
+  of a row's fields (`TypeFl`, `Type_<variable>`, `Dom_<field>`), which the row lemmas cite
+  instead of unfolding `TypeOK` or the row's 28 fields. Then one module per table, or per twelve of its
   rows (`activation_types_<table>[<n>]_proof`), proves each row of `fl` an arm writes, a clause
   at a time over a named partial row, each value over only what it reads; and
   `activation_types_steps_proof` takes them to `TableStep` and `InputTableStep`. The
@@ -115,8 +119,8 @@ TLC model it backs (same definitions — no re-modeling).
   [omitted.py](omitted.py), which `check_proofs.sh` runs first, fails on an omitted lemma that
   no module of the run proves in the same words (`test/js/formal_omitted.test.js`).
   `ConstantsType` is still assumed; TLC does not yet check it in each world.
-  **`activation_types_proof` 313 obligations; the tables' modules 3,849 (types), 7,749 (held),
-  4,925 (supports); the steps modules 85 (types), 255 (held), 170 (supports); all proved.**
+  **`activation_types_proof` 516 obligations; the tables' modules 5,675 (types), 10,684 (held),
+  6,796 (supports); the steps modules 85 (types), 255 (held), 170 (supports); all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
@@ -165,6 +169,14 @@ sharing one CPU, the old 50-second limit expired before the solver ran. With
 the larger limit, the same obligations proved after 90 seconds, with only
 0.2 seconds in Z3. The allowance avoids slow fallback methods and whole-module
 retries; the proof statements and obligation counts are unchanged.
+
+Most of a cold run is tlapm preparing obligations for SMT, which it tries first; the
+solvers take almost none of it. So the printed proofs unfold a large definition (`NoFlow`,
+`TypeOK`, `FlowRecord`) only in the lemma that states what is read of it, cite that lemma
+everywhere else, and give a step that only cites facts to Zenon. `ZenonFirst` gives Zenon a
+moment before SMT on the lemmas that join an action's rows, where SMT can spend its whole
+timeout on a long action. Zenon does no arithmetic, so a step over an integer range stays
+with SMT.
 
 tlapm fingerprints every obligation it settles, here under `.tlacache/` (`TLAPM_CACHE_DIR`
 moves it) and in CI between runs, so a run proves only what no earlier run proved. A

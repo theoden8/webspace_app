@@ -61,17 +61,17 @@ min_obligations() {
   case "$1" in
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
-    activation_tables_proof.tla) echo 315 ;;
-    activation_tables_1_proof.tla) echo 148 ;;
-    activation_tables_2_proof.tla) echo 120 ;;
-    activation_tables_3_proof.tla) echo 309 ;;
-    activation_tables_4_proof.tla) echo 207 ;;
-    activation_tables_5_proof.tla) echo 136 ;;
-    activation_tables_6_proof.tla) echo 140 ;;
-    activation_tables_7_proof.tla) echo 116 ;;
-    activation_tables_8_proof.tla) echo 88 ;;
+    activation_tables_proof.tla) echo 316 ;;
+    activation_tables_1_proof.tla) echo 171 ;;
+    activation_tables_2_proof.tla) echo 136 ;;
+    activation_tables_3_proof.tla) echo 329 ;;
+    activation_tables_4_proof.tla) echo 223 ;;
+    activation_tables_5_proof.tla) echo 156 ;;
+    activation_tables_6_proof.tla) echo 161 ;;
+    activation_tables_7_proof.tla) echo 131 ;;
+    activation_tables_8_proof.tla) echo 96 ;;
     activation_invariants_proof.tla) echo 287 ;;
-    activation_types_proof.tla) echo 313 ;;
+    activation_types_proof.tla) echo 516 ;;
     activation_types_steps_proof.tla) echo 85 ;;
     activation_held_steps_proof.tla) echo 255 ;;
     activation_supports_steps_proof.tla) echo 170 ;;
