@@ -624,6 +624,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // native event lands.
     linkMenu: (source, {required url}) =>
         unawaited(_showLinkLongPressMenu(source, url: url)),
+    firstPageLoaded: (source, {required url}) =>
+        unawaited(_editing.offerRedirectHome(source, url: url)),
     openSiteSettings: _openSiteSettingsById,
     showPopup: _prompts.showPopup,
     externalScheme: (info, {required loadIn}) async {

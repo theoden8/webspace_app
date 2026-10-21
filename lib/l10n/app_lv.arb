@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Meklēt vietnes",
   "libraryNoResults": "Nav atbilstību",
   "appSettingsExperimentalFolderLibrary": "Mapju bibliotēka",
-  "appSettingsExperimentalFolderLibraryHint": "Pārlūkojiet darbvietas kā mapes un atveriet to vietnes režģī ar meklēšanu."
+  "appSettingsExperimentalFolderLibraryHint": "Pārlūkojiet darbvietas kā mapes un atveriet to vietnes režģī ar meklēšanu.",
+  "siteRedirectHomeSuggestion": "Šī vietne pāradresēja uz {url}. Izmantot šo adresi kā tās sākumlapu? Arī saites uz jauno domēnu tiks atvērtas šeit.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

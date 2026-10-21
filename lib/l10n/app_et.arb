@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Otsi veebilehti",
   "libraryNoResults": "Vasteid pole",
   "appSettingsExperimentalFolderLibrary": "Kaustateek",
-  "appSettingsExperimentalFolderLibraryHint": "Sirvi tööruume kaustadena ja ava nende saidid otsitavas ruudustikus."
+  "appSettingsExperimentalFolderLibraryHint": "Sirvi tööruume kaustadena ja ava nende saidid otsitavas ruudustikus.",
+  "siteRedirectHomeSuggestion": "See sait suunas aadressile {url}. Kas kasutada seda avalehena? Ka uue domeeni lingid avanevad siin.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Kërko sajte",
   "libraryNoResults": "Nuk ka rezultate",
   "appSettingsExperimentalFolderLibrary": "Biblioteka e dosjeve",
-  "appSettingsExperimentalFolderLibraryHint": "Shfletoni hapësirat e punës si dosje dhe hapni sajtet e tyre në një rrjetë me kërkim."
+  "appSettingsExperimentalFolderLibraryHint": "Shfletoni hapësirat e punës si dosje dhe hapni sajtet e tyre në një rrjetë me kërkim.",
+  "siteRedirectHomeSuggestion": "Kjo faqe ridrejtoi te {url}. Të përdoret kjo adresë si faqja e saj kryesore? Edhe lidhjet drejt domenit të ri do të hapen këtu.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

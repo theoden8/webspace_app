@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Сайт хайх",
   "libraryNoResults": "Илэрц олдсонгүй",
   "appSettingsExperimentalFolderLibrary": "Хавтасны сан",
-  "appSettingsExperimentalFolderLibraryHint": "Ажлын талбаруудыг хавтас хэлбэрээр үзэж, сайтуудыг нь хайлт хийх боломжтой торон харагдацаар нээнэ үү."
+  "appSettingsExperimentalFolderLibraryHint": "Ажлын талбаруудыг хавтас хэлбэрээр үзэж, сайтуудыг нь хайлт хийх боломжтой торон харагдацаар нээнэ үү.",
+  "siteRedirectHomeSuggestion": "Энэ сайт {url} руу шилжүүллээ. Энэ хаягийг нүүр хуудас болгох уу? Шинэ домэйны холбоосууд мөн энд нээгдэнэ.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

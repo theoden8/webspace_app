@@ -29,6 +29,12 @@ class WebViewConfig {
   /// `WebViewModel.sitePosture`. A popup this webview spawns inherits it.
   final SitePosture posture;
   final String initialUrl;
+  /// Shared with the navigation decision owner so the initial HTTP redirect
+  /// chain and subsequent same-site decisions use one domain boundary.
+  final NavigationBoundary? navigationBoundary;
+  /// The first successful live main-document load. File imports, the initial
+  /// cache-first pass, and failed loads do not trigger destination suggestions.
+  final void Function(String url)? onFirstPageLoaded;
   /// iOS/macOS only: enable WKWebView's native back/forward swipe gesture
   /// (`allowsBackForwardNavigationGestures`). Set only for the root site
   /// webview, which lives at the `MaterialApp` root route where no Flutter
@@ -165,6 +171,8 @@ class WebViewConfig {
     required this.posture,
     required this.hooks,
     required this.initialUrl,
+    this.navigationBoundary,
+    this.onFirstPageLoaded,
     this.backForwardGestures = false,
     this.deferInitialLoad = false,
     this.backgroundAudioEnabled = false,

@@ -7,6 +7,10 @@ import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/page_title.dart';
+import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/redirect_domain_engine.dart';
+import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
@@ -23,6 +27,7 @@ abstract interface class SiteEditingPrompts {
 
   Future<SiteEdit?> editSite(WebViewModel site);
   Future<bool> confirmDelete(WebViewModel site);
+  Future<bool> updateRedirectHome(String url);
 }
 
 /// What the site editing flows ask of the page.
@@ -52,6 +57,40 @@ class SiteEditingController {
   final ShellStore _shell;
   final ShortcutController _shortcuts;
   final SiteDeletion _deletion;
+  final _redirectHomeGuard = ReentryGuard();
+
+  /// Keep the loaded page while saving its redirected address as the home.
+  Future<void> offerRedirectHome(WebViewModel source, {required String url}) async {
+    await _redirectHomeGuard.run(() async {
+      if (!_host.mounted || !_sites.fore || !identical(_sites.shown, source) ||
+          !_sites.models.contains(source) || source.runsForeignTab ||
+          source.currentUrl != url) {
+        return;
+      }
+      final site = source.runningIdentity;
+      if (!_sites.models.contains(site)) return;
+      final resolved = Uri.tryParse(url);
+      if (resolved == null) return;
+      DomainClaim? candidate() => redirectDomainClaim(SiteRoute(site),
+          resolvedUrl: resolved,
+          navigationDecision: site.decideUserOpenedLink(url, isActive: true),
+          sites: _sites.models.map(SiteRoute.new).toList());
+      final claim = candidate();
+      if (claim == null || !site.offeredRedirectDomains.add(claim)) return;
+      final home = site.initUrl;
+      final accepted = await _prompts.updateRedirectHome(url);
+      if (!_host.mounted || !_sites.models.contains(site)) return;
+      if (accepted && _sites.fore && site.initUrl == home &&
+          identical(_sites.shown, source) && source.currentUrl == url &&
+          !source.runsForeignTab && identical(source.runningIdentity, site) &&
+          candidate() == claim) {
+        site.domainClaims = LinkRoutingService.mergeClaims(site.effectiveDomainClaims,
+            additions: [claim]);
+        site.initUrl = url;
+      }
+      await _host.commitSites(const SitesEdited());
+    });
+  }
 
   /// Adds [model] to the selected named webspace too, persists, and with
   /// [activate] puts it on screen. Pass false when the app, not the user,

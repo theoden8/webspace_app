@@ -155,6 +155,10 @@ extension WebViewModelJson on WebViewModel {
           if (domainClaims != null && domainClaims!.isNotEmpty)
             key: domainClaims!.map((c) => c.toJson()).toList(),
         },
+      SiteField.offeredRedirectDomains => {
+          if (!dropUrl && offeredRedirectDomains.isNotEmpty)
+            key: offeredRedirectDomains.map((c) => c.toJson()).toList(),
+        },
       SiteField.routeOutboundLinks => {key: routeOutboundLinks},
       SiteField.outboundPreferences => {
           if (outboundPreferences.isNotEmpty)
@@ -425,6 +429,11 @@ class _SiteJson {
                   if (claim.value.isNotEmpty) claim,
               ]
             : null;
+      case SiteField.offeredRedirectDomains:
+        model.offeredRedirectDomains = {
+          for (final claim in _jsonEntries(raw, parse: DomainClaim.tryFromJson))
+            if (claim.value.isNotEmpty) claim,
+        };
       case SiteField.routeOutboundLinks:
         model.routeOutboundLinks = value<bool>(field) ?? false;
       case SiteField.outboundPreferences:

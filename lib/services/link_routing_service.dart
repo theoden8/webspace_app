@@ -332,15 +332,21 @@ class LinkRoutingService {
 
   static bool _claimsOverlap(DomainClaim a, {required DomainClaim b}) {
     if (a == b) return true;
-    final av = a.value;
-    final bv = b.value;
-    if (a.kind == DomainClaimKind.exactHost &&
-        b.kind == DomainClaimKind.wildcardSubdomain) {
-      return av.endsWith('.$bv');
-    }
-    if (b.kind == DomainClaimKind.exactHost &&
-        a.kind == DomainClaimKind.wildcardSubdomain) {
-      return bv.endsWith('.$av');
+    // A host at each pattern's narrow end witnesses an intersection. Use
+    // the resolver's matcher so validation also respects ports and suffixes.
+    for (final claim in [a, b]) {
+      final raw = switch (claim.kind) {
+        DomainClaimKind.exactHost || DomainClaimKind.baseDomain => claim.value,
+        DomainClaimKind.wildcardSubdomain => 'claim-check.${claim.value}',
+      };
+      final authority = raw.contains(':') && !raw.startsWith('[') &&
+              raw.indexOf(':') != raw.lastIndexOf(':')
+          ? '[$raw]' : raw;
+      final url = Uri.tryParse('https://$authority/');
+      if (url != null && urlMatchesAnyClaim(url, claims: [a]) &&
+          urlMatchesAnyClaim(url, claims: [b])) {
+        return true;
+      }
     }
     return false;
   }

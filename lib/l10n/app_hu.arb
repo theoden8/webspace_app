@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Webhelyek keresése",
   "libraryNoResults": "Nincs találat",
   "appSettingsExperimentalFolderLibrary": "Mappatár",
-  "appSettingsExperimentalFolderLibraryHint": "Böngéssze a munkaterületeket mappákként, és nyissa meg webhelyeiket kereshető rácsban."
+  "appSettingsExperimentalFolderLibraryHint": "Böngéssze a munkaterületeket mappákként, és nyissa meg webhelyeiket kereshető rácsban.",
+  "siteRedirectHomeSuggestion": "Ez a webhely átirányított ide: {url}. Ezt használja a webhely kezdőlapjaként? Az új domainre mutató hivatkozások is itt nyílnak majd meg.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

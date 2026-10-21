@@ -1098,5 +1098,14 @@
   "librarySearchSites": "സൈറ്റുകൾ തിരയുക",
   "libraryNoResults": "ഫലങ്ങളില്ല",
   "appSettingsExperimentalFolderLibrary": "ഫോൾഡർ ലൈബ്രറി",
-  "appSettingsExperimentalFolderLibraryHint": "വർക്ക്‌സ്‌പെയ്‌സുകൾ ഫോൾഡറുകളായി ബ്രൗസ് ചെയ്യുകയും അവയുടെ സൈറ്റുകൾ തിരയാവുന്ന ഗ്രിഡിൽ തുറക്കുകയും ചെയ്യുക."
+  "appSettingsExperimentalFolderLibraryHint": "വർക്ക്‌സ്‌പെയ്‌സുകൾ ഫോൾഡറുകളായി ബ്രൗസ് ചെയ്യുകയും അവയുടെ സൈറ്റുകൾ തിരയാവുന്ന ഗ്രിഡിൽ തുറക്കുകയും ചെയ്യുക.",
+  "siteRedirectHomeSuggestion": "ഈ സൈറ്റ് {url} എന്ന വിലാസത്തിലേക്ക് റീഡയറക്‌ട് ചെയ്‌തു. ഇത് അതിന്റെ ഹോംപേജായി ഉപയോഗിക്കണോ? പുതിയ ഡൊമെയ്‌നിലേക്കുള്ള ലിങ്കുകളും ഇവിടെ തുറക്കും.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

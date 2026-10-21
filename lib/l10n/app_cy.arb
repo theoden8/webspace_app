@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Chwilio safleoedd",
   "libraryNoResults": "Dim canlyniadau",
   "appSettingsExperimentalFolderLibrary": "Llyfrgell ffolderi",
-  "appSettingsExperimentalFolderLibraryHint": "Porwch fannau gwaith fel ffolderi ac agorwch eu gwefannau mewn grid y gellir ei chwilio."
+  "appSettingsExperimentalFolderLibraryHint": "Porwch fannau gwaith fel ffolderi ac agorwch eu gwefannau mewn grid y gellir ei chwilio.",
+  "siteRedirectHomeSuggestion": "Ailgyfeiriodd y wefan hon i {url}. Defnyddio hwn fel ei hafan? Bydd dolenni i’r parth newydd hefyd yn agor yma.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Αναζήτηση ιστοτόπων",
   "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα",
   "appSettingsExperimentalFolderLibrary": "Βιβλιοθήκη φακέλων",
-  "appSettingsExperimentalFolderLibraryHint": "Περιηγηθείτε στους χώρους εργασίας ως φακέλους και ανοίξτε τους ιστοτόπους τους σε πλέγμα με αναζήτηση."
+  "appSettingsExperimentalFolderLibraryHint": "Περιηγηθείτε στους χώρους εργασίας ως φακέλους και ανοίξτε τους ιστοτόπους τους σε πλέγμα με αναζήτηση.",
+  "siteRedirectHomeSuggestion": "Αυτός ο ιστότοπος ανακατεύθυνε στο {url}. Να χρησιμοποιηθεί αυτή η διεύθυνση ως αρχική του σελίδα; Οι σύνδεσμοι προς τον νέο τομέα θα ανοίγουν επίσης εδώ.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

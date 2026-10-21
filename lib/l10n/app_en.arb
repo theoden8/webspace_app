@@ -5308,5 +5308,14 @@
   },
   "@appSettingsExperimentalFolderLibraryHint": {
     "description": "Explanation behind the Folder library experiment hint button. Webspaces appear as folders, with sites in searchable grids."
+  },
+  "siteRedirectHomeSuggestion": "This site redirected to {url}. Use this as its homepage? Links to the new domain will also open here.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -13,6 +13,7 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// [SiteEditingPrompts] as the add-site screen and dialogs over the page that
 /// owns [context]. The add-site screen also edits the suggested sites, which
@@ -22,6 +23,17 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
 
   final BuildContext context;
   final ShellStore shell;
+
+  @override
+  Future<bool> updateRedirectHome(String url) {
+    final loc = AppLocalizations.of(context);
+    return confirm(context,
+      title: loc.homeEditSiteTitle,
+      body: loc.siteRedirectHomeSuggestion(url),
+      confirmLabel: loc.commonSave,
+      destructive: false,
+    );
+  }
 
   @override
   Future<Object?> addSite({String? initialUrl}) => Navigator.push(

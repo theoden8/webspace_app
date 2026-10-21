@@ -235,12 +235,15 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Widget _createNestedInappWebView() {
     final p = widget.posture;
     final blockedCookies = p.blocking.blockedCookies;
+    final navigationBoundary =
+        NavigationBoundary(homeUrl: widget.url, initialUrl: widget.url);
     return WebViewFactory.createWebView(
       config: WebViewConfig(
         posture: p,
         hooks: widget.hooks,
         initialUrl: widget.url,
         cacheFirst: false,
+        navigationBoundary: navigationBoundary,
         // BUG-002 gap #1: the OS can kill this nested webview's renderer
         // (memory reclaim while backgrounded, or a page-induced crash),
         // leaving a dead black surface. Destroy-and-rebuild on the event,
@@ -309,6 +312,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               .decideShouldOverrideUrlLoading(
             targetUrl: url,
             initUrl: _currentUrl,
+            boundary: navigationBoundary,
             hasGesture: hasGesture,
             frame: frame,
             isSiteActive: mounted,

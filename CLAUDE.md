@@ -61,6 +61,9 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
 | `WebViewHostHooks` | the host's answers to every site webview: prompts, outbound links, capture | one required-field class, passed whole |
 | `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
+| `NavigationBoundary` (`services/navigation_decision_engine.dart`) | the site's declared and initial resolved domains; the redirect exception ends when its first document commits | `WebViewConfig.navigationBoundary`, shared by native callbacks and navigation decisions |
+| `WebViewModelDomains` (`web_view_model_domains.dart`) | a site's explicit domain claims or its implicit home-domain claim | `effectiveDomainClaims`, `matchesSiteClaim(url)` |
+| `redirectDomainClaim` (`services/redirect_domain_engine.dart`) | which externally handled first-load destination can become the home, using the navigation decision and routing validator | `NavigationDecision` + `RoutableSite` + resolved URL + other sites → `DomainClaim?`; `SiteEditingController.offerRedirectHome` asks and persists |
 | `ContentRuleLists` (`services/content_rule_lists.dart`) | which compiled WebKit content rule lists a new webview attaches (CB-020) | `contentRuleListIdentifiers`; `planRuleLists` → sealed `RuleListPlan` |
 | `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js:, frames:)`; `ShimFrames` has no default |
 | `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |

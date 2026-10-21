@@ -1098,5 +1098,14 @@
   "librarySearchSites": "సైట్‌లను వెతకండి",
   "libraryNoResults": "ఫలితాలు లేవు",
   "appSettingsExperimentalFolderLibrary": "ఫోల్డర్ లైబ్రరీ",
-  "appSettingsExperimentalFolderLibraryHint": "కార్యస్థలాలను ఫోల్డర్‌లుగా బ్రౌజ్ చేసి, వాటి సైట్‌లను శోధించగల గ్రిడ్‌లో తెరవండి."
+  "appSettingsExperimentalFolderLibraryHint": "కార్యస్థలాలను ఫోల్డర్‌లుగా బ్రౌజ్ చేసి, వాటి సైట్‌లను శోధించగల గ్రిడ్‌లో తెరవండి.",
+  "siteRedirectHomeSuggestion": "ఈ సైట్ {url} కు దారి మళ్లింది. దీన్ని దాని హోమ్‌పేజీగా ఉపయోగించాలా? కొత్త డొమైన్‌కు లింక్‌లు కూడా ఇక్కడే తెరుచుకుంటాయి.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

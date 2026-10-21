@@ -439,7 +439,8 @@ class WebViewFactory {
     final host = Uri.tryParse(url)?.host ?? '';
     if (url.startsWith('http') &&
         ((allowCaptcha && isCaptchaChallenge(url, siteUrl: config.initialUrl)) ||
-            _sameSite(host, siteUrl: config.initialUrl))) {
+            _sameSite(host, siteUrl: config.initialUrl) ||
+            config.navigationBoundary?.contains(url) == true)) {
       return inapp.NavigationActionPolicy.ALLOW;
     }
     return inapp.NavigationActionPolicy.CANCEL;
@@ -511,6 +512,12 @@ class WebViewFactory {
         !isFileImport &&
         !suppressInitialLoad &&
         !blankFirstLoad;
+    final navigationBoundary = config.navigationBoundary ??
+        NavigationBoundary(homeUrl: config.initialUrl, initialUrl: config.initialUrl);
+    if (renderInitialData) navigationBoundary.useExistingDocument();
+    var initialDataPending = renderInitialData;
+    var firstPagePending = true;
+    var firstPageFailed = false;
     // One-shot: when the cache-first page's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
@@ -1209,6 +1216,10 @@ class WebViewFactory {
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
+        navigationBoundary.onNavigation(url,
+            frame: frame,
+            hasGesture: _hasUserGesture(navigationAction),
+            isRedirect: navigationAction.isRedirect);
         if (config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(navigationAction);
           final allow =
@@ -1436,6 +1447,7 @@ class WebViewFactory {
             },
       onLoadStart: (controller, url) async {
         if (!phases.on(PageEvent.loadStarted, view: controller.platform)) return;
+        firstPageFailed = false;
         LaunchTimeline.reached(LaunchMark.pageStarted);
         LogTag.webViewLifecycle.debug(
             'onLoadStart siteId=${config.posture.siteId} url=$url',
@@ -1511,6 +1523,7 @@ class WebViewFactory {
             },
       onPageCommitVisible: (controller, url) {
         if (!phases.on(PageEvent.commitVisible, view: controller.platform)) return;
+        if (url != null) navigationBoundary.onCommit(url.toString());
         LogTag.webViewLifecycle.debug(
             'onPageCommitVisible siteId=${config.posture.siteId} url=$url',
             sensitive: true);
@@ -1540,12 +1553,16 @@ class WebViewFactory {
         config.onMainFrameLoad?.call(const MainFrameLoadSignal.settled());
         // The first settle ends cache first, whatever comes next: a page the
         // user goes on to, and the live reload, load as any other does.
+        final fromEngineCache = inCacheFirst;
         final leftCacheFirst = inCacheFirst
             ? view?.leaveCacheFirst() ?? Future<void>.value()
             : Future<void>.value();
         inCacheFirst = false;
         if (url == null) return;
         final urlStr = url.toString();
+        navigationBoundary.onCommit(urlStr);
+        final fromInitialData = initialDataPending;
+        initialDataPending = false;
 
         // Downloads, javascript: bookmarklets, and other non-renderable
         // schemes can reach here when controller.stopLoading() interrupts
@@ -1600,6 +1617,12 @@ class WebViewFactory {
         lastStableUrl = DownloadUrlRevertEngine.updateStable(lastStableUrl,
             loadedUrl: urlStr);
         config.onUrlChanged?.call(urlStr);
+        if (firstPagePending && !fromInitialData && !fromEngineCache &&
+            !firstPageFailed &&
+            Host.ofWebUrl(urlStr) != null) {
+          firstPagePending = false;
+          config.onFirstPageLoaded?.call(urlStr);
+        }
         final onCookiesChanged = config.onCookiesChanged;
         if (onCookiesChanged != null) {
           // The container engine reads the bound container's jar through
@@ -1643,6 +1666,10 @@ class WebViewFactory {
           // the site's current URL makes the next launch start on a dead
           // URL that just re-fires the escape redirect.
           if (ExternalUrlParser.parse(url.toString()) != null) return;
+          // Android's history update marks the document commit, earlier than
+          // onPageCommitVisible. WebKit can report provisional URL changes
+          // here, so its boundary closes at didCommit instead.
+          if (hostIsAndroid) navigationBoundary.onCommit(url.toString());
           config.onUrlChanged?.call(url.toString());
           // SPA navigations (pushState/replaceState) don't trigger
           // onLoadStart/onLoadStop. Detect by checking if this URL had a
@@ -1727,6 +1754,7 @@ class WebViewFactory {
           // above). Report it so the host can re-issue the load on the next
           // resume when the cause was the OS cutting the network out from
           // under a backgrounded process — PAUSE-022.
+          firstPageFailed = true;
           config.onMainFrameLoad?.call(MainFrameLoadSignal.failed(reqUrl,
               errorType: error.type.toValue()));
           return;
@@ -1785,7 +1813,11 @@ class WebViewFactory {
       // the name set tells the app's own proxy relay (`connection` alone, or
       // `proxy-authenticate`) apart from a real server.
       onReceivedHttpError: (controller, request, errorResponse) {
-        if (request.isForMainFrame != true) return;
+        if (!phases.live(view: controller.platform) ||
+            request.isForMainFrame != true) {
+          return;
+        }
+        firstPageFailed = true;
         final headerNames = [
           for (final name in errorResponse.headers?.keys ?? const <String>[])
             name.toLowerCase(),

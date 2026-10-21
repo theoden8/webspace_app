@@ -1098,5 +1098,14 @@
   "librarySearchSites": "Pretraži stranice",
   "libraryNoResults": "Nema rezultata",
   "appSettingsExperimentalFolderLibrary": "Biblioteka fascikli",
-  "appSettingsExperimentalFolderLibraryHint": "Pregledajte radne prostore kao fascikle i otvarajte njihove stranice u mreži s pretragom."
+  "appSettingsExperimentalFolderLibraryHint": "Pregledajte radne prostore kao fascikle i otvarajte njihove stranice u mreži s pretragom.",
+  "siteRedirectHomeSuggestion": "Ova stranica je preusmjerila na {url}. Koristiti ovu adresu kao početnu stranicu? Linkovi na novu domenu također će se otvarati ovdje.",
+  "@siteRedirectHomeSuggestion": {
+    "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }
