@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Seurannan suojaus päällä",
   "privacySummaryNothingOn": "Suojauksia ei ole käytössä",
   "siteSettingsForcedOffByTrackingProtection": "Seurannan suojaus pakottaa pois",
+  "settingRestoreDefaultHint": "Palauta sovelluksen oletusasetus painamalla pitkään.",
   "settingOn": "Päällä",
   "settingOff": "Pois",
   "settingFollowsApp": "Sovelluksen oletus ({value})",

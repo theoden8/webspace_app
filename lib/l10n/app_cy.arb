@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Amddiffyn rhag Tracio ymlaen",
   "privacySummaryNothingOn": "Dim amddiffyniad wedi'i alluogi",
   "siteSettingsForcedOffByTrackingProtection": "Wedi'i orfodi i ffwrdd gan Amddiffyn rhag Tracio",
+  "settingRestoreDefaultHint": "Pwyswch yn hir i adfer rhagosodiad yr ap.",
   "settingOn": "Ymlaen",
   "settingOff": "I ffwrdd",
   "settingFollowsApp": "Rhagosodiad yr ap ({value})",

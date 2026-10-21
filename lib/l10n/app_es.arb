@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Protección de seguimiento activada",
   "privacySummaryNothingOn": "Ninguna protección activada",
   "siteSettingsForcedOffByTrackingProtection": "Desactivado por la protección de seguimiento",
+  "settingRestoreDefaultHint": "Mantén pulsado para restaurar el valor predeterminado de la aplicación.",
   "settingOn": "Activado",
   "settingOff": "Desactivado",
   "settingFollowsApp": "Predeterminado de la app ({value})",

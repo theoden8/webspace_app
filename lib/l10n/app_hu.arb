@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Nyomkövetés elleni védelem bekapcsolva",
   "privacySummaryNothingOn": "Nincs bekapcsolt védelem",
   "siteSettingsForcedOffByTrackingProtection": "A nyomkövetés elleni védelem miatt kikapcsolva",
+  "settingRestoreDefaultHint": "Az alkalmazás alapbeállításának visszaállításához nyomja meg hosszan.",
   "settingOn": "Be",
   "settingOff": "Ki",
   "settingFollowsApp": "Alkalmazás alapértelmezése ({value})",

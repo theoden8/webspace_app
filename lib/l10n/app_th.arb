@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "การป้องกันการติดตามเปิดอยู่",
   "privacySummaryNothingOn": "ไม่ได้เปิดการป้องกันใด",
   "siteSettingsForcedOffByTrackingProtection": "ถูกบังคับปิดโดยการป้องกันการติดตาม",
+  "settingRestoreDefaultHint": "กดค้างเพื่อคืนค่าเริ่มต้นของแอป",
   "settingOn": "เปิด",
   "settingOff": "ปิด",
   "settingFollowsApp": "ค่าเริ่มต้นของแอป ({value})",

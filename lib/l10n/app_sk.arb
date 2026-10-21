@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Ochrana pred sledovaním zapnutá",
   "privacySummaryNothingOn": "Nie je zapnutá žiadna ochrana",
   "siteSettingsForcedOffByTrackingProtection": "Vypnuté ochranou pred sledovaním",
+  "settingRestoreDefaultHint": "Dlhým stlačením obnovíte predvolené nastavenie aplikácie.",
   "settingOn": "Zapnuté",
   "settingOff": "Vypnuté",
   "settingFollowsApp": "Predvolené aplikáciou ({value})",

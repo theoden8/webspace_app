@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "ટ્રેકિંગ સંરક્ષણ ચાલુ",
   "privacySummaryNothingOn": "કોઈ સંરક્ષણ સક્ષમ નથી",
   "siteSettingsForcedOffByTrackingProtection": "ટ્રેકિંગ સંરક્ષણ દ્વારા ફરજિયાત બંધ",
+  "settingRestoreDefaultHint": "ઍપની ડિફૉલ્ટ સેટિંગ પુનઃસ્થાપિત કરવા લાંબું દબાવો.",
   "settingOn": "ચાલુ",
   "settingOff": "બંધ",
   "settingFollowsApp": "એપ ડિફૉલ્ટ ({value})",

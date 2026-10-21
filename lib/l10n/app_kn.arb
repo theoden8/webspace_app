@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆ ಆನ್",
   "privacySummaryNothingOn": "ಯಾವುದೇ ರಕ್ಷಣೆ ಸಕ್ರಿಯವಾಗಿಲ್ಲ",
   "siteSettingsForcedOffByTrackingProtection": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯಿಂದ ಬಲವಂತವಾಗಿ ಆಫ್",
+  "settingRestoreDefaultHint": "ಆ್ಯಪ್‌ನ ಪೂರ್ವನಿಯೋಜಿತ ಸೆಟ್ಟಿಂಗ್ ಮರುಸ್ಥಾಪಿಸಲು ದೀರ್ಘವಾಗಿ ಒತ್ತಿರಿ.",
   "settingOn": "ಆನ್",
   "settingOff": "ಆಫ್",
   "settingFollowsApp": "ಅಪ್ಲಿಕೇಶನ್ ಡೀಫಾಲ್ಟ್ ({value})",

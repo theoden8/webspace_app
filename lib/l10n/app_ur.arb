@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "ٹریکنگ تحفظ آن ہے",
   "privacySummaryNothingOn": "کوئی تحفظ فعال نہیں",
   "siteSettingsForcedOffByTrackingProtection": "ٹریکنگ تحفظ کی وجہ سے زبردستی آف",
+  "settingRestoreDefaultHint": "ایپ کی طے شدہ ترتیب بحال کرنے کے لیے دیر تک دبائیں۔",
   "settingOn": "آن",
   "settingOff": "آف",
   "settingFollowsApp": "ایپ ڈیفالٹ ({value})",

@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Sekimo apsauga įjungta",
   "privacySummaryNothingOn": "Neįjungta jokia apsauga",
   "siteSettingsForcedOffByTrackingProtection": "Priverstinai išjungta dėl sekimo apsaugos",
+  "settingRestoreDefaultHint": "Palaikykite nuspaudę, kad atkurtumėte numatytąją programėlės nuostatą.",
   "settingOn": "Įjungta",
   "settingOff": "Išjungta",
   "settingFollowsApp": "Programos numatytoji ({value})",

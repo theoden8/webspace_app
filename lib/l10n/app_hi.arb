@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "ट्रैकिंग सुरक्षा चालू",
   "privacySummaryNothingOn": "कोई सुरक्षा सक्षम नहीं",
   "siteSettingsForcedOffByTrackingProtection": "ट्रैकिंग सुरक्षा द्वारा बलपूर्वक बंद",
+  "settingRestoreDefaultHint": "ऐप की डिफ़ॉल्ट सेटिंग बहाल करने के लिए दबाकर रखें।",
   "settingOn": "चालू",
   "settingOff": "बंद",
   "settingFollowsApp": "ऐप डिफ़ॉल्ट ({value})",

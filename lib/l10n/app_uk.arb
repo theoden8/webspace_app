@@ -867,6 +867,7 @@
   "privacySummaryProtectionOn": "Захист від стеження увімкнено",
   "privacySummaryNothingOn": "Жодного захисту не увімкнено",
   "siteSettingsForcedOffByTrackingProtection": "Примусово вимкнено захистом від стеження",
+  "settingRestoreDefaultHint": "Натисніть і утримуйте, щоб відновити типове налаштування застосунку.",
   "settingOn": "Увімк.",
   "settingOff": "Вимк.",
   "settingFollowsApp": "Як у застосунку ({value})",
