@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -11,6 +13,7 @@ import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
 import 'package:webspace/controllers/site_set_commit.dart';
 
@@ -60,8 +63,12 @@ class _Prompts implements SiteEditingPrompts, ShortcutPrompts {
     return updateHome;
   }
 
+  List<Webspace>? offered;
+
   @override
-  Future<SiteEdit?> editSite(WebViewModel site) async {
+  Future<SiteEdit?> editSite(WebViewModel site,
+      {required List<Webspace> spaces}) async {
+    offered = spaces;
     await Future<void>.delayed(Duration.zero);
     whileOpen?.call();
     return answer;
@@ -258,9 +265,12 @@ void main() {
     final webview = SizedBox.fromSize();
     site.webview = webview;
     site.pageTitle = 'Example Portal';
-    await controller(_Prompts(
-            (name: 'Work Portal', url: 'https://example.com/', icon: null)))
-        .editSite(site);
+    await controller(_Prompts((
+      name: 'Work Portal',
+      url: 'https://example.com/',
+      icon: null,
+      spaces: null,
+    ))).editSite(site);
     expect(site.name, 'Work Portal');
     expect(site.pageTitle, 'Example Portal', reason: 'the page keeps its title');
     expect(host.rebuilds, greaterThan(0));
@@ -271,9 +281,12 @@ void main() {
 
   test('an edited URL rebuilds the webview at it (EDIT-004)', () async {
     site.webview = SizedBox.fromSize();
-    await controller(_Prompts(
-            (name: 'Example', url: 'https://newsite.com/', icon: null)))
-        .editSite(site);
+    await controller(_Prompts((
+      name: 'Example',
+      url: 'https://newsite.com/',
+      icon: null,
+      spaces: null,
+    ))).editSite(site);
     expect(site.initUrl, 'https://newsite.com/');
     expect(site.currentUrl, 'https://newsite.com/');
     expect(site.webview, isNull, reason: 'the next build loads the new URL');
@@ -282,12 +295,67 @@ void main() {
 
   test('an edit of a site deleted while the dialog was open changes nothing',
       () async {
-    final prompts = _Prompts(
-        (name: 'Work Portal', url: 'https://newsite.com/', icon: null),
-        whileOpen: () => sites.models.remove(site));
+    final prompts = _Prompts((
+      name: 'Work Portal',
+      url: 'https://newsite.com/',
+      icon: null,
+      spaces: null,
+    ), whileOpen: () => sites.models.remove(site));
     await controller(prompts).editSite(site);
     expect(site.name, 'Example');
     expect(site.initUrl, 'https://example.com/');
     expect(host.commits, isEmpty);
+  });
+
+  group('the webspaces a site is in, chosen from the site (EDIT-011)', () {
+    late WebViewModel other;
+    late Webspace work, home;
+
+    setUp(() {
+      other = WebViewModel(initUrl: 'https://other.example/', name: 'Other');
+      sites.models.add(other);
+      work = Webspace(name: 'Work', siteIds: [other.siteId]);
+      home = Webspace(name: 'Home', siteIds: [site.siteId, other.siteId]);
+      sites.webspaces.addAll([Webspace.all(), work, home]);
+    });
+
+    test('the dialog is offered every named webspace', () async {
+      final prompts = _Prompts(null);
+      await controller(prompts).editSite(site);
+      expect(prompts.offered, [work, home]);
+    });
+
+    test('Save moves the site and persists the webspaces', () async {
+      await controller(_Prompts((
+        name: 'Example',
+        url: 'https://example.com/',
+        icon: null,
+        spaces: {work.id},
+      ))).editSite(site);
+      expect(work.siteIds, [other.siteId, site.siteId]);
+      expect(home.siteIds, [other.siteId]);
+      expect(host.commits.single, isA<SitesEdited>());
+      final saved = (await SharedPreferences.getInstance())
+          .getStringList('webspaces')!
+          .map((raw) => Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>));
+      expect({for (final ws in saved) if (!ws.isAll) ws.id: ws.siteIds}, {
+        work.id: [other.siteId, site.siteId],
+        home.id: [other.siteId],
+      });
+    });
+
+    test('an edit that offered no webspaces leaves them as they were', () async {
+      await controller(_Prompts((
+        name: 'Renamed',
+        url: 'https://example.com/',
+        icon: null,
+        spaces: null,
+      ))).editSite(site);
+      expect(work.siteIds, [other.siteId]);
+      expect(home.siteIds, [site.siteId, other.siteId]);
+      expect(
+          (await SharedPreferences.getInstance()).getStringList('webspaces'),
+          isNull);
+    });
   });
 }

@@ -8,6 +8,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
 
 import 'helpers/fake_outbound.dart';
@@ -18,6 +19,7 @@ Uint8List _png() =>
 Future<SiteEdit? Function()> _open(
   WidgetTester tester, {
   required WebViewModel site,
+  List<Webspace> spaces = const [],
 }) async {
   SiteEdit? result;
   var closed = false;
@@ -30,7 +32,11 @@ Future<SiteEdit? Function()> _open(
         body: Builder(
           builder: (context) => TextButton(
             onPressed: () async {
-              result = await showEditSiteDialog(context, site: site);
+              result = await showEditSiteDialog(
+                context,
+                site: site,
+                spaces: spaces,
+              );
               closed = true;
             },
             child: const Text('open'),
@@ -78,6 +84,32 @@ void main() {
         isNull,
         reason: 'an icon the user did not touch is not an edit',
       );
+      expect(edit.spaces, isNull, reason: 'no webspaces were offered');
+      expect(find.byType(FilterChip), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the webspaces offered start as the site is and Save hands back the choice (EDIT-011)',
+    (tester) async {
+      final edited = site();
+      final work = Webspace(name: 'Work', siteIds: [edited.siteId]);
+      final home = Webspace(name: 'Home');
+      final result = await _open(tester, site: edited, spaces: [work, home]);
+      bool chosen(String name) => tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, name))
+          .selected;
+      expect(chosen('Work'), isTrue);
+      expect(chosen('Home'), isFalse);
+      await tester.tap(find.widgetWithText(FilterChip, 'Work'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Home'));
+      await tester.pump();
+      expect(chosen('Work'), isFalse);
+      expect(chosen('Home'), isTrue);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(result()!.spaces, {home.id});
+      expect(work.siteIds, [edited.siteId], reason: 'the dialog only answers');
     },
   );
 

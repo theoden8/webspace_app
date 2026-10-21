@@ -317,6 +317,58 @@ void main() {
     },
   );
 
+  testWidgets(
+    "a site's Edit dialog puts it in the webspaces chosen there (EDIT-011)",
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final beta = WebViewModel(
+        initUrl: 'https://beta.example.test',
+        name: 'Beta',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId, beta.siteId]);
+      final reading = Webspace(name: 'Reading', siteIds: [beta.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha, beta],
+        webspaces: [work, reading],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      final alphaTile = find.byKey(ValueKey(appSite('Alpha').siteId));
+      await tester.tap(
+        find.descendant(of: alphaTile, matching: find.byIcon(Icons.more_vert)),
+      );
+      await settleRealApp(tester);
+      await tester.tap(find.text('Edit'));
+      await settleRealApp(tester);
+      await tester.tap(find.widgetWithText(FilterChip, 'Work'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Reading'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await settleRealApp(tester);
+      final prefs = await SharedPreferences.getInstance();
+      final saved = {
+        for (final raw in prefs.getStringList('webspaces')!)
+          if (Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>)
+              case final group when !group.isAll)
+            group.name: group.siteIds,
+      };
+      expect(saved, {
+        'Work': [beta.siteId],
+        'Reading': [beta.siteId, alpha.siteId],
+      });
+      expect(find.byType(SiteGridTile), findsOneWidget,
+          reason: 'Alpha left the group on screen');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Sites opens a nested tab through the app tab controller', (
     tester,
   ) async {

@@ -1,3 +1,4 @@
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/webspace_model.dart';
 
 /// Pure logic for webspace selection and filtering, extracted from
@@ -39,6 +40,29 @@ class WebspaceSelectionEngine {
     if (from == 0 || to == 0) return false;
     webspaces.insert(to > from ? to - 1 : to, webspaces.removeAt(from));
     return true;
+  }
+
+  /// Puts [site] in exactly the named webspaces in [spaces]: appended to
+  /// each it joins, removed from each it leaves, every other site's place
+  /// kept. "All" is synthetic and skipped. Returns whether anything changed.
+  static bool setSiteMembership(
+    List<Webspace> webspaces, {
+    required SiteId site,
+    required Set<WebspaceId> spaces,
+  }) {
+    var changed = false;
+    for (final ws in webspaces) {
+      if (ws.isAll) continue;
+      final wanted = spaces.contains(ws.id);
+      if (ws.siteIds.contains(site) == wanted) continue;
+      if (wanted) {
+        ws.siteIds.add(site);
+      } else {
+        ws.siteIds.remove(site);
+      }
+      changed = true;
+    }
+    return changed;
   }
 
   /// The indices displayed for `selectedWebspaceId`:
