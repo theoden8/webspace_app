@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "항목 크기",
-  "libraryItemSmall": "작게",
-  "libraryItemMedium": "중간",
-  "libraryItemLarge": "크게"
+  }
 }

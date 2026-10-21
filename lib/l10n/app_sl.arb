@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Velikost elementa",
-  "libraryItemSmall": "Majhna",
-  "libraryItemMedium": "Srednja",
-  "libraryItemLarge": "Velika"
+  }
 }

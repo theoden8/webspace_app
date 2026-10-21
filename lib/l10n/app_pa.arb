@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "ਆਈਟਮ ਦਾ ਆਕਾਰ",
-  "libraryItemSmall": "ਛੋਟਾ",
-  "libraryItemMedium": "ਦਰਮਿਆਨਾ",
-  "libraryItemLarge": "ਵੱਡਾ"
+  }
 }

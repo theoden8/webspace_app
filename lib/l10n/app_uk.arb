@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Розмір елемента",
-  "libraryItemSmall": "Малий",
-  "libraryItemMedium": "Середній",
-  "libraryItemLarge": "Великий"
+  }
 }

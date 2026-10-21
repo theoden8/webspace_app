@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Зүйлийн хэмжээ",
-  "libraryItemSmall": "Жижиг",
-  "libraryItemMedium": "Дунд",
-  "libraryItemLarge": "Том"
+  }
 }

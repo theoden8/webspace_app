@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Öğe boyutu",
-  "libraryItemSmall": "Küçük",
-  "libraryItemMedium": "Orta",
-  "libraryItemLarge": "Büyük"
+  }
 }

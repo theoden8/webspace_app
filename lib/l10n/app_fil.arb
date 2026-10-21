@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Laki ng item",
-  "libraryItemSmall": "Maliit",
-  "libraryItemMedium": "Katamtaman",
-  "libraryItemLarge": "Malaki"
+  }
 }

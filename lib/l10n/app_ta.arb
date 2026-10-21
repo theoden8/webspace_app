@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "உருப்படியின் அளவு",
-  "libraryItemSmall": "சிறியது",
-  "libraryItemMedium": "நடுத்தரம்",
-  "libraryItemLarge": "பெரியது"
+  }
 }

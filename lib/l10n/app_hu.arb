@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Elem mérete",
-  "libraryItemSmall": "Kicsi",
-  "libraryItemMedium": "Közepes",
-  "libraryItemLarge": "Nagy"
+  }
 }

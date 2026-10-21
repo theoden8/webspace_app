@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Mida de l’element",
-  "libraryItemSmall": "Petita",
-  "libraryItemMedium": "Mitjana",
-  "libraryItemLarge": "Gran"
+  }
 }

@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Ukuran item",
-  "libraryItemSmall": "Kecil",
-  "libraryItemMedium": "Sedang",
-  "libraryItemLarge": "Besar"
+  }
 }

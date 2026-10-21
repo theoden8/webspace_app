@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Elementgröße",
-  "libraryItemSmall": "Klein",
-  "libraryItemMedium": "Mittel",
-  "libraryItemLarge": "Groß"
+  }
 }

@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Dimensiunea elementului",
-  "libraryItemSmall": "Mică",
-  "libraryItemMedium": "Medie",
-  "libraryItemLarge": "Mare"
+  }
 }

@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Stærð atriðis",
-  "libraryItemSmall": "Lítið",
-  "libraryItemMedium": "Miðlungs",
-  "libraryItemLarge": "Stórt"
+  }
 }

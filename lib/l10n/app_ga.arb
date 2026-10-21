@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Méid na míre",
-  "libraryItemSmall": "Beag",
-  "libraryItemMedium": "Meánach",
-  "libraryItemLarge": "Mór"
+  }
 }

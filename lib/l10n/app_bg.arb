@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Размер на елемента",
-  "libraryItemSmall": "Малък",
-  "libraryItemMedium": "Среден",
-  "libraryItemLarge": "Голям"
+  }
 }

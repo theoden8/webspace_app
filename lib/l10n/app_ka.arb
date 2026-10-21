@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "ელემენტის ზომა",
-  "libraryItemSmall": "პატარა",
-  "libraryItemMedium": "საშუალო",
-  "libraryItemLarge": "დიდი"
+  }
 }

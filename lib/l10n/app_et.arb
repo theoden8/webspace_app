@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Üksuse suurus",
-  "libraryItemSmall": "Väike",
-  "libraryItemMedium": "Keskmine",
-  "libraryItemLarge": "Suur"
+  }
 }
