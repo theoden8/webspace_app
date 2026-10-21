@@ -669,11 +669,10 @@ jobs:
       # guard below cannot tell a toolchain download from an app leak, and
       # should not have to: after this step a fetch is a finding.
       #
-      # `flutter test -d linux` builds a debug runner on its first
-      # invocation, which is a different CMake tree from the release build
-      # above (fresh configure, and the cargo custom target re-runs even
-      # though it no-ops). Doing that here rather than inside the first
-      # test also stops the build eating into that test's 12m cap.
+      # The integration step builds a debug runner, which is a different
+      # CMake tree from the release build above (fresh configure, and the
+      # cargo custom target re-runs even though it no-ops). Configuring it
+      # here, while there is a network, leaves that build incremental.
       - name: Warm the toolchain before arming the egress guard
         if: env.WS_EGRESS_GUARD != 'off'
         run: |
@@ -722,10 +721,10 @@ jobs:
       # this same harness extended; the smoke test pins the pipeline
       # so they can land as follow-up tests without re-litigating CI.
       - name: Run Linux integration tests
-        # 75, not 55: the webspace library (#745) added integration tests
-        # that each rebuild the app, which left the loop within a minute of
-        # the old cap on master (53m55s) and past it on a PR. 55 was for the
-        # proxy file WPE's per-site proxies added (proxy_simultaneous).
+        # 75, not 55: set when every file rebuilt the app, which left the
+        # loop within a minute of the old cap on master (53m55s) and past it
+        # on a PR. The tier builds once now; this is headroom until runs show
+        # where it sits.
         timeout-minutes: 75
         run: |
           set -x
@@ -748,93 +747,103 @@ jobs:
             echo "no fail-closed origin; that arm will skip (BUG-014 gap 2)"
           fi
 
-          # One app build per file, in the desktop session the script sets up.
+          # A list in a string: this step runs under sh, which has no arrays,
+          # and no path here holds a space.
+          files=""
+          for t in integration_test/*_test.dart; do
+            # The screenshot tour runs as its own step on a manual run
+            # (fastlane linux screenshots). The white-screen pixel suite is
+            # Android-only (window PixelCopy); skip its no-op build here.
+            # The camera suite (CAM-010) exercises media gates specific to
+            # the Android WebView, which the desktop WPE/WKWebView targets
+            # do not have; it runs in the emulator job instead.
+            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+            [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
+            # Home-shortcut scenarios are Android-only (the menu, pin
+            # state and delete prompt are Platform.isAndroid-gated).
+            [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
+            [ "$(basename "$t")" = "camera_test.dart" ] && continue
+            # PASSKEY-012 needs the emulator harness (credential provider,
+            # relying party, sheet taps); the Android job owns it.
+            [ "$(basename "$t")" = "passkey_test.dart" ] && continue
+            # ICON-013: the icon fetch path this would run here is the
+            # same Dart the macOS loop runs against WKWebView, and this
+            # loop is within minutes of its step cap.
+            [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
+            # PROXY-013 router is Android-only: the attribution test
+            # skips immediately here and the router test only asserts
+            # that router mode does NOT engage, which
+            # test/proxy_router_service_test.dart already asserts in
+            # milliseconds. Both run for real in the emulator job. This
+            # loop sits near its 45m step cap, so an app build per file
+            # that asserts nothing is not worth the budget.
+            [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
+            # NOT skipped: proxy_fail_closed_test.dart. This is the only
+            # tier with a second host, so it is the only tier where that
+            # arm can assert rather than skip.
+            [ "$(basename "$t")" = "proxy_apple_relay_parity_test.dart" ] && continue
+            # BGAUDIO-006 media notification is an Android foreground
+            # service; the emulator job owns it.
+            [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
+            # BGAUDIO-009 needs a real media pipeline (WPE crash-loops on
+            # one here) and a real pauseTimers(); emulator job owns it.
+            [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
+            # The per-WebView proxy binding it checks is an iOS/macOS
+            # path -- the Linux fork binds on the session instead -- so
+            # here it would skip after paying for an app build, and this
+            # loop sits near its 45m cap.
+            [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
+            # Its arms drive the Apple per-store proxy too and skip here.
+            [ "$(basename "$t")" = "proxy_rebind_test.dart" ] && continue
+            # Same for the files that bisect that binding. They measure
+            # proxyConfigurations, which the Linux fork does not use, so
+            # every test in them skips here -- after paying for a full
+            # app build each. Three of those builds is what took this
+            # loop past the cap.
+            [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
+            # Same again: it drives the Apple fork contract that an
+            # unparseable rule must not clear the store, and the Linux
+            # fork has no such assignment.
+            [ "$(basename "$t")" = "proxy_malformed_rule_test.dart" ] && continue
+            # NOT skipped: settings_seam_test.dart. WPE answers
+            # getRealSettings with the live userAgent and javaScriptEnabled,
+            # so the comparison asserts here rather than skipping.
+            # NOT skipped: WPE binds the proxy per network session, so
+            # this is the tier where two sites really can hold two
+            # proxies at once. It is the control that shows BUG-014
+            # belongs to Apple rather than to this app.
+            [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_relay_binding_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
+            files="$files $t"
+          done
+
+          # One build for every file (scripts/integration_bundle.sh), made
+          # before the session: building needs no display. Each file then runs
+          # in an app process of its own, in the desktop session the script
+          # sets up. `flutter test` built the app once per file, about 60 s
+          # each and 25 of this loop's 42 minutes (run 39489119149).
+          bash scripts/integration_bundle.sh build linux $files
+
+          # Into the session by the environment, as WEBSPACE_LEAK_ORIGIN goes.
+          export LINUX_TIER_FILES="$files"
           bash scripts/linux_test_session.sh bash -c '
+              # NOTE: this whole block is a single-quoted `bash -c` string,
+              # so an apostrophe in a comment terminates it and the loop
+              # dies with "syntax error: unexpected end of file".
               status=0
-              for t in integration_test/*_test.dart; do
-                # The screenshot tour runs as its own step on a manual run
-                # (fastlane linux screenshots). The white-screen pixel suite is
-                # Android-only (window PixelCopy); skip its no-op build here.
-                # The camera suite (CAM-010) exercises media gates specific to
-                # the Android WebView, which the desktop WPE/WKWebView targets
-                # do not have; it runs in the emulator job instead.
-                # NOTE: this whole block is a single-quoted `bash -c` string,
-                # so an apostrophe in a comment terminates it and the loop
-                # dies with "syntax error: unexpected end of file".
-                [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
-                [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
-                # Home-shortcut scenarios are Android-only (the menu, pin
-                # state and delete prompt are Platform.isAndroid-gated).
-                [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
-                [ "$(basename "$t")" = "camera_test.dart" ] && continue
-                # PASSKEY-012 needs the emulator harness (credential provider,
-                # relying party, sheet taps); the Android job owns it.
-                [ "$(basename "$t")" = "passkey_test.dart" ] && continue
-                # ICON-013: the icon fetch path this would run here is the
-                # same Dart the macOS loop runs against WKWebView, and this
-                # loop is within minutes of its step cap.
-                [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
-                # PROXY-013 router is Android-only: the attribution test
-                # skips immediately here and the router test only asserts
-                # that router mode does NOT engage, which
-                # test/proxy_router_service_test.dart already asserts in
-                # milliseconds. Both run for real in the emulator job. This
-                # loop sits near its 45m step cap, so an app build per file
-                # that asserts nothing is not worth the budget.
-                [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
-                [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
-                # NOT skipped: proxy_fail_closed_test.dart. This is the only
-                # tier with a second host, so it is the only tier where that
-                # arm can assert rather than skip.
-                [ "$(basename "$t")" = "proxy_apple_relay_parity_test.dart" ] && continue
-                # BGAUDIO-006 media notification is an Android foreground
-                # service; the emulator job owns it.
-                [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
-                # BGAUDIO-009 needs a real media pipeline (WPE crash-loops on
-                # one here) and a real pauseTimers(); emulator job owns it.
-                [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
-                # The per-WebView proxy binding it checks is an iOS/macOS
-                # path -- the Linux fork binds on the session instead -- so
-                # here it would skip after paying for an app build, and this
-                # loop sits near its 45m cap.
-                [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
-                # Its arms drive the Apple per-store proxy too and skip here.
-                [ "$(basename "$t")" = "proxy_rebind_test.dart" ] && continue
-                # Same for the files that bisect that binding. They measure
-                # proxyConfigurations, which the Linux fork does not use, so
-                # every test in them skips here -- after paying for a full
-                # app build each. Three of those builds is what took this
-                # loop past the cap.
-                [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
-                # Same again: it drives the Apple fork contract that an
-                # unparseable rule must not clear the store, and the Linux
-                # fork has no such assignment.
-                [ "$(basename "$t")" = "proxy_malformed_rule_test.dart" ] && continue
-                # NOT skipped: settings_seam_test.dart. WPE answers
-                # getRealSettings with the live userAgent and javaScriptEnabled,
-                # so the comparison asserts here rather than skipping.
-                # NOT skipped: WPE binds the proxy per network session, so
-                # this is the tier where two sites really can hold two
-                # proxies at once. It is the control that shows BUG-014
-                # belongs to Apple rather than to this app.
-                [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
-                [ "$(basename "$t")" = "proxy_relay_binding_test.dart" ] && continue
-                [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
-                [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
-                [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
+              for t in $LINUX_TIER_FILES; do
                 echo "::group::$t"
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
                 # otherwise hang the job to the 6h runner limit. SIGTERM at
                 # 12m, SIGKILL 30s later. timeout exit 124 == hit the cap.
                 rc=0
-                # --no-pub: `flutter test` runs `flutter pub get` first by
-                # default, and that resolve asks pub.dev for advisories on
-                # every invocation -- a live call, not a cache the warm
-                # step above can fill. Under the egress guard it is a
-                # blocked DNS lookup and exit 69 before any test body runs.
-                # The job already resolved dependencies in its own step.
-                timeout -k 30s 12m fvm flutter test --no-pub "$t" -d linux || rc=$?
+                timeout -k 30s 12m bash scripts/integration_bundle.sh run linux "$t" \
+                  "${RUNNER_TEMP:-/tmp}/tier-$(basename "$t").log" || rc=$?
                 if [ $rc -ne 0 ]; then
                   status=$rc
                   if [ $rc -eq 124 ]; then
@@ -1200,54 +1209,16 @@ jobs:
             files+=("$t")
           done
 
-          # One build for the whole tier, then every file reuses it.
-          #
-          # `flutter test -d macos` builds the app on every invocation, and so
-          # does `flutter drive`: 3.44.9 still declares `--no-build` but never
-          # reads it. That was 30 to 70 s of Xcode per file, about half the
-          # step (runs 39489119149, 39502134208). `--use-application-binary`
-          # does skip the build and takes a macOS bundle, but a bundle runs the
-          # entrypoint it was built with, so scripts/integration_bundle.sh
-          # writes one that holds every file and runs the one a launch names.
-          # Each file still gets its own app process -- some suites depend on
-          # that, and a shared process would hide per-launch state.
-          #
-          # `--ci` builds it the way `flutter test --ci` builds a file, sandbox
-          # off (2. above). When the bundle does not build (one file that does
-          # not compile is enough) every file runs its own `flutter test`, so a
-          # broken file still costs only itself.
-          BUNDLE_MAIN="$(bash scripts/integration_bundle.sh entrypoint "${files[@]}")"
-          BUNDLE_APP=""
-          bundle_log="${RUNNER_TEMP:-/tmp}/integration-bundle-build.log"
-          if fvm flutter build macos --debug --ci -t "$BUNDLE_MAIN" > "$bundle_log" 2>&1; then
-            BUNDLE_APP="$(ls -d build/macos/Build/Products/Debug/*.app | head -1)"
-          else
-            echo "::warning::the integration bundle did not build; each file runs its own flutter test"
-          fi
-          tail -20 "$bundle_log"
+          # One build for the whole tier, then every file reuses it in an app
+          # process of its own: scripts/integration_bundle.sh says how, and
+          # what happens when the build or a launch fails. `flutter test`
+          # built the app once per file, 30 to 70 s of Xcode each and about
+          # half this step (runs 39489119149, 39502134208).
+          bash scripts/integration_bundle.sh build macos "${files[@]}"
 
           # The per-file cap, where a timeout binary was found.
           capped() {
             if [ -n "$TIMEOUT" ]; then "$TIMEOUT" -k 30s 12m "$@"; else "$@"; fi
-          }
-
-          # arm <file> <logfile> -> the file exit code
-          arm() {
-            if [ -n "$BUNDLE_APP" ]; then
-              capped bash scripts/integration_bundle.sh drive macos "$BUNDLE_APP" "$1" \
-                2>&1 | tee "$2"
-              rc=${PIPESTATUS[0]}
-              [ "$rc" -eq 0 ] && return 0
-              # Once the driver reaches the app the outcome is the file, pass
-              # or fail. Before that it is the bundle, and would be every file.
-              if grep -q 'VMServiceFlutterDriver: Connecting' "$2"; then
-                return "$rc"
-              fi
-              echo "::warning::the integration bundle did not launch for $1; it and every file after it run their own flutter test"
-              BUNDLE_APP=""
-            fi
-            capped fvm flutter test "$1" -d macos --ci 2>&1 | tee "$2"
-            return "${PIPESTATUS[0]}"
           }
 
           for t in "${files[@]}"; do
@@ -1262,7 +1233,7 @@ jobs:
             # ended the step, and every file after it never ran (run
             # 39470955285 stopped at the 15th of 29 with no summary).
             rc=0
-            arm "$t" "$out" || rc=$?
+            capped bash scripts/integration_bundle.sh run macos "$t" "$out" || rc=$?
             if [ $rc -ne 0 ]; then
               status=$rc
               failed="$failed $(basename "$t")"

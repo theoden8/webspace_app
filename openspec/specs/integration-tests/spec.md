@@ -70,8 +70,8 @@ rather than the desktop `-d` path.
 
 Two CI pipelines run the same test files. The macOS pipeline
 (`build-apple` job) is a single `Run macOS integration tests` step:
-`security unlock-keychain` then the per-file `flutter test ... -d macos`
-loop — no container, no display server, no secret-service backend,
+`security unlock-keychain`, one build of every file, then a launch per
+file — no container, no display server, no secret-service backend,
 because `macos-latest` provides all three natively. The Linux pipeline
 (`build-linux` job) carries the bulk of the scaffolding and has three
 layers:
@@ -96,8 +96,9 @@ layers:
    stubs for plugins whose native dialogs cannot render under Xvfb
    (`file_picker`).
 
-The pipeline is invoked once per integration test file via
-`fvm flutter test integration_test/<file>.dart -d linux` inside the session
+The pipeline builds every integration test file into one app once
+(`scripts/integration_bundle.sh build linux`), then launches it once per file
+(`scripts/integration_bundle.sh run linux`) inside the session
 [`scripts/linux_test_session.sh`](../../../scripts/linux_test_session.sh) sets
 up (`xvfb-run dbus-run-session`, a headless weston, pass-secret-service). The
 Linux screenshot lane runs in the same session (SCREENSHOT-009).
@@ -346,9 +347,9 @@ already picks up every `integration_test/*_test.dart`.
 - **Given** a developer adds `integration_test/new_scenario_test.dart`
   following these conventions
 - **When** the workflow runs
-- **Then** the new file is executed by
-  `fvm flutter test integration_test/new_scenario_test.dart -d linux`
-  (one invocation per file in the integration_test pipeline step)
+- **Then** the new file is built into the tier's one app and run in an
+  app process of its own (`scripts/integration_bundle.sh run linux`),
+  one launch per file in the integration_test pipeline step
 - **And** the developer does not edit `.github/workflows/build-and-test.yml`
 
 ---
@@ -365,24 +366,27 @@ setup is thin: no Xvfb/weston (the runner has a window server), no
 keychain). The step SHALL run every file it takes (excluding
 `screenshot_test.dart`) in an app process of its own, as the Linux
 step does, so adding a scenario per INTEG-008 needs no workflow edit on
-either target. It SHALL build the app once for all of them:
-`scripts/integration_bundle.sh` writes one entrypoint holding every
-file, and each launch runs the file `WEBSPACE_INTEGRATION_FILE` names.
+either target. It SHALL build the app once for all of them, as the
+Linux step does: `scripts/integration_bundle.sh build` writes one
+entrypoint holding every file and builds it, and each launch (`run`)
+runs the file `WEBSPACE_INTEGRATION_FILE` names.
 
 #### Scenario: macOS step runs every non-screenshot scenario
 
 - **Given** the `build-apple` job has built the macOS app
 - **When** the `Run macOS integration tests` step runs
-- **Then** it builds the bundle with `fvm flutter build macos --debug --ci`
-  once, and launches it once per `integration_test/*_test.dart` it
-  takes, skipping `screenshot_test.dart`, through
+- **Then** it builds the app once (`fvm flutter build macos --debug --ci`
+  on that entrypoint), and launches it once per
+  `integration_test/*_test.dart` it takes, skipping
+  `screenshot_test.dart`, through
   `fvm flutter drive --use-application-binary` (Flutter 3.44.9 declares
   drive's `--no-build` and never reads it, so without a prebuilt binary
   each file paid a full Xcode build)
-- **And** when the bundle does not build or does not launch, each file
+- **And** when the app does not build or does not launch, each file
   runs its own `fvm flutter test <file> -d macos --ci`
-- **And** a non-zero exit from any file is remembered and re-raised
-  after the loop so one failure does not mask the others
+- **And** a non-zero exit from any file, the proxy arms included, is
+  remembered and re-raised after the loop so one failure does not mask
+  the others
 
 #### Scenario: Login keychain is unlocked before secure-storage tests
 
@@ -1138,13 +1142,10 @@ macOS runner exercises the failure assertions for real.
 
 ## Known Limitations
 
-- **Build time per test**: each `flutter test integration_test/<file>.dart`
-  rebuilds the linux debug bundle if cmake's incremental graph is invalidated
-  (~3 minutes from cold cache; ~30 seconds from warm). Adding more
-  scenarios scales linearly under the current invocation pattern. A future
-  refactor could batch all integration tests into one binary using
-  `flutter drive` + a custom test driver, but the simplicity of one-test-
-  per-file outweighs the wall-time gain at the current count.
+- **One build per tier**: every file is compiled into one app, so a file
+  that does not compile fails the build for all of them, and each file then
+  falls back to its own `flutter test` build (about 60 seconds each on
+  Linux, 30 to 70 on macOS) so it still costs only itself.
 - **`pass-secret-service` patches**: the two `sed` patches applied in the
   `Install pass-secret-service` step of `.github/actions/linux-toolchain`
   are pinned to the
