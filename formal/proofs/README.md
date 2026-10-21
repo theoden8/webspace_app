@@ -69,16 +69,18 @@ TLC model it backs (same definitions — no re-modeling).
   case per table step, by that step's lemma), which `check_proofs.sh` checks on its own, since
   tlapm takes an extended module's lemma as given. Each step's lemma unfolds its action once and
   closes it an arm at a time, eight steps a module (`activation_tables_<n>_proof`), so the
-  modules prove side by side. An arm that can spawn another input proves the row's fields,
+  modules prove side by side. A case reads `NoFlow` only through `NoFlowPc`, its place
+  field, proved once in the printed `activation_tables_facts_proof`: a case that unfolds the
+  record spends minutes in tlapm's preparation for SMT. An arm that can spawn another input proves the row's fields,
   freshness and place requirements separately, for its own row, the next input's row and
   every untouched row. Possible next places come from the table's footprints and are
   proved from its action before checking the place requirements. This keeps nested
   record updates from exhausting the proof backends;
   the invariant and the actions being proved are unchanged. The hand-written cases are
   the inputs and the pressure plan.
-  The spawning modules' counts are pinned too: `activation_tables_3_proof` **309** and
-  `activation_tables_4_proof` **207** obligations.
-  **54 obligations, all proved; `activation_tables_proof` 85.**
+  The spawning modules' counts are pinned too: `activation_tables_3_proof` **329** and
+  `activation_tables_4_proof` **223** obligations.
+  **49 obligations, all proved; `activation_tables_proof` 316.**
 - **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
   invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
   `lib/formal_model/checks.dart`), beside `IndInv`, whose preservation is `activation_turns`'s

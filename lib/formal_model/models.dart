@@ -210,6 +210,7 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
   (path: 'activation_ops.tla', text: activationOps(tables)),
   (path: 'activation_tables.tla', text: activationTables(tables)),
   (path: 'activation_tables_proof.tla', text: activationTablesProof(tables)),
+  (path: '$_tablesFacts.tla', text: activationTablesFacts()),
   ...activationTablesParts(tables),
   (
     path: 'activation_invariants_proof.tla',
@@ -805,6 +806,27 @@ String activationTablesProof(Tables t) => [
   '',
 ].join('\n');
 
+const _tablesFacts = 'activation_tables_facts_proof';
+
+/// What a step's case reads of `NoFlow`: its row's place, after an update
+/// that keeps the record's fields, a reset to `NoFlow` or an input's start
+/// of the next row. Proved once here, where the record is unfolded, so no
+/// case unfolds it: preparing a case that opens `NoFlow`'s fields for SMT
+/// took three to four times as long as the case citing this lemma, and the
+/// solver none of it.
+String activationTablesFacts() => [
+  '---------------------- MODULE $_tablesFacts ----------------------',
+  '(* Printed from the step tables by lib/formal_model/main.dart.            *)',
+  '(* Not committed; edit the tables instead.                                *)',
+  'EXTENDS activation, TLAPS',
+  '',
+  'LEMMA NoFlowPc == "${FlowField.pc.name}" \\in DOMAIN NoFlow /\\ NoFlow.pc = "done"',
+  '  BY DEF NoFlow',
+  '',
+  '=============================================================================',
+  '',
+].join('\n');
+
 /// The flow steps' lemmas, [_partSize] steps a module: tlapm prepares a
 /// module's obligations on one thread, so modules are what proves in
 /// parallel (`proofs/check_proofs.sh`).
@@ -825,7 +847,7 @@ List<PrintedFile> activationTablesParts(Tables t) {
           '---------------------- MODULE activation_tables_${i ~/ _partSize + 1}_proof ----------------------',
           '(* Printed from the step tables by lib/formal_model/main.dart.            *)',
           '(* Not committed; edit the tables instead.                                *)',
-          'EXTENDS activation, TLAPS',
+          'EXTENDS $_tablesFacts',
           '',
           for (final s in steps.skip(i).take(_partSize))
             _armsInd(
@@ -868,7 +890,7 @@ String _stepInd(
   '    ASSUME Good, IndInv, NEW f \\in Flows, $over(f)',
   "    PROVE  IndInv'",
   if (!byLemma)
-    '  <1> USE DEF Good, IndInv, FlowsOK, Fresh, Inv_Places, NoFlow, Flows, Did',
+    '  <1> USE NoFlowPc DEF Good, IndInv, FlowsOK, Fresh, Inv_Places, Flows, Did',
   for (final (i, s) in steps.indexed) ...[
     '  <1>${i + 1}. CASE ${s.action}(f)',
     if (byLemma)
@@ -923,7 +945,7 @@ String _armsInd(
           held: held,
         )
       else
-        '    BY <1>${n + 4}, <1>3 DEF ${['Good', 'IndInv', 'FlowsOK', 'Fresh', 'Inv_Places', 'NoFlow', 'Flows', 'Did', ..._operators(s)].join(', ')}',
+        '    BY <1>${n + 4}, <1>3, NoFlowPc DEF ${['Good', 'IndInv', 'FlowsOK', 'Fresh', 'Inv_Places', 'Flows', 'Did', ..._operators(s)].join(', ')}',
     ],
     '  <1> QED',
     '    BY ${['<1>1', for (var n = 4; n < arms.length + 4; n++) '<1>$n'].join(', ')}',
