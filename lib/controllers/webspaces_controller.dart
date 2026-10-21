@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
@@ -216,6 +217,16 @@ class WebspacesController {
     if (!moved) return;
     _host.rebuild();
     unawaited(_shell.saveWebspaces());
+  }
+
+  Future<void> resize(
+    Webspace webspace, {
+    required LauncherItemSize size,
+  }) async {
+    if (!_sites.webspaces.contains(webspace)) return;
+    webspace.launcherSize = size;
+    _host.rebuild();
+    await _shell.saveWebspaces();
   }
 
   /// Whether the currently-selected view supports drag/menu reordering.

@@ -51,7 +51,9 @@ class SiteGridTile extends StatelessWidget {
       child: reorder != null
           ? _draggable(context, reorder: reorder)
           : GestureDetector(
-              onLongPressStart: (details) =>
+              onLongPressEnd: (details) =>
+                  onMenu(context, globalPosition: details.globalPosition),
+              onSecondaryTapDown: (details) =>
                   onMenu(context, globalPosition: details.globalPosition),
               child: InkWell(
                 borderRadius: BorderRadius.circular(Radii.xl),
@@ -177,7 +179,7 @@ class _SiteGridTileContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (layout == SiteGridTileLayout.library) return _library(theme);
+    if (layout == SiteGridTileLayout.library) return _library(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > constraints.maxHeight * 1.5;
@@ -197,31 +199,33 @@ class _SiteGridTileContent extends StatelessWidget {
     );
   }
 
-  Widget _library(ThemeData theme) {
-    final domain = extractDomain(site.initUrl);
+  Widget _library(BuildContext context) {
+    final theme = Theme.of(context);
+    final well = LibraryStyle.itemWell(site.launcherSize);
     return Column(
       children: [
         const SizedBox(height: Spacing.sm),
         Stack(
           clipBehavior: Clip.none,
           children: [
-            Container(
-              width: LibraryStyle.siteWell,
-              height: LibraryStyle.siteWell,
+            AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : Motion.libraryNavigation,
+              curve: Motion.libraryCurve,
+              width: well,
+              height: well,
               decoration: BoxDecoration(
                 color: selected
                     ? theme.colorScheme.primaryContainer
                     : theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(LibraryStyle.radius),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withAlpha(100),
-                ),
               ),
               alignment: Alignment.center,
               clipBehavior: Clip.antiAlias,
               child: UnifiedFaviconImage.site(
                 site,
-                size: LibraryStyle.siteIcon,
+                size: LibraryStyle.siteIcon * well / LibraryStyle.siteWell,
               ),
             ),
             if (showTabCount)
@@ -240,17 +244,7 @@ class _SiteGridTileContent extends StatelessWidget {
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
             fontSize: LibraryStyle.siteTitleSize,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Text(
-          domain,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: LibraryStyle.domainSize,
-            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
           ),
         ),
         Flexible(

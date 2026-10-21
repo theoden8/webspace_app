@@ -5301,13 +5301,13 @@
   "@libraryNoResults": {
     "description": "Empty search results message in the webspace and site library."
   },
-  "appSettingsExperimentalFolderLibrary": "Folder library",
-  "appSettingsExperimentalFolderLibraryHint": "Browse webspaces as folders and open their sites in a searchable grid.",
+  "appSettingsExperimentalFolderLibrary": "New design",
+  "appSettingsExperimentalFolderLibraryHint": "Organize sites into groups in a launcher grid.",
   "@appSettingsExperimentalFolderLibrary": {
-    "description": "Developer Experimental switch for the optional folder-based webspace and site library. Off by default."
+    "description": "Developer Experimental switch for the optional new design. Off by default."
   },
   "@appSettingsExperimentalFolderLibraryHint": {
-    "description": "Explanation behind the Folder library experiment hint button. Webspaces appear as folders, with sites in searchable grids."
+    "description": "Explanation behind the New design experiment hint button. Each webspace is a cluster of site icons that expands into a launcher grid."
   },
   "siteRedirectHomeSuggestion": "This site redirected to {url}. Use this as its homepage? Links to the new domain will also open here.",
   "@siteRedirectHomeSuggestion": {
@@ -5317,5 +5317,21 @@
         "type": "String"
       }
     }
+  },
+  "libraryItemSize": "Item size",
+  "libraryItemSmall": "Small",
+  "libraryItemMedium": "Medium",
+  "libraryItemLarge": "Large",
+  "@libraryItemSize": {
+    "description": "Launcher item size menu title."
+  },
+  "@libraryItemSmall": {
+    "description": "Size choice for one site or webspace icon in the launcher."
+  },
+  "@libraryItemMedium": {
+    "description": "Size choice for one site or webspace icon in the launcher."
+  },
+  "@libraryItemLarge": {
+    "description": "Size choice for one site or webspace icon in the launcher."
   }
 }

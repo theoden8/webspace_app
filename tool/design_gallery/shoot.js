@@ -16,7 +16,7 @@ const { chromiumLaunchOptions } = require('./chromium');
 // Screens first, same order as the Dart registry.
 const CARDS = [
   { id: 'webspaces', width: 400, height: 640 },
-  { id: 'folder-library', width: 400, height: 800 },
+  { id: 'site-groups', width: 400, height: 800 },
   { id: 'webspace-detail', width: 400, height: 640 },
   { id: 'app-settings', width: 400, height: 900 },
   { id: 'app-appearance', width: 400, height: 560 },

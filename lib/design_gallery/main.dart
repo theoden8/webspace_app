@@ -63,6 +63,7 @@ import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_library.dart';
+import 'package:webspace/widgets/launcher_size_picker.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -104,7 +105,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'trusted-certificates', label: 'Trusted certificates screen', fullBleed: true, builder: _trustedCertificates),
   GalleryCard(id: 'location-picker', label: 'Location picker screen', fullBleed: true, builder: _locationPicker),
   GalleryCard(id: 'webspaces', label: 'Webspaces screen', fullBleed: true, builder: (c) => const _WebspacesCard()),
-  GalleryCard(id: 'folder-library', label: 'Experimental folder library', fullBleed: true, builder: (c) => const _FolderLibraryCard()),
+  GalleryCard(id: 'site-groups', label: 'New design', fullBleed: true, builder: (c) => const _SiteGroupsCard()),
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: _webspaceDetail),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: _siteSettings),
   GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: _siteBehaviour),
@@ -721,20 +722,27 @@ class _WebspacesCardState extends State<_WebspacesCard> {
 
 /// The real WebspaceLibrary: the collections a user switches between,
 /// with per-collection site counts and reordering.
-class _FolderLibraryCard extends StatefulWidget {
-  const _FolderLibraryCard();
+class _SiteGroupsCard extends StatefulWidget {
+  const _SiteGroupsCard();
 
   @override
-  State<_FolderLibraryCard> createState() => _FolderLibraryCardState();
+  State<_SiteGroupsCard> createState() => _SiteGroupsCardState();
 }
 
-class _FolderLibraryCardState extends State<_FolderLibraryCard> {
+class _SiteGroupsCardState extends State<_SiteGroupsCard> {
   final _libraryKey = GlobalKey<WebspaceLibraryState>();
   final List<WebViewModel> _sites = [
     WebViewModel(
       siteId: SiteId('a'),
       initUrl: 'https://github.com',
       name: 'GitHub',
+      tabsEnabled: true,
+      tabs: [
+        SiteTab(id: TabId('github-home'), url: 'https://github.com', title: 'Dashboard'),
+        SiteTab(id: TabId('webspace-project'), parentId: TabId('github-home'), url: 'https://github.com/theoden8/webspace_app', title: 'WebSpace'),
+        SiteTab(id: TabId('webspace-issues'), parentId: TabId('webspace-project'), url: 'https://github.com/theoden8/webspace_app/issues', title: 'Open issues'),
+      ],
+      activeTabId: TabId('github-home'),
     ),
     WebViewModel(
       siteId: SiteId('b'),
@@ -780,11 +788,22 @@ class _FolderLibraryCardState extends State<_FolderLibraryCard> {
     onAddWebspace: () {},
     onEditWebspace: (_) {},
     onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
+    onResizeWebspace: (w, {required size}) => setState(() => w.launcherSize = size),
     onOpenSite: (_) {},
-    onSiteMenu: (context, {required site, required position}) {},
+    onSiteMenu: (context, {required site, required position}) async {
+      final size = await showLauncherSizePicker(context, current: site.launcherSize);
+      if (size != null && mounted) setState(() => site.launcherSize = size);
+    },
     onReorderSite: null,
     onAddSite: () {},
     onOpenSettings: () async {},
+    siteTreeBuilder: (context, query) => TabsSheet(
+      embedded: true, query: query,
+      sites: [for (final site in _sites) TabsSheetSite(model: site, isCurrent: false, isLoaded: false)],
+      currentIndex: 0,
+      onOpenSite: (_) {}, onOpenTab: (_, {required tabId}) {}, onNewTab: (_) {},
+      onCloseTab: (_, {required tabId}) {}, onCloseSubtree: (_, {required tabId}) {},
+    ),
     onReorder: (from, {required newIndex}) => setState(() {
       final moved = _webspaces.removeAt(from);
       _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);

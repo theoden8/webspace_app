@@ -7,16 +7,119 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
-import 'package:webspace/widgets/webspace_folder_tile.dart';
+import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/real_app.dart';
 
 void main() {
   setUp(() => ConnectivityService.onlineOverride = Future.value(true));
   tearDown(ConnectivityService.reset);
+  testWidgets(
+    'item sizes persist independently without an edit mode (WEBSPACE-014)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final beta = WebViewModel(
+        initUrl: 'https://beta.example.test',
+        name: 'Beta',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId, beta.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha, beta],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      expect(find.byIcon(Icons.more_horiz), findsNothing);
+      await tester.longPress(find.text('Work'));
+      await settleRealApp(tester);
+      await tester.tap(find.text('Item size'));
+      await settleRealApp(tester);
+      await tester.tap(find.text('Large'));
+      await settleRealApp(tester);
+      final prefs = await SharedPreferences.getInstance();
+      final savedGroup = prefs
+          .getStringList('webspaces')!
+          .map(
+            (raw) => Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>),
+          )
+          .singleWhere((value) => value.id == work.id);
+      expect(savedGroup.launcherSize, LauncherItemSize.large);
+      await openWebspace(tester, name: 'Work');
+      final alphaTile = find.ancestor(
+        of: find.text('Alpha'),
+        matching: find.byType(SiteGridTile),
+      );
+      await tester.tap(
+        find.descendant(of: alphaTile, matching: find.byIcon(Icons.more_vert)),
+      );
+      await settleRealApp(tester);
+      await tester.tap(find.text('Item size'));
+      await settleRealApp(tester);
+      await tester.tap(find.text('Small'));
+      await settleRealApp(tester);
+      expect(appSite('Alpha').launcherSize, LauncherItemSize.small);
+      expect(appSite('Beta').launcherSize, LauncherItemSize.medium);
+      final savedSite = prefs
+          .getStringList('webViewModels')!
+          .map(
+            (raw) => WebViewModel.fromJson(
+              jsonDecode(raw) as Map<String, dynamic>,
+              stateSetterF: null,
+            ),
+          )
+          .singleWhere((value) => value.name == 'Alpha');
+      expect(savedSite.launcherSize, LauncherItemSize.small);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets('Sites opens a nested tab through the app tab controller', (
+    tester,
+  ) async {
+    final root = SiteTab(
+      id: TabId('root'),
+      url: 'https://alpha.example.test',
+      title: 'Overview',
+    );
+    final child = SiteTab(
+      id: TabId('child'),
+      parentId: root.id,
+      url: 'https://alpha.example.test/article',
+      title: 'Deep article',
+    );
+    final site = WebViewModel(
+      initUrl: root.url,
+      name: 'Alpha',
+      tabsEnabled: true,
+      tabs: [root, child],
+      activeTabId: root.id,
+    );
+    await pumpRealApp(
+      tester,
+      sites: [site],
+      prefs: {
+        AppPref.developerMode.key: true,
+        AppPref.experimentalFolderLibrary.key: true,
+      },
+    );
+    await tester.tap(find.text('Sites'));
+    await settleRealApp(tester);
+    await tester.tap(find.text('Deep article'));
+    await settleRealApp(tester);
+    expect(appSite('Alpha').activeTabId, child.id);
+    expect(find.byType(WebspaceLibrary), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   for (final (dev, on) in [
     (false, false),
     (false, true),
@@ -126,7 +229,7 @@ void main() {
       expect(prefs.getString('selectedWebspaceId'), work.id);
       await tester.tap(find.byType(BackButton));
       await settleRealApp(tester);
-      expect(find.byType(WebspaceFolderTile), findsNWidgets(2));
+      expect(find.byType(WebspaceGroupTile), findsNWidgets(2));
     },
   );
 
@@ -160,7 +263,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Save'));
       await settleRealApp(tester);
       final folder = tester
-          .widgetList<WebspaceFolderTile>(find.byType(WebspaceFolderTile))
+          .widgetList<WebspaceGroupTile>(find.byType(WebspaceGroupTile))
           .singleWhere((tile) => tile.webspace.id == work.id);
       expect(folder.sites.map((site) => site.name), ['Second']);
       final prefs = await SharedPreferences.getInstance();

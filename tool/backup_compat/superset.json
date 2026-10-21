@@ -8,6 +8,7 @@
       "initUrl": "https://mail.example.com/",
       "currentUrl": "https://mail.example.com/inbox",
       "name": "Mail",
+      "launcherSize": "large",
       "pageTitle": "Inbox",
       "tabs": [
         {"id": "main", "url": "https://mail.example.com/inbox", "title": "Inbox", "createdAt": 1700000000000, "lastActiveAt": 1700000500000, "active": true},
@@ -201,6 +202,7 @@
     {
       "id": "ws-compat-work",
       "name": "Work",
+      "launcherSize": "small",
       "siteIndices": [0, 2, 3],
       "siteIds": ["compat-site-a", "compat-site-c", "compat-site-d"]
     },

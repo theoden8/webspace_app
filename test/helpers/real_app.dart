@@ -16,7 +16,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-import 'package:webspace/widgets/webspace_folder_tile.dart';
+import 'package:webspace/widgets/webspace_group_tile.dart';
 
 import 'fake_platform_controller.dart';
 import 'package:webspace/services/launch_context.dart';
@@ -142,8 +142,8 @@ WebViewModel appSite(String name) =>
 /// Pick a webspace on the start screen.
 Future<void> openWebspace(WidgetTester tester, {required String name}) async {
   final entry = find.descendant(
-    of: find.byType(WebspaceFolderTile).evaluate().isNotEmpty
-        ? find.byType(WebspaceFolderTile)
+    of: find.byType(WebspaceGroupTile).evaluate().isNotEmpty
+        ? find.byType(WebspaceGroupTile)
         : find.byType(ListTile),
     matching: find.text(name),
   );
