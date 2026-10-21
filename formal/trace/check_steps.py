@@ -500,8 +500,9 @@ def main():
                               recursive=True))
     if not shards:
         failures.append("no step traces in %s" % args.dir)
-    merged_dir = tempfile.mkdtemp()
-    files = merge_shards(shards, into=merged_dir)
+    # Removed at exit, sys.exit included: a merge is as large as the traces.
+    merged = tempfile.TemporaryDirectory()
+    files = merge_shards(shards, into=merged.name)
     jar = os.path.abspath(args.jar)
     if args.plant:
         with tempfile.TemporaryDirectory() as work:
