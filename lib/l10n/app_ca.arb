@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Cerca espais web",
   "librarySearchSites": "Cerca llocs web",
   "libraryNoResults": "Cap coincidència",
-  "appSettingsExperimentalFolderLibrary": "Disseny nou",
+  "appSettingsExperimentalFolderLibrary": "Disseny alternatiu",
   "appSettingsExperimentalFolderLibraryHint": "Organitzeu els llocs en grups dins d'una graella de llançament.",
   "siteRedirectHomeSuggestion": "Aquest lloc ha redirigit a {url}. Voleu utilitzar aquesta adreça com a pàgina d’inici? Els enllaços al domini nou també s’obriran aquí.",
   "@siteRedirectHomeSuggestion": {

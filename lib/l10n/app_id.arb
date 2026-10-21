@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Cari ruang web",
   "librarySearchSites": "Cari situs",
   "libraryNoResults": "Tidak ada hasil",
-  "appSettingsExperimentalFolderLibrary": "Desain baru",
+  "appSettingsExperimentalFolderLibrary": "Desain alternatif",
   "appSettingsExperimentalFolderLibraryHint": "Atur situs ke dalam grup pada kisi peluncur.",
   "siteRedirectHomeSuggestion": "Situs ini dialihkan ke {url}. Gunakan alamat ini sebagai berandanya? Tautan ke domain baru juga akan terbuka di sini.",
   "@siteRedirectHomeSuggestion": {

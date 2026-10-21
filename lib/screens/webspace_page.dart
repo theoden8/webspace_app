@@ -1032,7 +1032,14 @@ class _WebSpacePageState extends State<WebSpacePage>
               progress: currentModel.loadingProgress,
             ),
       // KIOSK-002: no leading menu button when locked.
-      automaticallyImplyLeading: !_kioskLocked,
+      automaticallyImplyLeading: !_kioskLocked && !_folderLibraryEnabled,
+      leading: !_kioskLocked && _folderLibraryEnabled
+          ? IconButton(
+              icon: const Icon(Icons.apps_rounded),
+              tooltip: loc.homeBackToWebspaces,
+              onPressed: () => unawaited(_onSiteMenuAction(SiteMenuAction.backToWebspaces)),
+            )
+          : null,
       title: _sites.current != null && _sites.current! < _sites.models.length
           ? GestureDetector(
               onDoubleTap: _fullscreen.toggle,
@@ -1582,9 +1589,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       drawerEdgeDragWidth: _folderLibraryEnabled || webviewIsVisible ? 0 : null,
       appBar: _fullscreen.active || (_folderLibraryEnabled && !webviewIsVisible)
           ? null : _buildAppBar(),
-      // KIOSK-002: no drawer when locked — removes the site grid, "back to
-      // webspaces", add-site, and the auto app-bar hamburger / edge swipe.
-      drawer: _kioskLocked ? null : SiteDrawer(
+      // KIOSK-002: a locked shell exposes neither navigation surface.
+      drawer: _kioskLocked || _folderLibraryEnabled ? null : SiteDrawer(
         accentColor: _shell.theme.accentColor,
         webspaceName: _selectedWebspaceName,
         models: _sites.models,
@@ -1800,6 +1806,15 @@ class _PageHost
   void openDrawer() {
     if (_s._folderLibraryEnabled && _s._sites.shown == null) {
       _s._libraryKey.currentState?.showSelectedWebspace();
+    } else {
+      unawaited(openNavigationMenu());
+    }
+  }
+
+  @override
+  Future<void> openNavigationMenu() async {
+    if (_s._folderLibraryEnabled) {
+      await _s._onSiteMenuAction(SiteMenuAction.backToWebspaces);
     } else {
       _s._scaffoldKey.currentState?.openDrawer();
     }

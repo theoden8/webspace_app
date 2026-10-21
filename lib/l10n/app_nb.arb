@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Søk i nettområder",
   "librarySearchSites": "Søk etter nettsteder",
   "libraryNoResults": "Ingen treff",
-  "appSettingsExperimentalFolderLibrary": "Nytt design",
+  "appSettingsExperimentalFolderLibrary": "Alternativt design",
   "appSettingsExperimentalFolderLibraryHint": "Organiser nettsteder i grupper i et startrutenett.",
   "siteRedirectHomeSuggestion": "Dette nettstedet videresendte til {url}. Vil du bruke denne adressen som startsiden? Lenker til det nye domenet åpnes også her.",
   "@siteRedirectHomeSuggestion": {

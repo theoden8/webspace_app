@@ -139,7 +139,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
                 onTap: () => guardedOpen(
                     () => openAppLogs(context, startOnBackground: true))),
           ),
-          // New design runs on every platform, so the group always has a
+          // Alternative design runs on every platform, so the group always has a
           // row.
           SettingsSection(
             loc.appSettingsExperimental,

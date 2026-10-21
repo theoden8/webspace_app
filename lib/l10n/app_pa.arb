@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "ਵੈੱਬਸਪੇਸ ਖੋਜੋ",
   "librarySearchSites": "ਸਾਈਟਾਂ ਖੋਜੋ",
   "libraryNoResults": "ਕੋਈ ਨਤੀਜੇ ਨਹੀਂ",
-  "appSettingsExperimentalFolderLibrary": "ਨਵਾਂ ਡਿਜ਼ਾਈਨ",
+  "appSettingsExperimentalFolderLibrary": "ਵਿਕਲਪਿਕ ਡਿਜ਼ਾਈਨ",
   "appSettingsExperimentalFolderLibraryHint": "ਲਾਂਚਰ ਗ੍ਰਿਡ ਵਿੱਚ ਸਾਈਟਾਂ ਨੂੰ ਗਰੁੱਪਾਂ ਵਿੱਚ ਸਜਾਓ।",
   "siteRedirectHomeSuggestion": "ਇਹ ਸਾਈਟ {url} ਉੱਤੇ ਰੀਡਾਇਰੈਕਟ ਹੋਈ ਹੈ। ਇਸ ਨੂੰ ਇਸ ਦਾ ਮੁੱਖ ਪੰਨਾ ਬਣਾਉਣਾ ਹੈ? ਨਵੇਂ ਡੋਮੇਨ ਦੇ ਲਿੰਕ ਵੀ ਇੱਥੇ ਖੁੱਲ੍ਹਣਗੇ।",
   "@siteRedirectHomeSuggestion": {

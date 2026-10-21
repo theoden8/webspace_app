@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Pretraži web prostore",
   "librarySearchSites": "Pretraži stranice",
   "libraryNoResults": "Nema rezultata",
-  "appSettingsExperimentalFolderLibrary": "Novi dizajn",
+  "appSettingsExperimentalFolderLibrary": "Alternativni dizajn",
   "appSettingsExperimentalFolderLibraryHint": "Organizirajte stranice u grupe u mreži za pokretanje.",
   "siteRedirectHomeSuggestion": "Ova stranica preusmjerila je na {url}. Koristiti ovu adresu kao početnu stranicu? Poveznice na novu domenu također će se otvarati ovdje.",
   "@siteRedirectHomeSuggestion": {

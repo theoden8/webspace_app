@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Søg i webområder",
   "librarySearchSites": "Søg efter websteder",
   "libraryNoResults": "Ingen resultater",
-  "appSettingsExperimentalFolderLibrary": "Nyt design",
+  "appSettingsExperimentalFolderLibrary": "Alternativt design",
   "appSettingsExperimentalFolderLibraryHint": "Organiser websteder i grupper i et startgitter.",
   "siteRedirectHomeSuggestion": "Dette websted omdirigerede til {url}. Vil du bruge denne adresse som dets startside? Links til det nye domæne åbnes også her.",
   "@siteRedirectHomeSuggestion": {

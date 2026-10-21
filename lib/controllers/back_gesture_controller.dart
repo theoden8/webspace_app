@@ -20,11 +20,13 @@ abstract interface class BackGestureHost {
   /// At the start of a tab's history: hands back to the tab that opened it,
   /// or closes it, and says whether it did (TAB-007, TAB-019).
   Future<bool> backAtTabStart();
+
+  Future<void> openNavigationMenu();
 }
 
 /// The system back gesture over the page (NAV-001, NAV-009): walk the
-/// webview's history, then by the user's choice open the drawer, and from the
-/// drawer it opened, leave the app.
+/// webview's history, then by the user's choice open app navigation, and from
+/// a drawer it opened, leave the app.
 class BackGestureController {
   BackGestureController({
     required BackGestureHost host,
@@ -59,10 +61,9 @@ class BackGestureController {
   // Only that drawer escalates to leaving the app on the next gesture.
   bool _drawerOpenedByBackGesture = false;
 
-  void _openDrawerFromBackGesture(ScaffoldState? scaffoldState) {
-    if (scaffoldState == null) return;
-    _drawerOpenedByBackGesture = true;
-    scaffoldState.openDrawer();
+  Future<void> _openNavigationFromBackGesture() async {
+    _drawerOpenedByBackGesture = _host.scaffold?.hasDrawer ?? false;
+    await _host.openNavigationMenu();
   }
 
   /// Resolve one back gesture: the Android system back button, or a pushable
@@ -116,8 +117,8 @@ class BackGestureController {
           await SystemNavigator.pop();
           break;
         case BackGestureAction.openDrawer:
-          LogTag.navigation.debug('Back gesture: no history, opening drawer');
-          _openDrawerFromBackGesture(scaffoldState);
+          LogTag.navigation.debug('Back gesture: no history, opening navigation');
+          await _openNavigationFromBackGesture();
           break;
         case BackGestureAction.exitApp:
           LogTag.navigation.debug('Back gesture: no site shown, leaving app');
@@ -154,8 +155,8 @@ class BackGestureController {
             atHistoryStart: _backAtHistoryStart,
           );
           if (next == BackGestureAction.openDrawer) {
-            LogTag.navigation.debug('Back gesture: no history, opening drawer');
-            _openDrawerFromBackGesture(_host.scaffold);
+            LogTag.navigation.debug('Back gesture: no history, opening navigation');
+            await _openNavigationFromBackGesture();
           }
           break;
       }

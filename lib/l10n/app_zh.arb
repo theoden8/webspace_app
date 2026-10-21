@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "搜尋網頁空間",
   "librarySearchSites": "搜尋網站",
   "libraryNoResults": "沒有符合項目",
-  "appSettingsExperimentalFolderLibrary": "全新設計",
+  "appSettingsExperimentalFolderLibrary": "替代設計",
   "appSettingsExperimentalFolderLibraryHint": "在啟動器網格中將網站整理為群組。",
   "siteRedirectHomeSuggestion": "這個網站重新導向至 {url}。要將這個網址設為首頁嗎？新網域的連結也會在此開啟。",
   "@siteRedirectHomeSuggestion": {

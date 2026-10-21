@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 
@@ -22,6 +24,7 @@ class SiteGridTile extends StatelessWidget {
     required this.onMenu,
     required this.onReorder,
     this.layout = SiteGridTileLayout.compact,
+    this.webspaces = const [],
   });
 
   final WebViewModel site;
@@ -31,6 +34,8 @@ class SiteGridTile extends StatelessWidget {
   final bool selected;
   final bool showTabCount;
   final SiteGridTileLayout layout;
+  final List<Webspace> webspaces;
+
   final VoidCallback onOpen;
 
   /// The site's menu, at a global position.
@@ -41,11 +46,31 @@ class SiteGridTile extends StatelessWidget {
   /// the grid cannot be reordered.
   final void Function(int from, {required int to})? onReorder;
 
+  static double extentFor(
+    BuildContext context, {
+    required double well,
+    required int webspaceCount,
+  }) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final label = Theme.of(context).textTheme.labelSmall!;
+    final rows = webspaceCount.clamp(0, LibraryStyle.membershipLimit);
+    return well +
+        Spacing.xl +
+        scaler.scale(58) +
+        rows *
+            (scaler.scale(label.fontSize!) * (label.height ?? 1) +
+                Spacing.xs * 3);
+  }
+
   @override
   Widget build(BuildContext context) {
     final reorder = onReorder;
     return Semantics(
-      label: site.getDisplayName(),
+      label: [
+        site.getDisplayName(),
+        if (layout == SiteGridTileLayout.library)
+          ...webspaces.map((w) => w.name),
+      ].join(', '),
       button: true,
       enabled: true,
       child: reorder != null
@@ -69,6 +94,7 @@ class SiteGridTile extends StatelessWidget {
     selected: selected,
     showTabCount: showTabCount,
     layout: layout,
+    webspaces: webspaces,
   );
 
   Widget _draggable(
@@ -169,12 +195,14 @@ class _SiteGridTileContent extends StatelessWidget {
     required this.selected,
     required this.showTabCount,
     required this.layout,
+    required this.webspaces,
   });
 
   final WebViewModel site;
   final bool selected;
   final bool showTabCount;
   final SiteGridTileLayout layout;
+  final List<Webspace> webspaces;
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +230,7 @@ class _SiteGridTileContent extends StatelessWidget {
   Widget _library(BuildContext context) {
     final theme = Theme.of(context);
     final well = LibraryStyle.itemWell(site.launcherSize);
+    final color = containerColorOf(site, brightness: theme.brightness);
     return Column(
       children: [
         const SizedBox(height: Spacing.sm),
@@ -216,11 +245,25 @@ class _SiteGridTileContent extends StatelessWidget {
               width: well,
               height: well,
               decoration: BoxDecoration(
-                color: selected
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surface,
+                color: Color.alphaBlend(
+                  color.withAlpha(LibraryStyle.siteTintAlpha),
+                  theme.colorScheme.surface,
+                ),
+                border: Border.all(
+                  color: color,
+                  width: LibraryStyle.selectionWidth,
+                ),
                 borderRadius: BorderRadius.circular(LibraryStyle.radius),
               ),
+              foregroundDecoration: selected
+                  ? BoxDecoration(
+                      borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                      border: Border.all(
+                        color: theme.colorScheme.primary,
+                        width: LibraryStyle.selectionWidth,
+                      ),
+                    )
+                  : null,
               alignment: Alignment.center,
               clipBehavior: Clip.antiAlias,
               child: UnifiedFaviconImage.site(
@@ -250,7 +293,57 @@ class _SiteGridTileContent extends StatelessWidget {
         Flexible(
           child: SitePermissionBadges(model: site, iconSize: IconSizes.inline),
         ),
+        if (webspaces.isNotEmpty) _webspaceLabels(context),
       ],
+    );
+  }
+
+  Widget _webspaceLabels(BuildContext context) {
+    final theme = Theme.of(context);
+    final visible = webspaces.take(LibraryStyle.membershipLimit).toList();
+    final remaining = webspaces.length - visible.length;
+    final remainingLabel = '+$remaining';
+    return ExcludeSemantics(
+      child: Column(
+        children: [
+          for (final webspace in visible)
+            Padding(
+              padding: const EdgeInsets.only(top: Spacing.xs),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: LibraryStyle.group(
+                          theme.brightness,
+                          id: webspace.id,
+                        ),
+                        borderRadius: BorderRadius.circular(Radii.xl),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Spacing.sm,
+                        vertical: Spacing.xs,
+                      ),
+                      child: Text(
+                        webspace.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (identical(webspace, visible.last) && remaining > 0) ...[
+                    const SizedBox(width: Spacing.xs),
+                    Text(remainingLabel, style: theme.textTheme.labelSmall),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 

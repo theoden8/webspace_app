@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "वेबस्पेस शोधा",
   "librarySearchSites": "साइट्स शोधा",
   "libraryNoResults": "कोणतेही परिणाम नाहीत",
-  "appSettingsExperimentalFolderLibrary": "नवीन डिझाइन",
+  "appSettingsExperimentalFolderLibrary": "पर्यायी डिझाइन",
   "appSettingsExperimentalFolderLibraryHint": "लॉन्चर ग्रिडमध्ये साइट गटांमध्ये व्यवस्थित करा.",
   "siteRedirectHomeSuggestion": "ही साइट {url} वर रीडायरेक्ट झाली आहे. हा पत्ता तिचे मुख्यपृष्ठ म्हणून वापरायचा? नवीन डोमेनच्या लिंक्सही येथेच उघडतील.",
   "@siteRedirectHomeSuggestion": {

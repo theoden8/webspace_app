@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Bilatu webgune-espazioak",
   "librarySearchSites": "Bilatu webguneak",
   "libraryNoResults": "Ez dago emaitzarik",
-  "appSettingsExperimentalFolderLibrary": "Diseinu berria",
+  "appSettingsExperimentalFolderLibrary": "Diseinu alternatiboa",
   "appSettingsExperimentalFolderLibraryHint": "Antolatu webguneak taldeka abiarazlearen saretan.",
   "siteRedirectHomeSuggestion": "Gune honek {url} helbidera birbideratu du. Helbide hori hasierako orri gisa erabili? Domeinu berrirako estekak ere hemen irekiko dira.",
   "@siteRedirectHomeSuggestion": {

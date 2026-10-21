@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Web alanlarında ara",
   "librarySearchSites": "Sitelerde ara",
   "libraryNoResults": "Eşleşme yok",
-  "appSettingsExperimentalFolderLibrary": "Yeni tasarım",
+  "appSettingsExperimentalFolderLibrary": "Alternatif tasarım",
   "appSettingsExperimentalFolderLibraryHint": "Siteleri başlatıcı ızgarasında gruplar halinde düzenleyin.",
   "siteRedirectHomeSuggestion": "Bu site {url} adresine yönlendirdi. Bu adres ana sayfası olarak kullanılsın mı? Yeni alan adına ait bağlantılar da burada açılacak.",
   "@siteRedirectHomeSuggestion": {

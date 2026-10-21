@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "웹스페이스 검색",
   "librarySearchSites": "사이트 검색",
   "libraryNoResults": "일치하는 항목 없음",
-  "appSettingsExperimentalFolderLibrary": "새 디자인",
+  "appSettingsExperimentalFolderLibrary": "대체 디자인",
   "appSettingsExperimentalFolderLibraryHint": "런처 그리드에서 사이트를 그룹으로 정리합니다.",
   "siteRedirectHomeSuggestion": "이 사이트가 {url}(으)로 리디렉션되었습니다. 이 주소를 홈페이지로 사용할까요? 새 도메인의 링크도 여기에서 열립니다.",
   "@siteRedirectHomeSuggestion": {

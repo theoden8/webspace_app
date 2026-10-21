@@ -12,7 +12,6 @@ class WebspaceGroupTile extends StatelessWidget {
     required this.webspace,
     required this.sites,
     required this.selected,
-    required this.colorIndex,
     required this.onOpen,
     required this.onMenu,
   });
@@ -20,7 +19,6 @@ class WebspaceGroupTile extends StatelessWidget {
   final Webspace webspace;
   final List<WebViewModel> sites;
   final bool selected;
-  final int colorIndex;
   final VoidCallback onOpen;
   final VoidCallback onMenu;
 
@@ -69,6 +67,15 @@ class WebspaceGroupTile extends StatelessWidget {
               curve: Motion.libraryCurve,
               width: well,
               height: well,
+              foregroundDecoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                border: Border.all(
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : Colors.transparent,
+                  width: LibraryStyle.selectionWidth,
+                ),
+              ),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -76,12 +83,10 @@ class WebspaceGroupTile extends StatelessWidget {
                     child: ExcludeSemantics(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: selected
-                              ? theme.colorScheme.primaryContainer
-                              : LibraryStyle.group(
-                                  theme.brightness,
-                                  index: colorIndex,
-                                ),
+                          color: LibraryStyle.group(
+                            theme.brightness,
+                            id: webspace.id,
+                          ),
                           borderRadius: BorderRadius.circular(
                             LibraryStyle.radius,
                           ),

@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "ค้นหาพื้นที่เว็บ",
   "librarySearchSites": "ค้นหาเว็บไซต์",
   "libraryNoResults": "ไม่พบผลลัพธ์",
-  "appSettingsExperimentalFolderLibrary": "ดีไซน์ใหม่",
+  "appSettingsExperimentalFolderLibrary": "ดีไซน์ทางเลือก",
   "appSettingsExperimentalFolderLibraryHint": "จัดเว็บไซต์เป็นกลุ่มในตารางตัวเรียกใช้งาน",
   "siteRedirectHomeSuggestion": "เว็บไซต์นี้เปลี่ยนเส้นทางไปที่ {url} ใช้ที่อยู่นี้เป็นหน้าแรกของเว็บไซต์หรือไม่ ลิงก์ไปยังโดเมนใหม่จะเปิดที่นี่ด้วย",
   "@siteRedirectHomeSuggestion": {

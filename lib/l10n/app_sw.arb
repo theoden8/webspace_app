@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "Tafuta nafasi za wavuti",
   "librarySearchSites": "Tafuta tovuti",
   "libraryNoResults": "Hakuna matokeo",
-  "appSettingsExperimentalFolderLibrary": "Muundo mpya",
+  "appSettingsExperimentalFolderLibrary": "Muundo mbadala",
   "appSettingsExperimentalFolderLibraryHint": "Panga tovuti katika vikundi kwenye gridi ya kuzindua.",
   "siteRedirectHomeSuggestion": "Tovuti hii imeelekeza upya kwenye {url}. Tumia anwani hii kama ukurasa wake wa mwanzo? Viungo vya kikoa kipya pia vitafunguliwa hapa.",
   "@siteRedirectHomeSuggestion": {

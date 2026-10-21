@@ -21,7 +21,7 @@ enum BackGestureAction {
   /// Close the open drawer and leave the app (NAV-009).
   closeDrawerAndExit,
 
-  /// Open the navigation drawer (NAV-009).
+  /// Open app navigation: the drawer or Alternative design library (NAV-009).
   openDrawer,
 
   /// Leave the app (NAV-009).

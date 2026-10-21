@@ -74,9 +74,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
   bool _settingsOpen = false;
   bool _animateNavigation = false;
   double _navigationDirection = 1;
+  double _backSwipeDistance = 0;
 
   void showSelectedWebspace() => _show(_LibraryView.workspace);
-  void showWebspaces() => _show(_LibraryView.webspaces);
+  void showWebspaces() {
+    FocusScope.of(context).unfocus();
+    _show(_LibraryView.webspaces);
+  }
 
   void _show(_LibraryView view) {
     _search.clear();
@@ -290,7 +294,45 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                                           context,
                                           query: _search.text,
                                         )
-                                      : _sites(context),
+                                      : GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onHorizontalDragStart: (_) =>
+                                              _backSwipeDistance = 0,
+                                          onHorizontalDragUpdate: (details) =>
+                                              _backSwipeDistance +=
+                                                  details.delta.dx,
+                                          onHorizontalDragEnd: (details) {
+                                            if (_view !=
+                                                _LibraryView.workspace) {
+                                              return;
+                                            }
+                                            final direction =
+                                                Directionality.of(context) ==
+                                                    TextDirection.rtl
+                                                ? -1
+                                                : 1;
+                                            final distance =
+                                                _backSwipeDistance * direction;
+                                            final velocity =
+                                                (details.primaryVelocity ?? 0) *
+                                                direction;
+                                            if (distance >=
+                                                    LibraryStyle
+                                                        .backSwipeDistance ||
+                                                (distance > 0 &&
+                                                    velocity >=
+                                                        LibraryStyle
+                                                            .backSwipeVelocity)) {
+                                              showWebspaces();
+                                            }
+                                          },
+                                          child: Listener(
+                                            // Flutter ends accepted drags even on pointer cancellation.
+                                            onPointerCancel: (_) =>
+                                                _backSwipeDistance = 0,
+                                            child: _sites(context),
+                                          ),
+                                        ),
                                 ),
                               ],
                             ),
@@ -337,7 +379,11 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
     final shown = widget.webspaces
         .where((w) => w.name.toLowerCase().contains(query))
         .toList();
-    if (shown.isEmpty) return _empty(context, groups: true);
+    final order = _order(WebspaceId.all);
+    final matchingSites = query.isEmpty ? <int>[] : _matchingSites(order);
+    if (shown.isEmpty && matchingSites.isEmpty) {
+      return _empty(context, groups: true);
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final scaler = MediaQuery.textScalerOf(context);
@@ -348,118 +394,184 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                     (minimum + Spacing.sm))
                 .floor()
                 .clamp(1, 4);
-        final extent = WebspaceGroupTile.extentFor(
-          textScaler: scaler,
-          textTheme: Theme.of(context).textTheme,
-          well: shown
-              .map((w) => LibraryStyle.itemWell(w.launcherSize))
-              .reduce(math.max),
-        );
-        return GridView.builder(
+        final loc = AppLocalizations.of(context);
+        return CustomScrollView(
           key: const PageStorageKey('webspace-groups'),
-          padding: const EdgeInsets.fromLTRB(
-            Spacing.lg,
-            Spacing.xl,
-            Spacing.lg,
-            Spacing.xl,
-          ),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: Spacing.sm,
-            mainAxisSpacing: Spacing.xl,
-            mainAxisExtent: extent,
-          ),
-          itemCount: shown.length,
-          itemBuilder: (context, index) {
-            final webspace = shown[index];
-            final position = widget.webspaces.indexOf(webspace);
-            return WebspaceGroupTile(
-              key: ValueKey(webspace.id),
-              webspace: webspace,
-              sites: [for (final i in _order(webspace.id)) widget.sites[i]],
-              selected: webspace.id == widget.selectedWebspaceId,
-              colorIndex: position,
-              onOpen: () {
-                FocusScope.of(context).unfocus();
-                widget.onSelectWebspace(webspace);
-              },
-              onMenu: () => unawaited(_menu(webspace)),
-            );
-          },
+          slivers: [
+            if (query.isNotEmpty && shown.isNotEmpty)
+              _searchHeading(context, label: loc.libraryWebspaces),
+            if (shown.isNotEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  Spacing.lg,
+                  Spacing.xl,
+                  Spacing.lg,
+                  Spacing.xl,
+                ),
+                sliver: SliverGrid.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: Spacing.sm,
+                    mainAxisSpacing: Spacing.xl,
+                    mainAxisExtent: WebspaceGroupTile.extentFor(
+                      textScaler: scaler,
+                      textTheme: Theme.of(context).textTheme,
+                      well: shown
+                          .map((w) => LibraryStyle.itemWell(w.launcherSize))
+                          .reduce(math.max),
+                    ),
+                  ),
+                  itemCount: shown.length,
+                  itemBuilder: (context, index) {
+                    final webspace = shown[index];
+                    return WebspaceGroupTile(
+                      key: ValueKey(webspace.id),
+                      webspace: webspace,
+                      sites: [
+                        for (final i in _order(webspace.id)) widget.sites[i],
+                      ],
+                      selected: webspace.id == widget.selectedWebspaceId,
+                      onOpen: () {
+                        FocusScope.of(context).unfocus();
+                        widget.onSelectWebspace(webspace);
+                      },
+                      onMenu: () => unawaited(_menu(webspace)),
+                    );
+                  },
+                ),
+              ),
+            if (matchingSites.isNotEmpty) ...[
+              _searchHeading(context, label: loc.librarySites),
+              _siteGrid(
+                context,
+                width: constraints.maxWidth,
+                order: order,
+                shown: matchingSites,
+              ),
+            ],
+          ],
         );
       },
     );
   }
 
-  Widget _sites(BuildContext context) {
-    final order = _order(
-      _view == _LibraryView.sites ? WebspaceId.all : widget.selectedWebspaceId,
-    );
+  Widget _searchHeading(BuildContext context, {required String label}) =>
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            Spacing.lg,
+            Spacing.lg,
+            Spacing.lg,
+            Spacing.xs,
+          ),
+          child: Semantics(
+            header: true,
+            child: Text(label, style: Theme.of(context).textTheme.titleMedium),
+          ),
+        ),
+      );
+
+  List<int> _matchingSites(List<int> order) {
     final query = _search.text.trim().toLowerCase();
-    final shown = order
+    return order
         .where(
           (i) =>
               widget.sites[i].getDisplayName().toLowerCase().contains(query) ||
               widget.sites[i].initUrl.toLowerCase().contains(query),
         )
         .toList();
+  }
+
+  Widget _sites(BuildContext context) {
+    final order = _order(widget.selectedWebspaceId);
+    final shown = _matchingSites(order);
     if (shown.isEmpty) return _empty(context, groups: false);
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final scale = MediaQuery.textScalerOf(context).scale(1);
-        final columns =
-            ((constraints.maxWidth - Spacing.lg * 2 + Spacing.sm) /
-                    (LibraryStyle.tileMinWidth * math.max(1, scale * .7) +
-                        Spacing.sm))
-                .floor()
-                .clamp(1, 7);
-        return GridView.builder(
-          key: PageStorageKey((
-            'library-sites',
-            _view,
-            widget.selectedWebspaceId,
-          )),
-          padding: const EdgeInsets.all(Spacing.lg),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: Spacing.sm,
-            mainAxisSpacing: Spacing.lg,
-            mainAxisExtent:
-                shown
-                    .map(
-                      (i) =>
-                          LibraryStyle.itemWell(widget.sites[i].launcherSize),
-                    )
-                    .reduce(math.max) +
-                Spacing.xl +
-                scale * 58,
+      builder: (context, constraints) => CustomScrollView(
+        key: PageStorageKey((
+          'library-sites',
+          _view,
+          widget.selectedWebspaceId,
+        )),
+        slivers: [
+          _siteGrid(
+            context,
+            width: constraints.maxWidth,
+            order: order,
+            shown: shown,
           ),
-          itemCount: shown.length,
-          itemBuilder: (context, index) {
-            final site = widget.sites[shown[index]];
-            return SiteGridTile(
-              key: ValueKey(site.siteId),
+        ],
+      ),
+    );
+  }
+
+  Widget _siteGrid(
+    BuildContext context, {
+    required double width,
+    required List<int> order,
+    required List<int> shown,
+  }) {
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    final columns =
+        ((width - Spacing.lg * 2 + Spacing.sm) /
+                (LibraryStyle.tileMinWidth * math.max(1, scale * .7) +
+                    Spacing.sm))
+            .floor()
+            .clamp(1, 7);
+    final memberships = {
+      for (final i in shown)
+        i: _view == _LibraryView.webspaces
+            ? widget.webspaces
+                  .where(
+                    (w) =>
+                        !w.isAll && w.siteIds.contains(widget.sites[i].siteId),
+                  )
+                  .toList()
+            : const <Webspace>[],
+    };
+    return SliverPadding(
+      padding: const EdgeInsets.all(Spacing.lg),
+      sliver: SliverGrid.builder(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          crossAxisSpacing: Spacing.sm,
+          mainAxisSpacing: Spacing.lg,
+          mainAxisExtent: shown
+              .map(
+                (i) => SiteGridTile.extentFor(
+                  context,
+                  well: LibraryStyle.itemWell(widget.sites[i].launcherSize),
+                  webspaceCount: memberships[i]!.length,
+                ),
+              )
+              .reduce(math.max),
+        ),
+        itemCount: shown.length,
+        itemBuilder: (context, index) {
+          final site = widget.sites[shown[index]];
+          return SiteGridTile(
+            key: ValueKey(site.siteId),
+            site: site,
+            listIndex: order.indexOf(shown[index]),
+            selected: identical(site, widget.currentSite),
+            showTabCount: widget.showsTabCount(site) && site.tabs.length > 1,
+            layout: SiteGridTileLayout.library,
+            webspaces: memberships[shown[index]]!,
+            onOpen: () {
+              FocusScope.of(context).unfocus();
+              widget.onOpenSite(site);
+            },
+            onMenu: (context, {required globalPosition}) => widget.onSiteMenu(
+              context,
               site: site,
-              listIndex: order.indexOf(shown[index]),
-              selected: identical(site, widget.currentSite),
-              showTabCount: widget.showsTabCount(site) && site.tabs.length > 1,
-              layout: SiteGridTileLayout.library,
-              onOpen: () {
-                FocusScope.of(context).unfocus();
-                widget.onOpenSite(site);
-              },
-              onMenu: (context, {required globalPosition}) => widget.onSiteMenu(
-                context,
-                site: site,
-                position: globalPosition,
-              ),
-              onReorder: query.isEmpty && order.length > 1
-                  ? widget.onReorderSite
-                  : null,
-            );
-          },
-        );
-      },
+              position: globalPosition,
+            ),
+            onReorder: _search.text.trim().isEmpty && order.length > 1
+                ? widget.onReorderSite
+                : null,
+          );
+        },
+      ),
     );
   }
 

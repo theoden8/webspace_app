@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "ვებსივრცეების ძიება",
   "librarySearchSites": "საიტების ძიება",
   "libraryNoResults": "შედეგები არ არის",
-  "appSettingsExperimentalFolderLibrary": "ახალი დიზაინი",
+  "appSettingsExperimentalFolderLibrary": "ალტერნატიული დიზაინი",
   "appSettingsExperimentalFolderLibraryHint": "დააჯგუფეთ საიტები გამშვების ბადეში.",
   "siteRedirectHomeSuggestion": "ეს საიტი გადამისამართდა მისამართზე {url}. გამოვიყენოთ ეს მისამართი მის მთავარ გვერდად? ახალი დომენის ბმულებიც აქ გაიხსნება.",
   "@siteRedirectHomeSuggestion": {

@@ -13,7 +13,7 @@ The Webspaces feature allows users to organize their saved sites into separate w
 
 ## Requirements
 
-The grouped site launcher is an optional experiment (DEVTOOLS-011). Group grids, their menus, library tabs, and search below apply only when developer mode and **New design** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
+The grouped site launcher is an optional experiment (DEVTOOLS-011). Group grids, their menus, library tabs, and search below apply only when developer mode and **Alternative design** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
 
 ### Requirement: WEBSPACE-001 - Create Multiple Webspaces
 
@@ -46,7 +46,7 @@ Users SHALL be able to select and switch between webspaces to view filtered site
 
 ### Requirement: WEBSPACE-003 - Visual Selection Indicator
 
-The system SHALL provide clear visual indication of which webspace is currently active.
+The system SHALL provide clear visual indication of which webspace is currently active. In Alternative design, a group's background color SHALL be stable for its persisted identity across revisiting, filtering, renaming, reordering, adding or removing other groups, and settings restore. Selecting a group SHALL show an accent outline and check without recoloring its background. Light and dark themes SHALL use paired shades for the same identity.
 
 #### Scenario: Display selected webspace indicator
 
@@ -58,11 +58,20 @@ The system SHALL provide clear visual indication of which webspace is currently 
 **And** a group with more than four sites previews three favicons and the remaining count
 **And** its site count reflects the current filtered membership, including all sites for the synthetic All group
 
+#### Scenario: A group's color stays familiar
+
+**Given** the user has seen the Work and Personal groups in Alternative design
+**When** they open a group and return, reorder or rename it, filter the list, or restore their settings
+**Then** each group's background color stays the same within the current theme
+**And** the selected group is identified by its outline and check
+
 ---
 
 ### Requirement: WEBSPACE-004 - Filtered Site Navigation
 
 The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. The Sites library tab SHALL select All and show every saved site in an embedded tab tree. Sites with tabs enabled SHALL expose their parent/child tab hierarchy and the existing open, close, collapse, and reorder controls. Sites with tabs disabled SHALL remain single launchable entries. Tree searches SHALL retain the ancestors of matching tabs. Actions in the embedded tree SHALL NOT dismiss the library route. Library searches SHALL filter the current view without changing membership or persisted order.
+
+Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL use its existing container color and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tab tree and remain stable when selection changes.
 
 #### Scenario: Filter drawer by webspace
 
@@ -72,6 +81,21 @@ The workspace site grid and the browser drawer SHALL only show sites belonging t
 **When** the user opens the drawer
 **Then** only sites A and B are displayed
 **And** site C is not visible
+
+#### Scenario: Find a site from the webspaces grid
+
+**Given** Work is selected and contains Alpha, while Beta belongs to another workspace
+**When** the user searches the Webspaces grid for Beta's name or homepage address
+**Then** Beta appears in the Sites section and can be opened directly
+**And** Work remains selected and workspace membership and saved order remain unchanged
+**And** a site shared by multiple groups appears only once
+**And** a query matching both a workspace and a site shows both sections
+**And** a query matching neither shows No matches
+**And** clearing the query restores the workspace grid
+**And** each site result uses its tab-tree color and labels up to two named workspaces it belongs to
+**And** a site in more than two named workspaces shows the remaining count and exposes all memberships to accessibility services
+
+Regression: `test/webspace_library_test.dart` and `test/webspace_library_app_test.dart`.
 
 ---
 
@@ -120,9 +144,19 @@ Users SHALL be able to delete webspaces.
 
 ### Requirement: WEBSPACE-008 - Back to Webspaces Navigation
 
-Users SHALL be able to return to the group grid from a workspace site grid using its Back control or the system back action. Returning SHALL clear the library search. The browser drawer SHALL also retain its Back to Webspaces action.
+Users SHALL be able to return to the group grid from a workspace site grid using its Back control, the system back action, or a horizontal back swipe across the site grid. The swipe SHALL follow the reading direction (rightwards for left-to-right interfaces, leftwards for right-to-left interfaces) and work in empty groups. Vertical scrolling, short incidental drags, and long-press site reordering SHALL remain available without navigating back. Returning SHALL clear the library search and dismiss its keyboard without changing the selected webspace or its membership. The browser drawer SHALL also retain its Back to Webspaces action.
 
 With the group library enabled, opening and closing a group SHALL use continuous expand/collapse transitions without a blank frame between views, including the first group opened. Search and bottom navigation SHALL remain stationary. Departing grids SHALL stop accepting input immediately, Back SHALL remain usable during the transition, and the system's reduced-motion preference SHALL switch views without animation.
+
+With Alternative design enabled, the site browser SHALL use a grid button to return directly to the previous library view, retaining its selected group or Sites tab. It SHALL NOT create a navigation drawer or show a hamburger button. The return SHALL preserve the site's loaded state and tab selection. A locked kiosk session SHALL expose neither navigation affordance.
+
+#### Scenario: Return from browsing a site
+
+**Given** Alternative design is enabled and the user opened a site from a group's grid or the Sites tab tree
+**When** the user taps the browser's grid button
+**Then** the previous library view is shown with its selection retained
+**And** no drawer opens
+**And** opening the site again retains its tab selection
 
 #### Scenario: Navigate back to webspaces list
 
@@ -130,6 +164,20 @@ With the group library enabled, opening and closing a group SHALL use continuous
 **When** the user opens the drawer
 **And** taps "Back to Webspaces"
 **Then** the webspaces list is displayed
+
+#### Scenario: Swipe back from a site group
+
+**Given** Alternative design is enabled and the user is viewing a group's sites
+**When** the user swipes horizontally in the back direction
+**Then** the groups menu appears with the existing closing transition
+**And** the search and keyboard are cleared
+**And** the selected group and its sites are unchanged
+
+#### Scenario: Scroll or reorder sites in a group
+
+**Given** the user is viewing a group's sites
+**When** the user scrolls vertically or long-presses and drags a site
+**Then** the group stays open
 
 ---
 
@@ -247,7 +295,7 @@ still be read.
 
 ### Requirement: WEBSPACE-014 - Individual Launcher Item Sizes
 
-With New design enabled, each group and site SHALL offer Small, Medium, and Large icon sizes from its item menu, defaulting to Medium. A size choice SHALL affect only that item, persist with it across restarts, and survive settings export/import. Opening, editing, sizing, and reordering items SHALL NOT require a global edit mode.
+With Alternative design enabled, each group and site SHALL offer Small, Medium, and Large icon sizes from its item menu, defaulting to Medium. A size choice SHALL affect only that item, persist with it across restarts, and survive settings export/import. Opening, editing, sizing, and reordering items SHALL NOT require a global edit mode.
 
 #### Scenario: Resize one item
 

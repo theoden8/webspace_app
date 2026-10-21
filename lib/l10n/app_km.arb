@@ -1094,7 +1094,7 @@
   "librarySearchWebspaces": "ស្វែងរកលំហបណ្ដាញ",
   "librarySearchSites": "ស្វែងរកគេហទំព័រ",
   "libraryNoResults": "គ្មានលទ្ធផល",
-  "appSettingsExperimentalFolderLibrary": "ការរចនាថ្មី",
+  "appSettingsExperimentalFolderLibrary": "ការរចនាជំនួស",
   "appSettingsExperimentalFolderLibraryHint": "រៀបចំគេហទំព័រជាក្រុមក្នុងក្រឡាចត្រង្គកម្មវិធីបើក។",
   "siteRedirectHomeSuggestion": "គេហទំព័រនេះបានបញ្ជូនបន្តទៅ {url}។ ប្រើអាសយដ្ឋាននេះជាទំព័រដើមរបស់វា? តំណទៅដែនថ្មីក៏នឹងបើកនៅទីនេះដែរ។",
   "@siteRedirectHomeSuggestion": {
