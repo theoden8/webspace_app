@@ -1032,8 +1032,7 @@ class WebViewModel implements MediaGrantRecord {
       incognito: id.effectiveIncognito,
     );
     await c.setThemePreference(effectiveTheme);
-    defaultUserAgent ??=
-        HostBrowser.defaultUserAgent ?? await c.getDefaultUserAgent();
+    defaultUserAgent ??= await HostBrowser.sentUserAgent();
   }
 
   /// What this slot's own webview claims of the process-wide proxy rule: its

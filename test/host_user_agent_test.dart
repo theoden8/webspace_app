@@ -3,6 +3,7 @@
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_preset.dart';
@@ -84,6 +85,17 @@ void main() {
       expect(_postureUserAgent(m), 'Custom/1.0');
       expect(webViewUserAgent(_postureUserAgent(m)), 'Custom/1.0');
     });
+  });
+
+  group('sentUserAgent', () {
+    test('UAID-005: is the host\'s own where the app names one', () async {
+      HostBrowser.defaultUserAgentForTest = _safari;
+      expect(await HostBrowser.sentUserAgent(), _safari);
+    });
+
+    test('is none where the engine does not say (Linux WPE)', () async {
+      expect(await HostBrowser.sentUserAgent(), isNull);
+    }, skip: !hostIsLinux);
   });
 
   test('a settings update keeps the Safari UA the webview was built with (CAPTCHA-005)',

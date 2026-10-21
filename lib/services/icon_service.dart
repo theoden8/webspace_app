@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/engine_image.dart';
 import 'package:webspace/services/host_resolution.dart';
+import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -30,7 +31,10 @@ UserProxySettings _resolve(UserProxySettings? perSite) {
 /// device IP and defeat the proxy the user configured.
 http.Client? _proxiedClient(UserProxySettings proxy) {
   final result = outboundHttp.clientFor(proxy);
-  if (result is OutboundClientReady) return result.client;
+  if (result is OutboundClientReady) {
+    return SiteUserAgentClient(result.client,
+        userAgent: HostBrowser.sentUserAgent);
+  }
   if (result is OutboundClientBlocked) {
     LogTag.icon.warning('Outbound blocked: ${result.reason}');
   }

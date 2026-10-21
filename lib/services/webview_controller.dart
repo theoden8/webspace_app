@@ -58,7 +58,6 @@ abstract class WebViewController {
   Future<void> findAllAsync({required String find});
   Future<void> findNext({required bool forward});
   Future<void> clearMatches();
-  Future<String?> getDefaultUserAgent();
   Future<void> setOptions({
     required bool javascriptEnabled,
     String? userAgent,
@@ -318,9 +317,8 @@ class PlatformWebViewController implements WebViewController {
 
   /// Null when the webview is gone or the platform refused: a native
   /// failure arrives as [PlatformException], a torn-down platform view as
-  /// [MissingPluginException], and a method the platform's plugin lacks
-  /// (Linux WPE has no `getDefaultUserAgent`) as [UnimplementedError] from
-  /// the platform interface.
+  /// [MissingPluginException], and a method the platform's plugin lacks as
+  /// [UnimplementedError] from the platform interface.
   Future<T?> _native<T>(Future<T?> Function() call) async {
     if (_disposed) return null;
     try {
@@ -426,10 +424,6 @@ class PlatformWebViewController implements WebViewController {
 
   @override
   Future<void> clearMatches() => _native(_c.clearMatches);
-
-  @override
-  Future<String?> getDefaultUserAgent() async =>
-      await _native(inapp.InAppWebViewController.getDefaultUserAgent);
 
   @override
   Future<void> setOptions({

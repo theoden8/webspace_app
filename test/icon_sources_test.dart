@@ -11,10 +11,12 @@ import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/host_user_agent.dart';
 
 import 'helpers/fake_outbound.dart';
 
 const _site = 'https://example.com/';
+const _browser = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15';
 final Uint8List _png64 =
     Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
 
@@ -77,6 +79,41 @@ void main() {
     clearFaviconCache();
     final fallback = await getFaviconUrlStream(_site).single;
     expect(Uri.parse(fallback.url).path, '/favicon.ico');
+  });
+
+  test('ICON-002: every icon request names the webview\'s user agent',
+      () async {
+    HostBrowser.defaultUserAgentForTest = _browser;
+    addTearDown(() => HostBrowser.defaultUserAgentForTest = null);
+    await getFaviconUrlStream(_site).drain<void>();
+    expect(factory.requests, isNotEmpty);
+    expect({for (final r in factory.requests) r.headers['user-agent']},
+        {_browser});
+  });
+
+  test('ICON-002: a site that walls other clients is asked as its webview '
+      'asks it', () async {
+    HostBrowser.defaultUserAgentForTest = _browser;
+    addTearDown(() => HostBrowser.defaultUserAgentForTest = null);
+    final wall = http.Response(
+        '<html><head><title>Checking your browser</title></head></html>', 200,
+        headers: {'content-type': 'text/html'});
+    outboundHttp = factory = FakeOutbound(responder: (req) {
+      if (req.headers['user-agent'] != _browser) return wall;
+      return switch ('${req.url.host}${req.url.path}') {
+        'walled.test/' => http.Response('', 301,
+            headers: {'location': 'https://www.walled.test/'}),
+        'www.walled.test/' => http.Response(
+            '<html><head><link rel="icon" href="/icon.png"></head></html>',
+            200,
+            headers: {'content-type': 'text/html'}),
+        'www.walled.test/icon.png' => http.Response.bytes(_png64, 200,
+            headers: {'content-type': 'image/png'}),
+        _ => http.Response('', 404),
+      };
+    });
+    final found = await getFaviconUrlStream('https://walled.test/').single;
+    expect(Uri.parse(found.url).host, 'www.walled.test');
   });
 
   test('ICON-014: gmail.com is asked about only as itself', () async {

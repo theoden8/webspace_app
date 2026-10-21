@@ -27,6 +27,7 @@ import 'dart:typed_data';
 import 'package:html/parser.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/untrusted_image.dart';
@@ -94,7 +95,8 @@ class FaviconFinder {
     if (clientResult is! OutboundClientReady) {
       return favicons; // proxy could not be honored — fail closed
     }
-    final client = clientResult.client;
+    final client = SiteUserAgentClient(clientResult.client,
+        userAgent: HostBrowser.sentUserAgent);
 
     try {
     final page = await _fetchPage(Uri.parse(url), client: client);

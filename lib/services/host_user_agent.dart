@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
@@ -43,6 +44,28 @@ abstract final class HostBrowser {
 
   static String? _defaultUserAgent;
   static String? get defaultUserAgent => _defaultUserAgent;
+
+  static ({String? agent})? _engine;
+
+  /// What a site's webview sends as its user agent when the user set none:
+  /// [defaultUserAgent], else the engine's own, read once where its plugin
+  /// reports it (Android, iOS). Null elsewhere: Linux WPE does not say, and a
+  /// browser sets its own.
+  static Future<String?> sentUserAgent() async {
+    final own = _defaultUserAgent;
+    if (own != null || !(hostIsAndroid || hostIsIOS)) return own;
+    if (_engine case (:final agent)) return agent;
+    String? agent;
+    try {
+      agent = await inapp.InAppWebViewController.getDefaultUserAgent();
+    } on PlatformException catch (e) {
+      LogTag.startup.debug('engine user agent unread: $e');
+    } on MissingPluginException catch (e) {
+      LogTag.startup.debug('engine user agent unread: $e');
+    }
+    _engine = (agent: agent);
+    return agent;
+  }
 
   @visibleForTesting
   static set defaultUserAgentForTest(String? value) =>

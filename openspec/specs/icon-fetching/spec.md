@@ -37,6 +37,13 @@ and SHALL pick the best of them by ICON-003's score. The page icon the site's
 own webview produces once the site is open (ICON-009, ICON-013) wins over
 this when present.
 
+Every request SHALL name the user agent the site's webview sends when the user
+set none (`HostBrowser.sentUserAgent`, UAID-005), so a site that walls other
+clients answers as it answers the site: `linkedin.com` sends Dart's own user
+agent a CAPTCHA page with no icon in place of its 301 to `www.linkedin.com`.
+Linux WPE does not say its user agent, so there the request goes out under
+Dart's.
+
 #### Scenario: Select best available icon
 
 **Given** the home page declares a 32px and a 64px PNG icon
@@ -50,6 +57,15 @@ this when present.
 **And** the site's host serves `/favicon.ico`
 **When** selection is made
 **Then** `/favicon.ico` is chosen
+
+#### Scenario: A site that walls other clients
+
+**Given** `https://linkedin.com/` answers a client that does not name a
+browser with a CAPTCHA page, and a browser with a 301 to
+`https://www.linkedin.com/`
+**When** the icon is fetched
+**Then** the request names the webview's user agent
+**And** the icon is found on `www.linkedin.com`
 
 #### Scenario: A home page that redirects to another host
 
