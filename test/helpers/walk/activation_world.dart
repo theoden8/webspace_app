@@ -335,6 +335,15 @@ final class DuplicateTab extends SiteAction {
   String toString() => 'DuplicateTab($slot)';
 }
 
+/// A reset lands the site at [slot] at home (`landOnHomeTab`, TAB-014),
+/// left running.
+final class HomeLand extends SiteAction {
+  const HomeLand(this.slot);
+  final int slot;
+  @override
+  String toString() => 'HomeLand($slot)';
+}
+
 /// What a walk's page starts with.
 typedef WalkPage = ({
   /// Hosts of the sites loaded at startup, in order.
@@ -1033,6 +1042,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     NewTab() ||
     CloseTab() ||
     DuplicateTab() ||
+    HomeLand() ||
     Reroute() => false,
     ArchiveSite() ||
     Reply() ||
@@ -1584,6 +1594,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     NewTab() => ActivationStep.newTab,
     CloseTab() => ActivationStep.closeTab,
     DuplicateTab() => ActivationStep.duplicateTab,
+    HomeLand() => ActivationStep.homeLanding,
     Reroute() => ActivationStep.reroute,
     // A move is the environment's, a move into an archive the model's
     // setup, and the rest wait on the page.
@@ -1925,6 +1936,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           _offScreenTabInput(at(slot));
           _track(tabs.duplicateTab(at(slot)));
         }
+      case HomeLand(:final slot):
+        if (n > 0) _track(tabs.landOnHomeTab(at(slot)));
       case OpenNested(:final slot):
         if (n > 0) {
           _track(
@@ -2051,6 +2064,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           NewTab() ||
           CloseTab() ||
           DuplicateTab() ||
+          HomeLand() ||
           OpenNested() ||
           Wake() ||
           Background() ||

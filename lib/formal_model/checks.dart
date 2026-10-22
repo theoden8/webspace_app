@@ -443,6 +443,21 @@ enum ActivationWorld {
         'site takes it out of the loaded sites and opens it again in the '
         'same turn (LIR-024, LIR-034)',
   ),
+  tabsResetContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    // The reset's site, loaded off screen at the start (ResetOne).
+    tabbed: {3},
+    maxTabs: 3,
+    env: {Env.resetOne},
+    allowed: {'HomeLanding', 'NewTab', 'OpenTab', 'Pressure', 'Tap', 'UnloadSite'},
+    invariants: [..._core, ..._tabs],
+    holds:
+        "site 3's tabs beside a reset's landings at home: a loaded site "
+        'switches to the tab its landing names, one with no webview takes '
+        'it as its pointer (TAB-014)',
+  ),
   archiveContainers(
     cookies: Cookies.containers,
     coldStart: false,
@@ -708,6 +723,11 @@ enum Witness {
     doc:
         'a reroute that moves the slot on screen starting its activation in '
         'the same turn is reachable',
+  ),
+  landed(
+    world: ActivationWorld.tabsResetContainers,
+    doc: "a reset's landing that switches a loaded site to the tab it names "
+        'is reachable',
   );
 
   const Witness({required this.world, required this.doc});
@@ -908,6 +928,13 @@ enum Mutant {
         'a reroute that moves a loaded slot to another site under one '
         'process-wide proxy and keeps it loaded runs two routes (LIR-024, '
         'caught)',
+  ),
+  landinplace(
+    world: ActivationWorld.tabsResetContainers,
+    by: Inv.tabBound,
+    doc:
+        "a landing that moves a loaded site's pointer without switching its "
+        'webview leaves it built for another tab (TAB-014, caught)',
   );
 
   const Mutant({

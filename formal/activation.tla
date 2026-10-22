@@ -486,6 +486,9 @@ Reach_Rerouted ==
     ~(/\ last.a = "RerouteFlip" /\ last.o = "unload"
       /\ \E g \in Flows : g = inputs /\ fl[g].kind = "tap" /\ fl[g].site = last.s
                           /\ fl[g].v = version)
+\* A reset's landing of a loaded site switches it to the tab it names
+\* (TAB-014): the landing world is not vacuous.
+Reach_Landed == ~(last.a = "HomeLand" /\ last.o = "rebind")
 Reach_RouteSwitch ==
     ~\E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc = "next"
                        /\ ProxyContenders(fl[f].site, RunsAs(fl[f].site)) # {}

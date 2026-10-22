@@ -761,10 +761,6 @@ enum Environment {
 
 /// The writes of the model's state that no step of a table takes yet.
 enum Unmodeled {
-  /// A reset's landing of a site with tabs on a tab at its home page
-  /// (TAB-014).
-  homeLanding,
-
   /// The move to a tab the site runs itself before an owner URL loads
   /// (LIR-018).
   ownerRunTab,

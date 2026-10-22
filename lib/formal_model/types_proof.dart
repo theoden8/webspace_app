@@ -818,11 +818,12 @@ final _alone = {FlowKind.tab: ModelDef.tabBusy};
 typedef _Held = ({FlowField field, String set, Set<String> at});
 
 final _held = <_Held>[
-  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip'}),
+  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip', 'hLand'}),
   (field: FlowField.tab, set: 'TabIds', at: {'tNav', 'tRebind', 'tDupRead'}),
   // What [_supports] reads of the shared state only a flow of a kind in
-  // [_alone] writes, so its places hold only those.
-  (field: FlowField.kind, set: _set([for (final k in _alone.keys) k.name]), at: _supports.keys.toSet()),
+  // [_alone] writes, so its places hold only those, and so does a place
+  // whose step writes it beside them (a landing's fresh tab).
+  (field: FlowField.kind, set: _set([for (final k in _alone.keys) k.name]), at: {..._supports.keys, 'hLand'}),
 ];
 
 /// The kinds of flow a row can hold, as the model names them: a row no
