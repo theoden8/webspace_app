@@ -47,10 +47,10 @@ class UrlBar extends StatefulWidget {
   });
 
   @override
-  State<UrlBar> createState() => _UrlBarState();
+  State<UrlBar> createState() => UrlBarState();
 }
 
-class _UrlBarState extends State<UrlBar> {
+class UrlBarState extends State<UrlBar> {
   late TextEditingController _urlController;
   late FocusNode _focusNode;
   bool _isEditing = false;
@@ -115,6 +115,21 @@ class _UrlBarState extends State<UrlBar> {
   UrlBarSearchSite? get _searchSite {
     final id = _searchMode ? _searchSiteId : _defaultSiteId;
     return widget.searchSites.where((s) => s.id == id).firstOrNull;
+  }
+
+  /// Puts the cursor in the field with the address selected, as a tap on it
+  /// does, for a keyboard shortcut (NAV-014).
+  void edit() {
+    _focusNode.requestFocus();
+    _selectForEdit();
+  }
+
+  void _selectForEdit() {
+    setState(() => _isEditing = true);
+    _urlController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _urlController.text.length,
+    );
   }
 
   void _startSearch() {
@@ -265,12 +280,7 @@ Widget button(IconData icon,
               controller: _urlController,
               focusNode: _focusNode,
               onTap: () {
-                if (_searchMode) return;
-                setState(() => _isEditing = true);
-                _urlController.selection = TextSelection(
-                  baseOffset: 0,
-                  extentOffset: _urlController.text.length,
-                );
+                if (!_searchMode) _selectForEdit();
               },
               // The trailing button says whether Enter searches or opens.
               onChanged: _canSearch ? (_) => setState(() {}) : null,

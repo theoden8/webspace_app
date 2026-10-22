@@ -20,6 +20,7 @@ import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
+import 'package:webspace/controllers/keyboard_shortcut_controller.dart';
 import 'package:webspace/controllers/link_controller.dart';
 import 'package:webspace/controllers/site_network_controller.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -142,6 +143,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
   final _libraryKey = GlobalKey<WebspaceLibraryState>();
   final _launchZoom = GlobalKey<LaunchZoomState>();
+  final _urlBar = GlobalKey<UrlBarState>();
   bool get _folderLibraryEnabled => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.folderLibrary);
   final SiteRuntime _sites = SiteRuntime();
@@ -156,6 +158,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       BackGestureController(host: _PageHost(this), surface: _surface);
   late final FullscreenController _fullscreen =
       FullscreenController(host: _PageHost(this), surface: _surface);
+  late final KeyboardShortcutController _keys = KeyboardShortcutController(
+      _sites, host: _PageHost(this), tabs: _tabs, resets: _resets, back: _back);
   late final SiteActivationController _activation = SiteActivationController(
     _sites,
     host: _PageHost(this),
@@ -315,6 +319,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shortcuts.start();
     _network.start();
     _fullscreen.start();
+    _keys.start();
   }
 
   void _rebuild() {
@@ -411,6 +416,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shortcuts.dispose();
     AppPref.anyChange.removeListener(_onAppPrefChanged);
     _fullscreen.dispose();
+    _keys.dispose();
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -1147,9 +1153,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       current: _sites.current,
       revealed: _fullscreen.tabStripRevealed,
       onHide: _fullscreen.hideTabStrip,
-      onOpen: (site) => _throughCard(site,
-          show: () => _openSiteFromDrawer(site),
-          shown: () => identical(_sites.shown, site)),
+      onOpen: _openSite,
       onShowTabs: () => unawaited(_showTabsSheet()),
       onReorder: _webspaces.canReorderView
           ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
@@ -1184,6 +1188,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           ),
         if (hasUrlBar)
           UrlBar(
+            key: _urlBar,
             currentUrl: model.currentUrl,
             searchSites: urlBarSearch?.sites ?? const [],
             defaultSearchSiteId: urlBarSearch?.defaultId,
@@ -1353,6 +1358,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _shell.saveCurrentIndex();
   }
 
+  /// A site picked in the tab strip or the library, or by its keyboard
+  /// shortcut, shown behind its card.
+  Future<void> _openSite(WebViewModel site) => _throughCard(site,
+      show: () => _openSiteFromDrawer(site),
+      shown: () => identical(_sites.shown, site));
+
   /// `siteId` -> display name for the sites the protection report may name.
   /// Archive-tier sites are excluded: they never contribute a count
   /// (STATS-005), so naming them there could only ever be noise.
@@ -1443,9 +1454,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
-                    onOpenSite: (site) => unawaited(_throughCard(site,
-                        show: () => _openSiteFromDrawer(site),
-                        shown: () => identical(_sites.shown, site))),
+                    onOpenSite: (site) => unawaited(_openSite(site)),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
                         ? (from, {required to}) =>
@@ -1687,7 +1696,8 @@ class _PageHost
         NestedLaunchHost,
         StartupHost,
         SiteSetCommitHost,
-        SiteDeletionHost {
+        SiteDeletionHost,
+        KeyboardShortcutHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -1964,4 +1974,25 @@ class _PageHost
   @override
   void noteUnloaded(WebViewModel model, {required String why}) =>
       _s._background.noteUnloaded(model, reason: why);
+
+  @override
+  bool get onTop => ModalRoute.isCurrentOf(_s.context) ?? true;
+
+  @override
+  bool focusUrlBar() {
+    final bar = _s._urlBar.currentState;
+    bar?.edit();
+    return bar != null;
+  }
+
+  @override
+  bool findInPage() {
+    // The input bar, the find bar's place, is gone in full screen.
+    if (_s._fullscreen.active) return false;
+    _s._toggleFind();
+    return true;
+  }
+
+  @override
+  Future<void> openSite(WebViewModel site) => _s._openSite(site);
 }

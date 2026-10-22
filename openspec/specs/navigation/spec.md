@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, and pull-to-refresh. Handles platform differences between iOS and Android, and guards async state against race conditions.
+Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, pull-to-refresh on phones and keyboard shortcuts on desktop. Handles platform differences between iOS and Android, and guards async state against race conditions.
 
 **Formal model:** the back/forward navigation actions are composed into the cross-spec kernel [formal/kernel.tla](../../../formal/kernel.tla) (with `webview-pause-lifecycle` and `lazy-webview-loading`); the `Back`/`Forward` transitions must route through the repaint chokepoint or the kernel's `RepaintLiveness` fails (the `bypass` demonstrator).
 
@@ -176,7 +176,7 @@ The menu back button (in both portrait and landscape layouts) SHALL navigate bac
 
 ### Requirement: NAV-006 - Pull-to-Refresh
 
-All webviews (main and nested) SHALL support pull-to-refresh to reload the current page.
+On Android and iOS, all webviews (main and nested) SHALL support pull-to-refresh to reload the current page. A desktop has no pull gesture; its keys reload the page instead (NAV-014).
 
 #### Scenario: Pull to refresh
 
@@ -554,6 +554,70 @@ does not use.
 - **THEN** the info button sits left of the address field
 - **AND** while the address is being edited the Go button takes its place
 
+---
+
+### Requirement: NAV-014 - Desktop Keyboard Shortcuts
+
+On macOS, Linux and Windows the page SHALL answer a desktop browser's keys for the
+site on screen, each with the action the app already offers for it, with Command on
+macOS where the others take Control:
+
+| Keys | Action |
+|---|---|
+| Ctrl/Cmd-T | the site menu's New tab, where the site has tabs (TAB-005) |
+| Ctrl/Cmd-W | close the tab on screen, as the Tabs sheet does, where the site has tabs |
+| Ctrl/Cmd-L | put the cursor in the URL bar with the address selected, where the URL bar is on |
+| Ctrl/Cmd-R, F5 | the site menu's Refresh |
+| Ctrl/Cmd-F | the site menu's Find in page, out of full screen |
+| Alt-Left; Cmd-[ on macOS | the site menu's Back |
+| Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the tab strip, round at either end |
+| Ctrl/Cmd-1 to 8, Ctrl/Cmd-9 | the site at that place along the tab strip, the last one |
+
+A key SHALL reach the shortcuts before the focused widget: Linux's webview keeps
+every key it is given. On macOS a page has the first chance at a key, as WKWebView
+gives it, and the shortcuts take what the page leaves. A key the page has no answer
+for at that moment (no site on screen, a site without tabs, no site at that place)
+SHALL go on to the focused widget, and so SHALL every other key: Ctrl/Cmd-A selects
+all in the page or the field that has focus, as the webview and the text field do on
+their own. While a dialog, a sheet, a menu or another screen is over the page, the
+keys SHALL be theirs. A held key SHALL ask once. A locked kiosk session (KIOSK-002)
+SHALL keep only Refresh and Back, which stay on the site.
+
+Not covered: the nested screen (NAV-008) answers none of these.
+
+#### Scenario: A new tab and its close
+
+- **GIVEN** a site with tabs on screen on Linux
+- **WHEN** the user presses Ctrl-T
+- **THEN** the site has a new tab, on screen
+- **AND** Ctrl-W closes it and shows the tab before it
+
+#### Scenario: The URL bar
+
+- **GIVEN** a site on screen with the URL bar on
+- **WHEN** the user presses Ctrl-L
+- **THEN** the URL bar has the focus with the whole address selected
+
+#### Scenario: Moving along the sites
+
+- **GIVEN** three sites in the selected webspace, the first on screen
+- **WHEN** the user presses Ctrl-2, then Ctrl-9, then Ctrl-Tab
+- **THEN** the second site, then the third, then the first is on screen
+
+#### Scenario: A menu keeps the keys
+
+- **GIVEN** the site menu is open over the page
+- **WHEN** the user presses Ctrl-T
+- **THEN** no tab opens
+
+#### Scenario: A kiosk stays on its site
+
+- **GIVEN** a locked kiosk session
+- **WHEN** the user presses Ctrl-Tab or Ctrl-2
+- **THEN** the site on screen stays
+
+Test: [test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.dart)
+
 ## Race Condition Guards
 
 ### Guard: RACE-002 - _backGuard
@@ -669,7 +733,12 @@ Home button pressed
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)
 - Home button `IconButton` (portrait ~line 1701, landscape ~line 2063)
 
+#### `lib/controllers/keyboard_shortcut_controller.dart`
+- `KeyboardShortcut.keys` — every key a shortcut takes, per platform (NAV-014)
+- `KeyboardShortcutController.answer` — the page's answer to each, through the controllers that own tabs, Refresh and Back; registered with `FocusManager.addEarlyKeyEventHandler` on desktop only
+
 #### `lib/widgets/url_bar.dart`
+- `UrlBarState.edit()` — the focus and selection a tap gives, for Ctrl/Cmd-L (NAV-014)
 - `_handleSubmit()` — awaits `onUrlSubmitted`, then shows `currentUrl` again; a submit that leaves `currentUrl` unchanged would otherwise leave the typed text behind (NAV-007)
 - `didUpdateWidget` — follows `currentUrl` except while the user is editing
 

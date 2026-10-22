@@ -15,6 +15,7 @@ bool get hostIsMacOS => false;
 bool get hostIsLinux => false;
 bool get hostIsWindows => false;
 bool get hostIsFuchsia => false;
+bool get hostIsDesktop => false;
 const Map<String, String> hostEnvironment = <String, String>{};
 String get hostOperatingSystem => 'web';
 String get hostOperatingSystemVersion => '';

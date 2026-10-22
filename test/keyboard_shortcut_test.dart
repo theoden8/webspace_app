@@ -1,0 +1,409 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/controllers/back_gesture_controller.dart';
+import 'package:webspace/controllers/keyboard_shortcut_controller.dart';
+import 'package:webspace/controllers/site_reset_controller.dart';
+import 'package:webspace/controllers/site_runtime.dart';
+import 'package:webspace/controllers/site_set_change.dart';
+import 'package:webspace/controllers/tabs_controller.dart';
+import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/site_menu.dart';
+import 'package:webspace/widgets/url_bar.dart';
+
+import 'helpers/isolations.dart';
+import 'helpers/model_fixture.dart';
+import 'helpers/real_app.dart';
+
+/// The page as the shortcuts see it: a site picked is recorded, not shown.
+class _Page implements KeyboardShortcutHost {
+  _Page({required this.kioskLocked});
+
+  @override
+  final bool kioskLocked;
+
+  final opened = <WebViewModel>[];
+
+  @override
+  bool get mounted => true;
+
+  @override
+  bool get onTop => true;
+
+  @override
+  bool focusUrlBar() => true;
+
+  @override
+  bool findInPage() => true;
+
+  @override
+  Future<void> openSite(WebViewModel site) async => opened.add(site);
+}
+
+/// A controller the shortcut under test must not reach.
+class _Untouched extends Fake
+    implements TabsController, SiteResetController, BackGestureController {}
+
+/// NAV-014: the desktop keyboard shortcuts. The keys are checked for both
+/// platforms through [KeyboardShortcut.of]; the page's answers through the
+/// shipped app, which `flutter test` runs as a Linux desktop, with the keys
+/// sent as the embedder sends them.
+void main() {
+  /// What [key] asks for with [holding] down.
+  Future<KeyboardShortcut?> press(
+    LogicalKeyboardKey key, {
+    required bool mac,
+    List<LogicalKeyboardKey> holding = const [],
+  }) async {
+    for (final modifier in holding) {
+      await simulateKeyDownEvent(modifier);
+    }
+    final shortcut = KeyboardShortcut.of(
+      KeyDownEvent(
+        // The keys are matched by their logical key.
+        physicalKey: PhysicalKeyboardKey.keyA,
+        logicalKey: key,
+        timeStamp: Duration.zero,
+      ),
+      keyboard: HardwareKeyboard.instance,
+      mac: mac,
+    );
+    for (final modifier in holding.reversed) {
+      await simulateKeyUpEvent(modifier);
+    }
+    return shortcut;
+  }
+
+  const control = LogicalKeyboardKey.controlLeft;
+  const command = LogicalKeyboardKey.metaLeft;
+  const shift = LogicalKeyboardKey.shiftLeft;
+  const alt = LogicalKeyboardKey.altLeft;
+
+  group('the keys (NAV-014)', () {
+    for (final mac in [false, true]) {
+      final primary = mac ? command : control;
+      final on = mac ? 'on a Mac' : 'elsewhere';
+
+      testWidgets('$on, the browser keys ask for the page\'s actions', (
+        tester,
+      ) async {
+        Future<KeyboardShortcut?> chord(
+          LogicalKeyboardKey key, {
+          List<LogicalKeyboardKey> holding = const [],
+        }) => press(key, mac: mac, holding: holding);
+
+        expect(
+          await chord(LogicalKeyboardKey.keyT, holding: [primary]),
+          isA<OpenNewTab>(),
+        );
+        expect(
+          await chord(LogicalKeyboardKey.keyW, holding: [primary]),
+          isA<CloseActiveTab>(),
+        );
+        expect(
+          await chord(LogicalKeyboardKey.keyL, holding: [primary]),
+          isA<FocusUrlBar>(),
+        );
+        expect(
+          await chord(LogicalKeyboardKey.keyR, holding: [primary]),
+          isA<ReloadPage>(),
+        );
+        expect(await chord(LogicalKeyboardKey.f5), isA<ReloadPage>());
+        expect(
+          await chord(LogicalKeyboardKey.keyF, holding: [primary]),
+          isA<FindInPage>(),
+        );
+        expect(
+          await chord(LogicalKeyboardKey.tab, holding: [control]),
+          isA<NextSite>(),
+          reason: 'Control-Tab on every platform, a Mac\'s browsers too',
+        );
+        expect(
+          await chord(LogicalKeyboardKey.tab, holding: [control, shift]),
+          isA<PreviousSite>(),
+        );
+        expect(
+          await chord(LogicalKeyboardKey.digit3, holding: [primary]),
+          isA<SiteAt>().having((s) => s.place, 'place', 2),
+        );
+        expect(
+          await chord(LogicalKeyboardKey.digit9, holding: [primary]),
+          isA<LastSite>(),
+        );
+      });
+
+      testWidgets('$on, the platform\'s back key goes back', (tester) async {
+        final back = mac
+            ? await press(
+                LogicalKeyboardKey.bracketLeft,
+                mac: mac,
+                holding: [command],
+              )
+            : await press(
+                LogicalKeyboardKey.arrowLeft,
+                mac: mac,
+                holding: [alt],
+              );
+        expect(back, isA<GoBack>());
+        expect(
+          await press(LogicalKeyboardKey.arrowLeft, mac: mac, holding: [alt]),
+          mac ? isNull : isA<GoBack>(),
+          reason: 'Option-Left moves the caret a word on a Mac',
+        );
+      });
+
+      testWidgets('$on, select all and the other modifier are left alone', (
+        tester,
+      ) async {
+        expect(
+          await press(LogicalKeyboardKey.keyA, mac: mac, holding: [primary]),
+          isNull,
+          reason: 'the focused page or field selects all of its own',
+        );
+        expect(
+          await press(
+            LogicalKeyboardKey.keyT,
+            mac: mac,
+            holding: [mac ? control : command],
+          ),
+          isNull,
+        );
+        expect(
+          await press(
+            LogicalKeyboardKey.keyT,
+            mac: mac,
+            holding: [primary, shift],
+          ),
+          isNull,
+        );
+        expect(await press(LogicalKeyboardKey.keyT, mac: mac), isNull);
+      });
+
+      test('$on, no two shortcuts share a key', () {
+        final keys = [
+          for (final (key, _) in KeyboardShortcut.keys(mac: mac))
+            (key.trigger, key.control, key.shift, key.alt, key.meta),
+        ];
+        expect(keys.toSet(), hasLength(keys.length));
+      });
+    }
+
+    test('a held key asks once', () {
+      final repeat = KeyRepeatEvent(
+        physicalKey: PhysicalKeyboardKey.f5,
+        logicalKey: LogicalKeyboardKey.f5,
+        timeStamp: Duration.zero,
+      );
+      expect(
+        KeyboardShortcut.of(
+          repeat,
+          keyboard: HardwareKeyboard.instance,
+          mac: false,
+        ),
+        isNull,
+      );
+    });
+
+    test('a locked kiosk keeps reload and in-page back only (KIOSK-002)', () {
+      final kept = [
+        for (final (_, shortcut) in KeyboardShortcut.keys(mac: false))
+          if (shortcut.keptInKiosk) shortcut.runtimeType,
+      ].toSet();
+      expect(kept, {ReloadPage, GoBack});
+    });
+  });
+
+  group('the gate (NAV-014)', () {
+    final one = WebViewModel(initUrl: 'https://one.test', name: 'One');
+    final two = WebViewModel(initUrl: 'https://two.test', name: 'Two');
+
+    KeyboardShortcutController over(_Page page) {
+      final sites = SiteRuntime()
+        ..isolation = fakeSharedJar()
+        ..applied(SitesLoaded([one, two]))
+        ..selectedWebspaceId = WebspaceId.all;
+      sites.seed(loaded: [one], shown: one);
+      final untouched = _Untouched();
+      return KeyboardShortcutController(
+        sites,
+        host: page,
+        tabs: untouched,
+        resets: untouched,
+        back: untouched,
+      );
+    }
+
+    test('a locked kiosk does not leave its site (KIOSK-002)', () {
+      final page = _Page(kioskLocked: true);
+      final keys = over(page);
+      expect(keys.answer(const NextSite()), isFalse);
+      expect(keys.answer(const SiteAt(1)), isFalse);
+      expect(keys.answer(const FocusUrlBar()), isFalse);
+      expect(page.opened, isEmpty);
+    });
+
+    test('unlocked, the same keys move along the sites', () {
+      final page = _Page(kioskLocked: false);
+      final keys = over(page);
+      expect(keys.answer(const NextSite()), isTrue);
+      expect(keys.answer(const SiteAt(1)), isTrue);
+      expect(
+        keys.answer(const SiteAt(0)),
+        isTrue,
+        reason: 'the site on screen: taken, nothing to open',
+      );
+      expect(
+        keys.answer(const SiteAt(5)),
+        isFalse,
+        reason: 'no site there, so the key goes on to the page',
+      );
+      expect(page.opened, [two, two]);
+    });
+  });
+
+  group('the page answers them (NAV-014)', () {
+    Future<void> chord(
+      WidgetTester tester, {
+      required LogicalKeyboardKey key,
+      List<LogicalKeyboardKey> holding = const [control],
+    }) async {
+      for (final modifier in holding) {
+        await tester.sendKeyDownEvent(modifier);
+      }
+      await tester.sendKeyEvent(key);
+      for (final modifier in holding.reversed) {
+        await tester.sendKeyUpEvent(modifier);
+      }
+      await settleRealApp(tester);
+    }
+
+    Future<void> openOne(
+      WidgetTester tester, {
+      Map<String, Object> prefs = const {},
+    }) async {
+      await pumpRealApp(
+        tester,
+        prefs: prefs,
+        sites: [
+          WebViewModel(initUrl: 'https://one.test', name: 'One'),
+          WebViewModel(initUrl: 'https://two.test', name: 'Two'),
+          WebViewModel(initUrl: 'https://three.test', name: 'Three'),
+        ],
+      );
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'One');
+      await attachWebViews(tester);
+    }
+
+    Finder titled(String name) =>
+        find.descendant(of: find.byType(AppBar), matching: find.text(name));
+
+    testWidgets('Control-T opens a tab and Control-W closes it', (
+      tester,
+    ) async {
+      await openOne(tester);
+      final one = appSite('One');
+      final first = one.activeTabId;
+
+      await chord(tester, key: LogicalKeyboardKey.keyT);
+      expect(one.tabs, hasLength(2));
+      expect(one.activeTabId, isNot(first));
+
+      await chord(tester, key: LogicalKeyboardKey.keyW);
+      expect(one.tabs, hasLength(1));
+      expect(one.activeTabId, first);
+    });
+
+    testWidgets('Control-L puts the cursor in the URL bar, address selected', (
+      tester,
+    ) async {
+      await openOne(tester, prefs: {'showUrlBar': true});
+
+      await chord(tester, key: LogicalKeyboardKey.keyL);
+      final field = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(UrlBar),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(field.focusNode.hasFocus, isTrue);
+      expect(
+        field.controller.selection,
+        TextSelection(
+          baseOffset: 0,
+          extentOffset: field.controller.text.length,
+        ),
+      );
+      expect(field.controller.text, appSite('One').currentUrl);
+    });
+
+    testWidgets('Control-R and F5 reload the page', (tester) async {
+      await openOne(tester);
+
+      webViewCalls.clear();
+      await chord(tester, key: LogicalKeyboardKey.keyR);
+      expect(webViewCalls, contains(#reload));
+
+      webViewCalls.clear();
+      await chord(tester, key: LogicalKeyboardKey.f5, holding: const []);
+      expect(webViewCalls, contains(#reload));
+    });
+
+    testWidgets('Control-F opens and closes the find bar', (tester) async {
+      await openOne(tester);
+
+      await chord(tester, key: LogicalKeyboardKey.keyF);
+      expect(find.byType(FindToolbar), findsOneWidget);
+      await chord(tester, key: LogicalKeyboardKey.keyF);
+      expect(find.byType(FindToolbar), findsNothing);
+    });
+
+    testWidgets('Alt-Left goes back', (tester) async {
+      await openOne(tester);
+
+      webViewCalls.clear();
+      await chord(
+        tester,
+        key: LogicalKeyboardKey.arrowLeft,
+        holding: const [alt],
+      );
+      expect(webViewCalls, contains(#canGoBack));
+    });
+
+    testWidgets('the digits and Control-Tab move along the sites', (
+      tester,
+    ) async {
+      await openOne(tester);
+
+      await chord(tester, key: LogicalKeyboardKey.digit2);
+      expect(titled('Two'), findsOneWidget);
+      await chord(tester, key: LogicalKeyboardKey.digit9);
+      expect(titled('Three'), findsOneWidget);
+      await chord(tester, key: LogicalKeyboardKey.tab);
+      expect(
+        titled('One'),
+        findsOneWidget,
+        reason: 'round from the last to the first',
+      );
+      await chord(
+        tester,
+        key: LogicalKeyboardKey.tab,
+        holding: const [control, shift],
+      );
+      expect(titled('Three'), findsOneWidget);
+      await chord(tester, key: LogicalKeyboardKey.pageUp);
+      expect(titled('Two'), findsOneWidget);
+    });
+
+    testWidgets('a menu over the page keeps the keys', (tester) async {
+      await openOne(tester);
+      await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>));
+      await settleRealApp(tester);
+
+      await chord(tester, key: LogicalKeyboardKey.keyT);
+      expect(appSite('One').tabs, hasLength(1));
+    });
+  });
+}
