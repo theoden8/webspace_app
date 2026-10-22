@@ -10,13 +10,13 @@ import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/setting_labels.dart';
+import 'package:webspace/settings/tab_strip_edge.dart';
 import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/icon_segments.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
-import 'package:webspace/widgets/site_tab_strip.dart';
 
 /// How the site tab strip is reached. The floating button is the on-demand
 /// presentation of the strip, so the three are one choice, not two toggles.
