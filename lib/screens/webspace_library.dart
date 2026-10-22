@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter, lerpDouble;
+import 'dart:ui' show ImageFilter, PointerDeviceKind, lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -99,6 +99,10 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   /// when a folder opens, and let go when it has closed.
   PageController? _pages;
 
+  /// The page a dot or an arrow last asked for, until the pages come to rest,
+  /// so a second press goes one further rather than to the same page.
+  int? _aim;
+
   /// What the home grid shows: browsing or searching, and whether a search
   /// found nothing. Its icons' keys start afresh with each, since the grid
   /// it leaves still fades out holding the old ones.
@@ -154,6 +158,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     if (status != AnimationStatus.dismissed || !mounted) return;
     _pages?.dispose();
     _pages = null;
+    _aim = null;
     setState(() {});
   }
 
@@ -431,11 +436,30 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             child: Focus(
               focusNode: _panelFocus,
               onKeyEvent: (_, event) {
-                if (event is! KeyDownEvent ||
-                    event.logicalKey != LogicalKeyboardKey.escape) {
+                if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                if (event.logicalKey == LogicalKeyboardKey.escape) {
+                  closeFolder();
+                  return KeyEventResult.handled;
+                }
+                // Arrows turn pages only while no icon in the panel has
+                // focus: there they move the focus between icons.
+                final rtl = Directionality.of(context) == TextDirection.rtl;
+                final step = switch (event.logicalKey) {
+                  LogicalKeyboardKey.arrowRight => rtl ? -1 : 1,
+                  LogicalKeyboardKey.arrowLeft => rtl ? 1 : -1,
+                  _ => 0,
+                };
+                if (step == 0 || !_panelFocus.hasPrimaryFocus) {
                   return KeyEventResult.ignored;
                 }
-                closeFolder();
+                _turnTo(
+                  context,
+                  pages: pages,
+                  index: ((_aim ?? page.round()) + step).clamp(
+                    0,
+                    widget.webspaces.length - 1,
+                  ),
+                );
                 return KeyEventResult.handled;
               },
               child: Semantics(
@@ -553,6 +577,12 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             },
             child: PageView.builder(
               controller: pages,
+              // Flutter leaves the mouse out of drag scrolling; a desktop
+              // pages through folders with it as a phone does with a finger.
+              scrollBehavior: ScrollConfiguration.of(context).copyWith(
+                scrollbars: false,
+                dragDevices: PointerDeviceKind.values.toSet(),
+              ),
               itemCount: widget.webspaces.length,
               itemBuilder: (context, index) =>
                   _folder(context, webspace: widget.webspaces[index]),
@@ -573,15 +603,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                       label: webspace.name,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () => MediaQuery.disableAnimationsOf(context)
-                            ? pages.jumpToPage(index)
-                            : unawaited(
-                                pages.animateToPage(
-                                  index,
-                                  duration: Motion.settle,
-                                  curve: Motion.launchCurve,
-                                ),
-                              ),
+                        onTap: () =>
+                            _turnTo(context, pages: pages, index: index),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: Spacing.xs + Spacing.xs / 2,
@@ -614,9 +637,30 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     );
   }
 
+  /// Goes to page [index] of the open folder, as a dot or an arrow key asks.
+  void _turnTo(
+    BuildContext context, {
+    required PageController pages,
+    required int index,
+  }) {
+    _aim = index;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      pages.jumpToPage(index);
+      return;
+    }
+    unawaited(
+      pages.animateToPage(
+        index,
+        duration: Motion.settle,
+        curve: Motion.launchCurve,
+      ),
+    );
+  }
+
   /// The webspace whose page a swipe or a dot came to rest on becomes the
   /// selected one, as a tap on its folder would make it.
   void _landed(PageController pages) {
+    _aim = null;
     final at = pages.page?.round();
     if (at == null || at < 0 || at >= widget.webspaces.length) return;
     final webspace = widget.webspaces[at];

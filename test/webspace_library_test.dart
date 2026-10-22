@@ -1,4 +1,4 @@
-import 'package:flutter/gestures.dart' show kTouchSlop;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -420,6 +420,52 @@ void main() {
       expect(
         tester.widget<Semantics>(dot(last.name)).properties.selected,
         isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'on a desktop a mouse drag turns a folder\'s page, and so do the arrow keys (WEBSPACE-008)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      await tester.dragFrom(
+        tester.getCenter(_panel),
+        Offset(-tester.getRect(_panel).width * .7, 0),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+      expect(state.selected, state.webspaces[2].id);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(state.selected, state.webspaces[1].id);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(state.selected, state.webspaces[3].id);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(
+        state.selected,
+        state.webspaces[3].id,
+        reason: 'the last page stays',
+      );
+      final add = _inPanel(find.byTooltip('Add Site'));
+      Focus.of(
+        tester.element(find.descendant(of: add, matching: find.byType(Icon))),
+      ).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(
+        state.selected,
+        state.webspaces[3].id,
+        reason: 'with a control in the panel focused, arrows move the focus',
       );
     },
   );
