@@ -133,15 +133,15 @@ Set<ModelVar> shared(ComposedAction a, {required ComposedAction other}) => {
 /// arms make needs what those arms need, and so does the other's touch
 /// of it where it does not read it. A world meets them where it gives any.
 List<Set<Need>> _meets(ComposedAction a, {required ComposedAction other}) {
-  Set<Need> touch(ComposedAction x, ModelVar v) =>
-      x.reads.contains(v) ? const {} : x.armed[v] ?? const {};
+  Set<Need> touch(ComposedAction x, {required ModelVar of}) =>
+      x.reads.contains(of) ? const {} : x.armed[of] ?? const {};
   return [
     for (final v in shared(a, other: other))
       if (v == ModelVar.fl)
         const {}
       else ...[
-        if (a.writes.contains(v)) {...?a.armed[v], ...touch(other, v)},
-        if (other.writes.contains(v)) {...?other.armed[v], ...touch(a, v)},
+        if (a.writes.contains(v)) {...?a.armed[v], ...touch(other, of: v)},
+        if (other.writes.contains(v)) {...?other.armed[v], ...touch(a, of: v)},
       ],
   ];
 }
