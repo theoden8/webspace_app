@@ -1,5 +1,4 @@
-import 'package:flutter/gestures.dart'
-    show kDoubleTapTimeout, kSecondaryButton, kTouchSlop;
+import 'package:flutter/gestures.dart' show kSecondaryButton, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -130,9 +129,10 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
                     final at = _down;
                     _down = null;
                     _press(down: false);
+                    // Any press let go before it lifts is a tap: a lift
+                    // clears [_down] as it begins.
                     if (at != null &&
-                        (event.position - at.position).distance < kTouchSlop &&
-                        event.timeStamp - at.timeStamp < kDoubleTapTimeout) {
+                        (event.position - at.position).distance < kTouchSlop) {
                       widget.onOpen();
                     }
                   },

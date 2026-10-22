@@ -719,6 +719,26 @@ void main() {
     },
   );
 
+  testWidgets('a slow tap, let go before the lift, still opens a site', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    final state = tester.state<_LibraryHarnessState>(
+      find.byType(_LibraryHarness),
+    );
+    await tester.tap(_group('Work'));
+    await tester.pumpAndSettle();
+    final press = await tester.startGesture(
+      tester.getCenter(find.text('GitHub')),
+    );
+    await tester.pump(const Duration(milliseconds: 420));
+    await press.up(timeStamp: const Duration(milliseconds: 420));
+    await tester.pumpAndSettle();
+    expect(state.opened, same(state.sites[0]));
+    expect(state.menuFor, isNull);
+  });
+
   testWidgets(
     'a long-pressed site in a folder lifts: let go for its menu, drop it on another to move it (WEBSPACE-011)',
     (tester) async {
