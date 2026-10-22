@@ -779,40 +779,27 @@ session every site would present the first site's credential. Where the
 gate fails, PROXY-008 applies unchanged. The gate is per device; whether a
 given site actually receives a profile is PROXY-018.
 
-Router mode SHALL additionally be gated on its experimental switch
-(DEVTOOLS-011): developer mode and the **Proxy router** switch, so the
-shipped default on every device is PROXY-008. The switch defaults on, so
-developer mode alone keeps running the router for a user who had it. The
-premise the feature rests on is read off Chromium's source and proven at
-runtime by the PROXY-015 probe, but so far only on WebView builds that pass
-it: no device that fails the probe has exercised the fallback, and the one
-defect that made the relay never bind at all was invisible to every test
-tier. Both gates are read once, at activation, so flipping developer mode or
-the switch applies at next launch rather than tearing a bound relay out from
-under loaded sites. The gate is temporary and SHALL be lifted once the
-fallback has been exercised on hardware that fails the probe.
+Router mode SHALL be offered with developer mode on or off. It shipped
+behind developer mode and an Experimental **Proxy router** switch
+(DEVTOOLS-011) while the premise it rests on, read off Chromium's source
+and proven at runtime by the PROXY-015 probe, had been exercised on WebView
+builds that pass the probe only; the switch (`experimentalProxyRouter`,
+written by v0.3.3 to v0.4.0 and no longer read) went with the graduation.
+The `MULTI_PROFILE` gate is read once, at activation, so router mode is
+never torn out from under loaded sites.
 
-#### Scenario: The default install does not engage router mode
+#### Scenario: The default install engages router mode
 
 **Given** an Android device whose WebView reports `MULTI_PROFILE`
 **And** developer mode is off
 **When** the app starts
-**Then** router mode does not activate
-**And** no relay is bound
-**And** mismatched-proxy sites serialise under PROXY-008
-
-#### Scenario: The switch off keeps PROXY-008 with developer mode on
-
-**Given** an Android device whose WebView reports `MULTI_PROFILE`
-**And** developer mode is on and the Proxy router switch is off
-**When** the app starts
-**Then** router mode does not activate
-**And** mismatched-proxy sites serialise under PROXY-008
+**Then** the relay is bound and every site's container is probed (PROXY-015)
+**And** router mode activates once each probe is attributed
+**And** App settings' Experimental group has no Proxy router switch
 
 #### Scenario: Two same-domain sites with different proxies stay loaded
 
 **Given** container mode is active on Android
-**And** developer mode and the Proxy router switch are on
 **And** Site A (`accountA.example.com`) uses SOCKS5 `127.0.0.1:9050`
 **And** Site B (`accountB.example.com`) uses HTTP `10.0.0.1:8080`
 **When** the user activates Site B while Site A is loaded
@@ -1604,7 +1591,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
-| Android  | Full (per-site, serialised) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; data model is genuinely per-site, but mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
+| Android  | Full (per-site; concurrent under router mode, serialised without `MULTI_PROFILE`) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton, pointed at the loopback relay where the WebView reports `MULTI_PROFILE` (PROXY-013); elsewhere mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
 | iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; removing a site's proxy clears it through `ProxyController(containerId:)` (PROXY-029); below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
 | macOS    | Full (per-site, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
 | Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |

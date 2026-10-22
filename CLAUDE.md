@@ -553,7 +553,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |
 | platform-support | platform abstraction layer |
-| proxy | per-site HTTP/HTTPS/SOCKS5; a proxy library (saved proxies, gateways, credentials tied to gateways) any site or the app-wide proxy picks from, with a connection indicator *(saved-proxies change)*; Android serialises mismatched-proxy sites |
+| proxy | per-site HTTP/HTTPS/SOCKS5; a proxy library (saved proxies, gateways, credentials tied to gateways) any site or the app-wide proxy picks from, with a connection indicator *(saved-proxies change)*; Android routes mismatched-proxy sites through a loopback relay where its WebView reports `MULTI_PROFILE` (PROXY-013) and serialises them elsewhere (PROXY-008) |
 | proxy-password-secure-storage | secrets in flutter_secure_storage; never in JSON |
 | screenshots | integration-test driven |
 | screenshot-block | app-wide or per-site `FLAG_SECURE` (per-site applies while that site is on screen); Android only, switches absent where no public API blocks capture |

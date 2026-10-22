@@ -28,16 +28,11 @@ Future<void> openAppLogs(BuildContext context,
 /// The experiments this device offers, in the order the Experimental group
 /// lists them.
 List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
-        AppLocalizations loc,
-        {required bool proxyRouterRunsHere}) =>
+        AppLocalizations loc) =>
     [
       (ExperimentalFeature.folderLibrary, Icons.apps_rounded,
           loc.appSettingsExperimentalFolderLibrary,
           loc.appSettingsExperimentalFolderLibraryHint),
-      if (proxyRouterRunsHere)
-        (ExperimentalFeature.proxyRouter, Icons.hub_outlined,
-            loc.appSettingsExperimentalProxyRouter,
-            loc.appSettingsExperimentalProxyRouterHint),
       if (hostIsAndroid)
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
@@ -52,11 +47,9 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
     ];
 
 /// The names of the experiments switched on, for the App Settings row.
-List<String> experimentsOn(AppLocalizations loc,
-        {required bool proxyRouterRunsHere}) =>
+List<String> experimentsOn(AppLocalizations loc) =>
     [
-      for (final (feature, _, title, _)
-          in _experiments(loc, proxyRouterRunsHere: proxyRouterRunsHere))
+      for (final (feature, _, title, _) in _experiments(loc))
         if (ExperimentalFeaturesService.instance.switchOn(feature)) title,
     ];
 
@@ -64,15 +57,7 @@ List<String> experimentsOn(AppLocalizations loc,
 /// the Experimental group (DEVTOOLS-011). Reached only while developer mode
 /// is on; App Settings links the app logs directly otherwise.
 class AppDeveloperScreen extends StatefulWidget {
-  const AppDeveloperScreen({
-    super.key,
-    this.proxyRouterRunsHere = false,
-  });
-
-  /// Whether this device could run the per-site proxy router, so the
-  /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
-  /// the answer needs the container engine the app resolved at startup.
-  final bool proxyRouterRunsHere;
+  const AppDeveloperScreen({super.key});
 
   @override
   State<AppDeveloperScreen> createState() => _AppDeveloperScreenState();
@@ -148,8 +133,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
             loc.appSettingsExperimental,
             hint: loc.appSettingsExperimentalHint,
           ),
-          for (final (feature, icon, title, hint) in _experiments(loc,
-              proxyRouterRunsHere: widget.proxyRouterRunsHere))
+          for (final (feature, icon, title, hint) in _experiments(loc))
             SettingTile(
               leading: Icon(icon),
               title: title,

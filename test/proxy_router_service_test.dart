@@ -6,7 +6,6 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -107,9 +106,6 @@ void main() {
   tearDown(() {
     service.resetForTest();
     DeveloperModeService.instance.debugSet(on: false);
-    ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.proxyRouter,
-        on: ExperimentalFeature.proxyRouter.pref.fallback);
   });
 
   group('activation', () {
@@ -390,74 +386,66 @@ void main() {
       expect(service.realm, isNot(first));
     });
 
-    test('router mode is gated on Android AND containers AND its experiment',
-        () {
-      // Three independent gates, and this is where the negative contract
+    test('router mode is gated on Android AND containers (PROXY-013)', () {
+      // Two independent gates, and this is where the negative contract
       // lives now that the integration tier runs Android-only. Off
       // Android the engine cannot deliver a per-WebView proxy challenge
-      // at all; on Android without MULTI_PROFILE every site shares one
-      // auth cache; and the experiment (developer mode and the Proxy
-      // router switch, DEVTOOLS-011) is what keeps the shipped default
-      // on PROXY-008 while the premise is proven on one WebView build.
-      // Any one of them failing must leave the app on PROXY-008.
+      // at all, and on Android without MULTI_PROFILE every site shares one
+      // auth cache. Either failing must leave the app on PROXY-008. There
+      // is no third gate: the Proxy router experiment (DEVTOOLS-011) that
+      // kept the shipped default on PROXY-008 while the premise was proven
+      // on one WebView build is lifted, so the default install routes.
       //
       // Asserted on the decision rather than on `isSupported`, because
       // this suite runs off Android: there `hostIsAndroid` answers false
       // first and every further assertion passes without meaning it.
       for (final useContainers in [true, false]) {
-        for (final experiment in [true, false]) {
-          expect(
-            ProxyRouterService.isSupportedWhen(
-              isAndroid: true,
-              useContainers: useContainers,
-              experimentEnabled: experiment,
-            ),
-            useContainers && experiment,
-            reason: 'containers=$useContainers experiment=$experiment',
-          );
-          // Apple does not run the relay. Each container store binds its
-          // real upstream directly, which BUG-014 measured
-          // delivering distinct upstreams and distinct credentials per
-          // store, so the relay would be a hop that buys nothing. The
-          // implementation stays reachable for parity testing and nothing
-          // else, so the Apple branch is off unless a test opts in.
-          expect(
-            ProxyRouterService.isSupportedWhen(
-              isAndroid: false,
-              isApple: true,
-              useContainers: useContainers,
-              experimentEnabled: experiment,
-            ),
-            isFalse,
-            reason: 'apple must not run the relay by default: '
-                'containers=$useContainers experiment=$experiment',
-          );
-          // Opted in, it is the Android decision again, so the parity path
-          // is still exercisable and the other two conditions still gate it.
-          expect(
-            ProxyRouterService.isSupportedWhen(
-              isAndroid: false,
-              isApple: true,
-              appleRelayEnabled: true,
-              useContainers: useContainers,
-              experimentEnabled: experiment,
-            ),
-            useContainers && experiment,
-            reason: 'apple parity path: containers=$useContainers '
-                'experiment=$experiment',
-          );
-          expect(
-            ProxyRouterService.isSupportedWhen(
-              isAndroid: false,
-              useContainers: useContainers,
-              experimentEnabled: experiment,
-            ),
-            isFalse,
-            reason: 'router mode must not engage on a platform that is '
-                'neither Android nor Apple, and omitting isApple must not '
-                'widen the gate',
-          );
-        }
+        expect(
+          ProxyRouterService.isSupportedWhen(
+            isAndroid: true,
+            useContainers: useContainers,
+          ),
+          useContainers,
+          reason: 'containers=$useContainers',
+        );
+        // Apple does not run the relay. Each container store binds its
+        // real upstream directly, which BUG-014 measured
+        // delivering distinct upstreams and distinct credentials per
+        // store, so the relay would be a hop that buys nothing. The
+        // implementation stays reachable for parity testing and nothing
+        // else, so the Apple branch is off unless a test opts in.
+        expect(
+          ProxyRouterService.isSupportedWhen(
+            isAndroid: false,
+            isApple: true,
+            useContainers: useContainers,
+          ),
+          isFalse,
+          reason: 'apple must not run the relay by default: '
+              'containers=$useContainers',
+        );
+        // Opted in, it is the Android decision again, so the parity path
+        // is still exercisable and the engine still gates it.
+        expect(
+          ProxyRouterService.isSupportedWhen(
+            isAndroid: false,
+            isApple: true,
+            appleRelayEnabled: true,
+            useContainers: useContainers,
+          ),
+          useContainers,
+          reason: 'apple parity path: containers=$useContainers',
+        );
+        expect(
+          ProxyRouterService.isSupportedWhen(
+            isAndroid: false,
+            useContainers: useContainers,
+          ),
+          isFalse,
+          reason: 'router mode must not engage on a platform that is '
+              'neither Android nor Apple, and omitting isApple must not '
+              'widen the gate',
+        );
       }
 
       // And the wiring: the composed call must agree with the decision on
@@ -466,9 +454,6 @@ void main() {
       // Android, unsupported" and that was only ever true while the gate
       // was Android-only -- it passed on Linux and failed on the macOS
       // runner the moment Apple joined (PROXY-026).
-      DeveloperModeService.instance.debugSet(on: true);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.proxyRouter, on: true);
       expect(ProxyRouterService.isSupported(useContainers: false), isFalse,
           reason: 'containers are ANDed in, so no containers is no router '
               'on every platform');
@@ -477,28 +462,17 @@ void main() {
         isApple: hostIsIOS || hostIsMacOS,
         appleRelayEnabled: ProxyRouterService.appleRelayEnabled,
         useContainers: true,
-        experimentEnabled: true,
       );
       expect(ProxyRouterService.isSupported(useContainers: true), onThisHost,
           reason: 'the live gate disagrees with its own decision on this host');
-      expect(ProxyRouterService.canRunHere(useContainers: true), onThisHost,
-          reason: 'the settings row must be listed exactly where the router '
-              'could run with its switch on');
 
-      // The live gate reads the experiment, not developer mode alone.
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.proxyRouter, on: false);
-      expect(ProxyRouterService.isSupported(useContainers: true), isFalse,
-          reason: 'the Proxy router switch off keeps PROXY-008 even with '
-              'developer mode on');
-      expect(ProxyRouterService.canRunHere(useContainers: true), onThisHost,
-          reason: 'the row stays listed with its switch off, or it could '
-              'never be turned back on');
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.proxyRouter, on: true);
+      // Developer mode is not a gate any more, either way.
+      DeveloperModeService.instance.debugSet(on: true);
+      expect(ProxyRouterService.isSupported(useContainers: true), onThisHost,
+          reason: 'router mode is offered with developer mode on or off');
       DeveloperModeService.instance.debugSet(on: false);
-      expect(ProxyRouterService.isSupported(useContainers: true), isFalse,
-          reason: 'the switch never widens developer mode');
+      expect(ProxyRouterService.isSupported(useContainers: true), onThisHost,
+          reason: 'router mode is offered with developer mode on or off');
       expect(ProxyRouterService.appleRelayEnabled, isFalse,
           reason: 'the Apple relay ships off; a test that flips it must put '
               'it back, or every later assertion here is about a path the '

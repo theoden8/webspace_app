@@ -34,11 +34,6 @@ import 'package:webspace/widgets/toast.dart';
 class AppSettingsScreen extends StatefulWidget {
   final AppThemeSettings currentSettings;
 
-  /// Whether this device could run the per-site proxy router, so the
-  /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
-  /// the answer needs the container engine the app resolved at startup.
-  final bool proxyRouterRunsHere;
-
   /// Whether Tor sites can use a tor already running on this device, so the
   /// Network screen lists Tor (external) (TOR-025). Passed in so the design
   /// gallery, which runs on web, can show it.
@@ -104,7 +99,6 @@ class AppSettingsScreen extends StatefulWidget {
   const AppSettingsScreen({
     super.key,
     required this.currentSettings,
-    this.proxyRouterRunsHere = false,
     this.externalTorRunsHere = false,
     this.siteNames = const {},
     this.torSites = const {},
@@ -351,13 +345,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               title: loc.appSettingsDeveloper,
               summary: summariseSettings(
                 loc,
-                on: experimentsOn(loc,
-                    proxyRouterRunsHere: widget.proxyRouterRunsHere),
+                on: experimentsOn(loc),
                 none: loc.behaviourSummaryNothingOn,
               ),
-              onTap: () => _open(AppDeveloperScreen(
-                proxyRouterRunsHere: widget.proxyRouterRunsHere,
-              )),
+              onTap: () => _open(const AppDeveloperScreen()),
             )
           else
             SettingTile(
