@@ -155,6 +155,28 @@ class DoNotTrackClient extends http.BaseClient {
   void close() => _inner.close();
 }
 
+/// Wrap [inner] so every request it sends for a site carries the user agent
+/// the site's webview sends, when [userAgent] gives one: a site that walls
+/// other clients answers these as it answers the site (linkedin.com sends a
+/// CAPTCHA page in place of its 301 to www.linkedin.com). A header the
+/// caller set wins.
+class SiteUserAgentClient extends http.BaseClient {
+  SiteUserAgentClient(this._inner, {required this.userAgent});
+
+  final http.Client _inner;
+  final Future<String?> Function() userAgent;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final agent = await userAgent();
+    if (agent != null) request.headers.putIfAbsent('User-Agent', () => agent);
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
 /// The configured proxy cannot be honored from Dart-side HTTP. The caller
 /// MUST abort the request — falling back to a direct connection would leak
 /// the user's IP, defeating the proxy the user explicitly chose.

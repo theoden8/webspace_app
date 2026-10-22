@@ -896,7 +896,7 @@ download fetch
 
 **Given** a site at an onion address, on any route
 **When** its icon is fetched
-**Then** only the site itself is asked, never Google or DuckDuckGo
+**Then** only the site itself is asked, never a third-party icon service
 
 ## Architecture
 

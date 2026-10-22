@@ -180,6 +180,12 @@ it is `kFallbackSafariVersion`. Safari freezes the OS token at `10_15_7` and
 WebKit at `605.1.15`, so only `<v>` moves. A user agent the user set always
 wins, and the settings screen shows the host's as the default.
 
+What the webview sends when the user set none, the host's above or else the
+engine's own read once, is `HostBrowser.sentUserAgent`: the settings screen
+shows it, and the requests the app makes for a site's own resources (its
+icons, ICON-002) send it. Linux WPE does not report its user agent, so there
+it is unknown.
+
 #### Scenario: macOS app completes the webview's own user agent
 
 **Given** the macOS app and a site with no user agent

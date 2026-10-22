@@ -483,10 +483,9 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
 
     testWidgets('Reset icon cache forgets every cached icon (ICON-015)', (tester) async {
       SharedPreferences.setMockInitialValues({
-        'favicon_url_https://a.test/': 'https://a.test/icon.png',
+        'favicon_src_https://a.test/': 'https://a.test/icon.png',
         'favicon_svg_https://a.test/icon.svg': '<svg/>',
-        'favicon_url_https://b.test/':
-            'https://www.google.com/s2/favicons?domain=b.test&sz=256',
+        'favicon_src_https://b.test/': 'https://b.test/icon.svg',
         AppPref.experimentalProxyRouter.key: true,
       });
       await FaviconUrlCache.initialize();
