@@ -49,7 +49,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        # A warm run's memo leaves its shards only their start-up to do
+        # (12 to 15 s each), so only a cold run splits.
+        shard: ${{ fromJSON(inputs.cold && '[0, 1, 2, 3]' || '[0]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-formal
@@ -70,7 +72,14 @@ jobs:
         if: ${{ !inputs.cold && steps.formal-cache.outputs.cache-matched-key == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/restore_formal_artifact.sh "formal-memo-${{ strategy.job-index }}-of-${{ strategy.job-total }}" "$HOME/.cache/webspace-formal"
+        # First master's memos from when warm runs took four shards, until
+        # they expire: an entry is keyed by what its check reads, so a merged
+        # one can only add hits.
+        run: |-
+          for i in 0 1 2 3; do
+            scripts/restore_formal_artifact.sh "formal-memo-$i-of-4" "$HOME/.cache/webspace-formal"
+          done
+          scripts/restore_formal_artifact.sh "formal-memo-${{ strategy.job-index }}-of-${{ strategy.job-total }}" "$HOME/.cache/webspace-formal"
       - id: formal-verify
         run: |
           if [ "${{ inputs.cold }}" = true ]; then rm -rf "$HOME/.cache/webspace-formal"; fi

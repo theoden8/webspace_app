@@ -82,7 +82,11 @@ test('independent formal stages overlap and the final gate requires all stages',
   assert.deepEqual(jobs.steps.needs, ['prepare', 'schedules']);
   assert.deepEqual(jobs.finish.needs, ['prepare', 'models', 'steps', 'proofs']);
   assert.equal(jobs.models.strategy['fail-fast'], false);
-  assert.ok(jobs.models.strategy.matrix.shard.length > 1);
+  const split = jobs.models.strategy.matrix.shard
+    .match(/^\$\{\{ fromJSON\(inputs\.cold && '(.+)' \|\| '(.+)'\) \}\}$/);
+  assert.ok(split, 'the shards are chosen by whether the run is cold');
+  assert.ok(JSON.parse(split[1]).length > 1, 'a cold run splits');
+  assert.deepEqual(JSON.parse(split[2]), [0], 'a warm run takes one shard');
   assert.equal(jobs.models.steps.find((s) => s.id === 'formal-verify').env.FORMAL_SHARD,
     '${{ strategy.job-index }}/${{ strategy.job-total }}');
   assert.match(jobs.finish.steps[0].run, /all\(\.\[\]; \.result == "success"\)/);
