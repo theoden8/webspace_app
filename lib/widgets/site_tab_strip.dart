@@ -1,25 +1,11 @@
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/tab_strip_edge.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
-
-/// The screen edge the site tab strip runs along (FS-012).
-enum TabStripEdge {
-  top,
-  bottom;
-
-  static TabStripEdge get current => of(AppPref.tabStripEdge.value,
-      desktop: hostIsMacOS || hostIsLinux || hostIsWindows);
-
-  /// The edge [stored] names, else the platform's: top where desktop
-  /// browsers keep their tabs, bottom within a thumb's reach on a phone.
-  static TabStripEdge of(String stored, {required bool desktop}) =>
-      values.asNameMap()[stored] ?? (desktop ? top : bottom);
-}
 
 /// The selected webspace's sites along one edge of the screen. A tap opens
 /// a site, a tap on the one on screen opens its tabs (TAB-008), and a long

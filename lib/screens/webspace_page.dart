@@ -86,6 +86,7 @@ import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
+import 'package:webspace/settings/tab_strip_edge.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
@@ -1433,6 +1434,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       // both edges so it stays clear of any bars that persist, or that the user
       // revealed under `immersive` (FS-011); when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
+      // A tab strip along the top keeps the status bar, and this inset puts
+      // the strip under it (FS-012).
       top: _fullscreen.active || (_folderLibraryEnabled && _sites.shown == null),
       bottom: !hasBottomStrip && inputBar == null,
       // Out of fullscreen, inset around a landscape display cutout so chrome
@@ -1814,6 +1817,9 @@ class _PageHost
 
   @override
   set kioskLocked(bool locked) => _s._kioskLocked = locked;
+
+  @override
+  TabStripEdge? get tabStripEdge => _s._tabStripEdge;
 
   @override
   void resetForEntry() {
