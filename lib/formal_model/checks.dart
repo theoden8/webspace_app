@@ -935,6 +935,14 @@ enum Mutant {
     doc:
         "a landing that moves a loaded site's pointer without switching its "
         'webview leaves it built for another tab (TAB-014, caught)',
+  ),
+  navtagatreply(
+    world: ActivationWorld.tabsResetContainers,
+    by: Inv.tabShown,
+    doc:
+        "an activation's back stack queued for the tab active at its read's "
+        'reply, after a landing moved it: the build shows the tab the read '
+        'began on (TAB-003, caught)',
   );
 
   const Mutant({

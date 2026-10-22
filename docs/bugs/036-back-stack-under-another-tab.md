@@ -82,6 +82,20 @@ with the tab they were read for.
    never reaches (`Routed = {}`), so the gap below stays open; a subtree close's
    extra removals and `landOnHomeTab`, `reconcileLinkTabs`, `bindOwnerRunTab`
    are not driven.
+4. **2026-10-22, claude/tab-writes-steps.** A reset's landing at home became a
+   tab input (`HomeLanding`, `HomeLand`), and on a site with no webview it
+   moves the pointer at once. A tab setup that leaves slot 0 unloaded on its
+   second tab found the next shape: a tap starts the activation, which reads
+   the second tab's file; the landing moves the pointer home; the reply queued
+   the bytes for the tab active *then*, so the build took the second tab's
+   history under home. The nav read now records its tab as it is issued
+   (`navTab`, beside `navAs`), reads that tab's file and queues the bytes for
+   it, so a build of another tab drops them; the model's `Staged` takes the
+   tab the same way. The old shape is the mutant `navtagatreply`, caught by
+   `Inv_TabShown` and, planted in the code, by the schedules. *Why partial:*
+   the read keyed by the tab at its start is the rule every flow follows, but
+   only the walk's setups and TLC's worlds within their bounds hold the
+   activation's reads to it; `Staged` was the one left reading at the reply.
 
 ## Known open gaps
 
@@ -89,9 +103,9 @@ with the tab they were read for.
   slot's identity awaits the identity change between the pointer move and the
   dispose. Captures key by the webview's tab, so no file is crossed, but no
   schedule drives that path: the walk's proxy topology is per site.
-- `landOnHomeTab`, `reconcileLinkTabs` and `bindOwnerRunTab` are not driven
-  by the walk; the source gate in `test/tab_switch_rebind_test.dart` still
-  covers their `activeTabId` writes.
+- `reconcileLinkTabs` and `bindOwnerRunTab` are not driven by the walk; the
+  source gate in `test/tab_switch_rebind_test.dart` still covers their
+  `activeTabId` writes.
 - `formal/activation.tla` holds the tab flows of the site on screen only: a
   tab input on a site off screen activates it inside the tab gate, a nesting
   the activation table does not print yet, so those schedules are checked by
