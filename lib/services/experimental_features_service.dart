@@ -17,9 +17,9 @@ enum ExperimentalFeature {
   /// default: every release before it drew pages with hybrid composition.
   textureRendering(AppPref.experimentalTextureRendering),
 
-  /// iOS, macOS and Linux: the filter lists' network rules compiled into
-  /// WebKit content rule lists (content-blocker CB-020). New, so off by
-  /// default.
+  /// Linux: the filter lists' network rules compiled into WebKit content
+  /// rule lists (content-blocker CB-020). On iOS and macOS they graduated and
+  /// attach whenever a site's content blocker runs. New, so off by default.
   contentRuleLists(AppPref.experimentalContentRuleLists),
 
   /// The grouped site launcher, leaving the existing interface as default.

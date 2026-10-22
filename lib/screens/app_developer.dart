@@ -42,7 +42,7 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
             loc.appSettingsExperimentalTextureRenderingHint),
-      if (MethodChannelContentRuleListStore.here != null)
+      if (MethodChannelContentRuleListStore.here?.experimental ?? false)
         (ExperimentalFeature.contentRuleLists, Icons.shield_outlined,
             loc.appSettingsExperimentalContentRuleLists,
             loc.appSettingsExperimentalContentRuleListsHint),

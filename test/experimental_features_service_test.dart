@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/content_rule_lists.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -74,6 +76,14 @@ void main() {
         isNot(contains('experimentalSiteIconsOnly')),
         reason: 'a graduated feature removes its switch and stops reading '
             'this gate (DEVTOOLS-011)');
+  });
+
+  test('WebKit content blocking graduated on iOS and macOS: the switch is '
+      'offered on Linux alone (CB-020)', () {
+    expect(MethodChannelContentRuleListStore.here?.experimental ?? false,
+        hostIsLinux,
+        reason: "on iOS and macOS the lists attach whenever a site's content "
+            'blocker runs, so only Linux still reads this gate (DEVTOOLS-011)');
   });
 
   test('the proxy router defaults on, so developer mode alone keeps it',

@@ -547,7 +547,7 @@ The features are:
 | Webspace icon groups (`webspaces` WEBSPACE-002) | Alternative design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
-| iOS, macOS and Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
+| Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
 | A sign-in window the user's tap opened, shown as a real popup (`nested-url-blocking` NESTED-014) | Sign-in popups | off | `WebViewFactory.createWebView`, read when a site's webview is built |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
@@ -562,12 +562,14 @@ The embedded Tor client (`tor-proxy` TOR-007) was the first feature in the group
 
 Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were in the group with a Tor (external) switch that defaulted off; they graduated. The switch moved to App settings' Network screen, keeps its stored value, and is offered with developer mode on or off.
 
+WebKit content rule lists on iOS and macOS (`content-blocker` CB-020) were in the group under the WebKit content blocking switch; they graduated there, and attach whenever a site's content blocker runs. The switch stays for Linux, where the lists are still an experiment, and is offered only there.
+
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with Alternative design and Sign-in popups off and no Tor switch
+- **AND** after unlocking developer mode the Developer section shows it, with Alternative design and Sign-in popups off and no Tor or WebKit content blocking switch
 
 #### Scenario: Only what this platform can run
 

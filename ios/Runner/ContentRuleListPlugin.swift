@@ -9,10 +9,10 @@
 import Foundation
 import WebKit
 
-/// The WebKit content rule lists of the experimental native blocking
-/// (content-blocker CB-020), compiled once into the default store. Webviews
-/// attach them by identifier through the webview plugin's
-/// `contentRuleListIdentifiers` setting, so no webview compiles anything.
+/// The WebKit content rule lists of the native blocking (content-blocker
+/// CB-020), compiled once into the default store. Webviews attach them by
+/// identifier through the webview plugin's `contentRuleListIdentifiers`
+/// setting, so no webview compiles anything.
 ///
 /// Dart side: [`ContentRuleLists`](../../lib/services/content_rule_lists.dart).
 class ContentRuleListPlugin: NSObject {

@@ -730,8 +730,9 @@ class ContentBlockerService {
       final prefs = await SharedPreferences.getInstance();
       AppPref.useUboResources.load(prefs);
       // The first engine build runs before developer mode and the
-      // Experimental switches load; reading them unloaded would drop the
-      // compiled rule lists and recompile them on every launch (CB-020).
+      // Experimental switches load; where the rule lists are still an
+      // experiment, reading them unloaded would drop the compiled lists and
+      // recompile them on every launch (CB-020).
       AppPref.developerMode.load(prefs);
       ExperimentalFeature.contentRuleLists.pref.load(prefs);
       if (hostIsAndroid) {
@@ -760,7 +761,7 @@ class ContentBlockerService {
       }
 
       await _rebuildEngine();
-      if (_ruleLists != null && !_watchingRuleListSwitch) {
+      if (_ruleListsExperimental && !_watchingRuleListSwitch) {
         _watchingRuleListSwitch = true;
         ExperimentalFeature.contentRuleLists.pref.listenable
             .addListener(_onRuleListSwitch);
@@ -1029,11 +1030,16 @@ class ContentBlockerService {
       ContentRuleLists(store: store, convert: AdblockEngine.contentRuleLists),
     null => null,
   };
+
+  /// Whether the lists attach only with the experiment on (Linux); where
+  /// they graduated (iOS, macOS) the switch and developer mode are not read.
+  final bool _ruleListsExperimental =
+      MethodChannelContentRuleListStore.here?.experimental ?? false;
   bool _watchingRuleListSwitch = false;
 
   /// What a webview created now names in `contentRuleListIdentifiers`: empty
-  /// where WebKit has no store, while the experiment is off, and until a set
-  /// is in the store.
+  /// where WebKit has no store, on Linux while the experiment is off, and
+  /// until a set is in the store.
   List<String> get contentRuleListIdentifiers =>
       _ruleLists?.identifiers ?? const [];
 
@@ -1043,8 +1049,9 @@ class ContentBlockerService {
       {required String? key, required Future<String> Function() rulesText}) {
     final ruleLists = _ruleLists;
     if (ruleLists == null) return Future<void>.value();
-    final on = ExperimentalFeaturesService.instance
-        .isEnabled(ExperimentalFeature.contentRuleLists);
+    final on = !_ruleListsExperimental ||
+        ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.contentRuleLists);
     return ruleLists.sync(
         wanted: on && key != null ? RuleSetKey.of(key) : null,
         rulesText: rulesText);
