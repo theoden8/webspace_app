@@ -1,18 +1,18 @@
-import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
+import 'package:webspace/widgets/launcher_lift.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 
 enum SiteGridTileLayout { compact, library }
 
-/// A site in the drawer's grid. Where the grid can be reordered a long press
-/// drags the tile and its menu sits behind a corner button; elsewhere a long
-/// press opens the menu.
+/// A site in a launcher grid: the drawer's, or the library's. A long press
+/// lifts it, for its menu or a drag through its grid ([LauncherLift]); the
+/// drawer's smaller tiles also keep the menu behind a corner button.
 class SiteGridTile extends StatelessWidget {
   const SiteGridTile({
     super.key,
@@ -22,14 +22,13 @@ class SiteGridTile extends StatelessWidget {
     required this.showTabCount,
     required this.onOpen,
     required this.onMenu,
-    required this.onReorder,
     this.layout = SiteGridTileLayout.compact,
     this.webspaces = const [],
   });
 
   final WebViewModel site;
 
-  /// The tile's place in the grid, which a drag carries.
+  /// The tile's place in its grid's saved order, which a drag carries.
   final int listIndex;
   final bool selected;
   final bool showTabCount;
@@ -41,10 +40,6 @@ class SiteGridTile extends StatelessWidget {
   /// The site's menu, at a global position.
   final void Function(BuildContext context, {required Offset globalPosition})
   onMenu;
-
-  /// A tile dragged from grid place `from` dropped on this one; null where
-  /// the grid cannot be reordered.
-  final void Function(int from, {required int to})? onReorder;
 
   static double extentFor(
     BuildContext context, {
@@ -62,131 +57,81 @@ class SiteGridTile extends StatelessWidget {
                 Spacing.xs * 3);
   }
 
+  /// Where a library tile laid out at [tile] draws its icon's well, which the
+  /// site's card grows out of as it opens and shrinks into as it closes.
+  static Rect wellIn(Rect tile) => Rect.fromLTWH(
+    tile.center.dx - LibraryStyle.siteWell / 2,
+    tile.top + Spacing.sm,
+    LibraryStyle.siteWell,
+    LibraryStyle.siteWell,
+  );
+
+  /// The fill of a library tile's well, which the site's card starts from.
+  static Color wellColor(WebViewModel site, {required ThemeData theme}) =>
+      Color.alphaBlend(
+        containerColorOf(
+          site,
+          brightness: theme.brightness,
+        ).withAlpha(LibraryStyle.siteTintAlpha),
+        theme.colorScheme.surface,
+      );
+
   @override
   Widget build(BuildContext context) {
-    final reorder = onReorder;
+    final lift = LauncherLift<int>(
+      data: listIndex,
+      onOpen: onOpen,
+      onMenu: (at) => onMenu(context, globalPosition: at),
+      child: _SiteGridTileContent(
+        site: site,
+        selected: selected,
+        showTabCount: showTabCount,
+        layout: layout,
+        webspaces: webspaces,
+      ),
+    );
     return Semantics(
       label: [
         site.getDisplayName(),
         if (layout == SiteGridTileLayout.library)
           ...webspaces.map((w) => w.name),
       ].join(', '),
-      button: true,
-      enabled: true,
-      child: reorder != null
-          ? _draggable(context, reorder: reorder)
-          : GestureDetector(
-              onLongPressEnd: (details) =>
-                  onMenu(context, globalPosition: details.globalPosition),
-              onSecondaryTapDown: (details) =>
-                  onMenu(context, globalPosition: details.globalPosition),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(Radii.xl),
-                onTap: onOpen,
-                child: _content(),
-              ),
-            ),
-    );
-  }
-
-  Widget _content() => _SiteGridTileContent(
-    site: site,
-    selected: selected,
-    showTabCount: showTabCount,
-    layout: layout,
-    webspaces: webspaces,
-  );
-
-  Widget _draggable(
-    BuildContext context, {
-    required void Function(int from, {required int to}) reorder,
-  }) {
-    final theme = Theme.of(context);
-    // A raw Listener rather than a GestureDetector for the tap: the gesture
-    // arena against LongPressDraggable delays or drops taps.
-    PointerDownEvent? down;
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != listIndex,
-      onAcceptWithDetails: (details) => reorder(details.data, to: listIndex),
-      builder: (context, candidateData, rejectedData) {
-        final isHovered = candidateData.isNotEmpty;
-        return LongPressDraggable<int>(
-          data: listIndex,
-          feedback: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(Radii.xl),
-            child: SizedBox(
-              width: layout == SiteGridTileLayout.library ? 120 : 80,
-              height: layout == SiteGridTileLayout.library ? 184 : 88,
-              child: Opacity(opacity: 0.85, child: _content()),
-            ),
-          ),
-          childWhenDragging: Opacity(opacity: 0.3, child: _content()),
-          child: Container(
-            decoration: isHovered
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(Radii.xl),
-                    border: Border.all(
-                      color: theme.colorScheme.primary,
-                      width: 2,
-                    ),
-                  )
-                : null,
-            child: Stack(
+      child: layout == SiteGridTileLayout.library
+          ? lift
+          : Stack(
               fit: StackFit.expand,
               children: [
-                Listener(
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: (event) => down = event,
-                  onPointerUp: (event) {
-                    final at = down;
-                    down = null;
-                    if (at != null &&
-                        (event.position - at.position).distance < 20 &&
-                        event.timeStamp - at.timeStamp < kDoubleTapTimeout) {
-                      onOpen();
-                    }
-                  },
-                  onPointerCancel: (_) => down = null,
-                  child: GestureDetector(
-                    onSecondaryTapDown: (details) =>
-                        onMenu(context, globalPosition: details.globalPosition),
-                    child: _content(),
-                  ),
-                ),
+                lift,
                 Positioned(
                   top: 2,
                   right: 2,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      final renderBox = context.findRenderObject() as RenderBox;
-                      onMenu(
-                        context,
-                        globalPosition: renderBox.localToGlobal(
-                          Offset(renderBox.size.width - 8, 8),
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: Icon(
-                        Icons.more_vert,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant.withAlpha(
-                          150,
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: ExcludeSemantics(child: _cornerMenu(context)),
                 ),
               ],
             ),
-          ),
-        );
-      },
     );
   }
+
+  Widget _cornerMenu(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: () {
+      final renderBox = context.findRenderObject()! as RenderBox;
+      onMenu(
+        context,
+        globalPosition: renderBox.localToGlobal(
+          Offset(renderBox.size.width - 8, 8),
+        ),
+      );
+    },
+    child: Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Icon(
+        Icons.more_vert,
+        size: 16,
+        color: Theme.of(context).colorScheme.onSurfaceVariant.withAlpha(150),
+      ),
+    ),
+  );
 }
 
 class _SiteGridTileContent extends StatelessWidget {
@@ -240,15 +185,11 @@ class _SiteGridTileContent extends StatelessWidget {
             AnimatedContainer(
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
-                  : Motion.libraryNavigation,
-              curve: Motion.libraryCurve,
+                  : Motion.settle,
               width: well,
               height: well,
               decoration: BoxDecoration(
-                color: Color.alphaBlend(
-                  color.withAlpha(LibraryStyle.siteTintAlpha),
-                  theme.colorScheme.surface,
-                ),
+                color: SiteGridTile.wellColor(site, theme: theme),
                 border: Border.all(
                   color: color,
                   width: LibraryStyle.selectionWidth,

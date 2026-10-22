@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Espacios web",
   "librarySites": "Sitios",
   "librarySearchWebspaces": "Buscar espacios web",
-  "librarySearchSites": "Buscar sitios",
   "libraryNoResults": "Sin coincidencias",
   "appSettingsExperimentalFolderLibrary": "Diseño alternativo",
   "appSettingsExperimentalFolderLibraryHint": "Organiza los sitios en grupos en una cuadrícula de inicio.",

@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Espaces web",
   "librarySites": "Sites",
   "librarySearchWebspaces": "Rechercher des espaces web",
-  "librarySearchSites": "Rechercher des sites",
   "libraryNoResults": "Aucun résultat",
   "appSettingsExperimentalFolderLibrary": "Design alternatif",
   "appSettingsExperimentalFolderLibraryHint": "Organisez les sites en groupes dans une grille de lancement.",

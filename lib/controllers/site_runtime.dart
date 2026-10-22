@@ -204,10 +204,11 @@ class SiteRuntime {
         break;
       case SitesLoaded(:final sites):
         models.addAll(sites);
-      case SiteAdded(:final site):
+      case SiteAdded(:final site, :final joins):
         models.add(site);
         for (final ws in webspaces) {
-          if (!ws.isAll && ws.id == selectedWebspaceId) {
+          if (!ws.isAll &&
+              (joins?.contains(ws.id) ?? ws.id == selectedWebspaceId)) {
             ws.siteIds.add(site.siteId);
           }
         }

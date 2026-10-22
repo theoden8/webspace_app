@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "ওয়েবস্পেস",
   "librarySites": "সাইট",
   "librarySearchWebspaces": "ওয়েবস্পেস খুঁজুন",
-  "librarySearchSites": "সাইট খুঁজুন",
   "libraryNoResults": "কোনো ফলাফল নেই",
   "appSettingsExperimentalFolderLibrary": "বিকল্প ডিজাইন",
   "appSettingsExperimentalFolderLibraryHint": "লঞ্চার গ্রিডে সাইটগুলোকে গোষ্ঠীতে সাজান।",

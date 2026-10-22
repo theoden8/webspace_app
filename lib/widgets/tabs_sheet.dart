@@ -74,14 +74,21 @@ class TabsSheet extends StatefulWidget {
     this.onMoveTab,
     this.onMoveSite,
     this.wayBack,
-  });
+    this.title,
+  }) : assert(currentIndex >= 0 || title != null,
+            'a sheet with no site on screen names what it lists');
 
   /// Every site with tabs: those the current webspace shows, in display
   /// order, then the rest.
   final List<TabsSheetSite> sites;
 
-  /// Index into [sites] of the site whose tabs open first.
+  /// Index into [sites] of the site whose tabs open first; -1 when no site
+  /// is on screen.
   final int currentIndex;
+
+  /// What the sheet lists when no site is on screen (the library's tab
+  /// tree): every tree of [sites], under this title.
+  final String? title;
 
   final void Function(WebViewModel site, {required TabId tabId}) onOpenTab;
   final void Function(WebViewModel site) onNewTab;
@@ -175,7 +182,8 @@ class _TabsSheetState extends State<TabsSheet> {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final site = _site;
-    if (site == null) return const SizedBox.shrink();
+    final title = widget.title;
+    if (site == null && title == null) return const SizedBox.shrink();
     return SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -190,16 +198,30 @@ class _TabsSheetState extends State<TabsSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.xs, Spacing.sm, 0),
-              child: _header(site, loc: loc, theme: theme),
+              child: site == null
+                  ? SizedBox(
+                      height: kMinInteractiveDimension,
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          title!,
+                          style: theme.textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                  : _header(site, loc: loc, theme: theme),
             ),
-            if (_shown.length > 1) _scopeSwitch(loc, theme: theme),
+            if (site != null && _shown.length > 1)
+              _scopeSwitch(loc, theme: theme),
             Flexible(
               child: ListView(
                 key: _listKey,
                 controller: _scroll,
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-                children: _allSites
+                children: site == null || _allSites
                     ? _allSitesRows(loc, theme: theme)
                     : [
                         ..._rowsFor(site, loc: loc, theme: theme),

@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Веб-простори",
   "librarySites": "Сајтови",
   "librarySearchWebspaces": "Претражи веб-просторе",
-  "librarySearchSites": "Претражи сајтове",
   "libraryNoResults": "Нема резултата",
   "appSettingsExperimentalFolderLibrary": "Алтернативни дизајн",
   "appSettingsExperimentalFolderLibraryHint": "Организујте сајтове у групе у мрежи за покретање.",

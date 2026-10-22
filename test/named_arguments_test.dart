@@ -27,8 +27,6 @@ const _fixedFromOutside = {
       'SystemUiChangeCallback',
   'lib/services/block_stats_detail.dart _byCountThenRecency': 'List.sort',
   'lib/widgets/external_tor_tiles.dart _setSwitch': 'ValueChanged<bool>',
-  'lib/screens/webspace_library.dart _transition':
-      'AnimatedSwitcherTransitionBuilder',
   'test/settings_backup_compat_test.dart _compareTags': 'List.sort',
 };
 

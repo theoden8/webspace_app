@@ -22,6 +22,7 @@ import 'package:webspace/services/tab_handling_gate.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/services/webview_state_storage.dart';
+import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tabs_sheet.dart' show TabsSheetSite;
 
@@ -130,8 +131,19 @@ class TabsController {
   /// shows them, then the rest, whose trees can hold tabs that run as a site
   /// the webspace shows (TAB-017). A site without tabs is left out, so its
   /// stored ones cannot be opened from another site's list.
-  List<TabsSheetSite> sheetSites() {
-    final view = _sites.filteredIndices();
+  List<TabsSheetSite> sheetSites() => _sheetSitesOver(_sites.filteredIndices());
+
+  /// [sheetSites] for the library's tab tree, where no site is on screen:
+  /// the sites [scope] holds in its order, "All" holding every site.
+  List<TabsSheetSite> sheetSitesIn(WebspaceId scope) => _sheetSitesOver(
+        WebspaceSelectionEngine.filteredSiteIndices(
+          selectedWebspaceId: scope,
+          webspaces: _sites.webspaces,
+          siteCount: _sites.models.length,
+        ),
+      );
+
+  List<TabsSheetSite> _sheetSitesOver(List<int> view) {
     final shown = view.toSet();
     TabsSheetSite site(int i) => TabsSheetSite(
           model: _sites.models[i],

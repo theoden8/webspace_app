@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Χώροι ιστού",
   "librarySites": "Ιστότοποι",
   "librarySearchWebspaces": "Αναζήτηση χώρων ιστού",
-  "librarySearchSites": "Αναζήτηση ιστοτόπων",
   "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα",
   "appSettingsExperimentalFolderLibrary": "Εναλλακτική σχεδίαση",
   "appSettingsExperimentalFolderLibraryHint": "Οργανώστε τους ιστοτόπους σε ομάδες σε ένα πλέγμα εκκίνησης.",

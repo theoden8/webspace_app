@@ -8,14 +8,22 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_drawer.dart';
+import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/real_app.dart';
 import 'helpers/group_tile.dart';
+
+/// [name]'s icon in the open folder, not its preview on the folder tile.
+Finder _siteTile(String name) => find.byWidgetPredicate(
+  (widget) => widget is SiteGridTile && widget.site.name == name,
+);
 
 void main() {
   setUp(() => ConnectivityService.onlineOverride = Future.value(true));
@@ -51,12 +59,18 @@ void main() {
           id: groupBackground(tester, id: id),
       };
       await openWebspace(tester, name: 'Work');
-      await tester.tap(find.byType(BackButton));
+      await pressBack(tester);
+      final drag = await tester.startGesture(tester.getCenter(find.text('Work')));
+      await tester.pump(const Duration(milliseconds: 600));
+      await drag.moveTo(tester.getCenter(find.text('Personal')));
+      await tester.pump();
+      await drag.up();
       await settleRealApp(tester);
-      await tester.longPress(find.text('Work'));
-      await settleRealApp(tester);
-      await tester.tap(find.byIcon(Icons.arrow_downward));
-      await settleRealApp(tester);
+      final saved = (await SharedPreferences.getInstance())
+          .getStringList('webspaces')!
+          .map((raw) => (jsonDecode(raw) as Map<String, dynamic>)['name'])
+          .toList();
+      expect(saved, ['All', 'Personal', 'Work'], reason: 'dragged into place');
       for (final entry in colors.entries) {
         expect(groupBackground(tester, id: entry.key), entry.value);
       }
@@ -147,7 +161,7 @@ void main() {
     await tester.tap(find.byTooltip('Back to Webspaces'));
     await settleRealApp(tester);
     expect(find.byType(WebspaceLibrary), findsOneWidget);
-    expect(find.byType(BackButton), findsNothing);
+    expect(find.byKey(const ValueKey('library-folder')), findsNothing);
     expect(find.text('Beta'), findsOneWidget);
     expect(find.byType(SiteGridTile), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -264,7 +278,7 @@ void main() {
   });
 
   testWidgets(
-    'reordering sites keeps the group open; a swipe returns to groups',
+    'reordering sites in a folder keeps it open and saves the order (WEBSPACE-011); Back closes it',
     (tester) async {
       final alpha = WebViewModel(
         initUrl: 'https://alpha.example.test',
@@ -285,15 +299,15 @@ void main() {
         },
       );
       await openWebspace(tester, name: 'Work');
-      final alphaTile = find.byKey(ValueKey(appSite('Alpha').siteId));
-      final betaTile = find.byKey(ValueKey(appSite('Beta').siteId));
+      final alphaTile = _siteTile('Alpha');
+      final betaTile = _siteTile('Beta');
       final drag = await tester.startGesture(tester.getCenter(alphaTile));
       await tester.pump(const Duration(milliseconds: 600));
       await drag.moveTo(tester.getCenter(betaTile));
       await tester.pump();
       await drag.up();
       await settleRealApp(tester);
-      expect(find.byType(BackButton), findsOneWidget);
+      expect(find.byKey(const ValueKey('library-folder')), findsOneWidget);
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs
           .getStringList('webspaces')!
@@ -302,13 +316,9 @@ void main() {
           )
           .singleWhere((group) => group.id == work.id);
       expect(saved.siteIds, [beta.siteId, alpha.siteId]);
-      await tester.flingFrom(
-        tester.getCenter(betaTile),
-        const Offset(180, 0),
-        1000,
-      );
-      await settleRealApp(tester);
-      expect(find.byType(WebspaceGroupTile), findsNWidgets(2));
+      await pressBack(tester);
+      expect(find.byKey(const ValueKey('library-folder')), findsNothing);
+      expect(find.byType(WebspaceGroupTile).hitTestable(), findsNWidgets(2));
       expect(find.byType(SiteGridTile), findsNothing);
       expect(prefs.getString('selectedWebspaceId'), work.id);
       expect(tester.takeException(), isNull);
@@ -338,10 +348,7 @@ void main() {
         },
       );
       await openWebspace(tester, name: 'Work');
-      final alphaTile = find.byKey(ValueKey(appSite('Alpha').siteId));
-      await tester.tap(
-        find.descendant(of: alphaTile, matching: find.byIcon(Icons.more_vert)),
-      );
+      await tester.longPress(_siteTile('Alpha'));
       await settleRealApp(tester);
       await tester.tap(find.text('Edit'));
       await settleRealApp(tester);
@@ -366,6 +373,102 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'a site grows out of its icon in the folder and shrinks back into it (WEBSPACE-008)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      final card = find.descendant(
+        of: find.byType(LaunchZoom),
+        matching: find.byType(Material),
+      );
+      final icon = SiteGridTile.wellIn(tester.getRect(_siteTile('Alpha')));
+      await tester.tap(_siteTile('Alpha'));
+      await tester.pump();
+      expect(tester.getRect(card), icon);
+      expect(
+        find.byType(WebspaceLibrary),
+        findsOneWidget,
+        reason: 'the folder stays on screen while the card grows',
+      );
+      await settleRealApp(tester);
+      expect(card, findsNothing);
+      expect(find.byType(WebspaceLibrary), findsNothing);
+      await tester.tap(find.byTooltip('Back to Webspaces'));
+      await tester.pump();
+      expect(
+        tester.getRect(card).size,
+        tester.getSize(find.byType(LaunchZoom)),
+        reason: 'a full card covers the switch back',
+      );
+      await settleRealApp(tester);
+      expect(card, findsNothing);
+      expect(find.byKey(const ValueKey('library-folder')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('the library tab tree opens a nested tab on its site (WEBSPACE-004)', (
+    tester,
+  ) async {
+    final root = SiteTab(
+      id: TabId('root'),
+      url: 'https://alpha.example.test',
+      title: 'Overview',
+    );
+    final child = SiteTab(
+      id: TabId('child'),
+      parentId: root.id,
+      url: 'https://alpha.example.test/article',
+      title: 'Deep article',
+    );
+    final site = WebViewModel(
+      initUrl: root.url,
+      name: 'Alpha',
+      tabsEnabled: true,
+      tabs: [root, child],
+      activeTabId: root.id,
+    );
+    await pumpRealApp(
+      tester,
+      sites: [site],
+      prefs: {
+        AppPref.developerMode.key: true,
+        AppPref.experimentalFolderLibrary.key: true,
+      },
+    );
+    await tester.tap(find.byTooltip('Tabs'));
+    await settleRealApp(tester);
+    expect(find.byType(TabsSheet), findsOneWidget);
+    await tester.tap(find.text('Deep article'));
+    await tester.pump();
+    expect(
+      find.descendant(
+        of: find.byType(LaunchZoom),
+        matching: find.byType(Material),
+      ),
+      findsOneWidget,
+      reason: 'a tab picked in a list opens through its site\'s card too',
+    );
+    await settleRealApp(tester);
+    expect(appSite('Alpha').activeTabId, child.id);
+    expect(find.byType(WebspaceLibrary), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final (dev, on) in [
     (false, false),
@@ -444,7 +547,7 @@ void main() {
   });
 
   testWidgets(
-    'selecting a folder persists its scope and opens sites without a drawer (WEBSPACE-002, WEBSPACE-004, WEBSPACE-008)',
+    'selecting a folder, or swiping to another in it, persists its scope and opens sites without a drawer (WEBSPACE-002, WEBSPACE-004, WEBSPACE-008)',
     (tester) async {
       final portal = WebViewModel(
         initUrl: 'https://portal.example.test',
@@ -474,9 +577,70 @@ void main() {
       );
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('selectedWebspaceId'), work.id);
-      await tester.tap(find.byType(BackButton));
+      final folder = find.byKey(const ValueKey('library-folder'));
+      await tester.fling(folder, const Offset(300, 0), 1000);
       await settleRealApp(tester);
-      expect(find.byType(WebspaceGroupTile), findsNWidgets(2));
+      expect(find.byType(SiteGridTile), findsNWidgets(2));
+      expect(prefs.getString('selectedWebspaceId'), WebspaceId.all);
+      await pressBack(tester);
+      expect(folder, findsNothing);
+      expect(find.byType(WebspaceGroupTile).hitTestable(), findsNWidgets(2));
+    },
+  );
+
+  testWidgets(
+    'a site added from the home joins the webspaces picked for it, and one added in a folder starts in it (EDIT-012)',
+    (tester) async {
+      final portal = WebViewModel(
+        initUrl: 'https://portal.example.test',
+        name: 'Portal',
+      );
+      final work = Webspace(name: 'Work', siteIds: [portal.siteId]);
+      final personal = Webspace(name: 'Personal', siteIds: []);
+      await pumpRealApp(
+        tester,
+        sites: [portal],
+        webspaces: [work, personal],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      Finder chip(String name) => find.widgetWithText(FilterChip, name);
+      await openWebspace(tester, name: 'Work');
+      await tester.tap(find.byTooltip('Add Site'));
+      await settleRealApp(tester);
+      expect(tester.widget<FilterChip>(chip('Work')).selected, isTrue);
+      expect(tester.widget<FilterChip>(chip('Personal')).selected, isFalse);
+      await tester.pageBack();
+      await settleRealApp(tester);
+      await pressBack(tester);
+      await tester.tap(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add Site'));
+      await settleRealApp(tester);
+      expect(tester.widget<FilterChip>(chip('Work')).selected, isFalse);
+      expect(chip('All'), findsNothing);
+      await tester.tap(chip('Personal'));
+      await tester.pump();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Enter URL'),
+        'https://new.example.test',
+      );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Add Site'));
+      await settleRealApp(tester);
+      final prefs = await SharedPreferences.getInstance();
+      final added = [
+        for (final raw in prefs.getStringList('webViewModels')!)
+          jsonDecode(raw) as Map<String, dynamic>,
+      ].singleWhere((site) => site['initUrl'] == 'https://new.example.test');
+      final saved = {
+        for (final raw in prefs.getStringList('webspaces')!)
+          (jsonDecode(raw) as Map<String, dynamic>)['name']:
+              (jsonDecode(raw) as Map<String, dynamic>)['siteIds'],
+      };
+      expect(saved['Personal'], [added['siteId']]);
+      expect(saved['Work'], [portal.siteId]);
     },
   );
 

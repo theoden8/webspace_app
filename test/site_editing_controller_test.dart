@@ -34,6 +34,11 @@ class _Host implements SiteEditingHost, ShortcutHost, SiteDeletionHost {
   @override
   Future<void> commitSites(SiteSetChange change) async => commits.add(change);
 
+  final List<WebViewModel?> activated = [];
+
+  @override
+  Future<void> activate(WebViewModel? site) async => activated.add(site);
+
   @override
   SiteSetStage stageSites(SiteSetChange change) =>
       AppliedStage((_) => commits.add(change));
@@ -64,6 +69,20 @@ class _Prompts implements SiteEditingPrompts, ShortcutPrompts {
   }
 
   List<Webspace>? offered;
+
+  /// What the add-site screen answers, and what it was offered.
+  SiteAddition? addition;
+  ({List<Webspace> spaces, Set<WebspaceId> picked})? addOffer;
+
+  @override
+  Future<SiteAddition?> addSite({
+    String? initialUrl,
+    required List<Webspace> spaces,
+    required Set<WebspaceId> picked,
+  }) async {
+    addOffer = (spaces: spaces, picked: picked);
+    return addition;
+  }
 
   @override
   Future<SiteEdit?> editSite(WebViewModel site,
@@ -305,6 +324,49 @@ void main() {
     expect(site.name, 'Example');
     expect(site.initUrl, 'https://example.com/');
     expect(host.commits, isEmpty);
+  });
+
+  group('a new site\'s webspaces, chosen as it is added (EDIT-012)', () {
+    late Webspace work, home;
+
+    setUp(() {
+      work = Webspace(name: 'Work', siteIds: []);
+      home = Webspace(name: 'Home', siteIds: []);
+      sites.webspaces.addAll([Webspace.all(), work, home]);
+      sites.selectedWebspaceId = work.id;
+    });
+
+    Map<String, dynamic> added() =>
+        {'url': 'https://new.example/', 'name': 'New', 'incognito': false};
+
+    test('the screen is offered every named webspace, starting in the one '
+        'it is added from', () async {
+      final prompts = _Prompts(null);
+      await controller(prompts).addSite(into: home.id);
+      expect(prompts.addOffer?.spaces, [work, home]);
+      expect(prompts.addOffer?.picked, {home.id});
+      await controller(prompts).addSite(into: WebspaceId.all);
+      expect(prompts.addOffer?.picked, isEmpty, reason: 'All holds it anyway');
+      await controller(prompts).addSite();
+      expect(prompts.addOffer?.picked, isEmpty, reason: 'from the home');
+      expect(host.commits, isEmpty, reason: 'closed, nothing is added');
+    });
+
+    test('the site joins the webspaces picked on the screen', () async {
+      final prompts = _Prompts(null)
+        ..addition = (site: added(), spaces: {home.id});
+      await controller(prompts).addSite(into: work.id);
+      final change = host.commits.single as SiteAdded;
+      expect(change.site.name, 'New');
+      expect(change.joins, {home.id});
+    });
+
+    test('where no webspaces were offered it joins the selected one',
+        () async {
+      final prompts = _Prompts(null)..addition = (site: added(), spaces: null);
+      await controller(prompts).addSite();
+      expect((host.commits.single as SiteAdded).joins, isNull);
+    });
   });
 
   group('the webspaces a site is in, chosen from the site (EDIT-011)', () {

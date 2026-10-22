@@ -96,6 +96,7 @@ import 'package:webspace/widgets/fullscreen_overlays.dart';
 import 'package:webspace/widgets/link_menu_sheet.dart';
 import 'package:webspace/widgets/archive_prompts.dart';
 import 'package:webspace/widgets/backup_prompts.dart';
+import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/link_prompts.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
 import 'package:webspace/widgets/protection_shield_button.dart';
@@ -139,6 +140,7 @@ class WebSpacePage extends StatefulWidget {
 class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
   final _libraryKey = GlobalKey<WebspaceLibraryState>();
+  final _launchZoom = GlobalKey<LaunchZoomState>();
   bool get _folderLibraryEnabled => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.folderLibrary);
   final SiteRuntime _sites = SiteRuntime();
@@ -814,31 +816,70 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   bool _isShowingTabsSheet = false;
 
-  Future<void> _presentTabsSheet() async {
-    final shown = _sites.shown;
-    if (shown == null) return;
-    final sites = _tabs.sheetSites();
+  /// The tabs sheet of the site on screen, or with [scope] the library's tab
+  /// tree (WEBSPACE-004): every tree the scope holds, with no site on screen,
+  /// so a tab picked there opens its site on that tab.
+  Future<void> _presentTabsSheet({WebspaceId? scope}) async {
+    final shown = scope == null ? _sites.shown : null;
+    final sites = scope == null ? _tabs.sheetSites() : _tabs.sheetSitesIn(scope);
     final at = sites.indexWhere((s) => identical(s.model, shown));
-    if (at < 0) return;
+    if (scope == null ? at < 0 : sites.isEmpty) return;
+    final loc = AppLocalizations.of(context);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => TabsSheet(
         sites: sites,
         currentIndex: at,
+        title: scope == null
+            ? null
+            : _sites.webspaces
+                    .where((w) => w.id == scope && !w.isAll)
+                    .firstOrNull
+                    ?.name ??
+                loc.tabsAllSites,
         onOpenTab: (site, {required tabId}) =>
-            unawaited(_tabs.openTab(site, tabId: tabId)),
+            unawaited(_throughCard(site,
+                show: () => _tabs.openTab(site, tabId: tabId),
+                shown: () =>
+                    identical(_sites.shown, site) && site.activeTabId == tabId)),
         onNewTab: (site) => unawaited(_tabs.newTab(site)),
-        onWebSearch: () => unawaited(_links.webSearch()),
+        onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),
         onCloseTab: (site, {required tabId}) =>
             unawaited(_tabs.closeTab(site, tabId: tabId)),
         onCloseSubtree: (site, {required tabId}) =>
             unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
         onMoveTab: _tabs.moveTab,
-        onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
-        wayBack: _tabs.wayBackFrom(shown),
+        onMoveSite: shown != null && _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
+        wayBack: shown == null ? null : _tabs.wayBackFrom(shown),
       ),
     );
+  }
+
+  /// [show] puts [site] on screen; in Alternative design it runs behind the
+  /// site's card, grown from the site's icon where the library shows it and
+  /// faded in over the screen elsewhere, so every switch looks the same.
+  Future<void> _throughCard(WebViewModel site,
+      {required Future<void> Function() show,
+      required bool Function() shown}) async {
+    final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
+    if (zoom == null || shown()) return show();
+    await zoom.open(site,
+        from: _sites.shown == null
+            ? _libraryKey.currentState?.siteWell(site.siteId)
+            : null,
+        show: show,
+        shown: shown);
+  }
+
+  Future<void> _showLibraryTabs(WebspaceId scope) async {
+    if (_kioskLocked || _isShowingTabsSheet) return;
+    _isShowingTabsSheet = true;
+    try {
+      await _presentTabsSheet(scope: scope);
+    } finally {
+      _isShowingTabsSheet = false;
+    }
   }
 
   /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
@@ -1131,12 +1172,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       current: _sites.current,
       revealed: _fullscreen.tabStripRevealed,
       onHide: _fullscreen.hideTabStrip,
-      onOpen: (site) async {
-        await _activation.activate(site);
-        if (!mounted) return;
-        setState(() {});
-        await _shell.saveCurrentIndex();
-      },
+      onOpen: (site) => _throughCard(site,
+          show: () => _openSiteFromDrawer(site),
+          shown: () => identical(_sites.shown, site)),
       onShowTabs: () => unawaited(_showTabsSheet()),
       onReorder: _webspaces.canReorderView
           ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
@@ -1224,9 +1262,20 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
       case SiteMenuAction.backToWebspaces:
-        await _activation.activate(null);
+        Future<void> showLibrary() async {
+          await _activation.activate(null);
+          if (mounted) setState(() {});
+        }
+        final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
+        if (model != null && zoom != null) {
+          await zoom.close(model,
+              show: showLibrary,
+              shown: () => _sites.shown == null,
+              into: () => _libraryKey.currentState?.siteWell(model.siteId));
+        } else {
+          await showLibrary();
+        }
         if (!mounted) return;
-        setState(() {});
         await _shell.saveSelectedWebspaceId();
         await _shell.saveCurrentIndex();
       case SiteMenuAction.search:
@@ -1266,11 +1315,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     int listIndexOf() =>
         _sites.filteredIndices().indexOf(_sites.models.indexOf(site));
     final listIndex = listIndexOf();
+    // Alternative design's icons move by dragging, as a launcher's do.
+    final menuMoves = _webspaces.canReorderView && !_folderLibraryEnabled;
     final action = await showSiteListMenu(
       context,
       position: position,
-      canMoveUp: _webspaces.canReorderView && listIndex > 0,
-      canMoveDown: _webspaces.canReorderView &&
+      canMoveUp: menuMoves && listIndex > 0,
+      canMoveDown: menuMoves &&
           listIndex >= 0 &&
           listIndex < _sites.filteredIndices().length - 1,
       archived: site.isArchiveTier,
@@ -1308,7 +1359,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _backToWebspacesFromDrawer() async {
-    _libraryKey.currentState?.showWebspaces();
+    _libraryKey.currentState?.closeFolder();
     await _activation.activate(null);
     if (!mounted) return;
     setState(() {});
@@ -1318,7 +1369,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     _scaffoldKey.currentState?.closeDrawer();
   }
 
-  /// A site tapped in the drawer, once a webspace switch in flight lands.
+  /// A site picked in the drawer, the library or the tab strip, once a
+  /// webspace switch in flight lands.
   Future<void> _openSiteFromDrawer(WebViewModel site) async {
     // closeDrawer() (not Navigator.pop) is idempotent: a rapid second tap
     // won't pop the underlying page route once the drawer is already closing.
@@ -1418,13 +1470,17 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
-                    onOpenSite: (site) => unawaited(_openSiteFromDrawer(site)),
+                    onOpenSite: (site) => unawaited(_throughCard(site,
+                        show: () => _openSiteFromDrawer(site),
+                        shown: () => identical(_sites.shown, site))),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
                         ? (from, {required to}) =>
                               _webspaces.reorderSite(from, newListIndex: to)
                         : null,
-                    onAddSite: () => unawaited(_editing.addSite()),
+                    onAddSite: ({required into}) =>
+                        unawaited(_editing.addSite(into: into)),
+                    onShowTabs: (scope) => unawaited(_showLibraryTabs(scope)),
                     onOpenSettings: _openAppSettings,
                   ) : WebspacesListScreen(
                     webspaces: _sites.webspaces,
@@ -1518,31 +1574,27 @@ class _WebSpacePageState extends State<WebSpacePage>
           ? _sites.models[shown].blockScreenshots
           : null,
     )));
-    final mainTree =
-        _buildMainTree(context, webviewIsVisible: webviewIsVisible);
-    if (!_maskBackground) {
-      return mainTree;
-    }
-    // Snapshot-time mask: an opaque surface overlays everything so the
-    // task-switcher / recents preview never captures archive content
-    // (ARCH-009). Wrapping the existing tree keeps the running webview
-    // state intact — only the painted output is replaced.
     return Stack(
       fit: StackFit.expand,
       children: [
-        mainTree,
-        Positioned.fill(
-          child: ColoredBox(
-            color: Theme.of(context).colorScheme.surface,
-            child: Center(
-              child: Icon(
-                Icons.lock_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
+        _buildMainTree(context, webviewIsVisible: webviewIsVisible),
+        if (_folderLibraryEnabled) LaunchZoom(key: _launchZoom),
+        // Snapshot-time mask: an opaque surface overlays everything so the
+        // task-switcher / recents preview never captures archive content
+        // (ARCH-009). Only the painted output is replaced.
+        if (_maskBackground)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: Center(
+                child: Icon(
+                  Icons.lock_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -1556,6 +1608,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       canPop: hostIsAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        // An open folder is Back's to close first, as on a phone's home
+        // screen; only then does Back leave the library.
+        if (!webviewIsVisible &&
+            (_libraryKey.currentState?.closeFolder() ?? false)) {
+          return;
+        }
         await _back.handle();
       },
       child: Scaffold(
@@ -1787,7 +1845,7 @@ class _PageHost
   @override
   void openDrawer() {
     if (_s._folderLibraryEnabled && _s._sites.shown == null) {
-      _s._libraryKey.currentState?.showSelectedWebspace();
+      _s._libraryKey.currentState?.openFolder();
     } else {
       unawaited(openNavigationMenu());
     }

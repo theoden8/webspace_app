@@ -3,6 +3,8 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/accent_logo.dart';
+import 'package:webspace/widgets/launcher_grid.dart';
+import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 
 /// The page's drawer: the selected webspace under the logo, the way back to
@@ -138,41 +140,73 @@ class SiteDrawer extends StatelessWidget {
                           );
                         }
 
-                        return GridView.builder(
-                          padding: const EdgeInsets.only(
-                            left: 8,
-                            right: 8,
-                            bottom: 8,
-                            top: 4,
-                          ),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: crossAxisCount,
-                                mainAxisSpacing: 4,
-                                crossAxisSpacing: 4,
-                                mainAxisExtent: itemHeight,
+                        final reorder = onReorder;
+                        return LauncherGrid<int>(
+                          order: [for (var i = 0; i < itemCount; i++) i],
+                          fixed: (_) => false,
+                          onMove: reorder == null
+                              ? null
+                              : (from, {required to}) => reorder(from, to: to),
+                          builder: (context, {required places}) =>
+                              GridView.builder(
+                                padding: const EdgeInsets.only(
+                                  left: 8,
+                                  right: 8,
+                                  bottom: 8,
+                                  top: 4,
+                                ),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      mainAxisSpacing: 4,
+                                      crossAxisSpacing: 4,
+                                      mainAxisExtent: itemHeight,
+                                    ),
+                                itemCount: itemCount,
+                                findChildIndexCallback: (key) {
+                                  final at = key is ValueKey
+                                      ? places.indexWhere(
+                                          (p) =>
+                                              models[filteredIndices[p]]
+                                                  .siteId ==
+                                              key.value,
+                                        )
+                                      : -1;
+                                  return at < 0 ? null : at;
+                                },
+                                itemBuilder: (BuildContext context, int place) {
+                                  final listIndex = places[place];
+                                  final index = filteredIndices[listIndex];
+                                  final site = models[index];
+                                  return KeyedSubtree(
+                                    key: ValueKey(site.siteId),
+                                    child: LauncherCell<int>(
+                                      index: place,
+                                      child: LauncherSlot(
+                                        child: SiteGridTile(
+                                          key: Key('site_$index'),
+                                          site: site,
+                                          listIndex: listIndex,
+                                          selected: current == index,
+                                          showTabCount:
+                                              showsTabCount(site) &&
+                                              site.tabs.length > 1,
+                                          onOpen: () => onOpen(site),
+                                          onMenu:
+                                              (
+                                                context, {
+                                                required globalPosition,
+                                              }) => onMenu(
+                                                context,
+                                                site: site,
+                                                position: globalPosition,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                          itemCount: itemCount,
-                          itemBuilder: (BuildContext context, int listIndex) {
-                            final index = filteredIndices[listIndex];
-                            final site = models[index];
-                            return SiteGridTile(
-                              key: Key('site_$index'),
-                              site: site,
-                              listIndex: listIndex,
-                              selected: current == index,
-                              showTabCount:
-                                  showsTabCount(site) && site.tabs.length > 1,
-                              onOpen: () => onOpen(site),
-                              onMenu: (context, {required globalPosition}) =>
-                                  onMenu(
-                                    context,
-                                    site: site,
-                                    position: globalPosition,
-                                  ),
-                              onReorder: onReorder,
-                            );
-                          },
                         );
                       },
                     );

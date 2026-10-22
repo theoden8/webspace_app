@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/webspace_chips.dart';
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
@@ -352,10 +354,15 @@ class AddSiteScreen extends StatefulWidget {
   final Function(List<SiteSuggestion>) onSuggestionsChanged;
   final String? initialUrl;
 
+  /// The named webspaces offered to the new site, and those picked for it;
+  /// null where none are offered.
+  final WebspacePick? webspaces;
+
   AddSiteScreen({
     required this.suggestions,
     required this.onSuggestionsChanged,
     this.initialUrl,
+    this.webspaces,
   });
 
   @override
@@ -630,6 +637,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                           ),
                         ),
                       ),
+                      if (widget.webspaces case final pick?) ...[
+                        const SizedBox(height: Spacing.md),
+                        WebspaceChips(pick: pick),
+                      ],
                       SizedBox(height: 8),
                       Row(
                         children: [

@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Webbutrymmen",
   "librarySites": "Webbplatser",
   "librarySearchWebspaces": "Sök webbutrymmen",
-  "librarySearchSites": "Sök webbplatser",
   "libraryNoResults": "Inga träffar",
   "appSettingsExperimentalFolderLibrary": "Alternativ design",
   "appSettingsExperimentalFolderLibraryHint": "Ordna webbplatser i grupper i ett startrutnät.",

@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "מרחבי רשת",
   "librarySites": "אתרים",
   "librarySearchWebspaces": "חיפוש מרחבי רשת",
-  "librarySearchSites": "חיפוש אתרים",
   "libraryNoResults": "לא נמצאו התאמות",
   "appSettingsExperimentalFolderLibrary": "עיצוב חלופי",
   "appSettingsExperimentalFolderLibraryHint": "ארגון אתרים בקבוצות בתצוגת רשת להפעלה.",

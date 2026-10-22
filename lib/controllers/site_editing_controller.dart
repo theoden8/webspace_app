@@ -18,10 +18,19 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
 
 /// What the site editing flows ask the user.
+/// The add-site screen's answer, a map with `url`, `name`, `incognito` and
+/// `htmlContent`, or with `qrSettings` from the scanner; and the named
+/// webspaces picked there for the new site, null where none were offered.
+typedef SiteAddition = ({Map<String, dynamic> site, Set<WebspaceId>? spaces});
+
 abstract interface class SiteEditingPrompts {
-  /// The add-site screen's answer: a map with `url`, `name`, `incognito` and
-  /// `htmlContent`, or with `qrSettings` from the scanner; null when closed.
-  Future<Object?> addSite({String? initialUrl});
+  /// [spaces] are the named webspaces the new site may join and [picked]
+  /// those it starts in; null when closed.
+  Future<SiteAddition?> addSite({
+    String? initialUrl,
+    required List<Webspace> spaces,
+    required Set<WebspaceId> picked,
+  });
 
   /// Mandatory review of a QR-borne site configuration before it is created
   /// (QR-008).
@@ -100,12 +109,15 @@ class SiteEditingController {
   /// [activate] puts it on screen. Pass false when the app, not the user,
   /// chose to create it: an unattended entry point must not put a stranger's
   /// page on screen.
-  Future<void> registerSite(WebViewModel model, {bool activate = true}) async {
+  /// [joins] are the named webspaces [model] joins; null joins the selected
+  /// one.
+  Future<void> registerSite(WebViewModel model,
+      {bool activate = true, Set<WebspaceId>? joins}) async {
     // Before the first build: initialHtml reads effectiveTheme to pick the dark
     // prelude for a file:// import, which never reloads to live, and the model
     // defaults to WebViewTheme.light.
     await model.setAppTheme(_shell.theme.themeMode.webViewTheme);
-    await _host.commitSites(SiteAdded(model));
+    await _host.commitSites(SiteAdded(model, joins: joins));
     if (!activate || !_host.mounted) return;
     await _host.activate(model);
     if (!_host.mounted) return;
@@ -117,19 +129,25 @@ class SiteEditingController {
   /// from outside the app. Both QR entry points (this one and the in-app
   /// scanner, which returns `{'qrSettings': ...}` from `AddSiteScreen`) pass
   /// through the same review gate below, and a payload the app did not ask
-  /// for never becomes the visible site.
+  /// for never becomes the visible site. [into] is the webspace the site is
+  /// added from, which the screen starts it in (EDIT-012).
   Future<void> addSite({
     String? initialUrl,
     Map<String, dynamic>? deepLinkQrSettings,
+    WebspaceId? into,
   }) async {
-    Object? result;
+    final SiteAddition? addition;
     if (deepLinkQrSettings != null) {
-      result = {'qrSettings': deepLinkQrSettings};
+      addition = (site: {'qrSettings': deepLinkQrSettings}, spaces: null);
     } else {
-      result = await _prompts.addSite(initialUrl: initialUrl);
+      addition = await _prompts.addSite(
+        initialUrl: initialUrl,
+        spaces: [for (final ws in _sites.webspaces) if (!ws.isAll) ws],
+        picked: {if (into != null && into != WebspaceId.all) into},
+      );
     }
-    if (result == null || result is! Map<String, dynamic>) return;
-    if (!_host.mounted) return;
+    if (addition == null || !_host.mounted) return;
+    final result = addition.site;
 
     final stateSetter = _host.rebuild;
     late WebViewModel model;
@@ -193,7 +211,8 @@ class SiteEditingController {
       }
     }
 
-    await registerSite(model, activate: deepLinkQrSettings == null);
+    await registerSite(model,
+        activate: deepLinkQrSettings == null, joins: addition.spaces);
   }
 
   Future<void> editSite(WebViewModel model) async {

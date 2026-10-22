@@ -782,7 +782,7 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     showsTabCount: (site) => site.effectiveTabsEnabled,
     onSelectWebspace: (w) {
       setState(() => _selected = w.id);
-      _libraryKey.currentState?.showSelectedWebspace();
+      _libraryKey.currentState?.openFolder();
     },
     onAddWebspace: () {},
     onEditWebspace: (_) {},
@@ -790,7 +790,8 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     onOpenSite: (_) {},
     onSiteMenu: (context, {required site, required position}) {},
     onReorderSite: null,
-    onAddSite: () {},
+    onAddSite: ({required into}) {},
+    onShowTabs: (_) {},
     onOpenSettings: () async {},
     onReorder: (from, {required newIndex}) => setState(() {
       final moved = _webspaces.removeAt(from);

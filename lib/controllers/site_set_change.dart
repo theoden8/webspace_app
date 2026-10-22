@@ -186,8 +186,11 @@ final class SitesLoaded extends SiteSetChange {
 
 /// A new site, appended and put in the selected named webspace.
 final class SiteAdded extends SiteSetChange {
-  const SiteAdded(this.site);
+  const SiteAdded(this.site, {this.joins});
   final WebViewModel site;
+
+  /// The named webspaces [site] joins; null joins the selected one.
+  final Set<WebspaceId>? joins;
 }
 
 final class SiteRemoved extends SiteSetChange {

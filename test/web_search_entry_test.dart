@@ -38,7 +38,8 @@ void main() {
   group('web search (LIR-029 to LIR-031)', () {
     test('the Tabs sheet offers Web search; the menus only with tabs off', () {
       expect(bodyOf(main, signature: 'Future<void> _presentTabsSheet('),
-          contains('onWebSearch: () => unawaited(_links.webSearch()),'));
+          contains('onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),'),
+          reason: 'the sheet of a site on screen offers it; the library\'s tab tree, with none, does not');
       expect(
         File('lib/widgets/site_menu.dart').readAsStringSync(),
         matches(RegExp(r'SiteMenuAction\.webSearch =>\s*state\.tabsOn \? null :')),

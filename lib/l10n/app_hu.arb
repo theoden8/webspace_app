@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Webterek",
   "librarySites": "Webhelyek",
   "librarySearchWebspaces": "Webterek keresése",
-  "librarySearchSites": "Webhelyek keresése",
   "libraryNoResults": "Nincs találat",
   "appSettingsExperimentalFolderLibrary": "Alternatív megjelenés",
   "appSettingsExperimentalFolderLibraryHint": "Rendezze webhelyeit csoportokba egy indítórácsban.",

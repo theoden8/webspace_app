@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Вэб орон зай",
   "librarySites": "Сайтууд",
   "librarySearchWebspaces": "Вэб орон зай хайх",
-  "librarySearchSites": "Сайт хайх",
   "libraryNoResults": "Илэрц олдсонгүй",
   "appSettingsExperimentalFolderLibrary": "Өөр загвар",
   "appSettingsExperimentalFolderLibraryHint": "Сайтуудыг эхлүүлэгчийн торон харагдацад бүлэглэн зохион байгуулна уу.",

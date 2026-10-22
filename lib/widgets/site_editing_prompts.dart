@@ -16,6 +16,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/webspace_chips.dart';
 
 /// [SiteEditingPrompts] as the add-site screen and dialogs over the page that
 /// owns [context]. The add-site screen also edits the suggested sites, which
@@ -37,20 +38,42 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
     );
   }
 
+  /// Webspaces are offered to a site only in Alternative design; elsewhere a
+  /// webspace's own editor holds its sites.
+  List<Webspace> _offered(List<Webspace> spaces) =>
+      ExperimentalFeaturesService.instance
+              .isEnabled(ExperimentalFeature.folderLibrary)
+          ? spaces
+          : const [];
+
   @override
-  Future<Object?> addSite({String? initialUrl}) => Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => AddSiteScreen(
-        suggestions: shell.suggestedSites,
-        onSuggestionsChanged: (sites) {
-          shell.suggestedSites = sites;
-          unawaited(suggested_sites.saveSuggestedSites(sites));
-        },
-        initialUrl: initialUrl,
+  Future<SiteAddition?> addSite({
+    String? initialUrl,
+    required List<Webspace> spaces,
+    required Set<WebspaceId> picked,
+  }) async {
+    final offered = _offered(spaces);
+    // Not disposed: the screen still listens while its route animates out.
+    final pick = offered.isEmpty
+        ? null
+        : WebspacePick(offered: offered, picked: picked);
+    final result = await Navigator.push<Object?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddSiteScreen(
+          suggestions: shell.suggestedSites,
+          onSuggestionsChanged: (sites) {
+            shell.suggestedSites = sites;
+            unawaited(suggested_sites.saveSuggestedSites(sites));
+          },
+          initialUrl: initialUrl,
+          webspaces: pick,
+        ),
       ),
-    ),
-  );
+    );
+    if (result is! Map<String, dynamic>) return null;
+    return (site: result, spaces: pick?.value);
+  }
 
   /// The payload is authored by whoever printed the code, reaches us from any
   /// app or web page via the exported `webspace://` scheme, and can turn every
@@ -145,10 +168,7 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
           {required List<Webspace> spaces}) =>
       showEditSiteDialog(context,
           site: site,
-          spaces: ExperimentalFeaturesService.instance
-                  .isEnabled(ExperimentalFeature.folderLibrary)
-              ? spaces
-              : const []);
+          spaces: _offered(spaces));
 
   @override
   Future<bool> confirmDelete(WebViewModel site) async {

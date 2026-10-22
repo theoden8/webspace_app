@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Webområder",
   "librarySites": "Websteder",
   "librarySearchWebspaces": "Søg i webområder",
-  "librarySearchSites": "Søg efter websteder",
   "libraryNoResults": "Ingen resultater",
   "appSettingsExperimentalFolderLibrary": "Alternativt design",
   "appSettingsExperimentalFolderLibraryHint": "Organiser websteder i grupper i et startgitter.",

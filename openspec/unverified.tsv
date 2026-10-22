@@ -189,7 +189,6 @@ SHARE-016	no check: the strip functions are unit-tested, but nothing checks that
 # webspaces
 WEBSPACE-005	no check: no test restarts the app (or reruns the restore) and asserts the selected webspace and its drawer come back; only the Webspace JSON round-trip is tested (partly: test/webspace_model_test.dart, "JSON round-trip preserves siteIds")
 WEBSPACE-010	no check: no test deletes a site and asserts webspace siteIds/siteIndices shrink and shift; the loaded/active-site scenario alone is tested (partly: test/site_runtime_test.dart, "a delete before the shown site shifts it and the loaded set")
-WEBSPACE-011	no check: no test reorders within a named webspace or asserts the new order persists; only the All-order move keeping loaded and shown sites is tested (partly: test/site_runtime_test.dart, "a move in the "All" order takes the loaded sites with it")
 # webview-hints
 HINTS-001	no check: no test shows the app's theme mode reaching a webview: setThemePreference and the ThemeMode to WebViewTheme mapping in the app are untested (theme_test.dart checks a local copy of the mapping); the shim alone is tested with a fixed config (partly: test/js/theme_color_scheme_shim.test.js, "dark fixture: matchMedia(prefers-color-scheme: dark) → matches=true")
 HINTS-003	no check: no test toggles the theme and asserts every open webview is re-themed, nor that a page load reapplies it; only the startup pass is covered (partly: test/deferred_startup_engine_test.dart, "themes the live sites not themed before the first paint")

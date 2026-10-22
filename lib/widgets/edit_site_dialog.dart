@@ -14,6 +14,7 @@ import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/widgets/webspace_chips.dart';
 
 /// The edit the user saved: the trimmed name, the URL with its scheme
 /// inferred, the icon only when one was picked or reset, and the named
@@ -49,10 +50,13 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
   late final _url = TextEditingController(text: widget.site.initUrl);
   late Uint8List? _icon = widget.site.customIconPng;
   var _iconChanged = false;
-  late final _spaces = {
-    for (final space in widget.spaces)
-      if (space.siteIds.contains(widget.site.siteId)) space.id,
-  };
+  late final _pick = WebspacePick(
+    offered: widget.spaces,
+    picked: {
+      for (final space in widget.spaces)
+        if (space.siteIds.contains(widget.site.siteId)) space.id,
+    },
+  );
   final _iconPick = ReentryGuard();
   final _refresh = ReentryGuard();
 
@@ -60,6 +64,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
   void dispose() {
     _name.dispose();
     _url.dispose();
+    _pick.dispose();
     super.dispose();
   }
 
@@ -217,32 +222,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
             const SizedBox(height: Spacing.lg),
             Align(
               alignment: AlignmentDirectional.centerStart,
-              child: Text(
-                loc.libraryWebspaces,
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-            const SizedBox(height: Spacing.sm),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Wrap(
-                spacing: Spacing.sm,
-                runSpacing: Spacing.sm,
-                children: [
-                  for (final space in widget.spaces)
-                    FilterChip(
-                      label: Text(space.name),
-                      selected: _spaces.contains(space.id),
-                      onSelected: (selected) => setState(() {
-                        if (selected) {
-                          _spaces.add(space.id);
-                        } else {
-                          _spaces.remove(space.id);
-                        }
-                      }),
-                    ),
-                ],
-              ),
+              child: WebspaceChips(pick: _pick),
             ),
           ],
         ],
@@ -257,7 +237,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
             name: _name.text.trim(),
             url: ensureUrlScheme(_url.text.trim()),
             icon: _iconChanged ? (png: _icon) : null,
-            spaces: widget.spaces.isEmpty ? null : {..._spaces},
+            spaces: widget.spaces.isEmpty ? null : {..._pick.value},
           )),
           child: Text(loc.commonSave),
         ),

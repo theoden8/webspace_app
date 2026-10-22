@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "ウェブスペース",
   "librarySites": "サイト",
   "librarySearchWebspaces": "ウェブスペースを検索",
-  "librarySearchSites": "サイトを検索",
   "libraryNoResults": "一致する項目はありません",
   "appSettingsExperimentalFolderLibrary": "別のデザイン",
   "appSettingsExperimentalFolderLibraryHint": "ランチャーのグリッドでサイトをグループに整理します。",
