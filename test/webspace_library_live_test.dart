@@ -21,7 +21,9 @@ void main() {
           AppPref.experimentalFolderLibrary.key: true,
         },
       );
-      await tester.tap(find.byTooltip('Create Webspace'));
+      await tester.tap(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create Webspace'));
       await settleRealApp(tester);
       await tester.enterText(
         find.widgetWithText(TextField, 'Webspace Name'),

@@ -19,6 +19,8 @@ import 'package:webspace/widgets/webspace_group_tile.dart';
 
 enum _GroupAction { edit, delete }
 
+enum _AddAction { site, webspace }
+
 /// The user's sites as a phone's home screen: webspaces are its folders, and
 /// the selected one opens as a panel grown out of its tile over the dimmed
 /// grid (WEBSPACE-008). Search and whether a folder is open are UI state.
@@ -61,7 +63,10 @@ class WebspaceLibrary extends StatefulWidget {
   })
   onSiteMenu;
   final void Function(int from, {required int to})? onReorderSite;
-  final VoidCallback onAddSite;
+
+  /// A new site, started in the webspace [into] it is added from; null from
+  /// the home screen, where it starts in none but All (EDIT-012).
+  final void Function({required WebspaceId? into}) onAddSite;
 
   /// The tab tree of every site [scope] holds: all sites from the home
   /// header, the open folder's from its panel.
@@ -311,11 +316,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                       ),
                     ),
                   ),
-                  IconButton(
-                    tooltip: loc.webspacesListCreateButton,
-                    onPressed: widget.onAddWebspace,
-                    icon: const Icon(Icons.add),
-                    color: theme.colorScheme.primary,
+                  Builder(
+                    builder: (button) => IconButton(
+                      tooltip: loc.commonAdd,
+                      onPressed: () => unawaited(_add(button)),
+                      icon: const Icon(Icons.add),
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                   if (tabs > 0)
                     TabCountButton(
@@ -711,7 +718,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
               ),
               IconButton(
                 tooltip: loc.homeAddSite,
-                onPressed: widget.onAddSite,
+                onPressed: () => widget.onAddSite(into: webspace.id),
                 icon: const Icon(Icons.add),
                 color: theme.colorScheme.primary,
               ),
@@ -1039,6 +1046,39 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       child: Text(message, textAlign: TextAlign.center),
     ),
   );
+
+  /// The home's add button: a site, or a webspace, under [button].
+  Future<void> _add(BuildContext button) async {
+    final loc = AppLocalizations.of(context);
+    final box = button.findRenderObject()! as RenderBox;
+    final action = await showLauncherMenu<_AddAction>(
+      context,
+      position: box.localToGlobal(box.size.bottomCenter(Offset.zero)),
+      items: [
+        (
+          value: _AddAction.site,
+          icon: Icons.public,
+          label: loc.homeAddSite,
+          destructive: false,
+        ),
+        (
+          value: _AddAction.webspace,
+          icon: Icons.create_new_folder_outlined,
+          label: loc.webspacesListCreateButton,
+          destructive: false,
+        ),
+      ],
+    );
+    if (!mounted) return;
+    switch (action) {
+      case _AddAction.site:
+        widget.onAddSite(into: null);
+      case _AddAction.webspace:
+        widget.onAddWebspace();
+      case null:
+        return;
+    }
+  }
 
   Future<void> _menu(Webspace webspace, {required Offset at}) async {
     final loc = AppLocalizations.of(context);

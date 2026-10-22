@@ -1478,7 +1478,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                         ? (from, {required to}) =>
                               _webspaces.reorderSite(from, newListIndex: to)
                         : null,
-                    onAddSite: () => unawaited(_editing.addSite()),
+                    onAddSite: ({required into}) =>
+                        unawaited(_editing.addSite(into: into)),
                     onShowTabs: (scope) => unawaited(_showLibraryTabs(scope)),
                     onOpenSettings: _openAppSettings,
                   ) : WebspacesListScreen(

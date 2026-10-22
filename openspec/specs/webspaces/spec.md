@@ -34,7 +34,7 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 
 Users SHALL be able to select and switch between webspaces to view filtered sites.
 
-With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL open App Settings. On a wide screen the library and an open folder SHALL widen with the window, up to a fixed number of columns. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
+With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL open App Settings, and its add button SHALL offer adding a site or creating a webspace (EDIT-012). On a wide screen the library and an open folder SHALL widen with the window, up to a fixed number of columns. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
 
 #### Scenario: Select a webspace
 

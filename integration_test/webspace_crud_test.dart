@@ -59,13 +59,15 @@ void main() {
       );
 
       // ---- CREATE ----
-      final createButton = find.byTooltip('Create Webspace');
+      final addButton = find.byTooltip('Add');
       expect(
-        createButton,
+        addButton,
         findsOneWidget,
-        reason: 'The create action should be in the library toolbar',
+        reason: 'The add action should be in the library toolbar',
       );
-      await tester.tap(createButton);
+      await tester.tap(addButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create Webspace'));
       await tester.pumpAndSettle(const Duration(seconds: 5));
 
       // WebspaceDetailScreen is now pushed. AppBar title flips between

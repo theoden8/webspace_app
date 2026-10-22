@@ -56,6 +56,8 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   var settingsOpened = 0;
   final tabsScopes = <WebspaceId>[];
   final siteMoves = <(int, int)>[];
+  final addedInto = <WebspaceId?>[];
+  var webspacesAdded = 0;
   WebViewModel? menuFor;
 
   void disableTabs(WebViewModel site) =>
@@ -85,7 +87,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
             setState(() => selected = webspace.id);
             library.currentState!.openFolder();
           },
-          onAddWebspace: () {},
+          onAddWebspace: () => webspacesAdded++,
           onEditWebspace: (webspace) => edited = webspace,
           onDeleteWebspace: (webspace) => deleted = webspace,
           onReorder: (from, {required newIndex}) => setState(() {
@@ -99,7 +101,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
           onSiteMenu: (context, {required site, required position}) =>
               menuFor = site,
           onReorderSite: (from, {required to}) => siteMoves.add((from, to)),
-          onAddSite: () {},
+          onAddSite: ({required into}) => addedInto.add(into),
           onShowTabs: tabsScopes.add,
           onOpenSettings: () async => settingsOpened++,
         ),
@@ -495,6 +497,35 @@ void main() {
   );
 
   testWidgets(
+    'the home\'s add button offers a site or a webspace, and a folder\'s adds a site into it (EDIT-012)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      await tester.tap(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
+      expect(find.text('Create Webspace'), findsOneWidget);
+      await tester.tap(find.text('Add Site'));
+      await tester.pumpAndSettle();
+      expect(state.addedInto, [null], reason: 'from the home, into no folder');
+      expect(state.webspacesAdded, 0);
+      await tester.tap(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create Webspace'));
+      await tester.pumpAndSettle();
+      expect(state.webspacesAdded, 1);
+      expect(state.addedInto, [null]);
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      await tester.tap(_inPanel(find.byTooltip('Add Site')));
+      await tester.pump();
+      expect(state.addedInto, [null, state.webspaces[1].id]);
+    },
+  );
+
+  testWidgets(
     'opening a folder keeps the chrome still and accepts Back mid-animation',
     (tester) async {
       await pumpLocalized(tester, home: const _LibraryHarness());
@@ -553,7 +584,7 @@ void main() {
       );
       expect(
         tester.getRect(home).left,
-        greaterThan(tester.getRect(find.byTooltip('Create Webspace')).right),
+        greaterThan(tester.getRect(find.byTooltip('Add')).right),
       );
       expect(
         tester.getRect(home).right,

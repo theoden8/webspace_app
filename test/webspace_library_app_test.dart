@@ -589,6 +589,62 @@ void main() {
   );
 
   testWidgets(
+    'a site added from the home joins the webspaces picked for it, and one added in a folder starts in it (EDIT-012)',
+    (tester) async {
+      final portal = WebViewModel(
+        initUrl: 'https://portal.example.test',
+        name: 'Portal',
+      );
+      final work = Webspace(name: 'Work', siteIds: [portal.siteId]);
+      final personal = Webspace(name: 'Personal', siteIds: []);
+      await pumpRealApp(
+        tester,
+        sites: [portal],
+        webspaces: [work, personal],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      Finder chip(String name) => find.widgetWithText(FilterChip, name);
+      await openWebspace(tester, name: 'Work');
+      await tester.tap(find.byTooltip('Add Site'));
+      await settleRealApp(tester);
+      expect(tester.widget<FilterChip>(chip('Work')).selected, isTrue);
+      expect(tester.widget<FilterChip>(chip('Personal')).selected, isFalse);
+      await tester.pageBack();
+      await settleRealApp(tester);
+      await pressBack(tester);
+      await tester.tap(find.byTooltip('Add'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add Site'));
+      await settleRealApp(tester);
+      expect(tester.widget<FilterChip>(chip('Work')).selected, isFalse);
+      expect(chip('All'), findsNothing);
+      await tester.tap(chip('Personal'));
+      await tester.pump();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Enter URL'),
+        'https://new.example.test',
+      );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Add Site'));
+      await settleRealApp(tester);
+      final prefs = await SharedPreferences.getInstance();
+      final added = [
+        for (final raw in prefs.getStringList('webViewModels')!)
+          jsonDecode(raw) as Map<String, dynamic>,
+      ].singleWhere((site) => site['initUrl'] == 'https://new.example.test');
+      final saved = {
+        for (final raw in prefs.getStringList('webspaces')!)
+          (jsonDecode(raw) as Map<String, dynamic>)['name']:
+              (jsonDecode(raw) as Map<String, dynamic>)['siteIds'],
+      };
+      expect(saved['Personal'], [added['siteId']]);
+      expect(saved['Work'], [portal.siteId]);
+    },
+  );
+
+  testWidgets(
     'editing a folder updates membership, previews, and persisted ids (WEBSPACE-006)',
     (tester) async {
       final first = WebViewModel(

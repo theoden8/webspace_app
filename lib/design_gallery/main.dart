@@ -790,7 +790,7 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     onOpenSite: (_) {},
     onSiteMenu: (context, {required site, required position}) {},
     onReorderSite: null,
-    onAddSite: () {},
+    onAddSite: ({required into}) {},
     onShowTabs: (_) {},
     onOpenSettings: () async {},
     onReorder: (from, {required newIndex}) => setState(() {

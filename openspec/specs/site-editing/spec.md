@@ -296,6 +296,33 @@ membership to the webspace editor.
 
 ---
 
+### Requirement: EDIT-012 - Choose a New Site's Webspaces As It Is Added
+
+With Alternative design enabled, a site SHALL be addable from the library's
+home screen as well as from inside a folder: the home's add button SHALL offer
+adding a site and creating a webspace. The Add Site screen SHALL list every
+named webspace, marked when the site will join it, starting with the folder
+it was opened from marked, or none from the home screen or "All". The new site
+SHALL join exactly the webspaces marked when it is added, at the end of each,
+and not the selected webspace unless it is marked. With the experiment off,
+the screen SHALL list no webspaces and the new site SHALL join the selected
+webspace, as before.
+
+#### Scenario: Add a site from the home screen into a webspace
+
+**Given** Alternative design is on, with webspaces Work and Personal
+**When** the user taps the home's add button, chooses Add Site, marks Personal and adds a site
+**Then** the new site is in Personal and in no other named webspace
+**And** the membership survives a restart
+
+#### Scenario: Add a site from inside a folder
+
+**Given** the Work folder is open
+**When** the user taps its Add Site button
+**Then** the Add Site screen starts with Work marked
+
+---
+
 ## Data Model
 
 ```dart

@@ -189,6 +189,23 @@ void main() {
       expect(r.filteredIndices(), [0, 1]);
     });
 
+    test(
+        'a new site joins exactly the named webspaces picked for it, '
+        'not the selected one (EDIT-012)', () {
+      final r = _runtime([_site(SiteId('a'))]);
+      r.webspaces.addAll([
+        Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('a')]),
+        Webspace(id: WebspaceId('h'), name: 'h', siteIds: []),
+      ]);
+      r.selectedWebspaceId = WebspaceId('w');
+      r.applied(SiteAdded(_site(SiteId('b')), joins: {WebspaceId('h')}));
+      expect(r.webspaces.first.siteIds, ['a']);
+      expect(r.webspaces.last.siteIds, ['b']);
+      r.applied(SiteAdded(_site(SiteId('c')), joins: const {}));
+      expect(r.webspaces.first.siteIds, ['a']);
+      expect(r.webspaces.last.siteIds, ['b'], reason: 'none picked: All only');
+    });
+
     test('an opened archive appends and rejoins the collections it left', () {
       final r = _runtime([_site(SiteId('a'))]);
       r.webspaces.add(
