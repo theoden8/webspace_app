@@ -216,7 +216,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     return ((width - Spacing.lg * 2 + Spacing.sm) /
             (LibraryStyle.tileMinWidth * math.max(1, scale * .7) + Spacing.sm))
         .floor()
-        .clamp(1, 7);
+        .clamp(1, LibraryStyle.maxColumns);
   }
 
   @override
@@ -640,7 +640,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             ((constraints.maxWidth - Spacing.lg * 2 + Spacing.sm) /
                     (minimum + Spacing.sm))
                 .floor()
-                .clamp(1, 4);
+                .clamp(1, LibraryStyle.maxColumns);
         return CustomScrollView(
           key: const PageStorageKey('webspace-groups'),
           slivers: [

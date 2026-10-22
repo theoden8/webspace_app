@@ -62,7 +62,8 @@ abstract final class LibraryStyle {
   static const double selectionWidth = 2;
   static const int siteTintAlpha = 26;
   static const int membershipLimit = 2;
-  static const double maxWidth = 960;
+  static const double maxWidth = 1440;
+  static const int maxColumns = 8;
   static const double tileMinWidth = 112;
   static const double siteIcon = 64;
   static const double siteWell = 80;
@@ -71,7 +72,7 @@ abstract final class LibraryStyle {
   static const double siteTitleSize = 14;
 
   /// An open group: a panel over the dimmed grid, as a phone opens a folder.
-  static const double panelMaxWidth = 560;
+  static const double panelMaxWidth = 880;
   static const double panelRadius = 32;
   static const double scrimOpacity = .32;
   static const double scrimBlur = 12;

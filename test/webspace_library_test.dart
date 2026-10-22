@@ -903,6 +903,26 @@ void main() {
     ]);
   });
 
+  testWidgets('on a wide screen the grids use the width', (tester) async {
+    await pumpLocalized(
+      tester,
+      home: const _LibraryHarness(),
+      size: const Size(1600, 900),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(TextField)).width, greaterThan(1200));
+    await tester.tap(_group('All'));
+    await tester.pumpAndSettle();
+    final tops = {
+      for (final tile in tester.widgetList<SiteGridTile>(
+        _inPanel(find.byType(SiteGridTile)),
+      ))
+        tester.getRect(find.byWidget(tile)).top,
+    };
+    expect(tops.length, lessThanOrEqualTo(2), reason: '8 sites in 2 rows');
+    expect(tester.getRect(_panel).width, greaterThan(800));
+  });
+
   testWidgets('a dropped icon lands from where it was let go', (tester) async {
     await pumpLocalized(tester, home: const _LibraryHarness());
     await tester.pumpAndSettle();
