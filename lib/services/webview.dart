@@ -33,6 +33,7 @@ import 'package:webspace/services/icon_service.dart'
     show fetchPageIconBytes, fetchPageLinkedBytes;
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
@@ -187,7 +188,6 @@ class WebViewFactory {
   /// the Cloudflare path markers, which any origin can put in a path, count
   /// only on the site's own domain ([siteUrl]); Cloudflare serves the
   /// interstitial from the protected origin itself (CAPTCHA-010).
-  @visibleForTesting
   static bool isCaptchaChallenge(String url, {String? siteUrl}) {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
@@ -411,14 +411,14 @@ class WebViewFactory {
   }
 
   /// The navigation rule of a webview that is the site but not the site's
-  /// own tab: a popup ([PopupWebView.createPopupWebView]) or a background check
-  /// ([HeadlessSiteChecks.openHeadlessCheck]). Every document passes the site's DNS and
-  /// content-blocker checks, and the top document stays on the site's own
-  /// domain, or on a captcha host when [allowCaptcha].
+  /// own tab: a popup ([PopupWebView.createPopupWebView]) or, with no [popup],
+  /// a background check ([HeadlessSiteChecks.openHeadlessCheck]). Every
+  /// document passes the site's DNS and content-blocker checks, and the top
+  /// document stays on the site's own domain or a host the [popup] allows.
   static inapp.NavigationActionPolicy onSiteNavigationPolicy(
     WebViewConfig config, {
     required inapp.NavigationAction navigationAction,
-    required bool allowCaptcha,
+    required PopupKind? popup,
     bool refusePlainHttp = false,
   }) {
     final url = navigationAction.request.url?.toString() ?? '';
@@ -438,7 +438,7 @@ class WebViewFactory {
     }
     final host = Uri.tryParse(url)?.host ?? '';
     if (url.startsWith('http') &&
-        ((allowCaptcha && isCaptchaChallenge(url, siteUrl: config.initialUrl)) ||
+        ((popup?.showsOffSite(url, siteUrl: config.initialUrl) ?? false) ||
             _sameSite(host, siteUrl: config.initialUrl) ||
             config.navigationBoundary?.contains(url) == true)) {
       return inapp.NavigationActionPolicy.ALLOW;
@@ -618,6 +618,9 @@ class WebViewFactory {
     // call (the reissued programmatic load landing here again) doesn't
     // loop. See lib/services/ios_universal_link_bypass.dart.
     final iosUlBypass = IosUniversalLinkBypass();
+    // Read once, so the window setting below and onCreateWindow agree.
+    final signInPopups = ExperimentalFeaturesService.instance
+        .isEnabled(ExperimentalFeature.signInPopups);
 
     LogTag.dnsBlock.debug(
         'Creating webview: siteId=${config.posture.siteId} dnsLevel=${config.effectiveDnsLevel} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
@@ -639,6 +642,8 @@ class WebViewFactory {
       ..useShouldInterceptFetchRequest = false
       ..useOnLoadResource = false
       ..supportMultipleWindows = true
+      // The engine then asks only for a window a tap opened (NESTED-014).
+      ..javaScriptCanOpenWindowsAutomatically = !signInPopups
       // Android: allow file and content access for Cloudflare Turnstile
       ..allowFileAccess = true
       ..allowContentAccess = true
@@ -1362,14 +1367,16 @@ class WebViewFactory {
         LogTag.webView.debug(
             'onCreateWindow: url=$url windowId=$windowId', sensitive: true);
 
-        if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
+        if (PopupKind.forWindow(url,
+                siteUrl: config.initialUrl, signInPopups: signInPopups)
+            case final kind?) {
           // The host builds the popup widget out of a BuildContext that has
           // no site attached; hand it this webview's posture by windowId so
           // createPopupWebView can inherit it. showPopup resolves when the
           // popup dialog closes, so the entry is short-lived.
           PopupWebView.popupParentConfigs[windowId] = config;
           try {
-            await config.hooks.showPopup(windowId, url: url);
+            await config.hooks.showPopup(windowId, url: url, kind: kind);
           } finally {
             PopupWebView.popupParentConfigs.remove(windowId);
           }

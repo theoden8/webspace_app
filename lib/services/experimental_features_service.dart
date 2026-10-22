@@ -23,7 +23,12 @@ enum ExperimentalFeature {
   contentRuleLists(AppPref.experimentalContentRuleLists),
 
   /// The grouped site launcher, leaving the existing interface as default.
-  folderLibrary(AppPref.experimentalFolderLibrary);
+  folderLibrary(AppPref.experimentalFolderLibrary),
+
+  /// A page's sign-in window, opened by the user's tap, shown as a real popup
+  /// so its result reaches the page (nested-url-blocking NESTED-014). New, so
+  /// off by default.
+  signInPopups(AppPref.experimentalSignInPopups);
 
   const ExperimentalFeature(this.pref);
 

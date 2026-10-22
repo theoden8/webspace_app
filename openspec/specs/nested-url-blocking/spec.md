@@ -21,6 +21,8 @@ When opening certain websites, unwanted nested webviews are created for:
 
 On desktop browsers, third-party auth (Google Sign-In) uses popups via `window.open()`. In a mobile webview, `window.open()` is dismissed, so scripts fall back to redirect-based flows, triggering top-level navigations to `accounts.google.com` etc.
 
+Not every script falls back. Google's sign-in button in popup mode (`display=popup`, `redirect_uri=gis_transform`) waits for the window it opened to post the result back to its opener, and has no redirect flow: with the window dismissed, the tap does nothing (issue #686). NESTED-014 opens it, behind an experiment.
+
 ### Observed Cases
 
 | Site | Script | Navigation Target | Trigger |
@@ -44,6 +46,65 @@ The system SHALL disable automatic nested window creation via `window.open()`.
 **When** the popup request is intercepted
 **Then** no nested webview is created
 **And** captcha challenges (Cloudflare, hCaptcha, reCAPTCHA) are still allowed
+
+With the Sign-in popups experiment on, a sign-in window is the other exception (NESTED-014).
+
+---
+
+### Requirement: NESTED-014 - A Sign-In Window The User Opened Is A Real Popup
+
+With the Sign-in popups experiment on (`developer-tools` DEVTOOLS-011), a
+window a page asks for on the user's tap SHALL open as a real popup when its
+URL is an https page on an identity provider's sign-in host
+(`PopupKind.isSignInUrl`: `accounts.google.com`, `accounts.youtube.com`,
+`appleid.apple.com`, `login.microsoftonline.com`, `login.live.com`,
+`github.com`, each with its subdomains). It is not a nested screen and not a
+system-browser hand-off: those leave the page no handle on the window, and a
+provider in popup mode answers the page only through `window.opener`.
+
+- **The gesture is the engine's.** `onCreateWindow` cannot read a tap on a
+  window a script opened: WebKit types every `window.open` as "other", and
+  Android passes the gesture but names no URL (the plugin reads it off the
+  tapped link). With the experiment on, the site webview sets
+  `javaScriptCanOpenWindowsAutomatically` to false, so the engine's own popup
+  blocker asks only for a window a tap opened. A script that opens one on
+  load never reaches the app, captcha windows included.
+- **The window is the site's.** The popup is the captcha popup's webview
+  (CAPTCHA-009): the site's container, proxy, shims and blockers. Its top
+  document stays on the site's own domain, a captcha host or a sign-in host;
+  any other is cancelled (`WebViewFactory.onSiteNavigationPolicy` with
+  `PopupKind.signIn`).
+- **A window with no URL.** Android's window from a script names none, so it
+  opens as a sign-in popup and the popup's rule judges its first page. A popup
+  whose first page is refused closes, having nothing to show.
+- **Anything else** a page opens is decided as before (NESTED-001, NESTED-008).
+- The switch is read when a site's webview is built, so it applies to sites
+  loaded after it changes.
+
+#### Scenario: Continue with Google
+
+- **GIVEN** the experiment is on and the user taps "Continue with Google" on a site
+- **WHEN** the page opens `https://accounts.google.com/o/oauth2/v2/auth?display=popup`
+- **THEN** a Sign in popup shows it, bound to the site's container
+- **AND** the page receives what the popup posts back
+
+#### Scenario: The experiment is off
+
+- **GIVEN** the experiment is off
+- **WHEN** a page opens a window on `accounts.google.com`
+- **THEN** no popup opens, as NESTED-001 says
+
+#### Scenario: A window the user did not ask for
+
+- **GIVEN** the experiment is on
+- **WHEN** a page calls `window.open` with no tap
+- **THEN** the engine blocks it before the app is asked
+
+#### Scenario: A tap that opens something else
+
+- **GIVEN** the experiment is on and the user taps a button that opens `https://ads.example/`
+- **WHEN** the window is requested
+- **THEN** no popup opens; on Android, where the URL is unknown, the popup opens and closes on its refused first page
 
 ---
 
@@ -498,7 +559,7 @@ CLAUDE.md now forbids. Direct engine tests live in
 - `_shouldBlockUrl()` — blocks `about:` (except blank/srcdoc) and service worker patterns
 - `isCaptchaChallenge()` — detects captcha domains and paths; passed to `decideOnUrlChanged` as a callback
 - `shouldOverrideUrlLoading` callback passes `hasGesture` from `NavigationAction`
-- `onCreateWindow` — dismisses all `window.open()` except captcha challenges; a same-domain target loads in place only with a user gesture (NESTED-013)
+- `onCreateWindow` — dismisses all `window.open()` except captcha challenges and, with the Sign-in popups experiment, sign-in windows (`PopupKind.forWindow`, NESTED-014); a same-domain target loads in place only with a user gesture (NESTED-013)
 - Registers `targetBlankRewriteScript` always-on at `AT_DOCUMENT_START`
 
 #### `lib/services/target_blank_rewrite.dart`

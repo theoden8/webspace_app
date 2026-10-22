@@ -21,15 +21,20 @@ class DialogWebViewPrompts implements MediaPrompter {
 
   final BuildContext context;
 
-  /// Shows a popup window for handling window.open() requests from webviews.
-  /// Used for Cloudflare Turnstile challenges and other popup-based flows.
-  Future<void> showPopup(int windowId, {required String url}) async {
+  /// Shows a popup window for handling window.open() requests from webviews:
+  /// a captcha challenge, or a sign-in with the Sign-in popups experiment on.
+  Future<void> showPopup(int windowId,
+      {required String url, required PopupKind kind}) async {
     if (!context.mounted) return;
 
     LogTag.popupWindow.debug(
         'Opening popup window with id: $windowId, url: $url', sensitive: true);
 
     final loc = AppLocalizations.of(context);
+    final title = switch (kind) {
+      PopupKind.verification => loc.homeVerificationTitle,
+      PopupKind.signIn => loc.homeSignInTitle,
+    };
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -46,7 +51,7 @@ class DialogWebViewPrompts implements MediaPrompter {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(loc.homeVerificationTitle, style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
                       IconButton(
                         icon: Icon(Icons.close),
                         onPressed: () => Navigator.of(dialogContext).pop(),
@@ -57,6 +62,7 @@ class DialogWebViewPrompts implements MediaPrompter {
                 Expanded(
                   child: PopupWebView.createPopupWebView(
                     windowId: windowId,
+                    kind: kind,
                     onCloseWindow: () {
                       if (Navigator.of(dialogContext).canPop()) {
                         Navigator.of(dialogContext).pop();

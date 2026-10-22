@@ -87,7 +87,7 @@ abstract final class HeadlessSiteChecks {
       // https fails rather than going out in plaintext.
       shouldOverrideUrlLoading: (_, navigationAction) async =>
           WebViewFactory.onSiteNavigationPolicy(config, navigationAction: navigationAction,
-              allowCaptcha: false,
+              popup: null,
               refusePlainHttp: posture.blocking.httpsUpgrade),
       onLoadStart: (controller, url) {
         phases.on(PageEvent.loadStarted, view: controller.platform);

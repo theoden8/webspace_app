@@ -72,6 +72,7 @@ enum AppPref<T extends Object> {
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
   experimentalContentRuleLists('experimentalContentRuleLists', fallback: false),
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),
+  experimentalSignInPopups('experimentalSignInPopups', fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
   externalTor('experimentalExternalTor', fallback: false),

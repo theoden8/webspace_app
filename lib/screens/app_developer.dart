@@ -46,6 +46,9 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.contentRuleLists, Icons.shield_outlined,
             loc.appSettingsExperimentalContentRuleLists,
             loc.appSettingsExperimentalContentRuleListsHint),
+      (ExperimentalFeature.signInPopups, Icons.login,
+          loc.appSettingsExperimentalSignInPopups,
+          loc.appSettingsExperimentalSignInPopupsHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

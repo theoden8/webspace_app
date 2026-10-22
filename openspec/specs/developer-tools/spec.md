@@ -548,6 +548,7 @@ The features are:
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | iOS, macOS and Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
+| A sign-in window the user's tap opened, shown as a real popup (`nested-url-blocking` NESTED-014) | Sign-in popups | off | `WebViewFactory.createWebView`, read when a site's webview is built |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
@@ -566,19 +567,19 @@ Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with Alternative design off and no Tor switch
+- **AND** after unlocking developer mode the Developer section shows it, with Alternative design and Sign-in popups off and no Tor switch
 
 #### Scenario: Only what this platform can run
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and Alternative design and Texture page rendering, off
+- **THEN** the Experimental group lists Proxy router, on, and Alternative design, Texture page rendering and Sign-in popups, off
 
 #### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Alternative design and WebKit content blocking, off
+- **THEN** the Experimental group lists Alternative design, WebKit content blocking and Sign-in popups, off
 
 #### Scenario: Alternative design is opt-in and follows the gate live
 

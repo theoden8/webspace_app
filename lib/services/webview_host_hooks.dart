@@ -7,6 +7,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
@@ -89,7 +90,9 @@ final class WebViewHostHooks {
   /// Offers an unclaimed domain reached by this slot's first live page.
   final void Function(WebViewModel source, {required String url}) firstPageLoaded;
   final void Function(SiteId siteId) openSiteSettings;
-  final Future<void> Function(int windowId, {required String url}) showPopup;
+  /// Shows the popup window [windowId] a page asked for, as [kind] decided.
+  final Future<void> Function(int windowId,
+      {required String url, required PopupKind kind}) showPopup;
 
   /// Confirms and launches a URL no webview renders (`intent://`, `tel:`),
   /// loading its web fallback into [loadIn] when it has one.
@@ -120,7 +123,7 @@ final class WebViewHostHooks {
         linkMenu: (_, {required url}) {},
         firstPageLoaded: (_, {required url}) {},
         openSiteSettings: (_) {},
-        showPopup: (_, {required url}) async {},
+        showPopup: (_, {required url, required kind}) async {},
         externalScheme: (_, {required loadIn}) async {},
         confirmScriptFetch: (_) async => false,
         untrustedCertificate:

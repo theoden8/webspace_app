@@ -15,6 +15,60 @@ import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/webview.dart';
 
+/// What a window a site's page asked for is opened for, when the app shows
+/// it as a real popup: the page keeps its handle on the window, so what the
+/// popup posts back reaches it. Any other window request is decided as a
+/// navigation (NESTED-001).
+enum PopupKind {
+  /// A captcha challenge (CAPTCHA-010).
+  verification,
+
+  /// A sign-in on an identity provider's own host, with the Sign-in popups
+  /// experiment on (NESTED-014).
+  signIn;
+
+  /// Identity providers' sign-in hosts, each with its subdomains.
+  static const _signInHosts = [
+    'accounts.google.com',
+    // Google's sign-in sets its session on YouTube by redirecting through it.
+    'accounts.youtube.com',
+    'appleid.apple.com',
+    'login.microsoftonline.com',
+    'login.live.com',
+    'github.com',
+  ];
+
+  static bool isSignInUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https') return false;
+    return _signInHosts
+        .any((h) => uri.host == h || uri.host.endsWith('.$h'));
+  }
+
+  /// The popup a window request for [url] by the site at [siteUrl] opens, or
+  /// null for none. With [signInPopups], the engine only asks for a window
+  /// the user's tap opened (NESTED-014); Android names no URL for one a
+  /// script opened, so that one opens as a sign-in popup and its own rule
+  /// ([showsOffSite]) judges its first page.
+  static PopupKind? forWindow(String url,
+      {required String siteUrl, required bool signInPopups}) {
+    if (WebViewFactory.isCaptchaChallenge(url, siteUrl: siteUrl)) {
+      return PopupKind.verification;
+    }
+    if (signInPopups && (url.isEmpty || isSignInUrl(url))) return signIn;
+    return null;
+  }
+
+  /// Whether this popup may show [url], off the site at [siteUrl], as its
+  /// top document.
+  bool showsOffSite(String url, {required String siteUrl}) =>
+      WebViewFactory.isCaptchaChallenge(url, siteUrl: siteUrl) ||
+      switch (this) {
+        PopupKind.verification => false,
+        PopupKind.signIn => isSignInUrl(url),
+      };
+}
+
 /// The webview a site's `window.open` gets, built from its parent's posture.
 abstract final class PopupWebView {
   /// [WebViewConfig] of the webview that asked for a popup window, keyed by
@@ -33,6 +87,7 @@ abstract final class PopupWebView {
   /// its store binding and its proxy: it is the same site, in a dialog.
   static Widget createPopupWebView({
     required int windowId,
+    required PopupKind kind,
     WebViewConfig? config,
     VoidCallback? onCloseWindow,
   }) {
@@ -62,6 +117,7 @@ abstract final class PopupWebView {
       blocking: parent.posture.blocking,
       dnsLevel: () => parent.effectiveDnsLevel,
     );
+    var started = false;
     final popup = inapp.InAppWebView(
       windowId: windowId,
       initialSettings: settings,
@@ -105,14 +161,22 @@ abstract final class PopupWebView {
           ),
         );
       },
-      onLoadStart: (controller, _) =>
-          phases.on(PageEvent.loadStarted, view: controller.platform),
-      // The popup exists for one challenge: its documents pass the site's
-      // DNS and content-blocker checks, and its top document stays on a
-      // captcha host or the site's own domain (CAPTCHA-010).
-      shouldOverrideUrlLoading: (_, navigationAction) async =>
-          WebViewFactory.onSiteNavigationPolicy(parent, navigationAction: navigationAction,
-              allowCaptcha: true),
+      onLoadStart: (controller, _) {
+        started = true;
+        phases.on(PageEvent.loadStarted, view: controller.platform);
+      },
+      // The popup exists for one flow: its documents pass the site's DNS and
+      // content-blocker checks, and its top document stays on the site's own
+      // domain or a host its kind allows (CAPTCHA-010, NESTED-014). One whose
+      // first page is refused has nothing to show, so it closes.
+      shouldOverrideUrlLoading: (_, navigationAction) async {
+        final policy = WebViewFactory.onSiteNavigationPolicy(parent,
+            navigationAction: navigationAction, popup: kind);
+        if (policy == inapp.NavigationActionPolicy.CANCEL && !started) {
+          onCloseWindow?.call();
+        }
+        return policy;
+      },
       onCloseWindow: (controller) {
         onCloseWindow?.call();
       },
