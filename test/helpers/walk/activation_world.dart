@@ -488,6 +488,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         ...first.tabs,
         SiteTab(url: link, homeUrl: link, openerSiteId: first.siteId),
       ]);
+      _linkTab = first.tabs.length;
     }
     if (spaces case final named?) {
       SharedPreferences.setMockInitialValues({});
@@ -575,6 +576,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// Site 1 starts with a second tab, a link of its own into site 3's
   /// domain, which [Reroute] runs as site 3 or as site 1.
   final bool rehosts;
+
+  /// The link tab's number in site 1's list, as the model numbers its tabs
+  /// by first sight in list order: the record `Links` holds.
+  int? _linkTab;
 
   /// The tables the frame check holds each step's changes to, the code's
   /// unless a planted mistake's ([frameMistake]).
@@ -745,6 +750,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   final WalkLaunch? launch;
   final bool tabbed;
 
+  /// The model follows every site's tabs: a tabbed world's, and the
+  /// reroute world's, whose link tab is site 1's second.
+  bool get _followsTabs => tabbed || rehosts;
+
   /// The cookie the site at [i] of the page's first list set as [name].
   Cookie _cookieOf(int i, {required String name}) => Cookie(
     name: name,
@@ -811,7 +820,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// Flows the model takes no step of, so neither the replay nor a table's
   /// declarations hold them: a move into an archive, which the model starts
-  /// from (`Archive`), a reroute, and a tab input on a site off screen
+  /// from (`Archive`), and a tab input on a site off screen
   /// ([_offScreenTabInput]).
   final Set<int?> _unmodeled = {};
 
@@ -841,8 +850,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }) {
     final flow = currentFlow();
     if (step == ActivationStep.commit) _committed.add(flow);
-    // The rebind's rebuild is the frame that builds the webview.
-    if (step == ActivationStep.tabRebind) _buildWebViews();
+    // The rebind's rebuild is the frame that builds the webview, and so is
+    // a reroute's that keeps the slot loaded.
+    if (step == ActivationStep.tabRebind || step == ActivationStep.rerouteFlip) {
+      _buildWebViews();
+    }
     final calls = _unmarked.remove(flow) ?? const <PlatformCall>[];
     for (final call in calls) {
       if (!step.calls.contains(call)) {
@@ -858,6 +870,22 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           'step is one await, or names why several are safe (severalAwaits)');
     }
     if ((_recording, flow)
+        case ((:final steps, config: _, constants: _, start: _)?, final f?)
+        when _spawnedBy(f, step: step) && steps.isNotEmpty) {
+      // An input a step's spawn starts in that step's turn is the step's
+      // other half, which the model's action for the step takes whole: the
+      // step's mark holds the state the turn ends in, and the input's flow
+      // takes the next number.
+      _modelFlows.putIfAbsent(f, () => _modelFlows.length + 1);
+      final spawner = steps.removeLast();
+      steps.add((
+        action: spawner.action,
+        flow: spawner.flow,
+        outcome: spawner.outcome,
+        site: spawner.site,
+        state: _project(),
+      ));
+    } else if ((_recording, flow)
         case ((:final steps, config: _, constants: _, start: _)?, final f?)) {
       steps.add((
         action: step.action,
@@ -883,7 +911,28 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     _checkLeftHidden();
     _checkTabBound();
     _checkTold();
+    _checkOneRoute();
   }
+
+  /// Whether [step] is the first mark of [flow], a flow a step's spawn
+  /// started, and an input the model also lands on its own: a [Step.spawned]
+  /// one the model prints only in its spawner, so its mark stands.
+  bool _spawnedBy(int flow, {required ActivationStep step}) =>
+      flow < _frameFlow &&
+      !_modelFlows.containsKey(flow) &&
+      !_spawnedOnly.contains(step);
+
+  /// The inputs only a spawn starts (`Spawned_Inputs`).
+  static final _spawnedOnly = <ActivationStep>{
+    for (final (place: _, :step) in tables.activation.steps)
+      if (step.spawned) step.name,
+    for (final (place: _, :step) in tables.tabInputs.steps)
+      if (step.spawned) step.name,
+    for (final (place: _, :step) in tables.tabFlow.steps)
+      if (step.spawned) step.name,
+    for (final (place: _, :step) in tables.wake.steps)
+      if (step.spawned) step.name,
+  };
 
   /// The model's variables each flow changed that no step it marked has
   /// taken yet, as the code holds them ([_frameState]).
@@ -962,7 +1011,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// Whether [a] is the environment's, in the model or around it (a move,
   /// a sign-in, a site added, the noise, a setup, the scheduler's own): its
   /// flow is held by the walk's other checks, not by a table's
-  /// declarations. The reroute stays here until its reopen is printed.
+  /// declarations.
   static bool _environment(SiteAction a) => switch (a) {
     Tap() ||
     Preload() ||
@@ -983,9 +1032,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     OpenTab() ||
     NewTab() ||
     CloseTab() ||
-    DuplicateTab() => false,
+    DuplicateTab() ||
+    Reroute() => false,
     ArchiveSite() ||
-    Reroute() ||
     Reply() ||
     Settle() ||
     Login() ||
@@ -1041,6 +1090,20 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         for (final key in navStates.files.keys.toList()..sort())
           (key, _labelOf(navStates.files[key]!)),
       ]),
+      // Only a tab another site hosts, or a link opened: a tab added or
+      // closed that runs as its owner and follows no link changes neither.
+      ModelVar.host => each(
+        (m) => FrameValues([
+          for (final t in m.tabs)
+            if (t.hostSiteId case final h?) (t.id, h),
+        ]),
+      ),
+      ModelVar.link => each(
+        (m) => FrameValues([
+          for (final MapEntry(key: t, value: h) in tabs.linkHosts(m).entries)
+            if (h != null) (t, h.siteId),
+        ]),
+      ),
       ModelVar.nested => (sites.nested?.siteId,),
       ModelVar.headless => ids(sites.headless),
       ModelVar.fore => sites.fore,
@@ -1094,9 +1157,22 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The tab whose history [label] is, under [key]'s site: its own for a
   /// copy of it (`_own`), numbered.
-  int _labelNumber(String key, {required String label}) {
-    final site = SiteId(key.substring(0, key.indexOf('.')));
-    return _tabNumber(site, tab: TabId(_own(key, label: label)));
+  int _labelNumber(String key, {required SiteId owner, required String label}) =>
+      _tabNumber(owner, tab: TabId(_own(key, label: label)));
+
+  /// The site whose list holds or held [tab], keyed under [keyed]: that
+  /// site's own tab, else a hosted tab's owner, whose key names the site it
+  /// runs as. Every site's first tab has one id ([kPrimaryTabId]), never
+  /// hosted.
+  SiteId _ownerOf(TabId tab, {required SiteId keyed}) {
+    bool holds(SiteId site) =>
+        (_tabNumbers[site]?.containsKey(tab) ?? false) ||
+        (sites.byId(site)?.tabs.any((t) => t.id == tab) ?? false);
+    if (tab == kPrimaryTabId || holds(keyed)) return keyed;
+    for (final m in [...sites.models, ..._followed]) {
+      if (holds(m.siteId)) return m.siteId;
+    }
+    return keyed;
   }
 
   /// The tab variables of `formal/activation.tla`, read off the page: a
@@ -1124,6 +1200,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           switch (m.controller) {
             final FakeWebViewController c => _labelNumber(
               '${m.siteId}.${m.tabBinding.built}',
+              owner: m.siteId,
               label: _labelOf(c.history),
             ),
             _ => 0,
@@ -1134,28 +1211,80 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           switch (m.tabBinding.queued) {
             (:final tab, :final bytes) => [
               _tabNumber(m.siteId, tab: tab),
-              _labelNumber('${m.siteId}.$tab', label: _labelOf(bytes)),
+              _labelNumber(
+                '${m.siteId}.$tab',
+                owner: m.siteId,
+                label: _labelOf(bytes),
+              ),
             ],
             null => [0, 0],
           },
       ],
     };
-    // Every tab seen so far has a number; a file names its tab by key.
+    // Every tab seen so far has a number; a file names its tab by key, and
+    // a hosted tab's key the site it runs as.
     for (final key in files.keys) {
-      _labelNumber(key, label: _labelOf(files[key]!));
+      final tab = TabId(key.substring(key.indexOf('.') + 1));
+      _labelNumber(
+        key,
+        owner: _ownerOf(tab, keyed: SiteId(key.substring(0, key.indexOf('.')))),
+        label: _labelOf(files[key]!),
+      );
     }
     for (final m in bySite) {
       maxTabs.add(_tabNumbers[m.siteId]?.length ?? 1);
     }
+    final numbers = [for (var n = 1; n <= maxTabs.reduce(max); n++) n];
+    SiteTab? listed(WebViewModel m, {required int n}) {
+      final id = _tabWithNumber(m.siteId, n: n);
+      return m.tabs.where((t) => t.id == id).firstOrNull;
+    }
+
+    // A key names a tab of its own site, or one of another site's tabs
+    // that runs as it.
+    Uint8List? fileOf(WebViewModel m, {required int n, required WebViewModel h}) {
+      final tab = _tabWithNumber(m.siteId, n: n);
+      final key = '${h.siteId}.$tab';
+      if (!files.containsKey(key)) return null;
+      return _ownerOf(tab, keyed: h.siteId) == m.siteId ? files[key] : null;
+    }
+
     out['file'] = [
       for (final m in bySite)
         [
-          for (var n = 1; n <= maxTabs.reduce(max); n++)
-            switch (files['${m.siteId}.${_tabWithNumber(m.siteId, n: n)}']) {
-              final bytes? => _labelNumber(
-                '${m.siteId}.${_tabWithNumber(m.siteId, n: n)}',
-                label: _labelOf(bytes),
-              ),
+          for (final n in numbers)
+            [
+              for (final h in bySite)
+                switch (fileOf(m, n: n, h: h)) {
+                  final bytes? => _labelNumber(
+                    '${h.siteId}.${_tabWithNumber(m.siteId, n: n)}',
+                    owner: m.siteId,
+                    label: _labelOf(bytes),
+                  ),
+                  null => 0,
+                },
+            ],
+        ],
+    ];
+    out['host'] = [
+      for (final m in bySite)
+        [
+          for (final n in numbers)
+            switch (listed(m, n: n)) {
+              final t? => _siteNumber(m.hostOf(t) ?? m),
+              null => _siteNumber(m),
+            },
+        ],
+    ];
+    out['link'] = [
+      for (final m in bySite)
+        [
+          for (final n in numbers)
+            switch (listed(m, n: n)) {
+              final t? => switch (tabs.linkHosts(m)[t.id]) {
+                final h? => _siteNumber(h),
+                null => 0,
+              },
               null => 0,
             },
         ],
@@ -1228,7 +1357,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       'stored': [
         for (final m in bySite) owners(stored.allStorage[m.siteId] ?? const []),
       ],
-      if (tabbed) ..._projectTabs(bySite),
+      if (_followsTabs) ..._projectTabs(bySite),
       if (_boxed) ...{
         'gone': [for (final m in _followed.where(_gone)) _siteNumber(m)]
           ..sort(),
@@ -1249,9 +1378,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// History [label], as the tab [key] names sees it: its own when [label]
   /// is that tab or one it was copied from.
   String _own(String key, {required String label}) {
-    final site = key.substring(0, key.indexOf('.'));
     final tab = key.substring(key.indexOf('.') + 1);
-    for (String? at = tab; at != null; at = _copyOf['$site.$at']) {
+    for (String? at = tab; at != null; at = _copyOf[at]) {
       if (at == label) return tab;
     }
     return label;
@@ -1261,7 +1389,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   void _onSave(String key, {required Uint8List state}) {
     if (_flowActions[currentFlow()] is! DuplicateTab) return;
     final label = _labelOf(state);
-    if (key.substring(key.indexOf('.') + 1) != label) _copyOf[key] = label;
+    final tab = key.substring(key.indexOf('.') + 1);
+    if (tab != label) _copyOf[tab] = label;
   }
 
   /// The page's first sites by number, whatever rows they moved to.
@@ -1341,12 +1470,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     _scriptVersion = sites.activationVersion;
     _tabNumbers.clear();
     _modelFlows.clear();
-    // No model takes a slot's identity yet: a reroute world's steps are
-    // held by its invariants, not replayed.
-    if (StepTraces.instance.asked && !rehosts) {
+    if (StepTraces.instance.asked) {
       _recording = (
         config: '${page.containers ? 'containers' : 'jar'}_${_bases.join()}'
-            '${launch == null ? '' : '_launch'}${tabbed ? '_tabs' : ''}'
+            '${launch == null ? '' : '_launch'}${_followsTabs ? '_tabs' : ''}'
+            '${rehosts ? '_reroute' : ''}'
             '${proxies == null ? '' : '_${proxies!.scope.name}${_routes.join()}_tor${_exits.join()}'}'
             '${caps == kResidencyCaps ? '' : '_cap${caps.loaded}${caps.resident}'}'
             '${nestedOpens ? '_nested' : ''}'
@@ -1359,7 +1487,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${_faults.isEmpty ? '' : '_fails_${[for (final f in _faults) f.name].join('_')}'}',
         constants: (
           sites: page.hosts.length,
-          tabbed: tabbed,
+          tabbed: _followsTabs,
           boxed: archived || deletes,
           tla: {for (final c in ModelConst.values) c: ?_constant(c)},
         ),
@@ -1379,7 +1507,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     return switch (c) {
       ModelConst.containers => '${page.containers}'.toUpperCase(),
       ModelConst.coldStart => '${launch != null}'.toUpperCase(),
-      ModelConst.tabbed => set(tabbed ? every : const <int>[]),
+      ModelConst.tabbed => set(_followsTabs ? every : const <int>[]),
       // Every script of the configuration counts: the replay takes the
       // most any trace minted.
       ModelConst.maxTabs => null,
@@ -1392,6 +1520,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         WalkScope.router => _sharingDefault,
         WalkScope.global || WalkScope.session || null => const <int>[],
       }),
+      ModelConst.globalProxy =>
+        proxies?.scope == WalkScope.global ? 'TRUE' : null,
+      ModelConst.links => switch (_linkTab) {
+        final t? => set(['[s |-> 1, t |-> $t, h |-> ${page.hosts.length}]']),
+        null => null,
+      },
       ModelConst.route => seq(_routes),
       ModelConst.torExit => seq(_exits),
       ModelConst.torRuntime => '$_torRuntime'.toUpperCase(),
@@ -1447,11 +1581,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     NewTab() => ActivationStep.newTab,
     CloseTab() => ActivationStep.closeTab,
     DuplicateTab() => ActivationStep.duplicateTab,
-    // A move is the environment's, a move into an archive and a reroute
-    // the model's setup, and the rest wait on the page.
+    Reroute() => ActivationStep.reroute,
+    // A move is the environment's, a move into an archive the model's
+    // setup, and the rest wait on the page.
     Move() ||
     ArchiveSite() ||
-    Reroute() ||
     Add() ||
     Reply() ||
     Settle() ||
@@ -1595,12 +1729,35 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// (`Inv_TabBound`), held after every step, not only at rest, where a
   /// rebind has bound it to whatever the pointer names by then.
   void _checkTabBound() {
-    if (!tabbed) return;
+    if (!_followsTabs) return;
     for (final m in sites.models) {
       if (m.tabBinding.built case final t? when t != m.activeTabId) {
         _violations.add("${m.siteId}'s webview is built for tab $t while "
             'its active tab is ${m.activeTabId} (TAB-003)');
       }
+    }
+  }
+
+  /// PROXY-008: running webviews in one proxy scope run one route, held
+  /// after every step as TLC holds `Inv_OneRoute` in every state: a loaded
+  /// slot and a wake's headless check as the site their slot runs as
+  /// (LIR-024), a nested screen as its own. The model's Tor half is the
+  /// activation's own assert, which these worlds' one runtime never splits.
+  void _checkOneRoute() {
+    if (proxies == null) return;
+    final topology = _WalkResidency(this).proxyTopology;
+    final running = [
+      for (final m in {...sites.loaded, ...sites.headless}) m.runningIdentity,
+      ?sites.nested,
+    ];
+    final routes = {
+      for (final a in running)
+        if (topology.contends(a))
+          resolveEffectiveProxy(a.proxySettings, siteId: a.siteId).routeKey,
+    };
+    if (routes.length > 1) {
+      _violations.add('two running sites in one proxy scope run different '
+          'routes (PROXY-008)');
     }
   }
 
@@ -1821,14 +1978,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             _track(deletion.delete(m));
           }
         }
+      // A reroute requested while a tab handler holds the gate runs once it
+      // lets go (TabHandlingGate.deferUntilIdle), as one landing then would;
+      // the model lands one only on a free gate.
       case Reroute():
-        if (rehosts) {
+        if (rehosts && !tabs.busy) {
           for (final m in sites.models) {
             if (_siteNumber(m) != 1) continue;
             m.externalLinkMode = ExternalLinkMode.inApp;
             m.routeOutboundLinks = !m.routeOutboundLinks;
           }
-          _unmodeled.add(currentFlow());
           _track(_commit(const SiteSettingsClosed()));
         }
       case CloseArchive():

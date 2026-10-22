@@ -430,6 +430,15 @@ String _rowAlone(FlStep s, {required int at, required FlRow row}) {
   ].join('\n');
 }
 
+/// What [row]'s arm leaves of [vars], for a lemma over the row that reads
+/// them primed: each write of one, then that the arm keeps each other.
+List<String> _leaves(FlRow row, {required List<ModelVar> vars}) => [
+  for (final w in row.writes)
+    if (w.vars.any(vars.contains)) w.tla,
+  for (final v in vars)
+    if (!row.writes.any((w) => w.vars.contains(v))) "${v.name}' = ${v.name}",
+];
+
 /// The lemma that [row] of [s] keeps `Supports`: a row it sends to a
 /// supported place has its fact there, by its values or as it had it at
 /// that place; where the row writes a variable a fact reads, no other flow
@@ -452,15 +461,7 @@ String _rowSupported(
     for (final v in ModelVar.values)
       if (v != ModelVar.fl && RegExp('\\b${v.name}\\b').hasMatch(_closure(facts, definitions: definitions))) v,
   ];
-  final writes = [
-    for (final w in row.writes)
-      if (w.vars.any(shared.contains)) w.tla,
-  ];
-  final kept = [
-    for (final v in shared)
-      if (!row.writes.any((w) => w.vars.contains(v))) "${v.name}' = ${v.name}",
-  ];
-  final moves = writes.isNotEmpty;
+  final moves = row.writes.any((w) => w.vars.any(shared.contains));
   final gates = [
     for (final p in row.passed)
       for (final g in _alone.values)
@@ -504,8 +505,7 @@ String _rowSupported(
       if (moves) for (final g in gates) '~(${g.tla})',
       if (spawns) ...[r'inputs \in Nat', 'inputs < MaxInputs', 'Fresh'],
       "fl' = [fl EXCEPT ${row.clauses.join(', ')}]",
-      ...writes,
-      ...kept,
+      ..._leaves(row, vars: shared),
     ].join(',\n           ')}',
     "    PROVE  Supports'",
     '  <1>0. fl \\in [Flows -> FlowRecord]',
@@ -615,12 +615,29 @@ String _rowTyped(
   required Map<String, String> definitions,
 }) {
   final spawns = row.clauses.any((c) => c.startsWith('![inputs + 1]'));
-  final assume = [
+  // A field of the flow a row starts may read the state the arm leaves; a
+  // value in a set of strings needs only its literals.
+  final primed = [
+    for (final v in ModelVar.values)
+      if (v != ModelVar.fl &&
+          row.clauses.any((c) {
+            final name = RegExp(r'^!\[.+?\]\.(\w+) = ').firstMatch(c)?[1];
+            return name != null &&
+                _enumerated(FlowField.values.byName(name)) == null &&
+                RegExp("\\b${v.name}'").hasMatch(c);
+          }))
+        v,
+  ];
+  final given = [...row.given, ..._leaves(row, vars: primed)];
+  final context = [
     'TypeOK',
     r'NEW f \in Flows',
     for (final p in row.picks) 'NEW ${p.name} \\in ${p.from}',
     for (final l in row.lets) ...['NEW ${l.name}', '${l.name} = ${l.to}'],
-    ...row.given,
+    ...given,
+  ];
+  final assume = [
+    ...context,
     if (spawns) ...[r'inputs \in Nat', 'inputs < MaxInputs'],
     "fl' = [fl EXCEPT ${row.clauses.join(', ')}]",
   ];
@@ -636,18 +653,42 @@ String _rowTyped(
   ];
   final read = <ModelVar>{};
   final clauses = <String>[];
+  // A value over the state the arm leaves is typed in a lemma of its own,
+  // whose context holds the arm's writes and not the row's partial
+  // functions, which bury it.
+  final own = <String>[];
   for (final (i, c) in row.clauses.indexed) {
     final m = RegExp(r'^!\[(.+?)\](?:\.(\w+))? = (.*)$').firstMatch(c)!;
     final (index, name, value) = (m[1]!, m[2], m[3]!);
     final field = name == null ? null : FlowField.values.byName(name);
     assert(field != null || value == 'NoFlow', '$action sets a row to $value');
     final before = i == 0 ? 'fl' : 'fl$i';
+    final leaves = field != null &&
+        _enumerated(field) == null &&
+        primed.any((v) => RegExp("\\b${v.name}'").hasMatch(value));
+    if (leaves) {
+      final reads = <ModelVar>{};
+      final proof = _typed(value, field: field, range: field.range, bound: bound, given: given, definitions: definitions, read: reads);
+      own.addAll([
+        'LEMMA FlRow_${action}_${at}_${field.name} ==',
+        '    ASSUME ${context.join(',\n           ')}',
+        '    PROVE  ($value) \\in ${field.range}',
+        '  <1>0. fl \\in [Flows -> FlowRecord]',
+        '    BY TypeFl, Zenon',
+        for (final v in ModelVar.values)
+          if (reads.contains(v)) ...['  <1>${_typeStep(v)}. ${v.type}', '    BY Type_${v.name}, Zenon'],
+        '  <1> QED',
+        '    $proof',
+        '',
+      ]);
+    }
     clauses.addAll([
       '  <1> DEFINE fl${i + 1} == [$before EXCEPT $c]',
       '  <1>${2 * i + 1}. ($value) \\in ${field?.range ?? 'FlowRecord'}',
       switch (field) {
         null => '    BY NoFlowType',
-        final field => '    ${_typed(value, field: field, range: field.range, bound: bound, given: row.given, definitions: definitions, read: read)}',
+        final field when leaves => '    BY FlRow_${action}_${at}_${field.name}, Zenon',
+        final field => '    ${_typed(value, field: field, range: field.range, bound: bound, given: given, definitions: definitions, read: read)}',
       },
       '  <1>${2 * i + 2}. fl${i + 1} \\in [Flows -> FlowRecord]',
       '    BY ${i == 0 ? '<1>0' : '<1>${2 * i}'}, <1>${2 * i + 1}, '
@@ -662,6 +703,7 @@ String _rowTyped(
   ]);
   final n = row.clauses.length;
   return [
+    ...own,
     'LEMMA FlRow_${action}_$at ==',
     '    ASSUME ${assume.join(',\n           ')}',
     "    PROVE  fl' \\in [Flows -> FlowRecord]",
@@ -729,7 +771,13 @@ String _typed(
     for (final v in vars) '<1>${_typeStep(v)}',
     if (rows.isNotEmpty) ...['<1>0', ...rows],
   ];
-  final defs = opened;
+  // A value read off a function's function is typed by its variable's
+  // type, stated over `Sites`, which opened into `1..N` the provers no
+  // longer match.
+  final folded = RegExp(r'\]\[').hasMatch(value)
+      ? {'Sites', ..._reached('Sites', definitions: definitions)}
+      : const <String>{};
+  final defs = opened.where((d) => !folded.contains(d)).toList();
   if (facts.isEmpty && defs.isEmpty) return 'OBVIOUS';
   return [
     'BY',
@@ -765,8 +813,8 @@ final _alone = {FlowKind.tab: ModelDef.tabBusy};
 typedef _Held = ({FlowField field, String set, Set<String> at});
 
 final _held = <_Held>[
-  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tDupRead', 'tRemove'}),
-  (field: FlowField.tab, set: 'TabIds', at: {'tNav', 'tDupRead'}),
+  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip'}),
+  (field: FlowField.tab, set: 'TabIds', at: {'tNav', 'tRebind', 'tDupRead'}),
   // What [_supports] reads of the shared state only a flow of a kind in
   // [_alone] writes, so its places hold only those.
   (field: FlowField.kind, set: _set([for (final k in _alone.keys) k.name]), at: _supports.keys.toSet()),

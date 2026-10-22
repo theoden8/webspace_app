@@ -243,10 +243,11 @@ final class RoutedProxy extends ProxyTopology {
   final bool Function(WebViewModel model) sharesDefaultSession;
 }
 
-/// What the proxy and Tor rules read: the site each slot runs as, by row,
-/// the rows whose traffic runs (loaded, or up in a nested screen), and how
-/// the host scopes a proxy.
+/// What the proxy and Tor rules read: the sites by row, the site each slot
+/// runs as by row, the rows whose traffic runs (loaded, or up in a nested
+/// screen), and how the host scopes a proxy.
 typedef ProxySlots = ({
+  List<WebViewModel> sites,
   List<WebViewModel> slots,
   Set<int> running,
   ProxyTopology topology,
@@ -291,6 +292,7 @@ class SiteUnloadEngine {
     Set<int> proxyContenders(int target, {int? except}) =>
         indicesToUnloadForProxyMismatch(
           targetIndex: target,
+          sites: models,
           models: host.identities(except: except),
           loadedIndices: loaded,
           topology: host.proxyTopology,
@@ -298,6 +300,7 @@ class SiteUnloadEngine {
     Set<int> torDissenters(int anchor) => host.torAvailable
         ? indicesToUnloadForTorExitMismatch(
             targetIndex: anchor,
+            sites: models,
             models: host.identities(),
             loadedIndices: loaded,
           )
@@ -630,6 +633,7 @@ class SiteUnloadEngine {
     of: (
       site: _victim.value,
       built: (s) => s.tabBinding.built,
+      hosts: (s) => s.tabHosts,
       begin: (c) {
         final site = _victim.of(c);
         final plan = _plan.from(c);
@@ -844,19 +848,26 @@ class SiteUnloadEngine {
     required Set<int> leaving,
   }) => useContainers ? const <int>{} : loadedIndices.intersection(leaving);
 
-  /// The running sites [site]'s activation would repoint the proxy of.
+  /// The running sites [site]'s activation would repoint the proxy of:
+  /// [site] read as the site its slot runs as, or as itself for a nested
+  /// screen ([asItself]).
   static List<WebViewModel> proxyContendersOf(
     ResidencyHost host, {
     required WebViewModel site,
-  }) => [
-    for (final i in indicesToUnloadForProxyMismatch(
-      targetIndex: host.models.indexOf(site),
-      models: host.identities(),
-      loadedIndices: _runningRows(host),
-      topology: host.proxyTopology,
-    ))
-      host.models[i],
-  ];
+    required bool asItself,
+  }) {
+    final row = host.models.indexOf(site);
+    return [
+      for (final i in indicesToUnloadForProxyMismatch(
+        targetIndex: row,
+        sites: host.models,
+        models: host.identities(except: asItself ? row : null),
+        loadedIndices: _runningRows(host),
+        topology: host.proxyTopology,
+      ))
+        host.models[i],
+    ];
+  }
 
   /// The running sites whose Tor exit [site]'s activation would repoint.
   static List<WebViewModel> torDissentersOf(
@@ -865,6 +876,7 @@ class SiteUnloadEngine {
   }) => [
     for (final i in indicesToUnloadForTorExitMismatch(
       targetIndex: host.models.indexOf(site),
+      sites: host.models,
       models: host.identities(),
       loadedIndices: _runningRows(host),
     ))
@@ -878,63 +890,91 @@ class SiteUnloadEngine {
   /// Sites that must be unloaded because activating [targetIndex] would
   /// repoint a proxy they share out from under them: every mismatched
   /// sibling that contends for it under [topology], so at most one proxy is
-  /// ever in force for a contending group.
+  /// ever in force for a contending group. [models] is what each of the
+  /// [sites]' slots runs as, the target's included.
   static Set<int> indicesToUnloadForProxyMismatch({
     required int targetIndex,
+    required List<WebViewModel> sites,
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
     required ProxyTopology topology,
   }) => _overSlots(
     proxyContenders,
     target: targetIndex,
-    slots: (slots: models, running: loadedIndices, topology: topology),
+    slots: (
+      sites: sites,
+      slots: models,
+      running: loadedIndices,
+      topology: topology,
+    ),
   );
 
-  /// The loaded slots that share the proxy scope [s] contends for and run
-  /// another route: activating [s] would repoint their proxy (PROXY-008).
+  /// The loaded slots that share the proxy scope the site [a] contends for
+  /// and run another route: activating [s] as [a] would repoint their
+  /// proxy (PROXY-008). Each slot is read as the site it runs as (LIR-024).
   /// With the site id, two Tor sites differ by their isolation tags, so one
   /// rule never carries both and puts them on one circuit (TOR-003).
   static final proxyContenders = () {
     const s = Bound<int, ProxySlots>('s');
+    const a = Bound<int, ProxySlots>('a');
     const t = Bound<int, ProxySlots>('t');
     return Def<List<int>, ProxySlots>(
       ModelDef.proxyContenders,
-      params: const [s],
+      params: const [s, a],
       body: Expr.choose(
-        when: ~_contending.has(s.it),
+        when: ~_contending.has(a.it),
         then: Expr.none(),
         otherwise: _slotsRunning.where(
           t,
           holds:
               t.it.neq(s.it) &
-              _contending.has(t.it) &
-              _route.at(t.it).neq(_route.at(s.it)),
+              _contending.has(_runsAs(t.it)) &
+              _route.at(_runsAs(t.it)).neq(_route.at(a.it)),
         ),
       ),
     );
   }();
 
-  /// The loaded slots whose Tor exit constraint differs from [s]'s, when
-  /// [s] routes through Tor: activating it repoints the one `ExitNodes`.
+  /// The loaded slots whose Tor exit constraint differs from [a]'s, when
+  /// [a], the site [s]'s slot runs as, routes through Tor: activating it
+  /// repoints the one `ExitNodes`.
   static final torDissenters = () {
     const s = Bound<int, ProxySlots>('s');
+    const a = Bound<int, ProxySlots>('a');
     const t = Bound<int, ProxySlots>('t');
     return Def<List<int>, ProxySlots>(
       ModelDef.torDissenters,
-      params: const [s],
+      params: const [s, a],
       body: Expr.choose(
-        when: _exit.at(s.it).eq(_noExit),
+        when: _exit.at(a.it).eq(_noExit),
         then: Expr.none(),
         otherwise: _slotsRunning.where(
           t,
           holds:
               t.it.neq(s.it) &
-              _exit.at(t.it).neq(_noExit) &
-              _exit.at(t.it).neq(_exit.at(s.it)),
+              _exit.at(_runsAs(t.it)).neq(_noExit) &
+              _exit.at(_runsAs(t.it)).neq(_exit.at(a.it)),
         ),
       ),
     );
   }();
+
+  /// The row of the site [slot] runs as (`RunsAs`, the tabs' definition).
+  static Expr<int, ProxySlots> _runsAs(Expr<int, ProxySlots> slot) =>
+      ModelDef.runsAs.over([slot], run: (c) => _rowOf(_world.from(c), slot: slot.run(c)));
+
+  static int _rowOf(ProxySlots w, {required int slot}) {
+    final row = w.sites.indexOf(w.slots[slot]);
+    assert(row >= 0, 'slot $slot runs as a site that is not listed');
+    return row;
+  }
+
+  static final _world = Port<ProxySlots, ProxySlots>(
+    'world',
+    reads: const {},
+    changes: const {},
+    of: (w) => w,
+  );
 
   /// The slots whose traffic runs, by row, as the proxy rules read them:
   /// the loaded ones and a nested screen's (the model's `Running`).
@@ -948,30 +988,28 @@ class SiteUnloadEngine {
     run: _slots.from,
   );
 
-  /// The slots that share a contended proxy scope (`Contending`): every
-  /// slot under a process-global proxy, those in the default session under
+  /// The sites that share a contended proxy scope (`Contending`): every
+  /// site under a process-global proxy, those in the default session under
   /// the router, none per session.
   static final _contending = Members<int, ProxySlots>(
     ModelConst.contending,
-    test: (w, {required member}) =>
-        w.topology.contends(w.slots[member]),
+    test: (w, {required member}) => w.topology.contends(w.sites[member]),
   );
 
-  /// The route a slot's traffic takes (`Route`): the effective settings of
-  /// the site it runs as.
+  /// The route a site's traffic takes (`Route`): its effective settings.
   static final _route = Indexed<int, ProxyRouteKey, ProxySlots>.fixed(
     ModelConst.route,
     read: (w, {required at}) => ProxyConflictEngine.routeOf(
-      w.slots[at].proxySettings,
-      siteId: w.slots[at].siteId,
+      w.sites[at].proxySettings,
+      siteId: w.sites[at].siteId,
     ),
   );
 
-  /// A slot's Tor exit constraint (`TorExit`), `0` when it does not route
+  /// A site's Tor exit constraint (`TorExit`), `0` when it does not route
   /// through Tor.
   static final _exit = Indexed<int, String?, ProxySlots>.fixed(
     ModelConst.torExit,
-    read: (w, {required at}) => _torExitPin(w.slots[at]),
+    read: (w, {required at}) => _torExitPin(w.sites[at]),
   );
   static final _noExit = Expr.constant<String?, ProxySlots>(null, tla: '0');
 
@@ -983,13 +1021,18 @@ class SiteUnloadEngine {
   }) {
     final n = slots.slots.length;
     if (target < 0 || target >= n) return const <int>{};
+    assert(slots.sites.length == n, 'a slot for each site');
     final world = (
+      sites: slots.sites,
       slots: slots.slots,
       running: {for (final i in slots.running) if (i >= 0 && i < n) i},
       topology: slots.topology,
     );
     return rule
-        .call([Expr.constant<int, ProxySlots>(target)])
+        .call([
+          Expr.constant<int, ProxySlots>(target),
+          Expr.constant<int, ProxySlots>(_rowOf(world, slot: target)),
+        ])
         .run(StepContext(world))
         .toSet();
   }
@@ -1017,12 +1060,14 @@ class SiteUnloadEngine {
   /// says nothing about where their traffic goes.
   static Set<int> indicesToUnloadForTorExitMismatch({
     required int targetIndex,
+    required List<WebViewModel> sites,
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
   }) => _overSlots(
     torDissenters,
     target: targetIndex,
     slots: (
+      sites: sites,
       slots: models,
       running: loadedIndices,
       topology: const PerSessionProxy._(),

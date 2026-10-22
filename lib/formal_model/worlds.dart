@@ -148,7 +148,11 @@ bool _contradicts(Set<Need> needs) =>
 /// What a world needs besides an operator it replaces, for the replaced
 /// one to matter: a route split needs two routes contending, and so on.
 Set<Env> _with(Env e) => switch (e) {
-  Env.proxyGlobal => {Env.routeSplit},
+  Env.proxyGlobal || Env.globalProxy => {
+    Env.proxyGlobal,
+    Env.globalProxy,
+    Env.routeSplit,
+  },
   Env.routerContending || Env.routerShared => {
     Env.routerContending,
     Env.routerShared,
@@ -161,6 +165,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.routeSplit ||
   Env.awaySpaces ||
   Env.linkAny ||
+  Env.linkTab ||
   Env.archiveOne ||
   Env.deleteOne ||
   Env.resetOne ||
@@ -178,6 +183,8 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
         ? Env.routerContending
         : Env.proxyGlobal,
   ModelConst.routed => Env.routerShared,
+  ModelConst.globalProxy => Env.globalProxy,
+  ModelConst.links => Env.linkTab,
   ModelConst.route => Env.routeSplit,
   ModelConst.linked => Env.linkAny,
   ModelConst.torRuntime => Env.torOn,

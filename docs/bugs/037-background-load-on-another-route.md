@@ -244,6 +244,39 @@ the override under the sites already loaded.
    slot identity, so the reroute world's traces are not replayed and
    `TabRebind unload` stays in `steps_uncovered.tsv`. A behavior that would
    start a flow past the last input ends there (`Done`).
+16. **2026-10-22, PR #766.** The model kept no slot identity, so the
+   reroute was checked by the schedules alone and `Routed` stood in for
+   "the target tab runs as another site". Now the model holds which site
+   each tab runs as (`host`, `SiteTab.hostCell`) and the site a link tab
+   runs as while its owner routes links (`link`, `SiteTab.openerCell`,
+   from the constant `Links`); `RunsAs(s)` is the active tab's host, a
+   `Def` in `TabVars`. The proxy and Tor rules read each running slot
+   through it (`ProxyContenders(s, a)`, `TorDissenters(s, a)`, with `a`
+   the identity the target runs as), and `Inv_OneRoute` is stated over
+   the identities that run. A tab's saved back stack is keyed by the
+   identity it ran as (`file[s][t][h]`, as `webViewStateKey` keys it):
+   a capture and a staged read record the identity at their start
+   (`capAs`, `navAs`) and hold only while the tab still runs as it. The
+   reconcile is a flow of the tab table: the input `Reroute` flips one
+   owner's link tabs (`RerouteFlip`: unload under the process-wide proxy,
+   with the reopen spawned as attempt 15's, rebind otherwise) and drops
+   each flipped tab's file under the identity it left
+   (`RerouteRemoveReply`). `_identityChanges` is exact, so `Routed` and
+   `HandPaired.routedSite` are gone, the reroute world's traces replay,
+   and the schedules owe no unmodelled meets. A tab runs as another site
+   only after a reroute now, so attempt 15's `Reach_Reopened` and
+   `noreopen` move to the reroute world
+   (`activation_tabs_reroute_containers.cfg`), which takes four inputs: a
+   switch onto a rerouted tab reopens the slot as the fourth. Planted: a
+   reroute that rebinds in place under the process-wide proxy
+   (`rerouteinplace`), caught by `Inv_OneRoute` in the model and by
+   `ProcessRoute`'s assert under the schedules. *Why:*
+   the identity was one fact the code held and the model did not, so the
+   check of the switch that moves it could only be the walks.
+   *Partial:* only the case the reconcile reaches from one owner's own
+   links is a step; a link whose opener is not its owner, or a flip
+   across several owners, still writes through
+   `Commit.unmodeled(Unmodeled.identityChange)`.
 
 ## Known open gaps
 
@@ -258,8 +291,16 @@ the override under the sites already loaded.
   activation's flows.
 - The model checks the route rule against the activation's flows only. A
   load outside the activation table (none known today) would not be seen.
-- A slot's identity (a hosted tab, the routing reconcile) is checked by the
-  reroute world's schedules, not by the model, whose `Route` is per site:
-  the model prints the reroute's reopen (attempt 15) under a guard that
-  stands in for the identity change, and replays none of that world's
-  traces.
+- A reroute whose link was opened by a site other than its owner, or one
+  that flips the tabs of several owners at once, is written outside a
+  step (`Unmodeled.identityChange`); only one owner's own links are a
+  step (attempt 16).
+- `Running` reads a nested screen's slot and a wake's headless check
+  through `RunsAs`, though each runs as the site itself: a site whose
+  active tab runs as another identity is read as that identity while its
+  nested screen or check is open.
+- A capture's save whose reply lands after a flip's remove leaves a back
+  stack under the identity the tab left, which a flip back would read.
+  The model reaches that state and no invariant names it.
+- A reroute that arrives while the tab gate is held waits in the code and
+  is not taken by the model (`steps_uncovered.tsv`).

@@ -73,8 +73,12 @@ final class ActivationCalls {
       _r.sites.firstToEvict(among);
   List<WebViewModel> conflicts(WebViewModel site) =>
       SiteUnloadEngine.conflictsOf(_r.residency, site: site);
-  List<WebViewModel> proxyContenders(WebViewModel site) =>
-      SiteUnloadEngine.proxyContendersOf(_r.residency, site: site);
+  List<WebViewModel> proxyContenders(WebViewModel site, {required bool asItself}) =>
+      SiteUnloadEngine.proxyContendersOf(
+        _r.residency,
+        site: site,
+        asItself: asItself,
+      );
   List<WebViewModel> torDissenters(WebViewModel site) =>
       SiteUnloadEngine.torDissentersOf(_r.residency, site: site);
   ResidencyPlan residencyPlan(ResidencyEvent event) => _r.answers.residencyPlan(event);

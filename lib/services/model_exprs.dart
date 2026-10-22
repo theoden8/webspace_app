@@ -79,6 +79,28 @@ extension FunctionExpr<K, V, W> on Expr<Map<K, V>, W> {
         'THEN ${to.tla} ELSE ${tlaOperand(tla)}[k]]',
     reads: reads + ks.reads + to.reads,
   );
+
+  /// `[x \in DOMAIN F |-> IF x \in ks THEN to ELSE F[x]]`: every key of
+  /// [ks] to its own value, [to] over [x].
+  Expr<Map<K, V>, W> exceptEach(
+    Expr<Iterable<K>, W> ks, {
+    required Bound<K, W> x,
+    required Expr<V, W> to,
+  }) => Expr._(
+    run: (c) {
+      final keys = ks.run(c).toSet();
+      return {
+        for (final MapEntry(:key, :value) in run(c).entries)
+          key: keys.contains(key)
+              ? x._with(c, value: key, body: () => to.run(c))
+              : value,
+      };
+    },
+    tla:
+        '[${x.name} \\in DOMAIN ${tlaOperand(tla)} |-> IF ${x.name} \\in '
+        '${tlaOperand(ks.tla)} THEN ${to.tla} ELSE ${tlaOperand(tla)}[${x.name}]]',
+    reads: reads + ks.reads + to.reads,
+  );
 }
 
 /// A function of functions, `F[k][j]`, updated one inner entry at a time.
@@ -99,6 +121,35 @@ extension Function2Expr<K, J, V, W> on Expr<Map<K, Map<J, V>>, W> {
     },
     tla: '[${tlaOperand(tla)} EXCEPT ![${k.tla}][${at.tla}] = ${to.tla}]',
     reads: reads + k.reads + at.reads + to.reads,
+  );
+}
+
+/// A function of functions of functions, `F[k][j][i]` (`file`, keyed by
+/// site, tab and the site it ran as), updated one entry at a time.
+extension Function3Expr<K, J, I, V, W> on Expr<Map<K, Map<J, Map<I, V>>>, W> {
+  /// `[F EXCEPT ![k][j][i] = v]`.
+  Expr<Map<K, Map<J, Map<I, V>>>, W> exceptAt(
+    Expr<K, W> k, {
+    required Expr<J, W> at,
+    required Expr<I, W> by,
+    required Expr<V, W> to,
+  }) => Expr._(
+    run: (c) {
+      final f = run(c);
+      final key = k.run(c);
+      final inner = f[key]!;
+      final j = at.run(c);
+      return {
+        ...f,
+        key: {
+          ...inner,
+          j: {...?inner[j], by.run(c): to.run(c)},
+        },
+      };
+    },
+    tla:
+        '[${tlaOperand(tla)} EXCEPT ![${k.tla}][${at.tla}][${by.tla}] = ${to.tla}]',
+    reads: reads + k.reads + at.reads + by.reads + to.reads,
   );
 }
 

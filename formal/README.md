@@ -132,11 +132,15 @@ class.
   the same alphabet is enumerated in Dart by `test/activation_schedules_test.dart`, from
   launch too. Standalone, so `kernel.tla`'s proofs stand. A site's tabs (TAB-003, BUG-036)
   are the tab tables' flows under `activation_tabs.cfg`, its containers twin, beside
-  webspace switches `activation_tabs_spaces.cfg` and, on a routed slot,
-  `activation_tabs_router_containers.cfg` (a rebind that reroutes the slot opens it
-  again, LIR-024: `Reach_Reopened`, and `noreopen` its mutant): which tab
-  each webview, queued back stack and saved file holds the history of (`built`, `hist`,
-  `queued`, `file`), with `Inv_TabShown`, `Inv_TabFiles`, `Inv_TabBound` and `Inv_TabActive`
+  webspace switches `activation_tabs_spaces.cfg`, under the router
+  `activation_tabs_router_containers.cfg`, and with a link tab that a reroute runs as
+  another site under one process-wide proxy `activation_tabs_reroute_containers.cfg` (a
+  reroute or a rebind that moves the slot to another site opens it again, LIR-024:
+  `Reach_Rerouted` and `Reach_Reopened`, with `noreopen` and `rerouteinplace` their
+  mutants): which tab each webview, queued back stack and saved file holds the history
+  of (`built`, `hist`, `queued`, `file`, the last keyed by the site the tab ran as), and
+  the site each tab runs as and its link would run it as (`host`, `link`), with
+  `Inv_TabShown`, `Inv_TabFiles`, `Inv_TabBound` and `Inv_TabActive`
   held across taps, pressure and go-home between the tab flows' awaits; `pointerearly` (the
   bug's first shape), `captureatreply` (its capture keyed after a rebind) and `takeany` (its
   restore side) are printed mutants. The plan's proxy and Tor rules are printed too
@@ -191,7 +195,8 @@ class.
   `activation_steps` (`Outcomes`) from `ActivationStep`. The inputs that start a flow (a tap,
   home, a preload, memory pressure) are steps of the activation table too (`Step.input`),
   printed as `InputTableStep`. A step that starts another table's input in its own turn
-  declares it, a `Spawn` (the tab rebind that reroutes a slot opens it again, LIR-024):
+  declares it, a `Spawn` (a reroute or a tab rebind that moves a slot to another site
+  opens it again, LIR-024):
   the runner starts it after the arm's other effects and its mark and asserts the input
   landed there once, an input landing in a step's turn any other way fails an assert, and
   the printer prints the input's effects in the step's action on the flow numbered next

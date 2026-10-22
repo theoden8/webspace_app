@@ -13,6 +13,7 @@ import 'package:webspace/services/runtime_vars.dart' show ActivationMarker;
 import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/services/cookie_isolation.dart' show tierOf;
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -25,6 +26,8 @@ import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tabs_sheet.dart' show TabsSheetSite;
+
+part 'tab_flow.dart';
 
 /// What the tab flows ask of the page.
 abstract interface class TabsHost implements PageHost {
@@ -246,6 +249,11 @@ class TabsController {
   /// shown. Runs after a site's settings close, at startup and after an
   /// import. While a tab change is running it waits for it (TabHandlingGate),
   /// since both rewrite tab lists across awaits.
+  ///
+  /// The flips one site's switch makes in its own tree are the [tabInputs]
+  /// reroute and its removals; any other set of flips (several sites' at
+  /// once, as an import may, or tabs another site opened) runs as the same
+  /// writes in a commit no step takes yet.
   Future<void> reconcileLinkTabs() async {
     if (_gate.busy) {
       _gate.deferUntilIdle(() {
@@ -253,51 +261,26 @@ class TabsController {
       });
       return;
     }
+    // One synchronous pass over every tab list: nothing can interleave
+    // between reading what a tab runs as and rewriting it.
+    final forgot = _forgetGoneOpeners();
+    final flips = _linkFlips();
+    if (_oneSiteReroutes(flips) case final owner?) {
+      final c = StepContext(TabFlow(this, site: owner)..flips = flips);
+      final next = tabInputs.runInput(c, from: TabPlace.reroute);
+      if (next == TabPlace.done) return;
+      await _gate.run(() => _runTabFlow(c, from: next));
+      return;
+    }
+    if (flips.isEmpty && !forgot) return;
     await _gate.run(() async {
-      final dropped = <String>[];
-      var changed = false;
-      // One synchronous pass over every tab list: nothing can interleave
-      // between reading what a tab runs as and rewriting it.
-      for (final owner in _sites.models) {
-        for (final tab in owner.tabs) {
-          if (!tab.followsOpener) continue;
-          final opener = _sites.byId(tab.openerSiteId!);
-          if (opener == null) {
-            // The opener is gone: nothing decides for the tab any more, so it
-            // keeps the container it has (LIR-023 closes it if that is gone).
-            tab.openerSiteId = null;
-            changed = true;
-            continue;
-          }
-          final home = tab.homeUrl!;
-          final runsAs = LinkIntentDispatchEngine.linkTabRunsAs(
-            homeUrl: Uri.parse(home),
-            homeNavigationDomain: getNormalizedDomain(home),
-            routeOutboundLinks: opener.effectiveRouteOutboundLinks,
-            containersActive: _sites.useContainers,
-            opener: SiteRoute(opener),
-            openerPrefs: opener.outboundPreferences,
-            hosts: () => _host.tabHostsIn(owner, opener: opener),
-            current: tab.hostSiteId ?? owner.siteId,
-          );
-          final host = runsAs == owner.siteId ? null : runsAs;
-          if (host == tab.hostSiteId) continue;
-          final identityBefore = owner.runningIdentity;
-          dropped.add(owner.stateKeyForTab(tab.id));
-          LogTag.tabs.debug('Tab ${tab.id} of "${owner.name}" now runs as '
-              '${host ?? owner.siteId} (opener ${opener.siteId})',
-              sensitive: true);
-          final active = tab.id == owner.activeTabId;
-          if (active) _host.cancelPendingCapture(owner.siteId);
-          tab.hostSiteId = host;
-          changed = true;
-          if (active && !identical(identityBefore, owner.runningIdentity)) {
-            _letGoOfIdentity(owner);
-          }
-        }
-      }
-      if (!changed) return;
-      for (final key in dropped) {
+      final dropped = _applyFlips(
+        flips,
+        commit: const Commit.unmodeled(Unmodeled.identityChange),
+        retire: true,
+        loadedBefore: {..._sites.loaded},
+      );
+      for (final key in dropped.values) {
         await navStates.removeState(key);
       }
       if (!_host.mounted) return;
@@ -306,33 +289,161 @@ class TabsController {
     });
   }
 
-  /// [model]'s slot runs as another site from this turn, so its webview,
-  /// built as the one it ran as, goes in the same turn (LIR-024): a plan
-  /// between the two would read the new identity's route for a webview on
-  /// the old one. Under one process-wide proxy the slot also leaves the
-  /// loaded sites, so nothing builds it on its new route beside the sites
-  /// it contends with.
-  void _letGoOfIdentity(WebViewModel model) {
-    final global = residency.proxyTopology is ProcessGlobalProxy;
-    if (global &&
-        _sites.retired(
-          model,
-          commit: const Commit.unmodeled(Unmodeled.identityChange),
-        )) {
-      _host.noteUnloaded(model, why: 'identity change');
-    }
-    model.disposeWebView(
-      commit: const Commit.unmodeled(Unmodeled.identityChange),
+  /// The site [tab], a tab of [owner] a link of [opener]'s opened, runs as
+  /// when [opener] routes outbound links or not ([routes], LIR-034).
+  SiteId _linkRunsAs(
+    WebViewModel owner, {
+    required SiteTab tab,
+    required WebViewModel opener,
+    required bool routes,
+  }) {
+    final home = tab.homeUrl!;
+    return LinkIntentDispatchEngine.linkTabRunsAs(
+      homeUrl: Uri.parse(home),
+      homeNavigationDomain: getNormalizedDomain(home),
+      routeOutboundLinks: routes,
+      containersActive: _sites.useContainers,
+      opener: SiteRoute(opener),
+      openerPrefs: opener.outboundPreferences,
+      hosts: () => _host.tabHostsIn(owner, opener: opener),
+      current: tab.hostSiteId ?? owner.siteId,
     );
-    if (global) _reopen(model);
+  }
+
+  /// The site each of [owner]'s tabs runs as while its opener routes
+  /// outbound links, the model's `link[s]` (LIR-034): null for a tab no
+  /// link opened or whose opener is gone, and for one the list does not
+  /// hold.
+  Map<TabId, WebViewModel?> linkHosts(WebViewModel owner) => {
+    for (final tab in owner.tabs)
+      tab.id: switch (tab.followsOpener ? _sites.byId(tab.openerSiteId!) : null) {
+        final opener? =>
+          _sites.byId(_linkRunsAs(owner, tab: tab, opener: opener, routes: true)) ??
+              owner,
+        null => null,
+      },
+  };
+
+  /// A link tab whose opener is gone: nothing decides for it any more, so it
+  /// keeps the container it has (LIR-023 closes it if that is gone).
+  bool _forgetGoneOpeners() {
+    var forgot = false;
+    for (final owner in _sites.models) {
+      for (final tab in owner.tabs) {
+        if (!tab.followsOpener || _sites.byId(tab.openerSiteId!) != null) {
+          continue;
+        }
+        SiteTab.openerCell.write(
+          at: tab,
+          to: null,
+          commit: const Commit.unmodeled(Unmodeled.siteSet),
+        );
+        forgot = true;
+      }
+    }
+    return forgot;
+  }
+
+  /// Each link tab whose host its opener's switch moves, with the host it
+  /// takes (null for its owner).
+  List<LinkFlip> _linkFlips() => [
+    for (final owner in _sites.models)
+      for (final tab in owner.tabs)
+        if (tab.followsOpener)
+          if (_sites.byId(tab.openerSiteId!) case final opener?)
+            if (_linkRunsAs(
+                  owner,
+                  tab: tab,
+                  opener: opener,
+                  routes: opener.effectiveRouteOutboundLinks,
+                ) case final runsAs
+                when (runsAs == owner.siteId ? null : runsAs) != tab.hostSiteId)
+              (
+                owner: owner,
+                tab: tab,
+                opener: opener,
+                host: runsAs == owner.siteId ? null : runsAs,
+              ),
+  ];
+
+  /// The site whose switch [flips] are, when they are the model's reroute:
+  /// one site's own link tabs, every one its switch moves.
+  WebViewModel? _oneSiteReroutes(List<LinkFlip> flips) {
+    if (flips.isEmpty) return null;
+    final owner = flips.first.owner;
+    if (flips.any((f) => !identical(f.owner, owner) || !identical(f.opener, owner))) {
+      return null;
+    }
+    final links = linkHosts(owner);
+    final flipping = {
+      for (final t in owner.tabs)
+        if (links[t.id] case final h? when !identical(h, owner)) t.id,
+    };
+    return flipping.length == flips.length &&
+            flips.every((f) => flipping.contains(f.tab.id))
+        ? owner
+        : null;
+  }
+
+  /// [flips] written in [commit], each tab's old key returned for its file's
+  /// removal. A slot that runs as another site from this turn lets its
+  /// webview go in the same turn (LIR-024): a plan between the two would
+  /// read the new identity's route for a webview on the old one. Under one
+  /// process-wide proxy the slot also leaves the loaded sites ([retire],
+  /// where no step's write takes it out), so nothing builds it on its new
+  /// route beside the sites it contends with, and it opens again.
+  Map<TabId, String> _applyFlips(
+    List<LinkFlip> flips, {
+    required Commit commit,
+    required bool retire,
+    required Set<WebViewModel> loadedBefore,
+  }) {
+    final global = residency.proxyTopology is ProcessGlobalProxy;
+    final dropped = <TabId, String>{};
+    final moved = <WebViewModel>{};
+    for (final (:owner, :tab, :opener, :host) in flips) {
+      final identityBefore = owner.runningIdentity;
+      dropped[tab.id] = owner.stateKeyForTab(tab.id);
+      LogTag.tabs.debug('Tab ${tab.id} of "${owner.name}" now runs as '
+          '${host ?? owner.siteId} (opener ${opener.siteId})',
+          sensitive: true);
+      if (tab.id == owner.activeTabId) _host.cancelPendingCapture(owner.siteId);
+      SiteTab.hostCell.write(at: tab, to: host, commit: commit);
+      if (!identical(identityBefore, owner.runningIdentity)) moved.add(owner);
+    }
+    for (final model in moved) {
+      if (global && retire) _sites.retired(model, commit: commit);
+      if (global && loadedBefore.contains(model)) {
+        _host.noteUnloaded(model, why: 'identity change');
+      }
+      model.disposeWebView(commit: commit);
+      if (global && retire) _reopen(model);
+    }
+    return dropped;
+  }
+
+  /// The model's reroute in its input's turn ([tabInputs]): the flips its
+  /// table decided, the loaded sites already left where it says so, the
+  /// activation that opens the slot again its spawn.
+  void _reroute(CommitView<TabFlow> c) {
+    final flow = _flow.from(c);
+    flow
+      ..dropped = _applyFlips(
+        flow.flips,
+        commit: c.commit,
+        retire: false,
+        loadedBefore: flow.loadedBefore,
+      )
+      ..commitAfter = true;
+    _host.rebuild();
   }
 
   /// [model] runs as another site from this turn. On screen, or opening
   /// for an activation planned for the identity it left ([_reopened]), it
   /// is activated again in the same turn, the input before any await: the
   /// new activation plans for the new route and supersedes the old, and no
-  /// event sees the screen on a site neither loaded nor opening. The tab
-  /// switch's rebind does this as its [Spawn].
+  /// event sees the screen on a site neither loaded nor opening. A step's
+  /// reroute does this as its [Spawn].
   void _reopen(WebViewModel model) {
     final c = StepContext(TabFlow(this, site: model));
     _site.put(c, value: model);
@@ -849,9 +960,10 @@ class TabsController {
 
   /// The flow's site is on screen, or the target of the activation in
   /// flight: where a slot that runs as another site opens again.
-  static final _reopened =
-      _currentVar.value.eq(_site.value) |
-      _marker.value.part('t', get: (m) => m?.target).eq(_site.value);
+  static final _reopened = _reopenedAt(_site.value);
+  static Expr<bool, TabFlow> _reopenedAt(Expr<WebViewModel, TabFlow> s) =>
+      _currentVar.value.eq(s) |
+      _marker.value.part('t', get: (m) => m?.target).eq(s);
   static final _loaded = Mutable<Iterable<WebViewModel>, TabFlow>.over(
     ModelVar.loaded,
     of: (w) => w._c._sites.vars.loaded,
@@ -875,6 +987,7 @@ class TabsController {
   static const _rest = Field<List<SiteTab>, TabFlow>(FlowField.rest);
   static const _closing = Field<List<TabId>, TabFlow>(FlowField.closing);
   static const _copy = Field<TabId, TabFlow>(FlowField.copy);
+  static const _copyAs = Field<WebViewModel, TabFlow>(FlowField.copyAs);
   static const _label = Field<Uint8List?, TabFlow>(FlowField.label);
   static const _wrote = Field<bool, TabFlow>(FlowField.wrote);
 
@@ -1054,27 +1167,114 @@ class TabsController {
         _flow.from(c).result?.nextActiveId ?? among.first,
   );
 
-  /// LIR-024: a tab switch on a routed site may change the slot's identity
-  /// under a process-global proxy; the pages route none. Only under
-  /// containers does a tab run as another site ([mayHost]).
+  /// LIR-024: a tab switch whose target runs as another site than the
+  /// slot does under one process-wide proxy, where the slot leaves the
+  /// loaded sites. Only under containers does a tab run as another site
+  /// ([mayHost]).
   static final _identityChanges =
-      Constant<bool, TabFlow>(
-        ModelConst.containers,
-        read: (w) => w._c._sites.useContainers,
-      ).value &
-      Expr.op<bool, TabFlow>(
-        HandPaired.routedSite,
-        tla: 'fl[f].site \\in Routed',
-        run: (c) {
-          final site = _site.of(c);
-          if (!_page.from(c).processGlobal) return false;
-          final target = _targetOf(c);
-          return target != null &&
-              !identical(site.runningIdentity, site.hostOf(target) ?? site);
-        },
-        reads: Reads.none,
-        needs: const {(of: ModelConst.routed, set: true)},
-      );
+      _containers &
+      _globalProxy &
+      _tabHost.at(_site.value).at(_tab.value).neq(_runsAs(_site.value));
+
+  static final _containers = Constant<bool, TabFlow>(
+    ModelConst.containers,
+    read: (w) => w._c._sites.useContainers,
+  ).value;
+  static final _sitesListed = Constant<List<WebViewModel>, TabFlow>(
+    ModelConst.sites,
+    read: (w) => w._c._sites.models,
+  ).value;
+  static final _noLink = Expr.constant<WebViewModel?, TabFlow>(null, tla: '0');
+
+  /// The link tabs there are (`Links`, the ones a world starts with): a
+  /// reroute moves only tabs a link opened.
+  static final _links = Constant<List<TabId>, TabFlow>(
+    ModelConst.links,
+    read: (w) => [
+      for (final m in w._c._sites.models)
+        for (final t in m.tabs)
+          if (t.followsOpener) t.id,
+    ],
+  ).value;
+
+  /// The listed tabs of [s] a link opened into another site's domain,
+  /// which s's switch moves between the two (LIR-034).
+  static Expr<List<TabId>, TabFlow> _relinked(Expr<WebViewModel, TabFlow> s) {
+    const l = Bound<TabId, TabFlow>('l');
+    final to = _link.at(s).at(l.it);
+    return _tabIds(s).where(l, holds: ~(to.eq(_noLink) | to.eq(s)));
+  }
+
+  /// The site whose switch flipped: one whose tabs the model follows
+  /// (`Tabbed`) with such a tab.
+  static final _eachRerouted = () {
+    const o = Bound<WebViewModel, TabFlow>('o');
+    // Not `s`: the activation its slot's arm spawns binds that.
+    return Pick<WebViewModel, TabFlow>(
+      _sitesListed.where(
+        o,
+        holds: TabVars.tabbed<TabFlow>().has(o.it) & _relinked(o.it).isNotEmpty,
+      ),
+      first: (c, {required among}) => _flow.from(c).site,
+      name: 'r',
+    );
+  }();
+  static final _rerouted = _eachRerouted.it;
+
+  /// Each of [s]'s relinked tabs runs as the other of its two sites.
+  static Write<TabFlow> _flip(Expr<WebViewModel, TabFlow> s) {
+    const t = Bound<TabId, TabFlow>('t');
+    final host = TabVars.hostFn<TabFlow>();
+    return host.becomes(
+      host.value.except(
+        s,
+        to: host.value.at(s).exceptEach(
+          _relinked(s),
+          x: t,
+          to: Expr.choose(
+            when: host.value.at(s).at(t.it).eq(s),
+            then: _link.at(s).at(t.it).unwrapped,
+            otherwise: s,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The site [tab] of [s] ran as before a reroute flipped it, whose key
+  /// its old file is under.
+  static Expr<WebViewModel, TabFlow> _left(
+    Expr<WebViewModel, TabFlow> s, {
+    required Expr<TabId, TabFlow> tab,
+  }) => Expr.choose(
+    when: _tabHost.at(s).at(tab).eq(s),
+    then: _link.at(s).at(tab).unwrapped,
+    otherwise: s,
+  );
+
+  /// The loaded sites as a reroute's flips found them.
+  static final _beforeReroute = Note<TabFlow>(
+    (c) => _flow.from(c).loadedBefore = _page.from(c).loaded,
+  );
+
+  /// The tab on screen is one the reroute flips: the slot runs as another
+  /// site.
+  static final _slotFlips = _relinked(_site.value).has(_active.at(_site.value));
+
+  static final _globalProxy = Constant<bool, TabFlow>(
+    ModelConst.globalProxy,
+    read: (w) => TabCalls(w._c).processGlobal,
+  ).value;
+  static final _tabHost = TabVars.host<TabFlow>();
+  static Expr<WebViewModel, TabFlow> _runsAs(Expr<WebViewModel, TabFlow> s) =>
+      TabVars.runsAs<TabFlow>().call([s]);
+
+  /// `link[s]` as the code reads it: the site each link tab runs as while
+  /// its opener routes outbound links ([linkHosts]).
+  static final _link = Indexed<WebViewModel, Map<TabId, WebViewModel?>, TabFlow>.reported(
+    ModelVar.link,
+    read: (w, {required at}) => w._c.linkHosts(at),
+  );
 
   static String _copyKey(StepView<TabFlow> c) {
     final copy = _flow.from(c).fresh!;
@@ -1241,8 +1441,31 @@ class TabsController {
             ..._starts,
             _tab.becomes(_active.at(_current)),
             _copy.becomes(_mint),
+            _copyAs.becomes(_runsAs(_current)),
           ],
           next: to(TabPlace.tDupRead),
+        ),
+      ),
+      // reroute: a site's routing switch flipped as its settings closed
+      // (LIR-034): the link tabs it opened in its own tree are to run as
+      // the site their link leads to, or as it again (rFlip, in this turn),
+      // and their old files go next (rRemove). Asked while a handler holds
+      // the gate, it waits for it to let go, which the model takes as one
+      // dropped now and one landing then.
+      TabPlace.reroute => Step.input(
+        ActivationStep.reroute,
+        enabled: _containers & _links.isNotEmpty,
+        pick: _eachRerouted,
+        site: _rerouted,
+        branches: [_dropped],
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            _kind.becomes(Expr.constant(FlowKind.tab)),
+            _site.becomes(_rerouted),
+            _closing.becomes(_relinked(_rerouted)),
+          ],
+          next: to(TabPlace.rFlip),
         ),
       ),
       TabPlace.tCap ||
@@ -1254,6 +1477,8 @@ class TabsController {
       TabPlace.tDupSave ||
       TabPlace.tDupInsert ||
       TabPlace.tDupRemove ||
+      TabPlace.rFlip ||
+      TabPlace.rRemove ||
       TabPlace.done => const Leaves(),
     },
   );
@@ -1267,6 +1492,7 @@ class TabsController {
     of: (
       site: _site.value,
       built: (s) => s.tabBinding.built,
+      hosts: (s) => s.tabHosts,
       begin: (c) => _page.from(c).beginCapture(_site.of(c)),
       marks: _site.value,
       keeps: null,
@@ -1290,6 +1516,7 @@ class TabsController {
       TabPlace.newTab ||
       TabPlace.closeTab ||
       TabPlace.duplicateTab ||
+      TabPlace.reroute ||
       TabPlace.done => const Leaves(),
       // The outgoing tab's back stack captured under the webview's tab
       // (Capture); a target closed meanwhile ends the switch.
@@ -1345,6 +1572,7 @@ class TabsController {
               Act.of([
                 _active.except(_site.value, to: _tab.value),
                 _tabs.except(_site.value, to: _installed),
+                ...TabVars.dropped(_site.value, kept: _targetIn),
                 _loaded.becomes(_loaded.value.less(_site.value.asSet)),
                 ...TabVars.rebound(
                   _site.value,
@@ -1369,6 +1597,7 @@ class TabsController {
             Act.of([
               _active.except(_site.value, to: _tab.value),
               _tabs.except(_site.value, to: _installed),
+              ...TabVars.dropped(_site.value, kept: _targetIn),
               _tier.except(_site.value, to: _residentIfLoaded),
               ...TabVars.rebound(
                 _site.value,
@@ -1430,6 +1659,7 @@ class TabsController {
           then: [
             Act.of([
               _tabs.except(_site.value, to: _rest.value),
+              ...TabVars.dropped(_site.value, kept: _restIds),
               _active.except(
                 _site.value,
                 to: Expr.choose(
@@ -1493,6 +1723,7 @@ class TabsController {
               _site.value,
               copy: _copy.value,
               source: _tab.value,
+              as: _copyAs.value,
               label: _labelTla,
             ),
           ],
@@ -1526,7 +1757,24 @@ class TabsController {
           StepOutcome.go,
           then: [
             Act.of(
-              [_tabs.except(_site.value, to: _withCopy)],
+              [
+                _tabs.except(_site.value, to: _withCopy),
+                // The copy runs as its source did and follows its link.
+                TabVars.hostFn<TabFlow>().becomes(
+                  TabVars.hostFn<TabFlow>().value.exceptAt(
+                    _site.value,
+                    at: _copy.value,
+                    to: _copyAs.value,
+                  ),
+                ),
+                TabVars.linkFn<TabFlow>().becomes(
+                  TabVars.linkFn<TabFlow>().value.exceptAt(
+                    _site.value,
+                    at: _copy.value,
+                    to: _link.at(_site.value).at(_tab.value),
+                  ),
+                ),
+              ],
               then: (c) => _page.from(c).duplicated(c),
             ),
           ],
@@ -1539,126 +1787,103 @@ class TabsController {
         call: Call.on(
           _files,
           run: (c) => c.api.removeState(_copyKey(c)),
-          writes: [TabVars.removed(_site.value, tab: _copy.value)],
+          writes: [
+            TabVars.removedAs(_site.value, tab: _copy.value, as: _copyAs.value),
+          ],
         ),
         site: _site.value,
         otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.done)),
       ),
+      // The flips, in the reroute's turn. The tab on screen moves the slot
+      // to the other site: under one process-wide proxy it leaves the
+      // loaded sites and its activation for the new route starts here, the
+      // arm's spawn (LIR-024); else its webview is built again as the other
+      // site, as a tab switch's rebind builds it.
+      TabPlace.rFlip => Step(
+        ActivationStep.rerouteFlip,
+        holds: null,
+        site: _site.value,
+        branches: [
+          Branch(
+            StepOutcome.unload,
+            when: _slotFlips & _globalProxy,
+            then: [
+              _beforeReroute,
+              Act.of([
+                _flip(_site.value),
+                _loaded.becomes(_loaded.value.less(_site.value.asSet)),
+                ...TabVars.rebound(
+                  _site.value,
+                  tab: _active.at(_site.value),
+                  label: noTab<TabFlow>(),
+                  loaded: _loaded.value.less(_site.value.asSet),
+                ),
+              ], then: (c) => _page.from(c).reroute(c)),
+              Spawn(
+                ActivationStep.tap,
+                site: _site.value,
+                when: _reopened,
+                start: (c) => _page.from(c).activate(_site.of(c)),
+              ),
+            ],
+            next: to(TabPlace.rRemove),
+          ),
+          Branch(
+            StepOutcome.rebind,
+            when: _slotFlips,
+            then: [
+              _beforeReroute,
+              Act.of([
+                _flip(_site.value),
+                ...TabVars.rebound(
+                  _site.value,
+                  tab: _active.at(_site.value),
+                  label: noTab<TabFlow>(),
+                  loaded: _loaded.value,
+                ),
+              ], then: (c) => _page.from(c).reroute(c)),
+            ],
+            next: to(TabPlace.rRemove),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.none,
+          then: [
+            _beforeReroute,
+            Act.of([_flip(_site.value)], then: (c) => _page.from(c).reroute(c)),
+          ],
+          next: to(TabPlace.rRemove),
+        ),
+      ),
+      // A flipped tab's file under the site it left removed, one a step.
+      TabPlace.rRemove => Step(
+        ActivationStep.rerouteRemoveReply,
+        holds: null,
+        pick: _eachClosing,
+        call: Call.on(
+          _files,
+          run: (c) => c.api.removeState(
+            _flow.from(c).dropped[_eachClosing.it.run(c)]!,
+          ),
+          writes: [
+            TabVars.removedAs(
+              _site.value,
+              tab: _eachClosing.it,
+              as: _left(_site.value, tab: _eachClosing.it),
+            ),
+          ],
+        ),
+        site: _site.value,
+        branches: [
+          Branch(
+            StepOutcome.more,
+            when: ~_closing.value.without(_eachClosing.it).isEmpty,
+            then: [_closing.becomes(_closing.value.without(_eachClosing.it))],
+            next: to(TabPlace.rRemove),
+          ),
+        ],
+        otherwise: Otherwise(StepOutcome.end, then: [], next: to(TabPlace.done)),
+      ),
     },
   );
-
-}
-
-
-/// The places a tab flow waits at, as `activation.tla` names them: the
-/// inputs, the switch (its capture, its nav read, the slot's reroute, the
-/// rebind), a close's removals and a duplicate's read, write and insert.
-enum TabPlace {
-  openTab,
-  newTab,
-  closeTab,
-  duplicateTab,
-  tCap,
-  tCapSave,
-  tNav,
-  tRebind,
-  tRemove,
-  tDupRead,
-  tDupSave,
-  tDupInsert,
-  tDupRemove,
-  done,
-}
-
-/// What a tab flow's steps run against: the controller, the site, what the
-/// handler was asked, and what the flow found on its way.
-/// What a tab flow keeps for itself: the site and tab its handler named,
-/// what it minted and decided, and what it leaves the handler to finish.
-/// Code-only, none of it a variable of the model.
-abstract interface class TabState {
-  WebViewModel get site;
-  TabId? get requested;
-  String? get url;
-  bool get subtree;
-  abstract SiteTab? fresh;
-  abstract TabCloseResult? result;
-  abstract bool rebound;
-  abstract bool commitAfter;
-  abstract TabId? offer;
-}
-
-/// What the tab steps ask of the page and do to it, through their `page`
-/// port: whether it is still there, the gate, whether the proxy is the
-/// process's, a capture's start, and the redraws and rebinds a step's act
-/// finishes with.
-final class TabCalls {
-  TabCalls(this._c);
-
-  final TabsController _c;
-
-  bool get mounted => _c._host.mounted;
-  bool get gateBusy => _c._gate.busy;
-  bool get processGlobal => _c.residency.proxyTopology is ProcessGlobalProxy;
-  bool isShown(WebViewModel site) => identical(site, _c._sites.shown);
-  bool isLoaded(WebViewModel site) => _c._sites.loaded.contains(site);
-
-  NavCapture? beginCapture(WebViewModel site) {
-    _c._host.cancelPendingCapture(site.siteId);
-    return _c._host.beginNavCapture(site);
-  }
-
-  void rebind(CommitView<TabFlow> c) => _c._rebind(c);
-  void rebindAs(CommitView<TabFlow> c) => _c._rebindAs(c);
-
-  /// An activation of [site], its input run before this returns.
-  void activate(WebViewModel site) => unawaited(_c._host.activate(site));
-  void closed(StepView<TabFlow> c) => _c._closed(c);
-  void duplicated(StepView<TabFlow> c) => _c._duplicated(c);
-}
-
-final class TabFlow implements Capturing, TabState {
-  TabFlow(
-    this._c, {
-    required this.site,
-    this.requested,
-    this.url,
-    this.subtree = false,
-  });
-
-  final TabsController _c;
-  @override
-  final WebViewModel site;
-
-  @override
-  NavCapture? capture;
-
-  /// The tab the handler names (openTab, closeTab).
-  @override
-  final TabId? requested;
-
-  /// A new tab's URL when not the site's home (a search, LIR-030).
-  @override
-  final String? url;
-
-  /// Whether a close takes the tab's subtree with it.
-  @override
-  final bool subtree;
-
-  /// A tab this flow minted: a new tab, the home tab after the last close,
-  /// a duplicate's copy.
-  @override
-  SiteTab? fresh;
-
-  /// The close the engine decided.
-  @override
-  TabCloseResult? result;
-
-  /// What the flow leaves for the handler to finish: the shell and the
-  /// save a rebind owes, the offer a duplicate makes.
-  @override
-  bool rebound = false;
-  @override
-  bool commitAfter = false;
-  @override
-  TabId? offer;
 }

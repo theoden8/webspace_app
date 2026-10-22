@@ -11,10 +11,12 @@ import 'package:webspace/services/model_names.dart';
 enum Env {
   awaySpaces(op: ModelConst.away, by: 'AwaySpaces'),
   proxyGlobal(op: ModelConst.contending, by: 'ProxyGlobal'),
+  globalProxy(op: ModelConst.globalProxy, by: 'GlobalOn'),
   routerContending(op: ModelConst.contending, by: 'RouterShared'),
   routerShared(op: ModelConst.routed, by: 'RouterShared'),
   routeSplit(op: ModelConst.route, by: 'RouteSplit'),
   linkAny(op: ModelConst.linked, by: 'LinkAny'),
+  linkTab(op: ModelConst.links, by: 'LinkOne'),
   torOn(op: ModelConst.torRuntime, by: 'TorOn'),
   exitSplit(op: ModelConst.torExit, by: 'ExitSplit'),
   notifyAll(op: ModelConst.notified, by: 'NotifyAll'),
@@ -71,7 +73,15 @@ enum Inv {
   leftHidden(reads: {ModelVar.current, ModelVar.fl, ModelVar.version}),
   loadedNotSaved(atRest: true, reads: {ModelVar.loaded, ModelVar.tier}),
   places(reads: {ModelVar.fl, ModelVar.holder}),
-  oneRoute(reads: {ModelVar.headless, ModelVar.loaded, ModelVar.nested}),
+  oneRoute(
+    reads: {
+      ModelVar.active,
+      ModelVar.headless,
+      ModelVar.host,
+      ModelVar.loaded,
+      ModelVar.nested,
+    },
+  ),
   checksOffScreen(
     reads: {ModelVar.fore, ModelVar.headless},
     inductive: true,
@@ -194,7 +204,7 @@ enum ActivationWorld {
     cookies: Cookies.sharedJar,
     coldStart: true,
     inputs: 3,
-    env: {Env.proxyGlobal, Env.routeSplit},
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit},
     invariants: [..._core, ..._jar, Inv.oneRoute],
     holds:
         'shared jar, two routes under one process-global proxy: one route '
@@ -204,7 +214,7 @@ enum ActivationWorld {
     cookies: Cookies.containers,
     coldStart: true,
     inputs: 3,
-    env: {Env.proxyGlobal, Env.routeSplit},
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit},
     invariants: [..._core, Inv.oneRoute],
     holds:
         'containers, two routes under one process-global proxy: one route '
@@ -234,7 +244,7 @@ enum ActivationWorld {
     cookies: Cookies.containers,
     coldStart: true,
     inputs: 3,
-    env: {Env.proxyGlobal, Env.routeSplit, Env.linkAny},
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny},
     invariants: [..._core, Inv.oneRoute],
     holds:
         'containers, two routes, links opened nested: the screen and the '
@@ -244,7 +254,7 @@ enum ActivationWorld {
     cookies: Cookies.sharedJar,
     coldStart: true,
     inputs: 3,
-    env: {Env.proxyGlobal, Env.routeSplit, Env.linkAny},
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny},
     invariants: [..._core, ..._jar, Inv.oneRoute],
     holds:
         'shared jar, two routes, links opened nested: the screen and the '
@@ -264,7 +274,7 @@ enum ActivationWorld {
     cookies: Cookies.containers,
     coldStart: true,
     inputs: 3,
-    env: {Env.proxyGlobal, Env.routeSplit, Env.linkAny, Env.proxyRefuses},
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny, Env.proxyRefuses},
     invariants: [..._core, Inv.oneRoute],
     holds:
         'containers, two routes, a proxy rule the platform refuses: a nested '
@@ -314,7 +324,7 @@ enum ActivationWorld {
     cookies: Cookies.containers,
     coldStart: true,
     inputs: 4,
-    env: {Env.proxyGlobal, Env.routeSplit, Env.notifyAll, Env.wakesUp},
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.notifyAll, Env.wakesUp},
     invariants: [..._core, Inv.oneRoute, Inv.checksOffScreen],
     holds:
         'containers, two routes, a background wake: the checks and the '
@@ -326,6 +336,7 @@ enum ActivationWorld {
     inputs: 3,
     env: {
       Env.proxyGlobal,
+      Env.globalProxy,
       Env.routeSplit,
       Env.linkAny,
       Env.notifyAll,
@@ -407,8 +418,30 @@ enum ActivationWorld {
     allowed: {'CloseTab', 'DuplicateTab', 'NewTab', 'OpenTab', 'Tap'},
     invariants: [..._core, ..._tabs, Inv.oneRoute],
     holds:
-        "site 1's tabs on a routed slot under containers: a rebind that "
-        'reroutes the slot opens it again in the same turn (LIR-024)',
+        "site 1's tabs under the router's shared session: the switches "
+        'keep one route (LIR-024)',
+  ),
+  tabsRerouteContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // A tab switch onto a rerouted tab reopens the slot as the fourth input:
+    // a tap, the reroute, the switch and the tap it spawns.
+    inputs: 4,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {
+      Env.proxyGlobal,
+      Env.globalProxy,
+      Env.routeSplit,
+      Env.linkTab,
+    },
+    allowed: {'GoHome', 'OpenTab', 'Pressure', 'Reroute', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's link tab into site 3's domain under one process-wide "
+        'proxy: a reroute or a tab switch that moves the slot to another '
+        'site takes it out of the loaded sites and opens it again in the '
+        'same turn (LIR-024, LIR-034)',
   ),
   archiveContainers(
     cookies: Cookies.containers,
@@ -665,10 +698,16 @@ enum Witness {
     doc: 'a webspace switch that found the device offline is reachable',
   ),
   reopened(
-    world: ActivationWorld.tabsRouterContainers,
+    world: ActivationWorld.tabsRerouteContainers,
     doc:
         'a rebind that reroutes the slot on screen starting its activation '
         'in the same turn is reachable',
+  ),
+  rerouted(
+    world: ActivationWorld.tabsRerouteContainers,
+    doc:
+        'a reroute that moves the slot on screen starting its activation in '
+        'the same turn is reachable',
   );
 
   const Witness({required this.world, required this.doc});
@@ -856,11 +895,19 @@ enum Mutant {
         'webview leaves it on disk (CONT-010, caught)',
   ),
   noreopen(
-    world: ActivationWorld.tabsRouterContainers,
+    world: ActivationWorld.tabsRerouteContainers,
     by: Inv.shownLoaded,
     doc:
         'a rebind that reroutes the slot on screen and starts no activation '
         'leaves it unloaded (LIR-024, caught)',
+  ),
+  rerouteinplace(
+    world: ActivationWorld.tabsRerouteContainers,
+    by: Inv.oneRoute,
+    doc:
+        'a reroute that moves a loaded slot to another site under one '
+        'process-wide proxy and keeps it loaded runs two routes (LIR-024, '
+        'caught)',
   );
 
   const Mutant({

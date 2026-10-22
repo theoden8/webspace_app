@@ -46,39 +46,55 @@ void main() {
     });
 
     test('rewrites every tab list in one pass with no await inside', () {
-      final start = body.indexOf('for (final owner in _sites.models)');
-      final end = body.indexOf('if (!changed) return;');
-      expect(start, isNot(-1));
-      expect(end, greaterThan(start));
-      final pass = body.substring(start, end);
-      expect(pass, isNot(contains('await')),
+      final flips = body.indexOf('final flips = _linkFlips();');
+      expect(flips, isNot(-1));
+      final step = body.indexOf('tabInputs.runInput(c, from: TabPlace.reroute)');
+      final rest = body.indexOf('commit: const Commit.unmodeled(Unmodeled.identityChange),');
+      expect(step, greaterThan(flips));
+      expect(rest, greaterThan(flips));
+      expect(body.substring(flips, step), isNot(contains('await')),
           reason: 'an await between reading what a tab runs as and '
               'rewriting it lets a tab switch in between');
-      expect(pass, contains('tab.hostSiteId = host;'));
-      expect(pass, contains('LinkIntentDispatchEngine.linkTabRunsAs('));
+      expect(body.substring(flips, rest), isNot(contains('await navStates')));
+      for (final pass in [
+        tabsBody('List<LinkFlip> _linkFlips('),
+        tabsBody('Map<TabId, String> _applyFlips('),
+      ]) {
+        expect(pass, isNot(contains('await')));
+      }
+      expect(tabsBody('Map<TabId, String> _applyFlips('),
+          contains('SiteTab.hostCell.write(at: tab, to: host, commit: commit);'));
+      expect(tabsBody('SiteId _linkRunsAs('),
+          contains('LinkIntentDispatchEngine.linkTabRunsAs('));
     });
 
     test('asks the engine with the opener\'s live switch and its own pick', () {
+      final ask = tabsBody('SiteId _linkRunsAs(');
       for (final arg in [
-        'routeOutboundLinks: opener.effectiveRouteOutboundLinks',
+        'routeOutboundLinks: routes',
         'containersActive: _sites.useContainers',
         'openerPrefs: opener.outboundPreferences',
         'hosts: () => _host.tabHostsIn(owner, opener: opener)',
         'current: tab.hostSiteId ?? owner.siteId',
       ]) {
-        expect(body, contains(arg), reason: arg);
+        expect(ask, contains(arg), reason: arg);
       }
+      expect(tabsBody('List<LinkFlip> _linkFlips('),
+          contains('routes: opener.effectiveRouteOutboundLinks'));
     });
 
     test('a flipped tab leaves nothing of its old container behind', () {
-      final flip = body.indexOf('tab.hostSiteId = host;');
+      final apply = tabsBody('Map<TabId, String> _applyFlips(');
+      final flip = apply.indexOf('SiteTab.hostCell.write(at: tab, to: host, commit: commit);');
       // The old key is read while the tab still runs as the old identity.
-      final key = body.indexOf('dropped.add(owner.stateKeyForTab(tab.id));');
+      final key = apply.indexOf('dropped[tab.id] = owner.stateKeyForTab(tab.id);');
       expect(key, isNot(-1));
       expect(key, lessThan(flip));
       expect(body, contains('await navStates.removeState(key);'));
+      expect(tabs, contains('_flow.from(c).dropped[_eachClosing.it.run(c)]!'),
+          reason: "the reroute's removals take the keys the flips read");
       // A pending debounced capture would write the old page's bytes after.
-      final cancel = body.indexOf('_host.cancelPendingCapture(owner.siteId);');
+      final cancel = apply.indexOf('_host.cancelPendingCapture(owner.siteId);');
       expect(cancel, isNot(-1));
       expect(cancel, lessThan(flip));
     });
@@ -87,22 +103,20 @@ void main() {
     // switches, is the reroute world of activation_schedules_test.
     test('a live slot lets go of its webview in the turn its identity moves '
         '(LIR-024)', () {
-      final start = body.indexOf('for (final owner in _sites.models)');
-      final pass = body.substring(start, body.indexOf('if (!changed) return;'));
-      expect(pass.indexOf('_letGoOfIdentity(owner);'),
-          greaterThan(pass.indexOf('tab.hostSiteId = host;')),
+      final apply = tabsBody('Map<TabId, String> _applyFlips(');
+      expect(apply.indexOf('model.disposeWebView(commit: commit);'),
+          greaterThan(apply.indexOf('SiteTab.hostCell.write(')),
           reason: 'a plan between the two would read the new identity\'s '
               'route for a webview still on the old one');
-      final letGo = tabsBody('void _letGoOfIdentity(');
-      expect(letGo, contains('model.disposeWebView(\n      commit: const Commit.unmodeled(Unmodeled.identityChange),\n    );'));
-      expect(letGo, matches(RegExp(r'_sites\.retired\(\s*model,')));
+      expect(apply, contains('if (global && retire) _sites.retired(model, commit: commit);'));
     });
 
     test('a vanished opener leaves the tab where it is', () {
       expect(
-        RegExp(r'if \(opener == null\) \{[^}]*tab\.openerSiteId = null;[^}]*continue;',
+        RegExp(r'_sites\.byId\(tab\.openerSiteId!\) != null\)[^}]*continue;\s*\}\s*'
+                r'SiteTab\.openerCell\.write\(\s*at: tab,\s*to: null,',
                 dotAll: true)
-            .hasMatch(body),
+            .hasMatch(tabsBody('bool _forgetGoneOpeners(')),
         isTrue,
       );
     });

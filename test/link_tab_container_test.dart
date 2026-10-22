@@ -8,6 +8,7 @@ import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -160,7 +161,11 @@ void main() {
       );
       final asOpener = m.activeStateKey;
       expect(asOpener, webViewStateKey(SiteId('gh'), tabId: TabId('l')));
-      m.activeTab.hostSiteId = SiteId('ddg');
+      SiteTab.hostCell.write(
+        at: m.activeTab,
+        to: SiteId('ddg'),
+        commit: const Commit.fixture(),
+      );
       expect(m.activeStateKey, webViewStateKey(SiteId('ddg'), tabId: TabId('l')));
       expect(m.activeStateKey, isNot(asOpener));
     });
@@ -186,7 +191,11 @@ void main() {
         tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab(host: SiteId('ddg'))],
         active: TabId('l'),
       );
-      m.activeTab.hostSiteId = null;
+      SiteTab.hostCell.write(
+        at: m.activeTab,
+        to: null,
+        commit: const Commit.fixture(),
+      );
       expect(m.runningIdentity, same(m));
       expect(m.runsForeignTab, isTrue);
       expect(m.navigationHomeUrl, ddgLink);

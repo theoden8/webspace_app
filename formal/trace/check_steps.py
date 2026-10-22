@@ -52,7 +52,8 @@ def tla_seq(xs):
     return "<<" + ", ".join(xs) + ">>"
 
 
-TAB_VARS = ["tabs", "active", "built", "hist", "queued", "file", "minted"]
+TAB_VARS = ["tabs", "active", "built", "hist", "queued", "file", "minted",
+            "host", "link"]
 ARCHIVE_VARS = ["gone", "views", "boxes"]
 
 
@@ -77,16 +78,29 @@ def tla_state(s, max_tabs=1):
         tla_set(s.get("dns", {}).get("levels", [])),
         tla_seq(str(t) for t in s.get("told", [-1] * len(s["tier"]))))
     if "tabs" in s:
+        sites = len(s["tabs"])
+
+        def padded(row, fill):
+            return row + [fill] * (max_tabs - len(row))
+
+        # A tab not yet made has no file, runs as its own site and follows
+        # no link.
         core += (", tabs |-> %s, active |-> %s, built |-> %s, hist |-> %s, "
-                 "queued |-> %s, file |-> %s, minted |-> %s") % (
+                 "queued |-> %s, file |-> %s, minted |-> %s, host |-> %s, "
+                 "link |-> %s") % (
             tla_seq(tla_set(x) for x in s["tabs"]),
             tla_seq(str(x) for x in s["active"]),
             tla_seq(str(x) for x in s["built"]),
             tla_seq(str(x) for x in s["hist"]),
             tla_seq("[t |-> %d, h |-> %d]" % (q[0], q[1]) for q in s["queued"]),
-            tla_seq(tla_seq(str(v) for v in f + [0] * (max_tabs - len(f)))
+            tla_seq(tla_seq(tla_seq(str(v) for v in by)
+                            for by in padded(f, [0] * sites))
                     for f in s["file"]),
-            tla_seq(str(x) for x in s["minted"]))
+            tla_seq(str(x) for x in s["minted"]),
+            tla_seq(tla_seq(str(v) for v in padded(h, i + 1))
+                    for i, h in enumerate(s["host"])),
+            tla_seq(tla_seq(str(v) for v in padded(l, 0))
+                    for l in s["link"]))
     if "gone" in s:
         core += ", gone |-> %s, views |-> %s, boxes |-> %s" % (
             tla_set(s["gone"]), tla_set(s["views"]), tla_set(s["boxes"]))
@@ -166,8 +180,10 @@ def module(name, trace, variables):
             "        /\\ tabs = [s \\in Sites |-> {1}] /\\ active = [s \\in Sites |-> 1]",
             "        /\\ built = [s \\in Sites |-> 0] /\\ hist = built",
             "        /\\ queued = [s \\in Sites |-> NoQueued]",
-            "        /\\ file = [s \\in Sites |-> [t \\in TabIds |-> 0]]",
-            "        /\\ minted = [s \\in Sites |-> 1]"]),
+            "        /\\ file = [s \\in Sites |-> [t \\in TabIds |-> [h \\in Sites |-> 0]]]",
+            "        /\\ minted = [s \\in Sites |-> 1]",
+            "        /\\ host = [s \\in Sites |-> [t \\in TabIds |-> s]]",
+            "        /\\ link = [s \\in Sites |-> [t \\in TabIds |-> 0]]"]),
         # `minted` is the model's own pool bookkeeping, counted at the input
         # that mints, while the code's new tab shows only once it is listed
         # or saved: the model's count stands, the trace's is not held to it.

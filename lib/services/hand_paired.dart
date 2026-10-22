@@ -90,9 +90,6 @@ enum HandPaired implements Pairing {
   /// (`fl[f].tab \in tabs[fl[f].site]`).
   duplicateSourceStays,
 
-  /// A target tab that runs as another site (`fl[f].site \in Routed`).
-  routedSite,
-
   /// The notification sites a wake checks headless
   /// (`IF Containers THEN Notified \ loaded ELSE {}`).
   offlineNotified,
