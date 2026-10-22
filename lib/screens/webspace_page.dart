@@ -575,12 +575,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Corner for the currently active site: its remembered per-site choice,
   /// falling back to the app-wide legacy bottom-corner default.
   TabBarCorner get _tabBarButtonCornerEffective {
-    final index = _sites.current;
-    TabBarCorner? corner;
-    if (index != null && index < _sites.models.length) {
-      corner = _sites.models[index].tabBarButtonCorner;
-    }
-    return corner ??
+    return _sites.shown?.tabBarButtonCorner ??
         (AppPref.tabBarButtonOnRight.value
             ? TabBarCorner.bottomRight
             : TabBarCorner.bottomLeft);
@@ -616,10 +611,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     rebuild: () {
       if (mounted) setState(() {});
     },
-    onScreen: (slot) =>
-        _sites.current != null &&
-        _sites.current! < _sites.models.length &&
-        identical(_sites.models[_sites.current!], slot),
+    onScreen: (slot) => identical(_sites.shown, slot),
     launchNested: launchUrl,
     openInBrowser: launchUrlInSystemBrowser,
     routeOutbound: _links.routeOutbound,
@@ -651,11 +643,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // LIR-032: the screen opens over the tab on screen, and a link in it into
     // one of the user's sites goes back there as a tab. The tab opens once the
     // screen is gone, before whatever its opener runs on close.
-    final owner = opensFromTab &&
-            _sites.current != null &&
-            _sites.current! < _sites.models.length
-        ? _sites.models[_sites.current!]
-        : null;
+    final owner = opensFromTab ? _sites.shown : null;
     final parentTabId = owner?.activeTabId;
     final openedFrom = owner?.runningIdentity.getDisplayName();
     final nestedSite = _sites.byId(posture.siteId);
@@ -725,13 +713,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
-  WebViewController? getController() {
-    if(_sites.current == null) {
-      return null;
-    }
-    final model = _sites.models[_sites.current!];
-    return model.getController(_webViewHooks);
-  }
+  WebViewController? getController() =>
+      _sites.shown?.getController(_webViewHooks);
 
   /// User-driven full session wipe for a single site. Under containers the
   /// container's data goes in place (the fork's `clearContainerData`, made for
@@ -1053,10 +1036,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   AppBar _buildAppBar() {
     final loc = AppLocalizations.of(context);
-    final currentModel =
-        _sites.current != null && _sites.current! < _sites.models.length
-            ? _sites.models[_sites.current!]
-            : null;
+    final currentModel = _sites.shown;
     return AppBar(
       bottom: currentModel == null
           ? null
@@ -1073,7 +1053,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               onPressed: () => unawaited(_onSiteMenuAction(SiteMenuAction.backToWebspaces)),
             )
           : null,
-      title: _sites.current != null && _sites.current! < _sites.models.length
+      title: currentModel != null
           ? GestureDetector(
               onDoubleTap: _fullscreen.toggle,
               child: Row(
@@ -1081,7 +1061,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 children: [
                   Flexible(
                     child: Text(
-                      _sites.models[_sites.current!].getDisplayName(),
+                      currentModel.getDisplayName(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       softWrap: false,
@@ -1104,15 +1084,15 @@ class _WebSpacePageState extends State<WebSpacePage>
         // Protection report shield, badged with the week's block count.
         // Same visibility rule as the settings gear: the webspaces list is
         // the app's "home", which is where a protection summary belongs.
-        if (_sites.current == null || _sites.current! >= _sites.models.length)
+        if (currentModel == null)
           ProtectionShieldButton(onPressed: _openProtectionReport),
-        if (_sites.current == null || _sites.current! >= _sites.models.length)
+        if (currentModel == null)
           IconButton(
             icon: Icon(Icons.settings),
             tooltip: loc.homeAppSettingsTooltip,
             onPressed: _openAppSettings,
           ),
-        if (_sites.current != null && _sites.current! < _sites.models.length && !AppPref.showTabStrip.value)
+        if (currentModel != null && !AppPref.showTabStrip.value)
           _siteMenu(SiteMenuPlacement.appBar),
       ],
     );
@@ -1125,10 +1105,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool get _tabStripShown {
     // KIOSK-002: never show the tab strip in a locked session, in or out of
     // fullscreen — no switching away from the kiosk site.
-    if (_kioskLocked) return false;
-    if (_sites.current == null || _sites.current! >= _sites.models.length) {
-      return false;
-    }
+    if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
     if (_fullscreen.active) {
       if (AppPref.tabStripInFullscreen.value) return true;
@@ -1144,10 +1121,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool get _tabBarButtonShown {
     if (!AppPref.tabBarButton.value) return false;
     // KIOSK-002: a locked session must not expose tab switching.
-    if (_kioskLocked) return false;
-    if (_sites.current == null || _sites.current! >= _sites.models.length) {
-      return false;
-    }
+    if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
     if (_fullscreen.tabStripRevealed) return false;
     if (_fullscreen.active) return !AppPref.tabStripInFullscreen.value;
@@ -1187,12 +1161,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Build the URL bar and find toolbar, placed in the body so that
   /// resizeToAvoidBottomInset keeps them above the keyboard.
   Widget? _buildInputBar() {
-    if (_fullscreen.active) return null;
-    if (_sites.current == null || _sites.current! >= _sites.models.length) {
-      return null;
-    }
-
-    final model = _sites.models[_sites.current!];
+    final model = _sites.shown;
+    if (_fullscreen.active || model == null) return null;
     final hasUrlBar = AppPref.showUrlBar.value;
     final hasFindToolbar = _isFindVisible && getController() != null;
     if (!hasUrlBar && !hasFindToolbar) {
@@ -1460,7 +1430,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             child: Stack(
               children: [
                 Offstage(
-                  offstage: _sites.current != null && _sites.current! < _sites.models.length,
+                  offstage: _sites.shown != null,
                   child: _folderLibraryEnabled ? WebspaceLibrary(
                     key: _libraryKey,
                     webspaces: _sites.webspaces,
@@ -1499,7 +1469,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 ),
                 if (_sites.loaded.isNotEmpty)
                   Offstage(
-                    offstage: _sites.current == null || _sites.current! >= _sites.models.length,
+                    offstage: _sites.shown == null,
                     // The inset SurfaceRepaintController toggles to make the
                     // hybrid-composition SurfaceView recomposite (BUG-001);
                     // zero in steady state.
@@ -1566,16 +1536,13 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   @override
   Widget build(BuildContext context) {
-    final bool webviewIsVisible = _sites.current != null && _sites.current! < _sites.models.length;
+    final bool webviewIsVisible = _sites.shown != null;
     // From build, not from the paths that change the site on screen: the site
     // shown and the window flag then change in the same frame, and a new path
     // that moves _sites.current cannot skip it (SCREENBLOCK-002).
-    final shown = _sites.current;
     unawaited(_screenCaptureGuard.apply(blocked: screenCaptureBlocked(
       appWide: AppPref.blockScreenshots.value,
-      siteOnScreen: shown != null && shown >= 0 && shown < _sites.models.length
-          ? _sites.models[shown].blockScreenshots
-          : null,
+      siteOnScreen: _sites.shown?.blockScreenshots,
     )));
     return Stack(
       fit: StackFit.expand,
