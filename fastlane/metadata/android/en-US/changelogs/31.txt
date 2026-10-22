@@ -1,0 +1,17 @@
+✨ New Features:
+• Per-site theme
+• App defaults for tabs and links
+• Share from the link menu
+• Long-press Back for a new tab
+• New homepage offer after a redirect
+• Home screen shortcuts in settings
+
+🔧 Improvements:
+• Faster start, smaller app
+• No third-party icon fetches
+• Tab strip stays across switches
+• Per-site Tor exit country shown
+
+🐛 Bug Fixes:
+• Onion sites only via Tor or a proxy
+• Background notifications
