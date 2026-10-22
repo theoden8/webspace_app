@@ -770,6 +770,103 @@ void main() {
     },
   );
 
+  testWidgets(
+    'icons the grid moves slide there from their old place, with no flash at the new one (WEBSPACE-011)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final before = _well(tester, name: 'Work');
+      final privacy = _well(tester, name: 'Privacy');
+      await tester.longPress(_group('Work'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.arrow_downward));
+      await tester.pump();
+      expect(
+        _well(tester, name: 'Work'),
+        before,
+        reason: 'the first frame after the move still shows it where it was',
+      );
+      await tester.pump();
+      await tester.pump(Motion.settle ~/ 3);
+      final sliding = _well(tester, name: 'Work').center;
+      expect(sliding.dx, greaterThan(before.center.dx));
+      expect(sliding.dx, lessThan(privacy.center.dx));
+      await tester.pumpAndSettle();
+      expect(_well(tester, name: 'Work'), privacy);
+      expect(_well(tester, name: 'Privacy'), before);
+    },
+  );
+
+  testWidgets('a dropped icon lands from where it was let go', (tester) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    final work = _well(tester, name: 'Work');
+    final privacy = _well(tester, name: 'Privacy');
+    final drag = await tester.startGesture(privacy.center);
+    await tester.pump(const Duration(milliseconds: 600));
+    final release = work.center + const Offset(0, 30);
+    await drag.moveTo(release);
+    await tester.pump();
+    await drag.up();
+    await tester.pump();
+    await tester.pump();
+    final landing = _well(tester, name: 'Privacy').center;
+    expect(
+      (landing - release).distance,
+      lessThan((landing - work.center).distance + 1),
+    );
+    expect(
+      (landing - privacy.center).distance,
+      greaterThan(work.width),
+      reason: 'it lands from the drop, not from where the drag began',
+    );
+    await tester.pumpAndSettle();
+    expect(_well(tester, name: 'Privacy'), work);
+  });
+
+  testWidgets('scrolling a grid never slides its icons', (tester) async {
+    await pumpLocalized(
+      tester,
+      home: const _LibraryHarness(),
+      size: const Size(411, 600),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_group('All'));
+    await tester.pumpAndSettle();
+    final tile = _inPanel(find.byType(SiteGridTile)).at(4);
+    final before = tester.getRect(tile);
+    final grid = _inPanel(find.byType(CustomScrollView));
+    await tester.drag(grid, const Offset(0, -60));
+    await tester.pump();
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(of: grid, matching: find.byType(Scrollable)),
+    );
+    expect(
+      tester.getRect(tile),
+      before.shift(Offset(0, -scrollable.position.pixels)),
+    );
+  });
+
+  testWidgets('a search crossfades in and out of the groups', (tester) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'github');
+    await tester.pump();
+    await tester.pump(Motion.reveal ~/ 2);
+    final fades = tester
+        .widgetList<FadeTransition>(
+          find.descendant(
+            of: find.byType(AnimatedSwitcher),
+            matching: find.byType(FadeTransition),
+          ),
+        )
+        .map((f) => f.opacity.value);
+    expect(fades.any((o) => o > 0 && o < 1), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.byType(WebspaceGroupTile), findsNothing);
+    expect(find.byType(SiteGridTile), findsOneWidget);
+  });
+
   for (final width in [320.0, 411.0, 800.0]) {
     for (final scale in [1.0, 1.3, 2.0]) {
       for (final brightness in Brightness.values) {

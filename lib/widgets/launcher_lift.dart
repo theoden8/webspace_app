@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart' show kSecondaryButton, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/launcher_slot.dart';
 
 /// An icon in a launcher grid, pressed as a phone's home screen is: a tap
 /// opens it; a long press lifts it under the finger, and letting go where it
@@ -97,6 +98,11 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
                 },
                 onDraggableCanceled: (_, offset) => _settle(at: offset),
                 onDragCompleted: () => _liftedAt = null,
+                onDragEnd: (details) {
+                  if (details.wasAccepted) {
+                    LauncherSlot.maybeOf(context)?.landFrom(details.offset);
+                  }
+                },
                 feedback: _Lifted(
                   size: constraints.biggest,
                   animate: !reduceMotion,
@@ -187,7 +193,11 @@ class _MenuIntent extends Intent {
 
 /// The icon raised under the finger: a little larger, over a shadow.
 class _Lifted extends StatelessWidget {
-  const _Lifted({required this.size, required this.animate, required this.child});
+  const _Lifted({
+    required this.size,
+    required this.animate,
+    required this.child,
+  });
 
   final Size size;
   final bool animate;

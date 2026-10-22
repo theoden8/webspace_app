@@ -103,8 +103,24 @@ void main() {
         into: () => laidOut,
       );
       await tester.pump();
-      expect(tester.getRect(_card), _screen, reason: 'covers the switch');
-      expect(shown, 1);
+      expect(tester.getRect(_card), _screen);
+      expect(shown, 0, reason: 'the card fades in over the site first');
+      await tester.pump(Motion.reveal ~/ 2);
+      expect(
+        tester
+            .widget<Opacity>(
+              find.descendant(
+                of: find.byType(LaunchZoom),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .opacity,
+        inExclusiveRange(0, 1),
+      );
+      expect(tester.getRect(_card), _screen, reason: 'at full size');
+      await tester.pump(Motion.reveal);
+      expect(shown, 1, reason: 'covered, the library comes back under it');
+      await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 120));
       final shrinking = tester.getRect(_card);
@@ -120,6 +136,31 @@ void main() {
     },
   );
 
+  testWidgets(
+    'with no icon to grow from, a site opens through its card fading in and out',
+    (tester) async {
+      final zoom = await _pump(tester, onButton: () {});
+      var shown = 0;
+      final opening = zoom.open(
+        _site(),
+        from: null,
+        show: () async => shown++,
+        shown: () => shown > 0,
+      );
+      await tester.pump();
+      await tester.pump(Motion.reveal ~/ 2);
+      expect(tester.getRect(_card).center, _screen.center);
+      expect(tester.getRect(_card).width, lessThan(_screen.width));
+      expect(shown, 0, reason: 'the switch waits under a full card');
+      await tester.pump(Motion.reveal);
+      expect(tester.getRect(_card), _screen);
+      expect(shown, 1);
+      await tester.pumpAndSettle();
+      await opening;
+      expect(_card, findsNothing);
+    },
+  );
+
   testWidgets('with no icon in view to land on, the card fades where it is', (
     tester,
   ) async {
@@ -130,22 +171,24 @@ void main() {
       shown: () => true,
       into: () => null,
     );
+    double opacity() => tester
+        .widget<Opacity>(
+          find.descendant(
+            of: find.byType(LaunchZoom),
+            matching: find.byType(Opacity),
+          ),
+        )
+        .opacity;
     await tester.pump();
-    await tester.pump();
-    await tester.pump(Motion.reveal ~/ 2);
+    await tester.pump(Motion.reveal);
+    expect(opacity(), 1, reason: 'faded in');
+    for (var i = 0; i < 10 && opacity() == 1; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await tester.pump(Motion.reveal ~/ 3);
     expect(tester.getRect(_card).center, _screen.center);
     expect(tester.getRect(_card).width, lessThan(_screen.width));
-    expect(
-      tester
-          .widget<Opacity>(
-            find.descendant(
-              of: find.byType(LaunchZoom),
-              matching: find.byType(Opacity),
-            ),
-          )
-          .opacity,
-      inExclusiveRange(0, 1),
-    );
+    expect(opacity(), inExclusiveRange(0, 1));
     await tester.pumpAndSettle();
     await closing;
     expect(_card, findsNothing);

@@ -839,7 +839,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                     ?.name ??
                 loc.tabsAllSites,
         onOpenTab: (site, {required tabId}) =>
-            unawaited(_tabs.openTab(site, tabId: tabId)),
+            unawaited(_throughCard(site,
+                show: () => _tabs.openTab(site, tabId: tabId),
+                shown: () =>
+                    identical(_sites.shown, site) && site.activeTabId == tabId)),
         onNewTab: (site) => unawaited(_tabs.newTab(site)),
         onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),
         onCloseTab: (site, {required tabId}) =>
@@ -851,6 +854,22 @@ class _WebSpacePageState extends State<WebSpacePage>
         wayBack: shown == null ? null : _tabs.wayBackFrom(shown),
       ),
     );
+  }
+
+  /// [show] puts [site] on screen; in Alternative design it runs behind the
+  /// site's card, grown from the site's icon where the library shows it and
+  /// faded in over the screen elsewhere, so every switch looks the same.
+  Future<void> _throughCard(WebViewModel site,
+      {required Future<void> Function() show,
+      required bool Function() shown}) async {
+    final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
+    if (zoom == null || shown()) return show();
+    await zoom.open(site,
+        from: _sites.shown == null
+            ? _libraryKey.currentState?.siteWell(site.siteId)
+            : null,
+        show: show,
+        shown: shown);
   }
 
   Future<void> _showLibraryTabs(WebspaceId scope) async {
@@ -1153,12 +1172,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       current: _sites.current,
       revealed: _fullscreen.tabStripRevealed,
       onHide: _fullscreen.hideTabStrip,
-      onOpen: (site) async {
-        await _activation.activate(site);
-        if (!mounted) return;
-        setState(() {});
-        await _shell.saveCurrentIndex();
-      },
+      onOpen: (site) => _throughCard(site,
+          show: () => _openSiteFromDrawer(site),
+          shown: () => identical(_sites.shown, site)),
       onShowTabs: () => unawaited(_showTabsSheet()),
       onReorder: _webspaces.canReorderView
           ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
@@ -1351,19 +1367,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     _scaffoldKey.currentState?.closeDrawer();
   }
 
-  /// A site tapped in the library: its card grows out of its icon while the
-  /// site opens under it.
-  Future<void> _openSiteFromLibrary(WebViewModel site) async {
-    final from = _libraryKey.currentState?.siteWell(site.siteId);
-    final zoom = _launchZoom.currentState;
-    if (from == null || zoom == null) return _openSiteFromDrawer(site);
-    await zoom.open(site,
-        from: from,
-        show: () => _openSiteFromDrawer(site),
-        shown: () => identical(_sites.shown, site));
-  }
-
-  /// A site tapped in the drawer, once a webspace switch in flight lands.
+  /// A site picked in the drawer, the library or the tab strip, once a
+  /// webspace switch in flight lands.
   Future<void> _openSiteFromDrawer(WebViewModel site) async {
     // closeDrawer() (not Navigator.pop) is idempotent: a rapid second tap
     // won't pop the underlying page route once the drawer is already closing.
@@ -1463,7 +1468,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
-                    onOpenSite: (site) => unawaited(_openSiteFromLibrary(site)),
+                    onOpenSite: (site) => unawaited(_throughCard(site,
+                        show: () => _openSiteFromDrawer(site),
+                        shown: () => identical(_sites.shown, site))),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
                         ? (from, {required to}) =>

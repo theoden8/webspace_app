@@ -448,6 +448,15 @@ void main() {
     await settleRealApp(tester);
     expect(find.byType(TabsSheet), findsOneWidget);
     await tester.tap(find.text('Deep article'));
+    await tester.pump();
+    expect(
+      find.descendant(
+        of: find.byType(LaunchZoom),
+        matching: find.byType(Material),
+      ),
+      findsOneWidget,
+      reason: 'a tab picked in a list opens through its site\'s card too',
+    );
     await settleRealApp(tester);
     expect(appSite('Alpha').activeTabId, child.id);
     expect(find.byType(WebspaceLibrary), findsNothing);

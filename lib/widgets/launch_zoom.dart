@@ -46,25 +46,33 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
   /// view to land on, and the card fades out where it is instead.
   Rect? _icon;
 
+  /// Whether the card, with no icon, shrinks a little as it fades out (and
+  /// grows as it fades in), as Material's fade-through does. A card fading
+  /// in to shrink into an icon next keeps its size.
+  bool _fadeScales = false;
+
   /// Grows [site]'s card out of its icon at [from], in global coordinates,
   /// until it covers the screen, then runs [show] and fades off the site
-  /// once [shown] says it is on screen.
+  /// once [shown] says it is on screen. With no icon to grow from (a tab
+  /// picked in a list, a site picked in the tab strip) the card fades in
+  /// over the screen instead, so every switch passes through it.
   Future<void> open(
     WebViewModel site, {
-    required Rect from,
+    required Rect? from,
     required Future<void> Function() show,
     required bool Function() shown,
   }) async {
     if (_site != null || MediaQuery.disableAnimationsOf(context)) {
       return show();
     }
-    _fade.value = 1;
-    _size.value = 0;
+    _fade.value = from == null ? 0 : 1;
+    _size.value = from == null ? 1 : 0;
     setState(() {
       _site = site;
-      _icon = _local(from);
+      _icon = from == null ? null : _local(from);
+      _fadeScales = true;
     });
-    await _play(_size.forward());
+    await _play(from == null ? _fade.forward() : _size.forward());
     if (!mounted) return;
     final showing = show();
     await _hold(until: shown);
@@ -73,9 +81,9 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     await showing;
   }
 
-  /// Covers the screen with [site]'s card at once, runs [show] to bring the
-  /// library back, and once [shown] says it is on screen shrinks the card
-  /// into the icon [into] finds there.
+  /// Fades [site]'s card in over the screen, runs [show] to bring the
+  /// library back under it, and once [shown] says it is on screen shrinks
+  /// the card into the icon [into] finds there.
   Future<void> close(
     WebViewModel site, {
     required Future<void> Function() show,
@@ -85,12 +93,15 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     if (_site != null || MediaQuery.disableAnimationsOf(context)) {
       return show();
     }
-    _fade.value = 1;
+    _fade.value = 0;
     _size.value = 1;
     setState(() {
       _site = site;
       _icon = null;
+      _fadeScales = false;
     });
+    await _play(_fade.forward());
+    if (!mounted) return show();
     final showing = show();
     await _hold(until: shown);
     // The library lays its icons out in the frame that shows it.
@@ -98,6 +109,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     if (mounted) {
       final icon = into();
       if (icon == null) {
+        setState(() => _fadeScales = true);
         await _play(_fade.reverse());
       } else {
         setState(() => _icon = _local(icon));
@@ -155,8 +167,11 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
         child: LayoutBuilder(
           builder: (context, constraints) => AnimatedBuilder(
             animation: Listenable.merge([_growth, _fade]),
-            builder: (context, _) =>
-                _card(context, site: site, screen: Offset.zero & constraints.biggest),
+            builder: (context, _) => _card(
+              context,
+              site: site,
+              screen: Offset.zero & constraints.biggest,
+            ),
           ),
         ),
       ),
@@ -175,8 +190,12 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     final rect = icon == null
         ? Rect.fromCenter(
             center: screen.center,
-            width: screen.width * lerpDouble(.92, 1, _fade.value)!,
-            height: screen.height * lerpDouble(.92, 1, _fade.value)!,
+            width:
+                screen.width *
+                (_fadeScales ? lerpDouble(.92, 1, _fade.value)! : 1),
+            height:
+                screen.height *
+                (_fadeScales ? lerpDouble(.92, 1, _fade.value)! : 1),
           )
         : Rect.lerp(icon, screen, t)!;
     return Stack(

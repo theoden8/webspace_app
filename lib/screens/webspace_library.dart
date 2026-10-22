@@ -10,6 +10,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_list_menu.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
@@ -88,9 +89,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
 
   final _panelFocus = FocusNode(debugLabel: 'library folder');
   final _stack = GlobalKey();
-  final _groupTiles = <WebspaceId, GlobalKey>{};
   final _panelSites = <SiteId, GlobalKey>{};
-  final _foundSites = <SiteId, GlobalKey>{};
+
+  /// What the home grid shows: browsing or searching, and whether a search
+  /// found nothing. Its icons' keys start afresh with each, since the grid
+  /// it leaves still fades out holding the old ones.
+  (bool, bool)? _mode;
+  var _groupTiles = <WebspaceId, GlobalKey>{};
+  var _foundSites = <SiteId, GlobalKey>{};
 
   /// Opens the selected webspace's folder.
   void openFolder() {
@@ -207,8 +213,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   int _siteColumns(BuildContext context, {required double width}) {
     final scale = MediaQuery.textScalerOf(context).scale(1);
     return ((width - Spacing.lg * 2 + Spacing.sm) /
-            (LibraryStyle.tileMinWidth * math.max(1, scale * .7) +
-                Spacing.sm))
+            (LibraryStyle.tileMinWidth * math.max(1, scale * .7) + Spacing.sm))
         .floor()
         .clamp(1, 7);
   }
@@ -430,14 +435,16 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                       )!,
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: OverflowBox(
-                      minWidth: target.width,
-                      maxWidth: target.width,
-                      minHeight: target.height,
-                      maxHeight: target.height,
-                      child: Opacity(
-                        opacity: ((t - .3) / .7).clamp(0.0, 1.0),
-                        child: _folder(context, webspace: webspace),
+                    // The folder's content scales with the panel, as a
+                    // phone's folder grows out of its preview, rather than
+                    // being cut by it.
+                    child: FittedBox(
+                      child: SizedBox.fromSize(
+                        size: target.size,
+                        child: Opacity(
+                          opacity: ((t - .15) / .5).clamp(0.0, 1.0),
+                          child: _folder(context, webspace: webspace),
+                        ),
                       ),
                     ),
                   ),
@@ -569,6 +576,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     );
   }
 
+  /// The groups, or what a search finds; going between browsing, results
+  /// and none crossfades, and icons a search keeps slide to their places.
   Widget _groups(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final query = _search.text.trim().toLowerCase();
@@ -577,15 +586,50 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
         .toList();
     final order = _order(WebspaceId.all);
     final matchingSites = query.isEmpty ? <int>[] : _matchingSites(order);
-    if (shown.isEmpty && matchingSites.isEmpty) {
-      return _empty(
-        context,
-        message: query.isNotEmpty
-            ? loc.libraryNoResults
-            : loc.webspacesListEmpty,
-      );
+    final none = shown.isEmpty && matchingSites.isEmpty;
+    final mode = (query.isEmpty, none);
+    if (mode != _mode) {
+      _mode = mode;
+      _groupTiles = {};
+      _foundSites = {};
     }
+    return AnimatedSwitcher(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : Motion.reveal,
+      child: KeyedSubtree(
+        key: ValueKey(mode),
+        child: none
+            ? _empty(
+                context,
+                message: query.isNotEmpty
+                    ? loc.libraryNoResults
+                    : loc.webspacesListEmpty,
+              )
+            : _found(
+                context,
+                query: query,
+                shown: shown,
+                order: order,
+                matchingSites: matchingSites,
+              ),
+      ),
+    );
+  }
+
+  Widget _found(
+    BuildContext context, {
+    required String query,
+    required List<Webspace> shown,
+    required List<int> order,
+    required List<int> matchingSites,
+  }) {
+    final loc = AppLocalizations.of(context);
     final reorder = query.isEmpty ? widget.onReorder : null;
+    // This grid's own keys: it builds icons lazily while a crossfade fades
+    // it out, after the next grid has taken fresh ones.
+    final tiles = _groupTiles;
+    final found = _foundSites;
     return LayoutBuilder(
       builder: (context, constraints) {
         final scaler = MediaQuery.textScalerOf(context);
@@ -621,34 +665,42 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                     ),
                   ),
                   itemCount: shown.length,
+                  findChildIndexCallback: (key) {
+                    final at = key is ValueKey
+                        ? shown.indexWhere((w) => w.id == key.value)
+                        : -1;
+                    return at < 0 ? null : at;
+                  },
                   itemBuilder: (context, index) {
                     final webspace = shown[index];
                     return KeyedSubtree(
                       key: ValueKey(webspace.id),
-                      child: WebspaceGroupTile(
-                        key: _groupTiles.putIfAbsent(
-                          webspace.id,
-                          GlobalKey.new,
+                      child: LauncherSlot(
+                        child: WebspaceGroupTile(
+                          key: tiles.putIfAbsent(
+                            webspace.id,
+                            GlobalKey.new,
+                          ),
+                          webspace: webspace,
+                          sites: [
+                            for (final i in _order(webspace.id))
+                              widget.sites[i],
+                          ],
+                          selected: webspace.id == widget.selectedWebspaceId,
+                          onOpen: () {
+                            FocusScope.of(context).unfocus();
+                            _from = _groupWell(webspace.id);
+                            widget.onSelectWebspace(webspace);
+                          },
+                          onMenu: (at) => unawaited(_menu(webspace, at: at)),
+                          onDrop: reorder == null || webspace.isAll
+                              ? null
+                              : (dragged) => _dropGroup(
+                                  dragged,
+                                  onto: webspace,
+                                  reorder: reorder,
+                                ),
                         ),
-                        webspace: webspace,
-                        sites: [
-                          for (final i in _order(webspace.id))
-                            widget.sites[i],
-                        ],
-                        selected: webspace.id == widget.selectedWebspaceId,
-                        onOpen: () {
-                          FocusScope.of(context).unfocus();
-                          _from = _groupWell(webspace.id);
-                          widget.onSelectWebspace(webspace);
-                        },
-                        onMenu: (at) => unawaited(_menu(webspace, at: at)),
-                        onDrop: reorder == null || webspace.isAll
-                            ? null
-                            : (dragged) => _dropGroup(
-                                dragged,
-                                onto: webspace,
-                                reorder: reorder,
-                              ),
                       ),
                     );
                   },
@@ -661,7 +713,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                 width: constraints.maxWidth,
                 order: order,
                 shown: matchingSites,
-                keys: _foundSites,
+                keys: found,
                 memberships: true,
               ),
             ],
@@ -753,29 +805,34 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
               .reduce(math.max),
         ),
         itemCount: shown.length,
+        findChildIndexCallback: (key) {
+          final at = shown.indexWhere(
+            (i) => identical(keys[widget.sites[i].siteId], key),
+          );
+          return at < 0 ? null : at;
+        },
         itemBuilder: (context, index) {
           final site = widget.sites[shown[index]];
           return KeyedSubtree(
             key: keys.putIfAbsent(site.siteId, GlobalKey.new),
-            child: SiteGridTile(
-              key: ValueKey(site.siteId),
-              site: site,
-              listIndex: order.indexOf(shown[index]),
-              selected: identical(site, widget.currentSite),
-              showTabCount: widget.showsTabCount(site) && site.tabs.length > 1,
-              layout: SiteGridTileLayout.library,
-              webspaces: labels[shown[index]]!,
-              onOpen: () {
-                FocusScope.of(context).unfocus();
-                widget.onOpenSite(site);
-              },
-              onMenu: (context, {required globalPosition}) =>
-                  widget.onSiteMenu(
-                    context,
-                    site: site,
-                    position: globalPosition,
-                  ),
-              onReorder: reorder,
+            child: LauncherSlot(
+              child: SiteGridTile(
+                key: ValueKey(site.siteId),
+                site: site,
+                listIndex: order.indexOf(shown[index]),
+                selected: identical(site, widget.currentSite),
+                showTabCount:
+                    widget.showsTabCount(site) && site.tabs.length > 1,
+                layout: SiteGridTileLayout.library,
+                webspaces: labels[shown[index]]!,
+                onOpen: () {
+                  FocusScope.of(context).unfocus();
+                  widget.onOpenSite(site);
+                },
+                onMenu: (context, {required globalPosition}) => widget
+                    .onSiteMenu(context, site: site, position: globalPosition),
+                onReorder: reorder,
+              ),
             ),
           );
         },
