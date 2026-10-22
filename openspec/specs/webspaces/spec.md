@@ -160,6 +160,8 @@ Users SHALL be able to return to the group grid from a workspace site grid. The 
 
 With the group library enabled, a group SHALL open as a folder: a panel that grows out of the group's tile over the dimmed and blurred group grid, and shrinks back into the tile when it closes. A tap beside the panel, the system back action and Escape SHALL close it; Back closes an open folder before it does anything else. Closing SHALL keep the library search, the selected webspace and its membership. Scrolling, stray drags and taps inside the panel, and reordering its sites, SHALL keep it open. The grid under an open folder SHALL take no input, a closing panel SHALL take none, Back SHALL work while the panel moves, and search and the home header SHALL stay put. The system's reduced-motion preference SHALL open and close it without animation.
 
+An open folder SHALL hold every group as a page, in the group grid's order, as a phone's home screen holds pages: a sideways swipe SHALL go to the next or previous group, and the group whose page a swipe comes to rest on SHALL become the selected one, as a tap on its tile would make it; a swipe that has not come to rest SHALL select nothing. Between two pages the panel SHALL take a size between theirs. Dots under the pages SHALL show which page is on screen, and a tap on one SHALL go to its group. A folder closes into the tile of the group it is on.
+
 A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. A site or tab picked where no icon is (a tabs sheet, the tab strip) SHALL open through the same card faded in over the screen. Returning to the library SHALL fade that card in over the site, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL wait for the switch under it no longer than a fixed cap, SHALL take no input while it moves, and reduced motion SHALL show no card.
 
 Icons SHALL move as a phone's do: one the grid moves (a drop, a menu's Move, a search narrowing the grid) slides from its old place to its new one without first appearing at the new one, one let go after a drag lands from where it was let go, scrolling slides none, and going between browsing, search results and no results crossfades. These motions share one set of durations and curves.
@@ -187,6 +189,14 @@ With Alternative design enabled, the site browser SHALL use a grid button to ret
 **When** the user taps beside its panel, presses Back, or presses Escape
 **Then** the panel shrinks back into Work's tile and the group grid takes input again
 **And** the search text, the selected group and its sites are unchanged
+
+#### Scenario: Swipe to another group in an open folder
+
+**Given** Alternative design is enabled and the Work folder is open, with Privacy after it
+**When** the user swipes the panel sideways towards Privacy and lets go
+**Then** Privacy's sites show in the panel, which takes their size, and Privacy is the selected group
+**When** the user closes the folder
+**Then** the panel shrinks into Privacy's tile
 
 #### Scenario: Scroll or reorder sites in a folder
 

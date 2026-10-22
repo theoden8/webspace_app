@@ -90,7 +90,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
 
   final _panelFocus = FocusNode(debugLabel: 'library folder');
   final _stack = GlobalKey();
-  final _panelSites = <SiteId, GlobalKey>{};
+
+  /// Each folder page's icons' keys: one site can sit on several pages.
+  final _panelSites = <WebspaceId, Map<SiteId, GlobalKey>>{};
+
+  /// The open folder's pages, one per webspace in the grid's order, as a
+  /// phone's home screen has pages: made on the selected webspace's page
+  /// when a folder opens, and let go when it has closed.
+  PageController? _pages;
 
   /// What the home grid shows: browsing or searching, and whether a search
   /// found nothing. Its icons' keys start afresh with each, since the grid
@@ -144,13 +151,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   }
 
   void _panelSettled(AnimationStatus status) {
-    if (status == AnimationStatus.dismissed && mounted) setState(() {});
+    if (status != AnimationStatus.dismissed || !mounted) return;
+    _pages?.dispose();
+    _pages = null;
+    setState(() {});
   }
 
   /// Where [site]'s icon is on screen, in global coordinates: in the open
   /// folder, else among the search results; null where it is not in view.
   Rect? siteWell(SiteId site) {
-    final context = (_open ? _panelSites : _foundSites)[site]?.currentContext;
+    final keys = _open ? _panelSites[widget.selectedWebspaceId] : _foundSites;
+    final context = keys?[site]?.currentContext;
     final tile = context?.findRenderObject();
     if (context == null || tile is! RenderBox || !tile.hasSize) return null;
     final well = SiteGridTile.wellIn(
@@ -188,6 +199,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
 
   @override
   void dispose() {
+    _pages?.dispose();
     _panelFocus.dispose();
     _growth.dispose();
     _panel.dispose();
@@ -224,6 +236,11 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     final theme = Theme.of(context);
     final webspace = _selected;
     final panelShown = webspace != null && (_open || !_panel.isDismissed);
+    final pages = panelShown
+        ? _pages ??= PageController(
+            initialPage: widget.webspaces.indexOf(webspace),
+          )
+        : null;
     // Back is the page's to handle: it closes the folder through closeFolder.
     return PopScope(
       canPop: widget.currentSite != null || !_open,
@@ -240,13 +257,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                 child: _home(context),
               ),
             ),
-            if (panelShown)
+            if (pages != null)
               LayoutBuilder(
                 builder: (context, constraints) => AnimatedBuilder(
-                  animation: _growth,
+                  animation: Listenable.merge([_growth, pages]),
                   builder: (context, _) => _panelLayer(
                     context,
-                    webspace: webspace,
+                    webspace: webspace!,
+                    pages: pages,
                     size: constraints.biggest,
                   ),
                 ),
@@ -356,17 +374,25 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   Widget _panelLayer(
     BuildContext context, {
     required Webspace webspace,
+    required PageController pages,
     required Size size,
   }) {
     final theme = Theme.of(context);
     final loc = AppLocalizations.of(context);
     final t = _growth.value;
     final shown = t.clamp(0.0, 1.0);
-    final target = _panelRect(
+    final last = widget.webspaces.length - 1;
+    final page =
+        (pages.hasClients ? pages.page : null) ?? pages.initialPage.toDouble();
+    final lower = page.floor().clamp(0, last);
+    final upper = page.ceil().clamp(0, last);
+    Rect sized(int index) => _panelRect(
       context,
       size: size,
-      count: _order(webspace.id).length,
+      count: _order(widget.webspaces[index].id).length,
     );
+    // Between two pages the panel takes the size between theirs.
+    final target = Rect.lerp(sized(lower), sized(upper), page - lower)!;
     final from =
         _from ??
         Rect.fromCenter(
@@ -444,7 +470,11 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         size: target.size,
                         child: Opacity(
                           opacity: ((t - .15) / .5).clamp(0.0, 1.0),
-                          child: _folder(context, webspace: webspace),
+                          child: _folderPages(
+                            context,
+                            pages: pages,
+                            page: page,
+                          ),
                         ),
                       ),
                     ),
@@ -490,14 +520,109 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             ) +
         (rows - 1) * Spacing.lg +
         Spacing.lg * 2;
+    final dots = widget.webspaces.length > 1 ? LibraryStyle.pageDots : 0;
     final room = size.height - insets.vertical - Spacing.xl * 2;
-    final height = math.min(header + grid, room);
+    final height = math.min(header + grid + dots, room);
     return Rect.fromLTWH(
       (size.width - width) / 2,
       insets.top + (size.height - insets.vertical - height) / 2,
       width,
       height,
     );
+  }
+
+  /// The open folder's pages: a swipe goes to the next or previous
+  /// webspace, which becomes the selected one, and the dots under them go
+  /// straight to one (WEBSPACE-008).
+  Widget _folderPages(
+    BuildContext context, {
+    required PageController pages,
+    required double page,
+  }) {
+    final theme = Theme.of(context);
+    final on = page.round();
+    return Column(
+      children: [
+        Expanded(
+          // A page is selected where a swipe comes to rest, not as it
+          // passes halfway: a switch unloads the sites it leaves.
+          child: NotificationListener<ScrollEndNotification>(
+            onNotification: (end) {
+              if (end.depth == 0) _landed(pages);
+              return false;
+            },
+            child: PageView.builder(
+              controller: pages,
+              itemCount: widget.webspaces.length,
+              itemBuilder: (context, index) =>
+                  _folder(context, webspace: widget.webspaces[index]),
+            ),
+          ),
+        ),
+        if (widget.webspaces.length > 1)
+          SizedBox(
+            height: LibraryStyle.pageDots,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                children: [
+                  for (final (index, webspace) in widget.webspaces.indexed)
+                    Semantics(
+                      button: true,
+                      selected: index == on,
+                      label: webspace.name,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => MediaQuery.disableAnimationsOf(context)
+                            ? pages.jumpToPage(index)
+                            : unawaited(
+                                pages.animateToPage(
+                                  index,
+                                  duration: Motion.settle,
+                                  curve: Motion.launchCurve,
+                                ),
+                              ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Spacing.xs + Spacing.xs / 2,
+                            vertical: Spacing.sm + Spacing.xs / 2,
+                          ),
+                          child: AnimatedContainer(
+                            duration: Motion.press,
+                            width: index == on
+                                ? LibraryStyle.pageDot * 2.5
+                                : LibraryStyle.pageDot,
+                            height: LibraryStyle.pageDot,
+                            decoration: BoxDecoration(
+                              color: index == on
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant
+                                        .withAlpha(90),
+                              borderRadius: BorderRadius.circular(
+                                LibraryStyle.pageDot / 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// The webspace whose page a swipe or a dot came to rest on becomes the
+  /// selected one, as a tap on its folder would make it.
+  void _landed(PageController pages) {
+    final at = pages.page?.round();
+    if (at == null || at < 0 || at >= widget.webspaces.length) return;
+    final webspace = widget.webspaces[at];
+    if (webspace.id != widget.selectedWebspaceId) {
+      widget.onSelectWebspace(webspace);
+    }
   }
 
   Widget _folder(BuildContext context, {required Webspace webspace}) {
@@ -566,8 +691,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         width: constraints.maxWidth,
                         order: order,
                         shown: order,
-                        keys: _panelSites,
+                        keys: _panelSites.putIfAbsent(webspace.id, () => {}),
                         memberships: false,
+                        reorders: webspace.id == widget.selectedWebspaceId,
                       ),
                     ],
                   ),
@@ -781,6 +907,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     required List<int> shown,
     required Map<SiteId, GlobalKey> keys,
     required bool memberships,
+    bool reorders = false,
   }) {
     final labels = {
       for (final i in shown)
@@ -793,9 +920,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                   .toList()
             : const <Webspace>[],
     };
-    final reorder = !memberships && order.length > 1
-        ? widget.onReorderSite
-        : null;
+    final reorder = reorders && order.length > 1 ? widget.onReorderSite : null;
     final onReorder = reorder;
     return SliverPadding(
       padding: const EdgeInsets.all(Spacing.lg),

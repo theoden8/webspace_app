@@ -547,7 +547,7 @@ void main() {
   });
 
   testWidgets(
-    'selecting a folder persists its scope and opens sites without a drawer (WEBSPACE-002, WEBSPACE-004, WEBSPACE-008)',
+    'selecting a folder, or swiping to another in it, persists its scope and opens sites without a drawer (WEBSPACE-002, WEBSPACE-004, WEBSPACE-008)',
     (tester) async {
       final portal = WebViewModel(
         initUrl: 'https://portal.example.test',
@@ -577,8 +577,13 @@ void main() {
       );
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('selectedWebspaceId'), work.id);
+      final folder = find.byKey(const ValueKey('library-folder'));
+      await tester.fling(folder, const Offset(300, 0), 1000);
+      await settleRealApp(tester);
+      expect(find.byType(SiteGridTile), findsNWidgets(2));
+      expect(prefs.getString('selectedWebspaceId'), WebspaceId.all);
       await pressBack(tester);
-      expect(find.byKey(const ValueKey('library-folder')), findsNothing);
+      expect(folder, findsNothing);
       expect(find.byType(WebspaceGroupTile).hitTestable(), findsNWidgets(2));
     },
   );

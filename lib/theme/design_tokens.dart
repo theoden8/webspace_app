@@ -79,6 +79,10 @@ abstract final class LibraryStyle {
   static const panelLight = Color(0xFFFFFFFF);
   static const panelDark = Color(0xFF222833);
 
+  /// The open folder's page dots: the row under its pages, and one dot.
+  static const double pageDots = 28;
+  static const double pageDot = 6;
+
   /// An icon held down, lifted, and the gap it leaves while dragged.
   static const double pressScale = .94;
   static const double liftScale = 1.08;

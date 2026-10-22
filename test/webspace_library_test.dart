@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -339,6 +340,108 @@ void main() {
         (shrinking.center - well.center).distance,
         lessThan((open.center - well.center).distance),
         reason: 'closing heads back into the tile',
+      );
+      await tester.pumpAndSettle();
+      expect(_panel, findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a swipe in an open folder goes to the next webspace, selected where it comes to rest (WEBSPACE-008)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      await tester.tap(_group('All'));
+      await tester.pumpAndSettle();
+      final all = tester.getRect(_panel);
+      final swipe = await tester.startGesture(tester.getCenter(_panel));
+      // The first move only claims the drag.
+      await swipe.moveBy(const Offset(-kTouchSlop * 2, 0));
+      await tester.pump();
+      await swipe.moveBy(Offset(-all.width * .6, 0));
+      await tester.pump();
+      expect(
+        state.selected,
+        WebspaceId.all,
+        reason: 'past halfway, the swipe has not come to rest yet',
+      );
+      final between = tester.getRect(_panel);
+      await swipe.up();
+      await tester.pumpAndSettle();
+      expect(state.selected, state.webspaces[1].id);
+      expect(_inPanel(find.text('2 sites')), findsOneWidget);
+      expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(2));
+      final work = tester.getRect(_panel);
+      expect(work.height, lessThan(all.height));
+      expect(
+        between.height,
+        inExclusiveRange(work.height, all.height),
+        reason: 'between two pages the panel takes a size between theirs',
+      );
+      await tester.fling(_panel, const Offset(-300, 0), 1000);
+      await tester.pumpAndSettle();
+      expect(state.selected, state.webspaces[2].id);
+      expect(_inPanel(find.text('Site 2')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'the dots under an open folder show its page and go straight to another (WEBSPACE-008)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      Finder dot(String name) => _inPanel(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.button == true &&
+              widget.properties.label == name,
+        ),
+      );
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      final last = state.webspaces.last;
+      expect(dot(last.name), findsOneWidget);
+      expect(tester.widget<Semantics>(dot('Work')).properties.selected, isTrue);
+      expect(
+        tester.widget<Semantics>(dot(last.name)).properties.selected,
+        isFalse,
+      );
+      await tester.tap(dot(last.name));
+      await tester.pumpAndSettle();
+      expect(state.selected, last.id);
+      expect(_inPanel(find.byType(SiteGridTile)), findsNothing);
+      expect(
+        tester.widget<Semantics>(dot(last.name)).properties.selected,
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'a folder swiped to another webspace closes into that webspace\'s tile (WEBSPACE-008)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final work = _well(tester, name: 'Work');
+      final privacy = _well(tester, name: 'Privacy');
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      await tester.fling(_panel, const Offset(-300, 0), 1000);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pump();
+      await tester.pump(Motion.launchBack - const Duration(milliseconds: 30));
+      final landing = tester.getRect(_panel).center;
+      expect(
+        (landing - privacy.center).distance,
+        lessThan((landing - work.center).distance),
       );
       await tester.pumpAndSettle();
       expect(_panel, findsNothing);
