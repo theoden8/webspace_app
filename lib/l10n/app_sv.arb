@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Utvecklarläget är på",
   "appSettingsExperimental": "Experimentellt",
   "appSettingsExperimentalHint": "Funktioner som släpps innan de är färdiga. Var och en kräver Utvecklarläge och ett eget reglage här. Om du stänger av Utvecklarläge stängs alla av; deras reglage behåller sitt läge tills det slås på igen.",
-  "appSettingsExperimentalProxyRouter": "Proxyrouter",
-  "appSettingsExperimentalProxyRouterHint": "På Android gäller en enda proxyinställning för hela appen, så när du öppnar en webbplats med en annan proxy stängs de webbplatser som använder en annan. Routern håller dem alla öppna: ett relä i appen skickar varje webbplats trafik till webbplatsens egen proxy. Vid varje start kontrollerar den på den här enheten att varje webbplats trafik kan skiljas från de andras, och stänger webbplatser som tidigare om kontrollen misslyckas. Den är experimentell: den har bara provats på ett fåtal enheter. Börjar gälla nästa gång appen startar.",
   "appSettingsResetIconCache": "Återställ ikoncache",
   "appSettingsResetIconCacheHint": "Glömmer alla webbplatsikoner som appen har sparat, både de som hittats på nätet och de som webbplatser har rapporterat, och hämtar dem på nytt. En webbplats egen ikon kommer tillbaka när webbplatsen läses in igen.",
   "appSettingsIconCacheCleared": "Ikoncache rensad",

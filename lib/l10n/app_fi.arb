@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Kehittäjätila on käytössä",
   "appSettingsExperimental": "Kokeelliset ominaisuudet",
   "appSettingsExperimentalHint": "Ominaisuuksia, jotka julkaistaan ennen kuin ne ovat valmiita. Jokainen vaatii Kehittäjätilan ja oman kytkimensä täällä. Kehittäjätilan poistaminen käytöstä poistaa ne kaikki käytöstä; niiden kytkimet säilyttävät asentonsa siihen asti, kun se otetaan taas käyttöön.",
-  "appSettingsExperimentalProxyRouter": "Välityspalvelinreititin",
-  "appSettingsExperimentalProxyRouterHint": "Androidissa yksi välityspalvelinasetus koskee koko sovellusta, joten sivuston avaaminen eri välityspalvelimella sulkee sivustot, jotka käyttävät jotain toista. Reititin pitää ne kaikki auki: sovelluksen sisäinen välittäjä lähettää kunkin sivuston liikenteen sivuston omalle välityspalvelimelle. Jokaisella käynnistyksellä se tarkistaa tällä laitteella, että sivustojen liikenne pystytään erottamaan toisistaan, ja sulkee sivustoja kuten ennenkin, jos tarkistus epäonnistuu. Kokeellinen: sitä on kokeiltu vasta harvoilla laitteilla. Tulee voimaan, kun sovellus seuraavan kerran käynnistyy.",
   "appSettingsResetIconCache": "Nollaa kuvakevälimuisti",
   "appSettingsResetIconCacheHint": "Unohtaa kaikki sovelluksen tallentamat sivustojen kuvakkeet, sekä verkosta löydetyt että sivustojen itse ilmoittamat, ja hakee ne uudelleen. Sivuston oma kuvake palaa, kun sivusto latautuu uudelleen.",
   "appSettingsIconCacheCleared": "Kuvakevälimuisti tyhjennetty",

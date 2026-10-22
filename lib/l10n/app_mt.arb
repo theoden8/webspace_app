@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Il-modalità tal-iżviluppatur hija mixgħula",
   "appSettingsExperimental": "Sperimentali",
   "appSettingsExperimentalHint": "Karatteristiċi li joħorġu qabel ma jkunu lesti. Kull waħda teħtieġ il-Modalità tal-iżviluppatur u s-swiċċ tagħha stess hawn. Meta titfi l-Modalità tal-iżviluppatur, jintfew kollha; is-swiċċijiet tagħhom iżommu l-pożizzjoni tagħhom għal meta terġa' tinxtegħel.",
-  "appSettingsExperimentalProxyRouter": "Router tal-proxy",
-  "appSettingsExperimentalProxyRouterHint": "Fuq Android, setting wieħed tal-proxy ikopri l-app kollha, għalhekk il-ftuħ ta' sit bi proxy differenti jagħlaq is-siti li jużaw proxy ieħor. Ir-router iżommhom kollha miftuħa: relay ġewwa l-app jibgħat it-traffiku ta' kull sit lejn il-proxy tiegħu stess. Kull darba li tinfetaħ l-app, jiċċekkja fuq dan l-apparat li t-traffiku ta' kull sit jingħaraf minn dak tas-siti l-oħra, u jekk il-verifika tfalli jagħlaq is-siti bħal qabel. Sperimentali: ġie ppruvat biss fuq ftit apparati. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
   "appSettingsResetIconCache": "Irrisettja l-cache tal-ikoni",
   "appSettingsResetIconCacheHint": "Tinsa kull ikona tas-siti li żammet l-app, kemm dawk misjuba fuq l-internet kif ukoll dawk li rrappurtaw is-siti, u terġa' ġġibhom. L-ikona tas-sit innifsu terġa' lura malli s-sit jerġa' jitgħabba.",
   "appSettingsIconCacheCleared": "Il-cache tal-ikoni tneħħa",

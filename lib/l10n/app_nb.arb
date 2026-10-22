@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Utviklermodus er på",
   "appSettingsExperimental": "Eksperimentelt",
   "appSettingsExperimentalHint": "Funksjoner som leveres før de er ferdige. Hver av dem krever Utviklermodus og sin egen bryter her. Slår du av Utviklermodus, slås alle av; bryterne beholder stillingen sin til den slås på igjen.",
-  "appSettingsExperimentalProxyRouter": "Proxy-ruter",
-  "appSettingsExperimentalProxyRouterHint": "På Android gjelder én proxy-innstilling for hele appen, så når du åpner et nettsted med en annen proxy, lukkes nettstedene som bruker en annen. Ruteren holder dem alle åpne: et relé inne i appen sender hvert nettsteds trafikk til nettstedets egen proxy. Ved hver oppstart sjekker den på denne enheten at hvert nettsteds trafikk kan skilles fra de andres, og lukker nettsteder som før hvis sjekken mislykkes. Den er eksperimentell: den er bare prøvd på få enheter. Trer i kraft neste gang appen starter.",
   "appSettingsResetIconCache": "Tilbakestill hurtigbuffer for ikoner",
   "appSettingsResetIconCacheHint": "Glemmer alle nettstedsikoner appen har lagret, både de som er funnet på nettet og de som nettstedene selv har rapportert, og henter dem på nytt. Et nettsteds eget ikon kommer tilbake når nettstedet lastes inn igjen.",
   "appSettingsIconCacheCleared": "Hurtigbuffer for ikoner tømt",

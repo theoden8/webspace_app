@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Ontwikkelaarmodus is aan",
   "appSettingsExperimental": "Eksperimenteel",
   "appSettingsExperimentalHint": "Funksies wat vrygestel word voordat hulle klaar is. Elkeen benodig Ontwikkelaarmodus en sy eie skakelaar hier. As jy Ontwikkelaarmodus afskakel, skakel dit hulle almal af; hul skakelaars behou hul posisies vir wanneer dit weer aangeskakel word.",
-  "appSettingsExperimentalProxyRouter": "Proxy-roeteerder",
-  "appSettingsExperimentalProxyRouterHint": "Op Android geld een proxy-instelling vir die hele toepassing, so as jy 'n werf met 'n ander proxy oopmaak, word die werwe wat 'n ander proxy gebruik, toegemaak. Die roeteerder hou hulle almal oop: 'n tussenganger binne die toepassing stuur elke werf se verkeer na daardie werf se eie proxy. By elke begin kontroleer dit op hierdie toestel dat elke werf se verkeer onderskei kan word, en maak werwe soos voorheen toe as die kontrole misluk. Eksperimenteel: dit is nog net op min toestelle getoets. Tree in werking die volgende keer dat die toepassing begin.",
   "appSettingsResetIconCache": "Stel ikoonkas terug",
   "appSettingsResetIconCacheHint": "Vergeet elke webwerf-ikoon wat die app gehou het, beide dié wat aanlyn gevind is en dié wat webwerwe self gerapporteer het, en haal hulle weer op. 'n Webwerf se eie ikoon kom terug sodra die webwerf weer laai.",
   "appSettingsIconCacheCleared": "Ikoonkas skoongemaak",

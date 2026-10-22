@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Naka-on ang developer mode",
   "appSettingsExperimental": "Eksperimental",
   "appSettingsExperimentalHint": "Mga tampok na inilalabas bago pa matapos. Kailangan ng bawat isa ang Developer mode at ang sarili nitong switch dito. Kapag in-off ang Developer mode, mao-off silang lahat; mananatili sa dating posisyon ang kanilang mga switch para sa muling pag-on nito.",
-  "appSettingsExperimentalProxyRouter": "Router ng proxy",
-  "appSettingsExperimentalProxyRouterHint": "Sa Android, iisang setting ng proxy ang sumasaklaw sa buong app, kaya kapag nagbukas ka ng site na may ibang proxy, isinasara ang mga site na gumagamit ng ibang proxy. Pinapanatiling bukas ng router ang lahat ng mga ito: isang relay sa loob ng app ang nagpapadala ng trapiko ng bawat site sa sariling proxy ng site na iyon. Sa bawat pagbukas ng app, sinusuri nito sa device na ito na natutukoy nang hiwalay ang trapiko ng bawat site, at kapag nabigo ang pagsusuri, isinasara nito ang mga site gaya ng dati. Eksperimental ito: sinubukan pa lang ito sa iilang device. Magkakabisa ito sa susunod na pagbukas ng app.",
   "appSettingsResetIconCache": "I-reset ang cache ng icon",
   "appSettingsResetIconCacheHint": "Kinakalimutan ang bawat icon ng site na itinago ng app, ang mga nahanap sa internet at ang mga iniulat ng mga site, at muling kinukuha ang mga ito. Babalik ang sariling icon ng site kapag nag-load muli ang site.",
   "appSettingsIconCacheCleared": "Na-clear ang cache ng icon",

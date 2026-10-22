@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Hali ya msanidi imewashwa",
   "appSettingsExperimental": "Majaribio",
   "appSettingsExperimentalHint": "Vipengele vinavyotolewa kabla ya kukamilika. Kila kimoja kinahitaji Hali ya msanidi na swichi yake yenyewe hapa. Kuzima Hali ya msanidi huvizima vyote; swichi zake hubaki katika nafasi zilizokuwa, tayari kwa itakapowashwa tena.",
-  "appSettingsExperimentalProxyRouter": "Kipanga njia cha proksi",
-  "appSettingsExperimentalProxyRouterHint": "Kwenye Android mpangilio mmoja wa proksi hutumika kwa programu nzima, hivyo kufungua tovuti yenye proksi tofauti hufunga tovuti zinazotumia proksi nyingine. Kipanga njia huziweka zote wazi: kiunganishi cha kati ndani ya programu hupeleka trafiki ya kila tovuti kwenye proksi ya tovuti hiyo yenyewe. Kila programu inapoanza, hukagua kwenye kifaa hiki kwamba trafiki ya kila tovuti inatofautishwa na ya nyingine, na ukaguzi ukishindwa hufunga tovuti kama awali. Ni ya majaribio: imejaribiwa kwenye vifaa vichache tu. Huanza kutumika wakati ujao programu itakapoanza.",
   "appSettingsResetIconCache": "Weka upya akiba ya aikoni",
   "appSettingsResetIconCacheHint": "Husahau kila aikoni ya tovuti ambayo programu imehifadhi, zile zilizopatikana mtandaoni na zile ambazo tovuti ziliripoti, na kuzipakua upya. Aikoni ya tovuti yenyewe hurudi mara tovuti inapopakia tena.",
   "appSettingsIconCacheCleared": "Akiba ya aikoni imefutwa",

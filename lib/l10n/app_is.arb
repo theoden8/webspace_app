@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Kveikt er á þróunarham",
   "appSettingsExperimental": "Tilraunaeiginleikar",
   "appSettingsExperimentalHint": "Eiginleikar sem eru gefnir út áður en þeir eru fullbúnir. Hver þeirra þarf Þróunarham og sinn eigin rofa hér. Ef slökkt er á Þróunarham slokknar á þeim öllum; rofarnir halda stöðu sinni þar til kveikt er á honum aftur.",
-  "appSettingsExperimentalProxyRouter": "Milliþjónabeinir",
-  "appSettingsExperimentalProxyRouterHint": "Á Android gildir ein milliþjónsstilling fyrir allt forritið, svo ef svæði með öðrum milliþjóni er opnað lokast svæðin sem nota annan milliþjón. Beinirinn heldur þeim öllum opnum: endurvarp inni í forritinu sendir umferð hvers svæðis í gegnum milliþjón þess svæðis. Við hverja ræsingu kannar hann á þessu tæki hvort hægt sé að greina umferð hvers svæðis frá hinum, og lokar svæðum eins og áður ef athugunin mistekst. Tilraunaeiginleiki: hann hefur aðeins verið prófaður á fáum tækjum. Tekur gildi næst þegar forritið er ræst.",
   "appSettingsResetIconCache": "Endurstilla táknaskyndiminni",
   "appSettingsResetIconCacheHint": "Gleymir öllum táknum vefsvæða sem forritið hefur geymt, bæði þeim sem fundust á netinu og þeim sem vefsvæðin gáfu sjálf upp, og sækir þau aftur. Eigið tákn vefsvæðis kemur aftur um leið og vefsvæðið hleðst á ný.",
   "appSettingsIconCacheCleared": "Táknaskyndiminni hreinsað",

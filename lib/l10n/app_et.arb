@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Arendajarežiim on sees",
   "appSettingsExperimental": "Katselised funktsioonid",
   "appSettingsExperimentalHint": "Funktsioonid, mis avaldatakse enne nende valmimist. Igaüks vajab Arendajarežiimi ja oma lülitit siin. Arendajarežiimi väljalülitamine lülitab need kõik välja; nende lülitid jäävad samasse asendisse, kuni see uuesti sisse lülitatakse.",
-  "appSettingsExperimentalProxyRouter": "Proksiruuter",
-  "appSettingsExperimentalProxyRouterHint": "Androidis kehtib üks proksiseade kogu rakendusele, seega erineva proksiga saidi avamine sulgeb saidid, mis kasutavad mõnda muud proksit. Ruuter hoiab need kõik avatuna: rakendusesisene vahendaja saadab iga saidi liikluse selle saidi enda proksisse. Igal käivitusel kontrollib see selles seadmes, et saitide liiklust saab üksteisest eristada, ja kui kontroll ebaõnnestub, sulgeb saite nagu varem. Katseline: seda on proovitud vaid vähestes seadmetes. Jõustub rakenduse järgmisel käivitusel.",
   "appSettingsResetIconCache": "Lähtesta ikoonide vahemälu",
   "appSettingsResetIconCacheHint": "Unustab kõik saidiikoonid, mida rakendus on hoidnud, nii veebist leitud kui ka saitide teatatud, ja laadib need uuesti. Saidi enda ikoon tuleb tagasi, kui sait uuesti laaditakse.",
   "appSettingsIconCacheCleared": "Ikoonide vahemälu tühjendatud",

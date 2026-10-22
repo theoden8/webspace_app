@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Razvijalski način je vklopljen",
   "appSettingsExperimental": "Eksperimentalno",
   "appSettingsExperimentalHint": "Funkcije, ki izidejo, preden so dokončane. Vsaka potrebuje razvijalski način in svoje stikalo tukaj. Izklop razvijalskega načina izklopi vse; njihova stikala ohranijo položaj za takrat, ko ga znova vklopite.",
-  "appSettingsExperimentalProxyRouter": "Usmerjevalnik posredniških strežnikov",
-  "appSettingsExperimentalProxyRouterHint": "V Androidu ena nastavitev posredniškega strežnika velja za celotno aplikacijo, zato odpiranje spletnega mesta z drugim posredniškim strežnikom zapre spletna mesta, ki uporabljajo drugega. Usmerjevalnik ohrani vsa odprta: relej v aplikaciji pošilja promet vsakega spletnega mesta njegovemu lastnemu posredniškemu strežniku. Ob vsakem zagonu na tej napravi preveri, ali je promet posameznih spletnih mest mogoče ločiti, in če preverjanje spodleti, zapira spletna mesta kot doslej. Funkcija je eksperimentalna: preizkušena je bila na malo napravah. Začne veljati ob naslednjem zagonu aplikacije.",
   "appSettingsResetIconCache": "Ponastavi predpomnilnik ikon",
   "appSettingsResetIconCacheHint": "Pozabi vse ikone spletnih mest, ki jih je aplikacija shranila, tako tiste, najdene na spletu, kot tiste, ki so jih sporočila spletna mesta, in jih znova prenese. Lastna ikona spletnega mesta se vrne, ko se spletno mesto znova naloži.",
   "appSettingsIconCacheCleared": "Predpomnilnik ikon počiščen",

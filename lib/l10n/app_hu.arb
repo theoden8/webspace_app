@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "A fejlesztői mód be van kapcsolva",
   "appSettingsExperimental": "Kísérleti",
   "appSettingsExperimentalHint": "Olyan funkciók, amelyek még elkészültük előtt megjelennek. Mindegyikhez szükség van a Fejlesztői módra és a saját kapcsolójára itt. A Fejlesztői mód kikapcsolása mindet kikapcsolja; a kapcsolóik megőrzik az állásukat arra az esetre, ha újra bekapcsolja.",
-  "appSettingsExperimentalProxyRouter": "Proxyútválasztó",
-  "appSettingsExperimentalProxyRouterHint": "Androidon egyetlen proxybeállítás vonatkozik az egész alkalmazásra, ezért egy eltérő proxyt használó webhely megnyitása bezárja a más proxyt használó webhelyeket. Az útválasztó mindet nyitva tartja: egy alkalmazáson belüli relé minden webhely forgalmát a webhely saját proxyján keresztül küldi tovább. Minden indításkor ellenőrzi ezen az eszközön, hogy az egyes webhelyek forgalma megkülönböztethető-e egymástól, és ha az ellenőrzés sikertelen, a webhelyeket a korábbiakhoz hasonlóan bezárja. Kísérleti: eddig kevés eszközön próbálták ki. Az alkalmazás következő indításakor lép érvénybe.",
   "appSettingsResetIconCache": "Ikongyorsítótár visszaállítása",
   "appSettingsResetIconCacheHint": "Elfelejti az alkalmazás által megőrzött összes webhelyikont, az interneten találtakat és a webhelyek által jelentetteket is, majd újra letölti őket. A webhely saját ikonja akkor tér vissza, amikor a webhely újra betöltődik.",
   "appSettingsIconCacheCleared": "Ikongyorsítótár törölve",

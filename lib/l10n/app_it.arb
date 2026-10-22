@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "La modalità sviluppatore è attiva",
   "appSettingsExperimental": "Sperimentale",
   "appSettingsExperimentalHint": "Funzioni rilasciate prima di essere completate. Ognuna richiede la Modalità sviluppatore e un proprio interruttore qui. Disattivando la Modalità sviluppatore si disattivano tutte; i loro interruttori mantengono la posizione per quando verrà riattivata.",
-  "appSettingsExperimentalProxyRouter": "Router proxy",
-  "appSettingsExperimentalProxyRouterHint": "Su Android un'unica impostazione proxy vale per tutta l'app, quindi aprire un sito con un proxy diverso chiude i siti che ne usano un altro. Il router li tiene tutti aperti: un relay interno all'app invia il traffico di ogni sito al proxy di quel sito. A ogni avvio verifica su questo dispositivo che il traffico di ciascun sito venga distinto da quello degli altri, e se la verifica non riesce chiude i siti come prima. Sperimentale: è stato provato solo su pochi dispositivi. Ha effetto dal prossimo avvio dell'app.",
   "appSettingsResetIconCache": "Reimposta cache icone",
   "appSettingsResetIconCacheHint": "Dimentica tutte le icone dei siti conservate dall'app, sia quelle trovate in rete sia quelle segnalate dai siti, e le recupera di nuovo. L'icona propria di un sito torna quando il sito viene caricato di nuovo.",
   "appSettingsIconCacheCleared": "Cache icone svuotata",

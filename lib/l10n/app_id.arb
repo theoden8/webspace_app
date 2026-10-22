@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Mode pengembang aktif",
   "appSettingsExperimental": "Eksperimental",
   "appSettingsExperimentalHint": "Fitur yang dirilis sebelum selesai. Masing-masing memerlukan Mode pengembang dan sakelarnya sendiri di sini. Menonaktifkan Mode pengembang akan menonaktifkan semuanya; sakelarnya tetap di posisinya untuk saat mode itu diaktifkan kembali.",
-  "appSettingsExperimentalProxyRouter": "Router proxy",
-  "appSettingsExperimentalProxyRouterHint": "Di Android, satu pengaturan proxy berlaku untuk seluruh aplikasi, sehingga membuka situs dengan proxy berbeda akan menutup situs yang memakai proxy lain. Router menjaga semuanya tetap terbuka: sebuah relai di dalam aplikasi mengirim lalu lintas setiap situs ke proxy milik situs itu sendiri. Setiap kali aplikasi dimulai, router memeriksa di perangkat ini bahwa lalu lintas setiap situs dapat dibedakan satu sama lain, dan menutup situs seperti sebelumnya jika pemeriksaan gagal. Eksperimental: baru dicoba di sedikit perangkat. Berlaku saat aplikasi dimulai berikutnya.",
   "appSettingsResetIconCache": "Setel ulang tembolok ikon",
   "appSettingsResetIconCacheHint": "Melupakan semua ikon situs yang disimpan aplikasi, baik yang ditemukan secara daring maupun yang dilaporkan situs, lalu mengambilnya lagi. Ikon milik situs itu sendiri kembali setelah situs dimuat lagi.",
   "appSettingsIconCacheCleared": "Tembolok ikon dihapus",

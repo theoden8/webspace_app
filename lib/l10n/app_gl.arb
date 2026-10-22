@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "O modo de desenvolvedor está activado",
   "appSettingsExperimental": "Funcións experimentais",
   "appSettingsExperimentalHint": "Funcións que se publican antes de estar rematadas. Cada unha necesita o Modo de desenvolvedor e o seu propio interruptor aquí. Ao desactivar o Modo de desenvolvedor desactívanse todas; os seus interruptores conservan a súa posición para cando se volva activar.",
-  "appSettingsExperimentalProxyRouter": "Enrutador de proxy",
-  "appSettingsExperimentalProxyRouterHint": "En Android un único axuste de proxy aplícase a toda a aplicación, así que abrir un sitio cun proxy diferente pecha os sitios que usan outro. O enrutador mantenos todos abertos: un retransmisor dentro da aplicación envía o tráfico de cada sitio ao proxy propio dese sitio. En cada inicio comproba neste dispositivo que o tráfico de cada sitio se pode distinguir, e se a comprobación falla, pecha sitios coma antes. É experimental: probouse en poucos dispositivos. Aplícase a próxima vez que se inicie a aplicación.",
   "appSettingsResetIconCache": "Restablecer caché de iconas",
   "appSettingsResetIconCacheHint": "Esquece todas as iconas de sitios que gardou a aplicación, tanto as atopadas en liña como as que indicaron os propios sitios, e volve obtelas. A icona propia dun sitio volve en canto o sitio se carga de novo.",
   "appSettingsIconCacheCleared": "Caché de iconas limpada",

@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Režim pro vývojáře je zapnutý",
   "appSettingsExperimental": "Experimentální funkce",
   "appSettingsExperimentalHint": "Funkce, které vycházejí dřív, než jsou hotové. Každá vyžaduje Režim pro vývojáře a vlastní přepínač zde. Vypnutím Režimu pro vývojáře se vypnou všechny; jejich přepínače si zachovají polohu pro chvíli, kdy jej znovu zapnete.",
-  "appSettingsExperimentalProxyRouter": "Směrovač proxy",
-  "appSettingsExperimentalProxyRouterHint": "V Androidu platí jedno nastavení proxy pro celou aplikaci, takže otevření webu s jinou proxy zavře weby, které používají jinou. Směrovač je všechny ponechá otevřené: prostředník uvnitř aplikace posílá provoz každého webu na vlastní proxy daného webu. Při každém spuštění na tomto zařízení ověří, že provoz jednotlivých webů lze od sebe rozlišit, a pokud ověření selže, zavírá weby jako dříve. Je experimentální: byl vyzkoušen jen na několika zařízeních. Projeví se při příštím spuštění aplikace.",
   "appSettingsResetIconCache": "Vynulovat mezipaměť ikon",
   "appSettingsResetIconCacheHint": "Zapomene všechny ikony webů, které si aplikace uložila, ty nalezené na internetu i ty, které nahlásily weby, a stáhne je znovu. Vlastní ikona webu se vrátí, jakmile se web znovu načte.",
   "appSettingsIconCacheCleared": "Mezipaměť ikon vymazána",

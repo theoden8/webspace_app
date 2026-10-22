@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Ontwikkelaarsmodus staat aan",
   "appSettingsExperimental": "Experimenteel",
   "appSettingsExperimentalHint": "Functies die worden uitgebracht voordat ze af zijn. Elke functie vereist Ontwikkelaarsmodus en een eigen schakelaar hier. Zet je Ontwikkelaarsmodus uit, dan gaan ze allemaal uit; hun schakelaars onthouden hun stand voor wanneer die weer aangaat.",
-  "appSettingsExperimentalProxyRouter": "Proxyrouter",
-  "appSettingsExperimentalProxyRouterHint": "Op Android geldt één proxy-instelling voor de hele app, dus als je een site met een andere proxy opent, worden de sites gesloten die een andere gebruiken. De router houdt ze allemaal open: een relay in de app stuurt het verkeer van elke site naar de eigen proxy van die site. Bij elke start controleert hij op dit apparaat of het verkeer van elke site uit elkaar wordt gehouden, en sluit hij sites zoals voorheen als die controle mislukt. Dit is experimenteel: het is op weinig apparaten geprobeerd. Gaat in bij de volgende start van de app.",
   "appSettingsResetIconCache": "Pictogramcache resetten",
   "appSettingsResetIconCacheHint": "Vergeet alle sitepictogrammen die de app heeft bewaard, zowel de online gevonden als de door sites doorgegeven, en haalt ze opnieuw op. Het eigen pictogram van een site komt terug zodra de site opnieuw laadt.",
   "appSettingsIconCacheCleared": "Pictogramcache gewist",

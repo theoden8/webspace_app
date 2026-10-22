@@ -313,8 +313,6 @@
   "appSettingsDeveloperModeEnabled": "Modaliteti i zhvilluesit është aktiv",
   "appSettingsExperimental": "Eksperimentale",
   "appSettingsExperimentalHint": "Veçori që publikohen para se të përfundojnë. Secila kërkon Modalitetin e zhvilluesit dhe çelësin e vet këtu. Çaktivizimi i Modalitetit të zhvilluesit i çaktivizon të gjitha; çelësat e tyre ruajnë pozicionin për kur ai të aktivizohet sërish.",
-  "appSettingsExperimentalProxyRouter": "Ruteri i proxy-ve",
-  "appSettingsExperimentalProxyRouterHint": "Në Android një cilësim proxy-je vlen për të gjithë aplikacionin, prandaj hapja e një sajti me proxy tjetër mbyll sajtet që përdorin një proxy tjetër. Ruteri i mban të gjithë të hapur: një rele brenda aplikacionit e dërgon trafikun e çdo sajti te proxy-ja e vetë e atij sajti. Në çdo nisje, në këtë pajisje kontrollon që trafiku i çdo sajti të dallohet nga të tjerët, dhe nëse kontrolli dështon, i mbyll sajtet si më parë. Veçoria është eksperimentale: është provuar në pak pajisje. Hyn në fuqi herën tjetër që niset aplikacioni.",
   "appSettingsResetIconCache": "Rivendos cache-n e ikonave",
   "appSettingsResetIconCacheHint": "Harron çdo ikonë sajti që ka ruajtur aplikacioni, si ato të gjetura në internet, ashtu edhe ato që kanë raportuar sajtet, dhe i merr sërish. Ikona e vetë sajtit rikthehet sapo sajti të ngarkohet sërish.",
   "appSettingsIconCacheCleared": "Cache-ja e ikonave u pastrua",

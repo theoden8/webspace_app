@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "開発者モードがオンになりました",
   "appSettingsExperimental": "試験運用機能",
   "appSettingsExperimentalHint": "完成前に提供される機能です。それぞれに開発者モードと、ここにある個別のスイッチの両方が必要です。開発者モードをオフにするとすべてオフになりますが、各スイッチの位置は再びオンにしたときのために保持されます。",
-  "appSettingsExperimentalProxyRouter": "プロキシルーター",
-  "appSettingsExperimentalProxyRouterHint": "Android ではプロキシ設定がアプリ全体で 1 つしかないため、別のプロキシを使うサイトを開くと、それとは異なるプロキシを使っているサイトが閉じられます。ルーターはそれらをすべて開いたままにします。アプリ内のリレーが、各サイトの通信をそのサイト自身のプロキシへ送ります。起動するたびに、このデバイス上で各サイトの通信が区別されていることを確認し、確認に失敗した場合は従来どおりサイトを閉じます。試験運用: まだ少数のデバイスでしか試されていません。次回アプリを起動したときに有効になります。",
   "appSettingsResetIconCache": "アイコンキャッシュをリセット",
   "appSettingsResetIconCacheHint": "オンラインで見つけたものもサイトが報告したものも含め、アプリが保存しているすべてのサイトアイコンを破棄し、取得し直します。サイト自身のアイコンは、そのサイトが再び読み込まれると戻ります。",
   "appSettingsIconCacheCleared": "アイコンキャッシュをクリアしました",

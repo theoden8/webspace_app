@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Tryb programisty jest włączony",
   "appSettingsExperimental": "Eksperymentalne",
   "appSettingsExperimentalHint": "Funkcje udostępniane, zanim zostaną ukończone. Każda wymaga trybu programisty i własnego przełącznika tutaj. Wyłączenie trybu programisty wyłącza je wszystkie; ich przełączniki zachowują położenie na czas ponownego włączenia trybu.",
-  "appSettingsExperimentalProxyRouter": "Router proxy",
-  "appSettingsExperimentalProxyRouterHint": "Na Androidzie jedno ustawienie proxy obejmuje całą aplikację, więc otwarcie witryny z innym proxy zamyka witryny korzystające z innego. Router utrzymuje je wszystkie otwarte: przekaźnik wewnątrz aplikacji kieruje ruch każdej witryny do jej własnego proxy. Przy każdym uruchomieniu sprawdza na tym urządzeniu, czy ruch poszczególnych witryn daje się od siebie odróżnić, a jeśli test się nie powiedzie, zamyka witryny tak jak wcześniej. To funkcja eksperymentalna: wypróbowano ją na niewielu urządzeniach. Zacznie obowiązywać przy następnym uruchomieniu aplikacji.",
   "appSettingsResetIconCache": "Zresetuj pamięć podręczną ikon",
   "appSettingsResetIconCacheHint": "Zapomina wszystkie ikony witryn zachowane przez aplikację, zarówno znalezione w sieci, jak i zgłoszone przez same witryny, i pobiera je ponownie. Własna ikona witryny wraca, gdy witryna ponownie się załaduje.",
   "appSettingsIconCacheCleared": "Wyczyszczono pamięć podręczną ikon",

@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Režim pre vývojárov je zapnutý",
   "appSettingsExperimental": "Experimentálne",
   "appSettingsExperimentalHint": "Funkcie, ktoré vychádzajú skôr, než sú hotové. Každá vyžaduje režim pre vývojárov a vlastný prepínač tu. Vypnutím režimu pre vývojárov sa vypnú všetky; ich prepínače si zachovajú polohu pre chvíľu, keď sa režim znova zapne.",
-  "appSettingsExperimentalProxyRouter": "Smerovač proxy",
-  "appSettingsExperimentalProxyRouterHint": "V Androide platí jedno nastavenie proxy pre celú aplikáciu, takže otvorenie stránky s inou proxy zatvorí stránky, ktoré používajú inú. Smerovač ich všetky udrží otvorené: relé v aplikácii posiela prevádzku každej stránky do vlastnej proxy danej stránky. Pri každom spustení na tomto zariadení overí, či sa prevádzka jednotlivých stránok dá od seba rozlíšiť, a ak kontrola zlyhá, zatvára stránky ako predtým. Táto funkcia je experimentálna: vyskúšala sa len na niekoľkých zariadeniach. Prejaví sa pri najbližšom spustení aplikácie.",
   "appSettingsResetIconCache": "Resetovať vyrovnávaciu pamäť ikon",
   "appSettingsResetIconCacheHint": "Zabudne všetky ikony webov, ktoré si aplikácia uložila, tie nájdené na internete aj tie, ktoré nahlásili weby, a stiahne ich znova. Vlastná ikona webu sa vráti, keď sa web znova načíta.",
   "appSettingsIconCacheCleared": "Vyrovnávacia pamäť ikon vymazaná",

@@ -313,8 +313,6 @@
   "appSettingsDeveloperModeEnabled": "Modus fabri accensus est",
   "appSettingsExperimental": "Experimentalia",
   "appSettingsExperimentalHint": "Facultates quae emittuntur antequam perfectae sint. Unaquaeque Modum fabri et suum commutatorem hic requirit. Modo fabri exstincto omnes exstinguuntur; commutatores earum situm suum servant in tempus quo iterum accendetur.",
-  "appSettingsExperimentalProxyRouter": "Director procuratorum",
-  "appSettingsExperimentalProxyRouterHint": "In systemate Android una procuratoris institutio totam applicationem tegit, itaque locus cum alio procuratore apertus locos claudit qui alium adhibent. Director omnes apertos servat: internuntius intra applicationem commercium cuiusque loci ad procuratorem illius loci proprium mittit. Singulis initiis in hoc instrumento probat num commercium cuiusque loci ab aliis discerni possit, et si probatio deficit, locos ut antea claudit. Experimentale est: in paucis tantum instrumentis temptatum est. Valebit proximo applicationis initio.",
   "appSettingsResetIconCache": "Cellam iconum renovare",
   "appSettingsResetIconCacheHint": "Omnes icones locorum quas applicatio servavit obliviscitur, et eas in interreti inventas et eas quas loci nuntiaverunt, easque iterum affert. Icon propria loci redit simul ac locus iterum oneratur.",
   "appSettingsIconCacheCleared": "Cella iconum purgata",

@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Mae'r modd datblygwr ymlaen",
   "appSettingsExperimental": "Arbrofol",
   "appSettingsExperimentalHint": "Nodweddion sy'n cael eu rhyddhau cyn eu bod yn barod. Mae angen Modd datblygwr a'i switsh ei hun yma ar bob un. Mae diffodd Modd datblygwr yn eu diffodd i gyd; mae eu switshis yn cadw eu gosodiad ar gyfer pan fydd yn cael ei droi yn ôl ymlaen.",
-  "appSettingsExperimentalProxyRouter": "Llwybrydd dirprwy",
-  "appSettingsExperimentalProxyRouterHint": "Ar Android mae un gosodiad dirprwy yn berthnasol i'r ap cyfan, felly mae agor safle gyda dirprwy gwahanol yn cau'r safleoedd sy'n defnyddio un arall. Mae'r llwybrydd yn eu cadw i gyd ar agor: mae relái y tu mewn i'r ap yn anfon traffig pob safle i ddirprwy'r safle hwnnw ei hun. Bob tro y bydd yr ap yn cychwyn, mae'n gwirio ar y ddyfais hon fod modd gwahaniaethu rhwng traffig pob safle, ac yn cau safleoedd fel o'r blaen os bydd y gwiriad yn methu. Arbrofol: dim ond ar ychydig o ddyfeisiau y mae wedi'i brofi. Daw i rym y tro nesaf y bydd yr ap yn cychwyn.",
   "appSettingsResetIconCache": "Ailosod storfa eiconau",
   "appSettingsResetIconCacheHint": "Yn anghofio pob eicon gwefan y mae'r ap wedi'i gadw, y rhai a ganfuwyd ar-lein a'r rhai a adroddwyd gan wefannau, ac yn eu nôl eto. Daw eicon gwefan ei hun yn ôl unwaith y bydd y wefan yn llwytho eto.",
   "appSettingsIconCacheCleared": "Cliriwyd storfa eiconau",

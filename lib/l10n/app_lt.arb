@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Kūrėjo režimas įjungtas",
   "appSettingsExperimental": "Eksperimentinės funkcijos",
   "appSettingsExperimentalHint": "Funkcijos, išleidžiamos dar prieš jas užbaigiant. Kiekvienai reikia Kūrėjo režimo ir atskiro jos jungiklio čia. Išjungus Kūrėjo režimą, išjungiamos visos; jų jungikliai išlaiko savo padėtį, kol jis vėl bus įjungtas.",
-  "appSettingsExperimentalProxyRouter": "Tarpinių serverių maršrutizatorius",
-  "appSettingsExperimentalProxyRouterHint": "Android sistemoje vienas tarpinio serverio nustatymas galioja visai programai, todėl atidarius svetainę su kitu tarpiniu serveriu uždaromos svetainės, kurios naudoja kitą. Maršrutizatorius jas visas palieka atidarytas: programos viduje esantis perdavimo mazgas kiekvienos svetainės srautą siunčia į jos pačios tarpinį serverį. Kiekvieno paleidimo metu jis šiame įrenginyje patikrina, ar kiekvienos svetainės srautas atskiriamas nuo kitų, o jei patikra nepavyksta, uždaro svetaines kaip anksčiau. Tai eksperimentinė funkcija: ji išbandyta tik keliuose įrenginiuose. Įsigalioja kitą kartą paleidus programą.",
   "appSettingsResetIconCache": "Iš naujo nustatyti piktogramų podėlį",
   "appSettingsResetIconCacheHint": "Pamiršta visas programos išsaugotas svetainių piktogramas, tiek rastas internete, tiek pateiktas pačių svetainių, ir gauna jas iš naujo. Svetainės nuosava piktograma grįžta, kai svetainė vėl įkeliama.",
   "appSettingsIconCacheCleared": "Piktogramų podėlis išvalytas",

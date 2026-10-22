@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Razvojni način je uključen",
   "appSettingsExperimental": "Eksperimentalno",
   "appSettingsExperimentalHint": "Funkcije koje se objavljuju prije nego što su dovršene. Svaka zahtijeva Razvojni način i vlastiti prekidač ovdje. Isključivanje Razvojnog načina isključuje ih sve; njihovi prekidači zadržavaju položaj za kad ga ponovo uključite.",
-  "appSettingsExperimentalProxyRouter": "Proxy ruter",
-  "appSettingsExperimentalProxyRouterHint": "Na Androidu jedna postavka proxyja važi za cijelu aplikaciju, pa otvaranje stranice s drugačijim proxyjem zatvara stranice koje koriste neki drugi. Ruter ih sve drži otvorenim: relej unutar aplikacije šalje promet svake stranice na vlastiti proxy te stranice. Pri svakom pokretanju na ovom uređaju provjerava da li se promet pojedinih stranica može razlikovati, a ako provjera ne uspije, zatvara stranice kao i prije. Eksperimentalno je: isprobano je na malo uređaja. Stupa na snagu pri sljedećem pokretanju aplikacije.",
   "appSettingsResetIconCache": "Resetuj predmemoriju ikona",
   "appSettingsResetIconCacheHint": "Zaboravlja sve ikone web-lokacija koje je aplikacija sačuvala, i one pronađene na internetu i one koje su web-lokacije prijavile, pa ih ponovo preuzima. Vlastita ikona web-lokacije vraća se kada se web-lokacija ponovo učita.",
   "appSettingsIconCacheCleared": "Predmemorija ikona očišćena",

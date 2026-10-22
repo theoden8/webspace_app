@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "開發者模式已開啟",
   "appSettingsExperimental": "實驗性功能",
   "appSettingsExperimentalHint": "在完成前就推出的功能。每項功能都需要開啟開發者模式，以及此處它自己的開關。關閉開發者模式會將它們全部關閉；各開關會保留原本的位置，待開發者模式重新開啟時沿用。",
-  "appSettingsExperimentalProxyRouter": "代理路由器",
-  "appSettingsExperimentalProxyRouterHint": "在 Android 上，一項代理設定會套用到整個應用程式，因此開啟使用不同代理的網站時，會關閉使用其他代理的網站。路由器能讓它們全部保持開啟：應用程式內的中繼會將每個網站的流量送往該網站自己的代理。每次啟動時，它會在這部裝置上檢查能否區分各網站的流量；若檢查失敗，則照舊關閉網站。此為實驗性功能：目前僅在少數裝置上試用過。下次啟動應用程式時生效。",
   "appSettingsResetIconCache": "重設圖示快取",
   "appSettingsResetIconCacheHint": "忘記應用程式保存的所有網站圖示，包括在網路上找到的與網站回報的，並重新取得。網站自身的圖示會在網站再次載入後恢復。",
   "appSettingsIconCacheCleared": "圖示快取已清除",

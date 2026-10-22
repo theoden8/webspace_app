@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Tá mód forbróra ar siúl",
   "appSettingsExperimental": "Gnéithe turgnamhacha",
   "appSettingsExperimentalHint": "Gnéithe a eisítear sula mbíonn siad críochnaithe. Teastaíonn Mód forbróra agus a lasc féin anseo ó gach ceann acu. Nuair a mhúchtar Mód forbróra, múchtar iad go léir; coinníonn a lasca a staid don uair a chuirtear ar siúl arís é.",
-  "appSettingsExperimentalProxyRouter": "Ródaire seachfhreastalaí",
-  "appSettingsExperimentalProxyRouterHint": "Ar Android, clúdaíonn socrú seachfhreastalaí amháin an aip ar fad, mar sin nuair a osclaítear suíomh le seachfhreastalaí difriúil, dúntar na suíomhanna a úsáideann ceann eile. Coinníonn an ródaire iad go léir oscailte: seolann athsheachadán laistigh den aip trácht gach suímh chuig seachfhreastalaí an tsuímh sin féin. Ag gach tosú, seiceálann sé ar an ngléas seo gur féidir trácht na suíomhanna a idirdhealú óna chéile, agus dúnann sé suíomhanna mar a dhéantaí roimhe seo má theipeann ar an seiceáil. Turgnamhach: níor tástáladh é ach ar líon beag gléasanna. Tagann sé i bhfeidhm an chéad uair eile a thosaíonn an aip.",
   "appSettingsResetIconCache": "Athshocraigh taisce na ndeilbhíní",
   "appSettingsResetIconCacheHint": "Déanann sé dearmad ar gach deilbhín suímh a choinnigh an aip, idir na cinn a aimsíodh ar líne agus na cinn a thuairiscigh suíomhanna, agus faigheann sé arís iad. Filleann deilbhín an tsuímh féin a luaithe a lódálann an suíomh arís.",
   "appSettingsIconCacheCleared": "Glanadh taisce na ndeilbhíní",

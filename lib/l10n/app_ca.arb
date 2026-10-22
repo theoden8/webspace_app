@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "El mode de desenvolupador està activat",
   "appSettingsExperimental": "Funcions experimentals",
   "appSettingsExperimentalHint": "Funcions que es publiquen abans d'estar acabades. Cadascuna necessita el Mode de desenvolupador i el seu propi interruptor aquí. Si desactiveu el Mode de desenvolupador, es desactiven totes; els seus interruptors conserven la posició per a quan es torni a activar.",
-  "appSettingsExperimentalProxyRouter": "Encaminador de servidors intermediaris",
-  "appSettingsExperimentalProxyRouterHint": "A Android, una sola configuració de servidor intermediari s'aplica a tota l'aplicació, de manera que obrir un lloc amb un servidor intermediari diferent tanca els llocs que en fan servir un altre. L'encaminador els manté tots oberts: un repetidor dins de l'aplicació envia el trànsit de cada lloc al servidor intermediari propi d'aquell lloc. A cada inici comprova en aquest dispositiu que el trànsit de cada lloc es pot distingir, i si la comprovació falla tanca els llocs com abans. És experimental: s'ha provat en pocs dispositius. Té efecte el proper cop que s'iniciï l'aplicació.",
   "appSettingsResetIconCache": "Restableix la memòria cau d'icones",
   "appSettingsResetIconCacheHint": "Oblida totes les icones de llocs que l'aplicació ha desat, tant les trobades en línia com les que han indicat els llocs, i les torna a obtenir. La icona pròpia d'un lloc torna quan el lloc es torna a carregar.",
   "appSettingsIconCacheCleared": "S'ha esborrat la memòria cau d'icones",

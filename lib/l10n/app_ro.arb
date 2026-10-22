@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Modul dezvoltator este activat",
   "appSettingsExperimental": "Experimental",
   "appSettingsExperimentalHint": "Funcții lansate înainte de a fi finalizate. Fiecare necesită Mod dezvoltator și propriul comutator de aici. Dezactivarea modului dezvoltator le dezactivează pe toate; comutatoarele lor își păstrează poziția pentru momentul în care acesta este reactivat.",
-  "appSettingsExperimentalProxyRouter": "Router proxy",
-  "appSettingsExperimentalProxyRouterHint": "Pe Android, o singură setare de proxy se aplică întregii aplicații, așa că deschiderea unui site cu un proxy diferit închide site-urile care folosesc altul. Routerul le ține pe toate deschise: un releu din aplicație trimite traficul fiecărui site către proxy-ul propriu al acelui site. La fiecare pornire verifică pe acest dispozitiv că traficul fiecărui site poate fi deosebit de al celorlalte și, dacă verificarea eșuează, închide site-urile ca înainte. Este experimental: a fost încercat pe puține dispozitive. Intră în vigoare la următoarea pornire a aplicației.",
   "appSettingsResetIconCache": "Resetează memoria cache a pictogramelor",
   "appSettingsResetIconCacheHint": "Uită toate pictogramele de site păstrate de aplicație, atât cele găsite pe internet, cât și cele raportate de site-uri, și le obține din nou. Pictograma proprie a unui site revine imediat ce site-ul se încarcă din nou.",
   "appSettingsIconCacheCleared": "Memoria cache a pictogramelor a fost ștearsă",

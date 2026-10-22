@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Le mode développeur est activé",
   "appSettingsExperimental": "Expérimental",
   "appSettingsExperimentalHint": "Des fonctionnalités publiées avant d'être terminées. Chacune nécessite le Mode développeur et son propre interrupteur ici. Désactiver le Mode développeur les désactive toutes ; leurs interrupteurs conservent leur position pour le moment où il sera réactivé.",
-  "appSettingsExperimentalProxyRouter": "Routeur de proxy",
-  "appSettingsExperimentalProxyRouterHint": "Sur Android, un seul réglage de proxy s'applique à toute l'application, donc ouvrir un site avec un proxy différent ferme les sites qui en utilisent un autre. Le routeur les garde tous ouverts : un relais interne à l'application envoie le trafic de chaque site vers le proxy propre à ce site. À chaque démarrage, il vérifie sur cet appareil que le trafic de chaque site peut être distingué, et ferme les sites comme auparavant si la vérification échoue. Expérimental : il n'a été essayé que sur peu d'appareils. Prend effet au prochain démarrage de l'application.",
   "appSettingsResetIconCache": "Réinitialiser le cache des icônes",
   "appSettingsResetIconCacheHint": "Oublie toutes les icônes de site conservées par l'application, celles trouvées en ligne comme celles signalées par les sites, et les récupère de nouveau. L'icône propre d'un site revient dès que le site se recharge.",
   "appSettingsIconCacheCleared": "Cache des icônes vidé",

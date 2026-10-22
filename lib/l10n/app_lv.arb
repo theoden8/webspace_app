@@ -311,8 +311,6 @@
   "appSettingsDeveloperModeEnabled": "Izstrādātāja režīms ir ieslēgts",
   "appSettingsExperimental": "Eksperimentālās funkcijas",
   "appSettingsExperimentalHint": "Funkcijas, kas tiek izlaistas, pirms tās ir pabeigtas. Katrai ir nepieciešams Izstrādātāja režīms un savs slēdzis šeit. Izslēdzot Izstrādātāja režīmu, tiek izslēgtas visas; to slēdži saglabā savu stāvokli, līdz tas atkal tiek ieslēgts.",
-  "appSettingsExperimentalProxyRouter": "Starpniekserveru maršrutētājs",
-  "appSettingsExperimentalProxyRouterHint": "Android ierīcēs viens starpniekservera iestatījums attiecas uz visu lietotni, tāpēc, atverot vietni ar citu starpniekserveri, tiek aizvērtas vietnes, kas izmanto kādu citu. Maršrutētājs tās visas patur atvērtas: lietotnes iekšējs relejs katras vietnes datplūsmu sūta uz attiecīgās vietnes starpniekserveri. Katrā palaišanas reizē tas šajā ierīcē pārbauda, vai katras vietnes datplūsmu var nošķirt no pārējām, un, ja pārbaude neizdodas, aizver vietnes tāpat kā līdz šim. Eksperimentāls: izmēģināts tikai dažās ierīcēs. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
   "appSettingsResetIconCache": "Atiestatīt ikonu kešatmiņu",
   "appSettingsResetIconCacheHint": "Aizmirst visas vietņu ikonas, ko lietotne ir saglabājusi, gan tiešsaistē atrastās, gan vietņu ziņotās, un ielādē tās no jauna. Vietnes pašas ikona atgriežas, kad vietne tiek ielādēta vēlreiz.",
   "appSettingsIconCacheCleared": "Ikonu kešatmiņa notīrīta",
