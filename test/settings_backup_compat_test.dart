@@ -82,10 +82,16 @@ bool _has(String tag, {required String name}) =>
     File('$_fixtureRoot/$tag/$name').existsSync();
 
 /// Older releases omitted on/in-app/routing off. Those stay explicit on import,
-/// while newly created sites follow the app (BEHAV-007).
-Map<String, dynamic> _freshSiteJson(String initUrl) {
-  final fresh = [WebViewModel(initUrl: initUrl, tabsEnabled: true,
-      externalLinkMode: ExternalLinkMode.inApp, routeOutboundLinks: false)];
+/// while newly created sites follow the app (BEHAV-007): a release whose site
+/// JSON [written] carries the key wrote null for that.
+Map<String, dynamic> _freshSiteJson(String initUrl,
+    {required Map<String, dynamic> written}) {
+  bool omits(SiteField field) => !written.containsKey(field.key);
+  final fresh = [WebViewModel(initUrl: initUrl,
+      tabsEnabled: omits(SiteField.tabsEnabled) ? true : null,
+      externalLinkMode:
+          omits(SiteField.externalLinkMode) ? ExternalLinkMode.inApp : null,
+      routeOutboundLinks: false)];
   sanitizeImportedSites(fresh, globalScripts: const []);
   return fresh.single.toJson();
 }
@@ -384,7 +390,8 @@ void main() {
           final written = backup.sites[i];
           final site = plan.sites[i];
           final got = site.toJson();
-          final fresh = _freshSiteJson(want['initUrl'] as String);
+          final fresh =
+              _freshSiteJson(want['initUrl'] as String, written: written);
           final where = '$tag site $i (${want['name']})';
 
           expect(site.name, want['name'], reason: where);
@@ -547,10 +554,12 @@ void main() {
       });
 
       test('minimal backup imports as a fresh site', () {
-        final minimal = planSettingsImport(SettingsBackupService.importFromJson(
-            _read(tag, name: 'backup_minimal.json'))!);
+        final backup = SettingsBackupService.importFromJson(
+            _read(tag, name: 'backup_minimal.json'))!;
+        final minimal = planSettingsImport(backup);
         final got = minimal.sites.single.toJson()..remove('siteId');
-        final fresh = _freshSiteJson('https://minimal.example/')
+        final fresh = _freshSiteJson('https://minimal.example/',
+            written: backup.sites.single)
           ..remove('siteId');
         expect(got, fresh);
         expect(minimal.appPrefs, resolveExportedAppPrefs(const {}));
