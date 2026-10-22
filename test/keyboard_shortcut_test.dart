@@ -7,6 +7,7 @@ import 'package:webspace/controllers/site_reset_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/settings/external_links.dart';
@@ -84,6 +85,36 @@ void main() {
   const command = LogicalKeyboardKey.metaLeft;
   const shift = LogicalKeyboardKey.shiftLeft;
   const alt = LogicalKeyboardKey.altLeft;
+
+  // The shipped app answers the keys of the host the test runs on: Command
+  // on a Mac, Control elsewhere.
+  final primary = hostIsMacOS ? command : control;
+
+  /// [key] pressed in the app with [holding] down, the host's command key
+  /// unless named.
+  Future<void> chord(
+    WidgetTester tester, {
+    required LogicalKeyboardKey key,
+    List<LogicalKeyboardKey>? holding,
+  }) async {
+    final held = holding ?? [primary];
+    for (final modifier in held) {
+      await tester.sendKeyDownEvent(modifier);
+    }
+    await tester.sendKeyEvent(key);
+    for (final modifier in held.reversed) {
+      await tester.sendKeyUpEvent(modifier);
+    }
+    await settleRealApp(tester);
+  }
+
+  Future<void> goBack(WidgetTester tester) => hostIsMacOS
+      ? chord(tester, key: LogicalKeyboardKey.bracketLeft)
+      : chord(tester, key: LogicalKeyboardKey.arrowLeft, holding: const [alt]);
+
+  Future<void> goForward(WidgetTester tester) => hostIsMacOS
+      ? chord(tester, key: LogicalKeyboardKey.bracketRight)
+      : chord(tester, key: LogicalKeyboardKey.arrowRight, holding: const [alt]);
 
   Finder titled(String name) =>
       find.descendant(of: find.byType(AppBar), matching: find.text(name));
@@ -234,11 +265,11 @@ void main() {
       );
     });
 
-    test('a locked kiosk keeps reload and in-page back only (KIOSK-002)', () {
-      final kept = [
+    test('a locked kiosk keeps reload, back and forward only (KIOSK-002)', () {
+      final kept = {
         for (final (_, shortcut) in KeyboardShortcut.keys(mac: false))
           if (shortcut.keptInKiosk) shortcut.runtimeType,
-      ].toSet();
+      };
       expect(kept, {ReloadPage, GoBack, GoForward});
     });
   });
@@ -292,21 +323,6 @@ void main() {
   });
 
   group('the page answers them (NAV-014)', () {
-    Future<void> chord(
-      WidgetTester tester, {
-      required LogicalKeyboardKey key,
-      List<LogicalKeyboardKey> holding = const [control],
-    }) async {
-      for (final modifier in holding) {
-        await tester.sendKeyDownEvent(modifier);
-      }
-      await tester.sendKeyEvent(key);
-      for (final modifier in holding.reversed) {
-        await tester.sendKeyUpEvent(modifier);
-      }
-      await settleRealApp(tester);
-    }
-
     Future<void> openOne(
       WidgetTester tester, {
       Map<String, Object> prefs = const {},
@@ -325,7 +341,7 @@ void main() {
       await attachWebViews(tester);
     }
 
-    testWidgets('Control-T opens a tab and Control-W closes it', (
+    testWidgets('Ctrl/Cmd-T opens a tab and Ctrl/Cmd-W closes it', (
       tester,
     ) async {
       await openOne(tester);
@@ -341,7 +357,7 @@ void main() {
       expect(one.activeTabId, first);
     });
 
-    testWidgets('Control-L puts the cursor in the URL bar, address selected', (
+    testWidgets('Ctrl/Cmd-L puts the cursor in the URL bar, address selected', (
       tester,
     ) async {
       await openOne(tester, prefs: {'showUrlBar': true});
@@ -364,7 +380,7 @@ void main() {
       expect(field.controller.text, appSite('One').currentUrl);
     });
 
-    testWidgets('Control-R and F5 reload the page', (tester) async {
+    testWidgets('Ctrl/Cmd-R and F5 reload the page', (tester) async {
       await openOne(tester);
 
       webViewCalls.clear();
@@ -376,7 +392,7 @@ void main() {
       expect(webViewCalls, contains(#reload));
     });
 
-    testWidgets('Control-F opens and closes the find bar', (tester) async {
+    testWidgets('Ctrl/Cmd-F opens and closes the find bar', (tester) async {
       await openOne(tester);
 
       await chord(tester, key: LogicalKeyboardKey.keyF);
@@ -385,40 +401,34 @@ void main() {
       expect(find.byType(FindToolbar), findsNothing);
     });
 
-    testWidgets('Alt-Left goes back', (tester) async {
+    testWidgets('the back key goes back', (tester) async {
       await openOne(tester);
 
       webViewCalls.clear();
-      await chord(
-        tester,
-        key: LogicalKeyboardKey.arrowLeft,
-        holding: const [alt],
-      );
+      await goBack(tester);
       expect(webViewCalls, contains(#canGoBack));
     });
 
-    testWidgets('Alt-Right goes forward', (tester) async {
+    testWidgets('the forward key goes forward', (tester) async {
       await openOne(tester);
 
       webViewCalls.clear();
-      await chord(
-        tester,
-        key: LogicalKeyboardKey.arrowRight,
-        holding: const [alt],
-      );
+      await goForward(tester);
       expect(webViewCalls, contains(#canGoForward));
     });
 
-    testWidgets('the digits and Control-Tab move along the sites', (
-      tester,
-    ) async {
+    testWidgets('the digits and Ctrl-Tab move along the sites', (tester) async {
       await openOne(tester);
 
       await chord(tester, key: LogicalKeyboardKey.digit2);
       expect(titled('Two'), findsOneWidget);
       await chord(tester, key: LogicalKeyboardKey.digit9);
       expect(titled('Three'), findsOneWidget);
-      await chord(tester, key: LogicalKeyboardKey.tab);
+      await chord(
+        tester,
+        key: LogicalKeyboardKey.tab,
+        holding: const [control],
+      );
       expect(
         titled('One'),
         findsOneWidget,
@@ -430,8 +440,10 @@ void main() {
         holding: const [control, shift],
       );
       expect(titled('Three'), findsOneWidget);
-      await chord(tester, key: LogicalKeyboardKey.pageUp);
-      expect(titled('Two'), findsOneWidget);
+      if (!hostIsMacOS) {
+        await chord(tester, key: LogicalKeyboardKey.pageUp);
+        expect(titled('Two'), findsOneWidget);
+      }
     });
 
     testWidgets('a menu over the page keeps the keys', (tester) async {
@@ -445,21 +457,6 @@ void main() {
   });
 
   group('a nested screen answers its own (NAV-014)', () {
-    Future<void> chord(
-      WidgetTester tester, {
-      required LogicalKeyboardKey key,
-      List<LogicalKeyboardKey> holding = const [control],
-    }) async {
-      for (final modifier in holding) {
-        await tester.sendKeyDownEvent(modifier);
-      }
-      await tester.sendKeyEvent(key);
-      for (final modifier in holding.reversed) {
-        await tester.sendKeyUpEvent(modifier);
-      }
-      await settleRealApp(tester);
-    }
-
     /// A site without tabs opens an address of another site in a nested
     /// screen over the page.
     Future<void> openNested(WidgetTester tester) async {
@@ -490,7 +487,7 @@ void main() {
     Finder inNested(Finder finder) =>
         find.descendant(of: find.byType(InAppWebViewScreen), matching: finder);
 
-    testWidgets('Control-R reloads the nested page, not the site behind it', (
+    testWidgets('Ctrl/Cmd-R reloads the nested page, not the site behind it', (
       tester,
     ) async {
       await openNested(tester);
@@ -500,7 +497,7 @@ void main() {
       expect(webViewCalls.where((c) => c == #reload), hasLength(1));
     });
 
-    testWidgets('Control-F and Control-L are the nested screen\'s', (
+    testWidgets('Ctrl/Cmd-F and Ctrl/Cmd-L are the nested screen\'s', (
       tester,
     ) async {
       await openNested(tester);
@@ -523,64 +520,57 @@ void main() {
     });
 
     testWidgets(
-      'Alt-Left at the start of its history closes it, as back does',
+      'the back key at the start of its history closes it, as back does',
       (tester) async {
         await openNested(tester);
 
         webViewCalls.clear();
-        await chord(
-          tester,
-          key: LogicalKeyboardKey.arrowLeft,
-          holding: const [alt],
-        );
+        await goBack(tester);
         expect(webViewCalls, contains(#goBack));
         expect(find.byType(InAppWebViewScreen), findsNothing);
       },
     );
 
-    testWidgets('its menu leads with the site menu\'s row, less Home (NAV-015)', (
-      tester,
-    ) async {
-      await openNested(tester);
-      await tester.tap(inNested(find.byIcon(Icons.more_vert)));
-      await settleRealApp(tester);
+    testWidgets(
+      'its menu leads with the site menu\'s row, less Home (NAV-015)',
+      (tester) async {
+        await openNested(tester);
+        await tester.tap(inNested(find.byIcon(Icons.more_vert)));
+        await settleRealApp(tester);
 
-      final row = find
-          .ancestor(of: find.byTooltip('Go Back'), matching: find.byType(Row))
-          .first;
-      for (final tooltip in ['Share', 'Refresh']) {
-        expect(
-          find.descendant(of: row, matching: find.byTooltip(tooltip)),
-          findsOneWidget,
-          reason: '$tooltip sits in the row beside Back',
+        final row = find
+            .ancestor(of: find.byTooltip('Go Back'), matching: find.byType(Row))
+            .first;
+        for (final tooltip in ['Share', 'Refresh']) {
+          expect(
+            find.descendant(of: row, matching: find.byTooltip(tooltip)),
+            findsOneWidget,
+            reason: '$tooltip sits in the row beside Back',
+          );
+        }
+        expect(find.byTooltip('Go to Home'), findsNothing);
+        expect(find.text('Open in Browser'), findsOneWidget);
+        webViewCalls.clear();
+        await tester.tap(
+          find.descendant(of: row, matching: find.byTooltip('Refresh')),
         );
-      }
-      expect(find.byTooltip('Go to Home'), findsNothing);
-      expect(find.text('Open in Browser'), findsOneWidget);
-      webViewCalls.clear();
-      await tester.tap(
-        find.descendant(of: row, matching: find.byTooltip('Refresh')),
-      );
-      await settleRealApp(tester);
-      expect(webViewCalls.where((c) => c == #reload), hasLength(1));
-    });
+        await settleRealApp(tester);
+        expect(webViewCalls.where((c) => c == #reload), hasLength(1));
+      },
+    );
 
-    testWidgets('Alt-Right asks the nested page, and keeps the screen', (
+    testWidgets('the forward key asks the nested page, and keeps the screen', (
       tester,
     ) async {
       await openNested(tester);
 
       webViewCalls.clear();
-      await chord(
-        tester,
-        key: LogicalKeyboardKey.arrowRight,
-        holding: const [alt],
-      );
+      await goForward(tester);
       expect(webViewCalls.where((c) => c == #canGoForward), hasLength(1));
       expect(find.byType(InAppWebViewScreen), findsOneWidget);
     });
 
-    testWidgets('Control-W closes it; the page\'s keys stay the page\'s', (
+    testWidgets('Ctrl/Cmd-W closes it; the page\'s keys stay the page\'s', (
       tester,
     ) async {
       await openNested(tester);
@@ -638,8 +628,14 @@ void main() {
         of: find.ancestor(of: find.text(item), matching: find.byType(Row)),
         matching: find.byType(ShortcutKeys),
       );
-      expect(tester.widget<ShortcutKeys>(keysOf('New tab')).keys, 'Ctrl+T');
-      expect(tester.widget<ShortcutKeys>(keysOf('Find')).keys, 'Ctrl+F');
+      expect(
+        tester.widget<ShortcutKeys>(keysOf('New tab')).keys,
+        hostIsMacOS ? '⌘T' : 'Ctrl+T',
+      );
+      expect(
+        tester.widget<ShortcutKeys>(keysOf('Find')).keys,
+        hostIsMacOS ? '⌘F' : 'Ctrl+F',
+      );
       expect(keysOf('Settings'), findsNothing);
     });
   });
