@@ -1,0 +1,15 @@
+✨ New Features:
+• Tab trees
+• Per-site theme
+• Home screen shortcuts in settings
+
+🔧 Improvements:
+• Faster start, smaller app
+• No third-party icon fetches
+• Tab strip stays across switches
+• Better link navigation
+• Improved Tor support
+
+🐛 Bug Fixes:
+• Background notifications
+• Race conditions found by formal verification
