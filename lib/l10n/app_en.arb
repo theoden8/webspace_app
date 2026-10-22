@@ -608,10 +608,6 @@
   "@inappBrowserMenuOpenInBrowser": {
     "description": "Overflow menu item to open the current page in an external browser."
   },
-  "inappBrowserMenuRefresh": "Refresh",
-  "@inappBrowserMenuRefresh": {
-    "description": "Overflow menu item to reload the current page."
-  },
   "inappBrowserMenuFind": "Find",
   "@inappBrowserMenuFind": {
     "description": "Overflow menu item to open the find-in-page toolbar."

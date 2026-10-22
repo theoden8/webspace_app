@@ -570,6 +570,7 @@ macOS where the others take Control:
 | Ctrl/Cmd-R, F5 | the site menu's Refresh |
 | Ctrl/Cmd-F | the site menu's Find in page, out of full screen |
 | Alt-Left; Cmd-[ on macOS | the site menu's Back |
+| Alt-Right; Cmd-] on macOS | one step forward, where the page has one |
 | Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the tab strip, round at either end |
 | Ctrl/Cmd-1 to 8, Ctrl/Cmd-9 | the site at that place along the tab strip, the last one |
 
@@ -581,9 +582,16 @@ SHALL go on to the focused widget, and so SHALL every other key: Ctrl/Cmd-A sele
 all in the page or the field that has focus, as the webview and the text field do on
 their own. While a dialog, a sheet, a menu or another screen is over the page, the
 keys SHALL be theirs. A held key SHALL ask once. A locked kiosk session (KIOSK-002)
-SHALL keep only Refresh and Back, which stay on the site.
+SHALL keep only Refresh, Back and Forward, which stay on the site.
 
-Not covered: the nested screen (NAV-008) answers none of these.
+A nested screen (NAV-008) on top SHALL answer the keys for its own page: Refresh,
+Find in page, its URL bar, Forward, and Back as its back gesture does it, so at the
+start of its history the screen closes; Ctrl/Cmd-W SHALL close it, as its app bar's
+back arrow does. New tab and the site keys are the page's and do nothing there.
+
+Both menus SHALL write the key beside each item one runs, as the platform's menus
+write keys: "⌘T" on macOS, "Ctrl+T" elsewhere, with the platform localizations'
+names for the keys. No key is written off the desktop.
 
 #### Scenario: A new tab and its close
 
@@ -610,11 +618,43 @@ Not covered: the nested screen (NAV-008) answers none of these.
 - **WHEN** the user presses Ctrl-T
 - **THEN** no tab opens
 
+#### Scenario: A nested screen's own keys
+
+- **GIVEN** a nested screen over the page
+- **WHEN** the user presses Ctrl-R
+- **THEN** the nested page reloads and the site's page behind it does not
+- **AND** Ctrl-W closes the nested screen, and Ctrl-2 there switches no site
+
+#### Scenario: The menus name the keys
+
+- **GIVEN** a site on screen on Linux
+- **WHEN** the user opens the site menu
+- **THEN** New tab reads Ctrl+T and Find reads Ctrl+F beside them
+
 #### Scenario: A kiosk stays on its site
 
 - **GIVEN** a locked kiosk session
 - **WHEN** the user presses Ctrl-Tab or Ctrl-2
 - **THEN** the site on screen stays
+
+Test: [test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.dart)
+
+---
+
+### Requirement: NAV-015 - The Nested Menu Leads With The Site Menu's Row
+
+A nested screen's overflow menu SHALL open with the site menu's top row, built by the
+same code: Back, Share, and Refresh, or Stop while the page loads. Home SHALL be left
+out, as a nested screen has no site home. The row's Back SHALL walk the nested page's
+history only; closing the screen stays with its app bar's back arrow and the back
+gesture (NAV-008). The menu's other items follow the row.
+
+#### Scenario: The same row
+
+- **GIVEN** a nested screen over the page
+- **WHEN** the user opens its overflow menu
+- **THEN** its first row holds Back, Share and Refresh, and no Home
+- **AND** the row's Refresh reloads the nested page
 
 Test: [test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.dart)
 
@@ -733,12 +773,18 @@ Home button pressed
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)
 - Home button `IconButton` (portrait ~line 1701, landscape ~line 2063)
 
-#### `lib/controllers/keyboard_shortcut_controller.dart`
+#### `lib/services/keyboard_shortcuts.dart`
 - `KeyboardShortcut.keys` — every key a shortcut takes, per platform (NAV-014)
-- `KeyboardShortcutController.answer` — the page's answer to each, through the controllers that own tabs, Refresh and Back; registered with `FocusManager.addEarlyKeyEventHandler` on desktop only
+- `KeyboardShortcuts` — takes the keys for the `ShortcutScreen` on top, through `FocusManager.addEarlyKeyEventHandler`, on desktop only
+
+#### `lib/controllers/keyboard_shortcut_controller.dart`
+- `KeyboardShortcutController.answerShortcut` — the page's answer to each, through the controllers that own tabs, Refresh, Back and Forward; the nested screen's own answers are `_InAppWebViewScreenState.answerShortcut`
 
 #### `lib/widgets/url_bar.dart`
 - `UrlBarState.edit()` — the focus and selection a tap gives, for Ctrl/Cmd-L (NAV-014)
+
+#### `lib/widgets/site_menu.dart`
+- `siteMenuNavRow` — the top row of the site menu and of the nested screen's (NAV-015)
 - `_handleSubmit()` — awaits `onUrlSubmitted`, then shows `currentUrl` again; a submit that leaves `currentUrl` unchanged would otherwise leave the typed text behind (NAV-007)
 - `didUpdateWidget` — follows `currentUrl` except while the user is editing
 

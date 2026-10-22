@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_posture.dart';
@@ -28,6 +29,8 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart'
     show extractDomain, matchesBlockedCookie;
 import 'package:webspace/widgets/download_button.dart';
+import 'package:webspace/widgets/shortcut_label.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
@@ -46,12 +49,11 @@ import 'package:webspace/services/page_js.dart';
 /// composited window over this rect (integration_test/white_screen_test.dart).
 const String kNestedWebViewSlotKey = 'nested-webview-slot';
 
-/// What the nested screen's overflow menu offers, in menu order.
+/// What the nested screen's overflow menu offers below its top row, in menu
+/// order.
 enum _NestedMenuAction {
   openBrowser,
-  refresh,
   search,
-  share,
   toggleUrlBar,
   repaint,
   devTools,
@@ -98,8 +100,10 @@ class InAppWebViewScreen extends StatefulWidget {
 
 class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     with WidgetsBindingObserver, RouteAware
-    implements SurfaceHost {
+    implements SurfaceHost, ShortcutScreen {
   WebViewController? _controller;
+  late final _keys = KeyboardShortcuts(this);
+  final _urlBar = GlobalKey<UrlBarState>();
   late String _currentUrl;
   late final PullToRefreshGate? _pullToRefreshGate;
 
@@ -209,6 +213,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     );
     _pullToRefreshGate =
         PullToRefreshGate.forHost(onRefresh: _reloadAndRepaint);
+    _keys.start();
     // Defer InAppWebView construction while Tor is not up (TOR-008). Building
     // it here binds its WKWebsiteDataStore to a null proxy for the widget's
     // lifetime, so a later Up transition would leak — the nested twin of the
@@ -386,6 +391,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   @override
   void dispose() {
+    _keys.dispose();
     _surface.dispose();
     unawaited(_torStatusSub?.cancel());
     if (widget.posture.container.proxy.type == ProxyType.TOR) {
@@ -422,9 +428,79 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   void _toggleFind() => setState(() => _isFindVisible = !_isFindVisible);
 
+  @override
+  bool get onTop => mounted && (ModalRoute.isCurrentOf(context) ?? false);
+
+  /// This screen's own reload, find, URL bar and back (NAV-014); Ctrl/Cmd-W
+  /// closes it, as its app bar's back arrow does. Tabs and sites are the
+  /// page's, behind it.
+  @override
+  bool answerShortcut(KeyboardShortcut shortcut) {
+    switch (shortcut) {
+      case ReloadPage():
+        unawaited(_reloadAndRepaint());
+      case FindInPage():
+        _toggleFind();
+      case FocusUrlBar():
+        final bar = _urlBar.currentState;
+        if (bar == null) return false;
+        bar.edit();
+      case GoBack():
+        // The back gesture's own path: the page's history, then the screen
+        // at its start (NAV-008).
+        unawaited(Navigator.of(context).maybePop());
+      case GoForward():
+        unawaited(_goForwardAndRepaint());
+      case CloseActiveTab():
+        Navigator.of(context).pop();
+      case OpenNewTab() ||
+          NextSite() ||
+          PreviousSite() ||
+          SiteAt() ||
+          LastSite():
+        return false;
+    }
+    return true;
+  }
+
   Future<void> _goBackAndRepaint(WebViewController controller) async {
     await controller.goBack();
     _surface.nudge('back');
+  }
+
+  /// The menu's top row, the site menu's own buttons for this screen's page:
+  /// Back walks its history only, the system back gesture closes the screen
+  /// at its start.
+  SiteMenuNav get _menuNav => (
+        back: () => unawaited(_goBackIfPossible()),
+        home: null,
+        share: () => unawaited(_share()),
+        reload: () => unawaited(_reloadAndRepaint()),
+        stop: () => unawaited(_controller?.stopLoading()),
+        backInNewTab: null,
+        duplicateTab: null,
+      );
+
+  Future<void> _goBackIfPossible() async {
+    final controller = _controller;
+    if (controller == null || !await controller.canGoBack()) return;
+    await _goBackAndRepaint(controller);
+  }
+
+  Future<void> _share() async {
+    final url = await _controller?.getUrl();
+    if (url == null) return;
+    unawaited(SharePlus.instance
+        .share(ShareParams(uri: Uri.parse(url.toString()))));
+  }
+
+  /// One step forward where the page has one (NAV-014), recomposited as
+  /// [_goBackAndRepaint] is.
+  Future<void> _goForwardAndRepaint() async {
+    final controller = _controller;
+    if (controller == null || !await controller.canGoForward()) return;
+    await controller.goForward();
+    _surface.nudge('forward');
   }
 
   /// User asked for a repaint from the menu (PAUSE-028). Nested counterpart of
@@ -538,31 +614,34 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     }
   }
 
-  /// Icon and label of [action] in the overflow menu, or null where the menu
-  /// does not offer it.
-  (IconData, String)? _menuEntry(
+  /// Icon, label and desktop key (NAV-014) of [action] in the overflow menu,
+  /// or null where the menu does not offer it.
+  (IconData, String, String?)? _menuEntry(
     _NestedMenuAction action, {
     required AppLocalizations loc,
+    required MaterialLocalizations names,
   }) =>
       switch (action) {
         _NestedMenuAction.openBrowser =>
-          (Icons.link, loc.inappBrowserMenuOpenInBrowser),
-        _NestedMenuAction.refresh => (Icons.refresh, loc.inappBrowserMenuRefresh),
-        _NestedMenuAction.search => (Icons.search, loc.inappBrowserMenuFind),
-        _NestedMenuAction.share => (Icons.share, loc.commonShare),
+          (Icons.link, loc.inappBrowserMenuOpenInBrowser, null),
+        _NestedMenuAction.search => (
+            Icons.search,
+            loc.inappBrowserMenuFind,
+            shortcutLabel<FindInPage>(names),
+          ),
         _NestedMenuAction.toggleUrlBar => _showUrlBar
-            ? (Icons.visibility_off, loc.inappBrowserMenuHideUrlBar)
-            : (Icons.visibility, loc.inappBrowserMenuShowUrlBar),
+            ? (Icons.visibility_off, loc.inappBrowserMenuHideUrlBar, null)
+            : (Icons.visibility, loc.inappBrowserMenuShowUrlBar, null),
         // Manual escape hatch for the recurring Android blank surface
         // (BUG-001 / PAUSE-028). Android-only, where the nudge is not a
         // no-op, and behind developer mode: it is a diagnostic, not something
         // to meet by accident.
         _NestedMenuAction.repaint =>
           hostIsAndroid && DeveloperModeService.instance.enabled
-              ? (Icons.format_paint, loc.commonRepaintScreen)
+              ? (Icons.format_paint, loc.commonRepaintScreen, null)
               : null,
         _NestedMenuAction.devTools =>
-          (Icons.developer_mode, loc.inappBrowserMenuDeveloperTools),
+          (Icons.developer_mode, loc.inappBrowserMenuDeveloperTools, null),
       };
 
   @override
@@ -635,9 +714,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         actions: [
           const DownloadButton(),
           PopupMenuButton<_NestedMenuAction>(
-            itemBuilder: (_) => [
+            itemBuilder: (menuContext) => [
+              siteMenuNavRow(menuContext, nav: _menuNav, loading: _isLoading),
+              PopupMenuDivider(),
               for (final action in _NestedMenuAction.values)
-                if (_menuEntry(action, loc: loc) case (final icon, final label))
+                if (_menuEntry(action,
+                        loc: loc, names: MaterialLocalizations.of(menuContext))
+                    case (final icon, final label, final keys))
                   PopupMenuItem(
                     value: action,
                     child: Row(
@@ -645,6 +728,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                         Icon(icon),
                         SizedBox(width: 8),
                         Text(label),
+                        if (keys != null) ...[
+                          const Spacer(),
+                          SizedBox(width: 24),
+                          ShortcutKeys(keys),
+                        ],
                       ],
                     ),
                   ),
@@ -653,11 +741,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               switch (action) {
                 case _NestedMenuAction.repaint:
                   _repaintCurrentSurface();
-                case _NestedMenuAction.share:
-                  final url = await _controller?.getUrl();
-                  if (url != null) {
-                    unawaited(SharePlus.instance.share(ShareParams(uri: Uri.parse(url.toString()))));
-                  }
                 case _NestedMenuAction.openBrowser:
                   final url = await _controller?.getUrl();
                   if (url == null) return;
@@ -668,8 +751,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 case _NestedMenuAction.toggleUrlBar:
                   setState(() => _showUrlBar = !_showUrlBar);
                   await widget.onShowUrlBarChanged?.call(show: _showUrlBar);
-                case _NestedMenuAction.refresh:
-                  await _reloadAndRepaint();
                 case _NestedMenuAction.devTools:
                   unawaited(Navigator.push(
                     context,
@@ -730,6 +811,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             SafeArea(
               top: false,
               child: UrlBar(
+                key: _urlBar,
                 currentUrl: _currentUrl,
                 onSiteInfo: _showSiteInfo,
                 onUrlSubmitted: (url) {

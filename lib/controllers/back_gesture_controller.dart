@@ -180,4 +180,19 @@ class BackGestureController {
     if (controller == null || !await controller.canGoBack()) return;
     await _goBackAndRepaint(controller);
   }
+
+  /// [_goBackAndRepaint]'s other way: a forward step restores from the same
+  /// cache.
+  Future<void> _goForwardAndRepaint(WebViewController controller) async {
+    await controller.goForward();
+    _surface.nudge('forward');
+  }
+
+  /// Back's undo, from its key (NAV-014): one step forward where the page
+  /// has one.
+  Future<void> goForwardIfPossible() async {
+    final controller = _host.shownController;
+    if (controller == null || !await controller.canGoForward()) return;
+    await _goForwardAndRepaint(controller);
+  }
 }

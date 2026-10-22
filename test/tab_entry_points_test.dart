@@ -239,9 +239,10 @@ void main() {
         reason: 'the tab count in the app bar',
       );
       expect(
-        menu,
-        contains('SiteMenuAction.newTab =>\n'
-            '          state.tabsOn ? (Icons.add, loc.tabsNewTab) : null,'),
+        RegExp(r'SiteMenuAction\.newTab => state\.tabsOn\s*'
+                r'\? \(Icons\.add, loc\.tabsNewTab, [^)]*\)\)\s*: null,')
+            .hasMatch(menu),
+        isTrue,
         reason: 'New tab, in the overflow menus',
       );
       expect(source, contains('tabsOn: _tabs.enabledFor(_sites.shown),'),

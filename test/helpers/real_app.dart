@@ -252,7 +252,8 @@ Future<void> pressBack(WidgetTester tester) async {
   await settleRealApp(tester);
 }
 
-/// A webview with no page in it: nothing to go back to, nothing loading,
+/// A webview with no page in it: nothing to go back or forward to, nothing
+/// loading,
 /// and every other call answered with nothing.
 class _FakeWebViewController implements inapp.InAppWebViewController {
   @override
@@ -262,6 +263,12 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
   @override
   Future<bool> canGoBack() async {
     webViewCalls.add(#canGoBack);
+    return false;
+  }
+
+  @override
+  Future<bool> canGoForward() async {
+    webViewCalls.add(#canGoForward);
     return false;
   }
 

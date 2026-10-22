@@ -83,6 +83,29 @@ for (const screen of GUARDED) {
         '(PAUSE-018 / BUG-001); the iOS/macOS path is exempt.',
     );
   });
+
+  // A forward step restores from the same back/forward cache.
+  test(`${rel}: forward navigation routes through _goForwardAndRepaint (PAUSE-018)`, () => {
+    const defIdx = lines.findIndex((l) =>
+      /Future<void>\s+_goForwardAndRepaint\s*\(/.test(l),
+    );
+    assert.ok(defIdx >= 0, '_goForwardAndRepaint must be defined');
+    const body = lines.slice(defIdx, defIdx + 8).join('\n');
+    assert.match(body, /controller\.goForward\(\)/, 'funnel must call goForward');
+    assert.match(body, /_surface\.nudge\('forward'\)/, 'funnel must nudge the surface');
+    const offenders = [];
+    if (rel !== screen) {
+      linesOf(screen).forEach((l, i) => {
+        if (/\.goForward\(\)/.test(l)) offenders.push(`${screen}:${i + 1}`);
+      });
+    }
+    lines.forEach((l, i) => {
+      if (!/\.goForward\(\)/.test(l)) return;
+      if (!/_goForwardAndRepaint\s*\(/.test(near(i, 6, 0))) offenders.push(i + 1);
+    });
+    assert.deepEqual(offenders, [],
+      `raw goForward() outside _goForwardAndRepaint at line(s) ${offenders.join(', ')}`);
+  });
 }
 
 // Reload repaint gate (PAUSE-021 / BUG-001 Attempt 9). A reload discards the

@@ -70,6 +70,8 @@ abstract class WebViewController {
   Future<void> setTextZoom(int zoomPercent);
   Future<void> goBack();
   Future<bool> canGoBack();
+  Future<void> goForward();
+  Future<bool> canGoForward();
 
   /// The page Back would go to, or null at the start of the history.
   Future<HistoryEntry?> backEntry();
@@ -491,6 +493,13 @@ class PlatformWebViewController implements WebViewController {
 
   @override
   Future<bool> canGoBack() async => await _native(_c.canGoBack) ?? false;
+
+  @override
+  Future<void> goForward() => _native(_c.goForward);
+
+  @override
+  Future<bool> canGoForward() async =>
+      await _native(_c.canGoForward) ?? false;
 
   @override
   Future<HistoryEntry?> backEntry() async => backEntryIn(
