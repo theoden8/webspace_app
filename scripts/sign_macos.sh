@@ -4,6 +4,7 @@
 #   adhoc  local/CI artifact: re-sign with an entitlement set an ad-hoc
 #          signature can actually back
 #   devid  Developer ID + hardened runtime, notarized and stapled -> .zip
+#          and .dmg
 #   mas    Apple Distribution + provisioning profiles -> .pkg for App Store
 #          Connect
 #
@@ -117,6 +118,16 @@ sign_one() {
   codesign "${args[@]}" "$target"
 }
 
+notarize() {
+  if [[ -n "${NOTARY_PROFILE:-}" ]]; then
+    xcrun notarytool submit "$1" --keychain-profile "$NOTARY_PROFILE" --wait
+  else
+    : "${NOTARY_KEY:?set NOTARY_PROFILE, or NOTARY_KEY/NOTARY_KEY_ID/NOTARY_ISSUER}"
+    xcrun notarytool submit "$1" \
+      --key "$NOTARY_KEY" --key-id "${NOTARY_KEY_ID:?}" --issuer "${NOTARY_ISSUER:?}" --wait
+  fi
+}
+
 case "$MODE" in
   adhoc) IDENTITY="-" ;;
   devid) IDENTITY="${MACOS_SIGN_IDENTITY:-Developer ID Application}" ;;
@@ -165,20 +176,27 @@ MSG
   devid)
     ZIP="$OUT_DIR/$BASE-macos.zip"
     ditto -c -k --keepParent "$APP" "$ZIP"
-    if [[ -n "${NOTARY_PROFILE:-}" ]]; then
-      xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
-    else
-      : "${NOTARY_KEY:?set NOTARY_PROFILE, or NOTARY_KEY/NOTARY_KEY_ID/NOTARY_ISSUER}"
-      xcrun notarytool submit "$ZIP" \
-        --key "$NOTARY_KEY" --key-id "${NOTARY_KEY_ID:?}" --issuer "${NOTARY_ISSUER:?}" --wait
-    fi
+    notarize "$ZIP"
     xcrun stapler staple "$APP"
     # The notarized ticket is stapled to the .app, so the zip has to be made
     # again from the stapled bundle.
     rm -f "$ZIP"
     ditto -c -k --keepParent "$APP" "$ZIP"
     spctl --assess --type exec --verbose=2 "$APP"
-    echo "Notarized and stapled: $ZIP"
+
+    # The image is built from the stapled app, so an app copied out of it
+    # opens offline too; the image is what a user downloads, so it is
+    # signed, notarized and stapled as well.
+    DMG="$OUT_DIR/$BASE-macos.dmg"
+    mkdir "$WORK/dmg"
+    ditto "$APP" "$WORK/dmg/$(basename "$APP")"
+    ln -s /Applications "$WORK/dmg/Applications"
+    hdiutil create -volname "$BASE" -srcfolder "$WORK/dmg" -fs HFS+ -format UDZO -ov "$DMG"
+    codesign --sign "$IDENTITY" --timestamp "$DMG"
+    notarize "$DMG"
+    xcrun stapler staple "$DMG"
+    spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+    echo "Notarized and stapled: $ZIP $DMG"
     ;;
   mas)
     PKG="$OUT_DIR/$BASE-macos.pkg"

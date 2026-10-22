@@ -65,7 +65,7 @@ release artifacts are signed after the build:
 ```bash
 fvm flutter build macos --release
 
-# Developer ID: hardened runtime, notarized, stapled -> build/macos/*.zip
+# Developer ID: hardened runtime, notarized, stapled -> build/macos/*.zip, *.dmg
 NOTARY_PROFILE=webspace-notary \
   ./scripts/sign_macos.sh devid
 
@@ -75,11 +75,18 @@ MACOS_EXT_PROVISION_PROFILE=~/profiles/ext.provisionprofile \
   ./scripts/sign_macos.sh mas
 ```
 
-`NOTARY_PROFILE` is a notarytool keychain profile
-(`xcrun notarytool store-credentials`); `NOTARY_KEY` + `NOTARY_KEY_ID` +
-`NOTARY_ISSUER` work instead. The script prints the two upload commands for
-the `.pkg`; either `xcrun altool --upload-app` or `fastlane deliver
---platform osx` sends it to App Store Connect.
+`NOTARY_PROFILE` is a notarytool keychain profile, stored once with
+`xcrun notarytool store-credentials webspace-notary --apple-id <id>
+--team-id 7NGC2P87LM`, which asks for an app-specific password
+(account.apple.com, Sign-In and Security); `NOTARY_KEY` + `NOTARY_KEY_ID` +
+`NOTARY_ISSUER`, an App Store Connect API key, work instead. The script
+prints the two upload commands for the `.pkg`; either `xcrun altool
+--upload-app` or `fastlane deliver --platform osx` sends it to App Store
+Connect.
+
+`devid` notarizes twice: the app, through the zip, so its ticket is stapled
+before the `.dmg` is built from it, then the `.dmg` itself, the file a user
+downloads. Either file is a release asset.
 
 ## What the store build has to keep true
 
@@ -185,4 +192,4 @@ launch. Until then passkeys do nothing on macOS: WebKit refuses every site.
    minimum macOS version stated.
 4. Answer export compliance with the EXPORT-001 basis if asked.
 5. After approval, keep the Developer ID channel in step: the GitHub release
-   zip and the store build come from the same commit.
+   `.dmg` and the store build come from the same commit.
