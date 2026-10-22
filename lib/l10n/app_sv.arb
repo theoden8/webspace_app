@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Objektstorlek",
-  "libraryItemSmall": "Liten",
-  "libraryItemMedium": "Mellan",
-  "libraryItemLarge": "Stor"
+  }
 }

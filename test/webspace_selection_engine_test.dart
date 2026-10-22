@@ -1,8 +1,44 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/webspace_model.dart';
 
 void main() {
+  group('WebspaceSelectionEngine.setSiteMembership', () {
+    final a = SiteId('a'), b = SiteId('b'), c = SiteId('c');
+    List<Webspace> spaces() => [
+          Webspace.all(),
+          Webspace(id: WebspaceId('work'), name: 'Work', siteIds: [a, b]),
+          Webspace(id: WebspaceId('home'), name: 'Home', siteIds: [b]),
+          Webspace(id: WebspaceId('read'), name: 'Read', siteIds: [c]),
+        ];
+
+    test(
+        'a site joins at the end, leaves without moving the others, '
+        'and All is left alone (EDIT-011)', () {
+      final webspaces = spaces();
+      final changed = WebspaceSelectionEngine.setSiteMembership(webspaces,
+          site: b,
+          spaces: {WebspaceId('work'), WebspaceId('read'), WebspaceId.all});
+      expect(changed, isTrue);
+      expect([for (final ws in webspaces) ws.siteIds], [
+        isEmpty,
+        [a, b],
+        isEmpty,
+        [c, b],
+      ]);
+    });
+
+    test('the membership it already has changes nothing', () {
+      final webspaces = spaces();
+      final changed = WebspaceSelectionEngine.setSiteMembership(webspaces,
+          site: b, spaces: {WebspaceId('work'), WebspaceId('home')});
+      expect(changed, isFalse);
+      expect([for (final ws in webspaces) ws.siteIds],
+          [isEmpty, [a, b], [b], [c]]);
+    });
+  });
+
   group('WebspaceSelectionEngine.filteredSiteIndices', () {
     test('returns empty when no webspace is selected', () {
       final result = WebspaceSelectionEngine.filteredSiteIndices(

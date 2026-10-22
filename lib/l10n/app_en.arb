@@ -5305,21 +5305,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Item size",
-  "libraryItemSmall": "Small",
-  "libraryItemMedium": "Medium",
-  "libraryItemLarge": "Large",
-  "@libraryItemSize": {
-    "description": "Launcher item size menu title."
-  },
-  "@libraryItemSmall": {
-    "description": "Size choice for one site or webspace icon in the launcher."
-  },
-  "@libraryItemMedium": {
-    "description": "Size choice for one site or webspace icon in the launcher."
-  },
-  "@libraryItemLarge": {
-    "description": "Size choice for one site or webspace icon in the launcher."
   }
 }

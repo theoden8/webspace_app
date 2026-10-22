@@ -78,7 +78,6 @@ enum SiteField {
   fingerprintResetNonce('fingerprintResetNonce', qr: QrShare.withheld),
   // Base64 PNG bytes: device-local cosmetics, and too big for a QR.
   customIconPng('customIconPng', qr: QrShare.withheld),
-  launcherSize('launcherSize', qr: QrShare.withheld),
   // A scanned code must not make a site claim domains: claims decide where
   // other sites' links and shared URLs go.
   domainClaims('domainClaims', qr: QrShare.withheld),

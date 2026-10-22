@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "ขนาดรายการ",
-  "libraryItemSmall": "เล็ก",
-  "libraryItemMedium": "กลาง",
-  "libraryItemLarge": "ใหญ่"
+  }
 }

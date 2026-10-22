@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "ទំហំធាតុ",
-  "libraryItemSmall": "តូច",
-  "libraryItemMedium": "មធ្យម",
-  "libraryItemLarge": "ធំ"
+  }
 }

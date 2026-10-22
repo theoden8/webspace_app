@@ -8,14 +8,11 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_drawer.dart';
-import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/real_app.dart';
 import 'helpers/group_tile.dart';
@@ -319,7 +316,7 @@ void main() {
   );
 
   testWidgets(
-    'item sizes persist independently without an edit mode (WEBSPACE-014)',
+    "a site's Edit dialog puts it in the webspaces chosen there (EDIT-011)",
     (tester) async {
       final alpha = WebViewModel(
         initUrl: 'https://alpha.example.test',
@@ -330,102 +327,46 @@ void main() {
         name: 'Beta',
       );
       final work = Webspace(name: 'Work', siteIds: [alpha.siteId, beta.siteId]);
+      final reading = Webspace(name: 'Reading', siteIds: [beta.siteId]);
       await pumpRealApp(
         tester,
         sites: [alpha, beta],
-        webspaces: [work],
+        webspaces: [work, reading],
         prefs: {
           AppPref.developerMode.key: true,
           AppPref.experimentalFolderLibrary.key: true,
         },
       );
-      expect(find.byIcon(Icons.more_horiz), findsNothing);
-      await tester.longPress(find.text('Work'));
-      await settleRealApp(tester);
-      await tester.tap(find.text('Item size'));
-      await settleRealApp(tester);
-      await tester.tap(find.text('Large'));
-      await settleRealApp(tester);
-      final prefs = await SharedPreferences.getInstance();
-      final savedGroup = prefs
-          .getStringList('webspaces')!
-          .map(
-            (raw) => Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>),
-          )
-          .singleWhere((value) => value.id == work.id);
-      expect(savedGroup.launcherSize, LauncherItemSize.large);
       await openWebspace(tester, name: 'Work');
-      final alphaTile = find.ancestor(
-        of: find.text('Alpha'),
-        matching: find.byType(SiteGridTile),
-      );
+      final alphaTile = find.byKey(ValueKey(appSite('Alpha').siteId));
       await tester.tap(
         find.descendant(of: alphaTile, matching: find.byIcon(Icons.more_vert)),
       );
       await settleRealApp(tester);
-      await tester.tap(find.text('Item size'));
+      await tester.tap(find.text('Edit'));
       await settleRealApp(tester);
-      await tester.tap(find.text('Small'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Work'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Reading'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
       await settleRealApp(tester);
-      expect(appSite('Alpha').launcherSize, LauncherItemSize.small);
-      expect(appSite('Beta').launcherSize, LauncherItemSize.medium);
-      final savedSite = prefs
-          .getStringList('webViewModels')!
-          .map(
-            (raw) => WebViewModel.fromJson(
-              jsonDecode(raw) as Map<String, dynamic>,
-              stateSetterF: null,
-            ),
-          )
-          .singleWhere((value) => value.name == 'Alpha');
-      expect(savedSite.launcherSize, LauncherItemSize.small);
+      final prefs = await SharedPreferences.getInstance();
+      final saved = {
+        for (final raw in prefs.getStringList('webspaces')!)
+          if (Webspace.fromJson(jsonDecode(raw) as Map<String, dynamic>)
+              case final group when !group.isAll)
+            group.name: group.siteIds,
+      };
+      expect(saved, {
+        'Work': [beta.siteId],
+        'Reading': [beta.siteId, alpha.siteId],
+      });
+      expect(find.byType(SiteGridTile), findsOneWidget,
+          reason: 'Alpha left the group on screen');
       expect(tester.takeException(), isNull);
     },
   );
-  testWidgets('Sites opens a nested tab through the app tab controller', (
-    tester,
-  ) async {
-    final root = SiteTab(
-      id: TabId('root'),
-      url: 'https://alpha.example.test',
-      title: 'Overview',
-    );
-    final child = SiteTab(
-      id: TabId('child'),
-      parentId: root.id,
-      url: 'https://alpha.example.test/article',
-      title: 'Deep article',
-    );
-    final site = WebViewModel(
-      initUrl: root.url,
-      name: 'Alpha',
-      tabsEnabled: true,
-      tabs: [root, child],
-      activeTabId: root.id,
-    );
-    await pumpRealApp(
-      tester,
-      sites: [site],
-      prefs: {
-        AppPref.developerMode.key: true,
-        AppPref.experimentalFolderLibrary.key: true,
-      },
-    );
-    await tester.tap(find.text('Sites'));
-    await settleRealApp(tester);
-    await tester.tap(find.text('Deep article'));
-    await settleRealApp(tester);
-    expect(appSite('Alpha').activeTabId, child.id);
-    expect(find.byType(WebspaceLibrary), findsNothing);
-    await tester.tap(find.byTooltip('Back to Webspaces'));
-    await settleRealApp(tester);
-    expect(find.byType(TabsSheet), findsOneWidget);
-    expect(find.text('Deep article'), findsOneWidget);
-    await tester.tap(find.text('Deep article'));
-    await settleRealApp(tester);
-    expect(appSite('Alpha').activeTabId, child.id);
-    expect(tester.takeException(), isNull);
-  });
+
   for (final (dev, on) in [
     (false, false),
     (false, true),

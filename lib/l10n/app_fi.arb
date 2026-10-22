@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Kohteen koko",
-  "libraryItemSmall": "Pieni",
-  "libraryItemMedium": "Keskikokoinen",
-  "libraryItemLarge": "Suuri"
+  }
 }

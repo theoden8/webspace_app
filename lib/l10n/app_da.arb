@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Elementstørrelse",
-  "libraryItemSmall": "Lille",
-  "libraryItemMedium": "Mellem",
-  "libraryItemLarge": "Stor"
+  }
 }

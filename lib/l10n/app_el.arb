@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Μέγεθος στοιχείου",
-  "libraryItemSmall": "Μικρό",
-  "libraryItemMedium": "Μεσαίο",
-  "libraryItemLarge": "Μεγάλο"
+  }
 }

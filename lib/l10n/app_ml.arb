@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "ഇനത്തിന്റെ വലുപ്പം",
-  "libraryItemSmall": "ചെറുത്",
-  "libraryItemMedium": "ഇടത്തരം",
-  "libraryItemLarge": "വലുത്"
+  }
 }

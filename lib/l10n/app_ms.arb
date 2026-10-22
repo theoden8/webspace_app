@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Saiz item",
-  "libraryItemSmall": "Kecil",
-  "libraryItemMedium": "Sederhana",
-  "libraryItemLarge": "Besar"
+  }
 }

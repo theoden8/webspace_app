@@ -2,18 +2,17 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
-import 'package:webspace/settings/launcher_item_size.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
-import 'package:webspace/widgets/launcher_size_picker.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 
-enum _LibraryView { webspaces, workspace, sites }
+enum _LibraryView { webspaces, workspace }
 
-enum _GroupAction { edit, delete, resize }
+enum _GroupAction { edit, delete }
 
 /// A launcher of site groups; navigation and search remain UI-only.
 class WebspaceLibrary extends StatefulWidget {
@@ -28,14 +27,12 @@ class WebspaceLibrary extends StatefulWidget {
     required this.onAddWebspace,
     required this.onEditWebspace,
     required this.onDeleteWebspace,
-    required this.onResizeWebspace,
     required this.onReorder,
     required this.onOpenSite,
     required this.onSiteMenu,
     required this.onReorderSite,
     required this.onAddSite,
     required this.onOpenSettings,
-    required this.siteTreeBuilder,
   });
 
   final List<Webspace> webspaces;
@@ -47,8 +44,6 @@ class WebspaceLibrary extends StatefulWidget {
   final VoidCallback onAddWebspace;
   final ValueChanged<Webspace> onEditWebspace;
   final ValueChanged<Webspace> onDeleteWebspace;
-  final void Function(Webspace webspace, {required LauncherItemSize size})
-  onResizeWebspace;
   final void Function(int from, {required int newIndex})? onReorder;
   final ValueChanged<WebViewModel> onOpenSite;
   final void Function(
@@ -60,8 +55,6 @@ class WebspaceLibrary extends StatefulWidget {
   final void Function(int from, {required int to})? onReorderSite;
   final VoidCallback onAddSite;
   final Future<void> Function() onOpenSettings;
-  final Widget Function(BuildContext context, {required String query})
-  siteTreeBuilder;
 
   @override
   State<WebspaceLibrary> createState() => WebspaceLibraryState();
@@ -71,7 +64,7 @@ class WebspaceLibrary extends StatefulWidget {
 class WebspaceLibraryState extends State<WebspaceLibrary> {
   final _search = TextEditingController();
   _LibraryView _view = _LibraryView.webspaces;
-  bool _settingsOpen = false;
+  final _settings = ReentryGuard();
   bool _animateNavigation = false;
   double _navigationDirection = 1;
   double _backSwipeDistance = 0;
@@ -136,8 +129,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
     );
     final title = groups
         ? loc.libraryWebspaces
-        : _view == _LibraryView.sites
-        ? loc.librarySites
         : _selected?.name ?? loc.libraryWebspaces;
     return PopScope(
       canPop: widget.currentSite != null || _view != _LibraryView.workspace,
@@ -192,6 +183,12 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                                   : widget.onAddSite,
                               icon: const Icon(Icons.add),
                               color: theme.colorScheme.primary,
+                            ),
+                            IconButton(
+                              tooltip: loc.homeAppSettingsTooltip,
+                              onPressed: () =>
+                                  unawaited(_settings.run(widget.onOpenSettings)),
+                              icon: const Icon(Icons.settings_outlined),
                             ),
                           ],
                         ),
@@ -272,9 +269,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                                       child: Text(
                                         loc.webspacesListSiteCount(
                                           _order(
-                                            _view == _LibraryView.sites
-                                                ? WebspaceId.all
-                                                : widget.selectedWebspaceId,
+                                            widget.selectedWebspaceId,
                                           ).length,
                                         ),
                                         style: theme.textTheme.bodyMedium
@@ -289,11 +284,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                                 Expanded(
                                   child: groups
                                       ? _groups(context)
-                                      : _view == _LibraryView.sites
-                                      ? widget.siteTreeBuilder(
-                                          context,
-                                          query: _search.text,
-                                        )
                                       : GestureDetector(
                                           behavior: HitTestBehavior.opaque,
                                           onHorizontalDragStart: (_) =>
@@ -344,7 +334,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                 ),
               ),
             ),
-            _navigation(context),
           ],
         ),
       ),
@@ -416,9 +405,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                     mainAxisExtent: WebspaceGroupTile.extentFor(
                       textScaler: scaler,
                       textTheme: Theme.of(context).textTheme,
-                      well: shown
-                          .map((w) => LibraryStyle.itemWell(w.launcherSize))
-                          .reduce(math.max),
+                      well: LibraryStyle.siteWell,
                     ),
                   ),
                   itemCount: shown.length,
@@ -540,7 +527,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
               .map(
                 (i) => SiteGridTile.extentFor(
                   context,
-                  well: LibraryStyle.itemWell(widget.sites[i].launcherSize),
+                  well: LibraryStyle.siteWell,
                   webspaceCount: memberships[i]!.length,
                 ),
               )
@@ -611,11 +598,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
               title: Text(loc.commonEdit),
               onTap: () => Navigator.pop(context, _GroupAction.edit),
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_size_select_large_outlined),
-              title: Text(loc.libraryItemSize),
-              onTap: () => Navigator.pop(context, _GroupAction.resize),
-            ),
             if (!webspace.isAll)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
@@ -655,103 +637,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
         widget.onEditWebspace(webspace);
       case _GroupAction.delete:
         widget.onDeleteWebspace(webspace);
-      case _GroupAction.resize:
-        final size = await showLauncherSizePicker(
-          context,
-          current: webspace.launcherSize,
-        );
-        if (size != null && mounted && widget.webspaces.contains(webspace)) {
-          widget.onResizeWebspace(webspace, size: size);
-        }
       case null:
         return;
-    }
-  }
-
-  Widget _navigation(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final active = _settingsOpen
-        ? 2
-        : _view == _LibraryView.sites
-        ? 0
-        : 1;
-    final items = [
-      (Icons.account_tree_outlined, loc.librarySites),
-      (Icons.apps_rounded, loc.libraryWebspaces),
-      (Icons.settings_outlined, loc.homeSettingsMenu),
-    ];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withAlpha(80),
-            width: Chrome.hairlineWidth,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            for (var index = 0; index < items.length; index++)
-              Expanded(
-                child: Semantics(
-                  selected: active == index,
-                  child: InkWell(
-                    onTap: () => unawaited(_destination(index)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Spacing.xs,
-                        vertical: Spacing.md,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            items[index].$1,
-                            color: active == index
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: Spacing.xs),
-                          Text(
-                            items[index].$2,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: active == index
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _destination(int index) async {
-    FocusScope.of(context).unfocus();
-    if (index == 0) {
-      final all = widget.webspaces.where((w) => w.isAll).firstOrNull;
-      if (all != null) widget.onSelectWebspace(all);
-      _show(_LibraryView.sites);
-    } else if (index == 1) {
-      showWebspaces();
-    } else if (!_settingsOpen) {
-      setState(() => _settingsOpen = true);
-      try {
-        await widget.onOpenSettings();
-      } finally {
-        if (mounted) setState(() => _settingsOpen = false);
-      }
     }
   }
 }

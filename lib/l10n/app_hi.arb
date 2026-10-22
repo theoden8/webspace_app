@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "आइटम का आकार",
-  "libraryItemSmall": "छोटा",
-  "libraryItemMedium": "मध्यम",
-  "libraryItemLarge": "बड़ा"
+  }
 }

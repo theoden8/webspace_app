@@ -38,8 +38,6 @@ void main() {
   group('web search (LIR-029 to LIR-031)', () {
     test('the Tabs sheet offers Web search; the menus only with tabs off', () {
       expect(bodyOf(main, signature: 'Future<void> _presentTabsSheet('),
-          contains('builder: (ctx) => _buildTabTree(),'));
-      expect(bodyOf(main, signature: 'Widget _buildTabTree('),
           contains('onWebSearch: () => unawaited(_links.webSearch()),'));
       expect(
         File('lib/widgets/site_menu.dart').readAsStringSync(),

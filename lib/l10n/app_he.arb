@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "גודל הפריט",
-  "libraryItemSmall": "קטן",
-  "libraryItemMedium": "בינוני",
-  "libraryItemLarge": "גדול"
+  }
 }

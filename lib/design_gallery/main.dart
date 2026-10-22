@@ -63,7 +63,6 @@ import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_library.dart';
-import 'package:webspace/widgets/launcher_size_picker.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -788,22 +787,11 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     onAddWebspace: () {},
     onEditWebspace: (_) {},
     onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
-    onResizeWebspace: (w, {required size}) => setState(() => w.launcherSize = size),
     onOpenSite: (_) {},
-    onSiteMenu: (context, {required site, required position}) async {
-      final size = await showLauncherSizePicker(context, current: site.launcherSize);
-      if (size != null && mounted) setState(() => site.launcherSize = size);
-    },
+    onSiteMenu: (context, {required site, required position}) {},
     onReorderSite: null,
     onAddSite: () {},
     onOpenSettings: () async {},
-    siteTreeBuilder: (context, {required query}) => TabsSheet(
-      embedded: true, query: query,
-      sites: [for (final site in _sites) TabsSheetSite(model: site, isCurrent: false, isLoaded: false)],
-      currentIndex: 0,
-      onOpenSite: (_) {}, onOpenTab: (_, {required tabId}) {}, onNewTab: (_) {},
-      onCloseTab: (_, {required tabId}) {}, onCloseSubtree: (_, {required tabId}) {},
-    ),
     onReorder: (from, {required newIndex}) => setState(() {
       final moved = _webspaces.removeAt(from);
       _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);

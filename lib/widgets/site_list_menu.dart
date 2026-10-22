@@ -10,7 +10,6 @@ enum SiteListAction {
   moveToArchive,
   moveOutOfArchive,
   closeArchive,
-  resize,
 }
 
 /// The menu a long press on a site in the list opens at [position]. An
@@ -23,7 +22,6 @@ Future<SiteListAction?> showSiteListMenu(
   required bool canMoveUp,
   required bool canMoveDown,
   required bool archived,
-  bool allowResize = false,
 }) {
   final loc = AppLocalizations.of(context);
   PopupMenuItem<SiteListAction> item(
@@ -47,10 +45,6 @@ Future<SiteListAction?> showSiteListMenu(
         position.dx, position.dy, position.dx + 1, position.dy + 1),
     items: [
       item(SiteListAction.edit, icon: Icons.edit, label: loc.commonEdit),
-      if (allowResize)
-        item(SiteListAction.resize,
-            icon: Icons.photo_size_select_large_outlined,
-            label: loc.libraryItemSize),
       item(SiteListAction.delete,
           icon: Icons.delete, label: loc.commonDelete, color: Colors.red),
       if (canMoveUp)

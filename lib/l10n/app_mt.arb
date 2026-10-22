@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Daqs tal-oġġett",
-  "libraryItemSmall": "Żgħir",
-  "libraryItemMedium": "Medju",
-  "libraryItemLarge": "Kbir"
+  }
 }

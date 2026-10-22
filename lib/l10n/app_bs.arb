@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Veličina stavke",
-  "libraryItemSmall": "Mala",
-  "libraryItemMedium": "Srednja",
-  "libraryItemLarge": "Velika"
+  }
 }

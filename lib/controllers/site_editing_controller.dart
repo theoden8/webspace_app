@@ -12,7 +12,9 @@ import 'package:webspace/services/redirect_domain_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
+import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
 
 /// What the site editing flows ask the user.
@@ -25,7 +27,9 @@ abstract interface class SiteEditingPrompts {
   /// (QR-008).
   Future<bool> reviewQrSettings(Map<String, dynamic> qr);
 
-  Future<SiteEdit?> editSite(WebViewModel site);
+  /// [spaces] are the named webspaces the user may put the site in.
+  Future<SiteEdit?> editSite(WebViewModel site,
+      {required List<Webspace> spaces});
   Future<bool> confirmDelete(WebViewModel site);
   Future<bool> updateRedirectHome(String url);
 }
@@ -193,12 +197,16 @@ class SiteEditingController {
   }
 
   Future<void> editSite(WebViewModel model) async {
-    final result = await _prompts.editSite(model);
+    final result = await _prompts.editSite(model,
+        spaces: [for (final ws in _sites.webspaces) if (!ws.isAll) ws]);
     if (result == null || !_host.mounted) return;
     // Deleted while the dialog was open.
     if (!_sites.models.contains(model)) return;
 
-    final (:name, :url, :icon) = result;
+    final (:name, :url, :icon, :spaces) = result;
+    final joinedOrLeft = spaces != null &&
+        WebspaceSelectionEngine.setSiteMembership(_sites.webspaces,
+            site: model.siteId, spaces: spaces);
     if (icon != null) model.customIconPng = icon.png;
     if (name.isNotEmpty) model.name = name;
     if (icon != null || name.isNotEmpty) _host.rebuild();
@@ -212,6 +220,7 @@ class SiteEditingController {
     }
 
     await _host.commitSites(const SitesEdited());
+    if (joinedOrLeft) await _shell.saveWebspaces();
   }
 
   /// Deletes the site the user confirmed, wherever it sits by then: a row

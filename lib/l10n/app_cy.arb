@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Maint yr eitem",
-  "libraryItemSmall": "Bach",
-  "libraryItemMedium": "Canolig",
-  "libraryItemLarge": "Mawr"
+  }
 }

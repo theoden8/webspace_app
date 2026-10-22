@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Magnitudo elementi",
-  "libraryItemSmall": "Parva",
-  "libraryItemMedium": "Media",
-  "libraryItemLarge": "Magna"
+  }
 }

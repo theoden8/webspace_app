@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Elementuaren tamaina",
-  "libraryItemSmall": "Txikia",
-  "libraryItemMedium": "Ertaina",
-  "libraryItemLarge": "Handia"
+  }
 }

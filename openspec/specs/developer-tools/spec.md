@@ -544,7 +544,7 @@ The features are:
 
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
-| Webspace icon groups and a searchable tab tree (`webspaces` WEBSPACE-002) | Alternative design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
+| Webspace icon groups (`webspaces` WEBSPACE-002) | Alternative design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | iOS, macOS and Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |

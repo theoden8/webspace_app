@@ -1104,9 +1104,5 @@
         "type": "String"
       }
     }
-  },
-  "libraryItemSize": "Տարրի չափը",
-  "libraryItemSmall": "Փոքր",
-  "libraryItemMedium": "Միջին",
-  "libraryItemLarge": "Մեծ"
+  }
 }
