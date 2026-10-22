@@ -8,13 +8,11 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_drawer.dart';
-import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/real_app.dart';
 import 'helpers/group_tile.dart';
@@ -369,50 +367,6 @@ void main() {
     },
   );
 
-  testWidgets('Sites opens a nested tab through the app tab controller', (
-    tester,
-  ) async {
-    final root = SiteTab(
-      id: TabId('root'),
-      url: 'https://alpha.example.test',
-      title: 'Overview',
-    );
-    final child = SiteTab(
-      id: TabId('child'),
-      parentId: root.id,
-      url: 'https://alpha.example.test/article',
-      title: 'Deep article',
-    );
-    final site = WebViewModel(
-      initUrl: root.url,
-      name: 'Alpha',
-      tabsEnabled: true,
-      tabs: [root, child],
-      activeTabId: root.id,
-    );
-    await pumpRealApp(
-      tester,
-      sites: [site],
-      prefs: {
-        AppPref.developerMode.key: true,
-        AppPref.experimentalFolderLibrary.key: true,
-      },
-    );
-    await tester.tap(find.text('Sites'));
-    await settleRealApp(tester);
-    await tester.tap(find.text('Deep article'));
-    await settleRealApp(tester);
-    expect(appSite('Alpha').activeTabId, child.id);
-    expect(find.byType(WebspaceLibrary), findsNothing);
-    await tester.tap(find.byTooltip('Back to Webspaces'));
-    await settleRealApp(tester);
-    expect(find.byType(TabsSheet), findsOneWidget);
-    expect(find.text('Deep article'), findsOneWidget);
-    await tester.tap(find.text('Deep article'));
-    await settleRealApp(tester);
-    expect(appSite('Alpha').activeTabId, child.id);
-    expect(tester.takeException(), isNull);
-  });
   for (final (dev, on) in [
     (false, false),
     (false, true),

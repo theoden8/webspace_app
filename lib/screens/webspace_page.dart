@@ -817,35 +817,27 @@ class _WebSpacePageState extends State<WebSpacePage>
   Future<void> _presentTabsSheet() async {
     final shown = _sites.shown;
     if (shown == null) return;
+    final sites = _tabs.sheetSites();
+    final at = sites.indexWhere((s) => identical(s.model, shown));
+    if (at < 0) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => _buildTabTree(),
-    );
-  }
-
-  Widget _buildTabTree({bool embedded = false, String query = ''}) {
-    final shown = _sites.shown;
-    final sites = embedded
-        ? [for (var i = 0; i < _sites.models.length; i++) TabsSheetSite(
-            model: _sites.models[i], isCurrent: i == _sites.current,
-            isLoaded: _sites.isLoadedAt(i))]
-        : _tabs.sheetSites();
-    final at = sites.indexWhere((s) => identical(s.model, shown));
-    return TabsSheet(
-      embedded: embedded,
-      query: query,
-      sites: sites,
-      currentIndex: at,
-      onOpenSite: (site) => unawaited(_openSiteFromDrawer(site)),
-      onOpenTab: (site, {required tabId}) => unawaited(_tabs.openTab(site, tabId: tabId)),
-      onNewTab: (site) => unawaited(_tabs.newTab(site)),
-      onWebSearch: () => unawaited(_links.webSearch()),
-      onCloseTab: (site, {required tabId}) => unawaited(_tabs.closeTab(site, tabId: tabId)),
-      onCloseSubtree: (site, {required tabId}) => unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
-      onMoveTab: _tabs.moveTab,
-      onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
-      wayBack: shown == null ? null : _tabs.wayBackFrom(shown),
+      builder: (ctx) => TabsSheet(
+        sites: sites,
+        currentIndex: at,
+        onOpenTab: (site, {required tabId}) =>
+            unawaited(_tabs.openTab(site, tabId: tabId)),
+        onNewTab: (site) => unawaited(_tabs.newTab(site)),
+        onWebSearch: () => unawaited(_links.webSearch()),
+        onCloseTab: (site, {required tabId}) =>
+            unawaited(_tabs.closeTab(site, tabId: tabId)),
+        onCloseSubtree: (site, {required tabId}) =>
+            unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
+        onMoveTab: _tabs.moveTab,
+        onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
+        wayBack: _tabs.wayBackFrom(shown),
+      ),
     );
   }
 
@@ -1434,7 +1426,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                         : null,
                     onAddSite: () => unawaited(_editing.addSite()),
                     onOpenSettings: _openAppSettings,
-                    siteTreeBuilder: (context, {required query}) => _buildTabTree(embedded: true, query: query),
                   ) : WebspacesListScreen(
                     webspaces: _sites.webspaces,
                     selectedWebspaceId: _sites.selectedWebspaceId,

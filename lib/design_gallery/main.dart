@@ -792,13 +792,6 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     onReorderSite: null,
     onAddSite: () {},
     onOpenSettings: () async {},
-    siteTreeBuilder: (context, {required query}) => TabsSheet(
-      embedded: true, query: query,
-      sites: [for (final site in _sites) TabsSheetSite(model: site, isCurrent: false, isLoaded: false)],
-      currentIndex: 0,
-      onOpenSite: (_) {}, onOpenTab: (_, {required tabId}) {}, onNewTab: (_) {},
-      onCloseTab: (_, {required tabId}) {}, onCloseSubtree: (_, {required tabId}) {},
-    ),
     onReorder: (from, {required newIndex}) => setState(() {
       final moved = _webspaces.removeAt(from);
       _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);

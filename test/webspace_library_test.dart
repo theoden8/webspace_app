@@ -11,7 +11,6 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
-import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/localized.dart';
 import 'helpers/group_tile.dart';
@@ -52,6 +51,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   Webspace? edited;
   Webspace? deleted;
   WebViewModel? opened;
+  var settingsOpened = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -81,21 +81,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
         onSiteMenu: (context, {required site, required position}) {},
         onReorderSite: null,
         onAddSite: () {},
-        onOpenSettings: () async {},
-        siteTreeBuilder: (context, {required query}) => TabsSheet(
-          embedded: true,
-          query: query,
-          sites: [
-            for (final site in sites)
-              TabsSheetSite(model: site, isCurrent: false, isLoaded: false),
-          ],
-          currentIndex: 0,
-          onOpenSite: (site) => opened = site,
-          onOpenTab: (site, {required tabId}) => opened = site,
-          onNewTab: (_) {},
-          onCloseTab: (_, {required tabId}) {},
-          onCloseSubtree: (_, {required tabId}) {},
-        ),
+        onOpenSettings: () async => settingsOpened++,
       ),
     );
   }
@@ -371,19 +357,39 @@ void main() {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
       final search = tester.getRect(find.byType(TextField));
-      final navigation = tester.getRect(find.text('Settings'));
+      final settings = tester.getRect(find.byTooltip('App Settings'));
       await tester.tap(_group('Work'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.byType(WebspaceGroupTile).hitTestable(), findsNothing);
       expect(tester.getRect(find.byType(TextField)), search);
-      expect(tester.getRect(find.text('Settings')), navigation);
+      expect(tester.getRect(find.byTooltip('App Settings')), settings);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(_group('Work').hitTestable(), findsOneWidget);
       expect(find.byType(SiteGridTile), findsNothing);
       expect(tester.getRect(find.byType(TextField)), search);
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'App Settings opens from the header at either level, with no bottom bar (WEBSPACE-002)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      expect(find.text('Sites'), findsNothing);
+      await tester.tap(find.byTooltip('App Settings'));
+      await tester.pump();
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sites'), findsNothing);
+      await tester.tap(find.byTooltip('App Settings'));
+      await tester.pump();
+      expect(state.settingsOpened, 2);
     },
   );
 
@@ -465,14 +471,9 @@ void main() {
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty,
       );
-      await tester.tap(find.text('Sites'));
+      await tester.tap(_group('All'));
       await tester.pumpAndSettle();
-      expect(find.byType(SiteGridTile), findsNothing);
-      expect(find.byType(TabsSheet), findsOneWidget);
-      expect(
-        tester.widget<TabsSheet>(find.byType(TabsSheet)).sites,
-        hasLength(8),
-      );
+      expect(find.byType(SiteGridTile), findsNWidgets(8));
     },
   );
 
@@ -702,10 +703,7 @@ void main() {
             await tester.tap(_group('Work'));
             await tester.pumpAndSettle();
             expect(find.byType(SiteGridTile), findsNWidgets(2));
-            await tester.tap(find.text('Sites'));
-            await tester.pumpAndSettle();
-            expect(find.byType(TabsSheet), findsOneWidget);
-            await tester.tap(find.text('Webspaces').last);
+            await tester.tap(find.byType(BackButton));
             await tester.pumpAndSettle();
             final state = tester.state<_LibraryHarnessState>(
               find.byType(_LibraryHarness),

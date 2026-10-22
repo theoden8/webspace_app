@@ -74,15 +74,7 @@ class TabsSheet extends StatefulWidget {
     this.onMoveTab,
     this.onMoveSite,
     this.wayBack,
-    this.embedded = false,
-    this.query = '',
-    this.onOpenSite,
   });
-
-  /// Renders the all-sites tree inside the library instead of a modal sheet.
-  final bool embedded;
-  final String query;
-  final ValueChanged<WebViewModel>? onOpenSite;
 
   /// Every site with tabs: those the current webspace shows, in display
   /// order, then the rest.
@@ -141,13 +133,6 @@ class _TabsSheetState extends State<TabsSheet> {
   /// [TabsSheet.sites] until a site moves; a move can renumber every site,
   /// so the host hands back the whole list.
   late List<TabsSheetSite> _sites = widget.sites;
-  final Set<SiteId> _collapsedSites = {};
-
-  @override
-  void didUpdateWidget(TabsSheet oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _sites = widget.sites;
-  }
 
   late final SiteId? _currentId = widget.currentIndex >= 0 &&
           widget.currentIndex < widget.sites.length
@@ -182,39 +167,14 @@ class _TabsSheetState extends State<TabsSheet> {
 
   List<TabsSheetSite> get _shown => [
         for (final s in _sites)
-          if (s.inView && (!widget.embedded || _matches(s.model))) s,
+          if (s.inView) s,
       ];
-
-  bool _matches(WebViewModel site) {
-    final query = widget.query.trim().toLowerCase();
-    return query.isEmpty || _siteMatches(site, query: query) ||
-        (site.effectiveTabsEnabled && site.tabs.any((tab) => _tabMatches(tab, query: query)));
-  }
-
-  bool _siteMatches(WebViewModel site, {required String query}) =>
-      site.getDisplayName().toLowerCase().contains(query) ||
-      site.initUrl.toLowerCase().contains(query);
-
-  bool _tabMatches(SiteTab tab, {required String query}) =>
-      tab.url.toLowerCase().contains(query) ||
-      (tab.title?.toLowerCase().contains(query) ?? false);
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final site = _site;
-    if (widget.embedded) {
-      return _shown.isEmpty
-          ? Center(child: Text(widget.query.trim().isEmpty
-              ? loc.homeNoSitesInWebspace : loc.libraryNoResults))
-          : ListView(
-              key: _listKey,
-              controller: _scroll,
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-              children: _allSitesRows(loc, theme: theme),
-            );
-    }
     if (site == null) return const SizedBox.shrink();
     return SafeArea(
       top: false,
@@ -361,52 +321,15 @@ class _TabsSheetState extends State<TabsSheet> {
   List<Widget> _allSitesRows(AppLocalizations loc, {required ThemeData theme}) {
     final out = <Widget>[];
     for (final s in _shown) {
-      final label = widget.embedded && !s.model.effectiveTabsEnabled
-          ? s.model.getDisplayName()
-          : loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
-      final heading = widget.embedded
-          ? _launcherHeading(s, label: label, loc: loc)
-          : _heading(label, theme: theme, site: s);
+      final label =
+          loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
+      final heading = _heading(label, theme: theme, site: s);
       out.add(widget.onMoveSite == null
           ? heading
           : _siteDragAndDrop(s, heading: heading, label: label, theme: theme));
-      if (!widget.embedded) {
-        out.addAll(_rowsFor(s, loc: loc, theme: theme));
-      } else if (s.model.effectiveTabsEnabled &&
-          (!_collapsedSites.contains(s.model.siteId) || widget.query.trim().isNotEmpty)) {
-        out.addAll([
-          for (final row in _rowsFor(s, loc: loc, theme: theme))
-            Padding(padding: const EdgeInsetsDirectional.only(start: Spacing.lg),
-                child: row),
-        ]);
-      }
+      out.addAll(_rowsFor(s, loc: loc, theme: theme));
     }
     return out;
-  }
-
-  Widget _launcherHeading(TabsSheetSite site,
-      {required String label, required AppLocalizations loc}) {
-    final model = site.model;
-    final collapsed = _collapsedSites.contains(model.siteId);
-    return ListTile(
-      leading: UnifiedFaviconImage.site(model, size: TapTargets.compact),
-      title: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
-      onTap: widget.onOpenSite == null ? null : () => widget.onOpenSite!(model),
-      trailing: model.effectiveTabsEnabled ? Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(icon: const Icon(Icons.add), tooltip: loc.tabsNewTab,
-              onPressed: () => widget.onNewTab(model)),
-          IconButton(
-            icon: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
-            tooltip: collapsed ? loc.tabsExpand : loc.tabsCollapse,
-            onPressed: () => setState(() {
-              if (!_collapsedSites.remove(model.siteId)) _collapsedSites.add(model.siteId);
-            }),
-          ),
-        ],
-      ) : null,
-    );
   }
 
   /// A heading over a site's rows, marked with the site's own container when
@@ -568,7 +491,7 @@ class _TabsSheetState extends State<TabsSheet> {
 
   /// Closes the sheet, then hands [action] to the host.
   VoidCallback _closing(VoidCallback action) => () {
-        if (!widget.embedded) Navigator.of(context).pop();
+        Navigator.of(context).pop();
         action();
       };
 
@@ -577,18 +500,14 @@ class _TabsSheetState extends State<TabsSheet> {
     final moved = widget.onMoveSite?.call(siteId, ontoSiteId: ontoSiteId);
     setState(() {
       _dropKey = _dropZone = null;
-      if (moved != null && !widget.embedded) _sites = moved;
+      if (moved != null) _sites = moved;
     });
   }
 
   List<Widget> _rowsFor(TabsSheetSite site,
       {required AppLocalizations loc, required ThemeData theme}) {
-    final query = widget.query.trim().toLowerCase();
-    final rows = widget.embedded && query.isNotEmpty && !_siteMatches(site.model, query: query)
-        ? TabLifecycleEngine.rowsAround(site.model.tabs, keep: (tab) => _tabMatches(tab, query: query))
-        : TabLifecycleEngine.treeOrder(site.model.tabs);
     final out = _rowsOf(site,
-        rows: rows,
+        rows: TabLifecycleEngine.treeOrder(site.model.tabs),
         loc: loc,
         theme: theme,
         draggable: widget.onMoveTab != null);
@@ -609,8 +528,7 @@ class _TabsSheetState extends State<TabsSheet> {
       if (row.depth > 0 &&
           parentId != null &&
           (hidden.contains(parentId) ||
-              (_collapsed.contains(_keyOf(site, tabId: parentId)) &&
-                  !(widget.embedded && widget.query.trim().isNotEmpty)))) {
+              _collapsed.contains(_keyOf(site, tabId: parentId)))) {
         hidden.add(row.tab.id);
         continue;
       }
