@@ -782,7 +782,7 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     showsTabCount: (site) => site.effectiveTabsEnabled,
     onSelectWebspace: (w) {
       setState(() => _selected = w.id);
-      _libraryKey.currentState?.showSelectedWebspace();
+      _libraryKey.currentState?.openFolder();
     },
     onAddWebspace: () {},
     onEditWebspace: (_) {},

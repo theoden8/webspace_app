@@ -1,5 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
@@ -53,6 +53,8 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   WebViewModel? opened;
   var settingsOpened = 0;
   final tabsScopes = <WebspaceId>[];
+  final siteMoves = <(int, int)>[];
+  WebViewModel? menuFor;
 
   void disableTabs(WebViewModel site) =>
       setState(() => site.tabsEnabled = false);
@@ -63,30 +65,42 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
       webspaces,
       siteIdsByPosition: [for (final site in sites) site.siteId],
     );
-    return Scaffold(
-      body: WebspaceLibrary(
-        key: library,
-        webspaces: webspaces,
-        sites: sites,
-        selectedWebspaceId: selected,
-        currentSite: null,
-        showsTabCount: (site) => site.effectiveTabsEnabled,
-        onSelectWebspace: (webspace) {
-          setState(() => selected = webspace.id);
-          library.currentState!.showSelectedWebspace();
-        },
-        onAddWebspace: () {},
-        onEditWebspace: (webspace) => edited = webspace,
-        onDeleteWebspace: (webspace) => deleted = webspace,
-        onReorder: (from, {required newIndex}) => setState(() {
-          WebspaceSelectionEngine.reorder(webspaces, from: from, to: newIndex);
-        }),
-        onOpenSite: (site) => opened = site,
-        onSiteMenu: (context, {required site, required position}) {},
-        onReorderSite: null,
-        onAddSite: () {},
-        onShowTabs: tabsScopes.add,
-        onOpenSettings: () async => settingsOpened++,
+    // The page's Back, which closes an open folder first.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) library.currentState!.closeFolder();
+      },
+      child: Scaffold(
+        body: WebspaceLibrary(
+          key: library,
+          webspaces: webspaces,
+          sites: sites,
+          selectedWebspaceId: selected,
+          currentSite: null,
+          showsTabCount: (site) => site.effectiveTabsEnabled,
+          onSelectWebspace: (webspace) {
+            setState(() => selected = webspace.id);
+            library.currentState!.openFolder();
+          },
+          onAddWebspace: () {},
+          onEditWebspace: (webspace) => edited = webspace,
+          onDeleteWebspace: (webspace) => deleted = webspace,
+          onReorder: (from, {required newIndex}) => setState(() {
+            WebspaceSelectionEngine.reorder(
+              webspaces,
+              from: from,
+              to: newIndex,
+            );
+          }),
+          onOpenSite: (site) => opened = site,
+          onSiteMenu: (context, {required site, required position}) =>
+              menuFor = site,
+          onReorderSite: (from, {required to}) => siteMoves.add((from, to)),
+          onAddSite: () {},
+          onShowTabs: tabsScopes.add,
+          onOpenSettings: () async => settingsOpened++,
+        ),
       ),
     );
   }
@@ -96,6 +110,43 @@ Finder _group(String name) => find.descendant(
   of: find.byType(WebspaceGroupTile),
   matching: find.text(name),
 );
+
+final _panel = find.byKey(const ValueKey('library-folder'));
+
+Finder _inPanel(Finder finder) => find.descendant(of: _panel, matching: finder);
+
+/// A tap beside the open folder's panel, as a phone closes a folder.
+Future<void> _tapOutside(WidgetTester tester) async {
+  await tester.tapAt(const Offset(4, 4));
+  await tester.pumpAndSettle();
+}
+
+/// The well a folder tile draws its previews in.
+Rect _well(WidgetTester tester, {required String name}) => tester.getRect(
+  find.descendant(
+    of: find.ancestor(
+      of: _group(name),
+      matching: find.byType(WebspaceGroupTile),
+    ),
+    matching: find.byType(AnimatedContainer),
+  ),
+);
+
+/// A long press on [from] that lets go over [to], or where it began.
+Future<void> _lift(
+  WidgetTester tester, {
+  required Finder from,
+  Finder? to,
+}) async {
+  final gesture = await tester.startGesture(tester.getCenter(from));
+  await tester.pump(const Duration(milliseconds: 600));
+  if (to != null) {
+    await gesture.moveTo(tester.getCenter(to));
+    await tester.pump();
+  }
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
 
 void main() {
   for (final brightness in Brightness.values) {
@@ -123,8 +174,7 @@ void main() {
         for (final name in ['Work', 'Privacy', 'All']) {
           await tester.tap(_group(name));
           await tester.pumpAndSettle();
-          await tester.tap(find.byType(BackButton));
-          await tester.pumpAndSettle();
+          await _tapOutside(tester);
           for (final entry in colors.entries) {
             expect(groupBackground(tester, id: entry.key), entry.value);
           }
@@ -154,63 +204,53 @@ void main() {
     );
   }
 
-  for (final (direction, sign) in [
-    (TextDirection.ltr, 1.0),
-    (TextDirection.rtl, -1.0),
-  ]) {
-    for (final fast in [false, true]) {
-      testWidgets(
-        '${direction.name} ${fast ? 'fling' : 'swipe'} returns to groups and clears search',
-        (tester) async {
-          await pumpLocalized(
-            tester,
-            home: Directionality(
-              textDirection: direction,
-              child: const _LibraryHarness(),
-            ),
-          );
-          await tester.pumpAndSettle();
-          await tester.tap(_group('Work'));
-          await tester.pumpAndSettle();
-          await tester.enterText(find.byType(TextField), 'GitHub');
-          await tester.pumpAndSettle();
-          final state = tester.state<_LibraryHarnessState>(
-            find.byType(_LibraryHarness),
-          );
-          final membership = [...state.webspaces[1].siteIds];
-          final start = tester.getCenter(find.byType(SiteGridTile).first);
-          if (fast) {
-            await tester.flingFrom(start, Offset(50 * sign, 0), 1000);
-          } else {
-            await tester.timedDragFrom(
-              start,
-              Offset(180 * sign, 0),
-              const Duration(milliseconds: 800),
-            );
-          }
-          await tester.pumpAndSettle();
-          expect(_group('Work').hitTestable(), findsOneWidget);
-          expect(find.byType(SiteGridTile), findsNothing);
-          expect(
-            tester.widget<TextField>(find.byType(TextField)).controller!.text,
-            isEmpty,
-          );
-          expect(
-            tester
-                .widget<EditableText>(find.byType(EditableText))
-                .focusNode
-                .hasFocus,
-            isFalse,
-          );
-          expect(state.selected, state.webspaces[1].id);
-          expect(state.webspaces[1].siteIds, membership);
-          expect(state.opened, isNull);
-        },
+  testWidgets(
+    'a tap beside the panel, Back and Escape each close a folder, keeping search and selection (WEBSPACE-008)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
       );
-    }
-  }
+      final membership = [...state.webspaces[1].siteIds];
+      await tester.enterText(find.byType(TextField), 'w');
+      await tester.pumpAndSettle();
+      final closers = <String, Future<void> Function()>{
+        'tap beside': () => _tapOutside(tester),
+        'Back': () async {
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+        },
+        'Escape': () async {
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pumpAndSettle();
+        },
+      };
+      for (final MapEntry(key: how, value: close) in closers.entries) {
+        await tester.tap(_group('Work'));
+        await tester.pumpAndSettle();
+        expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(2));
+        expect(
+          _group('Work').hitTestable(),
+          findsNothing,
+          reason: 'the grid under an open folder takes no input',
+        );
+        await close();
+        expect(_panel, findsNothing, reason: how);
+        expect(_group('Work').hitTestable(), findsOneWidget, reason: how);
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          'w',
+          reason: how,
+        );
+      }
+      expect(state.selected, state.webspaces[1].id);
+      expect(state.webspaces[1].siteIds, membership);
+      expect(state.opened, isNull);
+    },
+  );
 
-  testWidgets('an empty group accepts a back swipe', (tester) async {
+  testWidgets('an empty group opens and closes', (tester) async {
     await pumpLocalized(tester, home: const _LibraryHarness());
     await tester.pumpAndSettle();
     final state = tester.state<_LibraryHarnessState>(
@@ -218,146 +258,80 @@ void main() {
     );
     await tester.tap(_group(state.webspaces.last.name));
     await tester.pumpAndSettle();
+    expect(_inPanel(find.text('No sites in this webspace')), findsOneWidget);
     expect(find.byType(SiteGridTile), findsNothing);
-    await tester.timedDragFrom(
-      tester.getCenter(find.byType(WebspaceLibrary)),
-      const Offset(180, 0),
-      const Duration(milliseconds: 800),
+    await _tapOutside(tester);
+    expect(_panel, findsNothing);
+    expect(_group('Work').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('scrolling, stray drags and taps inside a folder keep it open', (
+    tester,
+  ) async {
+    await pumpLocalized(
+      tester,
+      home: const _LibraryHarness(),
+      size: const Size(411, 600),
     );
     await tester.pumpAndSettle();
-    expect(_group('Work').hitTestable(), findsOneWidget);
-    expect(find.byType(BackButton), findsNothing);
+    await tester.tap(_group('All'));
+    await tester.pumpAndSettle();
+    final grid = _inPanel(find.byType(CustomScrollView));
+    await tester.drag(grid, const Offset(0, -150));
+    await tester.pumpAndSettle();
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(of: grid, matching: find.byType(Scrollable)),
+    );
+    expect(scrollable.position.pixels, greaterThan(0));
+    await tester.flingFrom(tester.getCenter(grid), const Offset(150, 0), 1000);
+    await tester.pumpAndSettle();
+    await tester.tap(_inPanel(find.text('8 sites')));
+    await tester.pumpAndSettle();
+    expect(_panel, findsOneWidget);
+    expect(
+      tester.state<_LibraryHarnessState>(find.byType(_LibraryHarness)).opened,
+      isNull,
+    );
   });
 
   testWidgets(
-    'scrolling, wrong-way, short and cancelled drags keep a group open',
+    'a folder grows out of its tile over the grid and shrinks back into it (WEBSPACE-008)',
     (tester) async {
-      await pumpLocalized(
-        tester,
-        home: const _LibraryHarness(),
-        size: const Size(411, 600),
-      );
+      await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
-      await tester.tap(_group('All'));
+      final well = _well(tester, name: 'Work');
+      await tester.tap(_group('Work'));
+      await tester.pump();
+      expect(tester.getRect(_panel), well, reason: 'it starts as the tile');
+      await tester.pump(const Duration(milliseconds: 60));
+      final growing = tester.getRect(_panel);
+      expect(_group('Work'), findsOneWidget, reason: 'the grid stays drawn');
       await tester.pumpAndSettle();
-      final grid = find.byType(CustomScrollView);
-      await tester.drag(grid, const Offset(0, -150));
+      final open = tester.getRect(_panel);
+      expect(growing.width, greaterThan(well.width));
+      expect(growing.width, lessThan(open.width));
+      expect(open.width, greaterThan(well.width * 3));
+      await _tapOutside(tester);
+      await tester.tap(_group('Work'));
       await tester.pumpAndSettle();
-      final scrollable = tester.state<ScrollableState>(
-        find.descendant(of: grid, matching: find.byType(Scrollable)),
-      );
-      expect(scrollable.position.pixels, greaterThan(0));
-      final start = tester.getCenter(grid);
-      await tester.flingFrom(start, const Offset(-150, 0), 1000);
-      await tester.pumpAndSettle();
-      expect(find.byType(BackButton), findsOneWidget);
-      final cancelled = await tester.startGesture(start);
-      await cancelled.moveBy(const Offset(100, 0));
-      await cancelled.moveBy(const Offset(80, 0));
-      await cancelled.cancel();
-      await tester.pumpAndSettle();
-      expect(find.byType(BackButton), findsOneWidget);
-      await tester.timedDragFrom(
-        start,
-        const Offset(40, 0),
-        const Duration(seconds: 1),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(BackButton), findsOneWidget);
-      expect(find.byType(WebspaceGroupTile), findsNothing);
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
+      final shrinking = tester.getRect(_panel);
+      expect(shrinking.width, lessThan(open.width));
+      expect(shrinking.width, greaterThan(well.width));
       expect(
-        tester.state<_LibraryHarnessState>(find.byType(_LibraryHarness)).opened,
-        isNull,
+        (shrinking.center - well.center).distance,
+        lessThan((open.center - well.center).distance),
+        reason: 'closing heads back into the tile',
       );
+      await tester.pumpAndSettle();
+      expect(_panel, findsNothing);
     },
   );
 
-  testWidgets('group expansion and collapse remain visible at normal speed', (
-    tester,
-  ) async {
-    await pumpLocalized(tester, home: const _LibraryHarness());
-    await tester.pumpAndSettle();
-    await tester.tap(_group('Work'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
-    final expanding = tester.getRect(find.byType(SiteGridTile).first).width;
-    await tester.pumpAndSettle();
-    final expanded = tester.getRect(find.byType(SiteGridTile).first).width;
-    expect(
-      expanding,
-      lessThan(expanded * .95),
-      reason: 'the expansion should still be visible after the tap',
-    );
-    await tester.tap(find.byType(BackButton));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
-    final collapsing = tester.getRect(_group('Work')).width;
-    await tester.pumpAndSettle();
-    final collapsed = tester.getRect(_group('Work')).width;
-    expect(
-      collapsing,
-      greaterThan(collapsed * 1.05),
-      reason: 'closing should visibly settle back into the group grid',
-    );
-  });
-
-  testWidgets('group navigation never fades both pages to an empty frame', (
-    tester,
-  ) async {
-    await pumpLocalized(tester, home: const _LibraryHarness());
-    await tester.pumpAndSettle();
-    await tester.tap(_group('Work'));
-    await tester.pump();
-    for (var frame = 0; frame < 6; frame++) {
-      await tester.pump(const Duration(milliseconds: 40));
-      final outgoing = tester.widget<FadeTransition>(
-        find
-            .ancestor(of: _group('Work'), matching: find.byType(FadeTransition))
-            .first,
-      );
-      final incoming = tester.widget<FadeTransition>(
-        find
-            .ancestor(
-              of: find.byType(SiteGridTile).first,
-              matching: find.byType(FadeTransition),
-            )
-            .first,
-      );
-      expect(
-        outgoing.opacity.value + incoming.opacity.value,
-        greaterThan(.9),
-        reason: 'the launcher remains visible throughout opening',
-      );
-    }
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(BackButton));
-    await tester.pump();
-    for (var frame = 0; frame < 6; frame++) {
-      await tester.pump(const Duration(milliseconds: 40));
-      final outgoing = tester.widget<FadeTransition>(
-        find
-            .ancestor(
-              of: find.byType(SiteGridTile).first,
-              matching: find.byType(FadeTransition),
-            )
-            .first,
-      );
-      final incoming = tester.widget<FadeTransition>(
-        find
-            .ancestor(of: _group('Work'), matching: find.byType(FadeTransition))
-            .first,
-      );
-      expect(
-        outgoing.opacity.value + incoming.opacity.value,
-        greaterThan(.9),
-        reason: 'the launcher remains visible throughout closing',
-      );
-    }
-    await tester.pumpAndSettle();
-  });
-
   testWidgets(
-    'folder navigation keeps chrome steady and accepts Back mid-transition',
+    'opening a folder keeps the chrome still and accepts Back mid-animation',
     (tester) async {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
@@ -369,7 +343,7 @@ void main() {
       expect(find.byType(WebspaceGroupTile).hitTestable(), findsNothing);
       expect(tester.getRect(find.byType(TextField)), search);
       expect(tester.getRect(find.byTooltip('App Settings')), settings);
-      await tester.tap(find.byType(BackButton));
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(_group('Work').hitTestable(), findsOneWidget);
       expect(find.byType(SiteGridTile), findsNothing);
@@ -379,7 +353,7 @@ void main() {
   );
 
   testWidgets(
-    'App Settings opens from the header at either level, with no bottom bar (WEBSPACE-002)',
+    'App Settings opens from the home header, with no bottom bar (WEBSPACE-002)',
     (tester) async {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
@@ -392,6 +366,8 @@ void main() {
       await tester.tap(_group('Work'));
       await tester.pumpAndSettle();
       expect(find.text('Sites'), findsNothing);
+      expect(find.byTooltip('App Settings').hitTestable(), findsNothing);
+      await _tapOutside(tester);
       await tester.tap(find.byTooltip('App Settings'));
       await tester.pump();
       expect(state.settingsOpened, 2);
@@ -399,61 +375,69 @@ void main() {
   );
 
   testWidgets(
-    'the tab tree button counts and opens the tabs of the level it is on (WEBSPACE-004)',
+    'the tab tree button counts and opens the tabs of the home or the open folder (WEBSPACE-004)',
     (tester) async {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
       final state = tester.state<_LibraryHarnessState>(
         find.byType(_LibraryHarness),
       );
-      final tabs = find.byTooltip('Tabs');
-      expect(find.descendant(of: tabs, matching: find.text('8')), findsOneWidget);
+      final home = find.byTooltip('Tabs');
+      expect(
+        find.descendant(of: home, matching: find.text('8')),
+        findsOneWidget,
+      );
       state.disableTabs(state.sites[1]);
       await tester.pump();
       expect(
-        find.descendant(of: tabs, matching: find.text('7')),
+        find.descendant(of: home, matching: find.text('7')),
         findsOneWidget,
         reason: 'a site without tabs adds none to the count',
       );
-      await tester.tap(tabs);
+      await tester.tap(home);
       await tester.tap(_group('Work'));
       await tester.pumpAndSettle();
-      expect(find.descendant(of: tabs, matching: find.text('1')), findsOneWidget);
-      await tester.tap(tabs);
-      expect(state.tabsScopes, [
-        WebspaceId.all,
-        state.webspaces[1].id,
-      ]);
-      await tester.tap(find.byType(BackButton));
+      final folder = _inPanel(find.byTooltip('Tabs'));
+      expect(
+        find.descendant(of: folder, matching: find.text('1')),
+        findsOneWidget,
+      );
+      await tester.tap(folder);
+      expect(state.tabsScopes, [WebspaceId.all, state.webspaces[1].id]);
+      await _tapOutside(tester);
+      await tester.tap(_group(state.webspaces.last.name));
       await tester.pumpAndSettle();
-      await tester.tap(_group('An unusually long collection name that must remain usable'));
-      await tester.pumpAndSettle();
-      expect(tabs, findsNothing, reason: 'a webspace without tabs has no tree');
+      expect(
+        _inPanel(find.byTooltip('Tabs')),
+        findsNothing,
+        reason: 'a webspace without tabs has no tree',
+      );
     },
   );
 
-  testWidgets(
-    'reduced motion opens and closes a folder without overlapping pages',
-    (tester) async {
-      await pumpLocalized(
-        tester,
-        home: const MediaQuery(
-          data: MediaQueryData(disableAnimations: true),
-          child: _LibraryHarness(),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(_group('Work'));
-      await tester.pump();
-      expect(find.byType(WebspaceGroupTile), findsNothing);
-      expect(find.byType(SiteGridTile).hitTestable(), findsNWidgets(2));
-      await tester.tap(find.byType(BackButton));
-      await tester.pump();
-      expect(find.byType(SiteGridTile), findsNothing);
-      expect(_group('Work').hitTestable(), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('reduced motion opens and closes a folder at once', (
+    tester,
+  ) async {
+    await pumpLocalized(
+      tester,
+      home: const MediaQuery(
+        data: MediaQueryData(disableAnimations: true),
+        child: _LibraryHarness(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_group('Work'));
+    await tester.pump();
+    final open = tester.getRect(_panel);
+    expect(find.byType(SiteGridTile).hitTestable(), findsNWidgets(2));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.getRect(_panel), open);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(_panel, findsNothing);
+    expect(_group('Work').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'folders preview the live members and count the hidden sites (WEBSPACE-003)',
@@ -484,17 +468,16 @@ void main() {
   );
 
   testWidgets(
-    'opening a folder filters sites, search clears on back, and All stays complete (WEBSPACE-002, WEBSPACE-004, WEBSPACE-009)',
+    'a folder shows its own sites and All every site (WEBSPACE-002, WEBSPACE-004, WEBSPACE-009)',
     (tester) async {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
       await tester.tap(_group('Work'));
       await tester.pumpAndSettle();
-      expect(find.byType(SiteGridTile), findsNWidgets(2));
+      expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(2));
+      expect(_inPanel(find.text('Work')), findsOneWidget);
+      expect(_inPanel(find.text('2 sites')), findsOneWidget);
       expect(find.text('Site 2'), findsNothing);
-      await tester.enterText(find.byType(TextField), 'site1.example');
-      await tester.pumpAndSettle();
-      expect(find.byType(SiteGridTile), findsOneWidget);
       await tester.tap(find.text('Site 1'));
       expect(
         tester
@@ -506,13 +489,9 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byType(WebspaceGroupTile), findsWidgets);
-      expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        isEmpty,
-      );
       await tester.tap(_group('All'));
       await tester.pumpAndSettle();
-      expect(find.byType(SiteGridTile), findsNWidgets(8));
+      expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(8));
     },
   );
 
@@ -527,8 +506,7 @@ void main() {
       state.webspaces[2].siteIds.add(state.sites[0].siteId);
       await tester.tap(_group('Work'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
+      await _tapOutside(tester);
       final membership = {
         for (final group in state.webspaces) group.id: [...group.siteIds],
       };
@@ -630,7 +608,7 @@ void main() {
   );
 
   testWidgets(
-    'webspace search shows matching groups and sites together (WEBSPACE-004)',
+    'webspace search shows matching groups and sites together, under an open folder (WEBSPACE-004)',
     (tester) async {
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
@@ -647,13 +625,10 @@ void main() {
       expect(find.text('No matches'), findsNothing);
       await tester.tap(_group('Work'));
       await tester.pumpAndSettle();
-      expect(find.byType(WebspaceGroupTile), findsNothing);
-      expect(find.byType(SiteGridTile), findsNWidgets(2));
-      expect(find.text('Work chat'), findsNothing);
-      expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        isEmpty,
-      );
+      expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(2));
+      expect(_inPanel(find.text('Work chat')), findsNothing);
+      await _tapOutside(tester);
+      expect(find.text('Work chat').hitTestable(), findsOneWidget);
     },
   );
 
@@ -702,6 +677,70 @@ void main() {
     ]);
   });
 
+  testWidgets(
+    'a long-pressed folder lifts: let go for its menu, drop it on another to move it (WEBSPACE-009)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      List<String> names() => [for (final w in state.webspaces) w.name];
+      final before = names();
+      final gesture = await tester.startGesture(
+        tester.getCenter(_group('Work')),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(
+        find.text('Work'),
+        findsNWidgets(2),
+        reason: 'the lifted copy rides under the finger',
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsOneWidget);
+      await tester.tapAt(const Offset(780, 10));
+      await tester.pumpAndSettle();
+      expect(names(), before);
+      await _lift(tester, from: _group('Privacy'), to: _group('Work'));
+      expect(find.text('Edit'), findsNothing, reason: 'a drag opens no menu');
+      expect(names().take(3), ['All', 'Privacy', 'Work']);
+      await _lift(tester, from: _group('Work'), to: _group('All'));
+      await _lift(tester, from: _group('All'), to: _group('Work'));
+      expect(names().take(3), ['All', 'Privacy', 'Work']);
+      await tester.enterText(find.byType(TextField), 'r');
+      await tester.pumpAndSettle();
+      await _lift(tester, from: _group('Work'), to: _group('Privacy'));
+      expect(names().take(3), [
+        'All',
+        'Privacy',
+        'Work',
+      ], reason: 'a filtered grid does not reorder');
+    },
+  );
+
+  testWidgets(
+    'a long-pressed site in a folder lifts: let go for its menu, drop it on another to move it (WEBSPACE-011)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+      await _lift(tester, from: find.text('GitHub'));
+      expect(state.menuFor, same(state.sites[0]));
+      expect(state.siteMoves, isEmpty);
+      expect(_panel, findsOneWidget);
+      await _lift(tester, from: find.text('GitHub'), to: find.text('Site 1'));
+      expect(state.siteMoves, [(0, 1)]);
+      expect(state.opened, isNull);
+      expect(_panel, findsOneWidget, reason: 'a drag keeps the folder open');
+    },
+  );
+
   for (final width in [320.0, 411.0, 800.0]) {
     for (final scale in [1.0, 1.3, 2.0]) {
       for (final brightness in Brightness.values) {
@@ -741,9 +780,9 @@ void main() {
             await tester.pumpAndSettle();
             await tester.tap(_group('Work'));
             await tester.pumpAndSettle();
-            expect(find.byType(SiteGridTile), findsNWidgets(2));
-            await tester.tap(find.byType(BackButton));
-            await tester.pumpAndSettle();
+            expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(2));
+            expect(tester.takeException(), isNull);
+            await _tapOutside(tester);
             final state = tester.state<_LibraryHarnessState>(
               find.byType(_LibraryHarness),
             );
@@ -761,9 +800,7 @@ void main() {
     }
   }
 
-  testWidgets('folder drill-down and search render right-to-left', (
-    tester,
-  ) async {
+  testWidgets('a folder opens and searches right-to-left', (tester) async {
     await pumpLocalized(
       tester,
       home: const _LibraryHarness(),
@@ -775,16 +812,15 @@ void main() {
       Directionality.of(tester.element(find.byType(WebspaceLibrary))),
       TextDirection.rtl,
     );
+    final well = _well(tester, name: 'Work');
     await tester.tap(_group('Work'));
     await tester.pump();
+    expect(tester.getRect(_panel), well);
     await tester.pump(const Duration(milliseconds: 50));
-    final entering = tester.getRect(find.byType(SiteGridTile).first);
+    final entering = tester.getRect(_panel);
     await tester.pumpAndSettle();
-    expect(find.byType(SiteGridTile), findsNWidgets(2));
-    expect(
-      entering.width,
-      lessThan(tester.getRect(find.byType(SiteGridTile).first).width),
-    );
+    expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(2));
+    expect(entering.width, lessThan(tester.getRect(_panel).width));
     expect(tester.takeException(), isNull);
   });
 }

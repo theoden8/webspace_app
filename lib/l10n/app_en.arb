@@ -5281,10 +5281,6 @@
   "@librarySearchWebspaces": {
     "description": "Search field hint for filtering webspace folders by name."
   },
-  "librarySearchSites": "Search sites",
-  "@librarySearchSites": {
-    "description": "Search field hint for filtering saved websites by their names or addresses."
-  },
   "libraryNoResults": "No matches",
   "@libraryNoResults": {
     "description": "Empty search results message in the webspace and site library."

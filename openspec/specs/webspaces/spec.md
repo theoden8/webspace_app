@@ -34,14 +34,14 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 
 Users SHALL be able to select and switch between webspaces to view filtered sites.
 
-With the experiment enabled, the library SHALL have two levels, the group grid and a group's site grid, and no bottom navigation. Its header SHALL open App Settings at either level. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
+With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL open App Settings. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
 
 #### Scenario: Select a webspace
 
 **Given** the user is viewing the webspaces list
 **When** the user taps a webspace
 **Then** that webspace becomes selected
-**And** with the experiment enabled, its sites open in a full-screen grid without opening the drawer
+**And** with the experiment enabled, its sites open in a folder over the group grid without opening the drawer
 **And** with the experiment disabled, its filtered sites open in the existing drawer
 
 ---
@@ -75,7 +75,7 @@ The workspace site grid and the browser drawer SHALL only show sites belonging t
 
 Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL use its existing container color and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tabs sheet and remain stable when selection changes.
 
-The library header SHALL carry a tab count button while the view it shows holds a site with tabs: at the webspaces level it counts and lists the tabs of every site, inside a webspace those of that webspace's sites. It opens the tabs sheet with no site on screen, titled by that scope and listing each site's tree, and a tab picked there opens its site on that tab.
+The library's home header and an open folder's header SHALL each carry a tab count button while what they show holds a site with tabs: the home's counts and lists the tabs of every site, a folder's those of its sites. It opens the tabs sheet with no site on screen, titled by that scope and listing each site's tree, and a tab picked there opens its site on that tab.
 
 #### Scenario: Filter drawer by webspace
 
@@ -102,7 +102,7 @@ The library header SHALL carry a tab count button while the view it shows holds 
 #### Scenario: Tab tree of a library level
 
 **Given** All holds eight sites with one tab each, one of them with tabs off, and Work holds one site with tabs
-**When** the user looks at the library header at the webspaces level, then inside Work
+**When** the user looks at the home header, then at the open Work folder's
 **Then** the tab button shows 7, then 1, and opens the tabs of all sites, then of Work's
 **And** a webspace whose sites have no tabs shows no tab button
 **And** picking a nested tab there opens its site on that tab
@@ -156,9 +156,11 @@ Users SHALL be able to delete webspaces.
 
 ### Requirement: WEBSPACE-008 - Back to Webspaces Navigation
 
-Users SHALL be able to return to the group grid from a workspace site grid using its Back control, the system back action, or a horizontal back swipe across the site grid. The swipe SHALL follow the reading direction (rightwards for left-to-right interfaces, leftwards for right-to-left interfaces) and work in empty groups. Vertical scrolling, short incidental drags, and long-press site reordering SHALL remain available without navigating back. Returning SHALL clear the library search and dismiss its keyboard without changing the selected webspace or its membership. The browser drawer SHALL also retain its Back to Webspaces action.
+Users SHALL be able to return to the group grid from a workspace site grid. The browser drawer SHALL retain its Back to Webspaces action.
 
-With the group library enabled, opening and closing a group SHALL use continuous expand/collapse transitions without a blank frame between views, including the first group opened. Search and the header's App Settings button SHALL remain stationary. Departing grids SHALL stop accepting input immediately, Back SHALL remain usable during the transition, and the system's reduced-motion preference SHALL switch views without animation.
+With the group library enabled, a group SHALL open as a folder: a panel that grows out of the group's tile over the dimmed and blurred group grid, and shrinks back into the tile when it closes. A tap beside the panel, the system back action and Escape SHALL close it; Back closes an open folder before it does anything else. Closing SHALL keep the library search, the selected webspace and its membership. Scrolling, stray drags and taps inside the panel, and reordering its sites, SHALL keep it open. The grid under an open folder SHALL take no input, a closing panel SHALL take none, Back SHALL work while the panel moves, and search and the home header SHALL stay put. The system's reduced-motion preference SHALL open and close it without animation.
+
+A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. Returning to the library SHALL cover the screen with that card, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL take no input while it moves, and reduced motion SHALL show no card.
 
 With Alternative design enabled, the site browser SHALL use a grid button to return directly to the previous library view, retaining its selected group. It SHALL NOT create a navigation drawer or show a hamburger button. The return SHALL preserve the site's loaded state and tab selection. A locked kiosk session SHALL expose neither navigation affordance.
 
@@ -177,19 +179,26 @@ With Alternative design enabled, the site browser SHALL use a grid button to ret
 **And** taps "Back to Webspaces"
 **Then** the webspaces list is displayed
 
-#### Scenario: Swipe back from a site group
+#### Scenario: Close a folder
 
-**Given** Alternative design is enabled and the user is viewing a group's sites
-**When** the user swipes horizontally in the back direction
-**Then** the groups menu appears with the existing closing transition
-**And** the search and keyboard are cleared
-**And** the selected group and its sites are unchanged
+**Given** Alternative design is enabled and the Work folder is open
+**When** the user taps beside its panel, presses Back, or presses Escape
+**Then** the panel shrinks back into Work's tile and the group grid takes input again
+**And** the search text, the selected group and its sites are unchanged
 
-#### Scenario: Scroll or reorder sites in a group
+#### Scenario: Scroll or reorder sites in a folder
 
-**Given** the user is viewing a group's sites
-**When** the user scrolls vertically or long-presses and drags a site
-**Then** the group stays open
+**Given** the user is viewing a folder's sites
+**When** the user scrolls, drags stray, taps the panel, or long-presses and drags a site
+**Then** the folder stays open
+
+#### Scenario: Open a site and return
+
+**Given** the Work folder is open and holds Alpha
+**When** the user taps Alpha
+**Then** Alpha's card grows out of its icon while the folder stays on screen, and Alpha shows once the card covers the screen
+**When** the user returns to the library
+**Then** a full card covers the switch and shrinks back into Alpha's icon in the still open folder
 
 ---
 
@@ -229,15 +238,18 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 ### Requirement: WEBSPACE-011 - Reorder Sites by Dragging
 
 Users SHALL be able to change the display order of sites by dragging, in
-the library site grid in edit mode, the bottom tab strip and the drawer grid. The new order SHALL persist
-across app restarts. This reorders the sites *within* the selected view; it
+a library folder, the bottom tab strip and the drawer grid. The new order SHALL persist
+across app restarts. In the library and the drawer grid a long press lifts a site, as a
+phone lifts an icon: let go where it was, it opens the site's menu; moved, it drags, and
+dropped on another site it takes that one's place. A group on the library's home screen
+lifts the same way and moves among the groups, "All" excepted. This reorders the sites *within* the selected view; it
 does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 "All" webspace card cannot be moved in the webspaces list).
 
 #### Scenario: Reorder sites within a named webspace
 
 **Given** the "Work" webspace is selected with sites [A, B, C] in that order
-**When** the user long-presses site C in the tab strip, the drawer grid, or the library site grid in edit mode and drops it onto site A's position
+**When** the user long-presses site C in the tab strip, the drawer grid, or a library folder and drops it onto site A's position
 **Then** "Work"'s membership order becomes [C, A, B]
 **And** the change is written to the webspace's persisted `siteIds`
 **And** the global order of other webspaces is unaffected
@@ -254,8 +266,8 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 #### Scenario: Single site is not draggable
 
 **Given** the selected view contains only one site
-**When** the user long-presses that site
-**Then** no drag begins (there is nothing to reorder)
+**When** the user long-presses that site and lets go
+**Then** nothing moves (there is nothing to reorder), and in the library or the drawer grid its menu opens
 
 ---
 

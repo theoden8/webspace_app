@@ -67,18 +67,30 @@ abstract final class LibraryStyle {
   static const double siteIcon = 64;
   static const double siteWell = 80;
   static const double previewIcon = 24;
-  static const double target = 48;
-  static const double navigationScale = .18;
-  static const double backSwipeDistance = 64;
-  static const double backSwipeVelocity = 500;
   static const double titleSize = 30;
   static const double siteTitleSize = 14;
+
+  /// An open group: a panel over the dimmed grid, as a phone opens a folder.
+  static const double panelMaxWidth = 560;
+  static const double panelRadius = 32;
+  static const double scrimOpacity = .32;
+  static const double scrimBlur = 12;
+  static const panelLight = Color(0xFFFFFFFF);
+  static const panelDark = Color(0xFF222833);
+
+  /// An icon held down, lifted, and the gap it leaves while dragged.
+  static const double pressScale = .94;
+  static const double liftScale = 1.08;
+  static const double dragGhost = .3;
 
   static Color background(Brightness brightness) =>
       brightness == Brightness.dark ? dark : light;
 
   static Color field(Brightness brightness) =>
       brightness == Brightness.dark ? fieldDark : fieldLight;
+
+  static Color panel(Brightness brightness) =>
+      brightness == Brightness.dark ? panelDark : panelLight;
 
   static Color group(Brightness brightness, {required WebspaceId id}) {
     final palette = brightness == Brightness.dark ? groupDark : groupLight;
@@ -133,9 +145,25 @@ abstract final class TapTargets {
 }
 
 abstract final class Motion {
-  static const Duration libraryNavigation = Duration(milliseconds: 520);
-  static const Curve libraryCurve = Curves.easeInOutCubic;
-  static const Curve libraryExit = libraryCurve;
+  /// A group or a site growing out of its icon, as a launcher opens one.
+  static const Duration launch = Duration(milliseconds: 360);
+
+  /// The same shrinking back into its icon, a little quicker, as leaving is.
+  static const Duration launchBack = Duration(milliseconds: 300);
+
+  /// Quick out of the icon and a soft landing at full size; flipped for the
+  /// way back, so the icon is landed on as softly.
+  static const Curve launchCurve = Easing.emphasizedDecelerate;
+
+  /// A site's card fading off the site once it is on screen.
+  static const Duration reveal = Duration(milliseconds: 180);
+
+  /// The longest a site's card waits over the screen for the switch under
+  /// it before it moves on regardless.
+  static const Duration launchHold = Duration(milliseconds: 800);
+
+  /// An icon held down rising under the finger.
+  static const Duration lift = Duration(milliseconds: 180);
 
   /// Press / release feedback. Short enough to feel attached to the finger.
   static const Duration press = Duration(milliseconds: 100);

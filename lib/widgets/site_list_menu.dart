@@ -24,44 +24,56 @@ Future<SiteListAction?> showSiteListMenu(
   required bool archived,
 }) {
   final loc = AppLocalizations.of(context);
-  PopupMenuItem<SiteListAction> item(
-    SiteListAction action, {
-    required IconData icon,
-    required String label,
-    Color? color,
-  }) =>
-      PopupMenuItem(
-        value: action,
-        child: ListTile(
-          leading: Icon(icon, color: color),
-          title: Text(label, style: TextStyle(color: color)),
-          dense: true,
-          visualDensity: VisualDensity.compact,
-        ),
-      );
-  return showMenu<SiteListAction>(
-    context: context,
-    position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx + 1, position.dy + 1),
+  return showLauncherMenu(
+    context,
+    position: position,
     items: [
-      item(SiteListAction.edit, icon: Icons.edit, label: loc.commonEdit),
-      item(SiteListAction.delete,
-          icon: Icons.delete, label: loc.commonDelete, color: Colors.red),
+      (value: SiteListAction.edit, icon: Icons.edit, label: loc.commonEdit, destructive: false),
+      (value: SiteListAction.delete, icon: Icons.delete, label: loc.commonDelete, destructive: true),
       if (canMoveUp)
-        item(SiteListAction.moveUp,
-            icon: Icons.arrow_upward, label: loc.homeMoveUp),
+        (value: SiteListAction.moveUp, icon: Icons.arrow_upward, label: loc.homeMoveUp, destructive: false),
       if (canMoveDown)
-        item(SiteListAction.moveDown,
-            icon: Icons.arrow_downward, label: loc.homeMoveDown),
+        (value: SiteListAction.moveDown, icon: Icons.arrow_downward, label: loc.homeMoveDown, destructive: false),
       if (!archived)
-        item(SiteListAction.moveToArchive,
-            icon: Icons.archive_outlined, label: loc.homeMoveToArchive),
+        (value: SiteListAction.moveToArchive, icon: Icons.archive_outlined, label: loc.homeMoveToArchive, destructive: false),
       if (archived)
-        item(SiteListAction.moveOutOfArchive,
-            icon: Icons.unarchive_outlined, label: loc.homeMoveOutOfArchive),
+        (value: SiteListAction.moveOutOfArchive, icon: Icons.unarchive_outlined, label: loc.homeMoveOutOfArchive, destructive: false),
       if (archived)
-        item(SiteListAction.closeArchive,
-            icon: Icons.lock_outline, label: loc.homeCloseArchive),
+        (value: SiteListAction.closeArchive, icon: Icons.lock_outline, label: loc.homeCloseArchive, destructive: false),
     ],
   );
 }
+
+/// One row of a launcher icon's menu.
+typedef LauncherMenuItem<T> = ({
+  T value,
+  IconData icon,
+  String label,
+  bool destructive,
+});
+
+/// The menu a long press or a secondary click opens on a launcher icon, a
+/// site's or a webspace's, at [position].
+Future<T?> showLauncherMenu<T>(
+  BuildContext context, {
+  required Offset position,
+  required List<LauncherMenuItem<T>> items,
+}) => showMenu<T>(
+  context: context,
+  position: RelativeRect.fromLTRB(
+      position.dx, position.dy, position.dx + 1, position.dy + 1),
+  items: [
+    for (final item in items)
+      PopupMenuItem(
+        value: item.value,
+        child: ListTile(
+          leading: Icon(item.icon,
+              color: item.destructive ? Colors.red : null),
+          title: Text(item.label,
+              style: TextStyle(color: item.destructive ? Colors.red : null)),
+          dense: true,
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+  ],
+);

@@ -4,6 +4,7 @@ import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/launcher_lift.dart';
 
 /// A launcher group represented by a compact cluster of its site icons.
 class WebspaceGroupTile extends StatelessWidget {
@@ -14,13 +15,28 @@ class WebspaceGroupTile extends StatelessWidget {
     required this.selected,
     required this.onOpen,
     required this.onMenu,
+    required this.onDrop,
   });
 
   final Webspace webspace;
   final List<WebViewModel> sites;
   final bool selected;
   final VoidCallback onOpen;
-  final VoidCallback onMenu;
+
+  /// The group's menu, at a global position.
+  final ValueChanged<Offset> onMenu;
+
+  /// Another group dropped on this one; null where it cannot move here.
+  final ValueChanged<WebspaceId>? onDrop;
+
+  /// Where a tile laid out at [tile] draws its well, which an open group
+  /// grows out of and closes back into.
+  static Rect wellIn(Rect tile) => Rect.fromLTWH(
+    tile.center.dx - LibraryStyle.siteWell / 2,
+    tile.top,
+    LibraryStyle.siteWell,
+    LibraryStyle.siteWell,
+  );
 
   static double extentFor({
     required TextScaler textScaler,
@@ -48,23 +64,19 @@ class WebspaceGroupTile extends StatelessWidget {
     final label = '${webspace.name}, $count';
     return Semantics(
       label: label,
-      button: true,
       selected: selected,
-      onLongPress: onMenu,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(LibraryStyle.radius),
-        onTap: onOpen,
-        // Let the pointer finish before the sheet covers this tile.
-        onLongPressUp: onMenu,
-        onSecondaryTap: onMenu,
+      child: LauncherLift<WebspaceId>(
+        data: webspace.isAll ? null : webspace.id,
+        onOpen: onOpen,
+        onMenu: onMenu,
+        onDrop: onDrop,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             AnimatedContainer(
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
-                  : Motion.libraryNavigation,
-              curve: Motion.libraryCurve,
+                  : Motion.settle,
               width: well,
               height: well,
               foregroundDecoration: BoxDecoration(

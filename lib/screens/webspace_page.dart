@@ -96,6 +96,7 @@ import 'package:webspace/widgets/fullscreen_overlays.dart';
 import 'package:webspace/widgets/link_menu_sheet.dart';
 import 'package:webspace/widgets/archive_prompts.dart';
 import 'package:webspace/widgets/backup_prompts.dart';
+import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/link_prompts.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
 import 'package:webspace/widgets/protection_shield_button.dart';
@@ -139,6 +140,7 @@ class WebSpacePage extends StatefulWidget {
 class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
   final _libraryKey = GlobalKey<WebspaceLibraryState>();
+  final _launchZoom = GlobalKey<LaunchZoomState>();
   bool get _folderLibraryEnabled => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.folderLibrary);
   final SiteRuntime _sites = SiteRuntime();
@@ -1246,9 +1248,20 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
       case SiteMenuAction.backToWebspaces:
-        await _activation.activate(null);
+        Future<void> showLibrary() async {
+          await _activation.activate(null);
+          if (mounted) setState(() {});
+        }
+        final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
+        if (model != null && zoom != null) {
+          await zoom.close(model,
+              show: showLibrary,
+              shown: () => _sites.shown == null,
+              into: () => _libraryKey.currentState?.siteWell(model.siteId));
+        } else {
+          await showLibrary();
+        }
         if (!mounted) return;
-        setState(() {});
         await _shell.saveSelectedWebspaceId();
         await _shell.saveCurrentIndex();
       case SiteMenuAction.search:
@@ -1330,7 +1343,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _backToWebspacesFromDrawer() async {
-    _libraryKey.currentState?.showWebspaces();
+    _libraryKey.currentState?.closeFolder();
     await _activation.activate(null);
     if (!mounted) return;
     setState(() {});
@@ -1338,6 +1351,18 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _shell.saveCurrentIndex();
     if (!mounted) return;
     _scaffoldKey.currentState?.closeDrawer();
+  }
+
+  /// A site tapped in the library: its card grows out of its icon while the
+  /// site opens under it.
+  Future<void> _openSiteFromLibrary(WebViewModel site) async {
+    final from = _libraryKey.currentState?.siteWell(site.siteId);
+    final zoom = _launchZoom.currentState;
+    if (from == null || zoom == null) return _openSiteFromDrawer(site);
+    await zoom.open(site,
+        from: from,
+        show: () => _openSiteFromDrawer(site),
+        shown: () => identical(_sites.shown, site));
   }
 
   /// A site tapped in the drawer, once a webspace switch in flight lands.
@@ -1440,7 +1465,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
-                    onOpenSite: (site) => unawaited(_openSiteFromDrawer(site)),
+                    onOpenSite: (site) => unawaited(_openSiteFromLibrary(site)),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
                         ? (from, {required to}) =>
@@ -1541,31 +1566,27 @@ class _WebSpacePageState extends State<WebSpacePage>
           ? _sites.models[shown].blockScreenshots
           : null,
     )));
-    final mainTree =
-        _buildMainTree(context, webviewIsVisible: webviewIsVisible);
-    if (!_maskBackground) {
-      return mainTree;
-    }
-    // Snapshot-time mask: an opaque surface overlays everything so the
-    // task-switcher / recents preview never captures archive content
-    // (ARCH-009). Wrapping the existing tree keeps the running webview
-    // state intact — only the painted output is replaced.
     return Stack(
       fit: StackFit.expand,
       children: [
-        mainTree,
-        Positioned.fill(
-          child: ColoredBox(
-            color: Theme.of(context).colorScheme.surface,
-            child: Center(
-              child: Icon(
-                Icons.lock_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
+        _buildMainTree(context, webviewIsVisible: webviewIsVisible),
+        if (_folderLibraryEnabled) LaunchZoom(key: _launchZoom),
+        // Snapshot-time mask: an opaque surface overlays everything so the
+        // task-switcher / recents preview never captures archive content
+        // (ARCH-009). Only the painted output is replaced.
+        if (_maskBackground)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: Center(
+                child: Icon(
+                  Icons.lock_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -1579,6 +1600,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       canPop: hostIsAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        // An open folder is Back's to close first, as on a phone's home
+        // screen; only then does Back leave the library.
+        if (!webviewIsVisible &&
+            (_libraryKey.currentState?.closeFolder() ?? false)) {
+          return;
+        }
         await _back.handle();
       },
       child: Scaffold(
@@ -1810,7 +1837,7 @@ class _PageHost
   @override
   void openDrawer() {
     if (_s._folderLibraryEnabled && _s._sites.shown == null) {
-      _s._libraryKey.currentState?.showSelectedWebspace();
+      _s._libraryKey.currentState?.openFolder();
     } else {
       unawaited(openNavigationMenu());
     }
