@@ -814,63 +814,50 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   bool _isShowingTabsSheet = false;
 
-  Future<void> _presentTabsSheet() async {
-    final shown = _sites.shown;
-    if (shown == null) return;
-    final sites = _tabs.sheetSites();
+  /// The tabs sheet of the site on screen, or with [scope] the library's tab
+  /// tree (WEBSPACE-004): every tree the scope holds, with no site on screen,
+  /// so a tab picked there opens its site on that tab.
+  Future<void> _presentTabsSheet({WebspaceId? scope}) async {
+    final shown = scope == null ? _sites.shown : null;
+    final sites = scope == null ? _tabs.sheetSites() : _tabs.sheetSitesIn(scope);
     final at = sites.indexWhere((s) => identical(s.model, shown));
-    if (at < 0) return;
+    if (scope == null ? at < 0 : sites.isEmpty) return;
+    final loc = AppLocalizations.of(context);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => TabsSheet(
         sites: sites,
         currentIndex: at,
+        title: scope == null
+            ? null
+            : _sites.webspaces
+                    .where((w) => w.id == scope && !w.isAll)
+                    .firstOrNull
+                    ?.name ??
+                loc.tabsAllSites,
         onOpenTab: (site, {required tabId}) =>
             unawaited(_tabs.openTab(site, tabId: tabId)),
         onNewTab: (site) => unawaited(_tabs.newTab(site)),
-        onWebSearch: () => unawaited(_links.webSearch()),
+        onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),
         onCloseTab: (site, {required tabId}) =>
             unawaited(_tabs.closeTab(site, tabId: tabId)),
         onCloseSubtree: (site, {required tabId}) =>
             unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
         onMoveTab: _tabs.moveTab,
-        onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
-        wayBack: _tabs.wayBackFrom(shown),
+        onMoveSite: shown != null && _webspaces.canReorderView
+            ? _moveSiteInTabsSheet
+            : null,
+        wayBack: shown == null ? null : _tabs.wayBackFrom(shown),
       ),
     );
   }
 
-  /// The library's tab tree (WEBSPACE-004): every tree [scope] holds, with
-  /// no site on screen, so a tab opens its site on that tab.
   Future<void> _showLibraryTabs(WebspaceId scope) async {
     if (_kioskLocked || _isShowingTabsSheet) return;
-    final sites = _tabs.sheetSitesIn(scope);
-    if (sites.isEmpty) return;
-    final loc = AppLocalizations.of(context);
-    final title = scope == WebspaceId.all
-        ? loc.tabsAllSites
-        : _sites.webspaces.where((w) => w.id == scope).firstOrNull?.name ??
-            loc.tabsAllSites;
     _isShowingTabsSheet = true;
     try {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (ctx) => TabsSheet(
-          sites: sites,
-          currentIndex: -1,
-          title: title,
-          onOpenTab: (site, {required tabId}) =>
-              unawaited(_tabs.openTab(site, tabId: tabId)),
-          onNewTab: (site) => unawaited(_tabs.newTab(site)),
-          onCloseTab: (site, {required tabId}) =>
-              unawaited(_tabs.closeTab(site, tabId: tabId)),
-          onCloseSubtree: (site, {required tabId}) =>
-              unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
-          onMoveTab: _tabs.moveTab,
-        ),
-      );
+      await _presentTabsSheet(scope: scope);
     } finally {
       _isShowingTabsSheet = false;
     }
