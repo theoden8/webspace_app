@@ -299,7 +299,7 @@ fvm flutter build apk    --flavor fdroid --release       # F-Droid (CI, unsigned
 fvm flutter build apk    --flavor fmain  --release --split-per-abi   # Play (signed)
 fvm flutter build ipa    --release                       # iOS unsigned
 fvm flutter build macos  --release                       # unsigned; see below
-./scripts/sign_macos.sh devid                            # notarized zip (needs certs)
+./scripts/sign_macos.sh devid                            # notarized zip + dmg (needs certs)
 ./scripts/sign_macos.sh mas                              # Mac App Store .pkg
 fvm flutter build linux  --release
 fvm dart run flutter_launcher_icons
