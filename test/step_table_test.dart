@@ -387,6 +387,30 @@ void main() {
     expect(shared.value, isNot(same(owner)), reason: 'a read is a fresh copy');
   });
 
+  test('a rearrangement keeps what the model holds, so it takes no step '
+      '(TAB-015)', () {
+    final lists = <int, List<int>>{0: [1, 2, 3]};
+    final cell = SharedAt<int, List<int>>(
+      ModelVar.tabs,
+      read: (k) => lists[k]!,
+      write: (k, {required to}) => lists[k] = to,
+      members: (v) => v.toSet(),
+    );
+    cell.rearrange(at: 0, to: [3, 1, 2]);
+    expect(lists[0], [3, 1, 2]);
+    expect(() => cell.rearrange(at: 0, to: [3, 1]),
+        throwsA(isA<AssertionError>()),
+        reason: 'a tab dropped is a write the model sees');
+    final whole = SharedAt<int, List<int>>(
+      ModelVar.tabs,
+      read: (k) => lists[k]!,
+      write: (k, {required to}) => lists[k] = to,
+    );
+    expect(() => whole.rearrange(at: 0, to: [1, 2, 3]),
+        throwsA(isA<AssertionError>()),
+        reason: 'a variable the model holds whole has no rearrangement');
+  });
+
   test("an act's writes read the state the step found, as the model's "
       'primed writes do', () {
     var count = 0;

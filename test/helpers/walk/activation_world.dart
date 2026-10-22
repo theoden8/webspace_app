@@ -1071,7 +1071,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelVar.stored => each(
         (m) => cookies(stored.allStorage[m.siteId] ?? const <Cookie>[]),
       ),
-      ModelVar.tabs => each((m) => FrameValues([for (final t in m.tabs) t.id])),
+      // The model holds a set: a tab dragged in its tree changes no frame.
+      ModelVar.tabs => each(
+        (m) => FrameValues([for (final t in m.tabs) t.id]..sort()),
+      ),
       ModelVar.active => each((m) => m.activeTabId),
       ModelVar.built => each((m) => m.tabBinding.built),
       ModelVar.hist => each(

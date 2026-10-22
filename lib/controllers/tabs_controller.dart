@@ -855,8 +855,7 @@ class TabsController {
     if (_gate.busy || !enabledFor(model)) return false;
     final moved = TabLifecycleEngine.drop(model.tabs, tabId: tabId, drop: drop);
     if (moved == null) return false;
-    WebViewModel.tabsCell.write(
-        at: model, to: moved, commit: const Commit.unmodeled(Unmodeled.tabMove));
+    WebViewModel.tabsCell.rearrange(at: model, to: moved);
     _host.rebuild();
     unawaited(_host.commitSites(const SitesEdited()));
     return true;

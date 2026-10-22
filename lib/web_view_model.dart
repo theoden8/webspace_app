@@ -94,6 +94,7 @@ class WebViewModel implements MediaGrantRecord {
     ModelVar.tabs,
     read: (m) => m._tabs,
     write: (m, {required to}) => m._tabs = to,
+    members: (tabs) => {for (final t in tabs) t.id},
   );
   static final activeTabCell = SharedAt<WebViewModel, TabId>(
     ModelVar.active,
