@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Przestrzenie WWW",
   "librarySites": "Witryny",
   "librarySearchWebspaces": "Szukaj przestrzeni WWW",
-  "librarySearchSites": "Szukaj witryn",
   "libraryNoResults": "Brak wyników",
   "appSettingsExperimentalFolderLibrary": "Alternatywny wygląd",
   "appSettingsExperimentalFolderLibraryHint": "Porządkuj witryny w grupy w siatce uruchamiania.",

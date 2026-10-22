@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Espais web",
   "librarySites": "Llocs web",
   "librarySearchWebspaces": "Cerca espais web",
-  "librarySearchSites": "Cerca llocs web",
   "libraryNoResults": "Cap coincidència",
   "appSettingsExperimentalFolderLibrary": "Disseny alternatiu",
   "appSettingsExperimentalFolderLibraryHint": "Organitzeu els llocs en grups dins d'una graella de llançament.",

@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "वेबस्पेस",
   "librarySites": "साइटें",
   "librarySearchWebspaces": "वेबस्पेस खोजें",
-  "librarySearchSites": "साइटें खोजें",
   "libraryNoResults": "कोई मिलान नहीं",
   "appSettingsExperimentalFolderLibrary": "वैकल्पिक डिज़ाइन",
   "appSettingsExperimentalFolderLibraryHint": "लॉन्चर ग्रिड में साइटों को समूहों में व्यवस्थित करें।",

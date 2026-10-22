@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Վեբ տարածքներ",
   "librarySites": "Կայքեր",
   "librarySearchWebspaces": "Որոնել վեբ տարածքներ",
-  "librarySearchSites": "Որոնել կայքեր",
   "libraryNoResults": "Համընկնումներ չկան",
   "appSettingsExperimentalFolderLibrary": "Այլընտրանքային ձևավորում",
   "appSettingsExperimentalFolderLibraryHint": "Դասավորեք կայքերը խմբերով գործարկիչի ցանցում։",

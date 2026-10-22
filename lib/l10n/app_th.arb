@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "พื้นที่เว็บ",
   "librarySites": "เว็บไซต์",
   "librarySearchWebspaces": "ค้นหาพื้นที่เว็บ",
-  "librarySearchSites": "ค้นหาเว็บไซต์",
   "libraryNoResults": "ไม่พบผลลัพธ์",
   "appSettingsExperimentalFolderLibrary": "ดีไซน์ทางเลือก",
   "appSettingsExperimentalFolderLibraryHint": "จัดเว็บไซต์เป็นกลุ่มในตารางตัวเรียกใช้งาน",

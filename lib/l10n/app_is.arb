@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Vefsvæði",
   "librarySites": "Vefir",
   "librarySearchWebspaces": "Leita að vefsvæðum",
-  "librarySearchSites": "Leita að vefjum",
   "libraryNoResults": "Engar niðurstöður",
   "appSettingsExperimentalFolderLibrary": "Önnur hönnun",
   "appSettingsExperimentalFolderLibraryHint": "Raðaðu vefsvæðum í hópa í ræsingarsýn.",

@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Veebiruumid",
   "librarySites": "Veebilehed",
   "librarySearchWebspaces": "Otsi veebiruume",
-  "librarySearchSites": "Otsi veebilehti",
   "libraryNoResults": "Vasteid pole",
   "appSettingsExperimentalFolderLibrary": "Alternatiivne kujundus",
   "appSettingsExperimentalFolderLibraryHint": "Korralda saidid rühmadesse käivitusruudustikus.",

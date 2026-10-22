@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "வலைவெளிகள்",
   "librarySites": "தளங்கள்",
   "librarySearchWebspaces": "வலைவெளிகளைத் தேடு",
-  "librarySearchSites": "தளங்களைத் தேடு",
   "libraryNoResults": "பொருத்தங்கள் இல்லை",
   "appSettingsExperimentalFolderLibrary": "மாற்று வடிவமைப்பு",
   "appSettingsExperimentalFolderLibraryHint": "துவக்கி கட்டத்தில் தளங்களைக் குழுக்களாக ஒழுங்கமைக்கவும்.",

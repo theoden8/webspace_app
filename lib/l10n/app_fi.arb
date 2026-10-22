@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Verkkotilat",
   "librarySites": "Sivustot",
   "librarySearchWebspaces": "Hae verkkotiloja",
-  "librarySearchSites": "Hae sivustoja",
   "libraryNoResults": "Ei osumia",
   "appSettingsExperimentalFolderLibrary": "Vaihtoehtoinen ulkoasu",
   "appSettingsExperimentalFolderLibraryHint": "Järjestä sivustot ryhmiin käynnistysruudukossa.",

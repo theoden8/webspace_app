@@ -1092,7 +1092,6 @@
   "libraryWebspaces": "Spletni prostori",
   "librarySites": "Spletišča",
   "librarySearchWebspaces": "Poišči spletne prostore",
-  "librarySearchSites": "Poišči spletišča",
   "libraryNoResults": "Ni zadetkov",
   "appSettingsExperimentalFolderLibrary": "Alternativna zasnova",
   "appSettingsExperimentalFolderLibraryHint": "Organizirajte spletišča v skupine v zagonski mreži.",
