@@ -387,6 +387,15 @@ void main() {
         find.descendant(of: home, matching: find.text('8')),
         findsOneWidget,
       );
+      expect(
+        tester.getRect(home).left,
+        greaterThan(tester.getRect(find.byTooltip('Create Webspace')).right),
+      );
+      expect(
+        tester.getRect(home).right,
+        closeTo(tester.getRect(find.byTooltip('App Settings')).left, Spacing.sm),
+        reason: 'the tab button sits beside App Settings',
+      );
       state.disableTabs(state.sites[1]);
       await tester.pump();
       expect(

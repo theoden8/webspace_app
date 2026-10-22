@@ -282,17 +282,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                       ),
                     ),
                   ),
-                  if (tabs > 0)
-                    TabCountButton(
-                      count: tabs,
-                      onPressed: () => widget.onShowTabs(WebspaceId.all),
-                    ),
                   IconButton(
                     tooltip: loc.webspacesListCreateButton,
                     onPressed: widget.onAddWebspace,
                     icon: const Icon(Icons.add),
                     color: theme.colorScheme.primary,
                   ),
+                  if (tabs > 0)
+                    TabCountButton(
+                      count: tabs,
+                      onPressed: () => widget.onShowTabs(WebspaceId.all),
+                    ),
                   IconButton(
                     tooltip: loc.homeAppSettingsTooltip,
                     onPressed: () =>
@@ -532,17 +532,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                   ],
                 ),
               ),
-              if (tabs > 0)
-                TabCountButton(
-                  count: tabs,
-                  onPressed: () => widget.onShowTabs(webspace.id),
-                ),
               IconButton(
                 tooltip: loc.homeAddSite,
                 onPressed: widget.onAddSite,
                 icon: const Icon(Icons.add),
                 color: theme.colorScheme.primary,
               ),
+              if (tabs > 0)
+                TabCountButton(
+                  count: tabs,
+                  onPressed: () => widget.onShowTabs(webspace.id),
+                ),
             ],
           ),
         ),

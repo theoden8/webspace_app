@@ -75,7 +75,7 @@ The workspace site grid and the browser drawer SHALL only show sites belonging t
 
 Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL use its existing container color and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tabs sheet and remain stable when selection changes.
 
-The library's home header and an open folder's header SHALL each carry a tab count button while what they show holds a site with tabs: the home's counts and lists the tabs of every site, a folder's those of its sites. It opens the tabs sheet with no site on screen, titled by that scope and listing each site's tree, and a tab picked there opens its site on that tab.
+The library's home header, beside App Settings, and an open folder's header, at its end, SHALL each carry a tab count button while what they show holds a site with tabs: the home's counts and lists the tabs of every site, a folder's those of its sites. It opens the tabs sheet with no site on screen, titled by that scope and listing each site's tree, and a tab picked there opens its site on that tab.
 
 #### Scenario: Filter drawer by webspace
 
