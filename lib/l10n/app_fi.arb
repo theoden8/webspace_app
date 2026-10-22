@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Ei voitu avata {url}",
   "inappBrowserDefaultTitle": "Sovelluksensisäinen WebView",
   "inappBrowserMenuOpenInBrowser": "Avaa selaimessa",
-  "inappBrowserMenuRefresh": "Päivitä",
   "inappBrowserMenuFind": "Etsi",
   "inappBrowserMenuHideUrlBar": "Piilota URL-palkki",
   "inappBrowserMenuShowUrlBar": "Näytä URL-palkki",

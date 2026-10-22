@@ -20,6 +20,7 @@ import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
+import 'package:webspace/controllers/keyboard_shortcut_controller.dart';
 import 'package:webspace/controllers/link_controller.dart';
 import 'package:webspace/controllers/site_network_controller.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -142,6 +143,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
   final _libraryKey = GlobalKey<WebspaceLibraryState>();
   final _launchZoom = GlobalKey<LaunchZoomState>();
+  final _urlBar = GlobalKey<UrlBarState>();
   bool get _folderLibraryEnabled => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.folderLibrary);
   final SiteRuntime _sites = SiteRuntime();
@@ -156,6 +158,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       BackGestureController(host: _PageHost(this), surface: _surface);
   late final FullscreenController _fullscreen =
       FullscreenController(host: _PageHost(this), surface: _surface);
+  late final KeyboardShortcutController _keys = KeyboardShortcutController(
+      _sites, host: _PageHost(this), tabs: _tabs, resets: _resets, back: _back);
   late final SiteActivationController _activation = SiteActivationController(
     _sites,
     host: _PageHost(this),
@@ -315,6 +319,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shortcuts.start();
     _network.start();
     _fullscreen.start();
+    _keys.start();
   }
 
   void _rebuild() {
@@ -411,6 +416,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shortcuts.dispose();
     AppPref.anyChange.removeListener(_onAppPrefChanged);
     _fullscreen.dispose();
+    _keys.dispose();
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -575,12 +581,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Corner for the currently active site: its remembered per-site choice,
   /// falling back to the app-wide legacy bottom-corner default.
   TabBarCorner get _tabBarButtonCornerEffective {
-    final index = _sites.current;
-    TabBarCorner? corner;
-    if (index != null && index < _sites.models.length) {
-      corner = _sites.models[index].tabBarButtonCorner;
-    }
-    return corner ??
+    return _sites.shown?.tabBarButtonCorner ??
         (AppPref.tabBarButtonOnRight.value
             ? TabBarCorner.bottomRight
             : TabBarCorner.bottomLeft);
@@ -616,10 +617,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     rebuild: () {
       if (mounted) setState(() {});
     },
-    onScreen: (slot) =>
-        _sites.current != null &&
-        _sites.current! < _sites.models.length &&
-        identical(_sites.models[_sites.current!], slot),
+    onScreen: (slot) => identical(_sites.shown, slot),
     launchNested: launchUrl,
     openInBrowser: launchUrlInSystemBrowser,
     routeOutbound: _links.routeOutbound,
@@ -651,11 +649,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // LIR-032: the screen opens over the tab on screen, and a link in it into
     // one of the user's sites goes back there as a tab. The tab opens once the
     // screen is gone, before whatever its opener runs on close.
-    final owner = opensFromTab &&
-            _sites.current != null &&
-            _sites.current! < _sites.models.length
-        ? _sites.models[_sites.current!]
-        : null;
+    final owner = opensFromTab ? _sites.shown : null;
     final parentTabId = owner?.activeTabId;
     final openedFrom = owner?.runningIdentity.getDisplayName();
     final nestedSite = _sites.byId(posture.siteId);
@@ -725,13 +719,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
-  WebViewController? getController() {
-    if(_sites.current == null) {
-      return null;
-    }
-    final model = _sites.models[_sites.current!];
-    return model.getController(_webViewHooks);
-  }
+  WebViewController? getController() =>
+      _sites.shown?.getController(_webViewHooks);
 
   /// User-driven full session wipe for a single site. Under containers the
   /// container's data goes in place (the fork's `clearContainerData`, made for
@@ -1053,10 +1042,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   AppBar _buildAppBar() {
     final loc = AppLocalizations.of(context);
-    final currentModel =
-        _sites.current != null && _sites.current! < _sites.models.length
-            ? _sites.models[_sites.current!]
-            : null;
+    final currentModel = _sites.shown;
     return AppBar(
       bottom: currentModel == null
           ? null
@@ -1073,7 +1059,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               onPressed: () => unawaited(_onSiteMenuAction(SiteMenuAction.backToWebspaces)),
             )
           : null,
-      title: _sites.current != null && _sites.current! < _sites.models.length
+      title: currentModel != null
           ? GestureDetector(
               onDoubleTap: _fullscreen.toggle,
               child: Row(
@@ -1081,7 +1067,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 children: [
                   Flexible(
                     child: Text(
-                      _sites.models[_sites.current!].getDisplayName(),
+                      currentModel.getDisplayName(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       softWrap: false,
@@ -1104,15 +1090,15 @@ class _WebSpacePageState extends State<WebSpacePage>
         // Protection report shield, badged with the week's block count.
         // Same visibility rule as the settings gear: the webspaces list is
         // the app's "home", which is where a protection summary belongs.
-        if (_sites.current == null || _sites.current! >= _sites.models.length)
+        if (currentModel == null)
           ProtectionShieldButton(onPressed: _openProtectionReport),
-        if (_sites.current == null || _sites.current! >= _sites.models.length)
+        if (currentModel == null)
           IconButton(
             icon: Icon(Icons.settings),
             tooltip: loc.homeAppSettingsTooltip,
             onPressed: _openAppSettings,
           ),
-        if (_sites.current != null && _sites.current! < _sites.models.length && !AppPref.showTabStrip.value)
+        if (currentModel != null && !AppPref.showTabStrip.value)
           _siteMenu(SiteMenuPlacement.appBar),
       ],
     );
@@ -1125,10 +1111,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool get _tabStripShown {
     // KIOSK-002: never show the tab strip in a locked session, in or out of
     // fullscreen — no switching away from the kiosk site.
-    if (_kioskLocked) return false;
-    if (_sites.current == null || _sites.current! >= _sites.models.length) {
-      return false;
-    }
+    if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
     if (_fullscreen.active) {
       if (AppPref.tabStripInFullscreen.value) return true;
@@ -1144,10 +1127,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool get _tabBarButtonShown {
     if (!AppPref.tabBarButton.value) return false;
     // KIOSK-002: a locked session must not expose tab switching.
-    if (_kioskLocked) return false;
-    if (_sites.current == null || _sites.current! >= _sites.models.length) {
-      return false;
-    }
+    if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
     if (_fullscreen.tabStripRevealed) return false;
     if (_fullscreen.active) return !AppPref.tabStripInFullscreen.value;
@@ -1173,9 +1153,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       current: _sites.current,
       revealed: _fullscreen.tabStripRevealed,
       onHide: _fullscreen.hideTabStrip,
-      onOpen: (site) => _throughCard(site,
-          show: () => _openSiteFromDrawer(site),
-          shown: () => identical(_sites.shown, site)),
+      onOpen: _openSite,
       onShowTabs: () => unawaited(_showTabsSheet()),
       onReorder: _webspaces.canReorderView
           ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
@@ -1187,12 +1165,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Build the URL bar and find toolbar, placed in the body so that
   /// resizeToAvoidBottomInset keeps them above the keyboard.
   Widget? _buildInputBar() {
-    if (_fullscreen.active) return null;
-    if (_sites.current == null || _sites.current! >= _sites.models.length) {
-      return null;
-    }
-
-    final model = _sites.models[_sites.current!];
+    final model = _sites.shown;
+    if (_fullscreen.active || model == null) return null;
     final hasUrlBar = AppPref.showUrlBar.value;
     final hasFindToolbar = _isFindVisible && getController() != null;
     if (!hasUrlBar && !hasFindToolbar) {
@@ -1214,6 +1188,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           ),
         if (hasUrlBar)
           UrlBar(
+            key: _urlBar,
             currentUrl: model.currentUrl,
             searchSites: urlBarSearch?.sites ?? const [],
             defaultSearchSiteId: urlBarSearch?.defaultId,
@@ -1383,6 +1358,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _shell.saveCurrentIndex();
   }
 
+  /// A site picked in the tab strip or the library, or by its keyboard
+  /// shortcut, shown behind its card.
+  Future<void> _openSite(WebViewModel site) => _throughCard(site,
+      show: () => _openSiteFromDrawer(site),
+      shown: () => identical(_sites.shown, site));
+
   /// `siteId` -> display name for the sites the protection report may name.
   /// Archive-tier sites are excluded: they never contribute a count
   /// (STATS-005), so naming them there could only ever be noise.
@@ -1460,7 +1441,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             child: Stack(
               children: [
                 Offstage(
-                  offstage: _sites.current != null && _sites.current! < _sites.models.length,
+                  offstage: _sites.shown != null,
                   child: _folderLibraryEnabled ? WebspaceLibrary(
                     key: _libraryKey,
                     webspaces: _sites.webspaces,
@@ -1473,9 +1454,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
-                    onOpenSite: (site) => unawaited(_throughCard(site,
-                        show: () => _openSiteFromDrawer(site),
-                        shown: () => identical(_sites.shown, site))),
+                    onOpenSite: (site) => unawaited(_openSite(site)),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
                         ? (from, {required to}) =>
@@ -1499,7 +1478,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 ),
                 if (_sites.loaded.isNotEmpty)
                   Offstage(
-                    offstage: _sites.current == null || _sites.current! >= _sites.models.length,
+                    offstage: _sites.shown == null,
                     // The inset SurfaceRepaintController toggles to make the
                     // hybrid-composition SurfaceView recomposite (BUG-001);
                     // zero in steady state.
@@ -1566,16 +1545,13 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   @override
   Widget build(BuildContext context) {
-    final bool webviewIsVisible = _sites.current != null && _sites.current! < _sites.models.length;
+    final bool webviewIsVisible = _sites.shown != null;
     // From build, not from the paths that change the site on screen: the site
     // shown and the window flag then change in the same frame, and a new path
     // that moves _sites.current cannot skip it (SCREENBLOCK-002).
-    final shown = _sites.current;
     unawaited(_screenCaptureGuard.apply(blocked: screenCaptureBlocked(
       appWide: AppPref.blockScreenshots.value,
-      siteOnScreen: shown != null && shown >= 0 && shown < _sites.models.length
-          ? _sites.models[shown].blockScreenshots
-          : null,
+      siteOnScreen: _sites.shown?.blockScreenshots,
     )));
     return Stack(
       fit: StackFit.expand,
@@ -1720,7 +1696,8 @@ class _PageHost
         NestedLaunchHost,
         StartupHost,
         SiteSetCommitHost,
-        SiteDeletionHost {
+        SiteDeletionHost,
+        KeyboardShortcutHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -1997,4 +1974,25 @@ class _PageHost
   @override
   void noteUnloaded(WebViewModel model, {required String why}) =>
       _s._background.noteUnloaded(model, reason: why);
+
+  @override
+  bool get onTop => ModalRoute.isCurrentOf(_s.context) ?? true;
+
+  @override
+  bool focusUrlBar() {
+    final bar = _s._urlBar.currentState;
+    bar?.edit();
+    return bar != null;
+  }
+
+  @override
+  bool findInPage() {
+    // The input bar, the find bar's place, is gone in full screen.
+    if (_s._fullscreen.active) return false;
+    _s._toggleFind();
+    return true;
+  }
+
+  @override
+  Future<void> openSite(WebViewModel site) => _s._openSite(site);
 }

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/shortcut_label.dart';
 
 /// What a site's overflow menu offers, in menu order.
 enum SiteMenuAction {
@@ -30,10 +33,12 @@ typedef SiteMenuState = ({
   bool offersShortcut,
 });
 
-/// The buttons of the menu's top row. Each closes the menu, then acts.
+/// The buttons of a webview menu's top row. Each closes the menu, then acts.
 typedef SiteMenuNav = ({
   VoidCallback back,
-  VoidCallback home,
+
+  /// Null on a screen with no home of its own, a nested one.
+  VoidCallback? home,
   VoidCallback share,
   VoidCallback reload,
   VoidCallback stop,
@@ -78,49 +83,59 @@ class SiteMenuButton extends StatelessWidget {
 
   List<PopupMenuEntry<SiteMenuAction>> _items(BuildContext menuContext) {
     final loc = AppLocalizations.of(menuContext);
+    final names = MaterialLocalizations.of(menuContext);
     final s = state();
     return [
-      _navRow(menuContext, loc: loc, loading: s.loading),
+      siteMenuNavRow(menuContext, nav: nav, loading: s.loading),
       PopupMenuDivider(),
       for (final action in SiteMenuAction.values)
-        if (_entry(action, state: s, loc: loc) case (final icon, final label))
+        if (_entry(action, state: s, loc: loc, names: names)
+            case (final icon, final label, final keys))
           PopupMenuItem(
             value: action,
             child: Row(
               children: [
                 Icon(icon),
                 SizedBox(width: 8),
-                Flexible(child: Text(label)),
+                if (keys != null) ...[
+                  Expanded(child: Text(label)),
+                  SizedBox(width: Spacing.xl),
+                  ShortcutKeys(keys),
+                ] else
+                  Flexible(child: Text(label)),
               ],
             ),
           ),
     ];
   }
 
-  /// Icon and label of [action] in this menu, or null where it does not
-  /// offer it.
-  (IconData, String)? _entry(
+  /// Icon, label and desktop key (NAV-014) of [action] in this menu, or null
+  /// where it does not offer it.
+  (IconData, String, String?)? _entry(
     SiteMenuAction action, {
     required SiteMenuState state,
     required AppLocalizations loc,
+    required MaterialLocalizations names,
   }) =>
       switch (action) {
-        SiteMenuAction.newTab =>
-          state.tabsOn ? (Icons.add, loc.tabsNewTab) : null,
+        SiteMenuAction.newTab => state.tabsOn
+            ? (Icons.add, loc.tabsNewTab, shortcutLabel<OpenNewTab>(names))
+            : null,
         SiteMenuAction.backToWebspaces =>
           placement == SiteMenuPlacement.tabStrip
-              ? (Icons.arrow_back, loc.homeBackToWebspaces)
+              ? (Icons.arrow_back, loc.homeBackToWebspaces, null)
               : null,
-        SiteMenuAction.search => (Icons.search, loc.homeFindMenu),
+        SiteMenuAction.search =>
+          (Icons.search, loc.homeFindMenu, shortcutLabel<FindInPage>(names)),
         // Where the site has tabs, web search lives in the Tabs sheet.
         SiteMenuAction.webSearch =>
-          state.tabsOn ? null : (Icons.travel_explore, loc.webSearchMenu),
+          state.tabsOn ? null : (Icons.travel_explore, loc.webSearchMenu, null),
         SiteMenuAction.toggleUrlBar => AppPref.showUrlBar.value
-            ? (Icons.visibility_off, loc.homeHideUrlBarMenu)
-            : (Icons.visibility, loc.homeShowUrlBarMenu),
+            ? (Icons.visibility_off, loc.homeHideUrlBarMenu, null)
+            : (Icons.visibility, loc.homeShowUrlBarMenu, null),
         SiteMenuAction.fullscreen => state.fullscreen
-            ? (Icons.fullscreen_exit, loc.homeExitFullScreenMenu)
-            : (Icons.fullscreen, loc.homeFullScreenMenu),
+            ? (Icons.fullscreen_exit, loc.homeExitFullScreenMenu, null)
+            : (Icons.fullscreen, loc.homeFullScreenMenu, null),
         // Manual escape hatch for the recurring Android blank surface
         // (BUG-001 / PAUSE-028): every automatic trigger is an enumerated
         // code path, and the user is the only one who can see a path nobody
@@ -129,58 +144,64 @@ class SiteMenuButton extends StatelessWidget {
         // by accident.
         SiteMenuAction.repaint =>
           hostIsAndroid && DeveloperModeService.instance.enabled
-              ? (Icons.format_paint, loc.commonRepaintScreen)
+              ? (Icons.format_paint, loc.commonRepaintScreen, null)
               : null,
-        SiteMenuAction.settings => (Icons.settings, loc.homeSettingsMenu),
-        SiteMenuAction.devTools => (Icons.code, loc.homeDeveloperToolsMenu),
+        SiteMenuAction.settings => (Icons.settings, loc.homeSettingsMenu, null),
+        SiteMenuAction.devTools => (Icons.code, loc.homeDeveloperToolsMenu, null),
         SiteMenuAction.addToHome => state.offersShortcut
-            ? (Icons.add_to_home_screen, loc.homeHomeShortcutMenu)
+            ? (Icons.add_to_home_screen, loc.homeHomeShortcutMenu, null)
             : null,
       };
+}
 
-  PopupMenuItem<SiteMenuAction> _navRow(
-    BuildContext menuContext, {
-    required AppLocalizations loc,
-    required bool loading,
-  }) {
-    void close(VoidCallback then) {
-      Navigator.pop(menuContext);
-      then();
-    }
+/// A webview menu's top row: back, home, share, and reload or stop while the
+/// page is [loading]. The site menu and the nested screen's share it, so the
+/// same buttons sit in the same place in both.
+PopupMenuItem<T> siteMenuNavRow<T>(
+  BuildContext menuContext, {
+  required SiteMenuNav nav,
+  required bool loading,
+}) {
+  final loc = AppLocalizations.of(menuContext);
 
-    final backInNewTab = nav.backInNewTab;
-    final duplicateTab = nav.duplicateTab;
-    return PopupMenuItem(
-      padding: EdgeInsets.zero,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back),
-            tooltip: loc.homeGoBackTooltip,
-            onLongPress:
-                backInNewTab == null ? null : () => close(backInNewTab),
-            onPressed: () => close(nav.back),
-          ),
+  void close(VoidCallback then) {
+    Navigator.pop(menuContext);
+    then();
+  }
+
+  final backInNewTab = nav.backInNewTab;
+  final duplicateTab = nav.duplicateTab;
+  return PopupMenuItem(
+    padding: EdgeInsets.zero,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        IconButton(
+          icon: Icon(Icons.arrow_back),
+          tooltip: loc.homeGoBackTooltip,
+          onLongPress:
+              backInNewTab == null ? null : () => close(backInNewTab),
+          onPressed: () => close(nav.back),
+        ),
+        if (nav.home case final home?)
           IconButton(
             icon: Icon(Icons.home),
             tooltip: loc.homeGoToHomeTooltip,
-            onPressed: () => close(nav.home),
+            onPressed: () => close(home),
           ),
-          IconButton(
-            icon: Icon(Icons.share),
-            tooltip: loc.commonShare,
-            onPressed: () => close(nav.share),
-          ),
-          IconButton(
-            icon: Icon(loading ? Icons.close : Icons.refresh),
-            tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
-            onLongPress:
-                duplicateTab == null ? null : () => close(duplicateTab),
-            onPressed: () => close(loading ? nav.stop : nav.reload),
-          ),
-        ],
-      ),
-    );
-  }
+        IconButton(
+          icon: Icon(Icons.share),
+          tooltip: loc.commonShare,
+          onPressed: () => close(nav.share),
+        ),
+        IconButton(
+          icon: Icon(loading ? Icons.close : Icons.refresh),
+          tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
+          onLongPress:
+              duplicateTab == null ? null : () => close(duplicateTab),
+          onPressed: () => close(loading ? nav.stop : nav.reload),
+        ),
+      ],
+    ),
+  );
 }

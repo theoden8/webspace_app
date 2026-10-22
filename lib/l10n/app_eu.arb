@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Ezin izan da {url} abiarazi",
   "inappBrowserDefaultTitle": "Aplikazio barneko WebView-a",
   "inappBrowserMenuOpenInBrowser": "Ireki nabigatzailean",
-  "inappBrowserMenuRefresh": "Berritu",
   "inappBrowserMenuFind": "Bilatu",
   "inappBrowserMenuHideUrlBar": "Ezkutatu URL barra",
   "inappBrowserMenuShowUrlBar": "Erakutsi URL barra",

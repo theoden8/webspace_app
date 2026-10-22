@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} ஐத் தொடங்க முடியவில்லை",
   "inappBrowserDefaultTitle": "செயலி-உள் WebView",
   "inappBrowserMenuOpenInBrowser": "உலாவியில் திற",
-  "inappBrowserMenuRefresh": "புதுப்பி",
   "inappBrowserMenuFind": "கண்டறி",
   "inappBrowserMenuHideUrlBar": "URL பட்டியை மறை",
   "inappBrowserMenuShowUrlBar": "URL பட்டியைக் காட்டு",

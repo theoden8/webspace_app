@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Impossible de lancer {url}",
   "inappBrowserDefaultTitle": "WebView intégré",
   "inappBrowserMenuOpenInBrowser": "Ouvrir dans le navigateur",
-  "inappBrowserMenuRefresh": "Actualiser",
   "inappBrowserMenuFind": "Rechercher",
   "inappBrowserMenuHideUrlBar": "Masquer la barre d'URL",
   "inappBrowserMenuShowUrlBar": "Afficher la barre d'URL",

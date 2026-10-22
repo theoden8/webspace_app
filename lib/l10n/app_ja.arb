@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} を起動できませんでした",
   "inappBrowserDefaultTitle": "アプリ内WebView",
   "inappBrowserMenuOpenInBrowser": "ブラウザで開く",
-  "inappBrowserMenuRefresh": "再読み込み",
   "inappBrowserMenuFind": "検索",
   "inappBrowserMenuHideUrlBar": "URLバーを隠す",
   "inappBrowserMenuShowUrlBar": "URLバーを表示",

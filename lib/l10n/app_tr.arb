@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} başlatılamadı",
   "inappBrowserDefaultTitle": "Uygulama İçi WebView",
   "inappBrowserMenuOpenInBrowser": "Tarayıcıda Aç",
-  "inappBrowserMenuRefresh": "Yenile",
   "inappBrowserMenuFind": "Bul",
   "inappBrowserMenuHideUrlBar": "URL Çubuğunu Gizle",
   "inappBrowserMenuShowUrlBar": "URL Çubuğunu Göster",

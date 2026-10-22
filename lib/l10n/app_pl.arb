@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nie udało się uruchomić {url}",
   "inappBrowserDefaultTitle": "WebView w aplikacji",
   "inappBrowserMenuOpenInBrowser": "Otwórz w przeglądarce",
-  "inappBrowserMenuRefresh": "Odśwież",
   "inappBrowserMenuFind": "Znajdź",
   "inappBrowserMenuHideUrlBar": "Ukryj pasek adresu",
   "inappBrowserMenuShowUrlBar": "Pokaż pasek adresu",

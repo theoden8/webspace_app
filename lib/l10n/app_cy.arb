@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Methwyd lansio {url}",
   "inappBrowserDefaultTitle": "WebView Mewn-Ap",
   "inappBrowserMenuOpenInBrowser": "Agor mewn Porwr",
-  "inappBrowserMenuRefresh": "Adnewyddu",
   "inappBrowserMenuFind": "Canfod",
   "inappBrowserMenuHideUrlBar": "Cuddio'r Bar URL",
   "inappBrowserMenuShowUrlBar": "Dangos y Bar URL",

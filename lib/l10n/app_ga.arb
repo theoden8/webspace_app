@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Níorbh fhéidir {url} a sheoladh",
   "inappBrowserDefaultTitle": "WebView san Aip",
   "inappBrowserMenuOpenInBrowser": "Oscail sa Bhrabhsálaí",
-  "inappBrowserMenuRefresh": "Athnuaigh",
   "inappBrowserMenuFind": "Aimsigh",
   "inappBrowserMenuHideUrlBar": "Folaigh an Barra URL",
   "inappBrowserMenuShowUrlBar": "Taispeáin an Barra URL",

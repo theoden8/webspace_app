@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url}을(를) 열 수 없습니다",
   "inappBrowserDefaultTitle": "인앱 웹뷰",
   "inappBrowserMenuOpenInBrowser": "브라우저에서 열기",
-  "inappBrowserMenuRefresh": "새로고침",
   "inappBrowserMenuFind": "찾기",
   "inappBrowserMenuHideUrlBar": "URL 바 숨기기",
   "inappBrowserMenuShowUrlBar": "URL 바 표시",

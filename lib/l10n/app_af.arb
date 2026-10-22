@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Kon nie {url} oopmaak nie",
   "inappBrowserDefaultTitle": "In-app webaansig",
   "inappBrowserMenuOpenInBrowser": "Maak in blaaier oop",
-  "inappBrowserMenuRefresh": "Verfris",
   "inappBrowserMenuFind": "Soek",
   "inappBrowserMenuHideUrlBar": "Versteek URL-balk",
   "inappBrowserMenuShowUrlBar": "Wys URL-balk",

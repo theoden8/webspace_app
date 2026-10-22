@@ -87,6 +87,7 @@ Future<void> prepareRealApp(
     ...prefs,
   });
   FlutterSecureStorage.setMockInitialValues({});
+  webViewCalls.clear();
   _freshDocuments();
   useFakePathProvider(_documents);
   PackageInfo.setMockInitialValues(
@@ -241,13 +242,18 @@ Future<_FakeWebViewController> _controllerOf(
 final Map<inapp.InAppWebView, _FakeWebViewController> _attached =
     Map.identity();
 
+/// The methods the app has called on its webviews' controllers since the app
+/// was pumped, in order: `#reload` for a reload.
+final List<Symbol> webViewCalls = [];
+
 /// The system back gesture, as Android delivers it to the app.
 Future<void> pressBack(WidgetTester tester) async {
   await tester.binding.handlePopRoute();
   await settleRealApp(tester);
 }
 
-/// A webview with no page in it: nothing to go back to, nothing loading,
+/// A webview with no page in it: nothing to go back or forward to, nothing
+/// loading,
 /// and every other call answered with nothing.
 class _FakeWebViewController implements inapp.InAppWebViewController {
   @override
@@ -255,14 +261,26 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
       FakePlatformController();
 
   @override
-  Future<bool> canGoBack() async => false;
+  Future<bool> canGoBack() async {
+    webViewCalls.add(#canGoBack);
+    return false;
+  }
+
+  @override
+  Future<bool> canGoForward() async {
+    webViewCalls.add(#canGoForward);
+    return false;
+  }
 
   @override
   Future<bool> isLoading() async => false;
 
-  // A completed Future<Null> passes for every Future<T?> the page awaits.
-  // ignore: prefer_void_to_null
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      invocation.isMethod ? Future<Null>.value() : null;
+  dynamic noSuchMethod(Invocation invocation) {
+    if (!invocation.isMethod) return null;
+    webViewCalls.add(invocation.memberName);
+    // A completed Future<Null> passes for every Future<T?> the page awaits.
+    // ignore: prefer_void_to_null
+    return Future<Null>.value();
+  }
 }

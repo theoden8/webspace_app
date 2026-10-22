@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "無法啟動 {url}",
   "inappBrowserDefaultTitle": "應用程式內 WebView",
   "inappBrowserMenuOpenInBrowser": "在瀏覽器中開啟",
-  "inappBrowserMenuRefresh": "重新整理",
   "inappBrowserMenuFind": "尋找",
   "inappBrowserMenuHideUrlBar": "隱藏網址列",
   "inappBrowserMenuShowUrlBar": "顯示網址列",

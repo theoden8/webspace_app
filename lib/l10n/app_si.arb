@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} දියත් කළ නොහැකි විය",
   "inappBrowserDefaultTitle": "යෙදුම් තුළ WebView",
   "inappBrowserMenuOpenInBrowser": "බ්‍රවුසරයේ විවෘත කරන්න",
-  "inappBrowserMenuRefresh": "නැවුම් කරන්න",
   "inappBrowserMenuFind": "සොයන්න",
   "inappBrowserMenuHideUrlBar": "URL තීරුව සඟවන්න",
   "inappBrowserMenuShowUrlBar": "URL තීරුව පෙන්වන්න",

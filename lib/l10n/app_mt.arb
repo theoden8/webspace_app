@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Ma setax jitnieda {url}",
   "inappBrowserDefaultTitle": "WebView fl-App",
   "inappBrowserMenuOpenInBrowser": "Iftaħ fil-Browser",
-  "inappBrowserMenuRefresh": "Aġġorna",
   "inappBrowserMenuFind": "Fittex",
   "inappBrowserMenuHideUrlBar": "Aħbi l-Barra tal-URL",
   "inappBrowserMenuShowUrlBar": "Uri l-Barra tal-URL",

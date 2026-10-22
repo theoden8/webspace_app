@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "تعذّر تشغيل {url}",
   "inappBrowserDefaultTitle": "عرض ويب داخل التطبيق",
   "inappBrowserMenuOpenInBrowser": "فتح في المتصفح",
-  "inappBrowserMenuRefresh": "تحديث",
   "inappBrowserMenuFind": "بحث",
   "inappBrowserMenuHideUrlBar": "إخفاء شريط العنوان",
   "inappBrowserMenuShowUrlBar": "إظهار شريط العنوان",

@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Haikuweza kuzindua {url}",
   "inappBrowserDefaultTitle": "In-App WebView",
   "inappBrowserMenuOpenInBrowser": "Fungua katika Kivinjari",
-  "inappBrowserMenuRefresh": "Onyesha upya",
   "inappBrowserMenuFind": "Tafuta",
   "inappBrowserMenuHideUrlBar": "Ficha Upau wa URL",
   "inappBrowserMenuShowUrlBar": "Onyesha Upau wa URL",

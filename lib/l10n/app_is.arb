@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Ekki tókst að ræsa {url}",
   "inappBrowserDefaultTitle": "Innbyggt WebView",
   "inappBrowserMenuOpenInBrowser": "Opna í vafra",
-  "inappBrowserMenuRefresh": "Endurnýja",
   "inappBrowserMenuFind": "Finna",
   "inappBrowserMenuHideUrlBar": "Fela URL-slá",
   "inappBrowserMenuShowUrlBar": "Sýna URL-slá",

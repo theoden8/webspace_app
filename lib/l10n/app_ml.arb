@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} ലോഞ്ച് ചെയ്യാൻ കഴിഞ്ഞില്ല",
   "inappBrowserDefaultTitle": "ഇൻ-ആപ്പ് WebView",
   "inappBrowserMenuOpenInBrowser": "ബ്രൗസറിൽ തുറക്കുക",
-  "inappBrowserMenuRefresh": "പുതുക്കുക",
   "inappBrowserMenuFind": "കണ്ടെത്തുക",
   "inappBrowserMenuHideUrlBar": "URL ബാർ മറയ്ക്കുക",
   "inappBrowserMenuShowUrlBar": "URL ബാർ കാണിക്കുക",

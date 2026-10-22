@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} ማስጀመር አልተቻለም",
   "inappBrowserDefaultTitle": "በመተግበሪያ ውስጥ WebView",
   "inappBrowserMenuOpenInBrowser": "በአሳሽ ክፈት",
-  "inappBrowserMenuRefresh": "አድስ",
   "inappBrowserMenuFind": "ፈልግ",
   "inappBrowserMenuHideUrlBar": "የURL አሞሌ ደብቅ",
   "inappBrowserMenuShowUrlBar": "የURL አሞሌ አሳይ",

@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nije moguće pokrenuti {url}",
   "inappBrowserDefaultTitle": "Ugrađeni WebView",
   "inappBrowserMenuOpenInBrowser": "Otvori u pregledniku",
-  "inappBrowserMenuRefresh": "Osvježi",
   "inappBrowserMenuFind": "Pronađi",
   "inappBrowserMenuHideUrlBar": "Sakrij traku URL-a",
   "inappBrowserMenuShowUrlBar": "Prikaži traku URL-a",

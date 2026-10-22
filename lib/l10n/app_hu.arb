@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nem sikerült megnyitni: {url}",
   "inappBrowserDefaultTitle": "Beépített webnézet",
   "inappBrowserMenuOpenInBrowser": "Megnyitás böngészőben",
-  "inappBrowserMenuRefresh": "Frissítés",
   "inappBrowserMenuFind": "Keresés",
   "inappBrowserMenuHideUrlBar": "URL-sáv elrejtése",
   "inappBrowserMenuShowUrlBar": "URL-sáv megjelenítése",

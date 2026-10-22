@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Չհաջողվեց բացել {url}",
   "inappBrowserDefaultTitle": "Ներկառուցված WebView",
   "inappBrowserMenuOpenInBrowser": "Բացել դիտարկիչում",
-  "inappBrowserMenuRefresh": "Թարմացնել",
   "inappBrowserMenuFind": "Գտնել",
   "inappBrowserMenuHideUrlBar": "Թաքցնել URL տողը",
   "inappBrowserMenuShowUrlBar": "Ցույց տալ URL տողը",

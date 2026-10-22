@@ -6,8 +6,8 @@ enum TabStripEdge {
   top,
   bottom;
 
-  static TabStripEdge get current => of(AppPref.tabStripEdge.value,
-      desktop: hostIsMacOS || hostIsLinux || hostIsWindows);
+  static TabStripEdge get current =>
+      of(AppPref.tabStripEdge.value, desktop: hostIsDesktop);
 
   /// The edge [stored] names, else the platform's: top where desktop
   /// browsers keep their tabs, bottom within a thumb's reach on a phone.

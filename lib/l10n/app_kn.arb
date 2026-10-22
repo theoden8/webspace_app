@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} ಅನ್ನು ಪ್ರಾರಂಭಿಸಲಾಗಲಿಲ್ಲ",
   "inappBrowserDefaultTitle": "ಅಪ್ಲಿಕೇಶನ್‌ನಲ್ಲಿನ ವೆಬ್‌ವ್ಯೂ",
   "inappBrowserMenuOpenInBrowser": "ಬ್ರೌಸರ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ",
-  "inappBrowserMenuRefresh": "ರಿಫ್ರೆಶ್",
   "inappBrowserMenuFind": "ಹುಡುಕಿ",
   "inappBrowserMenuHideUrlBar": "URL ಬಾರ್ ಮರೆಮಾಡಿ",
   "inappBrowserMenuShowUrlBar": "URL ಬಾರ್ ತೋರಿಸಿ",

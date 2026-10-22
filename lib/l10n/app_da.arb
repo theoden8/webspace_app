@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Kunne ikke åbne {url}",
   "inappBrowserDefaultTitle": "Indlejret webvisning",
   "inappBrowserMenuOpenInBrowser": "Åbn i browser",
-  "inappBrowserMenuRefresh": "Genindlæs",
   "inappBrowserMenuFind": "Find",
   "inappBrowserMenuHideUrlBar": "Skjul URL-linje",
   "inappBrowserMenuShowUrlBar": "Vis URL-linje",
