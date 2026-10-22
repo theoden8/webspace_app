@@ -149,11 +149,13 @@ List<({String path, String text})> activationTypesProofs({
                 '',
               ],
             ]),
+    // A module per held field: a cold module's memory grows with its rows
+    // ([_rowsPerModule]), and each field proves every row again.
     for (final (:name, :steps) in _parts(tables))
-      _module(name.replaceFirst('activation_types_', 'activation_held_'),
-          extending: 'activation_types_proof',
-          body: [
-            for (final h in _held)
+      for (final h in _held)
+        _module(name.replaceFirst('activation_types_', 'activation_held_${h.field.name}_'),
+            extending: 'activation_types_proof',
+            body: [
               for (final s in steps) ...[
                 for (final (k, row) in s.rows.indexed)
                   _rowHeld(
@@ -169,7 +171,7 @@ List<({String path, String text})> activationTypesProofs({
                 '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
                 '',
               ],
-          ]),
+            ]),
     for (final (:name, :steps) in _parts(tables))
       _module(name.replaceFirst('activation_types_', 'activation_supports_'),
           extending: 'activation_types_proof',
@@ -255,9 +257,12 @@ final _kept = <({String family, List<_Kept> kept})>[
   (family: 'supports', kept: [_keptAlone, _keptSupports]),
 ];
 
-/// The rows one module proves at most: tlapm holds every obligation of a
-/// module until it ends, so its memory grows with the module's rows.
-const _rowsPerModule = 12;
+/// The rows one module proves at most: tlapm holds every obligation it
+/// proves afresh until the module ends, so a cold module's memory grows
+/// with its rows. Twelve held rows took 6.4 GB on one thread (200 MB with
+/// every obligation cached), and four modules prove side by side on a
+/// 16 GB runner (`proofs/check_proofs.sh`).
+const _rowsPerModule = 6;
 
 /// [tables]' steps as the modules that prove them: a table's own, or its
 /// numbered parts where it has more than [_rowsPerModule] rows, a step's

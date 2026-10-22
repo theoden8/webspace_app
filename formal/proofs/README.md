@@ -98,19 +98,20 @@ TLC model it backs (same definitions — no re-modeling).
   `FlowKinds_<kind>`); what a world may set each constant to (`ConstantsType`), since a
   proof opens no default a world can replace; and each fact a row lemma reads of `TypeOK` or
   of a row's fields (`TypeFl`, `Type_<variable>`, `Dom_<field>`), which the row lemmas cite
-  instead of unfolding `TypeOK` or the row's 28 fields. Then one module per table, or per twelve of its
+  instead of unfolding `TypeOK` or the row's 28 fields. Then one module per table, or per six of its
   rows (`activation_types_<table>[<n>]_proof`), proves each row of `fl` an arm writes, a clause
   at a time over a named partial row, each value over only what it reads; and
   `activation_types_steps_proof` takes them to `TableStep` and `InputTableStep`. The
   provers do not take the flow record's set of 28 fields whole, SMT takes no
-  string or record literal here, and tlapm holds a module's obligations until it ends, so each
-  is split as it is. What some steps need of their flow beyond `TypeOK` (a site that indexes a
+  string or record literal here, and tlapm holds every obligation it proves afresh until the
+  module ends (twelve held rows took 6.4 GB cold, four such modules side by side more than a
+  16 GB runner holds), so each is split as it is. What some steps need of their flow beyond `TypeOK` (a site that indexes a
   site's history, a tab where one is read, a fresh tab id when the last tab closes) is
   `Supports`; it stands on `Held` (each place a field is read at, and every place an arm
   reaches it from, holds the field set: `Held_site`, `Held_tab`, `Held_kind`) and
   `Alone` (at most one tab flow, the tab gate). The `held` and `supports` families prove every
-  row keeps them, module for module beside the types family
-  (`activation_held_<table>[<n>]_proof`, `activation_supports_<table>[<n>]_proof`). Each
+  row keeps them, module for module beside the types family, the held family a module per field
+  (`activation_held_<field>_<table>[<n>]_proof`, `activation_supports_<table>[<n>]_proof`). Each
   family's steps module restates the steps' lemmas it cites, `PROOF OMITTED`, over
   `activation_types_proof` alone: extending the tables' modules put every row's lemma in each
   obligation's context, which cost tlapm about 12 s an obligation, the trivial ones too (the
