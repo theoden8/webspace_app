@@ -847,9 +847,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         onCloseSubtree: (site, {required tabId}) =>
             unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
         onMoveTab: _tabs.moveTab,
-        onMoveSite: shown != null && _webspaces.canReorderView
-            ? _moveSiteInTabsSheet
-            : null,
+        onMoveSite: shown != null && _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
         wayBack: shown == null ? null : _tabs.wayBackFrom(shown),
       ),
     );

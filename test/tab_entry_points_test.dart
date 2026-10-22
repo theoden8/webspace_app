@@ -213,7 +213,7 @@ void main() {
     });
 
     test('the tab list leaves out sites without tabs', () {
-      final start = tabs.indexOf('List<TabsSheetSite> sheetSites() {');
+      final start = tabs.indexOf('List<TabsSheetSite> _sheetSitesOver(');
       expect(start, isNot(-1));
       final body = tabs.substring(start, tabs.indexOf('\n  }\n', start));
       expect(
@@ -304,8 +304,8 @@ void guarded(String src,
   group('TAB-016: a site heading in the Tabs sheet moves the site', () {
     test('offered only where the drawer and the strip reorder', () {
       expect(
-          count('onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet '
-              ': null'),
+          count('onMoveSite: shown != null && _webspaces.canReorderView '
+              '? _moveSiteInTabsSheet : null'),
           1);
     });
 
