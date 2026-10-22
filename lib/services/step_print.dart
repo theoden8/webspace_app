@@ -149,18 +149,20 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         ],
       ],
     ]);
-    final writes = {
+    // A refusal is the call's reply not coming, so it writes none of it.
+    Set<ModelVar> armWrites(Arm<W, P> arm) => {
       ModelVar.fl,
       ModelVar.last,
       if (s.input) ModelVar.inputs,
-      for (final w in call?.writes ?? <Write<W>>[]) w.variable,
-      for (final arm in arms)
-        for (final e in [...arm.then, for (final i in started(arm)) ...i.then])
-          if (e case Act(:final writes))
-            ...writes
-          else if (e is Spawn<W>)
-            ModelVar.inputs,
+      if (arm is! Refused)
+        for (final w in call?.writes ?? <Write<W>>[]) w.variable,
+      for (final e in [...arm.then, for (final i in started(arm)) ...i.then])
+        if (e case Act(:final writes))
+          ...writes
+        else if (e is Spawn<W>)
+          ModelVar.inputs,
     };
+    final writes = {for (final arm in arms) ...armWrites(arm)};
     // An arm is taken only once the branches before it did not hold: it
     // needs what each needs not to hold, and a branch on the flow's kind
     // leaves it the other kinds.
@@ -192,6 +194,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           ...?arm.pick?.from.needs,
         },
         only: _only(s, at: at),
+        writes: armWrites(arm),
         fields: ends
             ? FlowField.values.toSet()
             : {

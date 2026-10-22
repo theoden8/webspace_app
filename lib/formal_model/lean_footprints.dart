@@ -160,6 +160,9 @@ String footprintsLean({
     'theorem vars_complete : ∀ v, v ∈ footprints.vars := by',
     '  intro v; cases v <;> decide',
     '',
+    // Deciding it false, as formal/lean/check.sh's planted copy does,
+    // recurses deeper than the default 512 once there are ~100 worlds.
+    'set_option maxRecDepth 4096 in',
     'theorem every_invariant_licensed : footprints.everyInvariantLicensed = true := by',
     '  decide',
     '',

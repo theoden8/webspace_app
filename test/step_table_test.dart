@@ -866,8 +866,20 @@ void _definitions() {
         ),
       ] = table.footprints(starts: starts);
       expect(writes, contains(ModelVar.inputs));
-      final [(:spawns, ends: _, fields: _, kind: _, needs: _, next: _, only: _)] =
-          arms;
+      final [
+        (
+          :spawns,
+          writes: armWrites,
+          ends: _,
+          fields: _,
+          kind: _,
+          needs: _,
+          next: _,
+          only: _,
+        ),
+      ] = arms;
+      expect(armWrites, contains(ModelVar.inputs),
+          reason: 'the arm that starts an input writes the inputs');
       final [started] = spawns;
       expect(started.kind, FlowKind.tap);
       expect(started.next.keys, unorderedEquals(['done', 'wait']),

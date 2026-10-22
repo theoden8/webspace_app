@@ -379,13 +379,15 @@ typedef RowRead = ({FlowKind kind, FlowField field});
 /// sets one, the fields it writes, whether it ends the flow (every field
 /// back to `NoFlow`), what the model's constants must be for it to be
 /// taken ([needs]), the kinds of flow it is taken for ([only], null
-/// for any), and the rows of the flows it starts ([spawns]).
+/// for any), the rows of the flows it starts ([spawns]), and the shared
+/// variables it writes, the flows it starts' with them ([writes]).
 typedef ArmRow = ({
   Map<String, Set<Need>> next,
   FlowKind? kind,
   bool ends,
   Set<FlowField> fields,
   Set<Need> needs,
+  Set<ModelVar> writes,
   Set<FlowKind>? only,
   List<SpawnRow> spawns,
 });

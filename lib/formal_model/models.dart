@@ -387,6 +387,7 @@ List<ComposedAction> composedActions(Tables t) => [
       kinds: const {},
       fields: const {},
       ways: {null: e.needs},
+      armed: const {},
     ),
 ];
 
@@ -427,6 +428,14 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
                         in (flows[f.place] ?? const {}).entries)
                       k: {...n, ...f.needs},
                   },
+            armed: {
+              for (final v in f.writes)
+                if ([
+                  for (final a in f.arms)
+                    if (a.writes.contains(v)) a.needs,
+                ] case final by when by.length < f.arms.length)
+                  v: by.reduce((x, y) => x.intersection(y)),
+            },
           ),
         ),
   ];

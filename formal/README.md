@@ -400,8 +400,14 @@ world takes from TLC's coverage of the world's holding check, which `check.sh` r
 - **Worlds are printed where two actions meet** (`lib/formal_model/worlds.dart`): for
   every pair that shares a variable and that no world written in `checks.dart` gives
   both their needs (for some kind of flow each runs in), the printer makes the smallest
-  world that does: its constants from the needs (an operator set where one does, with
-  what it needs beside it to matter: a route split with two routes contending), a
+  world that does. A variable only some of an action's arms write meets the other action
+  only where one of those arms is taken, so the pair needs what those arms need
+  (`armed`): the reroute's flip leaves `loaded` only under one process-wide proxy, so a
+  view that goes needs that proxy to meet it. A pair whose arms' needs contradict, or that
+  would set one operator two ways (the router's contending slots beside the one
+  process-wide proxy), runs in no world. The world takes its constants from the needs
+  (an operator set where one does, with what it needs beside it to matter: a route
+  split with two routes contending), a
   warm start unless a need asks a launch (`WarmInit` leaves loaded only sites one
   route and one exit can hold), at most three inputs, and only the inputs that start
   the pair's kinds of flow (`Allowed`, which a written world leaves whole unless it
