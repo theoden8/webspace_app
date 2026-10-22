@@ -60,10 +60,17 @@ void main() {
       };
       await openWebspace(tester, name: 'Work');
       await pressBack(tester);
-      await tester.longPress(find.text('Work'));
+      final drag = await tester.startGesture(tester.getCenter(find.text('Work')));
+      await tester.pump(const Duration(milliseconds: 600));
+      await drag.moveTo(tester.getCenter(find.text('Personal')));
+      await tester.pump();
+      await drag.up();
       await settleRealApp(tester);
-      await tester.tap(find.byIcon(Icons.arrow_downward));
-      await settleRealApp(tester);
+      final saved = (await SharedPreferences.getInstance())
+          .getStringList('webspaces')!
+          .map((raw) => (jsonDecode(raw) as Map<String, dynamic>)['name'])
+          .toList();
+      expect(saved, ['All', 'Personal', 'Work'], reason: 'dragged into place');
       for (final entry in colors.entries) {
         expect(groupBackground(tester, id: entry.key), entry.value);
       }

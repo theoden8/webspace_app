@@ -11,8 +11,8 @@ import 'package:webspace/widgets/tab_count_pill.dart';
 enum SiteGridTileLayout { compact, library }
 
 /// A site in a launcher grid: the drawer's, or the library's. A long press
-/// lifts it, for its menu or a drag ([LauncherLift]); the drawer's smaller
-/// tiles also keep the menu behind a corner button.
+/// lifts it, for its menu or a drag through its grid ([LauncherLift]); the
+/// drawer's smaller tiles also keep the menu behind a corner button.
 class SiteGridTile extends StatelessWidget {
   const SiteGridTile({
     super.key,
@@ -22,14 +22,13 @@ class SiteGridTile extends StatelessWidget {
     required this.showTabCount,
     required this.onOpen,
     required this.onMenu,
-    required this.onReorder,
     this.layout = SiteGridTileLayout.compact,
     this.webspaces = const [],
   });
 
   final WebViewModel site;
 
-  /// The tile's place in the grid, which a drag carries.
+  /// The tile's place in its grid's saved order, which a drag carries.
   final int listIndex;
   final bool selected;
   final bool showTabCount;
@@ -41,10 +40,6 @@ class SiteGridTile extends StatelessWidget {
   /// The site's menu, at a global position.
   final void Function(BuildContext context, {required Offset globalPosition})
   onMenu;
-
-  /// A tile dragged from grid place `from` dropped on this one; null where
-  /// the grid cannot be reordered.
-  final void Function(int from, {required int to})? onReorder;
 
   static double extentFor(
     BuildContext context, {
@@ -83,12 +78,10 @@ class SiteGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reorder = onReorder;
     final lift = LauncherLift<int>(
       data: listIndex,
       onOpen: onOpen,
       onMenu: (at) => onMenu(context, globalPosition: at),
-      onDrop: reorder == null ? null : (from) => reorder(from, to: listIndex),
       child: _SiteGridTileContent(
         site: site,
         selected: selected,
@@ -103,7 +96,7 @@ class SiteGridTile extends StatelessWidget {
         if (layout == SiteGridTileLayout.library)
           ...webspaces.map((w) => w.name),
       ].join(', '),
-      child: layout == SiteGridTileLayout.library || reorder == null
+      child: layout == SiteGridTileLayout.library
           ? lift
           : Stack(
               fit: StackFit.expand,

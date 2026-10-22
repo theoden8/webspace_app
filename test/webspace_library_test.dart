@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
@@ -131,6 +132,20 @@ Rect _well(WidgetTester tester, {required String name}) => tester.getRect(
     matching: find.byType(AnimatedContainer),
   ),
 );
+
+/// Runs the screen reader's [label] move on the icon [finder] shows.
+Future<void> _semanticMove(
+  WidgetTester tester, {
+  required Finder of,
+  required String label,
+}) async {
+  final node = tester.getSemantics(of);
+  node.owner!.performAction(
+    node.id,
+    SemanticsAction.customAction,
+    CustomSemanticsAction.getIdentifier(CustomSemanticsAction(label: label)),
+  );
+}
 
 /// A long press on [from] that lets go over [to], or where it began.
 Future<void> _lift(
@@ -393,7 +408,10 @@ void main() {
       );
       expect(
         tester.getRect(home).right,
-        closeTo(tester.getRect(find.byTooltip('App Settings')).left, Spacing.sm),
+        closeTo(
+          tester.getRect(find.byTooltip('App Settings')).left,
+          Spacing.sm,
+        ),
         reason: 'the tab button sits beside App Settings',
       );
       state.disableTabs(state.sites[1]);
@@ -551,7 +569,6 @@ void main() {
             isTrue,
           );
         }
-        expect(result.onReorder, isNull);
         await tester.tap(find.text('GitHub'));
         expect(state.opened, same(state.sites[0]));
       }
@@ -668,23 +685,49 @@ void main() {
     },
   );
 
-  testWidgets('groups reorder directly from their item menu', (tester) async {
-    await pumpLocalized(tester, home: const _LibraryHarness());
-    await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.more_horiz), findsNothing);
-    await tester.longPress(_group('Work'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_downward));
-    await tester.pumpAndSettle();
-    final state = tester.state<_LibraryHarnessState>(
-      find.byType(_LibraryHarness),
-    );
-    expect(state.webspaces.map((w) => w.name).take(3), [
-      'All',
-      'Privacy',
-      'Work',
-    ]);
-  });
+  testWidgets(
+    'folders move by dragging, not from their menu; a screen reader moves them too (WEBSPACE-011)',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        await pumpLocalized(tester, home: const _LibraryHarness());
+        await tester.pumpAndSettle();
+        await tester.longPress(_group('Work'));
+        await tester.pumpAndSettle();
+        expect(find.text('Edit'), findsOneWidget);
+        expect(find.byIcon(Icons.arrow_downward), findsNothing);
+        expect(find.byIcon(Icons.arrow_upward), findsNothing);
+        await tester.tapAt(const Offset(780, 10));
+        await tester.pumpAndSettle();
+        final state = tester.state<_LibraryHarnessState>(
+          find.byType(_LibraryHarness),
+        );
+        await _semanticMove(tester, of: _group('Work'), label: 'Move down');
+        await tester.pumpAndSettle();
+        expect(state.webspaces.map((w) => w.name).take(3), [
+          'All',
+          'Privacy',
+          'Work',
+        ]);
+        expect(
+          tester
+              .getSemantics(_group('Privacy'))
+              .getSemanticsData()
+              .customSemanticsActionIds,
+          isNot(
+            contains(
+              CustomSemanticsAction.getIdentifier(
+                const CustomSemanticsAction(label: 'Move up'),
+              ),
+            ),
+          ),
+          reason: 'nothing takes the place of "All"',
+        );
+      } finally {
+        semantics.dispose();
+      }
+    },
+  );
 
   testWidgets(
     'a long-pressed folder lifts: let go for its menu, drop it on another to move it (WEBSPACE-009)',
@@ -777,9 +820,8 @@ void main() {
       await tester.pumpAndSettle();
       final before = _well(tester, name: 'Work');
       final privacy = _well(tester, name: 'Privacy');
-      await tester.longPress(_group('Work'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.arrow_downward));
+      final semantics = tester.ensureSemantics();
+      await _semanticMove(tester, of: _group('Work'), label: 'Move down');
       await tester.pump();
       expect(
         _well(tester, name: 'Work'),
@@ -794,8 +836,72 @@ void main() {
       await tester.pumpAndSettle();
       expect(_well(tester, name: 'Work'), privacy);
       expect(_well(tester, name: 'Privacy'), before);
+      semantics.dispose();
     },
   );
+
+  testWidgets(
+    'a lifted folder makes room where it hovers, and keeps the place it showed wherever it is let go (WEBSPACE-011)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      final work = _well(tester, name: 'Work');
+      final privacy = _well(tester, name: 'Privacy');
+      final drag = await tester.startGesture(privacy.center);
+      await tester.pump(const Duration(milliseconds: 600));
+      await drag.moveTo(work.center);
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(
+        state.webspaces.map((w) => w.name).take(3),
+        ['All', 'Work', 'Privacy'],
+        reason: 'nothing is saved while the drag is in flight',
+      );
+      expect(
+        _well(tester, name: 'Work').center.dx,
+        greaterThan(work.center.dx),
+        reason: 'Work made room for Privacy',
+      );
+      await drag.moveTo(const Offset(400, 590));
+      await tester.pump();
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(state.webspaces.map((w) => w.name).take(3), [
+        'All',
+        'Privacy',
+        'Work',
+      ]);
+      expect(find.text('Edit'), findsNothing);
+    },
+  );
+
+  testWidgets('a lift that wandered and came back opens no menu', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    final state = tester.state<_LibraryHarnessState>(
+      find.byType(_LibraryHarness),
+    );
+    final privacy = _well(tester, name: 'Privacy');
+    final drag = await tester.startGesture(privacy.center);
+    await tester.pump(const Duration(milliseconds: 600));
+    await drag.moveTo(_well(tester, name: 'Work').center);
+    await tester.pumpAndSettle();
+    await drag.moveTo(privacy.center);
+    await tester.pumpAndSettle();
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsNothing);
+    expect(state.webspaces.map((w) => w.name).take(3), [
+      'All',
+      'Work',
+      'Privacy',
+    ]);
+  });
 
   testWidgets('a dropped icon lands from where it was let go', (tester) async {
     await pumpLocalized(tester, home: const _LibraryHarness());

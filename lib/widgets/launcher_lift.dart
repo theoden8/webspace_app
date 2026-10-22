@@ -2,20 +2,20 @@ import 'package:flutter/gestures.dart' show kSecondaryButton, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
 
 /// An icon in a launcher grid, pressed as a phone's home screen is: a tap
 /// opens it; a long press lifts it under the finger, and letting go where it
-/// was opens its menu, while moving it drags it onto another icon of its
-/// kind, which takes its place (WEBSPACE-011). A secondary click opens the
-/// menu too.
+/// was opens its menu, while moving it drags it through its [LauncherGrid],
+/// which makes room where it hovers and keeps it where it is let go
+/// (WEBSPACE-011). A secondary click opens the menu too.
 class LauncherLift<T extends Object> extends StatefulWidget {
   const LauncherLift({
     super.key,
     required this.data,
     required this.onOpen,
     required this.onMenu,
-    required this.onDrop,
     required this.child,
   });
 
@@ -26,11 +26,6 @@ class LauncherLift<T extends Object> extends StatefulWidget {
 
   /// The icon's menu, at a global position.
   final ValueChanged<Offset> onMenu;
-
-  /// Another icon's [data] dropped on this one; null where the grid cannot
-  /// be reordered, so nothing lands here and a lifted icon only opens its
-  /// menu.
-  final ValueChanged<T>? onDrop;
   final Widget child;
 
   @override
@@ -39,9 +34,15 @@ class LauncherLift<T extends Object> extends StatefulWidget {
 
 class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
   PointerDownEvent? _down;
-  Offset? _liftedAt;
   bool _pressed = false;
   bool _focused = false;
+
+  /// Where the finger lifted the icon, and the icon's corner then.
+  ({Offset finger, Offset corner})? _lifted;
+
+  /// Whether the lifted icon went further than a tap's slop: then letting go
+  /// moves it, wherever that is, and never opens the menu.
+  bool _wandered = false;
 
   void _press({required bool down}) {
     if (_pressed != down) setState(() => _pressed = down);
@@ -56,7 +57,6 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final onDrop = widget.onDrop;
     return Semantics(
       button: true,
       onTap: widget.onOpen,
@@ -83,87 +83,87 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
               },
             ),
           },
-          child: DragTarget<T>(
-            onWillAcceptWithDetails: (details) =>
-                onDrop != null && details.data != widget.data,
-            onAcceptWithDetails: (details) => onDrop!(details.data),
-            builder: (context, candidates, _) => LayoutBuilder(
-              builder: (context, constraints) => LongPressDraggable<T>(
-                data: widget.data,
-                hapticFeedbackOnStart: true,
-                onDragStarted: () {
-                  _liftedAt = _down?.position;
+          child: LayoutBuilder(
+            builder: (context, constraints) => LongPressDraggable<T>(
+              data: widget.data,
+              hapticFeedbackOnStart: true,
+              onDragStarted: () {
+                final box = context.findRenderObject()! as RenderBox;
+                _lifted = (
+                  finger: _down?.position ?? box.size.center(Offset.zero),
+                  corner: box.localToGlobal(Offset.zero),
+                );
+                _wandered = false;
+                _down = null;
+                _press(down: false);
+              },
+              onDragUpdate: (details) {
+                final lifted = _lifted;
+                if (lifted != null &&
+                    (details.globalPosition - lifted.finger).distance >
+                        kTouchSlop) {
+                  _wandered = true;
+                }
+              },
+              onDragEnd: (details) => _settle(at: details.offset),
+              feedback: _Lifted(
+                size: constraints.biggest,
+                animate: !reduceMotion,
+                child: widget.child,
+              ),
+              childWhenDragging: Opacity(
+                opacity: LibraryStyle.dragGhost,
+                child: widget.child,
+              ),
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                // A raw Listener, not a tap recognizer: the gesture arena
+                // against LongPressDraggable delays or drops taps.
+                onPointerDown: (event) {
+                  if (event.buttons == kSecondaryButton) {
+                    widget.onMenu(event.position);
+                    return;
+                  }
+                  _down = event;
+                  _press(down: true);
+                },
+                onPointerMove: (event) {
+                  final at = _down;
+                  if (at != null &&
+                      (event.position - at.position).distance > kTouchSlop) {
+                    _press(down: false);
+                  }
+                },
+                onPointerUp: (event) {
+                  final at = _down;
+                  _down = null;
+                  _press(down: false);
+                  // Any press let go before it lifts is a tap: a lift
+                  // clears [_down] as it begins.
+                  if (at != null &&
+                      (event.position - at.position).distance < kTouchSlop) {
+                    widget.onOpen();
+                  }
+                },
+                onPointerCancel: (_) {
                   _down = null;
                   _press(down: false);
                 },
-                onDraggableCanceled: (_, offset) => _settle(at: offset),
-                onDragCompleted: () => _liftedAt = null,
-                onDragEnd: (details) {
-                  if (details.wasAccepted) {
-                    LauncherSlot.maybeOf(context)?.landFrom(details.offset);
-                  }
-                },
-                feedback: _Lifted(
-                  size: constraints.biggest,
-                  animate: !reduceMotion,
-                  child: widget.child,
-                ),
-                childWhenDragging: Opacity(
-                  opacity: LibraryStyle.dragGhost,
-                  child: widget.child,
-                ),
-                child: Listener(
-                  behavior: HitTestBehavior.opaque,
-                  // A raw Listener, not a tap recognizer: the gesture arena
-                  // against LongPressDraggable delays or drops taps.
-                  onPointerDown: (event) {
-                    if (event.buttons == kSecondaryButton) {
-                      widget.onMenu(event.position);
-                      return;
-                    }
-                    _down = event;
-                    _press(down: true);
-                  },
-                  onPointerMove: (event) {
-                    final at = _down;
-                    if (at != null &&
-                        (event.position - at.position).distance > kTouchSlop) {
-                      _press(down: false);
-                    }
-                  },
-                  onPointerUp: (event) {
-                    final at = _down;
-                    _down = null;
-                    _press(down: false);
-                    // Any press let go before it lifts is a tap: a lift
-                    // clears [_down] as it begins.
-                    if (at != null &&
-                        (event.position - at.position).distance < kTouchSlop) {
-                      widget.onOpen();
-                    }
-                  },
-                  onPointerCancel: (_) {
-                    _down = null;
-                    _press(down: false);
-                  },
-                  child: AnimatedScale(
-                    scale: _pressed ? LibraryStyle.pressScale : 1,
-                    duration: reduceMotion ? Duration.zero : Motion.press,
-                    child: DecoratedBox(
-                      position: DecorationPosition.foreground,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          LibraryStyle.radius,
-                        ),
-                        border: candidates.isNotEmpty || _focused
-                            ? Border.all(
-                                color: theme.colorScheme.primary,
-                                width: LibraryStyle.selectionWidth,
-                              )
-                            : null,
-                      ),
-                      child: widget.child,
+                child: AnimatedScale(
+                  scale: _pressed ? LibraryStyle.pressScale : 1,
+                  duration: reduceMotion ? Duration.zero : Motion.press,
+                  child: DecoratedBox(
+                    position: DecorationPosition.foreground,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                      border: _focused
+                          ? Border.all(
+                              color: theme.colorScheme.primary,
+                              width: LibraryStyle.selectionWidth,
+                            )
+                          : null,
                     ),
+                    child: widget.child,
                   ),
                 ),
               ),
@@ -174,16 +174,20 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
     );
   }
 
-  /// A lift that ends without landing, its feedback's corner [at]: let go
-  /// where it was, it opens the menu there; anywhere else it returns to its
-  /// place.
+  /// A lift let go with the icon's corner at [at]. If it never wandered it
+  /// opens the menu where it was; otherwise the grid keeps it where it was
+  /// shown, and it lands there from where it was let go.
   void _settle({required Offset at}) {
-    final lifted = _liftedAt;
-    _liftedAt = null;
+    final lifted = _lifted;
+    _lifted = null;
     if (lifted == null || !mounted) return;
-    final box = context.findRenderObject()! as RenderBox;
-    final moved = at - box.localToGlobal(Offset.zero);
-    if (moved.distance < kTouchSlop) widget.onMenu(lifted + moved);
+    if (!_wandered && (at - lifted.corner).distance < kTouchSlop) {
+      widget.onMenu(lifted.finger + (at - lifted.corner));
+      return;
+    }
+    LauncherSlot.maybeOf(context)?.landFrom(at);
+    final data = widget.data;
+    if (data != null) LauncherGrid.dragEnded<T>(context, id: data);
   }
 }
 

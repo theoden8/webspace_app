@@ -10,13 +10,14 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_list_menu.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 
-enum _GroupAction { edit, delete, moveUp, moveDown }
+enum _GroupAction { edit, delete }
 
 /// The user's sites as a phone's home screen: webspaces are its folders, and
 /// the selected one opens as a panel grown out of its tile over the dimmed
@@ -653,57 +654,65 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                   Spacing.lg,
                   Spacing.xl,
                 ),
-                sliver: SliverGrid.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: Spacing.sm,
-                    mainAxisSpacing: Spacing.xl,
-                    mainAxisExtent: WebspaceGroupTile.extentFor(
-                      textScaler: scaler,
-                      textTheme: Theme.of(context).textTheme,
-                      well: LibraryStyle.siteWell,
-                    ),
-                  ),
-                  itemCount: shown.length,
-                  findChildIndexCallback: (key) {
-                    final at = key is ValueKey
-                        ? shown.indexWhere((w) => w.id == key.value)
-                        : -1;
-                    return at < 0 ? null : at;
-                  },
-                  itemBuilder: (context, index) {
-                    final webspace = shown[index];
-                    return KeyedSubtree(
-                      key: ValueKey(webspace.id),
-                      child: LauncherSlot(
-                        child: WebspaceGroupTile(
-                          key: tiles.putIfAbsent(
-                            webspace.id,
-                            GlobalKey.new,
-                          ),
-                          webspace: webspace,
-                          sites: [
-                            for (final i in _order(webspace.id))
-                              widget.sites[i],
-                          ],
-                          selected: webspace.id == widget.selectedWebspaceId,
-                          onOpen: () {
-                            FocusScope.of(context).unfocus();
-                            _from = _groupWell(webspace.id);
-                            widget.onSelectWebspace(webspace);
-                          },
-                          onMenu: (at) => unawaited(_menu(webspace, at: at)),
-                          onDrop: reorder == null || webspace.isAll
-                              ? null
-                              : (dragged) => _dropGroup(
-                                  dragged,
-                                  onto: webspace,
-                                  reorder: reorder,
-                                ),
-                        ),
+                sliver: LauncherGrid<WebspaceId>(
+                  order: [for (final w in shown) w.id],
+                  fixed: (id) => id == WebspaceId.all,
+                  onMove: reorder == null
+                      ? null
+                      : (id, {required to}) =>
+                            _moveGroup(id, to: to, reorder: reorder),
+                  builder: (context, {required places}) => SliverGrid.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: Spacing.sm,
+                      mainAxisSpacing: Spacing.xl,
+                      mainAxisExtent: WebspaceGroupTile.extentFor(
+                        textScaler: scaler,
+                        textTheme: Theme.of(context).textTheme,
+                        well: LibraryStyle.siteWell,
                       ),
-                    );
-                  },
+                    ),
+                    itemCount: places.length,
+                    findChildIndexCallback: (key) {
+                      final at = key is ValueKey
+                          ? places.indexOf(key.value)
+                          : -1;
+                      return at < 0 ? null : at;
+                    },
+                    itemBuilder: (context, index) {
+                      final webspace = shown.firstWhere(
+                        (w) => w.id == places[index],
+                      );
+                      return KeyedSubtree(
+                        key: ValueKey(webspace.id),
+                        child: LauncherCell<WebspaceId>(
+                          index: index,
+                          child: LauncherSlot(
+                            child: WebspaceGroupTile(
+                              key: tiles.putIfAbsent(
+                                webspace.id,
+                                GlobalKey.new,
+                              ),
+                              webspace: webspace,
+                              sites: [
+                                for (final i in _order(webspace.id))
+                                  widget.sites[i],
+                              ],
+                              selected:
+                                  webspace.id == widget.selectedWebspaceId,
+                              onOpen: () {
+                                FocusScope.of(context).unfocus();
+                                _from = _groupWell(webspace.id);
+                                widget.onSelectWebspace(webspace);
+                              },
+                              onMenu: (at) =>
+                                  unawaited(_menu(webspace, at: at)),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             if (matchingSites.isNotEmpty) ...[
@@ -723,14 +732,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     );
   }
 
-  /// [dragged] dropped on [onto] takes its place; "All" stays first.
-  void _dropGroup(
-    WebspaceId dragged, {
-    required Webspace onto,
+  /// [id] dragged to place [to] of the groups, which only reorder while no
+  /// search filters them; "All" stays first.
+  void _moveGroup(
+    WebspaceId id, {
+    required int to,
     required void Function(int from, {required int newIndex}) reorder,
   }) {
-    final from = widget.webspaces.indexWhere((w) => w.id == dragged);
-    final to = widget.webspaces.indexOf(onto);
+    final from = widget.webspaces.indexWhere((w) => w.id == id);
     if (from <= 0 || to <= 0 || from == to) return;
     reorder(from, newIndex: to > from ? to + 1 : to);
   }
@@ -787,55 +796,70 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     final reorder = !memberships && order.length > 1
         ? widget.onReorderSite
         : null;
+    final onReorder = reorder;
     return SliverPadding(
       padding: const EdgeInsets.all(Spacing.lg),
-      sliver: SliverGrid.builder(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _siteColumns(context, width: width),
-          crossAxisSpacing: Spacing.sm,
-          mainAxisSpacing: Spacing.lg,
-          mainAxisExtent: shown
-              .map(
-                (i) => SiteGridTile.extentFor(
-                  context,
-                  well: LibraryStyle.siteWell,
-                  webspaceCount: labels[i]!.length,
+      sliver: LauncherGrid<int>(
+        order: [for (final i in shown) order.indexOf(i)],
+        fixed: (_) => false,
+        onMove: onReorder == null
+            ? null
+            : (from, {required to}) => onReorder(from, to: to),
+        builder: (context, {required places}) => SliverGrid.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _siteColumns(context, width: width),
+            crossAxisSpacing: Spacing.sm,
+            mainAxisSpacing: Spacing.lg,
+            mainAxisExtent: shown
+                .map(
+                  (i) => SiteGridTile.extentFor(
+                    context,
+                    well: LibraryStyle.siteWell,
+                    webspaceCount: labels[i]!.length,
+                  ),
+                )
+                .reduce(math.max),
+          ),
+          itemCount: places.length,
+          findChildIndexCallback: (key) {
+            final at = places.indexWhere(
+              (p) => identical(keys[widget.sites[order[p]].siteId], key),
+            );
+            return at < 0 ? null : at;
+          },
+          itemBuilder: (context, index) {
+            final i = order[places[index]];
+            final site = widget.sites[i];
+            return KeyedSubtree(
+              key: keys.putIfAbsent(site.siteId, GlobalKey.new),
+              child: LauncherCell<int>(
+                index: index,
+                child: LauncherSlot(
+                  child: SiteGridTile(
+                    key: ValueKey(site.siteId),
+                    site: site,
+                    listIndex: places[index],
+                    selected: identical(site, widget.currentSite),
+                    showTabCount:
+                        widget.showsTabCount(site) && site.tabs.length > 1,
+                    layout: SiteGridTileLayout.library,
+                    webspaces: labels[i]!,
+                    onOpen: () {
+                      FocusScope.of(context).unfocus();
+                      widget.onOpenSite(site);
+                    },
+                    onMenu: (context, {required globalPosition}) =>
+                        widget.onSiteMenu(
+                          context,
+                          site: site,
+                          position: globalPosition,
+                        ),
+                  ),
                 ),
-              )
-              .reduce(math.max),
-        ),
-        itemCount: shown.length,
-        findChildIndexCallback: (key) {
-          final at = shown.indexWhere(
-            (i) => identical(keys[widget.sites[i].siteId], key),
-          );
-          return at < 0 ? null : at;
-        },
-        itemBuilder: (context, index) {
-          final site = widget.sites[shown[index]];
-          return KeyedSubtree(
-            key: keys.putIfAbsent(site.siteId, GlobalKey.new),
-            child: LauncherSlot(
-              child: SiteGridTile(
-                key: ValueKey(site.siteId),
-                site: site,
-                listIndex: order.indexOf(shown[index]),
-                selected: identical(site, widget.currentSite),
-                showTabCount:
-                    widget.showsTabCount(site) && site.tabs.length > 1,
-                layout: SiteGridTileLayout.library,
-                webspaces: labels[shown[index]]!,
-                onOpen: () {
-                  FocusScope.of(context).unfocus();
-                  widget.onOpenSite(site);
-                },
-                onMenu: (context, {required globalPosition}) => widget
-                    .onSiteMenu(context, site: site, position: globalPosition),
-                onReorder: reorder,
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -849,8 +873,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
 
   Future<void> _menu(Webspace webspace, {required Offset at}) async {
     final loc = AppLocalizations.of(context);
-    final index = widget.webspaces.indexOf(webspace);
-    final movable = widget.onReorder != null && !webspace.isAll;
     final action = await showLauncherMenu<_GroupAction>(
       context,
       position: at,
@@ -868,33 +890,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             label: loc.commonDelete,
             destructive: true,
           ),
-        if (movable && index > 1)
-          (
-            value: _GroupAction.moveUp,
-            icon: Icons.arrow_upward,
-            label: loc.homeMoveUp,
-            destructive: false,
-          ),
-        if (movable && index < widget.webspaces.length - 1)
-          (
-            value: _GroupAction.moveDown,
-            icon: Icons.arrow_downward,
-            label: loc.homeMoveDown,
-            destructive: false,
-          ),
       ],
     );
     if (!mounted || !widget.webspaces.contains(webspace)) return;
-    final from = widget.webspaces.indexOf(webspace);
     switch (action) {
       case _GroupAction.edit:
         widget.onEditWebspace(webspace);
       case _GroupAction.delete:
         widget.onDeleteWebspace(webspace);
-      case _GroupAction.moveUp:
-        widget.onReorder?.call(from, newIndex: from - 1);
-      case _GroupAction.moveDown:
-        widget.onReorder?.call(from, newIndex: from + 2);
       case null:
         return;
     }

@@ -242,9 +242,12 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 Users SHALL be able to change the display order of sites by dragging, in
 a library folder, the bottom tab strip and the drawer grid. The new order SHALL persist
 across app restarts. In the library and the drawer grid a long press lifts a site, as a
-phone lifts an icon: let go where it was, it opens the site's menu; moved, it drags, and
-dropped on another site it takes that one's place. A group on the library's home screen
-lifts the same way and moves among the groups, "All" excepted. This reorders the sites *within* the selected view; it
+phone lifts an icon: let go where it was without wandering off, it opens the site's menu;
+moved, it drags, the other icons make room wherever it hovers, and let go anywhere it keeps
+the place it was shown in. A group on the library's home screen lifts and moves the same
+way among the groups; "All" never moves and nothing takes its place. In Alternative design
+the menus offer no Move Up or Move Down; a screen reader's reorder actions on each icon
+move it instead. This reorders the sites *within* the selected view; it
 does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 "All" webspace card cannot be moved in the webspaces list).
 

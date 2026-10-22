@@ -1315,11 +1315,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     int listIndexOf() =>
         _sites.filteredIndices().indexOf(_sites.models.indexOf(site));
     final listIndex = listIndexOf();
+    // Alternative design's icons move by dragging, as a launcher's do.
+    final menuMoves = _webspaces.canReorderView && !_folderLibraryEnabled;
     final action = await showSiteListMenu(
       context,
       position: position,
-      canMoveUp: _webspaces.canReorderView && listIndex > 0,
-      canMoveDown: _webspaces.canReorderView &&
+      canMoveUp: menuMoves && listIndex > 0,
+      canMoveDown: menuMoves &&
           listIndex >= 0 &&
           listIndex < _sites.filteredIndices().length - 1,
       archived: site.isArchiveTier,
