@@ -8,6 +8,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
+import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 
 enum _LibraryView { webspaces, workspace }
@@ -32,6 +33,7 @@ class WebspaceLibrary extends StatefulWidget {
     required this.onSiteMenu,
     required this.onReorderSite,
     required this.onAddSite,
+    required this.onShowTabs,
     required this.onOpenSettings,
   });
 
@@ -54,6 +56,10 @@ class WebspaceLibrary extends StatefulWidget {
   onSiteMenu;
   final void Function(int from, {required int to})? onReorderSite;
   final VoidCallback onAddSite;
+
+  /// The tab tree of every site [scope] holds: all sites at the webspaces
+  /// level, the open webspace's inside one.
+  final void Function(WebspaceId scope) onShowTabs;
   final Future<void> Function() onOpenSettings;
 
   @override
@@ -130,6 +136,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
     final title = groups
         ? loc.libraryWebspaces
         : _selected?.name ?? loc.libraryWebspaces;
+    final scope = groups
+        ? WebspaceId.all
+        : widget.selectedWebspaceId ?? WebspaceId.all;
+    final tabCount = [
+      for (final i in _order(scope))
+        if (widget.showsTabCount(widget.sites[i])) widget.sites[i].tabs.length,
+    ].fold(0, (sum, n) => sum + n);
     return PopScope(
       canPop: widget.currentSite != null || _view != _LibraryView.workspace,
       onPopInvokedWithResult: (didPop, _) {
@@ -174,6 +187,11 @@ class WebspaceLibraryState extends State<WebspaceLibrary> {
                                 ),
                               ),
                             ),
+                            if (tabCount > 0)
+                              TabCountButton(
+                                count: tabCount,
+                                onPressed: () => widget.onShowTabs(scope),
+                              ),
                             IconButton(
                               tooltip: groups
                                   ? loc.webspacesListCreateButton

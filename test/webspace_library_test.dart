@@ -52,6 +52,10 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   Webspace? deleted;
   WebViewModel? opened;
   var settingsOpened = 0;
+  final tabsScopes = <WebspaceId>[];
+
+  void disableTabs(WebViewModel site) =>
+      setState(() => site.tabsEnabled = false);
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +85,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
         onSiteMenu: (context, {required site, required position}) {},
         onReorderSite: null,
         onAddSite: () {},
+        onShowTabs: tabsScopes.add,
         onOpenSettings: () async => settingsOpened++,
       ),
     );
@@ -390,6 +395,40 @@ void main() {
       await tester.tap(find.byTooltip('App Settings'));
       await tester.pump();
       expect(state.settingsOpened, 2);
+    },
+  );
+
+  testWidgets(
+    'the tab tree button counts and opens the tabs of the level it is on (WEBSPACE-004)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      final tabs = find.byTooltip('Tabs');
+      expect(find.descendant(of: tabs, matching: find.text('8')), findsOneWidget);
+      state.disableTabs(state.sites[1]);
+      await tester.pump();
+      expect(
+        find.descendant(of: tabs, matching: find.text('7')),
+        findsOneWidget,
+        reason: 'a site without tabs adds none to the count',
+      );
+      await tester.tap(tabs);
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      expect(find.descendant(of: tabs, matching: find.text('1')), findsOneWidget);
+      await tester.tap(tabs);
+      expect(state.tabsScopes, [
+        WebspaceId.all,
+        state.webspaces[1].id,
+      ]);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.tap(_group('An unusually long collection name that must remain usable'));
+      await tester.pumpAndSettle();
+      expect(tabs, findsNothing, reason: 'a webspace without tabs has no tree');
     },
   );
 

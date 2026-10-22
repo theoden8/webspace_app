@@ -841,6 +841,41 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
+  /// The library's tab tree (WEBSPACE-004): every tree [scope] holds, with
+  /// no site on screen, so a tab opens its site on that tab.
+  Future<void> _showLibraryTabs(WebspaceId scope) async {
+    if (_kioskLocked || _isShowingTabsSheet) return;
+    final sites = _tabs.sheetSitesIn(scope);
+    if (sites.isEmpty) return;
+    final loc = AppLocalizations.of(context);
+    final title = scope == WebspaceId.all
+        ? loc.tabsAllSites
+        : _sites.webspaces.where((w) => w.id == scope).firstOrNull?.name ??
+            loc.tabsAllSites;
+    _isShowingTabsSheet = true;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (ctx) => TabsSheet(
+          sites: sites,
+          currentIndex: -1,
+          title: title,
+          onOpenTab: (site, {required tabId}) =>
+              unawaited(_tabs.openTab(site, tabId: tabId)),
+          onNewTab: (site) => unawaited(_tabs.newTab(site)),
+          onCloseTab: (site, {required tabId}) =>
+              unawaited(_tabs.closeTab(site, tabId: tabId)),
+          onCloseSubtree: (site, {required tabId}) =>
+              unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
+          onMoveTab: _tabs.moveTab,
+        ),
+      );
+    } finally {
+      _isShowingTabsSheet = false;
+    }
+  }
+
   /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
   /// reorder the drawer grid and the tab strip make. Returns the sheet's sites
   /// afresh, since reordering "All" renumbers them.
@@ -1425,6 +1460,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                               _webspaces.reorderSite(from, newListIndex: to)
                         : null,
                     onAddSite: () => unawaited(_editing.addSite()),
+                    onShowTabs: (scope) => unawaited(_showLibraryTabs(scope)),
                     onOpenSettings: _openAppSettings,
                   ) : WebspacesListScreen(
                     webspaces: _sites.webspaces,

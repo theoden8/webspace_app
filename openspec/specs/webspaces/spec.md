@@ -75,6 +75,8 @@ The workspace site grid and the browser drawer SHALL only show sites belonging t
 
 Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL use its existing container color and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tabs sheet and remain stable when selection changes.
 
+The library header SHALL carry a tab count button while the view it shows holds a site with tabs: at the webspaces level it counts and lists the tabs of every site, inside a webspace those of that webspace's sites. It opens the tabs sheet with no site on screen, titled by that scope and listing each site's tree, and a tab picked there opens its site on that tab.
+
 #### Scenario: Filter drawer by webspace
 
 **Given** the user has selected the "Work" webspace
@@ -96,6 +98,14 @@ Searching the Webspaces group grid SHALL show matching workspace names and a sep
 **And** clearing the query restores the workspace grid
 **And** each site result uses its tab-tree color and labels up to two named workspaces it belongs to
 **And** a site in more than two named workspaces shows the remaining count and exposes all memberships to accessibility services
+
+#### Scenario: Tab tree of a library level
+
+**Given** All holds eight sites with one tab each, one of them with tabs off, and Work holds one site with tabs
+**When** the user looks at the library header at the webspaces level, then inside Work
+**Then** the tab button shows 7, then 1, and opens the tabs of all sites, then of Work's
+**And** a webspace whose sites have no tabs shows no tab button
+**And** picking a nested tab there opens its site on that tab
 
 Regression: `test/webspace_library_test.dart` and `test/webspace_library_app_test.dart`.
 

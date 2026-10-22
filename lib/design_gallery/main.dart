@@ -791,6 +791,7 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     onSiteMenu: (context, {required site, required position}) {},
     onReorderSite: null,
     onAddSite: () {},
+    onShowTabs: (_) {},
     onOpenSettings: () async {},
     onReorder: (from, {required newIndex}) => setState(() {
       final moved = _webspaces.removeAt(from);

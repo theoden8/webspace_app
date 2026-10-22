@@ -39,6 +39,7 @@ Future<void> pumpSheet(
   List<TabsSheetSite>? Function(String siteId,
       {required String ontoSiteId})? onMoveSite,
   TabReturn? wayBack,
+  String? title,
   Locale? locale,
   double width = 400,
 }) async {
@@ -47,7 +48,8 @@ Future<void> pumpSheet(
     key: UniqueKey(),
     body: TabsSheet(
       sites: sites,
-      currentIndex: 0,
+      currentIndex: title == null ? 0 : -1,
+      title: title,
       onOpenTab: onOpenTab ?? (_, {required tabId}) {},
       onNewTab: onNewTab ?? (_) {},
       onWebSearch: onWebSearch,
@@ -536,6 +538,30 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       // Both sites' headings are present once the scope widens.
       expect(find.text('GitHub · 1 tab'), findsWidgets);
       expect(find.text('Mastodon · 1 tab'), findsOneWidget);
+    });
+
+    testWidgets(
+        'with no site on screen it lists every tree under its title (WEBSPACE-004)',
+        (tester) async {
+      final a = siteWithChain('GitHub', urls: ['https://github.com/']);
+      final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
+      WebViewModel? opened;
+      await pumpSheet(
+        tester,
+        title: 'Work',
+        sites: [
+          TabsSheetSite(model: a, isCurrent: false, isLoaded: false),
+          TabsSheetSite(model: b, isCurrent: false, isLoaded: false),
+        ],
+        onOpenTab: (site, {required tabId}) => opened = site,
+      );
+      expect(find.text('Work'), findsOneWidget);
+      expect(find.text('This site'), findsNothing);
+      expect(find.text('New tab'), findsNothing);
+      expect(find.text('GitHub · 1 tab'), findsOneWidget);
+      expect(find.text('Mastodon · 1 tab'), findsOneWidget);
+      await tester.tap(find.text('https://mastodon.social/'));
+      expect(opened, same(b));
     });
 
     testWidgets('TAB-011 — a tab is faded unless the load policy holds it',
