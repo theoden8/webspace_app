@@ -12,7 +12,9 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_import_document.dart';
@@ -107,14 +109,17 @@ class _NativeController implements inapp.InAppWebViewController {
 
 final _site = WebViewModel(initUrl: 'https://example.com/');
 
-/// A host that answers nothing, but for [externalScheme] when a test asks
-/// what reached the prompt, its cookies kept apart by [isolation].
+/// A host that answers nothing, but for [externalScheme] and [showPopup]
+/// when a test asks what reached them, its cookies kept apart by [isolation].
 WebViewHostHooks _hooks({
   Future<void> Function(ExternalUrlInfo info,
           {required WebViewController? loadIn})?
       externalScheme,
   Isolation Function()? isolation,
   void Function(WebViewModel source, {required String url})? firstPageLoaded,
+  Future<void> Function(int windowId,
+          {required String url, required PopupKind kind})?
+      showPopup,
 }) =>
     WebViewHostHooks(
       isolation: isolation ?? fakeSharedJar,
@@ -129,7 +134,7 @@ WebViewHostHooks _hooks({
       linkMenu: (_, {required url}) {},
       firstPageLoaded: firstPageLoaded ?? (_, {required url}) {},
       openSiteSettings: (_) {},
-      showPopup: (_, {required url}) async {},
+      showPopup: showPopup ?? (_, {required url, required kind}) async {},
       externalScheme: externalScheme ?? (_, {required loadIn}) async {},
       confirmScriptFetch: (_) async => false,
       untrustedCertificate: (_, {required port, required certificate}) async =>
@@ -280,7 +285,7 @@ void main() {
           request: inapp.URLRequest(url: inapp.WebUri(url)),
           isForMainFrame: true,
         ),
-        allowCaptcha: false,
+        popup: null,
       ), expected);
     }
   });
@@ -489,6 +494,196 @@ void main() {
     });
   });
 
+  // Google's sign-in button opens its page with window.open and waits for
+  // the window to post the result back, so it needs a real popup (#686).
+  group('sign-in popups (NESTED-014)', () {
+    const signIn = 'https://accounts.google.com/o/oauth2/v2/auth?display=popup';
+
+    void switchOn() {
+      DeveloperModeService.instance.debugSet(on: true);
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.signInPopups, on: true);
+      addTearDown(() {
+        DeveloperModeService.instance.debugSet(on: false);
+        ExperimentalFeaturesService.instance
+            .debugSet(ExperimentalFeature.signInPopups, on: false);
+      });
+    }
+
+    /// The popups the site webview asked the host for after a window
+    /// request for [url], and whether it took the window.
+    Future<({bool? took, List<PopupKind> shown})> requestWindow(
+        WidgetTester tester, {required String? url}) async {
+      final shown = <PopupKind>[];
+      await tester.pumpWidget(_webView(
+          hooks: _hooks(showPopup: (_, {required url, required kind}) async {
+        shown.add(kind);
+      })));
+      final (:params, :native) = await _attach(tester);
+      final took = await tester.runAsync(() async => params.onCreateWindow!(
+            native,
+            inapp.CreateWindowAction(
+              windowId: 7,
+              request: inapp.URLRequest(
+                  url: url == null ? null : inapp.WebUri(url)),
+              isForMainFrame: true,
+            ),
+          ));
+      return (took: took, shown: shown);
+    }
+
+    testWidgets('NESTED-014: the engine opens a window on its own only with '
+        'the switch off', (tester) async {
+      await tester.pumpWidget(_webView());
+      expect(
+          tester
+              .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+              .platform.params.initialSettings
+              ?.javaScriptCanOpenWindowsAutomatically,
+          isTrue);
+      switchOn();
+      await tester.pumpWidget(_webView(key: UniqueKey()));
+      expect(
+          tester
+              .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+              .platform.params.initialSettings
+              ?.javaScriptCanOpenWindowsAutomatically,
+          isFalse,
+          reason: 'with the switch on, only a window a tap opened reaches '
+              'onCreateWindow');
+    });
+
+    testWidgets('NESTED-001: with the switch off, only a captcha opens a '
+        'window (NESTED-014)', (tester) async {
+      final declined = await requestWindow(tester, url: signIn);
+      expect(declined.took, isFalse);
+      expect(declined.shown, isEmpty);
+      final challenge = await requestWindow(tester,
+          url: 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/x');
+      expect(challenge.took, isTrue);
+      expect(challenge.shown, [PopupKind.verification]);
+    });
+
+    testWidgets('NESTED-014: a sign-in window opens as a sign-in popup',
+        (tester) async {
+      switchOn();
+      final (:took, :shown) = await requestWindow(tester, url: signIn);
+      expect(took, isTrue);
+      expect(shown, [PopupKind.signIn]);
+    });
+
+    testWidgets('NESTED-014: a window with no URL opens as a sign-in popup',
+        (tester) async {
+      switchOn();
+      final (:took, :shown) = await requestWindow(tester, url: null);
+      expect(took, isTrue);
+      expect(shown, [PopupKind.signIn]);
+    });
+
+    testWidgets('NESTED-014: any other window is still declined',
+        (tester) async {
+      switchOn();
+      final (:took, :shown) =
+          await requestWindow(tester, url: 'https://ads.example/landing');
+      expect(took, isFalse);
+      expect(shown, isEmpty);
+    });
+
+    test('NESTED-014: a sign-in popup stays on its provider or the site', () {
+      final config = WebViewConfig(
+        posture: _site.sitePosture(
+            globalUserScripts: const [], isolation: fakeSharedJar()),
+        hooks: _hooks(),
+        initialUrl: 'https://example.com/',
+        cacheFirst: false,
+      );
+      for (final (kind, url, expected) in [
+        (PopupKind.signIn, signIn, inapp.NavigationActionPolicy.ALLOW),
+        (PopupKind.signIn, 'https://example.com/auth/done',
+            inapp.NavigationActionPolicy.ALLOW),
+        (PopupKind.signIn, 'https://ads.example/',
+            inapp.NavigationActionPolicy.CANCEL),
+        (PopupKind.verification, signIn, inapp.NavigationActionPolicy.CANCEL),
+        (null, signIn, inapp.NavigationActionPolicy.CANCEL),
+      ]) {
+        expect(
+          WebViewFactory.onSiteNavigationPolicy(config,
+              navigationAction: inapp.NavigationAction(
+                request: inapp.URLRequest(url: inapp.WebUri(url)),
+                isForMainFrame: true,
+              ),
+              popup: kind),
+          expected,
+          reason: '$kind $url',
+        );
+      }
+    });
+
+    /// A sign-in popup's answer to a top-level navigation to [url], and how
+    /// often it closed; [started] has it start a page first.
+    Future<({inapp.NavigationActionPolicy? policy, int closed})> popupNavigates(
+        WidgetTester tester, {required String url, required bool started}) async {
+      // No blocker to wait for, so a page may start (CB-001).
+      final site = WebViewModel(
+        initUrl: 'https://example.com/',
+        contentBlockEnabled: false,
+        trackingProtectionEnabled: false,
+      );
+      var closed = 0;
+      await tester.pumpWidget(MaterialApp(
+        home: PopupWebView.createPopupWebView(
+          windowId: 1,
+          kind: PopupKind.signIn,
+          config: WebViewConfig(
+            cacheFirst: false,
+            posture: site.sitePosture(
+                globalUserScripts: const <UserScriptConfig>[],
+                isolation: fakeSharedJar()),
+            hooks: _hooks(),
+            initialUrl: 'https://example.com/',
+          ),
+          onCloseWindow: () => closed++,
+        ),
+      ));
+      final (:params, :native) = await _attach(tester);
+      final policy = await tester.runAsync(() async {
+        if (started) params.onLoadStart!(native, inapp.WebUri(signIn));
+        return params.shouldOverrideUrlLoading!(
+          native,
+          inapp.NavigationAction(
+            request: inapp.URLRequest(url: inapp.WebUri(url)),
+            isForMainFrame: true,
+          ),
+        );
+      });
+      return (policy: policy, closed: closed);
+    }
+
+    testWidgets('NESTED-014: a popup whose first page is refused closes',
+        (tester) async {
+      final (:policy, :closed) = await popupNavigates(tester,
+          url: 'https://ads.example/', started: false);
+      expect(policy, inapp.NavigationActionPolicy.CANCEL);
+      expect(closed, 1, reason: 'a popup with nothing to show stays blank');
+    });
+
+    testWidgets('NESTED-014: a popup that showed a page stays open on a '
+        'refused navigation', (tester) async {
+      final (:policy, :closed) = await popupNavigates(tester,
+          url: 'https://ads.example/', started: true);
+      expect(policy, inapp.NavigationActionPolicy.CANCEL);
+      expect(closed, 0);
+    });
+
+    testWidgets('NESTED-014: a popup whose first page is its provider stays '
+        'open', (tester) async {
+      final (:policy, :closed) =
+          await popupNavigates(tester, url: signIn, started: false);
+      expect(policy, inapp.NavigationActionPolicy.ALLOW);
+      expect(closed, 0);
+    });
+  });
+
   // A scheme with no web fallback goes to the host's prompt (EXT-004). The
   // loop guard for one that has one reads the gesture the way Android and
   // Apple report it, so this host cannot drive it.
@@ -662,7 +857,8 @@ void main() {
         initialUrl: 'https://example.com/',
       );
       await tester.pumpWidget(MaterialApp(
-        home: PopupWebView.createPopupWebView(windowId: 1, config: config),
+        home: PopupWebView.createPopupWebView(
+            windowId: 1, kind: PopupKind.verification, config: config),
       ));
       final view =
           tester.widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView));

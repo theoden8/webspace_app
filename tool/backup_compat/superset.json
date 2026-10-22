@@ -238,6 +238,7 @@
     "experimentalTextureRendering": true,
     "experimentalContentRuleLists": true,
     "experimentalFolderLibrary": true,
+    "experimentalSignInPopups": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,
     "experimentalExternalTor": true,

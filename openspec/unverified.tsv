@@ -127,7 +127,6 @@ NAV-003	no check: no test or gate asserts drawerEdgeDragWidth is 0 while a webvi
 NAV-005	no check: no test drives the site menu's Back button (goBack when canGoBack, no-op otherwise, menu closes)
 NAV-008	no check: InAppWebViewScreen's onPopInvokedWithResult policy (Android canGoBack, Apple goBack + URL diff), the AppBar back pop and _backGuard are untested; back_gesture_engine_test covers the main page only
 # nested-url-blocking
-NESTED-001	no check: no test checks that onCreateWindow declines a script window.open (returns false, no nested window) while captcha popups still open (partly: test/js/page_bridge_authority.test.js, "NESTED-013: onCreateWindow loads into the top webview only on a gesture")
 NESTED-011	no check: needs the fork's iOS/macOS onCreateWindow decline path to skip loading the request in the parent; no test reads the fork source or runs WKWebView (iOS/macOS-only plugin behaviour that no tier runs)
 NESTED-012	process: the requirement is that the spec states the provenance loss (Sec-Fetch-Site: none, no Referer) as accepted behaviour; it is documentation, with nothing to run
 # passkey-support

@@ -318,7 +318,7 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
       && settings.includes('..useShouldOverrideUrlLoading = true'),
     'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
   assert.match(body,
-    /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*WebViewFactory\.onSiteNavigationPolicy\(parent, navigationAction: navigationAction,\s*allowCaptcha: true\)/,
+    /shouldOverrideUrlLoading: \(_, navigationAction\) async \{\s*final policy = WebViewFactory\.onSiteNavigationPolicy\(parent,\s*navigationAction: navigationAction, popup: kind\);[^}]*\}\s*return policy;/,
     'the popup had no navigation gate: after the first load it went anywhere');
   const gateAt = WEBVIEW.indexOf('static inapp.NavigationActionPolicy onSiteNavigationPolicy(');
   assert.notEqual(gateAt, -1, 'onSiteNavigationPolicy is gone');
@@ -327,10 +327,15 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
     'judgeAndRecord(',
     "requestType: 'document'",
     'navigationAction.isForMainFrame == false',
-    'isCaptchaChallenge(url, siteUrl: config.initialUrl)',
+    'popup?.showsOffSite(url, siteUrl: config.initialUrl)',
   ]) {
     assert.ok(gate.includes(check), `popup gate lacks ${check}`);
   }
+  const kindAt = WEBVIEW.indexOf('bool showsOffSite(String url, {required String siteUrl}) =>');
+  assert.notEqual(kindAt, -1, 'PopupKind.showsOffSite is gone');
+  assert.ok(WEBVIEW.slice(kindAt, WEBVIEW.indexOf('};', kindAt))
+      .includes('WebViewFactory.isCaptchaChallenge(url, siteUrl: siteUrl)'),
+    'a popup no longer takes captcha hosts by the site-claimed rule');
   // The path markers only count on the site's own domain, at every caller.
   const callers = WEBVIEW.match(/isCaptchaChallenge\(url\)/g) || [];
   assert.equal(callers.length, 0,
@@ -345,7 +350,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
   assert.notEqual(at, -1, 'openHeadlessCheck is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
   assert.match(body,
-    /WebViewFactory\.onSiteNavigationPolicy\(config, navigationAction: navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
+    /WebViewFactory\.onSiteNavigationPolicy\(config, navigationAction: navigationAction,\s*popup: null,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
     'a headless check must run the on-site navigation gate without the captcha exception');
   assert.match(body, /initialSettings: WebViewFactory\.siteSettings\(\s*binding,\s*posture: posture,/,
     'a headless check takes its native settings from the site posture, '

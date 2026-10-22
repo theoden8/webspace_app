@@ -25,7 +25,7 @@ WebViewHostHooks _hooks() => WebViewHostHooks(
       linkMenu: (_, {required url}) {},
       firstPageLoaded: (_, {required url}) {},
       openSiteSettings: (_) {},
-      showPopup: (_, {required url}) async {},
+      showPopup: (_, {required url, required kind}) async {},
       externalScheme: (_, {required loadIn}) async {},
       confirmScriptFetch: (_) async => false,
       untrustedCertificate: (_, {required port, required certificate}) async =>

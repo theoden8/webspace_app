@@ -300,7 +300,7 @@ fixes at the navigation path while the failure was in the storage path.
 | `domStorageEnabled` | `true` | Required for captcha state |
 | `databaseEnabled` | `true` | Required for some captchas |
 | `supportMultipleWindows` | `true` | For popup-based challenges |
-| `javaScriptCanOpenWindowsAutomatically` | `true` | For popup-based challenges |
+| `javaScriptCanOpenWindowsAutomatically` | `true`; `false` with the Sign-in popups experiment (`nested-url-blocking` NESTED-014) | For popup-based challenges |
 | `allowFileAccess` | `true` | Android: Cloudflare requirement |
 | `allowContentAccess` | `true` | Android: Cloudflare requirement |
 | `thirdPartyCookiesEnabled` | configurable | Per-site setting |
