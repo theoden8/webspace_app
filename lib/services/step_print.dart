@@ -109,7 +109,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     final arms = s.allArms;
     List<Assign<Object?>> entering(Arm<Object?, Enum> arm) => [
       for (final MapEntry(key: p, value: rs) in entered.entries)
-        if (arm.next.tla == '"$p"') ...rs,
+        if (arm.next.tla.contains('"$p"')) ...rs,
     ];
     Iterable<Arm<Object?, Enum>> started(Arm<W, P> arm) => [
       for (final e in arm.then)
@@ -614,17 +614,15 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     // is the arm's own state: a field the arm sets reads as set (its value
     // is the arm's, over the state the arm found), and a variable the arm
     // writes it may not read, since the model would read the old value
-    // (an assert); the place is entered by name, since the reads are its
-    // arm's.
+    // (an assert). An arm that picks its next place among several records
+    // a place's reads whichever it enters: only that place's call reads
+    // them, and a field set on one path and not another would split states
+    // that are one.
     final next = got(arm.next.tla);
     final entering = [
       for (final MapEntry(key: p, value: rs) in entered.entries)
-        if (next == '"$p"') ...rs,
+        if (next.contains('"$p"')) ...rs,
     ];
-    assert(
-      entered.keys.every((p) => next == '"$p"' || !next.contains('"$p"')),
-      '${s.name} enters $next, a place whose call reads, not by name',
-    );
     assert(
       entering.every(
         (r) => written
@@ -714,7 +712,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         for (final (:field, :to) in [
           ...own,
           for (final MapEntry(key: p, value: rs) in entered.entries)
-            if (next == '"$p"')
+            if (next.contains('"$p"'))
               for (final r in rs)
                 (field: r.field.name, to: _after(r.to, own: own)),
         ])
