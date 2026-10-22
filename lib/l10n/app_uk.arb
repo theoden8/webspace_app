@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Не вдалося відкрити {url}",
   "inappBrowserDefaultTitle": "Вбудований вебперегляд",
   "inappBrowserMenuOpenInBrowser": "Відкрити у браузері",
-  "inappBrowserMenuRefresh": "Оновити",
   "inappBrowserMenuFind": "Знайти",
   "inappBrowserMenuHideUrlBar": "Сховати рядок URL",
   "inappBrowserMenuShowUrlBar": "Показати рядок URL",

@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Ei saanud avada {url}",
   "inappBrowserDefaultTitle": "Sisene veebivaade",
   "inappBrowserMenuOpenInBrowser": "Ava brauseris",
-  "inappBrowserMenuRefresh": "Värskenda",
   "inappBrowserMenuFind": "Otsi",
   "inappBrowserMenuHideUrlBar": "Peida URL-riba",
   "inappBrowserMenuShowUrlBar": "Näita URL-riba",

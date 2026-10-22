@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "לא ניתן היה לפתוח את {url}",
   "inappBrowserDefaultTitle": "דפדפן מוטמע",
   "inappBrowserMenuOpenInBrowser": "פתח בדפדפן",
-  "inappBrowserMenuRefresh": "רענן",
   "inappBrowserMenuFind": "חפש",
   "inappBrowserMenuHideUrlBar": "הסתר שורת כתובת",
   "inappBrowserMenuShowUrlBar": "הצג שורת כתובת",

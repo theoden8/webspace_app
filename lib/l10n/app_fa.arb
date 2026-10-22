@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} باز نشد",
   "inappBrowserDefaultTitle": "وب‌ویو درون‌برنامه‌ای",
   "inappBrowserMenuOpenInBrowser": "باز کردن در مرورگر",
-  "inappBrowserMenuRefresh": "بازخوانی",
   "inappBrowserMenuFind": "یافتن",
   "inappBrowserMenuHideUrlBar": "پنهان کردن نوار URL",
   "inappBrowserMenuShowUrlBar": "نمایش نوار URL",

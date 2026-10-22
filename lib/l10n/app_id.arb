@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Tidak dapat membuka {url}",
   "inappBrowserDefaultTitle": "WebView Dalam Aplikasi",
   "inappBrowserMenuOpenInBrowser": "Buka di Peramban",
-  "inappBrowserMenuRefresh": "Muat Ulang",
   "inappBrowserMenuFind": "Temukan",
   "inappBrowserMenuHideUrlBar": "Sembunyikan Bilah URL",
   "inappBrowserMenuShowUrlBar": "Tampilkan Bilah URL",

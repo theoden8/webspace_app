@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} ვერ გაიხსნა",
   "inappBrowserDefaultTitle": "აპშიდა WebView",
   "inappBrowserMenuOpenInBrowser": "ბრაუზერში გახსნა",
-  "inappBrowserMenuRefresh": "განახლება",
   "inappBrowserMenuFind": "ძებნა",
   "inappBrowserMenuHideUrlBar": "URL ზოლის დამალვა",
   "inappBrowserMenuShowUrlBar": "URL ზოლის ჩვენება",

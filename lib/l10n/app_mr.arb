@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} लाँच करता आले नाही",
   "inappBrowserDefaultTitle": "इन-ॲप WebView",
   "inappBrowserMenuOpenInBrowser": "ब्राउझरमध्ये उघडा",
-  "inappBrowserMenuRefresh": "रिफ्रेश करा",
   "inappBrowserMenuFind": "शोधा",
   "inappBrowserMenuHideUrlBar": "URL बार लपवा",
   "inappBrowserMenuShowUrlBar": "URL बार दाखवा",

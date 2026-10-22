@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nu s-a putut lansa {url}",
   "inappBrowserDefaultTitle": "WebView în aplicație",
   "inappBrowserMenuOpenInBrowser": "Deschide în browser",
-  "inappBrowserMenuRefresh": "Reîncarcă",
   "inappBrowserMenuFind": "Caută",
   "inappBrowserMenuHideUrlBar": "Ascunde bara URL",
   "inappBrowserMenuShowUrlBar": "Arată bara URL",

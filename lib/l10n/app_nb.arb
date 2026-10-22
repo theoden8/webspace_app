@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Kunne ikke åpne {url}",
   "inappBrowserDefaultTitle": "Innebygd nettvisning",
   "inappBrowserMenuOpenInBrowser": "Åpne i nettleser",
-  "inappBrowserMenuRefresh": "Oppdater",
   "inappBrowserMenuFind": "Finn",
   "inappBrowserMenuHideUrlBar": "Skjul URL-linje",
   "inappBrowserMenuShowUrlBar": "Vis URL-linje",

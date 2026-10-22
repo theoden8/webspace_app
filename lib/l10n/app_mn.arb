@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url}-ийг нээж чадсангүй",
   "inappBrowserDefaultTitle": "Дотоод вэбвью",
   "inappBrowserMenuOpenInBrowser": "Хөтөчид нээх",
-  "inappBrowserMenuRefresh": "Сэргээх",
   "inappBrowserMenuFind": "Хайх",
   "inappBrowserMenuHideUrlBar": "URL мөрийг нуух",
   "inappBrowserMenuShowUrlBar": "URL мөрийг харуулах",

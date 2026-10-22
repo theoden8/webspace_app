@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Tidak dapat melancarkan {url}",
   "inappBrowserDefaultTitle": "WebView Dalam Aplikasi",
   "inappBrowserMenuOpenInBrowser": "Buka dalam Pelayar",
-  "inappBrowserMenuRefresh": "Muat semula",
   "inappBrowserMenuFind": "Cari",
   "inappBrowserMenuHideUrlBar": "Sembunyikan Bar URL",
   "inappBrowserMenuShowUrlBar": "Tunjukkan Bar URL",

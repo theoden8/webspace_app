@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "ไม่สามารถเปิด {url}",
   "inappBrowserDefaultTitle": "เว็บวิวในแอป",
   "inappBrowserMenuOpenInBrowser": "เปิดในเบราว์เซอร์",
-  "inappBrowserMenuRefresh": "รีเฟรช",
   "inappBrowserMenuFind": "ค้นหา",
   "inappBrowserMenuHideUrlBar": "ซ่อนแถบ URL",
   "inappBrowserMenuShowUrlBar": "แสดงแถบ URL",

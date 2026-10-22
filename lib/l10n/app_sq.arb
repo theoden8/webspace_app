@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nuk u nis dot {url}",
   "inappBrowserDefaultTitle": "WebView i brendshëm",
   "inappBrowserMenuOpenInBrowser": "Hap në shfletues",
-  "inappBrowserMenuRefresh": "Rifresko",
   "inappBrowserMenuFind": "Gjej",
   "inappBrowserMenuHideUrlBar": "Fshih shiritin e URL-së",
   "inappBrowserMenuShowUrlBar": "Shfaq shiritin e URL-së",

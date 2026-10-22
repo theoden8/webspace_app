@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nepavyko atidaryti {url}",
   "inappBrowserDefaultTitle": "Įterptinis interneto rodinys",
   "inappBrowserMenuOpenInBrowser": "Atidaryti naršyklėje",
-  "inappBrowserMenuRefresh": "Atnaujinti",
   "inappBrowserMenuFind": "Rasti",
   "inappBrowserMenuHideUrlBar": "Slėpti URL juostą",
   "inappBrowserMenuShowUrlBar": "Rodyti URL juostą",

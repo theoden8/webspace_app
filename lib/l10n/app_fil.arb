@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Hindi mailunsad ang {url}",
   "inappBrowserDefaultTitle": "In-App WebView",
   "inappBrowserMenuOpenInBrowser": "Buksan sa Browser",
-  "inappBrowserMenuRefresh": "I-refresh",
   "inappBrowserMenuFind": "Hanapin",
   "inappBrowserMenuHideUrlBar": "Itago ang URL Bar",
   "inappBrowserMenuShowUrlBar": "Ipakita ang URL Bar",

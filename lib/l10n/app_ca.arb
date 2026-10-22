@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "No s'ha pogut obrir {url}",
   "inappBrowserDefaultTitle": "Vista web integrada",
   "inappBrowserMenuOpenInBrowser": "Obre al navegador",
-  "inappBrowserMenuRefresh": "Actualitza",
   "inappBrowserMenuFind": "Cerca",
   "inappBrowserMenuHideUrlBar": "Amaga la barra d'URL",
   "inappBrowserMenuShowUrlBar": "Mostra la barra d'URL",

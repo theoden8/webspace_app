@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Kunde inte starta {url}",
   "inappBrowserDefaultTitle": "Inbäddad webbvy",
   "inappBrowserMenuOpenInBrowser": "Öppna i webbläsare",
-  "inappBrowserMenuRefresh": "Uppdatera",
   "inappBrowserMenuFind": "Sök",
   "inappBrowserMenuHideUrlBar": "Dölj URL-fält",
   "inappBrowserMenuShowUrlBar": "Visa URL-fält",

@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Ni bilo mogoče zagnati {url}",
   "inappBrowserDefaultTitle": "Vgrajeni spletni pogled",
   "inappBrowserMenuOpenInBrowser": "Odpri v brskalniku",
-  "inappBrowserMenuRefresh": "Osveži",
   "inappBrowserMenuFind": "Najdi",
   "inappBrowserMenuHideUrlBar": "Skrij vrstico URL",
   "inappBrowserMenuShowUrlBar": "Pokaži vrstico URL",

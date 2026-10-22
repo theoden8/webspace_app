@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} लॉन्च नहीं किया जा सका",
   "inappBrowserDefaultTitle": "इन-ऐप वेबव्यू",
   "inappBrowserMenuOpenInBrowser": "ब्राउज़र में खोलें",
-  "inappBrowserMenuRefresh": "रीफ़्रेश करें",
   "inappBrowserMenuFind": "खोजें",
   "inappBrowserMenuHideUrlBar": "URL बार छिपाएँ",
   "inappBrowserMenuShowUrlBar": "URL बार दिखाएँ",

@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url}ని ప్రారంభించడం సాధ్యం కాలేదు",
   "inappBrowserDefaultTitle": "ఇన్-యాప్ WebView",
   "inappBrowserMenuOpenInBrowser": "బ్రౌజర్‌లో తెరువు",
-  "inappBrowserMenuRefresh": "రిఫ్రెష్",
   "inappBrowserMenuFind": "కనుగొను",
   "inappBrowserMenuHideUrlBar": "URL బార్ దాచు",
   "inappBrowserMenuShowUrlBar": "URL బార్ చూపించు",

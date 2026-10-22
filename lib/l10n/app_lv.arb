@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nevarēja palaist {url}",
   "inappBrowserDefaultTitle": "Iebūvēts webskats",
   "inappBrowserMenuOpenInBrowser": "Atvērt pārlūkā",
-  "inappBrowserMenuRefresh": "Atsvaidzināt",
   "inappBrowserMenuFind": "Atrast",
   "inappBrowserMenuHideUrlBar": "Slēpt URL joslu",
   "inappBrowserMenuShowUrlBar": "Rādīt URL joslu",

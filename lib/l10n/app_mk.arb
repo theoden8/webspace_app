@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Не можеше да се отвори {url}",
   "inappBrowserDefaultTitle": "Вграден WebView",
   "inappBrowserMenuOpenInBrowser": "Отвори во прегледник",
-  "inappBrowserMenuRefresh": "Освежи",
   "inappBrowserMenuFind": "Најди",
   "inappBrowserMenuHideUrlBar": "Скриј ја URL-лентата",
   "inappBrowserMenuShowUrlBar": "Прикажи ја URL-лентата",

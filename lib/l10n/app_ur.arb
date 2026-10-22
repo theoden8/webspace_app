@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} لانچ نہیں کیا جا سکا",
   "inappBrowserDefaultTitle": "اِن ایپ ویب ویو",
   "inappBrowserMenuOpenInBrowser": "براؤزر میں کھولیں",
-  "inappBrowserMenuRefresh": "ریفریش کریں",
   "inappBrowserMenuFind": "تلاش کریں",
   "inappBrowserMenuHideUrlBar": "URL بار چھپائیں",
   "inappBrowserMenuShowUrlBar": "URL بار دکھائیں",

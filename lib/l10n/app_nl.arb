@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Kon {url} niet openen",
   "inappBrowserDefaultTitle": "In-app-WebView",
   "inappBrowserMenuOpenInBrowser": "Openen in browser",
-  "inappBrowserMenuRefresh": "Vernieuwen",
   "inappBrowserMenuFind": "Zoeken",
   "inappBrowserMenuHideUrlBar": "URL-balk verbergen",
   "inappBrowserMenuShowUrlBar": "URL-balk tonen",

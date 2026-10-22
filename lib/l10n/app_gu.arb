@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "{url} લોન્ચ કરી શકાયું નહીં",
   "inappBrowserDefaultTitle": "ઇન-એપ WebView",
   "inappBrowserMenuOpenInBrowser": "બ્રાઉઝરમાં ખોલો",
-  "inappBrowserMenuRefresh": "તાજું કરો",
   "inappBrowserMenuFind": "શોધો",
   "inappBrowserMenuHideUrlBar": "URL બાર છુપાવો",
   "inappBrowserMenuShowUrlBar": "URL બાર બતાવો",

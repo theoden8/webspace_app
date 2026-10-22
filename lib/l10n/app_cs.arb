@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nelze spustit {url}",
   "inappBrowserDefaultTitle": "Vestavěné WebView",
   "inappBrowserMenuOpenInBrowser": "Otevřít v prohlížeči",
-  "inappBrowserMenuRefresh": "Obnovit",
   "inappBrowserMenuFind": "Najít",
   "inappBrowserMenuHideUrlBar": "Skrýt řádek URL",
   "inappBrowserMenuShowUrlBar": "Zobrazit řádek URL",

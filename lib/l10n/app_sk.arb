@@ -141,7 +141,6 @@
   "inappBrowserCouldNotLaunch": "Nepodarilo sa spustiť {url}",
   "inappBrowserDefaultTitle": "Vstavané webové zobrazenie",
   "inappBrowserMenuOpenInBrowser": "Otvoriť v prehliadači",
-  "inappBrowserMenuRefresh": "Obnoviť",
   "inappBrowserMenuFind": "Hľadať",
   "inappBrowserMenuHideUrlBar": "Skryť panel URL",
   "inappBrowserMenuShowUrlBar": "Zobraziť panel URL",
