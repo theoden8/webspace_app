@@ -244,10 +244,21 @@ concurrently through the relay.
 Disposed means quiet, not only dropped. The plugin destroys a native
 webview only after it has loaded `about:blank`, and until then it can still
 send: on the emulator its icon fetch left through the next site's proxy
-once the override had flipped. A site's webview SHALL therefore keep its
-place on the process-wide rule until it has been told to load nothing more
-from the network, and an override write asked for meanwhile SHALL wait for
-that.
+once the override had flipped. Every webview that runs as a site SHALL
+therefore keep its site's place on the process-wide rule until it has been
+told to load nothing more from the network, and an override write asked for
+meanwhile SHALL wait for that: the site's own webview, a nested screen
+opened as the site (whose route's future completes before it leaves the
+tree), and a background wake's headless check of it (NOTIF-016). A popup a
+page opened holds no place of its own: it runs on its opener's, so it SHALL
+stop loading and close when its opener is told to. Android blocks the
+webview's network loads; WPE has no such setting.
+
+Every nested screen SHALL open through the activation's nested open, a
+typed address, a link menu's Open and a nested fallback as much as a routed
+link: it is what puts the site's route in force and lists the screen on the
+rule. A screen pushed past it would run on whatever route was in force and
+hold none of its own.
 
 #### Scenario: iOS / macOS — concurrent per-site proxy
 
@@ -279,6 +290,32 @@ which is partitioned per `siteId`
 `ProxyController.setProxyOverride` applies P2
 **And** no request for Site A reaches P2, an icon fetched while the plugin
 tears the webview down included
+
+#### Scenario: Android — a nested screen and a wake check leave their route quiet
+
+**Given** router mode is NOT active
+**When** a nested screen running as Site A pops, or a background wake ends
+its headless check of Site A
+**Then** that webview is told to block network loads before Site A leaves
+the process-wide rule
+**And** an override write for another proxy asked for meanwhile waits
+
+#### Scenario: Android — a popup goes with the webview that opened it
+
+**Given** router mode is NOT active and Site A's webview has a popup open
+**When** Site A's webview is told to block network loads (it is unloaded,
+or the nested screen it ran in pops)
+**Then** the popup is told to block network loads first and its window
+closes
+**And** Site A leaves the process-wide rule only after both
+
+#### Scenario: Android — a typed address opens its nested screen on its route
+
+**Given** router mode is NOT active and Site A is on screen
+**When** the user types another site's address into Site A's URL bar and it
+opens in a nested screen
+**Then** the screen opens through the activation's nested open
+**And** it is listed on the process-wide rule as Site A's nested screen
 
 #### Scenario: Android — no background load on another route
 

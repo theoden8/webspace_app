@@ -654,10 +654,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     final openedFrom = owner?.runningIdentity.getDisplayName();
     final nestedSite = _sites.byId(posture.siteId);
     Future<void> Function()? handOff;
+    final webView = NestedScreenWebView();
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => InAppWebViewScreen(
+          webView: webView,
           url: url,
           openedFrom: openedFrom,
           onOpenAsTab: owner == null || nestedSite == null
@@ -681,8 +683,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
       ),
     );
-    final run = handOff;
-    if (run != null && mounted) await run();
+    await webView.quiet();
+    if (handOff case final run? when mounted) await run();
   }
 
   /// Shows a SnackBar. Built after the mounted check, so a caller past an

@@ -28,6 +28,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_headless.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/headless_site_check.dart';
 

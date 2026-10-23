@@ -64,7 +64,7 @@ test('a blocked outbound link reaches the hook, and nothing launches', () => {
 
 test("the link menu's Open routes as a tap would", () => {
   const open = blockAfter(links, '  Future<void> openLinkAsTapped(', ') async {', linksRel);
-  const launches = [...open.matchAll(/await (_host\.launchNestedFor|launchUrlInSystemBrowser)\(/g)];
+  const launches = [...open.matchAll(/await (_openNestedAs|launchUrlInSystemBrowser)\(/g)];
   assert.equal(launches.length, 2, 'expected a nested and an external launch');
   for (const m of launches) {
     const before = open.slice(0, m.index);
@@ -92,6 +92,16 @@ test('routing hands every gate to the engine, with the live values', () => {
 });
 
 test('a nested open runs through the activation table, over the source only when routed', () => {
+  // The link controller's own nested opens (a typed address, the link menu,
+  // a nested fallback) take the same open, so each puts its site's proxy in
+  // force first (PROXY-008).
+  const ownAt = links.indexOf('  Future<void> _openNestedAs(');
+  assert.notEqual(ownAt, -1, `${linksRel} no longer has its one nested open`);
+  const ownOpen = links.slice(ownAt, links.indexOf(';', links.indexOf('=>', ownAt)));
+  assert.match(ownOpen, /_host\.openNested\(/,
+    "the link controller's nested open must go through the activation table");
+  assert.doesNotMatch(links, /_host\.launchNestedFor\(/,
+    'a nested screen pushed past the activation table claims no proxy rule');
   const open = blockAfter(main, '  Future<void> _executeOpenNested(', '}) async {', mainRel);
   assert.match(open, /_activation\.openNested\(/,
     'the proxy sequence and the return to the source are the activation table\'s');

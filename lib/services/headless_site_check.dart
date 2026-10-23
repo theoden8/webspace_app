@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:webspace/platform/host_platform.dart';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/background_wake_engine.dart';
@@ -15,6 +16,8 @@ import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_controller.dart' show markNetworkBlocked;
+import 'package:webspace/services/log_service.dart';
 
 /// The headless webview a background wake opens for a site that has no live
 /// one (NOTIF-016).
@@ -55,20 +58,22 @@ abstract final class HeadlessSiteChecks {
       blocking: posture.blocking,
       dnsLevel: () => config.effectiveDnsLevel,
     );
+    final settings = WebViewFactory.siteSettings(
+      binding,
+      posture: posture,
+      textZoom: page.textZoom,
+      desktopMode: page.desktopMode,
+    )
+      ..useShouldInterceptRequest = false
+      ..useOnLoadResource = false
+      ..supportMultipleWindows = false
+      ..javaScriptCanOpenWindowsAutomatically = false
+      // Nothing plays in a check: no one is there to hear it, and on iOS
+      // audio would ride the background audio session (NOTIF-015).
+      ..mediaPlaybackRequiresUserGesture = true;
+    check._settings = settings;
     final headless = inapp.HeadlessInAppWebView(
-      initialSettings: WebViewFactory.siteSettings(
-        binding,
-        posture: posture,
-        textZoom: page.textZoom,
-        desktopMode: page.desktopMode,
-      )
-        ..useShouldInterceptRequest = false
-        ..useOnLoadResource = false
-        ..supportMultipleWindows = false
-        ..javaScriptCanOpenWindowsAutomatically = false
-        // Nothing plays in a check: no one is there to hear it, and on iOS
-        // audio would ride the background audio session (NOTIF-015).
-        ..mediaPlaybackRequiresUserGesture = true,
+      initialSettings: settings,
       initialUserScripts: UnmodifiableListView(page.userScripts),
       onWebViewCreated: (controller) {
         phases.on(PageEvent.viewCreated, view: controller.platform);
@@ -196,7 +201,20 @@ abstract final class HeadlessSiteChecks {
 class HeadlessSiteCheck {
   HeadlessSiteCheck._();
 
+  /// A check over [webview] and its [controller], running with [settings],
+  /// for a test of how it ends.
+  @visibleForTesting
+  HeadlessSiteCheck.over(
+    inapp.HeadlessInAppWebView webview, {
+    required inapp.InAppWebViewController controller,
+    required inapp.InAppWebViewSettings settings,
+  }) : _controller = controller {
+    _webview = webview;
+    _settings = settings;
+  }
+
   late final inapp.HeadlessInAppWebView _webview;
+  late final inapp.InAppWebViewSettings _settings;
   inapp.InAppWebViewController? _controller;
   bool _loading = false;
   bool _gone = false;
@@ -211,9 +229,23 @@ class HeadlessSiteCheck {
     return c.getTitle();
   }
 
+  /// Ends the check. Its webview loads nothing more before it goes, since
+  /// the process-wide proxy rule may move as soon as this returns
+  /// (PROXY-008).
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    if (_controller case final controller? when markNetworkBlocked(_settings)) {
+      try {
+        await controller.setSettings(settings: _settings);
+      } on PlatformException catch (e) {
+        LogTag.backgroundTask
+            .warning('could not stop a check loading: $e', sensitive: true);
+      } on MissingPluginException catch (e) {
+        LogTag.backgroundTask
+            .warning('could not stop a check loading: $e', sensitive: true);
+      }
+    }
     await _webview.dispose();
   }
 }

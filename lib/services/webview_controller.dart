@@ -14,6 +14,8 @@ import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 
 /// A page in a webview's history: its address and the title it had.
 typedef HistoryEntry = ({String url, String? title});
@@ -31,6 +33,18 @@ HistoryEntry? backEntryIn(inapp.WebHistory? history, {required bool isLinux}) {
   if (url == null || url.isEmpty) return null;
   final title = item.title;
   return (url: url, title: title == null || title.isEmpty ? null : title);
+}
+
+/// Marks [settings] to load nothing more from the network where one proxy
+/// rule covers every webview, and says whether it did; the webview's owner
+/// then sends them whole (BUG-022). The plugin destroys a native webview only
+/// after it has loaded `about:blank`, and what one the app let go of fetches
+/// meanwhile leaves through whatever proxy the rule names next (PROXY-008).
+/// WPE has no such setting, so Linux is not covered.
+bool markNetworkBlocked(inapp.InAppWebViewSettings settings) {
+  if (ProxyManager.binding != ProxyBinding.processWide) return false;
+  settings.blockNetworkLoads = true;
+  return true;
 }
 
 abstract class WebViewController {
@@ -115,8 +129,7 @@ abstract class WebViewController {
   Future<void> resumeAllJsTimers();
 
   /// Load nothing more from the network, for the rest of this webview's
-  /// life: one the app let go of keeps running until the plugin destroys it
-  /// (PROXY-008). Android only, where one proxy rule covers every webview.
+  /// life ([markNetworkBlocked]).
   Future<void> blockNetworkLoads();
 
   /// Abort any in-flight main-frame load. Used to quiesce chromium
@@ -556,10 +569,26 @@ class PlatformWebViewController implements WebViewController {
   @override
   Future<void> resumeAllJsTimers() => _native(_c.resumeTimers);
 
+  /// The windows this page opened, each with how its host closes it.
+  final _popups = <PlatformWebViewController, void Function()>{};
+
+  /// [popup] runs as this webview's site, on the route this one holds, so it
+  /// stops loading and closes when this one is told to.
+  void adopt(PlatformWebViewController popup, {required void Function() close}) =>
+      _popups[popup] = close;
+
+  /// [popup] closed on its own.
+  void disown(PlatformWebViewController popup) => _popups.remove(popup);
+
   @override
   Future<void> blockNetworkLoads() async {
-    if (!hostIsAndroid) return;
-    _settings.blockNetworkLoads = true;
+    final popups = {..._popups};
+    _popups.clear();
+    for (final MapEntry(key: popup, value: close) in popups.entries) {
+      await popup.blockNetworkLoads();
+      close();
+    }
+    if (!markNetworkBlocked(_settings)) return;
     await _native(() => _c.setSettings(settings: _settings));
   }
 

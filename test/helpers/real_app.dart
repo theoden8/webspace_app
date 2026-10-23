@@ -14,6 +14,7 @@ import 'package:webspace/app.dart';
 import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/process_route.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
@@ -88,6 +89,7 @@ Future<void> prepareRealApp(
   });
   FlutterSecureStorage.setMockInitialValues({});
   webViewCalls.clear();
+  webViewSettingsWrites.clear();
   _freshDocuments();
   useFakePathProvider(_documents);
   PackageInfo.setMockInitialValues(
@@ -246,6 +248,11 @@ final Map<inapp.InAppWebView, _FakeWebViewController> _attached =
 /// was pumped, in order: `#reload` for a reload.
 final List<Symbol> webViewCalls = [];
 
+/// Each `setSettings` since the app was pumped, with what ran on the
+/// process-wide proxy rule as it was sent.
+final List<({inapp.InAppWebViewSettings settings, Set<RouteOccupant> onRule})>
+    webViewSettingsWrites = [];
+
 /// The system back gesture, as Android delivers it to the app.
 Future<void> pressBack(WidgetTester tester) async {
   await tester.binding.handlePopRoute();
@@ -279,6 +286,14 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
   dynamic noSuchMethod(Invocation invocation) {
     if (!invocation.isMethod) return null;
     webViewCalls.add(invocation.memberName);
+    if (invocation.namedArguments[#settings]
+        case final inapp.InAppWebViewSettings settings
+        when invocation.memberName == #setSettings) {
+      webViewSettingsWrites.add((
+        settings: settings,
+        onRule: ProcessRoute.instance.occupants.keys.toSet(),
+      ));
+    }
     // A completed Future<Null> passes for every Future<T?> the page awaits.
     // ignore: prefer_void_to_null
     return Future<Null>.value();

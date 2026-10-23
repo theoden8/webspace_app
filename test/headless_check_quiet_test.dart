@@ -1,0 +1,64 @@
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/headless_site_check.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
+
+/// What the check's webview was asked, in order.
+final List<String> _asked = [];
+
+class _Controller implements inapp.InAppWebViewController {
+  @override
+  Future<void> setSettings({
+    required inapp.InAppWebViewSettings settings,
+  }) async => _asked.add(
+    'setSettings blockNetworkLoads=${settings.blockNetworkLoads} '
+    'javaScriptEnabled=${settings.javaScriptEnabled}',
+  );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _Headless implements inapp.HeadlessInAppWebView {
+  @override
+  Future<void> dispose() async => _asked.add('dispose');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A wake's headless check runs as its site on the process-wide proxy rule,
+/// and the plugin destroys its native webview only after it has loaded
+/// `about:blank`: one that went on loading would send what it fetched through
+/// whatever proxy the rule names once the check has left it. So the check
+/// loads nothing more before it is disposed, and leaves the rule only after
+/// (`ProcessRoute.vacate`, PROXY-008, NOTIF-016).
+void main() {
+  setUp(_asked.clear);
+
+  test(
+    'a check loads nothing more before its webview goes (PROXY-008)',
+    () async {
+      final check = HeadlessSiteCheck.over(
+        _Headless(),
+        controller: _Controller(),
+        settings: inapp.InAppWebViewSettings(javaScriptEnabled: false),
+      );
+      await check.dispose();
+      // Where each store binds its own proxy (an Apple host), no rule moves
+      // under the check and nothing is quieted (PROXY-027).
+      final processWide = ProxyManager.binding == ProxyBinding.processWide;
+      final asked = [
+        // The settings it runs with: a setSettings resets what it leaves out
+        // (BUG-022).
+        if (processWide)
+          'setSettings blockNetworkLoads=true javaScriptEnabled=false',
+        'dispose',
+      ];
+      expect(_asked, asked);
+      await check.dispose();
+      expect(_asked, asked, reason: 'a check ends once');
+    },
+  );
+}

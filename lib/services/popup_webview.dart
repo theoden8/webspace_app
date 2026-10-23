@@ -94,15 +94,19 @@ enum PopupKind {
       };
 }
 
+/// The webview that asked for a popup window: its config, and its
+/// controller, which the popup goes quiet with (PROXY-008).
+typedef PopupParent = ({WebViewConfig config, PlatformWebViewController? opener});
+
 /// The webview a site's `window.open` gets, built from its parent's posture.
 abstract final class PopupWebView {
-  /// [WebViewConfig] of the webview that asked for a popup window, keyed by
-  /// the `windowId` the host UI is handed. The host builds the popup widget
-  /// from a `BuildContext` that knows nothing about the site, so the parent's
+  /// The webview that asked for a popup window, keyed by the `windowId` the
+  /// host UI is handed. The host builds the popup widget from a
+  /// `BuildContext` that knows nothing about the site, so the parent's
   /// posture would otherwise be lost between `onCreateWindow` and
   /// [createPopupWebView] — and a popup with no shims, no container and no
   /// proxy is a hole straight through every per-site setting.
-  static final Map<int, WebViewConfig> popupParentConfigs = {};
+  static final Map<int, PopupParent> popupParents = {};
 
   /// Create a popup webview for handling window.open() calls.
   /// Used for Cloudflare challenges and other popups that require a real window.
@@ -116,7 +120,8 @@ abstract final class PopupWebView {
     WebViewConfig? config,
     VoidCallback? onCloseWindow,
   }) {
-    final parent = config ?? popupParentConfigs[windowId];
+    final opener = popupParents[windowId]?.opener;
+    final parent = config ?? popupParents[windowId]?.config;
     if (parent == null) {
       // No parent posture to inherit means we cannot tell what the popup is
       // allowed to be. Render nothing rather than a fully-privileged webview.
@@ -170,12 +175,16 @@ abstract final class PopupWebView {
             contentBlock: parent.posture.blocking.contentBlock,
           ));
         }
-        view = PlatformWebViewController(controller,
+        // A view made again replaces the one its opener holds, which would
+        // otherwise be closed twice.
+        if (view case final previous?) opener?.disown(previous);
+        final popupView = view = PlatformWebViewController(controller,
             pauseHack: PauseTimersHackState(),
             settings: settings,
             loadsAfter: Future<void>.value(),
             refuses: (url) =>
                 WebViewFactory.refusesLoad(binding, url: url) != null);
+        opener?.adopt(popupView, close: () => onCloseWindow?.call());
         PageHandlers.registerPageHandlers(
           controller,
           config: parent,
@@ -224,6 +233,7 @@ abstract final class PopupWebView {
     return ControllerScope(
       onUnmount: () {
         phases.unmounted();
+        if (view case final popupView?) opener?.disown(popupView);
         view?.markDisposed();
         if (attachedView case final id?) DnsBlockService.instance.views.gone(id);
       },
