@@ -52,9 +52,14 @@ String _linksPage() => '''
   a{display:block;height:120px;line-height:120px;color:#fff}
 </style>
 <script>
-  document.addEventListener('focusin', function(e) {
-    if (window !== window.top) window.parent.postMessage({ inner: e.target.id }, '*');
-  });
+  if (window !== window.top) {
+    window.addEventListener('load', function() {
+      window.parent.postMessage({ ready: true }, '*');
+    });
+    document.addEventListener('focusin', function(e) {
+      window.parent.postMessage({ inner: e.target.id }, '*');
+    });
+  }
 </script></head><body>
 ${[for (var i = 0; i < 20; i++) '<a id="l$i" href="#l$i">link $i</a>'].join()}
 </body></html>''';
@@ -70,13 +75,14 @@ String _framedPage(String frame) => '''
 </style>
 <script>
   window.addEventListener('message', function(e) {
+    if (e.data && e.data.ready) window.__framed = true;
     if (e.data && e.data.inner) window.__inner = e.data.inner;
   });
 </script></head><body><iframe src="$frame"></iframe></body></html>''';
 
 const _probeJs = '''
 JSON.stringify({
-  ready: document.readyState,
+  ready: document.querySelector('iframe') && !window.__framed ? 'framing' : document.readyState,
   focused: document.hasFocus(),
   active: document.activeElement ? (document.activeElement.id || document.activeElement.tagName) : null,
   inner: window.__inner || null,
@@ -105,6 +111,9 @@ void main() {
     await RemoteInput.probe();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     frameServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    // dart:io sends X-Frame-Options: SAMEORIGIN by default, which refuses
+    // the frame to a page on the other port.
+    server.defaultResponseHeaders.removeAll('x-frame-options');
     page = 'http://127.0.0.1:${server.port}/links';
     framed = 'http://127.0.0.1:${frameServer.port}/framed';
     serve(server, html: _linksPage);
@@ -213,7 +222,8 @@ void main() {
       state = await probe(tester, controller: controller);
     }
     log('loaded: $state');
-    expect(state?['ready'], 'complete', reason: 'the page never loaded');
+    expect(state?['ready'], 'complete',
+        reason: 'the page, and any frame in it, never loaded');
 
     bar.requestFocus();
     await tester.pump();
