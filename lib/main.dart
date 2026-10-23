@@ -38,6 +38,7 @@ import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/licenses.dart';
 import 'package:webspace/app.dart';
 import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/app_locale.dart';
 
@@ -125,6 +126,8 @@ void main([List<String> args = const []]) async {
     if (hostIsAndroid) blockServiceWorkerNetwork(),
     // Proxy support, detected before the UI loads.
     PlatformInfo.initialize(),
+    // Whether a TV remote drives the device, read as each webview is built.
+    RemoteInput.probe(),
     // Where a site's icon comes from on Linux, read as each webview is built.
     WpePageIcons.initialize(),
     // ConnectivityService.lastKnownOnline before the first webview: the

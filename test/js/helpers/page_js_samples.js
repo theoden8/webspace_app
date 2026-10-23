@@ -50,6 +50,7 @@ const SAMPLES = {
   procedural_cosmetic: pageJs('procedural_cosmetic', { rules: [
     { selector: [{ type: 'css-selector', arg: 'div.ad:has-text(Sponsored)' }], action: 'remove' },
   ] }),
+  remote_edge: pageJs('remote_edge', { handler: 'wsRemoteEdge' }),
   screen_share: CAPTURE.SCREEN_SHARE,
   search_link_watcher: pageJs('search_link_watcher', { handler: 'wsSearchLinks' }),
   target_blank_rewrite: pageJs('target_blank_rewrite'),

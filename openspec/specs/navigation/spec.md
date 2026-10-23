@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, pull-to-refresh on phones and keyboard shortcuts on desktop. Handles platform differences between iOS and Android, and guards async state against race conditions.
+Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, pull-to-refresh on phones, keyboard shortcuts on desktop and a remote's D-pad on a TV. Handles platform differences between iOS and Android, and guards async state against race conditions.
 
 **Formal model:** the back/forward navigation actions are composed into the cross-spec kernel [formal/kernel.tla](../../../formal/kernel.tla) (with `webview-pause-lifecycle` and `lazy-webview-loading`); the `Back`/`Forward` transitions must route through the repaint chokepoint or the kernel's `RepaintLiveness` fails (the `bypass` demonstrator).
 
@@ -657,6 +657,47 @@ gesture (NAV-008). The menu's other items follow the row.
 - **AND** the row's Refresh reloads the nested page
 
 Test: [test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.dart)
+
+---
+
+### Requirement: NAV-016 - A TV Remote Reaches The Page And The App Bar
+
+Where a remote's D-pad drives the device rather than a touchscreen (Android TV, or an
+Android device without a touchscreen, probed once at startup by `RemoteInput`), a site's
+page SHALL take the D-pad the way a TV browser does, and the app's chrome SHALL stay
+reachable from it:
+
+- While the page has focus, the four arrows and the centre button SHALL reach the webview,
+  whose own spatial navigation moves between links and scrolls. Flutter takes every key before a platform
+  view and spends an arrow on moving its own focus, so without this the page never sees one.
+- Focus arriving on the page by the D-pad SHALL give the webview native focus, which a
+  Flutter focus move alone does not.
+- An arrow the page had no use for (it moved no focus, scrolled nothing and was not taken
+  with `preventDefault`) SHALL move focus out of the page in that direction, to the app bar
+  above it or the tab strip below. In a text field the arrows SHALL stay with the caret, and
+  a held arrow SHALL never leave the page.
+- The app SHALL appear in the Android TV launcher with a banner, and SHALL install on a
+  device without a touchscreen.
+
+On every other device the page's webview SHALL be built exactly as before: no wrapper, no
+page script. The edge is read by a top-frame script (`lib/js/remote_edge.js`), so an arrow
+pressed inside a frame stays in that frame. Popups opened by a page are not covered.
+
+#### Scenario: Scrolling and following links with the D-pad
+
+- **GIVEN** a TV, and a site's page on screen
+- **WHEN** the user moves down from the app bar with the D-pad
+- **THEN** the page takes focus, and further arrows move between its links and scroll it
+- **AND** the centre button opens the focused link
+
+#### Scenario: Back to the app bar
+
+- **GIVEN** a TV, and a page scrolled to its top with its first link focused
+- **WHEN** the user presses up
+- **THEN** focus moves to the app bar, from where the menu and the site switcher open
+
+Test: [test/remote_focus_test.dart](../../../test/remote_focus_test.dart),
+[test/js/remote_edge.test.js](../../../test/js/remote_edge.test.js)
 
 ## Race Condition Guards
 
