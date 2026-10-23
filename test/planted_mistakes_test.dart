@@ -256,6 +256,12 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [OwnerRun(0)],
     breaks: "'s webview is built for tab",
   ),
+  Mutant.childinplace => _By(
+    world: (d) => ActivationWorld(_mixedContainers, tabbed: true, declared: d),
+    setup: const [Tap(0)],
+    script: const [ChildTab(0)],
+    breaks: "'s webview is built for tab",
+  ),
   Mutant.takeany => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0), Login(0), Tap(1)],

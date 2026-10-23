@@ -2,8 +2,8 @@ part of 'tabs_controller.dart';
 
 /// The places a tab flow waits at, as `activation.tla` names them: the
 /// inputs, the switch (its capture, its nav read, the rebind), a close's
-/// removals, a duplicate's read, write and insert, and a reroute's
-/// removals.
+/// removals, a duplicate's read, write and insert, a reroute's removals,
+/// and the landings that pick a tab or insert a child.
 enum TabPlace {
   openTab,
   newTab,
@@ -12,6 +12,8 @@ enum TabPlace {
   reroute,
   homeLanding,
   ownerRun,
+  childTab,
+  parkChild,
   tCap,
   tCapSave,
   tNav,
@@ -25,6 +27,9 @@ enum TabPlace {
   rRemove,
   hLand,
   oLand,
+  cLand,
+  cOpen,
+  pLand,
   done,
 }
 
@@ -86,6 +91,22 @@ final class TabCalls {
   void activate(WebViewModel site) => unawaited(_c._host.activate(site));
   void closed(StepView<TabFlow> c) => _c._closed(c);
   void duplicated(StepView<TabFlow> c) => _c._duplicated(c);
+  void parked(StepView<TabFlow> c) => _c._parked(c);
+
+  /// The site [tab], a child of [owner]'s not yet listed, runs as, as
+  /// [WebViewModel.tabHosts] reports it once it is.
+  WebViewModel childHost(SiteTab tab, {required WebViewModel owner}) =>
+      owner.hostOf(tab) ?? owner;
+}
+
+/// What a child tab not listed yet follows (`link`, LIR-034), read as
+/// [TabsController.linkHosts] reads a listed one's.
+final class ChildLinks {
+  ChildLinks(this._c);
+  final TabsController _c;
+
+  WebViewModel? of(SiteTab tab, {required WebViewModel owner}) =>
+      _c._linkOf(owner, tab: tab);
 }
 
 /// What a tab flow's steps run against: the controller, the site, what the

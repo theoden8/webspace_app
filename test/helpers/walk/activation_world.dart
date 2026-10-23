@@ -354,6 +354,39 @@ final class OwnerRun extends SiteAction {
   String toString() => 'OwnerRun($slot)';
 }
 
+/// A link of the site at [slot] opens as its child tab, running as the
+/// site at [host] (itself when null), and is switched to
+/// (`openChildTab`, LIR-032); one that [follows] its opener's routing
+/// is a link tab into [host]'s domain (LIR-034), running as [host] only
+/// while the opener routes outbound links, as the dispatcher opens one.
+final class ChildTab extends SiteAction {
+  const ChildTab(this.slot, {this.host, this.follows = false});
+  final int slot;
+  final int? host;
+  final bool follows;
+  @override
+  String toString() => 'ChildTab(${_childArgs(slot, host: host, follows: follows)})';
+}
+
+/// A long-pressed link of the site at [slot] opens as a parked child tab,
+/// running as the site at [host] (itself when null) (`openLinkInNewTab`,
+/// TAB-006); one that [follows] its opener's routing is a link tab, as
+/// [ChildTab]'s.
+final class ParkChild extends SiteAction {
+  const ParkChild(this.slot, {this.host, this.follows = false});
+  final int slot;
+  final int? host;
+  final bool follows;
+  @override
+  String toString() => 'ParkChild(${_childArgs(slot, host: host, follows: follows)})';
+}
+
+String _childArgs(int slot, {required int? host, required bool follows}) => [
+  '$slot',
+  if (host != null) 'host: $host',
+  if (follows) 'follows: true',
+].join(', ');
+
 /// What a walk's page starts with.
 typedef WalkPage = ({
   /// Hosts of the sites loaded at startup, in order.
@@ -1054,6 +1087,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     DuplicateTab() ||
     HomeLand() ||
     OwnerRun() ||
+    ChildTab() ||
+    ParkChild() ||
     Reroute() => false,
     ArchiveSite() ||
     Reply() ||
@@ -1607,6 +1642,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     DuplicateTab() => ActivationStep.duplicateTab,
     HomeLand() => ActivationStep.homeLanding,
     OwnerRun() => ActivationStep.ownerRun,
+    ChildTab() => ActivationStep.childTab,
+    ParkChild() => ActivationStep.parkChild,
     Reroute() => ActivationStep.reroute,
     // A move is the environment's, a move into an archive the model's
     // setup, and the rest wait on the page.
@@ -1952,6 +1989,30 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         if (n > 0) _track(tabs.landOnHomeTab(at(slot)));
       case OwnerRun(:final slot):
         if (n > 0) _track(tabs.bindOwnerRunTab(at(slot)));
+      case ChildTab(:final slot, :final host, :final follows):
+        if (n > 0) {
+          final owner = at(slot);
+          final runs = at(host ?? slot);
+          _track(tabs.openChildTab(
+            owner,
+            url: runs.initUrl,
+            hostSiteId: _childHost(owner, runs: runs, follows: follows),
+            openerSiteId: follows ? owner.siteId : null,
+            homeUrl: follows ? runs.initUrl : null,
+          ));
+        }
+      case ParkChild(:final slot, :final host, :final follows):
+        if (n > 0) {
+          final owner = at(slot);
+          final runs = at(host ?? slot);
+          _track(tabs.openLinkInNewTab(
+            owner,
+            url: runs.initUrl,
+            hostSiteId: _childHost(owner, runs: runs, follows: follows),
+            openerSiteId: follows ? owner.siteId : null,
+            homeUrl: follows ? runs.initUrl : null,
+          ));
+        }
       case OpenNested(:final slot):
         if (n > 0) {
           _track(
@@ -2048,6 +2109,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     await wakeEngine.wake(_wake);
   }
 
+  /// The site a child of [owner]'s into [runs]' domain runs as: a link tab
+  /// that [follows] its opener's routing runs as [runs] only while [owner]
+  /// routes outbound links (LIR-034).
+  SiteId _childHost(WebViewModel owner,
+          {required WebViewModel runs, required bool follows}) =>
+      !follows || owner.effectiveRouteOutboundLinks ? runs.siteId : owner.siteId;
+
   /// A tab input on a site off screen takes the handler's other path, an
   /// activation inside the tab gate, which activation.tla does not hold:
   /// the script's steps are checked by the world's invariants, not
@@ -2080,6 +2148,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           DuplicateTab() ||
           HomeLand() ||
           OwnerRun() ||
+          ChildTab() ||
+          ParkChild() ||
           OpenNested() ||
           Wake() ||
           Background() ||

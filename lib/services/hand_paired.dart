@@ -76,6 +76,18 @@ enum HandPaired implements Pairing {
   /// The sites with tabs an owner-run move may take (`Listed \cap Tabbed`).
   ownerRunSites,
 
+  /// The listed sites with tabs a child tab may open in: those with a
+  /// fresh tab id left in the model's pool.
+  childSites,
+
+  /// The sites a child tab may run as: any listed site where containers
+  /// keep their cookies apart (LIR-032), else its own.
+  childHosts,
+
+  /// The site a child tab runs as while its opener routes outbound links,
+  /// none (`0`) for one no link opened (LIR-034).
+  childLinks,
+
   /// The tabs a landing may name: the site's, and a fresh one while the
   /// pool has one.
   landingTabs,

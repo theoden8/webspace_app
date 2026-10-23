@@ -1476,6 +1476,28 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A child tab opens by moving its site's pointer to it, without the
+  // switch that rebinds a loaded site's webview (TAB-006).
+  Mutant.childinplace => _with(
+    tabFlow: _withArms(
+      tables.tabFlow,
+      step: ActivationStep.childOpen,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          then: [
+            Act.of([
+              TabVars.active<TabFlow>().except(
+                const Field<WebViewModel, TabFlow>(FlowField.site).value,
+                to: const Field<TabId, TabFlow>(FlowField.tab).value,
+              ),
+            ]),
+          ],
+          next: to(TabPlace.done),
+        ),
+      ),
+    ),
+  ),
   // A delete deletes its site's container without waiting for the frame
   // that unmounts its webview (BUG-038).
   Mutant.deletenoframe => _with(

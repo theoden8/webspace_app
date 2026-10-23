@@ -197,7 +197,7 @@ void main() {
 
       expect(tabs, contains('_gate.runWhenIdle(_closeIneligibleHostedTabsHeld)'));
       expect(body('Future<void> _parkChild(', src: tabs),
-          contains('await _gate.runWhenIdle('),
+          contains('await _gate.idle();'),
           reason: 'a background insert must not be lost to a close in flight');
       for (final signature in [
         'Future<void> openLinkInNewTab(',

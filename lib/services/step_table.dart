@@ -766,10 +766,6 @@ enum Unmodeled {
   /// follow; a site with tabs takes the tab input `OwnerRun`.
   ownerRunTab,
 
-  /// A link opened as a child tab of its site, shown or behind the one on
-  /// screen.
-  childTab,
-
   /// Link tabs that run as another site, and the slots that let go of
   /// their webview for it, where the flips are not one site's own link
   /// tabs, which the reroute step takes (LIR-024, LIR-034): several sites'

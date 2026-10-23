@@ -313,14 +313,17 @@ class TabsController {
   /// link opened or whose opener is gone, and for one the list does not
   /// hold.
   Map<TabId, WebViewModel?> linkHosts(WebViewModel owner) => {
-    for (final tab in owner.tabs)
-      tab.id: switch (tab.followsOpener ? _sites.byId(tab.openerSiteId!) : null) {
+    for (final tab in owner.tabs) tab.id: _linkOf(owner, tab: tab),
+  };
+
+  /// [linkHosts]' entry for [tab] of [owner]'s, listed or about to be.
+  WebViewModel? _linkOf(WebViewModel owner, {required SiteTab tab}) =>
+      switch (tab.followsOpener ? _sites.byId(tab.openerSiteId!) : null) {
         final opener? =>
           _sites.byId(_linkRunsAs(owner, tab: tab, opener: opener, routes: true)) ??
               owner,
         null => null,
-      },
-  };
+      };
 
   /// A link tab whose opener is gone: nothing decides for it any more, so it
   /// keeps the container it has (LIR-023 closes it if that is gone).
@@ -672,7 +675,9 @@ class TabsController {
   /// A child tab of [owner]'s [parentTabId] (the active tab when it is gone
   /// or not given) at [url], running as [hostSiteId] or as [owner] itself,
   /// and switched to: a search's results (LIR-030), a link back to the owner
-  /// (S6), a link into another of the user's sites (LIR-032).
+  /// (S6), a link into another of the user's sites (LIR-032). It is the
+  /// [TabTable.tabInputs] child input, dropped while a tab handler runs, and
+  /// the switch to it [TabTable.tabFlow]'s from the child's landing (cLand).
   Future<void> openChildTab(
     WebViewModel owner, {
     required String url,
@@ -682,28 +687,25 @@ class TabsController {
     String? homeUrl,
   }) async {
     if (!owner.effectiveTabsEnabled) return;
-    await _gate.run(() async {
-      if (!_sites.models.contains(owner)) return;
-      final parent = parentTabId != null &&
-              owner.tabs.any((t) => t.id == parentTabId)
-          ? parentTabId
-          : owner.activeTabId;
-      final tab = SiteTab(
-        url: url,
-        parentId: parent,
-        hostSiteId: hostSiteId == owner.siteId ? null : hostSiteId,
-        openerSiteId: openerSiteId,
-        homeUrl: homeUrl,
-      );
-      WebViewModel.tabsCell.write(
-          at: owner,
-          to: TabLifecycleEngine.insertChild(owner.tabs, tab: tab),
-          commit: const Commit.unmodeled(Unmodeled.childTab));
-      LogTag.tabs.debug('Opened a child tab of "${owner.name}"'
-          '${tab.hostSiteId == null ? '' : ' run as ${tab.hostSiteId}'}',
-          sensitive: true);
-      await switchActiveTab(owner, targetTabId: tab.id);
-    });
+    if (!_sites.models.contains(owner)) return;
+    final parent = parentTabId != null &&
+            owner.tabs.any((t) => t.id == parentTabId)
+        ? parentTabId
+        : owner.activeTabId;
+    final tab = SiteTab(
+      url: url,
+      parentId: parent,
+      hostSiteId: hostSiteId == owner.siteId ? null : hostSiteId,
+      openerSiteId: openerSiteId,
+      homeUrl: homeUrl,
+    );
+    final c = StepContext(TabFlow(this, site: owner)..fresh = tab);
+    final next = TabTable.tabInputs.runInput(c, from: TabPlace.childTab);
+    if (next == TabPlace.done) return;
+    LogTag.tabs.debug('Opened a child tab of "${owner.name}"'
+        '${tab.hostSiteId == null ? '' : ' run as ${tab.hostSiteId}'}',
+        sensitive: true);
+    await _gate.run(() => _runTabFlow(c, from: next));
   }
 
   /// Copy the site's current tab, back stack included, into a new tab beside it
@@ -796,28 +798,36 @@ class TabsController {
   }
 
   /// Insert the tab [child] makes into [model]'s tree under its parent,
-  /// parked, and offer to switch to it (TAB-006). [child] runs once no tab
+  /// parked, and offer to switch to it (TAB-006): the [TabTable.tabInputs]
+  /// parked-child input and its landing (pLand). [child] runs once no tab
   /// handler is in flight, which may have written back a list read before
-  /// this insert; it returns null when the tab no longer belongs there.
+  /// this insert; it returns null when the tab no longer belongs there. The
+  /// insert may not be lost to a close in flight, so it waits for a free
+  /// gate and asks in the turn it finds one, as an owner-run move does.
   Future<void> _parkChild(WebViewModel model,
       {required SiteTab? Function() child}) async {
-    final tab = await _gate.runWhenIdle(() async {
-      if (!_host.mounted || !_sites.models.contains(model)) return null;
-      final tab = child();
-      if (tab == null) return null;
-      WebViewModel.tabsCell.write(
-          at: model,
-          to: TabLifecycleEngine.insertChild(model.tabs, tab: tab),
-          commit: const Commit.unmodeled(Unmodeled.childTab));
-      _host.rebuild();
-      return tab;
-    });
+    while (_gate.busy) {
+      await _gate.idle();
+    }
+    if (!_host.mounted || !_sites.models.contains(model)) return;
+    final tab = child();
     if (tab == null) return;
+    final c = StepContext(TabFlow(this, site: model)..fresh = tab);
+    final next = TabTable.tabInputs.runInput(c, from: TabPlace.parkChild);
+    await _gate.run(() => _runTabFlow(c, from: next));
+  }
+
+  /// The parked child joined the list: the page redraws and offers it.
+  void _parked(StepView<TabFlow> c) {
+    final flow = TabTable._flow.from(c);
+    final tab = flow.fresh!;
     LogTag.tabs.debug(
-        'Opened a background tab under ${tab.parentId} in "${model.name}"',
+        'Opened a background tab under ${tab.parentId} in "${flow.site.name}"',
         sensitive: true);
-    await _host.commitSites(const SitesEdited());
-    _host.offerOpenTab(model, tabId: tab.id);
+    _host.rebuild();
+    flow
+      ..commitAfter = true
+      ..offer = tab.id;
   }
 
   /// Apply a close the engine has already decided: [TabTable.tabFlow] from the

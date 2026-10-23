@@ -460,6 +460,22 @@ enum ActivationWorld {
         'slot that runs as site 3, or on the link tab, back to a tab site 1 '
         'runs itself (LIR-018, LIR-034)',
   ),
+  tabsChildContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // Site 1, on screen once tapped, opens a child tab that runs as any
+    // listed site and follows any, switched to or parked; the third input
+    // switches to the parked one or reroutes the child.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    allowed: {'ChildTab', 'OpenTab', 'ParkChild', 'Reroute', 'Tap'},
+    invariants: [..._core, ..._tabs],
+    holds:
+        "site 1's child tabs, switched to or parked, each running as any "
+        'listed site and following any, beside its reroutes and switches '
+        '(TAB-006, LIR-032, LIR-034)',
+  ),
   tabsResetContainers(
     cookies: Cookies.containers,
     coldStart: false,
@@ -746,6 +762,11 @@ enum Witness {
     doc: 'an owner-run move that switches a slot running as another site '
         'to a tab its site runs itself is reachable',
   ),
+  childHosted(
+    world: ActivationWorld.tabsChildContainers,
+    doc: 'a child tab that runs as another site joining its list, to be '
+        'switched to, is reachable',
+  ),
   landed(
     world: ActivationWorld.tabsResetContainers,
     doc: "a reset's landing that switches a loaded site to the tab it names "
@@ -965,6 +986,14 @@ enum Mutant {
         "an owner-run move that moves a loaded site's pointer without "
         'switching its webview leaves it built for another tab (LIR-018, '
         'caught)',
+  ),
+  childinplace(
+    world: ActivationWorld.tabsChildContainers,
+    by: Inv.tabBound,
+    doc:
+        "a child tab opened by moving a loaded site's pointer to it, "
+        'without the switch that rebinds its webview, leaves the webview '
+        'built for another tab (TAB-006, caught)',
   ),
   navtagatreply(
     world: ActivationWorld.tabsResetContainers,

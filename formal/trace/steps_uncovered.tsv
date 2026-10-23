@@ -15,4 +15,3 @@ NestedAsk	stale	the webspace switch before the first ask answers at once in the 
 DnsFolded	bail	the model's mirror always has the list (its failure is FALSE there): a fetch that fails writes nothing the model holds, and the walk's mirror serves every level it asks for
 Reroute	busy	a reroute asked while a tab handler holds the gate waits for it to let go (TabHandlingGate.deferUntilIdle), which the model takes as one dropped and one landing then; the walk asks for one only on a free gate
 RerouteFlip	rebind	a slot reroutes in place only off the process-wide proxy, and the reroute world runs under one (LIR-024); TLC takes the arm in the worlds printed for its pairs
-RerouteRemoveReply	more	the reroute world's site has one link tab, so a reroute removes one file

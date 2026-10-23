@@ -495,6 +495,11 @@ Reach_Landed == ~(last.a = "HomeLand" /\ last.o = "rebind")
 Reach_OwnerRan ==
     ~(/\ last.a = "OwnerLand" /\ last.o = "rebind"
       /\ RunsAs(fl[last.f].site) # fl[last.f].site)
+\* A child tab that runs as another site joins its site's list, and the
+\* switch to it begins (TAB-006, LIR-032): the child world is not vacuous.
+Reach_ChildHosted ==
+    ~(/\ last.a = "ChildLand"
+      /\ host[fl[last.f].site][fl[last.f].tab] # fl[last.f].site)
 Reach_RouteSwitch ==
     ~\E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc = "next"
                        /\ ProxyContenders(fl[f].site, RunsAs(fl[f].site)) # {}
