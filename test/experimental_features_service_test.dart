@@ -86,7 +86,8 @@ void main() {
             'blocker runs, so only Linux still reads this gate (DEVTOOLS-011)');
   });
 
-  test('Proxy router graduated: it has no switch (PROXY-013)', () {
+  test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
+      () {
     expect(
         ExperimentalFeature.values.map((f) => f.pref.key),
         isNot(contains('experimentalProxyRouter')),

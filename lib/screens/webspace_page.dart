@@ -83,6 +83,7 @@ import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
@@ -980,6 +981,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         builder: (context) => AppSettingsScreen(
           currentSettings: _shell.theme,
           externalTorRunsHere: externalTorRunsHere,
+          proxyRouterRunsHere: ProxyRouterService.canRunHere(
+              useContainers: _sites.useContainers),
           siteNames: _siteNames(),
           torSites: _network.torSites(),
           onSettingsChanged: _applyThemeSettings,

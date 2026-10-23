@@ -10,6 +10,7 @@ import 'package:webspace/services/local_proxy_relay_api_web.dart'
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// Drives one site's container to fetch [probeUrl], so the relay can
@@ -127,19 +128,27 @@ class ProxyRouterService {
   @visibleForTesting
   static bool appleRelayEnabled = false;
 
-  /// Whether this platform + engine combination can run router mode.
+  /// Whether router mode runs: this platform and engine can run it, and the
+  /// Proxy router switch in App settings > Network is on (PROXY-013).
   ///
   /// [useContainers] is the app's cached `ContainerNative.isSupported()`.
-  ///
-  /// Offered with developer mode on or off. It shipped behind an
-  /// Experimental switch while the premise it rests on, proven at runtime
-  /// by the PROXY-015 probe, had been exercised on WebView builds that pass
-  /// the probe only; the switch is gone, so the default install routes
-  /// (PROXY-013). Read once at activation.
+  /// Offered with developer mode on or off. Read once at activation, so a
+  /// flip of the switch takes effect at next launch.
   static bool isSupported({required bool useContainers}) => isSupportedWhen(
         isAndroid: hostIsAndroid,
         isApple: hostIsIOS || hostIsMacOS,
         useContainers: useContainers,
+        switchOn: AppPref.proxyRouter.value,
+        appleRelayEnabled: appleRelayEnabled,
+      );
+
+  /// Whether router mode could run here with its switch on: the Network
+  /// screen lists the switch only where this is true.
+  static bool canRunHere({required bool useContainers}) => isSupportedWhen(
+        isAndroid: hostIsAndroid,
+        isApple: hostIsIOS || hostIsMacOS,
+        useContainers: useContainers,
+        switchOn: true,
         appleRelayEnabled: appleRelayEnabled,
       );
 
@@ -156,10 +165,11 @@ class ProxyRouterService {
   static bool isSupportedWhen({
     required bool isAndroid,
     required bool useContainers,
+    required bool switchOn,
     bool isApple = false,
     bool appleRelayEnabled = false,
   }) =>
-      (isAndroid || (isApple && appleRelayEnabled)) && useContainers;
+      (isAndroid || (isApple && appleRelayEnabled)) && useContainers && switchOn;
 
   /// The credential a site presents to the relay, or null when router
   /// mode is not running (in which case the WebView must not answer any

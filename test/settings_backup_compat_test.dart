@@ -153,8 +153,6 @@ const Map<String, String> _retiredKeys = {
       'Experimental group; there is no switch to restore',
   'experimentalSiteIconsOnly': 'ICON-014: site icons only graduated out of '
       'the Experimental group; there is no switch to restore',
-  'experimentalProxyRouter': 'PROXY-013: the proxy router graduated out of '
-      'the Experimental group; there is no switch to restore',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

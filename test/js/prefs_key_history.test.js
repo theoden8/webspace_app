@@ -31,8 +31,6 @@ const RETIRED = {
     'TAB-012: site tabs graduated out of the Experimental group; there is no switch to restore',
   experimentalSiteIconsOnly:
     'ICON-014: site icons only graduated out of the Experimental group; there is no switch to restore',
-  experimentalProxyRouter:
-    'PROXY-013: the proxy router graduated out of the Experimental group; there is no switch to restore',
   html_cache_version:
     'the page snapshot cache it stamped is gone: HTML caching reads the engine\'s own cache, '
     + 'and retireSnapshotCache only asks whether a release left one behind, then removes it',

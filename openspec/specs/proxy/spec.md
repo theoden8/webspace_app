@@ -779,14 +779,17 @@ session every site would present the first site's credential. Where the
 gate fails, PROXY-008 applies unchanged. The gate is per device; whether a
 given site actually receives a profile is PROXY-018.
 
-Router mode SHALL be offered with developer mode on or off. It shipped
-behind developer mode and an Experimental **Proxy router** switch
-(DEVTOOLS-011) while the premise it rests on, read off Chromium's source
-and proven at runtime by the PROXY-015 probe, had been exercised on WebView
-builds that pass the probe only; the switch (`experimentalProxyRouter`,
-written by v0.3.3 to v0.4.0 and no longer read) went with the graduation.
-The `MULTI_PROFILE` gate is read once, at activation, so router mode is
-never torn out from under loaded sites.
+Router mode SHALL be offered with developer mode on or off, and SHALL run
+only while the **Proxy router** switch in App settings > Network is on. The
+switch is on by default and is listed only where router mode could run;
+off, mismatched-proxy sites serialise under PROXY-008. It shipped as an
+Experimental switch behind developer mode (DEVTOOLS-011) while the premise
+the router rests on, read off Chromium's source and proven at runtime by
+the PROXY-015 probe, had been exercised on WebView builds that pass the
+probe only. It keeps the pref it shipped under (`experimentalProxyRouter`),
+so a user who turned it off there keeps it off. The switch and the
+`MULTI_PROFILE` gate are read once, at activation, so router mode is never
+torn out from under loaded sites; a flip applies at next launch.
 
 A DEFAULT site SHALL reach its origin the way the WebView reaches it with
 no override (PROXY-001): through the proxy Android reports for that
@@ -816,7 +819,17 @@ a proxy configured later applies under PROXY-008 until the next launch.
 **When** the app starts
 **Then** the relay is bound and every site's container is probed (PROXY-015)
 **And** router mode activates once each probe is attributed
-**And** App settings' Experimental group has no Proxy router switch
+**And** the Proxy router switch is on the Network screen, on, and not in the
+Experimental group
+
+#### Scenario: The switch off keeps PROXY-008
+
+**Given** an Android device whose WebView reports `MULTI_PROFILE`
+**And** the user turned the Proxy router switch off, here or in the
+Experimental group of an earlier release
+**When** the app starts
+**Then** router mode does not activate
+**And** mismatched-proxy sites serialise under PROXY-008
 
 #### Scenario: No proxy anywhere binds no relay
 
