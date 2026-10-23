@@ -15,6 +15,7 @@ import java.net.ProxySelector
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketAddress
+import java.net.SocketException
 import java.net.URI
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -829,5 +830,56 @@ class ProxyRelayRouterTest {
             ProxySelector.setDefault(previous)
             relay.stop(); system.close(); origin.close()
         }
+    }
+
+    // --- The listener outlives a failed accept (PROXY-013) ---
+
+    @Test(timeout = 20_000)
+    fun aFailedAcceptDoesNotEndTheRelay() {
+        // Every site's traffic waits on this listener under the router. A
+        // device out of descriptors makes accept() fail for a moment; ending
+        // the loop on it left ProxyController pointing every site at a port
+        // nobody answered, for the rest of the run.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val failures = AtomicInteger(0)
+        val relay = ProxyRelay(
+            systemProxy = { Proxy.NO_PROXY },
+            acceptOne = { server ->
+                if (failures.incrementAndGet() <= 3) throw SocketException("Too many open files")
+                server.accept()
+            },
+        )
+        try {
+            val port = relay.startRouter("acce0001")
+            val cred = credential("ws-plain", "token-plain")
+            relay.setRoutes(mapOf(cred to directRoute("plain")))
+
+            assertTrue(
+                connectThrough(relay, port, cred, host = "127.0.0.1", dstPort = origin.localPort)
+                    .first.contains("200"),
+            )
+            assertTrue("the listener retried past every failure", failures.get() > 3)
+            assertTrue(relay.isRunning())
+        } finally {
+            relay.stop(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun stopEndsTheLoopEvenWhileAcceptsFail() {
+        // The retry is for a bound listener only: once stop() closes it the
+        // loop ends, rather than retrying a socket nobody will reopen.
+        val attempts = AtomicInteger(0)
+        val relay = ProxyRelay(acceptOne = {
+            attempts.incrementAndGet()
+            throw SocketException("Too many open files")
+        })
+        relay.startRouter("acce0002")
+        Thread.sleep(300)
+        relay.stop()
+        Thread.sleep(1_200)
+        val settled = attempts.get()
+        Thread.sleep(1_200)
+        assertEquals("no accept is tried after stop()", settled, attempts.get())
     }
 }

@@ -796,6 +796,11 @@ system names none. The relay's own credential SHALL NOT reach that proxy.
 A site with a proxy of its own reaches it directly, never through the
 system's.
 
+Every site's traffic waits on the relay's listener while router mode runs,
+so the listener SHALL outlive a failed accept: an accept that fails while
+it is bound (descriptors exhausted, say) is retried with a backoff, and the
+loop ends only when the relay is stopped.
+
 Router mode SHALL start only where some route resolves to a proxy: a
 site's own, the app-wide one a DEFAULT site inherits (PROXY-009), or Tor.
 With every route direct, the relay would carry every connection and the
@@ -849,6 +854,13 @@ forwards plain http to it in absolute form, without the relay's credential
 **And** a destination the system's bypass list names, or any destination
 where the network has no proxy, gets a direct connection
 **And** an onion host is refused before any proxy is asked (LEAK-016)
+
+#### Scenario: A failed accept does not end the relay
+
+**Given** router mode is active
+**When** the listener's accept fails while it is bound
+**Then** the relay retries it with a backoff and serves the next connection
+**And** only stopping the relay ends the loop
 
 #### Scenario: A deleted site's credential stops routing
 

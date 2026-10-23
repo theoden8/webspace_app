@@ -42,8 +42,10 @@ import javax.net.ssl.SSLSocketFactory
  *
  * In router mode it additionally fronts every site at once, selecting the
  * upstream from the `Proxy-Authorization` credential the WebView presents
- * (see [startRouter]). A site on the system default then reaches its
- * origin through the system's proxy (see [throughSystemProxy]).
+ * (see [startRouter]). Every site's traffic then waits on this listener, so
+ * it outlives a failed accept (see [acceptLoop]), and a site on the system
+ * default reaches its origin through the system's proxy (see
+ * [throughSystemProxy]).
  *
  * The listener is bound to loopback, which keeps it off the network but not
  * away from the device: every other app with `INTERNET` can reach
@@ -91,6 +93,8 @@ class ProxyRelay(
      * with the network; a test passes its own.
      */
     private val systemProxy: (URI) -> Proxy = { uri -> systemProxyOf(uri) },
+    /** One accept on the listener; a test passes one that fails. */
+    private val acceptOne: (ServerSocket) -> Socket = { it.accept() },
 ) {
 
     /** Whether an accepted peer is one of this process's own sockets. */
@@ -342,18 +346,26 @@ class ProxyRelay(
         return reached.get()
     }
 
+    /**
+     * Serve [socket] until [stop] closes it, and only then. An accept that
+     * fails while the listener is bound (descriptors exhausted, say) is the
+     * device's trouble for a moment; ending the loop on it would leave
+     * `ProxyController` pointing every site at a port nobody answers, for
+     * the rest of the run. So it retries, backing off.
+     */
     private fun acceptLoop(socket: ServerSocket) {
+        var backoffMs = ACCEPT_RETRY_MIN_MS
         while (!socket.isClosed) {
             val client = try {
-                socket.accept()
-            } catch (e: Exception) {
-                // socket.close() from stop() throws SocketException here
-                // and we exit cleanly. Any other exception is worth seeing.
-                if (!socket.isClosed) {
-                    log("accept loop ended with ${e.javaClass.simpleName}: ${e.message}")
-                }
-                break
+                acceptOne(socket)
+            } catch (e: IOException) {
+                if (socket.isClosed) break
+                log("accept failed (${e.javaClass.simpleName}: ${e.message}); retrying in ${backoffMs}ms")
+                Thread.sleep(backoffMs)
+                backoffMs = minOf(backoffMs * 2, ACCEPT_RETRY_MAX_MS)
+                continue
             }
+            backoffMs = ACCEPT_RETRY_MIN_MS
             if (config == null && routerRealm == null) {
                 runCatching { client.close() }
                 continue
@@ -962,6 +974,8 @@ class ProxyRelay(
             ProxySelector.getDefault()?.select(uri)?.firstOrNull() ?: Proxy.NO_PROXY
 
         private const val UNNAMED_HOST = "unnamed.invalid"
+        private const val ACCEPT_RETRY_MIN_MS = 10L
+        private const val ACCEPT_RETRY_MAX_MS = 1_000L
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
 
