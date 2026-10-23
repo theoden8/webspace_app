@@ -1160,6 +1160,10 @@ nonce comes back attributed to that same site; a mismatched pair, a
 missing pair, or a probe that fails to run SHALL each prevent activation
 and fall back to PROXY-008.
 
+Containers are probed a few at a time, neither all at once nor one after
+another: a launch with many sites waits about one probe rather than one per
+site, and does not build a headless view for every site at the same moment.
+
 This exists because the failure it detects is otherwise invisible.
 Chromium caches a proxy credential per `HttpNetworkSession` and does not
 partition proxy entries by `NetworkAnonymizationKey`, so on a device
