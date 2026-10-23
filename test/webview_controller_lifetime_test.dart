@@ -20,6 +20,8 @@ import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/popup_webview.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/web_intercept_native.dart';
@@ -1188,6 +1190,10 @@ void main() {
   group('a popup goes with the webview that opened it (PROXY-008)', () {
     const captcha = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
 
+    // Where each store binds its own proxy (an Apple host), no rule moves and
+    // nothing is told to stop loading; the popup still closes (PROXY-027).
+    bool processWide() => ProxyManager.binding == ProxyBinding.processWide;
+
     /// The site's webview with its popup up, and how often the popup closed.
     Future<({WebViewController opener, List<String> log, int Function() closed})>
         openPopup(WidgetTester tester) async {
@@ -1272,7 +1278,11 @@ void main() {
       final (:opener, :log, :closed) = await openPopup(tester);
       await tester.runAsync(opener.blockNetworkLoads);
       await tester.pump();
-      expect(log, ['popup blockNetworkLoads=true', 'site blockNetworkLoads=true']);
+      expect(
+          log,
+          processWide()
+              ? ['popup blockNetworkLoads=true', 'site blockNetworkLoads=true']
+              : isEmpty);
       expect(closed(), 1);
       expect(find.byType(inapp.InAppWebView), findsOneWidget);
     });
@@ -1289,7 +1299,7 @@ void main() {
       await tester.pump();
       expect(closed(), 1);
       await tester.runAsync(opener.blockNetworkLoads);
-      expect(log, ['site blockNetworkLoads=true']);
+      expect(log, processWide() ? ['site blockNetworkLoads=true'] : isEmpty);
       expect(closed(), 1);
     });
   });

@@ -1,6 +1,8 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/headless_site_check.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 
 /// What the check's webview was asked, in order.
 final List<String> _asked = [];
@@ -44,14 +46,19 @@ void main() {
         settings: inapp.InAppWebViewSettings(javaScriptEnabled: false),
       );
       await check.dispose();
-      expect(_asked, [
+      // Where each store binds its own proxy (an Apple host), no rule moves
+      // under the check and nothing is quieted (PROXY-027).
+      final processWide = ProxyManager.binding == ProxyBinding.processWide;
+      final asked = [
         // The settings it runs with: a setSettings resets what it leaves out
         // (BUG-022).
-        'setSettings blockNetworkLoads=true javaScriptEnabled=false',
+        if (processWide)
+          'setSettings blockNetworkLoads=true javaScriptEnabled=false',
         'dispose',
-      ]);
+      ];
+      expect(_asked, asked);
       await check.dispose();
-      expect(_asked, hasLength(2), reason: 'a check ends once');
+      expect(_asked, asked, reason: 'a check ends once');
     },
   );
 }

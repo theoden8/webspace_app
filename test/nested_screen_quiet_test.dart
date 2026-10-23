@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
 import 'package:webspace/services/process_route.dart';
-import 'package:webspace/services/webview_proxy.dart' show PlatformInfo;
+import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/webview_proxy.dart'
+    show PlatformInfo, ProxyManager;
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -54,10 +56,13 @@ void main() {
     await settleRealApp(tester);
     expect(find.byType(InAppWebViewScreen), findsOneWidget);
     await attachWebViews(tester);
+    // Where each store binds its own proxy (an Apple host), nothing runs on a
+    // shared rule and nothing is quieted (PROXY-027).
+    final processWide = ProxyManager.binding == ProxyBinding.processWide;
     final nested = (use: RouteUse.nested, site: appSite('One').siteId);
     expect(
       ProcessRoute.instance.occupants.keys,
-      contains(nested),
+      processWide ? contains(nested) : isEmpty,
       reason: 'the screen runs on its site\'s route',
     );
 
@@ -71,14 +76,16 @@ void main() {
     ];
     expect(
       quiet,
-      isNotEmpty,
+      processWide ? isNotEmpty : isEmpty,
       reason: 'the screen\'s webview was not told to load nothing more',
     );
-    expect(
-      quiet.first.onRule,
-      contains(nested),
-      reason: 'it was told only after its site had left the rule',
-    );
+    if (processWide) {
+      expect(
+        quiet.first.onRule,
+        contains(nested),
+        reason: 'it was told only after its site had left the rule',
+      );
+    }
     expect(ProcessRoute.instance.occupants.keys, isNot(contains(nested)));
   });
 }
