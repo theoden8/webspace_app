@@ -9,6 +9,7 @@ ComposedAction _act(
   Set<ModelVar> reads = const {},
   Set<ModelVar> writes = const {},
   required Map<FlowKind?, Set<Need>> ways,
+  Map<ModelVar, Set<Need>> armed = const {},
 }) => (
   name: name,
   reads: reads,
@@ -17,6 +18,7 @@ ComposedAction _act(
   kinds: const {},
   fields: const {},
   ways: ways,
+  armed: armed,
 );
 
 const WorldSpec _plain = (
@@ -98,6 +100,31 @@ void main() {
     );
     final printed = _print([jar, boxed], written: [_plain]);
     expect(printed.apart, contains(('ContReply', 'Login')));
+  });
+
+  test('a write only some arms make meets where those arms are taken', () {
+    final flip = _act(
+      'RerouteFlip',
+      writes: {ModelVar.loaded},
+      ways: {
+        FlowKind.tab: {(of: ModelConst.tabbed, set: true)},
+      },
+      armed: {
+        ModelVar.loaded: {(of: ModelConst.globalProxy, set: true)},
+      },
+    );
+    final gone = _act(
+      'ViewGone',
+      reads: {ModelVar.loaded},
+      ways: {
+        null: {(of: ModelConst.dnsLevels, set: true)},
+      },
+    );
+    final world = _print([flip, gone], written: [_plain]).worlds.singleWhere(
+      (w) => w.pairs.contains(('RerouteFlip', 'ViewGone')),
+    );
+    expect(world.spec.env, containsAll({Env.globalProxy, Env.dnsTwo}),
+        reason: 'only the arm under one process-wide proxy unloads');
   });
 
   test('a tabbed site on a routed slot is printed a world (LIR-024)', () {

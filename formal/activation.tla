@@ -139,8 +139,13 @@ Init ==
     /\ built = [s \in Sites |-> IF s \in Tabbed /\ s \in loaded THEN 1 ELSE 0]
     /\ hist = built
     /\ queued = [s \in Sites |-> NoQueued]
-    /\ file = [s \in Sites |-> [t \in TabIds |-> 0]]
+    /\ file = [s \in Sites |-> [t \in TabIds |-> [h \in Sites |-> 0]]]
     /\ minted = [s \in Sites |-> IF s \in Tabbed THEN 2 ELSE 1]
+    /\ host = [s \in Sites |-> [t \in TabIds |-> s]]
+    \* A link tab a world starts with runs as its opener, routing off.
+    /\ link = [s \in Sites |-> [t \in TabIds |->
+                IF \E l \in Links : l.s = s /\ l.t = t
+                THEN (CHOOSE l \in Links : l.s = s /\ l.t = t).h ELSE 0]]
     /\ dns = [lvl |-> 0, levels |-> {}]
     /\ told = [s \in Sites |-> -1]
     /\ gone = {}
@@ -335,16 +340,18 @@ Inv_LoadedNotSaved == Idle => \A s \in loaded : tier[s] # "saved"
 \* active tab's whenever one is built (list, pointer and webview move in
 \* one turn), and at rest a loaded site shows its active tab.
 Inv_TabShown == \A s \in Tabbed : built[s] # 0 => hist[s] = built[s]
-\* PROXY-008: running sites in one proxy scope run one route, and running
-\* Tor sites one exit, so no site's traffic leaves through another's proxy:
-\* the loaded ones, the one a nested screen runs as and the ones a wake
-\* checks headless.
-\* Stated from the rules, not from RouteFree, which the preload's guard
-\* reads: a mistake in the guard is one this catches.
+\* PROXY-008: running webviews in one proxy scope run one route, and running
+\* Tor webviews one exit, so no site's traffic leaves through another's
+\* proxy. Each runs as a site: a loaded slot and a wake's headless check as
+\* the site their slot runs as (LIR-024), a nested screen as its own.
+\* Stated from the constants, not from RouteFree or ProxyContenders, which
+\* the guards and plans read: a mistake in either is one this catches.
+RunningAs ==
+    {RunsAs(s) : s \in loaded \cup headless} \cup (IF nested = 0 THEN {} ELSE {nested})
 Inv_OneRoute ==
-    \A s \in Running :
-        /\ ProxyContenders(s) = {}
-        /\ TorRuntime => TorDissenters(s) = {}
+    \A a, b \in RunningAs :
+        /\ a \in Contending /\ b \in Contending => Route[a] = Route[b]
+        /\ TorRuntime /\ TorExit[a] # 0 /\ TorExit[b] # 0 => TorExit[a] = TorExit[b]
 
 \* NOTIF-016: the app back on screen ends every check a wake runs, so the
 \* site the user opens next never moves the rule under one still loading.
@@ -357,9 +364,14 @@ Inv_ChecksOffScreen == fore => headless = {}
 Inv_Told == \A s \in Sites : told[s] \in {-1, Eff(s)}
 
 \* The proxy configs' environment: every site in the one process-global
-\* scope, sites 1 and 2 on one route and site 3 on another.
+\* scope, which one rule covers, sites 1 and 2 on one route and site 3 on
+\* another.
 ProxyGlobal == Sites
+GlobalOn == TRUE
 RouteSplit == <<1, 1, 2>>
+\* The reroute config's: site 1's second tab a link into site 3's domain,
+\* which runs as site 3 while site 1 routes its links (LIR-034).
+LinkOne == {[s |-> 1, t |-> 2, h |-> 3]}
 \* The router's: sites 1 and 3 share its default session, and an
 \* activation of either repoints that shared route first (LIR-024).
 RouterShared == {1, 3}
@@ -407,7 +419,8 @@ ResetOne == {3}
 \* The incognito config's: site 3, loaded and signed in at the start.
 IncognitoOne == {3}
 
-Inv_TabFiles == \A s \in Tabbed : \A t \in TabIds : file[s][t] \in {0, t}
+Inv_TabFiles ==
+    \A s \in Tabbed : \A t \in TabIds : \A h \in Sites : file[s][t][h] \in {0, t}
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
 Inv_TabActive == Idle => \A s \in Tabbed :
     /\ active[s] \in tabs[s]
@@ -462,19 +475,23 @@ Reach_CaptureRefused == ~(last.a = "UnloadKept")
 Reach_NestedRefused == ~(last.a = "NestedApplyReply" /\ last.o = "bail")
 Reach_Offline == "offline" \notin seen
 Reach_WakeSkips == ~(last.a = "WakeAsk" /\ last.o = "skip" /\ fore = FALSE)
-\* A rebind that reroutes the slot starts the activation that opens it again
-\* in the same turn, on the flow numbered last: the routed tabs config is not
-\* vacuous (LIR-024).
+\* A rebind or a reroute that moves the slot to another site starts the
+\* activation that opens it again in the same turn, on the flow numbered
+\* last: the reroute config is not vacuous (LIR-024).
 Reach_Reopened ==
     ~(/\ last.a = "TabRebind" /\ last.o = "unload"
       /\ \E g \in Flows : g = inputs /\ fl[g].kind = "tap" /\ fl[g].site = last.s
                           /\ fl[g].v = version)
+Reach_Rerouted ==
+    ~(/\ last.a = "RerouteFlip" /\ last.o = "unload"
+      /\ \E g \in Flows : g = inputs /\ fl[g].kind = "tap" /\ fl[g].site = last.s
+                          /\ fl[g].v = version)
 Reach_RouteSwitch ==
     ~\E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc = "next"
-                       /\ ProxyContenders(fl[f].site) # {}
+                       /\ ProxyContenders(fl[f].site, RunsAs(fl[f].site)) # {}
 \* A tap whose plan names a Tor site on another exit reaches its unloads:
 \* the Tor config is not vacuous.
 Reach_ExitSwitch ==
     ~\E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc = "next"
-                       /\ TorDissenters(fl[f].site) # {}
+                       /\ TorDissenters(fl[f].site, RunsAs(fl[f].site)) # {}
 =============================================================================

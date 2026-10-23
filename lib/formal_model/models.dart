@@ -54,6 +54,7 @@ typedef Tables = ({
 Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.evictable => RuntimeVars.evictable<Object>(),
   ModelDef.running => RuntimeVars.runningSites<Object>(),
+  ModelDef.runsAs => TabVars.runsAs<Object?>(),
   ModelDef.midActivation => ActivationTable.midActivation,
   ModelDef.pressureResident => ActivationTable.pressureResident,
   ModelDef.pressureCleared => ActivationTable.pressureCleared,
@@ -386,6 +387,7 @@ List<ComposedAction> composedActions(Tables t) => [
       kinds: const {},
       fields: const {},
       ways: {null: e.needs},
+      armed: const {},
     ),
 ];
 
@@ -426,6 +428,14 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
                         in (flows[f.place] ?? const {}).entries)
                       k: {...n, ...f.needs},
                   },
+            armed: {
+              for (final v in f.writes)
+                if ([
+                  for (final a in f.arms)
+                    if (a.writes.contains(v)) a.needs,
+                ] case final by when by.length < f.arms.length)
+                  v: by.reduce((x, y) => x.intersection(y)),
+            },
           ),
         ),
   ];
@@ -1215,19 +1225,21 @@ Def<bool, Object?> _routeFreeAlways() {
 
 /// `Capture` keying the bytes it read by the webview's tab at the save,
 /// after a rebind may have moved it (BUG-036 attempt 1).
-Def<Map<WebViewModel, Map<TabId, TabId?>>, Object?> _captureAtReply() {
+Def<Map<WebViewModel, Map<TabId, Map<WebViewModel, TabId?>>>, Object?>
+_captureAtReply() {
   final s = Bound<WebViewModel, Object?>('s');
   final t = Bound<TabId?, Object?>('t');
   final h = Bound<TabId?, Object?>('h');
+  final a = Bound<WebViewModel, Object?>('a');
   final built = TabVars.built<Object?>().at(s.it);
   final builtTab = built.unwrapped;
   final file = TabVars.file<Object?>().value;
   return Def(
     ModelDef.capture,
-    params: [s, t, h],
+    params: [s, t, h, a],
     body: Expr.choose(
       when: built.neq(noTab()),
-      then: file.exceptAt(s.it, at: builtTab, to: h.it),
+      then: file.exceptAt(s.it, at: builtTab, by: a.it, to: h.it),
       otherwise: file,
     ),
   );
@@ -1371,6 +1383,21 @@ Tables mutated(Mutant m) => switch (m) {
               ],
               next: b.next,
             ),
+        ],
+      ),
+    ),
+  ),
+  // A reroute that moves a loaded slot to another site keeps it loaded
+  // under one process-wide proxy, as it may off one: its webview is built
+  // again on the new route beside the sites it contends with (LIR-024).
+  Mutant.rerouteinplace => _with(
+    tabFlow: _withArms(
+      tables.tabFlow,
+      step: ActivationStep.rerouteFlip,
+      arms: (s) => s.withArms(
+        branches: [
+          for (final b in s.branches)
+            if (b.outcome != StepOutcome.unload) b,
         ],
       ),
     ),

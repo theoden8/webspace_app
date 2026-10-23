@@ -656,6 +656,7 @@ void main() {
       ProxyTopology? topology,
     }) => SiteUnloadEngine.indicesToUnloadForProxyMismatch(
       targetIndex: target,
+      sites: models,
       models: models,
       loadedIndices: loaded ?? {for (var i = 0; i < models.length; i++) i},
       topology: topology ?? _processGlobal,
@@ -945,6 +946,7 @@ void main() {
       required Set<int> loaded,
     }) => SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
       targetIndex: target,
+      sites: models,
       models: models,
       loadedIndices: loaded,
     );

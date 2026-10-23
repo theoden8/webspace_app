@@ -15,7 +15,9 @@
 /// native object.
 library;
 
+import 'dart:collection';
 import 'dart:math';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/utils/epoch_millis.dart';
 
@@ -63,18 +65,32 @@ const TabId kPrimaryTabId = TabId._('main');
 String webViewStateKey(SiteId siteId, {required TabId tabId}) =>
     '$siteId.$tabId';
 
+/// The site each tab of [site] runs as, the model's `host[s]`, read for any
+/// tab as the model reads `host[s][t]`: [site] itself for a tab the list
+/// does not hold.
+final class TabHosts<S> extends MapView<TabId, S> {
+  TabHosts(super.map, {required this.site});
+
+  final S site;
+
+  @override
+  S operator [](Object? key) => super[key] ?? site;
+}
+
 class SiteTab {
   SiteTab({
     TabId? id,
     required this.url,
     this.title,
     this.parentId,
-    this.hostSiteId,
-    this.openerSiteId,
+    SiteId? hostSiteId,
+    SiteId? openerSiteId,
     this.homeUrl,
     DateTime? createdAt,
     DateTime? lastActiveAt,
-  })  : id = id ?? TabId.mint(),
+  })  : _hostSiteId = hostSiteId,
+        _openerSiteId = openerSiteId,
+        id = id ?? TabId.mint(),
         createdAt = createdAt ?? DateTime.now(),
         lastActiveAt = lastActiveAt ?? createdAt ?? DateTime.now();
 
@@ -93,19 +109,41 @@ class SiteTab {
   /// The site this tab runs as when it is not its owner (LIR-018): its
   /// container, posture and navigation rules. Null means the owner. The owner
   /// normalises its own id to null, so a value always names another site.
-  SiteId? hostSiteId;
+  /// The model's `host`, written only through [hostCell].
+  SiteId? get hostSiteId => _hostSiteId;
+  SiteId? _hostSiteId;
+
+  /// A host naming [owner] is none: the owner normalises its own id to null
+  /// as it is built, before any runtime holds it.
+  void ownedBy(SiteId owner) {
+    if (_hostSiteId == owner) _hostSiteId = null;
+  }
+
+  static final hostCell = SharedAt<SiteTab, SiteId?>(
+    ModelVar.host,
+    read: (t) => t._hostSiteId,
+    write: (t, {required to}) => t._hostSiteId = to,
+  );
 
   /// The site whose page opened this tab from a link into one of the user's
   /// sites (LIR-034), or null for a tab nothing routes: one the user opened
   /// by hand, a search's results, a link inside the page's own domain. Its
   /// routing switch decides the container: on, the tab runs as the site the
-  /// link leads to; off, as the opener. May name the owner.
-  SiteId? openerSiteId;
+  /// link leads to; off, as the opener. May name the owner. With [homeUrl],
+  /// the model's `link`, written only through [openerCell].
+  SiteId? get openerSiteId => _openerSiteId;
+  SiteId? _openerSiteId;
+
+  static final openerCell = SharedAt<SiteTab, SiteId?>(
+    ModelVar.link,
+    read: (t) => t._openerSiteId,
+    write: (t, {required to}) => t._openerSiteId = to,
+  );
 
   /// The link such a tab was opened at. The tab navigates inside this URL's
   /// domain whatever it runs as, which is what lets a flip of the opener's
   /// switch move it between containers without moving it between domains.
-  String? homeUrl;
+  final String? homeUrl;
 
   /// Whether the opener's routing switch decides this tab's container.
   bool get followsOpener => openerSiteId != null && homeUrl != null;

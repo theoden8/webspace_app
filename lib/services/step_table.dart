@@ -775,8 +775,10 @@ enum Unmodeled {
   /// A tab and its subtree dragged to another place in its tree (TAB-015).
   tabMove,
 
-  /// A tab's slot that runs as another site lets go of its webview
-  /// (LIR-024's reroute, `steps_uncovered.tsv`).
+  /// Link tabs that run as another site, and the slots that let go of
+  /// their webview for it, where the flips are not one site's own link
+  /// tabs, which the reroute step takes (LIR-024, LIR-034): several sites'
+  /// at once, as an import may, or a tab another site opened.
   identityChange,
 
   /// A revoked certificate's trust unloads the sites pinned to it (ISO-002).

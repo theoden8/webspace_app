@@ -62,8 +62,15 @@ abstract final class ActivationTable {
   /// The target's saved back stack queued for its active tab, and the
   /// frame after a commit building its webview (TAB-003).
   static final _queuedWrite = TabVars.queued<ActivationFlow>().becomes(
-    TabVars.staged<ActivationFlow>().call([_site.value]),
+    TabVars.staged<ActivationFlow>().call([_site.value, _navAs.value]),
   );
+
+  /// The site whose key the nav read names: the one the target's slot runs
+  /// as when the read is issued.
+  static const _navAs = Field<WebViewModel, ActivationFlow>(FlowField.navAs);
+  static final _readsAs = [
+    _navAs.becomes(TabVars.slotHost<ActivationFlow>(_site.value)),
+  ];
   static final _queued = Act.of([_queuedWrite], then: _queueNav);
 
   /// The code's half of [_queuedWrite]: the back stack the nav read,
@@ -543,7 +550,7 @@ abstract final class ActivationTable {
     );
   }
   static final _screenVictims = Expr.checked(
-    rule: _proxyContenders(_site.value).union(_torDissenters(_site.value)),
+    rule: _screenContenders(_site.value).union(_torDissenters(_site.value)),
     run: (c) => {for (final u in _nestedPlan(c).unloads) u.site},
     key: (s) => s,
     why: 'a nested open unloads what its printed rules name',
@@ -564,13 +571,33 @@ abstract final class ActivationTable {
   );
 
   /// The loaded sites [s]'s activation would repoint the proxy of
-  /// (PROXY-008), as the unload engine's `ProxyContenders` names them.
+  /// (PROXY-008), as the unload engine's `ProxyContenders` names them: [s]
+  /// as the site its slot runs as (LIR-024).
   static Expr<List<WebViewModel>, ActivationFlow> _proxyContenders(
     Expr<WebViewModel, ActivationFlow> s,
   ) => ModelDef.proxyContenders.over(
-    [s],
-    run: (c) => ActivationFlow.page.from(c).proxyContenders(s.run(c)),
+    [s, _runsAs(s)],
+    run: (c) => ActivationFlow.page.from(c).proxyContenders(
+      s.run(c),
+      asItself: false,
+    ),
   );
+
+  /// [_proxyContenders] for a nested screen, which runs as [s] itself
+  /// whatever its slot shows (`NestedOpening`).
+  static Expr<List<WebViewModel>, ActivationFlow> _screenContenders(
+    Expr<WebViewModel, ActivationFlow> s,
+  ) => ModelDef.proxyContenders.over(
+    [s, s],
+    run: (c) => ActivationFlow.page.from(c).proxyContenders(
+      s.run(c),
+      asItself: true,
+    ),
+  );
+
+  static Expr<WebViewModel, ActivationFlow> _runsAs(
+    Expr<WebViewModel, ActivationFlow> s,
+  ) => TabVars.runsAs<ActivationFlow>().call([s]);
 
   /// The loaded sites whose Tor exit [s]'s activation would repoint, when
   /// a Tor runtime exists (`TorDissenters`).
@@ -579,7 +606,7 @@ abstract final class ActivationTable {
   ) => Expr.choose(
     when: _torRuntime,
     then: ModelDef.torDissenters.over(
-      [s],
+      [s, _runsAs(s)],
       run: (c) => ActivationFlow.page.from(c).torDissenters(s.run(c)),
     ),
     otherwise: Expr.none(),
@@ -867,6 +894,7 @@ abstract final class ActivationTable {
         of: (
           site: _site.value,
           built: (s) => s.tabBinding.built,
+          hosts: (s) => s.tabHosts,
           begin: (c) => ActivationFlow.page.from(c).beginNavCapture(_site.of(c)),
           marks: null,
           keeps: null,
@@ -1055,6 +1083,7 @@ abstract final class ActivationTable {
             );
           },
           writes: const [],
+          reads: _readsAs,
         ),
         branches: [
           Branch(
@@ -1302,6 +1331,7 @@ abstract final class ActivationTable {
           },
           writes: [_queuedWrite],
           then: _queueNav,
+          reads: _readsAs,
         ),
         branches: [
           Branch(

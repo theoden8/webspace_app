@@ -37,6 +37,14 @@ Base == <<1, 1, 2>>
 \* Sites on a shared proxy route the activation repoints (LIR-024); the
 \* page routes none.
 Routed == {}
+\* Whether one process-wide proxy rule covers every webview (PROXY-008),
+\* so a slot that runs as another site leaves the loaded sites (LIR-024);
+\* the pages bind a proxy per session.
+GlobalProxy == FALSE
+\* The link tabs a world starts with, each [s |-> owner, t |-> tab, h |->
+\* the site it runs as while its owner routes links] (LIR-034); the pages
+\* have none.
+Links == {}
 \* How the host scopes a proxy (PROXY-008): the sites in Contending share
 \* one process-global rule, so a loaded one must run the Route of every
 \* other; the pages bind a proxy per session, which leaves it empty.
@@ -100,7 +108,7 @@ site == << rows, loaded, current, version, marker, tier, nested, headless, fore 
 sessions == << jar, stored, signedIn >>
 turn == << holder, queue >>
 ghosts == << newest, evictedShown, seen >>
-tabVars == << tabs, active, built, hist, queued, file, minted >>
+tabVars == << tabs, active, built, hist, queued, file, minted, host, link >>
 blocking == << dns, told >>
 archived == << gone, views, boxes >>
 vars == << site, sessions, turn, fl, inputs, ghosts, last, tabVars, blocking,

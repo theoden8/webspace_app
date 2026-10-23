@@ -22,13 +22,15 @@ abstract interface class Capturing {
 }
 
 /// What a capture needs of its flow: the [site], how its webview's tab is
-/// read ([built]), how the capture [begin]s, what the steps mark ([marks],
-/// the site unless the flow marks nothing), and, for a flow that keeps the
-/// back stack it reads only sometimes, when it does ([keeps]): [begin]
-/// reads it and begins no capture where it does not hold.
+/// read ([built]) and the site each of its tabs runs as ([hosts]), how the
+/// capture [begin]s, what the steps mark ([marks], the site unless the
+/// flow marks nothing), and, for a flow that keeps the back stack it reads
+/// only sometimes, when it does ([keeps]): [begin] reads it and begins no
+/// capture where it does not hold.
 typedef CaptureOf<S, W> = ({
   Expr<S, W> site,
   TabId? Function(S site) built,
+  Map<TabId, S> Function(S site) hosts,
   NavCapture? Function(StepView<W> c) begin,
   Expr<Object?, W>? marks,
   Expr<bool, W>? keeps,
@@ -57,6 +59,7 @@ captureSteps<S, W extends Capturing, P extends Enum>({
 }) {
   final tab = capTab<W>();
   final bytes = capHist<W>();
+  final keyedAs = capAs<S, W>();
   // The capture in flight, code-only state of the flow, whose save writes
   // the tab's file.
   final inFlight = Port<Capturing, W>(
@@ -66,13 +69,17 @@ captureSteps<S, W extends Capturing, P extends Enum>({
     of: (w) => w,
   );
   final noBytes = Expr.constant<Uint8List?, W>(null, tla: '0');
-  // The key names the tab's container too; no flip is modelled, so in the
-  // model the tab's listing alone decides.
+  // The tab is still listed, and still runs as the site whose key the
+  // capture began under: a reroute between them moved it to another key.
   final holds = Expr.handPaired<bool, W>(
     HandPaired.captureHolds,
-    tla: '${tab.value.tla} \\in tabs[${of.site.tla}]',
+    tla: '${tab.value.tla} \\in tabs[${of.site.tla}] /\\ '
+        'host[${of.site.tla}][${tab.value.tla}] = ${keyedAs.value.tla}',
     run: (c) => inFlight.from(c).capture?.stillHolds() ?? false,
-    reads: tab.value.reads + of.site.reads + const Reads(vars: {ModelVar.tabs}),
+    reads: tab.value.reads +
+        of.site.reads +
+        keyedAs.value.reads +
+        const Reads(vars: {ModelVar.tabs, ModelVar.host}),
   );
   // A site whose tab keeps no back stack gives the capture nothing to
   // read, whether or not the model follows its tabs, and neither does a
@@ -96,7 +103,7 @@ captureSteps<S, W extends Capturing, P extends Enum>({
           return capture?.read();
         },
         reply: bytes.value,
-        reads: captureStart<S, W>(of.site, built: of.built),
+        reads: captureStart<S, W>(of.site, built: of.built, hosts: of.hosts),
       ),
       site: of.marks,
       branches: [

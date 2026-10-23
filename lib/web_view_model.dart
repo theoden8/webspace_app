@@ -135,6 +135,10 @@ class WebViewModel implements MediaGrantRecord {
   /// the tab records — stays this site's.
   WebViewModel get runningIdentity => hostOf(activeTab) ?? this;
 
+  /// The site each tab runs as, the model's `host[s]`.
+  Map<TabId, WebViewModel> get tabHosts =>
+      TabHosts({for (final t in tabs) t.id: hostOf(t) ?? this}, site: this);
+
   bool get runsHostedTab => activeTab.hostSiteId != null;
 
   /// The active tab names a host that is not there. The tab must close rather
@@ -948,7 +952,7 @@ class WebViewModel implements MediaGrantRecord {
     _tabs = seeded.tabs;
     _activeTabId = seeded.activeTabId;
     for (final t in _tabs) {
-      if (t.hostSiteId == this.siteId) t.hostSiteId = null;
+      t.ownedBy(this.siteId);
     }
   }
 

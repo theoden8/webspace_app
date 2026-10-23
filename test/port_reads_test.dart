@@ -527,17 +527,19 @@ List<String> _dartFiles(String root) => [
 const _owed = <String, Set<String>>{
   // The tab table's calls back into the controller read the site's tabs,
   // its active tab, the site on screen and, as a tab activates its site,
-  // the loaded sites, in the step's turn. Lifted when the tab table reads
+  // the loaded sites, in the step's turn; a reroute's flips read the site
+  // each tab runs as as they rewrite it. Lifted when the tab table reads
   // them through its leaves.
   'lib/controllers/tabs_controller.dart page': {
     'tabs',
     'active',
+    'host',
     'current',
     'loaded',
   },
   // The activation's calls read the live target (marker, version), the
   // site on screen, and the loaded sites' slot identities off their active
-  // tabs as the Tor pin syncs. Lifted the same way.
+  // tabs' hosts as the Tor pin syncs. Lifted the same way.
   'lib/controllers/activation_flow.dart page': {
     'marker',
     'version',
@@ -545,15 +547,19 @@ const _owed = <String, Set<String>>{
     'loaded',
     'active',
     'tabs',
+    'host',
   },
   // A stage lands and follows through the funnel (SiteRuntime.apply, the
   // archive's record of a closed site, the link tabs' reconcile), which
   // reads the screen, the version, the loaded sites and their tabs in the
-  // stage's turn. Lifted when those steps of the funnel are table steps
+  // stage's turn, each tab's host and opener among them as the record
+  // writes the tabs. Lifted when those steps of the funnel are table steps
   // that read through leaves.
   'lib/controllers/archive_controller.dart drop': {
     'active',
     'tabs',
+    'host',
+    'link',
     'current',
     'version',
     'loaded',
@@ -561,20 +567,34 @@ const _owed = <String, Set<String>>{
   'lib/controllers/site_deletion.dart drop': {
     'active',
     'tabs',
+    'host',
+    'link',
     'current',
     'version',
     'loaded',
   },
-  'lib/controllers/archive_controller.dart frame': {'active', 'tabs', 'loaded'},
-  'lib/controllers/site_deletion.dart frame': {'active', 'tabs', 'loaded'},
+  'lib/controllers/archive_controller.dart frame': {
+    'active',
+    'tabs',
+    'host',
+    'link',
+    'loaded',
+  },
+  'lib/controllers/site_deletion.dart frame': {
+    'active',
+    'tabs',
+    'host',
+    'link',
+    'loaded',
+  },
   // The delete's retire reads whether the site is loaded and takes the
   // jar's turn for its cookie cleanup, reading the turn's holder.
   'lib/controllers/site_deletion.dart retire': {'holder', 'loaded'},
   // The residency plan's capture begins on the outgoing tab, read off the
-  // site's tabs, and its unload notes the background sites' counts over
-  // the loaded ones. Lifted by recording both as the steps' start
-  // (Call.reads).
-  'lib/services/site_unload_engine.dart plan': {'tabs', 'loaded'},
+  // site's tabs and keyed by the site it runs as, and its unload notes the
+  // background sites' counts over the loaded ones. Lifted by recording
+  // them as the steps' start (Call.reads).
+  'lib/services/site_unload_engine.dart plan': {'tabs', 'host', 'loaded'},
   // A snapshot asks the platform for the cookies of each site's current
   // URL, read off its active tab as the call is issued. Lifted by a
   // Call.reads field the model's snapshot reads.

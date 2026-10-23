@@ -25,10 +25,11 @@ lake env lean "$printed"
 echo "  OK   every invariant is checked in a world that takes its whole cone"
 
 # Planted: worlds that allow no input take no invariant's cone, so the
-# decision must fail.
+# decision must fail. Every world is planted, those that list their inputs
+# too: a printed world that lists every input it has takes whole cones.
 planted="$(dirname "$printed")/planted/Footprints.lean"
 mkdir -p "$(dirname "$planted")"
-sed -E 's/^(  \| \.[A-Za-z0-9_]+ => )none$/\1some []/' "$printed" > "$planted"
+sed -E 's/^(  \| \.[A-Za-z0-9_]+ => )(none|some \[[^]]*\])$/\1some []/' "$printed" > "$planted"
 if out="$(lake env lean "$planted" 2>&1)"; then
   echo "FAIL: the cone decision passed worlds that allow no input" >&2
   exit 1

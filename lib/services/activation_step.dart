@@ -449,7 +449,25 @@ enum ActivationStep {
 
   /// The copy joins the list, or is dropped with its source gone.
   dupInsert(outcomes: {StepOutcome.go, StepOutcome.gone}),
-  dupRemoveReply(calls: {PlatformCall.navStateRemove});
+  dupRemoveReply(calls: {PlatformCall.navStateRemove}),
+
+  /// A site's routing switch flipped as its settings closed (LIR-034): the
+  /// link tabs it opened in its own tree are to run as the site their link
+  /// leads to, or as it again.
+  reroute(outcomes: {StepOutcome.go, StepOutcome.busy}),
+
+  /// The reroute's flips, in its input's turn. The tab on screen moves its
+  /// slot to the other site at once: under one process-wide proxy the slot
+  /// leaves the loaded sites and opens again (LIR-024), else its webview is
+  /// built again.
+  rerouteFlip(outcomes: {StepOutcome.none, StepOutcome.unload, StepOutcome.rebind}),
+
+  /// A flipped tab's saved back stack, the transcript of the site it left,
+  /// removed; the last removal ends the reroute.
+  rerouteRemoveReply(
+    outcomes: {StepOutcome.more, StepOutcome.end},
+    calls: {PlatformCall.navStateRemove},
+  );
 
   const ActivationStep({
     this.outcomes = const {StepOutcome.none},

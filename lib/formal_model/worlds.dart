@@ -86,8 +86,9 @@ enum EnvAction {
 /// One action of the model as the composition reads it: what it reads and
 /// writes of the shared state (other flows' rows apart, as [rows]), the
 /// kinds its row holds and the fields of it it writes (null: every one,
-/// as an end), and each way a flow reaches it: the kind it runs in (null
-/// for none) and what the constants must be that way.
+/// as an end), each way a flow reaches it: the kind it runs in (null for
+/// none) and what the constants must be that way; and each variable only
+/// some of its arms write, with what all of those arms need ([armed]).
 typedef ComposedAction = ({
   String name,
   Set<ModelVar> reads,
@@ -96,6 +97,7 @@ typedef ComposedAction = ({
   Set<FlowKind> kinds,
   Set<FlowField>? fields,
   Map<FlowKind?, Set<Need>> ways,
+  Map<ModelVar, Set<Need>> armed,
 });
 
 /// The checkers' own variables, which no flow shares.
@@ -126,6 +128,24 @@ Set<ModelVar> shared(ComposedAction a, {required ComposedAction other}) => {
     ModelVar.fl,
 };
 
+/// What [a] and [other] meeting over a variable they share needs beyond
+/// their ways, one set for each variable and writer: a write only some
+/// arms make needs what those arms need, and so does the other's touch
+/// of it where it does not read it. A world meets them where it gives any.
+List<Set<Need>> _meets(ComposedAction a, {required ComposedAction other}) {
+  Set<Need> touch(ComposedAction x, {required ModelVar of}) =>
+      x.reads.contains(of) ? const {} : x.armed[of] ?? const {};
+  return [
+    for (final v in shared(a, other: other))
+      if (v == ModelVar.fl)
+        const {}
+      else ...[
+        if (a.writes.contains(v)) {...?a.armed[v], ...touch(other, of: v)},
+        if (other.writes.contains(v)) {...?other.armed[v], ...touch(a, of: v)},
+      ],
+  ];
+}
+
 /// Every two of [actions] that share a variable, by name, in order.
 List<(String, String, Set<ModelVar>)> meetings(List<ComposedAction> actions) {
   final sorted = [...actions]..sort((a, b) => a.name.compareTo(b.name));
@@ -145,10 +165,19 @@ bool gives(Set<ModelConst> constants, {required Set<Need> needs}) =>
 bool _contradicts(Set<Need> needs) =>
     needs.any((n) => needs.contains((of: n.of, set: !n.set)));
 
+/// Whether [w] sets one operator two ways: needs no one world gives,
+/// as a router's contending slots beside the one process-wide proxy.
+bool _replacesTwice(WorldSpec w) =>
+    {for (final e in w.env) e.op}.length != w.env.length;
+
 /// What a world needs besides an operator it replaces, for the replaced
 /// one to matter: a route split needs two routes contending, and so on.
 Set<Env> _with(Env e) => switch (e) {
-  Env.proxyGlobal => {Env.routeSplit},
+  Env.proxyGlobal || Env.globalProxy => {
+    Env.proxyGlobal,
+    Env.globalProxy,
+    Env.routeSplit,
+  },
   Env.routerContending || Env.routerShared => {
     Env.routerContending,
     Env.routerShared,
@@ -161,6 +190,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.routeSplit ||
   Env.awaySpaces ||
   Env.linkAny ||
+  Env.linkTab ||
   Env.archiveOne ||
   Env.deleteOne ||
   Env.resetOne ||
@@ -178,6 +208,8 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
         ? Env.routerContending
         : Env.proxyGlobal,
   ModelConst.routed => Env.routerShared,
+  ModelConst.globalProxy => Env.globalProxy,
+  ModelConst.links => Env.linkTab,
   ModelConst.route => Env.routeSplit,
   ModelConst.linked => Env.linkAny,
   ModelConst.torRuntime => Env.torOn,
@@ -267,27 +299,31 @@ WorldSpec _worldFor(
       if (shared(a, other: b).isEmpty) continue;
       WorldSpec? best;
       var hosted = false;
+      final meets = _meets(a, other: b);
       for (final MapEntry(key: ka, value: na) in a.ways.entries) {
         for (final MapEntry(key: kb, value: nb) in b.ways.entries) {
-          final needs = {...na, ...nb};
-          if (_contradicts(needs)) continue;
-          final w = _worldFor(
-            needs,
-            kinds: {?ka, ?kb},
-            own: {
-              for (final x in [a, b])
-                if (inputs.contains(x.name)) x.name,
-            },
-            inputsOf: inputsOf,
-          );
-          if (hosts.any(
-            (h) =>
-                gives(h.constants, needs: needs) &&
-                (h.spec.allowed?.containsAll(w.allowed!) ?? true),
-          )) {
-            hosted = true;
+          for (final m in meets) {
+            final needs = {...na, ...nb, ...m};
+            if (_contradicts(needs)) continue;
+            final w = _worldFor(
+              needs,
+              kinds: {?ka, ?kb},
+              own: {
+                for (final x in [a, b])
+                  if (inputs.contains(x.name)) x.name,
+              },
+              inputsOf: inputsOf,
+            );
+            if (_replacesTwice(w)) continue;
+            if (hosts.any(
+              (h) =>
+                  gives(h.constants, needs: needs) &&
+                  (h.spec.allowed?.containsAll(w.allowed!) ?? true),
+            )) {
+              hosted = true;
+            }
+            if (best == null || _cost(w) < _cost(best)) best = w;
           }
-          if (best == null || _cost(w) < _cost(best)) best = w;
         }
       }
       if (hosted) continue;

@@ -102,12 +102,20 @@ enum ModelVar {
     type: r'queued \in [Sites -> [t : TabIds \cup {0}, h : TabIds \cup {0}]]',
   ),
   file(
-    "file[s][t]: the tab whose history t's saved file holds, 0 for no file (WebViewStateStorage)",
-    type: r'file \in [Sites -> [TabIds -> TabIds \cup {0}]]',
+    "file[s][t][h]: the tab whose history t's saved file under h's key holds, 0 for no file (WebViewStateStorage, webViewStateKey)",
+    type: r'file \in [Sites -> [TabIds -> [Sites -> TabIds \cup {0}]]]',
   ),
   minted(
     'minted[s]: the last tab id s took (environment)',
     type: r'minted \in [Sites -> TabIds]',
+  ),
+  host(
+    'host[s][t]: the site tab t of s runs as, s for its own (SiteTab.hostSiteId, LIR-018)',
+    type: r'host \in [Sites -> [TabIds -> Sites]]',
+  ),
+  link(
+    'link[s][t]: the site tab t of s runs as while s routes outbound links, 0 for a tab no link opened (SiteTab.followsOpener, LIR-034)',
+    type: r'link \in [Sites -> [TabIds -> Sites \cup {0}]]',
   ),
   nested(
     'the site whose nested screen is up, 0 for none (SiteRuntime.nested)',
@@ -174,13 +182,23 @@ enum FlowField {
   rest('{}', range: r'SUBSET TabIds'),
   closing('{}', range: r'SUBSET TabIds'),
   copy('0', range: r'TabIds \cup {0}'),
+
+  /// The site a duplicate's copy runs as, its source's when the copy was
+  /// made, whose key its file takes.
+  copyAs('0', range: r'Sites \cup {0}'),
   label('0', range: r'TabIds \cup {0}'),
   wrote('FALSE', range: r'BOOLEAN'),
 
-  /// What a capture read as it started: the webview's tab and the history
-  /// it showed, held for the file write its reply makes (`Capture`).
+  /// What a capture read as it started: the webview's tab, the history it
+  /// showed and the site whose key it writes under, held for the file
+  /// write its reply makes (`Capture`).
   capTab('0', range: r'TabIds \cup {0}'),
   capHist('0', range: r'TabIds \cup {0}'),
+  capAs('0', range: r'Sites \cup {0}'),
+
+  /// The site whose key an activation's read of its target's saved back
+  /// stack names, as the read started (`Staged`).
+  navAs('0', range: r'Sites \cup {0}'),
 
   /// The notification sites a wake has still to check headless.
   checks('{}', range: r'SUBSET Sites'),
@@ -229,6 +247,8 @@ enum ModelConst {
   maxTabs(ConstKind.bound, range: r'Nat'),
   routed(ConstKind.set, range: r'SUBSET Sites'),
   contending(ConstKind.set, range: r'SUBSET Sites'),
+  globalProxy(ConstKind.off, range: r'BOOLEAN'),
+  links(ConstKind.set, range: r'SUBSET [s : Sites, t : TabIds, h : Sites]'),
   route(ConstKind.uniform, range: r'[Sites -> Nat]'),
   torExit(ConstKind.uniform, range: r'[Sites -> Nat]'),
   torRuntime(ConstKind.off, range: r'BOOLEAN'),
@@ -277,6 +297,7 @@ typedef Need = ({ModelConst of, bool set});
 enum ModelDef {
   evictable,
   running,
+  runsAs,
   midActivation,
   pressureResident,
   pressureCleared,
@@ -358,13 +379,15 @@ typedef RowRead = ({FlowKind kind, FlowField field});
 /// sets one, the fields it writes, whether it ends the flow (every field
 /// back to `NoFlow`), what the model's constants must be for it to be
 /// taken ([needs]), the kinds of flow it is taken for ([only], null
-/// for any), and the rows of the flows it starts ([spawns]).
+/// for any), the rows of the flows it starts ([spawns]), and the shared
+/// variables it writes, the flows it starts' with them ([writes]).
 typedef ArmRow = ({
   Map<String, Set<Need>> next,
   FlowKind? kind,
   bool ends,
   Set<FlowField> fields,
   Set<Need> needs,
+  Set<ModelVar> writes,
   Set<FlowKind>? only,
   List<SpawnRow> spawns,
 });

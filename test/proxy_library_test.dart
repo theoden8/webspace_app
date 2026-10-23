@@ -204,18 +204,21 @@ void main() {
   });
 
   group('Android serialisation (PROXY-008)', () {
-    Set<int> unload(List<UserProxySettings> proxies) =>
-        SiteUnloadEngine.indicesToUnloadForProxyMismatch(
-          targetIndex: 0,
-          models: [
-            for (final p in proxies)
-              WebViewModel(initUrl: 'https://example.com/', proxySettings: p),
-          ],
-          loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
-          topology: ProxyTopology.of(
-              linux: true, android: false, routerActive: false,
-              sharesDefaultSession: (_) => false),
-        );
+    Set<int> unload(List<UserProxySettings> proxies) {
+      final sites = [
+        for (final p in proxies)
+          WebViewModel(initUrl: 'https://example.com/', proxySettings: p),
+      ];
+      return SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: 0,
+        sites: sites,
+        models: sites,
+        loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
+        topology: ProxyTopology.of(
+            linux: true, android: false, routerActive: false,
+            sharesDefaultSession: (_) => false),
+      );
+    }
 
     test('sites on one saved proxy load together', () {
       expect(unload([_proxy(SavedProxyId('work')), _proxy(SavedProxyId('work'))]), isEmpty);
