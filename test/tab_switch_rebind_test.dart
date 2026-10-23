@@ -22,12 +22,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// unit test.
 void main() {
   const tabsRel = 'lib/controllers/tabs_controller.dart';
+  const tableRel = 'lib/controllers/tab_table.dart';
   late Map<String, List<String>> files;
   late List<String> lines;
 
   setUpAll(() {
     files = {
-      for (final rel in ['lib/screens/webspace_page.dart', tabsRel])
+      for (final rel in ['lib/screens/webspace_page.dart', tabsRel, tableRel])
         rel: File(rel).readAsStringSync().split('\n'),
     };
     lines = files[tabsRel]!;
@@ -86,7 +87,7 @@ void main() {
     );
     expect(body.contains('getWebView('), isFalse);
     // The table's steps dispose nothing themselves.
-    final table = lines.join('\n');
+    final table = files[tableRel]!.join('\n');
     final steps = table.substring(
       table.indexOf('static final tabFlow = StepTable<TabFlow, TabPlace>('),
     );

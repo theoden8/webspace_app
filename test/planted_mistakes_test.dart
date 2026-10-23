@@ -245,6 +245,17 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [HomeLand(0)],
     breaks: "'s webview is built for tab",
   ),
+  Mutant.ownerruninplace => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _mismatched,
+      rehosts: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [OwnerRun(0)],
+    breaks: "'s webview is built for tab",
+  ),
   Mutant.takeany => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0), Login(0), Tap(1)],

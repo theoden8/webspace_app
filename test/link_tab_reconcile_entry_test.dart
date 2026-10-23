@@ -16,7 +16,10 @@ void main() {
 
   setUpAll(() {
     main = File('lib/screens/webspace_page.dart').readAsStringSync();
-    tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
+    tabs = [
+      for (final f in ['tabs_controller', 'tab_table'])
+        File('lib/controllers/$f.dart').readAsStringSync(),
+    ].join('\n');
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
 
@@ -227,7 +230,7 @@ void main() {
     test('owner URLs move off a foreign tab first', () {
       expect(tabsBody('Future<void> bindOwnerRunTab('),
           contains('!model.runsHostedTab && !model.runsForeignTab'));
-      expect(tabsBody('Future<void> switchToOwnerRunTab('),
+      expect(tabsBody('Future<void> _ownerRun('),
           contains('isForeign: model.isForeignTab'));
       expect(linksBody('Future<void> _executeOpenInMain('),
           contains('model.runsHostedTab || model.runsForeignTab'));

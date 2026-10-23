@@ -762,7 +762,8 @@ enum Environment {
 /// The writes of the model's state that no step of a table takes yet.
 enum Unmodeled {
   /// The move to a tab the site runs itself before an owner URL loads
-  /// (LIR-018).
+  /// (LIR-018), for a site whose tabs are off, which the model does not
+  /// follow; a site with tabs takes the tab input `OwnerRun`.
   ownerRunTab,
 
   /// A link opened as a child tab of its site, shown or behind the one on

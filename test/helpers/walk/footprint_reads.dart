@@ -23,7 +23,7 @@ const owedReads = <ActivationStep, Set<ModelVar>>{
   // Unmodeled write such as homeLanding, ownerRunTab or childTab) has no
   // input whose arm prints what the capture records as it begins, so the
   // read lands on the reply. Lifted when those starts are inputs of
-  // TabsController.tabInputs.
+  // TabTable.tabInputs.
   ActivationStep.tabCaptureReply: {ModelVar.built},
 };
 

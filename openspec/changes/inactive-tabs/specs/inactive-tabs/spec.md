@@ -82,7 +82,7 @@ the capture returns, and SHALL drop them when that tab closed meanwhile.
 Closing a site's last tab SHALL land it on a new tab at its home page, with an
 id none of the site's tabs had: a capture of the closed tab still in flight
 would otherwise land in the new tab's file. Gate: the switch, the close and the
-duplicate are step tables (`TabsController.tabInputs`, `tabFlow`) printed into
+duplicate are step tables (`TabTable.tabInputs`, `tabFlow`) printed into
 `formal/activation.tla`, whose `Inv_TabShown`, `Inv_TabFiles`, `Inv_TabBound`
 and `Inv_TabActive` TLC holds on `activation_tabs.cfg`; the tab schedules in
 `test/activation_schedules_test.dart` are replayed against it.
