@@ -696,9 +696,15 @@ since a remote has no long press, no Menu key and nothing to drag with:
 - Every chip of the tab strip SHALL take focus: OK opens its site, or the Tabs sheet on the
   one on screen. Every row of the Tabs sheet and its web search are reachable as they are.
 
+A key reaches only the document of the frame holding focus, so the edge is read by a
+script in every frame (`lib/js/remote_edge.js`): a frame SHALL pass an arrow it had no use
+for to its parent, which SHALL pass it on only if it came from the frame holding its focus
+and nothing there moved focus or scrolled since the key, and only the top document SHALL
+call the bridge. The app SHALL move focus out at most once per D-pad press, and only for
+the arrow pressed, so a frame that reports an arrow nobody pressed moves nothing.
+
 On every other device the page's webview SHALL be built exactly as before: no wrapper, no
-page script. The edge is read by a top-frame script (`lib/js/remote_edge.js`), so an arrow
-pressed inside a frame stays in that frame. Popups opened by a page are not covered.
+page script. Popups opened by a page are not covered.
 
 #### Scenario: Scrolling and following links with the D-pad
 
@@ -712,6 +718,14 @@ pressed inside a frame stays in that frame. Popups opened by a page are not cove
 - **GIVEN** a TV, and a page scrolled to its top with its first link focused
 - **WHEN** the user presses up
 - **THEN** focus moves to the app bar, from where the menu and the site switcher open
+
+#### Scenario: Out of a frame
+
+- **GIVEN** a TV, and a page whose content is a frame from another origin, its first link
+  focused
+- **WHEN** the user presses up
+- **THEN** focus moves to the app bar, as it does from the page itself
+- **AND** a frame the user is not in, an ad say, cannot move the app's focus
 
 #### Scenario: A site in a folder, by remote
 
@@ -728,6 +742,8 @@ pressed inside a frame stays in that frame. Popups opened by a page are not cove
 
 Test: [test/remote_focus_test.dart](../../../test/remote_focus_test.dart),
 [test/js/remote_edge.test.js](../../../test/js/remote_edge.test.js),
+[test/browser/remote_edge_frames.test.js](../../../test/browser/remote_edge_frames.test.js)
+(cross-origin frames in Chromium, spatial navigation on),
 [test/remote_controls_test.dart](../../../test/remote_controls_test.dart),
 [test/remote_library_test.dart](../../../test/remote_library_test.dart),
 [test/remote_tabs_test.dart](../../../test/remote_tabs_test.dart),

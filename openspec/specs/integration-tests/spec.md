@@ -1080,6 +1080,14 @@ Linux and macOS loops leave it out.
   scrolled
 - **AND** Up pressed until the page has no use for it moves focus back to the app bar
 
+#### Scenario: The D-pad in a frame filling the page
+
+- **GIVEN** a site's webview under an app bar, its page a cross-origin frame filling it
+- **WHEN** Down moves focus from the app bar onto the page, and Down is pressed again
+- **THEN** focus moved between the frame's links
+- **AND** Up pressed until the frame has no use for it moves focus back to the app bar,
+  though every key went to the frame's document and none to the page's
+
 ### Requirement: INTEG-014 — Offline and degraded-network scenarios
 
 `integration_test/offline_connection_test.dart` SHALL drive the offline,

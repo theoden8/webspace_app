@@ -114,10 +114,41 @@ void main() {
     page.requestFocus();
     await tester.pump();
 
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     remote.leave(TraversalDirection.up);
     await tester.pump();
 
     expect(menu.hasPrimaryFocus, isTrue);
+  });
+
+  testWidgets(
+      'one press moves focus once, so a frame reporting an arrow nobody '
+      'pressed moves nothing (NAV-016)', (tester) async {
+    final remote = RemoteFocus();
+    await tester.pumpWidget(_screen(page: page, menu: menu, remote: remote));
+    page.requestFocus();
+    await tester.pump();
+
+    remote.leave(TraversalDirection.up);
+    await tester.pump();
+    expect(page.hasPrimaryFocus, isTrue, reason: 'no key was pressed');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    remote.leave(TraversalDirection.up);
+    await tester.pump();
+    expect(page.hasPrimaryFocus, isTrue, reason: 'the key pressed was Down');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    remote.leave(TraversalDirection.up);
+    await tester.pump();
+    expect(menu.hasPrimaryFocus, isTrue);
+
+    page.requestFocus();
+    await tester.pump();
+    remote.leave(TraversalDirection.up);
+    await tester.pump();
+    expect(page.hasPrimaryFocus, isTrue,
+        reason: 'that press was answered; a second report of it is nobody\'s');
   });
 
   testWidgets('a page without focus moves nobody\'s focus', (tester) async {
@@ -151,7 +182,9 @@ void main() {
     RemoteInput.debugDrivenOverride = true;
     expect(RemoteFocus.install(into: scripts), isNotNull);
     expect(scripts, hasLength(1));
-    expect(scripts.single.forMainFrameOnly, isTrue);
+    expect(scripts.single.forMainFrameOnly, isFalse,
+        reason: 'a key reaches only the frame holding focus, which passes it '
+            'up to the top document');
     expect(scripts.single.source, contains(kRemoteEdgeHandler));
   });
 }

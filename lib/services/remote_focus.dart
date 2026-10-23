@@ -23,8 +23,8 @@ const _dpad = [
 /// without this the D-pad never reaches the page. While the page has focus
 /// the D-pad goes on to the webview; focus entering it gives the native view
 /// focus, which a Flutter focus move alone does not; and an arrow the page
-/// had no use for ([PageJs.remoteEdge]) moves focus out of it, toward the
-/// app bar or the tab strip.
+/// had no use for ([PageJs.remoteEdge], in whichever of its frames had
+/// focus) moves focus out of it, toward the app bar or the tab strip.
 final class RemoteFocus {
   @visibleForTesting
   RemoteFocus();
@@ -36,13 +36,14 @@ final class RemoteFocus {
     into.add(pageShim(
       'remote_edge',
       js: PageJs.remoteEdge.withConfig({'handler': kRemoteEdgeHandler}),
-      frames: ShimFrames.top,
+      frames: ShimFrames.all,
     ));
     return RemoteFocus();
   }
 
   Future<void> Function()? _focusView;
   bool _hasFocus = false;
+  LogicalKeyboardKey? _unanswered;
 
   /// Answers the page script, and focuses [view] whenever focus enters it.
   void attach(inapp.InAppWebViewController view) {
@@ -76,11 +77,23 @@ final class RemoteFocus {
         _ => null,
       };
 
-  /// Moves focus out of the page toward [direction], where the page has it.
+  /// Moves focus out of the page toward [direction], where the page has it
+  /// and the last D-pad key it was handed is that arrow: one move per press,
+  /// so a frame that reports an arrow nobody pressed moves nothing.
   void leave(TraversalDirection? direction) {
     if (direction == null || !_hasFocus) return;
+    if (_unanswered != _arrow(direction)) return;
+    _unanswered = null;
     FocusManager.instance.primaryFocus?.focusInDirection(direction);
   }
+
+  static LogicalKeyboardKey _arrow(TraversalDirection direction) =>
+      switch (direction) {
+        TraversalDirection.up => LogicalKeyboardKey.arrowUp,
+        TraversalDirection.down => LogicalKeyboardKey.arrowDown,
+        TraversalDirection.left => LogicalKeyboardKey.arrowLeft,
+        TraversalDirection.right => LogicalKeyboardKey.arrowRight,
+      };
 
   Widget wrap(Widget page) => OwnFocusOutline(
         child: Focus(
@@ -90,9 +103,13 @@ final class RemoteFocus {
             _hasFocus = hasFocus;
             if (hasFocus) unawaited(_focusView?.call());
           },
-          onKeyEvent: (node, event) => _dpad.contains(event.logicalKey)
-              ? KeyEventResult.skipRemainingHandlers
-              : KeyEventResult.ignored,
+          onKeyEvent: (node, event) {
+            if (!_dpad.contains(event.logicalKey)) {
+              return KeyEventResult.ignored;
+            }
+            if (event is KeyDownEvent) _unanswered = event.logicalKey;
+            return KeyEventResult.skipRemainingHandlers;
+          },
           child: page,
         ),
       );
