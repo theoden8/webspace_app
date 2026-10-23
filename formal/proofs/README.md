@@ -98,11 +98,17 @@ TLC model it backs (same definitions — no re-modeling).
   `FlowKinds_<kind>`); what a world may set each constant to (`ConstantsType`), since a
   proof opens no default a world can replace; and each fact a row lemma reads of `TypeOK` or
   of a row's fields (`TypeFl`, `Type_<variable>`, `Dom_<field>`), which the row lemmas cite
-  instead of unfolding `TypeOK` or the row's 28 fields. Then one module per table, or per six of its
+  instead of unfolding `TypeOK` or the row's fields. It proves `Pick`, `TypeFl`, `NoFlowType`
+  and `Fl_row` and states the rest omitted, each family proved in a module of its own
+  (`activation_facts_<family>_proof`: `vars`, `domains`, `members`, `fields`) over
+  `activation_ops`, which defines every name they read. Each obligation carries all its module
+  extends: over the whole model the families took 8.7 GB cold, more with every field, and the
+  members family alone 4.4 GB, where over `activation_ops` it takes 336 MB. Then one module per
+  table, or per six of its
   rows (`activation_types_<table>[<n>]_proof`), proves each row of `fl` an arm writes, a clause
   at a time over a named partial row, each value over only what it reads; and
   `activation_types_steps_proof` takes them to `TableStep` and `InputTableStep`. The
-  provers do not take the flow record's set of 28 fields whole, SMT takes no
+  provers do not take the flow record's set of fields whole, SMT takes no
   string or record literal here, and tlapm holds every obligation it proves afresh until the
   module ends (twelve held rows took 6.4 GB cold, four such modules side by side more than a
   16 GB runner holds), so each is split as it is. What some steps need of their flow beyond `TypeOK` (a site that indexes a

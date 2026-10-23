@@ -9,7 +9,8 @@ usage: omitted.py <module.tla>...
 import re
 import sys
 
-LEMMA = re.compile(r"^(?:LEMMA|THEOREM|PROPOSITION|COROLLARY) (\w+) ==$")
+# A statement may follow on the header's own line (`LEMMA X == "a" \in S`).
+LEMMA = re.compile(r"^(?:LEMMA|THEOREM|PROPOSITION|COROLLARY) (\w+) ==")
 PROOF = re.compile(r"^\s*(?:BY\b|PROOF\b|OBVIOUS\b|<\d+>)")
 
 

@@ -22,6 +22,7 @@ List<({String path, String text})> activationTypesProofs({
   };
   final all = [for (final steps in tables.values) ...steps];
   final needs = {for (final h in _held) h: _needs(h, steps: all)};
+  final facts = _facts(definitions: definitions);
   return [
     _module('activation_types_proof', extending: 'activation, TLAPS', body: [
       '\\* Zenon for a moment, then SMT: an action whose rows each keep a fact',
@@ -55,34 +56,13 @@ List<({String path, String text})> activationTypesProofs({
       ],
       'Held == ${[for (final h in _held) 'Held_${h.field.name}'].join(' /\\ ')}',
       '',
-      'LEMMA Pick ==',
-      '    ASSUME NEW g \\in [Flows -> FlowRecord], NEW x \\in Flows',
-      '    PROVE  DOMAIN g[x] = {${[for (final f in FlowField.values) '"${f.name}"'].join(', ')}}',
-      '  BY DEF FlowRecord',
-      '',
-      // Each fact a row lemma reads of TypeOK or of a row's fields, proved
-      // once: a case that unfolds TypeOK or states a row's whole domain
-      // takes tlapm seconds to prepare for its backends, which then need
-      // none of it. A row lemma cites them with Zenon: tlapm tries SMT
-      // first, and preparing its input costs a second or more even where a
-      // cited fact is the step.
+      ..._proved(_pick),
       'LEMMA TypeFl ==',
       '    ASSUME TypeOK PROVE fl \\in [Flows -> FlowRecord]',
       '  BY Zenon DEF TypeOK',
       '',
-      for (final v in ModelVar.values) ...[
-        'LEMMA Type_${v.name} ==',
-        '    ASSUME TypeOK PROVE ${v.type}',
-        '  BY Zenon DEF TypeOK',
-        '',
-      ],
-      for (final f in FlowField.values) ...[
-        'LEMMA Dom_${f.name} ==',
-        '    ASSUME NEW g \\in [Flows -> FlowRecord], NEW x \\in Flows',
-        '    PROVE  "${f.name}" \\in DOMAIN g[x]',
-        '  BY Pick, Zenon',
-        '',
-      ],
+      for (final (family: _, :lemmas, cites: _) in facts)
+        for (final l in lemmas) ..._omitted(l),
       '\\* What a world may set each constant to; a proof opens no default a world',
       '\\* may replace.',
       'ASSUME ConstantsType ==',
@@ -90,26 +70,6 @@ List<({String path, String text})> activationTypesProofs({
       for (final c in ModelConst.values)
         if (c.kind != ConstKind.fixed) '    /\\ ${c.tla} \\in ${c.range}',
       '',
-      for (final f in FlowField.values)
-        if (_enumerated(f) case final set?)
-          for (final m in _members(set, definitions: definitions)) ...[
-            'LEMMA ${set}_$m == "$m" \\in $set',
-            '  BY Zenon DEF $set',
-            '',
-          ],
-      for (final f in FlowField.values) ...[
-        'LEMMA Fl_${f.name} ==',
-        '    ASSUME NEW g \\in [Flows -> FlowRecord], NEW x \\in Flows,',
-        '           NEW val \\in ${f.range}',
-        '    PROVE  [g EXCEPT ![x].${f.name} = val] \\in [Flows -> FlowRecord]',
-        '  BY DEF FlowRecord',
-        '',
-        'LEMMA Rd_${f.name} ==',
-        '    ASSUME NEW g \\in [Flows -> FlowRecord], NEW x \\in Flows',
-        '    PROVE  g[x].${f.name} \\in ${f.range}',
-        '  BY Zenon DEF FlowRecord',
-        '',
-      ],
       'LEMMA NoFlowType == NoFlow \\in FlowRecord',
       '  <1> USE DEF NoFlow',
       for (final (i, f) in FlowField.values.indexed) ...[
@@ -131,6 +91,13 @@ List<({String path, String text})> activationTypesProofs({
       '    PROVE  [g EXCEPT ![x] = r] \\in [Flows -> FlowRecord]',
       '  OBVIOUS',
     ]),
+    for (final (:family, :lemmas, :cites) in facts)
+      _module('activation_facts_${family}_proof',
+          extending: 'activation_ops, TLAPS',
+          body: [
+            for (final l in cites) ..._omitted(l),
+            for (final l in lemmas) ..._proved(l),
+          ]),
     for (final (:name, :steps) in _parts(tables))
         _module(name,
             extending: 'activation_types_proof',
@@ -215,6 +182,103 @@ List<({String path, String text})> activationTypesProofs({
           ]),
   ];
 }
+
+/// A lemma as its statement and its proof, printed with the proof where it
+/// is proved and omitted where it is restated.
+typedef _Lemma = ({List<String> statement, String proof});
+
+List<String> _proved(_Lemma l) => [...l.statement, l.proof, ''];
+
+List<String> _omitted(_Lemma l) => [...l.statement, '  PROOF OMITTED', ''];
+
+final _pick = (
+  statement: [
+    'LEMMA Pick ==',
+    r'    ASSUME NEW g \in [Flows -> FlowRecord], NEW x \in Flows',
+    '    PROVE  DOMAIN g[x] = {${[for (final f in FlowField.values) '"${f.name}"'].join(', ')}}',
+  ],
+  proof: '  BY DEF FlowRecord',
+);
+
+/// Each fact a row lemma reads of TypeOK or of a row's fields, proved once:
+/// a case that unfolds TypeOK or states a row's whole domain takes tlapm
+/// seconds to prepare for its backends, which then need none of it. A row
+/// lemma cites them with Zenon: tlapm tries SMT first, and preparing its
+/// input costs a second or more even where a cited fact is the step.
+///
+/// `activation_types_proof` states each family omitted, and a module of
+/// the family's own proves it over `activation_ops`, which defines every
+/// name the facts read, restating what it [cites]: tlapm holds every
+/// obligation it proves afresh until the module ends, each with all its
+/// module extends as its context, so the families proved over the whole
+/// model took 8.7 GB cold and outgrew the runner with two more fields.
+/// The members family alone took 4.4 GB over `activation`, 336 MB over
+/// `activation_ops`.
+List<({String family, List<_Lemma> lemmas, List<_Lemma> cites})> _facts({
+  required Map<String, String> definitions,
+}) => [
+  (
+    family: 'vars',
+    cites: const [],
+    lemmas: [
+      for (final v in ModelVar.values)
+        (
+          statement: ['LEMMA Type_${v.name} ==', '    ASSUME TypeOK PROVE ${v.type}'],
+          proof: '  BY Zenon DEF TypeOK',
+        ),
+    ],
+  ),
+  (
+    family: 'domains',
+    cites: [_pick],
+    lemmas: [
+      for (final f in FlowField.values)
+        (
+          statement: [
+            'LEMMA Dom_${f.name} ==',
+            r'    ASSUME NEW g \in [Flows -> FlowRecord], NEW x \in Flows',
+            '    PROVE  "${f.name}" \\in DOMAIN g[x]',
+          ],
+          proof: '  BY Pick, Zenon',
+        ),
+    ],
+  ),
+  (
+    family: 'members',
+    cites: const [],
+    lemmas: [
+      for (final f in FlowField.values)
+        if (_enumerated(f) case final set?)
+          for (final m in _members(set, definitions: definitions))
+            (statement: ['LEMMA ${set}_$m == "$m" \\in $set'], proof: '  BY Zenon DEF $set'),
+    ],
+  ),
+  (
+    family: 'fields',
+    cites: const [],
+    lemmas: [
+      for (final f in FlowField.values) ...[
+        (
+          statement: [
+            'LEMMA Fl_${f.name} ==',
+            r'    ASSUME NEW g \in [Flows -> FlowRecord], NEW x \in Flows,',
+            '           NEW val \\in ${f.range}',
+            '    PROVE  [g EXCEPT ![x].${f.name} = val] \\in [Flows -> FlowRecord]',
+          ],
+          proof: '  BY DEF FlowRecord',
+        ),
+        (
+          statement: [
+            'LEMMA Rd_${f.name} ==',
+            r'    ASSUME NEW g \in [Flows -> FlowRecord], NEW x \in Flows',
+            '    PROVE  g[x].${f.name} \\in ${f.range}',
+          ],
+          proof: '  BY Zenon DEF FlowRecord',
+        ),
+      ],
+    ],
+  ),
+];
 
 /// A fact every step keeps: its lemmas' prefix, what they assume beside
 /// the step, and the fact.
