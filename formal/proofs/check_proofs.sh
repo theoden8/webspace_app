@@ -61,25 +61,25 @@ min_obligations() {
   case "$1" in
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
-    activation_tables_proof.tla) echo 327 ;;
+    activation_tables_proof.tla) echo 334 ;;
     activation_tables_1_proof.tla) echo 171 ;;
     activation_tables_2_proof.tla) echo 136 ;;
     activation_tables_3_proof.tla) echo 329 ;;
     activation_tables_4_proof.tla) echo 315 ;;
-    activation_tables_5_proof.tla) echo 156 ;;
-    activation_tables_6_proof.tla) echo 151 ;;
-    activation_tables_7_proof.tla) echo 146 ;;
-    activation_tables_8_proof.tla) echo 101 ;;
-    activation_tables_9_proof.tla) echo 24 ;;
-    activation_invariants_proof.tla) echo 305 ;;
+    activation_tables_5_proof.tla) echo 151 ;;
+    activation_tables_6_proof.tla) echo 166 ;;
+    activation_tables_7_proof.tla) echo 141 ;;
+    activation_tables_8_proof.tla) echo 106 ;;
+    activation_tables_9_proof.tla) echo 36 ;;
+    activation_invariants_proof.tla) echo 311 ;;
     activation_types_proof.tla) echo 100 ;;
     activation_facts_vars_proof.tla) echo 68 ;;
     activation_facts_domains_proof.tla) echo 96 ;;
     activation_facts_members_proof.tla) echo 206 ;;
     activation_facts_fields_proof.tla) echo 96 ;;
-    activation_types_steps_proof.tla) echo 88 ;;
-    activation_held_steps_proof.tla) echo 264 ;;
-    activation_supports_steps_proof.tla) echo 176 ;;
+    activation_types_steps_proof.tla) echo 90 ;;
+    activation_held_steps_proof.tla) echo 270 ;;
+    activation_supports_steps_proof.tla) echo 180 ;;
     # The tables' typing, held and supports modules are as many as their
     # rows need, so they are not pinned by name; formal/levels.tsv holds
     # the sum of them all.
