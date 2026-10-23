@@ -9,6 +9,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/content_rule_lists.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
@@ -41,9 +42,9 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.contentRuleLists, Icons.shield_outlined,
             loc.appSettingsExperimentalContentRuleLists,
             loc.appSettingsExperimentalContentRuleListsHint),
-      (ExperimentalFeature.signInPopups, Icons.login,
-          loc.appSettingsExperimentalSignInPopups,
-          loc.appSettingsExperimentalSignInPopupsHint),
+      if (PopupKind.signInExperimental)
+        (ExperimentalFeature.signInPopups, Icons.login,
+            loc.siteSettingsSignInPopups, loc.siteSettingsSignInPopupsHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

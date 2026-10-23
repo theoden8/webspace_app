@@ -33,7 +33,6 @@ import 'package:webspace/services/icon_service.dart'
     show fetchPageIconBytes, fetchPageLinkedBytes;
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
@@ -618,9 +617,7 @@ class WebViewFactory {
     // call (the reissued programmatic load landing here again) doesn't
     // loop. See lib/services/ios_universal_link_bypass.dart.
     final iosUlBypass = IosUniversalLinkBypass();
-    // Read once, so the window setting below and onCreateWindow agree.
-    final signInPopups = ExperimentalFeaturesService.instance
-        .isEnabled(ExperimentalFeature.signInPopups);
+    final signInPopups = config.posture.page.signInPopups;
 
     LogTag.dnsBlock.debug(
         'Creating webview: siteId=${config.posture.siteId} dnsLevel=${config.effectiveDnsLevel} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',

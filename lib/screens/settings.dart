@@ -176,6 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   late ExternalLinkMode? _externalLinkMode;
   late bool _routeOutboundLinks;
   late List<OutboundPreference> _outboundPreferences;
+  late bool? _signInPopups;
   String? _searchAddress;
   late bool _searchesWeb;
   late List<SiteId> _searchSites;
@@ -266,6 +267,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         externalLinkMode: _externalLinkMode,
         routeOutboundLinks: _routeOutboundLinks,
         outboundPreferences: ValueList(_outboundPreferences),
+        signInPopups: _signInPopups,
         searchAddress: _searchAddress,
         searchesWeb: _searchesWeb,
         searchSites: ValueList(_searchSites),
@@ -432,6 +434,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     _externalLinkMode = m.externalLinkMode;
     _routeOutboundLinks = m.routeOutboundLinks;
     _outboundPreferences = [...m.outboundPreferences];
+    _signInPopups = m.signInPopups;
     _searchAddress = m.searchAddress;
     _searchesWeb = m.searchesWeb;
     _searchSites = [...m.searchSites];
@@ -552,6 +555,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     m.externalLinkMode = _externalLinkMode;
     m.routeOutboundLinks = _routeOutboundLinks;
     m.outboundPreferences = [..._outboundPreferences];
+    m.signInPopups = _signInPopups;
     m.searchAddress = _searchAddress;
     m.searchesWeb = _searchesWeb;
     m.searchSites = [..._searchSites];
@@ -796,6 +800,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         externalLinkMode: Scoped.fromStored(_externalLinkMode),
         routeOutboundLinks: _routeOutboundLinks,
         outboundPreferences: _outboundPreferences,
+        signInPopups: Scoped.fromStored(_signInPopups),
         searchAddress: _searchAddress,
         searchesWeb: _searchesWeb,
         searchSites: _searchSites,
@@ -857,6 +862,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _externalLinkMode = values.externalLinkMode.stored;
           _routeOutboundLinks = values.routeOutboundLinks;
           _outboundPreferences = values.outboundPreferences;
+          _signInPopups = values.signInPopups.stored;
           _searchAddress = values.searchAddress;
           _searchesWeb = values.searchesWeb;
           _searchSites = values.searchSites;

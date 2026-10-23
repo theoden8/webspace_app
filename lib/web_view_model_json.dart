@@ -78,6 +78,7 @@ extension WebViewModelJson on WebViewModel {
       SiteField.alwaysOpenHome => {key: alwaysOpenHome},
       SiteField.kioskMode => {key: kioskMode},
       SiteField.tabsEnabled => {key: tabsEnabled},
+      SiteField.signInPopups => {if (signInPopups != null) key: signInPopups},
       SiteField.containerColor => {
           if (containerColor != null) key: containerColor,
         },
@@ -321,6 +322,8 @@ class _SiteJson {
         model.tabsEnabled = json.containsKey(field.key) && raw == null
             ? null
             : value<bool>(field) ?? true;
+      case SiteField.signInPopups:
+        model.signInPopups = value<bool>(field);
       case SiteField.containerColor:
         model.containerColor = switch (value<int>(field)) {
           final int i when i >= 0 => i,

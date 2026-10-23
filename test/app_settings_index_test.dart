@@ -138,6 +138,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await openRow(tester, title: 'Behaviour');
+    await tester.scrollUntilVisible(
+        find.text('Full screen on shortcut launch'), 200);
     await tester.tap(find.ancestor(
         of: find.text('Full screen on shortcut launch'),
         matching: find.byType(SwitchListTile)));

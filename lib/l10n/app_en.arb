@@ -1564,13 +1564,13 @@
   "@appSettingsExperimentalContentRuleListsHint": {
     "description": "Explanation behind the hint button of the Linux WebKit content blocking switch in the Experimental group of App Settings: what it does, what it catches that the regular blocker misses, when it takes effect, and what it leaves to the regular blocker. 'Cosmetic rules' hide page elements; 'redirects' swap a blocked script for a harmless one. 'Opened' means loaded into the app's view after the lists are compiled."
   },
-  "appSettingsExperimentalSignInPopups": "Sign-in popups",
-  "@appSettingsExperimentalSignInPopups": {
-    "description": "Title of a switch in the Experimental group of App Settings, shown only while Developer mode is on. When on, the sign-in window a page opens when the user taps a button such as 'Continue with Google' is shown as a popup over the site, so signing in with another account works. Short label."
+  "siteSettingsSignInPopups": "Sign-in popups",
+  "@siteSettingsSignInPopups": {
+    "description": "Title of the Sign-in popups switch, on App Settings' Behaviour screen, on each site's Behaviour screen, and, on platforms where the feature is still experimental, in the Experimental group of App Settings shown only while Developer mode is on. When on, the sign-in window a page opens when the user taps a button such as 'Continue with Google' is shown as a popup over the site, so signing in with another account works. Short label."
   },
-  "appSettingsExperimentalSignInPopupsHint": "Lets buttons such as Continue with Google open their sign-in window, shown over the site with the site's own settings. Only the sign-in pages of Google, Apple, Microsoft and GitHub open this way. Pages can no longer open a window unless you tap, which some captcha checks may need. Takes effect for sites loaded after the switch changes.",
-  "@appSettingsExperimentalSignInPopupsHint": {
-    "description": "Explanation behind the hint button of the Sign-in popups switch in the Experimental group of App Settings: what it allows, which account providers it covers, what it stops pages from doing, and when it applies. 'Continue with Google' is the label of a button on many websites; Google, Apple, Microsoft and GitHub are company names; keep them. 'Loaded' means opened into the app's view."
+  "siteSettingsSignInPopupsHint": "Lets buttons such as Continue with Google open their sign-in window, shown over the site with the site's own settings. Only the sign-in pages of Google, Apple, Microsoft and GitHub open this way. Pages can no longer open a window unless you tap, which some captcha checks may need. Takes effect for sites loaded after the switch changes.",
+  "@siteSettingsSignInPopupsHint": {
+    "description": "Explanation behind the hint button of the Sign-in popups switch, on App Settings' Behaviour screen, on each site's Behaviour screen and in the Experimental group of App Settings: what it allows, which account providers it covers, what it stops pages from doing, and when it applies. 'Continue with Google' is the label of a button on many websites; Google, Apple, Microsoft and GitHub are company names; keep them. 'Loaded' means opened into the app's view."
   },
   "externalTor": "Tor (external)",
   "@externalTor": {

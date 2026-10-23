@@ -8,6 +8,7 @@ import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -457,6 +458,58 @@ void main() {
     });
   });
 
+  group('Sign-in popups (NESTED-014, BEHAV-007)', () {
+    Finder tile() => find.ancestor(
+        of: find.text('Sign-in popups'), matching: find.byType(ListTile));
+    Finder toggle() =>
+        find.descendant(of: tile(), matching: find.byType(Switch));
+    bool shown(WidgetTester tester) => tester.widget<Switch>(toggle()).value;
+
+    setUp(() => PopupKind.debugSignInExperimental = false);
+    tearDown(() {
+      PopupKind.debugSignInExperimental = null;
+      AppPref.signInPopups.debugValue = true;
+    });
+
+    testWidgets('a site follows the app dimmed until it makes its own choice',
+        (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(tester, values: _values(), onChanged: (v) => seen = v);
+      double opacity() => tester.widget<Opacity>(find.ancestor(
+            of: toggle(), matching: find.byType(Opacity)).first).opacity;
+      expect(shown(tester), isTrue, reason: 'the app default is on');
+      expect(opacity(), lessThan(1));
+      expect(find.descendant(of: tile(), matching: find.text('App default')),
+          findsOneWidget);
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(seen!.signInPopups, const Own(false));
+      expect(shown(tester), isFalse);
+      expect(opacity(), 1);
+      await tester.longPress(toggle());
+      await tester.pumpAndSettle();
+      expect(seen!.signInPopups, const FollowApp<bool>());
+      AppPref.signInPopups.debugValue = false;
+      await tester.pumpAndSettle();
+      expect(shown(tester), isFalse, reason: "a following site shows the app's");
+    });
+
+    testWidgets('it sits in the link group, above the claims editor',
+        (tester) async {
+      await _pump(tester,
+          values: _values(), domainClaims: const Text('claims-slot'));
+      final row = tester.getTopLeft(find.text('Sign-in popups')).dy;
+      expect(row, greaterThan(tester.getTopLeft(find.text('External links')).dy));
+      expect(row, lessThan(tester.getTopLeft(find.text('claims-slot')).dy));
+    });
+
+    testWidgets('absent where the host does not offer them', (tester) async {
+      PopupKind.debugSignInExperimental = true;
+      await _pump(tester, values: _values());
+      expect(find.text('Sign-in popups'), findsNothing);
+    });
+  });
+
   testWidgets('the domain-claim editor renders in the link group',
       (tester) async {
     await _pump(
@@ -661,6 +714,13 @@ void main() {
     final kagi =
         WebViewModel(siteId: SiteId('kagi'), initUrl: 'https://kagi.com/', name: 'Kagi');
 
+    // The Sign-in popups row also follows the app by default.
+    Finder searchDefaultSays(String text) => find.descendant(
+        of: find.ancestor(
+            of: find.text('Default search from this site'),
+            matching: find.byType(ListTile)),
+        matching: find.text(text));
+
     testWidgets('the group needs no developer mode (LIR-029)', (tester) async {
       await _pump(tester, values: _values(), initUrl: 'https://github.com/');
       expect(find.text('Search'), findsOneWidget);
@@ -672,7 +732,7 @@ void main() {
         (tester) async {
       await _pump(tester, values: _values(), initUrl: 'https://github.com/');
       expect(find.text('https://github.com/search?q=%s'), findsOneWidget);
-      expect(find.text('App default'), findsOneWidget);
+      expect(searchDefaultSays('App default'), findsOneWidget);
       expect(find.text('All'), findsOneWidget);
     });
 
@@ -803,7 +863,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(seen!.searchSites, ['ddg']);
       expect(seen!.searchDefault, const FollowApp<String>());
-      expect(find.text('App default'), findsOneWidget);
+      expect(searchDefaultSays('App default'), findsOneWidget);
     });
   });
 }

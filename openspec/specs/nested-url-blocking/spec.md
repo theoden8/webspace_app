@@ -47,25 +47,35 @@ The system SHALL disable automatic nested window creation via `window.open()`.
 **Then** no nested webview is created
 **And** captcha challenges (Cloudflare, hCaptcha, reCAPTCHA) are still allowed
 
-With the Sign-in popups experiment on, a sign-in window is the other exception (NESTED-014).
+Where a site's sign-in popups are on, a sign-in window is the other exception (NESTED-014).
 
 ---
 
 ### Requirement: NESTED-014 - A Sign-In Window The User Opened Is A Real Popup
 
-With the Sign-in popups experiment on (`developer-tools` DEVTOOLS-011), a
-window a page asks for on the user's tap SHALL open as a real popup when its
-URL is an https page on an identity provider's sign-in host
+Where the site's sign-in popups are on, a window a page asks for on the
+user's tap SHALL open as a real popup when its URL is an https page on an
+identity provider's sign-in host
 (`PopupKind.isSignInUrl`: `accounts.google.com`, `accounts.youtube.com`,
 `appleid.apple.com`, `login.microsoftonline.com`, `login.live.com`,
 `github.com`, each with its subdomains). It is not a nested screen and not a
 system-browser hand-off: those leave the page no handle on the window, and a
 provider in popup mode answers the page only through `window.opener`.
 
+- **Where it is on.** iOS, macOS and Linux offer it with developer mode on
+  or off; Android only with the Sign-in popups experiment on
+  (`developer-tools` DEVTOOLS-011), whose switch is offered only there
+  (`PopupKind.signInExperimental`). Where it is offered, App settings >
+  Behaviour has a Sign-in popups switch, on by default, and each site's
+  Behaviour screen one that follows it until the site makes its own choice
+  (`site-behaviour` BEHAV-007). A site's choice is a field of its posture
+  (`SitePage.signInPopups`, resolved by `PopupKind.signInOpens`), so a nested
+  screen and a popup take it with the rest. Where it is off, NESTED-001
+  applies unchanged.
 - **The gesture is the engine's.** `onCreateWindow` cannot read a tap on a
   window a script opened: WebKit types every `window.open` as "other", and
   Android passes the gesture but names no URL (the plugin reads it off the
-  tapped link). With the experiment on, the site webview sets
+  tapped link). Where the site's sign-in popups are on, its webview sets
   `javaScriptCanOpenWindowsAutomatically` to false, so the engine's own popup
   blocker asks only for a window a tap opened. A script that opens one on
   load never reaches the app, captcha windows included.
@@ -78,31 +88,45 @@ provider in popup mode answers the page only through `window.opener`.
   opens as a sign-in popup and the popup's rule judges its first page. A popup
   whose first page is refused closes, having nothing to show.
 - **Anything else** a page opens is decided as before (NESTED-001, NESTED-008).
-- The switch is read when a site's webview is built, so it applies to sites
-  loaded after it changes.
+- The switches are read when a site's webview is built, so they apply to
+  sites loaded after they change.
 
 #### Scenario: Continue with Google
 
-- **GIVEN** the experiment is on and the user taps "Continue with Google" on a site
+- **GIVEN** an iOS, macOS or Linux build with developer mode off, a site that follows the app's Sign-in popups switch, and the user taps "Continue with Google" on it
 - **WHEN** the page opens `https://accounts.google.com/o/oauth2/v2/auth?display=popup`
 - **THEN** a Sign in popup shows it, bound to the site's container
 - **AND** the page receives what the popup posts back
 
 #### Scenario: The experiment is off
 
-- **GIVEN** the experiment is off
+- **GIVEN** an Android build with the experiment off
 - **WHEN** a page opens a window on `accounts.google.com`
+- **THEN** no popup opens, as NESTED-001 says
+- **AND** neither Behaviour screen shows a Sign-in popups switch
+
+#### Scenario: A site turns them off
+
+- **GIVEN** an iOS, macOS or Linux build where the app's Sign-in popups switch is on
+- **WHEN** a site turns its own switch off and is loaded again
+- **THEN** a window it opens on `accounts.google.com` is declined, as NESTED-001 says
+- **AND** the engine opens a window a script asks for on its own, as before
+
+#### Scenario: A site follows the app
+
+- **GIVEN** a site that follows the app and the app's Sign-in popups switch off
+- **WHEN** a page on it opens a window on `accounts.google.com`
 - **THEN** no popup opens, as NESTED-001 says
 
 #### Scenario: A window the user did not ask for
 
-- **GIVEN** the experiment is on
+- **GIVEN** the site's sign-in popups are on
 - **WHEN** a page calls `window.open` with no tap
 - **THEN** the engine blocks it before the app is asked
 
 #### Scenario: A tap that opens something else
 
-- **GIVEN** the experiment is on and the user taps a button that opens `https://ads.example/`
+- **GIVEN** the site's sign-in popups are on and the user taps a button that opens `https://ads.example/`
 - **WHEN** the window is requested
 - **THEN** no popup opens; on Android, where the URL is unknown, the popup opens and closes on its refused first page
 
@@ -559,7 +583,7 @@ CLAUDE.md now forbids. Direct engine tests live in
 - `_shouldBlockUrl()` — blocks `about:` (except blank/srcdoc) and service worker patterns
 - `isCaptchaChallenge()` — detects captcha domains and paths; passed to `decideOnUrlChanged` as a callback
 - `shouldOverrideUrlLoading` callback passes `hasGesture` from `NavigationAction`
-- `onCreateWindow` — dismisses all `window.open()` except captcha challenges and, with the Sign-in popups experiment, sign-in windows (`PopupKind.forWindow`, NESTED-014); a same-domain target loads in place only with a user gesture (NESTED-013)
+- `onCreateWindow` — dismisses all `window.open()` except captcha challenges and, where the site's sign-in popups are on, sign-in windows (`PopupKind.forWindow`, NESTED-014); a same-domain target loads in place only with a user gesture (NESTED-013)
 - Registers `targetBlankRewriteScript` always-on at `AT_DOCUMENT_START`
 
 #### `lib/services/target_blank_rewrite.dart`

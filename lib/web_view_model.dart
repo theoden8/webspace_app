@@ -17,6 +17,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/opensearch_engine.dart'
     show SiteSearchTarget;
 import 'package:webspace/services/media_grant_engine.dart';
@@ -211,6 +212,9 @@ class WebViewModel implements MediaGrantRecord {
   bool get effectiveTabsEnabled => resolveTabs(
       tabs: Scoped.fromStored(tabsEnabled).resolve(AppPref.tabsEnabled.value),
       kiosk: kioskMode);
+
+  /// Null follows the app's Sign-in popups switch (NESTED-014).
+  bool? signInPopups;
 
   /// The colour this site's container is drawn in, as an index into the
   /// container palette (TAB-018). Given once, when the site first needs one,
@@ -774,6 +778,7 @@ class WebViewModel implements MediaGrantRecord {
         theme: effectiveTheme,
         userScripts: combineUserScripts(globalUserScripts),
         externalLinks: effectiveExternalLinkMode,
+        signInPopups: PopupKind.signInOpens(choice: Scoped.fromStored(signInPopups)),
         notifications: effectiveNotificationsEnabled,
       ),
     );
@@ -887,6 +892,7 @@ class WebViewModel implements MediaGrantRecord {
     this.alwaysOpenHome = false,
     this.kioskMode = false,
     this.tabsEnabled,
+    this.signInPopups,
     this.containerColor,
     this.language,
     this.zoomPercent = kDefaultZoomPercent,
@@ -1969,9 +1975,7 @@ bool dispatch(NavigationDecision decision,
     }
   }
 
-  String getDisplayName() {
-    return name;
-  }
+  String getDisplayName() => name;
 
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See
