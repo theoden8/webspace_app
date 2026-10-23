@@ -114,6 +114,11 @@ abstract class WebViewController {
 
   Future<void> resumeAllJsTimers();
 
+  /// Load nothing more from the network, for the rest of this webview's
+  /// life: one the app let go of keeps running until the plugin destroys it
+  /// (PROXY-008). Android only, where one proxy rule covers every webview.
+  Future<void> blockNetworkLoads();
+
   /// Abort any in-flight main-frame load. Used to quiesce chromium
   /// before queuing a follow-up navigation, shrinking the overlap
   /// between in-flight teardown and the next loadUrl.
@@ -550,6 +555,13 @@ class PlatformWebViewController implements WebViewController {
 
   @override
   Future<void> resumeAllJsTimers() => _native(_c.resumeTimers);
+
+  @override
+  Future<void> blockNetworkLoads() async {
+    if (!hostIsAndroid) return;
+    _settings.blockNetworkLoads = true;
+    await _native(() => _c.setSettings(settings: _settings));
+  }
 
   @override
   Future<void> stopLoading() => _native(_c.stopLoading);

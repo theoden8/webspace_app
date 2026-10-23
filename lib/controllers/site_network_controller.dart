@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -11,6 +12,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_router_probe.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
+import 'package:webspace/services/router_attribution.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tor_engine.dart';
@@ -39,6 +41,12 @@ class SiteNetworkController {
   final PageHost _host;
   final ResidencyHost residency;
   final BackgroundSitesController background;
+
+  /// The PROXY-015 probe the router comes up with. The on-device fallback
+  /// test crosses two sites' profiles here, the one way to make a real
+  /// WebView fail the check.
+  @visibleForTesting
+  static ProxyAttributionProbe attributionProbe = runAttributionProbe;
 
   StreamSubscription<TrustedHostEntry>? _untrustSub;
   StreamSubscription<TorStatus>? _torStatusSub;
@@ -325,7 +333,7 @@ class SiteNetworkController {
       bindOverride: bindsProcessWide ? ProxyManager().applyRouterOverride : null,
       // PROXY-015: never trust router mode without proving on THIS device
       // that each container presents its own credential.
-      probe: runAttributionProbe,
+      probe: attributionProbe,
     );
     // A null return stands the router down but never clears the override:
     // the `activate` that follows re-applies the site's PROXY-008

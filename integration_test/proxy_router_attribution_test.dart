@@ -26,11 +26,8 @@
 // Android-only by construction. Everywhere else router mode does not
 // engage and there is nothing to attribute.
 
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,63 +40,9 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/webspace_model.dart';
 
+import 'helpers/proxy_upstreams.dart';
 import 'secure_storage_fake.dart';
-import 'fixture_server.dart';
-
-/// A minimal upstream HTTP proxy that records what reached it.
-///
-/// Speaks just enough to answer the relay: absolute-form requests get a
-/// canned 200, `CONNECT` gets a 200 then the socket is dropped. The
-/// destination never has to exist — what is under test is which upstream
-/// the relay chose, not whether the page rendered.
-class RecordingUpstream {
-  final ServerSocket _server;
-  final String label;
-  final List<String> requestLines = [];
-  final List<String> credentials = [];
-
-  RecordingUpstream._(this._server, {required this.label}) {
-    listenFixture(_server, onEvent: (socket) {
-      final buffer = StringBuffer();
-      late StreamSubscription sub;
-      sub = socket
-          .handleError((Object _) => socket.destroy(),
-              test: (e) => e is SocketException)
-          .listen(
-        (data) {
-          buffer.write(latin1.decode(data));
-          if (!buffer.toString().contains('\r\n\r\n')) return;
-          final lines = buffer.toString().split('\r\n');
-          requestLines.add(lines.first);
-          for (final line in lines.skip(1)) {
-            if (line.toLowerCase().startsWith('proxy-authorization:')) {
-              credentials.add(line.substring(line.indexOf(':') + 1).trim());
-            }
-          }
-          socket.write(
-            'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n'
-            'Content-Length: 13\r\nConnection: close\r\n\r\n'
-            '<html></html>',
-          );
-          unawaited(sub.cancel());
-          unawaited(socket.flush().then((_) => socket.destroy()));
-        },
-        cancelOnError: true,
-      );
-    });
-  }
-
-  static Future<RecordingUpstream> start(String label) async {
-    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    return RecordingUpstream._(server, label: label);
-  }
-
-  int get port => _server.port;
-  bool get wasReached => requestLines.isNotEmpty;
-  Future<void> close() => _server.close();
-}
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -176,52 +119,7 @@ void main() {
     // the other, so by the end both are loaded and both have issued
     // traffic through their own credential.
     for (final name in ['Attribution A', 'Attribution B']) {
-      // Re-open the drawer each time: activating a site closes it, so the
-      // second name is not on screen when the loop comes back around.
-      for (var attempt = 0; attempt < 3; attempt++) {
-        if (find.byType(Drawer).evaluate().isNotEmpty) break;
-        final menuIcon = find.byIcon(Icons.menu);
-        if (menuIcon.evaluate().isNotEmpty) {
-          await tester.tap(menuIcon.first);
-        } else {
-          for (final element in find.byType(Scaffold).evaluate()) {
-            final state = tester.state<ScaffoldState>(
-                find.byWidget(element.widget as Scaffold));
-            if (state.hasDrawer) {
-              state.openDrawer();
-              break;
-            }
-          }
-        }
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-
-      final drawer = find.byType(Drawer);
-      if (drawer.evaluate().isNotEmpty &&
-          find.descendant(of: drawer, matching: find.text(name))
-              .evaluate()
-              .isEmpty) {
-        final allTile = find.byKey(const ValueKey(WebspaceId.all));
-        if (allTile.evaluate().isNotEmpty) {
-          await tester.tap(allTile);
-          for (var i = 0; i < 6; i++) {
-            await tester.pump(const Duration(milliseconds: 500));
-          }
-        }
-      }
-
-      // Scoped to the drawer and `findsWidgets`: the active site's name
-      // also renders in the app bar, so a bare finder matches twice.
-      final scoped = find.byType(Drawer);
-      final target = scoped.evaluate().isNotEmpty
-          ? find.descendant(of: scoped, matching: find.text(name))
-          : find.text(name);
-      expect(target, findsWidgets, reason: '$name should be in the drawer');
-      await tester.tap(target.first);
-      for (var i = 0; i < 24; i++) {
-        await tester.pump(const Duration(milliseconds: 500));
-      }
+      await openSiteFromDrawer(tester, name: name);
     }
 
     // The assumption, stated literally. A shared auth cache routes both

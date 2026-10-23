@@ -32,6 +32,9 @@ const CONFINED = {
   [`${ROOT}/CapturePermissionPlugin.kt`]: {
     pending: 'method calls and onRequestPermissionsResult both arrive on the main thread',
   },
+  [`${ROOT}/proxy/Splicer.kt`]: {
+    pending: "the inbox's queue, reached only inside the splicer's Guarded monitor",
+  },
 };
 
 // Files that take a lock directly rather than through Guarded.

@@ -171,6 +171,46 @@ void main() {
     expect(rule.inForce, p2);
   });
 
+  // On device the plugin keeps a disposed webview loading until it has
+  // loaded about:blank, and an icon it fetched then left through the next
+  // site's proxy (proxy_router_fallback_test).
+  test('a webview that goes holds the rule until it loads nothing more '
+      '(PROXY-008)', () async {
+    final rule = ProcessRoute();
+    await rule.claim(_webview('a'), route: p1, write: () async {});
+    final quiet = Completer<void>();
+    final order = <String>[];
+    final gone = rule.leave(_webview('a'), quiet: () async {
+      await quiet.future;
+      order.add('quiet');
+    });
+    final moved = rule.claim(_webview('b'), route: p2,
+        write: () async => order.add('moved'));
+    await pumpEventQueue();
+    expect(order, isEmpty, reason: "a may still send on p1");
+    expect(rule.occupants.keys, {_webview('a')});
+    quiet.complete();
+    await Future.wait([gone, moved]);
+    expect(order, ['quiet', 'moved']);
+    expect(rule.occupants.keys, {_webview('b')});
+  });
+
+  test('a webview that goes voids the claim it had not written yet',
+      () async {
+    final rule = ProcessRoute();
+    final slow = Completer<void>();
+    final first = rule.claim(_webview('x'), route: p1,
+        write: () => slow.future);
+    var wrote = false;
+    final pending = rule.claim(_webview('a'), route: p1,
+        write: () async => wrote = true);
+    final gone = rule.leave(_webview('a'), quiet: () async {});
+    slow.complete();
+    await Future.wait([first, pending, gone]);
+    expect(wrote, isFalse, reason: 'a went before its turn');
+    expect(rule.occupants.keys, {_webview('x')});
+  });
+
   test('the app\'s return takes a check whose claim was queued before it',
       () async {
     final rule = ProcessRoute();

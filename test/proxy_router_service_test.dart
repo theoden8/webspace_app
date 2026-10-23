@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -15,6 +16,7 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 
+import 'helpers/fake_auth_caches.dart';
 import 'helpers/memory_http_auth_store.dart';
 
 /// Lifecycle contract of the per-site proxy router (PROXY-013): what gets
@@ -139,11 +141,9 @@ void main() {
           order.add('bind');
           return true;
         },
-        probe: (urls) async {
+        probe: (identity, {required url}) async {
           order.add('probe');
-          for (final e in urls.entries) {
-            relay.probes[Uri.parse(e.value).host.split('.').first] = e.key;
-          }
+          relay.probes[FakeAuthCaches.nonceOf(url)] = identity;
         },
       );
 
@@ -517,23 +517,32 @@ void main() {
 
   group('attribution self-test (PROXY-015)', () {
     /// A device that behaves: each container presents its own credential,
-    /// so every nonce comes back stamped with its own site.
-    ProxyAttributionProbe honestDevice() => (siteIdToProbeUrl) async {
-          for (final e in siteIdToProbeUrl.entries) {
-            relay.probes[_nonceOf(e.value)] = e.key;
-          }
-        };
+    /// so every nonce comes back stamped with its own identity.
+    FakeAuthCaches honestDevice() => FakeAuthCaches(
+        record: ({required nonce, required identity}) => relay.probes[nonce] = identity);
 
     /// The device this whole check exists for: one shared proxy auth
     /// cache, so whichever site authenticated first has its credential
-    /// replayed for every container. Every nonce comes back stamped with
-    /// that one site, and nothing errors anywhere.
-    ProxyAttributionProbe sharedAuthCacheDevice(String winner) =>
-        (siteIdToProbeUrl) async {
-          for (final e in siteIdToProbeUrl.entries) {
-            relay.probes[_nonceOf(e.value)] = winner;
-          }
-        };
+    /// replayed for every container probed after it, and nothing errors
+    /// anywhere.
+    FakeAuthCaches sharedAuthCacheDevice() => FakeAuthCaches.shared(
+        record: ({required nonce, required identity}) => relay.probes[nonce] = identity);
+
+    final a = RouterIdentity.ofSite(SiteId('a'));
+    final b = RouterIdentity.ofSite(SiteId('b'));
+    final c = RouterIdentity.ofSite(SiteId('c'));
+    final d = RouterIdentity.ofSite(SiteId('d'));
+
+    Future<inapp.HttpAuthResponse?> relayChallenge(RouterIdentity identity) =>
+        answerHttpAuthChallenge(
+          routerIdentity: identity,
+          session: null,
+          challenge: inapp.HttpAuthenticationChallenge(
+            previousFailureCount: 0,
+            protectionSpace: inapp.URLProtectionSpace(
+                host: FakeRelay.boundHost, realm: service.realm),
+          ),
+        );
 
     test('activates when every container presents its own credential',
         () async {
@@ -542,7 +551,7 @@ void main() {
           RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
           RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
         },
-        probe: honestDevice(),
+        probe: honestDevice().probe,
       );
 
       expect(port, 43210);
@@ -560,7 +569,7 @@ void main() {
           RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
           RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
         },
-        probe: sharedAuthCacheDevice('a'),
+        probe: sharedAuthCacheDevice().probe,
       );
 
       expect(port, isNull);
@@ -577,11 +586,8 @@ void main() {
           RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
           RouterIdentity.ofSite(SiteId('b')): proxy(ProxyType.HTTP, address: '10.0.0.2:8080'),
         },
-        // Only site a probes; b never arrives.
-        probe: (siteIdToProbeUrl) async {
-          final only = siteIdToProbeUrl.entries.first;
-          relay.probes[_nonceOf(only.value)] = only.key;
-        },
+        // b's probe never arrives, asked twice.
+        probe: (honestDevice()..silent[b] = 2).probe,
       );
 
       expect(port, isNull,
@@ -592,7 +598,8 @@ void main() {
     test('refuses when the probe itself throws', () async {
       final port = await service.activate(
         perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
-        probe: (_) async => throw PlatformException(code: 'no webview'),
+        probe: (_, {required url}) async =>
+            throw PlatformException(code: 'no webview'),
       );
       expect(port, isNull);
       expect(service.isActive, isFalse);
@@ -607,18 +614,101 @@ void main() {
             RouterIdentity.ofSite(SiteId('site-$i')):
               proxy(ProxyType.DEFAULT, address: null),
         },
-        probe: (siteIdToProbeUrl) async {
-          urls.addAll(siteIdToProbeUrl.values);
-          for (final e in siteIdToProbeUrl.entries) {
-            relay.probes[_nonceOf(e.value)] = e.key;
-          }
+        probe: (identity, {required url}) async {
+          urls.add(url);
+          relay.probes[FakeAuthCaches.nonceOf(url)] = identity;
         },
       );
+      await pumpEventQueue();
       expect(urls.toSet(), hasLength(5));
       for (final u in urls) {
         expect(u, startsWith('http://'));
         expect(u, contains(ProxyRouterEngine.probeSuffix));
       }
+    });
+
+    test('the launch waits for two checks; a site waits for its own',
+        () async {
+      final device = honestDevice();
+      final gate = Completer<void>();
+      device.gates[d] = gate;
+      final port = await service.activate(
+        perSiteProxies: {
+          for (final id in [a, b, c, d])
+            id: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        },
+        probe: device.probe,
+      );
+      expect(port, 43210, reason: "d's check does not hold the launch");
+      expect(device.started.take(2), [a, b]);
+
+      inapp.HttpAuthResponse? answer;
+      var answered = false;
+      unawaited(relayChallenge(d).then((r) {
+        answer = r;
+        answered = true;
+      }));
+      await pumpEventQueue();
+      expect(answered, isFalse,
+          reason: "d presents nothing before its check has run");
+      gate.complete();
+      await pumpEventQueue();
+      expect(answered, isTrue);
+      expect(answer?.password, service.tokenFor(d));
+    });
+
+    test('a late failed check stops routing both identities it names',
+        () async {
+      // c caches with a: the proof of a and b cannot see it, c's own check
+      // does, and neither a nor c can be told apart from then on.
+      final device = FakeAuthCaches(
+        record: ({required nonce, required identity}) => relay.probes[nonce] = identity,
+        profileOf: (identity) => identity == c ? a : identity,
+      );
+      await service.activate(
+        perSiteProxies: {
+          for (final id in [a, b, c])
+            id: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        },
+        probe: device.probe,
+      );
+      final credentialA = service.credentialFor(a)!;
+      await pumpEventQueue();
+
+      expect(service.isActive, isTrue,
+          reason: 'loaded sites keep the route they run on');
+      expect(relay.resolve(credentialA), isNull,
+          reason: "a's credential fails closed, wherever it is cached");
+      expect(relay.installed.values.map((r) => r['siteId']), [b]);
+      expect(await relayChallenge(a), isNull);
+      expect(await relayChallenge(c), isNull);
+      expect((await relayChallenge(b))?.password, service.tokenFor(b));
+    });
+
+    test('an identity new to the run is checked before it is presented',
+        () async {
+      final device = honestDevice();
+      await service.activate(
+        perSiteProxies: {
+          a: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+          b: proxy(ProxyType.HTTP, address: '10.0.0.2:8080'),
+        },
+        probe: device.probe,
+      );
+      expect(await relayChallenge(RouterIdentity.shared), isNull,
+          reason: 'an identity the relay does not route is never answered');
+
+      await service.refreshRoutes(perSiteProxies: {
+        a: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        b: proxy(ProxyType.HTTP, address: '10.0.0.2:8080'),
+        d: proxy(ProxyType.HTTP, address: '10.0.0.4:8080'),
+        RouterIdentity.shared: proxy(ProxyType.DEFAULT, address: null),
+      });
+      await pumpEventQueue();
+      expect(device.started, containsAll([d, RouterIdentity.shared]),
+          reason: 'checked as it appears, before anything asks');
+      final answer = await relayChallenge(RouterIdentity.shared);
+      expect(answer?.password, service.tokenFor(RouterIdentity.shared));
     });
 
     test('no probe supplied means no check (the test-only path)', () async {
@@ -630,8 +720,3 @@ void main() {
     });
   });
 }
-
-/// Recover the nonce from a probe URL, the way the relay does from the
-/// request host.
-String _nonceOf(String probeUrl) =>
-    Uri.parse(probeUrl).host.replaceAll(ProxyRouterEngine.probeSuffix, '');

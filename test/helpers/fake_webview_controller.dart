@@ -63,6 +63,12 @@ class FakeWebViewController extends Fake implements WebViewController {
   Future<void> loadUrl(String url, {String? language}) async =>
       calls.add('loadUrl $url');
 
+  /// Whether the app told this webview to load nothing more.
+  bool networkBlocked = false;
+
+  @override
+  Future<void> blockNetworkLoads() async => networkBlocked = true;
+
   @override
   Future<HistoryEntry?> backEntry() {
     calls.add('backEntry');

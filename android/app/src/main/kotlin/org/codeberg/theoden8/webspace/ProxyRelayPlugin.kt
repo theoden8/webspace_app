@@ -64,6 +64,7 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                                 port = port,
                                 username = call.argument<String>("username"),
                                 password = call.argument<String>("password"),
+                                answersEarly = call.argument<Boolean>("early") ?: false,
                             )
                         )
                         // Host as well as port: the listener binds a random
@@ -156,6 +157,7 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                 port = port,
                 username = entry["username"] as? String,
                 password = entry["password"] as? String,
+                answersEarly = entry["early"] as? Boolean ?: false,
             ),
         )
     }

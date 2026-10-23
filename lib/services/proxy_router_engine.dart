@@ -98,30 +98,6 @@ class ProxyRouterEngine {
   /// would have to fake a TLS handshake for.
   static String probeUrlFor(String nonce) => 'http://$nonce$probeSuffix/';
 
-  /// The sites whose traffic the device does not attribute to them; empty
-  /// when attribution holds.
-  ///
-  /// [expected] is siteId -> the nonce we told that site's container to
-  /// fetch; [observed] is nonce -> the siteId whose credential the relay
-  /// saw carrying it. They agree only if every container presented its
-  /// OWN credential.
-  ///
-  /// This is the runtime form of the PROXY-013 gate. Chromium caches a
-  /// proxy credential per `HttpNetworkSession`; if a device turned out to
-  /// share one session across container profiles, every probe would come
-  /// back stamped with whichever site authenticated first, and every site
-  /// but that one is listed. A missing observation is listed too: an
-  /// unproven site is treated exactly like a failed one, because the
-  /// failure it would otherwise hide is silent.
-  static List<String> attributionFailures({
-    required Map<String, String> expected,
-    required Map<String, String> observed,
-  }) =>
-      [
-        for (final entry in expected.entries)
-          if (observed[entry.value] != entry.key) entry.key,
-      ];
-
   /// 128 bits of `Random.secure()` as lowercase hex.
   ///
   /// Used for both the per-site token and the realm nonce. The token is
@@ -270,11 +246,17 @@ class ProxyRouterEngine {
     // carrying this site's isolation tag as the SOCKS username. While the
     // runtime is not up, drop the route and let the relay answer 502 rather
     // than send the site anywhere else (TOR-008).
+    //
+    // Tor alone is answered before its SOCKS reply (`early`, PROXY-022): a
+    // fresh circuit can outlast the tunnel Chromium allows, while any other
+    // SOCKS5 proxy's refusal should reach the page as a 502.
     if (proxy.type == ProxyType.TOR) {
       return switch (expandTorProxy(proxy)) {
-        TorRouteUp(:final socks) => _encodeUpstream(
-          ProxyRoute(identity: route.identity, upstream: socks),
-        ),
+        TorRouteUp(:final socks) => switch (_encodeUpstream(
+            ProxyRoute(identity: route.identity, upstream: socks))) {
+          final wire? => {...wire, 'early': true},
+          null => null,
+        },
         TorRouteBlocked() => null,
       };
     }

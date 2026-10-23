@@ -241,6 +241,14 @@ process-wide override flips, **unless PROXY-013 router mode is active**,
 in which case Android MUST NOT dispose them and MUST route each site
 concurrently through the relay.
 
+Disposed means quiet, not only dropped. The plugin destroys a native
+webview only after it has loaded `about:blank`, and until then it can still
+send: on the emulator its icon fetch left through the next site's proxy
+once the override had flipped. A site's webview SHALL therefore keep its
+place on the process-wide rule until it has been told to load nothing more
+from the network, and an override write asked for meanwhile SHALL wait for
+that.
+
 #### Scenario: iOS / macOS — concurrent per-site proxy
 
 **Given** container mode is active on iOS 17+ / macOS 14+
@@ -261,6 +269,16 @@ which is partitioned per `siteId`
 (including Site A) is disposed *before*
 `ProxyController.setProxyOverride` applies P2 globally
 **And** the data model preserves Site A's P1 setting
+
+#### Scenario: Android — a disposed webview sends nothing through the next proxy
+
+**Given** Site A is loaded on Android with HTTP proxy P1
+**And** router mode is NOT active
+**When** Site A is disposed so that Site B, on proxy P2, can load
+**Then** Site A's webview is told to block network loads before
+`ProxyController.setProxyOverride` applies P2
+**And** no request for Site A reaches P2, an icon fetched while the plugin
+tears the webview down included
 
 #### Scenario: Android — no background load on another route
 
@@ -678,16 +696,18 @@ upstream. When the upstream is unreachable or rejects authentication, the
 relay SHALL return an error status (HTTP `502`) to the client and close the
 connection.
 
-A `CONNECT` through a SOCKS5 upstream SHALL be answered `200` before the
-upstream is asked, and the relay SHALL wait up to 30 s for the upstream's
-reply. Chromium on Android abandons a proxy tunnel 10 s after the `CONNECT`
+A `CONNECT` through tor's SOCKS port SHALL be answered `200` before tor is
+asked, and the relay SHALL wait up to 30 s for its reply. Chromium on Android
+abandons a proxy tunnel 10 s after the `CONNECT`
 (`kHttpProxyConnectJobTunnelTimeout`) and then gives the TLS handshake 30 s
 (`kSSLHandshakeTimeout`); tor attaching a stream to a fresh circuit routinely
 takes longer than the first, so answering only once tor has answered made a
 Tor site time out. What the client sends in the meantime stays in the socket
-until the splice reads it. When that upstream then fails, the relay SHALL
-close the connection with nothing written to it, which the client sees as a
-failed handshake. When the relay cannot bind its listener at all,
+until the splice reads it. When tor then fails, the relay SHALL close the
+connection with nothing written to it, which the client sees as a failed
+handshake. Any other SOCKS5 upstream SHALL be answered only once it has
+replied, so its failure is a `502` the client can report as a proxy
+failure. When the relay cannot bind its listener at all,
 `ProxyManager.setProxySettings` SHALL throw and SHALL NOT clear the existing
 proxy override — clearing it would let traffic flow directly and leak the
 user's IP.
@@ -699,7 +719,7 @@ user's IP.
 - **THEN** the relay responds with `502`
 - **AND** the relay does not connect the client directly to the requested origin
 
-#### Scenario: A slow SOCKS5 upstream does not time the tunnel out
+#### Scenario: A slow tor upstream does not time the tunnel out
 
 - **GIVEN** the relay's upstream is a tor SOCKS port that takes 15 s to
   attach a stream
@@ -707,12 +727,19 @@ user's IP.
 - **THEN** the relay answers `200` at once
 - **AND** the WebView's TLS handshake completes through tor once it attaches
 
-#### Scenario: A SOCKS5 upstream that fails after the early answer
+#### Scenario: A tor upstream that fails after the early answer
 
-- **GIVEN** the relay answered a `CONNECT` through a SOCKS5 upstream
-- **WHEN** the upstream replies that the host is unreachable
+- **GIVEN** the relay answered a `CONNECT` through tor's SOCKS port
+- **WHEN** tor replies that the host is unreachable
 - **THEN** the relay closes the connection without writing to it
 - **AND** the relay does not connect the client directly to the requested origin
+
+#### Scenario: Any other SOCKS5 upstream answers before the client is answered
+
+- **GIVEN** the relay's upstream is a SOCKS5 proxy that is not tor
+- **WHEN** a client opens a `CONNECT` and the upstream replies that the host
+  is unreachable
+- **THEN** the client is answered `502`, not `200`
 
 #### Scenario: Bind failure does not fall back to direct
 
@@ -804,6 +831,28 @@ so the listener SHALL outlive a failed accept: an accept that fails while
 it is bound (descriptors exhausted, say) is retried with a backoff, and the
 loop ends only when the relay is stopped.
 
+For the same reason a connection SHALL cost the relay no more than it
+must. An established tunnel SHALL hold no thread of its own: one splice
+thread carries every open tunnel and ends when the last one closes. Each
+direction of a tunnel ends on its own: one side's end of stream is passed
+on once what it sent has been written, and the tunnel closes when both
+have ended or either side fails. A TLS upstream (an HTTPS proxy) is
+spliced above its TLS layer, never on the socket beneath it.
+
+Plain-http requests SHALL share one client connection, and one upstream
+connection per destination (or per upstream proxy), as HTTP/1.1 keeps them
+(RFC 9112 section 9.3). Each request on a kept connection SHALL be admitted
+on its own credential and target exactly as the first was, so reuse carries
+no request past a check, and framed by its own length; a request naming
+both `Content-Length` and `Transfer-Encoding` is refused `400`, since the
+next hop may frame it by the other. A response with no length ends the
+client's connection. A request with no body that finds a reused upstream
+connection closed is sent once more on a fresh one when its method is
+idempotent (RFC 9110 section 9.2.2); any other closes the client's
+connection unanswered, which the client, having reused it too, resends
+where it may. An upgrade (`101`) is asked for as the client asked and then
+spliced like a tunnel.
+
 Router mode SHALL start only where some route resolves to a proxy: a
 site's own, the app-wide one a DEFAULT site inherits (PROXY-009), or Tor.
 With every route direct, the relay would carry every connection and the
@@ -817,8 +866,10 @@ a proxy configured later applies under PROXY-008 until the next launch.
 **And** developer mode is off
 **And** some site has a proxy
 **When** the app starts
-**Then** the relay is bound and every site's container is probed (PROXY-015)
-**And** router mode activates once each probe is attributed
+**Then** the relay is bound and two sites' containers are probed one after
+the other (PROXY-015)
+**And** router mode activates once both are attributed, the other sites
+checked after the launch
 **And** the Proxy router switch is on the Network screen, on, and not in the
 Experimental group
 
@@ -890,6 +941,23 @@ process-wide override fails to apply
 **And** the proxy override is NOT cleared
 **And** the app falls back to the PROXY-008 serialisation
 
+#### Scenario: An open tunnel holds no thread
+
+**Given** router mode is active
+**And** sixteen tunnels are open and idle
+**Then** no relay worker thread is held by any of them
+**And** one splice thread carries them all, and ends when the last closes
+
+#### Scenario: Requests on a kept connection are each admitted
+
+**Given** router mode is active and a client keeps one connection open
+**When** its first request bears Site A's credential and its second Site B's
+**Then** each request reaches its own site's route
+**And** a later request bearing an unknown credential is answered `502` and
+the connection closes
+**And** two requests to one origin on that connection share one upstream
+connection
+
 #### Scenario: Background-poll sites no longer contend
 
 **Given** router mode is active
@@ -939,9 +1007,8 @@ active or loaded, so the relay answers `502` rather than sending the
 next such site out through the previous one's upstream. Its route SHALL
 be installed before the activating site can issue a request.
 
-The PROXY-015 probe SHALL NOT attempt to attribute the shared identity:
-it has no container to drive, and what the probe certifies is the
-per-container boundary.
+The PROXY-015 check SHALL attribute the shared identity like any other,
+from the default profile its sites run in, before one of them presents it.
 
 #### Scenario: Two sites the app did not bind to a profile
 
@@ -1187,19 +1254,39 @@ where the upstream is SOCKS5.
 ### Requirement: PROXY-015 - Router mode verifies attribution on the device
 
 Before router mode is treated as active, the app SHALL prove on the
-running device that each container presents its own proxy credential.
+running device that profiles present their own proxy credential, and no
+webview SHALL present a routing identity's credential before this run has
+shown that identity's profile presents its own.
 
-Each site's container SHALL be driven to fetch a unique probe host under
-`.webspace-probe.invalid`. The relay SHALL answer probe hosts itself and
-SHALL NOT open any upstream for them, recording only which credential
-carried which nonce. Router mode SHALL be activated only if every site's
-nonce comes back attributed to that same site; a mismatched pair, a
-missing pair, or a probe that fails to run SHALL each prevent activation
-and fall back to PROXY-008.
+A check drives the profile an identity runs in (a site's container, or the
+default profile for the identity every site without one shares, PROXY-018)
+to fetch a unique probe host under `.webspace-probe.invalid`. The relay
+SHALL answer probe hosts itself and SHALL NOT open any upstream for them,
+recording only which credential carried which nonce. A check passes only
+when its nonce comes back attributed to the identity it checked; a probe
+that reports nothing is asked once more, and one that comes back carrying
+another identity's credential is not.
 
-Containers are probed a few at a time, neither all at once nor one after
-another: a launch with many sites waits about one probe rather than one per
-site, and does not build a headless view for every site at the same moment.
+A profile that shares another's auth cache shows it only to a check that
+starts after the other's ended: Chromium then sends the cached credential
+with the probe before any challenge. Checks run side by side all start
+cold, each answers its challenge with its own credential, and a device
+whose profiles share one cache passes them all. The launch SHALL therefore
+wait for a proof of two identities checked one after the other; a failed
+proof, a probe that fails to run, or a missing pair prevents activation
+and falls back to PROXY-008. The other identities, and any that appear
+later in the run, SHALL be checked after the proof, a few at a time, each
+against profiles whose caches are already warm, so the launch waits about
+two probes however many sites there are.
+
+A webview's challenge for an identity not yet checked SHALL wait for that
+identity's check, which runs at once if it is still queued: a site opened
+before its check is held, and nothing reaches its upstream meanwhile. A
+check that fails after the proof SHALL stop routing the identity it
+checked and the identity whose credential its probe carried, whose
+credentials are answered `502` for the rest of the run, so their sites
+fail closed. Router mode stays up for every other identity: standing it
+down mid-run would move loaded sites onto another route.
 
 This exists because the failure it detects is otherwise invisible.
 Chromium caches a proxy credential per `HttpNetworkSession` and does not
@@ -1207,28 +1294,63 @@ partition proxy entries by `NetworkAnonymizationKey`, so on a device
 where container profiles shared a session, every site would present
 whichever credential was cached first. Pages would load, the relay would
 return `200`, and one site would be exiting through another site's proxy
-with nothing raised anywhere.
+with nothing raised anywhere. A successful check also warms its profile's
+auth cache, so a service worker, which cannot answer a challenge, has a
+credential to send.
 
 #### Scenario: A device that attributes correctly activates
 
-**Given** router mode is starting with sites A and B
-**When** each container fetches its own probe host
-**And** the relay records A's nonce against A and B's nonce against B
+**Given** router mode is starting with sites A, B and C
+**When** A's container fetches its probe host, and then B's
+**And** the relay records each nonce against the site that fetched it
 **Then** router mode activates
+**And** C is checked after the launch
 
 #### Scenario: A device that mixes credentials is refused
 
 **Given** router mode is starting with sites A and B
-**When** both probes come back attributed to site A
+**When** B's probe, which starts after A's ended, comes back carrying A's
+credential
 **Then** router mode is NOT activated
 **And** the relay is stopped
 **And** the app falls back to the PROXY-008 serialisation
-**And** the failure is logged naming the sites that could not be proven
+**And** the failure is logged naming the identity that could not be proven
 
 #### Scenario: An unproven site is treated as a failed one
 
-**Given** site B's probe never reaches the relay
+**Given** site B's probe never reaches the relay, asked twice
 **Then** router mode is NOT activated
+
+#### Scenario: A site opened before its check waits for it
+
+**Given** router mode came up after checking A and B
+**And** D's check has not run yet
+**When** D's webview is challenged by the relay
+**Then** the challenge is answered only once D's check has passed
+
+#### Scenario: A late failed check fails closed
+
+**Given** router mode came up after checking A and B
+**When** C's probe comes back carrying A's credential
+**Then** neither A's nor C's credential routes for the rest of the run
+**And** their challenges are not answered
+**And** B keeps its route and router mode stays up
+
+#### Scenario: An identity new to the run is checked as it appears
+
+**Given** router mode is active
+**When** a route for a new identity is installed
+**Then** that identity is checked without waiting for a webview to ask
+
+#### Scenario: A real WebView that fails the check falls back
+
+**Given** an Android emulator whose WebView reports `MULTI_PROFILE`
+**And** the probe is crossed so each site's nonce is fetched from the other
+site's container
+**When** the app starts
+**Then** router mode is NOT active
+**And** each site still reaches its own upstream, one at a time, under
+PROXY-008
 
 #### Scenario: A probe cannot egress
 

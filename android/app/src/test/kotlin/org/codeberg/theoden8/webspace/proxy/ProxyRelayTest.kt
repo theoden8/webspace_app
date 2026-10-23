@@ -173,6 +173,7 @@ class ProxyRelayTest {
             val port = relay.start(
                 ProxyRelay.UpstreamConfig(
                     ProxyRelay.UpstreamType.SOCKS5, "127.0.0.1", socks.localPort, null, null,
+                    answersEarly = true,
                 )
             )
             Socket().use { c ->
@@ -207,6 +208,7 @@ class ProxyRelayTest {
             val port = relay.start(
                 ProxyRelay.UpstreamConfig(
                     ProxyRelay.UpstreamType.SOCKS5, "127.0.0.1", socks.localPort, null, null,
+                    answersEarly = true,
                 )
             )
             Socket().use { c ->
@@ -226,6 +228,75 @@ class ProxyRelayTest {
             )
         } finally {
             release.countDown(); relay.stop(); socks.close(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun socks5Connect_withoutTheEarlyAnswerWaitsForTheUpstream() {
+        // A SOCKS5 proxy that is not tor is answered after its reply: the
+        // early answer is tor's alone (PROXY-022).
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val release = CountDownLatch(1)
+        val socks = slowSocks(release, rep = 0, originPort = origin.localPort)
+        val relay = ProxyRelay()
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.SOCKS5, "127.0.0.1", socks.localPort, null, null,
+                )
+            )
+            Socket().use { c ->
+                c.connect(InetSocketAddress(relay.host, port), 3000)
+                c.soTimeout = 500
+                val out = c.getOutputStream()
+                out.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n".toByteArray())
+                out.flush()
+                try {
+                    val early = c.getInputStream().read()
+                    throw AssertionError("answered before the upstream replied: byte $early")
+                } catch (e: java.net.SocketTimeoutException) {
+                    // Nothing yet: the upstream has not replied.
+                }
+                release.countDown()
+                c.soTimeout = 5000
+                assertTrue(readPreamble(c.getInputStream()).requestLine.contains("200"))
+            }
+        } finally {
+            release.countDown(); relay.stop(); socks.close(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun socks5Connect_withoutTheEarlyAnswerReportsAFailedUpstreamAs502() {
+        // The upstream's refusal reaches the page as a 502 rather than as a
+        // tunnel that closes mid-handshake, and nothing is dialled instead.
+        val directHits = CountDownLatch(1)
+        val origin = fakeServer { directHits.countDown() }
+        val release = CountDownLatch(1).apply { countDown() }
+        val socks = slowSocks(release, rep = 4, originPort = origin.localPort)
+        val relay = ProxyRelay()
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.SOCKS5, "127.0.0.1", socks.localPort, null, null,
+                )
+            )
+            Socket().use { c ->
+                c.connect(InetSocketAddress(relay.host, port), 3000)
+                c.soTimeout = 5000
+                c.getOutputStream().write(
+                    "CONNECT 127.0.0.1:${origin.localPort} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n".toByteArray()
+                )
+                c.getOutputStream().flush()
+                val status = readPreamble(c.getInputStream()).requestLine
+                assertTrue("expected 502, got: $status", status.contains("502"))
+            }
+            assertFalse(
+                "a failed upstream must not be replaced by a direct connection",
+                directHits.await(500, TimeUnit.MILLISECONDS),
+            )
+        } finally {
+            relay.stop(); socks.close(); origin.close()
         }
     }
 
@@ -380,8 +451,14 @@ class ProxyRelayTest {
                     "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com\r\n\r\n".toByteArray()
                 )
                 s.getOutputStream().flush()
-                assertEquals("the relay must close on a foreign peer, not answer it",
-                    -1, s.getInputStream().read())
+                // Closed with the request unread, which may reach this side
+                // as a reset rather than an end of stream; either is no answer.
+                val first = try {
+                    s.getInputStream().read()
+                } catch (e: java.net.SocketException) {
+                    -1
+                }
+                assertEquals("the relay must close on a foreign peer, not answer it", -1, first)
             }
             assertEquals("no upstream connection may be opened for a foreign peer",
                 0, upstreamHits.get())

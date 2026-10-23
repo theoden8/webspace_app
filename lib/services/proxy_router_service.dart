@@ -1,7 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart'
-    show MissingPluginException, PlatformException;
-import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 // Conditional so a UI file that reaches this service still compiles for
 // web: the real adapter owns a `ServerSocket` (DESIGN-001).
@@ -10,20 +9,9 @@ import 'package:webspace/services/local_proxy_relay_api_web.dart'
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/services/router_attribution.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
-
-/// Drives one site's container to fetch [probeUrl], so the relay can
-/// observe which credential that container actually presents.
-///
-/// A function rather than a concrete type so the service stays testable
-/// without a WebView; `main.dart` supplies the real one, which opens a
-/// short-lived headless WebView bound to that site's container. It fails
-/// with the webview plugin's [PlatformException] or
-/// [MissingPluginException].
-typedef ProxyAttributionProbe = Future<void> Function(
-  Map<SiteId, String> siteIdToProbeUrl,
-);
 
 /// Points the process-wide WebView proxy at the relay on [host]:[port].
 ///
@@ -78,11 +66,25 @@ class ProxyRouterService {
   String? _host;
   int? _port;
 
+  /// This run's checks; null when no probe was supplied (tests only).
+  RouterAttribution? _attribution;
+
+  /// The table last asked for, which a late failed check reinstalls less
+  /// the identities it failed.
+  Map<RouterIdentity, UserProxySettings> _table = const {};
+
+  /// The identities the relay routes right now.
+  Set<RouterIdentity> _routed = const {};
+
   void setRelayForTest(ProxyRelayApi relay) {
     _relayOverride = relay;
   }
 
   void resetForTest() {
+    _attribution?.end();
+    _attribution = null;
+    _table = const {};
+    _routed = const {};
     _state = null;
     _host = null;
     _port = null;
@@ -226,10 +228,18 @@ class ProxyRouterService {
     _state = state;
     _host = endpoint.host;
     _port = port;
+    final attribution = switch (probe) {
+      final probe? => _checksWith(probe),
+      null => null,
+    };
+    _attribution = attribution;
+    if (attribution != null) await _relay.clearProbeResults();
     final installed = await _installRoutes(perSiteProxies);
     if (!installed) {
       LogTag.proxy.error(
           'Relay rejected the route table; not activating router mode');
+      attribution?.end();
+      _attribution = null;
       _host = null;
       _port = null;
       return null;
@@ -246,13 +256,19 @@ class ProxyRouterService {
       return null;
     }
     // PROXY-015. Everything above proves the app WANTS per-site routing;
-    // only the probe proves this device DELIVERS it. Skipping the check
-    // when no probe is supplied is deliberate for tests, but the app must
-    // always pass one: without it a device that shares a proxy auth cache
-    // across container profiles would route sites through each other and
-    // nothing would say so.
-    if (probe != null &&
-        !await _verifyAttribution(perSiteProxies.keys, probe: probe)) {
+    // only the proof shows this device DELIVERS it. The launch waits for two
+    // identities checked one after the other; the rest are checked after
+    // it, and each webview waits for its own ([attributed]). Skipping the
+    // check when no probe is supplied is deliberate for tests, but the app
+    // must always pass one: without it a device that shares a proxy auth
+    // cache across container profiles would route sites through each other
+    // and nothing would say so.
+    if (attribution != null &&
+        !await attribution.prove([
+          for (final identity in perSiteProxies.keys)
+            if (_routed.contains(identity)) identity,
+        ])) {
+      LogTag.proxy.error('Attribution not proven; not activating router mode');
       await deactivate();
       return null;
     }
@@ -262,81 +278,58 @@ class ProxyRouterService {
     return port;
   }
 
-  /// Prove, on this device, that each container presents its own
-  /// credential — then and only then trust router mode.
+  /// Whether a webview may present [identity]'s credential yet: this run
+  /// has shown its profile presents its own (PROXY-015). A challenge waits
+  /// here, so a site opened before its check ran is held until it has;
+  /// nothing reaches its upstream in the meantime.
   ///
-  /// Each site's container is asked to fetch a unique probe host. The
-  /// relay answers those locally (never contacting an upstream, so a
-  /// probe cannot egress) and records which credential carried which
-  /// nonce. If any pair disagrees, or any is missing, attribution is not
-  /// proven and the caller falls back to PROXY-008 serialisation.
-  ///
-  /// A useful side effect: a successful probe warms that profile's proxy
-  /// auth cache, so a later service-worker request — which cannot answer
-  /// a challenge itself, as `AwHttpAuthHandler` cancels with no
-  /// `WebContents` — already has a credential to send.
-  Future<bool> _verifyAttribution(
-    Iterable<RouterIdentity> identities, {
-    required ProxyAttributionProbe probe,
-  }) async {
-    if (_state == null) return false;
-    // The shared-profile identity has no container to drive, and nothing
-    // to prove: it exists precisely because those sites share one
-    // session. What the probe certifies is the per-container boundary.
-    final sites = [for (final identity in identities) ?identity.site];
-    if (sites.isEmpty) return true;
-
-    await _relay.clearProbeResults();
-    final expected = {for (final s in sites) s: ProxyRouterEngine.mintNonce()};
-    try {
-      await probe({
-        for (final e in expected.entries)
-          e.key: ProxyRouterEngine.probeUrlFor(e.value),
-      });
-    } on PlatformException catch (e) {
-      return _probeFailed(e);
-    } on MissingPluginException catch (e) {
-      return _probeFailed(e);
-    }
-
-    final observed = await _relay.probeResults();
-    final failures = ProxyRouterEngine.attributionFailures(
-      expected: expected,
-      observed: observed,
-    );
-    if (failures.isNotEmpty) {
-      LogTag.proxy.error(
-          'ATTRIBUTION CHECK FAILED for ${failures.length} of ${sites.length} '
-          'site(s); not activating router mode');
-      LogTag.proxy.error(
-          'ATTRIBUTION CHECK FAILED for ${failures.length} site(s): $failures. '
-          'This device did not give each container its own proxy '
-          'credential, so router mode would route sites through each '
-          "other's proxies. Falling back to serialised per-site proxy.",
-          sensitive: true);
-      return false;
-    }
-    LogTag.proxy.info(
-        'Attribution verified for ${sites.length} site(s)', sensitive: true);
-    return true;
+  /// A successful check also warms that profile's proxy auth cache, so a
+  /// later service-worker request, which cannot answer a challenge itself
+  /// (`AwHttpAuthHandler` cancels with no `WebContents`), already has a
+  /// credential to send.
+  Future<bool> attributed(RouterIdentity identity) async {
+    if (!isActive || !_routed.contains(identity)) return false;
+    final attribution = _attribution;
+    if (attribution == null) return true;
+    return attribution.attributed(identity);
   }
 
-  bool _probeFailed(Exception e) {
-    LogTag.proxy.error(
-        'Attribution probe failed to run ($e); not activating router mode',
-        sensitive: true);
-    return false;
+  RouterAttribution _checksWith(ProxyAttributionProbe probe) {
+    late final RouterAttribution checks;
+    return checks = RouterAttribution(
+      probe: probe,
+      observed: _relay.probeResults,
+      onFailed: (failed) => _checkFailed(failed, by: checks),
+    );
+  }
+
+  /// A check after the launch failed: [failed] stop routing, so the relay
+  /// answers their credentials 502. Router mode stays up for every other
+  /// identity; standing it down mid-run would move sites that are already
+  /// loaded onto another route.
+  void _checkFailed(Set<RouterIdentity> failed,
+      {required RouterAttribution by}) {
+    if (!identical(by, _attribution)) return;
+    LogTag.proxy.error('${failed.length} routing identit'
+        '${failed.length == 1 ? 'y' : 'ies'} failed attribution; their sites '
+        'fail closed for this run');
+    unawaited(_installRoutes(_table));
   }
 
   /// Re-install the route table after sites or proxies changed.
   ///
   /// Credentials of sites that disappeared are revoked, so a deleted
   /// site's token stops routing without restarting the relay.
+  ///
+  /// An identity new to this run is checked before a webview may present
+  /// it (PROXY-015).
   Future<bool> refreshRoutes({
     required Map<RouterIdentity, UserProxySettings> perSiteProxies,
   }) async {
     if (!isActive) return false;
-    return _installRoutes(perSiteProxies);
+    final installed = await _installRoutes(perSiteProxies);
+    _attribution?.enqueue(_routed);
+    return installed;
   }
 
   Future<bool> _installRoutes(
@@ -344,13 +337,18 @@ class ProxyRouterService {
   ) async {
     final state = _state;
     if (state == null) return false;
-    state.retainOnly(perSiteProxies.keys);
+    _table = perSiteProxies;
+    final failed = _attribution?.failed ?? const <RouterIdentity>{};
+    final routable = {
+      for (final e in perSiteProxies.entries)
+        if (!failed.contains(e.key)) e.key: e.value,
+    };
+    state.retainOnly(routable.keys);
     final tokens = {
-      for (final identity in perSiteProxies.keys)
-        identity: state.tokenFor(identity)
+      for (final identity in routable.keys) identity: state.tokenFor(identity)
     };
     final routes = ProxyRouterEngine.buildRoutes(
-      perSiteProxies: perSiteProxies,
+      perSiteProxies: routable,
       tokens: tokens,
     );
     final wire = ProxyRouterEngine.toWire(routes);
@@ -367,11 +365,21 @@ class ProxyRouterService {
           'Relay rejected the route table; router mode is not active',
           sensitive: true);
     }
+    _routed = ok
+        ? {
+            for (final e in routes.entries)
+              if (wire.containsKey(e.key)) e.value.identity,
+          }
+        : const {};
     return ok;
   }
 
   /// Tear the relay down and forget every credential.
   Future<void> deactivate() async {
+    _attribution?.end();
+    _attribution = null;
+    _table = const {};
+    _routed = const {};
     _state = null;
     _host = null;
     _port = null;
