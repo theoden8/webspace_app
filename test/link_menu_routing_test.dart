@@ -94,7 +94,7 @@ void main() {
     final open = body('lib/controllers/link_controller.dart',
         signature: 'Future<void> openLinkAsTapped(');
     expect(open.contains('decideUserOpenedLink('), isTrue);
-    expect(open.contains('_host.launchNestedFor('), isTrue);
+    expect(open.contains('_openNestedAs('), isTrue);
     expect(open.contains('launchUrlInSystemBrowser('), isTrue);
     // A blocked link says so through the same hook a tap uses.
     expect(

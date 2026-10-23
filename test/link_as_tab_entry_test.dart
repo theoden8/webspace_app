@@ -85,7 +85,8 @@ void main() {
       () {
     final body = bodyOf(main, signature: 'Future<void> launchUrl(\n');
     final push = body.indexOf('await Navigator.push(');
-    final run = body.indexOf('if (run != null && mounted) await run();');
+    final run =
+        body.indexOf('if (handOff case final run? when mounted) await run();');
     expect(push, isNot(-1));
     expect(run, greaterThan(push));
   });

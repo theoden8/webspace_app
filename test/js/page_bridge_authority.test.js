@@ -352,7 +352,8 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
   assert.match(body,
     /WebViewFactory\.onSiteNavigationPolicy\(config, navigationAction: navigationAction,\s*popup: null,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
     'a headless check must run the on-site navigation gate without the captcha exception');
-  assert.match(body, /initialSettings: WebViewFactory\.siteSettings\(\s*binding,\s*posture: posture,/,
+  assert.match(body,
+    /final settings = WebViewFactory\.siteSettings\(\s*binding,\s*posture: posture,[\s\S]*initialSettings: settings,/,
     'a headless check takes its native settings from the site posture, '
     + 'through the builder the site webview uses');
   for (const check of [

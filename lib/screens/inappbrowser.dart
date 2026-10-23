@@ -59,6 +59,16 @@ enum _NestedMenuAction {
   devTools,
 }
 
+/// The webview a nested screen runs, for its opener to quiet once the
+/// screen pops: the route's future completes while the screen is still in
+/// the tree, before the page lets go of the proxy it ran on (PROXY-008).
+class NestedScreenWebView {
+  WebViewController? Function() _current = () => null;
+
+  /// Load nothing more from the network; nothing when no webview was built.
+  Future<void> quiet() async => _current()?.blockNetworkLoads();
+}
+
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
@@ -83,10 +93,14 @@ class InAppWebViewScreen extends StatefulWidget {
   /// updates the same global preference shown in the parent menu.
   final Future<void> Function({required bool show})? onShowUrlBarChanged;
 
+  /// What its opener quiets once this screen pops.
+  final NestedScreenWebView webView;
+
   InAppWebViewScreen({
     required this.url,
     required SitePosture posture,
     required this.hooks,
+    required this.webView,
     this.homeTitle,
     this.showUrlBar = false,
     this.onOpenAsTab,
@@ -203,6 +217,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   @override
   void initState() {
     super.initState();
+    widget.webView._current = () => _controller;
     WidgetsBinding.instance.addObserver(this);
     _currentUrl = widget.url;
     _showUrlBar = widget.showUrlBar;

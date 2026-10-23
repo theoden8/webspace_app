@@ -177,7 +177,7 @@ void main() {
       final route = body.indexOf(
           'routeOutbound(model, url: url, decision: decision, hadGesture: true)');
       expect(route, isNot(-1));
-      expect(body.indexOf('_host.launchNestedFor('), greaterThan(route),
+      expect(body.indexOf('_openNestedAs('), greaterThan(route),
           reason: 'a nested screen only for what routing leaves');
       expect(File('lib/web_view_model.dart').readAsStringSync(),
           contains('NavigationDecisionEngine.stepFor('),

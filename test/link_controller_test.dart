@@ -73,11 +73,6 @@ class _Page implements LinkHost {
       controllers.putIfAbsent(model, FakeWebViewController.new);
 
   @override
-  Future<void> launchNestedFor(WebViewModel model, {required String url,
-         bool opensFromTab = true}) async =>
-      calls.add('launchNested ${model.siteId} $url');
-
-  @override
   Future<void> openNested(DispatchOpenNested action,
           {WebViewModel? source}) async =>
       calls.add('openNested ${action.siteId} ${action.url}');

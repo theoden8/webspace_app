@@ -102,10 +102,6 @@ abstract interface class LinkHost implements PageHost {
 
   WebViewController? controllerOf(WebViewModel model);
 
-  /// The page's one way to open a nested screen for a site (NESTED-010).
-  Future<void> launchNestedFor(WebViewModel model, {required String url,
-     bool opensFromTab = true});
-
   /// LIR-011 / LIR-015 through `SiteActivationController.openNested`, over
   /// [source] when routed.
   Future<void> openNested(DispatchOpenNested action, {WebViewModel? source});
@@ -644,7 +640,7 @@ class LinkController {
         await showOutboundPicker(owner,
             source: source, action: action, url: url);
       case DispatchNestedFallback():
-        await _host.launchNestedFor(source, url: url.toString());
+        await _openNestedAs(source, over: owner, url: url.toString());
       default:
         LogTag.linkIntent.warning('inbound-only action on the outbound path: '
             '${_describeDispatchAction(action)}');
@@ -922,7 +918,7 @@ class LinkController {
             hadGesture: true)) {
           return;
         }
-        await _host.launchNestedFor(identity, url: url);
+        await _openNestedAs(identity, over: model, url: url);
       case NavigationDecision.blockOpenExternal:
         if (routeOutbound(model,
             url: url,
@@ -941,6 +937,20 @@ class LinkController {
         break;
     }
   }
+
+  /// A nested screen running as [site], over [over], the slot on screen: the
+  /// activation table's open, which unloads what the screen would repoint and
+  /// puts [site]'s proxy in force before the screen goes up (PROXY-008), as a
+  /// routed open is. Over the slot on screen, so the webspace stays.
+  Future<void> _openNestedAs(
+    WebViewModel site, {
+    required WebViewModel over,
+    required String url,
+  }) =>
+      _host.openNested(
+        DispatchOpenNested(siteId: site.siteId, url: url, sourceIsParent: true),
+        source: over,
+      );
 
   /// An address typed in [model]'s URL bar goes where a tapped link to it
   /// would: the same decision and the same steps after it, so tab routing
@@ -976,7 +986,7 @@ class LinkController {
       case NavigationStep.route:
         if (routeOutbound(model, url: url, decision: decision, hadGesture: true)) return;
         if (decision == NavigationDecision.blockOpenNested) {
-          await _host.launchNestedFor(identity, url: url);
+          await _openNestedAs(identity, over: model, url: url);
         } else if (decision == NavigationDecision.blockOpenExternal) {
           await launchUrlInSystemBrowser(url);
         }
