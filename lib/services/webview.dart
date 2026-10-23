@@ -250,30 +250,21 @@ class WebViewFactory {
     // at startup and archive container ids at close.
     final containerId = posture.container.containerId;
 
-    // Per-site proxy delivery, on the platforms that bind it to the
-    // WebView's own network store rather than process-wide:
+    // Per-site proxy delivery, where the named binding (PROXY-027) puts it on
+    // the WebView's own network store rather than process-wide:
     //
     //   iOS 17+ / macOS 14+ — the fork's `preWKWebViewConfiguration` writes
     //     it onto `WKWebsiteDataStore.proxyConfigurations`.
-    //   Linux (WPE) — the fork pins it to the container's own
-    //     `WebKitNetworkSession` via
-    //     `webkit_network_session_set_proxy_settings`. Proxies are per
-    //     session there, so two containers hold two different proxies at
+    //   Linux (WPE) under containers — the fork pins it to the container's
+    //     `WebKitNetworkSession`, or binds an incognito webview's ephemeral
+    //     one, via `webkit_network_session_set_proxy_settings`. Proxies are
+    //     per session there, so two sites hold two different proxies at
     //     once.
     //
-    // A Linux site with no container has no session to pin, so it stays on
-    // the process-wide override path below.
-    //
-    // On Android the global `inapp.ProxyController` path runs from
+    // Elsewhere the global `inapp.ProxyController` path runs from
     // `WebViewModel._applyProxySettings` instead, so leave `proxySettings`
     // null and avoid sending a no-op object to the native side.
-    // The named binding (PROXY-027) answers the process-level half: Apple
-    // carries a proxy on the store, everything else on one process rule.
-    // Linux adds a per-SITE condition on top that no process-level value
-    // can express -- a container owns a `WebKitNetworkSession` and a site
-    // without one has no session to pin -- so that half stays a test here.
-    final bindsProxyPerSite = ProxyManager.binding == ProxyBinding.perSite ||
-        (hostIsLinux && containerId != null);
+    final bindsProxyPerSite = ProxyManager.binding == ProxyBinding.perSite;
     // What this site claims, resolved once: a per-site DEFAULT falls through
     // to the app-global outbound proxy, so a site the user has not customized
     // still inherits a global Tor / corporate proxy (PROXY-011).

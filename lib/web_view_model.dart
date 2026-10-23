@@ -55,6 +55,7 @@ import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/process_route.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/web_view_model_json.dart';
@@ -1003,7 +1004,7 @@ class WebViewModel implements MediaGrantRecord {
 
   /// Completes with whether the proxy override was applied for the current
   /// controller. The restore path awaits it before materialising, so no
-  /// navigation leaves before the Android/Linux override is in place.
+  /// navigation leaves before the process-wide override is in place.
   Completer<bool>? _proxyReady;
   Future<bool> get proxyReady => _proxyReady?.future ?? Future.value(true);
 
@@ -1118,19 +1119,20 @@ class WebViewModel implements MediaGrantRecord {
     if (webview != null) await controller?.setThemePreference(effectiveTheme);
   }
 
-  /// On iOS / macOS, the proxy is sealed into the per-site
-  /// `WKWebsiteDataStore` at WebView construction time. To pick up the
-  /// new value, the live WebView is discarded so the next render
-  /// reconstructs it with the new `inapp.InAppWebViewSettings.proxySettings`
-  /// dictionary. The caller MUST trigger a rebuild (typically via
-  /// `setState`) so the IndexedStack actually re-creates the slot.
+  /// Where the store binds the proxy (iOS / macOS, Linux under containers),
+  /// it is sealed into the site's network store at WebView construction
+  /// time. To pick up the new value, the live WebView is discarded so the
+  /// next render reconstructs it with the new
+  /// `inapp.InAppWebViewSettings.proxySettings` dictionary. The caller MUST
+  /// trigger a rebuild (typically via `setState`) so the IndexedStack
+  /// actually re-creates the slot.
   ///
   /// Elsewhere only a live webview takes the new rule now; one built later
   /// takes it then, so a site with none never moves the process-wide rule
   /// under the sites that run (PROXY-008).
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
-    if (hostIsIOS || hostIsMacOS) {
+    if (ProxyManager.binding == ProxyBinding.perSite) {
       disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
       return;
     }
@@ -1275,7 +1277,7 @@ bool dispatch(NavigationDecision decision,
           ? storeBinding.containerId
           : null;
       final bool deferForProxy = deferInitialLoadForProxy(
-        proxyIsGlobal: hostIsAndroid || hostIsLinux,
+        proxyIsGlobal: ProxyManager.binding == ProxyBinding.processWide,
         effectiveNonDefault: effectiveProxy.type != ProxyType.DEFAULT,
         overrideActive: ProxyManager.overrideActive,
         releasesContainerProxy: storeBinding.releasesContainerProxy,

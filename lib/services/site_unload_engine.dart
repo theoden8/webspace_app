@@ -6,6 +6,7 @@ import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
@@ -205,29 +206,31 @@ sealed class ProxyTopology {
     RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(model),
   };
 
-  /// Linux has no router. Android is process-global until the router runs;
+  /// Where the [binding] puts a proxy, until the router runs (Android only);
   /// [sharesDefaultSession] then names the sites that still share one
-  /// credential. iOS and macOS bind per session.
+  /// credential.
   factory ProxyTopology.of({
-    required bool linux,
-    required bool android,
+    required ProxyBinding binding,
     required bool routerActive,
     required bool Function(WebViewModel model) sharesDefaultSession,
   }) {
-    if (linux) return const ProcessGlobalProxy._();
     if (routerActive) return RoutedProxy._(sharesDefaultSession);
-    return android ? const ProcessGlobalProxy._() : const PerSessionProxy._();
+    return switch (binding) {
+      ProxyBinding.perSite => const PerSessionProxy._(),
+      ProxyBinding.processWide => const ProcessGlobalProxy._(),
+    };
   }
 }
 
-/// iOS and macOS bind a proxy per session: nothing contends.
+/// iOS, macOS, and Linux under containers bind a proxy per session:
+/// nothing contends.
 final class PerSessionProxy extends ProxyTopology {
   const PerSessionProxy._();
 }
 
-/// Android without the router, and Linux: one process-global,
-/// last-write-wins override (`ProxyController` fanned across sessions).
-/// Every loaded site contends.
+/// Android without the router, and Linux on the shared jar: one
+/// process-global, last-write-wins override (`ProxyController` fanned across
+/// sessions). Every loaded site contends.
 final class ProcessGlobalProxy extends ProxyTopology {
   const ProcessGlobalProxy._();
 }

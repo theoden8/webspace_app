@@ -199,11 +199,12 @@ class WebViewConfig {
   });
 }
 
-/// Android and Linux apply the proxy as a process-global override from Dart
-/// after the platform view exists (`WebViewModel.setController`). A site whose
-/// effective proxy is non-DEFAULT must therefore carry no initial load, or its
-/// first request leaves before the override lands; the same holds for a
-/// DEFAULT site while the override still names another site's proxy.
+/// Where one rule covers the process (Android, Linux on the shared jar), the
+/// proxy is a process-global override applied from Dart after the platform
+/// view exists (`WebViewModel.setController`). A site whose effective proxy
+/// is non-DEFAULT must therefore carry no initial load, or its first request
+/// leaves before the override lands; the same holds for a DEFAULT site while
+/// the override still names another site's proxy.
 /// `setController` issues the first load once the override is in (LEAK-003).
 ///
 /// Every platform that binds a proxy per container defers too when the

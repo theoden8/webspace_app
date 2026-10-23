@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/runtime_vars.dart';
@@ -72,7 +73,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
 
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
-      linux: false, android: false, routerActive: false,
+      binding: ProxyBinding.perSite, routerActive: false,
       sharesDefaultSession: (_) => false);
 
   @override

@@ -35,7 +35,13 @@ class _Headless implements inapp.HeadlessInAppWebView {
 /// loads nothing more before it is disposed, and leaves the rule only after
 /// (`ProcessRoute.vacate`, PROXY-008, NOTIF-016).
 void main() {
-  setUp(_asked.clear);
+  setUp(() {
+    _asked.clear();
+    // One rule for the process, as on Android: the hosts CI runs this on
+    // bind each store's proxy, where nothing is quieted (PROXY-027).
+    ProxyManager.pinBindingForTest(ProxyBinding.processWide);
+  });
+  tearDown(() => ProxyManager.pinBindingForTest(null));
 
   test(
     'a check loads nothing more before its webview goes (PROXY-008)',
@@ -46,19 +52,14 @@ void main() {
         settings: inapp.InAppWebViewSettings(javaScriptEnabled: false),
       );
       await check.dispose();
-      // Where each store binds its own proxy (an Apple host), no rule moves
-      // under the check and nothing is quieted (PROXY-027).
-      final processWide = ProxyManager.binding == ProxyBinding.processWide;
-      final asked = [
+      expect(_asked, [
         // The settings it runs with: a setSettings resets what it leaves out
         // (BUG-022).
-        if (processWide)
-          'setSettings blockNetworkLoads=true javaScriptEnabled=false',
+        'setSettings blockNetworkLoads=true javaScriptEnabled=false',
         'dispose',
-      ];
-      expect(_asked, asked);
+      ]);
       await check.dispose();
-      expect(_asked, asked, reason: 'a check ends once');
+      expect(_asked, hasLength(2), reason: 'a check ends once');
     },
   );
 }

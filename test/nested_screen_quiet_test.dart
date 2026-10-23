@@ -29,10 +29,14 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(proxyChannel, (call) async => null);
     await PlatformInfo.initialize();
+    // One rule for the process, as on Android: the hosts CI runs this on
+    // bind each store's proxy, where nothing is quieted (PROXY-027).
+    ProxyManager.pinBindingForTest(ProxyBinding.processWide);
   });
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(proxyChannel, null);
+    ProxyManager.pinBindingForTest(null);
   });
 
   testWidgets('a nested screen loads nothing more before it leaves the rule '
@@ -56,13 +60,10 @@ void main() {
     await settleRealApp(tester);
     expect(find.byType(InAppWebViewScreen), findsOneWidget);
     await attachWebViews(tester);
-    // Where each store binds its own proxy (an Apple host), nothing runs on a
-    // shared rule and nothing is quieted (PROXY-027).
-    final processWide = ProxyManager.binding == ProxyBinding.processWide;
     final nested = (use: RouteUse.nested, site: appSite('One').siteId);
     expect(
       ProcessRoute.instance.occupants.keys,
-      processWide ? contains(nested) : isEmpty,
+      contains(nested),
       reason: 'the screen runs on its site\'s route',
     );
 
@@ -76,16 +77,14 @@ void main() {
     ];
     expect(
       quiet,
-      processWide ? isNotEmpty : isEmpty,
+      isNotEmpty,
       reason: 'the screen\'s webview was not told to load nothing more',
     );
-    if (processWide) {
-      expect(
-        quiet.first.onRule,
-        contains(nested),
-        reason: 'it was told only after its site had left the rule',
-      );
-    }
+    expect(
+      quiet.first.onRule,
+      contains(nested),
+      reason: 'it was told only after its site had left the rule',
+    );
     expect(ProcessRoute.instance.occupants.keys, isNot(contains(nested)));
   });
 }
