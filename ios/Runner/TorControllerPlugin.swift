@@ -327,21 +327,23 @@ class TorControllerPlugin: NSObject {
       rebuildCircuits()
       result(nil)
     case "reopenListeners":
-      reopenListeners(result: result)
+      reopenListeners(
+        bridgeOptions: Self.optionPairs((call.arguments as? [String: Any])?["bridgeOptions"]),
+        result: result)
+    case "circuitEstablished":
+      circuitEstablished(result: result)
     case "setTorrcOptions":
-      let args = call.arguments as? [String: Any]
-      // [[key, value], ...]. Anything that is not a two-element pair of
-      // strings is dropped rather than crashing the start path.
-      let pairs = (args?["options"] as? [[String]] ?? []).compactMap {
-        $0.count == 2 ? ($0[0], $0[1]) : nil
-      }
+      let pairs = Self.optionPairs((call.arguments as? [String: Any])?["options"])
       stateQueue.async { [weak self] in
         self?.pendingTorrcOptions = pairs
         DispatchQueue.main.async { result(nil) }
       }
     case "startTransport":
       let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
-      startTransport(name, result: result)
+      startTransport(name, restart: false, result: result)
+    case "restartTransport":
+      let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
+      startTransport(name, restart: true, result: result)
     case "setExitCountry":
       let args = call.arguments as? [String: Any]
       setExitCountry(
@@ -1077,7 +1079,13 @@ class TorControllerPlugin: NSObject {
   /// is "0 means no transport": the engine turns that into an empty option
   /// list and tor comes up without bridges, which on an uncensored network
   /// still works. Throwing here would instead abort the whole start.
-  private func startTransport(_ name: String, result: @escaping FlutterResult) {
+  ///
+  /// With [restart], a running transport is stopped first, so it comes back
+  /// on a fresh listener: the old one was a loopback TCP socket, which a
+  /// suspension kills with tor's own (TOR-024).
+  private func startTransport(
+    _ name: String, restart: Bool, result: @escaping FlutterResult
+  ) {
     guard !name.isEmpty else { result(0); return }
     ptQueue.async { [weak self] in
       guard let self = self else {
@@ -1104,9 +1112,13 @@ class TorControllerPlugin: NSObject {
       }
       guard let controller = self.ptController else { answer(0); return }
 
-      // Idempotent: acquire and restart both apply the bridge config, and
-      // starting a running transport throws rather than returning the port
-      // it already has.
+      if restart, self.startedTransports.contains(name) {
+        controller.stop(name)
+        self.startedTransports.remove(name)
+      }
+      // Idempotent otherwise: an acquire and a Retry both apply the bridge
+      // config, and starting a running transport throws rather than
+      // returning the port it already has.
       if !self.startedTransports.contains(name) {
         do {
           // No proxy: an upstream proxy in front of the transport is a
@@ -1115,13 +1127,19 @@ class TorControllerPlugin: NSObject {
           try controller.start(name, proxy: nil)
           self.startedTransports.insert(name)
         } catch {
-          self.note("Pluggable transport \(name) failed to start; continuing without bridges.")
+          self.note(
+            restart
+              ? "Pluggable transport \(name) did not start again."
+              : "Pluggable transport \(name) failed to start; continuing without bridges.")
           answer(0)
           return
         }
       }
       let port = controller.port(name)
-      self.note("Pluggable transport \(name) listening on port \(port).")
+      self.note(
+        restart
+          ? "Pluggable transport \(name) started again on port \(port)."
+          : "Pluggable transport \(name) listening on port \(port).")
       answer(port)
     }
   }
@@ -1311,9 +1329,15 @@ class TorControllerPlugin: NSObject {
   /// and connections are left alone by both, and the control channel is a
   /// Unix socket, which the suspension spared.
   ///
+  /// [bridgeOptions] point tor at a bridge transport Dart started again on a
+  /// new port: its listener was a loopback TCP socket too, and tor left
+  /// dialling the dead one reaches no bridge (BUG-013 attempt 14).
+  ///
   /// Dart decides when this is needed (it asks the listener); this only
   /// carries it out, and answers exactly once (BUG-018).
-  private func reopenListeners(result: @escaping FlutterResult) {
+  private func reopenListeners(
+    bridgeOptions: [(String, String)], result: @escaping FlutterResult
+  ) {
     let answer = OneShotResult(result)
     DispatchQueue.global().asyncAfter(deadline: .now() + kTorReopenTimeout) {
       answer.send(FlutterError(
@@ -1348,7 +1372,7 @@ class TorControllerPlugin: NSObject {
           return
         }
         self.note("Tor's SOCKS listener stopped answering; reopening tor's listeners.")
-        guard let endpoint = await self.cycleNetwork(live) else {
+        guard let endpoint = await self.cycleNetwork(live, bridgeOptions: bridgeOptions) else {
           answer.send(FlutterError(
             code: "reopen_failed",
             message: "Tor did not reopen its SOCKS listener.",
@@ -1375,19 +1399,39 @@ class TorControllerPlugin: NSObject {
     }
   }
 
-  /// `DisableNetwork 1`, `DisableNetwork 0`, then the SOCKS listener tor
-  /// opened. Nil when a step went unanswered or refused.
-  private func cycleNetwork(_ controller: TorController) async -> (host: String, port: Int)? {
-    for value in ["1", "0"] {
-      guard let outcome = await Self.setConfs(
-        controller, [["key": "DisableNetwork", "value": value]])
-      else {
-        note("tor did not answer DisableNetwork \(value).")
+  /// `DisableNetwork 1`, then [bridgeOptions] and `DisableNetwork 0` in one
+  /// SETCONF, then the SOCKS listener tor opened. Nil when a step went
+  /// unanswered or refused.
+  ///
+  /// The bridge lines ride the second step because tor reads
+  /// `ClientTransportPlugin` only while its network is enabled
+  /// (`options_act`), so the transport's new port is in force the moment
+  /// the network comes back, before any bridge is dialled through the old
+  /// one. Bridge lines equal to those tor holds change nothing.
+  private func cycleNetwork(
+    _ controller: TorController, bridgeOptions: [(String, String)]
+  ) async -> (host: String, port: Int)? {
+    guard let bridges = Self.quotedConfs(bridgeOptions) else {
+      note("A bridge option holds a line break, so it was not sent to tor.")
+      return nil
+    }
+    let steps: [(label: String, confs: [[AnyHashable: Any]])] = [
+      ("DisableNetwork 1", [["key": "DisableNetwork", "value": "1"]]),
+      (
+        bridges.isEmpty
+          ? "DisableNetwork 0"
+          : "DisableNetwork 0 with \(bridges.count) bridge option(s)",
+        bridges + [["key": "DisableNetwork", "value": "0"]]
+      ),
+    ]
+    for step in steps {
+      guard let outcome = await Self.setConfs(controller, step.confs) else {
+        note("tor did not answer \(step.label).")
         return nil
       }
       let (success, error) = outcome
       guard success else {
-        note("tor refused DisableNetwork \(value): "
+        note("tor refused \(step.label): "
           + (error?.localizedDescription ?? "no reason given"))
         return nil
       }
@@ -1402,6 +1446,33 @@ class TorControllerPlugin: NSObject {
     }
     note("tor reopened no SOCKS listener.")
     return nil
+  }
+
+  /// Whether tor has completed a circuit since its network last came up
+  /// (`status/circuit-established`), which `DisableNetwork 1` resets. Dart
+  /// asks after a reopen and holds the sites until it has one, so a
+  /// listener with no route behind it is never what a page loads through.
+  private func circuitEstablished(result: @escaping FlutterResult) {
+    let answer = OneShotResult(result)
+    stateQueue.async { [weak self] in
+      guard let self = self, let controller = self.controller, self.state == "up" else {
+        answer.send(FlutterError(
+          code: "tor_not_up", message: "Tor is not connected.", details: nil))
+        return
+      }
+      Task {
+        guard let values = await Self.controlRead(
+          controller, ["status/circuit-established"], within: kTorControlReplyTimeout)
+        else {
+          answer.send(FlutterError(
+            code: "control_timeout",
+            message: "Tor's control port did not answer whether it has a circuit.",
+            details: nil))
+          return
+        }
+        answer.send(values.first == "1")
+      }
+    }
   }
 
   /// The pin itself, as one sequence. Nil on success.
@@ -1735,6 +1806,29 @@ class TorControllerPlugin: NSObject {
     await reply(within: seconds) { (answer: @escaping ([String]) -> Void) in
       Task { answer(await controller.info(forKeys: keys)) }
     }
+  }
+
+  /// `[[key, value], ...]` from a channel argument. Anything that is not a
+  /// two-element pair of strings is dropped rather than crashing the call.
+  private static func optionPairs(_ raw: Any?) -> [(String, String)] {
+    (raw as? [[String]] ?? []).compactMap { $0.count == 2 ? ($0[0], $0[1]) : nil }
+  }
+
+  /// [options] as `setConfs` entries with each value a control-protocol
+  /// QuotedString. Tor.framework joins `key=value` as given, and a bridge
+  /// line has spaces, so unquoted its value would end at the first. Nil
+  /// when a value holds a line break, which would end the command and
+  /// start another.
+  static func quotedConfs(_ options: [(String, String)]) -> [[AnyHashable: Any]]? {
+    var confs: [[AnyHashable: Any]] = []
+    for (key, value) in options {
+      if value.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" }) { return nil }
+      let escaped = value
+        .replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+      confs.append(["key": key, "value": "\"\(escaped)\""])
+    }
+    return confs
   }
 
   private static func setConfs(

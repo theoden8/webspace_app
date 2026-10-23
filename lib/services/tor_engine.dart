@@ -100,6 +100,13 @@ const String kTorReopenTag = 'reopen';
 /// How long reopening tor's listeners may take before it counts as failed.
 const Duration kTorReopenTimeout = Duration(seconds: 30);
 
+/// How long the engine waits for tor to have a circuit again after a
+/// reopen, asking every [kTorCircuitPoll], before it reports that it has
+/// none. `DisableNetwork` closed every relay connection, and through bridges
+/// a new circuit takes a pluggable-transport handshake and three hops.
+const Duration kTorReopenCircuitWait = Duration(seconds: 60);
+const Duration kTorCircuitPoll = Duration(seconds: 1);
+
 /// How late the bootstrap deadline may fire before the engine reads it as
 /// the app having been suspended through it rather than tor being slow. A
 /// busy isolate delays a timer by moments; a suspension by minutes.
@@ -299,6 +306,11 @@ abstract class TorRuntime {
   /// than reimplementing it in Swift.
   Future<int> startTransport(String transport);
 
+  /// Stop [transport] and start it again, returning the port its new
+  /// listener bound to, or 0 when it did not start. Its listener is a
+  /// loopback TCP socket like tor's, so a suspension kills both (TOR-024).
+  Future<int> restartTransport(String transport);
+
   /// Extra torrc options to fold into the configuration on the next
   /// [start]. Replaces any previously set; an empty list clears them.
   ///
@@ -310,7 +322,15 @@ abstract class TorRuntime {
   /// Close tor's listeners and relay connections, open the listeners again,
   /// and publish `up` with the SOCKS endpoint tor now has (TOR-024). Throws
   /// when tor could not be reached or opened no listener.
-  Future<void> reopenListeners();
+  ///
+  /// [bridgeOptions] go into force as the network comes back: the bridge
+  /// lines with a restarted transport's new port, or empty for none.
+  Future<void> reopenListeners({required List<(String, String)> bridgeOptions});
+
+  /// Whether tor has completed a circuit since its network last came up
+  /// (`status/circuit-established`). Throws [TorRuntimeFailure] when tor
+  /// could not be asked.
+  Future<bool> circuitEstablished();
 
   /// Status pushed from the native side.
   Stream<TorStatus> get events;
@@ -369,8 +389,9 @@ class TorEngine {
   /// connected, and the sites are held off it.
   TorUp? _runtimeUp;
 
-  /// Pin changes, one at a time. Two in flight could land in tor out of
-  /// order and leave the older one in force.
+  /// Pin changes, and the wait for the circuit a reopen owes, one at a
+  /// time. Two pins in flight could land in tor out of order and leave the
+  /// older one in force, and each publishes `up` when it ends.
   final SerialQueue _pins = SerialQueue('torExitPins');
 
   /// Where the GeoIP table for a country pin comes from. Null where the
@@ -385,6 +406,19 @@ class TorEngine {
   /// The app came back while tor was not up yet, so the listener tor
   /// reports when it is may be one the suspension already killed.
   bool _checkNextUp = false;
+
+  /// Set by each reopen: it closed every relay connection, so the listener
+  /// it publishes has no circuit behind it yet, and the sites wait until tor
+  /// reports one. A fresh token per reopen, so a wait begun for an earlier
+  /// one cannot settle a later one.
+  Object? _circuitOwed;
+
+  /// The bridges tor dials: those the start that launched it sent, or null
+  /// for none. tor launches once per process (BUG-013), so lines a later
+  /// start sends only queue for a launch that never comes, and once tor
+  /// has said anything ([_launched]) they are not recorded here.
+  TorBridgeConfig? _bridgesInForce;
+  bool _launched = false;
 
   bool get _pinPending => _exitNodes != null && !_exitNodesApplied;
 
@@ -559,10 +593,11 @@ class TorEngine {
     if (await probe(up.host, port: up.port)) return true;
     if (_disposed || !identical(_runtimeUp, up)) return false;
     // Held like a pin change: the listener the sites are bound to is gone,
-    // and the one coming is on another port.
-    _emit(const TorBootstrapping(100, tag: kTorReopenTag));
+    // and the one coming is on another port, with no circuit behind it yet.
+    _emit(_reopenHold);
+    _circuitOwed = Object();
     try {
-      await _runtime.reopenListeners().timeout(kTorReopenTimeout);
+      await _reopen().timeout(kTorReopenTimeout);
     } on TimeoutException {
       if (_disposed || !identical(_runtimeUp, up)) return false;
       _emit(TorErrored(
@@ -573,6 +608,76 @@ class TorEngine {
           'was suspended: $e'));
     }
     return false;
+  }
+
+  static const TorStatus _reopenHold =
+      TorBootstrapping(100, tag: kTorReopenTag);
+
+  /// Reopen tor's listeners, starting its bridge transport again first. The
+  /// transport listens on loopback too, so the suspension that killed tor's
+  /// listener killed it as well, and tor left dialling its old port reaches
+  /// no bridge and builds no circuit (BUG-013 attempt 14).
+  Future<void> _reopen() async {
+    final bridges = _bridgesInForce;
+    if (bridges == null) {
+      return _runtime.reopenListeners(bridgeOptions: const []);
+    }
+    final transport = bridges.transport.wireName;
+    final port = await _runtime.restartTransport(transport);
+    if (port <= 0) {
+      throw TorRuntimeFailure('the $transport bridge transport did not start '
+          'again.');
+    }
+    await _runtime.reopenListeners(
+        bridgeOptions: torBridgeOptions(bridges, transportPort: port));
+  }
+
+  /// Whether tor has a circuit again after the reopen that owes one, asked
+  /// every [kTorCircuitPoll] while the sites are held, with a failure the
+  /// user can retry once [kTorReopenCircuitWait] has passed. A listener
+  /// published with nothing behind it is a page that loads forever and says
+  /// nothing (BUG-013 attempt 14).
+  ///
+  /// Runs in [_pins], as a pin change does: an answer to one GETINFO can
+  /// land in another's reply slot on the shared control connection, and a
+  /// pin change reads `ip-to-country/ipv4-available`, which also answers 1.
+  Future<bool> _circuitBuilt(TorUp up) async {
+    assert(_pins.isHeld, 'the circuit is asked in the pin queue');
+    final owed = _circuitOwed;
+    bool superseded() =>
+        _disposed || !identical(_runtimeUp, up) || !identical(_circuitOwed, owed);
+    if (!identical(_status, _reopenHold)) _emit(_reopenHold);
+    var expired = false;
+    final deadline = Timer(kTorReopenCircuitWait, () => expired = true);
+    try {
+      while (!expired) {
+        final built = await _askCircuit();
+        if (superseded()) return false;
+        if (built) {
+          _circuitOwed = null;
+          return true;
+        }
+        await Future<void>.delayed(kTorCircuitPoll);
+        if (superseded()) return false;
+      }
+    } finally {
+      deadline.cancel();
+    }
+    const message = 'Tor reopened its connections after the app was in the '
+        'background, but has not built a circuit through them.';
+    _emit(TorErrored(message,
+        failure: classifyTorFailure(message, atPercent: 100, timedOut: true)));
+    return false;
+  }
+
+  Future<bool> _askCircuit() async {
+    try {
+      return await _runtime.circuitEstablished().timeout(kTorCircuitPoll * 3);
+    } on TorRuntimeFailure {
+      return false;
+    } on TimeoutException {
+      return false;
+    }
   }
 
   /// The bridge configuration currently in force, or queued for next start.
@@ -619,24 +724,23 @@ class TorEngine {
   Future<void> _applyBridgeConfig() async {
     await _hydrateBridges();
     final config = _bridges;
-    if (!config.enabled || !config.isUsable) {
-      await _runtime.setTorrcOptions(const []);
-      return;
+    var options = const <(String, String)>[];
+    if (config.enabled && config.isUsable) {
+      int port = 0;
+      try {
+        port = await _runtime.startTransport(config.transport.wireName);
+      } on TorRuntimeFailure {
+        // A transport that will not start is not fatal on its own: falling
+        // through with port 0 produces no bridge options, so tor starts
+        // without bridges rather than not at all. On a censored network
+        // that will fail at bootstrap and be reported as `censored`, which
+        // is the honest outcome.
+        port = 0;
+      }
+      options = torBridgeOptions(config, transportPort: port);
     }
-    int port = 0;
-    try {
-      port = await _runtime.startTransport(config.transport.wireName);
-    } on TorRuntimeFailure {
-      // A transport that will not start is not fatal on its own: falling
-      // through with port 0 produces no bridge options, so tor starts
-      // without bridges rather than not at all. On a censored network that
-      // will fail at bootstrap and be reported as `censored`, which is the
-      // honest outcome.
-      port = 0;
-    }
-    await _runtime.setTorrcOptions(
-      torBridgeOptions(config, transportPort: port),
-    );
+    await _runtime.setTorrcOptions(options);
+    if (!_launched) _bridgesInForce = options.isEmpty ? null : config;
   }
 
   /// Tear the runtime down and start it again, keeping the holder set.
@@ -659,12 +763,13 @@ class TorEngine {
     // bootstrap deadline would report a failure against a tor that is
     // working. A Retry must never be able to break a running runtime.
     if (_status is TorUp) return;
-    // tor itself is up and only the exit pin or its listener is not: retry
-    // those. A stop and start could not help, and the start would be a
-    // no-op that left the status on `starting` for good.
+    // tor itself is up and only the exit pin, its listener or a circuit
+    // after a reopen is not: retry those. A stop and start could not help,
+    // and the start would be a no-op that left the status on `starting` for
+    // good.
     final up = _runtimeUp;
     if (up != null) {
-      if (await _reopenIfDead(up)) await _flushExitCountry();
+      if (await _reopenIfDead(up)) await _settleUp();
       return;
     }
     _cancelBootstrapTimeout();
@@ -720,7 +825,7 @@ class TorEngine {
     _exitNodes = exitNodes;
     _exitNodesApplied = false;
     if (_runtimeUp != null && !_disposed) _holdForPin();
-    await _flushExitCountry();
+    await _settleUp();
   }
 
   void _holdForPin() {
@@ -730,11 +835,18 @@ class TorEngine {
   static const TorStatus _pinHold =
       TorBootstrapping(100, tag: kTorExitPinTag);
 
-  Future<void> _flushExitCountry() => _pins.run(_applyPin);
+  /// Publish `up` once what the sites wait on is in force: the circuit a
+  /// reopen owes, then the exit pin asked for.
+  Future<void> _settleUp() => _pins.run(_settle);
 
-  Future<void> _applyPin() async {
+  Future<void> _settle() async {
     final up = _runtimeUp;
     if (up == null || _disposed) return;
+    if (_circuitOwed != null && !await _circuitBuilt(up)) return;
+    await _applyPin(up);
+  }
+
+  Future<void> _applyPin(TorUp up) async {
     if (_exitNodesApplied) {
       if (!identical(_status, up)) _emit(up);
       return;
@@ -893,6 +1005,7 @@ class TorEngine {
       _lastBootstrapTag = s.tag ?? _lastBootstrapTag;
     }
 
+    if (s is TorBootstrapping || s is TorUp) _launched = true;
     if (s is TorUp) {
       _runtimeUp = s;
       // A fresh tor has no ExitNodes, so "no pin" is already in force.
@@ -903,6 +1016,8 @@ class TorEngine {
       _runtimeUp = null;
       // The pin was a SETCONF on that run; whatever comes back has none.
       _exitNodesApplied = false;
+      // And a bootstrap reaches `up` only with a circuit built.
+      _circuitOwed = null;
     }
 
     // A late status from a runtime we already tore down must not resurrect
@@ -928,6 +1043,12 @@ class TorEngine {
   }
 
   void _publishUp(TorUp s) {
+    // A reopen's listener waits for a circuit, held as the reopen was.
+    if (_circuitOwed != null) {
+      if (!identical(_status, _reopenHold)) _emit(_reopenHold);
+      unawaited(_settleUp());
+      return;
+    }
     // A pin requested before bootstrap finished has been waiting for a
     // control port, and now there is one. `up` is not published until it
     // lands. Only when there is a pin to establish: a fresh tor has no
@@ -935,7 +1056,7 @@ class TorEngine {
     // round trip that changes nothing.
     if (_pinPending) {
       _holdForPin();
-      unawaited(_flushExitCountry());
+      unawaited(_settleUp());
       return;
     }
     _emit(s);

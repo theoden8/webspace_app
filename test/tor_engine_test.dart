@@ -859,6 +859,9 @@ void main() {
         unawaited(e.revive());
         async.flushMicrotasks();
         expect(runtime.reopenCalls, 1);
+        expect(runtime.reopenBridgeOptions.single, isEmpty,
+            reason: 'no bridges, so no transport to start again');
+        expect(runtime.restartedTransports, isEmpty);
         expect(runtime.startCalls, 1,
             reason: 'the same tor, never a second launch (BUG-013)');
         expect(e.socksFor(TorTag.fromWire('site-a'))!.address, '127.0.0.1:45000');
@@ -954,6 +957,168 @@ void main() {
         async.elapse(const Duration(seconds: 91));
         expect(e.status, isA<TorErrored>(),
             reason: 'a window tor actually had still ends in a report');
+      });
+    });
+
+    group('bridges and the circuit after a reopen (BUG-013 attempt 14)', () {
+      // The obfs4 transport listens on loopback as tor does, so the
+      // suspension kills both. Reopening tor's listener alone left tor
+      // dialling the transport's dead port: `up` on a fresh listener, no
+      // bridge reachable, and every page loading forever with nothing on
+      // screen to say why.
+      final obfs4 = parseTorBridgeLine(
+              'obfs4 192.0.2.10:9443 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
+              'cert=abcdEFGH1234ijklMNOP5678qrstUVWX90yzABcdEFghIJklMNop '
+              'iat-mode=0')
+          .line!;
+      final bridged = TorBridgeConfig(
+          enabled: true, transport: TorTransport.obfs4, lines: [obfs4]);
+
+      TorEngine upWithBridges(FakeAsync async) {
+        final e = build(socksProbe: probe)..setBridges(bridged);
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
+        async.flushMicrotasks();
+        runtime.bootstrapTo(41337);
+        async.flushMicrotasks();
+        return e;
+      }
+
+      test('the transport starts again and tor dials its new port', () {
+        fakeAsync((async) {
+          final e = upWithBridges(async);
+          expect(runtime.torrcOptions,
+              contains(('ClientTransportPlugin', 'obfs4 socks5 127.0.0.1:47000')));
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.flushMicrotasks();
+          expect(runtime.restartedTransports, ['obfs4']);
+          final put = runtime.reopenBridgeOptions.single;
+          expect(put,
+              contains(('ClientTransportPlugin', 'obfs4 socks5 127.0.0.1:47100')),
+              reason: 'the restarted transport\'s port, not the dead one');
+          expect(put, contains(('Bridge', obfs4.raw)));
+          expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
+              '127.0.0.1:45000');
+        });
+      });
+
+      test('a transport that does not start again fails the reopen, and '
+          'Retry tries it again', () {
+        fakeAsync((async) {
+          final e = upWithBridges(async);
+          runtime.restartPort = 0;
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.flushMicrotasks();
+          expect(e.status, isA<TorErrored>());
+          expect(runtime.reopenCalls, 0,
+              reason: 'tor is not pointed at a transport that is not there');
+          expect(e.socksFor(TorTag.fromWire('site-a')), isNull);
+
+          runtime.restartPort = 47200;
+          unawaited(e.restart());
+          async.flushMicrotasks();
+          expect(runtime.reopenBridgeOptions.single,
+              contains(('ClientTransportPlugin', 'obfs4 socks5 127.0.0.1:47200')));
+          expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
+              '127.0.0.1:45000');
+        });
+      });
+
+      test('a bridge edit after launch does not change what a reopen restarts',
+          () {
+        // tor launches once per process; a later start only queues lines.
+        fakeAsync((async) {
+          final e = upWithBridges(async);
+          e.setBridges(const TorBridgeConfig());
+          runtime.emit(TorErrored('Tor did not finish bootstrapping in time.'));
+          async.flushMicrotasks();
+          unawaited(e.restart());
+          async.flushMicrotasks();
+          expect(runtime.torrcOptions, isEmpty,
+              reason: 'the edit is queued for a launch that never comes');
+          runtime.emit(TorUp('127.0.0.1', port: 41337));
+          async.flushMicrotasks();
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.flushMicrotasks();
+          expect(runtime.restartedTransports, ['obfs4'],
+              reason: 'the running tor still dials obfs4');
+        });
+      });
+
+      test('the sites wait as reconnecting until tor has a circuit again', () {
+        fakeAsync((async) {
+          final e = buildUpIn(async, port: 41337, socksProbe: probe);
+          final seen = <TorStatus>[];
+          e.statusStream.listen(seen.add);
+          runtime.circuit = false;
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.elapse(const Duration(seconds: 5));
+          expect(e.status, isA<TorBootstrapping>()
+              .having((s) => s.tag, 'tag', kTorReopenTag));
+          expect(e.socksFor(TorTag.fromWire('site-a')), isNull,
+              reason: 'a listener with no circuit behind it is a page that '
+                  'loads forever');
+          expect(runtime.circuitAsks, greaterThan(1));
+
+          runtime.circuit = true;
+          async.elapse(kTorCircuitPoll);
+          expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
+              '127.0.0.1:45000');
+          expect(seen.whereType<TorUp>().map((s) => s.port), [45000]);
+        });
+      });
+
+      test('no circuit within the wait is a failure, and Retry waits again '
+          'without reopening', () {
+        fakeAsync((async) {
+          final e = buildUpIn(async, port: 41337, socksProbe: probe);
+          runtime.circuit = false;
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.elapse(kTorReopenCircuitWait + const Duration(seconds: 5));
+          expect(e.status, isA<TorErrored>()
+              .having((s) => s.kind, 'kind', TorFailureKind.bootstrapTimeout));
+          expect(e.socksFor(TorTag.fromWire('site-a')), isNull);
+
+          runtime.circuit = true;
+          unawaited(e.restart());
+          async.flushMicrotasks();
+          expect(runtime.reopenCalls, 1,
+              reason: 'the reopened listener still answers; only the circuit '
+                  'was missing');
+          expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
+              '127.0.0.1:45000');
+        });
+      });
+
+      test('a pin asked for during the wait lands after the circuit', () {
+        fakeAsync((async) {
+          final e = buildUpIn(async, port: 41337, socksProbe: probe);
+          runtime.circuit = false;
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.elapse(const Duration(seconds: 2));
+          unawaited(e.setExitCountry('{de}'));
+          async.elapse(const Duration(seconds: 2));
+          expect(runtime.appliedExitNodes, isEmpty,
+              reason: 'one control conversation at a time');
+          expect(e.socksFor(TorTag.fromWire('site-a')), isNull);
+
+          runtime.circuit = true;
+          async.elapse(kTorCircuitPoll);
+          expect(runtime.appliedExitNodes, ['{de}']);
+          expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
+              '127.0.0.1:45000');
+        });
       });
     });
 

@@ -459,6 +459,68 @@ opens is still unreadable from inside the app. And nothing here touches iOS, who
 has no such entitlement and lets an app listen on loopback, so the iOS instances above keep
 their own causes.
 
+### Attempt 14 — The reopen left the bridge transport dead behind it
+**Date:** 2026-10-23 · **Commit:** (this one) · **Files:** `lib/services/tor_engine.dart`,
+`lib/services/tor_service.dart`, `lib/services/external_tor_runtime.dart`,
+`ios/Runner/TorControllerPlugin.swift`, `lib/widgets/tor_status_card.dart`,
+`lib/widgets/tor_bootstrap.dart`, `test/tor_engine_test.dart`,
+`test/tor_ui_states_test.dart`, `test/js/tor_suspension.test.js`, spec TOR-024
+
+**What happened.** A phone with obfs4 bridges, a few sites on Tor. Tor came up, the
+user left the app and came back, and the sites loaded forever. The device log:
+
+```
+[Tor/info] Pluggable transport obfs4 listening on port 64399.
+[Tor/info] State: up(127.0.0.1:64400)
+   ... the app goes to the background and comes back ...
+[Tor/info] State: bootstrapping(100%, reopen)
+[Tor/info] Tor's SOCKS listener stopped answering; reopening tor's listeners.
+[Tor/info] Reopened. SOCKS listener on 127.0.0.1:64495.
+[Tor/info] State: up(127.0.0.1:64495)
+[TorLog/warning] The connection to the SOCKS5 proxy server at 127.0.0.1:64399 just failed.
+[TorLog/info] Delaying directory fetches: No running bridges
+[TorLog/warning] The connection to the SOCKS5 proxy server at 127.0.0.1:64399 just failed.
+   ... every second from then on ...
+```
+
+**Mechanism.** IPtProxy runs the transport in the app's process, and its SOCKS listener
+is a loopback TCP socket like tor's, so the suspension attempt 11 describes killed both.
+Attempt 11 reopened tor's listener and published it as `up`; the transport stayed dead,
+and tor dialled every bridge through its old port. The sites rebuilt against the new
+listener, sent their requests into tor, and tor held them waiting for a circuit it could
+not build. Nothing on screen said so: the engine had published `up`, the plugin stops
+listening to tor's events at `up` (TOR-019), and the resume probe asks only tor's own
+listener, which answered. Retry was not offered and would not have helped: `restart()`
+does nothing on an `up` runtime, and `startTransport` answers a transport it already
+started with its old port.
+
+**What it did.**
+- The engine records the bridges the start that launched tor sent (later starts only
+  queue lines a running tor never reads). A reopen starts that transport again
+  (`restartTransport`, which stops it first) and hands the reopen the bridge lines with
+  the new port. The plugin sends them in the same `SETCONF` as `DisableNetwork 0`: tor
+  reads `ClientTransportPlugin` only with its network on (`options_act`), so the new
+  port is in force before any bridge is dialled. Tor.framework's `setConfs` joins
+  `key=value` unquoted, so the plugin quotes each value and refuses a line break.
+- After a reopen the engine publishes `up` only once tor reports
+  `status/circuit-established` (which `DisableNetwork 1` resets), asking every second
+  for up to 60. The wait runs in the pin queue, ahead of any pin, so no two GETINFOs
+  share the control connection and no pin publishes `up` past it. With no circuit by
+  then, the sites get the "Tor took too long" failure with Retry, which waits again
+  without reopening a listener that answers.
+- The interstitial and the status card say "Reconnecting…" during the reopen and the
+  wait, with an indeterminate bar and a line saying why, where both said
+  "Connecting… 100%" over a full bar. One function (`torWaitCopy`) now words every
+  waiting state for both.
+
+**Why it was partial.** Nothing executes the Swift half. The macOS suspension probe
+(attempt 11) runs without bridges, so the transport restart, the quoted `SETCONF` and
+the circuit query are held only by `tool/swift_typecheck` and the structural gate in
+`test/js/tor_suspension.test.js`; the Dart half is held by `test/tor_engine_test.dart`,
+whose planted mistakes (no transport restart, no circuit wait) each fail three of its
+tests. A bridge edit made after launch is still not in force until the app restarts
+(gap 3), and a reopen restarts the transport tor was launched with, not the edited one.
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS.** The macOS half of this gap is closed by
@@ -497,3 +559,7 @@ their own causes.
    restart and, since attempt 11, a process whose sockets were defuncted; nothing
    simulates a control port that opens late, which is the mechanism of attempt 2, or a
    process frozen rather than merely cut off.
+5. **No tier runs a suspension with bridges.** The macOS probe defuncts a
+   bridgeless tor, so attempt 14's transport restart and its `SETCONF` have only
+   ever been type-checked. Running the probe through a built-in bridge would put
+   them under the one tier that executes the plugin.

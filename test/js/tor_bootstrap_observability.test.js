@@ -192,8 +192,9 @@ test('every control-port read happens on a quiet connection', () => {
   //
   // Two windows are quiet: observeLocked before it subscribes, and after
   // finishLocked has dropped the subscription. Reads in the second go
-  // through controlRead, which also bounds them (BUG-018), and only the
-  // exit-country path calls it, which runs only once the runtime is up.
+  // through controlRead, which also bounds them (BUG-018), and only paths
+  // that run once the runtime is up call it: the exit-country change, the
+  // reopen after a suspension, and the circuit asked for after it.
   const count = (src, re) => (src.match(re) || []).length;
   const raw = /info\(forKeys:/g;
   const rawQuiet = ['observeLocked', 'controlRead']
@@ -204,7 +205,8 @@ test('every control-port read happens on a quiet connection', () => {
     'observeLocked must still read the phase and the SOCKS listener');
 
   const bounded = /controlRead\(\s*controller/g;
-  const boundedQuiet = ['closeExitCircuits', 'geoipAvailable', 'liveController', 'cycleNetwork']
+  const boundedQuiet = ['closeExitCircuits', 'geoipAvailable', 'liveController', 'cycleNetwork',
+    'circuitEstablished']
     .reduce((n, name) => n + count(functionBody(swiftCode, name), bounded), 0);
   assert.equal(count(swiftCode, bounded), boundedQuiet,
     'a post-bootstrap read outside the exit-country path');

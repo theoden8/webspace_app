@@ -20,7 +20,7 @@ import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/tor_status_card.dart'
-    show torFailureCopy, torFailureIcon, torRecoveryActions;
+    show torFailureCopy, torFailureIcon, torRecoveryActions, torWaitCopy;
 
 /// Empty-state glyph, larger than anything in [IconSizes] — those name
 /// in-row and in-button icons, and this one is the only thing on screen.
@@ -199,28 +199,21 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     }
 
     Widget progress() {
-      final int? percent = s is TorBootstrapping
-          ? s.percent.clamp(0, 100)
-          : null;
-      final String label = switch (s) {
-        TorBootstrapping(:final percent) => loc.torStatusBootstrapping(percent),
-        TorStarting() => loc.torStatusStarting,
-        _ => loc.torStatusStopped,
-      };
-      final String? phase = s is TorBootstrapping ? s.summary : null;
+      final copy = torWaitCopy(loc, status: s);
+      final detail = copy.detail;
 
       return centered(
         Icons.privacy_tip_outlined,
         glyphColor: scheme.primary.withValues(alpha: 0.7),
-        title: label,
+        title: copy.label,
         below: [
-          if (phase != null && phase.isNotEmpty) ...[
+          if (detail != null) ...[
             const SizedBox(height: Spacing.xs),
-            muted(loc.torStatusPhase(phase)),
+            muted(detail),
           ],
           const SizedBox(height: Spacing.lg),
           LinearProgressIndicator(
-            value: percent == null ? null : percent / 100.0,
+            value: copy.value,
             minHeight: Spacing.xs,
           ),
           const SizedBox(height: Spacing.md),

@@ -1460,6 +1460,17 @@ next foreground found "The previous Tor is still running".
   does.
 - A return while tor is still bootstrapping SHALL have the listener asked
   when tor next reports `up`, before anything is bound to it.
+- A pluggable transport's SOCKS listener is a loopback TCP socket in the
+  app too, and the suspension kills it with tor's. When tor runs with
+  bridges, the reopen SHALL start the transport tor was launched with again
+  on a new port and put that port in force (`ClientTransportPlugin`, in the
+  same `SETCONF` as `DisableNetwork 0`, since tor reads it only with its
+  network on). A transport that does not start again SHALL fail the reopen.
+- After a reopen the engine SHALL keep the sites held, as "Reconnecting",
+  until tor reports `status/circuit-established`, and SHALL report a
+  failure with Retry when it has none within a bounded wait. A listener
+  published with no circuit behind it is a page that loads forever with
+  nothing on screen to say why.
 - A reopen that fails SHALL be reported as a failure, never as the dead
   listener being `up`, and Retry SHALL try the reopen again.
 - An exit-country pin in force SHALL stay in force across a reopen: it is
@@ -1497,6 +1508,28 @@ next foreground found "The previous Tor is still running".
 - **THEN** tor never logs "Tried to open a socket with DisableNetwork set"
 - **AND** a request through the new listener leaves from a Tor exit within
   seconds, not after the guard's minute-long refusal
+
+#### Scenario: A reopen brings the bridges back with tor
+
+- **GIVEN** Tor is up through obfs4 bridges and a site is loaded through it
+- **AND** the process's sockets have been defuncted, the transport's
+  listener with tor's
+- **WHEN** the app returns to the foreground
+- **THEN** the transport starts again on a new port, and tor's next
+  `ClientTransportPlugin` names that port
+- **AND** the site waits behind "Reconnecting" until tor has a circuit, then
+  loads through the new listener
+- **AND** tor never logs that the connection to the transport's old port
+  failed
+
+#### Scenario: No circuit after a reopen is a failure, not a spinning page
+
+- **GIVEN** the app has reopened tor's listeners after a suspension
+- **WHEN** tor builds no circuit within the wait
+- **THEN** the site shows the failure with Retry instead of a page that
+  never finishes loading
+- **AND** Retry waits for the circuit again without reopening a listener
+  that answers
 
 #### Scenario: A listener that still answers is left alone
 
