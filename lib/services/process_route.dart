@@ -97,6 +97,24 @@ final class ProcessRoute {
     _claims.remove(occupant);
   }
 
+  /// [occupant]'s webview went but may still send: the plugin destroys a
+  /// native webview only after it has loaded `about:blank`, and an icon or
+  /// page it fetches meanwhile would leave through the next site's proxy.
+  /// Its claims are void at once; it leaves the rule once [quiet] has
+  /// stopped what it loads, in the rule's turn, so a write asked for
+  /// meanwhile waits (PROXY-008). With no webview to quiet it leaves now.
+  Future<void> leave(
+    RouteOccupant occupant, {
+    required Future<void> Function()? quiet,
+  }) {
+    if (quiet == null) {
+      release(occupant);
+      return Future.value();
+    }
+    _claims.remove(occupant);
+    return vacate([occupant], close: quiet);
+  }
+
   /// [occupants] leave once [close] has ended them, in the rule's turn: a
   /// write asked for meanwhile waits until they are gone, so the rule never
   /// moves under a page still loading on the old route (NOTIF-016).

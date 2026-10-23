@@ -7,7 +7,9 @@
 // own upstream, one at a time, through the rule PROXY-008 applies as it
 // activates. The unit tier proves the decision against fakes; this proves
 // the stand-down on a real WebView, where a rule left pointing at a stopped
-// relay would fail every site instead.
+// relay would fail every site instead. It also caught what PROXY-008 lost
+// before: site A's webview, let go of as B opened, fetched its icon after the
+// override had moved to B's proxy, while the plugin was still tearing it down.
 //
 // Android-only by construction, like the router.
 
@@ -144,8 +146,11 @@ void main() {
       LogTag.test.info('opening $name');
       await openSiteFromDrawer(tester, name: name);
     }
-    // ignore: avoid_print
-    print(timeline(a: upstreamA, b: upstreamB));
+    if (!upstreamA.onlyFor('a.example.test') ||
+        !upstreamB.onlyFor('b.example.test')) {
+      // ignore: avoid_print
+      print(timeline(a: upstreamA, b: upstreamB));
+    }
 
     expect(
       upstreamA.wasReached,

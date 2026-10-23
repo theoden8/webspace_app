@@ -1752,9 +1752,11 @@ bool dispatch(NavigationDecision decision,
     LogTag.webView.debug(
         'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
         sensitive: true);
+    final gone = controller;
     webview = null;
     controller = null;
-    ProcessRoute.instance.release(routeClaim.occupant);
+    unawaited(ProcessRoute.instance
+        .leave(routeClaim.occupant, quiet: gone?.blockNetworkLoads));
     tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the

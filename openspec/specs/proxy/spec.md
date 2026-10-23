@@ -241,6 +241,14 @@ process-wide override flips, **unless PROXY-013 router mode is active**,
 in which case Android MUST NOT dispose them and MUST route each site
 concurrently through the relay.
 
+Disposed means quiet, not only dropped. The plugin destroys a native
+webview only after it has loaded `about:blank`, and until then it can still
+send: on the emulator its icon fetch left through the next site's proxy
+once the override had flipped. A site's webview SHALL therefore keep its
+place on the process-wide rule until it has been told to load nothing more
+from the network, and an override write asked for meanwhile SHALL wait for
+that.
+
 #### Scenario: iOS / macOS — concurrent per-site proxy
 
 **Given** container mode is active on iOS 17+ / macOS 14+
@@ -261,6 +269,16 @@ which is partitioned per `siteId`
 (including Site A) is disposed *before*
 `ProxyController.setProxyOverride` applies P2 globally
 **And** the data model preserves Site A's P1 setting
+
+#### Scenario: Android — a disposed webview sends nothing through the next proxy
+
+**Given** Site A is loaded on Android with HTTP proxy P1
+**And** router mode is NOT active
+**When** Site A is disposed so that Site B, on proxy P2, can load
+**Then** Site A's webview is told to block network loads before
+`ProxyController.setProxyOverride` applies P2
+**And** no request for Site A reaches P2, an icon fetched while the plugin
+tears the webview down included
 
 #### Scenario: Android — no background load on another route
 
