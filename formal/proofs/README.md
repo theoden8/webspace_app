@@ -193,6 +193,10 @@ proved again ignoring the cache before it counts as failed.
 The modules share nothing, and tlapm prepares each obligation on one thread, which is
 most of a run, so `TLAPM_JOBS` of them (default one a core) prove side by side,
 the printed tables' proofs first as the longest; the report keeps the list's order.
+tlapm holds every obligation it proves afresh until the module ends, so the modules beside
+one can take the memory it needs, and the kernel kills it. A module that falls short is
+proved again once the rest have ended, one at a time, so a module counts as failed only
+where it fails alone.
 
 ## Why both TLC and TLAPS
 

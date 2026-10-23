@@ -103,26 +103,28 @@ min_obligations() {
 # on their own.
 work="$(mktemp -d)"
 trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "$work"' EXIT
+# A module that falls short beside the others is proved again once they
+# have ended, alone and ignoring the cache: a failed obligation is
+# fingerprinted too, and replayed without a retry, so a timeout on a loaded
+# machine does not fail every run after it; and tlapm holds every obligation
+# it proves afresh until the module ends, so the modules beside one can take
+# the memory it needs, and the kernel kills it.
 check() {
-  local f="$1" name out proved want start
+  local f="$1" again="${2:-}" name out proved want start
   name="$(basename "$f")"
   start=$(date +%s)
-  echo "  $name: started"
+  echo "  $name: started${again:+ again, alone and without the cache}"
   # Capture, then match: piping straight into `grep -q` lets grep exit on the
   # first hit and SIGPIPE tlapm, which `pipefail` then reports as a failure.
-  out="$(prove "$f")"
+  out="$(prove ${again:+--nofp} "$f")"
   proved="$(obligations "$out")"
   want="$(min_obligations "$name")"
-  # A failed obligation is fingerprinted too, and replayed without a retry,
-  # so a module that fails is proved again ignoring the cache: a timeout on a
-  # loaded machine does not fail every run after it.
-  if [ -z "$proved" ] || [ "$proved" -lt "$want" ]; then
-    echo "  $name: ${proved:-no} obligations proved after $(( $(date +%s) - start ))s, again without the cache"
-    out="$(prove --nofp "$f")"
-    proved="$(obligations "$out")"
-  fi
   if [ -n "$proved" ] && [ "$proved" -ge "$want" ]; then
     echo "  OK: $proved obligations proved (>= $want)" >"$work/$name.out"
+  elif [ -z "$again" ]; then
+    echo "  $name: ${proved:-no} obligations proved after $(( $(date +%s) - start ))s, again once the rest end"
+    echo "$f" >>"$work/again"
+    return
   else
     {
       echo "$out"
@@ -150,6 +152,9 @@ for f in "$FORMAL_MODEL"/*_proof.tla *.tla; do
   check "$f" &
 done
 wait
+if [ -e "$work/again" ]; then
+  while read -r f; do check "$f" again </dev/null; done <"$work/again"
+fi
 ok=1
 for f in *.tla "$FORMAL_MODEL"/*_proof.tla; do
   name="$(basename "$f")"
