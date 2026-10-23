@@ -249,8 +249,10 @@ therefore keep its site's place on the process-wide rule until it has been
 told to load nothing more from the network, and an override write asked for
 meanwhile SHALL wait for that: the site's own webview, a nested screen
 opened as the site (whose route's future completes before it leaves the
-tree), and a background wake's headless check of it (NOTIF-016). Android
-blocks the webview's network loads; WPE has no such setting.
+tree), and a background wake's headless check of it (NOTIF-016). A popup a
+page opened holds no place of its own: it runs on its opener's, so it SHALL
+stop loading and close when its opener is told to. Android blocks the
+webview's network loads; WPE has no such setting.
 
 Every nested screen SHALL open through the activation's nested open, a
 typed address, a link menu's Open and a nested fallback as much as a routed
@@ -297,6 +299,15 @@ its headless check of Site A
 **Then** that webview is told to block network loads before Site A leaves
 the process-wide rule
 **And** an override write for another proxy asked for meanwhile waits
+
+#### Scenario: Android — a popup goes with the webview that opened it
+
+**Given** router mode is NOT active and Site A's webview has a popup open
+**When** Site A's webview is told to block network loads (it is unloaded,
+or the nested screen it ran in pops)
+**Then** the popup is told to block network loads first and its window
+closes
+**And** Site A leaves the process-wide rule only after both
 
 #### Scenario: Android — a typed address opens its nested screen on its route
 

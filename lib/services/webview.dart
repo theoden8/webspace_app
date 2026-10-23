@@ -1371,11 +1371,11 @@ class WebViewFactory {
           // no site attached; hand it this webview's posture by windowId so
           // createPopupWebView can inherit it. showPopup resolves when the
           // popup dialog closes, so the entry is short-lived.
-          PopupWebView.popupParentConfigs[windowId] = config;
+          PopupWebView.popupParents[windowId] = (config: config, opener: view);
           try {
             await config.hooks.showPopup(windowId, url: url, kind: kind);
           } finally {
-            PopupWebView.popupParentConfigs.remove(windowId);
+            PopupWebView.popupParents.remove(windowId);
           }
           return true;
         }

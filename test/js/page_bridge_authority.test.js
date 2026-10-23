@@ -155,7 +155,7 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
     + 'through the builder the site webview uses');
   assert.ok(body.includes('initialSettings: settings,'),
     'the popup must be built with those settings');
-  assert.ok(WEBVIEW.includes('PopupWebView.popupParentConfigs[windowId] = config;'),
+  assert.ok(WEBVIEW.includes('PopupWebView.popupParents[windowId] = (config: config, opener: view);'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
 });

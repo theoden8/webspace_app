@@ -569,8 +569,25 @@ class PlatformWebViewController implements WebViewController {
   @override
   Future<void> resumeAllJsTimers() => _native(_c.resumeTimers);
 
+  /// The windows this page opened, each with how its host closes it.
+  final _popups = <PlatformWebViewController, void Function()>{};
+
+  /// [popup] runs as this webview's site, on the route this one holds, so it
+  /// stops loading and closes when this one is told to.
+  void adopt(PlatformWebViewController popup, {required void Function() close}) =>
+      _popups[popup] = close;
+
+  /// [popup] closed on its own.
+  void disown(PlatformWebViewController popup) => _popups.remove(popup);
+
   @override
   Future<void> blockNetworkLoads() async {
+    final popups = {..._popups};
+    _popups.clear();
+    for (final MapEntry(key: popup, value: close) in popups.entries) {
+      await popup.blockNetworkLoads();
+      close();
+    }
     if (!markNetworkBlocked(_settings)) return;
     await _native(() => _c.setSettings(settings: _settings));
   }

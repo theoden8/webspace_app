@@ -40,8 +40,24 @@ import 'helpers/isolations.dart';
 /// The native controller as the plugin hands it over: records every call that
 /// reaches the platform and fails them the way [failWith] says.
 class _NativeController implements inapp.InAppWebViewController {
-  _NativeController({inapp.PlatformInAppWebViewController? platform})
-      : platform = platform ?? FakePlatformController();
+  _NativeController({
+    inapp.PlatformInAppWebViewController? platform,
+    this.label = 'site',
+    this.settingsLog,
+  }) : platform = platform ?? FakePlatformController();
+
+  /// Which view this is in [settingsLog].
+  final String label;
+
+  /// Where this view's settings writes go, for a test that reads them
+  /// across views.
+  final List<String>? settingsLog;
+
+  @override
+  Future<void> setSettings({
+    required inapp.InAppWebViewSettings settings,
+  }) async =>
+      settingsLog?.add('$label blockNetworkLoads=${settings.blockNetworkLoads}');
 
   /// The platform controller this wrapper is over; the plugin puts two
   /// wrappers over one.
@@ -1161,6 +1177,120 @@ void main() {
       await tester.runAsync(() async {
         await expectLater(controller.reload(), throwsStateError);
       });
+    });
+  });
+
+  /// A popup runs as its opener's site, on the proxy rule the opener holds,
+  /// and nothing else lists it there. While its dialog is up, a shortcut
+  /// launch, a memory-pressure unload or a wake can take the opener off the
+  /// rule; the popup then loaded through whatever route came next. So it
+  /// stops loading and closes when its opener is told to (PROXY-008).
+  group('a popup goes with the webview that opened it (PROXY-008)', () {
+    const captcha = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+
+    /// The site's webview with its popup up, and how often the popup closed.
+    Future<({WebViewController opener, List<String> log, int Function() closed})>
+        openPopup(WidgetTester tester) async {
+      final log = <String>[];
+      final popupFor = ValueNotifier<int?>(null);
+      final shown = Completer<void>();
+      var closed = 0;
+      late WebViewController opener;
+      final config = WebViewConfig(
+        posture: _site.sitePosture(
+            globalUserScripts: const <UserScriptConfig>[],
+            isolation: fakeSharedJar()),
+        hooks: _hooks(showPopup: (windowId, {required url, required kind}) {
+          popupFor.value = windowId;
+          return shown.future;
+        }),
+        initialUrl: 'https://example.com/',
+        cacheFirst: false,
+      );
+      await tester.pumpWidget(MaterialApp(
+        home: Column(children: [
+          Expanded(
+            child: WebViewFactory.createWebView(
+              config: config,
+              onControllerCreated: (c) => opener = c,
+            ),
+          ),
+          ValueListenableBuilder<int?>(
+            valueListenable: popupFor,
+            builder: (_, windowId, _) => windowId == null
+                ? const SizedBox()
+                : Expanded(
+                    child: PopupWebView.createPopupWebView(
+                      windowId: windowId,
+                      kind: PopupKind.verification,
+                      onCloseWindow: () {
+                        closed++;
+                        popupFor.value = null;
+                        if (!shown.isCompleted) shown.complete();
+                      },
+                    ),
+                  ),
+          ),
+        ]),
+      ));
+      final site = _NativeController(settingsLog: log);
+      final siteView =
+          tester.widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView));
+      await tester.runAsync(() async {
+        siteView.platform.params.onWebViewCreated!(site);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      });
+      // Started in the real zone, where the popup's close resolves it.
+      await tester.runAsync(() async {
+        unawaited(Future.value(siteView.platform.params.onCreateWindow!(
+          site,
+          inapp.CreateWindowAction(
+            windowId: 7,
+            request: inapp.URLRequest(url: inapp.WebUri(captcha)),
+            isForMainFrame: true,
+          ),
+        )));
+      });
+      await tester.pump();
+      final popupView = tester
+          .widgetList<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+          .last;
+      expect(popupView, isNot(same(siteView)), reason: 'the popup is up');
+      await tester.runAsync(() async {
+        popupView.platform.params.onWebViewCreated!(_NativeController(
+            platform: FakePlatformController(), label: 'popup', settingsLog: log));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      });
+      addTearDown(() {
+        if (!shown.isCompleted) shown.complete();
+      });
+      return (opener: opener, log: log, closed: () => closed);
+    }
+
+    testWidgets('the opener told to stop loading stops and closes its popup '
+        'first', (tester) async {
+      final (:opener, :log, :closed) = await openPopup(tester);
+      await tester.runAsync(opener.blockNetworkLoads);
+      await tester.pump();
+      expect(log, ['popup blockNetworkLoads=true', 'site blockNetworkLoads=true']);
+      expect(closed(), 1);
+      expect(find.byType(inapp.InAppWebView), findsOneWidget);
+    });
+
+    testWidgets('a popup that closed on its own is not closed again',
+        (tester) async {
+      final (:opener, :log, :closed) = await openPopup(tester);
+      await tester.runAsync(() async {
+        final popup = tester
+            .widgetList<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+            .last;
+        popup.platform.params.onCloseWindow!(_NativeController());
+      });
+      await tester.pump();
+      expect(closed(), 1);
+      await tester.runAsync(opener.blockNetworkLoads);
+      expect(log, ['site blockNetworkLoads=true']);
+      expect(closed(), 1);
     });
   });
 }
