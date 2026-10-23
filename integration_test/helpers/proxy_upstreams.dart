@@ -20,6 +20,9 @@ class RecordingUpstream {
   final List<String> requestLines = [];
   final List<String> credentials = [];
 
+  /// Each request line with when it arrived, for a failure's timeline.
+  final List<(DateTime, String)> timeline = [];
+
   RecordingUpstream._(this._server, {required this.label}) {
     listenFixture(
       _server,
@@ -36,6 +39,7 @@ class RecordingUpstream {
               if (!buffer.toString().contains('\r\n\r\n')) return;
               final lines = buffer.toString().split('\r\n');
               requestLines.add(lines.first);
+              timeline.add((DateTime.now(), lines.first));
               for (final line in lines.skip(1)) {
                 if (line.toLowerCase().startsWith('proxy-authorization:')) {
                   credentials.add(line.substring(line.indexOf(':') + 1).trim());

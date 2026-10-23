@@ -20,6 +20,7 @@ import 'package:webspace/controllers/site_network_controller.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_probe.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -30,6 +31,31 @@ import 'package:webspace/web_view_model.dart';
 
 import 'helpers/proxy_upstreams.dart';
 import 'secure_storage_fake.dart';
+
+/// Every request each upstream saw, merged with the app's own proxy,
+/// unload and webview log lines, in the order they happened.
+String timeline(RecordingUpstream a, RecordingUpstream b) {
+  const tags = {
+    'Proxy',
+    'ProxyRelay',
+    'SiteUnload',
+    'WebView',
+    'WebViewLifecycle',
+    'SiteIcon',
+    'Startup',
+    'Test',
+  };
+  final events = <(DateTime, String)>[
+    for (final (at, line) in a.timeline) (at, 'upstream A <- $line'),
+    for (final (at, line) in b.timeline) (at, 'upstream B <- $line'),
+    for (final e in LogService.instance.allEntriesMerged)
+      if (tags.contains(e.tag)) (e.timestamp, '[${e.tag}] ${e.message}'),
+  ]..sort((x, y) => x.$1.compareTo(y.$1));
+  return [
+    'fallback timeline:',
+    for (final (at, what) in events) '${at.toIso8601String()} $what',
+  ].join('\n');
+}
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -115,8 +141,11 @@ void main() {
     expect(ProxyRouterService.instance.port, isNull);
 
     for (final name in ['Fallback A', 'Fallback B']) {
+      LogTag.test.info('opening $name');
       await openSiteFromDrawer(tester, name: name);
     }
+    // ignore: avoid_print
+    print(timeline(upstreamA, upstreamB));
 
     expect(
       upstreamA.wasReached,
