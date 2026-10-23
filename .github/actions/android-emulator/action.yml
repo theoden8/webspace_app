@@ -3,7 +3,18 @@ description: >-
   KVM, the SDK's platform tools and a booted-once AVD snapshot for
   reactivecircus/android-emulator-runner, shared by the emulator scenarios and
   the Android screenshots. A run step that boots it passes the same api-level,
-  target, arch, profile and disk-size, or the snapshot is not reused.
+  target, arch, profile and disk-size, or the snapshot is not reused. The
+  inputs default to the phone AVD; the Android TV tier names its own.
+inputs:
+  api-level:
+    description: The AVD's API level.
+    default: '35'
+  target:
+    description: The system image, `default` (AOSP) or `android-tv`.
+    default: default
+  profile:
+    description: The AVD's device profile.
+    default: pixel_5
 runs:
   using: composite
   steps:
@@ -30,16 +41,16 @@ runs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-api35-x86_64-aosp-pixel_5-v1
+        key: avd-api${{ inputs.api-level }}-x86_64-${{ inputs.target == 'default' && 'aosp' || inputs.target }}-${{ inputs.profile }}-v1
 
     - name: Pre-warm AVD snapshot
       if: steps.avd-cache.outputs.cache-hit != 'true'
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: 35
-        target: default
+        api-level: ${{ inputs.api-level }}
+        target: ${{ inputs.target }}
         arch: x86_64
-        profile: pixel_5
+        profile: ${{ inputs.profile }}
         disk-size: 4096M
         force-avd-creation: false
         emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim

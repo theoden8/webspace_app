@@ -730,7 +730,9 @@ Test: [test/remote_focus_test.dart](../../../test/remote_focus_test.dart),
 [test/js/remote_edge.test.js](../../../test/js/remote_edge.test.js),
 [test/remote_controls_test.dart](../../../test/remote_controls_test.dart),
 [test/remote_library_test.dart](../../../test/remote_library_test.dart),
-[test/remote_tabs_test.dart](../../../test/remote_tabs_test.dart)
+[test/remote_tabs_test.dart](../../../test/remote_tabs_test.dart),
+[integration_test/remote_tv_test.dart](../../../integration_test/remote_tv_test.dart)
+(the Android TV emulator, INTEG-017)
 
 ## Race Condition Guards
 

@@ -1053,6 +1053,33 @@ and the frame classifier.
 
 ---
 
+### Requirement: INTEG-017 — Android TV remote scenarios
+
+An `android-tv` job SHALL boot an Android TV emulator image (`android-tv`, API 36,
+`tv_1080p`) on every push and PR the plan runs Android for, and run
+[`integration_test/remote_tv_test.dart`](../../../integration_test/remote_tv_test.dart)
+through [`scripts/run_android_tv_tests.sh`](../../../scripts/run_android_tv_tests.sh),
+which sets `WS_TV_TIER`. The test SHALL press the remote's keys into the activity as
+Android delivers them (`RemoteInputPlugin`'s `debugPressKey`, debuggable builds only), so
+each key takes the real path through `FlutterView` to the System WebView. Off that tier
+the file SHALL skip, so the phone emulator and the desktop jobs need not run it, and the
+Linux and macOS loops leave it out.
+
+#### Scenario: What only a TV answers
+
+- **GIVEN** the Android TV emulator
+- **WHEN** the tier runs
+- **THEN** `RemoteInput` reports a remote, and the launcher takes no pinned shortcut, so
+  "Home Shortcut" is not offered (NAV-016, HS-004)
+
+#### Scenario: The D-pad on a real page
+
+- **GIVEN** a site's webview under an app bar, its page taller than the screen
+- **WHEN** Down moves focus from the app bar onto the page, and Down is pressed again
+- **THEN** the webview has native focus, and the page moved focus between its links or
+  scrolled
+- **AND** Up pressed until the page has no use for it moves focus back to the app bar
+
 ### Requirement: INTEG-014 — Offline and degraded-network scenarios
 
 `integration_test/offline_connection_test.dart` SHALL drive the offline,
@@ -1237,6 +1264,10 @@ macOS runner exercises the failure assertions for real.
   [`scripts/run_android_shortcut_tests.sh`](../../../scripts/run_android_shortcut_tests.sh);
   the resolution rules themselves stay in
   [`test/startup_restore_engine_test.dart`](../../../test/startup_restore_engine_test.dart)
+- [`integration_test/remote_tv_test.dart`](../../../integration_test/remote_tv_test.dart)
+  — INTEG-017: a TV remote's D-pad on the Android TV emulator, run by
+  [`scripts/run_android_tv_tests.sh`](../../../scripts/run_android_tv_tests.sh) in the
+  `android-tv` job
 - [`scripts/run_android_lifecycle_tests.sh`](../../../scripts/run_android_lifecycle_tests.sh)
   — INTEG-011: adb-driven lifecycle tier (warm start, bfcache back,
   activity recreation, white control); INTEG-012: background-refresh
