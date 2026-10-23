@@ -73,6 +73,9 @@ enum HandPaired implements Pairing {
   /// (`Listed \cap Resettable \cap Tabbed`).
   landedSites,
 
+  /// The sites with tabs an owner-run move may take (`Listed \cap Tabbed`).
+  ownerRunSites,
+
   /// The tabs a landing may name: the site's, and a fresh one while the
   /// pool has one.
   landingTabs,

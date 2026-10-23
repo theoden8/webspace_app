@@ -773,7 +773,7 @@ class LinkController {
     if (model.runsHostedTab || model.runsForeignTab) {
       // An owner URL never loads into a slot running as another site, nor
       // into a tab anchored in another domain (LIR-034).
-      await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));
+      await _tabs.bindOwnerRunTab(model);
       if (!_host.mounted) return;
     }
     if (a.disposeBeforeLoad) {

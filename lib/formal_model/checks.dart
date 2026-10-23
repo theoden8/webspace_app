@@ -443,6 +443,23 @@ enum ActivationWorld {
         'site takes it out of the loaded sites and opens it again in the '
         'same turn (LIR-024, LIR-034)',
   ),
+  tabsOwnerRunContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // Site 1, on screen at the start, runs as site 3 once it opens its link
+    // tab and the reroute flips it, in place with no process-wide proxy;
+    // the owner-run move is the third input.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.linkTab},
+    allowed: {'OpenTab', 'OwnerRun', 'Reroute', 'Tap'},
+    invariants: [..._core, ..._tabs],
+    holds:
+        "site 1's link tab into site 3's domain: an owner-run move takes a "
+        'slot that runs as site 3, or on the link tab, back to a tab site 1 '
+        'runs itself (LIR-018, LIR-034)',
+  ),
   tabsResetContainers(
     cookies: Cookies.containers,
     coldStart: false,
@@ -724,6 +741,11 @@ enum Witness {
         'a reroute that moves the slot on screen starting its activation in '
         'the same turn is reachable',
   ),
+  ownerRan(
+    world: ActivationWorld.tabsOwnerRunContainers,
+    doc: 'an owner-run move that switches a slot running as another site '
+        'to a tab its site runs itself is reachable',
+  ),
   landed(
     world: ActivationWorld.tabsResetContainers,
     doc: "a reset's landing that switches a loaded site to the tab it names "
@@ -935,6 +957,14 @@ enum Mutant {
     doc:
         "a landing that moves a loaded site's pointer without switching its "
         'webview leaves it built for another tab (TAB-014, caught)',
+  ),
+  ownerruninplace(
+    world: ActivationWorld.tabsOwnerRunContainers,
+    by: Inv.tabBound,
+    doc:
+        "an owner-run move that moves a loaded site's pointer without "
+        'switching its webview leaves it built for another tab (LIR-018, '
+        'caught)',
   ),
   navtagatreply(
     world: ActivationWorld.tabsResetContainers,

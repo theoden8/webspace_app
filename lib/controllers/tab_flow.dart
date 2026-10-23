@@ -11,6 +11,7 @@ enum TabPlace {
   duplicateTab,
   reroute,
   homeLanding,
+  ownerRun,
   tCap,
   tCapSave,
   tNav,
@@ -23,6 +24,7 @@ enum TabPlace {
   rFlip,
   rRemove,
   hLand,
+  oLand,
   done,
 }
 

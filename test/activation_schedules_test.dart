@@ -533,6 +533,7 @@ const _rerouteSetups = <String, List<SiteAction>>{
 
 const _rerouteAlphabet = <SiteAction>[
   Reroute(),
+  OwnerRun(0),
   OpenTab(0, tab: 0),
   OpenTab(0, tab: 1),
   Tap(0),
@@ -1035,7 +1036,8 @@ void main() {
   for (final MapEntry(key: setupName, value: setup)
       in _rerouteSetups.entries) {
     _scheduleTest(
-        'reroute (LIR-024), containers, $setupName: every schedule holds',
+        'reroute and owner-run (LIR-018, LIR-024), containers, $setupName: '
+        'every schedule holds',
         body: () async {
       for (var length = 1; length <= _rerouteLength; length++) {
         for (final script in _scripts(length, alphabet: _rerouteAlphabet)) {

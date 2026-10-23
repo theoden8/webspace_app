@@ -230,7 +230,7 @@ void main() {
     test('owner URLs move off a foreign tab first', () {
       expect(tabsBody('Future<void> bindOwnerRunTab('),
           contains('!model.runsHostedTab && !model.runsForeignTab'));
-      expect(tabsBody('Future<void> switchToOwnerRunTab('),
+      expect(tabsBody('Future<void> _ownerRun('),
           contains('isForeign: model.isForeignTab'));
       expect(linksBody('Future<void> _executeOpenInMain('),
           contains('model.runsHostedTab || model.runsForeignTab'));

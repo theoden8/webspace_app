@@ -344,6 +344,15 @@ final class HomeLand extends SiteAction {
   String toString() => 'HomeLand($slot)';
 }
 
+/// An owner URL is about to load into the site at [slot]: its slot moves to
+/// a tab the site runs itself (`bindOwnerRunTab`, LIR-018), left running.
+final class OwnerRun extends SiteAction {
+  const OwnerRun(this.slot);
+  final int slot;
+  @override
+  String toString() => 'OwnerRun($slot)';
+}
+
 /// What a walk's page starts with.
 typedef WalkPage = ({
   /// Hosts of the sites loaded at startup, in order.
@@ -1043,6 +1052,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     CloseTab() ||
     DuplicateTab() ||
     HomeLand() ||
+    OwnerRun() ||
     Reroute() => false,
     ArchiveSite() ||
     Reply() ||
@@ -1595,6 +1605,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     CloseTab() => ActivationStep.closeTab,
     DuplicateTab() => ActivationStep.duplicateTab,
     HomeLand() => ActivationStep.homeLanding,
+    OwnerRun() => ActivationStep.ownerRun,
     Reroute() => ActivationStep.reroute,
     // A move is the environment's, a move into an archive the model's
     // setup, and the rest wait on the page.
@@ -1938,6 +1949,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         }
       case HomeLand(:final slot):
         if (n > 0) _track(tabs.landOnHomeTab(at(slot)));
+      case OwnerRun(:final slot):
+        if (n > 0) _track(tabs.bindOwnerRunTab(at(slot)));
       case OpenNested(:final slot):
         if (n > 0) {
           _track(
@@ -2065,6 +2078,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           CloseTab() ||
           DuplicateTab() ||
           HomeLand() ||
+          OwnerRun() ||
           OpenNested() ||
           Wake() ||
           Background() ||

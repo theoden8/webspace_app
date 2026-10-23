@@ -328,6 +328,20 @@ abstract final class TabTable {
   );
   static final _landed = _eachLanded.it;
 
+  /// The sites with tabs an owner-run move may take (LIR-018): the engine
+  /// asks for one only for a site whose slot runs as another, or on a tab
+  /// anchored in another domain, which the model does not follow.
+  static final _eachOwnerRun = Pick<WebViewModel, TabFlow>(
+    Expr.op(
+      HandPaired.ownerRunSites,
+      tla: r'Listed \cap Tabbed',
+      run: (c) => [_flow.from(c).site],
+      reads: const Reads(base: {BaseOp.listed}),
+      needs: const {(of: ModelConst.tabbed, set: true)},
+    ),
+  );
+  static final _ownerRunning = _eachOwnerRun.it;
+
   /// The tab a landing names: the one the site is on, a parked one, or a
   /// fresh one while the pool has one; the engine decides which.
   static final _eachLanding = Pick<TabId, TabFlow>(
@@ -572,6 +586,25 @@ abstract final class TabTable {
           next: to(TabPlace.hLand),
         ),
       ),
+      // ownerRun(site): before an owner URL loads, the slot moves to a tab
+      // the site runs itself, chosen next (oLand) as a landing's is. It
+      // lands only on a free gate: the code waits for one, since the move
+      // may not be dropped (LIR-034).
+      TabPlace.ownerRun => Step.input(
+        ActivationStep.ownerRun,
+        enabled: ~tabBusy.value,
+        pick: _eachOwnerRun,
+        site: _ownerRunning,
+        branches: [],
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            _kind.becomes(Expr.constant(FlowKind.tab)),
+            _site.becomes(_ownerRunning),
+          ],
+          next: to(TabPlace.oLand),
+        ),
+      ),
       TabPlace.tCap ||
       TabPlace.tCapSave ||
       TabPlace.tNav ||
@@ -584,6 +617,7 @@ abstract final class TabTable {
       TabPlace.rFlip ||
       TabPlace.rRemove ||
       TabPlace.hLand ||
+      TabPlace.oLand ||
       TabPlace.done => const Leaves(),
     },
   );
@@ -623,6 +657,7 @@ abstract final class TabTable {
       TabPlace.duplicateTab ||
       TabPlace.reroute ||
       TabPlace.homeLanding ||
+      TabPlace.ownerRun ||
       TabPlace.done => const Leaves(),
       // The outgoing tab's back stack captured under the webview's tab
       // (Capture); a target closed meanwhile ends the switch.
@@ -990,47 +1025,51 @@ abstract final class TabTable {
         ],
         otherwise: Otherwise(StepOutcome.end, then: [], next: to(TabPlace.done)),
       ),
-      // The landing's tab, decided by the engine: the one the site is on
-      // stays; a loaded site lists it and switches to it as New tab does
-      // (tCap); one with no webview takes it as the list and the pointer at
-      // once, so its next build is of that tab.
-      TabPlace.hLand => Step(
-        ActivationStep.homeLand,
-        holds: null,
-        pick: _eachLanding,
-        site: _site.value,
-        tab: _landing,
-        branches: [
-          Branch(
-            StepOutcome.stay,
-            when: _landing.eq(_active.at(_site.value)),
-            then: [],
-            next: to(TabPlace.done),
-          ),
-          Branch(
-            StepOutcome.rebind,
-            when: _loaded.value.has(_site.value),
-            then: [
-              _landedMint,
-              Act.of([_tabs.except(_site.value, to: _landedTabs)]),
-              _tab.becomes(_landing),
-              _keep.becomes(_yes),
-            ],
-            next: to(TabPlace.tCap),
-          ),
-        ],
-        otherwise: Otherwise(
-          StepOutcome.go,
-          then: [
-            _landedMint,
-            Act.of([
-              _tabs.except(_site.value, to: _landedTabs),
-              _active.except(_site.value, to: _landing),
-            ], then: (c) => _page.from(c).landed(c)),
-          ],
-          next: to(TabPlace.done),
-        ),
-      ),
+      TabPlace.hLand => _landOn(ActivationStep.homeLand),
+      TabPlace.oLand => _landOn(ActivationStep.ownerLand),
     },
+  );
+
+  /// The tab a landing or an owner-run move names, decided by the engine:
+  /// the one the site is on stays; a loaded site lists it and switches to
+  /// it as New tab does (tCap); one with no webview takes it as the list
+  /// and the pointer at once, so its next build is of that tab. Each move
+  /// marks its own [step].
+  static Step<TabFlow, TabPlace> _landOn(ActivationStep step) => Step(
+    step,
+    holds: null,
+    pick: _eachLanding,
+    site: _site.value,
+    tab: _landing,
+    branches: [
+      Branch(
+        StepOutcome.stay,
+        when: _landing.eq(_active.at(_site.value)),
+        then: [],
+        next: to(TabPlace.done),
+      ),
+      Branch(
+        StepOutcome.rebind,
+        when: _loaded.value.has(_site.value),
+        then: [
+          _landedMint,
+          Act.of([_tabs.except(_site.value, to: _landedTabs)]),
+          _tab.becomes(_landing),
+          _keep.becomes(_yes),
+        ],
+        next: to(TabPlace.tCap),
+      ),
+    ],
+    otherwise: Otherwise(
+      StepOutcome.go,
+      then: [
+        _landedMint,
+        Act.of([
+          _tabs.except(_site.value, to: _landedTabs),
+          _active.except(_site.value, to: _landing),
+        ], then: (c) => _page.from(c).landed(c)),
+      ],
+      next: to(TabPlace.done),
+    ),
   );
 }

@@ -546,27 +546,54 @@ class TabsController {
   /// a tab [model] runs itself: the nearest such ancestor, or a new root tab.
   Future<void> bindOwnerRunTab(WebViewModel model) async {
     if (!model.runsHostedTab && !model.runsForeignTab) return;
-    if (_sites.loaded.contains(model)) {
-      await switchToOwnerRunTab(model);
+    if (enabledFor(model)) {
+      await _ownerRun(model);
       return;
     }
-    model.bindOwnerRunTab();
+    if (!_sites.loaded.contains(model)) {
+      model.bindOwnerRunTab();
+      return;
+    }
+    await _gate.runWhenIdle(() async {
+      var id = TabLifecycleEngine.ownerRunTab(model.tabs,
+          activeTabId: model.activeTabId, isForeign: model.isForeignTab);
+      if (id == null) {
+        final tab = SiteTab(url: model.initUrl);
+        WebViewModel.tabsCell.write(
+            at: model,
+            to: [...model.tabs, tab],
+            commit: const Commit.unmodeled(Unmodeled.ownerRunTab));
+        id = tab.id;
+      }
+      await switchActiveTab(model, targetTabId: id);
+    });
   }
 
-  /// [bindOwnerRunTab] for a slot that may be live: the hosted tab's back
-  /// stack is captured and the webview rebuilt as [model].
-  Future<void> switchToOwnerRunTab(WebViewModel model) async {
-    var id = TabLifecycleEngine.ownerRunTab(model.tabs,
-        activeTabId: model.activeTabId, isForeign: model.isForeignTab);
-    if (id == null) {
-      final tab = SiteTab(url: model.initUrl);
-      WebViewModel.tabsCell.write(
-          at: model,
-          to: [...model.tabs, tab],
-          commit: const Commit.unmodeled(Unmodeled.ownerRunTab));
-      id = tab.id;
+  /// [bindOwnerRunTab] for a site with tabs: the [TabTable.tabInputs] owner-run
+  /// move, the tab the engine names [TabTable.tabFlow]'s landing (oLand), so a
+  /// live slot's back stack is captured and its webview rebuilt as [model]. An
+  /// owner URL may not load before it (LIR-034), so it waits for a free gate
+  /// and asks in the turn it finds one: the gate is held past a tab flow's
+  /// last step too (its commit, a [TabHandlingGate.runWhenIdle] waiter), so a
+  /// move asked on a held gate could be dropped where the model sees no tab
+  /// flow in flight.
+  Future<void> _ownerRun(WebViewModel model) async {
+    while (_gate.busy) {
+      await _gate.idle();
     }
-    await switchActiveTab(model, targetTabId: id);
+    if (!_host.mounted || !_sites.models.contains(model)) return;
+    final move = TabLifecycleEngine.ownerRunMove(model.tabs,
+        activeTabId: model.activeTabId,
+        homeUrl: model.initUrl,
+        isForeign: model.isForeignTab);
+    final c = StepContext(TabFlow(
+      this,
+      site: model,
+      requested: move?.active ?? model.activeTabId,
+      landed: move?.tabs ?? model.tabs,
+    ));
+    final next = TabTable.tabInputs.runInput(c, from: TabPlace.ownerRun);
+    await _gate.run(() => _runTabFlow(c, from: next));
   }
 
   /// LIR-023: close every hosted tab whose host is gone or may no longer

@@ -465,7 +465,7 @@ String _rowAlone(FlStep s, {required int at, required FlRow row}) {
       for (final MapEntry(key: kind, value: gate) in _alone.entries)
         if (values['kind'] == '"${kind.name}"') () {
           assert(s.input && index == 'f', '${s.action} gives a flow the kind ${kind.name} on its way');
-          assert(row.passed.any((p) => p.tla == '~(${gate.tla})'),
+          assert(_keepsOut(row, gate: gate),
               '${s.action} starts a ${kind.name} flow whatever ${gate.tla} says');
           return gate;
         }(),
@@ -498,6 +498,12 @@ String _rowAlone(FlStep s, {required int at, required FlRow row}) {
     '',
   ].join('\n');
 }
+
+/// Whether [row] lands only where [gate] does not hold: a branch before it
+/// held where the gate does, or its input is enabled only without it.
+bool _keepsOut(FlRow row, {required ModelDef gate}) =>
+    row.passed.any((p) => p.tla == '~(${gate.tla})') ||
+    row.given.contains('~(${gate.tla})');
 
 /// What [row]'s arm leaves of [vars], for a lemma over the row that reads
 /// them primed: each write of one, then that the arm keeps each other.
@@ -532,9 +538,8 @@ String _rowSupported(
   ];
   final moves = row.writes.any((w) => w.vars.any(shared.contains));
   final gates = [
-    for (final p in row.passed)
-      for (final g in _alone.values)
-        if (p.tla == '~(${g.tla})') g,
+    for (final g in _alone.values)
+      if (_keepsOut(row, gate: g)) g,
   ];
   assert(
     !moves || gates.isNotEmpty || (kinds[s.place]?.containsAll(_kinds) ?? false),
@@ -882,12 +887,12 @@ final _alone = {FlowKind.tab: ModelDef.tabBusy};
 typedef _Held = ({FlowField field, String set, Set<String> at});
 
 final _held = <_Held>[
-  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip', 'hLand'}),
+  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip', 'hLand', 'oLand'}),
   (field: FlowField.tab, set: 'TabIds', at: {'tNav', 'tRebind', 'tDupRead'}),
   // What [_supports] reads of the shared state only a flow of a kind in
   // [_alone] writes, so its places hold only those, and so does a place
   // whose step writes it beside them (a landing's fresh tab).
-  (field: FlowField.kind, set: _set([for (final k in _alone.keys) k.name]), at: {..._supports.keys, 'hLand'}),
+  (field: FlowField.kind, set: _set([for (final k in _alone.keys) k.name]), at: {..._supports.keys, 'hLand', 'oLand'}),
 ];
 
 /// The kinds of flow a row can hold, as the model names them: a row no

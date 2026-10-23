@@ -220,7 +220,12 @@ void main() {
 
     test('an owner URL never loads into a hosted slot', () {
       expect(bodyOf(links, signature: 'Future<void> _executeOpenInMain('),
-          contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
+          contains('await _tabs.bindOwnerRunTab(model);'));
+      expect(
+          bodyOf(File('lib/controllers/tabs_controller.dart').readAsStringSync(),
+              signature: 'Future<void> _ownerRun('),
+          contains('await _gate.idle();'),
+          reason: 'the move waits out a tab handler rather than dropping');
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
       expect(

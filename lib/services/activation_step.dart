@@ -460,9 +460,17 @@ enum ActivationStep {
   /// handler runs.
   homeLanding(outcomes: {StepOutcome.go, StepOutcome.busy}),
 
+  /// A slot that runs as another site, or on a tab anchored in another
+  /// domain, moves to a tab its site runs itself before an owner URL loads
+  /// (LIR-018, LIR-034); it waits for a free gate, so it is never dropped.
+  ownerRun(outcomes: {StepOutcome.go}),
+
   /// The tab the landing names: the one the site is on already, a loaded
   /// site's switch to it, or the pointer moved for a site with no webview.
   homeLand(outcomes: {StepOutcome.stay, StepOutcome.rebind, StepOutcome.go}),
+
+  /// The tab an owner-run move names, taken as a landing's is.
+  ownerLand(outcomes: {StepOutcome.stay, StepOutcome.rebind, StepOutcome.go}),
 
   /// The reroute's flips, in its input's turn. The tab on screen moves its
   /// slot to the other site at once: under one process-wide proxy the slot

@@ -489,6 +489,12 @@ Reach_Rerouted ==
 \* A reset's landing of a loaded site switches it to the tab it names
 \* (TAB-014): the landing world is not vacuous.
 Reach_Landed == ~(last.a = "HomeLand" /\ last.o = "rebind")
+\* An owner-run move switches a slot that runs as another site to a tab its
+\* site runs itself (LIR-018): the owner-run world is not vacuous. The step
+\* records the tab it picks; its row keeps the site.
+Reach_OwnerRan ==
+    ~(/\ last.a = "OwnerLand" /\ last.o = "rebind"
+      /\ RunsAs(fl[last.f].site) # fl[last.f].site)
 Reach_RouteSwitch ==
     ~\E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc = "next"
                        /\ ProxyContenders(fl[f].site, RunsAs(fl[f].site)) # {}

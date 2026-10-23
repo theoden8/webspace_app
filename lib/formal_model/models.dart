@@ -1462,6 +1462,20 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // An owner-run move moves a loaded site's pointer as it would one with no
+  // webview, without the switch that rebinds it (LIR-018).
+  Mutant.ownerruninplace => _with(
+    tabFlow: _withArms(
+      tables.tabFlow,
+      step: ActivationStep.ownerLand,
+      arms: (s) => s.withArms(
+        branches: [
+          for (final b in s.branches)
+            if (b.outcome != StepOutcome.rebind) b,
+        ],
+      ),
+    ),
+  ),
   // A delete deletes its site's container without waiting for the frame
   // that unmounts its webview (BUG-038).
   Mutant.deletenoframe => _with(
