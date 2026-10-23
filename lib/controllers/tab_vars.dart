@@ -198,24 +198,25 @@ final class TabVars {
     );
   }
 
-  /// An activation reads the active tab's saved file before the build,
-  /// under the key of the site [a] it ran as when the read began, and
-  /// queues it for that tab (the nav step, and a preload's: PAUSE-035).
+  /// An activation reads a tab's saved file before the build, the tab [t]
+  /// active and the site [a] it ran as when the read began, and queues it
+  /// for that tab (the nav step, and a preload's: PAUSE-035): a build of
+  /// another tab drops it (`Shown`).
   static Def<Map<WebViewModel, QueuedStack>, W> staged<W>() {
     final s = Bound<WebViewModel, W>('s');
     final a = Bound<WebViewModel, W>('a');
+    final t = Bound<TabId, W>('t');
     final queued = TabVars.queued<W>().value;
-    final target = active<W>().at(s.it);
-    final saved = file<W>().value.at(s.it).at(target).at(a.it);
+    final saved = file<W>().value.at(s.it).at(t.it).at(a.it);
     return Def(
       ModelDef.staged,
-      params: [s, a],
+      params: [s, a, t],
       body: Expr.choose(
         when: tabbed<W>().has(s.it) & saved.neq(noTab()),
         then: queued.except(
           s.it,
           to: record(
-            {'t': target, 'h': saved},
+            {'t': t.it, 'h': saved},
             run: (_) => throw StateError('queued is the platform\'s'),
           ),
         ),

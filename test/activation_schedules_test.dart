@@ -365,6 +365,8 @@ const _tabSetups = <String, List<SiteAction>>{
   'slot 0 signed in behind': _slot0Behind,
   // Slot 0's state is saved when slot 1, on its base domain, unloads it.
   'slot 0 unloaded with its state': [Tap(0), Login(0), Tap(1)],
+  // Off its home tab, so a reset lands it there with no webview to rebind.
+  'slot 0 unloaded on its second tab': [Tap(0), OpenTab(0, tab: 1), Tap(1)],
 };
 
 const _tabAlphabet = <SiteAction>[
@@ -372,6 +374,7 @@ const _tabAlphabet = <SiteAction>[
   NewTab(0),
   CloseTab(0, tab: 0),
   DuplicateTab(0),
+  HomeLand(0),
   Tap(0),
   Tap(1),
   GoHome(),

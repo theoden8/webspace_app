@@ -9,6 +9,7 @@ import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_refused.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
@@ -62,14 +63,18 @@ abstract final class ActivationTable {
   /// The target's saved back stack queued for its active tab, and the
   /// frame after a commit building its webview (TAB-003).
   static final _queuedWrite = TabVars.queued<ActivationFlow>().becomes(
-    TabVars.staged<ActivationFlow>().call([_site.value, _navAs.value]),
+    TabVars.staged<ActivationFlow>()
+        .call([_site.value, _navAs.value, _navTab.value]),
   );
 
-  /// The site whose key the nav read names: the one the target's slot runs
-  /// as when the read is issued.
+  /// What the nav read names when it is issued: the site the target's slot
+  /// runs as, and the tab it is on. A home landing can move the tab before
+  /// the reply, and the stack read is that tab's.
   static const _navAs = Field<WebViewModel, ActivationFlow>(FlowField.navAs);
+  static const _navTab = Field<TabId, ActivationFlow>(FlowField.navTab);
   static final _readsAs = [
     _navAs.becomes(TabVars.slotHost<ActivationFlow>(_site.value)),
+    _navTab.becomes(TabVars.active<ActivationFlow>().at(_site.value)),
   ];
   static final _queued = Act.of([_queuedWrite], then: _queueNav);
 
@@ -78,7 +83,7 @@ abstract final class ActivationTable {
   static void _queueNav(CommitView<ActivationFlow> c) {
     final target = _site.of(c);
     if (ActivationFlow.state.from(c).navBytes case final bytes?) {
-      target.tabBinding.queue(bytes, tab: target.activeTabId, commit: c.commit);
+      target.tabBinding.queue(bytes, tab: _navTab.of(c), commit: c.commit);
       LogTag.webViewState.debug(
         'Queued ${bytes.length} restore bytes for "${target.name}" '
         '(siteId: ${target.siteId})',
@@ -1079,7 +1084,7 @@ abstract final class ActivationTable {
           run: (c) async {
             final target = _site.of(c);
             ActivationFlow.state.from(c).navBytes = await c.api.loadState(
-              target.stateKeyForTab(target.activeTabId),
+              target.stateKeyForTab(_navTab.of(c)),
             );
           },
           writes: const [],
@@ -1326,7 +1331,7 @@ abstract final class ActivationTable {
               return;
             }
             ActivationFlow.state.from(c).navBytes = await c.api.loadState(
-              target.stateKeyForTab(target.activeTabId),
+              target.stateKeyForTab(_navTab.of(c)),
             );
           },
           writes: [_queuedWrite],

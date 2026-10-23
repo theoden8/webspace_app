@@ -94,6 +94,7 @@ class WebViewModel implements MediaGrantRecord {
     ModelVar.tabs,
     read: (m) => m._tabs,
     write: (m, {required to}) => m._tabs = to,
+    members: (tabs) => {for (final t in tabs) t.id},
   );
   static final activeTabCell = SharedAt<WebViewModel, TabId>(
     ModelVar.active,
@@ -224,18 +225,23 @@ class WebViewModel implements MediaGrantRecord {
 
   /// Put a site that has no webview yet on a tab at its home page, as Always
   /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on
-  /// stays in the list; without, that tab is sent home.
-  void landAtHome() {
+  /// stays in the list; without, that tab is sent home. Only the JSON read
+  /// does this, to a model no runtime holds yet ([fresh]), so it sets the
+  /// state the model starts in, as the constructor does.
+  void landAtHome({required Unpublished fresh}) {
     if (effectiveTabsEnabled) {
       final landing = TabLifecycleEngine.homeLanding(tabs,
           activeTabId: activeTabId, initUrl: initUrl);
       if (landing == null) return;
-      const commit = Commit.unmodeled(Unmodeled.homeLanding);
-      tabsCell.write(at: this, to: landing.tabs, commit: commit);
-      activeTabCell.write(at: this, to: landing.activeTabId, commit: commit);
+      _tabs = landing.tabs;
+      _activeTabId = landing.activeTabId;
       return;
     }
-    bindOwnerRunTab();
+    if (_ownerRunTab() case (:final tabs, :final active)) {
+      _tabs = tabs;
+      _activeTabId = active;
+      activeTab.lastActiveAt = DateTime.now();
+    }
     if (currentUrl == initUrl) return;
     currentUrl = initUrl;
     pageTitle = null;
@@ -245,19 +251,19 @@ class WebViewModel implements MediaGrantRecord {
   /// a hosted tab to one it runs itself: the nearest such ancestor, or a new
   /// root tab at home. A live slot moves through a tab switch instead.
   void bindOwnerRunTab() {
-    if (!runsHostedTab && !runsForeignTab) return;
-    final id = TabLifecycleEngine.ownerRunTab(tabs, activeTabId: activeTabId,
-        isForeign: isForeignTab);
-    const commit = Commit.unmodeled(Unmodeled.ownerRunTab);
-    if (id != null) {
-      activeTabCell.write(at: this, to: id, commit: commit);
-    } else {
-      final tab = SiteTab(url: initUrl);
-      tabsCell.write(at: this, to: [...tabs, tab], commit: commit);
-      activeTabCell.write(at: this, to: tab.id, commit: commit);
+    if (_ownerRunTab() case (:final tabs, :final active)) {
+      const commit = Commit.unmodeled(Unmodeled.ownerRunTab);
+      if (!identical(tabs, _tabs)) {
+        tabsCell.write(at: this, to: tabs, commit: commit);
+      }
+      activeTabCell.write(at: this, to: active, commit: commit);
+      activeTab.lastActiveAt = DateTime.now();
     }
-    activeTab.lastActiveAt = DateTime.now();
   }
+
+  ({List<SiteTab> tabs, TabId active})? _ownerRunTab() =>
+      TabLifecycleEngine.ownerRunMove(_tabs,
+          activeTabId: activeTabId, homeUrl: initUrl, isForeign: isForeignTab);
 
   String name;
   List<Cookie> cookies;

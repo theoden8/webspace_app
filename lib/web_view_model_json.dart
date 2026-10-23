@@ -180,6 +180,13 @@ extension WebViewModelJson on WebViewModel {
   }
 }
 
+/// What only the JSON read holds: a model it has just built, which no
+/// runtime holds yet, so what it writes there is the state the model
+/// starts in, which no step takes.
+final class Unpublished {
+  const Unpublished._();
+}
+
 /// [WebViewModel.fromJson].
 WebViewModel webViewModelFromJson(
   Map<String, dynamic> json, {
@@ -222,7 +229,7 @@ WebViewModel webViewModelFromJson(
   // home here (AOH-002, TAB-014), before anything can build its webview.
   // Opening an archive is not one: it restores what it sealed (ARCH-012).
   if (read.alwaysOpenHome && !read.incognito && !isArchiveTier) {
-    model.landAtHome();
+    model.landAtHome(fresh: const Unpublished._());
   }
   return model;
 }

@@ -761,9 +761,6 @@ enum Environment {
 
 /// The writes of the model's state that no step of a table takes yet.
 enum Unmodeled {
-  /// Always open Home's landing on a fresh entry (TAB-014).
-  homeLanding,
-
   /// The move to a tab the site runs itself before an owner URL loads
   /// (LIR-018).
   ownerRunTab,
@@ -771,9 +768,6 @@ enum Unmodeled {
   /// A link opened as a child tab of its site, shown or behind the one on
   /// screen.
   childTab,
-
-  /// A tab and its subtree dragged to another place in its tree (TAB-015).
-  tabMove,
 
   /// Link tabs that run as another site, and the slots that let go of
   /// their webview for it, where the flips are not one site's own link
@@ -820,12 +814,14 @@ void commitInput(
 /// A variable of the model that is a function of a key (`tabs[s]`), as
 /// the state that owns it keeps it: read anywhere, written only with a
 /// [Commit], which a table's arm ([Indexed.over]), a hand-marked input
-/// ([commitInput]) or a named debt ([Commit.unmodeled]) gives.
+/// ([commitInput]) or a named debt ([Commit.unmodeled]) gives; or, where
+/// the model holds only a value's [members], rearranged without one.
 final class SharedAt<K, V> {
   SharedAt(
     this.variable, {
     required V Function(K at) read,
     required void Function(K at, {required V to}) write,
+    this.members,
   }) : _read = read,
        _write = write;
 
@@ -833,11 +829,29 @@ final class SharedAt<K, V> {
   final V Function(K at) _read;
   final void Function(K at, {required V to}) _write;
 
+  /// What the model holds of a value when it holds a set of it: `tabs[s]`
+  /// is the ids of the tabs, not their order or their tree.
+  final Set<Object?> Function(V value)? members;
+
   V of(K at) => _read(at);
 
   void write({required K at, required V to, required Commit commit}) {
     _write(at, to: to);
     commit.wrote(variable);
+  }
+
+  /// A write the model cannot see, so no step takes it: [to] holds the
+  /// members the value holds now (a tab dragged within its tree, TAB-015).
+  void rearrange({required K at, required V to}) {
+    final held = members;
+    assert(held != null, '${variable.name}: the model holds all of it');
+    if (held != null) {
+      final now = held(of(at));
+      final then = held(to);
+      assert(now.length == then.length && now.containsAll(then),
+          '${variable.name}: a rearrangement changed what the model holds');
+    }
+    _write(at, to: to);
   }
 }
 

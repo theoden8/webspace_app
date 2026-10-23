@@ -161,6 +161,28 @@ void main() {
       );
     });
 
+    test('ownerRunMove keeps a tab the owner runs, else walks up, else opens '
+        'a root tab at home (LIR-018)', () {
+      final tabs = tree();
+      expect(
+          TabLifecycleEngine.ownerRunMove(tabs,
+              activeTabId: TabId('c'), homeUrl: 'https://github.com/'),
+          isNull);
+      final up = TabLifecycleEngine.ownerRunMove(tabs,
+          activeTabId: TabId('hh'), homeUrl: 'https://github.com/')!;
+      expect(up.active, kPrimaryTabId);
+      expect(up.tabs, same(tabs), reason: 'an ancestor adds no tab');
+      final hosted = [
+        SiteTab(id: TabId('x'), url: 'https://duckduckgo.com/', hostSiteId: SiteId('ddg')),
+      ];
+      final root = TabLifecycleEngine.ownerRunMove(hosted,
+          activeTabId: TabId('x'), homeUrl: 'https://github.com/')!;
+      final fresh = root.tabs.singleWhere((t) => t.id == root.active);
+      expect(fresh.url, 'https://github.com/');
+      expect(fresh.parentId, isNull);
+      expect(root.tabs.map((t) => t.id), contains('x'));
+    });
+
     test('a home landing never lands on a hosted tab (TAB-014)', () {
       final hostedHome = SiteTab(
           id: TabId('h'), url: 'https://github.com/', hostSiteId: SiteId('ddg'));
@@ -183,12 +205,14 @@ void main() {
             parentId: kPrimaryTabId,
             hostSiteId: SiteId('ddg')),
       ], active: TabId('h'));
-      m
-        ..tabsEnabled = false
-        ..landAtHome();
-      expect(m.activeTabId, kPrimaryTabId);
-      expect(m.currentUrl, 'https://github.com/');
-      expect(m.tabs.last.url, 'https://duckduckgo.com/?q=x');
+      final landed = WebViewModel.fromJson({
+        ...m.toJson(),
+        'tabsEnabled': false,
+        'alwaysOpenHome': true,
+      }, stateSetterF: null);
+      expect(landed.activeTabId, kPrimaryTabId);
+      expect(landed.currentUrl, 'https://github.com/');
+      expect(landed.tabs.last.url, 'https://duckduckgo.com/?q=x');
     });
   });
 

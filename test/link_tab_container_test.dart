@@ -275,12 +275,14 @@ void main() {
         SiteTab.primary(url: 'https://github.com/x'),
         linkTab(),
       ], active: TabId('l'));
-      m
-        ..tabsEnabled = false
-        ..landAtHome();
-      expect(m.activeTabId, kPrimaryTabId);
-      expect(m.currentUrl, m.initUrl);
-      expect(m.tabs.last.url, ddgLink, reason: 'the link tab is kept');
+      final landed = WebViewModel.fromJson({
+        ...m.toJson(),
+        'tabsEnabled': false,
+        'alwaysOpenHome': true,
+      }, stateSetterF: null);
+      expect(landed.activeTabId, kPrimaryTabId);
+      expect(landed.currentUrl, landed.initUrl);
+      expect(landed.tabs.last.url, ddgLink, reason: 'the link tab is kept');
     });
   });
 

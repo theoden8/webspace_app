@@ -536,6 +536,22 @@ class TabLifecycleEngine {
     return null;
   }
 
+  /// The list and the tab LIR-018 moves a site to before an owner URL loads:
+  /// null when the active tab is one it runs itself in its own domain, else
+  /// [ownerRunTab]'s, else a new root tab at [homeUrl].
+  static ({List<SiteTab> tabs, TabId active})? ownerRunMove(
+    List<SiteTab> tabs, {
+    required TabId activeTabId,
+    required String homeUrl,
+    bool Function(SiteTab tab)? isForeign,
+  }) {
+    final id = ownerRunTab(tabs, activeTabId: activeTabId, isForeign: isForeign);
+    if (id == activeTabId) return null;
+    if (id != null) return (tabs: tabs, active: id);
+    final tab = SiteTab(url: homeUrl);
+    return (tabs: [...tabs, tab], active: tab.id);
+  }
+
   /// What a back gesture means once the active tab's own history is exhausted.
   ///
   /// A tab the user opened from another tab closes and hands back to its

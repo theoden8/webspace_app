@@ -49,6 +49,21 @@ test('an omitted lemma no module proves fails', (t) => {
   assert.match(result.stdout, /Hd_site_Tap is omitted and proved in no module/);
 });
 
+// A member of a set is stated on its header's line.
+const oneLine = ['LEMMA Places_tap == "tap" \\in Places', '  BY Zenon DEF Places'];
+
+test('an omitted lemma stated on its header line and proved word for word elsewhere passes', (t) => {
+  const result = gate(t, { members: oneLine, types: restated(oneLine.slice(0, 1)) });
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /OK: 1 omitted lemmas/);
+});
+
+test('an omitted lemma stated on its header line that no module proves fails', (t) => {
+  const result = gate(t, { types: restated(oneLine.slice(0, 1)) });
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /Places_tap is omitted and proved in no module/);
+});
+
 test('an omitted lemma whose twin is omitted too fails', (t) => {
   const result = gate(t, { table: restated(proved.slice(0, 3)), steps: restated(proved.slice(0, 3)) });
   assert.equal(result.status, 1);

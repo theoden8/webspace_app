@@ -174,29 +174,25 @@ class TabsController {
 
   /// Land a site with tabs on a tab at its home page (TAB-014): the one it is
   /// on when that is home, else a parked tab at home, else a new one. The tab
-  /// it leaves parks with its back stack, as for New tab.
+  /// it leaves parks with its back stack, as for New tab. It is the
+  /// [tabInputs] landing, and the tab it names [tabFlow]'s first step.
   Future<void> landOnHomeTab(WebViewModel model) async {
     final landing = TabLifecycleEngine.homeLanding(
         model.tabs, activeTabId: model.activeTabId, initUrl: model.initUrl);
-    if (landing == null) return;
-    if (_gate.busy) {
+    final c = StepContext(TabFlow(
+      this,
+      site: model,
+      requested: landing?.activeTabId ?? model.activeTabId,
+      landed: landing?.tabs ?? model.tabs,
+    ));
+    final next = tabInputs.runInput(c, from: TabPlace.homeLanding);
+    if (next == TabPlace.done) {
       LogTag.tabs.debug(
           'Home landing for "${model.name}" skipped: a tab change is running',
           sensitive: true);
       return;
     }
-    await _gate.run(() async {
-      if (!_sites.models.contains(model)) return;
-      const commit = Commit.unmodeled(Unmodeled.homeLanding);
-      WebViewModel.tabsCell.write(at: model, to: landing.tabs, commit: commit);
-      if (identical(model, _sites.shown) || _sites.loaded.contains(model)) {
-        await switchActiveTab(model, targetTabId: landing.activeTabId);
-        return;
-      }
-      WebViewModel.activeTabCell
-          .write(at: model, to: landing.activeTabId, commit: commit);
-      model.activeTab.lastActiveAt = DateTime.now();
-    });
+    await _gate.run(() => _runTabFlow(c, from: next));
   }
 
   /// Move [model]'s webview from whatever tab it is on to [targetTabId]:
@@ -855,8 +851,7 @@ class TabsController {
     if (_gate.busy || !enabledFor(model)) return false;
     final moved = TabLifecycleEngine.drop(model.tabs, tabId: tabId, drop: drop);
     if (moved == null) return false;
-    WebViewModel.tabsCell.write(
-        at: model, to: moved, commit: const Commit.unmodeled(Unmodeled.tabMove));
+    WebViewModel.tabsCell.rearrange(at: model, to: moved);
     _host.rebuild();
     unawaited(_host.commitSites(const SitesEdited()));
     return true;
@@ -1221,6 +1216,50 @@ class TabsController {
   }();
   static final _rerouted = _eachRerouted.it;
 
+  /// The sites with tabs a reset lands at home (TAB-014).
+  static final _eachLanded = Pick<WebViewModel, TabFlow>(
+    Expr.op(
+      HandPaired.landedSites,
+      tla: r'Listed \cap Resettable \cap Tabbed',
+      run: (c) => [_flow.from(c).site],
+      reads: const Reads(base: {BaseOp.listed}),
+      needs: const {
+        (of: ModelConst.resettable, set: true),
+        (of: ModelConst.tabbed, set: true),
+      },
+    ),
+  );
+  static final _landed = _eachLanded.it;
+
+  /// The tab a landing names: the one the site is on, a parked one, or a
+  /// fresh one while the pool has one; the engine decides which.
+  static final _eachLanding = Pick<TabId, TabFlow>(
+    Expr.op(
+      HandPaired.landingTabs,
+      tla: r'tabs[fl[f].site] \cup '
+          r'(IF HasFresh(fl[f].site) THEN {Mint(fl[f].site)} ELSE {})',
+      run: (c) => [for (final t in _flow.from(c).landed!) t.id],
+      reads: const Reads(
+        vars: {ModelVar.tabs},
+        base: {BaseOp.hasFresh, BaseOp.mint},
+      ),
+    ),
+    first: (c, {required among}) => _flow.from(c).requested!,
+  );
+  static final _landing = _eachLanding.it;
+  static final _landedTabs = Expr.checked(
+    rule: _tabIds(_site.value).union(_landing.asSet),
+    run: (c) => _flow.from(c).landed!,
+    key: (SiteTab t) => t.id,
+    why: "a landing installs the site's tabs and the one it names",
+  );
+  static final _landedMint = modelOnly<TabFlow>(
+    "minted' = IF s = Mint(fl[f].site) "
+    "THEN [minted EXCEPT ![fl[f].site] = Mint(fl[f].site)] ELSE minted",
+    writes: {ModelVar.minted},
+    reads: const Reads(vars: {ModelVar.minted}, base: {BaseOp.mint}),
+  );
+
   /// Each of [s]'s relinked tabs runs as the other of its two sites.
   static Write<TabFlow> _flip(Expr<WebViewModel, TabFlow> s) {
     const t = Bound<TabId, TabFlow>('t');
@@ -1468,6 +1507,23 @@ class TabsController {
           next: to(TabPlace.rFlip),
         ),
       ),
+      // homeLanding(site): a reset lands a site with tabs at home
+      // (TAB-014), the tab it names chosen next (hLand); dropped while a
+      // handler runs.
+      TabPlace.homeLanding => Step.input(
+        ActivationStep.homeLanding,
+        pick: _eachLanded,
+        site: _landed,
+        branches: [_dropped],
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            _kind.becomes(Expr.constant(FlowKind.tab)),
+            _site.becomes(_landed),
+          ],
+          next: to(TabPlace.hLand),
+        ),
+      ),
       TabPlace.tCap ||
       TabPlace.tCapSave ||
       TabPlace.tNav ||
@@ -1479,6 +1535,7 @@ class TabsController {
       TabPlace.tDupRemove ||
       TabPlace.rFlip ||
       TabPlace.rRemove ||
+      TabPlace.hLand ||
       TabPlace.done => const Leaves(),
     },
   );
@@ -1517,6 +1574,7 @@ class TabsController {
       TabPlace.closeTab ||
       TabPlace.duplicateTab ||
       TabPlace.reroute ||
+      TabPlace.homeLanding ||
       TabPlace.done => const Leaves(),
       // The outgoing tab's back stack captured under the webview's tab
       // (Capture); a target closed meanwhile ends the switch.
@@ -1883,6 +1941,47 @@ class TabsController {
           ),
         ],
         otherwise: Otherwise(StepOutcome.end, then: [], next: to(TabPlace.done)),
+      ),
+      // The landing's tab, decided by the engine: the one the site is on
+      // stays; a loaded site lists it and switches to it as New tab does
+      // (tCap); one with no webview takes it as the list and the pointer at
+      // once, so its next build is of that tab.
+      TabPlace.hLand => Step(
+        ActivationStep.homeLand,
+        holds: null,
+        pick: _eachLanding,
+        site: _site.value,
+        tab: _landing,
+        branches: [
+          Branch(
+            StepOutcome.stay,
+            when: _landing.eq(_active.at(_site.value)),
+            then: [],
+            next: to(TabPlace.done),
+          ),
+          Branch(
+            StepOutcome.rebind,
+            when: _loaded.value.has(_site.value),
+            then: [
+              _landedMint,
+              Act.of([_tabs.except(_site.value, to: _landedTabs)]),
+              _tab.becomes(_landing),
+              _keep.becomes(_yes),
+            ],
+            next: to(TabPlace.tCap),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            _landedMint,
+            Act.of([
+              _tabs.except(_site.value, to: _landedTabs),
+              _active.except(_site.value, to: _landing),
+            ], then: (c) => _page.from(c).landed(c)),
+          ],
+          next: to(TabPlace.done),
+        ),
       ),
     },
   );

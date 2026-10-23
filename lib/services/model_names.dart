@@ -197,8 +197,9 @@ enum FlowField {
   capAs('0', range: r'Sites \cup {0}'),
 
   /// The site whose key an activation's read of its target's saved back
-  /// stack names, as the read started (`Staged`).
+  /// stack names, and the tab it reads, as the read started (`Staged`).
   navAs('0', range: r'Sites \cup {0}'),
+  navTab('0', range: r'TabIds \cup {0}'),
 
   /// The notification sites a wake has still to check headless.
   checks('{}', range: r'SUBSET Sites'),

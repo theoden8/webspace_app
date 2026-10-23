@@ -69,6 +69,14 @@ enum HandPaired implements Pairing {
   /// The fresh tab id for the flow's site (`Mint(fl[f].site)`).
   mintForSite,
 
+  /// The sites with tabs a reset lands at home
+  /// (`Listed \cap Resettable \cap Tabbed`).
+  landedSites,
+
+  /// The tabs a landing may name: the site's, and a fresh one while the
+  /// pool has one.
+  landingTabs,
+
   /// A close's surviving tabs (`tabs[current] \ {s}`). The code's close
   /// takes the tab's subtree, which no schedule reaches (`TabRemoveReply`'s
   /// `more` in `steps_uncovered.tsv`), so no assert can hold the two.

@@ -263,13 +263,16 @@ WorldSpec _worldFor(
       needs.contains((of: ModelConst.tabbed, set: true)) ||
       needs.contains((of: ModelConst.maxTabs, set: true));
   final waking = env.contains(Env.wakesUp);
+  // A reset's landing takes a tabbed site among the reset's (`ResetOne`,
+  // site 3), so a world needing both tabs site 3 beside site 1.
+  final resets = needs.contains((of: ModelConst.resettable, set: true));
   return (
     cookies: needs.contains((of: ModelConst.containers, set: true))
         ? Cookies.containers
         : Cookies.sharedJar,
     coldStart: coldStart,
     inputs: 3,
-    tabbed: tabbed ? const {1} : const {},
+    tabbed: tabbed ? (resets ? const {1, 3} : const {1}) : const {},
     maxTabs: tabbed ? 3 : 1,
     env: env,
     allowed: {

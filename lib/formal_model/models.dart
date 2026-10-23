@@ -1246,6 +1246,52 @@ _captureAtReply() {
 }
 
 /// `Takes` taking whatever back stack is queued, read for any tab.
+/// The nav step's write of `queued`, its code half tagging the bytes with
+/// the tab active as the reply lands.
+final _queuedAtReply = () {
+  const site = Field<WebViewModel, ActivationFlow>(FlowField.site);
+  return Act.of(
+    [
+      TabVars.queued<ActivationFlow>().becomes(
+        TabVars.staged<ActivationFlow>().call([
+          site.value,
+          const Field<WebViewModel, ActivationFlow>(FlowField.navAs).value,
+          const Field<TabId, ActivationFlow>(FlowField.navTab).value,
+        ]),
+      ),
+    ],
+    then: (c) {
+      final target = site.of(c);
+      if (ActivationFlow.state.from(c).navBytes case final bytes?) {
+        target.tabBinding.queue(bytes, tab: target.activeTabId, commit: c.commit);
+      }
+    },
+  );
+}();
+
+Def<Map<WebViewModel, QueuedStack>, Object?> _stagedAtReply() {
+  final s = Bound<WebViewModel, Object?>('s');
+  final a = Bound<WebViewModel, Object?>('a');
+  final t = Bound<TabId, Object?>('t');
+  final queued = TabVars.queued<Object?>().value;
+  final saved = TabVars.file<Object?>().value.at(s.it).at(t.it).at(a.it);
+  return Def(
+    ModelDef.staged,
+    params: [s, a, t],
+    body: Expr.choose(
+      when: TabVars.tabbed<Object?>().has(s.it) & saved.neq(noTab()),
+      then: queued.except(
+        s.it,
+        to: record(
+          {'t': TabVars.active<Object?>().at(s.it), 'h': saved},
+          run: (_) => throw StateError('queued is the platform\'s'),
+        ),
+      ),
+      otherwise: queued,
+    ),
+  );
+}
+
 Def<bool, Object?> _takesAny() {
   final q = Bound<QueuedStack, Object?>('q');
   final tab = Bound<TabId?, Object?>('tab');
@@ -1402,6 +1448,20 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A landing moves a loaded site's pointer as it would one with no
+  // webview, without the switch that rebinds it (TAB-014).
+  Mutant.landinplace => _with(
+    tabFlow: _withArms(
+      tables.tabFlow,
+      step: ActivationStep.homeLand,
+      arms: (s) => s.withArms(
+        branches: [
+          for (final b in s.branches)
+            if (b.outcome != StepOutcome.rebind) b,
+        ],
+      ),
+    ),
+  ),
   // A delete deletes its site's container without waiting for the frame
   // that unmounts its webview (BUG-038).
   Mutant.deletenoframe => _with(
@@ -1455,6 +1515,28 @@ Tables mutated(Mutant m) => switch (m) {
   ),
   // The build takes whatever back stack is queued, read for any tab.
   Mutant.takeany => _with(ops: _withDef(tables.ops, def: _takesAny())),
+  // An activation queues the back stack it read for the tab active at the
+  // read's reply, not the one it began on: a landing between moves it.
+  Mutant.navtagatreply => _with(
+    activation: _withArms(
+      tables.activation,
+      step: ActivationStep.navReply,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e case Act(:final writes) when writes.contains(ModelVar.queued))
+                _queuedAtReply
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+    ops: _withDef(tables.ops, def: _stagedAtReply()),
+  ),
   // An unload captures a site no longer loaded (BUG-032): no wait asks.
   Mutant.recapture => _with(
     ops: _withDef(

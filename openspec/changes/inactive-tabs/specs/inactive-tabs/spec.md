@@ -105,6 +105,15 @@ and `Inv_TabActive` TLC holds on `activation_tabs.cfg`; the tab schedules in
 - **THEN** GitHub's webview is built for T2 and shows T2's history
 - **AND** T1's bytes are dropped, not restored into T2
 
+#### Scenario: A reset lands a site at home while it activates
+
+- **GIVEN** GitHub is not loaded, its active tab T2 has saved state and T1 is
+  its home tab
+- **WHEN** the user opens GitHub, and a reset lands it on T1 while the
+  activation reads T2's state
+- **THEN** GitHub's webview is built for T1 and shows T1's history
+- **AND** T2's bytes are dropped, not restored into T1
+
 #### Scenario: Leaving a site during a tab switch
 
 - **GIVEN** GitHub is on screen on T1 and the user picks T2, whose saved state

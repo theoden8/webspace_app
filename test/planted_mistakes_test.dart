@@ -239,10 +239,22 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Reroute()],
     breaks: 'the process-wide proxy moved under webview',
   ),
+  Mutant.landinplace => _By(
+    world: (d) => ActivationWorld(_mixedContainers, tabbed: true, declared: d),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [HomeLand(0)],
+    breaks: "'s webview is built for tab",
+  ),
   Mutant.takeany => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0), Login(0), Tap(1)],
     script: const [Tap(0), CloseTab(0, tab: 0)],
+    breaks: "webview shows another tab's history",
+  ),
+  Mutant.navtagatreply => _By(
+    world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
+    setup: const [Tap(0), OpenTab(0, tab: 1), Tap(1)],
+    script: const [Tap(0), HomeLand(0)],
     breaks: "webview shows another tab's history",
   ),
   Mutant.captureatreply => const _Owed(

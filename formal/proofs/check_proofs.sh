@@ -61,21 +61,25 @@ min_obligations() {
   case "$1" in
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
-    activation_tables_proof.tla) echo 327 ;;
+    activation_tables_proof.tla) echo 334 ;;
     activation_tables_1_proof.tla) echo 171 ;;
     activation_tables_2_proof.tla) echo 136 ;;
     activation_tables_3_proof.tla) echo 329 ;;
     activation_tables_4_proof.tla) echo 315 ;;
-    activation_tables_5_proof.tla) echo 156 ;;
-    activation_tables_6_proof.tla) echo 151 ;;
-    activation_tables_7_proof.tla) echo 146 ;;
-    activation_tables_8_proof.tla) echo 101 ;;
-    activation_tables_9_proof.tla) echo 24 ;;
-    activation_invariants_proof.tla) echo 305 ;;
-    activation_types_proof.tla) echo 553 ;;
-    activation_types_steps_proof.tla) echo 88 ;;
-    activation_held_steps_proof.tla) echo 264 ;;
-    activation_supports_steps_proof.tla) echo 176 ;;
+    activation_tables_5_proof.tla) echo 151 ;;
+    activation_tables_6_proof.tla) echo 166 ;;
+    activation_tables_7_proof.tla) echo 141 ;;
+    activation_tables_8_proof.tla) echo 106 ;;
+    activation_tables_9_proof.tla) echo 36 ;;
+    activation_invariants_proof.tla) echo 311 ;;
+    activation_types_proof.tla) echo 100 ;;
+    activation_facts_vars_proof.tla) echo 68 ;;
+    activation_facts_domains_proof.tla) echo 96 ;;
+    activation_facts_members_proof.tla) echo 206 ;;
+    activation_facts_fields_proof.tla) echo 96 ;;
+    activation_types_steps_proof.tla) echo 90 ;;
+    activation_held_steps_proof.tla) echo 270 ;;
+    activation_supports_steps_proof.tla) echo 180 ;;
     # The tables' typing, held and supports modules are as many as their
     # rows need, so they are not pinned by name; formal/levels.tsv holds
     # the sum of them all.
@@ -99,26 +103,28 @@ min_obligations() {
 # on their own.
 work="$(mktemp -d)"
 trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "$work"' EXIT
+# A module that falls short beside the others is proved again once they
+# have ended, alone and ignoring the cache: a failed obligation is
+# fingerprinted too, and replayed without a retry, so a timeout on a loaded
+# machine does not fail every run after it; and tlapm holds every obligation
+# it proves afresh until the module ends, so the modules beside one can take
+# the memory it needs, and the kernel kills it.
 check() {
-  local f="$1" name out proved want start
+  local f="$1" again="${2:-}" name out proved want start
   name="$(basename "$f")"
   start=$(date +%s)
-  echo "  $name: started"
+  echo "  $name: started${again:+ again, alone and without the cache}"
   # Capture, then match: piping straight into `grep -q` lets grep exit on the
   # first hit and SIGPIPE tlapm, which `pipefail` then reports as a failure.
-  out="$(prove "$f")"
+  out="$(prove ${again:+--nofp} "$f")"
   proved="$(obligations "$out")"
   want="$(min_obligations "$name")"
-  # A failed obligation is fingerprinted too, and replayed without a retry,
-  # so a module that fails is proved again ignoring the cache: a timeout on a
-  # loaded machine does not fail every run after it.
-  if [ -z "$proved" ] || [ "$proved" -lt "$want" ]; then
-    echo "  $name: ${proved:-no} obligations proved after $(( $(date +%s) - start ))s, again without the cache"
-    out="$(prove --nofp "$f")"
-    proved="$(obligations "$out")"
-  fi
   if [ -n "$proved" ] && [ "$proved" -ge "$want" ]; then
     echo "  OK: $proved obligations proved (>= $want)" >"$work/$name.out"
+  elif [ -z "$again" ]; then
+    echo "  $name: ${proved:-no} obligations proved after $(( $(date +%s) - start ))s, again once the rest end"
+    echo "$f" >>"$work/again"
+    return
   else
     {
       echo "$out"
@@ -146,6 +152,9 @@ for f in "$FORMAL_MODEL"/*_proof.tla *.tla; do
   check "$f" &
 done
 wait
+if [ -e "$work/again" ]; then
+  while read -r f; do check "$f" again </dev/null; done <"$work/again"
+fi
 ok=1
 for f in *.tla "$FORMAL_MODEL"/*_proof.tla; do
   name="$(basename "$f")"

@@ -10,6 +10,7 @@ enum TabPlace {
   closeTab,
   duplicateTab,
   reroute,
+  homeLanding,
   tCap,
   tCapSave,
   tNav,
@@ -21,6 +22,7 @@ enum TabPlace {
   tDupRemove,
   rFlip,
   rRemove,
+  hLand,
   done,
 }
 
@@ -41,6 +43,7 @@ abstract interface class TabState {
   abstract Set<WebViewModel> loadedBefore;
   abstract Map<TabId, String> dropped;
   TabId? get requested;
+  List<SiteTab>? get landed;
   String? get url;
   bool get subtree;
   abstract SiteTab? fresh;
@@ -73,6 +76,8 @@ final class TabCalls {
   void rebind(CommitView<TabFlow> c) => _c._rebind(c);
   void rebindAs(CommitView<TabFlow> c) => _c._rebindAs(c);
   void reroute(CommitView<TabFlow> c) => _c._reroute(c);
+  void landed(CommitView<TabFlow> c) =>
+      TabsController._flow.from(c).site.activeTab.lastActiveAt = DateTime.now();
   Set<WebViewModel> get loaded => {..._c._sites.loaded};
 
   /// An activation of [site], its input run before this returns.
@@ -88,6 +93,7 @@ final class TabFlow implements Capturing, TabState {
     this._c, {
     required this.site,
     this.requested,
+    this.landed,
     this.url,
     this.subtree = false,
   });
@@ -108,9 +114,13 @@ final class TabFlow implements Capturing, TabState {
   @override
   Map<TabId, String> dropped = const {};
 
-  /// The tab the handler names (openTab, closeTab).
+  /// The tab the handler names (openTab, closeTab, a landing's).
   @override
   final TabId? requested;
+
+  /// The list a reset's landing installs (TAB-014).
+  @override
+  final List<SiteTab>? landed;
 
   /// A new tab's URL when not the site's home (a search, LIR-030).
   @override

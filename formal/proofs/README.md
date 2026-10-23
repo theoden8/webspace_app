@@ -80,7 +80,7 @@ TLC model it backs (same definitions — no re-modeling).
   the inputs and the pressure plan.
   The spawning modules' counts are pinned too: `activation_tables_3_proof` **329** and
   `activation_tables_4_proof` **315** obligations.
-  **49 obligations, all proved; `activation_tables_proof` 327.**
+  **49 obligations, all proved; `activation_tables_proof` 334.**
 - **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
   invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
   `lib/formal_model/checks.dart`), beside `IndInv`, whose preservation is `activation_turns`'s
@@ -88,7 +88,7 @@ TLC model it backs (same definitions — no re-modeling).
   definition, then `Next`'s cases, the environment's (`EnvAction`) by their definitions. An
   invariant is declared inductive only once its cases close; one that needs a strengthening is
   not yet. Today `Inv_ChecksOffScreen`.
-  **305 obligations, all proved.**
+  **311 obligations, all proved.**
 - **`activation_types_proof` and its tables' modules** (printed from `FlowField` and the step
   tables, no hand-written module) — every step keeps `fl` a function of flow records, the flow
   rows' part of `TypeOK`. `activation_types_proof` holds the lemmas the rest stand on: a
@@ -98,11 +98,17 @@ TLC model it backs (same definitions — no re-modeling).
   `FlowKinds_<kind>`); what a world may set each constant to (`ConstantsType`), since a
   proof opens no default a world can replace; and each fact a row lemma reads of `TypeOK` or
   of a row's fields (`TypeFl`, `Type_<variable>`, `Dom_<field>`), which the row lemmas cite
-  instead of unfolding `TypeOK` or the row's 28 fields. Then one module per table, or per six of its
+  instead of unfolding `TypeOK` or the row's fields. It proves `Pick`, `TypeFl`, `NoFlowType`
+  and `Fl_row` and states the rest omitted, each family proved in a module of its own
+  (`activation_facts_<family>_proof`: `vars`, `domains`, `members`, `fields`) over
+  `activation_ops`, which defines every name they read. Each obligation carries all its module
+  extends: over the whole model the families took 8.7 GB cold, more with every field, and the
+  members family alone 4.4 GB, where over `activation_ops` it takes 336 MB. Then one module per
+  table, or per six of its
   rows (`activation_types_<table>[<n>]_proof`), proves each row of `fl` an arm writes, a clause
   at a time over a named partial row, each value over only what it reads; and
   `activation_types_steps_proof` takes them to `TableStep` and `InputTableStep`. The
-  provers do not take the flow record's set of 28 fields whole, SMT takes no
+  provers do not take the flow record's set of fields whole, SMT takes no
   string or record literal here, and tlapm holds every obligation it proves afresh until the
   module ends (twelve held rows took 6.4 GB cold, four such modules side by side more than a
   16 GB runner holds), so each is split as it is. What some steps need of their flow beyond `TypeOK` (a site that indexes a
@@ -120,8 +126,9 @@ TLC model it backs (same definitions — no re-modeling).
   [omitted.py](omitted.py), which `check_proofs.sh` runs first, fails on an omitted lemma that
   no module of the run proves in the same words (`test/js/formal_omitted.test.js`).
   `ConstantsType` is still assumed; TLC does not yet check it in each world.
-  **`activation_types_proof` 553 obligations; the tables' modules 5,824 (types), 11,281 (held),
-  7,143 (supports); the steps modules 88 (types), 264 (held), 176 (supports); all proved.**
+  **`activation_types_proof` 100 obligations and its facts' modules 466 (68 vars, 96 domains,
+  206 members, 96 fields); the tables' modules 6,150 (types), 11,571 (held), 7,318 (supports);
+  the steps modules 90 (types), 270 (held), 180 (supports); all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
@@ -187,6 +194,10 @@ proved again ignoring the cache before it counts as failed.
 The modules share nothing, and tlapm prepares each obligation on one thread, which is
 most of a run, so `TLAPM_JOBS` of them (default one a core) prove side by side,
 the printed tables' proofs first as the longest; the report keeps the list's order.
+tlapm holds every obligation it proves afresh until the module ends, so the modules beside
+one can take the memory it needs, and the kernel kills it. A module that falls short is
+proved again once the rest have ended, one at a time, so a module counts as failed only
+where it fails alone.
 
 ## Why both TLC and TLAPS
 

@@ -456,6 +456,14 @@ enum ActivationStep {
   /// leads to, or as it again.
   reroute(outcomes: {StepOutcome.go, StepOutcome.busy}),
 
+  /// A reset lands a site with tabs at home (TAB-014); dropped while a tab
+  /// handler runs.
+  homeLanding(outcomes: {StepOutcome.go, StepOutcome.busy}),
+
+  /// The tab the landing names: the one the site is on already, a loaded
+  /// site's switch to it, or the pointer moved for a site with no webview.
+  homeLand(outcomes: {StepOutcome.stay, StepOutcome.rebind, StepOutcome.go}),
+
   /// The reroute's flips, in its input's turn. The tab on screen moves its
   /// slot to the other site at once: under one process-wide proxy the slot
   /// leaves the loaded sites and opens again (LIR-024), else its webview is
