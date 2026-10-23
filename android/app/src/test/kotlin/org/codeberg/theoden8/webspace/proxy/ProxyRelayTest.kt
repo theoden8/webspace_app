@@ -451,8 +451,14 @@ class ProxyRelayTest {
                     "CONNECT example.com:443 HTTP/1.1\r\nHost: example.com\r\n\r\n".toByteArray()
                 )
                 s.getOutputStream().flush()
-                assertEquals("the relay must close on a foreign peer, not answer it",
-                    -1, s.getInputStream().read())
+                // Closed with the request unread, which may reach this side
+                // as a reset rather than an end of stream; either is no answer.
+                val first = try {
+                    s.getInputStream().read()
+                } catch (e: java.net.SocketException) {
+                    -1
+                }
+                assertEquals("the relay must close on a foreign peer, not answer it", -1, first)
             }
             assertEquals("no upstream connection may be opened for a foreign peer",
                 0, upstreamHits.get())

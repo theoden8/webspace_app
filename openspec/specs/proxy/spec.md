@@ -813,6 +813,28 @@ so the listener SHALL outlive a failed accept: an accept that fails while
 it is bound (descriptors exhausted, say) is retried with a backoff, and the
 loop ends only when the relay is stopped.
 
+For the same reason a connection SHALL cost the relay no more than it
+must. An established tunnel SHALL hold no thread of its own: one splice
+thread carries every open tunnel and ends when the last one closes. Each
+direction of a tunnel ends on its own: one side's end of stream is passed
+on once what it sent has been written, and the tunnel closes when both
+have ended or either side fails. A TLS upstream (an HTTPS proxy) is
+spliced above its TLS layer, never on the socket beneath it.
+
+Plain-http requests SHALL share one client connection, and one upstream
+connection per destination (or per upstream proxy), as HTTP/1.1 keeps them
+(RFC 9112 section 9.3). Each request on a kept connection SHALL be admitted
+on its own credential and target exactly as the first was, so reuse carries
+no request past a check, and framed by its own length; a request naming
+both `Content-Length` and `Transfer-Encoding` is refused `400`, since the
+next hop may frame it by the other. A response with no length ends the
+client's connection. A request with no body that finds a reused upstream
+connection closed is sent once more on a fresh one when its method is
+idempotent (RFC 9110 section 9.2.2); any other closes the client's
+connection unanswered, which the client, having reused it too, resends
+where it may. An upgrade (`101`) is asked for as the client asked and then
+spliced like a tunnel.
+
 Router mode SHALL start only where some route resolves to a proxy: a
 site's own, the app-wide one a DEFAULT site inherits (PROXY-009), or Tor.
 With every route direct, the relay would carry every connection and the
@@ -898,6 +920,23 @@ process-wide override fails to apply
 **Then** router mode is NOT reported active
 **And** the proxy override is NOT cleared
 **And** the app falls back to the PROXY-008 serialisation
+
+#### Scenario: An open tunnel holds no thread
+
+**Given** router mode is active
+**And** sixteen tunnels are open and idle
+**Then** no relay worker thread is held by any of them
+**And** one splice thread carries them all, and ends when the last closes
+
+#### Scenario: Requests on a kept connection are each admitted
+
+**Given** router mode is active and a client keeps one connection open
+**When** its first request bears Site A's credential and its second Site B's
+**Then** each request reaches its own site's route
+**And** a later request bearing an unknown credential is answered `502` and
+the connection closes
+**And** two requests to one origin on that connection share one upstream
+connection
 
 #### Scenario: Background-poll sites no longer contend
 

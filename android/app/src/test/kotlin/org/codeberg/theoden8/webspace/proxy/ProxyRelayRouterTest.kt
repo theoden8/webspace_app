@@ -7,6 +7,7 @@ import org.junit.Test
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.fakeOrigin
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.fakeServer
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.readPreamble
+import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.readResponse
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.spliceTo
 import java.io.IOException
 import java.net.InetSocketAddress
@@ -678,7 +679,7 @@ class ProxyRelayRouterTest {
                     "Proxy-Authorization: Basic $credential\r\n\r\n").toByteArray()
             )
             c.getOutputStream().flush()
-            return c.getInputStream().readBytes().toString(Charsets.ISO_8859_1)
+            return readResponse(c.getInputStream()).toString()
         }
     }
 

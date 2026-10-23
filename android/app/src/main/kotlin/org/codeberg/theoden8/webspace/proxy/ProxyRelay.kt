@@ -1,6 +1,5 @@
 package org.codeberg.theoden8.webspace.proxy
 
-import java.io.BufferedInputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -13,7 +12,10 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.URI
 import java.net.URISyntaxException
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.nio.channels.ServerSocketChannel
+import java.nio.channels.SocketChannel
 import java.util.concurrent.Executors
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
@@ -46,6 +48,11 @@ import javax.net.ssl.SSLSocketFactory
  * it outlives a failed accept (see [acceptLoop]), and a site on the system
  * default reaches its origin through the system's proxy (see
  * [throughSystemProxy]).
+ *
+ * A worker thread does each connection's handshake with blocking I/O. A
+ * tunnel then belongs to the [Splicer]'s one thread, so an open tunnel holds
+ * no thread of its own; plain-http requests stay on their worker, one after
+ * another on the same connection (see [forward]).
  *
  * The listener is bound to loopback, which keeps it off the network but not
  * away from the device: every other app with `INTERNET` can reach
@@ -161,6 +168,8 @@ class ProxyRelay(
     private val pool = Executors.newCachedThreadPool { r ->
         Thread(r, "proxy-relay-worker").apply { isDaemon = true }
     }
+
+    private val splicer = Splicer { log(it) }
 
     val port: Int
         get() = boundPort
@@ -307,7 +316,9 @@ class ProxyRelay(
      * process, which is where WebView's network stack lives too.
      */
     private fun bindLoopback(ip: String): ServerSocket? {
-        val socket = ServerSocket()
+        // A channel's socket, so what it accepts carries a channel the
+        // splicer can take over.
+        val socket = ServerSocketChannel.open().socket()
         return try {
             socket.reuseAddress = true
             socket.bind(InetSocketAddress(InetAddress.getByName(ip), 0), BACKLOG)
@@ -383,12 +394,13 @@ class ProxyRelay(
             }
             log("accepted connection from ${client.inetAddress.hostAddress}:${client.port}")
             pool.execute {
+                var adopted = false
                 try {
-                    handle(client)
+                    adopted = handle(client)
                 } catch (e: Exception) {
                     log("client handling failed: ${e.javaClass.simpleName}")
                 } finally {
-                    runCatching { client.close() }
+                    if (!adopted) runCatching { client.close() }
                 }
             }
         }
@@ -417,23 +429,65 @@ class ProxyRelay(
         }
     }
 
-    private fun handle(client: Socket) {
+    /** What an open upstream connection reaches: a proxy carries any host, a tunnel one origin. */
+    private data class Reach(val upstream: UpstreamConfig, val origin: String?)
+
+    /** A request the relay let through: its route, its target, and how to reach it. */
+    private class Admitted(
+        val route: Route,
+        val method: String,
+        val target: String,
+        val requestLine: String,
+        val headers: List<String>,
+        val host: String,
+        val port: Int,
+        val upstream: UpstreamConfig,
+    ) {
+        val isConnect: Boolean get() = method == "CONNECT"
+        val viaProxy: Boolean
+            get() = upstream.type == UpstreamType.HTTP || upstream.type == UpstreamType.HTTPS
+        val reach: Reach get() = Reach(upstream, if (viaProxy) null else "$host:$port")
+    }
+
+    /** One upstream connection a run of plain-http requests reuses. */
+    private class Upstream(val reach: Reach, val socket: Socket) {
+        val input = DrainableInput(socket.getInputStream())
+        val output: OutputStream = socket.getOutputStream()
+        fun close() {
+            runCatching { socket.close() }
+        }
+    }
+
+    /** True when the [splicer] took the connection over; the caller must not close it. */
+    private fun handle(client: Socket): Boolean {
         client.soTimeout = HANDSHAKE_TIMEOUT_MS
         // One buffer for the connection's life: the preamble is read a byte
-        // at a time, and whatever the buffer took past it (a request body)
-        // is spliced from the same stream.
-        val cin = BufferedInputStream(client.getInputStream())
+        // at a time, and whatever the buffer took past it goes on to the
+        // upstream first.
+        val cin = DrainableInput(client.getInputStream())
         val cout = client.getOutputStream()
+        val preamble = readPreamble(cin) ?: return false
+        val request = admit(preamble, cout) ?: return false
+        return if (request.isConnect) {
+            tunnel(client, cin, cout, request)
+        } else {
+            forward(client, cin, cout, request)
+        }
+    }
 
-        val preamble = readPreamble(cin) ?: return
+    /**
+     * Check one request against the route table and the relay's rules, or
+     * answer it and return null, which ends the connection.
+     */
+    private fun admit(preamble: Pair<String, List<String>>, cout: OutputStream): Admitted? {
         val requestLine = preamble.first
         val headers = preamble.second
         val parts = requestLine.split(" ")
         if (parts.size < 3) {
             writeStatus(cout, 400, "Bad Request")
-            return
+            return null
         }
-        val route = resolveUpstream(headers, cout) ?: return
+        val route = resolveUpstream(headers, cout) ?: return null
         val cfg = route.upstream
         val method = parts[0].uppercase()
         val target = parts[1]
@@ -445,14 +499,14 @@ class ProxyRelay(
             val uri = runCatching { URI(target) }.getOrNull()
             if (uri?.host == null) {
                 writeStatus(cout, 400, "Bad Request")
-                return
+                return null
             }
             val p = if (uri.port != -1) uri.port else if (uri.scheme == "https") 443 else 80
             Pair(uri.host, p)
         }
         if (host.isEmpty()) {
             writeStatus(cout, 400, "Bad Request")
-            return
+            return null
         }
 
         // Attribution self-test (PROXY-015). A probe host is answered here
@@ -467,7 +521,7 @@ class ProxyRelay(
             recordProbe(nonce, route.siteId)
             log("probe ${route.siteId} (answered locally, no upstream)")
             writeStatus(cout, 200, "OK")
-            return
+            return null
         }
 
         // An onion service on a direct route (LEAK-016). Only Tor resolves
@@ -477,59 +531,242 @@ class ProxyRelay(
         if (cfg.type == UpstreamType.DIRECT && isOnionHost(host)) {
             log("onion host refused on a direct route for ${route.siteId}")
             writeStatus(cout, 502, "Bad Gateway")
-            return
+            return null
         }
 
-        val upstreamCfg = throughSystemProxy(cfg, host = host, port = hostPort, isConnect = isConnect)
-        log("upstream connecting via ${upstreamCfg.type} ${upstreamCfg.host}:${upstreamCfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
+        return Admitted(
+            route = route,
+            method = method,
+            target = target,
+            requestLine = requestLine,
+            headers = headers,
+            host = host,
+            port = hostPort,
+            upstream = throughSystemProxy(cfg, host = host, port = hostPort, isConnect = isConnect),
+        )
+    }
+
+    /** Open [request]'s upstream, or log why not and return null. */
+    private fun connect(request: Admitted): Socket? {
+        val cfg = request.upstream
+        log("upstream connecting via ${cfg.type} ${cfg.host}:${cfg.port} for ${request.method} ${request.host}:${request.port}")
+        return try {
+            when (cfg.type) {
+                UpstreamType.DIRECT -> openDirect(request.host, request.port)
+                UpstreamType.SOCKS5 -> openViaSocks5(cfg, request.host, request.port)
+                UpstreamType.HTTP, UpstreamType.HTTPS ->
+                    openViaHttpProxy(cfg, request.host, request.port, request.isConnect)
+            }
+        } catch (e: Exception) {
+            log("upstream connect FAILED for ${request.host}:${request.port} via ${cfg.type}: ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
+    /** A `CONNECT`: open the tunnel, answer it, and hand both ends to the splicer. */
+    private fun tunnel(client: Socket, cin: DrainableInput, cout: OutputStream, request: Admitted): Boolean {
         // A CONNECT through tor's SOCKS port is answered before tor replies.
         // Chromium on Android gives a proxy tunnel 10 s and the TLS handshake
         // after it 30 s, and tor attaching a stream to a fresh circuit takes
         // longer than the first. What the client sends meanwhile waits in the
         // socket until the splice reads it; a failure closes the connection,
         // so nothing leaves except through the upstream.
-        val establishedEarly = isConnect &&
-            upstreamCfg.type == UpstreamType.SOCKS5 && upstreamCfg.answersEarly
+        val establishedEarly =
+            request.upstream.type == UpstreamType.SOCKS5 && request.upstream.answersEarly
         if (establishedEarly) writeEstablished(cout)
-        val upstream: Socket = try {
-            when (upstreamCfg.type) {
-                UpstreamType.DIRECT -> openDirect(host, hostPort)
-                UpstreamType.SOCKS5 -> openViaSocks5(upstreamCfg, host, hostPort)
-                UpstreamType.HTTP, UpstreamType.HTTPS ->
-                    openViaHttpProxy(upstreamCfg, host, hostPort, isConnect)
-            }
-        } catch (e: Exception) {
-            val answer = if (establishedEarly) "closing the tunnel" else "sending 502"
-            log("upstream connect FAILED for $host:$hostPort via ${upstreamCfg.type}: ${e.javaClass.simpleName}: ${e.message} — $answer")
+        val upstream = connect(request)
+        if (upstream == null) {
             if (!establishedEarly) writeStatus(cout, 502, "Bad Gateway")
-            return
+            return false
         }
-
+        var adopted = false
         try {
-            if (isConnect) {
-                // Tunnel established at the upstream; tell the WebView the
-                // CONNECT succeeded and splice raw bytes both ways.
-                if (!establishedEarly) writeEstablished(cout)
-            } else {
-                // Forward mode: replay the (rewritten) request preamble to
-                // the upstream, then splice. SOCKS gives an origin tunnel
-                // (origin-form path, no proxy auth header); an HTTP proxy
-                // wants the absolute-form line plus Proxy-Authorization.
-                val rewritten = if (upstreamCfg.type != UpstreamType.HTTP && upstreamCfg.type != UpstreamType.HTTPS) {
-                    rewriteForOriginTunnel(requestLine, target, headers)
-                } else {
-                    rewriteForHttpProxy(requestLine, headers, upstreamCfg)
-                }
-                upstream.getOutputStream().write(rewritten.toByteArray(Charsets.ISO_8859_1))
-                upstream.getOutputStream().flush()
-            }
-            // Switch to indefinite blocking for the splice phase.
-            client.soTimeout = 0
-            upstream.soTimeout = 0
-            pump(client, cin, upstream)
+            if (!establishedEarly) writeEstablished(cout)
+            adopted = splice(client, cin, upstream, upstreamIn = upstream.getInputStream(), upstreamFirst = EMPTY)
         } finally {
-            runCatching { upstream.close() }
+            if (!adopted) runCatching { upstream.close() }
         }
+        return adopted
+    }
+
+    /**
+     * Plain-http requests on one client connection, one after another
+     * (RFC 9112 section 9.3). Each is admitted on its own credential and
+     * target, so a reused connection carries no request past the checks the
+     * first one met. An upstream connection is reused while the next request
+     * reaches the same place.
+     */
+    private fun forward(client: Socket, cin: DrainableInput, cout: OutputStream, first: Admitted): Boolean {
+        var request = first
+        var upstream: Upstream? = null
+        var adopted = false
+        try {
+            while (true) {
+                // An upload or a long poll may pause for as long as it likes;
+                // only the wait for the next request is bounded.
+                client.soTimeout = 0
+                upstream?.takeIf { it.reach != request.reach }?.let {
+                    it.close()
+                    upstream = null
+                }
+                val requestBody = try {
+                    HttpFraming.requestBody(request.headers)
+                } catch (e: MalformedMessage) {
+                    writeStatus(cout, 400, "Bad Request")
+                    return false
+                }
+                val clientKeeps = HttpFraming.keepsAlive(
+                    HttpFraming.requestVersion(request.requestLine), request.headers,
+                )
+                val reused = upstream != null
+                var conn = upstream ?: open(request) ?: run {
+                    writeStatus(cout, 502, "Bad Gateway")
+                    return false
+                }
+                upstream = conn
+                var head = send(request, conn, cin, requestBody)
+                if (head == null && reused) {
+                    // The upstream closed the connection while it sat idle.
+                    // A request that may be sent twice goes again on a fresh
+                    // one; any other closes this connection unanswered, which
+                    // the client, having reused it too, resends where it may.
+                    if (requestBody != BodyLength.None || request.method !in IDEMPOTENT) return false
+                    conn.close()
+                    conn = open(request) ?: run {
+                        upstream = null
+                        writeStatus(cout, 502, "Bad Gateway")
+                        return false
+                    }
+                    upstream = conn
+                    head = send(request, conn, cin, requestBody)
+                }
+                if (head == null) {
+                    writeStatus(cout, 502, "Bad Gateway")
+                    return false
+                }
+                // Interim responses (100, 103) go to the client as they come;
+                // 101 hands the connection over to the splicer.
+                var status = HttpFraming.status(head.first) ?: run {
+                    writeStatus(cout, 502, "Bad Gateway")
+                    return false
+                }
+                while (status in 100..199) {
+                    writeHead(cout, head!!)
+                    if (status == 101) {
+                        adopted = splice(client, cin, conn.socket, upstreamIn = conn.input, upstreamFirst = conn.input.drainBuffered())
+                        if (adopted) upstream = null
+                        return adopted
+                    }
+                    head = readPreamble(conn.input) ?: return false
+                    status = HttpFraming.status(head.first) ?: return false
+                }
+                val responseBody = HttpFraming.responseBody(request.method, status, head!!.second)
+                val upstreamKeeps = responseBody != BodyLength.UntilClose &&
+                    HttpFraming.keepsAlive(HttpFraming.responseVersion(head.first), head.second)
+                val keep = clientKeeps && responseBody != BodyLength.UntilClose
+                writeHead(cout, head, connection = if (keep) "keep-alive" else "close")
+                HttpFraming.copyBody(responseBody, conn.input, cout)
+                if (!upstreamKeeps) {
+                    conn.close()
+                    upstream = null
+                }
+                if (!keep) return false
+
+                client.soTimeout = KEEP_ALIVE_IDLE_MS
+                val next = try {
+                    readPreamble(cin)
+                } catch (e: SocketTimeoutException) {
+                    null
+                } ?: return false
+                request = admit(next, cout) ?: return false
+                if (request.isConnect) {
+                    upstream?.close()
+                    upstream = null
+                    return tunnel(client, cin, cout, request).also { adopted = it }
+                }
+            }
+        } catch (e: MalformedMessage) {
+            log("malformed message on a forwarded request: ${e.message}")
+            return false
+        } finally {
+            if (!adopted) upstream?.close()
+        }
+    }
+
+    private fun open(request: Admitted): Upstream? =
+        connect(request)?.let { Upstream(request.reach, it) }
+
+    /**
+     * Send [request] and its body on [conn] and read the response's head;
+     * null when the upstream fails or closes before answering.
+     */
+    private fun send(
+        request: Admitted,
+        conn: Upstream,
+        cin: InputStream,
+        body: BodyLength,
+    ): Pair<String, List<String>>? {
+        val rewritten = if (request.viaProxy) {
+            rewriteForHttpProxy(request.requestLine, request.headers, request.upstream)
+        } else {
+            rewriteForOriginTunnel(request.requestLine, request.target, request.headers)
+        }
+        return try {
+            conn.output.write(rewritten.toByteArray(Charsets.ISO_8859_1))
+            HttpFraming.copyBody(body, cin, conn.output)
+            conn.socket.soTimeout = 0
+            readPreamble(conn.input)
+        } catch (e: MalformedMessage) {
+            throw e
+        } catch (e: IOException) {
+            null
+        }
+    }
+
+    /**
+     * Hand an established pair to the [splicer], or splice it on this thread
+     * where one end has no channel (a TLS upstream). True when handed over.
+     */
+    private fun splice(
+        client: Socket,
+        cin: DrainableInput,
+        upstream: Socket,
+        upstreamIn: InputStream,
+        upstreamFirst: ByteArray,
+    ): Boolean {
+        val a = client.channel
+        // A TLS socket layered on a channel's socket reports that channel as
+        // its own, and splicing it would skip the TLS layer: bytes meant for
+        // inside the session to the proxy would go out in the clear.
+        val b = if (upstream is SSLSocket) null else upstream.channel
+        if (a != null && b != null) {
+            splicer.adopt(a, b, aFirst = cin.drainBuffered(), bFirst = upstreamFirst)
+            return true
+        }
+        client.soTimeout = 0
+        upstream.soTimeout = 0
+        if (upstreamFirst.isNotEmpty()) {
+            client.getOutputStream().write(upstreamFirst)
+            client.getOutputStream().flush()
+        }
+        pump(client, cin, upstream, upstreamIn)
+        return false
+    }
+
+    private fun writeHead(out: OutputStream, head: Pair<String, List<String>>, connection: String? = null) {
+        val sb = StringBuilder()
+        sb.append(head.first).append("\r\n")
+        for (h in head.second) {
+            if (connection != null &&
+                (h.startsWith("Connection:", true) || h.startsWith("Proxy-Connection:", true) ||
+                    h.startsWith("Keep-Alive:", true))
+            ) continue
+            sb.append(h).append("\r\n")
+        }
+        if (connection != null) sb.append("Connection: ").append(connection).append("\r\n")
+        sb.append("\r\n")
+        out.write(sb.toString().toByteArray(Charsets.ISO_8859_1))
+        out.flush()
     }
 
     /**
@@ -569,7 +806,7 @@ class ProxyRelay(
         // it does from Chromium's own stack.
         var failure: IOException? = null
         for (address in InetAddress.getAllByName(host)) {
-            val s = Socket()
+            val s = SocketChannel.open().socket()
             try {
                 s.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
                 return s
@@ -584,7 +821,7 @@ class ProxyRelay(
     // --- Upstream: SOCKS5 (with optional RFC 1929 username/password) ---
 
     private fun openViaSocks5(cfg: UpstreamConfig, host: String, port: Int): Socket {
-        val s = Socket()
+        val s = SocketChannel.open().socket()
         s.connect(InetSocketAddress(cfg.host, cfg.port), CONNECT_TIMEOUT_MS)
         s.soTimeout = HANDSHAKE_TIMEOUT_MS
         val out = s.getOutputStream()
@@ -658,7 +895,7 @@ class ProxyRelay(
     // --- Upstream: HTTP / HTTPS proxy ---
 
     private fun openViaHttpProxy(cfg: UpstreamConfig, host: String, port: Int, isConnect: Boolean): Socket {
-        val raw = Socket()
+        val raw = SocketChannel.open().socket()
         raw.connect(InetSocketAddress(cfg.host, cfg.port), CONNECT_TIMEOUT_MS)
         raw.soTimeout = HANDSHAKE_TIMEOUT_MS
         var s: Socket = raw
@@ -726,13 +963,11 @@ class ProxyRelay(
         val sb = StringBuilder()
         sb.append(requestLine).append("\r\n")
         for (h in headers) {
-            if (h.startsWith("Proxy-Authorization:", true)) continue
-            if (h.startsWith("Proxy-Connection:", true)) continue
-            if (h.startsWith("Connection:", true)) continue
+            if (isHopByHop(h)) continue
             sb.append(h).append("\r\n")
         }
         credentialHeader(cfg)?.let { sb.append(it).append("\r\n") }
-        sb.append("Connection: close\r\n")
+        sb.append(connectionHeader(headers)).append("\r\n")
         sb.append("\r\n")
         return sb.toString()
     }
@@ -748,25 +983,38 @@ class ProxyRelay(
         sb.append(parts[0]).append(" ").append(path).append(query).append(" ")
             .append(parts.getOrElse(2) { "HTTP/1.1" }).append("\r\n")
         for (h in headers) {
-            if (h.startsWith("Proxy-Authorization:", true)) continue
-            if (h.startsWith("Proxy-Connection:", true)) continue
-            if (h.startsWith("Connection:", true)) continue
+            if (isHopByHop(h)) continue
             sb.append(h).append("\r\n")
         }
-        sb.append("Connection: close\r\n")
+        sb.append(connectionHeader(headers)).append("\r\n")
         sb.append("\r\n")
         return sb.toString()
     }
 
+    /** An upgrade asks the next hop to upgrade; anything else asks it to stay open. */
+    private fun connectionHeader(headers: List<String>): String =
+        if ("upgrade" in HttpFraming.tokens(headers, "Connection") &&
+            HttpFraming.header(headers, "Upgrade") != null
+        ) {
+            "Connection: Upgrade"
+        } else {
+            "Connection: keep-alive"
+        }
+
+    /** Headers of the client's hop to the relay, which go no further. */
+    private fun isHopByHop(h: String): Boolean =
+        h.startsWith("Proxy-Authorization:", true) || h.startsWith("Proxy-Connection:", true) ||
+            h.startsWith("Connection:", true) || h.startsWith("Keep-Alive:", true)
+
     // --- Byte plumbing ---
 
-    private fun pump(a: Socket, aIn: InputStream, b: Socket) {
+    private fun pump(a: Socket, aIn: InputStream, b: Socket, bIn: InputStream) {
         val ab = pool.submit {
             runCatching { copy(aIn, b.getOutputStream()) }
             runCatching { a.shutdownInput() }
             runCatching { b.shutdownOutput() }
         }
-        runCatching { copy(b.getInputStream(), a.getOutputStream()) }
+        runCatching { copy(bIn, a.getOutputStream()) }
         runCatching { b.shutdownInput() }
         runCatching { a.shutdownOutput() }
         ab.get()
@@ -985,6 +1233,13 @@ class ProxyRelay(
         private const val ACCEPT_RETRY_MIN_MS = 10L
         private const val ACCEPT_RETRY_MAX_MS = 1_000L
         private const val CONNECT_TIMEOUT_MS = 15_000
+
+        /** How long a plain-http connection waits for its next request. */
+        private const val KEEP_ALIVE_IDLE_MS = 60_000
+
+        /** Methods a request may be sent twice with (RFC 9110 section 9.2.2). */
+        private val IDEMPOTENT = setOf("GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE")
+        private val EMPTY = ByteArray(0)
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
 
         /** Chromium's TLS handshake allowance (`kSSLHandshakeTimeout`), which

@@ -114,6 +114,52 @@ object RelayTestSupport {
         return Preamble(lines.firstOrNull() ?: "", lines.drop(1))
     }
 
+    data class Response(val statusLine: String, val headers: List<String>, val body: String) {
+        val status: Int get() = statusLine.split(' ').getOrNull(1)?.toIntOrNull() ?: 0
+        fun header(name: String): String? =
+            headers.firstOrNull { it.startsWith("$name:", ignoreCase = true) }?.substringAfter(':')?.trim()
+        override fun toString() = "$statusLine\r\n${headers.joinToString("\r\n")}\r\n\r\n$body"
+    }
+
+    /**
+     * One response off a connection that may stay open after it: the body
+     * by its Content-Length or chunks, else to the end of the stream.
+     */
+    fun readResponse(ins: InputStream, method: String = "GET"): Response {
+        val head = readPreamble(ins)
+        val r = Response(head.requestLine, head.headers, "")
+        val status = r.status
+        if (method == "HEAD" || status in 100..199 || status == 204 || status == 304) return r
+        val body = java.io.ByteArrayOutputStream()
+        val length = r.header("Content-Length")?.toInt()
+        when {
+            r.header("Transfer-Encoding")?.lowercase()?.endsWith("chunked") == true -> {
+                while (true) {
+                    val size = readLine(ins).substringBefore(';').trim().toInt(16)
+                    if (size == 0) {
+                        while (readLine(ins).isNotEmpty()) Unit
+                        break
+                    }
+                    val chunk = ByteArray(size); readFully(ins, chunk); body.write(chunk)
+                    readLine(ins)
+                }
+            }
+            length != null -> { val b = ByteArray(length); readFully(ins, b); body.write(b) }
+            else -> body.write(ins.readBytes())
+        }
+        return r.copy(body = body.toString(Charsets.ISO_8859_1.name()))
+    }
+
+    fun readLine(ins: InputStream): String {
+        val sb = StringBuilder()
+        while (true) {
+            val b = ins.read()
+            if (b < 0 || b == '\n'.code) break
+            sb.append(b.toChar())
+        }
+        return sb.toString().removeSuffix("\r")
+    }
+
     fun readFully(ins: InputStream, buf: ByteArray) {
         var off = 0
         while (off < buf.size) {
