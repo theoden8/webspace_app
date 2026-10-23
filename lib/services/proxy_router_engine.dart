@@ -193,6 +193,17 @@ class ProxyRouterEngine {
     return routes;
   }
 
+  /// Whether any route resolves to a proxy: a site's own, the app-wide one
+  /// a DEFAULT site inherits (PROXY-009), or Tor. With none, router mode
+  /// would carry every connection through the relay and hold the launch
+  /// for the probe to reach what PROXY-008 already gives, so it does not
+  /// start (PROXY-013).
+  static bool anyProxied(
+          Map<RouterIdentity, UserProxySettings> perSiteProxies) =>
+      perSiteProxies.entries.any((e) =>
+          resolveEffectiveProxy(e.value, siteId: e.key.site).type !=
+          ProxyType.DEFAULT);
+
   /// The route table for [sites], keyed by routing identity.
   ///
   /// A site with its own container profile keys on its own site id. The

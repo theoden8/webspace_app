@@ -788,14 +788,30 @@ written by v0.3.3 to v0.4.0 and no longer read) went with the graduation.
 The `MULTI_PROFILE` gate is read once, at activation, so router mode is
 never torn out from under loaded sites.
 
+Router mode SHALL start only where some route resolves to a proxy: a
+site's own, the app-wide one a DEFAULT site inherits (PROXY-009), or Tor.
+With every route direct, the relay would carry every connection and the
+PROXY-015 probe would hold the launch for a result PROXY-008 already
+gives, so neither runs. Decided once, at activation, with the gates above:
+a proxy configured later applies under PROXY-008 until the next launch.
+
 #### Scenario: The default install engages router mode
 
 **Given** an Android device whose WebView reports `MULTI_PROFILE`
 **And** developer mode is off
+**And** some site has a proxy
 **When** the app starts
 **Then** the relay is bound and every site's container is probed (PROXY-015)
 **And** router mode activates once each probe is attributed
 **And** App settings' Experimental group has no Proxy router switch
+
+#### Scenario: No proxy anywhere binds no relay
+
+**Given** an Android device whose WebView reports `MULTI_PROFILE`
+**And** no site has a proxy, the app-wide proxy is unset and no site is on Tor
+**When** the app starts
+**Then** no relay is bound and no container is probed
+**And** a proxy set on a site afterwards applies under PROXY-008 until the next launch
 
 #### Scenario: Two same-domain sites with different proxies stay loaded
 

@@ -64,6 +64,20 @@ test('no screen asks whether the router could run here', () => {
   assert.deepStrictEqual(askers, [], 'the settings screens no longer take the answer');
 });
 
+test('the router starts only where a site is proxied', () => {
+  // The route table is the one owner of what each site's traffic resolves
+  // to, so the controller asks the engine over it before binding anything
+  // (PROXY-013). Rung 5: SiteNetworkController has no boundary test; one
+  // with a fake ProxyRouterService would lift this, and needs the service
+  // behind an interface first.
+  const network = read('lib/controllers/site_network_controller.dart');
+  const asks = network.indexOf('ProxyRouterEngine.anyProxied(');
+  const binds = network.indexOf('ProxyRouterService.instance.activate(');
+  assert.notStrictEqual(asks, -1, 'activateRouter must ask whether any route resolves to a proxy');
+  assert.notStrictEqual(binds, -1, 'activateRouter must still bring the router up');
+  assert.ok(asks < binds, 'the question comes before the relay is bound');
+});
+
 test('the Apple relay branch is off unless a caller opts in', () => {
   // Apple does not need the relay: each container store carries its own
   // proxyConfigurations, and BUG-014 measured that delivering
