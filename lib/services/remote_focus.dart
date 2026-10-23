@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -83,16 +82,31 @@ final class RemoteFocus {
     FocusManager.instance.primaryFocus?.focusInDirection(direction);
   }
 
-  Widget wrap(Widget page) => Focus(
-        canRequestFocus: false,
-        skipTraversal: true,
-        onFocusChange: (hasFocus) {
-          _hasFocus = hasFocus;
-          if (hasFocus) unawaited(_focusView?.call());
-        },
-        onKeyEvent: (node, event) => _dpad.contains(event.logicalKey)
-            ? KeyEventResult.skipRemainingHandlers
-            : KeyEventResult.ignored,
-        child: page,
+  Widget wrap(Widget page) => OwnFocusOutline(
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onFocusChange: (hasFocus) {
+            _hasFocus = hasFocus;
+            if (hasFocus) unawaited(_focusView?.call());
+          },
+          onKeyEvent: (node, event) => _dpad.contains(event.logicalKey)
+              ? KeyEventResult.skipRemainingHandlers
+              : KeyEventResult.ignored,
+          child: page,
+        ),
       );
+}
+
+/// A subtree that shows its own focus, so the remote's focus outline is not
+/// drawn over it (NAV-016): a site page, whose engine outlines the link it
+/// has focused, and a launcher icon, which outlines itself.
+class OwnFocusOutline extends InheritedWidget {
+  const OwnFocusOutline({super.key, required super.child});
+
+  static bool covers(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<OwnFocusOutline>() != null;
+
+  @override
+  bool updateShouldNotify(OwnFocusOutline oldWidget) => false;
 }

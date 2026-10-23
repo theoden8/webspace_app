@@ -103,6 +103,18 @@ abstract final class LibraryStyle {
   }
 }
 
+/// The outline around whatever has focus where a TV remote drives the device
+/// (NAV-016): a tint made for a keyboard at arm's length does not carry across
+/// a room.
+abstract final class RemoteStyle {
+  static const double ringWidth = 3;
+
+  /// The line inside the ring, in the surface colour, so the ring still reads
+  /// on a control filled with the accent.
+  static const double ringInner = 1;
+  static const double ringRadius = Radii.xl;
+}
+
 /// Fixed chrome around web content: not accent-derived, so these stay put when
 /// the user picks a different accent colour.
 abstract final class Chrome {

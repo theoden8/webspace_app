@@ -679,6 +679,23 @@ reachable from it:
 - The app SHALL appear in the Android TV launcher with a banner, and SHALL install on a
   device without a touchscreen.
 
+Everything outside the page SHALL be reachable and usable by the D-pad and OK alone,
+since a remote has no long press, no Menu key and nothing to drag with:
+
+- Up and Down SHALL leave a one-line text field (the library's search, the URL bar);
+  Left and Right stay with its caret, and a field of several lines keeps all four.
+- An outline SHALL mark whatever has focus, drawn inside the control. A site page (its
+  engine outlines the focused link), a launcher icon and a tab strip chip outline
+  themselves, so no second outline is drawn over them.
+- A launcher icon pressed with OK or Enter SHALL open as a tap does; held, it SHALL open
+  its menu as a long press does. This holds for any key, on every device.
+- In a launcher grid that reorders, an icon's menu and a group's SHALL offer Move Up and
+  Move Down, the moves a drag makes; "All" never moves.
+- In an open library folder, a move down or up from the folder SHALL go into it, and the
+  dimmed home screen behind it SHALL take no focus.
+- Every chip of the tab strip SHALL take focus: OK opens its site, or the Tabs sheet on the
+  one on screen. Every row of the Tabs sheet and its web search are reachable as they are.
+
 On every other device the page's webview SHALL be built exactly as before: no wrapper, no
 page script. The edge is read by a top-frame script (`lib/js/remote_edge.js`), so an arrow
 pressed inside a frame stays in that frame. Popups opened by a page are not covered.
@@ -696,8 +713,24 @@ pressed inside a frame stays in that frame. Popups opened by a page are not cove
 - **WHEN** the user presses up
 - **THEN** focus moves to the app bar, from where the menu and the site switcher open
 
+#### Scenario: A site in a folder, by remote
+
+- **GIVEN** a TV in Alternative design
+- **WHEN** the user presses down past the search field, onto a folder, OK, then down twice
+- **THEN** a site in that folder has focus, and OK opens it
+- **AND** OK held instead opens its menu, with the moves its folder allows
+
+#### Scenario: Another site from the tab strip
+
+- **GIVEN** a TV with the tab strip on
+- **WHEN** the user moves along the strip and presses OK on a site
+- **THEN** that site opens; OK on the site on screen opens its tabs
+
 Test: [test/remote_focus_test.dart](../../../test/remote_focus_test.dart),
-[test/js/remote_edge.test.js](../../../test/js/remote_edge.test.js)
+[test/js/remote_edge.test.js](../../../test/js/remote_edge.test.js),
+[test/remote_controls_test.dart](../../../test/remote_controls_test.dart),
+[test/remote_library_test.dart](../../../test/remote_library_test.dart),
+[test/remote_tabs_test.dart](../../../test/remote_tabs_test.dart)
 
 ## Race Condition Guards
 

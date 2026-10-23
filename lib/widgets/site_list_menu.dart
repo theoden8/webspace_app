@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/widgets/launcher_grid.dart';
 
 /// What a site's long-press menu in the list offers.
 enum SiteListAction {
@@ -16,23 +17,28 @@ enum SiteListAction {
 /// app-tier site always offers "Move to archive", whether or not an archive is
 /// open: the move prompts for a passphrase and opens or creates the archive
 /// it names, so the row reveals nothing about which archives exist.
+///
+/// Where a remote drives the device, an icon in a launcher grid offers the
+/// moves its grid makes ([LauncherCell.menuMoves]), and a move picked is
+/// made here, returning null.
 Future<SiteListAction?> showSiteListMenu(
   BuildContext context, {
   required Offset position,
   required bool canMoveUp,
   required bool canMoveDown,
   required bool archived,
-}) {
+}) async {
   final loc = AppLocalizations.of(context);
-  return showLauncherMenu(
+  final grid = LauncherCell.menuMoves(context);
+  final action = await showLauncherMenu(
     context,
     position: position,
     items: [
       (value: SiteListAction.edit, icon: Icons.edit, label: loc.commonEdit, destructive: false),
       (value: SiteListAction.delete, icon: Icons.delete, label: loc.commonDelete, destructive: true),
-      if (canMoveUp)
+      if (grid == null ? canMoveUp : grid.earlier != null)
         (value: SiteListAction.moveUp, icon: Icons.arrow_upward, label: loc.homeMoveUp, destructive: false),
-      if (canMoveDown)
+      if (grid == null ? canMoveDown : grid.later != null)
         (value: SiteListAction.moveDown, icon: Icons.arrow_downward, label: loc.homeMoveDown, destructive: false),
       if (!archived)
         (value: SiteListAction.moveToArchive, icon: Icons.archive_outlined, label: loc.homeMoveToArchive, destructive: false),
@@ -42,6 +48,22 @@ Future<SiteListAction?> showSiteListMenu(
         (value: SiteListAction.closeArchive, icon: Icons.lock_outline, label: loc.homeCloseArchive, destructive: false),
     ],
   );
+  if (grid == null) return action;
+  switch (action) {
+    case SiteListAction.moveUp:
+      grid.earlier?.call();
+      return null;
+    case SiteListAction.moveDown:
+      grid.later?.call();
+      return null;
+    case SiteListAction.edit ||
+          SiteListAction.delete ||
+          SiteListAction.moveToArchive ||
+          SiteListAction.moveOutOfArchive ||
+          SiteListAction.closeArchive ||
+          null:
+      return action;
+  }
 }
 
 /// One row of a launcher icon's menu.
