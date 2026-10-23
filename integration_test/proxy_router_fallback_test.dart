@@ -34,7 +34,7 @@ import 'secure_storage_fake.dart';
 
 /// Every request each upstream saw, merged with the app's own proxy,
 /// unload and webview log lines, in the order they happened.
-String timeline(RecordingUpstream a, RecordingUpstream b) {
+String timeline({required RecordingUpstream a, required RecordingUpstream b}) {
   const tags = {
     'Proxy',
     'ProxyRelay',
@@ -145,7 +145,7 @@ void main() {
       await openSiteFromDrawer(tester, name: name);
     }
     // ignore: avoid_print
-    print(timeline(upstreamA, upstreamB));
+    print(timeline(a: upstreamA, b: upstreamB));
 
     expect(
       upstreamA.wasReached,
