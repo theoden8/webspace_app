@@ -788,6 +788,14 @@ written by v0.3.3 to v0.4.0 and no longer read) went with the graduation.
 The `MULTI_PROFILE` gate is read once, at activation, so router mode is
 never torn out from under loaded sites.
 
+A DEFAULT site SHALL reach its origin the way the WebView reaches it with
+no override (PROXY-001): through the proxy Android reports for that
+destination, the network's HTTP proxy or the local one a PAC file runs
+behind, with the system's bypass list applied, and directly only where the
+system names none. The relay's own credential SHALL NOT reach that proxy.
+A site with a proxy of its own reaches it directly, never through the
+system's.
+
 Router mode SHALL start only where some route resolves to a proxy: a
 site's own, the app-wide one a DEFAULT site inherits (PROXY-009), or Tor.
 With every route direct, the relay would carry every connection and the
@@ -836,7 +844,11 @@ a proxy configured later applies under PROXY-008 until the next launch.
 **And** Site C has proxy type `DEFAULT` and no app-global proxy is set
 **When** Site C loads
 **Then** its traffic arrives at the relay like every other site's
-**And** the relay opens a direct connection to the origin for it
+**And** where the network has a proxy, the relay tunnels through it, or
+forwards plain http to it in absolute form, without the relay's credential
+**And** a destination the system's bypass list names, or any destination
+where the network has no proxy, gets a direct connection
+**And** an onion host is refused before any proxy is asked (LEAK-016)
 
 #### Scenario: A deleted site's credential stops routing
 

@@ -7,9 +7,12 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.ProxySelector
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URI
+import java.net.URISyntaxException
 import java.net.UnknownHostException
 import java.util.concurrent.Executors
 import javax.net.ssl.SSLSocket
@@ -39,7 +42,8 @@ import javax.net.ssl.SSLSocketFactory
  *
  * In router mode it additionally fronts every site at once, selecting the
  * upstream from the `Proxy-Authorization` credential the WebView presents
- * (see [startRouter]).
+ * (see [startRouter]). A site on the system default then reaches its
+ * origin through the system's proxy (see [throughSystemProxy]).
  *
  * The listener is bound to loopback, which keeps it off the network but not
  * away from the device: every other app with `INTERNET` can reach
@@ -80,6 +84,13 @@ class ProxyRelay(
      */
     private val ownUid: Int? = null,
     private val peerCheck: ((peerPort: Int, relayPort: Int) -> PeerVerdict)? = null,
+    /**
+     * The proxy Android has for a destination: the network's HTTP proxy, or
+     * the local one a PAC file runs behind, with its bypass list applied.
+     * The default asks [ProxySelector], which the platform keeps in step
+     * with the network; a test passes its own.
+     */
+    private val systemProxy: (URI) -> Proxy = { uri -> systemProxyOf(uri) },
 ) {
 
     /** Whether an accepted peer is one of this process's own sockets. */
@@ -450,25 +461,26 @@ class ProxyRelay(
             return
         }
 
-        log("upstream connecting via ${cfg.type} ${cfg.host}:${cfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
+        val upstreamCfg = throughSystemProxy(cfg, host = host, port = hostPort, isConnect = isConnect)
+        log("upstream connecting via ${upstreamCfg.type} ${upstreamCfg.host}:${upstreamCfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
         // A CONNECT through SOCKS5 is answered before the upstream is reached.
         // Chromium on Android gives a proxy tunnel 10 s and the TLS handshake
         // after it 30 s, and tor attaching a stream to a fresh circuit takes
         // longer than the first. What the client sends meanwhile waits in the
         // socket until the splice reads it; a failure closes the connection,
         // so nothing leaves except through the upstream.
-        val establishedEarly = isConnect && cfg.type == UpstreamType.SOCKS5
+        val establishedEarly = isConnect && upstreamCfg.type == UpstreamType.SOCKS5
         if (establishedEarly) writeEstablished(cout)
         val upstream: Socket = try {
-            when (cfg.type) {
+            when (upstreamCfg.type) {
                 UpstreamType.DIRECT -> openDirect(host, hostPort)
-                UpstreamType.SOCKS5 -> openViaSocks5(cfg, host, hostPort)
+                UpstreamType.SOCKS5 -> openViaSocks5(upstreamCfg, host, hostPort)
                 UpstreamType.HTTP, UpstreamType.HTTPS ->
-                    openViaHttpProxy(cfg, host, hostPort, isConnect)
+                    openViaHttpProxy(upstreamCfg, host, hostPort, isConnect)
             }
         } catch (e: Exception) {
             val answer = if (establishedEarly) "closing the tunnel" else "sending 502"
-            log("upstream connect FAILED for $host:$hostPort via ${cfg.type}: ${e.javaClass.simpleName}: ${e.message} — $answer")
+            log("upstream connect FAILED for $host:$hostPort via ${upstreamCfg.type}: ${e.javaClass.simpleName}: ${e.message} — $answer")
             if (!establishedEarly) writeStatus(cout, 502, "Bad Gateway")
             return
         }
@@ -483,10 +495,10 @@ class ProxyRelay(
                 // the upstream, then splice. SOCKS gives an origin tunnel
                 // (origin-form path, no proxy auth header); an HTTP proxy
                 // wants the absolute-form line plus Proxy-Authorization.
-                val rewritten = if (cfg.type != UpstreamType.HTTP && cfg.type != UpstreamType.HTTPS) {
+                val rewritten = if (upstreamCfg.type != UpstreamType.HTTP && upstreamCfg.type != UpstreamType.HTTPS) {
                     rewriteForOriginTunnel(requestLine, target, headers)
                 } else {
-                    rewriteForHttpProxy(requestLine, headers, cfg)
+                    rewriteForHttpProxy(requestLine, headers, upstreamCfg)
                 }
                 upstream.getOutputStream().write(rewritten.toByteArray(Charsets.ISO_8859_1))
                 upstream.getOutputStream().flush()
@@ -498,6 +510,37 @@ class ProxyRelay(
         } finally {
             runCatching { upstream.close() }
         }
+    }
+
+    /**
+     * What a [UpstreamType.DIRECT] route connects through: the system's
+     * proxy for this destination where Android has one, as the WebView
+     * would with no override (PROXY-001's DEFAULT), else nothing. Never
+     * with this relay's credential, which the rewrite strips. A host a URI
+     * cannot carry (an underscore, say) is asked about as one no bypass
+     * list names, so it errs toward the proxy.
+     */
+    private fun throughSystemProxy(
+        cfg: UpstreamConfig,
+        host: String,
+        port: Int,
+        isConnect: Boolean,
+    ): UpstreamConfig {
+        if (cfg.type != UpstreamType.DIRECT) return cfg
+        val scheme = if (isConnect) "https" else "http"
+        val uri = try {
+            URI(scheme, null, host, port, null, null, null)
+        } catch (e: URISyntaxException) {
+            URI(scheme, null, UNNAMED_HOST, port, null, null, null)
+        }
+        val proxy = systemProxy(uri)
+        val address = proxy.address() as? InetSocketAddress ?: return cfg
+        val type = when (proxy.type()) {
+            Proxy.Type.HTTP -> UpstreamType.HTTP
+            Proxy.Type.SOCKS -> UpstreamType.SOCKS5
+            Proxy.Type.DIRECT, null -> return cfg
+        }
+        return UpstreamConfig(type, address.hostString, address.port, null, null)
     }
 
     private fun openDirect(host: String, port: Int): Socket {
@@ -914,6 +957,11 @@ class ProxyRelay(
             return address.substring(sep + 1).toIntOrNull(16)
         }
 
+        /** The proxy [ProxySelector] names for [uri], or none. */
+        fun systemProxyOf(uri: URI): Proxy =
+            ProxySelector.getDefault()?.select(uri)?.firstOrNull() ?: Proxy.NO_PROXY
+
+        private const val UNNAMED_HOST = "unnamed.invalid"
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
 
