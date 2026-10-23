@@ -20,6 +20,7 @@ import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/popup_webview.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/isolation.dart';
@@ -499,6 +500,11 @@ void main() {
   group('sign-in popups (NESTED-014)', () {
     const signIn = 'https://accounts.google.com/o/oauth2/v2/auth?display=popup';
 
+    // Android's rule, where the experiment offers them; a test of the rule
+    // everywhere else calls [graduated].
+    setUp(() => PopupKind.debugSignInExperimental = true);
+    tearDown(() => PopupKind.debugSignInExperimental = null);
+
     void switchOn() {
       DeveloperModeService.instance.debugSet(on: true);
       ExperimentalFeaturesService.instance
@@ -578,6 +584,52 @@ void main() {
       final (:took, :shown) = await requestWindow(tester, url: null);
       expect(took, isTrue);
       expect(shown, [PopupKind.signIn]);
+    });
+
+    /// The rule everywhere but Android: no experiment stands between a site
+    /// and its switches.
+    void graduated() => PopupKind.debugSignInExperimental = false;
+
+    bool? opensWindowsItself(WidgetTester tester) => tester
+        .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+        .platform.params.initialSettings
+        ?.javaScriptCanOpenWindowsAutomatically;
+
+    testWidgets('NESTED-014: where they graduated a sign-in window opens as a '
+        'sign-in popup with developer mode off', (tester) async {
+      graduated();
+      final (:took, :shown) = await requestWindow(tester, url: signIn);
+      expect(took, isTrue);
+      expect(shown, [PopupKind.signIn]);
+      expect(opensWindowsItself(tester), isFalse);
+    });
+
+    testWidgets('NESTED-014: a site that turns them off declines a sign-in '
+        'window', (tester) async {
+      graduated();
+      _site.signInPopups = false;
+      addTearDown(() => _site.signInPopups = null);
+      final (:took, :shown) = await requestWindow(tester, url: signIn);
+      expect(took, isFalse);
+      expect(shown, isEmpty);
+      expect(opensWindowsItself(tester), isTrue,
+          reason: 'the site is back to NESTED-001, where a script may open a '
+              'captcha window');
+    });
+
+    testWidgets("NESTED-014: a site that follows the app takes the app's "
+        'switch', (tester) async {
+      graduated();
+      AppPref.signInPopups.debugValue = false;
+      addTearDown(() => AppPref.signInPopups.debugValue = true);
+      final declined = await requestWindow(tester, url: signIn);
+      expect(declined.took, isFalse);
+      expect(declined.shown, isEmpty);
+      _site.signInPopups = true;
+      addTearDown(() => _site.signInPopups = null);
+      final opened = await requestWindow(tester, url: signIn);
+      expect(opened.took, isTrue);
+      expect(opened.shown, [PopupKind.signIn]);
     });
 
     testWidgets('NESTED-014: any other window is still declined',

@@ -14,7 +14,8 @@ in site settings.
 
 The screen SHALL present, in order: an "Opening and display" group holding
 Always open Home, Kiosk mode, Full screen mode and HTML caching; then a "Link
-handling" group holding the External links choice (BEHAV-004) and the site's
+handling" group holding the External links choice (BEHAV-004), Sign-in popups
+where the platform offers them (nested-url-blocking NESTED-014) and the site's
 domain-claim editor. There is no Block auto-redirects switch: every site
 blocks gesture-less cross-domain navigations (nested-url-blocking NESTED-004). The claims editor renders last
 in that group because the External links hint tells the reader to add domains
@@ -166,12 +167,13 @@ Kiosk mode still on
 
 App Settings → Behaviour SHALL group its app defaults under "Opening and
 navigation": Tabs (on initially),
-External links (Open in the app initially) and Route links to my sites (off
-initially, shown under in-app links). New sites SHALL follow these live
+External links (Open in the app initially), Route links to my sites (off
+initially, shown under in-app links) and, where the platform offers them
+(nested-url-blocking NESTED-014), Sign-in popups (on initially). New sites SHALL follow these live
 defaults. The External links picker SHALL offer App default and explicit
 choices. Routing SHALL be a plain on/off switch with no separate inheritance
 state or reset gesture; it inherits only through External links → App default.
-Tabs SHALL use a switch that is slightly dimmed while
+Tabs and Sign-in popups SHALL each use a switch that is slightly dimmed while
 following the app and fully opaque for an explicit override. It SHALL remain
 interactive in both states and show an App default subtitle while following.
 Tapping SHALL create an explicit override. A long press SHALL clear it and
@@ -194,7 +196,8 @@ routing default and leave the site's stored routing override unchanged.
 
 Persistence SHALL distinguish explicit null (follow app) from a missing key for
 Tabs and External links in older data (Tabs on, links in-app, or browser for the
-legacy true flag). Routing SHALL store a boolean, defaulting to off for missing
+legacy true flag). Sign-in popups came after the per-site choices, so a missing
+key follows the app and only an explicit choice is written. Routing SHALL store a boolean, defaulting to off for missing
 or null values. New saves SHALL write all three keys, so a following site and an
 explicit choice each survive restart and backup without becoming the other.
 
@@ -227,6 +230,15 @@ explicit choice each survive restart and backup without becoming the other.
 **Then** the following switch shows Tabs off
 **When** the user taps it
 **Then** it stores an explicit Tabs-on choice and is fully opaque
+
+#### Scenario: A site keeps its own Sign-in popups choice
+
+**Given** the app's Sign-in popups switch is on and a site follows it
+**Then** the site's switch is slightly dimmed, shows on and says App default
+**When** the user taps it off and saves
+**Then** the site's JSON carries `signInPopups: false` and its webview declines sign-in windows
+**When** the user long presses it
+**Then** it follows the app again and the key is no longer written
 
 #### Scenario: Inherited external links have no hidden routing override
 

@@ -71,6 +71,9 @@ typedef SitePage = ({
   WebViewTheme theme,
   List<UserScriptConfig> userScripts,
   ExternalLinkMode externalLinks,
+  // A sign-in window the user's tap opened shows as a real popup
+  // (NESTED-014).
+  bool signInPopups,
   bool notifications,
 });
 

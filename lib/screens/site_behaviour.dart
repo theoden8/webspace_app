@@ -5,6 +5,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/external_links.dart';
@@ -37,6 +38,7 @@ class SiteBehaviourValues {
     this.tabsEnabled = const FollowApp(),
     this.routeOutboundLinks = false,
     this.outboundPreferences = const [],
+    this.signInPopups = const FollowApp(),
     this.searchAddress,
     this.searchesWeb = false,
     this.searchSites = const [],
@@ -54,6 +56,7 @@ class SiteBehaviourValues {
   final Scoped<ExternalLinkMode> externalLinkMode;
   final bool routeOutboundLinks;
   final List<OutboundPreference> outboundPreferences;
+  final Scoped<bool> signInPopups;
 
   /// LIR-028: how to search this site, and what a search from it offers.
   final String? searchAddress;
@@ -72,6 +75,7 @@ class SiteBehaviourValues {
     Scoped<ExternalLinkMode>? externalLinkMode,
     bool? routeOutboundLinks,
     List<OutboundPreference>? outboundPreferences,
+    Scoped<bool>? signInPopups,
     Object? searchAddress = _keep,
     bool? searchesWeb,
     List<SiteId>? searchSites,
@@ -87,6 +91,7 @@ class SiteBehaviourValues {
         externalLinkMode: externalLinkMode ?? this.externalLinkMode,
         routeOutboundLinks: routeOutboundLinks ?? this.routeOutboundLinks,
         outboundPreferences: outboundPreferences ?? this.outboundPreferences,
+        signInPopups: signInPopups ?? this.signInPopups,
         searchAddress: identical(searchAddress, _keep)
             ? this.searchAddress
             : searchAddress as String?,
@@ -276,6 +281,25 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
       ],
     );
   }
+
+  /// A sign-in window the user's tap opened shows as a real popup
+  /// (NESTED-014); absent where this host does not offer it.
+  Widget _signInPopups(AppLocalizations loc) => SettingTile(
+        title: loc.siteSettingsSignInPopups,
+        hint: '${loc.siteSettingsSignInPopupsHint}\n\n'
+            '${loc.settingRestoreDefaultHint}',
+        subtitle: _values.signInPopups is FollowApp
+            ? loc.webSearchUseAppDefault
+            : null,
+        control: Toggle(
+          PopupKind.signInOpens(choice: _values.signInPopups),
+          followsApp: _values.signInPopups is FollowApp,
+          onChanged: (value) =>
+              _update(_values.copyWith(signInPopups: Own(value))),
+          onRestoreDefault: () =>
+              _update(_values.copyWith(signInPopups: const FollowApp())),
+        ),
+      );
 
   // --- Search (LIR-028, BEHAV-006) ------------------------------------------
 
@@ -474,6 +498,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             ),
           SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),
+          if (PopupKind.signInOffered) _signInPopups(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
           SettingsSection(loc.webSearchGroup),
           _searchAddressRow(loc),

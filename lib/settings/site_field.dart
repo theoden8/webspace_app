@@ -29,6 +29,7 @@ enum SiteField {
   alwaysOpenHome('alwaysOpenHome', qr: QrShare.carried),
   kioskMode('kioskMode', qr: QrShare.carried),
   tabsEnabled('tabsEnabled', qr: QrShare.carried),
+  signInPopups('signInPopups', qr: QrShare.carried),
   // A scanned site is a new container, which gets its own colour (TAB-018).
   containerColor('containerColor', qr: QrShare.withheld),
   language('language', qr: QrShare.carried),

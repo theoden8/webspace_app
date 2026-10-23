@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/settings.dart';
+import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -184,6 +185,97 @@ void main() {
     expect(prefs.getBool('tabsEnabled'), isFalse);
     expect(prefs.getString('externalLinkMode'), 'browser');
     expect(prefs.getBool('routeOutboundLinks'), isTrue);
+  });
+
+  group('Sign-in popups where they graduated (NESTED-014)', () {
+    setUp(() => PopupKind.debugSignInExperimental = false);
+    tearDown(() {
+      PopupKind.debugSignInExperimental = null;
+      AppPref.signInPopups.debugValue = true;
+    });
+
+    testWidgets('the app default is on and its switch updates following sites',
+        (tester) async {
+      final following = WebViewModel(initUrl: 'https://example.org/');
+      final own = WebViewModel(
+          initUrl: 'https://example.org/', signInPopups: true);
+      bool opens(WebViewModel site) =>
+          PopupKind.signInOpens(choice: Scoped.fromStored(site.signInPopups));
+      expect(opens(following), isTrue);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AppBehaviourScreen(
+            onOpenLinkHandlingSettings: () {},
+            homeShortcuts: null,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Sign-in popups'), 200);
+      await tester.tap(find.text('Sign-in popups'));
+      await tester.pumpAndSettle();
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('signInPopups'), isFalse);
+      expect(opens(following), isFalse);
+      expect(opens(own), isTrue);
+    });
+
+    testWidgets('returning to app default is guarded and saved', (tester) async {
+      tester.view.physicalSize = const Size(1000, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final site = WebViewModel(
+          initUrl: 'https://example.org/', signInPopups: false);
+      expect(site.toJson()['signInPopups'], isFalse);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SettingsScreen(
+                    webViewModel: site,
+                    appTheme: WebViewTheme.system,
+                    useContainers: true,
+                  ),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Behaviour'));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.descendant(
+          of: find.ancestor(
+              of: find.text('Sign-in popups'), matching: find.byType(ListTile)),
+          matching: find.byType(Switch)));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Discard changes?'), findsOneWidget);
+      expect(site.signInPopups, isFalse);
+      await tester.tap(find.text('Keep editing'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Settings'));
+      await tester.pumpAndSettle();
+      expect(site.signInPopups, isNull);
+      expect(site.toJson().containsKey('signInPopups'), isFalse,
+          reason: 'a following site writes no key, as one from before it did');
+      final restored = WebViewModel.fromJson(site.toJson(), stateSetterF: null);
+      expect(restored.signInPopups, isNull);
+    });
   });
 
   for (final setting in ['Tabs', 'External links', 'Route links to my sites']) {
