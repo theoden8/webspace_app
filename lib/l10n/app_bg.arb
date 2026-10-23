@@ -935,6 +935,8 @@
   "torStatusConnected": "Свързано",
   "torStatusEndpoint": "SOCKS5 на {endpoint}",
   "torStatusRebuildCircuits": "Изгради вериги наново",
+  "torStatusReconnecting": "Повторно свързване…",
+  "torStatusReconnectingDetail": "Връзките на Tor се затвориха, докато приложението беше във фонов режим. Сайтовете, които използват Tor, ще се заредят, щом той отново има верига.",
   "torStatusPhase": "Етап: {phase}",
   "torStateUsedBy": "Използват Tor",
   "torStateNothing": "Нищо не използва Tor",

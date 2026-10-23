@@ -935,6 +935,8 @@
   "torStatusConnected": "ബന്ധിപ്പിച്ചു",
   "torStatusEndpoint": "{endpoint} ൽ SOCKS5",
   "torStatusRebuildCircuits": "സർക്യൂട്ടുകൾ വീണ്ടും നിർമ്മിക്കുക",
+  "torStatusReconnecting": "വീണ്ടും ബന്ധിപ്പിക്കുന്നു…",
+  "torStatusReconnectingDetail": "ആപ്പ് പശ്ചാത്തലത്തിലായിരുന്നപ്പോൾ Tor-ന്റെ കണക്ഷനുകൾ അടഞ്ഞു. Tor ഉപയോഗിക്കുന്ന സൈറ്റുകൾ അതിന് വീണ്ടും ഒരു സർക്യൂട്ട് ലഭിച്ചാലുടൻ ലോഡ് ചെയ്യും.",
   "torStatusPhase": "ഘട്ടം: {phase}",
   "torStateUsedBy": "Tor ഉപയോഗിക്കുന്നവ",
   "torStateNothing": "ഒന്നും Tor ഉപയോഗിക്കുന്നില്ല",

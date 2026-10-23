@@ -935,6 +935,8 @@
   "torStatusConnected": "Připojeno",
   "torStatusEndpoint": "SOCKS5 na {endpoint}",
   "torStatusRebuildCircuits": "Znovu sestavit okruhy",
+  "torStatusReconnecting": "Opětovné připojování…",
+  "torStatusReconnectingDetail": "Spojení Toru se zavřela, zatímco byla aplikace na pozadí. Weby, které používají Tor, se načtou, jakmile bude mít znovu okruh.",
   "torStatusPhase": "Fáze: {phase}",
   "torStateUsedBy": "Používají Tor",
   "torStateNothing": "Nic nepoužívá Tor",

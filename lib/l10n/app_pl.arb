@@ -935,6 +935,8 @@
   "torStatusConnected": "Połączono",
   "torStatusEndpoint": "SOCKS5 na {endpoint}",
   "torStatusRebuildCircuits": "Odbuduj obwody",
+  "torStatusReconnecting": "Ponowne łączenie…",
+  "torStatusReconnectingDetail": "Połączenia Tora zostały zamknięte, gdy aplikacja działała w tle. Witryny korzystające z Tora wczytają się, gdy znów będzie miał obwód.",
   "torStatusPhase": "Etap: {phase}",
   "torStateUsedBy": "Korzystają z sieci Tor",
   "torStateNothing": "Nic nie korzysta z sieci Tor",

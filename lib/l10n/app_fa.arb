@@ -935,6 +935,8 @@
   "torStatusConnected": "متصل",
   "torStatusEndpoint": "SOCKS5 روی {endpoint}",
   "torStatusRebuildCircuits": "بازسازی مدارها",
+  "torStatusReconnecting": "در حال اتصال دوباره…",
+  "torStatusReconnectingDetail": "اتصال‌های Tor هنگامی که برنامه در پس‌زمینه بود بسته شدند. سایت‌هایی که از Tor استفاده می‌کنند به‌محض اینکه دوباره مداری داشته باشد بارگیری می‌شوند.",
   "torStatusPhase": "مرحله: {phase}",
   "torStateUsedBy": "در حال استفاده از Tor",
   "torStateNothing": "هیچ چیزی از Tor استفاده نمی‌کند",

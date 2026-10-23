@@ -935,6 +935,8 @@
   "torStatusConnected": "Bersambung",
   "torStatusEndpoint": "SOCKS5 pada {endpoint}",
   "torStatusRebuildCircuits": "Bina semula litar",
+  "torStatusReconnecting": "Menyambung semula…",
+  "torStatusReconnectingDetail": "Sambungan Tor ditutup semasa apl berada di latar belakang. Laman yang menggunakan Tor akan dimuatkan sebaik sahaja ia mempunyai litar semula.",
   "torStatusPhase": "Fasa: {phase}",
   "torStateUsedBy": "Menggunakan Tor",
   "torStateNothing": "Tiada apa-apa yang menggunakan Tor",

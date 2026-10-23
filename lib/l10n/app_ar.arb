@@ -935,6 +935,8 @@
   "torStatusConnected": "متصل",
   "torStatusEndpoint": "SOCKS5 على {endpoint}",
   "torStatusRebuildCircuits": "إعادة بناء الدارات",
+  "torStatusReconnecting": "يعيد الاتصال…",
+  "torStatusReconnectingDetail": "أُغلقت اتصالات Tor بينما كان التطبيق في الخلفية. ستُحمَّل المواقع التي تستخدم Tor حالما تتوفر له دارة من جديد.",
   "torStatusPhase": "المرحلة: {phase}",
   "torStateUsedBy": "ما يستخدم Tor",
   "torStateNothing": "لا شيء يستخدم Tor",

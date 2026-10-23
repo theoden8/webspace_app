@@ -935,6 +935,8 @@
   "torStatusConnected": "Ühendatud",
   "torStatusEndpoint": "SOCKS5 aadressil {endpoint}",
   "torStatusRebuildCircuits": "Ehita ahelad uuesti",
+  "torStatusReconnecting": "Ühendamine uuesti…",
+  "torStatusReconnectingDetail": "Tori ühendused suleti, kui rakendus oli taustal. Tori kasutavad saidid laaditakse, kui sellel on taas ahel.",
   "torStatusPhase": "Etapp: {phase}",
   "torStateUsedBy": "Tori kasutavad",
   "torStateNothing": "Miski ei kasuta Tori",

@@ -935,6 +935,8 @@
   "torStatusConnected": "დაკავშირებულია",
   "torStatusEndpoint": "SOCKS5 მისამართზე {endpoint}",
   "torStatusRebuildCircuits": "წრედების ხელახლა აგება",
+  "torStatusReconnecting": "ხელახლა უკავშირდება…",
+  "torStatusReconnectingDetail": "Tor-ის კავშირები დაიხურა, სანამ აპი ფონურ რეჟიმში იყო. Tor-ის გამომყენებელი საიტები ჩაიტვირთება, როგორც კი მას კვლავ ექნება წრედი.",
   "torStatusPhase": "ეტაპი: {phase}",
   "torStateUsedBy": "Tor-ს იყენებენ",
   "torStateNothing": "Tor-ს არაფერი იყენებს",

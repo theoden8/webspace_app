@@ -935,6 +935,8 @@
   "torStatusConnected": "Ansluten",
   "torStatusEndpoint": "SOCKS5 på {endpoint}",
   "torStatusRebuildCircuits": "Bygg om kretsarna",
+  "torStatusReconnecting": "Ansluter igen…",
+  "torStatusReconnectingDetail": "Tors anslutningar stängdes medan appen var i bakgrunden. Webbplatser som använder Tor läses in så snart den har en krets igen.",
   "torStatusPhase": "Fas: {phase}",
   "torStateUsedBy": "Använder Tor",
   "torStateNothing": "Inget använder Tor",

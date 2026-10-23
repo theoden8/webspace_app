@@ -935,6 +935,8 @@
   "torStatusConnected": "Povezano",
   "torStatusEndpoint": "SOCKS5 na {endpoint}",
   "torStatusRebuildCircuits": "Ponovno izgradi krugove",
+  "torStatusReconnecting": "Ponovno povezivanje…",
+  "torStatusReconnectingDetail": "Torove veze zatvorene su dok je aplikacija bila u pozadini. Stranice koje koriste Tor učitat će se čim ponovno bude imao krug.",
   "torStatusPhase": "Faza: {phase}",
   "torStateUsedBy": "Koriste Tor",
   "torStateNothing": "Ništa ne koristi Tor",

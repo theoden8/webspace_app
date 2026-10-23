@@ -935,6 +935,8 @@
   "torStatusConnected": "已連線",
   "torStatusEndpoint": "SOCKS5 位於 {endpoint}",
   "torStatusRebuildCircuits": "重建線路",
+  "torStatusReconnecting": "重新連線中…",
+  "torStatusReconnectingDetail": "App 在背景執行時，Tor 的連線已關閉。使用 Tor 的網站會在它重新建立線路後載入。",
   "torStatusPhase": "階段：{phase}",
   "torStateUsedBy": "使用 Tor 的項目",
   "torStateNothing": "目前沒有任何項目使用 Tor",

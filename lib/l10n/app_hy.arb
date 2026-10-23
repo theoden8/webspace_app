@@ -935,6 +935,8 @@
   "torStatusConnected": "Միացած է",
   "torStatusEndpoint": "SOCKS5 {endpoint} հասցեում",
   "torStatusRebuildCircuits": "Վերակառուցել շղթաները",
+  "torStatusReconnecting": "Վերամիանում է…",
+  "torStatusReconnectingDetail": "Tor-ի կապերը փակվեցին, մինչ հավելվածը ֆոնում էր։ Tor օգտագործող կայքերը կբեռնվեն, հենց այն նորից շղթա ունենա։",
   "torStatusPhase": "Փուլ՝ {phase}",
   "torStateUsedBy": "Օգտագործում են Tor",
   "torStateNothing": "Ոչինչ չի օգտագործում Tor",

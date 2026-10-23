@@ -935,6 +935,8 @@
   "torStatusConnected": "מחובר",
   "torStatusEndpoint": "SOCKS5 ב־{endpoint}",
   "torStatusRebuildCircuits": "בנייה מחדש של מעגלים",
+  "torStatusReconnecting": "מתחבר מחדש…",
+  "torStatusReconnectingDetail": "החיבורים של Tor נסגרו בזמן שהאפליקציה הייתה ברקע. אתרים שמשתמשים ב-Tor ייטענו ברגע שיהיה לו שוב מעגל.",
   "torStatusPhase": "שלב: {phase}",
   "torStateUsedBy": "משתמשים ב-Tor",
   "torStateNothing": "שום דבר לא משתמש ב-Tor",

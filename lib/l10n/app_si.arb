@@ -935,6 +935,8 @@
   "torStatusConnected": "සම්බන්ධයි",
   "torStatusEndpoint": "{endpoint} හි SOCKS5",
   "torStatusRebuildCircuits": "පරිපථ නැවත ගොඩනඟන්න",
+  "torStatusReconnecting": "නැවත සම්බන්ධ වෙමින්…",
+  "torStatusReconnectingDetail": "යෙදුම පසුබිමේ තිබියදී Tor සම්බන්ධතා වැසුණි. Tor භාවිත කරන අඩවි එයට නැවත පරිපථයක් ලැබුණු විගස පූරණය වේ.",
   "torStatusPhase": "අදියර: {phase}",
   "torStateUsedBy": "Tor භාවිත කරන",
   "torStateNothing": "කිසිවක් Tor භාවිත කරන්නේ නැත",

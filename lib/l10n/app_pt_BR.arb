@@ -935,6 +935,8 @@
   "torStatusConnected": "Conectado",
   "torStatusEndpoint": "SOCKS5 em {endpoint}",
   "torStatusRebuildCircuits": "Reconstruir circuitos",
+  "torStatusReconnecting": "Reconectando…",
+  "torStatusReconnectingDetail": "As conexões do Tor foram fechadas enquanto o app estava em segundo plano. Os sites que usam o Tor carregam assim que ele tiver um circuito de novo.",
   "torStatusPhase": "Fase: {phase}",
   "torStateUsedBy": "Usando o Tor",
   "torStateNothing": "Nada está usando o Tor",

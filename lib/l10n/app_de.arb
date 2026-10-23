@@ -935,6 +935,8 @@
   "torStatusConnected": "Verbunden",
   "torStatusEndpoint": "SOCKS5 auf {endpoint}",
   "torStatusRebuildCircuits": "Kanäle neu aufbauen",
+  "torStatusReconnecting": "Erneut verbinden…",
+  "torStatusReconnectingDetail": "Die Verbindungen von Tor wurden geschlossen, während die App im Hintergrund war. Websites, die Tor nutzen, laden, sobald es wieder einen Kanal hat.",
   "torStatusPhase": "Phase: {phase}",
   "torStateUsedBy": "Nutzt Tor",
   "torStateNothing": "Nichts nutzt Tor",

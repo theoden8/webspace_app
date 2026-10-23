@@ -935,6 +935,8 @@
   "torStatusConnected": "જોડાયેલું",
   "torStatusEndpoint": "{endpoint} પર SOCKS5",
   "torStatusRebuildCircuits": "સર્કિટ ફરી બનાવો",
+  "torStatusReconnecting": "ફરી જોડાઈ રહ્યું છે…",
+  "torStatusReconnectingDetail": "ઍપ પૃષ્ઠભૂમિમાં હતી ત્યારે Torના જોડાણો બંધ થઈ ગયા. Torનો ઉપયોગ કરતી સાઇટ્સ તેને ફરીથી સર્કિટ મળે કે તરત લોડ થશે.",
   "torStatusPhase": "તબક્કો: {phase}",
   "torStateUsedBy": "Tor નો ઉપયોગ કરે છે",
   "torStateNothing": "કંઈ પણ Tor નો ઉપયોગ કરતું નથી",

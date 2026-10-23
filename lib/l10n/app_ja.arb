@@ -935,6 +935,8 @@
   "torStatusConnected": "接続済み",
   "torStatusEndpoint": "{endpoint} で SOCKS5",
   "torStatusRebuildCircuits": "回線を再構築",
+  "torStatusReconnecting": "再接続中…",
+  "torStatusReconnectingDetail": "アプリがバックグラウンドにある間に Tor の接続が閉じられました。Tor を使うサイトは、回線が再び確立されると読み込まれます。",
   "torStatusPhase": "段階: {phase}",
   "torStateUsedBy": "Tor を使用中",
   "torStateNothing": "Tor を使用しているものはありません",
