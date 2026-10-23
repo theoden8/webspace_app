@@ -8,11 +8,6 @@ import 'package:webspace/settings/app_prefs.dart';
 /// with developer mode on and its own switch on in App Settings'
 /// Experimental group.
 enum ExperimentalFeature {
-  /// Android's per-site proxy router (PROXY-013). On by default: developer
-  /// mode alone ran it before this switch existed, and a user who had it on
-  /// must not lose it to an upgrade.
-  proxyRouter(AppPref.experimentalProxyRouter),
-
   /// Android's texture-layer webview composition (PAUSE-032). Off by
   /// default: every release before it drew pages with hybrid composition.
   textureRendering(AppPref.experimentalTextureRendering),

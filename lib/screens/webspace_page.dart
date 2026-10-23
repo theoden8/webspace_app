@@ -980,9 +980,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       MaterialPageRoute(
         builder: (context) => AppSettingsScreen(
           currentSettings: _shell.theme,
+          externalTorRunsHere: externalTorRunsHere,
           proxyRouterRunsHere: ProxyRouterService.canRunHere(
               useContainers: _sites.useContainers),
-          externalTorRunsHere: externalTorRunsHere,
           siteNames: _siteNames(),
           torSites: _network.torSites(),
           onSettingsChanged: _applyThemeSettings,

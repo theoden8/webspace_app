@@ -201,6 +201,37 @@ void main() {
   });
 
   group('route table', () {
+    test('router mode starts only where a route resolves to a proxy (PROXY-013)',
+        () {
+      Map<RouterIdentity, UserProxySettings> table(UserProxySettings b) => {
+            RouterIdentity.ofSite(SiteId('a')):
+                proxy(ProxyType.DEFAULT, address: null),
+            RouterIdentity.ofSite(SiteId('b')): b,
+          };
+      expect(ProxyRouterEngine.anyProxied(const {}), isFalse);
+      expect(
+          ProxyRouterEngine.anyProxied(
+              table(proxy(ProxyType.DEFAULT, address: null))),
+          isFalse,
+          reason: 'direct routes only are what PROXY-008 already gives');
+      expect(
+          ProxyRouterEngine.anyProxied(
+              table(proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'))),
+          isTrue);
+      expect(
+          ProxyRouterEngine.anyProxied(
+              table(proxy(ProxyType.TOR, address: null))),
+          isTrue,
+          reason: 'a Tor site is proxied whether or not the runtime is up');
+      GlobalOutboundProxy.setInMemory(
+          proxy(ProxyType.HTTP, address: '10.0.0.1:8080'));
+      expect(
+          ProxyRouterEngine.anyProxied(
+              table(proxy(ProxyType.DEFAULT, address: null))),
+          isTrue,
+          reason: 'a DEFAULT site inherits the app-global proxy (PROXY-009)');
+    });
+
     test('each site maps to its own upstream', () {
       final state = ProxyRouterState();
       final routes = ProxyRouterEngine.buildRoutes(

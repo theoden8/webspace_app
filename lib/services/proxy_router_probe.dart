@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show min;
 import 'package:webspace/services/container_names.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -11,6 +12,12 @@ import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/services/webview_proxy.dart'
     show ProxyManager, answerProxyRouterChallenge, routerRelayProxyFor;
+
+/// How many containers are probed at once. Each probe is a headless
+/// WebView, so a launch with many sites must not build one per site at the
+/// same moment; one at a time would make the launch wait one probe per
+/// site instead of about one.
+const int probeConcurrency = 4;
 
 /// The real attribution probe (PROXY-015).
 ///
@@ -33,9 +40,18 @@ import 'package:webspace/services/webview_proxy.dart'
 /// Fails with the webview plugin's [PlatformException] or
 /// [MissingPluginException] when a headless view cannot be torn down.
 Future<void> runAttributionProbe(Map<SiteId, String> siteIdToProbeUrl) async {
-  for (final entry in siteIdToProbeUrl.entries) {
-    await _probeOne(entry.key, probeUrl: entry.value);
+  final entries = siteIdToProbeUrl.entries.toList();
+  var next = 0;
+  Future<void> worker() async {
+    while (next < entries.length) {
+      final entry = entries[next++];
+      await _probeOne(entry.key, probeUrl: entry.value);
+    }
   }
+
+  await Future.wait([
+    for (var i = 0; i < min(probeConcurrency, entries.length); i++) worker(),
+  ]);
 }
 
 Future<void> _probeOne(SiteId siteId, {required String probeUrl}) async {

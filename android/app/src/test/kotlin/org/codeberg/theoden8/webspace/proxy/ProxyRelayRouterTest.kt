@@ -8,9 +8,15 @@ import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.fakeOrigin
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.fakeServer
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.readPreamble
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.spliceTo
+import java.io.IOException
 import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.ProxySelector
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketAddress
+import java.net.SocketException
+import java.net.URI
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -38,13 +44,18 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class ProxyRelayRouterTest {
 
-    /** A fake HTTP proxy that counts inbound connections and records auth. */
+    /**
+     * A fake HTTP proxy that counts inbound connections and records each
+     * request line and the auth it carried.
+     */
     private class CountingUpstream(originPort: Int) {
         val connections = AtomicInteger(0)
         val seenAuth = ConcurrentLinkedQueue<String>()
+        val requestLines = ConcurrentLinkedQueue<String>()
         val server: ServerSocket = fakeServer { sock ->
             connections.incrementAndGet()
             val preamble = readPreamble(sock.getInputStream())
+            requestLines.add(preamble.requestLine)
             preamble.headers
                 .filter { it.startsWith("Proxy-Authorization:", true) }
                 .forEach { seenAuth.add(it) }
@@ -643,5 +654,232 @@ class ProxyRelayRouterTest {
         } finally {
             relay.stop()
         }
+    }
+
+    // --- A site on the system default (PROXY-001's DEFAULT, PROXY-013) ---
+
+    /** A route the Dart side encodes for a DEFAULT site. */
+    private fun directRoute(siteId: String) = ProxyRelay.Route(
+        siteId,
+        ProxyRelay.UpstreamConfig(ProxyRelay.UpstreamType.DIRECT, "", 0, null, null),
+    )
+
+    private fun httpProxyAt(port: Int) =
+        Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", port))
+
+    /** A plain-http request in absolute form, as Chromium sends one to a proxy. */
+    private fun getThrough(relay: ProxyRelay, relayPort: Int, credential: String, url: String): String {
+        Socket().use { c ->
+            c.connect(InetSocketAddress(relay.host, relayPort), 3000)
+            c.soTimeout = 5000
+            val host = URI(url).host
+            c.getOutputStream().write(
+                ("GET $url HTTP/1.1\r\nHost: $host\r\n" +
+                    "Proxy-Authorization: Basic $credential\r\n\r\n").toByteArray()
+            )
+            c.getOutputStream().flush()
+            return c.getInputStream().readBytes().toString(Charsets.ISO_8859_1)
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun aDefaultSiteTunnelsThroughTheSystemProxy() {
+        // DEFAULT means the system's proxy settings. With no override the
+        // WebView would CONNECT through the network's proxy, PAC included;
+        // under the router every site arrives here instead, so the relay
+        // has to, or a network that requires a proxy loses every such site.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val system = CountingUpstream(origin.localPort)
+        val asked = ConcurrentLinkedQueue<URI>()
+        val relay = ProxyRelay(systemProxy = { uri -> asked.add(uri); httpProxyAt(system.port) })
+        try {
+            val port = relay.startRouter("5e7e0001")
+            val cred = credential("ws-plain", "token-plain")
+            relay.setRoutes(mapOf(cred to directRoute("plain")))
+
+            val (status, _) = connectThrough(relay, port, cred, host = "origin.test", dstPort = 443)
+
+            assertTrue("expected the tunnel, got: $status", status.contains("200"))
+            assertEquals(listOf("CONNECT origin.test:443 HTTP/1.1"), system.requestLines.toList())
+            assertEquals(listOf(URI("https://origin.test:443")), asked.toList())
+            assertTrue(
+                "the relay's credential must not reach the system proxy: ${system.seenAuth}",
+                system.seenAuth.isEmpty(),
+            )
+        } finally {
+            relay.stop(); system.close(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun aDefaultSiteSendsPlainHttpToTheSystemProxyInAbsoluteForm() {
+        val seen = ConcurrentLinkedQueue<RelayTestSupport.Preamble>()
+        val system = fakeServer { sock ->
+            seen.add(readPreamble(sock.getInputStream()))
+            sock.getOutputStream().write(
+                "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\nviasys".toByteArray()
+            )
+            sock.getOutputStream().flush()
+        }
+        val relay = ProxyRelay(systemProxy = { httpProxyAt(system.localPort) })
+        try {
+            val port = relay.startRouter("5e7e0002")
+            val cred = credential("ws-plain", "token-plain")
+            relay.setRoutes(mapOf(cred to directRoute("plain")))
+
+            val response = getThrough(relay, port, cred, url = "http://origin.test/page?q=1")
+
+            assertTrue(response, response.endsWith("viasys"))
+            val request = seen.single()
+            assertEquals("GET http://origin.test/page?q=1 HTTP/1.1", request.requestLine)
+            assertFalse(
+                "the relay's credential must not reach the system proxy: ${request.headers}",
+                request.headers.any { it.startsWith("Proxy-Authorization:", true) },
+            )
+        } finally {
+            relay.stop(); system.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun aDestinationTheSystemBypassesGoesDirect() {
+        // The bypass list is the system's to apply: what it exempts the
+        // WebView would reach directly, and so does the relay.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\ndirect")
+        val system = CountingUpstream(origin.localPort)
+        val relay = ProxyRelay(systemProxy = { uri ->
+            if (uri.host == "127.0.0.1") Proxy.NO_PROXY else httpProxyAt(system.port)
+        })
+        try {
+            val port = relay.startRouter("5e7e0003")
+            val cred = credential("ws-plain", "token-plain")
+            relay.setRoutes(mapOf(cred to directRoute("plain")))
+
+            assertTrue(
+                connectThrough(relay, port, cred, host = "127.0.0.1", dstPort = origin.localPort)
+                    .first.contains("200"),
+            )
+            assertEquals("a bypassed destination never meets the system proxy", 0, system.connections.get())
+        } finally {
+            relay.stop(); system.close(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun aProxiedSiteReachesItsOwnProxyNotTheSystems() {
+        // An override names the site's proxy and Chromium dials it directly;
+        // chaining it through the system's would route the site somewhere
+        // the user did not pick.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val own = CountingUpstream(origin.localPort)
+        val system = CountingUpstream(origin.localPort)
+        val relay = ProxyRelay(systemProxy = { httpProxyAt(system.port) })
+        try {
+            val port = relay.startRouter("5e7e0004")
+            val cred = credential("ws-a", "token-a")
+            relay.setRoutes(mapOf(cred to ProxyRelay.Route("a", httpUpstream(own.port, null, null))))
+
+            assertTrue(connectThrough(relay, port, cred, host = "origin.test").first.contains("200"))
+            assertEquals(1, own.connections.get())
+            assertEquals(0, system.connections.get())
+        } finally {
+            relay.stop(); own.close(); system.close(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun anOnionHostOnADefaultSiteNeverReachesTheSystemProxy() {
+        // LEAK-016 is the route's, whatever carries it: only Tor resolves an
+        // onion name, and a system proxy would be handed it in clear.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val system = CountingUpstream(origin.localPort)
+        val relay = ProxyRelay(systemProxy = { httpProxyAt(system.port) })
+        try {
+            val port = relay.startRouter("5e7e0005")
+            val cred = credential("ws-plain", "token-plain")
+            relay.setRoutes(mapOf(cred to directRoute("plain")))
+
+            assertTrue(connectThrough(relay, port, cred, host = "forum.onion").first.contains("502"))
+            assertEquals(0, system.connections.get())
+        } finally {
+            relay.stop(); system.close(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun theRelayAsksTheProxySelectorByDefault() {
+        // The plugin builds the relay with no seam, so this is the path the
+        // app runs: the platform keeps ProxySelector in step with the
+        // network's proxy and PAC. Global JVM state, so it is put back.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val system = CountingUpstream(origin.localPort)
+        val previous = ProxySelector.getDefault()
+        ProxySelector.setDefault(object : ProxySelector() {
+            override fun select(uri: URI): List<Proxy> = listOf(httpProxyAt(system.port))
+            override fun connectFailed(uri: URI, sa: SocketAddress, ioe: IOException) {}
+        })
+        val relay = ProxyRelay()
+        try {
+            val port = relay.startRouter("5e7e0006")
+            val cred = credential("ws-plain", "token-plain")
+            relay.setRoutes(mapOf(cred to directRoute("plain")))
+
+            assertTrue(connectThrough(relay, port, cred, host = "origin.test").first.contains("200"))
+            assertEquals(listOf("CONNECT origin.test:443 HTTP/1.1"), system.requestLines.toList())
+        } finally {
+            ProxySelector.setDefault(previous)
+            relay.stop(); system.close(); origin.close()
+        }
+    }
+
+    // --- The listener outlives a failed accept (PROXY-013) ---
+
+    @Test(timeout = 20_000)
+    fun aFailedAcceptDoesNotEndTheRelay() {
+        // Every site's traffic waits on this listener under the router. A
+        // device out of descriptors makes accept() fail for a moment; ending
+        // the loop on it left ProxyController pointing every site at a port
+        // nobody answered, for the rest of the run.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val failures = AtomicInteger(0)
+        val relay = ProxyRelay(
+            systemProxy = { Proxy.NO_PROXY },
+            acceptOne = { server ->
+                if (failures.incrementAndGet() <= 3) throw SocketException("Too many open files")
+                server.accept()
+            },
+        )
+        try {
+            val port = relay.startRouter("acce0001")
+            val cred = credential("ws-plain", "token-plain")
+            relay.setRoutes(mapOf(cred to directRoute("plain")))
+
+            assertTrue(
+                connectThrough(relay, port, cred, host = "127.0.0.1", dstPort = origin.localPort)
+                    .first.contains("200"),
+            )
+            assertTrue("the listener retried past every failure", failures.get() > 3)
+            assertTrue(relay.isRunning())
+        } finally {
+            relay.stop(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun stopEndsTheLoopEvenWhileAcceptsFail() {
+        // The retry is for a bound listener only: once stop() closes it the
+        // loop ends, rather than retrying a socket nobody will reopen.
+        val attempts = AtomicInteger(0)
+        val relay = ProxyRelay(acceptOne = {
+            attempts.incrementAndGet()
+            throw SocketException("Too many open files")
+        })
+        relay.startRouter("acce0002")
+        Thread.sleep(300)
+        relay.stop()
+        Thread.sleep(1_200)
+        val settled = attempts.get()
+        Thread.sleep(1_200)
+        assertEquals("no accept is tried after stop()", settled, attempts.get())
     }
 }

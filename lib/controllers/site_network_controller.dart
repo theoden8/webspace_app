@@ -308,6 +308,11 @@ class SiteNetworkController {
     if (!ProxyRouterService.isSupported(useContainers: _sites.useContainers)) {
       return;
     }
+    final routes = _routeTable();
+    if (!ProxyRouterEngine.anyProxied(routes)) {
+      LogTag.proxy.info('No site is proxied; router mode not started');
+      return;
+    }
     // Apple has no process-wide rule to bind: each container store names the
     // relay through its own `proxyConfigurations` when the WebView is built
     // (PROXY-026), which is already true by the time the probe runs because
@@ -316,7 +321,7 @@ class SiteNetworkController {
     // platform that does not need one.
     final bindsProcessWide = hostIsAndroid;
     await ProxyRouterService.instance.activate(
-      perSiteProxies: _routeTable(),
+      perSiteProxies: routes,
       bindOverride: bindsProcessWide ? ProxyManager().applyRouterOverride : null,
       // PROXY-015: never trust router mode without proving on THIS device
       // that each container presents its own credential.

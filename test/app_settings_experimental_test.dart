@@ -43,8 +43,8 @@ final Uint8List _png64 =
 
 void main() {
   Widget host({
-    bool routerRunsHere = false,
     bool externalTorRunsHere = false,
+    bool proxyRouterRunsHere = false,
     Map<SiteId, TorSiteLabel> torSites = const {},
     List<PickableSearchSite> webSearchSites =
         const [],
@@ -54,8 +54,8 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         home: AppSettingsScreen(
           currentSettings: AppThemeSettings(),
-          proxyRouterRunsHere: routerRunsHere,
           externalTorRunsHere: externalTorRunsHere,
+          proxyRouterRunsHere: proxyRouterRunsHere,
           torSites: torSites,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
@@ -97,6 +97,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       ExperimentalFeaturesService.instance.debugSet(f, on: f.pref.fallback);
     }
     AppPref.externalTor.debugValue = AppPref.externalTor.fallback;
+    AppPref.proxyRouter.debugValue = AppPref.proxyRouter.fallback;
     await TorService.reset();
   });
 
@@ -314,6 +315,56 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     });
   });
 
+  group('Proxy router on the Network screen (PROXY-013)', () {
+    Finder routerSwitch() => find.ancestor(
+        of: find.text('Proxy router'), matching: find.byType(SwitchListTile));
+
+    Future<void> scrollToSwitch(WidgetTester tester) async {
+      await openCategory(tester, title: 'Network');
+      await tester.scrollUntilVisible(find.text('Proxy router'), 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is on by default and turns off with developer mode off',
+        (tester) async {
+      DeveloperModeService.instance.debugSet(on: false);
+      await tester.pumpWidget(host(proxyRouterRunsHere: true));
+      await tester.pumpAndSettle();
+      await scrollToSwitch(tester);
+      expect(tester.widget<SwitchListTile>(routerSwitch()).value, isTrue,
+          reason: 'the router runs by default where the WebView can');
+
+      await tester.tap(routerSwitch());
+      await tester.pumpAndSettle();
+      expect(AppPref.proxyRouter.value, isFalse);
+      expect(tester.widget<SwitchListTile>(routerSwitch()).value, isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('experimentalProxyRouter'), isFalse,
+          reason: 'stored under the key it shipped under as an '
+              'Experimental switch');
+    });
+
+    testWidgets('keeps a choice made under the Experimental switch',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({'experimentalProxyRouter': false});
+      AppPref.loadAll(await SharedPreferences.getInstance());
+      await tester.pumpWidget(host(proxyRouterRunsHere: true));
+      await tester.pumpAndSettle();
+      await scrollToSwitch(tester);
+      expect(tester.widget<SwitchListTile>(routerSwitch()).value, isFalse,
+          reason: 'a user who turned it off in the Experimental group keeps '
+              'it off');
+    });
+
+    testWidgets('is not offered where the router cannot run', (tester) async {
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      await openCategory(tester, title: 'Network');
+      expect(find.text('Proxy router', skipOffstage: false), findsNothing);
+    });
+  });
+
   group('Experimental group (DEVTOOLS-011)', () {
     testWidgets('never offers Tor, even where the runtime exists',
         (tester) async {
@@ -438,32 +489,20 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
           reason: 'tabs are not experimental');
     });
 
-    testWidgets('offers the Proxy router where it could run, on by default',
-        (tester) async {
-      await tester.pumpWidget(host(routerRunsHere: true));
+    testWidgets('Proxy router has no switch (PROXY-013)', (tester) async {
+      await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      final title = find.text('Proxy router');
-      await tester.scrollUntilVisible(title, 400,
+      await tester.scrollUntilVisible(find.text('Experimental'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      // The row is scrolled to the top, so its header sits under the app bar.
-      expect(find.text('Experimental', skipOffstage: false), findsOneWidget);
-
-      final tile =
-          find.ancestor(of: title, matching: find.byType(SwitchListTile));
-      expect(tester.widget<SwitchListTile>(tile).value, isTrue,
-          reason: 'developer mode alone ran the router before the switch');
-      await tester.tap(tile);
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsNothing,
-          reason: 'turning it off only brings back PROXY-008 at next launch');
       expect(
-          ExperimentalFeaturesService.instance
-              .switchOn(ExperimentalFeature.proxyRouter),
-          isFalse);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isFalse);
+          find.ancestor(
+              of: find.text('Proxy router'),
+              matching: find.byType(SwitchListTile)),
+          findsNothing,
+          reason: 'its switch is on the Network screen, with developer mode '
+              'on or off');
     });
 
     testWidgets('Site icons only has no switch (ICON-014)', (tester) async {
@@ -486,7 +525,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
         'favicon_src_https://a.test/': 'https://a.test/icon.png',
         'favicon_svg_https://a.test/icon.svg': '<svg/>',
         'favicon_src_https://b.test/': 'https://b.test/icon.svg',
-        AppPref.experimentalProxyRouter.key: true,
+        AppPref.experimentalTextureRendering.key: true,
       });
       await FaviconUrlCache.initialize();
       final files = MemoryFileStore();
@@ -511,7 +550,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getKeys().where((k) => k.startsWith('favicon_')), isEmpty);
-      expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isTrue,
+      expect(prefs.getBool(AppPref.experimentalTextureRendering.key), isTrue,
           reason: 'only icon entries go');
       expect(SiteIconStore.instance.get('https://a.test/'), isNull);
       expect(await files.list(), isEmpty);

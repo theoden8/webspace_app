@@ -1,13 +1,19 @@
 package org.codeberg.theoden8.webspace.proxy
 
+import java.io.BufferedInputStream
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.ProxySelector
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URI
+import java.net.URISyntaxException
+import java.net.UnknownHostException
 import java.util.concurrent.Executors
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
@@ -36,13 +42,17 @@ import javax.net.ssl.SSLSocketFactory
  *
  * In router mode it additionally fronts every site at once, selecting the
  * upstream from the `Proxy-Authorization` credential the WebView presents
- * (see [startRouter]).
+ * (see [startRouter]). Every site's traffic then waits on this listener, so
+ * it outlives a failed accept (see [acceptLoop]), and a site on the system
+ * default reaches its origin through the system's proxy (see
+ * [throughSystemProxy]).
  *
  * The listener is bound to loopback, which keeps it off the network but not
  * away from the device: every other app with `INTERNET` can reach
  * `127.0.0.1:<port>` too, and this relay answers with the user's upstream
  * credentials attached. Each accepted connection is therefore checked against
- * `/proc/net/tcp{,6}`: the peer's connection appears as a row whose local port
+ * `/proc/net/tcp{,6}`, until the table proves unreadable: the peer's
+ * connection appears as a row whose local port
  * is its own and whose remote port is ours, and field 7 names the UID that owns
  * it. A row owned by anyone but us is another app, and is refused before any
  * upstream connection is opened.
@@ -76,6 +86,15 @@ class ProxyRelay(
      */
     private val ownUid: Int? = null,
     private val peerCheck: ((peerPort: Int, relayPort: Int) -> PeerVerdict)? = null,
+    /**
+     * The proxy Android has for a destination: the network's HTTP proxy, or
+     * the local one a PAC file runs behind, with its bypass list applied.
+     * The default asks [ProxySelector], which the platform keeps in step
+     * with the network; a test passes its own.
+     */
+    private val systemProxy: (URI) -> Proxy = { uri -> systemProxyOf(uri) },
+    /** One accept on the listener; a test passes one that fails. */
+    private val acceptOne: (ServerSocket) -> Socket = { it.accept() },
 ) {
 
     /** Whether an accepted peer is one of this process's own sockets. */
@@ -130,7 +149,7 @@ class ProxyRelay(
     private var boundHost: String = LOOPBACK
     private var acceptThread: Thread? = null
     @Volatile
-    private var peerCheckUnavailableLogged: Boolean = false
+    private var peerCheckUnavailable: Boolean = false
 
     private val pool = Executors.newCachedThreadPool { r ->
         Thread(r, "proxy-relay-worker").apply { isDaemon = true }
@@ -327,18 +346,26 @@ class ProxyRelay(
         return reached.get()
     }
 
+    /**
+     * Serve [socket] until [stop] closes it, and only then. An accept that
+     * fails while the listener is bound (descriptors exhausted, say) is the
+     * device's trouble for a moment; ending the loop on it would leave
+     * `ProxyController` pointing every site at a port nobody answers, for
+     * the rest of the run. So it retries, backing off.
+     */
     private fun acceptLoop(socket: ServerSocket) {
+        var backoffMs = ACCEPT_RETRY_MIN_MS
         while (!socket.isClosed) {
             val client = try {
-                socket.accept()
-            } catch (e: Exception) {
-                // socket.close() from stop() throws SocketException here
-                // and we exit cleanly. Any other exception is worth seeing.
-                if (!socket.isClosed) {
-                    log("accept loop ended with ${e.javaClass.simpleName}: ${e.message}")
-                }
-                break
+                acceptOne(socket)
+            } catch (e: IOException) {
+                if (socket.isClosed) break
+                log("accept failed (${e.javaClass.simpleName}: ${e.message}); retrying in ${backoffMs}ms")
+                Thread.sleep(backoffMs)
+                backoffMs = minOf(backoffMs * 2, ACCEPT_RETRY_MAX_MS)
+                continue
             }
+            backoffMs = ACCEPT_RETRY_MIN_MS
             if (config == null && routerRealm == null) {
                 runCatching { client.close() }
                 continue
@@ -362,9 +389,11 @@ class ProxyRelay(
 
     /**
      * Gate an accepted connection on the peer being one of our own sockets.
-     * An unverifiable verdict is logged once per relay, not per connection.
+     * An unreadable table (API 29+) is read once per relay, not once per
+     * connection: it stays unreadable, and the verdict is logged once.
      */
     private fun peerAllowed(peerPort: Int): Boolean {
+        if (peerCheckUnavailable) return true
         val check: (Int, Int) -> PeerVerdict =
             peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid) }
         return when (check(peerPort, boundPort)) {
@@ -374,10 +403,8 @@ class ProxyRelay(
                 false
             }
             PeerVerdict.UNKNOWN -> {
-                if (!peerCheckUnavailableLogged) {
-                    peerCheckUnavailableLogged = true
-                    log("peer ownership unverifiable (/proc/net/tcp unreadable); accepting local connections")
-                }
+                peerCheckUnavailable = true
+                log("peer ownership unverifiable (/proc/net/tcp unreadable); accepting local connections")
                 true
             }
         }
@@ -385,7 +412,10 @@ class ProxyRelay(
 
     private fun handle(client: Socket) {
         client.soTimeout = HANDSHAKE_TIMEOUT_MS
-        val cin = client.getInputStream()
+        // One buffer for the connection's life: the preamble is read a byte
+        // at a time, and whatever the buffer took past it (a request body)
+        // is spliced from the same stream.
+        val cin = BufferedInputStream(client.getInputStream())
         val cout = client.getOutputStream()
 
         val preamble = readPreamble(cin) ?: return
@@ -443,29 +473,29 @@ class ProxyRelay(
             return
         }
 
-        log("upstream connecting via ${cfg.type} ${cfg.host}:${cfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
+        val upstreamCfg = throughSystemProxy(cfg, host = host, port = hostPort, isConnect = isConnect)
+        log("upstream connecting via ${upstreamCfg.type} ${upstreamCfg.host}:${upstreamCfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
         // A CONNECT through SOCKS5 is answered before the upstream is reached.
         // Chromium on Android gives a proxy tunnel 10 s and the TLS handshake
         // after it 30 s, and tor attaching a stream to a fresh circuit takes
         // longer than the first. What the client sends meanwhile waits in the
         // socket until the splice reads it; a failure closes the connection,
         // so nothing leaves except through the upstream.
-        val establishedEarly = isConnect && cfg.type == UpstreamType.SOCKS5
+        val establishedEarly = isConnect && upstreamCfg.type == UpstreamType.SOCKS5
         if (establishedEarly) writeEstablished(cout)
         val upstream: Socket = try {
-            when (cfg.type) {
+            when (upstreamCfg.type) {
                 UpstreamType.DIRECT -> openDirect(host, hostPort)
-                UpstreamType.SOCKS5 -> openViaSocks5(cfg, host, hostPort)
+                UpstreamType.SOCKS5 -> openViaSocks5(upstreamCfg, host, hostPort)
                 UpstreamType.HTTP, UpstreamType.HTTPS ->
-                    openViaHttpProxy(cfg, host, hostPort, isConnect)
+                    openViaHttpProxy(upstreamCfg, host, hostPort, isConnect)
             }
         } catch (e: Exception) {
             val answer = if (establishedEarly) "closing the tunnel" else "sending 502"
-            log("upstream connect FAILED for $host:$hostPort via ${cfg.type}: ${e.javaClass.simpleName}: ${e.message} — $answer")
+            log("upstream connect FAILED for $host:$hostPort via ${upstreamCfg.type}: ${e.javaClass.simpleName}: ${e.message} — $answer")
             if (!establishedEarly) writeStatus(cout, 502, "Bad Gateway")
             return
         }
-        log("upstream connected for $host:$hostPort")
 
         try {
             if (isConnect) {
@@ -477,10 +507,10 @@ class ProxyRelay(
                 // the upstream, then splice. SOCKS gives an origin tunnel
                 // (origin-form path, no proxy auth header); an HTTP proxy
                 // wants the absolute-form line plus Proxy-Authorization.
-                val rewritten = if (cfg.type != UpstreamType.HTTP && cfg.type != UpstreamType.HTTPS) {
+                val rewritten = if (upstreamCfg.type != UpstreamType.HTTP && upstreamCfg.type != UpstreamType.HTTPS) {
                     rewriteForOriginTunnel(requestLine, target, headers)
                 } else {
-                    rewriteForHttpProxy(requestLine, headers, cfg)
+                    rewriteForHttpProxy(requestLine, headers, upstreamCfg)
                 }
                 upstream.getOutputStream().write(rewritten.toByteArray(Charsets.ISO_8859_1))
                 upstream.getOutputStream().flush()
@@ -488,16 +518,59 @@ class ProxyRelay(
             // Switch to indefinite blocking for the splice phase.
             client.soTimeout = 0
             upstream.soTimeout = 0
-            pump(client, upstream)
+            pump(client, cin, upstream)
         } finally {
             runCatching { upstream.close() }
         }
     }
 
+    /**
+     * What a [UpstreamType.DIRECT] route connects through: the system's
+     * proxy for this destination where Android has one, as the WebView
+     * would with no override (PROXY-001's DEFAULT), else nothing. Never
+     * with this relay's credential, which the rewrite strips. A host a URI
+     * cannot carry (an underscore, say) is asked about as one no bypass
+     * list names, so it errs toward the proxy.
+     */
+    private fun throughSystemProxy(
+        cfg: UpstreamConfig,
+        host: String,
+        port: Int,
+        isConnect: Boolean,
+    ): UpstreamConfig {
+        if (cfg.type != UpstreamType.DIRECT) return cfg
+        val scheme = if (isConnect) "https" else "http"
+        val uri = try {
+            URI(scheme, null, host, port, null, null, null)
+        } catch (e: URISyntaxException) {
+            URI(scheme, null, UNNAMED_HOST, port, null, null, null)
+        }
+        val proxy = systemProxy(uri)
+        val address = proxy.address() as? InetSocketAddress ?: return cfg
+        val type = when (proxy.type()) {
+            Proxy.Type.HTTP -> UpstreamType.HTTP
+            Proxy.Type.SOCKS -> UpstreamType.SOCKS5
+            Proxy.Type.DIRECT, null -> return cfg
+        }
+        return UpstreamConfig(type, address.hostString, address.port, null, null)
+    }
+
     private fun openDirect(host: String, port: Int): Socket {
-        val s = Socket()
-        s.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
-        return s
+        // Every address the name resolves to, in order: a dual-stack host
+        // whose first family is unreachable still connects on the next, as
+        // it does from Chromium's own stack.
+        var failure: IOException? = null
+        for (address in InetAddress.getAllByName(host)) {
+            val s = Socket()
+            try {
+                s.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
+                return s
+            } catch (e: IOException) {
+                runCatching { s.close() }
+                failure = e
+            }
+        }
+        throw failure ?: UnknownHostException(host)
     }
 
     // --- Upstream: SOCKS5 (with optional RFC 1929 username/password) ---
@@ -679,9 +752,9 @@ class ProxyRelay(
 
     // --- Byte plumbing ---
 
-    private fun pump(a: Socket, b: Socket) {
+    private fun pump(a: Socket, aIn: InputStream, b: Socket) {
         val ab = pool.submit {
-            runCatching { copy(a.getInputStream(), b.getOutputStream()) }
+            runCatching { copy(aIn, b.getOutputStream()) }
             runCatching { a.shutdownInput() }
             runCatching { b.shutdownOutput() }
         }
@@ -755,7 +828,6 @@ class ProxyRelay(
             writeStatus(cout, 502, "Bad Gateway")
             return null
         }
-        log("routing site ${route.siteId}")
         return route
     }
 
@@ -897,6 +969,13 @@ class ProxyRelay(
             return address.substring(sep + 1).toIntOrNull(16)
         }
 
+        /** The proxy [ProxySelector] names for [uri], or none. */
+        fun systemProxyOf(uri: URI): Proxy =
+            ProxySelector.getDefault()?.select(uri)?.firstOrNull() ?: Proxy.NO_PROXY
+
+        private const val UNNAMED_HOST = "unnamed.invalid"
+        private const val ACCEPT_RETRY_MIN_MS = 10L
+        private const val ACCEPT_RETRY_MAX_MS = 1_000L
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
 

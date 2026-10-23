@@ -86,29 +86,28 @@ void main() {
             'blocker runs, so only Linux still reads this gate (DEVTOOLS-011)');
   });
 
-  test('the proxy router defaults on, so developer mode alone keeps it',
-      () async {
-    await ExperimentalFeaturesService.instance.initialize();
-    DeveloperModeService.instance.debugSet(on: true);
+  test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
+      () {
     expect(
-        ExperimentalFeaturesService.instance
-            .isEnabled(ExperimentalFeature.proxyRouter),
-        isTrue);
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalProxyRouter')),
+        reason: 'a graduated feature removes its switch and stops reading '
+            'this gate (DEVTOOLS-011)');
   });
 
   test('a switch persists and is read back', () async {
     await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.proxyRouter, on: false);
+        .setSwitch(ExperimentalFeature.textureRendering, on: true);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isFalse);
+    expect(prefs.getBool(AppPref.experimentalTextureRendering.key), isTrue);
 
     ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.proxyRouter, on: true);
+        .debugSet(ExperimentalFeature.textureRendering, on: false);
     await ExperimentalFeaturesService.instance.initialize();
     expect(
         ExperimentalFeaturesService.instance
-            .switchOn(ExperimentalFeature.proxyRouter),
-        isFalse);
+            .switchOn(ExperimentalFeature.textureRendering),
+        isTrue);
   });
 
   test('folder library defaults off and persists its opt-in', () async {
@@ -124,11 +123,12 @@ void main() {
   });
 
   test('a wrong-typed stored value reads as the default', () async {
-    SharedPreferences.setMockInitialValues({AppPref.experimentalProxyRouter.key: 'yes'});
+    SharedPreferences.setMockInitialValues(
+        {AppPref.experimentalTextureRendering.key: 'yes'});
     await ExperimentalFeaturesService.instance.initialize();
     expect(
         ExperimentalFeaturesService.instance
-            .switchOn(ExperimentalFeature.proxyRouter),
-        isTrue);
+            .switchOn(ExperimentalFeature.textureRendering),
+        isFalse);
   });
 }

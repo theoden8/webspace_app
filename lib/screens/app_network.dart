@@ -12,6 +12,7 @@ import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -57,6 +58,7 @@ class AppNetworkScreen extends StatefulWidget {
     this.siteProxies,
     this.onSavedProxiesChanged,
     this.externalTorRunsHere = false,
+    this.proxyRouterRunsHere = false,
   });
 
   /// The sites the Tor status screen may list as using Tor.
@@ -66,6 +68,11 @@ class AppNetworkScreen extends StatefulWidget {
   /// screen lists Tor (external) (TOR-025). Passed in so the design gallery,
   /// which runs on web, can show it.
   final bool externalTorRunsHere;
+
+  /// Whether this device could run the per-site proxy router, so the screen
+  /// lists its switch (PROXY-013). Passed in because the answer needs the
+  /// container engine the app resolved at startup.
+  final bool proxyRouterRunsHere;
 
   /// Fired after the global outbound proxy is updated. Parent should
   /// dispose every loaded webview so the next render re-applies the new
@@ -365,6 +372,13 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                     ),
                   )),
             ),
+            if (widget.proxyRouterRunsHere)
+              SettingTile(
+                leading: const Icon(Icons.hub_outlined),
+                title: loc.appSettingsProxyRouter,
+                hint: loc.appSettingsProxyRouterHint,
+                control: const PrefToggle(AppPref.proxyRouter),
+              ),
             if (widget.externalTorRunsHere) ...[
               SettingsSection(loc.torStatusTitle),
               // The dropdowns above name and offer Tor by the tor it picks.

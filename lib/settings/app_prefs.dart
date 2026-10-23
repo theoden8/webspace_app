@@ -65,10 +65,12 @@ enum AppPref<T extends Object> {
   // Unlocked by tapping the version row seven times. Gates affordances that
   // only make sense while diagnosing the app.
   developerMode('developerMode', fallback: false),
-  // DEVTOOLS-011: the Experimental switches. The proxy router is on so
-  // developer mode alone keeps running it for a user who had it before the
-  // switch existed; the rest are new, so off.
-  experimentalProxyRouter('experimentalProxyRouter', fallback: true),
+  // PROXY-013: the per-site proxy router, where the WebView can run it. The
+  // key keeps the name it shipped under as an Experimental switch, so a user
+  // who turned it off there keeps it off.
+  proxyRouter('experimentalProxyRouter', fallback: true),
+  // DEVTOOLS-011: the Experimental switches, each new when it was added, so
+  // off.
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
   experimentalContentRuleLists('experimentalContentRuleLists', fallback: false),
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),

@@ -779,40 +779,69 @@ session every site would present the first site's credential. Where the
 gate fails, PROXY-008 applies unchanged. The gate is per device; whether a
 given site actually receives a profile is PROXY-018.
 
-Router mode SHALL additionally be gated on its experimental switch
-(DEVTOOLS-011): developer mode and the **Proxy router** switch, so the
-shipped default on every device is PROXY-008. The switch defaults on, so
-developer mode alone keeps running the router for a user who had it. The
-premise the feature rests on is read off Chromium's source and proven at
-runtime by the PROXY-015 probe, but so far only on WebView builds that pass
-it: no device that fails the probe has exercised the fallback, and the one
-defect that made the relay never bind at all was invisible to every test
-tier. Both gates are read once, at activation, so flipping developer mode or
-the switch applies at next launch rather than tearing a bound relay out from
-under loaded sites. The gate is temporary and SHALL be lifted once the
-fallback has been exercised on hardware that fails the probe.
+Router mode SHALL be offered with developer mode on or off, and SHALL run
+only while the **Proxy router** switch in App settings > Network is on. The
+switch is on by default and is listed only where router mode could run;
+off, mismatched-proxy sites serialise under PROXY-008. It shipped as an
+Experimental switch behind developer mode (DEVTOOLS-011) while the premise
+the router rests on, read off Chromium's source and proven at runtime by
+the PROXY-015 probe, had been exercised on WebView builds that pass the
+probe only. It keeps the pref it shipped under (`experimentalProxyRouter`),
+so a user who turned it off there keeps it off. The switch and the
+`MULTI_PROFILE` gate are read once, at activation, so router mode is never
+torn out from under loaded sites; a flip applies at next launch.
 
-#### Scenario: The default install does not engage router mode
+A DEFAULT site SHALL reach its origin the way the WebView reaches it with
+no override (PROXY-001): through the proxy Android reports for that
+destination, the network's HTTP proxy or the local one a PAC file runs
+behind, with the system's bypass list applied, and directly only where the
+system names none. The relay's own credential SHALL NOT reach that proxy.
+A site with a proxy of its own reaches it directly, never through the
+system's.
+
+Every site's traffic waits on the relay's listener while router mode runs,
+so the listener SHALL outlive a failed accept: an accept that fails while
+it is bound (descriptors exhausted, say) is retried with a backoff, and the
+loop ends only when the relay is stopped.
+
+Router mode SHALL start only where some route resolves to a proxy: a
+site's own, the app-wide one a DEFAULT site inherits (PROXY-009), or Tor.
+With every route direct, the relay would carry every connection and the
+PROXY-015 probe would hold the launch for a result PROXY-008 already
+gives, so neither runs. Decided once, at activation, with the gates above:
+a proxy configured later applies under PROXY-008 until the next launch.
+
+#### Scenario: The default install engages router mode
 
 **Given** an Android device whose WebView reports `MULTI_PROFILE`
 **And** developer mode is off
+**And** some site has a proxy
 **When** the app starts
-**Then** router mode does not activate
-**And** no relay is bound
-**And** mismatched-proxy sites serialise under PROXY-008
+**Then** the relay is bound and every site's container is probed (PROXY-015)
+**And** router mode activates once each probe is attributed
+**And** the Proxy router switch is on the Network screen, on, and not in the
+Experimental group
 
-#### Scenario: The switch off keeps PROXY-008 with developer mode on
+#### Scenario: The switch off keeps PROXY-008
 
 **Given** an Android device whose WebView reports `MULTI_PROFILE`
-**And** developer mode is on and the Proxy router switch is off
+**And** the user turned the Proxy router switch off, here or in the
+Experimental group of an earlier release
 **When** the app starts
 **Then** router mode does not activate
 **And** mismatched-proxy sites serialise under PROXY-008
+
+#### Scenario: No proxy anywhere binds no relay
+
+**Given** an Android device whose WebView reports `MULTI_PROFILE`
+**And** no site has a proxy, the app-wide proxy is unset and no site is on Tor
+**When** the app starts
+**Then** no relay is bound and no container is probed
+**And** a proxy set on a site afterwards applies under PROXY-008 until the next launch
 
 #### Scenario: Two same-domain sites with different proxies stay loaded
 
 **Given** container mode is active on Android
-**And** developer mode and the Proxy router switch are on
 **And** Site A (`accountA.example.com`) uses SOCKS5 `127.0.0.1:9050`
 **And** Site B (`accountB.example.com`) uses HTTP `10.0.0.1:8080`
 **When** the user activates Site B while Site A is loaded
@@ -833,7 +862,18 @@ fallback has been exercised on hardware that fails the probe.
 **And** Site C has proxy type `DEFAULT` and no app-global proxy is set
 **When** Site C loads
 **Then** its traffic arrives at the relay like every other site's
-**And** the relay opens a direct connection to the origin for it
+**And** where the network has a proxy, the relay tunnels through it, or
+forwards plain http to it in absolute form, without the relay's credential
+**And** a destination the system's bypass list names, or any destination
+where the network has no proxy, gets a direct connection
+**And** an onion host is refused before any proxy is asked (LEAK-016)
+
+#### Scenario: A failed accept does not end the relay
+
+**Given** router mode is active
+**When** the listener's accept fails while it is bound
+**Then** the relay retries it with a backoff and serves the next connection
+**And** only stopping the relay ends the loop
 
 #### Scenario: A deleted site's credential stops routing
 
@@ -1156,6 +1196,10 @@ carried which nonce. Router mode SHALL be activated only if every site's
 nonce comes back attributed to that same site; a mismatched pair, a
 missing pair, or a probe that fails to run SHALL each prevent activation
 and fall back to PROXY-008.
+
+Containers are probed a few at a time, neither all at once nor one after
+another: a launch with many sites waits about one probe rather than one per
+site, and does not build a headless view for every site at the same moment.
 
 This exists because the failure it detects is otherwise invisible.
 Chromium caches a proxy credential per `HttpNetworkSession` and does not
@@ -1604,7 +1648,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
-| Android  | Full (per-site, serialised) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; data model is genuinely per-site, but mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
+| Android  | Full (per-site; concurrent under router mode, serialised without `MULTI_PROFILE`) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton, pointed at the loopback relay where the WebView reports `MULTI_PROFILE` (PROXY-013); elsewhere mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
 | iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; removing a site's proxy clears it through `ProxyController(containerId:)` (PROXY-029); below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
 | macOS    | Full (per-site, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
 | Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |

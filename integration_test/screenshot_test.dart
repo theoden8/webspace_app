@@ -135,8 +135,8 @@ final _androidTextureMode = <String, Object>{
   // Through the gate main() reads (DEVTOOLS-011); developer mode adds nothing to the four screens shot.
   AppPref.developerMode.key: true,
   AppPref.experimentalTextureRendering.key: true,
-  // Developer mode would also start the proxy router; the run stays on PROXY-008.
-  AppPref.experimentalProxyRouter.key: false,
+  // The run stays on PROXY-008 whatever its sites' proxies.
+  AppPref.proxyRouter.key: false,
 };
 
 /// A PNG's pixel size, read from its IHDR chunk.

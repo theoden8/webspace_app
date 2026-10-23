@@ -1536,14 +1536,6 @@
   "@appSettingsExperimentalHint": {
     "description": "Explanation behind the hint button of the Experimental heading in App settings > Developer."
   },
-  "appSettingsExperimentalProxyRouter": "Proxy router",
-  "@appSettingsExperimentalProxyRouter": {
-    "description": "Switch in App settings > Developer > Experimental, shown on Android only, that allows the per-site proxy router: sites set to different proxies can stay open at the same time."
-  },
-  "appSettingsExperimentalProxyRouterHint": "On Android one proxy setting covers the whole app, so opening a site with a different proxy closes the sites that use another one. The router keeps them all open: a relay inside the app sends each site's traffic to that site's own proxy. At every start it checks on this device that each site's traffic is told apart, and closes sites as before if the check fails. Experimental: it has been tried on few devices. Takes effect the next time the app starts.",
-  "@appSettingsExperimentalProxyRouterHint": {
-    "description": "Explanation behind the hint button of the Proxy router switch in App settings > Developer > Experimental. 'Closes the sites' means the app unloads those sites' pages."
-  },
   "appSettingsResetIconCache": "Reset icon cache",
   "@appSettingsResetIconCache": {
     "description": "Row in App settings, shown only while Developer mode is on, that forgets every site icon the app has kept so they are fetched again. Short label."
@@ -4083,6 +4075,14 @@
   "appSettingsOutboundProxyHint": "Proxy applied to every Dart-side network call the app makes — DNS blocklist downloads, ClearURLs rules, content blocker rules, LocalCDN catalog, favicon lookups (site parsing) and OSM map tiles in the location picker.\n\nPer-site proxy precedence: a site whose Proxy Type is DEFAULT inherits this proxy; explicit per-site HTTP/HTTPS/SOCKS5 overrides win.\n\nSOCKS5 cannot be tunneled through Dart-side HTTP. When SOCKS5 is selected, app-level fetches fail-closed instead of leaking the device IP via a direct fallback. Webview navigation still uses SOCKS5 normally on Android/iOS.",
   "@appSettingsOutboundProxyHint": {
     "description": "Info dialog explaining the app-wide outbound proxy: which app-level network calls it covers, how per-site proxy settings take precedence, and why SOCKS5 app-level fetches fail closed rather than leaking the device IP."
+  },
+  "appSettingsProxyRouter": "Proxy router",
+  "@appSettingsProxyRouter": {
+    "description": "Switch in App settings > Network, shown on Android where the WebView gives each site a container of its own. On, sites set to different proxies stay open at the same time; off, opening one closes the others. On by default."
+  },
+  "appSettingsProxyRouterHint": "On Android one proxy setting covers the whole app, so opening a site with a different proxy closes the sites that use another one. The router keeps them all open: a relay inside the app sends each site's traffic to that site's own proxy. At every start it checks on this device that each site's traffic is told apart, and closes sites as before if the check fails. Takes effect the next time the app starts.",
+  "@appSettingsProxyRouterHint": {
+    "description": "Explanation behind the hint button of the Proxy router switch in App settings > Network. 'Closes the sites' means the app unloads those sites' pages."
   },
   "appSettingsLocationPickerHint": "The tile URL used by the per-site location picker. No tiles are fetched unless the user taps \"Load map\" on the picker itself — the app never makes background requests to this provider. The z, x, and y placeholders are substituted with OSM tile coordinates. Defaults to OpenStreetMap; swap for any OSM-compatible provider (MapTiler, CartoDB, a self-hosted server, etc.).",
   "@appSettingsLocationPickerHint": {
