@@ -62,15 +62,6 @@ min_obligations() {
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
     activation_tables_proof.tla) echo 341 ;;
-    activation_tables_1_proof.tla) echo 171 ;;
-    activation_tables_2_proof.tla) echo 136 ;;
-    activation_tables_3_proof.tla) echo 329 ;;
-    activation_tables_4_proof.tla) echo 315 ;;
-    activation_tables_5_proof.tla) echo 151 ;;
-    activation_tables_6_proof.tla) echo 171 ;;
-    activation_tables_7_proof.tla) echo 141 ;;
-    activation_tables_8_proof.tla) echo 111 ;;
-    activation_tables_9_proof.tla) echo 48 ;;
     activation_invariants_proof.tla) echo 317 ;;
     activation_types_proof.tla) echo 100 ;;
     activation_facts_vars_proof.tla) echo 68 ;;
@@ -82,7 +73,8 @@ min_obligations() {
     activation_supports_steps_proof.tla) echo 184 ;;
     # The tables' typing, held and supports modules are as many as their
     # rows need, so they are not pinned by name; formal/levels.tsv holds
-    # the sum of them all.
+    # the sum of them all. The tables' step modules are pinned by their sum
+    # (TABLE_PARTS below).
     containers_disjoint.tla)   echo 39 ;;
     current_loaded.tla)        echo 52 ;;
     jar_matches.tla)           echo 52 ;;
@@ -97,6 +89,11 @@ min_obligations() {
     *)                         echo 1  ;;
   esac
 }
+
+# The tables' step modules (activation_tables_<n>_proof) take eight steps each
+# in the tables' order, so a step added before others moves them to the next
+# module: their sum is pinned, which a new step only raises.
+TABLE_PARTS=1573
 
 # tlapm takes a lemma of an extended module as given, so the printed proofs
 # (activation_tables_proof, the tables' cases of activation_turns) are checked here
@@ -156,6 +153,11 @@ if [ -e "$work/again" ]; then
   while read -r f; do check "$f" again </dev/null; done <"$work/again"
 fi
 ok=1
+parts=0
+for f in "$FORMAL_MODEL"/activation_tables_[0-9]*_proof.tla; do
+  n="$(sed -nE 's/^  OK: ([0-9]+) obligations.*/\1/p' "$work/$(basename "$f").out")"
+  parts=$((parts + ${n:-0}))
+done
 for f in *.tla "$FORMAL_MODEL"/*_proof.tla; do
   name="$(basename "$f")"
   echo "── $name ──"
@@ -165,5 +167,14 @@ for f in *.tla "$FORMAL_MODEL"/*_proof.tla; do
     ok=0
   fi
 done
+echo "── the tables' step modules ──"
+if [ "$parts" -ge "$TABLE_PARTS" ]; then
+  echo "  OK: $parts obligations in all (>= $TABLE_PARTS)"
+else
+  short="  FAIL: the tables' step modules proved only $parts obligations, expected >= $TABLE_PARTS"
+  echo "$short"
+  echo "$short" >&2
+  ok=0
+fi
 [ "$ok" = 1 ] || exit 1
 echo "All TLAPS proofs checked."
