@@ -800,6 +800,8 @@
   "siteSettingsLetterboxSubtitle": "在置中、依尺寸分組的方框中顯示頁面（類似 Tor Browser），以減少基於螢幕尺寸的指紋追蹤",
   "siteSettingsLetterboxAutoHint": "auto",
   "appSettingsOutboundProxyHint": "代理伺服器套用於應用程式發出的所有 Dart 端網路請求——DNS 封鎖清單下載、ClearURLs 規則、內容封鎖器規則、LocalCDN 目錄、網站圖示查詢（網站解析）以及位置選擇器中的 OSM 地圖圖磚。\n\n逐站代理優先順序：代理類型設為 DEFAULT 的網站繼承此代理；明確的逐站 HTTP/HTTPS/SOCKS5 設定優先。\n\nSOCKS5 無法透過 Dart 端 HTTP 建立隧道。選擇 SOCKS5 時，應用程式層級的請求會直接失敗，而非透過直連後備洩漏裝置 IP。Webview 導航在 Android/iOS 上仍可正常使用 SOCKS5。",
+  "appSettingsProxyRouter": "代理路由器",
+  "appSettingsProxyRouterHint": "在 Android 上，一項代理設定會套用到整個應用程式，因此開啟使用不同代理的網站時，會關閉使用其他代理的網站。路由器能讓它們全部保持開啟：應用程式內的中繼會將每個網站的流量送往該網站自己的代理。每次啟動時，它會在這部裝置上檢查能否區分各網站的流量；若檢查失敗，則照舊關閉網站。下次啟動應用程式時生效。",
   "appSettingsLocationPickerHint": "逐站位置選擇器使用的圖磚網址。只有在使用者在選擇器中點選「載入地圖」時才會擷取圖磚——應用程式不會向此供應者發送背景請求。z、x、y 佔位符會替換為 OSM 圖磚座標。預設為 OpenStreetMap；可替換為任何相容 OSM 的供應者（MapTiler、CartoDB、自架伺服器等）。",
   "appSettingsTimezonePolygonsHint": "下載 IANA 時區邊界的 GeoJSON 資料集（約 ~10–60 MB），讓逐站設定提供「依選定位置」時區選項，自動解析您偽造座標所在的 IANA 時區。僅在需要時下載（此按鈕）；保存在應用程式私有儲存空間，直到您清除為止。預設來源：timezone-boundary-builder GitHub Releases。點選「清除」以刪除。",
   "appSettingsTrustedCertificatesHint": "當網站出示自簽署或其他不受信任的 TLS 憑證，且您在提示中點選「信任此網站」時，憑證指紋會在此固定。只要該主機提供相同的憑證，後續造訪即可靜默載入。開啟此畫面以檢視或撤銷任何已固定的憑證。",
