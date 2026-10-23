@@ -118,6 +118,8 @@ class MainActivity: FlutterActivity() {
                         ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher)
                     pinShortcut(siteShortcut(shortcutId, siteId, label, icon), result)
                 }
+                "canPinShortcuts" ->
+                    result.success(ShortcutManagerCompat.isRequestPinShortcutSupported(this))
                 "removeShortcut" -> {
                     val siteId = call.argument<String>("siteId")
                     if (siteId != null) {

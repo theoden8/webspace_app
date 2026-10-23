@@ -14,7 +14,8 @@
 //                    left, tabs on or off; with Always open Home, at initUrl
 //   HS-005 / HS-004  "Home Shortcut" hidden while a tile opens the site, shown
 //                    for a site none opens, hidden for a site a tile pinned
-//                    by an earlier version was rebound to
+//                    by an earlier version was rebound to, hidden where the
+//                    launcher cannot pin
 //   HS-001 / HS-012  tapping the item pins a tile with a fresh shortcut id
 //                    (HS-017) and records the site's url in the ledger
 //   HS-015           a refused pin says so; each pin carries a fresh id
@@ -94,6 +95,9 @@ void main() {
   var pinned = <String, String>{};
   // Whether requestPinShortcut opens its dialog or throws.
   var pinFails = false;
+  // Whether the launcher takes pinned shortcuts at all; a TV launcher does
+  // not.
+  var launcherPins = true;
   final calls = <MethodCall>[];
 
   setUpAll(() async {
@@ -135,6 +139,8 @@ void main() {
                 for (final MapEntry(:key, :value) in pinned.entries)
                   {'shortcutId': key, 'siteId': value},
               ];
+            case 'canPinShortcuts':
+              return launcherPins;
             case 'pinShortcut':
               if (pinFails) throw PlatformException(code: 'ERROR');
               final args = call.arguments as Map;
@@ -204,6 +210,7 @@ void main() {
     });
     pinned = {...pinnedTiles};
     pinFails = false;
+    launcherPins = true;
     calls.clear();
     pendingLaunch = launch;
   }
@@ -498,6 +505,30 @@ Future<void> tapDialogButton(WidgetTester tester,
           reason:
               'the site already has a pinned tile, so pinning a second '
               'one must not be offered',
+        );
+      });
+    },
+    skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  testWidgets(
+    'the Home Shortcut item hides where the launcher cannot pin (HS-004)',
+    (tester) async {
+      seed(sites: [siteA(), siteB()], launch: (tile: 'tile_old', site: 'ws-hs-a'));
+      launcherPins = false;
+      await withApp(tester, body: () async {
+        await pumpUntil(
+          tester,
+          predicate: () => siteIsMounted('ws-hs-a'),
+          description: 'the launched site to activate',
+        );
+
+        await openOverflowMenu(tester);
+        expect(
+          find.text('Home Shortcut'),
+          findsNothing,
+          reason: 'a pin the launcher refuses is not offered',
         );
       });
     },

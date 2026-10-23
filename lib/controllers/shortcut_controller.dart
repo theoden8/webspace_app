@@ -98,9 +98,9 @@ class ShortcutController implements HomeShortcutsHost {
   /// (HS-017), as the launcher last reported them.
   Map<ShortcutId, SiteId> _pinned = const {};
 
-  /// HS-006/007: iOS 16+ / macOS 13+ expose shortcuts via App Intents.
-  /// Probed once so the menu renders synchronously.
-  bool _appIntentsSupported = false;
+  /// HS-004: whether this device can add a home shortcut. Probed once so the
+  /// menu renders synchronously.
+  bool _canAddShortcuts = false;
 
   /// HS-011 (Android): a pinned tile's intent names only a siteId, which is
   /// opaque once its site is deleted, so `siteId -> url` is kept for the
@@ -164,29 +164,26 @@ class ShortcutController implements HomeShortcutsHost {
     _tombstones = _decodeTombstones(prefs.getString(_kTombstonesKey));
   }
 
-  Future<void> probeAppIntents() async {
-    final supported = await ShortcutService.isAppIntentsSupported();
-    if (!_host.mounted || supported == _appIntentsSupported) return;
-    _appIntentsSupported = supported;
+  Future<void> probeSupport() async {
+    final supported = await ShortcutService.canAddShortcuts();
+    if (!_host.mounted || supported == _canAddShortcuts) return;
+    _canAddShortcuts = supported;
     _host.rebuild();
   }
 
-  /// HS-004 / HS-005: whether the menu offers a shortcut for [model]. Android
-  /// hides it while a pinned tile opens the site; iOS 16+ / macOS 13+ always
-  /// offer it (no API reports a pin); elsewhere there is no shortcut.
+  /// HS-004 / HS-005: whether the menu offers a shortcut for [model]: never
+  /// where the device cannot add one, on Android not while a pinned tile opens
+  /// the site, on iOS 16+ / macOS 13+ always (no API reports a pin).
   bool offersShortcutFor(WebViewModel model) {
     // ARCH-006: an OS-level shortcut would name an archived site.
-    if (model.isArchiveTier) return false;
-    if (hostIsAndroid) {
-      return ShortcutPinState.tilesReaching(
-        siteId: model.siteId,
-        pinned: _pinned,
-        rememberedRemap: _remap,
-        models: _sites.models,
-      ).isEmpty;
-    }
-    if (hostIsIOS || hostIsMacOS) return _appIntentsSupported;
-    return false;
+    if (model.isArchiveTier || !_canAddShortcuts) return false;
+    if (!hostIsAndroid) return true;
+    return ShortcutPinState.tilesReaching(
+      siteId: model.siteId,
+      pinned: _pinned,
+      rememberedRemap: _remap,
+      models: _sites.models,
+    ).isEmpty;
   }
 
   /// The "Home Shortcut" menu item. Android pins directly; iOS and macOS go
@@ -220,7 +217,7 @@ class ShortcutController implements HomeShortcutsHost {
       }
       return;
     }
-    if (!(hostIsIOS || hostIsMacOS) || !_appIntentsSupported) return;
+    if (!(hostIsIOS || hostIsMacOS) || !_canAddShortcuts) return;
     if (hostIsIOS) {
       await _prompts.explainIosShortcut(model.name);
       return;
