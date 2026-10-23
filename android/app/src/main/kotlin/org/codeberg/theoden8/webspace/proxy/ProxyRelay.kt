@@ -117,6 +117,13 @@ class ProxyRelay(
         val port: Int,
         val username: String?,
         val password: String?,
+        /**
+         * Answer a SOCKS5 `CONNECT` before the upstream replies. Only tor
+         * needs it: attaching a stream to a fresh circuit can outlast the
+         * 10 s Chromium gives a proxy tunnel. Any other SOCKS5 proxy is
+         * answered after its reply, so its failure is a `502`.
+         */
+        val answersEarly: Boolean = false,
     ) {
         val hasCredentials: Boolean
             get() = !username.isNullOrEmpty() && !password.isNullOrEmpty()
@@ -475,13 +482,14 @@ class ProxyRelay(
 
         val upstreamCfg = throughSystemProxy(cfg, host = host, port = hostPort, isConnect = isConnect)
         log("upstream connecting via ${upstreamCfg.type} ${upstreamCfg.host}:${upstreamCfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
-        // A CONNECT through SOCKS5 is answered before the upstream is reached.
+        // A CONNECT through tor's SOCKS port is answered before tor replies.
         // Chromium on Android gives a proxy tunnel 10 s and the TLS handshake
         // after it 30 s, and tor attaching a stream to a fresh circuit takes
         // longer than the first. What the client sends meanwhile waits in the
         // socket until the splice reads it; a failure closes the connection,
         // so nothing leaves except through the upstream.
-        val establishedEarly = isConnect && upstreamCfg.type == UpstreamType.SOCKS5
+        val establishedEarly = isConnect &&
+            upstreamCfg.type == UpstreamType.SOCKS5 && upstreamCfg.answersEarly
         if (establishedEarly) writeEstablished(cout)
         val upstream: Socket = try {
             when (upstreamCfg.type) {

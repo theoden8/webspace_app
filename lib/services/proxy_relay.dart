@@ -62,7 +62,13 @@ class ProxyRelay implements ProxyRelayApi {
   ///
   /// The host is not `127.0.0.1`: the listener binds a random address in 127/8
   /// so that finding it costs an attacker the address as well as the port.
-  Future<({String host, int port})?> start(UserProxySettings upstream) async {
+  ///
+  /// [answersEarly] is for tor's SOCKS port only: its `CONNECT` is answered
+  /// before tor replies (PROXY-022).
+  Future<({String host, int port})?> start(
+    UserProxySettings upstream, {
+    required bool answersEarly,
+  }) async {
     if (!hostIsAndroid) return null;
     if (upstream.type == ProxyType.SAVED ||
         upstream.type == ProxyType.GATEWAY ||
@@ -88,6 +94,7 @@ class ProxyRelay implements ProxyRelayApi {
         'port': address.port,
         'username': upstream.username,
         'password': upstream.password,
+        'early': answersEarly,
       });
       final localHost = res?['host'] as String?;
       final localPort = res?['port'] as int?;

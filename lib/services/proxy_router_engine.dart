@@ -270,11 +270,17 @@ class ProxyRouterEngine {
     // carrying this site's isolation tag as the SOCKS username. While the
     // runtime is not up, drop the route and let the relay answer 502 rather
     // than send the site anywhere else (TOR-008).
+    //
+    // Tor alone is answered before its SOCKS reply (`early`, PROXY-022): a
+    // fresh circuit can outlast the tunnel Chromium allows, while any other
+    // SOCKS5 proxy's refusal should reach the page as a 502.
     if (proxy.type == ProxyType.TOR) {
       return switch (expandTorProxy(proxy)) {
-        TorRouteUp(:final socks) => _encodeUpstream(
-          ProxyRoute(identity: route.identity, upstream: socks),
-        ),
+        TorRouteUp(:final socks) => switch (_encodeUpstream(
+            ProxyRoute(identity: route.identity, upstream: socks))) {
+          final wire? => {...wire, 'early': true},
+          null => null,
+        },
         TorRouteBlocked() => null,
       };
     }

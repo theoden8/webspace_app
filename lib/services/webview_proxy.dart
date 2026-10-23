@@ -349,6 +349,7 @@ class ProxyManager {
     // otherwise the global applies, otherwise system/direct.
     var effective = resolveEffectiveProxy(settings, siteId: siteId);
     final route = effective.routeKey;
+    final viaTor = effective.type == ProxyType.TOR;
     final fellThrough = settings.type == ProxyType.DEFAULT &&
         effective.type != ProxyType.DEFAULT;
     // TOR names no address of its own; the rule has to carry the endpoint
@@ -410,7 +411,8 @@ class ProxyManager {
     final applied = effective;
     if (hostIsAndroid && applied.hasCredentials) {
       await ProcessRoute.instance.claim(occupant, route: route, write: () async {
-        final relay = await ProxyRelay.instance.start(applied);
+        final relay = await ProxyRelay.instance
+            .start(applied, answersEarly: viaTor);
         if (relay == null) {
           LogTag.proxy.error(
               'Auth proxy relay failed to start; refusing to fall back to a '

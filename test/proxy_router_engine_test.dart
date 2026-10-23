@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -337,6 +338,35 @@ void main() {
       expect(entry['type'], 'socks5');
       expect(entry['username'], 'alice');
       expect(entry['password'], 's3cret');
+    });
+
+    test('only a Tor route is answered before its SOCKS reply (PROXY-022)', () {
+      // A fresh circuit can outlast the tunnel Chromium allows, so tor's
+      // CONNECT is answered early; any other SOCKS5 proxy is answered after
+      // its reply, so its refusal reaches the page as a 502.
+      addTearDown(() => torProxyResolver = null);
+      torProxyResolver = (tag) => TorRouteUp(UserProxySettings(
+            type: ProxyType.SOCKS5,
+            address: '127.0.0.1:19050',
+            username: tag,
+          ));
+      final state = ProxyRouterState();
+      final tor = RouterIdentity.ofSite(SiteId('tor'));
+      final socks = RouterIdentity.ofSite(SiteId('socks'));
+      final wire = ProxyRouterEngine.toWire(ProxyRouterEngine.buildRoutes(
+        perSiteProxies: {
+          tor: proxy(ProxyType.TOR, address: null),
+          socks: proxy(ProxyType.SOCKS5, address: '127.0.0.1:1080'),
+        },
+        tokens: {tor: state.tokenFor(tor), socks: state.tokenFor(socks)},
+      ));
+      final torEntry = wire[state.credentialFor(tor)]!;
+      expect(torEntry['type'], 'socks5');
+      expect(torEntry['early'], isTrue);
+      final socksEntry = wire[state.credentialFor(socks)]!;
+      expect(socksEntry['type'], 'socks5');
+      expect(socksEntry['early'], isNull,
+          reason: 'a plain SOCKS5 proxy is answered after its reply');
     });
 
     test('a TOR site gets no route, not a cleartext one (TOR-008)', () {

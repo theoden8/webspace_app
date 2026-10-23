@@ -678,16 +678,18 @@ upstream. When the upstream is unreachable or rejects authentication, the
 relay SHALL return an error status (HTTP `502`) to the client and close the
 connection.
 
-A `CONNECT` through a SOCKS5 upstream SHALL be answered `200` before the
-upstream is asked, and the relay SHALL wait up to 30 s for the upstream's
-reply. Chromium on Android abandons a proxy tunnel 10 s after the `CONNECT`
+A `CONNECT` through tor's SOCKS port SHALL be answered `200` before tor is
+asked, and the relay SHALL wait up to 30 s for its reply. Chromium on Android
+abandons a proxy tunnel 10 s after the `CONNECT`
 (`kHttpProxyConnectJobTunnelTimeout`) and then gives the TLS handshake 30 s
 (`kSSLHandshakeTimeout`); tor attaching a stream to a fresh circuit routinely
 takes longer than the first, so answering only once tor has answered made a
 Tor site time out. What the client sends in the meantime stays in the socket
-until the splice reads it. When that upstream then fails, the relay SHALL
-close the connection with nothing written to it, which the client sees as a
-failed handshake. When the relay cannot bind its listener at all,
+until the splice reads it. When tor then fails, the relay SHALL close the
+connection with nothing written to it, which the client sees as a failed
+handshake. Any other SOCKS5 upstream SHALL be answered only once it has
+replied, so its failure is a `502` the client can report as a proxy
+failure. When the relay cannot bind its listener at all,
 `ProxyManager.setProxySettings` SHALL throw and SHALL NOT clear the existing
 proxy override — clearing it would let traffic flow directly and leak the
 user's IP.
@@ -699,7 +701,7 @@ user's IP.
 - **THEN** the relay responds with `502`
 - **AND** the relay does not connect the client directly to the requested origin
 
-#### Scenario: A slow SOCKS5 upstream does not time the tunnel out
+#### Scenario: A slow tor upstream does not time the tunnel out
 
 - **GIVEN** the relay's upstream is a tor SOCKS port that takes 15 s to
   attach a stream
@@ -707,12 +709,19 @@ user's IP.
 - **THEN** the relay answers `200` at once
 - **AND** the WebView's TLS handshake completes through tor once it attaches
 
-#### Scenario: A SOCKS5 upstream that fails after the early answer
+#### Scenario: A tor upstream that fails after the early answer
 
-- **GIVEN** the relay answered a `CONNECT` through a SOCKS5 upstream
-- **WHEN** the upstream replies that the host is unreachable
+- **GIVEN** the relay answered a `CONNECT` through tor's SOCKS port
+- **WHEN** tor replies that the host is unreachable
 - **THEN** the relay closes the connection without writing to it
 - **AND** the relay does not connect the client directly to the requested origin
+
+#### Scenario: Any other SOCKS5 upstream answers before the client is answered
+
+- **GIVEN** the relay's upstream is a SOCKS5 proxy that is not tor
+- **WHEN** a client opens a `CONNECT` and the upstream replies that the host
+  is unreachable
+- **THEN** the client is answered `502`, not `200`
 
 #### Scenario: Bind failure does not fall back to direct
 
