@@ -80,7 +80,7 @@ TLC model it backs (same definitions — no re-modeling).
   the inputs and the pressure plan.
   The spawning modules' counts are pinned too: `activation_tables_3_proof` **329** and
   `activation_tables_4_proof` **315** obligations.
-  **49 obligations, all proved; `activation_tables_proof` 334.**
+  **49 obligations, all proved; `activation_tables_proof` 341.**
 - **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
   invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
   `lib/formal_model/checks.dart`), beside `IndInv`, whose preservation is `activation_turns`'s
@@ -88,7 +88,7 @@ TLC model it backs (same definitions — no re-modeling).
   definition, then `Next`'s cases, the environment's (`EnvAction`) by their definitions. An
   invariant is declared inductive only once its cases close; one that needs a strengthening is
   not yet. Today `Inv_ChecksOffScreen`.
-  **311 obligations, all proved.**
+  **317 obligations, all proved.**
 - **`activation_types_proof` and its tables' modules** (printed from `FlowField` and the step
   tables, no hand-written module) — every step keeps `fl` a function of flow records, the flow
   rows' part of `TypeOK`. `activation_types_proof` holds the lemmas the rest stand on: a
@@ -126,9 +126,9 @@ TLC model it backs (same definitions — no re-modeling).
   [omitted.py](omitted.py), which `check_proofs.sh` runs first, fails on an omitted lemma that
   no module of the run proves in the same words (`test/js/formal_omitted.test.js`).
   `ConstantsType` is still assumed; TLC does not yet check it in each world.
-  **`activation_types_proof` 100 obligations and its facts' modules 466 (68 vars, 96 domains,
-  206 members, 96 fields); the tables' modules 6,150 (types), 11,571 (held), 7,318 (supports);
-  the steps modules 90 (types), 270 (held), 180 (supports); all proved.**
+  **`activation_types_proof` 100 obligations and its facts' modules 470 (68 vars, 96 domains,
+  210 members, 96 fields); the tables' modules 6,313 (types), 11,819 (held), 7,466 (supports);
+  the steps modules 92 (types), 276 (held), 184 (supports); all proved.**
 
 Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
 (`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
