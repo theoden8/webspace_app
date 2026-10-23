@@ -1,6 +1,8 @@
 package org.codeberg.theoden8.webspace.proxy
 
+import java.io.BufferedInputStream
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
@@ -8,6 +10,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URI
+import java.net.UnknownHostException
 import java.util.concurrent.Executors
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
@@ -42,7 +45,8 @@ import javax.net.ssl.SSLSocketFactory
  * away from the device: every other app with `INTERNET` can reach
  * `127.0.0.1:<port>` too, and this relay answers with the user's upstream
  * credentials attached. Each accepted connection is therefore checked against
- * `/proc/net/tcp{,6}`: the peer's connection appears as a row whose local port
+ * `/proc/net/tcp{,6}`, until the table proves unreadable: the peer's
+ * connection appears as a row whose local port
  * is its own and whose remote port is ours, and field 7 names the UID that owns
  * it. A row owned by anyone but us is another app, and is refused before any
  * upstream connection is opened.
@@ -130,7 +134,7 @@ class ProxyRelay(
     private var boundHost: String = LOOPBACK
     private var acceptThread: Thread? = null
     @Volatile
-    private var peerCheckUnavailableLogged: Boolean = false
+    private var peerCheckUnavailable: Boolean = false
 
     private val pool = Executors.newCachedThreadPool { r ->
         Thread(r, "proxy-relay-worker").apply { isDaemon = true }
@@ -362,9 +366,11 @@ class ProxyRelay(
 
     /**
      * Gate an accepted connection on the peer being one of our own sockets.
-     * An unverifiable verdict is logged once per relay, not per connection.
+     * An unreadable table (API 29+) is read once per relay, not once per
+     * connection: it stays unreadable, and the verdict is logged once.
      */
     private fun peerAllowed(peerPort: Int): Boolean {
+        if (peerCheckUnavailable) return true
         val check: (Int, Int) -> PeerVerdict =
             peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid) }
         return when (check(peerPort, boundPort)) {
@@ -374,10 +380,8 @@ class ProxyRelay(
                 false
             }
             PeerVerdict.UNKNOWN -> {
-                if (!peerCheckUnavailableLogged) {
-                    peerCheckUnavailableLogged = true
-                    log("peer ownership unverifiable (/proc/net/tcp unreadable); accepting local connections")
-                }
+                peerCheckUnavailable = true
+                log("peer ownership unverifiable (/proc/net/tcp unreadable); accepting local connections")
                 true
             }
         }
@@ -385,7 +389,10 @@ class ProxyRelay(
 
     private fun handle(client: Socket) {
         client.soTimeout = HANDSHAKE_TIMEOUT_MS
-        val cin = client.getInputStream()
+        // One buffer for the connection's life: the preamble is read a byte
+        // at a time, and whatever the buffer took past it (a request body)
+        // is spliced from the same stream.
+        val cin = BufferedInputStream(client.getInputStream())
         val cout = client.getOutputStream()
 
         val preamble = readPreamble(cin) ?: return
@@ -465,7 +472,6 @@ class ProxyRelay(
             if (!establishedEarly) writeStatus(cout, 502, "Bad Gateway")
             return
         }
-        log("upstream connected for $host:$hostPort")
 
         try {
             if (isConnect) {
@@ -488,16 +494,28 @@ class ProxyRelay(
             // Switch to indefinite blocking for the splice phase.
             client.soTimeout = 0
             upstream.soTimeout = 0
-            pump(client, upstream)
+            pump(client, cin, upstream)
         } finally {
             runCatching { upstream.close() }
         }
     }
 
     private fun openDirect(host: String, port: Int): Socket {
-        val s = Socket()
-        s.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
-        return s
+        // Every address the name resolves to, in order: a dual-stack host
+        // whose first family is unreachable still connects on the next, as
+        // it does from Chromium's own stack.
+        var failure: IOException? = null
+        for (address in InetAddress.getAllByName(host)) {
+            val s = Socket()
+            try {
+                s.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
+                return s
+            } catch (e: IOException) {
+                runCatching { s.close() }
+                failure = e
+            }
+        }
+        throw failure ?: UnknownHostException(host)
     }
 
     // --- Upstream: SOCKS5 (with optional RFC 1929 username/password) ---
@@ -679,9 +697,9 @@ class ProxyRelay(
 
     // --- Byte plumbing ---
 
-    private fun pump(a: Socket, b: Socket) {
+    private fun pump(a: Socket, aIn: InputStream, b: Socket) {
         val ab = pool.submit {
-            runCatching { copy(a.getInputStream(), b.getOutputStream()) }
+            runCatching { copy(aIn, b.getOutputStream()) }
             runCatching { a.shutdownInput() }
             runCatching { b.shutdownOutput() }
         }
@@ -755,7 +773,6 @@ class ProxyRelay(
             writeStatus(cout, 502, "Bad Gateway")
             return null
         }
-        log("routing site ${route.siteId}")
         return route
     }
 
