@@ -69,7 +69,7 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.spare => SiteUnloadEngine.spare,
   ModelDef.gone => SiteUnloadEngine.gone,
   ModelDef.share => CookieIsolationEngine.share<Object?>(),
-  ModelDef.tabBusy => TabsController.tabBusy,
+  ModelDef.tabBusy => TabTable.tabBusy,
   ModelDef.capture => TabVars.capture<Object?>(),
   ModelDef.bound => TabVars.bound<Object?>(),
   ModelDef.takes => takesOf<Object?>(),
@@ -85,8 +85,8 @@ final List<Def<Object?, Object?>> definitions = [
 
 final Tables tables = (
   activation: ActivationTable.activationFlow,
-  tabInputs: TabsController.tabInputs,
-  tabFlow: TabsController.tabFlow,
+  tabInputs: TabTable.tabInputs,
+  tabFlow: TabTable.tabFlow,
   unload: SiteUnloadEngine.unloadFlow,
   jar: CookieIsolationEngine.unloadSteps,
   restore: CookieIsolationEngine.restoreSteps,

@@ -16,7 +16,10 @@ void main() {
 
   setUpAll(() {
     main = File('lib/screens/webspace_page.dart').readAsStringSync();
-    tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
+    tabs = [
+      for (final f in ['tabs_controller', 'tab_table'])
+        File('lib/controllers/$f.dart').readAsStringSync(),
+    ].join('\n');
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
 

@@ -530,7 +530,7 @@ const _owed = <String, Set<String>>{
   // the loaded sites, in the step's turn; a reroute's flips read the site
   // each tab runs as as they rewrite it. Lifted when the tab table reads
   // them through its leaves.
-  'lib/controllers/tabs_controller.dart page': {
+  'lib/controllers/tab_table.dart page': {
     'tabs',
     'active',
     'host',

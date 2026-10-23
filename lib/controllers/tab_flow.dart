@@ -77,7 +77,7 @@ final class TabCalls {
   void rebindAs(CommitView<TabFlow> c) => _c._rebindAs(c);
   void reroute(CommitView<TabFlow> c) => _c._reroute(c);
   void landed(CommitView<TabFlow> c) =>
-      TabsController._flow.from(c).site.activeTab.lastActiveAt = DateTime.now();
+      TabTable._flow.from(c).site.activeTab.lastActiveAt = DateTime.now();
   Set<WebViewModel> get loaded => {..._c._sites.loaded};
 
   /// An activation of [site], its input run before this returns.

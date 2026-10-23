@@ -872,7 +872,7 @@ const _supports = <String, String>{
 
 /// The kinds of flow of which at most one is in flight, each with the
 /// definition every input that starts one is taken only once it did not
-/// hold: the tab gate (`TabsController.tabBusy`).
+/// hold: the tab gate (`TabTable.tabBusy`).
 final _alone = {FlowKind.tab: ModelDef.tabBusy};
 
 /// A field a flow holds in a set narrower than its range wherever a step
