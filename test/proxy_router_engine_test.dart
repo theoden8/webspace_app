@@ -617,58 +617,7 @@ void main() {
     });
   });
 
-  group('attribution predicate (PROXY-015)', () {
-    test('holds when every nonce comes back stamped with its own site', () {
-      expect(
-        ProxyRouterEngine.attributionFailures(
-          expected: {'a': 'n1', 'b': 'n2'},
-          observed: {'n1': 'a', 'n2': 'b'},
-        ),
-        isEmpty,
-      );
-    });
-
-    test('fails on the shared-auth-cache signature', () {
-      // Both containers replayed whichever credential was cached first,
-      // so both probes came back stamped 'a'. Nothing errors on such a
-      // device; this predicate is the only thing that notices.
-      expect(
-        ProxyRouterEngine.attributionFailures(
-          expected: {'a': 'n1', 'b': 'n2'},
-          observed: {'n1': 'a', 'n2': 'a'},
-        ),
-        ['b'],
-      );
-    });
-
-    test('fails when an observation is missing', () {
-      expect(
-        ProxyRouterEngine.attributionFailures(
-          expected: {'a': 'n1', 'b': 'n2'},
-          observed: {'n1': 'a'},
-        ),
-        ['b'],
-        reason: 'unproven must not read as proven',
-      );
-    });
-
-    test('fails when a nonce is stamped with an unrelated site', () {
-      expect(
-        ProxyRouterEngine.attributionFailures(
-          expected: {'a': 'n1'},
-          observed: {'n1': 'somebody-else'},
-        ),
-        ['a'],
-      );
-    });
-
-    test('vacuously holds with no sites', () {
-      expect(
-        ProxyRouterEngine.attributionFailures(expected: {}, observed: {}),
-        isEmpty,
-      );
-    });
-
+  group('attribution probe (PROXY-015)', () {
     test('probe URL is http, carries the nonce, and uses the reserved TLD', () {
       final url = ProxyRouterEngine.probeUrlFor('abc123');
       expect(url, 'http://abc123.webspace-probe.invalid/');

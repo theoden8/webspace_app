@@ -98,30 +98,6 @@ class ProxyRouterEngine {
   /// would have to fake a TLS handshake for.
   static String probeUrlFor(String nonce) => 'http://$nonce$probeSuffix/';
 
-  /// The sites whose traffic the device does not attribute to them; empty
-  /// when attribution holds.
-  ///
-  /// [expected] is siteId -> the nonce we told that site's container to
-  /// fetch; [observed] is nonce -> the siteId whose credential the relay
-  /// saw carrying it. They agree only if every container presented its
-  /// OWN credential.
-  ///
-  /// This is the runtime form of the PROXY-013 gate. Chromium caches a
-  /// proxy credential per `HttpNetworkSession`; if a device turned out to
-  /// share one session across container profiles, every probe would come
-  /// back stamped with whichever site authenticated first, and every site
-  /// but that one is listed. A missing observation is listed too: an
-  /// unproven site is treated exactly like a failed one, because the
-  /// failure it would otherwise hide is silent.
-  static List<String> attributionFailures({
-    required Map<String, String> expected,
-    required Map<String, String> observed,
-  }) =>
-      [
-        for (final entry in expected.entries)
-          if (observed[entry.value] != entry.key) entry.key,
-      ];
-
   /// 128 bits of `Random.secure()` as lowercase hex.
   ///
   /// Used for both the per-site token and the realm nonce. The token is

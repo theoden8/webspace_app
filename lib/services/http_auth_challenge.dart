@@ -24,8 +24,14 @@ Future<inapp.HttpAuthResponse?> answerHttpAuthChallenge({
   required inapp.HttpAuthenticationChallenge challenge,
 }) async {
   final space = challenge.protectionSpace;
-  if (ProxyRouterService.instance
-      .ownsChallenge(host: space.host, realm: space.realm)) {
+  final router = ProxyRouterService.instance;
+  if (router.ownsChallenge(host: space.host, realm: space.realm)) {
+    // A site presents its identity only once this run has shown that
+    // identity's profile presents its own (PROXY-015); until then the
+    // request waits here, and an identity that failed is never answered.
+    if (routerIdentity == null || !await router.attributed(routerIdentity)) {
+      return null;
+    }
     return answerProxyRouterChallenge(routerIdentity, challenge: challenge);
   }
   if (session == null) return null;

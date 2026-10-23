@@ -101,6 +101,19 @@ inapp.ProxySettings? routerRelayProxyFor({
   required SiteId? siteId,
   required bool ownsContainer,
 }) {
+  // No site id means no row in the route table, and the shared identity
+  // belongs to a group this webview is not part of. Routing it there would
+  // put it on another site's circuit, so fall back to its own rule.
+  if (siteId == null || siteId.isEmpty) return null;
+  return routerRelayProxyOf(ProxyRouterEngine.identityFor(
+    siteId: siteId,
+    ownsContainer: ownsContainer,
+  ));
+}
+
+/// The relay rule a store carries to present [identity] (PROXY-026), or
+/// null where the proxy is not bound per store or router mode is off.
+inapp.ProxySettings? routerRelayProxyOf(RouterIdentity identity) {
   // Only where the proxy is bound per store (PROXY-027). Under the
   // process-wide binding the router already rides that one rule -- Android's
   // `ProxyController` -- and a per-WebView `proxySettings` there would be a
@@ -108,17 +121,9 @@ inapp.ProxySettings? routerRelayProxyFor({
   if (ProxyManager.binding != ProxyBinding.perSite) return null;
   final router = ProxyRouterService.instance;
   if (!router.isActive) return null;
-  // No site id means no row in the route table, and the shared identity
-  // belongs to a group this webview is not part of. Routing it there would
-  // put it on another site's circuit, so fall back to its own rule.
-  if (siteId == null || siteId.isEmpty) return null;
   final host = router.host;
   final port = router.port;
   if (host == null || port == null) return null;
-  final identity = ProxyRouterEngine.identityFor(
-    siteId: siteId,
-    ownsContainer: ownsContainer,
-  );
   final token = router.tokenFor(identity);
   if (token == null) return null;
   return inapp.ProxySettings(

@@ -42,7 +42,8 @@ test('the relay rule is consulted when a WebView is built', () => {
 test('the relay rule is not gated on the site having a proxy', () => {
   // A store left unproxied cannot answer the PROXY-015 probe, and one
   // unproven site stands router mode down for every site.
-  const fn = methodBody('routerRelayProxyFor', { file: proxyRel });
+  const fn = methodBody('routerRelayProxyFor', { file: proxyRel })
+    + methodBody('routerRelayProxyOf', { file: proxyRel });
   assert.doesNotMatch(
     fn,
     /proxySettings\s*==\s*null|effectiveProxy/,
@@ -52,7 +53,7 @@ test('the relay rule is not gated on the site having a proxy', () => {
 });
 
 test('the relay rule rides the named binding, not a platform test', () => {
-  const fn = methodBody('routerRelayProxyFor', { file: proxyRel });
+  const fn = methodBody('routerRelayProxyOf', { file: proxyRel });
   assert.match(
     fn,
     /ProxyManager\.binding != ProxyBinding\.perSite/,
@@ -80,7 +81,7 @@ test('a webview with no site id is not routed', () => {
 });
 
 test('the credential rides the fields, never only the URL', () => {
-  const fn = methodBody('routerRelayProxyFor', { file: proxyRel });
+  const fn = methodBody('routerRelayProxyOf', { file: proxyRel });
   assert.match(
     fn,
     /username: router\.usernameFor\(identity\)/,
@@ -102,7 +103,7 @@ test('the credential rides the fields, never only the URL', () => {
 test('the attribution probe travels the relay too', () => {
   assert.match(
     probe,
-    /final proxy = routerRelayProxyFor\(siteId: siteId, ownsContainer: true\);[\s\S]*proxySettings: proxy,/,
+    /final proxy = routerRelayProxyOf\(identity\);[\s\S]*proxySettings: proxy,/,
     `${probeRel}: the probe's headless view must carry the site's relay `
       + 'credential. Without it the probe resolves .invalid directly, every '
       + 'pair comes back missing, and router mode is refused on every device',
