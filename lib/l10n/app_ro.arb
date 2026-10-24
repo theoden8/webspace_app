@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Nicio protecție activată",
   "siteSettingsForcedOffByTrackingProtection": "Forțat dezactivat de Protecția împotriva urmăririi",
   "settingRestoreDefaultHint": "Apasă lung pentru a restabili setarea implicită a aplicației.",
-  "settingOn": "Activat",
-  "settingOff": "Dezactivat",
   "settingFollowsApp": "Implicit din aplicație ({value})",
   "settingLockedByArchive": "Fix pentru site-urile dintr-o arhivă",
   "privacyGroupScreenCapture": "Capturarea ecranului",

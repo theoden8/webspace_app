@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Geen beskerming geaktiveer nie",
   "siteSettingsForcedOffByTrackingProtection": "Geforseer af deur Volgbeskerming",
   "settingRestoreDefaultHint": "Druk lank om die toepassing se verstek te herstel.",
-  "settingOn": "Aan",
-  "settingOff": "Af",
   "settingFollowsApp": "App-verstek ({value})",
   "settingLockedByArchive": "Vas vir werwe in 'n argief",
   "privacyGroupScreenCapture": "Skermopname",

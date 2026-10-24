@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Nie je zapnutá žiadna ochrana",
   "siteSettingsForcedOffByTrackingProtection": "Vypnuté ochranou pred sledovaním",
   "settingRestoreDefaultHint": "Dlhým stlačením obnovíte predvolené nastavenie aplikácie.",
-  "settingOn": "Zapnuté",
-  "settingOff": "Vypnuté",
   "settingFollowsApp": "Predvolené aplikáciou ({value})",
   "settingLockedByArchive": "Pevne nastavené pre weby v archíve",
   "privacyGroupScreenCapture": "Zachytávanie obrazovky",

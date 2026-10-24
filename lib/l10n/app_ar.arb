@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "لا حماية مفعّلة",
   "siteSettingsForcedOffByTrackingProtection": "معطّل قسرًا بسبب الحماية من التتبّع",
   "settingRestoreDefaultHint": "اضغط مطولًا لاستعادة الإعداد الافتراضي للتطبيق.",
-  "settingOn": "مفعّل",
-  "settingOff": "معطّل",
   "settingFollowsApp": "افتراضي التطبيق ({value})",
   "settingLockedByArchive": "ثابت للمواقع الموجودة في الأرشيف",
   "privacyGroupScreenCapture": "التقاط الشاشة",

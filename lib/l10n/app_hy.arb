@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Ոչ մի պաշտպանություն միացված չէ",
   "siteSettingsForcedOffByTrackingProtection": "Անջատված է Հետևման պաշտպանության կողմից",
   "settingRestoreDefaultHint": "Երկար սեղմեք՝ հավելվածի լռելյայն կարգավորումը վերականգնելու համար։",
-  "settingOn": "Միացված",
-  "settingOff": "Անջատ",
   "settingFollowsApp": "Հավելվածի լռելյայնը ({value})",
   "settingLockedByArchive": "Ֆիքսված է արխիվում գտնվող կայքերի համար",
   "privacyGroupScreenCapture": "Էկրանի նկարահանում",

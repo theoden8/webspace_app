@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Tidak ada perlindungan yang aktif",
   "siteSettingsForcedOffByTrackingProtection": "Dipaksa nonaktif oleh Perlindungan Pelacakan",
   "settingRestoreDefaultHint": "Tekan lama untuk memulihkan setelan bawaan aplikasi.",
-  "settingOn": "Aktif",
-  "settingOff": "Nonaktif",
   "settingFollowsApp": "Bawaan aplikasi ({value})",
   "settingLockedByArchive": "Tetap untuk situs dalam arsip",
   "privacyGroupScreenCapture": "Tangkapan layar",

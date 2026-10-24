@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Kein Schutz aktiviert",
   "siteSettingsForcedOffByTrackingProtection": "Durch Tracking-Schutz erzwungen deaktiviert",
   "settingRestoreDefaultHint": "Lange drücken, um die App-Standardeinstellung wiederherzustellen.",
-  "settingOn": "Ein",
-  "settingOff": "Aus",
   "settingFollowsApp": "App-Standard ({value})",
   "settingLockedByArchive": "Festgelegt für Websites in einem Archiv",
   "privacyGroupScreenCapture": "Bildschirmaufnahme",

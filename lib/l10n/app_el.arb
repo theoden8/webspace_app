@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Καμία προστασία ενεργή",
   "siteSettingsForcedOffByTrackingProtection": "Εξαναγκασμένο ανενεργό από την Προστασία από παρακολούθηση",
   "settingRestoreDefaultHint": "Πατήστε παρατεταμένα για επαναφορά στην προεπιλογή της εφαρμογής.",
-  "settingOn": "Ενεργό",
-  "settingOff": "Ανενεργό",
   "settingFollowsApp": "Προεπιλογή εφαρμογής ({value})",
   "settingLockedByArchive": "Σταθερό για ιστότοπους σε αρχειοθήκη",
   "privacyGroupScreenCapture": "Καταγραφή οθόνης",

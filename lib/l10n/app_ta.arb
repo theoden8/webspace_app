@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "எந்த பாதுகாப்பும் இயக்கப்படவில்லை",
   "siteSettingsForcedOffByTrackingProtection": "கண்காணிப்பு பாதுகாப்பால் கட்டாயமாக அணைக்கப்பட்டது",
   "settingRestoreDefaultHint": "பயன்பாட்டின் இயல்புநிலை அமைப்பை மீட்டமைக்க நீண்ட நேரம் அழுத்தவும்.",
-  "settingOn": "இயக்கம்",
-  "settingOff": "முடக்கம்",
   "settingFollowsApp": "செயலி இயல்புநிலை ({value})",
   "settingLockedByArchive": "காப்பகத்தில் உள்ள தளங்களுக்கு நிலையானது",
   "privacyGroupScreenCapture": "திரைப் பிடிப்பு",

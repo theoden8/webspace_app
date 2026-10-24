@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "לא הופעלה שום הגנה",
   "siteSettingsForcedOffByTrackingProtection": "כובה על ידי הגנה מפני מעקב",
   "settingRestoreDefaultHint": "לחצו לחיצה ארוכה כדי לשחזר את ברירת המחדל של האפליקציה.",
-  "settingOn": "פעיל",
-  "settingOff": "כבוי",
   "settingFollowsApp": "ברירת המחדל של האפליקציה ({value})",
   "settingLockedByArchive": "קבוע לאתרים שבארכיון",
   "privacyGroupScreenCapture": "צילום מסך",

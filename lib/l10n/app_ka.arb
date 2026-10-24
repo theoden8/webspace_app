@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "დაცვა ჩართული არ არის",
   "siteSettingsForcedOffByTrackingProtection": "იძულებით გამორთულია თვალთვალისგან დაცვის გამო",
   "settingRestoreDefaultHint": "აპის ნაგულისხმევი პარამეტრის აღსადგენად ხანგრძლივად დააჭირეთ.",
-  "settingOn": "Ჩართული",
-  "settingOff": "Გამორთული",
   "settingFollowsApp": "აპის ნაგულისხმევი ({value})",
   "settingLockedByArchive": "ფიქსირებულია არქივში არსებული საიტებისთვის",
   "privacyGroupScreenCapture": "ეკრანის გადაღება",

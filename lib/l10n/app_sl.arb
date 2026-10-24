@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Nobena zaščita ni vklopljena",
   "siteSettingsForcedOffByTrackingProtection": "Prisilno izklopljeno zaradi zaščite pred sledenjem",
   "settingRestoreDefaultHint": "Z dolgim pritiskom obnovite privzeto nastavitev aplikacije.",
-  "settingOn": "Vklopljeno",
-  "settingOff": "Izklopljeno",
   "settingFollowsApp": "Privzeto v aplikaciji ({value})",
   "settingLockedByArchive": "Fiksno za spletna mesta v arhivu",
   "privacyGroupScreenCapture": "Zajem zaslona",

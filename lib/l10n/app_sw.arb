@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Hakuna ulinzi uliowashwa",
   "siteSettingsForcedOffByTrackingProtection": "Imelazimishwa kuzimwa na Ulinzi wa Ufuatiliaji",
   "settingRestoreDefaultHint": "Bonyeza kwa muda mrefu ili kurejesha chaguomsingi la programu.",
-  "settingOn": "Imewashwa",
-  "settingOff": "Imezimwa",
   "settingFollowsApp": "Chaguomsingi la programu ({value})",
   "settingLockedByArchive": "Haibadiliki kwa tovuti zilizo kwenye kumbukumbu",
   "privacyGroupScreenCapture": "Kunasa skrini",
