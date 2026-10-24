@@ -1097,6 +1097,7 @@
   "librarySites": "Webbplatser",
   "librarySearchWebspaces": "Sök webbutrymmen",
   "libraryNoResults": "Inga träffar",
+  "siteImportedFile": "Importerad fil",
   "libraryListView": "Listvy",
   "appSettingsExperimentalFolderLibrary": "Alternativ design",
   "appSettingsExperimentalFolderLibraryHint": "Ordna webbplatser i grupper i ett startrutnät.",

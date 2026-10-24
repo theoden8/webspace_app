@@ -1097,6 +1097,7 @@
   "librarySites": "সাইট",
   "librarySearchWebspaces": "ওয়েবস্পেস খুঁজুন",
   "libraryNoResults": "কোনো ফলাফল নেই",
+  "siteImportedFile": "আমদানি করা ফাইল",
   "libraryListView": "তালিকা ভিউ",
   "appSettingsExperimentalFolderLibrary": "বিকল্প ডিজাইন",
   "appSettingsExperimentalFolderLibraryHint": "লঞ্চার গ্রিডে সাইটগুলোকে গোষ্ঠীতে সাজান।",

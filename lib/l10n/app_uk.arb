@@ -1097,6 +1097,7 @@
   "librarySites": "Сайти",
   "librarySearchWebspaces": "Шукати вебпростори",
   "libraryNoResults": "Збігів немає",
+  "siteImportedFile": "Імпортований файл",
   "libraryListView": "Перегляд списком",
   "appSettingsExperimentalFolderLibrary": "Альтернативний дизайн",
   "appSettingsExperimentalFolderLibraryHint": "Упорядкуйте сайти в групи в сітці запуску.",

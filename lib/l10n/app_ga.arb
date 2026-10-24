@@ -1097,6 +1097,7 @@
   "librarySites": "Suíomhanna",
   "librarySearchWebspaces": "Cuardaigh spásanna gréasáin",
   "libraryNoResults": "Gan torthaí",
+  "siteImportedFile": "Comhad iompórtáilte",
   "libraryListView": "Amharc liosta",
   "appSettingsExperimentalFolderLibrary": "Dearadh malartach",
   "appSettingsExperimentalFolderLibraryHint": "Eagraigh suíomhanna ina ngrúpaí i ngreille lainseála.",

@@ -1097,6 +1097,7 @@
   "librarySites": "Websteder",
   "librarySearchWebspaces": "Søg i webområder",
   "libraryNoResults": "Ingen resultater",
+  "siteImportedFile": "Importeret fil",
   "libraryListView": "Listevisning",
   "appSettingsExperimentalFolderLibrary": "Alternativt design",
   "appSettingsExperimentalFolderLibraryHint": "Organiser websteder i grupper i et startgitter.",

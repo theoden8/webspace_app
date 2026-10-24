@@ -1097,6 +1097,7 @@
   "librarySites": "Sajtet",
   "librarySearchWebspaces": "Kërko hapësira uebi",
   "libraryNoResults": "Nuk ka rezultate",
+  "siteImportedFile": "Skedar i importuar",
   "libraryListView": "Pamje liste",
   "appSettingsExperimentalFolderLibrary": "Dizajn alternativ",
   "appSettingsExperimentalFolderLibraryHint": "Organizoni sajtet në grupe në një rrjetë nisjeje.",

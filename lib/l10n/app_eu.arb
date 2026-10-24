@@ -1097,6 +1097,7 @@
   "librarySites": "Webguneak",
   "librarySearchWebspaces": "Bilatu webgune-espazioak",
   "libraryNoResults": "Ez dago emaitzarik",
+  "siteImportedFile": "Inportatutako fitxategia",
   "libraryListView": "Zerrenda-ikuspegia",
   "appSettingsExperimentalFolderLibrary": "Diseinu alternatiboa",
   "appSettingsExperimentalFolderLibraryHint": "Antolatu webguneak taldeka abiarazlearen saretan.",

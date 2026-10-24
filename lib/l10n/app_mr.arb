@@ -1097,6 +1097,7 @@
   "librarySites": "साइट्स",
   "librarySearchWebspaces": "वेबस्पेस शोधा",
   "libraryNoResults": "कोणतेही परिणाम नाहीत",
+  "siteImportedFile": "आयात केलेली फाइल",
   "libraryListView": "सूची दृश्य",
   "appSettingsExperimentalFolderLibrary": "पर्यायी डिझाइन",
   "appSettingsExperimentalFolderLibraryHint": "लॉन्चर ग्रिडमध्ये साइट गटांमध्ये व्यवस्थित करा.",

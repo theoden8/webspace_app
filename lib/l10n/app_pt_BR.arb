@@ -1097,6 +1097,7 @@
   "librarySites": "Sites",
   "librarySearchWebspaces": "Pesquisar espaços web",
   "libraryNoResults": "Nenhum resultado",
+  "siteImportedFile": "Arquivo importado",
   "libraryListView": "Visualização em lista",
   "appSettingsExperimentalFolderLibrary": "Design alternativo",
   "appSettingsExperimentalFolderLibraryHint": "Organize os sites em grupos em uma grade de inicialização.",

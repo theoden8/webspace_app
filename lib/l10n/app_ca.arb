@@ -1097,6 +1097,7 @@
   "librarySites": "Llocs web",
   "librarySearchWebspaces": "Cerca espais web",
   "libraryNoResults": "Cap coincidència",
+  "siteImportedFile": "Fitxer importat",
   "libraryListView": "Vista de llista",
   "appSettingsExperimentalFolderLibrary": "Disseny alternatiu",
   "appSettingsExperimentalFolderLibraryHint": "Organitzeu els llocs en grups dins d'una graella de llançament.",

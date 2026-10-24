@@ -1097,6 +1097,7 @@
   "librarySites": "Сајтови",
   "librarySearchWebspaces": "Претражи веб-просторе",
   "libraryNoResults": "Нема резултата",
+  "siteImportedFile": "Увезена датотека",
   "libraryListView": "Приказ листе",
   "appSettingsExperimentalFolderLibrary": "Алтернативни дизајн",
   "appSettingsExperimentalFolderLibraryHint": "Организујте сајтове у групе у мрежи за покретање.",

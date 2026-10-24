@@ -1097,6 +1097,7 @@
   "librarySites": "網站",
   "librarySearchWebspaces": "搜尋網頁空間",
   "libraryNoResults": "沒有符合項目",
+  "siteImportedFile": "已匯入的檔案",
   "libraryListView": "清單檢視",
   "appSettingsExperimentalFolderLibrary": "替代設計",
   "appSettingsExperimentalFolderLibraryHint": "在啟動器網格中將網站整理為群組。",

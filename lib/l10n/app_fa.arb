@@ -1097,6 +1097,7 @@
   "librarySites": "سایت‌ها",
   "librarySearchWebspaces": "جستجوی فضاهای وب",
   "libraryNoResults": "نتیجه‌ای یافت نشد",
+  "siteImportedFile": "فایل واردشده",
   "libraryListView": "نمای فهرستی",
   "appSettingsExperimentalFolderLibrary": "طراحی جایگزین",
   "appSettingsExperimentalFolderLibraryHint": "سایت‌ها را در گروه‌هایی در شبکهٔ راه‌انداز سازمان‌دهی کنید.",

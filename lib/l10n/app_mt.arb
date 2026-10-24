@@ -1097,6 +1097,7 @@
   "librarySites": "Siti",
   "librarySearchWebspaces": "Fittex spazji tal-web",
   "libraryNoResults": "Ebda riżultat",
+  "siteImportedFile": "Fajl importat",
   "libraryListView": "Veduta ta' lista",
   "appSettingsExperimentalFolderLibrary": "Disinn alternattiv",
   "appSettingsExperimentalFolderLibraryHint": "Organizza s-siti fi gruppi fi grilja tat-tnedija.",

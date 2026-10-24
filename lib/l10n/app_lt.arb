@@ -1097,6 +1097,7 @@
   "librarySites": "Svetainės",
   "librarySearchWebspaces": "Ieškoti žiniatinklio erdvių",
   "libraryNoResults": "Atitikmenų nėra",
+  "siteImportedFile": "Importuotas failas",
   "libraryListView": "Sąrašo rodinys",
   "appSettingsExperimentalFolderLibrary": "Alternatyvus dizainas",
   "appSettingsExperimentalFolderLibraryHint": "Tvarkykite svetaines grupėmis paleidimo tinklelyje.",

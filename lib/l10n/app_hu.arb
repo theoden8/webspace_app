@@ -1097,6 +1097,7 @@
   "librarySites": "Webhelyek",
   "librarySearchWebspaces": "Webterek keresése",
   "libraryNoResults": "Nincs találat",
+  "siteImportedFile": "Importált fájl",
   "libraryListView": "Listanézet",
   "appSettingsExperimentalFolderLibrary": "Alternatív megjelenés",
   "appSettingsExperimentalFolderLibraryHint": "Rendezze webhelyeit csoportokba egy indítórácsban.",

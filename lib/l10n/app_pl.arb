@@ -1097,6 +1097,7 @@
   "librarySites": "Witryny",
   "librarySearchWebspaces": "Szukaj przestrzeni WWW",
   "libraryNoResults": "Brak wyników",
+  "siteImportedFile": "Zaimportowany plik",
   "libraryListView": "Widok listy",
   "appSettingsExperimentalFolderLibrary": "Alternatywny wygląd",
   "appSettingsExperimentalFolderLibraryHint": "Porządkuj witryny w grupy w siatce uruchamiania.",

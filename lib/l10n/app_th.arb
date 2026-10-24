@@ -1097,6 +1097,7 @@
   "librarySites": "เว็บไซต์",
   "librarySearchWebspaces": "ค้นหาพื้นที่เว็บ",
   "libraryNoResults": "ไม่พบผลลัพธ์",
+  "siteImportedFile": "ไฟล์ที่นำเข้า",
   "libraryListView": "มุมมองรายการ",
   "appSettingsExperimentalFolderLibrary": "ดีไซน์ทางเลือก",
   "appSettingsExperimentalFolderLibraryHint": "จัดเว็บไซต์เป็นกลุ่มในตารางตัวเรียกใช้งาน",

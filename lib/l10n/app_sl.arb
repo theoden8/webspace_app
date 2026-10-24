@@ -1097,6 +1097,7 @@
   "librarySites": "Spletišča",
   "librarySearchWebspaces": "Poišči spletne prostore",
   "libraryNoResults": "Ni zadetkov",
+  "siteImportedFile": "Uvožena datoteka",
   "libraryListView": "Pogled seznama",
   "appSettingsExperimentalFolderLibrary": "Alternativna zasnova",
   "appSettingsExperimentalFolderLibraryHint": "Organizirajte spletišča v skupine v zagonski mreži.",

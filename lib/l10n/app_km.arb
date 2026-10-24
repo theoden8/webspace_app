@@ -1097,6 +1097,7 @@
   "librarySites": "គេហទំព័រ",
   "librarySearchWebspaces": "ស្វែងរកលំហបណ្ដាញ",
   "libraryNoResults": "គ្មានលទ្ធផល",
+  "siteImportedFile": "ឯកសារដែលបាននាំចូល",
   "libraryListView": "ទិដ្ឋភាពបញ្ជី",
   "appSettingsExperimentalFolderLibrary": "ការរចនាជំនួស",
   "appSettingsExperimentalFolderLibraryHint": "រៀបចំគេហទំព័រជាក្រុមក្នុងក្រឡាចត្រង្គកម្មវិធីបើក។",

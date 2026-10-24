@@ -1097,6 +1097,7 @@
   "librarySites": "Sivustot",
   "librarySearchWebspaces": "Hae verkkotiloja",
   "libraryNoResults": "Ei osumia",
+  "siteImportedFile": "Tuotu tiedosto",
   "libraryListView": "Luettelonäkymä",
   "appSettingsExperimentalFolderLibrary": "Vaihtoehtoinen ulkoasu",
   "appSettingsExperimentalFolderLibraryHint": "Järjestä sivustot ryhmiin käynnistysruudukossa.",

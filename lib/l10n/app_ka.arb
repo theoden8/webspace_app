@@ -1097,6 +1097,7 @@
   "librarySites": "საიტები",
   "librarySearchWebspaces": "ვებსივრცეების ძიება",
   "libraryNoResults": "შედეგები არ არის",
+  "siteImportedFile": "იმპორტირებული ფაილი",
   "libraryListView": "სიის ხედი",
   "appSettingsExperimentalFolderLibrary": "ალტერნატიული დიზაინი",
   "appSettingsExperimentalFolderLibraryHint": "დააჯგუფეთ საიტები გამშვების ბადეში.",

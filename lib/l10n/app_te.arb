@@ -1097,6 +1097,7 @@
   "librarySites": "సైట్‌లు",
   "librarySearchWebspaces": "వెబ్‌స్పేస్‌లను వెతకండి",
   "libraryNoResults": "ఫలితాలు లేవు",
+  "siteImportedFile": "దిగుమతి చేసిన ఫైల్",
   "libraryListView": "జాబితా వీక్షణ",
   "appSettingsExperimentalFolderLibrary": "ప్రత్యామ్నాయ రూపకల్పన",
   "appSettingsExperimentalFolderLibraryHint": "లాంచర్ గ్రిడ్‌లో సైట్‌లను సమూహాలుగా అమర్చండి.",

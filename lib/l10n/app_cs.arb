@@ -1097,6 +1097,7 @@
   "librarySites": "Weby",
   "librarySearchWebspaces": "Hledat webové prostory",
   "libraryNoResults": "Žádné výsledky",
+  "siteImportedFile": "Importovaný soubor",
   "libraryListView": "Zobrazení seznamu",
   "appSettingsExperimentalFolderLibrary": "Alternativní vzhled",
   "appSettingsExperimentalFolderLibraryHint": "Uspořádejte weby do skupin v mřížce spouštěče.",

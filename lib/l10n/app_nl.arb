@@ -1097,6 +1097,7 @@
   "librarySites": "Websites",
   "librarySearchWebspaces": "Webruimtes zoeken",
   "libraryNoResults": "Geen resultaten",
+  "siteImportedFile": "Geïmporteerd bestand",
   "libraryListView": "Lijstweergave",
   "appSettingsExperimentalFolderLibrary": "Alternatief ontwerp",
   "appSettingsExperimentalFolderLibraryHint": "Orden websites in groepen in een startraster.",

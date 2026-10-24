@@ -1097,6 +1097,7 @@
   "librarySites": "Vefir",
   "librarySearchWebspaces": "Leita að vefsvæðum",
   "libraryNoResults": "Engar niðurstöður",
+  "siteImportedFile": "Innflutt skrá",
   "libraryListView": "Listayfirlit",
   "appSettingsExperimentalFolderLibrary": "Önnur hönnun",
   "appSettingsExperimentalFolderLibraryHint": "Raðaðu vefsvæðum í hópa í ræsingarsýn.",

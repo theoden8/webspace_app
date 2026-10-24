@@ -1097,6 +1097,7 @@
   "librarySites": "المواقع",
   "librarySearchWebspaces": "البحث في مساحات الويب",
   "libraryNoResults": "لا توجد نتائج",
+  "siteImportedFile": "ملف مستورد",
   "libraryListView": "عرض القائمة",
   "appSettingsExperimentalFolderLibrary": "تصميم بديل",
   "appSettingsExperimentalFolderLibraryHint": "نظّم المواقع في مجموعات ضمن شبكة تشغيل.",

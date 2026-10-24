@@ -1097,6 +1097,7 @@
   "librarySites": "Safleoedd",
   "librarySearchWebspaces": "Chwilio gofodau gwe",
   "libraryNoResults": "Dim canlyniadau",
+  "siteImportedFile": "Ffeil wedi'i mewnforio",
   "libraryListView": "Golwg rhestr",
   "appSettingsExperimentalFolderLibrary": "Dyluniad amgen",
   "appSettingsExperimentalFolderLibraryHint": "Trefnwch wefannau yn grwpiau mewn grid lansio.",
