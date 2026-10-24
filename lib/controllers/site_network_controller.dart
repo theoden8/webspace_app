@@ -262,8 +262,7 @@ class SiteNetworkController {
   /// A site without a container profile runs in the default one, so under
   /// the router it still shares a cached credential.
   ProxyTopology get topology => ProxyTopology.of(
-        linux: hostIsLinux,
-        android: hostIsAndroid,
+        binding: ProxyManager.binding,
         routerActive: ProxyRouterService.instance.isActive,
         sharesDefaultSession: (m) => !ownsContainerProfile(m),
       );

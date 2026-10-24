@@ -1190,9 +1190,10 @@ void main() {
   group('a popup goes with the webview that opened it (PROXY-008)', () {
     const captcha = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
 
-    // Where each store binds its own proxy (an Apple host), no rule moves and
-    // nothing is told to stop loading; the popup still closes (PROXY-027).
-    bool processWide() => ProxyManager.binding == ProxyBinding.processWide;
+    // One rule for the process, as on Android: the hosts CI runs this on
+    // bind each store's proxy, where nothing is quieted (PROXY-027).
+    setUp(() => ProxyManager.pinBindingForTest(ProxyBinding.processWide));
+    tearDown(() => ProxyManager.pinBindingForTest(null));
 
     /// The site's webview with its popup up, and how often the popup closed.
     Future<({WebViewController opener, List<String> log, int Function() closed})>
@@ -1278,11 +1279,7 @@ void main() {
       final (:opener, :log, :closed) = await openPopup(tester);
       await tester.runAsync(opener.blockNetworkLoads);
       await tester.pump();
-      expect(
-          log,
-          processWide()
-              ? ['popup blockNetworkLoads=true', 'site blockNetworkLoads=true']
-              : isEmpty);
+      expect(log, ['popup blockNetworkLoads=true', 'site blockNetworkLoads=true']);
       expect(closed(), 1);
       expect(find.byType(inapp.InAppWebView), findsOneWidget);
     });
@@ -1299,7 +1296,7 @@ void main() {
       await tester.pump();
       expect(closed(), 1);
       await tester.runAsync(opener.blockNetworkLoads);
-      expect(log, processWide() ? ['site blockNetworkLoads=true'] : isEmpty);
+      expect(log, ['site blockNetworkLoads=true']);
       expect(closed(), 1);
     });
   });

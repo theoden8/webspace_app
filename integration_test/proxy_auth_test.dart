@@ -13,7 +13,6 @@
 // `ProxyController.setProxyOverride`, which routes through that channel.
 
 import 'dart:convert';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +23,8 @@ import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/main.dart' as app;
+import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
@@ -128,16 +129,15 @@ void main() {
     }
 
     // PWD-005: the per-site proxy carries the embedded credentials (the
-    // password loaded from secure storage). The delivery mechanism is
-    // mutually exclusive per platform, so assert the one that actually
-    // fires (webview.dart:2195 only sets initialSettings.proxySettings on
-    // iOS/macOS; Android/Linux leave it null and route through
-    // ProxyController instead).
-    if (Platform.isIOS || Platform.isMacOS) {
-      // iOS/macOS: proxy baked into the WebView's
-      // initialSettings.proxySettings at construction; the fork applies it
-      // to the per-container WKWebsiteDataStore network session. Read it off
-      // the mounted widget — no live network stack needed.
+    // password loaded from secure storage). The delivery mechanism follows
+    // the binding (PROXY-027), so assert the one that actually fires: a
+    // store that binds the proxy is built with initialSettings.proxySettings,
+    // and elsewhere it routes through ProxyController.
+    if (ProxyManager.binding == ProxyBinding.perSite) {
+      // iOS/macOS, and Linux under containers: proxy baked into the
+      // WebView's initialSettings.proxySettings at construction; the fork
+      // applies it to the site's own network session. Read it off the
+      // mounted widget — no live network stack needed.
       final webviewFinder = find.byType(inapp.InAppWebView);
       expect(webviewFinder, findsWidgets,
           reason: 'activating the site should mount its WebView');
@@ -149,7 +149,7 @@ void main() {
           ?.proxySettings
           ?.proxyRules;
       expect(rules, isNotNull,
-          reason: 'iOS/macOS WebView should be built with a proxy');
+          reason: 'a store that binds the proxy is built with it');
       expect(rules, isNotEmpty);
       final url = rules!.first.url;
       expect(url, isNotNull);
@@ -162,7 +162,8 @@ void main() {
       expect(url, contains('sekret-pass'),
           reason: 'proxy URL should embed the password from secure storage');
     } else {
-      // Android/Linux: proxy delivered via inapp.ProxyController.setProxyOverride.
+      // One rule for the process: proxy delivered via
+      // inapp.ProxyController.setProxyOverride.
       final overrides =
           capturedCalls.where((c) => c.method == 'setProxyOverride').toList();
       if (overrides.isEmpty) {

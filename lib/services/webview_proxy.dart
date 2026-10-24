@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:webspace/settings/site_ids.dart';
@@ -246,10 +247,9 @@ class ProxyManager {
   factory ProxyManager() => _instance;
   ProxyManager._internal();
 
-  /// Whether the process-global Android/Linux override currently names a
-  /// proxy. Read by `deferInitialLoadForProxy` so a DEFAULT site built while
-  /// another site's proxy is still in force does not issue its first request
-  /// through it.
+  /// Whether the process-global override currently names a proxy. Read by
+  /// `deferInitialLoadForProxy` so a DEFAULT site built while another site's
+  /// proxy is still in force does not issue its first request through it.
   static bool overrideActive = false;
 
   /// The process-wide proxy state with no address in it, so a failed load
@@ -262,11 +262,47 @@ class ProxyManager {
   /// Where this process enforces a per-site proxy (PROXY-027).
   ///
   /// Latched on first read, so a WebView built under one binding cannot be
-  /// driven by the other for the rest of the run.
-  static ProxyBinding get binding => _binding ??= ProxyBindingEngine.bindingWhen(
+  /// driven by the other for the rest of the run. The restore decides it
+  /// ([decideBinding]) before any site's webview is built; a read before
+  /// that takes the platform's answer with no containers.
+  static ProxyBinding get binding => _binding ??= _bindingWith(containers: false);
+
+  /// Decides [binding] once the restore knows how sites are kept apart: on
+  /// Linux, container isolation gives every site a network session that
+  /// holds its own proxy.
+  static void decideBinding(Isolation isolation) {
+    final decided = _bindingWith(containers: isolation is Containers);
+    assert(
+      _binding == null || _binding == decided,
+      'the proxy binding was read as $_binding before the restore decided '
+      '$decided (PROXY-027)',
+    );
+    _binding = decided;
+  }
+
+  static ProxyBinding _bindingWith({required bool containers}) =>
+      _pinnedForTest ??
+      ProxyBindingEngine.bindingWhen(
         isIOS: hostIsIOS,
         isMacOS: hostIsMacOS,
+        linuxContainers: hostIsLinux && containers,
       );
+
+  static ProxyBinding? _pinnedForTest;
+
+  /// Undecided again, for a test whose restore decides it anew.
+  @visibleForTesting
+  static void resetBindingForTest() => _binding = null;
+
+  /// [binding] whatever the host and the restore say, or the host's own again
+  /// with null: for a test that runs the other binding's paths, as the
+  /// process-wide ones an Android host takes on the Linux or macOS host CI
+  /// runs Dart tests on.
+  @visibleForTesting
+  static void pinBindingForTest(ProxyBinding? binding) {
+    _pinnedForTest = binding;
+    _binding = null;
+  }
 
   /// Containers this process built a WebView on with a proxy (PROXY-029).
   static final ContainerProxyLedger containerProxies = ContainerProxyLedger();
@@ -324,13 +360,13 @@ class ProxyManager {
 
     // Under the per-store binding the proxy travels through the fork's
     // `inapp.InAppWebViewSettings.proxySettings` field at WebView
-    // construction, so there is nothing to flip here —
-    // `inapp.ProxyController` is Android-only. Runtime updates of the
-    // per-site proxy require the WebView to be rebuilt by the caller (see
-    // [WebViewModel.updateProxySettings]).
+    // construction, so there is nothing to flip here, and a process-wide
+    // override written on Linux would move every session that holds none.
+    // Runtime updates of the per-site proxy require the WebView to be
+    // rebuilt by the caller (see [WebViewModel.updateProxySettings]).
     if (binding == ProxyBinding.perSite) {
       LogTag.proxy.debug(
-          'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
+          'setProxySettings: the store binds the proxy at WebView construction; no-op here',
           sensitive: true);
       return;
     }

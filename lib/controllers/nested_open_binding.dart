@@ -38,11 +38,12 @@ class NestedOpenBinding implements NestedScreenHost {
   Future<void> switchWebspaceFor(WebViewModel target) =>
       _webspaces.revealSite(target);
 
-  // Android/Linux: the proxy is a process-global override, and the nested
-  // screen is for a site that is not being activated, so its proxy is put in
-  // force here or it would load through whatever the active site left
+  // Where one rule covers the process, the proxy is that override, and the
+  // nested screen is for a site that is not being activated, so its proxy is
+  // put in force here or it would load through whatever the active site left
   // behind, bound to this site's container (LEAK-003). Under router mode the
-  // rule points at the relay and this no-ops.
+  // rule points at the relay, and where each store binds its own proxy there
+  // is no rule: both no-op.
   @override
   Future<void> applyProxyOf(WebViewModel target) =>
       ProxyManager().setProxySettings(

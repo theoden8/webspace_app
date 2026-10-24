@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -215,7 +216,7 @@ void main() {
         models: sites,
         loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
         topology: ProxyTopology.of(
-            linux: true, android: false, routerActive: false,
+            binding: ProxyBinding.processWide, routerActive: false,
             sharesDefaultSession: (_) => false),
       );
     }

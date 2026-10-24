@@ -21,9 +21,12 @@ enum ProxyBinding {
 /// passes without meaning it.
 class ProxyBindingEngine {
   /// Apple binds a proxy through `WKWebsiteDataStore.proxyConfigurations`,
-  /// which the app sets per container store. Everywhere else the proxy is
-  /// one process-wide rule: Android's `ProxyController`, and Linux's
-  /// default `WebKitNetworkSession` for a site with no container.
+  /// which the app sets per container store. Linux under container
+  /// isolation ([linuxContainers]) binds it per `WebKitNetworkSession`: a
+  /// container's session, or an incognito webview's ephemeral one, holds its
+  /// own and the process-wide override leaves it alone. Everywhere else the
+  /// proxy is one process-wide rule: Android's `ProxyController`, and on
+  /// Linux's shared jar the default session every site runs in.
   ///
   /// Router mode (PROXY-013) is not a third value. It changes what the
   /// rule *names* -- the loopback relay rather than the site's upstream --
@@ -39,6 +42,9 @@ class ProxyBindingEngine {
   static ProxyBinding bindingWhen({
     required bool isIOS,
     required bool isMacOS,
+    required bool linuxContainers,
   }) =>
-      isIOS || isMacOS ? ProxyBinding.perSite : ProxyBinding.processWide;
+      isIOS || isMacOS || linuxContainers
+          ? ProxyBinding.perSite
+          : ProxyBinding.processWide;
 }

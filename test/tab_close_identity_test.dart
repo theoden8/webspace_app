@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
@@ -33,8 +34,7 @@ class _Page extends Fake implements TabsHost {
 class _ProcessGlobal extends Fake implements ResidencyHost {
   @override
   final ProxyTopology proxyTopology = ProxyTopology.of(
-    linux: true,
-    android: false,
+    binding: ProxyBinding.processWide,
     routerActive: false,
     sharesDefaultSession: (_) => false,
   );

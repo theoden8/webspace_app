@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -104,8 +105,7 @@ final class _Residency implements ResidencyHost {
 
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
-      linux: false,
-      android: false,
+      binding: ProxyBinding.perSite,
       routerActive: false,
       sharesDefaultSession: (_) => false);
 

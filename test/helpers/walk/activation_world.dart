@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/archive_controller.dart';
@@ -2827,9 +2828,10 @@ final class _WalkResidency implements ResidencyHost {
 
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
-    linux: false,
-    android: world.proxies?.scope != WalkScope.session &&
-        world.proxies != null,
+    binding:
+        world.proxies != null && world.proxies?.scope != WalkScope.session
+        ? ProxyBinding.processWide
+        : ProxyBinding.perSite,
     routerActive: world.proxies?.scope == WalkScope.router,
     sharesDefaultSession: world._inDefaultSession,
   );

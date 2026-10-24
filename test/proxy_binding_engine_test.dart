@@ -8,14 +8,32 @@ import 'package:webspace/services/proxy_binding_engine.dart';
 /// every further assertion passes without meaning it.
 void main() {
   test('Apple binds per store, everything else process-wide', () {
-    expect(ProxyBindingEngine.bindingWhen(isIOS: true, isMacOS: false),
+    expect(
+        ProxyBindingEngine.bindingWhen(
+            isIOS: true, isMacOS: false, linuxContainers: false),
         ProxyBinding.perSite);
-    expect(ProxyBindingEngine.bindingWhen(isIOS: false, isMacOS: true),
+    expect(
+        ProxyBindingEngine.bindingWhen(
+            isIOS: false, isMacOS: true, linuxContainers: false),
         ProxyBinding.perSite);
-    expect(ProxyBindingEngine.bindingWhen(isIOS: false, isMacOS: false),
+    expect(
+        ProxyBindingEngine.bindingWhen(
+            isIOS: false, isMacOS: false, linuxContainers: false),
         ProxyBinding.processWide,
-        reason: 'Android has one ProxyController rule and Linux a default '
-            'network session; neither is a per-store binding');
+        reason: 'Android has one ProxyController rule and Linux on the '
+            'shared jar one default network session; neither is a per-store '
+            'binding');
+  });
+
+  test('Linux under containers binds per session (PROXY-027)', () {
+    // Every site has a WebKitNetworkSession of its own there, its
+    // container's or an incognito webview's ephemeral one, and the fork
+    // leaves a session that holds a proxy alone when the process-wide
+    // override moves; so nothing needs the one rule, and nothing contends.
+    expect(
+        ProxyBindingEngine.bindingWhen(
+            isIOS: false, isMacOS: false, linuxContainers: true),
+        ProxyBinding.perSite);
   });
 
   test('the Apple decision is not gated on anything else', () {
@@ -27,7 +45,8 @@ void main() {
     for (final isIOS in [true, false]) {
       for (final isMacOS in [true, false]) {
         expect(
-          ProxyBindingEngine.bindingWhen(isIOS: isIOS, isMacOS: isMacOS),
+          ProxyBindingEngine.bindingWhen(
+              isIOS: isIOS, isMacOS: isMacOS, linuxContainers: false),
           (isIOS || isMacOS) ? ProxyBinding.perSite : ProxyBinding.processWide,
           reason: 'isIOS=$isIOS isMacOS=$isMacOS',
         );

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/runtime_vars.dart';
@@ -45,21 +46,18 @@ UserProxySettings _default() => UserProxySettings(type: ProxyType.DEFAULT);
 
 /// The topologies a host produces, built the way the app builds them.
 final _perSession = ProxyTopology.of(
-  linux: false,
-  android: false,
+  binding: ProxyBinding.perSite,
   routerActive: false,
   sharesDefaultSession: (_) => false,
 );
 final _processGlobal = ProxyTopology.of(
-  linux: false,
-  android: true,
+  binding: ProxyBinding.processWide,
   routerActive: false,
   sharesDefaultSession: (_) => false,
 );
 ProxyTopology _routed(bool Function(WebViewModel model) sharesDefaultSession) =>
     ProxyTopology.of(
-      linux: false,
-      android: true,
+      binding: ProxyBinding.processWide,
       routerActive: true,
       sharesDefaultSession: sharesDefaultSession,
     );
@@ -621,29 +619,23 @@ void main() {
   });
 
   group('ProxyTopology.of (PROXY-008, PROXY-013)', () {
-    ProxyTopology of({
-      bool linux = false,
-      bool android = false,
-      bool router = false,
-    }) => ProxyTopology.of(
-      linux: linux,
-      android: android,
-      routerActive: router,
-      sharesDefaultSession: (_) => false,
-    );
+    ProxyTopology of({required ProxyBinding binding, bool router = false}) =>
+        ProxyTopology.of(
+          binding: binding,
+          routerActive: router,
+          sharesDefaultSession: (_) => false,
+        );
 
-    test('Linux is process-global, router or not', () {
-      expect(of(linux: true), isA<ProcessGlobalProxy>());
-      expect(of(linux: true, router: true), isA<ProcessGlobalProxy>());
+    test('one rule for the process is process-global until the router runs '
+        '(Android, Linux on the shared jar)', () {
+      expect(of(binding: ProxyBinding.processWide), isA<ProcessGlobalProxy>());
+      expect(of(binding: ProxyBinding.processWide, router: true),
+          isA<RoutedProxy>());
     });
 
-    test('Android is process-global until the router runs', () {
-      expect(of(android: true), isA<ProcessGlobalProxy>());
-      expect(of(android: true, router: true), isA<RoutedProxy>());
-    });
-
-    test('iOS and macOS bind per session', () {
-      expect(of(), isA<PerSessionProxy>());
+    test('a proxy each store binds is per session (iOS, macOS, Linux under '
+        'containers, PROXY-027)', () {
+      expect(of(binding: ProxyBinding.perSite), isA<PerSessionProxy>());
     });
   });
 
