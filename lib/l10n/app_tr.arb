@@ -1095,6 +1095,8 @@
   "librarySites": "Siteler",
   "librarySearchWebspaces": "Web alanlarında ara",
   "libraryNoResults": "Eşleşme yok",
+  "siteImportedFile": "İçe aktarılan dosya",
+  "libraryListView": "Liste görünümü",
   "appSettingsExperimentalFolderLibrary": "Alternatif tasarım",
   "appSettingsExperimentalFolderLibraryHint": "Siteleri başlatıcı ızgarasında gruplar halinde düzenleyin.",
   "siteRedirectHomeSuggestion": "Bu site {url} adresine yönlendirdi. Bu adres ana sayfası olarak kullanılsın mı? Yeni alan adına ait bağlantılar da burada açılacak.",

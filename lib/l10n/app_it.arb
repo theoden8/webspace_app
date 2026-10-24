@@ -1095,6 +1095,8 @@
   "librarySites": "Siti",
   "librarySearchWebspaces": "Cerca spazi web",
   "libraryNoResults": "Nessun risultato",
+  "siteImportedFile": "File importato",
+  "libraryListView": "Vista elenco",
   "appSettingsExperimentalFolderLibrary": "Design alternativo",
   "appSettingsExperimentalFolderLibraryHint": "Organizza i siti in gruppi in una griglia di avvio.",
   "siteRedirectHomeSuggestion": "Questo sito ha reindirizzato a {url}. Usare questo indirizzo come pagina iniziale? Anche i link al nuovo dominio si apriranno qui.",

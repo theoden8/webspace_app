@@ -1,5 +1,10 @@
 import 'dart:convert';
 
+/// Whether [url] is a file import's handle (`importedFileSite`), which names
+/// nothing on the web: the import's bytes are its only document. Legacy data
+/// has two slashes where new imports have three.
+bool isFileImportUrl(String url) => url.startsWith('file://');
+
 
 /// HTML rendered when a file-import site has no stored HTML available
 /// (an incognito session, an import whose bytes are gone). Loaded via
@@ -76,7 +81,7 @@ class FileImportDocument {
     required String initialUrl,
     String? initialHtml,
   }) {
-    if (!initialUrl.startsWith('file://')) return null;
+    if (!isFileImportUrl(initialUrl)) return null;
     return FileImportDocument(
       url: initialUrl,
       html: initialHtml ?? buildFileImportFallbackHtml(initialUrl),

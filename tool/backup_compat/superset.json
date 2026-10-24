@@ -256,6 +256,7 @@
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,
     "blockScreenshots": true,
+    "libraryList": true,
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },
   "suggestedSites": [

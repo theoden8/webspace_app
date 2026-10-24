@@ -1095,6 +1095,8 @@
   "librarySites": "Vefir",
   "librarySearchWebspaces": "Leita að vefsvæðum",
   "libraryNoResults": "Engar niðurstöður",
+  "siteImportedFile": "Innflutt skrá",
+  "libraryListView": "Listayfirlit",
   "appSettingsExperimentalFolderLibrary": "Önnur hönnun",
   "appSettingsExperimentalFolderLibraryHint": "Raðaðu vefsvæðum í hópa í ræsingarsýn.",
   "siteRedirectHomeSuggestion": "Þetta vefsvæði vísaði á {url}. Nota þetta sem upphafssíðu þess? Tenglar á nýja lénið munu einnig opnast hér.",

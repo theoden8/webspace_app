@@ -1095,6 +1095,8 @@
   "librarySites": "സൈറ്റുകൾ",
   "librarySearchWebspaces": "വെബ്‌സ്‌പെയ്‌സുകൾ തിരയുക",
   "libraryNoResults": "ഫലങ്ങളില്ല",
+  "siteImportedFile": "ഇമ്പോർട്ട് ചെയ്ത ഫയൽ",
+  "libraryListView": "ലിസ്റ്റ് കാഴ്ച",
   "appSettingsExperimentalFolderLibrary": "ബദൽ രൂപകൽപ്പന",
   "appSettingsExperimentalFolderLibraryHint": "ലോഞ്ചർ ഗ്രിഡിൽ സൈറ്റുകൾ ഗ്രൂപ്പുകളായി ക്രമീകരിക്കുക.",
   "siteRedirectHomeSuggestion": "ഈ സൈറ്റ് {url} എന്ന വിലാസത്തിലേക്ക് റീഡയറക്‌ട് ചെയ്‌തു. ഇത് അതിന്റെ ഹോംപേജായി ഉപയോഗിക്കണോ? പുതിയ ഡൊമെയ്‌നിലേക്കുള്ള ലിങ്കുകളും ഇവിടെ തുറക്കും.",

@@ -13,6 +13,44 @@ import 'package:webspace/widgets/site_grid_tile.dart';
 import 'helpers/localized.dart';
 
 void main() {
+  testWidgets(
+    'an imported file shows as one under its name, in a library row and a drawer tile, never as its file handle (WEBSPACE-015)',
+    (tester) async {
+      final file = WebViewModel(
+        initUrl: 'file:///webspace_import_1700000000.html',
+        name: 'Notes',
+      );
+      for (final (layout, list, size) in [
+        (SiteGridTileLayout.library, 1.0, const Size(360, 60)),
+        (SiteGridTileLayout.compact, 0.0, const Size(320, 56)),
+      ]) {
+        await pumpLocalized(
+          tester,
+          home: Scaffold(
+            body: Center(
+              child: SizedBox.fromSize(
+                size: size,
+                child: SiteGridTile(
+                  site: file,
+                  listIndex: 0,
+                  selected: false,
+                  showTabCount: false,
+                  layout: layout,
+                  list: list,
+                  onOpen: () {},
+                  onMenu: (_, {required globalPosition}) {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Imported file'), findsOneWidget, reason: '$layout');
+        expect(find.textContaining('file:'), findsNothing, reason: '$layout');
+      }
+    },
+  );
+
   for (final brightness in Brightness.values) {
     testWidgets(
       'a look-alike keeps its tab-tree color when selected in ${brightness.name} (WEBSPACE-004, WEBSPACE-014)',

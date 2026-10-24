@@ -4,14 +4,17 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'helpers/localized.dart';
@@ -147,6 +150,19 @@ Rect _well(WidgetTester tester, {required String name}) => tester.getRect(
     matching: find.byType(AnimatedContainer),
   ),
 );
+
+/// The well of the [index]-th site icon in the open folder.
+Finder _siteWell(int index) => find.descendant(
+  of: _inPanel(find.byType(SiteGridTile)).at(index),
+  matching: find.byType(AnimatedContainer),
+);
+
+/// Starts each test on a grid, with somewhere for the switch to save.
+void _layoutStartsAsGrid() {
+  SharedPreferences.setMockInitialValues({});
+  AppPref.libraryList.debugValue = false;
+  addTearDown(() => AppPref.libraryList.debugValue = false);
+}
 
 /// Runs the screen reader's [label] move on the icon [finder] shows.
 Future<void> _semanticMove(
@@ -1355,5 +1371,157 @@ void main() {
     expect(_inPanel(find.byType(SiteGridTile)), findsNWidgets(2));
     expect(entering.width, lessThan(tester.getRect(_panel).width));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'the switch turns every folder into rows and back, its icons gliding with their places as the panel fits them (WEBSPACE-015)',
+    (tester) async {
+      _layoutStartsAsGrid();
+      await pumpLocalized(
+        tester,
+        home: const _LibraryHarness(),
+        size: const Size(411, 900),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(_group('All'));
+      await tester.pumpAndSettle();
+      final tiles = _inPanel(find.byType(SiteGridTile));
+      final gridTile = tester.getRect(tiles.at(1));
+      final gridWell = tester.getRect(_siteWell(1));
+      expect(_inPanel(find.text('site1.example.test')), findsNothing);
+
+      await tester.tap(_inPanel(find.byTooltip('List view')));
+      await tester.pump();
+      await tester.pump(Motion.layoutMorph ~/ 2);
+      final turning = tester.getRect(_siteWell(1));
+      expect(
+        turning.width,
+        inExclusiveRange(LibraryStyle.rowWell, LibraryStyle.siteWell),
+      );
+      expect(
+        tester.getRect(tiles.at(1)),
+        tester.getRect(
+          find.ancestor(
+            of: tiles.at(1),
+            matching: find.byType(LauncherCell<int>),
+          ),
+        ),
+        reason: 'an icon goes with its place as the layout turns, not after it',
+      );
+      await tester.pumpAndSettle();
+
+      expect(AppPref.libraryList.value, isTrue);
+      expect(
+        (await SharedPreferences.getInstance()).getBool(
+          AppPref.libraryList.key,
+        ),
+        isTrue,
+      );
+      final panel = tester.getRect(_panel);
+      final rows = [for (var i = 0; i < 8; i++) tester.getRect(tiles.at(i))];
+      for (final (i, row) in rows.indexed) {
+        expect(row.width, panel.width - Spacing.sm * 2);
+        if (i > 0) expect(row.top, rows[i - 1].bottom);
+      }
+      expect(_inPanel(find.text('site1.example.test')), findsOneWidget);
+      expect(
+        tester.getRect(_siteWell(1)),
+        SiteGridTile.wellIn(rows[1], list: 1, direction: TextDirection.ltr),
+      );
+      expect(
+        rows.last.bottom + Spacing.sm + LibraryStyle.pageDots,
+        moreOrLessEquals(panel.bottom, epsilon: 1),
+        reason: 'the panel is as tall as its rows',
+      );
+      expect(
+        turning.center.dx,
+        inExclusiveRange(
+          tester.getRect(_siteWell(1)).center.dx,
+          gridWell.center.dx,
+        ),
+      );
+
+      Finder dot(String name) => _inPanel(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.button == true &&
+              widget.properties.label == name,
+        ),
+      );
+      await tester.tap(dot('Privacy'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(_inPanel(find.byType(SiteGridTile))).width,
+        tester.getRect(_panel).width - Spacing.sm * 2,
+        reason: 'every folder shows rows',
+      );
+
+      await tester.tap(_inPanel(find.byTooltip('List view')));
+      await tester.pumpAndSettle();
+      await tester.tap(dot('All'));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(tiles.at(1)), gridTile);
+      expect(AppPref.libraryList.value, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a site in a row opens from and closes into its row\'s icon (WEBSPACE-015)',
+    (tester) async {
+      _layoutStartsAsGrid();
+      AppPref.libraryList.debugValue = true;
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      expect(
+        state.library.currentState!.siteWell(state.sites[1].siteId),
+        tester.getRect(_siteWell(1)),
+      );
+      expect(tester.getSize(_siteWell(1)).width, LibraryStyle.siteWell);
+      expect(tester.getRect(_siteWell(1)).width, LibraryStyle.rowWell);
+    },
+  );
+
+  testWidgets('rows reorder by dragging as icons do (WEBSPACE-015)', (
+    tester,
+  ) async {
+    _layoutStartsAsGrid();
+    AppPref.libraryList.debugValue = true;
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.tap(_group('Work'));
+    await tester.pumpAndSettle();
+    final state = tester.state<_LibraryHarnessState>(
+      find.byType(_LibraryHarness),
+    );
+    final rows = _inPanel(find.byType(SiteGridTile));
+    await _lift(tester, from: rows.at(0), to: rows.at(1));
+    expect(state.siteMoves, [(0, 1)]);
+    expect(_panel, findsOneWidget);
+  });
+
+  testWidgets('reduced motion turns a folder into rows at once', (
+    tester,
+  ) async {
+    _layoutStartsAsGrid();
+    await pumpLocalized(
+      tester,
+      home: const MediaQuery(
+        data: MediaQueryData(disableAnimations: true),
+        child: _LibraryHarness(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_group('Work'));
+    await tester.pumpAndSettle();
+    await tester.tap(_inPanel(find.byTooltip('List view')));
+    await tester.pump();
+    expect(tester.getRect(_siteWell(0)).width, LibraryStyle.rowWell);
   });
 }

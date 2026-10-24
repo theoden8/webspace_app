@@ -1095,6 +1095,8 @@
   "librarySites": "Webbplatser",
   "librarySearchWebspaces": "Sök webbutrymmen",
   "libraryNoResults": "Inga träffar",
+  "siteImportedFile": "Importerad fil",
+  "libraryListView": "Listvy",
   "appSettingsExperimentalFolderLibrary": "Alternativ design",
   "appSettingsExperimentalFolderLibraryHint": "Ordna webbplatser i grupper i ett startrutnät.",
   "siteRedirectHomeSuggestion": "Den här webbplatsen omdirigerade till {url}. Vill du använda adressen som dess startsida? Länkar till den nya domänen öppnas också här.",

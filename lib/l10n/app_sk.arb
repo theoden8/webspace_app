@@ -1095,6 +1095,8 @@
   "librarySites": "Weby",
   "librarySearchWebspaces": "Hľadať webové priestory",
   "libraryNoResults": "Žiadne výsledky",
+  "siteImportedFile": "Importovaný súbor",
+  "libraryListView": "Zobrazenie zoznamu",
   "appSettingsExperimentalFolderLibrary": "Alternatívny vzhľad",
   "appSettingsExperimentalFolderLibraryHint": "Usporiadajte weby do skupín v mriežke spúšťača.",
   "siteRedirectHomeSuggestion": "Tento web presmeroval na {url}. Použiť túto adresu ako jeho domovskú stránku? Odkazy na novú doménu sa tiež budú otvárať tu.",

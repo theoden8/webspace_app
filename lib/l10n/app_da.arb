@@ -1095,6 +1095,8 @@
   "librarySites": "Websteder",
   "librarySearchWebspaces": "Søg i webområder",
   "libraryNoResults": "Ingen resultater",
+  "siteImportedFile": "Importeret fil",
+  "libraryListView": "Listevisning",
   "appSettingsExperimentalFolderLibrary": "Alternativt design",
   "appSettingsExperimentalFolderLibraryHint": "Organiser websteder i grupper i et startgitter.",
   "siteRedirectHomeSuggestion": "Dette websted omdirigerede til {url}. Vil du bruge denne adresse som dets startside? Links til det nye domæne åbnes også her.",

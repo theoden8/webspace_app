@@ -1095,6 +1095,8 @@
   "librarySites": "Webguneak",
   "librarySearchWebspaces": "Bilatu webgune-espazioak",
   "libraryNoResults": "Ez dago emaitzarik",
+  "siteImportedFile": "Inportatutako fitxategia",
+  "libraryListView": "Zerrenda-ikuspegia",
   "appSettingsExperimentalFolderLibrary": "Diseinu alternatiboa",
   "appSettingsExperimentalFolderLibraryHint": "Antolatu webguneak taldeka abiarazlearen saretan.",
   "siteRedirectHomeSuggestion": "Gune honek {url} helbidera birbideratu du. Helbide hori hasierako orri gisa erabili? Domeinu berrirako estekak ere hemen irekiko dira.",

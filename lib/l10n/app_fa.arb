@@ -1095,6 +1095,8 @@
   "librarySites": "سایت‌ها",
   "librarySearchWebspaces": "جستجوی فضاهای وب",
   "libraryNoResults": "نتیجه‌ای یافت نشد",
+  "siteImportedFile": "فایل واردشده",
+  "libraryListView": "نمای فهرستی",
   "appSettingsExperimentalFolderLibrary": "طراحی جایگزین",
   "appSettingsExperimentalFolderLibraryHint": "سایت‌ها را در گروه‌هایی در شبکهٔ راه‌انداز سازمان‌دهی کنید.",
   "siteRedirectHomeSuggestion": "این سایت به {url} هدایت شد. از این نشانی به‌عنوان صفحهٔ اصلی آن استفاده شود؟ پیوندهای دامنهٔ جدید نیز اینجا باز خواهند شد.",

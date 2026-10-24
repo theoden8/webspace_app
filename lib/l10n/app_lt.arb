@@ -1095,6 +1095,8 @@
   "librarySites": "Svetainės",
   "librarySearchWebspaces": "Ieškoti žiniatinklio erdvių",
   "libraryNoResults": "Atitikmenų nėra",
+  "siteImportedFile": "Importuotas failas",
+  "libraryListView": "Sąrašo rodinys",
   "appSettingsExperimentalFolderLibrary": "Alternatyvus dizainas",
   "appSettingsExperimentalFolderLibraryHint": "Tvarkykite svetaines grupėmis paleidimo tinklelyje.",
   "siteRedirectHomeSuggestion": "Ši svetainė nukreipė į {url}. Naudoti šį adresą kaip jos pradžios puslapį? Nuorodos į naująjį domeną taip pat bus atidaromos čia.",

@@ -90,6 +90,19 @@ abstract final class LibraryStyle {
   static const double pageDots = 28;
   static const double pageDot = 6;
 
+  /// A folder's sites as rows (WEBSPACE-015): a row's icon well and its
+  /// name's size; a tile turning into a row loses its name under the icon
+  /// early in the way and gains the row's late.
+  static const double rowWell = 44;
+  static const double rowTitleSize = 15;
+  static const Curve gridCaptionOut = Interval(0, .4, curve: Curves.easeOut);
+  static const Curve rowCaptionIn = Interval(.5, 1, curve: Curves.easeOut);
+
+  /// The open folder's switch between a grid and rows: each of its two
+  /// segments, and the track around them.
+  static const Size layoutSwitchSegment = Size(36, 28);
+  static const double layoutSwitchInset = 2;
+
   /// An icon held down, lifted, and the gap it leaves while dragged.
   static const double pressScale = .94;
   static const double liftScale = 1.08;
@@ -198,6 +211,10 @@ abstract final class Motion {
 
   /// A released control gliding to where it rests.
   static const Duration settle = Duration(milliseconds: 250);
+
+  /// A folder's sites turning from a grid into rows and back.
+  static const Duration layoutMorph = Duration(milliseconds: 420);
+  static const Curve layoutCurve = Curves.easeInOutCubicEmphasized;
 
   /// How far into a swipe between folder pages the panel takes the next
   /// page's size: late, so the page in view keeps its size while it goes.

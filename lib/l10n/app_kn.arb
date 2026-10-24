@@ -1095,6 +1095,8 @@
   "librarySites": "ತಾಣಗಳು",
   "librarySearchWebspaces": "ವೆಬ್‌ಸ್ಪೇಸ್‌ಗಳನ್ನು ಹುಡುಕಿ",
   "libraryNoResults": "ಫಲಿತಾಂಶಗಳಿಲ್ಲ",
+  "siteImportedFile": "ಆಮದು ಮಾಡಿದ ಫೈಲ್",
+  "libraryListView": "ಪಟ್ಟಿ ವೀಕ್ಷಣೆ",
   "appSettingsExperimentalFolderLibrary": "ಪರ್ಯಾಯ ವಿನ್ಯಾಸ",
   "appSettingsExperimentalFolderLibraryHint": "ಲಾಂಚರ್ ಗ್ರಿಡ್‌ನಲ್ಲಿ ಸೈಟ್‌ಗಳನ್ನು ಗುಂಪುಗಳಾಗಿ ಜೋಡಿಸಿ.",
   "siteRedirectHomeSuggestion": "ಈ ಸೈಟ್ {url} ಗೆ ಮರುನಿರ್ದೇಶಿಸಿದೆ. ಇದನ್ನು ಅದರ ಮುಖಪುಟವಾಗಿ ಬಳಸಬೇಕೇ? ಹೊಸ ಡೊಮೇನ್‌ನ ಲಿಂಕ್‌ಗಳೂ ಇಲ್ಲಿಯೇ ತೆರೆಯುತ್ತವೆ.",

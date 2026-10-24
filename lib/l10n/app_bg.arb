@@ -1095,6 +1095,8 @@
   "librarySites": "Сайтове",
   "librarySearchWebspaces": "Търсене на уеб пространства",
   "libraryNoResults": "Няма резултати",
+  "siteImportedFile": "Импортиран файл",
+  "libraryListView": "Изглед в списък",
   "appSettingsExperimentalFolderLibrary": "Алтернативен дизайн",
   "appSettingsExperimentalFolderLibraryHint": "Организирайте сайтовете в групи в мрежа за стартиране.",
   "siteRedirectHomeSuggestion": "Този сайт пренасочи към {url}. Да се използва ли този адрес като начална страница? Връзките към новия домейн също ще се отварят тук.",

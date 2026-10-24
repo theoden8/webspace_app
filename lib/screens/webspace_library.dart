@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
@@ -21,6 +22,23 @@ import 'package:webspace/widgets/webspace_group_tile.dart';
 enum _GroupAction { edit, delete, moveUp, moveDown }
 
 enum _AddAction { site, webspace }
+
+/// A grid of site icons: a folder's page, laid out as rows or a grid as every
+/// folder is and reordered where it is the selected webspace's, or search
+/// results across webspaces, each labelled with the webspaces it is in.
+sealed class _SiteGridOf {
+  const _SiteGridOf();
+}
+
+final class _FolderPage extends _SiteGridOf {
+  const _FolderPage({required this.reorders});
+
+  final bool reorders;
+}
+
+final class _SearchResults extends _SiteGridOf {
+  const _SearchResults();
+}
 
 /// The user's sites as a phone's home screen: webspaces are its folders, and
 /// the selected one opens as a panel grown out of its tile over the dimmed
@@ -107,6 +125,11 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   /// The open panel's height at its last layout, which a pull is measured in.
   double _panelHeight = 0;
 
+  /// How far the folders have turned from a grid into rows, following
+  /// [AppPref.libraryList] (WEBSPACE-015).
+  late final AnimationController _view;
+  late final CurvedAnimation _rows;
+
   /// The open folder's pages, one per webspace in the grid's order, as a
   /// phone's home screen has pages: made on the selected webspace's page
   /// when a folder opens, and let go when it has closed.
@@ -165,11 +188,27 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       reverseDuration: Motion.launchBack,
     )..addStatusListener(_panelSettled);
     _pull = AnimationController.unbounded(vsync: this);
+    _view = AnimationController(
+      vsync: this,
+      duration: Motion.layoutMorph,
+      value: AppPref.libraryList.value ? 1 : 0,
+    );
+    _rows = CurvedAnimation(parent: _view, curve: Motion.layoutCurve);
+    AppPref.libraryList.listenable.addListener(_layoutChanged);
     _growth = CurvedAnimation(
       parent: _panel,
       curve: Motion.launchCurve,
       reverseCurve: Motion.launchCurve.flipped,
     );
+  }
+
+  void _layoutChanged() {
+    final rows = AppPref.libraryList.value;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _view.value = rows ? 1 : 0;
+    } else {
+      unawaited(rows ? _view.forward() : _view.reverse());
+    }
   }
 
   void _panelSettled(AnimationStatus status) {
@@ -190,6 +229,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     if (context == null || tile is! RenderBox || !tile.hasSize) return null;
     final well = SiteGridTile.wellIn(
       tile.localToGlobal(Offset.zero) & tile.size,
+      list: _open ? _rows.value : 0,
+      direction: Directionality.of(context),
     );
     final viewport = Scrollable.maybeOf(context)?.context.findRenderObject();
     if (viewport is RenderBox &&
@@ -228,6 +269,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     _growth.dispose();
     _panel.dispose();
     _pull.dispose();
+    AppPref.libraryList.listenable.removeListener(_layoutChanged);
+    _rows.dispose();
+    _view.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -289,7 +333,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             if (pages != null)
               LayoutBuilder(
                 builder: (context, constraints) => AnimatedBuilder(
-                  animation: Listenable.merge([_growth, pages, _pull]),
+                  animation: Listenable.merge([_growth, pages, _pull, _rows]),
                   builder: (context, _) => _panelLayer(
                     context,
                     webspace: webspace!,
@@ -571,7 +615,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   }
 
   /// Centered, as wide as a phone's folder, and as tall as its sites need
-  /// up to most of the screen.
+  /// up to most of the screen, as icons or as rows.
   Rect _panelRect(
     BuildContext context, {
     required Size size,
@@ -602,9 +646,15 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             ) +
         (rows - 1) * Spacing.lg +
         Spacing.lg * 2;
+    final list =
+        math.max(1, count) * SiteGridTile.rowExtentFor(context) +
+        Spacing.sm * 2;
     final dots = widget.webspaces.length > 1 ? LibraryStyle.pageDots : 0;
     final room = size.height - insets.vertical - Spacing.xl * 2;
-    final height = math.min(header + grid + dots, room);
+    final height = math.min(
+      header + lerpDouble(grid, list, _rows.value)! + dots,
+      room,
+    );
     return Rect.fromLTWH(
       (size.width - width) / 2,
       insets.top + (size.height - insets.vertical - height) / 2,
@@ -792,6 +842,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                     ],
                   ),
                 ),
+                _LayoutSwitch(rows: _rows),
                 IconButton(
                   tooltip: loc.homeAddSite,
                   onPressed: () => widget.onAddSite(into: webspace.id),
@@ -820,8 +871,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         order: order,
                         shown: order,
                         keys: _panelSites.putIfAbsent(webspace.id, () => {}),
-                        memberships: false,
-                        reorders: webspace.id == widget.selectedWebspaceId,
+                        of: _FolderPage(
+                          reorders: webspace.id == widget.selectedWebspaceId,
+                        ),
                       ),
                     ],
                   ),
@@ -960,11 +1012,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                                   _from = _groupWell(webspace.id);
                                   widget.onSelectWebspace(webspace);
                                 },
-                                onMenu: (at) => unawaited(_menu(
-                                  webspace,
-                                  at: at,
-                                  moves: LauncherCell.menuMoves(cell),
-                                )),
+                                onMenu: (at) => unawaited(
+                                  _menu(
+                                    webspace,
+                                    at: at,
+                                    moves: LauncherCell.menuMoves(cell),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -982,7 +1036,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                 order: order,
                 shown: matchingSites,
                 keys: found,
-                memberships: true,
+                of: const _SearchResults(),
               ),
             ],
           ],
@@ -1031,17 +1085,19 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   }
 
   /// [shown] of [order] as icons, each under a key in [keys] so its well can
-  /// be found; [memberships] labels each with the named webspaces it is in,
-  /// as search results across webspaces are, which do not reorder.
+  /// be found, laid out as what the grid is [of] has them.
   Widget _siteGrid(
     BuildContext context, {
     required double width,
     required List<int> order,
     required List<int> shown,
     required Map<SiteId, GlobalKey> keys,
-    required bool memberships,
-    bool reorders = false,
+    required _SiteGridOf of,
   }) {
+    final (memberships, reorders, list) = switch (of) {
+      _FolderPage(:final reorders) => (false, reorders, _rows.value),
+      _SearchResults() => (true, false, 0.0),
+    };
     final labels = {
       for (final i in shown)
         i: memberships
@@ -1056,7 +1112,11 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     final reorder = reorders && order.length > 1 ? widget.onReorderSite : null;
     final onReorder = reorder;
     return SliverPadding(
-      padding: const EdgeInsets.all(Spacing.lg),
+      padding: EdgeInsets.lerp(
+        const EdgeInsets.all(Spacing.lg),
+        const EdgeInsets.all(Spacing.sm),
+        list,
+      )!,
       sliver: LauncherGrid<int>(
         order: [for (final i in shown) order.indexOf(i)],
         fixed: (_) => false,
@@ -1064,19 +1124,26 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             ? null
             : (from, {required to}) => onReorder(from, to: to),
         builder: (context, {required places}) => SliverGrid.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: _siteColumns(context, width: width),
-            crossAxisSpacing: Spacing.sm,
-            mainAxisSpacing: Spacing.lg,
-            mainAxisExtent: shown
-                .map(
-                  (i) => SiteGridTile.extentFor(
-                    context,
-                    well: LibraryStyle.siteWell,
-                    webspaceCount: labels[i]!.length,
-                  ),
-                )
-                .reduce(math.max),
+          gridDelegate: LauncherMorph(
+            grid: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: _siteColumns(context, width: width),
+              crossAxisSpacing: Spacing.sm,
+              mainAxisSpacing: Spacing.lg,
+              mainAxisExtent: shown
+                  .map(
+                    (i) => SiteGridTile.extentFor(
+                      context,
+                      well: LibraryStyle.siteWell,
+                      webspaceCount: labels[i]!.length,
+                    ),
+                  )
+                  .reduce(math.max),
+            ),
+            rows: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 1,
+              mainAxisExtent: SiteGridTile.rowExtentFor(context),
+            ),
+            list: list,
           ),
           itemCount: places.length,
           findChildIndexCallback: (key) {
@@ -1093,6 +1160,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
               child: LauncherCell<int>(
                 index: index,
                 child: LauncherSlot(
+                  morphing: list > 0 && list < 1,
                   child: SiteGridTile(
                     key: ValueKey(site.siteId),
                     site: site,
@@ -1103,6 +1171,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                     layout: SiteGridTileLayout.library,
                     webspaces: labels[i]!,
                     lookalike: _lookalikes.contains(site.siteId),
+                    list: list,
                     onOpen: () {
                       FocusScope.of(context).unfocus();
                       widget.onOpenSite(site);
@@ -1217,5 +1286,92 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       case null:
         return;
     }
+  }
+}
+
+/// The open folder's switch between its sites as a grid of icons and as rows,
+/// which every folder follows ([AppPref.libraryList]); its thumb slides with
+/// the folder's [rows] as they turn.
+class _LayoutSwitch extends StatelessWidget {
+  const _LayoutSwitch({required this.rows});
+
+  final Animation<double> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = AppLocalizations.of(context).libraryListView;
+    final on = AppPref.libraryList.value;
+    const segment = LibraryStyle.layoutSwitchSegment;
+    Widget icon(IconData data, {required double shown}) => SizedBox.fromSize(
+      size: segment,
+      child: Icon(
+        data,
+        size: IconSizes.inline,
+        color: Color.lerp(
+          theme.colorScheme.onSurfaceVariant,
+          theme.colorScheme.onPrimary,
+          shown,
+        ),
+      ),
+    );
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        container: true,
+        toggled: on,
+        label: label,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: () => unawaited(AppPref.libraryList.set(!on)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: kMinInteractiveDimension,
+            ),
+            child: Center(
+              widthFactor: 1,
+              child: Container(
+                padding: const EdgeInsets.all(LibraryStyle.layoutSwitchInset),
+                decoration: ShapeDecoration(
+                  color: LibraryStyle.field(theme.brightness),
+                  shape: const StadiumBorder(),
+                ),
+                child: AnimatedBuilder(
+                  animation: rows,
+                  builder: (context, _) => Stack(
+                    children: [
+                      PositionedDirectional(
+                        start: segment.width * rows.value,
+                        top: 0,
+                        width: segment.width,
+                        height: segment.height,
+                        child: DecoratedBox(
+                          decoration: ShapeDecoration(
+                            color: theme.colorScheme.primary,
+                            shape: const StadiumBorder(),
+                          ),
+                        ),
+                      ),
+                      ExcludeSemantics(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            icon(
+                              Icons.grid_view_rounded,
+                              shown: 1 - rows.value,
+                            ),
+                            icon(Icons.view_agenda_outlined, shown: rows.value),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

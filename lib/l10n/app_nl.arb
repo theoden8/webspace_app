@@ -1095,6 +1095,8 @@
   "librarySites": "Websites",
   "librarySearchWebspaces": "Webruimtes zoeken",
   "libraryNoResults": "Geen resultaten",
+  "siteImportedFile": "Geïmporteerd bestand",
+  "libraryListView": "Lijstweergave",
   "appSettingsExperimentalFolderLibrary": "Alternatief ontwerp",
   "appSettingsExperimentalFolderLibraryHint": "Orden websites in groepen in een startraster.",
   "siteRedirectHomeSuggestion": "Deze site heeft doorgestuurd naar {url}. Dit adres als startpagina gebruiken? Links naar het nieuwe domein worden ook hier geopend.",

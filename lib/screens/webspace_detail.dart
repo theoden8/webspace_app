@@ -4,6 +4,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/widgets/dirty_guard.dart';
+import 'package:webspace/widgets/site_address.dart';
 import 'package:webspace/widgets/toast.dart';
 
 class WebspaceDetailScreen extends StatefulWidget {
@@ -136,7 +137,9 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
                         child: CheckboxListTile(
                           secondary: UnifiedFaviconImage.site(site, size: 32),
                           title: Text(site.getDisplayName()),
-                          subtitle: Text(extractDomain(site.initUrl)),
+                          subtitle: Text(
+                            addressOf(site.initUrl, loc: loc),
+                          ),
                           value: isSelected,
                           onChanged: widget.isReadOnly
                               ? null

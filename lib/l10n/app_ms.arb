@@ -1095,6 +1095,8 @@
   "librarySites": "Laman",
   "librarySearchWebspaces": "Cari ruang web",
   "libraryNoResults": "Tiada padanan",
+  "siteImportedFile": "Fail yang diimport",
+  "libraryListView": "Paparan senarai",
   "appSettingsExperimentalFolderLibrary": "Reka bentuk alternatif",
   "appSettingsExperimentalFolderLibraryHint": "Susun tapak dalam kumpulan pada grid pelancar.",
   "siteRedirectHomeSuggestion": "Laman ini telah mengubah hala ke {url}. Gunakan alamat ini sebagai laman utamanya? Pautan ke domain baharu juga akan dibuka di sini.",

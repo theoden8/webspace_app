@@ -119,7 +119,10 @@ enum AppPref<T extends Object> {
   httpsUpgradeEnabled('httpsUpgradeEnabled', fallback: true),
   // SCREENBLOCK-002: withhold the whole app from screenshots, recordings
   // and the recent-apps preview. Android only.
-  blockScreenshots('blockScreenshots', fallback: false);
+  blockScreenshots('blockScreenshots', fallback: false),
+  // WEBSPACE-015: the library's folders show their sites as rows rather than
+  // a grid of icons, every folder at once.
+  libraryList('libraryList', fallback: false);
 
   const AppPref(this.key, {required this.fallback,this.legacyKey})
       : assert(fallback is bool || fallback is int || fallback is String);

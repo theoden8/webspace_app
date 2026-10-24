@@ -1095,6 +1095,8 @@
   "librarySites": "අඩවි",
   "librarySearchWebspaces": "වෙබ් අවකාශ සොයන්න",
   "libraryNoResults": "ප්‍රතිඵල නැත",
+  "siteImportedFile": "ආයාත කළ ගොනුව",
+  "libraryListView": "ලැයිස්තු දසුන",
   "appSettingsExperimentalFolderLibrary": "විකල්ප සැලසුම",
   "appSettingsExperimentalFolderLibraryHint": "දියත් කිරීමේ ජාලකයක අඩවි කණ්ඩායම් ලෙස සංවිධානය කරන්න.",
   "siteRedirectHomeSuggestion": "මෙම අඩවිය {url} වෙත යළි යොමු විය. මෙය එහි මුල් පිටුව ලෙස භාවිත කරන්නද? නව වසම වෙත සබැඳි ද මෙහි විවෘත වේ.",

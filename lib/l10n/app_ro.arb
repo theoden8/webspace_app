@@ -1095,6 +1095,8 @@
   "librarySites": "Site-uri",
   "librarySearchWebspaces": "Caută spații web",
   "libraryNoResults": "Niciun rezultat",
+  "siteImportedFile": "Fișier importat",
+  "libraryListView": "Vizualizare listă",
   "appSettingsExperimentalFolderLibrary": "Design alternativ",
   "appSettingsExperimentalFolderLibraryHint": "Organizează site-urile în grupuri într-o grilă de lansare.",
   "siteRedirectHomeSuggestion": "Acest site a redirecționat către {url}. Folosiți această adresă ca pagină de pornire? Linkurile către noul domeniu se vor deschide tot aici.",

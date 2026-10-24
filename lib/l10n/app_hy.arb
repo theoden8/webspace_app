@@ -1095,6 +1095,8 @@
   "librarySites": "Կայքեր",
   "librarySearchWebspaces": "Որոնել վեբ տարածքներ",
   "libraryNoResults": "Համընկնումներ չկան",
+  "siteImportedFile": "Ներմուծված ֆայլ",
+  "libraryListView": "Ցուցակի տեսք",
   "appSettingsExperimentalFolderLibrary": "Այլընտրանքային ձևավորում",
   "appSettingsExperimentalFolderLibraryHint": "Դասավորեք կայքերը խմբերով գործարկիչի ցանցում։",
   "siteRedirectHomeSuggestion": "Այս կայքը վերահղվել է դեպի {url}։ Օգտագործե՞լ այս հասցեն որպես իր գլխավոր էջ։ Նոր տիրույթի հղումները նույնպես կբացվեն այստեղ։",

@@ -1095,6 +1095,8 @@
   "librarySites": "साइटें",
   "librarySearchWebspaces": "वेबस्पेस खोजें",
   "libraryNoResults": "कोई मिलान नहीं",
+  "siteImportedFile": "आयात की गई फ़ाइल",
+  "libraryListView": "सूची दृश्य",
   "appSettingsExperimentalFolderLibrary": "वैकल्पिक डिज़ाइन",
   "appSettingsExperimentalFolderLibraryHint": "लॉन्चर ग्रिड में साइटों को समूहों में व्यवस्थित करें।",
   "siteRedirectHomeSuggestion": "यह साइट {url} पर रीडायरेक्ट हुई है। इसे इसका होमपेज बनाएँ? नए डोमेन के लिंक भी यहीं खुलेंगे।",
