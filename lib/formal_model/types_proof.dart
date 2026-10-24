@@ -21,7 +21,8 @@ List<({String path, String text})> activationTypesProofs({
       if (!_parameters.contains(key)) key: value,
   };
   final all = [for (final steps in tables.values) ...steps];
-  final needs = {for (final h in _held) h: _needs(h, steps: all)};
+  final held = _heldOf(all, definitions: opened);
+  final needs = {for (final h in held) h: _needs(h, steps: all)};
   final facts = _facts(definitions: definitions);
   return [
     _module('activation_types_proof', extending: 'activation, TLAPS', body: [
@@ -44,17 +45,17 @@ List<({String path, String text})> activationTypesProofs({
       for (final k in _alone.keys)
         '    /\\ (fl[g].kind = "${k.name}" /\\ fl[h].kind = "${k.name}" => g = h)',
       '',
-      for (final h in _held) ...[
+      for (final h in held) ...[
         '\\* Where a flow\'s ${h.field.name} is in ${h.set}: where a step needs it, and on',
         '\\* every way there that does not set it, for the kinds of flow that go',
-        '\\* that way (_held).',
+        '\\* that way (_heldOf).',
         'Held_${h.field.name} == \\A g \\in Flows :',
         for (final (:places, :others) in _byOthers(needs[h]!))
           '    /\\ (fl[g].pc \\in ${_set(places)}${others.isEmpty ? '' : ' /\\ fl[g].kind \\notin ${_set(others)}'}'
               ' => fl[g].${h.field.name} \\in ${h.set})',
         '',
       ],
-      'Held == ${[for (final h in _held) 'Held_${h.field.name}'].join(' /\\ ')}',
+      'Held == ${[for (final h in held) 'Held_${h.field.name}'].join(' /\\ ')}',
       '',
       ..._proved(_pick),
       'LEMMA TypeFl ==',
@@ -107,19 +108,19 @@ List<({String path, String text})> activationTypesProofs({
                   _rowTyped(
                     s.action,
                     at: k + 1,
-                    row: _atPlace(row, of: s),
+                    row: _atPlace(row, of: s, held: held),
                     definitions: opened,
                   ),
                 ..._statement(_keptTyped, s: s),
                 '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'FlRow_${s.action}_$k'].join(', ')}, ZenonFirst',
-                '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', ..._placeDefs(s)].join(', ')}',
+                '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', ..._placeDefs(s, held: held)].join(', ')}',
                 '',
               ],
             ]),
     // A module per held field: a cold module's memory grows with its rows
     // ([_rowsPerModule]), and each field proves every row again.
     for (final (:name, :steps) in _parts(tables))
-      for (final h in _held)
+      for (final h in held)
         _module(name.replaceFirst('activation_types_', 'activation_held_${h.field.name}_'),
             extending: 'activation_types_proof',
             body: [
@@ -128,14 +129,14 @@ List<({String path, String text})> activationTypesProofs({
                   _rowHeld(
                     s,
                     at: k + 1,
-                    row: _atPlace(row, of: s),
+                    row: _atPlace(row, of: s, held: held),
                     held: h,
                     need: needs[h]!,
                     definitions: opened,
                   ),
-                ..._statement(_keptHeld(h), s: s),
+                ..._statement(_keptHeld(h.field), s: s),
                 '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'HdRow_${h.field.name}_${s.action}_$k'].join(', ')}, ZenonFirst',
-                '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
+                '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s, held: held)].join(', ')}',
                 '',
               ],
             ]),
@@ -153,13 +154,13 @@ List<({String path, String text})> activationTypesProofs({
                 _rowSupported(
                   s,
                   at: k + 1,
-                  row: _atPlace(row, of: s),
-                  kinds: needs[_held.firstWhere((h) => h.field == FlowField.kind)]!,
+                  row: _atPlace(row, of: s, held: held),
+                  kinds: needs[held.firstWhere((h) => h.field == FlowField.kind)]!,
                   definitions: opened,
                 ),
               ..._statement(_keptSupports, s: s),
               '  BY ${[for (var k = 1; k <= s.rows.length; k++) 'SpRow_${s.action}_$k'].join(', ')}, ZenonFirst',
-              '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s)].join(', ')}',
+              '     DEF ${[s.action, if (s.input) 'Input', 'Starts', 'IndInv', 'Held', ..._placeDefs(s, held: held)].join(', ')}',
               '',
             ],
           ]),
@@ -289,10 +290,10 @@ const _keptTyped = (
   assume: 'TypeOK, IndInv, Held, Supports',
   fact: r"fl' \in [Flows -> FlowRecord]",
 );
-_Kept _keptHeld(_Held h) => (
-  lemma: 'Hd_${h.field.name}',
+_Kept _keptHeld(FlowField field) => (
+  lemma: 'Hd_${field.name}',
   assume: 'TypeOK, IndInv, ConstantsType, Held, Supports',
-  fact: "Held_${h.field.name}'",
+  fact: "Held_${field.name}'",
 );
 const _keptAlone = (lemma: 'Al', assume: 'TypeOK, IndInv, ConstantsType, Alone', fact: "Alone'");
 const _keptSupports = (
@@ -317,7 +318,7 @@ List<String> _statement(_Kept k, {required FlStep s}) => [
 /// restated lemma to the one its table's module proves.
 final _kept = <({String family, List<_Kept> kept})>[
   (family: 'types', kept: [_keptTyped]),
-  (family: 'held', kept: [for (final h in _held) _keptHeld(h)]),
+  (family: 'held', kept: [for (final f in _heldFields) _keptHeld(f)]),
   (family: 'supports', kept: [_keptAlone, _keptSupports]),
 ];
 
@@ -358,9 +359,9 @@ List<({String name, List<FlStep> steps})> _parts(Map<String, List<FlStep>> table
 
 /// The definitions a step's lemma opens to give its rows the facts of its
 /// place ([_placeFacts]).
-List<String> _placeDefs(FlStep s) => <String>{
+List<String> _placeDefs(FlStep s, {required List<_Held> held}) => <String>{
   if (!s.input) ...[
-    for (final h in _held)
+    for (final h in held)
       if (h.at.contains(s.place)) ...['Held', 'Held_${h.field.name}'],
     if (_supports.containsKey(s.place)) ...['Supports', 'Supported_${s.place}'],
   ],
@@ -368,10 +369,10 @@ List<String> _placeDefs(FlStep s) => <String>{
 
 /// [row] with what its step may take of the place it runs from
 /// ([_placeFacts]).
-FlRow _atPlace(FlRow row, {required FlStep of}) => (
+FlRow _atPlace(FlRow row, {required FlStep of, required List<_Held> held}) => (
   picks: row.picks,
   lets: row.lets,
-  given: [if (!of.input) ..._placeFacts(of.place), ...row.given],
+  given: [if (!of.input) ..._placeFacts(of.place, held: held), ...row.given],
   clauses: row.clauses,
   tested: row.tested,
   passed: row.passed,
@@ -517,7 +518,7 @@ List<String> _leaves(FlRow row, {required List<ModelVar> vars}) => [
 /// The lemma that [row] of [s] keeps `Supports`: a row it sends to a
 /// supported place has its fact there, by its values or as it had it at
 /// that place; where the row writes a variable a fact reads, no other flow
-/// is at a supported place, since only a kind of [_alone] is ([_held]) and
+/// is at a supported place, since only a kind of [_alone] is ([_heldOf]) and
 /// the row passed that kind's gate or runs as it; every other row is as it
 /// was. [kinds] is where `Held_kind` holds its kind, by kinds of flow.
 String _rowSupported(
@@ -532,11 +533,8 @@ String _rowSupported(
   final facts = _supports.values.join(' ');
   final fields = {for (final m in RegExp(r'\br\.(\w+)').allMatches(facts)) m[1]!}.toList()..sort();
   final opens = _reached(facts, definitions: definitions);
-  final shared = [
-    for (final v in ModelVar.values)
-      if (v != ModelVar.fl && RegExp('\\b${v.name}\\b').hasMatch(_closure(facts, definitions: definitions))) v,
-  ];
-  final moves = row.writes.any((w) => w.vars.any(shared.contains));
+  final shared = _supportedReads(definitions);
+  final moves = _moves(row, shared: shared);
   final gates = [
     for (final g in _alone.values)
       if (_keepsOut(row, gate: g)) g,
@@ -866,7 +864,7 @@ String _typed(
 /// conjunction too wide to close.
 String _typeStep(ModelVar v) => 't${v.name}';
 
-/// What a step needs of its flow beyond `TypeOK` and [_held], by the place
+/// What a step needs of its flow beyond `TypeOK` and [_heldOf], by the place
 /// it runs from, over the flow `g`, each a definition over the row
 /// (`Supported_<place>`): proved kept by every step (`Supports`), by the
 /// ways into the place and, where a step writes a variable it reads, by no
@@ -881,19 +879,60 @@ const _supports = <String, String>{
 final _alone = {FlowKind.tab: ModelDef.tabBusy};
 
 /// A field a flow holds in a set narrower than its range wherever a step
-/// needs it: the places named, and each place an arm leaves from that
+/// needs it: the places [at], and each place an arm leaves from that
 /// enters one of them without setting the field ([_needs]). Proved kept by
 /// every step (`Held_<field>`).
 typedef _Held = ({FlowField field, String set, Set<String> at});
 
-final _held = <_Held>[
-  (field: FlowField.site, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip', 'hLand', 'oLand'}),
-  (field: FlowField.tab, set: 'TabIds', at: {'tNav', 'tRebind', 'tDupRead'}),
-  // What [_supports] reads of the shared state only a flow of a kind in
-  // [_alone] writes, so its places hold only those, and so does a place
-  // whose step writes it beside them (a landing's fresh tab).
-  (field: FlowField.kind, set: _set([for (final k in _alone.keys) k.name]), at: {..._supports.keys, 'hLand', 'oLand'}),
+/// The fields [_heldOf] holds, in the order `Held` conjoins them.
+const _heldFields = [FlowField.site, FlowField.tab, FlowField.kind];
+
+/// Where each of [_heldFields] is held over [steps]. The site's and the
+/// tab's places are where a value a step writes needs the field in its set
+/// beyond what `IndInv` gives, which the tables do not say, so they are
+/// named. The kind's follow from [_supports]: what a supported fact reads
+/// of the shared state only a flow of a kind in [_alone] writes, so its
+/// places hold only those, and so does every place whose step writes it
+/// beside them ([_unguarded]).
+List<_Held> _heldOf(Iterable<FlStep> steps, {required Map<String, String> definitions}) => [
+  for (final field in _heldFields)
+    switch (field) {
+      FlowField.site => (field: field, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip', 'hLand', 'oLand'}),
+      FlowField.tab => (field: field, set: 'TabIds', at: {'tNav', 'tRebind', 'tDupRead'}),
+      FlowField.kind => (
+        field: field,
+        set: _set([for (final k in _alone.keys) k.name]),
+        at: {..._supports.keys, ..._unguarded(steps, definitions: definitions)},
+      ),
+      final other => throw ArgumentError.value(other, 'field', 'not held'),
+    },
 ];
+
+/// The places whose step writes what a supported fact reads in a row no
+/// gate of [_alone] keeps out, so a flow of that kind may be beside it.
+Set<String> _unguarded(Iterable<FlStep> steps, {required Map<String, String> definitions}) {
+  final shared = _supportedReads(definitions);
+  return {
+    for (final s in steps)
+      if (!s.input)
+        for (final row in s.rows)
+          if (_moves(row, shared: shared) && !_alone.values.any((g) => _keepsOut(row, gate: g))) s.place,
+  };
+}
+
+/// The shared variables a fact of [_supports] reads, through the
+/// [definitions] it reaches.
+List<ModelVar> _supportedReads(Map<String, String> definitions) {
+  final reads = _closure(_supports.values.join(' '), definitions: definitions);
+  return [
+    for (final v in ModelVar.values)
+      if (v != ModelVar.fl && RegExp('\\b${v.name}\\b').hasMatch(reads)) v,
+  ];
+}
+
+/// Whether [row] writes one of [shared].
+bool _moves(FlRow row, {required List<ModelVar> shared}) =>
+    row.writes.any((w) => w.vars.any(shared.contains));
 
 /// The kinds of flow a row can hold, as the model names them: a row no
 /// input has started holds none.
@@ -984,9 +1023,9 @@ List<({List<String> places, List<String> others})> _byOthers(Map<String, Set<Str
 String _set(List<String> names) => '{${[for (final n in names) '"$n"'].join(', ')}}';
 
 /// What a step at [place] may take of its flow beyond `TypeOK`: each field
-/// [_held] names there, and what [_supports] holds there.
-List<String> _placeFacts(String place) => [
-  for (final h in _held)
+/// [held] names there, and what [_supports] holds there.
+List<String> _placeFacts(String place, {required List<_Held> held}) => [
+  for (final h in held)
     if (h.at.contains(place)) 'fl[f].${h.field.name} \\in ${h.set}',
   if (_supports[place] case final fact?) fact.replaceAll(RegExp(r'\br\.'), 'fl[f].'),
 ];

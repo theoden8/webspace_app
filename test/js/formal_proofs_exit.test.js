@@ -66,7 +66,7 @@ for (const part of [3, 4]) {
     const { result, tmp } = checkProofs(t, {
       outcome: 'partial', shortModule: `activation_tables_${part}_proof.tla`,
     });
-    assert.match(result.stdout, /FAIL: .* proved only 1 obligations/);
+    assert.match(result.stdout, /FAIL: the tables' step modules proved only 1001 obligations/);
     assert.doesNotMatch(result.stdout, /All TLAPS proofs checked\./);
     assert.equal(result.status, 1, result.stdout + result.stderr);
     assert.deepEqual(fs.readdirSync(tmp), []);
