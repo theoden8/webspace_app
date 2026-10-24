@@ -79,6 +79,13 @@ abstract final class LibraryStyle {
   static const panelLight = Color(0xFFFFFFFF);
   static const panelDark = Color(0xFF222833);
 
+  /// An open folder pulled down by its top bar: the share of its height that
+  /// closes it when let go, the downward fling that closes it from anywhere
+  /// (logical pixels a second), and how much it shrinks as it goes.
+  static const double pullToClose = .25;
+  static const double pullFling = 700;
+  static const double pullShrink = .1;
+
   /// The open folder's page dots: the row under its pages, and one dot.
   static const double pageDots = 28;
   static const double pageDot = 6;
@@ -191,6 +198,14 @@ abstract final class Motion {
 
   /// A released control gliding to where it rests.
   static const Duration settle = Duration(milliseconds: 250);
+
+  /// How far into a swipe between folder pages the panel takes the next
+  /// page's size: late, so the page in view keeps its size while it goes.
+  static const Curve folderPageResize = Interval(
+    .6,
+    1,
+    curve: Curves.easeInOut,
+  );
 }
 
 abstract final class Elevations {

@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/theme/design_tokens.dart';
@@ -15,6 +16,24 @@ import 'package:webspace/web_view_model.dart';
 /// The colour [site]'s container is drawn in.
 Color containerColorOf(WebViewModel site, {required Brightness brightness}) =>
     ContainerColors.of(site.drawnContainerColor, brightness: brightness);
+
+/// The sites whose icon another of [sites] shows too, which only their
+/// container's colour tells apart (WEBSPACE-014): the same picked icon, or
+/// none picked and the same host, whose favicon both fetch.
+Set<SiteId> sitesSharingAnIcon(Iterable<WebViewModel> sites) {
+  final bySource = <Object, List<SiteId>>{};
+  for (final site in sites) {
+    final Object source = switch (site.customIconPng) {
+      final png? => (picked: Object.hashAll(png), length: png.length),
+      null => (host: Host.inUrl(site.initUrl)?.withoutWww ?? site.initUrl),
+    };
+    (bySource[source] ??= []).add(site.siteId);
+  }
+  return {
+    for (final alike in bySource.values)
+      if (alike.length > 1) ...alike,
+  };
+}
 
 /// A short bar in the colour of [site]'s container. Decorative: the row it
 /// sits in names the site in words.

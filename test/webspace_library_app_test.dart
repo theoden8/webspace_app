@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as image;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/webspace_library.dart';
@@ -12,6 +14,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_drawer.dart';
@@ -371,6 +374,52 @@ void main() {
       expect(find.byType(SiteGridTile), findsOneWidget,
           reason: 'Alpha left the group on screen');
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a look-alike site\'s card opens in its container colour, as its icon is (WEBSPACE-014)',
+    (tester) async {
+      final icon = Uint8List.fromList(
+        image.encodePng(image.Image(width: 3, height: 2)),
+      );
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+        customIconPng: icon,
+      )..containerColor = 3;
+      final beta = WebViewModel(
+        initUrl: 'https://beta.example.test',
+        name: 'Beta',
+        customIconPng: icon,
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha, beta],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      await tester.tap(_siteTile('Alpha'));
+      await tester.pump();
+      final card = find.descendant(
+        of: find.byType(LaunchZoom),
+        matching: find.byType(Material),
+      );
+      final theme = Theme.of(tester.element(card));
+      expect(
+        tester.widget<Material>(card).color,
+        SiteGridTile.wellColor(
+          containerColorOf(alpha, brightness: theme.brightness),
+          theme: theme,
+        ),
+        reason: 'Beta shows the same icon, outside the folder',
+      );
+      await settleRealApp(tester);
     },
   );
 

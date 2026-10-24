@@ -63,6 +63,18 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   void disableTabs(WebViewModel site) =>
       setState(() => site.tabsEnabled = false);
 
+  /// Gives every site an icon of its own but the ones [twins] lists, which
+  /// share one.
+  void iconsExceptTwins(Set<int> twins) => setState(() {
+    for (final (i, site) in sites.indexed) {
+      site.customIconPng = twins.contains(i)
+          ? _icon
+          : Uint8List.fromList(
+              image.encodePng(image.Image(width: 3 + i, height: 2)),
+            );
+    }
+  });
+
   @override
   Widget build(BuildContext context) {
     WebspaceSelectionEngine.resolveIndices(
@@ -363,14 +375,21 @@ void main() {
       // The first move only claims the drag.
       await swipe.moveBy(const Offset(-kTouchSlop * 2, 0));
       await tester.pump();
-      await swipe.moveBy(Offset(-all.width * .6, 0));
+      await swipe.moveBy(Offset(-all.width * .55, 0));
       await tester.pump();
       expect(
         state.selected,
         WebspaceId.all,
         reason: 'past halfway, the swipe has not come to rest yet',
       );
-      final between = tester.getRect(_panel);
+      expect(
+        tester.getRect(_panel).height,
+        all.height,
+        reason: 'halfway over, the panel keeps the size of the page it leaves',
+      );
+      await swipe.moveBy(Offset(-all.width * .3, 0));
+      await tester.pump();
+      final late = tester.getRect(_panel);
       await swipe.up();
       await tester.pumpAndSettle();
       expect(state.selected, state.webspaces[1].id);
@@ -379,14 +398,68 @@ void main() {
       final work = tester.getRect(_panel);
       expect(work.height, lessThan(all.height));
       expect(
-        between.height,
+        late.height,
         inExclusiveRange(work.height, all.height),
-        reason: 'between two pages the panel takes a size between theirs',
+        reason: 'late in the swipe it takes the next page\'s size',
       );
+      final back = await tester.startGesture(tester.getCenter(_panel));
+      await back.moveBy(const Offset(kTouchSlop * 2, 0));
+      await tester.pump();
+      await back.moveBy(Offset(work.width * .45, 0));
+      await tester.pump();
+      expect(
+        tester.getRect(_panel).height,
+        work.height,
+        reason: 'back the other way, it keeps the size of the page it leaves',
+      );
+      await back.up();
+      await tester.pumpAndSettle();
+      expect(state.selected, state.webspaces[1].id);
       await tester.fling(_panel, const Offset(-300, 0), 1000);
       await tester.pumpAndSettle();
       expect(state.selected, state.webspaces[2].id);
       expect(_inPanel(find.text('Site 2')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'an open folder pulled down by its top bar follows the finger: let go short it springs back, far or flung it closes (WEBSPACE-008)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      final open = tester.getRect(_panel);
+      final bar = _inPanel(find.text('2 sites'));
+      Future<TestGesture> pull(double by) async {
+        final finger = await tester.startGesture(tester.getCenter(bar));
+        await finger.moveBy(const Offset(0, kTouchSlop * 2));
+        await tester.pump();
+        await finger.moveBy(Offset(0, by));
+        await tester.pump();
+        return finger;
+      }
+
+      final short = await pull(40);
+      final held = tester.getRect(_panel);
+      expect(held.center.dy, greaterThan(open.center.dy + 30));
+      expect(held.width, lessThan(open.width), reason: 'it gives up a little');
+      await short.up();
+      await tester.pumpAndSettle();
+      expect(tester.getRect(_panel), open, reason: 'short, it springs back');
+      final far = await pull(open.height * .4);
+      await far.up();
+      await tester.pumpAndSettle();
+      expect(_panel, findsNothing);
+      expect(state.selected, state.webspaces[1].id);
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      await tester.flingFrom(tester.getCenter(bar), const Offset(0, 60), 1500);
+      await tester.pumpAndSettle();
+      expect(_panel, findsNothing, reason: 'a fling down closes it too');
     },
   );
 
@@ -522,6 +595,34 @@ void main() {
       await tester.tap(_inPanel(find.byTooltip('Add Site')));
       await tester.pump();
       expect(state.addedInto, [null, state.webspaces[1].id]);
+    },
+  );
+
+  testWidgets(
+    'only sites showing the same icon as another are marked as look-alikes, across every webspace (WEBSPACE-014)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      state.iconsExceptTwins({1, 2});
+      await tester.pumpAndSettle();
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      bool lookalike(String name) => tester
+          .widget<SiteGridTile>(
+            find.byWidgetPredicate(
+              (widget) => widget is SiteGridTile && widget.site.name == name,
+            ),
+          )
+          .lookalike;
+      expect(lookalike('GitHub'), isFalse);
+      expect(
+        lookalike('Site 1'),
+        isTrue,
+        reason: 'Site 2 shows its icon, though Work does not hold it',
+      );
     },
   );
 

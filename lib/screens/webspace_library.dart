@@ -10,6 +10,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
@@ -79,7 +80,7 @@ class WebspaceLibrary extends StatefulWidget {
 
 /// Owns the open folder and the search without changing saved app state.
 class WebspaceLibraryState extends State<WebspaceLibrary>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _search = TextEditingController();
   final _settings = ReentryGuard();
   late final AnimationController _panel;
@@ -99,6 +100,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   /// Each folder page's icons' keys: one site can sit on several pages.
   final _panelSites = <WebspaceId, Map<SiteId, GlobalKey>>{};
 
+  /// How far the open folder's top bar is pulled down, which the panel
+  /// follows; it springs back to 0 when let go short of closing.
+  late final AnimationController _pull;
+
+  /// The open panel's height at its last layout, which a pull is measured in.
+  double _panelHeight = 0;
+
   /// The open folder's pages, one per webspace in the grid's order, as a
   /// phone's home screen has pages: made on the selected webspace's page
   /// when a folder opens, and let go when it has closed.
@@ -114,6 +122,10 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   (bool, bool)? _mode;
   var _groupTiles = <WebspaceId, GlobalKey>{};
   var _foundSites = <SiteId, GlobalKey>{};
+
+  /// The sites another shows the same icon as, worked out once a build rather
+  /// than on every frame a folder moves.
+  Set<SiteId> _lookalikes = const {};
 
   /// Opens the selected webspace's folder.
   void openFolder() {
@@ -152,6 +164,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       duration: Motion.launch,
       reverseDuration: Motion.launchBack,
     )..addStatusListener(_panelSettled);
+    _pull = AnimationController.unbounded(vsync: this);
     _growth = CurvedAnimation(
       parent: _panel,
       curve: Motion.launchCurve,
@@ -164,6 +177,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     _pages?.dispose();
     _pages = null;
     _aim = null;
+    _pull.value = 0;
     setState(() {});
   }
 
@@ -213,6 +227,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     _panelFocus.dispose();
     _growth.dispose();
     _panel.dispose();
+    _pull.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -244,6 +259,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    _lookalikes = sitesSharingAnIcon(widget.sites);
     final webspace = _selected;
     final panelShown = webspace != null && (_open || !_panel.isDismissed);
     final pages = panelShown
@@ -273,7 +289,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             if (pages != null)
               LayoutBuilder(
                 builder: (context, constraints) => AnimatedBuilder(
-                  animation: Listenable.merge([_growth, pages]),
+                  animation: Listenable.merge([_growth, pages, _pull]),
                   builder: (context, _) => _panelLayer(
                     context,
                     webspace: webspace!,
@@ -406,8 +422,25 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       size: size,
       count: _order(widget.webspaces[index].id).length,
     );
-    // Between two pages the panel takes the size between theirs.
-    final target = Rect.lerp(sized(lower), sized(upper), page - lower)!;
+    // A swipe keeps the size of the page it leaves, the selected one, until
+    // late in its way to the next, then takes that page's.
+    final ahead = page >= widget.webspaces.indexOf(webspace);
+    final leaving = ahead ? lower : upper;
+    final target = Rect.lerp(
+      sized(leaving),
+      sized(ahead ? upper : lower),
+      Motion.folderPageResize.transform((page - leaving).abs().clamp(0, 1)),
+    )!;
+    _panelHeight = target.height;
+    // Pulled down by its top bar, the panel follows the finger, giving up a
+    // little size and the dimming of the grid behind it.
+    final pulled = (_pull.value / target.height).clamp(0.0, 1.0);
+    final held = Rect.fromCenter(
+      center: target.center + Offset(0, _pull.value),
+      width: target.width * (1 - LibraryStyle.pullShrink * pulled),
+      height: target.height * (1 - LibraryStyle.pullShrink * pulled),
+    );
+    final dim = shown * (1 - pulled);
     final from =
         _from ??
         Rect.fromCenter(
@@ -429,12 +462,12 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                 onTap: closeFolder,
                 child: BackdropFilter(
                   filter: ImageFilter.blur(
-                    sigmaX: LibraryStyle.scrimBlur * shown,
-                    sigmaY: LibraryStyle.scrimBlur * shown,
+                    sigmaX: LibraryStyle.scrimBlur * dim,
+                    sigmaY: LibraryStyle.scrimBlur * dim,
                   ),
                   child: ColoredBox(
                     color: Colors.black.withValues(
-                      alpha: LibraryStyle.scrimOpacity * shown,
+                      alpha: LibraryStyle.scrimOpacity * dim,
                     ),
                   ),
                 ),
@@ -442,7 +475,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             ),
           ),
           Positioned.fromRect(
-            rect: Rect.lerp(from, target, t)!,
+            rect: Rect.lerp(from, held, t)!,
             child: Focus(
               focusNode: _panelFocus,
               // Focus starts here when a folder opens; a move between its
@@ -662,6 +695,25 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     );
   }
 
+  /// The top bar let go after a pull: flung down, or let go past a share of
+  /// the panel's height and not flung back up, it closes the folder into its
+  /// tile; short of that the panel springs back.
+  void _letGo({required double velocity}) {
+    if (velocity > LibraryStyle.pullFling ||
+        (velocity > -LibraryStyle.pullFling &&
+            _pull.value > _panelHeight * LibraryStyle.pullToClose)) {
+      closeFolder();
+      return;
+    }
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pull.value = 0;
+      return;
+    }
+    unawaited(
+      _pull.animateTo(0, duration: Motion.settle, curve: Motion.launchCurve),
+    );
+  }
+
   /// Goes to page [index] of the open folder, as a dot or an arrow key asks.
   void _turnTo(
     BuildContext context, {
@@ -701,51 +753,58 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     final tabs = _tabCount(order);
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(
-            Spacing.xl,
-            Spacing.lg,
-            Spacing.sm,
-            0,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      webspace.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragUpdate: (details) =>
+              _pull.value = math.max(0, _pull.value + details.delta.dy),
+          onVerticalDragEnd: (details) =>
+              _letGo(velocity: details.primaryVelocity ?? 0),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              Spacing.xl,
+              Spacing.lg,
+              Spacing.sm,
+              0,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        webspace.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    Text(
-                      loc.webspacesListSiteCount(order.length),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      Text(
+                        loc.webspacesListSiteCount(order.length),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: loc.homeAddSite,
-                onPressed: () => widget.onAddSite(into: webspace.id),
-                icon: const Icon(Icons.add),
-                color: theme.colorScheme.primary,
-              ),
-              if (tabs > 0)
-                TabCountButton(
-                  count: tabs,
-                  onPressed: () => widget.onShowTabs(webspace.id),
+                IconButton(
+                  tooltip: loc.homeAddSite,
+                  onPressed: () => widget.onAddSite(into: webspace.id),
+                  icon: const Icon(Icons.add),
+                  color: theme.colorScheme.primary,
                 ),
-            ],
+                if (tabs > 0)
+                  TabCountButton(
+                    count: tabs,
+                    onPressed: () => widget.onShowTabs(webspace.id),
+                  ),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -1043,6 +1102,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         widget.showsTabCount(site) && site.tabs.length > 1,
                     layout: SiteGridTileLayout.library,
                     webspaces: labels[i]!,
+                    lookalike: _lookalikes.contains(site.siteId),
                     onOpen: () {
                       FocusScope.of(context).unfocus();
                       widget.onOpenSite(site);

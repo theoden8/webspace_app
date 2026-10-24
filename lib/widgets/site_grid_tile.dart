@@ -24,6 +24,7 @@ class SiteGridTile extends StatelessWidget {
     required this.onMenu,
     this.layout = SiteGridTileLayout.compact,
     this.webspaces = const [],
+    this.lookalike = false,
   });
 
   final WebViewModel site;
@@ -34,6 +35,9 @@ class SiteGridTile extends StatelessWidget {
   final bool showTabCount;
   final SiteGridTileLayout layout;
   final List<Webspace> webspaces;
+
+  /// Whether another site shows the same icon (`sitesSharingAnIcon`).
+  final bool lookalike;
 
   final VoidCallback onOpen;
 
@@ -66,15 +70,28 @@ class SiteGridTile extends StatelessWidget {
     LibraryStyle.siteWell,
   );
 
-  /// The fill of a library tile's well, which the site's card starts from.
-  static Color wellColor(WebViewModel site, {required ThemeData theme}) =>
-      Color.alphaBlend(
-        containerColorOf(
-          site,
-          brightness: theme.brightness,
-        ).withAlpha(LibraryStyle.siteTintAlpha),
-        theme.colorScheme.surface,
-      );
+  /// The colour [site]'s icon is marked in: its container's, only where the
+  /// icon alone does not tell the site apart, because another site shows the
+  /// same one ([lookalike]) or it has none of its own ([missing]); else none
+  /// (WEBSPACE-014).
+  static Color? markOf(
+    WebViewModel site, {
+    required Brightness brightness,
+    required bool lookalike,
+    required bool missing,
+  }) => lookalike || missing
+      ? containerColorOf(site, brightness: brightness)
+      : null;
+
+  /// The fill of a library tile's well, which the site's card starts from:
+  /// tinted with its [mark], or neutral where there is none.
+  static Color wellColor(Color? mark, {required ThemeData theme}) =>
+      mark == null
+      ? theme.colorScheme.surfaceContainerHighest
+      : Color.alphaBlend(
+          mark.withAlpha(LibraryStyle.siteTintAlpha),
+          theme.colorScheme.surface,
+        );
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +105,7 @@ class SiteGridTile extends StatelessWidget {
         showTabCount: showTabCount,
         layout: layout,
         webspaces: webspaces,
+        lookalike: lookalike,
       ),
     );
     return Semantics(
@@ -141,6 +159,7 @@ class _SiteGridTileContent extends StatelessWidget {
     required this.showTabCount,
     required this.layout,
     required this.webspaces,
+    required this.lookalike,
   });
 
   final WebViewModel site;
@@ -148,6 +167,7 @@ class _SiteGridTileContent extends StatelessWidget {
   final bool showTabCount;
   final SiteGridTileLayout layout;
   final List<Webspace> webspaces;
+  final bool lookalike;
 
   @override
   Widget build(BuildContext context) {
@@ -175,42 +195,54 @@ class _SiteGridTileContent extends StatelessWidget {
   Widget _library(BuildContext context) {
     final theme = Theme.of(context);
     const well = LibraryStyle.siteWell;
-    final color = containerColorOf(site, brightness: theme.brightness);
     return Column(
       children: [
         const SizedBox(height: Spacing.sm),
         Stack(
           clipBehavior: Clip.none,
           children: [
-            AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : Motion.settle,
-              width: well,
-              height: well,
-              decoration: BoxDecoration(
-                color: SiteGridTile.wellColor(site, theme: theme),
-                border: Border.all(
-                  color: color,
-                  width: LibraryStyle.selectionWidth,
-                ),
-                borderRadius: BorderRadius.circular(LibraryStyle.radius),
-              ),
-              foregroundDecoration: selected
-                  ? BoxDecoration(
-                      borderRadius: BorderRadius.circular(LibraryStyle.radius),
-                      border: Border.all(
-                        color: theme.colorScheme.primary,
-                        width: LibraryStyle.selectionWidth,
-                      ),
-                    )
-                  : null,
-              alignment: Alignment.center,
-              clipBehavior: Clip.antiAlias,
-              child: UnifiedFaviconImage.site(
-                site,
-                size: LibraryStyle.siteIcon * well / LibraryStyle.siteWell,
-              ),
+            UnifiedFaviconImage.site(
+              site,
+              size: LibraryStyle.siteIcon * well / LibraryStyle.siteWell,
+              frame: (context, {required missing, required icon}) {
+                final mark = SiteGridTile.markOf(
+                  site,
+                  brightness: theme.brightness,
+                  lookalike: lookalike,
+                  missing: missing,
+                );
+                return AnimatedContainer(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : Motion.settle,
+                  width: well,
+                  height: well,
+                  decoration: BoxDecoration(
+                    color: SiteGridTile.wellColor(mark, theme: theme),
+                    border: mark == null
+                        ? null
+                        : Border.all(
+                            color: mark,
+                            width: LibraryStyle.selectionWidth,
+                          ),
+                    borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                  ),
+                  foregroundDecoration: selected
+                      ? BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            LibraryStyle.radius,
+                          ),
+                          border: Border.all(
+                            color: theme.colorScheme.primary,
+                            width: LibraryStyle.selectionWidth,
+                          ),
+                        )
+                      : null,
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.antiAlias,
+                  child: icon,
+                );
+              },
             ),
             if (showTabCount)
               PositionedDirectional(

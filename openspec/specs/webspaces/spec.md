@@ -73,7 +73,7 @@ The system SHALL provide clear visual indication of which webspace is currently 
 
 The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. Library searches SHALL filter the current view without changing membership or persisted order.
 
-Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL use its existing container color and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tabs sheet and remain stable when selection changes.
+Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL take its container color where WEBSPACE-014 shows one and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tabs sheet and remain stable when selection changes.
 
 The library's home header, beside App Settings, and an open folder's header, at its end, SHALL each carry a tab count button while what they show holds a site with tabs: the home's counts and lists the tabs of every site, a folder's those of its sites. It opens the tabs sheet with no site on screen, titled by that scope and listing each site's tree, and a tab picked there opens its site on that tab.
 
@@ -160,7 +160,9 @@ Users SHALL be able to return to the group grid from a workspace site grid. The 
 
 With the group library enabled, a group SHALL open as a folder: a panel that grows out of the group's tile over the dimmed and blurred group grid, and shrinks back into the tile when it closes. A tap beside the panel, the system back action and Escape SHALL close it; Back closes an open folder before it does anything else. Closing SHALL keep the library search, the selected webspace and its membership. Scrolling, stray drags and taps inside the panel, and reordering its sites, SHALL keep it open. The grid under an open folder SHALL take no input, a closing panel SHALL take none, Back SHALL work while the panel moves, and search and the home header SHALL stay put. The system's reduced-motion preference SHALL open and close it without animation.
 
-An open folder SHALL hold every group as a page, in the group grid's order, as a phone's home screen holds pages: a sideways swipe SHALL go to the next or previous group, and the group whose page a swipe comes to rest on SHALL become the selected one, as a tap on its tile would make it; a swipe that has not come to rest SHALL select nothing. Between two pages the panel SHALL take a size between theirs. Dots under the pages SHALL show which page is on screen, and a tap on one SHALL go to its group. A mouse drag SHALL turn a page as a swipe does, and while the panel itself has focus the Left and Right arrow keys SHALL go to the previous and next group, each press one further than the last. A folder closes into the tile of the group it is on.
+An open folder SHALL hold every group as a page, in the group grid's order, as a phone's home screen holds pages: a sideways swipe SHALL go to the next or previous group, and the group whose page a swipe comes to rest on SHALL become the selected one, as a tap on its tile would make it; a swipe that has not come to rest SHALL select nothing. During a swipe the panel SHALL keep the size of the page it leaves until late in the swipe, then take the next page's. Dots under the pages SHALL show which page is on screen, and a tap on one SHALL go to its group. A mouse drag SHALL turn a page as a swipe does, and while the panel itself has focus the Left and Right arrow keys SHALL go to the previous and next group, each press one further than the last. A folder closes into the tile of the group it is on.
+
+The open panel's top bar SHALL pull it down: the panel follows the finger, shrinking a little as the grid behind it brightens. Let go past a quarter of its height, or flung down, it SHALL close into its tile; let go short of that, it SHALL spring back.
 
 A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. A site or tab picked where no icon is (a tabs sheet, the tab strip) SHALL open through the same card faded in over the screen. Returning to the library SHALL fade that card in over the site, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL wait for the switch under it no longer than a fixed cap, SHALL take no input while it moves, and reduced motion SHALL show no card.
 
@@ -330,6 +332,32 @@ still be read.
 **Given** sites run in per-site containers
 **When** the user switches webspaces
 **Then** no site is unloaded for the switch (CONT-003)
+
+---
+
+### Requirement: WEBSPACE-014 - Colour Only Tells Look-Alike Sites Apart
+
+With Alternative design enabled, a site's icon in the library SHALL carry its
+container colour, as a tinted well and a frame, only where the icon alone does
+not tell the site apart: when another saved site shows the same icon (the same
+picked icon, or no picked icon and the same host, whose favicon both fetch),
+in any webspace, or when the site has no icon of its own and a generic globe
+stands in for it. Any other site's icon SHALL sit in a neutral well with no
+frame. The card a site opens and closes through SHALL start in the same colour
+its icon has, from its first frame.
+
+#### Scenario: Two accounts of one mail service
+
+**Given** "Mail" and "Mail (work)" both open pages on mail.example.com, and "News" has an icon of its own
+**When** the user opens a folder holding them
+**Then** both mail icons are framed and tinted, each in its own container's colour
+**And** the News icon has no frame and no tint
+
+#### Scenario: A site with no icon
+
+**Given** a site imported from a file, which has no icon
+**When** the user sees it in the library
+**Then** its globe is framed and tinted in its container's colour
 
 ---
 
