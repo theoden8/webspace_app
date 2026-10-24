@@ -51,7 +51,8 @@ that adds a new outbound seam MUST be reflected there.
 
 The system SHALL support the following proxy types:
 
-1. **DEFAULT** - Use system proxy settings (no override)
+1. **DEFAULT** - Use system proxy settings (no override); a system proxy
+   that asks for a password is not supported (HTTPAUTH-002)
 2. **HTTP** - HTTP proxy protocol
 3. **HTTPS** - HTTPS proxy protocol (HTTP CONNECT over TLS to the proxy)
 4. **SOCKS5** - SOCKS5 proxy protocol (ideal for Tor, SSH tunnels, etc.)
@@ -858,7 +859,9 @@ A DEFAULT site SHALL reach its origin the way the WebView reaches it with
 no override (PROXY-001): through the proxy Android reports for that
 destination, the network's HTTP proxy or the local one a PAC file runs
 behind, with the system's bypass list applied, and directly only where the
-system names none. The relay's own credential SHALL NOT reach that proxy.
+system names none. The relay's own credential SHALL NOT reach that proxy,
+and neither does any other: a system proxy that asks for a password refuses
+the relay, and the site's load fails (HTTPAUTH-002).
 A site with a proxy of its own reaches it directly, never through the
 system's.
 
@@ -895,6 +898,20 @@ With every route direct, the relay would carry every connection and the
 PROXY-015 probe would hold the launch for a result PROXY-008 already
 gives, so neither runs. Decided once, at activation, with the gates above:
 a proxy configured later applies under PROXY-008 until the next launch.
+
+Router mode costs a site with no proxy of its own two things it has with
+the router off, because the one rule sends its traffic to the relay too:
+
+| Cost | Why |
+|---|---|
+| No HTTP/3 | The WebView's rule takes only an HTTP, HTTPS or SOCKS proxy (`ProxyConfig.addProxyRule`), and Chromium carries a site's traffic through those as TCP tunnels, never QUIC; it admits a QUIC proxy only to Chrome's own IP Protection chains. The tunnel is TLS end to end, so the relay cannot carry it onward as QUIC without terminating it, which it SHALL NOT do |
+| Fewer connections at once | Chromium caps the connections one network session holds through one proxy: 32 by default through WebView 148, 128 from WebView 149, against 256 for the whole session going direct. Each site's profile is a session of its own, so the cap is per site. An HTTP/2 site needs few; a busy HTTP/1.1 site may queue |
+
+A site with a proxy of its own pays both with the router off too. Neither
+can be avoided while the rule names the relay: its bypass list matches
+destinations, not the site that asks, and a profile carries no proxy of its
+own. Turning the Proxy router switch off gives both back, and
+mismatched-proxy sites serialise again (PROXY-008).
 
 #### Scenario: The default install engages router mode
 
