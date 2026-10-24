@@ -42,6 +42,7 @@ enum PageJs {
   passkey('passkey'),
   passkeyBlock('passkey_block'),
   proceduralCosmetic('procedural_cosmetic'),
+  remoteEdge('remote_edge'),
   screenShare('screen_share'),
   searchLinkWatcher('search_link_watcher'),
   targetBlankRewrite('target_blank_rewrite'),

@@ -257,7 +257,8 @@ moved, it drags, the other icons make room wherever it hovers, and let go anywhe
 the place it was shown in. A group on the library's home screen lifts and moves the same
 way among the groups; "All" never moves and nothing takes its place. In Alternative design
 the menus offer no Move Up or Move Down; a screen reader's reorder actions on each icon
-move it instead. This reorders the sites *within* the selected view; it
+move it instead. Where a TV remote drives the device, which cannot drag, an icon's menu
+and a group's offer the same moves the screen reader's actions make (NAV-016). This reorders the sites *within* the selected view; it
 does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 "All" webspace card cannot be moved in the webspaces list).
 

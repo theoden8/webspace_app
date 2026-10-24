@@ -27,6 +27,7 @@ class MainActivity: FlutterActivity() {
     private var enginePlugins: EnginePlugins? = null
     private var screenCapturePlugin: ScreenCapturePlugin? = null
     private var passkeyPlugin: PasskeyPlugin? = null
+    private var remoteInputPlugin: RemoteInputPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
 
@@ -73,6 +74,7 @@ class MainActivity: FlutterActivity() {
         surfaceDiagPlugin = SurfaceDiagPlugin(this, flutterEngine)
         screenCapturePlugin = ScreenCapturePlugin(this, flutterEngine)
         passkeyPlugin = PasskeyPlugin(this, flutterEngine)
+        remoteInputPlugin = RemoteInputPlugin(this, flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -118,6 +120,8 @@ class MainActivity: FlutterActivity() {
                         ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher)
                     pinShortcut(siteShortcut(shortcutId, siteId, label, icon), result)
                 }
+                "canPinShortcuts" ->
+                    result.success(ShortcutManagerCompat.isRequestPinShortcutSupported(this))
                 "removeShortcut" -> {
                     val siteId = call.argument<String>("siteId")
                     if (siteId != null) {

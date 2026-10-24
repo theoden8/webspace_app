@@ -96,13 +96,19 @@ The system SHALL use the icon the drawer shows for the site as the shortcut icon
 
 ### Requirement: HS-004 - Platform Availability
 
-The "Home Shortcut" menu item SHALL be shown on Android, on iOS 16+, and on macOS 13+ (the App Intents path is shared between iOS and macOS). On Linux, web, iOS 13/14/15, and macOS 12 or earlier the menu item SHALL be hidden.
+The "Home Shortcut" menu item SHALL be shown on Android where the default launcher takes pinned shortcuts (`ShortcutManagerCompat.isRequestPinShortcutSupported`), on iOS 16+, and on macOS 13+ (the App Intents path is shared between iOS and macOS). On an Android launcher that takes none (Android TV and Google TV), Linux, web, iOS 13/14/15, and macOS 12 or earlier the menu item SHALL be hidden: offering it there could only end in "Couldn't add a home screen shortcut".
 
 #### Scenario: Menu item shown on Android
 
-**Given** the app is running on Android
+**Given** the app is running on Android with a launcher that takes pinned shortcuts
 **When** the user opens the overflow menu for a site that is not already pinned
 **Then** the "Home Shortcut" option is shown
+
+#### Scenario: Menu item hidden where the launcher cannot pin
+
+**Given** the app is running on Android TV, whose launcher takes no pinned shortcuts
+**When** the user opens the overflow menu
+**Then** the "Home Shortcut" option is not shown
 
 #### Scenario: Menu item shown on iOS 16+ or macOS 13+
 
@@ -648,7 +654,8 @@ Methods:
 - `disableShortcut(shortcutId)` — **Android only** (HS-013, HS-017): `ShortcutManagerCompat.disableShortcuts` greys out a pinned tile when the user opts to. No-op elsewhere.
 - `updateShortcuts({tiles: [{shortcutId, siteId, label, iconBytes?}]})` — **Android only** (HS-016, HS-017): `ShortcutManagerCompat.updateShortcuts` rewrites each tile's intent to open `siteId`, its label, and its icon where `iconBytes` is given (an update without an icon keeps the tile's). Returns false when the launcher rate-limits the call or refuses an id. No-op elsewhere.
 - `syncSites({sites: [{siteId, label, url?, iconUrl?}], tombstones: [{siteId, label, url?}]})` — **iOS only**: writes the live `sites` to `shortcut_sites` and the deleted-site `tombstones` to `shortcut_tombstones` in App Group UserDefaults (HS-014), then calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the picker. No-op on Android.
-- `isAppIntentsSupported()` — **iOS**: true if `#available(iOS 16, *)`. Other platforms: false.
+- `canPinShortcuts()` — **Android**: `ShortcutManagerCompat.isRequestPinShortcutSupported`, false on a launcher that takes no pinned shortcuts (HS-004).
+- `isAppIntentsSupported()` — **iOS / macOS**: true if `#available(iOS 16, macOS 13, *)`. Dart reads the two through `ShortcutService.canAddShortcuts()`, the one answer to whether this device can add a shortcut.
 
 ### iOS App Intents
 

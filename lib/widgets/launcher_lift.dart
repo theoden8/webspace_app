@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart' show kSecondaryButton, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/remote_focus.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
@@ -9,7 +10,9 @@ import 'package:webspace/widgets/launcher_slot.dart';
 /// opens it; a long press lifts it under the finger, and letting go where it
 /// was opens its menu, while moving it drags it through its [LauncherGrid],
 /// which makes room where it hovers and keeps it where it is let go
-/// (WEBSPACE-011). A secondary click opens the menu too.
+/// (WEBSPACE-011). A secondary click opens the menu too. A key presses it the
+/// same way: OK or Enter let go opens it, held opens its menu, which is how a
+/// TV remote, with no long press or Menu key, reaches the menu (NAV-016).
 class LauncherLift<T extends Object> extends StatefulWidget {
   const LauncherLift({
     super.key,
@@ -44,6 +47,39 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
   /// moves it, wherever that is, and never opens the menu.
   bool _wandered = false;
 
+  /// The key pressing the icon, and whether holding it opened the menu.
+  ({LogicalKeyboardKey key, bool held})? _keyPress;
+
+  static const _pressKeys = [
+    LogicalKeyboardKey.select,
+    LogicalKeyboardKey.enter,
+    LogicalKeyboardKey.numpadEnter,
+    LogicalKeyboardKey.space,
+    LogicalKeyboardKey.gameButtonA,
+  ];
+
+  KeyEventResult _onKey(KeyEvent event) {
+    if (!_pressKeys.contains(event.logicalKey)) return KeyEventResult.ignored;
+    final press = _keyPress;
+    final same = press != null && press.key == event.logicalKey;
+    switch (event) {
+      case KeyDownEvent():
+        _keyPress = (key: event.logicalKey, held: false);
+        _press(down: true);
+      case KeyRepeatEvent():
+        if (same && !press.held) {
+          _keyPress = (key: press.key, held: true);
+          _press(down: false);
+          widget.onMenu(_center);
+        }
+      case KeyUpEvent():
+        _keyPress = null;
+        _press(down: false);
+        if (same && !press.held) widget.onOpen();
+    }
+    return KeyEventResult.handled;
+  }
+
   void _press({required bool down}) {
     if (_pressed != down) setState(() => _pressed = down);
   }
@@ -57,11 +93,17 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    return Semantics(
+    final lift = Semantics(
       button: true,
       onTap: widget.onOpen,
       onLongPress: () => widget.onMenu(_center),
       child: FocusableActionDetector(
+        // A key let go after focus left presses nothing.
+        onFocusChange: (focused) {
+          if (focused) return;
+          _keyPress = null;
+          _press(down: false);
+        },
         onShowFocusHighlight: (focused) => setState(() => _focused = focused),
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
@@ -170,6 +212,14 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
             ),
           ),
         ),
+      ),
+    );
+    return OwnFocusOutline(
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: (_, event) => _onKey(event),
+        child: lift,
       ),
     );
   }

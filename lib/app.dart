@@ -8,6 +8,8 @@ import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/widgets/root_messenger.dart';
+import 'package:webspace/widgets/remote_controls.dart';
+import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/webspace_page.dart';
 
@@ -51,6 +53,10 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       localeListResolutionCallback: (locales, supportedLocales) =>
           resolveSupportedLocale(locales, supported: supportedLocales),
       scaffoldMessengerKey: rootScaffoldMessengerKey,
+      builder: RemoteInput.driven
+          ? (context, child) =>
+              RemoteControls(child: child ?? const SizedBox.shrink())
+          : null,
       theme: ThemeData(
         colorScheme: buildAccentColorScheme(accentColor, brightness: Brightness.light),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),

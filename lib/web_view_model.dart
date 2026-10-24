@@ -824,12 +824,11 @@ class WebViewModel implements MediaGrantRecord {
   /// (BUG-001 gap #18).
   VoidCallback? onPageCommitVisible;
   /// Host hook fired once per committed navigation (deduped across the
-  /// `onLoadStop` / `onUpdateVisitedHistory` double-fire). The host
-  /// debounces `controller.saveState()` captures off this so the
-  /// persisted back/forward stack tracks browsing instead of only
-  /// pause/dispose events (PAUSE-009) — the app-switcher swipe-kill
-  /// never delivers `paused`, and background notification sites
-  /// navigate while another site is current.
+  /// `onLoadStop` / `onUpdateVisitedHistory` double-fire). The host debounces
+  /// `controller.saveState()` captures off this so the persisted back/forward
+  /// stack tracks browsing instead of only pause/dispose events (PAUSE-009) —
+  /// the app-switcher swipe-kill never delivers `paused`, and background
+  /// notification sites navigate while another site is current.
   VoidCallback? onNavigationCommitted;
   FindMatchesResult findMatches = FindMatchesResult();
   /// The app's theme as the page last handed it over, set before the first
@@ -1050,8 +1049,7 @@ class WebViewModel implements MediaGrantRecord {
   }
 
   /// What this slot's own webview claims of the process-wide proxy rule: its
-  /// occupant, running as the site whose proxy and Tor tag it takes
-  /// (LIR-024).
+  /// occupant, running as the site whose proxy and Tor tag it takes (LIR-024).
   ({RouteOccupant occupant, WebViewModel runsAs}) get routeClaim =>
       (occupant: (use: RouteUse.webview, site: siteId), runsAs: runningIdentity);
 
@@ -1100,11 +1098,10 @@ class WebViewModel implements MediaGrantRecord {
     }
   }
 
-  /// Combine this site's per-site scripts with opted-in globals into the
-  /// list to inject. Forces `enabled: true` on globals so a stale stored
-  /// flag (e.g. a disabled site script later promoted via "Make Global")
-  /// can't silently drop the script in
-  /// `UserScriptService.buildInitialUserScripts`.
+  /// Combine this site's per-site scripts with opted-in globals into the list
+  /// to inject. Forces `enabled: true` on globals so a stale stored flag (e.g.
+  /// a disabled site script later promoted via "Make Global") can't silently
+  /// drop the script in `UserScriptService.buildInitialUserScripts`.
   List<UserScriptConfig> combineUserScripts(
       List<UserScriptConfig> globalUserScripts) {
     return [
@@ -1761,11 +1758,10 @@ bool dispatch(NavigationDecision decision,
     unawaited(MediaSessionService.instance.stopForSite(siteId));
   }
 
-  /// Drop the in-memory cache (decoded image cache + HTTP response
-  /// cache) without disposing the webview. Tab state stays. Used by
-  /// the [SiteLifecyclePromotionEngine] cacheCleared tier under OS
-  /// memory pressure. Idempotent. No-op when controller is null
-  /// (already disposed).
+  /// Drop the in-memory cache (decoded image cache + HTTP response cache)
+  /// without disposing the webview. Tab state stays. Used by the
+  /// [SiteLifecyclePromotionEngine] cacheCleared tier under OS memory pressure.
+  /// Idempotent. No-op when controller is null (already disposed).
   Future<void> clearWebViewCache() async {
     if (controller == null) return;
     await controller!.clearCache();
@@ -1849,14 +1845,13 @@ bool dispatch(NavigationDecision decision,
     await ctrl.loadUrl(url, language: language);
   }
 
-  /// User tapped the Stop button. Cancels the in-flight load and
-  /// eagerly clears [isLoading] so the URL-bar action button flips
-  /// back to Refresh on the next rebuild. `onLoadStop` is not
-  /// guaranteed to fire after `stopLoading()` on every engine
-  /// (WebKit in particular can swallow it when the cancel races a
-  /// commit), which leaves the menu stuck on the Stop icon. The
-  /// guard in [onLoadingChanged] suppresses the duplicate rebuild
-  /// when the callback does fire.
+  /// User tapped the Stop button. Cancels the in-flight load and eagerly clears
+  /// [isLoading] so the URL-bar action button flips back to Refresh on the next
+  /// rebuild. `onLoadStop` is not guaranteed to fire after `stopLoading()` on
+  /// every engine (WebKit in particular can swallow it when the cancel races a
+  /// commit), which leaves the menu stuck on the Stop icon. The guard in
+  /// [onLoadingChanged] suppresses the duplicate rebuild when the callback does
+  /// fire.
   Future<void> userStopLoading() async {
     await controller?.stopLoading();
     if (isLoading) {
@@ -1883,12 +1878,11 @@ bool dispatch(NavigationDecision decision,
     return (tab: tab, bytes: state);
   }
 
-  /// Current memory-tier state. Drives the
-  /// [SiteLifecyclePromotionEngine] cascade. Default [SiteLifecycleState.resident]
-  /// — active and paused-but-loaded sites both sit at this tier
-  /// (the resume/pause distinction is orthogonal to memory tier).
-  /// Promoted on memory pressure events; reset to `live` on
-  /// re-activation when the webview is rebuilt.
+  /// Current memory-tier state. Drives the [SiteLifecyclePromotionEngine]
+  /// cascade. Default [SiteLifecycleState.resident] — active and
+  /// paused-but-loaded sites both sit at this tier (the resume/pause
+  /// distinction is orthogonal to memory tier). Promoted on memory pressure
+  /// events; reset to `live` on re-activation when the webview is rebuilt.
   SiteLifecycleState get lifecycleState => _lifecycleState;
   SiteLifecycleState _lifecycleState = SiteLifecycleState.resident;
 
@@ -1916,12 +1910,11 @@ bool dispatch(NavigationDecision decision,
   ContainerKey get containerKey =>
       archiveContainerKey ?? ContainerKey.ofSite(siteId);
 
-  /// Cookies queued by the archive open flow to be pushed into the
-  /// per-site container as soon as the WebView controller exists.
-  /// Without this, an archive-tier site that uses native containers
-  /// would load with an empty cookie jar even though
-  /// [`ArchiveHandle.state.cookies`] holds the user's saved login.
-  /// Consumed once by [getWebView]'s `onControllerCreated`.
+  /// Cookies queued by the archive open flow to be pushed into the per-site
+  /// container as soon as the WebView controller exists. Without this, an
+  /// archive-tier site that uses native containers would load with an empty
+  /// cookie jar even though [`ArchiveHandle.state.cookies`] holds the user's
+  /// saved login. Consumed once by [getWebView]'s `onControllerCreated`.
   List<Cookie>? _pendingArchiveCookies;
 
   /// Queues [cookies] to be written into the per-site container on the
@@ -1959,10 +1952,9 @@ bool dispatch(NavigationDecision decision,
               webViewController: ctrl.nativeController,
             ));
       } on CookieJarFailure {
-        // Best effort. A cookie that fails to insert (malformed
-        // attributes from a legacy import, expired, etc.) is simply
-        // dropped from the runtime jar; archive state still has it for
-        // future round-trips.
+        // Best effort. A cookie that fails to insert (malformed attributes from
+        // a legacy import, expired, etc.) is simply dropped from the runtime
+        // jar; archive state still has it for future round-trips.
       }
     }
   }

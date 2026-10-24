@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:webspace/services/remote_input.dart';
 
 /// A launcher grid's order while one of its icons is dragged: the lifted
 /// icon shows at the place it hovers and the others make room, as on a
@@ -105,15 +106,26 @@ class _Drag<T extends Object> extends InheritedWidget {
   bool updateShouldNotify(_Drag<T> oldWidget) => shown != oldWidget.shown;
 }
 
+/// The moves an icon's grid can make for it, one place either way; null
+/// where it cannot.
+typedef LauncherMoves = ({VoidCallback? earlier, VoidCallback? later});
+
 /// The [index]-th place of a [LauncherGrid]. It stays where the grid lays it
 /// out while icons slide, so an icon lifted over it asks for this place
-/// without the grid moving under the finger; and it gives screen readers the
-/// moves a drag makes.
+/// without the grid moving under the finger; and it gives screen readers and
+/// menus the moves a drag makes.
 class LauncherCell<T extends Object> extends StatelessWidget {
   const LauncherCell({super.key, required this.index, required this.child});
 
   final int index;
   final Widget child;
+
+  /// The moves a menu offers for the icon at [context]: a drag makes them
+  /// wherever a finger or a pointer can, so only where a remote drives the
+  /// device (NAV-016). Null there too outside a grid's cell.
+  static LauncherMoves? menuMoves(BuildContext context) => RemoteInput.driven
+      ? context.getInheritedWidgetOfExactType<_CellMoves>()?.moves
+      : null;
 
   @override
   Widget build(BuildContext context) {
@@ -123,35 +135,48 @@ class LauncherCell<T extends Object> extends StatelessWidget {
     final holds = shown[index];
     final onMove = grid.widget.onMove;
     final words = WidgetsLocalizations.of(context);
+    VoidCallback? moveBy(int step) =>
+        onMove != null && grid._takes(holds, at: index + step, shown: shown)
+            ? () => onMove(holds, to: index + step)
+            : null;
+    final moves = (earlier: moveBy(-1), later: moveBy(1));
     return Semantics(
       customSemanticsActions: onMove == null
           ? null
           : {
-              if (grid._takes(holds, at: index - 1, shown: shown))
-                CustomSemanticsAction(label: words.reorderItemUp): () =>
-                    onMove(holds, to: index - 1),
-              if (grid._takes(holds, at: index + 1, shown: shown))
-                CustomSemanticsAction(label: words.reorderItemDown): () =>
-                    onMove(holds, to: index + 1),
+              CustomSemanticsAction(label: words.reorderItemUp): ?moves.earlier,
+              CustomSemanticsAction(label: words.reorderItemDown): ?moves.later,
             },
-      child: DragTarget<T>(
-        onWillAcceptWithDetails: (details) {
-          if (!grid._takes(details.data, at: index, shown: shown)) {
-            return false;
-          }
-          grid._hoverAt(details.data, at: index);
-          return true;
-        },
-        // The icon that held this place may have slid to another while the
-        // finger stayed on it, and a drag enters a target only once; asked
-        // again on every move, the place follows where the finger is.
-        onMove: (details) {
-          if (grid._takes(details.data, at: index, shown: shown)) {
+      child: _CellMoves(
+        moves: moves,
+        child: DragTarget<T>(
+          onWillAcceptWithDetails: (details) {
+            if (!grid._takes(details.data, at: index, shown: shown)) {
+              return false;
+            }
             grid._hoverAt(details.data, at: index);
-          }
-        },
-        builder: (context, _, _) => child,
+            return true;
+          },
+          // The icon that held this place may have slid to another while the
+          // finger stayed on it, and a drag enters a target only once; asked
+          // again on every move, the place follows where the finger is.
+          onMove: (details) {
+            if (grid._takes(details.data, at: index, shown: shown)) {
+              grid._hoverAt(details.data, at: index);
+            }
+          },
+          builder: (context, _, _) => child,
+        ),
       ),
     );
   }
+}
+
+class _CellMoves extends InheritedWidget {
+  const _CellMoves({required this.moves, required super.child});
+
+  final LauncherMoves moves;
+
+  @override
+  bool updateShouldNotify(_CellMoves oldWidget) => false;
 }

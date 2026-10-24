@@ -229,13 +229,19 @@ class ShortcutService {
     }
   }
 
-  /// True iff the App Intents-based path is available (iOS 16+ / macOS 13+).
-  /// False on Android (Android uses its own pin path, not gated by this), on
-  /// older iOS/macOS, and on every other platform.
-  static Future<bool> isAppIntentsSupported() async {
-    if (!hostIsIOS && !hostIsMacOS) return false;
+  /// Whether this device can add a home shortcut at all (HS-004): on Android
+  /// whether the default launcher takes pinned shortcuts (a TV launcher does
+  /// not), on iOS 16+ / macOS 13+ whether App Intents are there. False on
+  /// every other platform.
+  static Future<bool> canAddShortcuts() async {
+    final method = hostIsAndroid
+        ? 'canPinShortcuts'
+        : hostIsIOS || hostIsMacOS
+            ? 'isAppIntentsSupported'
+            : null;
+    if (method == null) return false;
     try {
-      final result = await _channel.invokeMethod('isAppIntentsSupported');
+      final result = await _channel.invokeMethod(method);
       return result == true;
     } on PlatformException {
       return false;

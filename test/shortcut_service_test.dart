@@ -21,6 +21,7 @@ void main() {
       calls.add(call);
       // Default to a permissive value; individual tests can re-register.
       if (call.method == 'isAppIntentsSupported') return true;
+      if (call.method == 'canPinShortcuts') return true;
       if (call.method == 'getPinnedShortcuts') return <Object?>[];
       return null;
     });
@@ -67,8 +68,9 @@ void main() {
   group('ShortcutService — host gating', () {
     // Test host is the OS running `flutter test` (Linux on CI, macOS for local
     // dev and some CI lanes). Methods gate on the platform: pin/getLaunch run
-    // on Android + iOS + macOS; syncSites/isAppIntentsSupported run on the App
-    // Intents hosts (iOS + macOS); the rest short-circuit without the channel.
+    // on Android + iOS + macOS, as does canAddShortcuts; syncSites runs on the
+    // App Intents hosts (iOS + macOS); the rest short-circuit without the
+    // channel.
     final isShortcutHost =
         Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
     final isAppIntentsHost = Platform.isIOS || Platform.isMacOS;
@@ -82,9 +84,9 @@ void main() {
       }
     });
 
-    test('isAppIntentsSupported is false off iOS/macOS', () async {
-      final supported = await ShortcutService.isAppIntentsSupported();
-      if (!isAppIntentsHost) {
+    test('canAddShortcuts is false off a shortcut host (HS-004)', () async {
+      final supported = await ShortcutService.canAddShortcuts();
+      if (!isShortcutHost) {
         expect(supported, isFalse);
         expect(calls, isEmpty);
       }
@@ -155,7 +157,7 @@ void main() {
           PinShortcutResult.failed);
       expect(await ShortcutService.getLaunch(), isNull);
       expect(await ShortcutService.getPinnedShortcuts(), isEmpty);
-      expect(await ShortcutService.isAppIntentsSupported(), isFalse);
+      expect(await ShortcutService.canAddShortcuts(), isFalse);
       expect(await ShortcutService.updateTiles(const []), isFalse);
       await ShortcutService.syncSites(const []);
       await ShortcutService.removeShortcut(SiteId('a'));

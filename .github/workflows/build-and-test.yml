@@ -584,6 +584,46 @@ jobs:
           path: build/passkey_gate/
           if-no-files-found: ignore
 
+  # The Android TV tier (NAV-016, HS-004): a remote's D-pad against a real
+  # System WebView on a TV image, the one device class a remote drives. Its
+  # own job so the phone scenarios above keep their time budget.
+  android-tv:
+    name: Android TV
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.android == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Android toolchain
+        uses: ./.github/actions/android-toolchain
+        with:
+          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
+
+      - name: Android TV emulator
+        uses: ./.github/actions/android-emulator
+        with:
+          api-level: '36'
+          target: android-tv
+          profile: tv_1080p
+
+      - name: Run Android TV scenarios
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: android-tv
+          arch: x86_64
+          profile: tv_1080p
+          disk-size: 4096M
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            adb wait-for-device
+            adb shell settings put global hide_error_dialogs 1
+            bash scripts/run_android_tv_tests.sh
+
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
@@ -763,6 +803,9 @@ jobs:
             # Home-shortcut scenarios are Android-only (the menu, pin
             # state and delete prompt are Platform.isAndroid-gated).
             [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
+            # The Android TV tier (NAV-016) skips anywhere but a TV image;
+            # the android-tv job runs it.
+            [ "$(basename "$t")" = "remote_tv_test.dart" ] && continue
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
             # PASSKEY-012 needs the emulator harness (credential provider,
             # relying party, sheet taps); the Android job owns it.
@@ -1187,6 +1230,8 @@ jobs:
             [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
             # Android-only home-shortcut scenarios; same reason.
             [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
+            # The Android TV tier (NAV-016); the android-tv job runs it.
+            [ "$(basename "$t")" = "remote_tv_test.dart" ] && continue
             # Android-only WebView media-gate suite (CAM-010); runs in the
             # emulator job.
             [ "$(basename "$t")" = "camera_test.dart" ] && continue

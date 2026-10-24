@@ -17,7 +17,7 @@ import 'package:webspace/widgets/site_list_menu.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 
-enum _GroupAction { edit, delete }
+enum _GroupAction { edit, delete, moveUp, moveDown }
 
 enum _AddAction { site, webspace }
 
@@ -262,9 +262,12 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
           children: [
             IgnorePointer(
               ignoring: _open,
-              child: ExcludeSemantics(
-                excluding: panelShown,
-                child: _home(context),
+              child: ExcludeFocus(
+                excluding: _open,
+                child: ExcludeSemantics(
+                  excluding: panelShown,
+                  child: _home(context),
+                ),
               ),
             ),
             if (pages != null)
@@ -442,11 +445,26 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             rect: Rect.lerp(from, target, t)!,
             child: Focus(
               focusNode: _panelFocus,
+              // Focus starts here when a folder opens; a move between its
+              // icons never lands on the panel around them.
+              skipTraversal: true,
               onKeyEvent: (_, event) {
                 if (event is! KeyDownEvent) return KeyEventResult.ignored;
                 if (event.logicalKey == LogicalKeyboardKey.escape) {
                   closeFolder();
                   return KeyEventResult.handled;
+                }
+                // A move down or up from the panel itself goes into it, to
+                // its header and then its icons: nothing is below or above
+                // the panel to move to, so it would stop there (NAV-016).
+                if (_panelFocus.hasPrimaryFocus &&
+                    (event.logicalKey == LogicalKeyboardKey.arrowDown ||
+                        event.logicalKey == LogicalKeyboardKey.arrowUp)) {
+                  final first = _panelFocus.traversalDescendants.firstOrNull;
+                  first?.requestFocus();
+                  return first == null
+                      ? KeyEventResult.ignored
+                      : KeyEventResult.handled;
                 }
                 // Arrows turn pages only while no icon in the panel has
                 // focus: there they move the focus between icons.
@@ -865,25 +883,30 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         child: LauncherCell<WebspaceId>(
                           index: index,
                           child: LauncherSlot(
-                            child: WebspaceGroupTile(
-                              key: tiles.putIfAbsent(
-                                webspace.id,
-                                GlobalKey.new,
+                            child: Builder(
+                              builder: (cell) => WebspaceGroupTile(
+                                key: tiles.putIfAbsent(
+                                  webspace.id,
+                                  GlobalKey.new,
+                                ),
+                                webspace: webspace,
+                                sites: [
+                                  for (final i in _order(webspace.id))
+                                    widget.sites[i],
+                                ],
+                                selected:
+                                    webspace.id == widget.selectedWebspaceId,
+                                onOpen: () {
+                                  FocusScope.of(context).unfocus();
+                                  _from = _groupWell(webspace.id);
+                                  widget.onSelectWebspace(webspace);
+                                },
+                                onMenu: (at) => unawaited(_menu(
+                                  webspace,
+                                  at: at,
+                                  moves: LauncherCell.menuMoves(cell),
+                                )),
                               ),
-                              webspace: webspace,
-                              sites: [
-                                for (final i in _order(webspace.id))
-                                  widget.sites[i],
-                              ],
-                              selected:
-                                  webspace.id == widget.selectedWebspaceId,
-                              onOpen: () {
-                                FocusScope.of(context).unfocus();
-                                _from = _groupWell(webspace.id);
-                                widget.onSelectWebspace(webspace);
-                              },
-                              onMenu: (at) =>
-                                  unawaited(_menu(webspace, at: at)),
                             ),
                           ),
                         ),
@@ -1080,7 +1103,13 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     }
   }
 
-  Future<void> _menu(Webspace webspace, {required Offset at}) async {
+  /// A webspace's menu; where a remote drives the device, it offers the
+  /// [moves] its grid makes, which a drag makes elsewhere.
+  Future<void> _menu(
+    Webspace webspace, {
+    required Offset at,
+    required LauncherMoves? moves,
+  }) async {
     final loc = AppLocalizations.of(context);
     final action = await showLauncherMenu<_GroupAction>(
       context,
@@ -1099,6 +1128,20 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             label: loc.commonDelete,
             destructive: true,
           ),
+        if (moves?.earlier != null)
+          (
+            value: _GroupAction.moveUp,
+            icon: Icons.arrow_upward,
+            label: loc.homeMoveUp,
+            destructive: false,
+          ),
+        if (moves?.later != null)
+          (
+            value: _GroupAction.moveDown,
+            icon: Icons.arrow_downward,
+            label: loc.homeMoveDown,
+            destructive: false,
+          ),
       ],
     );
     if (!mounted || !widget.webspaces.contains(webspace)) return;
@@ -1107,6 +1150,10 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
         widget.onEditWebspace(webspace);
       case _GroupAction.delete:
         widget.onDeleteWebspace(webspace);
+      case _GroupAction.moveUp:
+        moves?.earlier?.call();
+      case _GroupAction.moveDown:
+        moves?.later?.call();
       case null:
         return;
     }

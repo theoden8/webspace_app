@@ -62,6 +62,7 @@ import 'package:webspace/services/webview_downloads.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/page_handlers.dart';
+import 'package:webspace/services/remote_focus.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/page_js.dart';
 
@@ -523,6 +524,7 @@ class WebViewFactory {
     final httpAuth = httpAuthSessionFor(config);
     final textZoom = page.textZoom;
     final userScripts = page.userScripts;
+    final remote = RemoteFocus.install(into: userScripts);
     // Added here rather than in _buildPageScripts so a popup, which shares
     // that builder, never reports into the site's icon.
     final siteIcon = config.siteIcon;
@@ -568,7 +570,6 @@ class WebViewFactory {
     // URL bar and persisted currentUrl roll back to the referring page.
     // Initial-load fallback is handled inside the engine.
     String? lastStableUrl;
-
 
     // One gate per mounted WebView, because the mounting navigation it tracks
     // is a property of the platform view and not of the site (LEAK-010).
@@ -899,6 +900,7 @@ class WebViewFactory {
           live: () => phases.live(view: controller.platform),
         );
         onControllerCreated(wrappedController);
+        remote?.attach(controller);
         PageHandlers.registerPageHandlers(
           controller,
           config: config,
@@ -1891,7 +1893,7 @@ class WebViewFactory {
       child: webViewWidget,
     );
     return _applyLetterbox(config,
-        webView: _applyRefreshGate(config, webView: scoped));
+        webView: _applyRefreshGate(config, webView: remote?.wrap(scoped) ?? scoped));
   }
 
   /// Tells a live view when the blockers' data changes under it: a level's
@@ -1983,5 +1985,4 @@ class WebViewFactory {
       },
     );
   }
-
 }

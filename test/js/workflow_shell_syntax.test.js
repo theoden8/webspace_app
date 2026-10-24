@@ -163,6 +163,7 @@ test('every heavy job is gated on the plan job', () => {
     ['formal', 'validate'],
     ['design-web', 'design'],
     ['build-android', 'android'],
+    ['android-tv', 'android'],
     ['build-linux', 'linux'],
     ['build-apple', 'apple'],
     ['screenshots-android', 'screenshots'],

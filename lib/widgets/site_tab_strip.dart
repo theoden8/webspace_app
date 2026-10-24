@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
+import 'package:webspace/services/remote_focus.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/tab_strip_edge.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -9,7 +10,9 @@ import 'package:webspace/widgets/tab_count_pill.dart';
 
 /// The selected webspace's sites along one edge of the screen. A tap opens
 /// a site, a tap on the one on screen opens its tabs (TAB-008), and a long
-/// press drags a site to another place where the view can be reordered.
+/// press drags a site to another place where the view can be reordered. Keys
+/// reach every chip and press it as a tap does, so a TV remote switches
+/// sites and opens tabs here too (NAV-016).
 class SiteTabStrip extends StatelessWidget {
   const SiteTabStrip({
     super.key,
@@ -112,12 +115,15 @@ class SiteTabStrip extends StatelessWidget {
 
     final reorder = onReorder;
     if (reorder == null || order.length < 2) {
-      return GestureDetector(onTap: handleTap, child: content);
+      return _StripChip(
+        onPressed: handleTap,
+        child: GestureDetector(onTap: handleTap, child: content),
+      );
     }
 
     Offset? pointerDownPos;
     Duration? pointerDownTime;
-    return DragTarget<int>(
+    final chip = DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != listIndex,
       onAcceptWithDetails: (details) => reorder(details.data, to: listIndex),
       builder: (context, candidateData, rejectedData) {
@@ -163,7 +169,10 @@ class SiteTabStrip extends StatelessWidget {
         );
       },
     );
+    return _StripChip(onPressed: handleTap, child: chip);
   }
+
+  static const _chipMargin = EdgeInsets.symmetric(horizontal: 2, vertical: 4);
 
   Widget _content(
     WebViewModel site, {
@@ -173,7 +182,7 @@ class SiteTabStrip extends StatelessWidget {
   }) {
     return Container(
       constraints: BoxConstraints(maxWidth: AppPref.tabMaxWidth.value.toDouble()),
-      margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      margin: _chipMargin,
       padding: EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: isActive
@@ -220,4 +229,57 @@ class SiteTabStrip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A chip focus reaches: OK or Enter presses it, and it outlines itself
+/// while a key holds it, inside its margin.
+class _StripChip extends StatefulWidget {
+  const _StripChip({required this.onPressed, required this.child});
+
+  final VoidCallback onPressed;
+  final Widget child;
+
+  @override
+  State<_StripChip> createState() => _StripChipState();
+}
+
+class _StripChipState extends State<_StripChip> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) => OwnFocusOutline(
+    child: FocusableActionDetector(
+      onShowFocusHighlight: (focused) => setState(() => _focused = focused),
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onPressed();
+            return null;
+          },
+        ),
+      },
+      child: Stack(
+        children: [
+          widget.child,
+          if (_focused)
+            Positioned.fill(
+              child: Padding(
+                padding: SiteTabStrip._chipMargin,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: RemoteStyle.ringWidth,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }

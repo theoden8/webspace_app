@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, pull-to-refresh on phones and keyboard shortcuts on desktop. Handles platform differences between iOS and Android, and guards async state against race conditions.
+Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, pull-to-refresh on phones, keyboard shortcuts on desktop and a remote's D-pad on a TV. Handles platform differences between iOS and Android, and guards async state against race conditions.
 
 **Formal model:** the back/forward navigation actions are composed into the cross-spec kernel [formal/kernel.tla](../../../formal/kernel.tla) (with `webview-pause-lifecycle` and `lazy-webview-loading`); the `Back`/`Forward` transitions must route through the repaint chokepoint or the kernel's `RepaintLiveness` fails (the `bypass` demonstrator).
 
@@ -657,6 +657,98 @@ gesture (NAV-008). The menu's other items follow the row.
 - **AND** the row's Refresh reloads the nested page
 
 Test: [test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.dart)
+
+---
+
+### Requirement: NAV-016 - A TV Remote Reaches The Page And The App Bar
+
+Where a remote's D-pad drives the device rather than a touchscreen (Android TV, or an
+Android device without a touchscreen, probed once at startup by `RemoteInput`), a site's
+page SHALL take the D-pad the way a TV browser does, and the app's chrome SHALL stay
+reachable from it:
+
+- While the page has focus, the four arrows and the centre button SHALL reach the webview,
+  whose own spatial navigation moves between links and scrolls. Flutter takes every key before a platform
+  view and spends an arrow on moving its own focus, so without this the page never sees one.
+- Focus arriving on the page by the D-pad SHALL give the webview native focus, which a
+  Flutter focus move alone does not.
+- An arrow the page had no use for (it moved no focus, scrolled nothing and was not taken
+  with `preventDefault`) SHALL move focus out of the page in that direction, to the app bar
+  above it or the tab strip below. In a text field the arrows SHALL stay with the caret, and
+  a held arrow SHALL never leave the page.
+- The app SHALL appear in the Android TV launcher with a banner, and SHALL install on a
+  device without a touchscreen.
+
+Everything outside the page SHALL be reachable and usable by the D-pad and OK alone,
+since a remote has no long press, no Menu key and nothing to drag with:
+
+- Up and Down SHALL leave a one-line text field (the library's search, the URL bar);
+  Left and Right stay with its caret, and a field of several lines keeps all four.
+- An outline SHALL mark whatever has focus, drawn inside the control. A site page (its
+  engine outlines the focused link), a launcher icon and a tab strip chip outline
+  themselves, so no second outline is drawn over them.
+- A launcher icon pressed with OK or Enter SHALL open as a tap does; held, it SHALL open
+  its menu as a long press does. This holds for any key, on every device.
+- In a launcher grid that reorders, an icon's menu and a group's SHALL offer Move Up and
+  Move Down, the moves a drag makes; "All" never moves.
+- In an open library folder, a move down or up from the folder SHALL go into it, and the
+  dimmed home screen behind it SHALL take no focus.
+- Every chip of the tab strip SHALL take focus: OK opens its site, or the Tabs sheet on the
+  one on screen. Every row of the Tabs sheet and its web search are reachable as they are.
+
+A key reaches only the document of the frame holding focus, so the edge is read by a
+script in every frame (`lib/js/remote_edge.js`): a frame SHALL pass an arrow it had no use
+for to its parent, which SHALL pass it on only if it came from the frame holding its focus
+and nothing there moved focus or scrolled since the key, and only the top document SHALL
+call the bridge. The app SHALL move focus out at most once per D-pad press, and only for
+the arrow pressed, so a frame that reports an arrow nobody pressed moves nothing.
+
+On every other device the page's webview SHALL be built exactly as before: no wrapper, no
+page script. Popups opened by a page are not covered.
+
+#### Scenario: Scrolling and following links with the D-pad
+
+- **GIVEN** a TV, and a site's page on screen
+- **WHEN** the user moves down from the app bar with the D-pad
+- **THEN** the page takes focus, and further arrows move between its links and scroll it
+- **AND** the centre button opens the focused link
+
+#### Scenario: Back to the app bar
+
+- **GIVEN** a TV, and a page scrolled to its top with its first link focused
+- **WHEN** the user presses up
+- **THEN** focus moves to the app bar, from where the menu and the site switcher open
+
+#### Scenario: Out of a frame
+
+- **GIVEN** a TV, and a page whose content is a frame from another origin, its first link
+  focused
+- **WHEN** the user presses up
+- **THEN** focus moves to the app bar, as it does from the page itself
+- **AND** a frame the user is not in, an ad say, cannot move the app's focus
+
+#### Scenario: A site in a folder, by remote
+
+- **GIVEN** a TV in Alternative design
+- **WHEN** the user presses down past the search field, onto a folder, OK, then down twice
+- **THEN** a site in that folder has focus, and OK opens it
+- **AND** OK held instead opens its menu, with the moves its folder allows
+
+#### Scenario: Another site from the tab strip
+
+- **GIVEN** a TV with the tab strip on
+- **WHEN** the user moves along the strip and presses OK on a site
+- **THEN** that site opens; OK on the site on screen opens its tabs
+
+Test: [test/remote_focus_test.dart](../../../test/remote_focus_test.dart),
+[test/js/remote_edge.test.js](../../../test/js/remote_edge.test.js),
+[test/browser/remote_edge_frames.test.js](../../../test/browser/remote_edge_frames.test.js)
+(cross-origin frames in Chromium, spatial navigation on),
+[test/remote_controls_test.dart](../../../test/remote_controls_test.dart),
+[test/remote_library_test.dart](../../../test/remote_library_test.dart),
+[test/remote_tabs_test.dart](../../../test/remote_tabs_test.dart),
+[integration_test/remote_tv_test.dart](../../../integration_test/remote_tv_test.dart)
+(the Android TV emulator, INTEG-017)
 
 ## Race Condition Guards
 
