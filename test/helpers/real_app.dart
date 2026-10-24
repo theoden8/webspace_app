@@ -15,7 +15,6 @@ import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/process_route.dart';
-import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
@@ -89,8 +88,6 @@ Future<void> prepareRealApp(
     ...prefs,
   });
   FlutterSecureStorage.setMockInitialValues({});
-  // The restore decides it from the isolation it probes (PROXY-027).
-  ProxyManager.resetBindingForTest();
   webViewCalls.clear();
   webViewSettingsWrites.clear();
   _freshDocuments();

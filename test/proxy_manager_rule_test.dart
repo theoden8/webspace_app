@@ -9,11 +9,11 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 /// The process-wide rule the proxy manager writes where one rule covers every
-/// webview (Linux and Android), read off the plugin's channel: it takes the
-/// address the settings screens take (PROXY-017), and writes nothing for one
-/// they refuse. Where each store takes its own proxy at construction (iOS and
-/// macOS, PROXY-027) the manager writes no rule at all, which a run on that
-/// host checks instead.
+/// webview (Android), read off the plugin's channel: it takes the address the
+/// settings screens take (PROXY-017), and writes nothing for one they refuse.
+/// Where each store takes its own proxy at construction (iOS, macOS and
+/// Linux, PROXY-027) the manager writes no rule at all. Each binding is
+/// pinned, so both run on whichever host CI runs this on.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel =
@@ -32,9 +32,11 @@ void main() {
     });
     GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
     await PlatformInfo.initialize();
+    ProxyManager.pinBindingForTest(ProxyBinding.processWide);
   });
 
   tearDown(() {
+    ProxyManager.pinBindingForTest(null);
     ProcessRoute.instance.release(occupant);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
@@ -54,22 +56,23 @@ void main() {
         occupant: occupant,
       );
 
-  bool processWide() => ProxyManager.binding == ProxyBinding.processWide;
-
   test('a bracketed IPv6 proxy is written as one (PROXY-017)', () async {
     await apply('[::1]:8080');
-    expect(rules(), processWide() ? ['http://[::1]:8080'] : isEmpty);
+    expect(rules(), ['http://[::1]:8080']);
   });
 
   test('an address the screens refuse writes no rule (PROXY-017)', () async {
     for (final address in ['::1:8080', 'proxy.example:0', 'proxy.example']) {
       calls.clear();
-      if (processWide()) {
-        await expectLater(apply(address), throwsException, reason: address);
-      } else {
-        await apply(address);
-      }
+      await expectLater(apply(address), throwsException, reason: address);
       expect(rules(), isEmpty, reason: address);
     }
+  });
+
+  test('where each store binds its proxy, no rule is written (PROXY-027)',
+      () async {
+    ProxyManager.pinBindingForTest(ProxyBinding.perSite);
+    await apply('127.0.0.1:8080');
+    expect(calls, isEmpty);
   });
 }

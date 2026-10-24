@@ -222,15 +222,13 @@ sealed class ProxyTopology {
   }
 }
 
-/// iOS, macOS, and Linux under containers bind a proxy per session:
-/// nothing contends.
+/// iOS, macOS and Linux bind a proxy per session: nothing contends.
 final class PerSessionProxy extends ProxyTopology {
   const PerSessionProxy._();
 }
 
-/// Android without the router, and Linux on the shared jar: one
-/// process-global, last-write-wins override (`ProxyController` fanned across
-/// sessions). Every loaded site contends.
+/// Android without the router: one process-global, last-write-wins override
+/// (`ProxyController`). Every loaded site contends.
 final class ProcessGlobalProxy extends ProxyTopology {
   const ProcessGlobalProxy._();
 }

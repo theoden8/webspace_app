@@ -13,7 +13,6 @@ import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 
 /// How this run keeps sites' cookies apart, decided as the restore decides
 /// by [bareSetUp], which every test that uses this harness runs first.
@@ -32,9 +31,6 @@ Future<void> bareSetUp() async {
       storage: CookieSecureStorage(),
     ),
   );
-  // As the restore does: on Linux the isolation decides where a proxy is
-  // bound (PROXY-027).
-  ProxyManager.decideBinding(bareIsolation);
 }
 
 /// The posture of a site with every blocker and Tracking Protection off, so a

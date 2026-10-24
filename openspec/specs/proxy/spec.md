@@ -14,13 +14,11 @@ for their web views on supported platforms. Three delivery paths coexist:
   [formal/proxy.tla](../../../formal/proxy.tla) as `Inv_ProxyCoherent`
   (every loaded site shares the active proxy); the `mismatch`
   demonstrator co-loads a mismatched site and TLC rejects it.
-- **Linux** — per `WebKitNetworkSession` under container isolation
-  (WPE 2.40+): the fork pins a container's session to the proxy its
-  WebView is built with, and binds an incognito WebView's ephemeral
+- **Linux** — per `WebKitNetworkSession` (WPE 2.40+, the only WPE the
+  fork builds against): the fork pins a container's session to the proxy
+  its WebView is built with, and binds an incognito WebView's ephemeral
   session the same way, so sites with different proxies stay loaded
-  together (PROXY-027). On the shared jar every site runs in the default
-  session, and the proxy is a process-wide override via
-  `inapp.ProxyController`, serialised as on Android.
+  together (PROXY-027).
 - **iOS 17+ / macOS 14+** — true concurrent per-site override via
   `WKWebsiteDataStore.proxyConfigurations`, set on the per-site data store
   created by the WebSpace fork's `preWKWebViewConfiguration` hook
@@ -42,8 +40,7 @@ that adds a new outbound seam MUST be reflected there.
 - **Status**: Completed
 - **Platforms**: Android (per-site via serialised global override),
   iOS 17+ / macOS 14+ (concurrent per-site),
-  Linux (per network session under containers, serialised global override
-  on the shared jar);
+  Linux (concurrent per-site, per network session);
   Windows (system default — UI hidden).
 
 ---
@@ -242,9 +239,9 @@ process-wide override flips, **unless PROXY-013 router mode is active**,
 in which case Android MUST NOT dispose them and MUST route each site
 concurrently through the relay.
 
-Disposed means quiet, not only dropped. The plugin destroys a native
-webview only after it has loaded `about:blank`, and until then it can still
-send: on the emulator its icon fetch left through the next site's proxy
+Disposed means quiet, not only dropped. The Android plugin destroys a
+native webview only after it has loaded `about:blank`, and until then it can
+still send: on the emulator its icon fetch left through the next site's proxy
 once the override had flipped. Every webview that runs as a site SHALL
 therefore keep its site's place on the process-wide rule until it has been
 told to load nothing more from the network, and an override write asked for
@@ -253,7 +250,8 @@ opened as the site (whose route's future completes before it leaves the
 tree), and a background wake's headless check of it (NOTIF-016). A popup a
 page opened holds no place of its own: it runs on its opener's, so it SHALL
 stop loading and close when its opener is told to. Android blocks the
-webview's network loads; WPE has no such setting.
+webview's network loads. Only Android has the one rule: every other host
+binds a proxy per store (PROXY-027).
 
 Every nested screen SHALL open through the activation's nested open, a
 typed address, a link menu's Open and a nested fallback as much as a routed
@@ -1407,25 +1405,23 @@ by the site's own network store or by a single process-wide rule, and every
 path that binds a store, flips a process-wide override, or tears one down
 SHALL read that decision rather than test the platform again.
 
-Linux's answer depends on how sites are kept apart, which the restore
-decides once (`Isolation.probe`). WPE scopes a proxy to a
-`WebKitNetworkSession`. Under container isolation every site's webviews
-run in a session of their own, the container's or an incognito webview's
-ephemeral one, which holds the proxy it is built with, and the fork's
-process-wide override leaves such a session alone; so the binding is per
-store and nothing needs one rule. On the shared jar every site runs in the
-default session, so the binding is process-wide. An earlier form kept
-Linux process-wide and bound a container's proxy per site at the call site
-anyway, so sites that could have stayed loaded together were unloaded
-against each other, and an edited proxy never reached a container's
-pinned session until its webview was rebuilt.
+Linux binds per store too. WPE scopes a proxy to a `WebKitNetworkSession`,
+and every site's webviews run in a session of their own, the container's
+or an incognito webview's ephemeral one, which holds the proxy it is built
+with; the fork's process-wide override leaves such a session alone, so
+nothing needs one rule. Every Linux build has those sessions: the fork's
+Linux plugin needs WPE 2.40+ to compile and lists Linux as a container
+platform, so the restore always chooses containers there. Older WPE is not
+supported. An earlier form kept Linux process-wide and bound a container's
+proxy per site at the call site anyway, so sites that could have stayed
+loaded together were unloaded against each other, and an edited proxy
+never reached a container's pinned session until its webview was rebuilt.
 
-The decision SHALL be a pure function of the platform and, on Linux, of
-the isolation, evaluated through a seam that takes them as arguments, so
-the cases are assertable on a host that is not the one they describe. The
-restore SHALL decide it before any site's webview is built, and it SHALL be
-latched then: a WebView built under one binding must not be driven by the
-other for the rest of the run.
+The decision SHALL be a pure function of the platform, evaluated through a
+seam that takes the platform as arguments, so the cases are assertable on a
+host that is not the one they describe. It SHALL be latched on first read:
+a WebView built under one binding must not be driven by the other for the
+rest of the run.
 
 Router mode (PROXY-013) SHALL NOT be a third value. It changes what the
 rule *names* -- the loopback relay rather than the site's upstream -- and
@@ -1446,15 +1442,14 @@ every Apple user their per-site proxy.
 **Then** the binding is per store
 **And** it is per store whatever else is configured
 
-#### Scenario: Android, and Linux on the shared jar
+#### Scenario: Android
 
-**Given** the host is Android, or Linux whose restore found no container
-support
+**Given** the host is Android
 **Then** the binding is process-wide
 
-#### Scenario: Linux under containers
+#### Scenario: Linux
 
-**Given** the host is Linux and the restore chose container isolation
+**Given** the host is Linux
 **Then** the binding is per store
 **And** each site's webview is built with its proxy, on its container's
 session or its incognito webview's ephemeral one
@@ -1505,7 +1500,7 @@ touched.
 ### Requirement: PROXY-029 - A site moved off its proxy stops using it
 
 On every platform that binds a proxy per container (iOS 17+, macOS 14+, and
-Linux under containers), once a site's effective proxy
+Linux), once a site's effective proxy
 resolves to none, its next WebView SHALL NOT issue a request through the
 proxy its container was given before.
 
@@ -1822,7 +1817,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 | Android  | Full (per-site; concurrent under router mode, serialised without `MULTI_PROFILE`) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton, pointed at the loopback relay where the WebView reports `MULTI_PROFILE` (PROXY-013); elsewhere mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
 | iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; removing a site's proxy clears it through `ProxyController(containerId:)` (PROXY-029); below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
 | macOS    | Full (per-site, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
-| Linux    | Full (per-site; concurrent under containers, serialised on the shared jar) | Shown unconditionally | Under containers the WebSpace fork's `flutter_inappwebview_linux` pins each container's `WebKitNetworkSession`, and binds each incognito webview's ephemeral one, to the proxy it is built with (`webkit_network_session_set_proxy_settings`); the process-wide override leaves a session that holds a proxy alone. On the shared jar the override covers the default session and mismatched-proxy sites serialise (PROXY-008) |
+| Linux    | Full (concurrent per-site) | Shown unconditionally | The WebSpace fork's `flutter_inappwebview_linux` pins each container's `WebKitNetworkSession`, and binds each incognito webview's ephemeral one, to the proxy it is built with (`webkit_network_session_set_proxy_settings`); the process-wide override leaves a session that holds a proxy alone. Needs WPE 2.40+; older WPE is not supported |
 | Windows  | Limited      | Conditional   | Shown only if `PROXY_OVERRIDE` supported |
 
 ---

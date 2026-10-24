@@ -1119,7 +1119,7 @@ class WebViewModel implements MediaGrantRecord {
     if (webview != null) await controller?.setThemePreference(effectiveTheme);
   }
 
-  /// Where the store binds the proxy (iOS / macOS, Linux under containers),
+  /// Where the store binds the proxy (iOS, macOS, Linux),
   /// it is sealed into the site's network store at WebView construction
   /// time. To pick up the new value, the live WebView is discarded so the
   /// next render reconstructs it with the new

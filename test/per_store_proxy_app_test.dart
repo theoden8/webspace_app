@@ -12,12 +12,10 @@ import 'helpers/fake_webview_controller.dart';
 import 'helpers/real_app.dart';
 
 /// Where each site's store binds its own proxy, nothing needs one rule for
-/// the process (PROXY-027): on iOS and macOS, and on Linux once the restore
-/// chose container isolation, where every site runs in a network session of
-/// its own and the fork leaves a session that holds a proxy alone when the
-/// override moves. This host's restore chooses containers (the harness
-/// reports container support), so on the Linux host these hold only because
-/// the restore decided the binding from the isolation.
+/// the process (PROXY-027): on iOS and macOS, and on Linux, where every site
+/// runs in a network session of its own and the fork leaves a session that
+/// holds a proxy alone when the override moves. The hosts CI runs this on
+/// are Linux and macOS, so it runs the app as either binds.
 void main() {
   const proxyChannel = MethodChannel(
     'com.pichillilorenzo/flutter_inappwebview_proxycontroller',
@@ -61,7 +59,7 @@ void main() {
     expect(
       ProxyManager.binding,
       ProxyBinding.perSite,
-      reason: 'the restore found containers on this host',
+      reason: 'Linux and Apple hosts bind a proxy per store',
     );
     await openWebspace(tester, name: 'All');
     await openSiteFromDrawer(tester, name: 'One');
