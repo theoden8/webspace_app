@@ -477,6 +477,72 @@ enum ActivationWorld {
         'each runs as its own site, and the screen and the slot run one '
         'route (BUG-037, PROXY-008)',
   ),
+  tabsChildDeleteContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.deleteOne},
+    allowed: {'ChildTab', 'DeleteSite', 'ParkChild', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.retired],
+    holds:
+        "site 1 deleted beside its child tabs, each running as any listed "
+        'site: it leaves the list, the loaded sites and the disk (TAB-006, '
+        'CONT-010)',
+  ),
+  tabsChildNested(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny},
+    allowed: {'ChildTab', 'NestedOpen', 'Tap'},
+    invariants: [..._core, ..._jar, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tab beside its nested screen on the shared jar, "
+        'where a child runs as its own site: one route (BUG-037, LIR-032)',
+  ),
+  tabsChildWakeContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.notifyAll, Env.wakesUp},
+    allowed: {'Background', 'ChildTab', 'Foreground', 'Tap', 'Wake'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute, Inv.checksOffScreen],
+    holds:
+        "site 1's child tab on another route beside a wake: each check runs "
+        'as its own site, and every running webview runs one route '
+        '(BUG-037, NOTIF-016)',
+  ),
+  tabsChildRouterContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.routerContending, Env.routeSplit, Env.routerShared},
+    allowed: {'ChildTab', 'ParkChild', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tabs under the router's shared session, each "
+        'running as any listed site: one route (LIR-024, LIR-032)',
+  ),
+  tabsChild(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    allowed: {'ChildTab', 'OpenTab', 'ParkChild', 'Tap'},
+    invariants: [..._core, ..._jar, ..._tabs],
+    holds:
+        "site 1's child tabs on the shared jar, switched to or parked: each "
+        'webview shows its tab, and no session crosses (TAB-006, ISO-001)',
+  ),
   tabsChildContainers(
     cookies: Cookies.containers,
     coldStart: false,

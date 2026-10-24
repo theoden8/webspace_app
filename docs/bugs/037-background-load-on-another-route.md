@@ -380,3 +380,11 @@ the override under the sites already loaded.
   The model reaches that state and no invariant names it.
 - A reroute that arrives while the tab gate is held waits in the code and
   is not taken by the model (`steps_uncovered.tsv`).
+- A slot that changes the site it runs as under a Tor runtime stays
+  loaded: the rebind leaves the loaded sites only under one process-wide
+  proxy (`TabTable._identityChanges`, attempt 13), and
+  `SlotIdentityChanged` plans only the proxy's contenders. A world of
+  site 1's child tab on another exit beside site 1's nested screen breaks
+  `Inv_OneRoute` (`ChildTab`, `NestedOpen`, the child's rebind), so it is
+  not among the checked worlds; a reroute's flip under Tor is the same
+  case.
