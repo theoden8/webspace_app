@@ -269,29 +269,37 @@ void main() {
   group('HTTPS upgrade follows App Settings until overridden (HTTPS-005)', () {
     tearDown(() => AppPref.httpsUpgradeEnabled.debugValue = true);
 
-    DropdownButton<Scoped<bool>> dropdown(WidgetTester tester) =>
-        tester.widget(find.byType(DropdownButton<Scoped<bool>>));
+    Finder tile() => find.ancestor(
+        of: find.text('HTTPS upgrade'), matching: find.byType(ListTile));
+    Finder toggle() =>
+        find.descendant(of: tile(), matching: find.byType(Switch));
+    bool shown(WidgetTester tester) => tester.widget<Switch>(toggle()).value;
+    double opacity(WidgetTester tester) => tester.widget<Opacity>(
+        find.ancestor(of: toggle(), matching: find.byType(Opacity)).first)
+        .opacity;
 
-    testWidgets('a site override can go back to following the app',
+    testWidgets('a site follows the app dimmed until it makes its own choice',
         (tester) async {
-      AppPref.httpsUpgradeEnabled.debugValue = false;
       SitePrivacyValues? seen;
-      await _pump(
-        tester,
-        values: _values().copyWith(httpsUpgrade: const Own(true)),
-        onChanged: (v) => seen = v,
-      );
-      expect(dropdown(tester).value, const Own(true));
-      expect(dropdown(tester).items!.map((i) => i.value),
-          [const FollowApp<bool>(), const Own(true), const Own(false)]);
+      await _pump(tester, values: _values(), onChanged: (v) => seen = v);
+      expect(shown(tester), isTrue, reason: 'the app default is on');
+      expect(opacity(tester), lessThan(1));
+      expect(find.descendant(of: tile(), matching: find.text('App default')),
+          findsOneWidget);
 
-      await tester.tap(find.byType(DropdownButton<Scoped<bool>>));
+      await tester.tap(toggle());
       await tester.pumpAndSettle();
-      await tester.tap(find.text('App default (Off)').last);
-      await tester.pumpAndSettle();
+      expect(seen!.httpsUpgrade, const Own(false));
+      expect(shown(tester), isFalse);
+      expect(opacity(tester), 1);
 
+      await tester.longPress(toggle());
+      await tester.pumpAndSettle();
       expect(seen!.httpsUpgrade, const FollowApp<bool>());
       expect(seen!.httpsUpgrade.stored, isNull, reason: 'stored as null');
+      AppPref.httpsUpgradeEnabled.debugValue = false;
+      await tester.pumpAndSettle();
+      expect(shown(tester), isFalse, reason: "a following site shows the app's");
     });
 
     testWidgets('Tracking Protection shows it forced on and locks it',
@@ -299,10 +307,10 @@ void main() {
       await _pump(tester,
           values: _values(trackingProtection: true)
               .copyWith(httpsUpgrade: const Own(false)));
-      expect(dropdown(tester).value, const Own(true));
-      final row = find.ancestor(
-          of: find.text('HTTPS upgrade'), matching: find.byType(ListTile));
-      expect(tester.widget<ListTile>(row).enabled, isFalse);
+      expect(shown(tester), isTrue);
+      expect(opacity(tester), 1, reason: 'the value is forced, not followed');
+      expect(tester.widget<Switch>(toggle()).onChanged, isNull);
+      expect(tester.widget<ListTile>(tile()).enabled, isFalse);
     });
   });
 

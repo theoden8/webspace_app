@@ -4277,17 +4277,9 @@
   "@settingRestoreDefaultHint": {
     "description": "Hint explaining that a long press on a per-site toggle clears its override and follows the app setting."
   },
-  "settingOn": "On",
-  "@settingOn": {
-    "description": "Choice on a per-site row that follows or overrides an app-wide switch: the setting is on for this site. One word."
-  },
-  "settingOff": "Off",
-  "@settingOff": {
-    "description": "Choice on a per-site row that follows or overrides an app-wide switch: the setting is off for this site. One word."
-  },
   "settingFollowsApp": "App default ({value})",
   "@settingFollowsApp": {
-    "description": "Choice on a per-site row meaning the site follows the App Settings value instead of its own. {value} is that value, the translation of On or Off.",
+    "description": "Choice on a per-site row meaning the site follows the App Settings value instead of its own. {value} is that value as the row names it, such as a theme.",
     "placeholders": {
       "value": {
         "type": "String"
