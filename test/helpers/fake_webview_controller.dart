@@ -69,14 +69,25 @@ class FakeWebViewController extends Fake implements WebViewController {
   /// Whether the app stopped what this webview was loading.
   bool stopped = false;
 
+  /// Whether the frame that unmounts this webview has run: the plugin has
+  /// disposed its view, which answers nothing sent after it, as the real
+  /// controller then does.
+  bool unmounted = false;
+
+  /// The frame that unmounts this webview.
+  void unmount() => unmounted = true;
+
   /// Two platform calls, as the real one makes: the settings write, then the
-  /// stop, each its own await.
+  /// stop, both sent in the caller's turn and each answered after an await.
+  /// One sent once the view is unmounted does not land.
   @override
   Future<void> quiet() async {
+    if (!unmounted) {
+      networkBlocked = true;
+      stopped = true;
+    }
     await Future<void>.value();
-    networkBlocked = true;
     await Future<void>.value();
-    stopped = true;
   }
 
   @override

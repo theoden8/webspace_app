@@ -305,26 +305,80 @@ the override under the sites already loaded.
    gets past it. *Why:* a block reaches only what is not yet intercepted,
    so a request in flight needs a cancel. *Partial:* see the gaps below:
    the cancel is asynchronous, and Dart has no signal to await for it.
+19. **2026-10-24, branch `claude/proxy-008-quiet-ordering`.** Attempt 18's
+   block and stop could reach a webview already gone: `disposeWebView`
+   asked for the quiet only once the rule's turn came, and `quiet` sent the
+   stop only once the block's settings write had answered. The frame the
+   dispose's commit schedules unmounts the webview, and the plugin's
+   dispose drops its channel handler before it loads `about:blank`, so a
+   command arriving after that is answered by nothing; with the rule busy
+   with another write, neither went out. Now `disposeWebView` sends the
+   quiet as it lets go of the webview and the rule's turn awaits its
+   replies, and `quiet` sends every command (each popup's block and stop,
+   then its own) before it awaits any; the channel keeps their order. *Why:*
+   the commands were lost between Dart and the plugin, before Chromium saw
+   them, and only sending them in the caller's turn puts them ahead of the
+   unmount. *Partial:* the stop's cancel still lands after `stopLoading`
+   answers, and Chromium reports it nowhere the app can await (the first
+   gap below, which also answers what the stop does to a favicon download
+   and to the plugin's `about:blank` load). Planted in
+   `test/webview_dispose_route_test.dart` (the quiet asked for in the
+   rule's turn, with the rule busy and the unmount first) and
+   `test/webview_controller_lifetime_test.dart` (a quiet that awaits each
+   reply before the next command).
 
 ## Known open gaps
 
-- `stopLoading` returns once Android has posted the stop; the renderer's
-  cancel and the network service's teardown of each loader pipe happen
-  after, and nothing the plugin or `androidx.webkit` exposes reports them.
-  A request already handed to the network stack before the stop lands can
-  still resolve its proxy against the next override, so the window
-  attempt 18 closes is narrowed, not proved shut. A per-webview proxy
-  (PROXY-013 router mode) is the case that does not depend on it.
-- Not determined which load started the old site's favicon download in the
-  CI run; Chromium's `IconHelper` downloads it through
-  `WebContents::DownloadImage`, and whether `WebContents::Stop` cancels an
-  image download already under way, rather than only frame loads, is read
-  from the code's shape and not confirmed on a device.
-- The quiet's `stopLoading` can meet the plugin's own dispose, which loads
-  `about:blank` on the same webview. A stop beside an in-flight cross-origin
-  redirect has crashed one Android WebView build before (the notes at the
-  external-scheme cancel in `webview.dart` and at the nested hop in
-  `web_view_model.dart`); this pair is untested on a device.
+- **No ordering the app can await puts the stop's cancel ahead of the next
+  override.** Read from Chromium's source, not confirmed on a device:
+  - `stopLoading` answers once the browser has sent the stop to the
+    renderer. The renderer's `StopAllLoaders`, the IO thread's interceptor
+    (`AwProxyingURLLoaderFactory`) and the network service's loaders tear
+    down after it, each on its own thread, and none reports it.
+  - An `evaluateJavascript` reply after the stop proves only the renderer's
+    half (it rides the same frame pipe), says nothing of the IO thread or
+    the network service, and needs a timeout for a dropped reply.
+  - Holding the rule until the webview is destroyed is worse: `destroy()`
+    posts its teardown with no callback and erases the IO thread's client
+    entry, so a request after it skips `blockNetworkLoads` and
+    `shouldInterceptRequest` and goes to the network as it is.
+  - `setProxyOverride`'s listener runs once every network context has the
+    new config, but a request picks its proxy late (after the scheduler,
+    the cookie read, the cache and `shouldInterceptRequest`), so one that
+    entered the interceptor before the block can still resolve against
+    the next proxy. A reject-all override in between only narrows that.
+
+  What can still leave on the next proxy: a request that entered the
+  interceptor before the block and resolves its proxy after the next
+  override lands; a service worker's request (it is intercepted through
+  the process-wide `ServiceWorkerWebSettings`, which the quiet does not
+  block); a keepalive request, which outlives the stop. A per-webview
+  proxy (PROXY-013 router mode) is the case that does not depend on it.
+- **The favicon fetch is a browser download, which the stop cancels once
+  it runs but can also start** (source, not device). `IconHelper` asks
+  for it through `WebContents::DownloadImage`, which the renderer fetches
+  as a loader on the document's `ResourceFetcher`; the stop reaches
+  `ResourceFetcher::StopFetching`, which cancels it, queued ones too. Two
+  paths make a new one: stopping a page still loading completes its load
+  event, which asks for the icon again, and a `DownloadImage` reaches the
+  renderer on its own pipe, unordered with the stop. Both enter the
+  interceptor after the block, so both are cache-only. Which of these the
+  CI run's `favicon.ico` was (run 40097824430, before attempt 18) is not
+  determined.
+- **The quiet's stop meets the plugin's `about:blank` load safely only by
+  the fork's dispose order.** The fork's `InAppWebView.dispose()` drops the
+  channel handler before it calls `loadUrl("about:blank")`, in one
+  main-thread task, so a stop sent before the unmount lands first and one
+  sent after it is answered by nothing. A stop landing after that load and
+  before its navigation starts would cancel it silently: no
+  `onPageFinished`, so the plugin's last client never calls `destroy()`
+  and the webview stays alive. A fork change that loaded `about:blank`
+  before dropping the handler would reopen this, and no test covers the
+  fork's order.
+- The quiet's stop can meet a navigation that `shouldOverrideUrlLoading`
+  has just cancelled; a stop beside that synchronous cancel has crashed
+  one Android WebView build before (the note at the external-scheme cancel
+  in `webview.dart`). This pair is untested on a device.
 
 - Turning router mode off with sites on different routes loaded leaves them
   on one rule; nothing unloads them.

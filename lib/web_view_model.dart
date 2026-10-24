@@ -1749,8 +1749,14 @@ bool dispatch(NavigationDecision decision,
     final gone = controller;
     webview = null;
     controller = null;
-    unawaited(ProcessRoute.instance
-        .leave(routeClaim.occupant, quiet: gone?.quiet));
+    // Sent now: the frame this commit schedules unmounts the webview, and the
+    // plugin answers nothing sent after it. The site leaves the rule once
+    // they have landed, in the rule's turn (PROXY-008).
+    final quieting = gone?.quiet();
+    unawaited(ProcessRoute.instance.leave(
+      routeClaim.occupant,
+      quiet: quieting == null ? null : () => quieting,
+    ));
     tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the

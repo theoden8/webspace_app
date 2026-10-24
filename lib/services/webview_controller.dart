@@ -132,7 +132,10 @@ abstract class WebViewController {
   /// life ([markNetworkBlocked]), and stop what it already loads: Chromium
   /// applies the block to a request only as its interception starts, so one
   /// already past it would still go out, through whichever proxy the
-  /// process-wide rule names by then (PROXY-008, BUG-037).
+  /// process-wide rule names by then (PROXY-008, BUG-037). Every command is
+  /// sent in the caller's turn, before anything the caller does next: the
+  /// frame that unmounts the webview disposes the plugin's view, which
+  /// answers nothing sent after it.
   Future<void> quiet();
 
   /// Abort any in-flight main-frame load. Used to quiesce chromium
@@ -587,13 +590,18 @@ class PlatformWebViewController implements WebViewController {
   Future<void> quiet() async {
     final popups = {..._popups};
     _popups.clear();
-    for (final MapEntry(key: popup, value: close) in popups.entries) {
-      await popup.quiet();
+    // The channel keeps the order they are sent in: each popup's block and
+    // stop, then this view's, all ahead of the plugin's dispose.
+    await Future.wait<void>([
+      for (final popup in popups.keys) popup.quiet(),
+      if (markNetworkBlocked(_settings)) ...[
+        _native(() => _c.setSettings(settings: _settings)),
+        stopLoading(),
+      ],
+    ]);
+    for (final close in popups.values) {
       close();
     }
-    if (!markNetworkBlocked(_settings)) return;
-    await _native(() => _c.setSettings(settings: _settings));
-    await stopLoading();
   }
 
   @override

@@ -1292,6 +1292,42 @@ void main() {
       expect(find.byType(inapp.InAppWebView), findsOneWidget);
     });
 
+    testWidgets("every block and stop goes out in the caller's turn, before "
+        'the frame that unmounts the webview', (tester) async {
+      final (:opener, :log, closed: _) = await openPopup(tester);
+      await tester.runAsync(() async {
+        final quieting = opener.quiet();
+        expect(
+          log,
+          [
+            'popup blockNetworkLoads=true',
+            'popup stopLoading',
+            'site blockNetworkLoads=true',
+            'site stopLoading',
+          ],
+          reason: 'a command sent after an await can reach a view the '
+              'plugin has already disposed, which answers nothing',
+        );
+        await quieting;
+      });
+      await tester.pump();
+    });
+
+    test("planted: a quiet that awaits each reply sends only its first "
+        "command in the caller's turn", () {
+      final log = <String>[];
+      final native = _NativeController(settingsLog: log);
+      Future<void> awaitingEach() async {
+        await native.setSettings(
+          settings: inapp.InAppWebViewSettings(blockNetworkLoads: true),
+        );
+        await native.stopLoading();
+      }
+
+      unawaited(awaitingEach());
+      expect(log, ['site blockNetworkLoads=true']);
+    });
+
     testWidgets('a popup that closed on its own is not closed again',
         (tester) async {
       final (:opener, :log, :closed) = await openPopup(tester);
