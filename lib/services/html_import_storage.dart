@@ -2,6 +2,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart' show IOException;
+import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
@@ -305,7 +306,7 @@ class HtmlImportStorage {
       final nl = opened?.indexOf('\n') ?? -1;
       if (opened == null || nl == -1) continue;
       final url = opened.substring(0, nl);
-      if (!url.startsWith('file://')) continue;
+      if (!isFileImportUrl(url)) continue;
       await saveHtml(siteId, html: opened.substring(nl + 1), url: url);
       carried++;
     }

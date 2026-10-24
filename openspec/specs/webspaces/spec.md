@@ -366,7 +366,9 @@ its icon has, from its first frame.
 With Alternative design enabled, an open folder's top bar SHALL hold a switch
 between its sites as a grid of icons and as a list of rows, each row the
 site's icon at its start, its name over its web address, and its grants and
-tab count at its end. The choice SHALL apply to every folder, persist across
+tab count at its end. A site imported from a file SHALL show "Imported file"
+where the address would be, there and wherever else a site or tab shows its
+address under its name, never its file handle. The choice SHALL apply to every folder, persist across
 launches and ride a settings backup. Switching SHALL move each icon from its
 place in one layout to its place in the other while it shrinks or grows, the
 names under the icons fading early and the rows' text fading in late, and the

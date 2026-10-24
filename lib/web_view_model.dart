@@ -24,6 +24,7 @@ import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
+import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/site_icon_engine.dart';
@@ -1260,7 +1261,7 @@ bool dispatch(NavigationDecision decision,
       final bool deferRestoreLoad = deferInitialLoadForRestore(
         hasPendingRestoreState: tabBinding.queuedFor == builtTab,
         isAndroid: hostIsAndroid,
-        isFileImport: currentUrl.startsWith('file://'),
+        isFileImport: isFileImportUrl(currentUrl),
       );
       final posture = id.sitePosture(
           globalUserScripts: globalUserScripts, isolation: hooks.isolation());

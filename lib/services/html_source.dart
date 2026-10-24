@@ -11,6 +11,7 @@
 library;
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/file_import_document.dart';
 
 enum HtmlSource {
   /// `file://` imports — the only copy of user-supplied content, in
@@ -33,7 +34,7 @@ HtmlSource htmlSourceFor({
   required String initUrl,
 }) {
   if (incognito || isArchiveTier) return HtmlSource.none;
-  if (initUrl.startsWith('file://')) return HtmlSource.import;
+  if (isFileImportUrl(initUrl)) return HtmlSource.import;
   return HtmlSource.cache;
 }
 

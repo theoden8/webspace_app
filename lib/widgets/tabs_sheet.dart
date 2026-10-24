@@ -34,6 +34,7 @@ import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
+import 'package:webspace/widgets/site_address.dart';
 
 /// One site as the sheet needs to see it. The sheet names a site by its
 /// model, never a row: the sites can move while the sheet is up.
@@ -571,7 +572,7 @@ class _TabsSheetState extends State<TabsSheet> {
     // and names it, since two rows with one URL can be two identities.
     final host = site.model.hostOf(tab);
     final identity = host ?? site.model;
-    final domain = extractDomain(tab.url);
+    final domain = addressOf(tab.url, loc: loc);
     final runsAs = host == null && !site.model.isForeignTab(tab)
         ? domain
         : '${loc.tabsRunsAs(identity.getDisplayName())} · $domain';

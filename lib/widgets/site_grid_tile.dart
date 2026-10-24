@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launcher_lift.dart';
+import 'package:webspace/widgets/site_address.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 
@@ -231,7 +233,7 @@ class _SiteGridTileContent extends StatelessWidget {
           padding: isWide
               ? const EdgeInsets.symmetric(vertical: 4, horizontal: 12)
               : const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-          child: isWide ? _wide(theme) : _narrow(theme),
+          child: isWide ? _wide(context) : _narrow(theme),
         );
       },
     );
@@ -376,7 +378,10 @@ class _SiteGridTileContent extends StatelessWidget {
   /// A row's name over its host, then its grants and its tab count.
   Widget _row(BuildContext context) {
     final theme = Theme.of(context);
-    final host = extractDomain(site.initUrl);
+    final host = addressOf(
+      site.initUrl,
+      loc: AppLocalizations.of(context),
+    );
     return Row(
       children: [
         Expanded(
@@ -478,8 +483,12 @@ class _SiteGridTileContent extends StatelessWidget {
     child: Center(child: UnifiedFaviconImage.site(site, size: icon)),
   );
 
-  Widget _wide(ThemeData theme) {
-    final domain = extractDomain(site.initUrl);
+  Widget _wide(BuildContext context) {
+    final theme = Theme.of(context);
+    final domain = addressOf(
+      site.initUrl,
+      loc: AppLocalizations.of(context),
+    );
     return Row(
       children: [
         _favicon(theme, box: 36, icon: 28, radius: Radii.lg),
