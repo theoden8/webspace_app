@@ -51,7 +51,8 @@ that adds a new outbound seam MUST be reflected there.
 
 The system SHALL support the following proxy types:
 
-1. **DEFAULT** - Use system proxy settings (no override)
+1. **DEFAULT** - Use system proxy settings (no override); a system proxy
+   that asks for a password is not supported (HTTPAUTH-002)
 2. **HTTP** - HTTP proxy protocol
 3. **HTTPS** - HTTPS proxy protocol (HTTP CONNECT over TLS to the proxy)
 4. **SOCKS5** - SOCKS5 proxy protocol (ideal for Tor, SSH tunnels, etc.)
@@ -858,7 +859,9 @@ A DEFAULT site SHALL reach its origin the way the WebView reaches it with
 no override (PROXY-001): through the proxy Android reports for that
 destination, the network's HTTP proxy or the local one a PAC file runs
 behind, with the system's bypass list applied, and directly only where the
-system names none. The relay's own credential SHALL NOT reach that proxy.
+system names none. The relay's own credential SHALL NOT reach that proxy,
+and neither does any other: a system proxy that asks for a password refuses
+the relay, and the site's load fails (HTTPAUTH-002).
 A site with a proxy of its own reaches it directly, never through the
 system's.
 

@@ -49,6 +49,20 @@ A page can embed a `401` from any host. A dialog naming a host the user never
 opened reads as the app asking, which is a phishing surface; browsers suppress
 cross-origin subresource prompts for the same reason.
 
+A proxy the network sets (a Wi-Fi proxy, or one a PAC file names) that asks
+for a password is therefore not supported, on any platform:
+
+| Where | What happens to its `407` |
+|---|---|
+| iOS, macOS | The challenge carries a `proxyType`, so the session returns no credential |
+| Android without the proxy router, Linux | It names the proxy's host, not the site's, so it is refused as a third-party host is |
+| Android under the proxy router | The relay connects to that proxy with no credential (PROXY-013). A tunnel it refuses is a `502`; a plain-http request's `407` reaches the webview naming the relay's host, which is refused as a third-party host is |
+
+A site whose traffic goes through such a proxy fails to load, and no dialog
+opens. Supporting it would make the system proxy's host the one host besides
+the site's that may ask, answered from one credential kept for the whole app,
+and would have to change this requirement.
+
 #### Scenario: An embedded third-party 401 is not prompted
 
 **Given** a site opened at `https://nas.example.com/`
@@ -61,6 +75,14 @@ cross-origin subresource prompts for the same reason.
 **Given** a challenge whose protection space carries a `proxyType`
 **When** it reaches the site's session
 **Then** the session returns no credential
+
+#### Scenario: A system proxy that asks for a password is not prompted
+
+**Given** the network's proxy requires a password
+**And** a site has no proxy of its own
+**When** the proxy answers `407`
+**Then** no dialog opens
+**And** the site's load fails
 
 ---
 
