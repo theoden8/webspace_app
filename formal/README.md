@@ -217,7 +217,7 @@ class.
   mutant or a witness checks only the invariant it expects violated: the world's own check
   holds the rest on every state. A mutant is planted in the code too: the runner takes its
   tables and definitions in place of the code's inside `Planted.run` (`planted`,
-  `models.dart`), and `test/planted_mistakes_test.dart` names, per mutant, the schedule
+  `mutants.dart`), and `test/planted_mistakes_test.dart` names, per mutant, the schedule
   script the walk breaks with it planted and holds without it, or owes why no script
   reaches it, a list that only shrinks. The printed modules and configs are derivatives:
   `verify.sh` writes them under `build/formal/`, and nothing commits them.

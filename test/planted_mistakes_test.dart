@@ -1,6 +1,6 @@
 // Each mistake the model's mutants plant, planted in the code too: the
 // runner takes a mutant's tables and definitions in place of the code's
-// (`planted`, lib/formal_model/models.dart), so the schedules must catch it
+// (`planted`, lib/formal_model/mutants.dart), so the schedules must catch it
 // as TLC does, by the script named here at the bound the schedules run at,
 // on a check the walk states apart from the code it checks. A mutant no
 // script of the walk reaches owes why, and the owed only shrink.

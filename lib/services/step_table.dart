@@ -717,7 +717,7 @@ typedef UnmodeledMeet = ({
 /// A planted mistake run as code: the tables and definitions the runner
 /// takes in place of the code's own while [run]'s body runs, so a test
 /// holds the code to a mistake the model's mutants plant (`mutated`,
-/// `formal_model/models.dart`). Nothing outside a test plants one.
+/// `formal_model/mutants.dart`). Nothing outside a test plants one.
 final class Planted {
   Planted({
     required Iterable<(StepTable<Object?, Enum>, StepTable<Object?, Enum>)>

@@ -788,7 +788,7 @@ enum Witness {
 typedef Slice = ({Set<String> allowed});
 
 /// A mistake an engine once had, planted in a copy of its tables or
-/// definitions (`mutated` in models.dart), and where it is caught: [by]
+/// definitions (`mutated` in mutants.dart), and where it is caught: [by]
 /// is violated in [world], within its [slice] when one is named, and in
 /// each world of [also].
 enum Mutant {
