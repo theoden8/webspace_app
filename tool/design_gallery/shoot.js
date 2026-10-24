@@ -19,6 +19,7 @@ const CARDS = [
   { id: 'site-groups', width: 400, height: 800 },
   { id: 'webspace-detail', width: 400, height: 640 },
   { id: 'app-settings', width: 400, height: 900 },
+  { id: 'app-settings-no-containers', width: 400, height: 900 },
   { id: 'app-appearance', width: 400, height: 560 },
   { id: 'app-behaviour', width: 400, height: 640 },
   { id: 'app-network', width: 400, height: 560 },

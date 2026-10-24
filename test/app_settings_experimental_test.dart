@@ -54,6 +54,7 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         home: AppSettingsScreen(
           currentSettings: AppThemeSettings(),
+          containersRunHere: true,
           externalTorRunsHere: externalTorRunsHere,
           proxyRouterRunsHere: proxyRouterRunsHere,
           torSites: torSites,

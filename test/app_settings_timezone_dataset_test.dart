@@ -39,6 +39,7 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         home: AppSettingsScreen(
           currentSettings: AppThemeSettings(),
+          containersRunHere: true,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},

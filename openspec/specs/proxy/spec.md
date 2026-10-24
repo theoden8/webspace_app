@@ -245,13 +245,15 @@ native webview only after it has loaded `about:blank`, and until then it can
 still send: on the emulator its icon fetch left through the next site's proxy
 once the override had flipped. Every webview that runs as a site SHALL
 therefore keep its site's place on the process-wide rule until it has been
-told to load nothing more from the network, and an override write asked for
-meanwhile SHALL wait for that: the site's own webview, a nested screen
+told to load nothing more from the network and to stop what it is loading,
+and an override write asked for meanwhile SHALL wait for that: the site's own webview, a nested screen
 opened as the site (whose route's future completes before it leaves the
 tree), and a background wake's headless check of it (NOTIF-016). A popup a
 page opened holds no place of its own: it runs on its opener's, so it SHALL
 stop loading and close when its opener is told to. Android blocks the
-webview's network loads. Only Android has the one rule: every other host
+webview's network loads and then stops it: Chromium applies the block to a
+request only as its interception starts, so one already past that point is
+cancelled by the stop, not the block (BUG-037). Only Android has the one rule: every other host
 binds a proxy per store (PROXY-027).
 
 Every nested screen SHALL open through the activation's nested open, a
@@ -286,8 +288,8 @@ which is partitioned per `siteId`
 **Given** Site A is loaded on Android with HTTP proxy P1
 **And** router mode is NOT active
 **When** Site A is disposed so that Site B, on proxy P2, can load
-**Then** Site A's webview is told to block network loads before
-`ProxyController.setProxyOverride` applies P2
+**Then** Site A's webview is told to block network loads and to stop what
+it is loading before `ProxyController.setProxyOverride` applies P2
 **And** no request for Site A reaches P2, an icon fetched while the plugin
 tears the webview down included
 
@@ -296,8 +298,8 @@ tears the webview down included
 **Given** router mode is NOT active
 **When** a nested screen running as Site A pops, or a background wake ends
 its headless check of Site A
-**Then** that webview is told to block network loads before Site A leaves
-the process-wide rule
+**Then** that webview is told to block network loads and to stop what it
+is loading before Site A leaves the process-wide rule
 **And** an override write for another proxy asked for meanwhile waits
 
 #### Scenario: Android — a popup goes with the webview that opened it

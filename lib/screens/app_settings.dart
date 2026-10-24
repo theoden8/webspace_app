@@ -43,6 +43,10 @@ class AppSettingsScreen extends StatefulWidget {
   /// screen lists its switch (PROXY-013). Passed in because the answer needs
   /// the container engine the app resolved at startup.
   final bool proxyRouterRunsHere;
+
+  /// Whether the sites run in containers of their own; without them the
+  /// screen says so above the categories that apply to every site.
+  final bool containersRunHere;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
@@ -106,6 +110,7 @@ class AppSettingsScreen extends StatefulWidget {
     required this.currentSettings,
     this.externalTorRunsHere = false,
     this.proxyRouterRunsHere = false,
+    required this.containersRunHere,
     this.siteNames = const {},
     this.torSites = const {},
     required this.onSettingsChanged,
@@ -297,6 +302,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             )),
           ),
           SettingsSection(loc.appSettingsGroupSites),
+          if (!widget.containersRunHere)
+            SettingTile(
+              leading: const Icon(Icons.warning_amber_rounded,
+                  color: HintedTitle.missingDataColor),
+              title: loc.appSettingsNoContainers,
+              hint: loc.appSettingsNoContainersHint,
+              subtitle: loc.appSettingsNoContainersSubtitle,
+            ),
           SummaryNavRow(
             leading: const Icon(Icons.lan_outlined),
             title: loc.appSettingsNetwork,

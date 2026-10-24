@@ -15,14 +15,14 @@ ProxyRouteKey _route(String address) =>
 /// window left through the next site's proxy once the process-wide rule had
 /// moved (`integration_test/proxy_router_fallback_test.dart`, PROXY-008), so
 /// the site's claim on the rule ends only once the webview loads nothing
-/// more.
+/// more and has stopped what it had started (BUG-037).
 void main() {
   final rule = ProcessRoute.instance;
 
   setUp(rule.resetForTest);
   tearDown(rule.resetForTest);
 
-  test('a disposed webview loads nothing more before the rule moves '
+  test('a disposed webview is blocked and stopped before the rule moves '
       '(PROXY-008)', () async {
     final a = WebViewModel(
       siteId: SiteId('dispose-a'),
@@ -38,17 +38,22 @@ void main() {
 
     a.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
     expect(a.controller, isNull);
-    bool? blockedWhenMoved;
+    ({bool blocked, bool stopped})? whenMoved;
     await rule.claim(
       (use: RouteUse.webview, site: SiteId('dispose-b')),
       route: _route('b:8080'),
-      write: () async => blockedWhenMoved = controller.networkBlocked,
+      write: () async => whenMoved = (
+        blocked: controller.networkBlocked,
+        stopped: controller.stopped,
+      ),
     );
 
     expect(
-      blockedWhenMoved,
-      isTrue,
-      reason: "a's webview could still send when b's proxy took the rule",
+      whenMoved,
+      (blocked: true, stopped: true),
+      reason: "a's webview could still send when b's proxy took the rule: "
+          'a block reaches only requests not yet intercepted, so what it '
+          'had already started must be stopped too',
     );
     expect(rule.occupants.keys, {
       (use: RouteUse.webview, site: SiteId('dispose-b')),

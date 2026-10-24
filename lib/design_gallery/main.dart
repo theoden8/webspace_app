@@ -114,6 +114,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'saved-proxy-edit', label: 'Saved proxy form', fullBleed: true, builder: _savedProxyEdit),
   GalleryCard(id: 'saved-credentials-edit', label: 'Saved credentials form', fullBleed: true, builder: _savedCredentialsEdit),
   GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: _appSettings),
+  GalleryCard(id: 'app-settings-no-containers', label: 'App settings without per-site containers', fullBleed: true, builder: _appSettingsNoContainers),
   GalleryCard(id: 'app-appearance', label: 'App appearance screen', fullBleed: true, builder: _appAppearance),
   GalleryCard(id: 'app-behaviour', label: 'App behaviour screen', fullBleed: true, builder: _appBehaviour),
   GalleryCard(id: 'app-network', label: 'App network screen', fullBleed: true, builder: (c) => const AppNetworkScreen(externalTorRunsHere: true, proxyRouterRunsHere: true)),
@@ -829,6 +830,19 @@ Widget _protectionCategory(BuildContext _) {
 
 Widget _appSettings(BuildContext _) => AppSettingsScreen(
       currentSettings: const AppThemeSettings(),
+      containersRunHere: true,
+      onSettingsChanged: (_) {},
+      onExportSettings: () {},
+      onImportSettings: () {},
+      onOpenLinkHandlingSettings: () {},
+      homeShortcuts: null,
+    );
+
+/// On a web engine with no per-site containers: the warning row above the
+/// categories that apply to every site.
+Widget _appSettingsNoContainers(BuildContext _) => AppSettingsScreen(
+      currentSettings: const AppThemeSettings(),
+      containersRunHere: false,
       onSettingsChanged: (_) {},
       onExportSettings: () {},
       onImportSettings: () {},

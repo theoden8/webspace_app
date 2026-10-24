@@ -229,15 +229,16 @@ class HeadlessSiteCheck {
     return c.getTitle();
   }
 
-  /// Ends the check. Its webview loads nothing more before it goes, since
-  /// the process-wide proxy rule may move as soon as this returns
-  /// (PROXY-008).
+  /// Ends the check. Its webview loads nothing more, and stops what it
+  /// loads, before it goes, since the process-wide proxy rule may move as
+  /// soon as this returns (PROXY-008).
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
     if (_controller case final controller? when markNetworkBlocked(_settings)) {
       try {
         await controller.setSettings(settings: _settings);
+        await controller.stopLoading();
       } on PlatformException catch (e) {
         LogTag.backgroundTask
             .warning('could not stop a check loading: $e', sensitive: true);

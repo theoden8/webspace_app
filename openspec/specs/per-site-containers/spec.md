@@ -693,6 +693,31 @@ runs against the built F-Droid APK and fails the build on any hit.
 **And** [test/gms_freedom_test.dart](../../../test/gms_freedom_test.dart)
   passes when run with `--tags ci`
 
+### Requirement: CONT-011 — A Device Without Containers Says So
+
+Where `Isolation.probe` resolves to the shared jar, App Settings SHALL show
+a warning row at the head of the categories that apply to every site,
+saying the sites share one storage, with an explanation behind its hint:
+what the shared jar costs (same-domain sites cannot be open together;
+local storage, IndexedDB, service workers and the cache are shared; link
+routing, notifications and the per-site proxy router are unavailable) and
+which web engines provide containers. Where containers run, the row is
+absent.
+
+#### Scenario: Android System WebView without MULTI_PROFILE
+
+**Given** the System WebView does not report `MULTI_PROFILE`
+**When** the user opens App Settings
+**Then** a warning row titled "Sites share one storage" heads the
+  "Every site" group
+**And** its hint names the costs and the engines that provide containers
+
+#### Scenario: Containers supported
+
+**Given** `Isolation.probe` resolved to containers
+**When** the user opens App Settings
+**Then** no such row is shown
+
 ## Implementation Details
 
 ### Logic Engines

@@ -65,8 +65,9 @@ enum _NestedMenuAction {
 class NestedScreenWebView {
   WebViewController? Function() _current = () => null;
 
-  /// Load nothing more from the network; nothing when no webview was built.
-  Future<void> quiet() async => _current()?.blockNetworkLoads();
+  /// Load nothing more from the network and stop what it loads; nothing when
+  /// no webview was built.
+  Future<void> quiet() async => _current()?.quiet();
 }
 
 class InAppWebViewScreen extends StatefulWidget {
