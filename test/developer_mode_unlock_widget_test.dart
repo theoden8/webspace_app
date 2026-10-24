@@ -17,6 +17,7 @@ import 'helpers/localized.dart';
 void main() {
   Widget host() => localizedApp(AppSettingsScreen(
     currentSettings: AppThemeSettings(),
+    containersRunHere: true,
     onSettingsChanged: (_) {},
     onExportSettings: () {},
     onImportSettings: () {},

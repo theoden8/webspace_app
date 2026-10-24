@@ -877,6 +877,18 @@
   "@appSettingsGroupSites": {
     "description": "Heading on the App Settings screen over the categories that apply to all of the user's websites at once (network, privacy, user scripts). Each site can adjust these in its own settings."
   },
+  "appSettingsNoContainers": "Sites share one storage",
+  "@appSettingsNoContainers": {
+    "description": "Title of a warning row at the top of the App Settings 'Every site' group, shown only on devices whose web engine cannot give each website its own isolated storage (per-site containers). It tells the user that all their sites share one store of cookies and site data."
+  },
+  "appSettingsNoContainersSubtitle": "Per-site containers are not supported on this device",
+  "@appSettingsNoContainersSubtitle": {
+    "description": "Subtitle of the 'Sites share one storage' warning row. 'Per-site containers' is the app's term for giving each site its own isolated storage of cookies, logins and site data."
+  },
+  "appSettingsNoContainersHint": "This device's web engine cannot give each site a container of its own. Sites take turns in one cookie jar: the app saves a site's cookies and puts them back as you switch, so two sites on the same domain cannot be open at once, and local storage, IndexedDB, service workers and the cache are shared between sites. Routing links to your sites, notifications and the per-site proxy router need containers and are unavailable. Containers need Android System WebView with multi-profile support, iOS 17, macOS 14 or WPE WebKit 2.40 or later; updating the system web engine may turn them on after a restart.",
+  "@appSettingsNoContainersHint": {
+    "description": "Explanation behind the hint button of the 'Sites share one storage' warning row: what the lack of per-site containers costs and what device or web engine version provides them. 'Android System WebView', 'iOS', 'macOS' and 'WPE WebKit' are product names and stay untranslated."
+  },
   "appSettingsAppearance": "Appearance",
   "@appSettingsAppearance": {
     "description": "Title of the App Settings category, and of the screen it opens, holding the app's language, light/dark theme and accent colour."

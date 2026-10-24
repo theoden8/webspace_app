@@ -100,6 +100,7 @@ void main() {
       supportedLocales: AppLocalizations.supportedLocales,
       home: AppSettingsScreen(
         currentSettings: const AppThemeSettings(),
+        containersRunHere: true,
         onSettingsChanged: (_) {},
         onExportSettings: () {},
         onImportSettings: () {},

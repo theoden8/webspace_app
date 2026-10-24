@@ -36,8 +36,12 @@ void main() {
 
   tearDown(() => DeveloperModeService.instance.debugSet(on: false));
 
-  Widget settings({VoidCallback? onExportSettings}) => AppSettingsScreen(
+  Widget settings({
+    VoidCallback? onExportSettings,
+    bool containersRunHere = true,
+  }) => AppSettingsScreen(
         currentSettings: AppThemeSettings(),
+        containersRunHere: containersRunHere,
         onSettingsChanged: (_) {},
         onExportSettings: onExportSettings ?? () {},
         onImportSettings: () {},
@@ -70,6 +74,34 @@ void main() {
     await tester.tap(row);
     await tester.pumpAndSettle();
   }
+
+  testWidgets('a device without per-site containers is told so above the '
+      'categories for every site (CONT-011)', (tester) async {
+    tester.view.physicalSize = const Size(800, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(app(settings(containersRunHere: false)));
+    await tester.pumpAndSettle();
+
+    final warning = find.text('Sites share one storage');
+    expect(warning, findsOneWidget);
+    expect(
+      tester.getTopLeft(warning).dy,
+      lessThan(tester.getTopLeft(find.text('Network')).dy),
+      reason: 'the warning heads the categories it qualifies',
+    );
+    await tester.tap(find.byTooltip('Sites share one storage'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('cannot give each site a container'),
+        findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(app(settings()));
+    await tester.pumpAndSettle();
+    expect(find.text('Sites share one storage'), findsNothing,
+        reason: 'containers run here: nothing to warn about');
+  });
 
   testWidgets('the index lists the categories in order and no setting',
       (tester) async {
