@@ -1097,6 +1097,7 @@
   "librarySites": "Webhelyek",
   "librarySearchWebspaces": "Webterek keresése",
   "libraryNoResults": "Nincs találat",
+  "libraryListView": "Listanézet",
   "appSettingsExperimentalFolderLibrary": "Alternatív megjelenés",
   "appSettingsExperimentalFolderLibraryHint": "Rendezze webhelyeit csoportokba egy indítórácsban.",
   "siteRedirectHomeSuggestion": "Ez a webhely átirányított ide: {url}. Ezt használja a webhely kezdőlapjaként? Az új domainre mutató hivatkozások is itt nyílnak majd meg.",

@@ -1097,6 +1097,7 @@
   "librarySites": "គេហទំព័រ",
   "librarySearchWebspaces": "ស្វែងរកលំហបណ្ដាញ",
   "libraryNoResults": "គ្មានលទ្ធផល",
+  "libraryListView": "ទិដ្ឋភាពបញ្ជី",
   "appSettingsExperimentalFolderLibrary": "ការរចនាជំនួស",
   "appSettingsExperimentalFolderLibraryHint": "រៀបចំគេហទំព័រជាក្រុមក្នុងក្រឡាចត្រង្គកម្មវិធីបើក។",
   "siteRedirectHomeSuggestion": "គេហទំព័រនេះបានបញ្ជូនបន្តទៅ {url}។ ប្រើអាសយដ្ឋាននេះជាទំព័រដើមរបស់វា? តំណទៅដែនថ្មីក៏នឹងបើកនៅទីនេះដែរ។",

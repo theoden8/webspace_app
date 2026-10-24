@@ -1097,6 +1097,7 @@
   "librarySites": "Situs",
   "librarySearchWebspaces": "Cari ruang web",
   "libraryNoResults": "Tidak ada hasil",
+  "libraryListView": "Tampilan daftar",
   "appSettingsExperimentalFolderLibrary": "Desain alternatif",
   "appSettingsExperimentalFolderLibraryHint": "Atur situs ke dalam grup pada kisi peluncur.",
   "siteRedirectHomeSuggestion": "Situs ini dialihkan ke {url}. Gunakan alamat ini sebagai berandanya? Tautan ke domain baru juga akan terbuka di sini.",

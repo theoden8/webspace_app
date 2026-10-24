@@ -1097,6 +1097,7 @@
   "librarySites": "Suíomhanna",
   "librarySearchWebspaces": "Cuardaigh spásanna gréasáin",
   "libraryNoResults": "Gan torthaí",
+  "libraryListView": "Amharc liosta",
   "appSettingsExperimentalFolderLibrary": "Dearadh malartach",
   "appSettingsExperimentalFolderLibraryHint": "Eagraigh suíomhanna ina ngrúpaí i ngreille lainseála.",
   "siteRedirectHomeSuggestion": "Rinne an suíomh seo atreorú chuig {url}. An úsáidfear é seo mar a leathanach baile? Osclófar naisc chuig an bhfearann nua anseo freisin.",

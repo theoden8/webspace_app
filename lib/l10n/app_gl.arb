@@ -1097,6 +1097,7 @@
   "librarySites": "Sitios",
   "librarySearchWebspaces": "Buscar espazos web",
   "libraryNoResults": "Sen coincidencias",
+  "libraryListView": "Vista de lista",
   "appSettingsExperimentalFolderLibrary": "Deseño alternativo",
   "appSettingsExperimentalFolderLibraryHint": "Organiza os sitios en grupos nunha grade de inicio.",
   "siteRedirectHomeSuggestion": "Este sitio redirixiu a {url}. Usar este enderezo como a súa páxina de inicio? As ligazóns ao novo dominio tamén se abrirán aquí.",

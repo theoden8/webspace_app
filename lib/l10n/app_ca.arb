@@ -1097,6 +1097,7 @@
   "librarySites": "Llocs web",
   "librarySearchWebspaces": "Cerca espais web",
   "libraryNoResults": "Cap coincidència",
+  "libraryListView": "Vista de llista",
   "appSettingsExperimentalFolderLibrary": "Disseny alternatiu",
   "appSettingsExperimentalFolderLibraryHint": "Organitzeu els llocs en grups dins d'una graella de llançament.",
   "siteRedirectHomeSuggestion": "Aquest lloc ha redirigit a {url}. Voleu utilitzar aquesta adreça com a pàgina d’inici? Els enllaços al domini nou també s’obriran aquí.",

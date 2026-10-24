@@ -1097,6 +1097,7 @@
   "librarySites": "தளங்கள்",
   "librarySearchWebspaces": "வலைவெளிகளைத் தேடு",
   "libraryNoResults": "பொருத்தங்கள் இல்லை",
+  "libraryListView": "பட்டியல் காட்சி",
   "appSettingsExperimentalFolderLibrary": "மாற்று வடிவமைப்பு",
   "appSettingsExperimentalFolderLibraryHint": "துவக்கி கட்டத்தில் தளங்களைக் குழுக்களாக ஒழுங்கமைக்கவும்.",
   "siteRedirectHomeSuggestion": "இந்தத் தளம் {url} முகவரிக்குத் திருப்பிவிடப்பட்டது. இதை அதன் முகப்புப் பக்கமாகப் பயன்படுத்தவா? புதிய களத்திற்கான இணைப்புகளும் இங்கே திறக்கும்.",

@@ -1097,6 +1097,7 @@
   "librarySites": "Stranice",
   "librarySearchWebspaces": "Pretraži web prostore",
   "libraryNoResults": "Nema rezultata",
+  "libraryListView": "Prikaz popisa",
   "appSettingsExperimentalFolderLibrary": "Alternativni dizajn",
   "appSettingsExperimentalFolderLibraryHint": "Organizirajte stranice u grupe u mreži za pokretanje.",
   "siteRedirectHomeSuggestion": "Ova stranica preusmjerila je na {url}. Koristiti ovu adresu kao početnu stranicu? Poveznice na novu domenu također će se otvarati ovdje.",

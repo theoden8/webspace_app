@@ -1097,6 +1097,7 @@
   "librarySites": "Сайтууд",
   "librarySearchWebspaces": "Вэб орон зай хайх",
   "libraryNoResults": "Илэрц олдсонгүй",
+  "libraryListView": "Жагсаалтаар харах",
   "appSettingsExperimentalFolderLibrary": "Өөр загвар",
   "appSettingsExperimentalFolderLibraryHint": "Сайтуудыг эхлүүлэгчийн торон харагдацад бүлэглэн зохион байгуулна уу.",
   "siteRedirectHomeSuggestion": "Энэ сайт {url} руу шилжүүллээ. Энэ хаягийг нүүр хуудас болгох уу? Шинэ домэйны холбоосууд мөн энд нээгдэнэ.",

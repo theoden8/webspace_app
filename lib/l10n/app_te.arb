@@ -1097,6 +1097,7 @@
   "librarySites": "సైట్‌లు",
   "librarySearchWebspaces": "వెబ్‌స్పేస్‌లను వెతకండి",
   "libraryNoResults": "ఫలితాలు లేవు",
+  "libraryListView": "జాబితా వీక్షణ",
   "appSettingsExperimentalFolderLibrary": "ప్రత్యామ్నాయ రూపకల్పన",
   "appSettingsExperimentalFolderLibraryHint": "లాంచర్ గ్రిడ్‌లో సైట్‌లను సమూహాలుగా అమర్చండి.",
   "siteRedirectHomeSuggestion": "ఈ సైట్ {url} కు దారి మళ్లింది. దీన్ని దాని హోమ్‌పేజీగా ఉపయోగించాలా? కొత్త డొమైన్‌కు లింక్‌లు కూడా ఇక్కడే తెరుచుకుంటాయి.",

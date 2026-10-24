@@ -1097,6 +1097,7 @@
   "librarySites": "Weby",
   "librarySearchWebspaces": "Hledat webové prostory",
   "libraryNoResults": "Žádné výsledky",
+  "libraryListView": "Zobrazení seznamu",
   "appSettingsExperimentalFolderLibrary": "Alternativní vzhled",
   "appSettingsExperimentalFolderLibraryHint": "Uspořádejte weby do skupin v mřížce spouštěče.",
   "siteRedirectHomeSuggestion": "Tento web přesměroval na {url}. Použít tuto adresu jako jeho domovskou stránku? Odkazy na novou doménu se také budou otevírat zde.",

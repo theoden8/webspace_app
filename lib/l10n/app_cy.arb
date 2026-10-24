@@ -1097,6 +1097,7 @@
   "librarySites": "Safleoedd",
   "librarySearchWebspaces": "Chwilio gofodau gwe",
   "libraryNoResults": "Dim canlyniadau",
+  "libraryListView": "Golwg rhestr",
   "appSettingsExperimentalFolderLibrary": "Dyluniad amgen",
   "appSettingsExperimentalFolderLibraryHint": "Trefnwch wefannau yn grwpiau mewn grid lansio.",
   "siteRedirectHomeSuggestion": "Ailgyfeiriodd y wefan hon i {url}. Defnyddio hwn fel ei hafan? Bydd dolenni i’r parth newydd hefyd yn agor yma.",

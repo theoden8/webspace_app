@@ -1097,6 +1097,7 @@
   "librarySites": "Situs",
   "librarySearchWebspaces": "Quaere spatia interretialia",
   "libraryNoResults": "Nihil inventum",
+  "libraryListView": "Conspectus indicis",
   "appSettingsExperimentalFolderLibrary": "Altera forma",
   "appSettingsExperimentalFolderLibraryHint": "Situs in greges in reticulo ad aperiendum ordina.",
   "siteRedirectHomeSuggestion": "Hic situs ad {url} redirectus est. Hac inscriptione ut pagina initiali eius uti vis? Nexus ad novum dominium quoque hic aperientur.",

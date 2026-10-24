@@ -1097,6 +1097,7 @@
   "librarySites": "საიტები",
   "librarySearchWebspaces": "ვებსივრცეების ძიება",
   "libraryNoResults": "შედეგები არ არის",
+  "libraryListView": "სიის ხედი",
   "appSettingsExperimentalFolderLibrary": "ალტერნატიული დიზაინი",
   "appSettingsExperimentalFolderLibraryHint": "დააჯგუფეთ საიტები გამშვების ბადეში.",
   "siteRedirectHomeSuggestion": "ეს საიტი გადამისამართდა მისამართზე {url}. გამოვიყენოთ ეს მისამართი მის მთავარ გვერდად? ახალი დომენის ბმულებიც აქ გაიხსნება.",

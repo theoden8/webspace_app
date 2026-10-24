@@ -1097,6 +1097,7 @@
   "librarySites": "ድረ ገጾች",
   "librarySearchWebspaces": "የድር ቦታዎችን ፈልግ",
   "libraryNoResults": "ምንም ውጤት የለም",
+  "libraryListView": "የዝርዝር እይታ",
   "appSettingsExperimentalFolderLibrary": "አማራጭ ንድፍ",
   "appSettingsExperimentalFolderLibraryHint": "ጣቢያዎችን በማስጀመሪያ ፍርግርግ ውስጥ በቡድኖች ያደራጁ።",
   "siteRedirectHomeSuggestion": "ይህ ጣቢያ ወደ {url} አዘዋውሯል። ይህን እንደ መነሻ ገጹ ይጠቀሙ? ወደ አዲሱ ጎራ የሚወስዱ አገናኞችም እዚህ ይከፈታሉ።",

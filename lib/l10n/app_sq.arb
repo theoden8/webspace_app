@@ -1097,6 +1097,7 @@
   "librarySites": "Sajtet",
   "librarySearchWebspaces": "Kërko hapësira uebi",
   "libraryNoResults": "Nuk ka rezultate",
+  "libraryListView": "Pamje liste",
   "appSettingsExperimentalFolderLibrary": "Dizajn alternativ",
   "appSettingsExperimentalFolderLibraryHint": "Organizoni sajtet në grupe në një rrjetë nisjeje.",
   "siteRedirectHomeSuggestion": "Kjo faqe ridrejtoi te {url}. Të përdoret kjo adresë si faqja e saj kryesore? Edhe lidhjet drejt domenit të ri do të hapen këtu.",

@@ -1097,6 +1097,7 @@
   "librarySites": "Ιστότοποι",
   "librarySearchWebspaces": "Αναζήτηση χώρων ιστού",
   "libraryNoResults": "Δεν βρέθηκαν αποτελέσματα",
+  "libraryListView": "Προβολή λίστας",
   "appSettingsExperimentalFolderLibrary": "Εναλλακτική σχεδίαση",
   "appSettingsExperimentalFolderLibraryHint": "Οργανώστε τους ιστοτόπους σε ομάδες σε ένα πλέγμα εκκίνησης.",
   "siteRedirectHomeSuggestion": "Αυτός ο ιστότοπος ανακατεύθυνε στο {url}. Να χρησιμοποιηθεί αυτή η διεύθυνση ως αρχική του σελίδα; Οι σύνδεσμοι προς τον νέο τομέα θα ανοίγουν επίσης εδώ.",

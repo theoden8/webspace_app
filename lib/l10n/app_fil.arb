@@ -1097,6 +1097,7 @@
   "librarySites": "Mga site",
   "librarySearchWebspaces": "Maghanap ng mga webspace",
   "libraryNoResults": "Walang mga tugma",
+  "libraryListView": "Ipakita bilang listahan",
   "appSettingsExperimentalFolderLibrary": "Alternatibong disenyo",
   "appSettingsExperimentalFolderLibraryHint": "Ayusin ang mga site sa mga grupo sa isang grid ng launcher.",
   "siteRedirectHomeSuggestion": "Nag-redirect ang site na ito sa {url}. Gamitin ito bilang homepage nito? Dito rin bubukas ang mga link sa bagong domain.",

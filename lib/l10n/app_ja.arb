@@ -1097,6 +1097,7 @@
   "librarySites": "サイト",
   "librarySearchWebspaces": "ウェブスペースを検索",
   "libraryNoResults": "一致する項目はありません",
+  "libraryListView": "リスト表示",
   "appSettingsExperimentalFolderLibrary": "別のデザイン",
   "appSettingsExperimentalFolderLibraryHint": "ランチャーのグリッドでサイトをグループに整理します。",
   "siteRedirectHomeSuggestion": "このサイトは {url} にリダイレクトされました。このアドレスをホームページに設定しますか？新しいドメインへのリンクもここで開きます。",

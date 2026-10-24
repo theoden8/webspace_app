@@ -1097,6 +1097,7 @@
   "librarySites": "Veebilehed",
   "librarySearchWebspaces": "Otsi veebiruume",
   "libraryNoResults": "Vasteid pole",
+  "libraryListView": "Loendivaade",
   "appSettingsExperimentalFolderLibrary": "Alternatiivne kujundus",
   "appSettingsExperimentalFolderLibraryHint": "Korralda saidid rühmadesse käivitusruudustikus.",
   "siteRedirectHomeSuggestion": "See sait suunas aadressile {url}. Kas kasutada seda avalehena? Ka uue domeeni lingid avanevad siin.",

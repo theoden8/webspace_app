@@ -1097,6 +1097,7 @@
   "librarySites": "Сайти",
   "librarySearchWebspaces": "Шукати вебпростори",
   "libraryNoResults": "Збігів немає",
+  "libraryListView": "Перегляд списком",
   "appSettingsExperimentalFolderLibrary": "Альтернативний дизайн",
   "appSettingsExperimentalFolderLibraryHint": "Упорядкуйте сайти в групи в сітці запуску.",
   "siteRedirectHomeSuggestion": "Цей сайт переспрямував на {url}. Використовувати цю адресу як його домашню сторінку? Посилання на новий домен також відкриватимуться тут.",

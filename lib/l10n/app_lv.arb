@@ -1097,6 +1097,7 @@
   "librarySites": "Vietnes",
   "librarySearchWebspaces": "Meklēt tīmekļa telpas",
   "libraryNoResults": "Nav atbilstību",
+  "libraryListView": "Saraksta skats",
   "appSettingsExperimentalFolderLibrary": "Alternatīvs dizains",
   "appSettingsExperimentalFolderLibraryHint": "Sakārtojiet vietnes grupās palaišanas režģī.",
   "siteRedirectHomeSuggestion": "Šī vietne pāradresēja uz {url}. Izmantot šo adresi kā tās sākumlapu? Arī saites uz jauno domēnu tiks atvērtas šeit.",

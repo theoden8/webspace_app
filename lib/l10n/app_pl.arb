@@ -1097,6 +1097,7 @@
   "librarySites": "Witryny",
   "librarySearchWebspaces": "Szukaj przestrzeni WWW",
   "libraryNoResults": "Brak wyników",
+  "libraryListView": "Widok listy",
   "appSettingsExperimentalFolderLibrary": "Alternatywny wygląd",
   "appSettingsExperimentalFolderLibraryHint": "Porządkuj witryny w grupy w siatce uruchamiania.",
   "siteRedirectHomeSuggestion": "Ta witryna przekierowała do {url}. Użyć tego adresu jako jej strony głównej? Linki do nowej domeny również będą otwierane tutaj.",
