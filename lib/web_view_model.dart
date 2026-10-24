@@ -1749,7 +1749,7 @@ bool dispatch(NavigationDecision decision,
     webview = null;
     controller = null;
     unawaited(ProcessRoute.instance
-        .leave(routeClaim.occupant, quiet: gone?.blockNetworkLoads));
+        .leave(routeClaim.occupant, quiet: gone?.quiet));
     tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the

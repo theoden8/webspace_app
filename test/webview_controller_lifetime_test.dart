@@ -61,6 +61,9 @@ class _NativeController implements inapp.InAppWebViewController {
   }) async =>
       settingsLog?.add('$label blockNetworkLoads=${settings.blockNetworkLoads}');
 
+  @override
+  Future<void> stopLoading() async => settingsLog?.add('$label stopLoading');
+
   /// The platform controller this wrapper is over; the plugin puts two
   /// wrappers over one.
   @override
@@ -1277,9 +1280,14 @@ void main() {
     testWidgets('the opener told to stop loading stops and closes its popup '
         'first', (tester) async {
       final (:opener, :log, :closed) = await openPopup(tester);
-      await tester.runAsync(opener.blockNetworkLoads);
+      await tester.runAsync(opener.quiet);
       await tester.pump();
-      expect(log, ['popup blockNetworkLoads=true', 'site blockNetworkLoads=true']);
+      expect(log, [
+        'popup blockNetworkLoads=true',
+        'popup stopLoading',
+        'site blockNetworkLoads=true',
+        'site stopLoading',
+      ]);
       expect(closed(), 1);
       expect(find.byType(inapp.InAppWebView), findsOneWidget);
     });
@@ -1295,8 +1303,8 @@ void main() {
       });
       await tester.pump();
       expect(closed(), 1);
-      await tester.runAsync(opener.blockNetworkLoads);
-      expect(log, ['site blockNetworkLoads=true']);
+      await tester.runAsync(opener.quiet);
+      expect(log, ['site blockNetworkLoads=true', 'site stopLoading']);
       expect(closed(), 1);
     });
   });

@@ -17,6 +17,9 @@ class _Controller implements inapp.InAppWebViewController {
   );
 
   @override
+  Future<void> stopLoading() async => _asked.add('stopLoading');
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -44,7 +47,7 @@ void main() {
   tearDown(() => ProxyManager.pinBindingForTest(null));
 
   test(
-    'a check loads nothing more before its webview goes (PROXY-008)',
+    'a check is blocked and stopped before its webview goes (PROXY-008)',
     () async {
       final check = HeadlessSiteCheck.over(
         _Headless(),
@@ -56,10 +59,12 @@ void main() {
         // The settings it runs with: a setSettings resets what it leaves out
         // (BUG-022).
         'setSettings blockNetworkLoads=true javaScriptEnabled=false',
+        // A block reaches only requests not yet intercepted (BUG-037).
+        'stopLoading',
         'dispose',
       ]);
       await check.dispose();
-      expect(_asked, hasLength(2), reason: 'a check ends once');
+      expect(_asked, hasLength(3), reason: 'a check ends once');
     },
   );
 }

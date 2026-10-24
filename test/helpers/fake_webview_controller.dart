@@ -66,8 +66,18 @@ class FakeWebViewController extends Fake implements WebViewController {
   /// Whether the app told this webview to load nothing more.
   bool networkBlocked = false;
 
+  /// Whether the app stopped what this webview was loading.
+  bool stopped = false;
+
+  /// Two platform calls, as the real one makes: the settings write, then the
+  /// stop, each its own await.
   @override
-  Future<void> blockNetworkLoads() async => networkBlocked = true;
+  Future<void> quiet() async {
+    await Future<void>.value();
+    networkBlocked = true;
+    await Future<void>.value();
+    stopped = true;
+  }
 
   @override
   Future<HistoryEntry?> backEntry() {
