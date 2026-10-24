@@ -113,6 +113,42 @@ void main() {
   );
 
   testWidgets(
+    'a card out of a row\'s smaller well starts with its icon at that well\'s scale (WEBSPACE-015)',
+    (tester) async {
+      final zoom = await _pump(tester, onButton: () {});
+      final row = Rect.fromLTWH(
+        24,
+        300,
+        LibraryStyle.rowWell,
+        LibraryStyle.rowWell,
+      );
+      final opening = zoom.open(
+        WebViewModel(
+          initUrl: 'https://row.example.test',
+          customIconPng: _png(3),
+        ),
+        from: row,
+        show: () async {},
+        shown: () => true,
+      );
+      await tester.pump();
+      final icon = find.descendant(of: _card, matching: find.byType(Image));
+      expect(tester.getRect(_card), row);
+      expect(
+        tester.getRect(icon).width,
+        moreOrLessEquals(
+          LibraryStyle.siteIcon * LibraryStyle.rowWell / LibraryStyle.siteWell,
+        ),
+        reason: 'the icon fits the well it grows out of',
+      );
+      await tester.pump(Motion.launch);
+      expect(tester.getRect(icon).width, LibraryStyle.siteIcon);
+      await tester.pumpAndSettle();
+      await opening;
+    },
+  );
+
+  testWidgets(
     'a site grows out of its icon, opens once its card covers the screen, then the card fades (WEBSPACE-008)',
     (tester) async {
       var taps = 0;

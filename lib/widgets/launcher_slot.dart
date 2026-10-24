@@ -11,8 +11,12 @@ import 'package:webspace/theme/design_tokens.dart';
 /// The grid must keep the icon's element across the move
 /// (`findChildIndexCallback`).
 class LauncherSlot extends StatefulWidget {
-  const LauncherSlot({super.key, required this.child});
+  const LauncherSlot({super.key, this.morphing = false, required this.child});
 
+  /// Whether the grid's own layout is moving its places (a grid turning into
+  /// rows, [LauncherMorph]): the icon goes with its place rather than
+  /// sliding after it.
+  final bool morphing;
   final Widget child;
 
   /// The slot around [context], to tell where its icon was let go.
@@ -74,6 +78,7 @@ class LauncherSlotState extends State<LauncherSlot>
     builder: (context, child) => _Slot(
       shift: _from * (1 - _eased.value),
       dropped: _dropped,
+      morphing: widget.morphing,
       onMoved: _moved,
       child: child,
     ),
@@ -85,25 +90,29 @@ class _Slot extends SingleChildRenderObjectWidget {
   const _Slot({
     required this.shift,
     required this.dropped,
+    required this.morphing,
     required this.onMoved,
     super.child,
   });
 
   final Offset shift;
   final Offset? dropped;
+  final bool morphing;
   final ValueChanged<Offset> onMoved;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
       _RenderSlot(onMoved: onMoved)
         ..shift = shift
-        ..dropped = dropped;
+        ..dropped = dropped
+        ..morphing = morphing;
 
   @override
   void updateRenderObject(BuildContext context, _RenderSlot renderObject) {
     renderObject
       ..shift = shift
       ..dropped = dropped
+      ..morphing = morphing
       ..onMoved = onMoved
       // The grid moves a slot without repainting it; a rebuild is when a
       // move can have happened, so look again.
@@ -120,6 +129,16 @@ class _RenderSlot extends RenderProxyBox {
   ValueChanged<Offset> onMoved;
   Offset? dropped;
   Offset _shift = Offset.zero;
+
+  /// Whether the grid's layout is moving the slot, and so whether the next
+  /// paint goes with it: the frame a morph ends in still moves it a little.
+  bool _goesWith = false;
+  bool _morphing = false;
+  set morphing(bool value) {
+    if (_morphing || value) _goesWith = true;
+    _morphing = value;
+  }
+
   Offset? _at;
   Offset? _pending;
   Offset? _landed;
@@ -152,7 +171,9 @@ class _RenderSlot extends RenderProxyBox {
     final at = _slotOffset();
     final drop = dropped;
     Offset? from;
-    if (drop != null && drop != _landed) {
+    if (_goesWith) {
+      _goesWith = _morphing;
+    } else if (drop != null && drop != _landed) {
       _landed = drop;
       from = drop - localToGlobal(Offset.zero);
     } else if (at != null && _at != null && at != _at) {

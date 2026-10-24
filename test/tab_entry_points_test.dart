@@ -273,9 +273,10 @@ void guarded(String src,
       expect(source, contains('showsTabCount: _tabs.enabledFor,'),
           reason: 'the drawer counts tabs only where the site has them');
       guarded(File('lib/widgets/site_grid_tile.dart').readAsStringSync(),
-          count: 3,
+          count: 4,
           guard: RegExp(r'^if \(showTabCount\)'),
-          reason: 'the two compact layouts and the folder library layout');
+          reason: 'the two compact layouts and the folder library\'s icon '
+              'and row');
     });
   });
 

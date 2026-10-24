@@ -361,6 +361,39 @@ its icon has, from its first frame.
 
 ---
 
+### Requirement: WEBSPACE-015 - A Folder's Sites as Rows
+
+With Alternative design enabled, an open folder's top bar SHALL hold a switch
+between its sites as a grid of icons and as a list of rows, each row the
+site's icon at its start, its name over its web address, and its grants and
+tab count at its end. The choice SHALL apply to every folder, persist across
+launches and ride a settings backup. Switching SHALL move each icon from its
+place in one layout to its place in the other while it shrinks or grows, the
+names under the icons fading early and the rows' text fading in late, and the
+panel SHALL take the new layout's height as the icons move. In either layout
+the panel SHALL be as tall as its sites need up to most of the screen,
+resizing late in a swipe to another folder (WEBSPACE-008), and rows SHALL
+reorder by dragging as icons do (WEBSPACE-011). A site SHALL open from its
+row's icon and close back into it, its card starting at that icon's size and
+colour. Reduced motion SHALL switch at once.
+
+#### Scenario: Turn a folder into rows
+
+**Given** Alternative design is enabled and the All folder is open as a grid
+**When** the user taps the folder's list view switch
+**Then** each icon moves to the start of its row as the panel takes the rows' height
+**And** every row shows its site's web address
+**When** the user swipes to another folder
+**Then** its sites are rows too
+
+#### Scenario: Open a site from a row
+
+**Given** a folder is open as rows
+**When** the user taps a row
+**Then** the site's card grows out of that row's icon
+
+---
+
 ## Data Model
 
 ### Webspace

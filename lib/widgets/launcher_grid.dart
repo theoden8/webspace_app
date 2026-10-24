@@ -1,5 +1,7 @@
 import 'dart:async';
-import 'package:flutter/semantics.dart';
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:webspace/services/remote_input.dart';
@@ -179,4 +181,78 @@ class _CellMoves extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_CellMoves oldWidget) => false;
+}
+
+/// A launcher grid's places [list] of the way from [grid] to [rows]: each
+/// place moves on a line between where the two put it, so icons glide into
+/// rows and back rather than jumping (WEBSPACE-015).
+class LauncherMorph extends SliverGridDelegate {
+  const LauncherMorph({
+    required this.grid,
+    required this.rows,
+    required this.list,
+  }) : assert(list >= 0 && list <= 1, 'list is a share of the way');
+
+  final SliverGridDelegateWithFixedCrossAxisCount grid;
+  final SliverGridDelegateWithFixedCrossAxisCount rows;
+  final double list;
+
+  @override
+  SliverGridLayout getLayout(SliverConstraints constraints) {
+    if (list == 0) return grid.getLayout(constraints);
+    if (list == 1) return rows.getLayout(constraints);
+    return _Between(
+      from: grid.getLayout(constraints),
+      to: rows.getLayout(constraints),
+      t: list,
+    );
+  }
+
+  @override
+  bool shouldRelayout(LauncherMorph oldDelegate) =>
+      list != oldDelegate.list ||
+      grid.shouldRelayout(oldDelegate.grid) ||
+      rows.shouldRelayout(oldDelegate.rows);
+}
+
+class _Between extends SliverGridLayout {
+  const _Between({required this.from, required this.to, required this.t});
+
+  final SliverGridLayout from;
+  final SliverGridLayout to;
+  final double t;
+
+  // A place ends before an offset in both layouts, or starts after it in
+  // both, only if it does so on every line between them, so the wider of
+  // the two answers bounds the places in view.
+  @override
+  int getMinChildIndexForScrollOffset(double scrollOffset) => math.min(
+    from.getMinChildIndexForScrollOffset(scrollOffset),
+    to.getMinChildIndexForScrollOffset(scrollOffset),
+  );
+
+  @override
+  int getMaxChildIndexForScrollOffset(double scrollOffset) => math.max(
+    from.getMaxChildIndexForScrollOffset(scrollOffset),
+    to.getMaxChildIndexForScrollOffset(scrollOffset),
+  );
+
+  @override
+  SliverGridGeometry getGeometryForChildIndex(int index) {
+    final a = from.getGeometryForChildIndex(index);
+    final b = to.getGeometryForChildIndex(index);
+    return SliverGridGeometry(
+      scrollOffset: lerpDouble(a.scrollOffset, b.scrollOffset, t)!,
+      crossAxisOffset: lerpDouble(a.crossAxisOffset, b.crossAxisOffset, t)!,
+      mainAxisExtent: lerpDouble(a.mainAxisExtent, b.mainAxisExtent, t)!,
+      crossAxisExtent: lerpDouble(a.crossAxisExtent, b.crossAxisExtent, t)!,
+    );
+  }
+
+  @override
+  double computeMaxScrollOffset(int childCount) => lerpDouble(
+    from.computeMaxScrollOffset(childCount),
+    to.computeMaxScrollOffset(childCount),
+    t,
+  )!;
 }

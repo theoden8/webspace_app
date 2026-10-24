@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
@@ -25,7 +26,11 @@ class SiteGridTile extends StatelessWidget {
     this.layout = SiteGridTileLayout.compact,
     this.webspaces = const [],
     this.lookalike = false,
-  });
+    this.list = 0,
+  }) : assert(
+         list == 0 || layout == SiteGridTileLayout.library,
+         'only a library tile turns into a row',
+       );
 
   final WebViewModel site;
 
@@ -38,6 +43,11 @@ class SiteGridTile extends StatelessWidget {
 
   /// Whether another site shows the same icon (`sitesSharingAnIcon`).
   final bool lookalike;
+
+  /// How far a library tile has turned into a row: 0 its icon over its name,
+  /// 1 its icon at the start of a row beside its name and host
+  /// (WEBSPACE-015).
+  final double list;
 
   final VoidCallback onOpen;
 
@@ -61,14 +71,46 @@ class SiteGridTile extends StatelessWidget {
                 Spacing.xs * 3);
   }
 
-  /// Where a library tile laid out at [tile] draws its icon's well, which the
-  /// site's card grows out of as it opens and shrinks into as it closes.
-  static Rect wellIn(Rect tile) => Rect.fromLTWH(
-    tile.center.dx - LibraryStyle.siteWell / 2,
-    tile.top + Spacing.sm,
-    LibraryStyle.siteWell,
-    LibraryStyle.siteWell,
-  );
+  /// A library row's extent: its icon's, or its name's and host's where the
+  /// text is taller.
+  static double rowExtentFor(BuildContext context) =>
+      _rowText(context) + Spacing.sm * 2;
+
+  static double _rowText(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final text = Theme.of(context).textTheme;
+    return math.max(
+      LibraryStyle.rowWell,
+      scaler.scale(LibraryStyle.rowTitleSize) * (text.bodyMedium!.height ?? 1) +
+          scaler.scale(text.bodySmall!.fontSize!) *
+              (text.bodySmall!.height ?? 1),
+    );
+  }
+
+  /// Where a library tile laid out at [tile], [list] of the way to a row,
+  /// draws its icon's well, which the site's card grows out of as it opens
+  /// and shrinks into as it closes.
+  static Rect wellIn(
+    Rect tile, {
+    required double list,
+    required TextDirection direction,
+  }) {
+    final icon = Rect.fromLTWH(
+      tile.center.dx - LibraryStyle.siteWell / 2,
+      tile.top + Spacing.sm,
+      LibraryStyle.siteWell,
+      LibraryStyle.siteWell,
+    );
+    final row = Rect.fromLTWH(
+      direction == TextDirection.ltr
+          ? tile.left + Spacing.lg
+          : tile.right - Spacing.lg - LibraryStyle.rowWell,
+      tile.center.dy - LibraryStyle.rowWell / 2,
+      LibraryStyle.rowWell,
+      LibraryStyle.rowWell,
+    );
+    return Rect.lerp(icon, row, list)!;
+  }
 
   /// The colour [site]'s icon is marked in: its container's, only where the
   /// icon alone does not tell the site apart, because another site shows the
@@ -106,6 +148,7 @@ class SiteGridTile extends StatelessWidget {
         layout: layout,
         webspaces: webspaces,
         lookalike: lookalike,
+        list: list,
       ),
     );
     return Semantics(
@@ -160,6 +203,7 @@ class _SiteGridTileContent extends StatelessWidget {
     required this.layout,
     required this.webspaces,
     required this.lookalike,
+    required this.list,
   });
 
   final WebViewModel site;
@@ -168,6 +212,7 @@ class _SiteGridTileContent extends StatelessWidget {
   final SiteGridTileLayout layout;
   final List<Webspace> webspaces;
   final bool lookalike;
+  final double list;
 
   @override
   Widget build(BuildContext context) {
@@ -192,67 +237,124 @@ class _SiteGridTileContent extends StatelessWidget {
     );
   }
 
-  Widget _library(BuildContext context) {
-    final theme = Theme.of(context);
-    const well = LibraryStyle.siteWell;
-    return Column(
-      children: [
-        const SizedBox(height: Spacing.sm),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            UnifiedFaviconImage.site(
-              site,
-              size: LibraryStyle.siteIcon * well / LibraryStyle.siteWell,
-              frame: (context, {required missing, required icon}) {
-                final mark = SiteGridTile.markOf(
-                  site,
-                  brightness: theme.brightness,
-                  lookalike: lookalike,
-                  missing: missing,
-                );
-                return AnimatedContainer(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : Motion.settle,
-                  width: well,
-                  height: well,
-                  decoration: BoxDecoration(
-                    color: SiteGridTile.wellColor(mark, theme: theme),
-                    border: mark == null
-                        ? null
-                        : Border.all(
-                            color: mark,
-                            width: LibraryStyle.selectionWidth,
-                          ),
-                    borderRadius: BorderRadius.circular(LibraryStyle.radius),
-                  ),
-                  foregroundDecoration: selected
-                      ? BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            LibraryStyle.radius,
-                          ),
-                          border: Border.all(
-                            color: theme.colorScheme.primary,
-                            width: LibraryStyle.selectionWidth,
-                          ),
-                        )
-                      : null,
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.antiAlias,
-                  child: icon,
-                );
-              },
+  /// The library's tile, [list] of the way to a row: its well moves and
+  /// shrinks from over its name to the start of the row, while the name under
+  /// it fades early and the row's name and host fade in late.
+  Widget _library(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final direction = Directionality.of(context);
+      final size = box.biggest;
+      final well = SiteGridTile.wellIn(
+        Offset.zero & size,
+        list: list,
+        direction: direction,
+      );
+      final gridShown = 1 - LibraryStyle.gridCaptionOut.transform(list);
+      final rowShown = LibraryStyle.rowCaptionIn.transform(list);
+      // From the well's end edge to the tile's end edge, which a badge on the
+      // well's corner and the row's text count from.
+      final afterWell = direction == TextDirection.ltr
+          ? size.width - well.right
+          : well.left;
+      final rowText = SiteGridTile._rowText(context);
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (gridShown > 0)
+            Positioned(
+              left: well.center.dx - size.width / 2,
+              width: size.width,
+              top: well.bottom + Spacing.sm,
+              height:
+                  SiteGridTile.extentFor(
+                    context,
+                    well: LibraryStyle.siteWell,
+                    webspaceCount: webspaces.length,
+                  ) -
+                  LibraryStyle.siteWell -
+                  Spacing.sm * 2,
+              child: Opacity(opacity: gridShown, child: _caption(context)),
             ),
-            if (showTabCount)
-              PositionedDirectional(
-                top: -Spacing.xs,
-                end: -Spacing.xs,
+          if (rowShown > 0)
+            PositionedDirectional(
+              start: size.width - afterWell + Spacing.md,
+              end: Spacing.lg,
+              top: well.center.dy - rowText / 2,
+              height: rowText,
+              child: Opacity(
+                opacity: rowShown,
+                child: Transform.translate(
+                  offset: Offset(0, Spacing.sm * (1 - rowShown)),
+                  child: _row(context),
+                ),
+              ),
+            ),
+          Positioned.fromRect(
+            rect: well,
+            child: FittedBox(child: _well(context)),
+          ),
+          if (showTabCount)
+            PositionedDirectional(
+              top: well.top - Spacing.xs,
+              end: afterWell - Spacing.xs,
+              child: Opacity(
+                opacity: gridShown,
                 child: TabCountPill(count: site.tabs.length, active: selected),
               ),
-          ],
-        ),
-        const SizedBox(height: Spacing.sm),
+            ),
+        ],
+      );
+    },
+  );
+
+  Widget _well(BuildContext context) {
+    final theme = Theme.of(context);
+    const well = LibraryStyle.siteWell;
+    return UnifiedFaviconImage.site(
+      site,
+      size: LibraryStyle.siteIcon,
+      frame: (context, {required missing, required icon}) {
+        final mark = SiteGridTile.markOf(
+          site,
+          brightness: theme.brightness,
+          lookalike: lookalike,
+          missing: missing,
+        );
+        return AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : Motion.settle,
+          width: well,
+          height: well,
+          decoration: BoxDecoration(
+            color: SiteGridTile.wellColor(mark, theme: theme),
+            border: mark == null
+                ? null
+                : Border.all(color: mark, width: LibraryStyle.selectionWidth),
+            borderRadius: BorderRadius.circular(LibraryStyle.radius),
+          ),
+          foregroundDecoration: selected
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                  border: Border.all(
+                    color: theme.colorScheme.primary,
+                    width: LibraryStyle.selectionWidth,
+                  ),
+                )
+              : null,
+          alignment: Alignment.center,
+          clipBehavior: Clip.antiAlias,
+          child: icon,
+        );
+      },
+    );
+  }
+
+  /// The name under a grid tile's icon, its grants and its webspaces.
+  Widget _caption(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
         Text(
           site.getDisplayName(),
           maxLines: 2,
@@ -267,6 +369,46 @@ class _SiteGridTileContent extends StatelessWidget {
           child: SitePermissionBadges(model: site, iconSize: IconSizes.inline),
         ),
         if (webspaces.isNotEmpty) _webspaceLabels(context),
+      ],
+    );
+  }
+
+  /// A row's name over its host, then its grants and its tab count.
+  Widget _row(BuildContext context) {
+    final theme = Theme.of(context);
+    final host = extractDomain(site.initUrl);
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                site.getDisplayName(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: LibraryStyle.rowTitleSize,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                host,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SitePermissionBadges(model: site, iconSize: IconSizes.inline),
+        if (showTabCount) ...[
+          const SizedBox(width: Spacing.sm),
+          TabCountPill(count: site.tabs.length, active: selected),
+        ],
       ],
     );
   }

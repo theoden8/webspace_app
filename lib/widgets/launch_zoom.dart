@@ -200,6 +200,9 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     final t = _growth.value;
     final shown = t.clamp(0.0, 1.0);
     final icon = _icon;
+    // A card out of a smaller well than a grid's (a folder's rows) starts
+    // with its icon and corners at that well's scale.
+    final start = icon == null ? 1.0 : icon.width / LibraryStyle.siteWell;
     final rect = icon == null
         ? Rect.fromCenter(
             center: screen.center,
@@ -236,10 +239,21 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
                 ),
                 elevation: Elevations.floatingActive * (1 - shown),
                 borderRadius: BorderRadius.circular(
-                  lerpDouble(LibraryStyle.radius, 0, shown)!,
+                  lerpDouble(LibraryStyle.radius * start, 0, shown)!,
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Center(child: icon),
+                child: Center(
+                  child: Transform.scale(
+                    scale: lerpDouble(start, 1, t)!,
+                    // At its own size, which the scale shrinks, rather than
+                    // squeezed into a card smaller than the icon.
+                    child: OverflowBox(
+                      maxWidth: LibraryStyle.siteIcon,
+                      maxHeight: LibraryStyle.siteIcon,
+                      child: icon,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

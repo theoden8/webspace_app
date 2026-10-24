@@ -5301,6 +5301,10 @@
   "@libraryNoResults": {
     "description": "Empty search results message in the webspace and site library."
   },
+  "libraryListView": "List view",
+  "@libraryListView": {
+    "description": "Tooltip and accessibility label of the switch in an open webspace folder's top bar that shows the folder's sites as rows, each with its name and web address, instead of a grid of icons. Turning it on or off applies to every folder."
+  },
   "appSettingsExperimentalFolderLibrary": "Alternative design",
   "appSettingsExperimentalFolderLibraryHint": "Organize sites into groups in a launcher grid.",
   "@appSettingsExperimentalFolderLibrary": {

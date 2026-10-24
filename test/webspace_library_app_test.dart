@@ -445,7 +445,11 @@ void main() {
         of: find.byType(LaunchZoom),
         matching: find.byType(Material),
       );
-      final icon = SiteGridTile.wellIn(tester.getRect(_siteTile('Alpha')));
+      final icon = SiteGridTile.wellIn(
+        tester.getRect(_siteTile('Alpha')),
+        list: 0,
+        direction: TextDirection.ltr,
+      );
       await tester.tap(_siteTile('Alpha'));
       await tester.pump();
       expect(tester.getRect(card), icon);
