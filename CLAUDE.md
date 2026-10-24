@@ -306,6 +306,7 @@ fvm flutter build macos  --release                       # unsigned; see below
 ./scripts/sign_macos.sh devid                            # notarized zip + dmg (needs certs)
 ./scripts/sign_macos.sh mas                              # Mac App Store .pkg
 fvm flutter build linux  --release
+./scripts/build_flatpak.sh                               # offline flatpak; builds WPE from source (hours cold)
 fvm dart run flutter_launcher_icons
 ```
 
