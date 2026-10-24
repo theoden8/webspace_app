@@ -46,8 +46,18 @@ class FaviconUrlCache {
       _prefs?.getString('$_prefix$siteUrl');
 
   static Future<void> set(String siteUrl, {required String faviconUrl}) async {
+    _missing.remove(siteUrl);
     await _prefs?.setString('$_prefix$siteUrl', faviconUrl);
   }
+
+  /// Sites whose last icon search this session found nothing, held in memory
+  /// only: an icon widget made afresh for one, as a site's opening card is,
+  /// knows it from its first frame instead of once its own search ends.
+  static final Set<String> _missing = {};
+
+  static bool isMissing(String siteUrl) => _missing.contains(siteUrl);
+
+  static void markMissing(String siteUrl) => _missing.add(siteUrl);
 
   static String? getSvg(String faviconUrl) =>
       _prefs?.getString('$_svgPrefix$faviconUrl');
@@ -62,6 +72,7 @@ class FaviconUrlCache {
   /// re-fetches the fetched candidates, it says nothing about the page icon.
   static Future<void> invalidate(String siteUrl,
       {bool keepSiteIcon = false}) async {
+    _missing.remove(siteUrl);
     final oldUrl = _prefs?.getString('$_prefix$siteUrl');
     await _prefs?.remove('$_prefix$siteUrl');
     if (oldUrl != null) {
@@ -75,6 +86,7 @@ class FaviconUrlCache {
   /// reported, and the icon service's memory. Every icon on screen is then
   /// fetched again.
   static Future<void> resetAll() async {
+    _missing.clear();
     final prefs = _prefs;
     if (prefs != null) {
       for (final key in prefs.getKeys().toList()) {
@@ -123,6 +135,14 @@ class UnifiedFaviconImage extends StatefulWidget {
   /// the session either way.
   final bool persist;
 
+  /// What the icon is drawn in, told whether a generic globe stands in for
+  /// an icon the site does not have; null draws the icon alone.
+  final Widget Function(
+    BuildContext context, {
+    required bool missing,
+    required Widget icon,
+  })? frame;
+
   const UnifiedFaviconImage({
     super.key,
     required this.url,
@@ -130,15 +150,20 @@ class UnifiedFaviconImage extends StatefulWidget {
     this.proxy,
     this.customIcon,
     this.persist = true,
+    this.frame,
   });
 
   /// [site]'s own icon: the one the user picked if any, fetched through the
   /// site's proxy, and never written to disk for an archive-tier site.
-  UnifiedFaviconImage.site(WebViewModel site, {super.key, required this.size})
-      : url = site.initUrl,
-        proxy = site.outboundProxySettings,
-        customIcon = site.customIconPng,
-        persist = !site.isArchiveTier;
+  UnifiedFaviconImage.site(
+    WebViewModel site, {
+    super.key,
+    required this.size,
+    this.frame,
+  }) : url = site.initUrl,
+       proxy = site.outboundProxySettings,
+       customIcon = site.customIconPng,
+       persist = !site.isArchiveTier;
 
   @override
   State<UnifiedFaviconImage> createState() => _UnifiedFaviconImageState();
@@ -154,6 +179,11 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   StreamSubscription<String>? _invalidationSub;
   StreamSubscription<String?>? _siteIconSub;
   StreamSubscription<void>? _reloadSub;
+
+  /// Whether the icon's image, or its SVG body, failed to come, so the globe
+  /// stands in for it.
+  bool _imageFailed = false;
+  bool _svgFailed = false;
 
   bool _isSvgUrl(String url) =>
       url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
@@ -205,6 +235,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   @override
   void didUpdateWidget(UnifiedFaviconImage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.customIcon, widget.customIcon)) {
+      _imageFailed = false;
+    }
     if (widget.customIcon != null) return; // build() renders the bytes directly
     if (oldWidget.url != widget.url || oldWidget.customIcon != null) {
       _resetAndLoad();
@@ -221,6 +254,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     _iconSub = null;
     _currentIconUrl = null;
     _svgContent = null;
+    _imageFailed = false;
+    _svgFailed = false;
     _currentQuality = 0;
     _isLoading = true;
     _iconStream = null;
@@ -256,7 +291,12 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       proxy: widget.proxy,
       persist: widget.persist,
     );
-    if (mounted) setState(() => _svgContent = content);
+    if (mounted) {
+      setState(() {
+        _svgContent = content;
+        _svgFailed = content == null;
+      });
+    }
   }
 
   void _startIconStream() {
@@ -267,6 +307,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
           setState(() {
             _currentIconUrl = update.url;
             _currentQuality = update.quality;
+            _imageFailed = false;
+            _svgFailed = false;
             if (update.isFinal) {
               _isLoading = false;
               if (widget.persist) {
@@ -281,6 +323,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         if (!mounted) return;
         setState(() => _isLoading = false);
         final url = _currentIconUrl;
+        if (url == null) FaviconUrlCache.markMissing(widget.url);
         if (url != null && widget.persist) {
           unawaited(FaviconUrlCache.set(widget.url, faviconUrl: url));
         }
@@ -291,13 +334,43 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     );
   }
 
+  /// Whether the globe stands in for an icon the site does not have: its
+  /// search ended with none, now or earlier this session, or what it found
+  /// failed to draw. While a search runs the site is not yet iconless.
+  bool get _missing {
+    if (_imageFailed) return true;
+    if (widget.customIcon != null ||
+        SiteIconStore.instance.get(widget.url) != null) {
+      return false;
+    }
+    final iconUrl = _currentIconUrl;
+    if (iconUrl != null) return _isSvgUrl(iconUrl) && _svgFailed;
+    return !_isLoading || FaviconUrlCache.isMissing(widget.url);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final icon = _icon(context);
+    final frame = widget.frame;
+    return frame == null ? icon : frame(context, missing: _missing, icon: icon);
+  }
+
+  Widget _icon(BuildContext context) {
     Widget fallback(BuildContext context) => Icon(
           Icons.language,
           size: widget.size,
           color: Theme.of(context).colorScheme.primary,
         );
+    // The globe drawn where an image failed: the frame learns of it after
+    // this frame, since a child's error builder runs inside this build.
+    Widget failed(BuildContext context) {
+      if (!_imageFailed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_imageFailed) setState(() => _imageFailed = true);
+        });
+      }
+      return fallback(context);
+    }
     Widget spinner(BuildContext context) => SizedBox(
           width: widget.size,
           height: widget.size,
@@ -313,7 +386,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
-        errorBuilder: (context, _, _) => fallback(context),
+        errorBuilder: (context, _, _) => failed(context),
       );
     }
 
@@ -327,7 +400,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         size: widget.size,
         proxy: widget.proxy,
         placeholder: spinner,
-        error: fallback,
+        error: failed,
       );
     }
     final svg = _svgContent;

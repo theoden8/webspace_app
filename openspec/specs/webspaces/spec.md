@@ -73,7 +73,7 @@ The system SHALL provide clear visual indication of which webspace is currently 
 
 The workspace site grid and the browser drawer SHALL only show sites belonging to the currently selected webspace. Library searches SHALL filter the current view without changing membership or persisted order.
 
-Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL use its existing container color and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tabs sheet and remain stable when selection changes.
+Searching the Webspaces group grid SHALL show matching workspace names and a separate Sites section matching saved site names or homepage addresses, case-insensitively with surrounding whitespace ignored. Site results SHALL include every saved site, regardless of the selected workspace, and appear once even when a site belongs to multiple groups. A site result SHALL open directly without changing the selected workspace. Clearing the search SHALL restore the group grid. Each site result SHALL take its container color where WEBSPACE-014 shows one and show up to two named workspace memberships in their stable workspace colors, excluding the synthetic All group. Additional memberships SHALL be indicated by a count, with all membership names available to accessibility services. Site colors SHALL match the tabs sheet and remain stable when selection changes.
 
 The library's home header, beside App Settings, and an open folder's header, at its end, SHALL each carry a tab count button while what they show holds a site with tabs: the home's counts and lists the tabs of every site, a folder's those of its sites. It opens the tabs sheet with no site on screen, titled by that scope and listing each site's tree, and a tab picked there opens its site on that tab.
 
@@ -329,6 +329,32 @@ still be read.
 **Given** sites run in per-site containers
 **When** the user switches webspaces
 **Then** no site is unloaded for the switch (CONT-003)
+
+---
+
+### Requirement: WEBSPACE-014 - Colour Only Tells Look-Alike Sites Apart
+
+With Alternative design enabled, a site's icon in the library SHALL carry its
+container colour, as a tinted well and a frame, only where the icon alone does
+not tell the site apart: when another saved site shows the same icon (the same
+picked icon, or no picked icon and the same host, whose favicon both fetch),
+in any webspace, or when the site has no icon of its own and a generic globe
+stands in for it. Any other site's icon SHALL sit in a neutral well with no
+frame. The card a site opens and closes through SHALL start in the same colour
+its icon has, from its first frame.
+
+#### Scenario: Two accounts of one mail service
+
+**Given** "Mail" and "Mail (work)" both open pages on mail.example.com, and "News" has an icon of its own
+**When** the user opens a folder holding them
+**Then** both mail icons are framed and tinted, each in its own container's colour
+**And** the News icon has no frame and no tint
+
+#### Scenario: A site with no icon
+
+**Given** a site imported from a file, which has no icon
+**When** the user sees it in the library
+**Then** its globe is framed and tinted in its container's colour
 
 ---
 

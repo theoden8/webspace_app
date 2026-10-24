@@ -63,6 +63,18 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   void disableTabs(WebViewModel site) =>
       setState(() => site.tabsEnabled = false);
 
+  /// Gives every site an icon of its own but the ones [twins] lists, which
+  /// share one.
+  void iconsExceptTwins(Set<int> twins) => setState(() {
+    for (final (i, site) in sites.indexed) {
+      site.customIconPng = twins.contains(i)
+          ? _icon
+          : Uint8List.fromList(
+              image.encodePng(image.Image(width: 3 + i, height: 2)),
+            );
+    }
+  });
+
   @override
   Widget build(BuildContext context) {
     WebspaceSelectionEngine.resolveIndices(
@@ -522,6 +534,34 @@ void main() {
       await tester.tap(_inPanel(find.byTooltip('Add Site')));
       await tester.pump();
       expect(state.addedInto, [null, state.webspaces[1].id]);
+    },
+  );
+
+  testWidgets(
+    'only sites showing the same icon as another are marked as look-alikes, across every webspace (WEBSPACE-014)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      state.iconsExceptTwins({1, 2});
+      await tester.pumpAndSettle();
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      bool lookalike(String name) => tester
+          .widget<SiteGridTile>(
+            find.byWidgetPredicate(
+              (widget) => widget is SiteGridTile && widget.site.name == name,
+            ),
+          )
+          .lookalike;
+      expect(lookalike('GitHub'), isFalse);
+      expect(
+        lookalike('Site 1'),
+        isTrue,
+        reason: 'Site 2 shows its icon, though Work does not hold it',
+      );
     },
   );
 

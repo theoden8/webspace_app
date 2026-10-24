@@ -1559,7 +1559,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       fit: StackFit.expand,
       children: [
         _buildMainTree(context, webviewIsVisible: webviewIsVisible),
-        if (_folderLibraryEnabled) LaunchZoom(key: _launchZoom),
+        if (_folderLibraryEnabled) LaunchZoom(key: _launchZoom, sites: _sites.models),
         // Snapshot-time mask: an opaque surface overlays everything so the
         // task-switcher / recents preview never captures archive content
         // (ARCH-009). Only the painted output is replaced.

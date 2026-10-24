@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as image;
+import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launch_zoom.dart';
+import 'package:webspace/widgets/site_grid_tile.dart';
 import 'helpers/localized.dart';
 
 const _screen = Rect.fromLTWH(0, 0, 400, 800);
@@ -19,16 +24,14 @@ Future<LaunchZoomState> _pump(
   WidgetTester tester, {
   required VoidCallback onButton,
   bool reduceMotion = false,
+  List<WebViewModel> sites = const [],
 }) async {
   final zoom = GlobalKey<LaunchZoomState>();
   await pumpLocalized(
     tester,
     size: _screen.size,
     home: MediaQuery(
-      data: MediaQueryData(
-        size: _screen.size,
-        disableAnimations: reduceMotion,
-      ),
+      data: MediaQueryData(size: _screen.size, disableAnimations: reduceMotion),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -38,7 +41,7 @@ Future<LaunchZoomState> _pump(
               child: const Text('Page'),
             ),
           ),
-          LaunchZoom(key: zoom),
+          LaunchZoom(key: zoom, sites: sites),
         ],
       ),
     ),
@@ -49,7 +52,66 @@ Future<LaunchZoomState> _pump(
 WebViewModel _site() =>
     WebViewModel(initUrl: 'https://alpha.example.test', name: 'Alpha');
 
+Uint8List _png(int width) =>
+    Uint8List.fromList(image.encodePng(image.Image(width: width, height: 2)));
+
 void main() {
+  testWidgets(
+    'a site\'s card starts in its icon\'s colour: marked only for a look-alike '
+    'or a site with no icon (WEBSPACE-014)',
+    (tester) async {
+      final own = WebViewModel(
+        initUrl: 'https://own.example.test',
+        customIconPng: _png(3),
+      )..containerColor = 1;
+      final twin = WebViewModel(
+        initUrl: 'https://twin.example.test',
+        customIconPng: _png(4),
+      )..containerColor = 2;
+      final twinToo = WebViewModel(
+        initUrl: 'https://twin-too.example.test',
+        customIconPng: _png(4),
+      )..containerColor = 3;
+      final file = WebViewModel(initUrl: 'file:///card-notes.html')
+        ..containerColor = 4;
+      FaviconUrlCache.markMissing(file.initUrl);
+      final zoom = await _pump(
+        tester,
+        onButton: () {},
+        sites: [own, twin, twinToo, file],
+      );
+      Future<Color?> firstFrame(WebViewModel site) async {
+        final opening = zoom.open(
+          site,
+          from: _icon,
+          show: () async {},
+          shown: () => true,
+        );
+        await tester.pump();
+        final color = tester.widget<Material>(_card).color;
+        await tester.pumpAndSettle();
+        await opening;
+        return color;
+      }
+
+      final theme = Theme.of(tester.element(find.byType(LaunchZoom)));
+      Color well(WebViewModel site, {required bool marked}) =>
+          SiteGridTile.wellColor(
+            marked
+                ? containerColorOf(site, brightness: theme.brightness)
+                : null,
+            theme: theme,
+          );
+      expect(await firstFrame(own), well(own, marked: false));
+      expect(await firstFrame(twin), well(twin, marked: true));
+      expect(
+        await firstFrame(file),
+        well(file, marked: true),
+        reason: 'known to have no icon from the card\'s first frame',
+      );
+    },
+  );
+
   testWidgets(
     'a site grows out of its icon, opens once its card covers the screen, then the card fades (WEBSPACE-008)',
     (tester) async {
@@ -76,7 +138,10 @@ void main() {
       expect(shown, 1);
       await tester.pump(Motion.reveal ~/ 2);
       final fading = tester.widget<Opacity>(
-        find.descendant(of: find.byType(LaunchZoom), matching: find.byType(Opacity)),
+        find.descendant(
+          of: find.byType(LaunchZoom),
+          matching: find.byType(Opacity),
+        ),
       );
       expect(fading.opacity, inExclusiveRange(0, 1));
       await tester.pumpAndSettle();

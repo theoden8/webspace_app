@@ -10,6 +10,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
@@ -114,6 +115,10 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   (bool, bool)? _mode;
   var _groupTiles = <WebspaceId, GlobalKey>{};
   var _foundSites = <SiteId, GlobalKey>{};
+
+  /// The sites another shows the same icon as, worked out once a build rather
+  /// than on every frame a folder moves.
+  Set<SiteId> _lookalikes = const {};
 
   /// Opens the selected webspace's folder.
   void openFolder() {
@@ -244,6 +249,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    _lookalikes = sitesSharingAnIcon(widget.sites);
     final webspace = _selected;
     final panelShown = webspace != null && (_open || !_panel.isDismissed);
     final pages = panelShown
@@ -1020,6 +1026,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         widget.showsTabCount(site) && site.tabs.length > 1,
                     layout: SiteGridTileLayout.library,
                     webspaces: labels[i]!,
+                    lookalike: _lookalikes.contains(site.siteId),
                     onOpen: () {
                       FocusScope.of(context).unfocus();
                       widget.onOpenSite(site);

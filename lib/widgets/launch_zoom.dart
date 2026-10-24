@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 
 /// A site's card between its icon in the library and the full screen: it
@@ -12,7 +13,11 @@ import 'package:webspace/widgets/site_grid_tile.dart';
 /// covers the screen while the page underneath switches, so the switch is
 /// never seen, and takes no input while it moves.
 class LaunchZoom extends StatefulWidget {
-  const LaunchZoom({super.key});
+  const LaunchZoom({super.key, required this.sites});
+
+  /// Every saved site, which says whether another shows a site's icon, and so
+  /// whether its card is marked in its container's colour as its tile is.
+  final List<WebViewModel> sites;
 
   @override
   State<LaunchZoom> createState() => LaunchZoomState();
@@ -42,6 +47,9 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
   /// The site whose card is on screen; null while none is.
   WebViewModel? _site;
 
+  /// Whether another site shows [_site]'s icon.
+  bool _lookalike = false;
+
   /// Its icon's well, in this widget's coordinates; null where no icon is in
   /// view to land on, and the card fades out where it is instead.
   Rect? _icon;
@@ -69,6 +77,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     _size.value = from == null ? 1 : 0;
     setState(() {
       _site = site;
+      _lookalike = _sharesAnIcon(site);
       _icon = from == null ? null : _local(from);
       _fadeScales = true;
     });
@@ -97,6 +106,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     _size.value = 1;
     setState(() {
       _site = site;
+      _lookalike = _sharesAnIcon(site);
       _icon = null;
       _fadeScales = false;
     });
@@ -131,6 +141,9 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     }
     cap.cancel();
   }
+
+  bool _sharesAnIcon(WebViewModel site) =>
+      sitesSharingAnIcon(widget.sites).contains(site.siteId);
 
   void _done() {
     if (mounted) setState(() => _site = null);
@@ -204,22 +217,29 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
           rect: rect,
           child: Opacity(
             opacity: _fade.value,
-            child: Material(
-              color: Color.lerp(
-                SiteGridTile.wellColor(site, theme: theme),
-                theme.colorScheme.surface,
-                shown,
-              ),
-              elevation: Elevations.floatingActive * (1 - shown),
-              borderRadius: BorderRadius.circular(
-                lerpDouble(LibraryStyle.radius, 0, shown)!,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Center(
-                child: UnifiedFaviconImage.site(
-                  site,
-                  size: LibraryStyle.siteIcon,
+            child: UnifiedFaviconImage.site(
+              site,
+              size: LibraryStyle.siteIcon,
+              frame: (context, {required missing, required icon}) => Material(
+                color: Color.lerp(
+                  SiteGridTile.wellColor(
+                    SiteGridTile.markOf(
+                      site,
+                      brightness: theme.brightness,
+                      lookalike: _lookalike,
+                      missing: missing,
+                    ),
+                    theme: theme,
+                  ),
+                  theme.colorScheme.surface,
+                  shown,
                 ),
+                elevation: Elevations.floatingActive * (1 - shown),
+                borderRadius: BorderRadius.circular(
+                  lerpDouble(LibraryStyle.radius, 0, shown)!,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Center(child: icon),
               ),
             ),
           ),
