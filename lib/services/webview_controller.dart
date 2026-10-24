@@ -36,11 +36,11 @@ HistoryEntry? backEntryIn(inapp.WebHistory? history, {required bool isLinux}) {
 }
 
 /// Marks [settings] to load nothing more from the network where one proxy
-/// rule covers every webview, and says whether it did; the webview's owner
-/// then sends them whole (BUG-022). The plugin destroys a native webview only
-/// after it has loaded `about:blank`, and what one the app let go of fetches
-/// meanwhile leaves through whatever proxy the rule names next (PROXY-008).
-/// WPE has no such setting, so Linux is not covered.
+/// rule covers every webview (Android), and says whether it did; the
+/// webview's owner then sends them whole (BUG-022). The plugin destroys a
+/// native webview only after it has loaded `about:blank`, and what one the
+/// app let go of fetches meanwhile leaves through whatever proxy the rule
+/// names next (PROXY-008).
 bool markNetworkBlocked(inapp.InAppWebViewSettings settings) {
   if (ProxyManager.binding != ProxyBinding.processWide) return false;
   settings.blockNetworkLoads = true;

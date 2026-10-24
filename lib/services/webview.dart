@@ -256,7 +256,7 @@ class WebViewFactory {
     //
     //   iOS 17+ / macOS 14+ — the fork's `preWKWebViewConfiguration` writes
     //     it onto `WKWebsiteDataStore.proxyConfigurations`.
-    //   Linux (WPE) under containers — the fork pins it to the container's
+    //   Linux (WPE) — the fork pins it to the container's
     //     `WebKitNetworkSession`, or binds an incognito webview's ephemeral
     //     one, via `webkit_network_session_set_proxy_settings`. Proxies are
     //     per session there, so two sites hold two different proxies at

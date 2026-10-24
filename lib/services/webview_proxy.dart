@@ -262,42 +262,20 @@ class ProxyManager {
   /// Where this process enforces a per-site proxy (PROXY-027).
   ///
   /// Latched on first read, so a WebView built under one binding cannot be
-  /// driven by the other for the rest of the run. The restore decides it
-  /// ([decideBinding]) before any site's webview is built; a read before
-  /// that takes the platform's answer with no containers.
-  static ProxyBinding get binding => _binding ??= _bindingWith(containers: false);
-
-  /// Decides [binding] once the restore knows how sites are kept apart: on
-  /// Linux, container isolation gives every site a network session that
-  /// holds its own proxy.
-  static void decideBinding(Isolation isolation) {
-    final decided = _bindingWith(containers: isolation is Containers);
-    assert(
-      _binding == null || _binding == decided,
-      'the proxy binding was read as $_binding before the restore decided '
-      '$decided (PROXY-027)',
-    );
-    _binding = decided;
-  }
-
-  static ProxyBinding _bindingWith({required bool containers}) =>
-      _pinnedForTest ??
+  /// driven by the other for the rest of the run.
+  static ProxyBinding get binding => _binding ??= _pinnedForTest ??
       ProxyBindingEngine.bindingWhen(
         isIOS: hostIsIOS,
         isMacOS: hostIsMacOS,
-        linuxContainers: hostIsLinux && containers,
+        isLinux: hostIsLinux,
       );
 
   static ProxyBinding? _pinnedForTest;
 
-  /// Undecided again, for a test whose restore decides it anew.
-  @visibleForTesting
-  static void resetBindingForTest() => _binding = null;
-
-  /// [binding] whatever the host and the restore say, or the host's own again
-  /// with null: for a test that runs the other binding's paths, as the
-  /// process-wide ones an Android host takes on the Linux or macOS host CI
-  /// runs Dart tests on.
+  /// [binding] whatever the host says, or the host's own again with null:
+  /// for a test that runs the other binding's paths, as the process-wide
+  /// ones an Android host takes on the Linux or macOS host CI runs Dart
+  /// tests on.
   @visibleForTesting
   static void pinBindingForTest(ProxyBinding? binding) {
     _pinnedForTest = binding;

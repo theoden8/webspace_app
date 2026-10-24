@@ -27,7 +27,6 @@ import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/services/timezone_location_service.dart';
-import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/theme/app_theme.dart';
@@ -198,7 +197,6 @@ class StartupController implements DeferredStartupHost {
       legacy: () => _host.legacyJar,
     );
     final isolation = _sites.isolation = decided;
-    ProxyManager.decideBinding(isolation);
     // Queued before the commit makes the grid tappable, so it is the jar's
     // first turn and every restore waits behind it (ISO-003).
     if (isolation case SharedJar(:final jar)) {

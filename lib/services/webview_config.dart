@@ -199,9 +199,9 @@ class WebViewConfig {
   });
 }
 
-/// Where one rule covers the process (Android, Linux on the shared jar), the
-/// proxy is a process-global override applied from Dart after the platform
-/// view exists (`WebViewModel.setController`). A site whose effective proxy
+/// Where one rule covers the process (Android), the proxy is a
+/// process-global override applied from Dart after the platform view exists
+/// (`WebViewModel.setController`). A site whose effective proxy
 /// is non-DEFAULT must therefore carry no initial load, or its first request
 /// leaves before the override lands; the same holds for a DEFAULT site while
 /// the override still names another site's proxy.
