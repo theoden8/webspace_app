@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Ningunha protección activada",
   "siteSettingsForcedOffByTrackingProtection": "Desactivado pola Protección contra o seguimento",
   "settingRestoreDefaultHint": "Mantén premido para restaurar o valor predeterminado da aplicación.",
-  "settingOn": "Aceso",
-  "settingOff": "Apagado",
   "settingFollowsApp": "Predeterminado da aplicación ({value})",
   "settingLockedByArchive": "Fixo para os sitios dun arquivo",
   "privacyGroupScreenCapture": "Captura de pantalla",

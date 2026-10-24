@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "कोणतेही संरक्षण सक्षम नाही",
   "siteSettingsForcedOffByTrackingProtection": "ट्रॅकिंग संरक्षणाद्वारे सक्तीने बंद",
   "settingRestoreDefaultHint": "अ‍ॅपची डीफॉल्ट सेटिंग पुनर्संचयित करण्यासाठी दाबून धरा.",
-  "settingOn": "चालू",
-  "settingOff": "बंद",
   "settingFollowsApp": "अॅप डीफॉल्ट ({value})",
   "settingLockedByArchive": "संग्रहणातील साइट्ससाठी निश्चित",
   "privacyGroupScreenCapture": "स्क्रीन कॅप्चर",

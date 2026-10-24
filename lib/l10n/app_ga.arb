@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Níl aon chosaint cumasaithe",
   "siteSettingsForcedOffByTrackingProtection": "Múchta go héigeantach ag an gCosaint ar Rianú",
   "settingRestoreDefaultHint": "Brúigh go fada chun réamhshocrú na haipe a athbhunú.",
-  "settingOn": "Ar siúl",
-  "settingOff": "As",
   "settingFollowsApp": "Réamhshocrú na haipe ({value})",
   "settingLockedByArchive": "Socraithe do shuímh i gcartlann",
   "privacyGroupScreenCapture": "Gabháil scáileáin",

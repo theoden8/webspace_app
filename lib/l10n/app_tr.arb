@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Etkin koruma yok",
   "siteSettingsForcedOffByTrackingProtection": "İzleme Koruması tarafından kapalı zorlandı",
   "settingRestoreDefaultHint": "Uygulama varsayılanını geri yüklemek için uzun basın.",
-  "settingOn": "Açık",
-  "settingOff": "Kapalı",
   "settingFollowsApp": "Uygulama varsayılanı ({value})",
   "settingLockedByArchive": "Arşivdeki siteler için sabit",
   "privacyGroupScreenCapture": "Ekran yakalama",

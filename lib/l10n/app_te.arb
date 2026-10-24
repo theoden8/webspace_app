@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "ఏ రక్షణా ప్రారంభించబడలేదు",
   "siteSettingsForcedOffByTrackingProtection": "ట్రాకింగ్ రక్షణ ద్వారా బలవంతంగా ఆఫ్ చేయబడింది",
   "settingRestoreDefaultHint": "యాప్ డిఫాల్ట్ సెట్టింగ్‌ను పునరుద్ధరించడానికి ఎక్కువసేపు నొక్కండి.",
-  "settingOn": "ఆన్",
-  "settingOff": "ఆఫ్",
   "settingFollowsApp": "యాప్ డిఫాల్ట్ ({value})",
   "settingLockedByArchive": "ఆర్కైవ్‌లోని సైట్‌లకు స్థిరం",
   "privacyGroupScreenCapture": "స్క్రీన్ క్యాప్చర్",

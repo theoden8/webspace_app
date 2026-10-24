@@ -15,9 +15,9 @@ import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
-import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/level_slider.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/stat_chip.dart';
 import 'package:webspace/widgets/toast.dart';
 
@@ -112,6 +112,8 @@ class SitePrivacyValues {
   bool get effectiveThirdPartyCookies =>
       _forced(TrackingProtectionForce.thirdPartyCookies,
           stored: thirdPartyCookiesEnabled);
+  bool get effectiveHttpsUpgrade => _forced(TrackingProtectionForce.httpsUpgrade,
+      stored: httpsUpgrade.resolve(AppPref.httpsUpgradeEnabled.value));
   bool get effectiveIncognito =>
       ArchiveFold.incognito(stored: incognito, archived: archived);
 
@@ -148,7 +150,8 @@ class SitePrivacyScreen extends StatefulWidget {
   State<SitePrivacyScreen> createState() => _SitePrivacyScreenState();
 }
 
-class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
+class _SitePrivacyScreenState extends State<SitePrivacyScreen>
+    with RebuildOnAppPref {
   late SitePrivacyValues _values = widget.values;
 
   /// Level whose list is being fetched right now, so the row can show it is
@@ -501,18 +504,23 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           ),
           // Follows App Settings until the site picks its own value, and can
           // go back to following (HTTPS-005).
-          ChoiceTile<Scoped<bool>>(
+          SettingTile(
             title: loc.siteSettingsHttpsUpgrade,
-            hint: loc.siteSettingsHttpsUpgradeHint,
+            hint: '${loc.siteSettingsHttpsUpgradeHint}\n\n'
+                '${loc.settingRestoreDefaultHint}',
+            subtitle: _values.httpsUpgrade is FollowApp
+                ? loc.webSearchUseAppDefault
+                : null,
             lock: _umbrella(TrackingProtectionForce.httpsUpgrade),
-            values: const [FollowApp(), Own(true), Own(false)],
-            label: (choice) => choice.label(loc,
-                appValue: AppPref.httpsUpgradeEnabled.value),
-            value: _values.trackingProtectionEnabled
-                ? const Own(true)
-                : _values.httpsUpgrade,
-            onChanged: (choice) =>
-                _update(_values.copyWith(httpsUpgrade: choice)),
+            control: Toggle(
+              _values.effectiveHttpsUpgrade,
+              followsApp: _values.httpsUpgrade is FollowApp &&
+                  !_values.trackingProtectionEnabled,
+              onChanged: (value) =>
+                  _update(_values.copyWith(httpsUpgrade: Own(value))),
+              onRestoreDefault: () =>
+                  _update(_values.copyWith(httpsUpgrade: const FollowApp())),
+            ),
           ),
           SettingsSection(loc.privacyGroupFingerprinting),
           SettingTile(

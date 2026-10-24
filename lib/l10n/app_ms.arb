@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Tiada perlindungan didayakan",
   "siteSettingsForcedOffByTrackingProtection": "Dipaksa mati oleh Perlindungan Penjejakan",
   "settingRestoreDefaultHint": "Tekan lama untuk memulihkan tetapan lalai aplikasi.",
-  "settingOn": "Hidup",
-  "settingOff": "Mati",
   "settingFollowsApp": "Lalai aplikasi ({value})",
   "settingLockedByArchive": "Tetap untuk tapak dalam arkib",
   "privacyGroupScreenCapture": "Tangkapan skrin",

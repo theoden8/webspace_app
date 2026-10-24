@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Ez dago babesik gaituta",
   "siteSettingsForcedOffByTrackingProtection": "Jarraipenaren aurkako babesak behartuta itzalita",
   "settingRestoreDefaultHint": "Luze sakatu aplikazioaren ezarpen lehenetsia berrezartzeko.",
-  "settingOn": "Piztuta",
-  "settingOff": "Itzalita",
   "settingFollowsApp": "Aplikazioaren lehenetsia ({value})",
   "settingLockedByArchive": "Finkoa artxibo bateko guneentzat",
   "privacyGroupScreenCapture": "Pantaila-kaptura",

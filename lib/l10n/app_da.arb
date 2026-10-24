@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Ingen beskyttelse aktiveret",
   "siteSettingsForcedOffByTrackingProtection": "Tvunget fra af sporingsbeskyttelse",
   "settingRestoreDefaultHint": "Tryk og hold for at gendanne appens standardindstilling.",
-  "settingOn": "Til",
-  "settingOff": "Fra",
   "settingFollowsApp": "Appens standard ({value})",
   "settingLockedByArchive": "Fast for websteder i et arkiv",
   "privacyGroupScreenCapture": "Skærmoptagelse",
