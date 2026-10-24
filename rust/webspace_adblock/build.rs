@@ -22,13 +22,19 @@
 // pool. The engine then runs without $redirect= support — same as
 // having the feature flag off. Logs surface the gap in CI.
 //
+// A build with no network by design (flatpak-builder) checks out uBO
+// at UBO_COMMIT itself and names the checkout in WEBSPACE_UBO_SOURCE;
+// a path there that is not a uBO checkout fails the build instead of
+// falling back to the empty pool.
+//
 // To bump uBO:
 //   1. Pick a release tag at github.com/gorhill/uBlock.
 //   2. Resolve it to its immutable commit SHA:
 //        git ls-remote https://github.com/gorhill/uBlock refs/tags/<tag>
 //      (a lightweight tag prints the commit directly; an annotated tag
 //      prints a second `<sha> refs/tags/<tag>^{}` line — use that one).
-//   3. Replace UBO_TAG (display only) and UBO_COMMIT below.
+//   3. Replace UBO_TAG (display only) and UBO_COMMIT below. The flatpak
+//      manifest in the separate packaging repo pins the same uBO commit.
 //   4. Commit. Next `cargo build` re-fetches + reparses.
 //
 // Why pin the commit SHA and not the tag: a git tag is a mutable
@@ -61,9 +67,12 @@ const UBO_TAG: &str = "1.59.0";
 const UBO_COMMIT: &str = "a0de43aba933bc7bd79a32a2f2b6b87bf2ca5f18";
 const UBO_TARBALL_URL: &str =
     "https://github.com/gorhill/uBlock/archive/a0de43aba933bc7bd79a32a2f2b6b87bf2ca5f18.tar.gz";
+const UBO_EXTRACT_DIR: &str = "ubo-extract";
+const UBO_SOURCE_ENV: &str = "WEBSPACE_UBO_SOURCE";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed={}", UBO_SOURCE_ENV);
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
 
     // Always re-enumerate the dep tree on every build — `cargo
@@ -73,66 +82,37 @@ fn main() {
     write_dep_licenses(&out_dir);
 
     let output_json = out_dir.join("ubo_resources.json");
+    let supplied = env::var_os(UBO_SOURCE_ENV).map(PathBuf::from);
 
     // Cache hit. Bumping UBO_TAG above also triggers a refetch
-    // because build.rs itself changes.
-    if output_json.exists() {
+    // because build.rs itself changes. A supplied checkout always
+    // reparses, so an empty pool cached by an offline build can't stick.
+    if supplied.is_none() && output_json.exists() {
         println!("cargo:warning=ubo_resources.json cached at {}",
             output_json.display());
         return;
     }
 
-    // Step 1: download tarball.
-    let tarball_path = out_dir.join(format!("ubo-{}.tar.gz", UBO_COMMIT));
-    if !tarball_path.exists() {
-        if let Err(e) = fetch(&tarball_path, UBO_TARBALL_URL) {
-            println!("cargo:warning=uBO fetch failed: {} — $redirect= rules will silently miss", e);
-            fs::write(&output_json, b"[]").expect("write fallback");
-            return;
+    // Steps 1-2: the checkout's src/, or download + extract it.
+    let src_dir = match &supplied {
+        Some(root) => {
+            let src = root.join("src");
+            assert!(src.join("web_accessible_resources").is_dir()
+                    && src.join("js/redirect-resources.js").is_file(),
+                "{} names {}, which is not a uBO checkout", UBO_SOURCE_ENV, root.display());
+            src
         }
-    }
-
-    // Step 2: extract just web_accessible_resources/ + redirect-resources.js.
-    let extract_dir = out_dir.join("ubo-extract");
-    let _ = fs::remove_dir_all(&extract_dir);
-    fs::create_dir_all(&extract_dir).expect("mkdir extract");
-    // GitHub names the archive's top dir `uBlock-<full-sha>`, but derive
-    // it from the tarball rather than hardcode it, so a naming change
-    // can't silently drop us to the empty-resources fallback.
-    let prefix = match tarball_top_dir(&tarball_path) {
-        Some(top) => format!("{}/src", top),
-        None => {
-            println!("cargo:warning=uBO: could not read tarball top dir — $redirect= rules will silently miss");
-            fs::write(&output_json, b"[]").expect("write fallback");
-            return;
-        }
+        None => match fetch_and_extract(&out_dir) {
+            Ok(src) => src,
+            Err(reason) => {
+                println!("cargo:warning=uBO {} — $redirect= rules will silently miss", reason);
+                fs::write(&output_json, b"[]").expect("write fallback");
+                return;
+            }
+        },
     };
-    let extract_result = Command::new("tar")
-        .args(["-xzf"])
-        .arg(&tarball_path)
-        .args(["-C"])
-        .arg(&extract_dir)
-        .args([
-            &format!("{}/web_accessible_resources", prefix),
-            &format!("{}/js/redirect-resources.js", prefix),
-        ])
-        .output();
-    let extract_ok = matches!(&extract_result, Ok(o) if o.status.success());
-    if !extract_ok {
-        let stderr = extract_result
-            .map(|o| String::from_utf8_lossy(&o.stderr).into_owned())
-            .unwrap_or_else(|e| e.to_string());
-        println!("cargo:warning=uBO extract failed: {} — $redirect= rules will silently miss", stderr.trim());
-        fs::write(&output_json, b"[]").expect("write fallback");
-        return;
-    }
-
-    let war_dir = extract_dir
-        .join(&prefix)
-        .join("web_accessible_resources");
-    let redirect_resources = extract_dir
-        .join(&prefix)
-        .join("js/redirect-resources.js");
+    let war_dir = src_dir.join("web_accessible_resources");
+    let redirect_resources = src_dir.join("js/redirect-resources.js");
 
     // Step 3: parse via the build-dep adblock crate.
     let resources = assemble_web_accessible_resources(
@@ -154,8 +134,45 @@ fn main() {
     );
 
     // Free disk: tarball and extract dir served their purpose.
-    let _ = fs::remove_file(&tarball_path);
+    if supplied.is_none() {
+        let _ = fs::remove_file(out_dir.join(format!("ubo-{}.tar.gz", UBO_COMMIT)));
+        let _ = fs::remove_dir_all(out_dir.join(UBO_EXTRACT_DIR));
+    }
+}
+
+/// Download the pinned tarball into `out_dir` and extract just
+/// web_accessible_resources/ + redirect-resources.js. Returns the
+/// extracted `src/` directory, or why it could not.
+fn fetch_and_extract(out_dir: &Path) -> Result<PathBuf, String> {
+    let tarball_path = out_dir.join(format!("ubo-{}.tar.gz", UBO_COMMIT));
+    if !tarball_path.exists() {
+        fetch(&tarball_path, UBO_TARBALL_URL).map_err(|e| format!("fetch failed: {}", e))?;
+    }
+
+    let extract_dir = out_dir.join(UBO_EXTRACT_DIR);
     let _ = fs::remove_dir_all(&extract_dir);
+    fs::create_dir_all(&extract_dir).expect("mkdir extract");
+    // GitHub names the archive's top dir `uBlock-<full-sha>`, but derive
+    // it from the tarball rather than hardcode it, so a naming change
+    // can't silently drop us to the empty-resources fallback.
+    let prefix = tarball_top_dir(&tarball_path)
+        .map(|top| format!("{}/src", top))
+        .ok_or_else(|| "could not read tarball top dir".to_string())?;
+    let extract_result = Command::new("tar")
+        .args(["-xzf"])
+        .arg(&tarball_path)
+        .args(["-C"])
+        .arg(&extract_dir)
+        .args([
+            &format!("{}/web_accessible_resources", prefix),
+            &format!("{}/js/redirect-resources.js", prefix),
+        ])
+        .output();
+    match extract_result {
+        Ok(o) if o.status.success() => Ok(extract_dir.join(&prefix)),
+        Ok(o) => Err(format!("extract failed: {}", String::from_utf8_lossy(&o.stderr).trim())),
+        Err(e) => Err(format!("extract failed: {}", e)),
+    }
 }
 
 /// Run `cargo metadata` against the crate and emit a slim JSON list
