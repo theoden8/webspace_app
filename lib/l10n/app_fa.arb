@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "هیچ محافظتی فعال نیست",
   "siteSettingsForcedOffByTrackingProtection": "به‌اجبار توسط محافظت در برابر ردیابی خاموش شده",
   "settingRestoreDefaultHint": "برای بازگرداندن پیش‌فرض برنامه، فشار دهید و نگه دارید.",
-  "settingOn": "روشن",
-  "settingOff": "خاموش",
   "settingFollowsApp": "پیش‌فرض برنامه ({value})",
   "settingLockedByArchive": "برای سایت‌های داخل بایگانی ثابت است",
   "privacyGroupScreenCapture": "ضبط صفحه",

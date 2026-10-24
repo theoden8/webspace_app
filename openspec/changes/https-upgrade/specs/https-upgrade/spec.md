@@ -225,6 +225,10 @@ The upgrade SHALL be controlled by a global `httpsUpgradeEnabled` preference
 registered in `AppPref` with the default `true`, and a per-site
 `WebViewModel.httpsUpgradeEnabled` override for a site that has no TLS at all.
 
+On the site's Privacy screen the per-site value SHALL be a switch that shows
+the value the site runs with, dimmed while the site follows the app; a tap
+gives the site its own value and a long press goes back to following.
+
 The per-site value SHALL ride `toJson`/`fromJson`, the `WebViewConfig`, the
 `launchUrl` signature and the nested `InAppWebViewScreen`, per the per-site
 field checklist: a nested webview that keeps loading plaintext while the parent
@@ -247,10 +251,10 @@ upgrades is the same silent bypass that checklist exists to prevent.
 
 #### Scenario: A site override goes back to following the app
 
-**Given** a site whose own HTTPS upgrade value is on while the app-wide one is off
-**When** the user picks "App default (Off)" on the site's Privacy screen
+**Given** a site that set its own HTTPS upgrade value, off
+**When** the user long-presses the HTTPS upgrade switch on the site's Privacy screen
 **Then** the site stores no value of its own (`httpsUpgradeEnabled` null)
-**And** it follows the app-wide value from then on, whichever way that changes
+**And** the switch is dimmed and shows the app-wide value, whichever way that changes
 
 #### Scenario: The global default survives a backup round-trip
 

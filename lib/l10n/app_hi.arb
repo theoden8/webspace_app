@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "कोई सुरक्षा सक्षम नहीं",
   "siteSettingsForcedOffByTrackingProtection": "ट्रैकिंग सुरक्षा द्वारा बलपूर्वक बंद",
   "settingRestoreDefaultHint": "ऐप की डिफ़ॉल्ट सेटिंग बहाल करने के लिए दबाकर रखें।",
-  "settingOn": "चालू",
-  "settingOff": "बंद",
   "settingFollowsApp": "ऐप डिफ़ॉल्ट ({value})",
   "settingLockedByArchive": "संग्रह में मौजूद साइटों के लिए निश्चित",
   "privacyGroupScreenCapture": "स्क्रीन कैप्चर",

@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Nulla tutela activa",
   "siteSettingsForcedOffByTrackingProtection": "Coacte exstinctum a Tutela contra investigationem",
   "settingRestoreDefaultHint": "Diu preme ut optio praedefinita applicationis restituatur.",
-  "settingOn": "Accensa",
-  "settingOff": "Exstincta",
   "settingFollowsApp": "Praedefinitum applicationis ({value})",
   "settingLockedByArchive": "Fixum pro sitibus in tabulario",
   "privacyGroupScreenCapture": "Captura scrinii",

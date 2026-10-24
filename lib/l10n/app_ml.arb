@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "ഒരു സംരക്ഷണവും പ്രവർത്തനക്ഷമമല്ല",
   "siteSettingsForcedOffByTrackingProtection": "ട്രാക്കിംഗ് സംരക്ഷണം വഴി നിർബന്ധമായും ഓഫ്",
   "settingRestoreDefaultHint": "ആപ്പിന്റെ സ്ഥിരസ്ഥിതി ക്രമീകരണം പുനഃസ്ഥാപിക്കാൻ ദീർഘനേരം അമർത്തുക.",
-  "settingOn": "ഓൺ",
-  "settingOff": "ഓഫ്",
   "settingFollowsApp": "ആപ്പ് സ്ഥിരസ്ഥിതി ({value})",
   "settingLockedByArchive": "ആർക്കൈവിലുള്ള സൈറ്റുകൾക്ക് സ്ഥിരം",
   "privacyGroupScreenCapture": "സ്ക്രീൻ ക്യാപ്ചർ",

@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Ühtegi kaitset pole sisse lülitatud",
   "siteSettingsForcedOffByTrackingProtection": "Jälgimiskaitse sundis välja",
   "settingRestoreDefaultHint": "Rakenduse vaikeseade taastamiseks vajuta pikalt.",
-  "settingOn": "Sees",
-  "settingOff": "Väljas",
   "settingFollowsApp": "Rakenduse vaikesäte ({value})",
   "settingLockedByArchive": "Arhiivis olevatel saitidel fikseeritud",
   "privacyGroupScreenCapture": "Ekraani jäädvustamine",

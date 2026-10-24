@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Geen bescherming ingeschakeld",
   "siteSettingsForcedOffByTrackingProtection": "Geforceerd uit door trackingbescherming",
   "settingRestoreDefaultHint": "Houd ingedrukt om de standaardinstelling van de app te herstellen.",
-  "settingOn": "Aan",
-  "settingOff": "Uit",
   "settingFollowsApp": "App-standaard ({value})",
   "settingLockedByArchive": "Vast voor sites in een archief",
   "privacyGroupScreenCapture": "Schermopname",

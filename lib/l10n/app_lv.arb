@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Nav ieslēgta neviena aizsardzība",
   "siteSettingsForcedOffByTrackingProtection": "Piespiedu kārtā izslēgts ar Izsekošanas aizsardzību",
   "settingRestoreDefaultHint": "Turiet nospiestu, lai atjaunotu lietotnes noklusējuma iestatījumu.",
-  "settingOn": "Ieslēgts",
-  "settingOff": "Izslēgts",
   "settingFollowsApp": "Lietotnes noklusējums ({value})",
   "settingLockedByArchive": "Fiksēts vietnēm arhīvā",
   "privacyGroupScreenCapture": "Ekrāna tveršana",

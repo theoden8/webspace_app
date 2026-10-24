@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "ਕੋਈ ਸੁਰੱਖਿਆ ਸਮਰੱਥ ਨਹੀਂ",
   "siteSettingsForcedOffByTrackingProtection": "ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਦੁਆਰਾ ਬੰਦ ਕੀਤਾ",
   "settingRestoreDefaultHint": "ਐਪ ਦੀ ਪੂਰਵ-ਨਿਰਧਾਰਤ ਸੈਟਿੰਗ ਮੁੜ ਬਹਾਲ ਕਰਨ ਲਈ ਦਬਾ ਕੇ ਰੱਖੋ।",
-  "settingOn": "ਚਾਲੂ",
-  "settingOff": "ਬੰਦ",
   "settingFollowsApp": "ਐਪ ਡਿਫਾਲਟ ({value})",
   "settingLockedByArchive": "ਆਰਕਾਈਵ ਵਿਚਲੀਆਂ ਸਾਈਟਾਂ ਲਈ ਸਥਿਰ",
   "privacyGroupScreenCapture": "ਸਕ੍ਰੀਨ ਕੈਪਚਰ",

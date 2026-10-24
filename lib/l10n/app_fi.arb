@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Suojauksia ei ole käytössä",
   "siteSettingsForcedOffByTrackingProtection": "Seurannan suojaus pakottaa pois",
   "settingRestoreDefaultHint": "Palauta sovelluksen oletusasetus painamalla pitkään.",
-  "settingOn": "Päällä",
-  "settingOff": "Pois",
   "settingFollowsApp": "Sovelluksen oletus ({value})",
   "settingLockedByArchive": "Kiinteä arkistossa oleville sivustoille",
   "privacyGroupScreenCapture": "Näytön kaappaus",

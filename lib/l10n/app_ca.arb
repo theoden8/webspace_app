@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Cap protecció activada",
   "siteSettingsForcedOffByTrackingProtection": "Desactivat per la Protecció contra el seguiment",
   "settingRestoreDefaultHint": "Manteniu premut per restaurar el valor predeterminat de l’aplicació.",
-  "settingOn": "Activat",
-  "settingOff": "Desactivat",
   "settingFollowsApp": "Predeterminat de l'app ({value})",
   "settingLockedByArchive": "Fix per als llocs d'un arxiu",
   "privacyGroupScreenCapture": "Captura de pantalla",

@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "L-ebda protezzjoni mhi attivata",
   "siteSettingsForcedOffByTrackingProtection": "Imġiegħel mitfi mill-Protezzjoni mit-Traċċar",
   "settingRestoreDefaultHint": "Agħfas fit-tul biex tirrestawra s-setting prestabbilit tal-app.",
-  "settingOn": "Mixgħul",
-  "settingOff": "Mitfi",
   "settingFollowsApp": "Default tal-app ({value})",
   "settingLockedByArchive": "Fiss għas-siti f'arkivju",
   "privacyGroupScreenCapture": "Qbid tal-iskrin",

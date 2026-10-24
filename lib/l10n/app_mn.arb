@@ -867,8 +867,6 @@
   "privacySummaryNothingOn": "Ямар ч хамгаалалт идэвхгүй",
   "siteSettingsForcedOffByTrackingProtection": "Хяналтаас хамгаалалтаар албадан унтраасан",
   "settingRestoreDefaultHint": "Аппын үндсэн тохиргоог сэргээхийн тулд удаан дарна уу.",
-  "settingOn": "Асаалттай",
-  "settingOff": "Унтраалттай",
   "settingFollowsApp": "Аппын анхдагч ({value})",
   "settingLockedByArchive": "Архив дахь сайтуудад тогтмол",
   "privacyGroupScreenCapture": "Дэлгэцийн бичлэг",
