@@ -935,6 +935,8 @@
   "torStatusConnected": "Tersambung",
   "torStatusEndpoint": "SOCKS5 di {endpoint}",
   "torStatusRebuildCircuits": "Bangun ulang sirkuit",
+  "torStatusReconnecting": "Menyambung ulang…",
+  "torStatusReconnectingDetail": "Koneksi Tor tertutup saat aplikasi berada di latar belakang. Situs yang memakai Tor akan dimuat begitu Tor memiliki sirkuit lagi.",
   "torStatusPhase": "Tahap: {phase}",
   "torStateUsedBy": "Menggunakan Tor",
   "torStateNothing": "Tidak ada yang menggunakan Tor",

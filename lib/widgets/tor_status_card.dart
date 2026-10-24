@@ -56,6 +56,37 @@ import 'package:webspace/widgets/setting_tile.dart';
   };
 }
 
+/// What a status says while the sites wait on Tor: a label, a line under
+/// it (tor's own phase, or why the app holds the sites), and the bar's
+/// value, null while there is no percentage to show.
+///
+/// Shared by the card and the interstitial, so a hold reads the same in
+/// both: a reopen after the app was in the background is "Reconnecting",
+/// never "Connecting 100%" over a full bar (TOR-024).
+({String label, String? detail, double? value}) torWaitCopy(
+  AppLocalizations loc, {
+  required TorStatus status,
+}) =>
+    switch (status) {
+      TorBootstrapping(tag: kTorReopenTag) => (
+          label: loc.torStatusReconnecting,
+          detail: loc.torStatusReconnectingDetail,
+          value: null
+        ),
+      TorBootstrapping(:final percent, :final summary) => (
+          label: loc.torStatusBootstrapping(percent),
+          detail: summary == null || summary.isEmpty
+              ? null
+              : loc.torStatusPhase(summary),
+          value: percent.clamp(0, 100) / 100.0
+        ),
+      TorStarting() => (label: loc.torStatusStarting, detail: null, value: null),
+      TorUp() => (label: loc.torStatusConnected, detail: null, value: 1.0),
+      TorStopped() ||
+      TorErrored() =>
+        (label: loc.torStatusStopped, detail: null, value: null),
+    };
+
 /// Icon for a failure kind. Distinct glyphs because the kinds call for
 /// different reactions: a wrong clock is the user's to fix, a blocked
 /// network is not fixable here at all, and a control-channel fault is ours.
@@ -164,14 +195,8 @@ class _TorStatusCardState extends State<TorStatusCard> {
       TorErrored(:final failure) => _error(loc, theme: theme, failure: failure),
       TorUp(:final host, :final port) =>
         _connected(loc, theme: theme, endpoint: '$host:$port'),
-      TorBootstrapping(:final percent, :final summary) => _progress(loc,
-          theme: theme,
-          label: loc.torStatusBootstrapping(percent),
-          summary: summary,
-          value: percent.clamp(0, 100) / 100.0),
-      TorStarting() ||
-      TorStopped() =>
-        _progress(loc, theme: theme, label: loc.torStatusStarting),
+      TorBootstrapping() || TorStarting() || TorStopped() =>
+        _progress(theme, copy: torWaitCopy(loc, status: s)),
     };
 
     final card = Padding(
@@ -211,27 +236,26 @@ class _TorStatusCardState extends State<TorStatusCard> {
     return onTap == null ? card : InkWell(onTap: onTap, child: card);
   }
 
-  /// Starting or bootstrapping: what is happening, tor's own phase name, and
-  /// a bar that is indeterminate until there is a [value].
-  Widget _progress(AppLocalizations loc,
-          {required ThemeData theme,
-          required String label,
-          String? summary,
-          double? value}) =>
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          if (summary != null && summary.isNotEmpty)
-            Text(
-              loc.torStatusPhase(summary),
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          const SizedBox(height: Spacing.sm),
-          LinearProgressIndicator(value: value, minHeight: Spacing.xs),
-        ],
-      );
+  /// Starting, bootstrapping or held: what is happening, the line under it,
+  /// and a bar that is indeterminate until there is a value.
+  Widget _progress(ThemeData theme,
+      {required ({String label, String? detail, double? value}) copy}) {
+    final detail = copy.detail;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(copy.label, style: theme.textTheme.bodyMedium),
+        if (detail != null)
+          Text(
+            detail,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        const SizedBox(height: Spacing.sm),
+        LinearProgressIndicator(value: copy.value, minHeight: Spacing.xs),
+      ],
+    );
+  }
 
   Widget _connected(AppLocalizations loc,
       {required ThemeData theme, required String endpoint}) {

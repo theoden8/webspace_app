@@ -244,6 +244,24 @@ void main() {
       );
     });
 
+    testWidgets('a reopen after the app was away says reconnecting, not 100%',
+        (t) async {
+      await withState(
+        t,
+        name: 'card_reconnecting',
+        child: const TorStatusCard(),
+        state: const TorBootstrapping(100, tag: kTorReopenTag),
+        expectations: () {
+          expect(find.text('Reconnecting…'), findsOneWidget);
+          expect(find.textContaining('in the background'), findsOneWidget);
+          expect(find.textContaining('100%'), findsNothing);
+          final bar = t.widget<LinearProgressIndicator>(
+              find.byType(LinearProgressIndicator));
+          expect(bar.value, isNull, reason: 'no percentage to show');
+        },
+      );
+    });
+
     testWidgets('starting shows an indeterminate bar', (t) async {
       await withState(
         t,
@@ -372,6 +390,26 @@ void main() {
         expectations: () {
           expect(find.text('Connecting… 45%'), findsOneWidget);
           expect(find.text('Phase: Loading relay descriptors'), findsOneWidget);
+        },
+        size: const Size(430, 430),
+      );
+    });
+
+    testWidgets('a reopen after the app was away says what the wait is for',
+        (t) async {
+      // BUG-013 attempt 14: what the user saw was a page loading forever.
+      // The sites now wait here, and the screen says why.
+      await withState(
+        t,
+        name: 'interstitial_reconnecting',
+        child: const TorBootstrapPlaceholder(),
+        state: const TorBootstrapping(100, tag: kTorReopenTag),
+        expectations: () {
+          expect(find.text('Reconnecting…'), findsOneWidget);
+          expect(find.textContaining('has a circuit again'), findsOneWidget);
+          final bar = t.widget<LinearProgressIndicator>(
+              find.byType(LinearProgressIndicator));
+          expect(bar.value, isNull);
         },
         size: const Size(430, 430),
       );

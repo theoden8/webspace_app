@@ -935,6 +935,8 @@
   "torStatusConnected": "เชื่อมต่อแล้ว",
   "torStatusEndpoint": "SOCKS5 ที่ {endpoint}",
   "torStatusRebuildCircuits": "สร้างวงจรใหม่",
+  "torStatusReconnecting": "กำลังเชื่อมต่อใหม่…",
+  "torStatusReconnectingDetail": "การเชื่อมต่อของ Tor ถูกปิดขณะที่แอปอยู่ในพื้นหลัง เว็บไซต์ที่ใช้ Tor จะโหลดทันทีที่มีวงจรอีกครั้ง",
   "torStatusPhase": "ขั้น: {phase}",
   "torStateUsedBy": "กำลังใช้ Tor",
   "torStateNothing": "ไม่มีสิ่งใดใช้ Tor",

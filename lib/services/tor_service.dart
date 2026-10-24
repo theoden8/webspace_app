@@ -50,6 +50,7 @@ export 'package:webspace/services/tor_engine.dart'
         TorRouteUp,
         TorRouteBlocked,
         kTorAppGlobalTag,
+        kTorReopenTag,
         TorTag;
 
 const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
@@ -155,22 +156,39 @@ class MethodChannelTorRuntime implements TorRuntime {
   }
 
   @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {
-    if (!isAvailable) return;
-    // Sent as a flat list of pairs rather than a map: torrc allows the same
-    // key more than once, and `Bridge` in particular is repeated per line,
-    // so a map would silently keep only the last bridge.
-    await _invoke<void>('setTorrcOptions', arguments: {
-      'options': [
-        for (final (key, value) in options) [key, value],
-      ],
-    });
+  Future<int> restartTransport(String transport) async {
+    if (!isAvailable) return 0;
+    final port = await _invoke<Object?>('restartTransport',
+        arguments: {'transport': transport});
+    return port is int ? port : 0;
   }
 
   @override
-  Future<void> reopenListeners() async {
+  Future<void> setTorrcOptions(List<(String, String)> options) async {
     if (!isAvailable) return;
-    await _invoke<void>('reopenListeners');
+    await _invoke<void>('setTorrcOptions',
+        arguments: {'options': _pairs(options)});
+  }
+
+  // A flat list of pairs rather than a map: torrc allows the same key more
+  // than once, and `Bridge` in particular is repeated per line, so a map
+  // would silently keep only the last bridge.
+  static List<List<String>> _pairs(List<(String, String)> options) => [
+        for (final (key, value) in options) [key, value],
+      ];
+
+  @override
+  Future<void> reopenListeners(
+      {required List<(String, String)> bridgeOptions}) async {
+    if (!isAvailable) return;
+    await _invoke<void>('reopenListeners',
+        arguments: {'bridgeOptions': _pairs(bridgeOptions)});
+  }
+
+  @override
+  Future<bool> circuitEstablished() async {
+    if (!isAvailable) return false;
+    return await _invoke<bool>('circuitEstablished') ?? false;
   }
 
   @override

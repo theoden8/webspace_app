@@ -935,6 +935,8 @@
   "torStatusConnected": "இணைக்கப்பட்டது",
   "torStatusEndpoint": "{endpoint} இல் SOCKS5",
   "torStatusRebuildCircuits": "சுற்றுகளை மீண்டும் உருவாக்கு",
+  "torStatusReconnecting": "மீண்டும் இணைக்கிறது…",
+  "torStatusReconnectingDetail": "ஆப்ஸ் பின்னணியில் இருந்தபோது Tor இணைப்புகள் மூடப்பட்டன. Tor-ஐப் பயன்படுத்தும் தளங்கள் அதற்கு மீண்டும் ஒரு சுற்று கிடைத்தவுடன் ஏற்றப்படும்.",
   "torStatusPhase": "நிலை: {phase}",
   "torStateUsedBy": "Tor-ஐப் பயன்படுத்துபவை",
   "torStateNothing": "எதுவும் Tor-ஐப் பயன்படுத்தவில்லை",

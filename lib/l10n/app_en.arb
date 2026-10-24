@@ -4536,6 +4536,14 @@
   "@torStatusRebuildCircuits": {
     "description": "Button that asks Tor for fresh circuits (a new route and exit)."
   },
+  "torStatusReconnecting": "Reconnecting…",
+  "@torStatusReconnecting": {
+    "description": "Tor status after the user comes back to the app: the phone closed Tor's network connections while the app was in the background, and Tor is opening them again. Shown as the heading of the screen a site using Tor shows while it waits, and on the Tor card in settings."
+  },
+  "torStatusReconnectingDetail": "Tor's connections closed while the app was in the background. Sites using Tor load once it has a circuit again.",
+  "@torStatusReconnectingDetail": {
+    "description": "Line under 'Reconnecting…' explaining the wait. A circuit is Tor's path through its network; sites set to use Tor stay on this screen until Tor has one again, rather than loading over the user's real address."
+  },
   "torStatusPhase": "Phase: {phase}",
   "@torStatusPhase": {
     "description": "Which stage of connecting Tor is in, e.g. loading relay descriptors.",

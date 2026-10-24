@@ -935,6 +935,8 @@
   "torStatusConnected": "Coniunctus",
   "torStatusEndpoint": "SOCKS5 apud {endpoint}",
   "torStatusRebuildCircuits": "Circuitus reficere",
+  "torStatusReconnecting": "Iterum coniungens…",
+  "torStatusReconnectingDetail": "Conexiones Tor clausae sunt dum applicatio in recessu erat. Situs qui Tor utuntur onerabuntur simul ac iterum circuitum habebit.",
   "torStatusPhase": "Gradus: {phase}",
   "torStateUsedBy": "Qui Tor utuntur",
   "torStateNothing": "Nihil Tor utitur",

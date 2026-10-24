@@ -935,6 +935,8 @@
   "torStatusConnected": "Conectat",
   "torStatusEndpoint": "SOCKS5 pe {endpoint}",
   "torStatusRebuildCircuits": "Reconstruiește circuitele",
+  "torStatusReconnecting": "Se reconectează…",
+  "torStatusReconnectingDetail": "Conexiunile Tor s-au închis cât timp aplicația a fost în fundal. Site-urile care folosesc Tor se vor încărca de îndată ce va avea din nou un circuit.",
   "torStatusPhase": "Etapă: {phase}",
   "torStateUsedBy": "Folosesc Tor",
   "torStateNothing": "Nimic nu folosește Tor",

@@ -935,6 +935,8 @@
   "torStatusConnected": "Prisijungta",
   "torStatusEndpoint": "SOCKS5 adresu {endpoint}",
   "torStatusRebuildCircuits": "Perkurti grandines",
+  "torStatusReconnecting": "Jungiamasi iš naujo…",
+  "torStatusReconnectingDetail": "Tor ryšiai buvo uždaryti, kol programa veikė fone. Tor naudojančios svetainės įsikels, kai jis vėl turės grandinę.",
   "torStatusPhase": "Etapas: {phase}",
   "torStateUsedBy": "Naudoja Tor",
   "torStateNothing": "Niekas nenaudoja Tor",

@@ -935,6 +935,8 @@
   "torStatusConnected": "Konness",
   "torStatusEndpoint": "SOCKS5 fuq {endpoint}",
   "torStatusRebuildCircuits": "Erġa' ibni ċ-ċirkwiti",
+  "torStatusReconnecting": "Qed jerġa' jaqbad…",
+  "torStatusReconnectingDetail": "Il-konnessjonijiet ta' Tor ingħalqu waqt li l-app kienet fl-isfond. Is-siti li jużaw Tor jitgħabbew hekk kif ikollu ċirkwit mill-ġdid.",
   "torStatusPhase": "Fażi: {phase}",
   "torStateUsedBy": "Qed jużaw Tor",
   "torStateNothing": "Xejn mhu qed juża Tor",

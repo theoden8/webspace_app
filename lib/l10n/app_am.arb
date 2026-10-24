@@ -935,6 +935,8 @@
   "torStatusConnected": "ተገናኝቷል",
   "torStatusEndpoint": "SOCKS5 በ{endpoint}",
   "torStatusRebuildCircuits": "ዑደቶችን እንደገና ገንባ",
+  "torStatusReconnecting": "እንደገና እየተገናኘ…",
+  "torStatusReconnectingDetail": "መተግበሪያው ከበስተጀርባ እያለ የTor ግንኙነቶች ተዘግተዋል። Torን የሚጠቀሙ ጣቢያዎች እንደገና ዑደት ሲኖረው ይጫናሉ።",
   "torStatusPhase": "ደረጃ፦ {phase}",
   "torStateUsedBy": "Tor የሚጠቀሙ",
   "torStateNothing": "Tor የሚጠቀም ምንም ነገር የለም",

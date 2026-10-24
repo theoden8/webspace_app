@@ -935,6 +935,8 @@
   "torStatusConnected": "Yhdistetty",
   "torStatusEndpoint": "SOCKS5 osoitteessa {endpoint}",
   "torStatusRebuildCircuits": "Rakenna piirit uudelleen",
+  "torStatusReconnecting": "Yhdistetään uudelleen…",
+  "torStatusReconnectingDetail": "Torin yhteydet suljettiin, kun sovellus oli taustalla. Toria käyttävät sivustot latautuvat, kun sillä on taas piiri.",
   "torStatusPhase": "Vaihe: {phase}",
   "torStateUsedBy": "Tor käytössä",
   "torStateNothing": "Tor ei ole käytössä",

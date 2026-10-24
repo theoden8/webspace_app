@@ -935,6 +935,8 @@
   "torStatusConnected": "Ceangailte",
   "torStatusEndpoint": "SOCKS5 ar {endpoint}",
   "torStatusRebuildCircuits": "Atóg na ciorcaid",
+  "torStatusReconnecting": "Ag athcheangal…",
+  "torStatusReconnectingDetail": "Dúnadh naisc Tor fad a bhí an aip sa chúlra. Lódálfaidh na suíomhanna a úsáideann Tor chomh luath agus a bheidh ciorcad aige arís.",
   "torStatusPhase": "Céim: {phase}",
   "torStateUsedBy": "Ag úsáid Tor",
   "torStateNothing": "Níl aon rud ag úsáid Tor",

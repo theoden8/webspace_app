@@ -935,6 +935,8 @@
   "torStatusConnected": "Συνδέθηκε",
   "torStatusEndpoint": "SOCKS5 στο {endpoint}",
   "torStatusRebuildCircuits": "Ανακατασκευή κυκλωμάτων",
+  "torStatusReconnecting": "Επανασύνδεση…",
+  "torStatusReconnectingDetail": "Οι συνδέσεις του Tor έκλεισαν όσο η εφαρμογή ήταν στο παρασκήνιο. Οι ιστότοποι που χρησιμοποιούν Tor θα φορτώσουν μόλις αποκτήσει ξανά κύκλωμα.",
   "torStatusPhase": "Φάση: {phase}",
   "torStateUsedBy": "Χρησιμοποιούν το Tor",
   "torStateNothing": "Τίποτα δεν χρησιμοποιεί το Tor",

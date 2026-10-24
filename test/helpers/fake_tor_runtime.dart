@@ -48,9 +48,20 @@ class FakeTorRuntime implements TorRuntime {
   List<(String, String)> torrcOptions = const [];
   TorRuntimeFailure? transportError;
 
+  /// Every [restartTransport], and the port the next one answers.
+  final restartedTransports = <String>[];
+  int restartPort = 47100;
+
   int reopenCalls = 0;
   int reopenPort = 45000;
   TorRuntimeFailure? reopenError;
+
+  /// The bridge lines each [reopenListeners] put in force.
+  final reopenBridgeOptions = <List<(String, String)>>[];
+
+  /// What [circuitEstablished] answers; every ask is counted.
+  bool circuit = true;
+  int circuitAsks = 0;
 
   @override
   Stream<TorStatus> get events => _events.stream;
@@ -93,6 +104,14 @@ class FakeTorRuntime implements TorRuntime {
     return transportPort;
   }
 
+  /// Models IPtProxy: a fresh listener on a fresh port.
+  @override
+  Future<int> restartTransport(String transport) async {
+    if (transportError != null) throw transportError!;
+    restartedTransports.add(transport);
+    return restartPort;
+  }
+
   @override
   Future<void> setTorrcOptions(List<(String, String)> options) async {
     torrcOptions = options;
@@ -100,10 +119,18 @@ class FakeTorRuntime implements TorRuntime {
 
   /// Models the plugin: a fresh listener, published as `up` on its own port.
   @override
-  Future<void> reopenListeners() async {
+  Future<void> reopenListeners(
+      {required List<(String, String)> bridgeOptions}) async {
     reopenCalls++;
     if (reopenError != null) throw reopenError!;
+    reopenBridgeOptions.add(bridgeOptions);
     emit(TorUp('127.0.0.1', port: reopenPort));
+  }
+
+  @override
+  Future<bool> circuitEstablished() async {
+    circuitAsks++;
+    return circuit;
   }
 
   Future<void> dispose() => _events.close();

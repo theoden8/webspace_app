@@ -935,6 +935,8 @@
   "torStatusConnected": "Savienots",
   "torStatusEndpoint": "SOCKS5 uz {endpoint}",
   "torStatusRebuildCircuits": "Pārbūvēt ķēdes",
+  "torStatusReconnecting": "Savienojas atkārtoti…",
+  "torStatusReconnectingDetail": "Tor savienojumi tika slēgti, kamēr lietotne bija fonā. Vietnes, kas izmanto Tor, ielādēsies, tiklīdz tam atkal būs ķēde.",
   "torStatusPhase": "Posms: {phase}",
   "torStateUsedBy": "Izmanto Tor",
   "torStateNothing": "Nekas neizmanto Tor",

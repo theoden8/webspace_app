@@ -935,6 +935,8 @@
   "torStatusConnected": "Csatlakozva",
   "torStatusEndpoint": "SOCKS5 ezen: {endpoint}",
   "torStatusRebuildCircuits": "Áramkörök újraépítése",
+  "torStatusReconnecting": "Újracsatlakozás…",
+  "torStatusReconnectingDetail": "A Tor kapcsolatai bezárultak, amíg az alkalmazás a háttérben volt. A Tort használó oldalak betöltődnek, amint újra lesz áramköre.",
   "torStatusPhase": "Szakasz: {phase}",
   "torStateUsedBy": "A Tort használja",
   "torStateNothing": "Semmi sem használja a Tort",

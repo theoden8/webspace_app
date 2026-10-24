@@ -935,6 +935,8 @@
   "torStatusConnected": "Forbundet",
   "torStatusEndpoint": "SOCKS5 på {endpoint}",
   "torStatusRebuildCircuits": "Genopbyg kredsløb",
+  "torStatusReconnecting": "Genopretter forbindelse…",
+  "torStatusReconnectingDetail": "Tors forbindelser blev lukket, mens appen var i baggrunden. Websteder, der bruger Tor, indlæses, så snart den har et kredsløb igen.",
   "torStatusPhase": "Fase: {phase}",
   "torStateUsedBy": "Bruger Tor",
   "torStateNothing": "Intet bruger Tor",

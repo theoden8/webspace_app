@@ -935,6 +935,8 @@
   "torStatusConnected": "అనుసంధానమైంది",
   "torStatusEndpoint": "{endpoint} వద్ద SOCKS5",
   "torStatusRebuildCircuits": "సర్క్యూట్లను మళ్లీ నిర్మించు",
+  "torStatusReconnecting": "మళ్లీ అనుసంధానమవుతోంది…",
+  "torStatusReconnectingDetail": "యాప్ బ్యాక్‌గ్రౌండ్‌లో ఉన్నప్పుడు Tor కనెక్షన్‌లు మూసుకుపోయాయి. Tor ఉపయోగించే సైట్‌లు దానికి మళ్లీ సర్క్యూట్ లభించగానే లోడ్ అవుతాయి.",
   "torStatusPhase": "దశ: {phase}",
   "torStateUsedBy": "Tor ఉపయోగిస్తున్నవి",
   "torStateNothing": "ఏదీ Tor ఉపయోగించడం లేదు",

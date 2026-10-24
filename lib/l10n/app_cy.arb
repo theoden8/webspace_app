@@ -935,6 +935,8 @@
   "torStatusConnected": "Wedi cysylltu",
   "torStatusEndpoint": "SOCKS5 ar {endpoint}",
   "torStatusRebuildCircuits": "Ailadeiladu'r cylchedau",
+  "torStatusReconnecting": "Yn ailgysylltu…",
+  "torStatusReconnectingDetail": "Caeodd cysylltiadau Tor tra oedd yr ap yn y cefndir. Bydd gwefannau sy'n defnyddio Tor yn llwytho unwaith y bydd ganddo gylched eto.",
   "torStatusPhase": "Cam: {phase}",
   "torStateUsedBy": "Yn defnyddio Tor",
   "torStateNothing": "Nid oes dim yn defnyddio Tor",

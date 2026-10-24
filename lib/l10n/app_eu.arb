@@ -935,6 +935,8 @@
   "torStatusConnected": "Konektatuta",
   "torStatusEndpoint": "SOCKS5 hemen: {endpoint}",
   "torStatusRebuildCircuits": "Berreraiki zirkuituak",
+  "torStatusReconnecting": "Berriro konektatzen…",
+  "torStatusReconnectingDetail": "Tor-en konexioak itxi egin ziren aplikazioa atzeko planoan zegoen bitartean. Tor erabiltzen duten guneak kargatuko dira berriro zirkuitu bat duenean.",
   "torStatusPhase": "Fasea: {phase}",
   "torStateUsedBy": "Tor erabiltzen dutenak",
   "torStateNothing": "Ezerk ez du Tor erabiltzen",

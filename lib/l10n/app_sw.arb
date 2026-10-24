@@ -935,6 +935,8 @@
   "torStatusConnected": "Imeunganishwa",
   "torStatusEndpoint": "SOCKS5 kwenye {endpoint}",
   "torStatusRebuildCircuits": "Jenga upya saketi",
+  "torStatusReconnecting": "Inaunganisha upya…",
+  "torStatusReconnectingDetail": "Miunganisho ya Tor ilifungwa programu ilipokuwa chinichini. Tovuti zinazotumia Tor zitapakia mara itakapokuwa na saketi tena.",
   "torStatusPhase": "Hatua: {phase}",
   "torStateUsedBy": "Zinazotumia Tor",
   "torStateNothing": "Hakuna kinachotumia Tor",

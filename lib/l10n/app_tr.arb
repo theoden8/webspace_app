@@ -935,6 +935,8 @@
   "torStatusConnected": "Bağlandı",
   "torStatusEndpoint": "{endpoint} üzerinde SOCKS5",
   "torStatusRebuildCircuits": "Devreleri yeniden kur",
+  "torStatusReconnecting": "Yeniden bağlanılıyor…",
+  "torStatusReconnectingDetail": "Uygulama arka plandayken Tor'un bağlantıları kapandı. Tor kullanan siteler, yeniden bir devresi olduğunda yüklenir.",
   "torStatusPhase": "Aşama: {phase}",
   "torStateUsedBy": "Tor kullananlar",
   "torStateNothing": "Hiçbir şey Tor kullanmıyor",

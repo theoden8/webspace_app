@@ -935,6 +935,8 @@
   "torStatusConnected": "З'єднано",
   "torStatusEndpoint": "SOCKS5 на {endpoint}",
   "torStatusRebuildCircuits": "Перебудувати ланцюги",
+  "torStatusReconnecting": "Повторне з'єднання…",
+  "torStatusReconnectingDetail": "З'єднання Tor закрилися, поки застосунок був у фоні. Сайти, що використовують Tor, завантажаться, щойно він знову матиме ланцюг.",
   "torStatusPhase": "Етап: {phase}",
   "torStateUsedBy": "Використовують Tor",
   "torStateNothing": "Ніщо не використовує Tor",

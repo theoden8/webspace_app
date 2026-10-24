@@ -935,6 +935,8 @@
   "torStatusConnected": "Tengt",
   "torStatusEndpoint": "SOCKS5 á {endpoint}",
   "torStatusRebuildCircuits": "Endurbyggja rásir",
+  "torStatusReconnecting": "Tengist aftur…",
+  "torStatusReconnectingDetail": "Tengingum Tor var lokað á meðan forritið var í bakgrunni. Vefir sem nota Tor hlaðast um leið og það hefur rás á ný.",
   "torStatusPhase": "Þrep: {phase}",
   "torStateUsedBy": "Nota Tor",
   "torStateNothing": "Ekkert notar Tor",

@@ -935,6 +935,8 @@
   "torStatusConnected": "Nakakonekta",
   "torStatusEndpoint": "SOCKS5 sa {endpoint}",
   "torStatusRebuildCircuits": "Muling itayo ang mga circuit",
+  "torStatusReconnecting": "Muling kumokonekta…",
+  "torStatusReconnectingDetail": "Nagsara ang mga koneksyon ng Tor habang nasa background ang app. Maglo-load ang mga site na gumagamit ng Tor kapag may circuit na itong muli.",
   "torStatusPhase": "Yugto: {phase}",
   "torStateUsedBy": "Gumagamit ng Tor",
   "torStateNothing": "Walang gumagamit ng Tor",

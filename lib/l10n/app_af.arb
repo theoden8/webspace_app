@@ -935,6 +935,8 @@
   "torStatusConnected": "Gekoppel",
   "torStatusEndpoint": "SOCKS5 op {endpoint}",
   "torStatusRebuildCircuits": "Herbou stroombane",
+  "torStatusReconnecting": "Herkoppel tans…",
+  "torStatusReconnectingDetail": "Tor se verbindings is gesluit terwyl die app in die agtergrond was. Werwe wat Tor gebruik, laai sodra dit weer 'n stroombaan het.",
   "torStatusPhase": "Fase: {phase}",
   "torStateUsedBy": "Gebruik Tor",
   "torStateNothing": "Niks gebruik Tor nie",

@@ -935,6 +935,8 @@
   "torStatusConnected": "সংযুক্ত",
   "torStatusEndpoint": "{endpoint}-এ SOCKS5",
   "torStatusRebuildCircuits": "সার্কিট পুনর্গঠন করুন",
+  "torStatusReconnecting": "আবার সংযুক্ত হচ্ছে…",
+  "torStatusReconnectingDetail": "অ্যাপটি ব্যাকগ্রাউন্ডে থাকার সময় Tor-এর সংযোগগুলি বন্ধ হয়ে গেছে। Tor ব্যবহারকারী সাইটগুলি এটি আবার একটি সার্কিট পেলেই লোড হবে।",
   "torStatusPhase": "পর্যায়: {phase}",
   "torStateUsedBy": "Tor ব্যবহার করছে",
   "torStateNothing": "কিছুই Tor ব্যবহার করছে না",

@@ -935,6 +935,8 @@
   "torStatusConnected": "연결됨",
   "torStatusEndpoint": "{endpoint}에서 SOCKS5",
   "torStatusRebuildCircuits": "회로 다시 만들기",
+  "torStatusReconnecting": "다시 연결 중…",
+  "torStatusReconnectingDetail": "앱이 백그라운드에 있는 동안 Tor의 연결이 닫혔습니다. Tor를 사용하는 사이트는 회로가 다시 생기면 로드됩니다.",
   "torStatusPhase": "단계: {phase}",
   "torStateUsedBy": "Tor 사용 중",
   "torStateNothing": "Tor를 사용하는 항목이 없습니다",

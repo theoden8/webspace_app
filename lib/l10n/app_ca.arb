@@ -935,6 +935,8 @@
   "torStatusConnected": "Connectat",
   "torStatusEndpoint": "SOCKS5 a {endpoint}",
   "torStatusRebuildCircuits": "Reconstrueix els circuits",
+  "torStatusReconnecting": "S'està tornant a connectar…",
+  "torStatusReconnectingDetail": "Les connexions de Tor es van tancar mentre l'aplicació era en segon pla. Els llocs que fan servir Tor es carregaran quan torni a tenir un circuit.",
   "torStatusPhase": "Fase: {phase}",
   "torStateUsedBy": "Utilitzen Tor",
   "torStateNothing": "Res no utilitza Tor",

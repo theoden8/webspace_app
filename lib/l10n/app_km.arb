@@ -935,6 +935,8 @@
   "torStatusConnected": "បានតភ្ជាប់",
   "torStatusEndpoint": "SOCKS5 នៅ {endpoint}",
   "torStatusRebuildCircuits": "សាងសង់សៀគ្វីឡើងវិញ",
+  "torStatusReconnecting": "កំពុងតភ្ជាប់ឡើងវិញ…",
+  "torStatusReconnectingDetail": "ការតភ្ជាប់របស់ Tor ត្រូវបានបិទ ពេលកម្មវិធីនៅផ្ទៃខាងក្រោយ។ គេហទំព័រដែលប្រើ Tor នឹងផ្ទុក នៅពេលវាមានសៀគ្វីម្ដងទៀត។",
   "torStatusPhase": "ដំណាក់កាល៖ {phase}",
   "torStateUsedBy": "កំពុងប្រើ Tor",
   "torStateNothing": "គ្មានអ្វីកំពុងប្រើ Tor ទេ",

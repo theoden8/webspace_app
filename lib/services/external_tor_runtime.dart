@@ -137,8 +137,19 @@ class ExternalTorRuntime implements TorRuntime {
   /// engine finds the listener gone after the app was away.
   Future<void> reconnect() => _orFailure(_connect);
 
+  /// The listener is asked again; the engine starts no transport for an
+  /// external tor, so there are no bridge lines to pass on.
   @override
-  Future<void> reopenListeners() => _orFailure(_connect);
+  Future<void> reopenListeners(
+      {required List<(String, String)> bridgeOptions}) {
+    assert(bridgeOptions.isEmpty, 'an external tor keeps its own bridges');
+    return _orFailure(_connect);
+  }
+
+  /// Its circuits are its own: a SOCKS port may be all the app reaches, and
+  /// a reopen of it closes none of them.
+  @override
+  Future<bool> circuitEstablished() async => true;
 
   /// Puts back any exit pin and lets the control channel go. The engine
   /// starts the runtime again when it is next wanted.
@@ -211,6 +222,9 @@ class ExternalTorRuntime implements TorRuntime {
   /// Bridges are the external tor's own configuration.
   @override
   Future<int> startTransport(String transport) async => 0;
+
+  @override
+  Future<int> restartTransport(String transport) async => 0;
 
   @override
   Future<void> setTorrcOptions(List<(String, String)> options) async {}

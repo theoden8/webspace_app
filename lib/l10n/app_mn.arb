@@ -935,6 +935,8 @@
   "torStatusConnected": "Холбогдсон",
   "torStatusEndpoint": "{endpoint} дээр SOCKS5",
   "torStatusRebuildCircuits": "Хэлхээг дахин барих",
+  "torStatusReconnecting": "Дахин холбогдож байна…",
+  "torStatusReconnectingDetail": "Апп арын хэсэгт байх үед Tor-ын холболтууд хаагдсан. Tor ашигладаг сайтууд түүнд дахин хэлхээ үүсмэгц ачаалагдана.",
   "torStatusPhase": "Үе шат: {phase}",
   "torStateUsedBy": "Tor ашиглаж буй",
   "torStateNothing": "Tor-ыг юу ч ашиглахгүй байна",

@@ -935,6 +935,8 @@
   "torStatusConnected": "I lidhur",
   "torStatusEndpoint": "SOCKS5 në {endpoint}",
   "torStatusRebuildCircuits": "Rindërto qarqet",
+  "torStatusReconnecting": "Po rilidhet…",
+  "torStatusReconnectingDetail": "Lidhjet e Tor-it u mbyllën ndërsa aplikacioni ishte në sfond. Sajtet që përdorin Tor do të ngarkohen sapo ai të ketë sërish një qark.",
   "torStatusPhase": "Faza: {phase}",
   "torStateUsedBy": "Po përdorin Tor",
   "torStateNothing": "Asgjë nuk po përdor Tor",
