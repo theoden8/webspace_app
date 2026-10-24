@@ -297,6 +297,7 @@ typedef Need = ({ModelConst of, bool set});
 /// compiler holds exhaustive, so a definition cannot be left unprinted.
 enum ModelDef {
   evictable,
+  pages,
   running,
   runsAs,
   midActivation,
@@ -314,6 +315,7 @@ enum ModelDef {
   gone,
   share,
   tabBusy,
+  reopens,
   capture,
   bound,
   takes,

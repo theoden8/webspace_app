@@ -48,11 +48,74 @@ StepTable<W, P> _without<W, P extends Enum>(
 /// `RouteFree` holding for any site: a background load that repoints a
 /// loaded site's proxy, as the preload's guard did before it asked.
 Def<bool, Object?> _routeFreeAlways() {
-  final s = Bound<WebViewModel, Object?>('s');
+  final a = Bound<WebViewModel, Object?>('a');
   return Def(
     ModelDef.routeFree,
-    params: [s],
+    params: [a],
     body: Expr.constant(true, tla: 'TRUE'),
+  );
+}
+
+/// `Reopens` without the nested screen: a retired slot opens again beside
+/// it.
+Def<bool, TabFlow> _reopensBesideNested() {
+  const s = Bound<WebViewModel, TabFlow>('s');
+  return Def(
+    ModelDef.reopens,
+    params: const [s],
+    body: TabTable.shownOrTarget(s.it),
+  );
+}
+
+/// `ProxyContenders` with the loaded slots read without the asking site's
+/// own (`t # a`): what a site's nested screen asks for no longer sees that
+/// site's slot, whatever it runs as.
+Def<List<int>, ProxySlots> _contendersSkippingOwnSlot() {
+  const a = Bound<int, ProxySlots>('a');
+  const t = Bound<int, ProxySlots>('t');
+  final world = Port<ProxySlots, ProxySlots>(
+    'world',
+    reads: const {},
+    changes: const {},
+    of: (w) => w,
+  );
+  final loaded = Var<Iterable<int>, ProxySlots>(
+    ModelVar.loaded,
+    read: (w) => w.loaded,
+  ).value;
+  final pages = ModelDef.pages.named<Iterable<int>, ProxySlots>(
+    run: (c) => world.from(c).pages,
+  );
+  final contending = Members<int, ProxySlots>(
+    ModelConst.contending,
+    test: (w, {required member}) => w.topology.contends(w.sites[member]),
+  );
+  final route = Indexed<int, ProxyRouteKey, ProxySlots>.fixed(
+    ModelConst.route,
+    read: (w, {required at}) => ProxyConflictEngine.routeOf(
+      w.sites[at].proxySettings,
+      siteId: w.sites[at].siteId,
+    ),
+  );
+  Expr<int, ProxySlots> runsAs(Expr<int, ProxySlots> slot) => ModelDef.runsAs.over(
+    [slot],
+    run: (c) {
+      final w = world.from(c);
+      return w.sites.indexOf(w.slots[slot.run(c)]);
+    },
+  );
+  Expr<bool, ProxySlots> differs(Expr<int, ProxySlots> as) =>
+      contending.has(as) & route.at(as).neq(route.at(a.it));
+  return Def(
+    ModelDef.proxyContenders,
+    params: const [a],
+    body: Expr.choose(
+      when: ~contending.has(a.it),
+      then: Expr.none(),
+      otherwise: loaded
+          .where(t, holds: t.it.neq(a.it) & differs(runsAs(t.it)))
+          .union(pages.where(t, holds: differs(t.it))),
+    ),
   );
 }
 
@@ -571,6 +634,18 @@ Tables mutated(Mutant m) => switch (m) {
       step: ActivationStep.nestedApplyReply,
       outcome: StepOutcome.unload,
     ),
+  ),
+  // A slot that runs as another site from a tab's rebind opens again while
+  // its own nested screen is up, on the screen's route, the shape before
+  // BUG-037 attempt 19.
+  Mutant.reopenbesidenested => _with(
+    ops: _withDef(tables.ops, def: _reopensBesideNested()),
+  ),
+  // The proxy rule skips the asking site's own slot, the shape before
+  // BUG-037 attempt 19: a site whose active tab runs as another site opens
+  // its nested screen beside its own slot on another route.
+  Mutant.screenskipsslot => _with(
+    ops: _withDef(tables.ops, def: _contendersSkippingOwnSlot()),
   ),
   // A preload commits without asking again, beside a nested screen that
   // went up since its input.

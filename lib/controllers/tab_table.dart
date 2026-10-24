@@ -59,12 +59,29 @@ abstract final class TabTable {
     read: (w) => w._c._sites.activating,
   );
 
-  /// The flow's site is on screen, or the target of the activation in
-  /// flight: where a slot that runs as another site opens again.
-  static final _reopened = _reopenedAt(_site.value);
-  static Expr<bool, TabFlow> _reopenedAt(Expr<WebViewModel, TabFlow> s) =>
+  static final _nestedVar = Var<WebViewModel?, TabFlow>(
+    ModelVar.nested,
+    read: (w) => w._c._sites.vars.nested.value,
+  );
+  static final _noSite = Expr.constant<WebViewModel?, TabFlow>(null, tla: '0');
+
+  /// The site [s] is on screen, or the target of the activation in flight.
+  static Expr<bool, TabFlow> shownOrTarget(Expr<WebViewModel, TabFlow> s) =>
       _currentVar.value.eq(s) |
       _marker.value.part('t', get: (m) => m?.target).eq(s);
+
+  /// Where a slot that runs as another site opens again: [shownOrTarget].
+  /// Not while a nested screen is up, which runs on its own route and takes
+  /// no plan: its pop opens the site on screen as its activation (BUG-037).
+  static final reopens = () {
+    const s = Bound<WebViewModel, TabFlow>('s');
+    return Def<bool, TabFlow>(
+      ModelDef.reopens,
+      params: const [s],
+      body: shownOrTarget(s.it) & _nestedVar.value.eq(_noSite),
+    );
+  }();
+  static final _reopened = reopens.call([_site.value]);
   static final _loaded = Mutable<Iterable<WebViewModel>, TabFlow>.over(
     ModelVar.loaded,
     of: (w) => w._c._sites.vars.loaded,

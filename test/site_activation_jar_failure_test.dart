@@ -96,8 +96,7 @@ final class _Residency implements ResidencyHost {
   void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
 
   @override
-  List<WebViewModel> identities({int? except}) =>
-      sites.slotIdentities(except: except);
+  List<WebViewModel> identities() => sites.slotIdentities();
 
   @override
   SiteRetentionPriority priorityOf(int index) =>

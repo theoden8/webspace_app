@@ -25,6 +25,8 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/proxy_conflict_engine.dart';
+import 'package:webspace/settings/proxy.dart' show ProxyRouteKey;
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_table.dart';
 
@@ -55,6 +57,7 @@ typedef Tables = ({
 /// each [ModelDef] names, in a switch the compiler holds exhaustive.
 Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.evictable => RuntimeVars.evictable<Object>(),
+  ModelDef.pages => RuntimeVars.pagesOf<Object>(),
   ModelDef.running => RuntimeVars.runningSites<Object>(),
   ModelDef.runsAs => TabVars.runsAs<Object?>(),
   ModelDef.midActivation => ActivationTable.midActivation,
@@ -72,6 +75,7 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.gone => SiteUnloadEngine.gone,
   ModelDef.share => CookieIsolationEngine.share<Object?>(),
   ModelDef.tabBusy => TabTable.tabBusy,
+  ModelDef.reopens => TabTable.reopens,
   ModelDef.capture => TabVars.capture<Object?>(),
   ModelDef.bound => TabVars.bound<Object?>(),
   ModelDef.takes => takesOf<Object?>(),

@@ -180,12 +180,14 @@ void main() {
               reason: '$engine at ${m.start} reads the sites, not the slots');
         }
       }
-      expect(main, contains('state._sites.slotIdentities(except: except)'),
+      expect(main, contains('state._sites.slotIdentities()'),
           reason: 'the residency host hands the plan the slots');
       final plan = bodyOf(
         File('lib/services/site_unload_engine.dart').readAsStringSync(),
         signature: 'static ResidencyPlan plan(',
       );
+      expect(plan, contains('final identities = host.identities();'),
+          reason: 'the plan reads what each slot runs as from its host');
       for (final engine in [
         'indicesToUnloadForProxyMismatch(',
         'indicesToUnloadForTorExitMismatch(',
@@ -195,7 +197,7 @@ void main() {
         expect(calls, isNotEmpty, reason: 'the plan no longer calls $engine');
         for (final m in calls) {
           final call = plan.substring(m.start, plan.indexOf(')', m.start));
-          expect(call, contains('host.identities('),
+          expect(call, contains('models: identities'),
               reason: '$engine in the plan reads the sites, not the slots');
         }
       }

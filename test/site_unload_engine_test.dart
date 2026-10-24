@@ -113,9 +113,8 @@ class _ContainerPage implements ResidencyHost {
   final Map<int, WebViewModel> hosted = {};
 
   @override
-  List<WebViewModel> identities({int? except}) => [
-    for (var i = 0; i < models.length; i++)
-      i == except ? models[i] : hosted[i] ?? models[i],
+  List<WebViewModel> identities() => [
+    for (var i = 0; i < models.length; i++) hosted[i] ?? models[i],
   ];
 
   @override
@@ -477,14 +476,19 @@ void main() {
       );
     });
 
-    test('a nested open reads its own slot as the target itself', () {
+    test('a nested open runs as its site and reads its own slot as the site '
+        'that slot runs as (BUG-037)', () {
       final models = _sites([null, _http('p1:8080')]);
       final page = _ContainerPage(models)
         ..proxyTopology = _processGlobal
         ..hosted[1] = models[0];
       expect(
         unloads(SiteUnloadEngine.plan(page, event: const NestedOpening(1))),
-        [(models[0], UnloadReason.proxyMismatch)],
+        [
+          (models[0], UnloadReason.proxyMismatch),
+          (models[1], UnloadReason.proxyMismatch),
+        ],
+        reason: 'the screen runs as b, on p1; its own slot runs as a, direct',
       );
       expect(
         SiteUnloadEngine.plan(
@@ -647,10 +651,11 @@ void main() {
       Set<int>? loaded,
       ProxyTopology? topology,
     }) => SiteUnloadEngine.indicesToUnloadForProxyMismatch(
-      targetIndex: target,
+      runsAs: target,
       sites: models,
       models: models,
       loadedIndices: loaded ?? {for (var i = 0; i < models.length; i++) i},
+      pageIndices: const {},
       topology: topology ?? _processGlobal,
     );
 
@@ -937,10 +942,11 @@ void main() {
       required int target,
       required Set<int> loaded,
     }) => SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
-      targetIndex: target,
+      runsAs: target,
       sites: models,
       models: models,
       loadedIndices: loaded,
+      pageIndices: const {},
     );
 
     /// Activates [target] among sites a, b, c... with all of them loaded

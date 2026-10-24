@@ -279,7 +279,7 @@ abstract final class ActivationTable {
       _noPreloadInFlight &
       ~_loaded.value.has(s) &
       (_containers | _baseFree(s)) &
-      routeFree.call([s]);
+      routeFree.call([_runsAs(s)]);
 
   /// The loaded sites [s] cannot share the jar with (SiteUnloadEngine's
   /// `Conflicts`).
@@ -335,26 +335,28 @@ abstract final class ActivationTable {
     holds: _conflicts(_u.it).isEmpty,
   );
 
-  /// Loading [s] would repoint no loaded site's proxy or Tor exit
-  /// (PROXY-008): what a background load, which runs no plan, needs.
+  /// A webview running as the site [a] would repoint no running webview's
+  /// proxy or Tor exit (PROXY-008): what a load that runs no plan needs. A
+  /// slot asks for the site it runs as, a page for its own.
   static final routeFree = () {
-    const s = Bound<WebViewModel, ActivationFlow>('s');
+    const a = Bound<WebViewModel, ActivationFlow>('a');
     return Def<bool, ActivationFlow>(
       ModelDef.routeFree,
-      params: const [s],
-      body: _proxyContenders(s.it).isEmpty & _torDissenters(s.it).isEmpty,
+      params: const [a],
+      body: _contendersOf(a.it).isEmpty & _dissentersOf(a.it).isEmpty,
     );
   }();
 
-  /// Running sites that share a proxy scope run one route, and running
-  /// Tor sites one exit (PROXY-008, the model's Inv_OneRoute), asserted
-  /// where a site is loaded or a nested screen goes up. Stated from the
-  /// rules, not from [routeFree], so a mistake in the guard is one this
-  /// catches.
-  static final _oneRoute = _running.forAll(
-    _u,
-    holds: _proxyContenders(_u.it).isEmpty & _torDissenters(_u.it).isEmpty,
-  );
+  /// Running webviews that share a proxy scope run one route, and running
+  /// Tor webviews one exit (PROXY-008, the model's Inv_OneRoute), asserted
+  /// where a site is loaded or a nested screen goes up: each loaded slot as
+  /// the site it runs as, each page as its own. Stated from the rules, not
+  /// from [routeFree], so a mistake in the guard is one this catches.
+  static final _oneRoute =
+      _loaded.value.forAll(_u, holds: _alone(_runsAs(_u.it))) &
+      _pages.forAll(_u, holds: _alone(_u.it));
+  static Expr<bool, ActivationFlow> _alone(Expr<WebViewModel, ActivationFlow> a) =>
+      _contendersOf(a).isEmpty & _dissentersOf(a).isEmpty;
 
   /// The switch leaves a site: the one on screen is another loaded site
   /// (nothing to do when the user tapped the site they are on).
@@ -387,10 +389,10 @@ abstract final class ActivationTable {
   static final _nestedUp = Act.of([_nested.becomes(_site.value)]);
   static final _nestedDown = Act.of([_nested.becomes(_noSite)]);
 
-  /// The sites whose traffic runs: the loaded ones and a nested screen's
-  /// (the runtime's `Running`), which the proxy rules range over.
-  static final _running = ModelDef.running.named<Iterable<WebViewModel>, ActivationFlow>(
-    run: (c) => ActivationFlow.page.from(c).running,
+  /// The pages whose traffic runs, each as its own site: a nested screen
+  /// and a wake's checks (the runtime's `Pages`).
+  static final _pages = ModelDef.pages.named<Iterable<WebViewModel>, ActivationFlow>(
+    run: (c) => ActivationFlow.page.from(c).pages,
   );
 
   /// The sites a link may open nested: any in the code, as many as a
@@ -555,7 +557,7 @@ abstract final class ActivationTable {
     );
   }
   static final _screenVictims = Expr.checked(
-    rule: _screenContenders(_site.value).union(_torDissenters(_site.value)),
+    rule: _contendersOf(_site.value).union(_dissentersOf(_site.value)),
     run: (c) => {for (final u in _nestedPlan(c).unloads) u.site},
     key: (s) => s,
     why: 'a nested open unloads what its printed rules name',
@@ -575,44 +577,30 @@ abstract final class ActivationTable {
     (c) => ActivationFlow.state.from(c).opening!.screen.closed(_site.of(c)),
   );
 
-  /// The loaded sites [s]'s activation would repoint the proxy of
-  /// (PROXY-008), as the unload engine's `ProxyContenders` names them: [s]
-  /// as the site its slot runs as (LIR-024).
-  static Expr<List<WebViewModel>, ActivationFlow> _proxyContenders(
-    Expr<WebViewModel, ActivationFlow> s,
+  /// The running sites a webview running as [a] would repoint the proxy of
+  /// (PROXY-008), as the unload engine's `ProxyContenders` names them: a
+  /// slot's activation asks for the site it runs as (LIR-024), a nested
+  /// screen for its own site whatever its slot shows (`NestedOpening`).
+  static Expr<List<WebViewModel>, ActivationFlow> _contendersOf(
+    Expr<WebViewModel, ActivationFlow> a,
   ) => ModelDef.proxyContenders.over(
-    [s, _runsAs(s)],
-    run: (c) => ActivationFlow.page.from(c).proxyContenders(
-      s.run(c),
-      asItself: false,
-    ),
-  );
-
-  /// [_proxyContenders] for a nested screen, which runs as [s] itself
-  /// whatever its slot shows (`NestedOpening`).
-  static Expr<List<WebViewModel>, ActivationFlow> _screenContenders(
-    Expr<WebViewModel, ActivationFlow> s,
-  ) => ModelDef.proxyContenders.over(
-    [s, s],
-    run: (c) => ActivationFlow.page.from(c).proxyContenders(
-      s.run(c),
-      asItself: true,
-    ),
+    [a],
+    run: (c) => ActivationFlow.page.from(c).proxyContenders(runsAs: a.run(c)),
   );
 
   static Expr<WebViewModel, ActivationFlow> _runsAs(
     Expr<WebViewModel, ActivationFlow> s,
   ) => TabVars.runsAs<ActivationFlow>().call([s]);
 
-  /// The loaded sites whose Tor exit [s]'s activation would repoint, when
-  /// a Tor runtime exists (`TorDissenters`).
-  static Expr<List<WebViewModel>, ActivationFlow> _torDissenters(
-    Expr<WebViewModel, ActivationFlow> s,
+  /// The running sites whose Tor exit a webview running as [a] would
+  /// repoint, when a Tor runtime exists (`TorDissenters`).
+  static Expr<List<WebViewModel>, ActivationFlow> _dissentersOf(
+    Expr<WebViewModel, ActivationFlow> a,
   ) => Expr.choose(
     when: _torRuntime,
     then: ModelDef.torDissenters.over(
-      [s, _runsAs(s)],
-      run: (c) => ActivationFlow.page.from(c).torDissenters(s.run(c)),
+      [a],
+      run: (c) => ActivationFlow.page.from(c).torDissenters(runsAs: a.run(c)),
     ),
     otherwise: Expr.none(),
   );
@@ -621,16 +609,20 @@ abstract final class ActivationTable {
     read: (w) => w.reach.residency.torAvailable,
   ).value;
 
-  /// What the residency's rules name for [s]: the jar's conflicts, the
-  /// proxy's contenders and the Tor exit's dissenters.
+  /// The loaded sites the residency's rules name for [s], which a plan can
+  /// unload: the jar's conflicts, the proxy's contenders and the Tor exit's
+  /// dissenters. A page they name is no site to unload, and no activation
+  /// starts beside one (`Reopens`).
   static final ruled = () {
     const s = Bound<WebViewModel, ActivationFlow>('s');
+    const v = Bound<WebViewModel, ActivationFlow>('v');
     return Def<List<WebViewModel>, ActivationFlow>(
       ModelDef.ruled,
       params: const [s],
-      body: _conflicts(
-        s.it,
-      ).union(_proxyContenders(s.it)).union(_torDissenters(s.it)),
+      body: _conflicts(s.it)
+          .union(_contendersOf(_runsAs(s.it)))
+          .union(_dissentersOf(_runsAs(s.it)))
+          .where(v, holds: _loaded.value.has(v.it)),
     );
   }();
   static Expr<List<WebViewModel>, ActivationFlow> _ruled(
@@ -1549,7 +1541,7 @@ abstract final class ActivationTable {
           // run on another route (PROXY-008).
           Branch(
             StepOutcome.bail,
-            when: _isPreload & ~routeFree.call([_site.value]),
+            when: _isPreload & ~routeFree.call([_runsAs(_site.value)]),
             then: [],
             next: to(ActivationPlace.exit),
           ),

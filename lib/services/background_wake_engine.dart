@@ -88,8 +88,9 @@ abstract class BackgroundWakeHost<S extends Object> {
   /// The site [siteId] names, as the runtime holds it.
   S siteOf(SiteId siteId);
 
-  /// Whether [site] may run beside what runs now: the activation's own
-  /// `RouteFree` over the running sites (PROXY-008, TOR-014).
+  /// Whether a check of [site], which runs as [site] itself, may run beside
+  /// what runs now: the activation's own `RouteFree` over the running sites
+  /// (PROXY-008, TOR-014).
   bool routeFree(S site);
 
   /// Whether a nested open is in flight, its screen not yet up: its pop

@@ -161,6 +161,30 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Preload(0), Preload(2)],
     breaks: _twoRoutes,
   ),
+  Mutant.reopenbesidenested => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _mismatched,
+      rehosts: true,
+      nestedOpens: true,
+      declared: d,
+    ),
+    setup: const [Tap(0)],
+    script: const [ChildTab(0, host: 2), OpenNested(0)],
+    breaks: _twoRoutes,
+  ),
+  Mutant.screenskipsslot => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _mismatched,
+      rehosts: true,
+      nestedOpens: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), ChildTab(0, host: 2)],
+    script: const [OpenNested(0)],
+    breaks: 'the process-wide proxy moved under webview',
+  ),
   Mutant.nestedonce => _By(
     world: (d) => _nestedWorld(declared: d),
     setup: const [],

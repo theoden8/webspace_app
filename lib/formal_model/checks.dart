@@ -460,6 +460,23 @@ enum ActivationWorld {
         'slot that runs as site 3, or on the link tab, back to a tab site 1 '
         'runs itself (LIR-018, LIR-034)',
   ),
+  tabsChildNestedContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // Site 1's child tab running as site 3, on another route under one
+    // process-wide proxy, beside a nested screen of site 1's: the screen
+    // up before the child's rebind, or opened once the slot runs as site 3.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny},
+    allowed: {'ChildTab', 'NestedOpen', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tab on another route beside site 1's nested screen: "
+        'each runs as its own site, and the screen and the slot run one '
+        'route (BUG-037, PROXY-008)',
+  ),
   tabsChildContainers(
     cookies: Cookies.containers,
     coldStart: false,
@@ -881,6 +898,22 @@ enum Mutant {
           'a preload loading a Tor site on another exit than a loaded one '
           '(caught)',
     },
+  ),
+  reopenbesidenested(
+    world: ActivationWorld.tabsChildNestedContainers,
+    by: Inv.oneRoute,
+    doc:
+        "a slot a tab's rebind moves to another site under one process-wide "
+        'proxy opening again while its own nested screen is up on another '
+        'route (BUG-037, caught)',
+  ),
+  screenskipsslot(
+    world: ActivationWorld.tabsChildNestedContainers,
+    by: Inv.oneRoute,
+    doc:
+        "a proxy rule that skips the asking site's own slot: a nested screen "
+        'goes up beside its site\'s slot running as another site on another '
+        'route (BUG-037, caught)',
   ),
   nestedonce(
     world: ActivationWorld.nestedContainers,

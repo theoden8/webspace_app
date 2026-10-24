@@ -49,8 +49,8 @@ abstract interface class BackgroundSitesHost implements PageHost {
   /// them unattended.
   WebViewHostHooks get webViewHooks;
 
-  /// Whether [site] may run beside what runs now: the activation's
-  /// `RouteFree` (PROXY-008, TOR-014), which a wake's check asks.
+  /// Whether a check of [site], which runs as [site] itself, may run beside
+  /// what runs now: the activation's `RouteFree` (PROXY-008, TOR-014).
   bool routeFree(WebViewModel site);
 
   /// Whether a nested open is in flight, which a wake's check waits out.
