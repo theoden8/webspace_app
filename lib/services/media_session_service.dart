@@ -297,12 +297,6 @@ class MediaSessionService {
     await _stop();
   }
 
-  /// Unconditional teardown — used when no background-audio site remains loaded.
-  Future<void> stopAll() async {
-    if (!_enabled || !_active) return;
-    await _stop();
-  }
-
   /// Whether the OS currently shows the media notification. Distinct from
   /// [isActive]: the foreground service can be running while the notification
   /// is suppressed, which is what a denied `POST_NOTIFICATIONS` looks like.

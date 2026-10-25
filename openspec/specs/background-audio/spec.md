@@ -243,7 +243,7 @@ constraints.
   universal web mechanism, so dead buttons are deliberately omitted.
 - The service runs only while a background-audio site is loaded and playing;
   when the last such site unloads, `BackgroundSitesController.updateAudioSession` calls
-  `stopAll`. Enabling the toggle requests `POST_NOTIFICATIONS` so the media
+  `clearOsMediaSurface`. Enabling the toggle requests `POST_NOTIFICATIONS` so the media
   controls are visible on Android 13+.
 - Scope: the media notification is driven by the **root** site webview. A
   cross-domain nested `InAppWebViewScreen` does not raise it (acceptable
@@ -272,7 +272,7 @@ resumable paused state
 **Given** the media notification is showing
 **When** the only background-audio site is unloaded or its toggle is turned off
 **Then** `BackgroundSitesController.updateAudioSession` finds no loaded background-audio site
-and calls `MediaSessionService.stopAll`, stopping the foreground service
+and calls `MediaSessionService.clearOsMediaSurface`, stopping the foreground service
 
 #### Scenario: A player that never enters the DOM still raises the notification
 
@@ -341,7 +341,7 @@ notification
 #### Scenario: Teardown removes it from the OS, not just from Dart
 
 **Given** the media notification is posted
-**When** `stopAll` runs
+**When** `clearOsMediaSurface` runs
 **Then** `notificationPosted()` returns false
 
 #### Scenario: A site with the toggle off is diagnosable from the log alone
