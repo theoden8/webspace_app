@@ -740,4 +740,59 @@ void main() {
       expect(saved['siteIds'], [second.siteId]);
     },
   );
+
+  testWidgets(
+    'a glyph picked in a webspace\'s editor leads its name and is saved; No '
+    'icon takes it off (WEBSPACE-016)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      Future<Map<String, dynamic>> saved() async =>
+          (await SharedPreferences.getInstance())
+              .getStringList('webspaces')!
+              .map((raw) => jsonDecode(raw) as Map<String, dynamic>)
+              .singleWhere((value) => value['id'] == work.id);
+      final workTile = find.byWidgetPredicate(
+        (widget) => widget is WebspaceGroupTile && widget.webspace.id == work.id,
+      );
+      Future<void> edit(Future<void> Function() pick) async {
+        await tester.longPress(workTile);
+        await settleRealApp(tester);
+        await tester.tap(find.text('Edit'));
+        await settleRealApp(tester);
+        await tester.tap(find.text('Icon'));
+        await settleRealApp(tester);
+        await pick();
+        await settleRealApp(tester);
+        await tester.tap(find.bySemanticsLabel('Save'));
+        await settleRealApp(tester);
+      }
+
+      await edit(() => tester.tap(find.byTooltip('Code')));
+      expect(
+        find.descendant(
+          of: find.byType(WebspaceGroupTile),
+          matching: find.byIcon(Icons.code),
+        ),
+        findsOneWidget,
+      );
+      expect((await saved())['icon'], 'code');
+
+      await edit(() => tester.tap(find.text('No icon')));
+      expect(find.byIcon(Icons.code), findsNothing);
+      expect((await saved()).containsKey('icon'), isFalse);
+    },
+  );
 }

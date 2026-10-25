@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 
 /// The page's drawer: the selected webspace under the logo, the way back to
 /// the webspace list, the webspace's sites as a grid, and Add site.
@@ -13,7 +15,7 @@ class SiteDrawer extends StatelessWidget {
   const SiteDrawer({
     super.key,
     required this.accentColor,
-    required this.webspaceName,
+    required this.webspace,
     required this.models,
     required this.order,
     required this.current,
@@ -28,7 +30,8 @@ class SiteDrawer extends StatelessWidget {
   final AccentColor accentColor;
 
   /// Null while no webspace is selected.
-  final String? webspaceName;
+  /// The webspace whose sites the drawer lists; none while none is chosen.
+  final Webspace? webspace;
   final List<WebViewModel> models;
 
   /// Positions in [models], in the order the grid shows them.
@@ -76,13 +79,21 @@ class SiteDrawer extends StatelessWidget {
                             brightness: Theme.of(context).brightness,
                           ),
                           SizedBox(height: 4),
-                          Text(
-                            webspaceName ?? loc.homeNoWebspace,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          webspace == null
+                              ? Text(
+                                  loc.homeNoWebspace,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : WebspaceName(
+                                  webspace!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ],
                       ),
                     ),
@@ -113,7 +124,7 @@ class SiteDrawer extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: webspaceName == null
+            child: webspace == null
                 ? Center(child: Text(loc.homeSelectWebspaceToViewSites))
                 : () {
                     final filteredIndices = order;

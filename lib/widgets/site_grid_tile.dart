@@ -9,6 +9,7 @@ import 'package:webspace/widgets/launcher_lift.dart';
 import 'package:webspace/widgets/launcher_row.dart';
 import 'package:webspace/widgets/site_address.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 
 enum SiteGridTileLayout { compact, library }
@@ -345,10 +346,8 @@ class _SiteGridTileContent extends StatelessWidget {
                         horizontal: Spacing.sm,
                         vertical: Spacing.xs,
                       ),
-                      child: Text(
-                        webspace.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: WebspaceName(
+                        webspace,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onSurface,
                         ),

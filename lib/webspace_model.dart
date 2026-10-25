@@ -20,9 +20,41 @@ extension type const WebspaceId._(String raw) implements String {
       raw is String && raw.isNotEmpty ? WebspaceId._(raw) : null;
 }
 
+/// The symbol a user picked to stand beside a webspace's name; it is saved
+/// by its name, and the screens draw it.
+enum WebspaceGlyph {
+  work,
+  home,
+  school,
+  chat,
+  mail,
+  people,
+  world,
+  news,
+  shopping,
+  money,
+  code,
+  games,
+  music,
+  video,
+  photos,
+  books,
+  travel,
+  food,
+  health,
+  privacy;
+
+  /// The glyph [stored] names; none for anything else.
+  static WebspaceGlyph? of(Object? stored) =>
+      stored is String ? values.asNameMap()[stored] : null;
+}
+
 class Webspace {
   WebspaceId id;
   String name;
+
+  /// The symbol shown beside [name]; none until the user picks one.
+  WebspaceGlyph? glyph;
   /// Persisted membership by `siteId`, ordered by display order.
   /// Single source of truth: archive open/close, app-tier index
   /// reshuffling from add/delete, and move-to-archive all preserve
@@ -42,6 +74,7 @@ class Webspace {
   Webspace({
     WebspaceId? id,
     required this.name,
+    this.glyph,
     List<SiteId>? siteIds,
     List<int>? siteIndices,
     this.isArchiveTier = false,
@@ -52,6 +85,7 @@ class Webspace {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        if (glyph case final glyph?) 'icon': glyph.name,
         'siteIds': siteIds,
       };
 
@@ -70,6 +104,7 @@ class Webspace {
     return Webspace(
       id: WebspaceId.parse(json['id']),
       name: json['name'] is String ? json['name'] as String : 'Untitled',
+      glyph: WebspaceGlyph.of(json['icon']),
       siteIds: rawSiteIds?.map(SiteId.parse).nonNulls.toList(),
       siteIndices: legacyIndices?.whereType<int>().toList(),
     );
@@ -78,6 +113,7 @@ class Webspace {
   Webspace copyWith({
     WebspaceId? id,
     String? name,
+    ({WebspaceGlyph? to})? glyph,
     List<SiteId>? siteIds,
     List<int>? siteIndices,
     bool? isArchiveTier,
@@ -85,6 +121,7 @@ class Webspace {
     return Webspace(
       id: id ?? this.id,
       name: name ?? this.name,
+      glyph: glyph == null ? this.glyph : glyph.to,
       siteIds: siteIds ?? List<SiteId>.of(this.siteIds),
       siteIndices: siteIndices ?? List<int>.from(this.siteIndices),
       isArchiveTier: isArchiveTier ?? this.isArchiveTier,

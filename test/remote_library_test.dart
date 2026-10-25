@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/webspace_library.dart';
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -120,6 +121,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
           onAddSite: ({required into}) => addedInto.add(into),
           onShowTabs: tabsScopes.add,
           onOpenSettings: () async => settingsOpened++,
+          accentColor: AccentColor.blue,
         ),
       ),
     );

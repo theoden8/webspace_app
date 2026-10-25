@@ -34,7 +34,8 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 
 Users SHALL be able to select and switch between webspaces to view filtered sites.
 
-With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL open App Settings, and its add button SHALL offer adding a site or creating a webspace (EDIT-012). On a wide screen the library and an open folder SHALL widen with the window, up to a fixed number of columns. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
+With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL lead its title with
+the app's logo in the chosen accent, SHALL open App Settings, and its add button SHALL offer adding a site or creating a webspace (EDIT-012). On a wide screen the library and an open folder SHALL widen with the window, up to a fixed number of columns. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
 
 #### Scenario: Select a webspace
 
@@ -424,6 +425,28 @@ close back into it, and rows SHALL reorder by dragging as the grid does.
 **Given** a folder is open as rows
 **When** the user taps a row
 **Then** the site's card grows out of that row's icon
+
+---
+
+### Requirement: WEBSPACE-016 - A Webspace's Icon
+
+A webspace's edit screen SHALL offer a symbol to stand beside its name,
+picked from a fixed set of the app's own icons, each read out by its name,
+or none, which is how every webspace starts. The symbol SHALL lead the
+webspace's name wherever the name is shown: the library's tiles and rows,
+an open folder's top bar, the labels on search results, the add-site
+picker's chips, the drawer's heading, the app bar and the classic list,
+where it replaces the generic webspace icon. It SHALL be saved with the
+webspace and ride a settings backup; a stored symbol the app does not know,
+or one of the wrong type, SHALL read as none.
+
+#### Scenario: Give Work an icon
+
+**Given** the webspace Work has no icon
+**When** the user edits Work and picks the code symbol
+**Then** Work's name is led by that symbol on the home and in its folder
+**When** the user edits Work again and picks No icon
+**Then** its name shows alone and nothing is saved for its icon
 
 ---
 

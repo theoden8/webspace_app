@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 
 /// The named webspaces a form offers a site, and those picked for it as the
 /// form is edited. "All" is never offered: it holds every site.
@@ -49,7 +50,7 @@ class WebspaceChips extends StatelessWidget {
             children: [
               for (final space in pick.offered)
                 FilterChip(
-                  label: Text(space.name),
+                  label: WebspaceName(space),
                   selected: picked.contains(space.id),
                   onSelected: (on) => pick.mark(space.id, picked: on),
                 ),

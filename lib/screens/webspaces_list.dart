@@ -3,6 +3,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/widgets/accent_logo.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 
 class WebspacesListScreen extends StatelessWidget {
   final List<Webspace> webspaces;
@@ -104,7 +105,7 @@ Widget action(IconData icon, {required VoidCallback onPressed}) => IconButton(
                       elevation: isSelected ? 4 : 1,
                       child: ListTile(
                         leading: Icon(
-                          Icons.workspaces,
+                          webspace.glyph?.icon ?? Icons.workspaces,
                           color: isSelected
                               ? Theme.of(context).colorScheme.secondary
                               : null,

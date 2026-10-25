@@ -69,6 +69,7 @@ abstract final class LibraryStyle {
   static const double siteWell = 80;
   static const double previewIcon = 24;
   static const double titleSize = 30;
+  static const double logoSize = 36;
   static const double siteTitleSize = 14;
 
   /// An open group: a panel over the dimmed grid, as a phone opens a folder.
@@ -97,6 +98,9 @@ abstract final class LibraryStyle {
   static const double rowTitleSize = 15;
   static const Curve gridCaptionOut = Interval(0, .4, curve: Curves.easeOut);
   static const Curve rowCaptionIn = Interval(.5, 1, curve: Curves.easeOut);
+
+  /// A webspace's glyph beside its name, against the name's font size.
+  static const double glyphScale = 1.15;
 
   /// The narrowest a row may be before rows flow into fewer columns.
   static const double rowMinWidth = 360;

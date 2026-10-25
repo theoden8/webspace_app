@@ -37,6 +37,7 @@ import 'package:webspace/controllers/webspaces_controller.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/screens/settings.dart';
@@ -1078,7 +1079,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 ],
               ),
             )
-          : Text(_selectedWebspaceName ?? loc.homeNoWebspaceSelected),
+          : _selectedWebspace == null ? Text(loc.homeNoWebspaceSelected) : WebspaceName(_selectedWebspace!),
       // KIOSK-002: no app-bar actions (download, settings) when locked.
       actions: _kioskLocked ? const <Widget>[] : [
         // Tab count for the site on screen. Present whenever a site is shown,
@@ -1328,12 +1329,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// The selected webspace's name, or null while none is selected.
-  String? get _selectedWebspaceName {
+  Webspace? get _selectedWebspace {
     final id = _sites.selectedWebspaceId;
     if (id == null) return null;
     return _sites.webspaces
-        .firstWhere((ws) => ws.id == id, orElse: () => Webspace(name: 'Unknown'))
-        .name;
+        .firstWhere((ws) => ws.id == id, orElse: () => Webspace(name: 'Unknown'));
   }
 
   Future<void> _backToWebspacesFromDrawer() async {
@@ -1466,6 +1466,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         unawaited(_editing.addSite(into: into)),
                     onShowTabs: (scope) => unawaited(_showLibraryTabs(scope)),
                     onOpenSettings: _openAppSettings,
+                    accentColor: _shell.theme.accentColor,
                   ) : WebspacesListScreen(
                     webspaces: _sites.webspaces,
                     selectedWebspaceId: _sites.selectedWebspaceId,
@@ -1613,7 +1614,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // KIOSK-002: a locked shell exposes neither navigation surface.
       drawer: _kioskLocked || _folderLibraryEnabled ? null : SiteDrawer(
         accentColor: _shell.theme.accentColor,
-        webspaceName: _selectedWebspaceName,
+        webspace: _selectedWebspace,
         models: _sites.models,
         order: _sites.filteredIndices(),
         current: _sites.current,

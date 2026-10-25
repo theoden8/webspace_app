@@ -125,16 +125,45 @@ class LauncherMorphTile extends StatelessWidget {
   );
 }
 
-/// A row's text: [name] over [detail], then [trailing] at the row's end.
+/// [name] in [style], led by [icon] where there is one, drawn as a glyph of
+/// the text so it wraps and centres with it.
+TextSpan namedSpan(
+  BuildContext context, {
+  required String name,
+  required IconData? icon,
+  required TextStyle? style,
+}) {
+  final size =
+      (style?.fontSize ?? DefaultTextStyle.of(context).style.fontSize ?? 14) *
+      LibraryStyle.glyphScale;
+  return TextSpan(
+    style: style,
+    children: [
+      if (icon != null) ...[
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Icon(icon, size: MediaQuery.textScalerOf(context).scale(size)),
+        ),
+        const WidgetSpan(child: SizedBox(width: Spacing.xs)),
+      ],
+      TextSpan(text: name),
+    ],
+  );
+}
+
+/// A row's text: [name], led by [icon] where it has one, over [detail], then
+/// [trailing] at the row's end.
 class LauncherRowText extends StatelessWidget {
   const LauncherRowText({
     super.key,
     required this.name,
+    this.icon,
     required this.detail,
     required this.trailing,
   });
 
   final String name;
+  final IconData? icon;
   final String detail;
   final List<Widget> trailing;
 
@@ -148,14 +177,18 @@ class LauncherRowText extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name,
+              Text.rich(
+                namedSpan(
+                  context,
+                  name: name,
+                  icon: icon,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: LibraryStyle.rowTitleSize,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontSize: LibraryStyle.rowTitleSize,
-                  fontWeight: FontWeight.w500,
-                ),
               ),
               Text(
                 detail,

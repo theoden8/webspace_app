@@ -6,6 +6,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/launcher_lift.dart';
 import 'package:webspace/widgets/launcher_row.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 
 /// A launcher group represented by a compact cluster of its site icons, over
 /// its name, or [list] of the way to a row beside it (WEBSPACE-015).
@@ -126,6 +127,7 @@ class WebspaceGroupTile extends StatelessWidget {
             ),
             row: LauncherRowText(
               name: webspace.name,
+              icon: webspace.glyph?.icon,
               detail: count,
               trailing: [if (selected) _check(theme)],
             ),
@@ -149,10 +151,9 @@ class WebspaceGroupTile extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Flexible(
-            child: Text(
-              webspace.name,
+            child: WebspaceName(
+              webspace,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: LibraryStyle.siteTitleSize,

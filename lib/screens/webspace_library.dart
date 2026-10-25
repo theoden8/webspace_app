@@ -9,6 +9,7 @@ import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/library_layout.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -18,7 +19,9 @@ import 'package:webspace/widgets/launcher_row.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_list_menu.dart';
+import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 
 enum _GroupAction { edit, delete, moveUp, moveDown }
@@ -67,6 +70,7 @@ class WebspaceLibrary extends StatefulWidget {
     required this.onAddSite,
     required this.onShowTabs,
     required this.onOpenSettings,
+    required this.accentColor,
   });
 
   final List<Webspace> webspaces;
@@ -96,6 +100,9 @@ class WebspaceLibrary extends StatefulWidget {
   /// header, the open folder's from its panel.
   final void Function(WebspaceId scope) onShowTabs;
   final Future<void> Function() onOpenSettings;
+
+  /// The accent the app's logo in the home's title takes.
+  final AccentColor accentColor;
 
   @override
   State<WebspaceLibrary> createState() => WebspaceLibraryState();
@@ -383,6 +390,12 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
               ),
               child: Row(
                 children: [
+                  AccentLogo(
+                    accentColor: widget.accentColor,
+                    size: LibraryStyle.logoSize,
+                    brightness: theme.brightness,
+                  ),
+                  const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Text(
                       loc.libraryWebspaces,
@@ -890,10 +903,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        webspace.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      WebspaceName(
+                        webspace,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),

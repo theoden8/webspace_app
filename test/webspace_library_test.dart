@@ -7,6 +7,7 @@ import 'package:image/image.dart' as image;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/screens/webspace_library.dart';
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
@@ -15,6 +16,7 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
@@ -66,6 +68,10 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
 
   void disableTabs(WebViewModel site) =>
       setState(() => site.tabsEnabled = false);
+
+  void giveGlyph(WebspaceGlyph glyph, {required String to}) => setState(
+    () => webspaces.singleWhere((w) => w.name == to).glyph = glyph,
+  );
 
   /// Gives every site an icon of its own but the ones [twins] lists, which
   /// share one.
@@ -120,6 +126,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
           onAddSite: ({required into}) => addedInto.add(into),
           onShowTabs: tabsScopes.add,
           onOpenSettings: () async => settingsOpened++,
+          accentColor: AccentColor.blue,
         ),
       ),
     );
@@ -1762,6 +1769,46 @@ void main() {
     expect(selected('Automatic layout'), isTrue);
     expect(selected('Grid view'), isFalse);
   });
+
+  testWidgets(
+    'a webspace\'s glyph leads its name on the home and in its folder, and '
+    'the home\'s title carries the app\'s logo (WEBSPACE-016)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      expect(find.byType(AccentLogo), findsOneWidget);
+      expect(
+        tester.getRect(find.byType(AccentLogo)).right,
+        lessThan(tester.getRect(find.text('Webspaces')).left),
+        reason: 'the logo sits before the title',
+      );
+      expect(find.byIcon(Icons.work_outline), findsNothing);
+      state.giveGlyph(WebspaceGlyph.work, to: 'Work');
+      await tester.pumpAndSettle();
+      // The glyph's placeholder is part of the name's text now.
+      final work = find.byWidgetPredicate(
+        (widget) =>
+            widget is WebspaceGroupTile && widget.webspace.name == 'Work',
+      );
+      expect(
+        find.descendant(of: work, matching: find.byIcon(Icons.work_outline)),
+        findsOneWidget,
+      );
+      await tester.tap(work);
+      await tester.pumpAndSettle();
+      expect(_inPanel(find.byIcon(Icons.work_outline)), findsOneWidget);
+      AppPref.libraryWebspaceLayout.debugValue = LibraryLayout.list.name;
+      await _tapOutside(tester);
+      expect(
+        find.descendant(of: work, matching: find.byIcon(Icons.work_outline)),
+        findsOneWidget,
+        reason: 'and in its row',
+      );
+    },
+  );
 
   testWidgets('reduced motion turns a folder into rows at once', (
     tester,
