@@ -98,9 +98,12 @@ abstract final class LibraryStyle {
   static const Curve gridCaptionOut = Interval(0, .4, curve: Curves.easeOut);
   static const Curve rowCaptionIn = Interval(.5, 1, curve: Curves.easeOut);
 
-  /// The open folder's switch between a grid and rows: each of its two
-  /// segments, and the track around them.
-  static const Size layoutSwitchSegment = Size(36, 28);
+  /// The narrowest a row may be before rows flow into fewer columns.
+  static const double rowMinWidth = 360;
+
+  /// The switch between a level's layouts: each of its segments, and the
+  /// track around them.
+  static const Size layoutSwitchSegment = Size(32, 28);
   static const double layoutSwitchInset = 2;
 
   /// An icon held down, lifted, and the gap it leaves while dragged.

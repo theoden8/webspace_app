@@ -10,7 +10,9 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/library_layout.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/remote_controls.dart';
@@ -217,6 +219,14 @@ Future<void> _toWorksSite(WidgetTester tester) async {
 }
 
 void main() {
+  // A remote moves through the grids here, as their arrows lay them out.
+  setUp(() {
+    for (final pref in [AppPref.libraryLayout, AppPref.libraryWebspaceLayout]) {
+      pref.debugValue = LibraryLayout.grid.name;
+      addTearDown(() => pref.debugValue = pref.fallback);
+    }
+  });
+
   testWidgets(
       'a remote reaches a folder and opens a site in Alternative design '
       '(NAV-016)', (tester) async {

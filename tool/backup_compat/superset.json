@@ -256,8 +256,8 @@
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,
     "blockScreenshots": true,
-    "libraryList": true,
-    "libraryWebspaceList": true,
+    "libraryLayout": "list",
+    "libraryWebspaceLayout": "grid",
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },
   "suggestedSites": [

@@ -5309,9 +5309,17 @@
   "@siteImportedFile": {
     "description": "Shown under a site's name, where a web address would be, when the site is an HTML file the user imported from their device and so has no address on the web."
   },
+  "libraryAutoView": "Automatic layout",
+  "@libraryAutoView": {
+    "description": "Tooltip and accessibility label of the first of three buttons that choose how a level of the library lays out its items: the webspaces on the library's home (buttons beside its search) or a folder's sites (buttons in an open folder's top bar). Automatic shows items as rows while they all fit the screen and as a grid of icons once there are too many. Applies app-wide to its own level."
+  },
+  "libraryGridView": "Grid view",
+  "@libraryGridView": {
+    "description": "Tooltip and accessibility label of the button, among three that choose how a level of the library lays out its items (the webspaces on the home, or a folder's sites), that always shows them as a grid of icons."
+  },
   "libraryListView": "List view",
   "@libraryListView": {
-    "description": "Tooltip and accessibility label of a switch between a grid of icons and a list of rows. One sits beside the library's search and shows the webspaces as rows, each with its name and site count; another sits in an open webspace folder's top bar and shows the folder's sites as rows, each with its name and web address. Each applies app-wide to its own level."
+    "description": "Tooltip and accessibility label of the button, among three that choose how a level of the library lays out its items (the webspaces on the home, or a folder's sites), that always shows them as rows, each with its name and its site count or web address."
   },
   "appSettingsExperimentalFolderLibrary": "Alternative design",
   "appSettingsExperimentalFolderLibraryHint": "Organize sites into groups in a launcher grid.",

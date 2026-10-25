@@ -364,8 +364,11 @@ its icon has, from its first frame.
 ### Requirement: WEBSPACE-015 - A Folder's Sites as Rows
 
 With Alternative design enabled, an open folder's top bar SHALL hold a switch
-between its sites as a grid of icons and as a list of rows, each row the
-site's icon at its start, its name over its web address, and its grants and
+between three layouts of its sites: Automatic, the default, which shows them
+as rows while every site fits the panel as a row and as a grid of icons once
+they would not, as the drawer packs its sites; Grid; and List. Each folder
+SHALL take the layout its own count calls for, and the choice SHALL be made
+again as the window resizes. A row is the site's icon at its start, its name over its web address, and its grants and
 tab count at its end. A site imported from a file SHALL show "Imported file"
 where the address would be, there and wherever else a site or tab shows its
 address under its name, never its file handle. The choice SHALL apply to every folder, persist across
@@ -375,17 +378,29 @@ names under the icons fading early and the rows' text fading in late, and the
 panel SHALL take the new layout's height as the icons move. In either layout
 the panel SHALL be as tall as its sites need up to most of the screen,
 resizing late in a swipe to another folder (WEBSPACE-008), and rows SHALL
-reorder by dragging as icons do (WEBSPACE-011). A site SHALL open from its
+reorder by dragging as icons do (WEBSPACE-011). Where the window is wide
+enough, rows SHALL flow into columns rather than run its whole width. A site
+SHALL open from its
 row's icon and close back into it, its card starting at that icon's size and
 colour. Reduced motion SHALL switch at once.
 
-The library's home SHALL hold a switch of its own beside its search, which
-shows the webspaces, browsed or found by a search, as rows in the same way:
+The library's home SHALL hold a switch of its own beside its search, with
+the same three layouts for the webspaces, browsed or found by a search;
+Automatic shows them as rows while they all fit the room under the search.
+Shown as rows, the webspaces read in the same way:
 each its cluster of site icons at the start, its name over its site count,
 and a mark while selected. It SHALL be set app-wide apart from the folders'
 switch, persist and ride a backup the same way, and leave how the folders
 show their sites as it was. A folder SHALL open out of its row's cluster and
 close back into it, and rows SHALL reorder by dragging as the grid does.
+
+#### Scenario: Automatic follows how much fits
+
+**Given** Alternative design is enabled, both switches are on Automatic, and the window is tall
+**When** the user opens All, which holds eight sites
+**Then** the home shows its webspaces as rows and All shows its sites as rows
+**When** the window is made short enough that they no longer fit
+**Then** the home shows its webspaces as icons, All shows its sites as icons, and Work, which holds two, still shows rows
 
 #### Scenario: Turn the webspaces into rows
 

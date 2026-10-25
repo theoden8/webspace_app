@@ -445,10 +445,12 @@ void main() {
         of: find.byType(LaunchZoom),
         matching: find.byType(Material),
       );
-      final icon = SiteGridTile.wellIn(
-        tester.getRect(_siteTile('Alpha')),
-        list: 0,
-        direction: TextDirection.ltr,
+      // The well the tile draws, as a grid's icon or a row's.
+      final icon = tester.getRect(
+        find.descendant(
+          of: _siteTile('Alpha'),
+          matching: find.byType(AnimatedContainer),
+        ),
       );
       await tester.tap(_siteTile('Alpha'));
       await tester.pump();
