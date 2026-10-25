@@ -203,21 +203,6 @@ void main() {
       expect(loaded, isEmpty);
     });
 
-    test('should clear all cookies from both storages', () async {
-      // Save mix of secure and non-secure cookies (COOKIE-006)
-      await cookieSecureStorage.saveCookies({
-        'example.com': [
-          Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
-          Cookie(name: 'theme', value: 'dark', domain: 'example.com', isSecure: false),
-        ],
-      });
-
-      await cookieSecureStorage.clearCookies();
-
-      final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded, isEmpty);
-    });
-
     test('should remove orphaned cookies from both storages', () async {
       // Save cookies with mixed secure flags (COOKIE-006)
       await cookieSecureStorage.saveCookies({

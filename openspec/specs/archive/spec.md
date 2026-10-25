@@ -669,7 +669,6 @@ class Archive {
   Future<OpenArchiveResult> open(String passphrase);
   Future<void> create(String passphrase, {String? initialWebspaceName});
   Future<void> close(ArchiveHandle handle);
-  Future<void> closeAll();
   Future<void> save(ArchiveHandle handle);
   List<ArchiveHandle> get openArchives;
 }

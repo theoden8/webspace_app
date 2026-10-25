@@ -129,12 +129,6 @@ void main() {
       expect(engine.isKnownHttpOnly('example.com'), isFalse);
     });
 
-    test('recordUpgradeFailure marks a host without an in-flight upgrade', () {
-      engine.recordUpgradeFailure('Intranet.Example');
-      expect(engine.isKnownHttpOnly('intranet.example'), isTrue);
-      expect(up('http://intranet.example/'), isNull);
-    });
-
     test('a timeout fallback IS the failure fallback', () {
       // Not an alias for tidiness: it is what makes a late-firing deadline
       // harmless. A separate path that re-derived the http URL would downgrade

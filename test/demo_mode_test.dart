@@ -117,27 +117,6 @@ void main() {
       expect(mockSecureStorage.storage['secure_cookies'], isNotNull);
     });
 
-    test('clearCookies does nothing when isDemoMode is true', () async {
-      // First, save some cookies with demo mode disabled
-      // Use isSecure: true so cookies go to secure storage (COOKIE-006)
-      isDemoMode = false;
-      await cookieSecureStorage.saveCookies({
-        'example.com': [
-          Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
-        ],
-      });
-
-      // Verify cookies were saved
-      expect(mockSecureStorage.storage, isNotEmpty);
-
-      // Now enable demo mode and try to clear
-      isDemoMode = true;
-      await cookieSecureStorage.clearCookies();
-
-      // Cookies should still be there because demo mode prevented clearing
-      expect(mockSecureStorage.storage, isNotEmpty);
-    });
-
     test('removeOrphanedCookies does nothing when isDemoMode is true', () async {
       // First, save some cookies with demo mode disabled
       // Use isSecure: true so cookies go to secure storage (COOKIE-006)

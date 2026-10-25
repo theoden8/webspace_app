@@ -122,7 +122,7 @@ void main() {
       final engine = BlockStatsEngine();
       engine.record(BlockCategory.filterList);
       expect(engine.isDirty, isTrue);
-      engine.markClean();
+      engine.markCleanAt(engine.revision);
       expect(engine.isDirty, isFalse);
       engine.record(BlockCategory.filterList);
       expect(engine.isDirty, isTrue);

@@ -139,17 +139,6 @@ void main() {
       expect(b.state.webspaces.first['name'], equals('B'));
     });
 
-    test('closeAll closes every open archive', () async {
-      final storage = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
-      final archive = Archive(storage: storage);
-      await archive.createWithKey(_testKey(30));
-      await archive.createWithKey(_testKey(31));
-      await archive.createWithKey(_testKey(32));
-      expect(archive.openArchives, hasLength(3));
-      await archive.closeAll();
-      expect(archive.openArchives, isEmpty);
-    });
-
     test('reopening an already-open archive returns the same handle', () async {
       final storage = ArchiveStorage(secureStorage: MockFlutterSecureStorage());
       final archive = Archive(storage: storage);

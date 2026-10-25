@@ -123,7 +123,7 @@ synthetic `file:///<filename>` URL, which chromium would reject as
 
 #### Scenario: Decrypt failure keeps the file on disk
 
-**Given** an import file exists on disk but `_preloadAll` cannot
+**Given** an import file exists on disk but `preloadOne` cannot
 decrypt it (transient `flutter_secure_storage` read miss generates a
 fresh AES key, on-disk corruption, …)
 **When** the preload runs
