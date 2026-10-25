@@ -460,6 +460,105 @@ enum ActivationWorld {
         'slot that runs as site 3, or on the link tab, back to a tab site 1 '
         'runs itself (LIR-018, LIR-034)',
   ),
+  tabsChildNestedContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // Site 1's child tab running as site 3, on another route under one
+    // process-wide proxy, beside a nested screen of site 1's: the screen
+    // up before the child's rebind, or opened once the slot runs as site 3.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny},
+    allowed: {'ChildTab', 'NestedOpen', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tab on another route beside site 1's nested screen: "
+        'each runs as its own site, and the screen and the slot run one '
+        'route (BUG-037, PROXY-008)',
+  ),
+  tabsChildDeleteContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.deleteOne},
+    allowed: {'ChildTab', 'DeleteSite', 'ParkChild', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.retired],
+    holds:
+        "site 1 deleted beside its child tabs, each running as any listed "
+        'site: it leaves the list, the loaded sites and the disk (TAB-006, '
+        'CONT-010)',
+  ),
+  tabsChildNested(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny},
+    allowed: {'ChildTab', 'NestedOpen', 'Tap'},
+    invariants: [..._core, ..._jar, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tab beside its nested screen on the shared jar, "
+        'where a child runs as its own site: one route (BUG-037, LIR-032)',
+  ),
+  tabsChildWakeContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.notifyAll, Env.wakesUp},
+    allowed: {'Background', 'ChildTab', 'Foreground', 'Tap', 'Wake'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute, Inv.checksOffScreen],
+    holds:
+        "site 1's child tab on another route beside a wake: each check runs "
+        'as its own site, and every running webview runs one route '
+        '(BUG-037, NOTIF-016)',
+  ),
+  tabsChildRouterContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.routerContending, Env.routeSplit, Env.routerShared},
+    allowed: {'ChildTab', 'ParkChild', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tabs under the router's shared session, each "
+        'running as any listed site: one route (LIR-024, LIR-032)',
+  ),
+  tabsChild(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    allowed: {'ChildTab', 'OpenTab', 'ParkChild', 'Tap'},
+    invariants: [..._core, ..._jar, ..._tabs],
+    holds:
+        "site 1's child tabs on the shared jar, switched to or parked: each "
+        'webview shows its tab, and no session crosses (TAB-006, ISO-001)',
+  ),
+  tabsChildContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // Site 1, on screen once tapped, opens a child tab that runs as any
+    // listed site and follows any, switched to or parked; the third input
+    // switches to the parked one or reroutes the child.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    allowed: {'ChildTab', 'OpenTab', 'ParkChild', 'Reroute', 'Tap'},
+    invariants: [..._core, ..._tabs],
+    holds:
+        "site 1's child tabs, switched to or parked, each running as any "
+        'listed site and following any, beside its reroutes and switches '
+        '(TAB-006, LIR-032, LIR-034)',
+  ),
   tabsResetContainers(
     cookies: Cookies.containers,
     coldStart: false,
@@ -746,6 +845,11 @@ enum Witness {
     doc: 'an owner-run move that switches a slot running as another site '
         'to a tab its site runs itself is reachable',
   ),
+  childHosted(
+    world: ActivationWorld.tabsChildContainers,
+    doc: 'a child tab that runs as another site joining its list, to be '
+        'switched to, is reachable',
+  ),
   landed(
     world: ActivationWorld.tabsResetContainers,
     doc: "a reset's landing that switches a loaded site to the tab it names "
@@ -767,7 +871,7 @@ enum Witness {
 typedef Slice = ({Set<String> allowed});
 
 /// A mistake an engine once had, planted in a copy of its tables or
-/// definitions (`mutated` in models.dart), and where it is caught: [by]
+/// definitions (`mutated` in mutants.dart), and where it is caught: [by]
 /// is violated in [world], within its [slice] when one is named, and in
 /// each world of [also].
 enum Mutant {
@@ -860,6 +964,22 @@ enum Mutant {
           'a preload loading a Tor site on another exit than a loaded one '
           '(caught)',
     },
+  ),
+  reopenbesidenested(
+    world: ActivationWorld.tabsChildNestedContainers,
+    by: Inv.oneRoute,
+    doc:
+        "a slot a tab's rebind moves to another site under one process-wide "
+        'proxy opening again while its own nested screen is up on another '
+        'route (BUG-037, caught)',
+  ),
+  screenskipsslot(
+    world: ActivationWorld.tabsChildNestedContainers,
+    by: Inv.oneRoute,
+    doc:
+        "a proxy rule that skips the asking site's own slot: a nested screen "
+        'goes up beside its site\'s slot running as another site on another '
+        'route (BUG-037, caught)',
   ),
   nestedonce(
     world: ActivationWorld.nestedContainers,
@@ -965,6 +1085,14 @@ enum Mutant {
         "an owner-run move that moves a loaded site's pointer without "
         'switching its webview leaves it built for another tab (LIR-018, '
         'caught)',
+  ),
+  childinplace(
+    world: ActivationWorld.tabsChildContainers,
+    by: Inv.tabBound,
+    doc:
+        "a child tab opened by moving a loaded site's pointer to it, "
+        'without the switch that rebinds its webview, leaves the webview '
+        'built for another tab (TAB-006, caught)',
   ),
   navtagatreply(
     world: ActivationWorld.tabsResetContainers,

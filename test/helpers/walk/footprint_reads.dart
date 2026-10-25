@@ -20,7 +20,7 @@ Map<ActivationStep, Set<ModelVar>> readsOutside(
 /// fails [expectReadsInFootprints].
 const owedReads = <ActivationStep, Set<ModelVar>>{
   // A tab flow started by hand at its capture (switchActiveTab, after an
-  // Unmodeled write such as homeLanding, ownerRunTab or childTab) has no
+  // Unmodeled write such as ownerRunTab on a site whose tabs are off) has no
   // input whose arm prints what the capture records as it begins, so the
   // read lands on the reply. Lifted when those starts are inputs of
   // TabTable.tabInputs.

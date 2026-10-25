@@ -64,7 +64,7 @@ final class ActivationCalls {
 
   WebViewModel? get shown => _r.sites.shown;
   List<WebViewModel> get models => _r.sites.models;
-  Iterable<WebViewModel> get running => _r.sites.vars.running;
+  Iterable<WebViewModel> get pages => _r.sites.vars.pages;
   Iterable<FlowKind> get kindsInFlight => _r.answers.kindsInFlight();
   bool isEvictable(WebViewModel site) => _r.sites.vars.isEvictable(site);
   WebViewModel? get liveTarget => _r.sites.vars.liveTarget;
@@ -73,14 +73,10 @@ final class ActivationCalls {
       _r.sites.firstToEvict(among);
   List<WebViewModel> conflicts(WebViewModel site) =>
       SiteUnloadEngine.conflictsOf(_r.residency, site: site);
-  List<WebViewModel> proxyContenders(WebViewModel site, {required bool asItself}) =>
-      SiteUnloadEngine.proxyContendersOf(
-        _r.residency,
-        site: site,
-        asItself: asItself,
-      );
-  List<WebViewModel> torDissenters(WebViewModel site) =>
-      SiteUnloadEngine.torDissentersOf(_r.residency, site: site);
+  List<WebViewModel> proxyContenders({required WebViewModel runsAs}) =>
+      SiteUnloadEngine.proxyContendersOf(_r.residency, runsAs: runsAs);
+  List<WebViewModel> torDissenters({required WebViewModel runsAs}) =>
+      SiteUnloadEngine.torDissentersOf(_r.residency, runsAs: runsAs);
   ResidencyPlan residencyPlan(ResidencyEvent event) => _r.answers.residencyPlan(event);
 
   void forgetTabReturns() => _r.host.forgetTabReturns();

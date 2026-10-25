@@ -211,10 +211,11 @@ void main() {
           WebViewModel(initUrl: 'https://example.com/', proxySettings: p),
       ];
       return SiteUnloadEngine.indicesToUnloadForProxyMismatch(
-        targetIndex: 0,
+        runsAs: 0,
         sites: sites,
         models: sites,
         loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
+        pageIndices: const {},
         topology: ProxyTopology.of(
             binding: ProxyBinding.processWide, routerActive: false,
             sharesDefaultSession: (_) => false),

@@ -54,14 +54,10 @@ final class RuntimeVars<S extends Object> {
   /// lifecycle reports it.
   final Shared<bool> fore;
 
-  /// The sites whose traffic runs now: the loaded ones, the one a nested
-  /// screen runs as and the ones a wake checks headless, which the proxy
-  /// rules range over.
-  static Def<Iterable<S>, RuntimeVars<S>> runningSites<S extends Object>() {
-    final loaded = Var<Iterable<S>, RuntimeVars<S>>(
-      ModelVar.loaded,
-      read: (w) => w.loaded.value,
-    );
+  /// The pages whose traffic runs now, each as its own site whatever its
+  /// slot shows: the one a nested screen runs as and the ones a wake checks
+  /// headless.
+  static Def<Iterable<S>, RuntimeVars<S>> pagesOf<S extends Object>() {
     final nested = Var<S?, RuntimeVars<S>>(
       ModelVar.nested,
       read: (w) => w.nested.value,
@@ -71,14 +67,29 @@ final class RuntimeVars<S extends Object> {
       read: (w) => w.headless.value,
     );
     return Def(
-      ModelDef.running,
+      ModelDef.pages,
       params: const [],
-      body: loaded.value.union(nested.value.orNone).union(headless.value),
+      body: nested.value.orNone.union(headless.value),
     );
   }
 
+  /// The sites whose traffic runs now: the loaded ones and the [pages].
+  static Def<Iterable<S>, RuntimeVars<S>> runningSites<S extends Object>() {
+    final loaded = Var<Iterable<S>, RuntimeVars<S>>(
+      ModelVar.loaded,
+      read: (w) => w.loaded.value,
+    );
+    return Def(
+      ModelDef.running,
+      params: const [],
+      body: loaded.value.union(pagesOf<S>().value),
+    );
+  }
+
+  late final _pages = pagesOf<S>();
   late final _running = runningSites<S>();
 
+  Set<S> get pages => _pages.value.run(StepContext(this)).toSet();
   Set<S> get running => _running.value.run(StepContext(this)).toSet();
 
   /// A site an unload may take: not the one on screen, nor the target of

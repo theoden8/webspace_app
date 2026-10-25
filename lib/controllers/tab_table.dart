@@ -27,6 +27,15 @@ abstract final class TabTable {
     of: (w) => TabCalls(w._c),
   );
 
+  /// What a child tab not listed yet follows, read as [_link] reads a
+  /// listed one's (`link`, LIR-034).
+  static final _childLinks = Port<ChildLinks, TabFlow>(
+    'childLinks',
+    reads: {ModelVar.link, ModelVar.host},
+    changes: const {},
+    of: (w) => ChildLinks(w._c),
+  );
+
   /// The tabs' state files, the model's `file` (TAB-003).
   static final _files = Port<WebViewStateStorage, TabFlow>(
     'files',
@@ -50,12 +59,29 @@ abstract final class TabTable {
     read: (w) => w._c._sites.activating,
   );
 
-  /// The flow's site is on screen, or the target of the activation in
-  /// flight: where a slot that runs as another site opens again.
-  static final _reopened = _reopenedAt(_site.value);
-  static Expr<bool, TabFlow> _reopenedAt(Expr<WebViewModel, TabFlow> s) =>
+  static final _nestedVar = Var<WebViewModel?, TabFlow>(
+    ModelVar.nested,
+    read: (w) => w._c._sites.vars.nested.value,
+  );
+  static final _noSite = Expr.constant<WebViewModel?, TabFlow>(null, tla: '0');
+
+  /// The site [s] is on screen, or the target of the activation in flight.
+  static Expr<bool, TabFlow> shownOrTarget(Expr<WebViewModel, TabFlow> s) =>
       _currentVar.value.eq(s) |
       _marker.value.part('t', get: (m) => m?.target).eq(s);
+
+  /// Where a slot that runs as another site opens again: [shownOrTarget].
+  /// Not while a nested screen is up, which runs on its own route and takes
+  /// no plan: its pop opens the site on screen as its activation (BUG-037).
+  static final reopens = () {
+    const s = Bound<WebViewModel, TabFlow>('s');
+    return Def<bool, TabFlow>(
+      ModelDef.reopens,
+      params: const [s],
+      body: shownOrTarget(s.it) & _nestedVar.value.eq(_noSite),
+    );
+  }();
+  static final _reopened = reopens.call([_site.value]);
   static final _loaded = Mutable<Iterable<WebViewModel>, TabFlow>.over(
     ModelVar.loaded,
     of: (w) => w._c._sites.vars.loaded,
@@ -278,17 +304,6 @@ abstract final class TabTable {
   ).value;
   static final _noLink = Expr.constant<WebViewModel?, TabFlow>(null, tla: '0');
 
-  /// The link tabs there are (`Links`, the ones a world starts with): a
-  /// reroute moves only tabs a link opened.
-  static final _links = Constant<List<TabId>, TabFlow>(
-    ModelConst.links,
-    read: (w) => [
-      for (final m in w._c._sites.models)
-        for (final t in m.tabs)
-          if (t.followsOpener) t.id,
-    ],
-  ).value;
-
   /// The listed tabs of [s] a link opened into another site's domain,
   /// which s's switch moves between the two (LIR-034).
   static Expr<List<TabId>, TabFlow> _relinked(Expr<WebViewModel, TabFlow> s) {
@@ -341,6 +356,49 @@ abstract final class TabTable {
     ),
   );
   static final _ownerRunning = _eachOwnerRun.it;
+
+  /// The site with tabs a child tab opens in, while the model's pool has
+  /// a fresh tab id for it.
+  static final _eachChildOwner = Pick<WebViewModel, TabFlow>(
+    Expr.op(
+      HandPaired.childSites,
+      tla: r'{o \in Listed \cap Tabbed : HasFresh(o)}',
+      run: (c) => [_flow.from(c).site],
+      reads: const Reads(base: {BaseOp.listed, BaseOp.hasFresh}),
+      needs: const {(of: ModelConst.tabbed, set: true)},
+    ),
+  );
+  static final _childOwner = _eachChildOwner.it;
+
+  /// The site a child tab runs as: another listed site where containers
+  /// keep their cookies apart (LIR-032), else its own.
+  static final _eachChildHost = Pick<WebViewModel, TabFlow>(
+    Expr.op(
+      HandPaired.childHosts,
+      tla: r'IF Containers THEN Listed ELSE {fl[f].site}',
+      run: (c) => [_page.from(c).childHost(_flow.from(c).fresh!, owner: _site.of(c))],
+      reads: const Reads(base: {BaseOp.listed}),
+    ),
+    name: 'hs',
+  );
+
+  /// What a child tab follows while its opener routes outbound links
+  /// (LIR-034): a listed site, or none (`0`) for one no link opened.
+  static final _eachChildLink = Pick<WebViewModel?, TabFlow>(
+    Expr.op(
+      HandPaired.childLinks,
+      tla: r'{0} \cup Listed',
+      run: (c) => [_childLinks.from(c).of(_flow.from(c).fresh!, owner: _site.of(c))],
+      reads: const Reads(vars: {ModelVar.link, ModelVar.host}, base: {BaseOp.listed}),
+    ),
+    name: 'lk',
+  );
+  static final _withChild = Expr.checked(
+    rule: _tabIds(_site.value).union(_mintSite.asSet),
+    run: (c) => TabLifecycleEngine.insertChild(_site.of(c).tabs, tab: _flow.from(c).fresh!),
+    key: (SiteTab t) => t.id,
+    why: "a child tab joins its site's list",
+  );
 
   /// The tab a landing names: the one the site is on, a parked one, or a
   /// fresh one while the pool has one; the engine decides which.
@@ -555,7 +613,7 @@ abstract final class TabTable {
       // dropped now and one landing then.
       TabPlace.reroute => Step.input(
         ActivationStep.reroute,
-        enabled: _containers & _links.isNotEmpty,
+        enabled: _containers,
         pick: _eachRerouted,
         site: _rerouted,
         branches: [_dropped],
@@ -605,6 +663,40 @@ abstract final class TabTable {
           next: to(TabPlace.oLand),
         ),
       ),
+      // childTab(site): a link or a search opens a child tab of a site
+      // with tabs, inserted at its landing (cLand) and switched to;
+      // dropped while a handler runs.
+      TabPlace.childTab => Step.input(
+        ActivationStep.childTab,
+        pick: _eachChildOwner,
+        site: _childOwner,
+        branches: [_dropped],
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            _kind.becomes(Expr.constant(FlowKind.tab)),
+            _site.becomes(_childOwner),
+          ],
+          next: to(TabPlace.cLand),
+        ),
+      ),
+      // parkChild(site): a long-pressed link or Back opens a parked child,
+      // inserted at its landing (pLand). It lands only on a free gate: the
+      // code waits for one, since the insert may not be lost (TAB-006).
+      TabPlace.parkChild => Step.input(
+        ActivationStep.parkChild,
+        enabled: ~tabBusy.value,
+        pick: _eachChildOwner,
+        site: _childOwner,
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            _kind.becomes(Expr.constant(FlowKind.tab)),
+            _site.becomes(_childOwner),
+          ],
+          next: to(TabPlace.pLand),
+        ),
+      ),
       TabPlace.tCap ||
       TabPlace.tCapSave ||
       TabPlace.tNav ||
@@ -618,6 +710,9 @@ abstract final class TabTable {
       TabPlace.rRemove ||
       TabPlace.hLand ||
       TabPlace.oLand ||
+      TabPlace.cLand ||
+      TabPlace.cOpen ||
+      TabPlace.pLand ||
       TabPlace.done => const Leaves(),
     },
   );
@@ -658,6 +753,8 @@ abstract final class TabTable {
       TabPlace.reroute ||
       TabPlace.homeLanding ||
       TabPlace.ownerRun ||
+      TabPlace.childTab ||
+      TabPlace.parkChild ||
       TabPlace.done => const Leaves(),
       // The outgoing tab's back stack captured under the webview's tab
       // (Capture); a target closed meanwhile ends the switch.
@@ -1027,7 +1124,57 @@ abstract final class TabTable {
       ),
       TabPlace.hLand => _landOn(ActivationStep.homeLand),
       TabPlace.oLand => _landOn(ActivationStep.ownerLand),
+      TabPlace.cLand => _childLand(ActivationStep.childLand, opens: true),
+      // The listed child's switch begins (tCap) in a step of its own, since
+      // the capture reads at its start the hosts the insert wrote.
+      TabPlace.cOpen => Step(
+        ActivationStep.childOpen,
+        holds: null,
+        site: _site.value,
+        otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.tCap)),
+      ),
+      TabPlace.pLand => _childLand(ActivationStep.parkLand, opens: false),
     },
+  );
+
+  /// A child of the flow's site joins its list under its parent, running
+  /// as the site [_eachChildHost] picks and following what [_eachChildLink]
+  /// picks (LIR-032, LIR-034). One the handler [opens] is switched to as a
+  /// new tab is (cOpen, then tCap); a parked one is offered (TAB-006).
+  static Step<TabFlow, TabPlace> _childLand(ActivationStep step, {required bool opens}) => Step(
+    step,
+    holds: null,
+    pick: _eachChildHost,
+    site: _site.value,
+    otherwise: Otherwise(
+      StepOutcome.go,
+      pick: _eachChildLink,
+      then: [
+        _mintedBumpSite,
+        Act.of(
+          [
+            _tabs.except(_site.value, to: _withChild),
+            TabVars.hostFn<TabFlow>().becomes(
+              TabVars.hostFn<TabFlow>().value.exceptAt(
+                _site.value,
+                at: _mintSite,
+                to: _eachChildHost.it,
+              ),
+            ),
+            TabVars.linkFn<TabFlow>().becomes(
+              TabVars.linkFn<TabFlow>().value.exceptAt(
+                _site.value,
+                at: _mintSite,
+                to: _eachChildLink.it,
+              ),
+            ),
+          ],
+          then: opens ? null : (c) => _page.from(c).parked(c),
+        ),
+        if (opens) ...[_tab.becomes(_mintSite), _keep.becomes(_yes)],
+      ],
+      next: to(opens ? TabPlace.cOpen : TabPlace.done),
+    ),
   );
 
   /// The tab a landing or an owner-run move names, decided by the engine:

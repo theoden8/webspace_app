@@ -185,9 +185,9 @@ void f(WebViewModel m) =>
 $_site
 void f(WebViewModel m) {
   WebViewModel.tabsCell.write(
-      at: m, to: m.tabs, commit: const Commit.unmodeled(Unmodeled.childTab));
+      at: m, to: m.tabs, commit: const Commit.unmodeled(Unmodeled.siteSet));
   m.tabBinding.queue(Uint8List(0),
-      tab: m.activeTabId, commit: const Commit.unmodeled(Unmodeled.childTab));
+      tab: m.activeTabId, commit: const Commit.unmodeled(Unmodeled.siteSet));
   m.tabBinding.bind(m.activeTabId,
       commit: const Commit.environment(Environment.frame));
   m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));

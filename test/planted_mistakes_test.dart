@@ -1,6 +1,6 @@
 // Each mistake the model's mutants plant, planted in the code too: the
 // runner takes a mutant's tables and definitions in place of the code's
-// (`planted`, lib/formal_model/models.dart), so the schedules must catch it
+// (`planted`, lib/formal_model/mutants.dart), so the schedules must catch it
 // as TLC does, by the script named here at the bound the schedules run at,
 // on a check the walk states apart from the code it checks. A mutant no
 // script of the walk reaches owes why, and the owed only shrink.
@@ -161,6 +161,30 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Preload(0), Preload(2)],
     breaks: _twoRoutes,
   ),
+  Mutant.reopenbesidenested => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _mismatched,
+      rehosts: true,
+      nestedOpens: true,
+      declared: d,
+    ),
+    setup: const [Tap(0)],
+    script: const [ChildTab(0, host: 2), OpenNested(0)],
+    breaks: _twoRoutes,
+  ),
+  Mutant.screenskipsslot => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _mismatched,
+      rehosts: true,
+      nestedOpens: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), ChildTab(0, host: 2)],
+    script: const [OpenNested(0)],
+    breaks: 'the process-wide proxy moved under webview',
+  ),
   Mutant.nestedonce => _By(
     world: (d) => _nestedWorld(declared: d),
     setup: const [],
@@ -254,6 +278,12 @@ _Catch _catching(Mutant m) => switch (m) {
     ),
     setup: const [Tap(0), OpenTab(0, tab: 1)],
     script: const [OwnerRun(0)],
+    breaks: "'s webview is built for tab",
+  ),
+  Mutant.childinplace => _By(
+    world: (d) => ActivationWorld(_mixedContainers, tabbed: true, declared: d),
+    setup: const [Tap(0)],
+    script: const [ChildTab(0)],
     breaks: "'s webview is built for tab",
   ),
   Mutant.takeany => _By(

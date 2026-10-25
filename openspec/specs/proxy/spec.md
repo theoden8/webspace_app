@@ -356,6 +356,24 @@ override flips
 over the running sites: `activation_nested*.cfg`; `nestedonce` is the open
 that does not ask again once the proxy moved)
 
+#### Scenario: Android — a site's own nested screen beside its moved slot
+
+**Given** Site A, on HTTP proxy P1, is on screen on Android with router mode
+NOT active
+**And** Site A has a nested screen up, which runs as Site A on P1
+**When** Site A's active tab moves to a tab that runs as Site C, on proxy
+P2 (a child tab, LIR-032, or a reroute, LIR-034)
+**Then** Site A's slot leaves the loaded sites in that turn and does not
+open again while the screen is up
+**And** once the screen pops, the slot opens as Site C, whose plan finds
+the screen gone
+**And** a nested open of Site A while its slot runs as Site C unloads that
+slot first: the screen runs as Site A, whatever the slot shows
+**And** `Inv_OneRoute` reads a slot as the site it runs as and a nested
+screen or a wake's check as its own site
+(`activation_tabs_child_nested_containers.cfg`; `reopenbesidenested` and
+`screenskipsslot` are the two halves undone)
+
 #### Scenario: Android — a nested open is an input
 
 **Given** a tap on Site A is in flight

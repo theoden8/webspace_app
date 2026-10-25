@@ -306,6 +306,40 @@ the override under the sites already loaded.
    so a request in flight needs a cancel. *Partial:* see the gaps below:
    the cancel is asynchronous, and Dart has no signal to await for it.
 
+19. **2026-10-24, the child-tab PR.** A slot's reopen ran beside its own
+   nested screen. A world the printer made for the child tab's landing
+   beside the nested open's apply, under one process-wide proxy on two
+   routes, found it: site 1 opens a nested screen, a child tab that runs as
+   site 3 lands and is switched to, the rebind takes the slot out of the
+   loaded sites (attempt 13), and the reopen spawned in that turn (attempt
+   15) committed site 1 as site 3 beside the screen, which runs as site 1.
+   The rules read every running webview through `RunsAs` and skipped the
+   site asked about (`t # s`). A nested screen and a wake's check run as
+   their own site (`NestedOpening`, `headlessCheckConfig`), so the screen
+   of a site whose active tab ran as another site read as that site, and
+   the site's own slot was hidden from its screen's check. Now each rule
+   takes only the site the asking webview runs as (`ProxyContenders(a)`,
+   `TorDissenters(a)`, `RouteFree(a)`), and reads a loaded slot through
+   `RunsAs` and a page (`Pages`: a nested screen, a wake's checks) as
+   itself. A slot's activation asks for `RunsAs(s)`, a nested open and a
+   wake's check for their own site. A plan's rules name loaded sites only
+   (`Ruled`), and the reopen waits while a nested screen is up (`Reopens`),
+   whose pop opens the site on screen as its activation. `Inv_OneRoute`
+   read a wake's check through `RunsAs` as well, and now reads it as its
+   site. The code's `identities(except:)`, which made a nested open read
+   its own slot as itself, is gone. Planted and caught:
+   `reopenbesidenested` (the reopen without the nested screen) and
+   `screenskipsslot` (the rule skipping the asking site's own slot), by
+   `Inv_OneRoute` in `activation_tabs_child_nested_containers.cfg` and by
+   the route asserts under the schedules. *Why:* one set of running sites,
+   each read through its slot's identity, could not hold a site's slot and
+   its screen apart; and the reroute worlds' input bound hid the reopen
+   beside the screen, since a reroute needs four inputs to reach it and a
+   child tab three. *Partial:* a page is read as its own site because the
+   code builds it so; a nested screen opened from a tab that runs as
+   another site still runs as the site whose slot it is, which the spec
+   does not decide.
+
 ## Known open gaps
 
 - `stopLoading` returns once Android has posted the stop; the renderer's
@@ -341,12 +375,16 @@ the override under the sites already loaded.
   that flips the tabs of several owners at once, is written outside a
   step (`Unmodeled.identityChange`); only one owner's own links are a
   step (attempt 16).
-- `Running` reads a nested screen's slot and a wake's headless check
-  through `RunsAs`, though each runs as the site itself: a site whose
-  active tab runs as another identity is read as that identity while its
-  nested screen or check is open.
 - A capture's save whose reply lands after a flip's remove leaves a back
   stack under the identity the tab left, which a flip back would read.
   The model reaches that state and no invariant names it.
 - A reroute that arrives while the tab gate is held waits in the code and
   is not taken by the model (`steps_uncovered.tsv`).
+- A slot that changes the site it runs as under a Tor runtime stays
+  loaded: the rebind leaves the loaded sites only under one process-wide
+  proxy (`TabTable._identityChanges`, attempt 13), and
+  `SlotIdentityChanged` plans only the proxy's contenders. A world of
+  site 1's child tab on another exit beside site 1's nested screen breaks
+  `Inv_OneRoute` (`ChildTab`, `NestedOpen`, the child's rebind), so it is
+  not among the checked worlds; a reroute's flip under Tor is the same
+  case.

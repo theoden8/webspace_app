@@ -342,12 +342,13 @@ Inv_LoadedNotSaved == Idle => \A s \in loaded : tier[s] # "saved"
 Inv_TabShown == \A s \in Tabbed : built[s] # 0 => hist[s] = built[s]
 \* PROXY-008: running webviews in one proxy scope run one route, and running
 \* Tor webviews one exit, so no site's traffic leaves through another's
-\* proxy. Each runs as a site: a loaded slot and a wake's headless check as
-\* the site their slot runs as (LIR-024), a nested screen as its own.
-\* Stated from the constants, not from RouteFree or ProxyContenders, which
-\* the guards and plans read: a mistake in either is one this catches.
+\* proxy. Each runs as a site: a loaded slot as the site its slot runs as
+\* (LIR-024), a nested screen and a wake's headless check as their own
+\* (`NestedOpening`, `headlessCheckConfig`). Stated from the constants, not
+\* from RouteFree or ProxyContenders, which the guards and plans read: a
+\* mistake in either is one this catches.
 RunningAs ==
-    {RunsAs(s) : s \in loaded \cup headless} \cup (IF nested = 0 THEN {} ELSE {nested})
+    {RunsAs(s) : s \in loaded} \cup (IF nested = 0 THEN {} ELSE {nested}) \cup headless
 Inv_OneRoute ==
     \A a, b \in RunningAs :
         /\ a \in Contending /\ b \in Contending => Route[a] = Route[b]
@@ -495,12 +496,17 @@ Reach_Landed == ~(last.a = "HomeLand" /\ last.o = "rebind")
 Reach_OwnerRan ==
     ~(/\ last.a = "OwnerLand" /\ last.o = "rebind"
       /\ RunsAs(fl[last.f].site) # fl[last.f].site)
+\* A child tab that runs as another site joins its site's list, and the
+\* switch to it begins (TAB-006, LIR-032): the child world is not vacuous.
+Reach_ChildHosted ==
+    ~(/\ last.a = "ChildLand"
+      /\ host[fl[last.f].site][fl[last.f].tab] # fl[last.f].site)
 Reach_RouteSwitch ==
     ~\E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc = "next"
-                       /\ ProxyContenders(fl[f].site, RunsAs(fl[f].site)) # {}
+                       /\ ProxyContenders(RunsAs(fl[f].site)) # {}
 \* A tap whose plan names a Tor site on another exit reaches its unloads:
 \* the Tor config is not vacuous.
 Reach_ExitSwitch ==
     ~\E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc = "next"
-                       /\ TorDissenters(fl[f].site, RunsAs(fl[f].site)) # {}
+                       /\ TorDissenters(RunsAs(fl[f].site)) # {}
 =============================================================================

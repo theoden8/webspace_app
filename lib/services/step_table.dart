@@ -717,7 +717,7 @@ typedef UnmodeledMeet = ({
 /// A planted mistake run as code: the tables and definitions the runner
 /// takes in place of the code's own while [run]'s body runs, so a test
 /// holds the code to a mistake the model's mutants plant (`mutated`,
-/// `formal_model/models.dart`). Nothing outside a test plants one.
+/// `formal_model/mutants.dart`). Nothing outside a test plants one.
 final class Planted {
   Planted({
     required Iterable<(StepTable<Object?, Enum>, StepTable<Object?, Enum>)>
@@ -765,10 +765,6 @@ enum Unmodeled {
   /// (LIR-018), for a site whose tabs are off, which the model does not
   /// follow; a site with tabs takes the tab input `OwnerRun`.
   ownerRunTab,
-
-  /// A link opened as a child tab of its site, shown or behind the one on
-  /// screen.
-  childTab,
 
   /// Link tabs that run as another site, and the slots that let go of
   /// their webview for it, where the flips are not one site's own link

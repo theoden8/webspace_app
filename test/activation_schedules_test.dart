@@ -545,6 +545,27 @@ const _rerouteAlphabet = <SiteAction>[
 
 const _rerouteLength = 2;
 
+/// Site 1 with its link tab, on screen or loaded behind, under one
+/// process-wide proxy, where a child tab joins its tree (TAB-006): one
+/// running as site 2, or a link tab into site 3's domain, switched to or
+/// parked (LIR-032, LIR-034).
+const _childSetups = <String, List<SiteAction>>{
+  'site 1 on screen': [Tap(0)],
+  'site 1 behind': [Tap(0), Tap(1)],
+};
+
+const _childAlphabet = <SiteAction>[
+  ChildTab(0, host: 1),
+  ChildTab(0, host: 2, follows: true),
+  ParkChild(0, host: 2, follows: true),
+  Reroute(),
+  OpenTab(0, tab: 1),
+  Tap(0),
+  Tap(1),
+];
+
+const _childLength = 2;
+
 /// A tab race the code once lost, at two preemptions.
 const _tabRegressions =
     <String, ({List<SiteAction> setup, List<SiteAction> script})>{
@@ -1041,6 +1062,29 @@ void main() {
         body: () async {
       for (var length = 1; length <= _rerouteLength; length++) {
         for (final script in _scripts(length, alphabet: _rerouteAlphabet)) {
+          await _expectEvery(
+            world: () => ActivationWorld(
+              _mixedContainers,
+              proxies: _proxied['mismatched proxies'],
+              rehosts: true,
+            ),
+            setup: setup,
+            script: script,
+            preemptions: _preemptions,
+          );
+        }
+      }
+    });
+  }
+
+  for (final MapEntry(key: setupName, value: setup)
+      in _childSetups.entries) {
+    _scheduleTest(
+        'child tabs (TAB-006, LIR-032, LIR-034), containers, $setupName: '
+        'every schedule holds',
+        body: () async {
+      for (var length = 1; length <= _childLength; length++) {
+        for (final script in _scripts(length, alphabet: _childAlphabet)) {
           await _expectEvery(
             world: () => ActivationWorld(
               _mixedContainers,

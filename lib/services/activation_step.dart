@@ -472,6 +472,25 @@ enum ActivationStep {
   /// The tab an owner-run move names, taken as a landing's is.
   ownerLand(outcomes: {StepOutcome.stay, StepOutcome.rebind, StepOutcome.go}),
 
+  /// A link or a search opens a child tab of a site with tabs and switches
+  /// to it (LIR-030, LIR-032); dropped while a tab handler runs.
+  childTab(outcomes: {StepOutcome.go, StepOutcome.busy}),
+
+  /// A long-pressed link or Back opens a parked child tab (TAB-006,
+  /// TAB-020); it waits for a free gate, so it is never dropped.
+  parkChild(outcomes: {StepOutcome.go}),
+
+  /// The child joins its site's list, running as the site it was opened
+  /// for, and the switch to it begins.
+  childLand(outcomes: {StepOutcome.go}),
+
+  /// The listed child's switch begins, from a step of its own: the
+  /// capture reads at its start what the child's insert wrote.
+  childOpen(outcomes: {StepOutcome.none}),
+
+  /// The parked child joins its site's list, and the page offers it.
+  parkLand(outcomes: {StepOutcome.go}),
+
   /// The reroute's flips, in its input's turn. The tab on screen moves its
   /// slot to the other site at once: under one process-wide proxy the slot
   /// leaves the loaded sites and opens again (LIR-024), else its webview is

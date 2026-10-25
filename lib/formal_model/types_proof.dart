@@ -871,6 +871,8 @@ String _typeStep(ModelVar v) => 't${v.name}';
 /// other flow being there ([_alone]).
 const _supports = <String, String>{
   'tRemove': r'r.rest = {} => HasFresh(r.site)',
+  'cLand': r'HasFresh(r.site)',
+  'pLand': r'HasFresh(r.site)',
 };
 
 /// The kinds of flow of which at most one is in flight, each with the
@@ -897,7 +899,7 @@ const _heldFields = [FlowField.site, FlowField.tab, FlowField.kind];
 List<_Held> _heldOf(Iterable<FlStep> steps, {required Map<String, String> definitions}) => [
   for (final field in _heldFields)
     switch (field) {
-      FlowField.site => (field: field, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip', 'hLand', 'oLand'}),
+      FlowField.site => (field: field, set: 'Sites', at: {'rLoad', 'tNav', 'tRebind', 'tDupRead', 'tRemove', 'rFlip', 'hLand', 'oLand', 'cLand', 'cOpen', 'pLand'}),
       FlowField.tab => (field: field, set: 'TabIds', at: {'tNav', 'tRebind', 'tDupRead'}),
       FlowField.kind => (
         field: field,

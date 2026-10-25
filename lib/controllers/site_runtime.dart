@@ -323,10 +323,8 @@ class SiteRuntime {
   }
 
   /// What each slot runs as, index-aligned with [models] (LIR-024): the host
-  /// of its active tab, or the site itself. [except] keeps one slot as the
-  /// site, for a nested screen that runs as that site.
-  List<WebViewModel> slotIdentities({int? except}) => [
-    for (var i = 0; i < models.length; i++)
-      i == except ? models[i] : models[i].runningIdentity,
+  /// of its active tab, or the site itself.
+  List<WebViewModel> slotIdentities() => [
+    for (final m in models) m.runningIdentity,
   ];
 }

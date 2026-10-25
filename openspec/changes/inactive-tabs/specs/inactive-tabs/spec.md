@@ -213,6 +213,13 @@ a tab is created from the tab list's "New tab" instead; this is a platform
 reach gap, not a behaviour difference in the model. The nested screen passes no
 handler: it has no tab list of its own to add to.
 
+A parked child SHALL NOT be lost to a tab handler in flight: it waits until no
+tab handler runs and joins the tree in the turn it finds none. Gate: the
+child's insert, with the site it runs as and the link it follows (LIR-034), is
+a step of `TabTable.tabFlow` printed into `formal/activation.tla`, held on
+`activation_tabs_child_containers.cfg` and replayed from the child-tab
+schedules in `test/activation_schedules_test.dart`.
+
 #### Scenario: Open in new tab
 
 - **GIVEN** the user is on GitHub's pull request list
@@ -220,6 +227,13 @@ handler: it has no tab list of its own to add to.
 - **THEN** a parked child tab for #601 appears under the pull request list
 - **AND** the pull request list stays on screen
 - **AND** no capture, dispose or rebuild runs
+
+#### Scenario: Open in new tab while a tab closes
+
+- **GIVEN** GitHub is closing a tab whose saved state is still being removed
+- **WHEN** the user long-presses "#601" and chooses "Open in new tab"
+- **THEN** the parked child for #601 appears once the close has finished
+- **AND** the closed tab stays closed
 
 #### Scenario: Cross-domain link is not a tab
 
