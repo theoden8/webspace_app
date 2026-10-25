@@ -144,11 +144,15 @@ class StartupController implements DeferredStartupHost {
       final suggested = _loadSuggestedSites(after: await prefs);
       final routes = _host.activateRouter();
       await _shortcuts.pruneAgainst(_sites.siteIds, after: onPage);
+      LaunchTimeline.reached(LaunchMark.shortcutsPruned);
       final target = await _launchTarget(after: onPage);
       if (target == null) return;
+      LaunchTimeline.reached(LaunchMark.launchTarget);
       final pins = _shortcuts.refreshPinned(after: onPage);
       final themed = await _themeLaunch(target, prefs: await prefs);
+      LaunchTimeline.reached(LaunchMark.themed);
       await routes;
+      LaunchTimeline.reached(LaunchMark.routes);
       final launched = await _activate(
         target,
         themed: themed,
@@ -178,6 +182,7 @@ class StartupController implements DeferredStartupHost {
     _shortcuts.load(prefs);
     _host.themeChanged();
     _host.rebuild();
+    LaunchTimeline.reached(LaunchMark.prefsLoaded);
     return const Reached._();
   }
 
@@ -185,6 +190,7 @@ class StartupController implements DeferredStartupHost {
     await _shell.loadWebspaces();
     _host.rebuild();
     await _shell.loadGlobalUserScripts();
+    LaunchTimeline.reached(LaunchMark.shellLoaded);
     return const Reached._();
   }
 
@@ -216,11 +222,15 @@ class StartupController implements DeferredStartupHost {
       SharedJar() =>
         'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
     });
+    LaunchTimeline.reached(LaunchMark.isolationProbed);
     return isolation;
   }
 
-  Future<_Loaded> _loadSites() =>
-      _siteStore.load(onChange: _host.rebuild);
+  Future<_Loaded> _loadSites() async {
+    final loaded = await _siteStore.load(onChange: _host.rebuild);
+    LaunchTimeline.reached(LaunchMark.sitesLoaded);
+    return loaded;
+  }
 
   /// The sweep of containers no site will bind, started before the sites are
   /// committed so it is under way before the grid can make one: a container

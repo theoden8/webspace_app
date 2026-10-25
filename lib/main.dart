@@ -21,6 +21,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
@@ -45,6 +46,8 @@ import 'package:webspace/settings/app_locale.dart';
 void main([List<String> args = const []]) async {
   final launch = ProcessLaunch.fromArgs(args);
   LaunchTimeline.start();
+  ActivationSteps.sink = (step, {required outcome, required site, required tab}) =>
+      LaunchTimeline.stepReached(step);
   WidgetsFlutterBinding.ensureInitialized();
 
   // Imported HTML files are the only copy of user-supplied content, so they
@@ -118,8 +121,14 @@ void main([List<String> args = const []]) async {
     ClearUrlService.instance.initialize(),
     FirefoxUserAgentService.instance.initialize(),
     HostBrowser.initialize(),
-    dns.then((loaded) => loaded.mirrorInto(native)),
-    blocker.then((loaded) async => loaded.seedHostsInto(await dns)),
+    dns.then((loaded) {
+      LaunchTimeline.reached(LaunchMark.dnsLoaded);
+      return loaded.mirrorInto(native);
+    }),
+    blocker.then((loaded) async {
+      LaunchTimeline.reached(LaunchMark.blockerLoaded);
+      return loaded.seedHostsInto(await dns);
+    }),
     LocalCdnService.instance.initialize().then((cdn) => cdn.mirrorInto(native)),
     SiteSearchListService.instance.initialize(),
     BlockStatsService.instance.initialize(),
