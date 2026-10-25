@@ -302,12 +302,6 @@ class Archive {
     handle._zeroizeAndMarkClosed();
   }
 
-  Future<void> closeAll() async {
-    while (_openHandles.isNotEmpty) {
-      await close(_openHandles.first);
-    }
-  }
-
   /// Restores self-contained sections produced by [exportSection] into
   /// the slot pool. Tries [passphrase] against each base64 blob; a blob
   /// that decrypts is written to its archive's slot (existing slot for

@@ -209,10 +209,12 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
 
-    // Teardown: `_updateBackgroundAudioSession` calls stopAll when no
-    // background-audio site is loaded. Drive the same public entry point and
-    // assert the OS notification is really gone, not just the Dart flag.
-    await tester.runAsync(() => MediaSessionService.instance.stopAll());
+    // Teardown: `BackgroundSitesController.updateAudioSession` calls
+    // clearOsMediaSurface when no background-audio site is loaded. Drive the
+    // same public entry point and assert the OS notification is really gone,
+    // not just the Dart flag.
+    await tester.runAsync(
+        () => MediaSessionService.instance.clearOsMediaSurface());
     await pumpUntil(
       () => true,
       timeout: const Duration(seconds: 2),
@@ -220,8 +222,8 @@ void main() {
     );
     expect(MediaSessionService.instance.isActive, isFalse);
     expect(await posted(), isFalse,
-        reason: 'stopAll must remove the notification, not just stop the '
-            'foreground state');
+        reason: 'clearOsMediaSurface must remove the notification, not just '
+            'stop the foreground state');
     log('teardown verified');
   });
 }

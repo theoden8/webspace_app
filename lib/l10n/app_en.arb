@@ -2463,10 +2463,6 @@
   "@siteSettingsBackgroundAudio": {
     "description": "Switch label and hint title for keeping a site's audio playing when the site is not visible or the app is in the background."
   },
-  "siteSettingsBackgroundAudioHint": "Keep this site's audio playing when you switch to another site or leave the app. The page is never paused in the background. Intended for music, radio and podcast sites.",
-  "@siteSettingsBackgroundAudioHint": {
-    "description": "Hint body describing the per-site background audio switch."
-  },
   "siteSettingsNotificationsBlockedByProxy": "Cannot enable: \"{site}\" is already polling in background with a different proxy. Android allows only one proxy at a time.",
   "@siteSettingsNotificationsBlockedByProxy": {
     "description": "Subtitle shown when notifications cannot be enabled due to a conflicting proxy on another site.",
@@ -2593,14 +2589,6 @@
   "@siteSettingsLocationLive": {
     "description": "Geolocation mode segment: live device GPS."
   },
-  "siteSettingsLocationOffDetail": "This site is refused access to your location.",
-  "@siteSettingsLocationOffDetail": {
-    "description": "Detail text shown when the site is refused geolocation entirely."
-  },
-  "siteSettingsLocationLiveDetail": "Forwarding live device location to pages.",
-  "@siteSettingsLocationLiveDetail": {
-    "description": "Detail text shown when live geolocation is active."
-  },
   "siteSettingsLocationProviderGps": "GPS",
   "@siteSettingsLocationProviderGps": {
     "description": "Live location provider segment: GPS."
@@ -2613,10 +2601,6 @@
   "@siteSettingsLocationApproximate": {
     "description": "Switch label to coarsen the live GPS fix."
   },
-  "siteSettingsLocationApproximateSubtitle": "Snap to a coarser grid before sharing with pages",
-  "@siteSettingsLocationApproximateSubtitle": {
-    "description": "Subtitle for the Approximate live-location switch."
-  },
   "siteSettingsLocationGranularityGps": "Precise GPS coordinates shared with pages.",
   "@siteSettingsLocationGranularityGps": {
     "description": "Detail line shown when live granularity is precise GPS."
@@ -2628,14 +2612,6 @@
   "siteSettingsLocationGranularityGsm": "Network-level (GSM) location shared with pages.",
   "@siteSettingsLocationGranularityGsm": {
     "description": "Detail line shown when live granularity is GSM/network."
-  },
-  "siteSettingsLocationEditTooltip": "Edit location",
-  "@siteSettingsLocationEditTooltip": {
-    "description": "Tooltip for editing the static custom location."
-  },
-  "siteSettingsLocationClearTooltip": "Clear custom location",
-  "@siteSettingsLocationClearTooltip": {
-    "description": "Tooltip for clearing the static custom location."
   },
   "siteSettingsLocationNoneSet": "No custom location set",
   "@siteSettingsLocationNoneSet": {
@@ -4056,33 +4032,13 @@
   "@homeShortcutsDisableBody": {
     "description": "Body of the confirmation before disabling a home screen shortcut. Android doesn't let the app remove the shortcut; disabling greys it out for good."
   },
-  "siteSettingsWindowWidth": "Box width",
-  "@siteSettingsWindowWidth": {
-    "description": "Label for the per-site letterbox content-box width input."
-  },
-  "siteSettingsWindowHeight": "Box height",
-  "@siteSettingsWindowHeight": {
-    "description": "Label for the per-site letterbox content-box height input."
-  },
   "siteSettingsWindowSizeHelper": "Renders the page in a centered box, snapping the screen size down to a fixed grid (like Tor Browser) so many devices report the same size, which lowers screen-size fingerprinting.",
   "@siteSettingsWindowSizeHelper": {
     "description": "Info-button (i) text for the Letterbox window setting, explaining the box mechanism."
   },
-  "siteSettingsWindowSizeRequiresProtection": "Turn on Letterbox window to set a custom box size.",
-  "@siteSettingsWindowSizeRequiresProtection": {
-    "description": "Helper text shown when letterboxing is off; the box-size fields are inactive."
-  },
   "siteSettingsLetterboxTitle": "Letterbox window",
   "@siteSettingsLetterboxTitle": {
     "description": "Title of the per-site Letterbox window switch under Tracking Protection."
-  },
-  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
-  "@siteSettingsLetterboxSubtitle": {
-    "description": "Subtitle explaining the Letterbox window switch."
-  },
-  "siteSettingsLetterboxAutoHint": "auto",
-  "@siteSettingsLetterboxAutoHint": {
-    "description": "Placeholder shown in the empty letterbox box width/height fields, meaning the box auto-fits the screen."
   },
   "appSettingsOutboundProxyHint": "Proxy applied to every Dart-side network call the app makes — DNS blocklist downloads, ClearURLs rules, content blocker rules, LocalCDN catalog, favicon lookups (site parsing) and OSM map tiles in the location picker.\n\nPer-site proxy precedence: a site whose Proxy Type is DEFAULT inherits this proxy; explicit per-site HTTP/HTTPS/SOCKS5 overrides win.\n\nSOCKS5 cannot be tunneled through Dart-side HTTP. When SOCKS5 is selected, app-level fetches fail-closed instead of leaking the device IP via a direct fallback. Webview navigation still uses SOCKS5 normally on Android/iOS.",
   "@appSettingsOutboundProxyHint": {

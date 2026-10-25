@@ -9,8 +9,8 @@
 ///
 /// Pure: no Flutter, no platform channel, no network. The engine decides; the
 /// call site cancels the navigation and loads what it returns, and reports a
-/// load failure back through [recordUpgradeFailure] so the next attempt on that
-/// host does not pay the same timeout.
+/// load failure back through [fallbackFor] so the next attempt on that host
+/// does not pay the same timeout.
 library;
 
 import 'package:webspace/services/url_host.dart';
@@ -169,13 +169,6 @@ class HttpsUpgradeEngine {
   void recordUpgradeSuccess(String upgradedUrl) {
     _inFlight.remove(upgradedUrl);
     _responded.remove(upgradedUrl);
-  }
-
-  /// Mark [host] http-only without having an in-flight upgrade to reverse.
-  /// For a call site that learns the host has no TLS by another route.
-  void recordUpgradeFailure(String host) {
-    final h = Host(host);
-    if (h.isNotEmpty) _httpOnlyHosts.add(h);
   }
 
   /// Whether [host] has been recorded http-only this process.

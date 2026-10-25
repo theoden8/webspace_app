@@ -59,13 +59,9 @@ class HtmlImportStorage {
     await _store!.ensure();
   }
 
-  /// Decrypt every file on disk into [_memoryStore], so `getHtmlSync(siteId)`
-  /// is answerable synchronously during `WebSpacePage.build`.
-  Future<void> preloadAll() => _preloadAll();
-
   /// Decrypt a single import into the in-memory store so a subsequent
-  /// [getHtmlSync] hits without the bulk [preloadAll] pass. Idempotent; a
-  /// no-op when the site has no import on disk. Lets the cold-start path load
+  /// [getHtmlSync] hits. Idempotent; a no-op when the site has no import on
+  /// disk. Lets the cold-start path load
   /// only the imports for sites that actually build, instead of every import.
   Future<void> preloadOne(SiteId siteId) async {
     if (_memoryStore.containsKey(siteId)) return;
@@ -101,63 +97,6 @@ class HtmlImportStorage {
     } on IOException catch (e) {
       LogTag.htmlImport.warning(
           'Could not re-encrypt import for $siteId: $e', sensitive: true);
-    }
-  }
-
-  Future<void> _preloadAll() async {
-    final store = _store;
-    if (store == null) return;
-
-    try {
-      final files = await store.list();
-      var skipped = 0;
-      for (final name in files) {
-        if (name.endsWith('.enc')) {
-          try {
-            final encrypted = await store.readText(name);
-            final decrypted = encrypted == null ? null : await _decrypt(encrypted);
-            if (decrypted != null) {
-              final newlineIndex = decrypted.plaintext.indexOf('\n');
-              if (newlineIndex != -1) {
-                // A name no site can hold is no site's import.
-                final siteId = SiteId.parse(name.replaceAll('.enc', ''));
-                final html = decrypted.plaintext.substring(newlineIndex + 1);
-                if (siteId != null) {
-                  _memoryStore[siteId] = html;
-                  if (decrypted.legacy) {
-                    await _upgradeBlob(siteId, plaintext: decrypted.plaintext);
-                  }
-                }
-              } else {
-                // Imports are the only copy of user-supplied data — never
-                // delete on parse failure. The fallback page renders if the
-                // bytes can't be loaded, but the file stays on disk in case
-                // the AES key is recoverable (e.g. flutter_secure_storage
-                // returns the original key on a later launch after a
-                // transient Android Keystore read failure).
-                LogTag.htmlImport.warning(
-                    'Skipping invalid import file (kept on disk): $name',
-                    sensitive: true);
-                skipped++;
-              }
-            } else {
-              LogTag.htmlImport.warning(
-                  'Skipping undecryptable import file (kept on disk): $name',
-                  sensitive: true);
-              skipped++;
-            }
-          } on IOException catch (e) {
-            LogTag.htmlImport.warning(
-                'Skipping unreadable import file (kept on disk): $name ($e)',
-                sensitive: true);
-            skipped++;
-          }
-        }
-      }
-      LogTag.htmlImport.debug(
-          'Pre-loaded ${_memoryStore.length} imported pages (skipped $skipped unreadable file(s))');
-    } on IOException catch (e) {
-      LogTag.htmlImport.error('Error pre-loading imports: $e');
     }
   }
 
@@ -232,13 +171,6 @@ class HtmlImportStorage {
     final store = _store;
     if (store == null) return false;
     return store.exists(_importFileName(siteId));
-  }
-
-  Future<void> deleteImport(SiteId siteId) async {
-    final store = _store;
-    if (store == null) return;
-    await store.delete(_importFileName(siteId));
-    _memoryStore.remove(siteId);
   }
 
   Future<void> removeOrphanedImports(Set<SiteId> activeSiteIds) async {

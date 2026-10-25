@@ -70,14 +70,6 @@ class DnsLevelSets {
   /// push, the on-disk file).
   Map<int, Set<String>> get groups => _groups;
 
-  /// Domains named by [level]'s own list.
-  Iterable<String> domainsAtLevel(int level) {
-    final bit = dnsLevelBit(level);
-    return _groups.entries
-        .where((e) => e.key & bit != 0)
-        .expand((e) => e.value);
-  }
-
   /// Which levels name [host] or a parent domain of it, as a mask. 0 when no
   /// downloaded list does.
   ///

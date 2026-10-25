@@ -70,11 +70,6 @@ class SettingsBackup {
           showStatsBanner: showStatsBanner,
         );
 
-  /// Convenience accessors for commonly-used registry keys.
-  bool get showUrlBar => globalPrefs['showUrlBar'] as bool? ?? false;
-  bool get showTabStrip => globalPrefs['showTabStrip'] as bool? ?? false;
-  bool get showStatsBanner => globalPrefs['showStatsBanner'] as bool? ?? true;
-
   Map<String, dynamic> toJson() => {
         'version': version,
         'sites': sites,

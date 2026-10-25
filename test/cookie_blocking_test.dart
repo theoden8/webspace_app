@@ -17,7 +17,7 @@ void main() {
     test('serialization round-trip', () {
       const rule = BlockedCookie(name: 'session', domain: '.example.com');
       final json = rule.toJson();
-      final restored = BlockedCookie.fromJson(json);
+      final restored = BlockedCookie.tryFromJson(json)!;
 
       expect(restored.name, equals('session'));
       expect(restored.domain, equals('.example.com'));

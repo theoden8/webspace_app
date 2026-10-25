@@ -43,9 +43,7 @@ abstract class WebViewStateStorage {
   /// belonging to sites and tabs closed in a previous session.
   Future<int> removeOrphans(Set<String> activeKeys);
 
-  /// Returns the set of state keys currently holding state. Used by the
-  /// counters in [SiteLifecyclePromotionEngine.tierCounts] and by
-  /// debug surfaces.
+  /// Returns the set of state keys currently holding state.
   Future<Set<String>> siteIds();
 }
 

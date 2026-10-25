@@ -179,14 +179,6 @@ class CookieSecureStorage {
         sensitive: true);
   }
 
-  /// Clears all stored cookies from both secure storage and fallback.
-  Future<void> clearCookies() async {
-    if (isDemoMode) return;
-    await _secure.delete();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_sharedPrefsCookiesKey);
-  }
-
   Future<Map<String, List<Cookie>>> _loadNonSecureCookiesOnly() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_sharedPrefsCookiesKey);

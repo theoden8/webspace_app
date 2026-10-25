@@ -134,7 +134,7 @@ void main() {
       expect(backup.sites, hasLength(1));
       expect(backup.webspaces, hasLength(1));
       expect(backup.themeMode, equals(1));
-      expect(backup.showUrlBar, equals(false));
+      expect(backup.globalPrefs['showUrlBar'], equals(false));
       expect(backup.selectedWebspaceId, equals('__all_webspace__'));
       expect(backup.currentIndex, isNull);
     });
@@ -149,7 +149,6 @@ void main() {
 
       expect(backup.version, equals(1)); // Default
       expect(backup.themeMode, equals(0)); // Default
-      expect(backup.showUrlBar, equals(false)); // Default
       expect(backup.selectedWebspaceId, isNull);
       expect(backup.currentIndex, isNull);
     });
@@ -178,7 +177,7 @@ void main() {
       expect(restored.sites.length, equals(original.sites.length));
       expect(restored.webspaces.length, equals(original.webspaces.length));
       expect(restored.themeMode, equals(original.themeMode));
-      expect(restored.showUrlBar, equals(original.showUrlBar));
+      expect(restored.globalPrefs, equals(original.globalPrefs));
       expect(restored.selectedWebspaceId, equals(original.selectedWebspaceId));
       expect(restored.currentIndex, equals(original.currentIndex));
     });
@@ -208,7 +207,7 @@ void main() {
       expect(backup.sites, hasLength(2));
       expect(backup.webspaces, hasLength(1)); // "All" excluded
       expect(backup.themeMode, equals(1));
-      expect(backup.showUrlBar, equals(true));
+      expect(backup.globalPrefs['showUrlBar'], equals(true));
       expect(backup.selectedWebspaceId, equals('work'));
       expect(backup.currentIndex, equals(0));
     });
@@ -549,7 +548,7 @@ void main() {
 
       // Verify settings
       expect(importedBackup.themeMode, equals(2));
-      expect(importedBackup.showUrlBar, equals(true));
+      expect(importedBackup.globalPrefs['showUrlBar'], equals(true));
       expect(importedBackup.selectedWebspaceId, equals('work'));
       expect(importedBackup.currentIndex, equals(0));
     });
@@ -582,7 +581,7 @@ void main() {
       expect(restored2[1].initUrl, equals('https://second.com'));
       expect(restoredWs2, hasLength(2)); // All + New
       expect(imported2.themeMode, equals(1));
-      expect(imported2.showUrlBar, equals(true));
+      expect(imported2.globalPrefs['showUrlBar'], equals(true));
     });
 
     test('proxy passwords never appear in exports (PWD-005)', () {
@@ -884,9 +883,6 @@ void main() {
       expect(backup.globalPrefs['showUrlBar'], equals(true));
       expect(backup.globalPrefs['showTabStrip'], equals(true));
       expect(backup.globalPrefs['showStatsBanner'], equals(false));
-      expect(backup.showUrlBar, equals(true));
-      expect(backup.showTabStrip, equals(true));
-      expect(backup.showStatsBanner, equals(false));
     });
   });
 

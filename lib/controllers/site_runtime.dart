@@ -149,8 +149,6 @@ class SiteRuntime {
     return null;
   }
 
-  bool isLoaded(WebViewModel model) => _loaded.contains(model);
-
   Set<SiteId> get siteIds => {for (final m in models) m.siteId};
 
   /// The sites whose stored state outlives the session: an incognito site's

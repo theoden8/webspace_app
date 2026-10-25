@@ -32,7 +32,6 @@ const IDENTICAL_EVERYWHERE_ALLOWLIST = new Set([
   'untrustedCertSha256', // SHA-256
   'linkHandlingHostnameHint', // example.com (example host)
   'linkHandlingTestUrlHint', // https://example.org/foo (example URL)
-  'siteSettingsLetterboxAutoHint', // "auto" (universal token)
   'appSettingsFirefoxVersionCurrent', // "Firefox {version}" (brand + number)
   'torStatusTitle', // Tor (project name; written "Tor" in Tor's own locales)
 ]);

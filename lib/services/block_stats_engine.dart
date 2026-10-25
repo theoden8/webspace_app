@@ -76,8 +76,6 @@ class BlockStatsEngine {
   /// back to [markCleanAt] once that payload is on disk.
   int get revision => _revision;
 
-  void markClean() => _dirty = false;
-
   /// Clear the dirty flag only if nothing has been recorded since [revision]
   /// was read. A write that lands after a concurrent [record] must not mark
   /// those newer counts persisted, or they are dropped on the next kill.

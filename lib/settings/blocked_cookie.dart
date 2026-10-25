@@ -17,9 +17,6 @@ class BlockedCookie {
 
   Map<String, dynamic> toJson() => {'name': name, 'domain': domain};
 
-  factory BlockedCookie.fromJson(Map<String, dynamic> json) =>
-      BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
-
   /// Null unless name and domain are both strings.
   static BlockedCookie? tryFromJson(Map<String, dynamic> json) =>
       switch ((json['name'], json['domain'])) {

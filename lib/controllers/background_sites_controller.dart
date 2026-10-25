@@ -21,7 +21,6 @@ import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/refresh_schedule_engine.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_unload_engine.dart';
-import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/wake_baseline_store.dart';
 import 'package:webspace/services/webview.dart';
@@ -73,10 +72,6 @@ class BackgroundSitesController {
   /// The wake's side of the app: its checks, the route they run on, and
   /// the app's lifecycle as the wake's table hears it (NOTIF-016).
   late final _WakeHost _wakeHost = _WakeHost(_sites, host: _host);
-
-  /// The wake's table, printed into the model.
-  StepTable<WakeFlow<WebViewModel>, WakePlace> get wakeTable =>
-      _wakeEngine.table;
 
   /// What the background log reports instead of names: sites with
   /// notifications on, how many of them are loaded, and how many have a live

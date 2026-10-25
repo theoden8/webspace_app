@@ -39,7 +39,7 @@ const calls = (src, method) =>
 // possible cover is a regex like the ones this file used to carry.
 const PRIMITIVES = [
   'upgradeFor', 'fallbackFor', 'fallbackForHost', 'fallbackForTimeout',
-  'recordUpgradeSuccess', 'recordUpgradeFailure', 'noteUpgradeResponded',
+  'recordUpgradeSuccess', 'noteUpgradeResponded',
 ];
 
 test('the call site forwards events and never decides (HTTPS-008)', () => {

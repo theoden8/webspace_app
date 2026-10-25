@@ -61,7 +61,7 @@ void main() {
           'Restoring cookies for siteId: $siteId', sensitive: true);
 
       // Normal logs are also fine — they should NOT carry siteId/URLs.
-      LogTag.app.debug('Application started');
+      LogTag.startup.debug('Application started');
     });
 
     // Site identifier must never appear in adb logcat / iOS console
@@ -111,7 +111,7 @@ void main() {
       LogTag.webView.debug('siteId=$id', sensitive: true);
     }
     // One normal log to confirm export() still works.
-    LogTag.app.debug('started');
+    LogTag.startup.debug('started');
 
     final exported = LogService.instance.export();
     expect(exported, contains('started'));

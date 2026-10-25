@@ -330,8 +330,9 @@ Inv_LeftHidden ==
     \A f \in Flows :
         (fl[f].kind = "space" /\ fl[f].v = version) => current \notin fl[f].away
 
-\* pickPromotionTarget never picks a loaded site at "saved", so one left
-\* there is out of memory pressure's reach.
+\* The pressure plan picks only from PressureResident and PressureCleared,
+\* never a loaded site at "saved", so one left there is out of memory
+\* pressure's reach.
 Inv_LoadedNotSaved == Idle => \A s \in loaded : tier[s] # "saved"
 
 \* TAB-003: a site's webview shows the history of the tab it was built for

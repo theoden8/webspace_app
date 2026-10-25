@@ -227,10 +227,6 @@ class DnsBlockService {
   /// Levels whose list has been fetched, so a site may run at them.
   Set<int> get downloadedLevels => _levelSets.levels;
 
-  /// Domains [level]'s own list names.
-  Iterable<String> domainsAtLevel(int level) =>
-      _levelSets.domainsAtLevel(level);
-
   /// The disjoint groups, keyed by level-membership mask. What the native
   /// push ships, so the Android interceptor can answer at each site's own
   /// level off one copy of the data.
@@ -777,10 +773,6 @@ class DnsBlockService {
   /// `about:`) are also rejected here, with the same observable behavior:
   /// return false.
   bool isBlocked(String url) => isBlockedAtLevel(url, level: _level);
-
-  /// Like [isBlocked] but skips URL parsing — caller already has the host
-  /// (e.g. native interceptor bridge passing `host` directly).
-  bool isHostBlocked(String host) => isHostBlockedAtLevel(host, level: _level);
 
   /// [isBlocked] at a specific severity level — what a site with its own
   /// level runs. The tier lookup is shared, so this costs the same as the

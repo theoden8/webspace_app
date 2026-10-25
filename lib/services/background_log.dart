@@ -147,8 +147,6 @@ class BackgroundLog extends ChangeNotifier {
   final List<LogEntry> _sensitive = [];
   bool _recording = false;
 
-  bool get recording => _recording;
-
   /// App-side rows for [systemState] that only the page state knows (how
   /// many notification sites are loaded). Set by the home page.
   Future<List<MapEntry<String, String>>> Function()? appState;

@@ -290,11 +290,6 @@ class ProxyLibrary {
   /// A copy: edit it and hand it to [update].
   static ProxyLibraryData get data => _data.copy();
 
-  static List<SavedProxy> get proxies => List.unmodifiable(_data.proxies);
-  static List<SavedGateway> get gateways => List.unmodifiable(_data.gateways);
-  static List<SavedCredentials> get credentials =>
-      List.unmodifiable(_data.credentials);
-
   static SavedProxy? proxy(SavedProxyId? id) => _data.proxy(id);
   static SavedGateway? gateway(GatewayId? id) => _data.gateway(id);
   static SavedCredentials? credentialsById(CredentialsId? id) =>

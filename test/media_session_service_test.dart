@@ -252,15 +252,6 @@ void main() {
     expect(service.isActive, isFalse);
   });
 
-  test('stopAll is a no-op when nothing is raised', () async {
-    await service.stopAll();
-    expect(controlCalls(), isEmpty);
-
-    await reportPlaying(SiteId('a'));
-    await service.stopAll();
-    expect(controlCalls().map((c) => c.method), ['start', 'stop']);
-  });
-
   test('ownership transfers to whichever site is playing', () async {
     await reportPlaying(SiteId('a'));
     await reportPlaying(SiteId('b'));
@@ -585,7 +576,7 @@ void main() {
   group('clearOsMediaSurface (BGAUDIO-009/010)', () {
     test('clears even when we never raised anything', () async {
       // The iOS case this exists for: the Now Playing entry belongs to WebKit,
-      // so `isActive` is false and `stopAll` would do nothing.
+      // so `isActive` is false and `stopForSite` would do nothing.
       expect(service.isActive, isFalse);
       await service.clearOsMediaSurface();
       // Twice: WebKit republishes its Now Playing entry when it finishes
@@ -629,7 +620,7 @@ void main() {
       service.debugReset();
 
       await reportPlaying(SiteId('a'));
-      await service.stopAll();
+      await service.clearOsMediaSurface();
       expect(calls, isEmpty);
       expect(await service.notificationPosted(), isFalse);
       // The same answer gates the shim + handler injection in webview.dart, so

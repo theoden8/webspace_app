@@ -87,7 +87,7 @@ void main() {
       expect(await s.hasImport(SiteId('site-1')), isFalse);
       await s.saveHtml(SiteId('site-1'), html: '<p>hi</p>', url: 'file:///x.html');
       expect(await s.hasImport(SiteId('site-1')), isTrue);
-      await s.deleteImport(SiteId('site-1'));
+      await s.removeOrphanedImports(const {});
       expect(await s.hasImport(SiteId('site-1')), isFalse);
     });
   });
@@ -102,7 +102,7 @@ void main() {
           html: '<p>kept</p>', url: 'file:///kept.html');
 
       final second = await newStorage();
-      await second.preloadAll();
+      await second.preloadOne(SiteId('persist'));
 
       expect(second.getHtmlSync(SiteId('persist')), '<p>kept</p>');
       final loaded = await second.loadHtml(SiteId('persist'));
@@ -110,7 +110,7 @@ void main() {
       expect(loaded.$2, '<p>kept</p>');
     });
 
-    test('preloadAll populates memory store from disk', () async {
+    test('preloadOne populates memory store from disk', () async {
       final first = await newStorage();
       await first.saveHtml(SiteId('a'), html: '<a>', url: 'file:///a.html');
       await first.saveHtml(SiteId('b'), html: '<b>', url: 'file:///b.html');
@@ -120,31 +120,15 @@ void main() {
       expect(second.getHtmlSync(SiteId('a')), isNull);
       expect(second.getHtmlSync(SiteId('b')), isNull);
 
-      await second.preloadAll();
+      await second.preloadOne(SiteId('a'));
       expect(second.getHtmlSync(SiteId('a')), '<a>');
+      expect(second.getHtmlSync(SiteId('b')), isNull);
+      await second.preloadOne(SiteId('b'));
       expect(second.getHtmlSync(SiteId('b')), '<b>');
     });
   });
 
   group('HtmlImportStorage delete + orphans', () {
-    test('deleteImport removes file and clears memory store', () async {
-      final s = await newStorage();
-      await s.saveHtml(SiteId('site-1'), html: '<p>hi</p>', url: 'file:///x.html');
-      expect(s.getHtmlSync(SiteId('site-1')), isNotNull);
-
-      await s.deleteImport(SiteId('site-1'));
-      expect(s.getHtmlSync(SiteId('site-1')), isNull);
-      expect(await s.loadHtml(SiteId('site-1')), isNull);
-      expect(await s.hasImport(SiteId('site-1')), isFalse);
-    });
-
-    test('deleteImport on missing siteId is a no-op (does not throw)',
-        () async {
-      final s = await newStorage();
-      await s.deleteImport(SiteId('never-existed'));
-      expect(s.getHtmlSync(SiteId('never-existed')), isNull);
-    });
-
     test('removeOrphanedImports keeps active siteIds, removes the rest',
         () async {
       final s = await newStorage();
@@ -186,7 +170,7 @@ void main() {
       await File(filePath).writeAsString('not valid base64!!!');
 
       final s2 = await newStorage();
-      await s2.preloadAll();
+      await s2.preloadOne(SiteId('s'));
 
       expect(s2.getHtmlSync(SiteId('s')), isNull);
       expect(await File(filePath).exists(), isTrue);
@@ -206,7 +190,7 @@ void main() {
       // Simulate the secure-storage key going missing between launches.
       fakeStorage = MockFlutterSecureStorage();
       final second = await newStorage();
-      await second.preloadAll();
+      await second.preloadOne(SiteId('a'));
 
       // In-memory load is empty (decrypt failed under the new key),
       // but the encrypted file MUST remain on disk.
@@ -231,7 +215,7 @@ void main() {
       await s.saveHtml(SiteId('a'), html: '<same>', url: 'file:///x.html');
       await s.saveHtml(SiteId('b'), html: '<same>', url: 'file:///x.html');
 
-      await s.deleteImport(SiteId('a'));
+      await s.removeOrphanedImports({SiteId('b')});
       expect(await s.hasImport(SiteId('a')), isFalse);
       expect(await s.hasImport(SiteId('b')), isTrue);
       expect(s.getHtmlSync(SiteId('b')), '<same>');
@@ -302,7 +286,7 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
       final before = await fileContents('a');
 
       final reopened = await newStorage();
-      await reopened.preloadAll();
+      await reopened.preloadOne(SiteId('a'));
 
       final after = await fileContents('a');
       expect(after, isNot(equals(before)),
@@ -327,7 +311,7 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
 
       final reopened = await newStorage();
       expect(await reopened.loadHtml(SiteId('a')), isNull);
-      await reopened.preloadAll();
+      await reopened.preloadOne(SiteId('a'));
       expect(reopened.getHtmlSync(SiteId('a')), isNull);
       // Never deleted: imports are the user's only copy (see the robustness
       // group above).

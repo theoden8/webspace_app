@@ -46,15 +46,6 @@ void main() {
           reason: 'an install with no per-site level pays no extra walks');
     });
 
-    test('a level names exactly what its own list did', () {
-      final sets = _sets({
-        1: ['light.example'],
-        3: ['pro.example'],
-      });
-      expect(sets.domainsAtLevel(1), ['light.example']);
-      expect(sets.domainsAtLevel(3), ['pro.example']);
-    });
-
     test('re-adding a level replaces its membership', () {
       final builder = DnsLevelSetsBuilder()
         ..startLevel(2)

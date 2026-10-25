@@ -14,7 +14,6 @@ enum LogSensitivity { normal, sensitive }
 /// Every subsystem that writes to the app log. The label is what an entry
 /// shows and what Dev Tools filters by.
 enum LogTag {
-  app('App'),
   archive('Archive'),
   backgroundLog('BackgroundLog'),
   backgroundTask('BackgroundTask'),
@@ -26,7 +25,6 @@ enum LogTag {
   container('Container'),
   containerCookieManager('ContainerCookieManager'),
   contentBlocker('ContentBlocker'),
-  cookie('Cookie'),
   cookieIsolation('CookieIsolation'),
   cookieManager('CookieManager'),
   cookieStorage('CookieStorage'),
@@ -39,7 +37,6 @@ enum LogTag {
   experimental('Experimental'),
   externalUrl('ExternalUrl'),
   firefoxUa('FirefoxUA'),
-  htmlCache('HtmlCache'),
   htmlImport('HtmlImport'),
   httpAuthStore('HttpAuthStore'),
   icon('Icon'),
@@ -49,9 +46,7 @@ enum LogTag {
   localCdn('LocalCDN'),
   mediaSession('MediaSession'),
   microphone('Microphone'),
-  nav('Nav'),
   navigation('Navigation'),
-  net('Net'),
   notification('Notification'),
   passkey('Passkey'),
   popupWindow('PopupWindow'),
@@ -68,7 +63,6 @@ enum LogTag {
   surfaceDiag('SurfaceDiag'),
   tabs('Tabs'),
   test('Test'),
-  theme('Theme'),
   title('Title'),
   tls('TLS'),
   tor('Tor'),

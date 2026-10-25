@@ -124,10 +124,8 @@ Future<void> _captureWindow(
 /// 2. Or use with flutter_driver for automated screenshot capture
 
 // Timeout constants
-const Duration _ICON_LOAD_TIMEOUT = Duration(seconds: 10);
 const Duration _WEBVIEW_LOAD_TIMEOUT = Duration(seconds: 15);
 const Duration _SCREENSHOT_TIMEOUT = Duration(seconds: 10);
-const Duration _DRAWER_TIMEOUT = Duration(seconds: 5);
 
 /// Android runs the tour with its webviews drawn into a texture (PAUSE-032,
 /// SCREENSHOT-008), so the FlutterView that `takeScreenshot` copies holds the page.
