@@ -53,8 +53,8 @@ LogEntry entry(String tag,
 
   test('export never ships sensitive entries', () {
     LogService.instance.resetForTest();
-    LogTag.nav.debug('app started');
-    LogTag.cookie.debug('siteId=abc', sensitive: true);
+    LogTag.navigation.debug('app started');
+    LogTag.cookieIsolation.debug('siteId=abc', sensitive: true);
 
     final out = LogService.instance.export();
 

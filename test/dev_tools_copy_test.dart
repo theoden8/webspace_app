@@ -81,8 +81,8 @@ void main() {
   group('App Logs copy', () {
     testWidgets('copies the visible entries with no dialog when none are sensitive',
         (tester) async {
-      LogTag.nav.debug('app started');
-      LogTag.theme.debug('dark mode on');
+      LogTag.navigation.debug('app started');
+      LogTag.lifecycle.debug('dark mode on');
       await pumpDevTools(tester);
 
       await tester.tap(find.byKey(const Key('devtools-logs-copy')));
@@ -96,8 +96,8 @@ void main() {
 
     testWidgets('sensitive entries are hidden and uncopied while the toggle is off',
         (tester) async {
-      LogTag.nav.debug('app started');
-      LogTag.cookie.debug('siteId=abc host=github.com', sensitive: true);
+      LogTag.navigation.debug('app started');
+      LogTag.cookieIsolation.debug('siteId=abc host=github.com', sensitive: true);
       await pumpDevTools(tester);
 
       await tester.tap(find.byKey(const Key('devtools-logs-copy')));
@@ -110,8 +110,8 @@ void main() {
 
     testWidgets('confirming the dialog copies the sensitive entries too',
         (tester) async {
-      LogTag.nav.debug('app started');
-      LogTag.cookie.debug('siteId=abc host=github.com', sensitive: true);
+      LogTag.navigation.debug('app started');
+      LogTag.cookieIsolation.debug('siteId=abc host=github.com', sensitive: true);
       await pumpDevTools(tester);
 
       await tester.tap(find.byType(Switch));
@@ -131,7 +131,7 @@ void main() {
     });
 
     testWidgets('cancelling the dialog copies nothing', (tester) async {
-      LogTag.cookie.debug('siteId=abc host=github.com', sensitive: true);
+      LogTag.cookieIsolation.debug('siteId=abc host=github.com', sensitive: true);
       await pumpDevTools(tester);
 
       await tester.tap(find.byType(Switch));
@@ -148,8 +148,8 @@ void main() {
     });
 
     testWidgets('a level filter narrows what is copied', (tester) async {
-      LogTag.nav.debug('app started');
-      LogTag.net.error('request failed');
+      LogTag.navigation.debug('app started');
+      LogTag.proxy.error('request failed');
       await pumpDevTools(tester);
 
       await tester.tap(find.widgetWithText(FilterChip, 'debug'));
