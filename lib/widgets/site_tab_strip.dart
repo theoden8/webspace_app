@@ -258,7 +258,10 @@ class _StripChipState extends State<_StripChip> {
           },
         ),
       },
+      // A loose Stack would let the chip shrink to its text and sit at the
+      // strip's top; it fills the strip's height as it does without a ring.
       child: Stack(
+        fit: StackFit.passthrough,
         children: [
           widget.child,
           if (_focused)
