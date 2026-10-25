@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Soek webruimtes",
   "libraryNoResults": "Geen resultate",
   "siteImportedFile": "Ingevoerde lêer",
+  "libraryAutoView": "Outomatiese uitleg",
+  "libraryGridView": "Roosteraansig",
   "libraryListView": "Lysaansig",
   "appSettingsExperimentalFolderLibrary": "Alternatiewe ontwerp",
   "appSettingsExperimentalFolderLibraryHint": "Rangskik werwe in groepe in 'n lanseerrooster.",

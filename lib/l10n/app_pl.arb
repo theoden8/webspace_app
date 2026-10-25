@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Szukaj przestrzeni WWW",
   "libraryNoResults": "Brak wyników",
   "siteImportedFile": "Zaimportowany plik",
+  "libraryAutoView": "Układ automatyczny",
+  "libraryGridView": "Widok siatki",
   "libraryListView": "Widok listy",
   "appSettingsExperimentalFolderLibrary": "Alternatywny wygląd",
   "appSettingsExperimentalFolderLibraryHint": "Porządkuj witryny w grupy w siatce uruchamiania.",

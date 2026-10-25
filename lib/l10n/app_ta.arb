@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "வலைவெளிகளைத் தேடு",
   "libraryNoResults": "பொருத்தங்கள் இல்லை",
   "siteImportedFile": "இறக்குமதி செய்த கோப்பு",
+  "libraryAutoView": "தானியங்கு தளவமைப்பு",
+  "libraryGridView": "கட்டக் காட்சி",
   "libraryListView": "பட்டியல் காட்சி",
   "appSettingsExperimentalFolderLibrary": "மாற்று வடிவமைப்பு",
   "appSettingsExperimentalFolderLibraryHint": "துவக்கி கட்டத்தில் தளங்களைக் குழுக்களாக ஒழுங்கமைக்கவும்.",

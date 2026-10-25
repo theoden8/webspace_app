@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "ویب اسپیسز تلاش کریں",
   "libraryNoResults": "کوئی نتیجہ نہیں ملا",
   "siteImportedFile": "درآمد شدہ فائل",
+  "libraryAutoView": "خودکار ترتیب",
+  "libraryGridView": "گرڈ منظر",
   "libraryListView": "فہرست منظر",
   "appSettingsExperimentalFolderLibrary": "متبادل ڈیزائن",
   "appSettingsExperimentalFolderLibraryHint": "لانچر گرڈ میں سائٹس کو گروپس میں ترتیب دیں۔",

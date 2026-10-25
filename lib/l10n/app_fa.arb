@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "جستجوی فضاهای وب",
   "libraryNoResults": "نتیجه‌ای یافت نشد",
   "siteImportedFile": "فایل واردشده",
+  "libraryAutoView": "چیدمان خودکار",
+  "libraryGridView": "نمای شبکه‌ای",
   "libraryListView": "نمای فهرستی",
   "appSettingsExperimentalFolderLibrary": "طراحی جایگزین",
   "appSettingsExperimentalFolderLibraryHint": "سایت‌ها را در گروه‌هایی در شبکهٔ راه‌انداز سازمان‌دهی کنید.",

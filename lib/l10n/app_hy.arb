@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Որոնել վեբ տարածքներ",
   "libraryNoResults": "Համընկնումներ չկան",
   "siteImportedFile": "Ներմուծված ֆայլ",
+  "libraryAutoView": "Ավտոմատ դասավորություն",
+  "libraryGridView": "Ցանցի տեսք",
   "libraryListView": "Ցուցակի տեսք",
   "appSettingsExperimentalFolderLibrary": "Այլընտրանքային ձևավորում",
   "appSettingsExperimentalFolderLibraryHint": "Դասավորեք կայքերը խմբերով գործարկիչի ցանցում։",

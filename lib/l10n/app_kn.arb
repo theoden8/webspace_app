@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "ವೆಬ್‌ಸ್ಪೇಸ್‌ಗಳನ್ನು ಹುಡುಕಿ",
   "libraryNoResults": "ಫಲಿತಾಂಶಗಳಿಲ್ಲ",
   "siteImportedFile": "ಆಮದು ಮಾಡಿದ ಫೈಲ್",
+  "libraryAutoView": "ಸ್ವಯಂಚಾಲಿತ ವಿನ್ಯಾಸ",
+  "libraryGridView": "ಗ್ರಿಡ್ ವೀಕ್ಷಣೆ",
   "libraryListView": "ಪಟ್ಟಿ ವೀಕ್ಷಣೆ",
   "appSettingsExperimentalFolderLibrary": "ಪರ್ಯಾಯ ವಿನ್ಯಾಸ",
   "appSettingsExperimentalFolderLibraryHint": "ಲಾಂಚರ್ ಗ್ರಿಡ್‌ನಲ್ಲಿ ಸೈಟ್‌ಗಳನ್ನು ಗುಂಪುಗಳಾಗಿ ಜೋಡಿಸಿ.",

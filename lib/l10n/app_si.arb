@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "වෙබ් අවකාශ සොයන්න",
   "libraryNoResults": "ප්‍රතිඵල නැත",
   "siteImportedFile": "ආයාත කළ ගොනුව",
+  "libraryAutoView": "ස්වයංක්‍රීය පිරිසැලසුම",
+  "libraryGridView": "ජාලක දසුන",
   "libraryListView": "ලැයිස්තු දසුන",
   "appSettingsExperimentalFolderLibrary": "විකල්ප සැලසුම",
   "appSettingsExperimentalFolderLibraryHint": "දියත් කිරීමේ ජාලකයක අඩවි කණ්ඩායම් ලෙස සංවිධානය කරන්න.",

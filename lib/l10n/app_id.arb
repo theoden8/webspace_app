@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Cari ruang web",
   "libraryNoResults": "Tidak ada hasil",
   "siteImportedFile": "File yang diimpor",
+  "libraryAutoView": "Tata letak otomatis",
+  "libraryGridView": "Tampilan kisi",
   "libraryListView": "Tampilan daftar",
   "appSettingsExperimentalFolderLibrary": "Desain alternatif",
   "appSettingsExperimentalFolderLibraryHint": "Atur situs ke dalam grup pada kisi peluncur.",

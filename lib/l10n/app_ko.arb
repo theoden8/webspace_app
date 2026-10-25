@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "웹스페이스 검색",
   "libraryNoResults": "일치하는 항목 없음",
   "siteImportedFile": "가져온 파일",
+  "libraryAutoView": "자동 레이아웃",
+  "libraryGridView": "그리드 보기",
   "libraryListView": "목록 보기",
   "appSettingsExperimentalFolderLibrary": "대체 디자인",
   "appSettingsExperimentalFolderLibraryHint": "런처 그리드에서 사이트를 그룹으로 정리합니다.",

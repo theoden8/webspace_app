@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "वेबस्पेस खोजें",
   "libraryNoResults": "कोई मिलान नहीं",
   "siteImportedFile": "आयात की गई फ़ाइल",
+  "libraryAutoView": "स्वचालित लेआउट",
+  "libraryGridView": "ग्रिड दृश्य",
   "libraryListView": "सूची दृश्य",
   "appSettingsExperimentalFolderLibrary": "वैकल्पिक डिज़ाइन",
   "appSettingsExperimentalFolderLibraryHint": "लॉन्चर ग्रिड में साइटों को समूहों में व्यवस्थित करें।",

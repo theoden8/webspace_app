@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Web alanlarında ara",
   "libraryNoResults": "Eşleşme yok",
   "siteImportedFile": "İçe aktarılan dosya",
+  "libraryAutoView": "Otomatik düzen",
+  "libraryGridView": "Izgara görünümü",
   "libraryListView": "Liste görünümü",
   "appSettingsExperimentalFolderLibrary": "Alternatif tasarım",
   "appSettingsExperimentalFolderLibraryHint": "Siteleri başlatıcı ızgarasında gruplar halinde düzenleyin.",

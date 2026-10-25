@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "ស្វែងរកលំហបណ្ដាញ",
   "libraryNoResults": "គ្មានលទ្ធផល",
   "siteImportedFile": "ឯកសារដែលបាននាំចូល",
+  "libraryAutoView": "ប្លង់ស្វ័យប្រវត្តិ",
+  "libraryGridView": "ទិដ្ឋភាពក្រឡា",
   "libraryListView": "ទិដ្ឋភាពបញ្ជី",
   "appSettingsExperimentalFolderLibrary": "ការរចនាជំនួស",
   "appSettingsExperimentalFolderLibraryHint": "រៀបចំគេហទំព័រជាក្រុមក្នុងក្រឡាចត្រង្គកម្មវិធីបើក។",

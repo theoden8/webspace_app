@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Quaere spatia interretialia",
   "libraryNoResults": "Nihil inventum",
   "siteImportedFile": "Fasciculus importatus",
+  "libraryAutoView": "Dispositio automatica",
+  "libraryGridView": "Conspectus cratis",
   "libraryListView": "Conspectus indicis",
   "appSettingsExperimentalFolderLibrary": "Altera forma",
   "appSettingsExperimentalFolderLibraryHint": "Situs in greges in reticulo ad aperiendum ordina.",

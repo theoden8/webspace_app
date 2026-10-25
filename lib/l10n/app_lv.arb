@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Meklēt tīmekļa telpas",
   "libraryNoResults": "Nav atbilstību",
   "siteImportedFile": "Importēts fails",
+  "libraryAutoView": "Automātisks izkārtojums",
+  "libraryGridView": "Režģa skats",
   "libraryListView": "Saraksta skats",
   "appSettingsExperimentalFolderLibrary": "Alternatīvs dizains",
   "appSettingsExperimentalFolderLibraryHint": "Sakārtojiet vietnes grupās palaišanas režģī.",

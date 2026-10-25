@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Webbereiche suchen",
   "libraryNoResults": "Keine Treffer",
   "siteImportedFile": "Importierte Datei",
+  "libraryAutoView": "Automatische Anordnung",
+  "libraryGridView": "Rasteransicht",
   "libraryListView": "Listenansicht",
   "appSettingsExperimentalFolderLibrary": "Alternatives Design",
   "appSettingsExperimentalFolderLibraryHint": "Websites in Gruppen in einer Startübersicht anordnen.",

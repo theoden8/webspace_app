@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Търсене на уеб пространства",
   "libraryNoResults": "Няма резултати",
   "siteImportedFile": "Импортиран файл",
+  "libraryAutoView": "Автоматично оформление",
+  "libraryGridView": "Изглед в мрежа",
   "libraryListView": "Изглед в списък",
   "appSettingsExperimentalFolderLibrary": "Алтернативен дизайн",
   "appSettingsExperimentalFolderLibraryHint": "Организирайте сайтовете в групи в мрежа за стартиране.",

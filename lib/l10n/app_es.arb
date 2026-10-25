@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Buscar espacios web",
   "libraryNoResults": "Sin coincidencias",
   "siteImportedFile": "Archivo importado",
+  "libraryAutoView": "Diseño automático",
+  "libraryGridView": "Vista de cuadrícula",
   "libraryListView": "Vista de lista",
   "appSettingsExperimentalFolderLibrary": "Diseño alternativo",
   "appSettingsExperimentalFolderLibraryHint": "Organiza los sitios en grupos en una cuadrícula de inicio.",

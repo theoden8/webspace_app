@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Maghanap ng mga webspace",
   "libraryNoResults": "Walang mga tugma",
   "siteImportedFile": "Na-import na file",
+  "libraryAutoView": "Awtomatikong ayos",
+  "libraryGridView": "Ipakita bilang grid",
   "libraryListView": "Ipakita bilang listahan",
   "appSettingsExperimentalFolderLibrary": "Alternatibong disenyo",
   "appSettingsExperimentalFolderLibraryHint": "Ayusin ang mga site sa mga grupo sa isang grid ng launcher.",

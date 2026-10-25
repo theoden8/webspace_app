@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Webruimtes zoeken",
   "libraryNoResults": "Geen resultaten",
   "siteImportedFile": "Geïmporteerd bestand",
+  "libraryAutoView": "Automatische indeling",
+  "libraryGridView": "Rasterweergave",
   "libraryListView": "Lijstweergave",
   "appSettingsExperimentalFolderLibrary": "Alternatief ontwerp",
   "appSettingsExperimentalFolderLibraryHint": "Orden websites in groepen in een startraster.",

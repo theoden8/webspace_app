@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "વેબસ્પેસ શોધો",
   "libraryNoResults": "કોઈ પરિણામ નથી",
   "siteImportedFile": "આયાત કરેલી ફાઇલ",
+  "libraryAutoView": "સ્વચાલિત ગોઠવણી",
+  "libraryGridView": "ગ્રિડ દૃશ્ય",
   "libraryListView": "સૂચિ દૃશ્ય",
   "appSettingsExperimentalFolderLibrary": "વૈકલ્પિક ડિઝાઇન",
   "appSettingsExperimentalFolderLibraryHint": "લોન્ચર ગ્રીડમાં સાઇટને જૂથોમાં ગોઠવો.",

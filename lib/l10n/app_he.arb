@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "חיפוש מרחבי רשת",
   "libraryNoResults": "לא נמצאו התאמות",
   "siteImportedFile": "קובץ מיובא",
+  "libraryAutoView": "פריסה אוטומטית",
+  "libraryGridView": "תצוגת רשת",
   "libraryListView": "תצוגת רשימה",
   "appSettingsExperimentalFolderLibrary": "עיצוב חלופי",
   "appSettingsExperimentalFolderLibraryHint": "ארגון אתרים בקבוצות בתצוגת רשת להפעלה.",

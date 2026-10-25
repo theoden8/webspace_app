@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Fittex spazji tal-web",
   "libraryNoResults": "Ebda riżultat",
   "siteImportedFile": "Fajl importat",
+  "libraryAutoView": "Tqassim awtomatiku",
+  "libraryGridView": "Veduta ta' grilja",
   "libraryListView": "Veduta ta' lista",
   "appSettingsExperimentalFolderLibrary": "Disinn alternattiv",
   "appSettingsExperimentalFolderLibraryHint": "Organizza s-siti fi gruppi fi grilja tat-tnedija.",

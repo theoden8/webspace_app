@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "ウェブスペースを検索",
   "libraryNoResults": "一致する項目はありません",
   "siteImportedFile": "インポートしたファイル",
+  "libraryAutoView": "自動レイアウト",
+  "libraryGridView": "グリッド表示",
   "libraryListView": "リスト表示",
   "appSettingsExperimentalFolderLibrary": "別のデザイン",
   "appSettingsExperimentalFolderLibraryHint": "ランチャーのグリッドでサイトをグループに整理します。",

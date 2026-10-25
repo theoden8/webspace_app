@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Caută spații web",
   "libraryNoResults": "Niciun rezultat",
   "siteImportedFile": "Fișier importat",
+  "libraryAutoView": "Aranjare automată",
+  "libraryGridView": "Vizualizare grilă",
   "libraryListView": "Vizualizare listă",
   "appSettingsExperimentalFolderLibrary": "Design alternativ",
   "appSettingsExperimentalFolderLibraryHint": "Organizează site-urile în grupuri într-o grilă de lansare.",

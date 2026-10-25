@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Sök webbutrymmen",
   "libraryNoResults": "Inga träffar",
   "siteImportedFile": "Importerad fil",
+  "libraryAutoView": "Automatisk layout",
+  "libraryGridView": "Rutnätsvy",
   "libraryListView": "Listvy",
   "appSettingsExperimentalFolderLibrary": "Alternativ design",
   "appSettingsExperimentalFolderLibraryHint": "Ordna webbplatser i grupper i ett startrutnät.",

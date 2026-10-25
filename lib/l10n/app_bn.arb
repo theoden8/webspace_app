@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "ওয়েবস্পেস খুঁজুন",
   "libraryNoResults": "কোনো ফলাফল নেই",
   "siteImportedFile": "আমদানি করা ফাইল",
+  "libraryAutoView": "স্বয়ংক্রিয় বিন্যাস",
+  "libraryGridView": "গ্রিড ভিউ",
   "libraryListView": "তালিকা ভিউ",
   "appSettingsExperimentalFolderLibrary": "বিকল্প ডিজাইন",
   "appSettingsExperimentalFolderLibraryHint": "লঞ্চার গ্রিডে সাইটগুলোকে গোষ্ঠীতে সাজান।",

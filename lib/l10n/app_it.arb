@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Cerca spazi web",
   "libraryNoResults": "Nessun risultato",
   "siteImportedFile": "File importato",
+  "libraryAutoView": "Disposizione automatica",
+  "libraryGridView": "Vista griglia",
   "libraryListView": "Vista elenco",
   "appSettingsExperimentalFolderLibrary": "Design alternativo",
   "appSettingsExperimentalFolderLibraryHint": "Organizza i siti in gruppi in una griglia di avvio.",

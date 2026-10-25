@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "ਵੈੱਬਸਪੇਸ ਖੋਜੋ",
   "libraryNoResults": "ਕੋਈ ਨਤੀਜੇ ਨਹੀਂ",
   "siteImportedFile": "ਆਯਾਤ ਕੀਤੀ ਫ਼ਾਈਲ",
+  "libraryAutoView": "ਸਵੈਚਲਿਤ ਖਾਕਾ",
+  "libraryGridView": "ਗ੍ਰਿਡ ਦ੍ਰਿਸ਼",
   "libraryListView": "ਸੂਚੀ ਦ੍ਰਿਸ਼",
   "appSettingsExperimentalFolderLibrary": "ਵਿਕਲਪਿਕ ਡਿਜ਼ਾਈਨ",
   "appSettingsExperimentalFolderLibraryHint": "ਲਾਂਚਰ ਗ੍ਰਿਡ ਵਿੱਚ ਸਾਈਟਾਂ ਨੂੰ ਗਰੁੱਪਾਂ ਵਿੱਚ ਸਜਾਓ।",

@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Вэб орон зай хайх",
   "libraryNoResults": "Илэрц олдсонгүй",
   "siteImportedFile": "Импортолсон файл",
+  "libraryAutoView": "Автомат байршил",
+  "libraryGridView": "Торон харагдац",
   "libraryListView": "Жагсаалтаар харах",
   "appSettingsExperimentalFolderLibrary": "Өөр загвар",
   "appSettingsExperimentalFolderLibraryHint": "Сайтуудыг эхлүүлэгчийн торон харагдацад бүлэглэн зохион байгуулна уу.",

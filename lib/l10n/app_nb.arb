@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Søk i nettområder",
   "libraryNoResults": "Ingen treff",
   "siteImportedFile": "Importert fil",
+  "libraryAutoView": "Automatisk oppsett",
+  "libraryGridView": "Rutenettvisning",
   "libraryListView": "Listevisning",
   "appSettingsExperimentalFolderLibrary": "Alternativt design",
   "appSettingsExperimentalFolderLibraryHint": "Organiser nettsteder i grupper i et startrutenett.",

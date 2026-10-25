@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "ვებსივრცეების ძიება",
   "libraryNoResults": "შედეგები არ არის",
   "siteImportedFile": "იმპორტირებული ფაილი",
+  "libraryAutoView": "ავტომატური განლაგება",
+  "libraryGridView": "ბადის ხედი",
   "libraryListView": "სიის ხედი",
   "appSettingsExperimentalFolderLibrary": "ალტერნატიული დიზაინი",
   "appSettingsExperimentalFolderLibraryHint": "დააჯგუფეთ საიტები გამშვების ბადეში.",

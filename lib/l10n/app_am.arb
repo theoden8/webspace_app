@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "የድር ቦታዎችን ፈልግ",
   "libraryNoResults": "ምንም ውጤት የለም",
   "siteImportedFile": "የገባ ፋይል",
+  "libraryAutoView": "ራስ-ሰር አቀማመጥ",
+  "libraryGridView": "የፍርግርግ እይታ",
   "libraryListView": "የዝርዝር እይታ",
   "appSettingsExperimentalFolderLibrary": "አማራጭ ንድፍ",
   "appSettingsExperimentalFolderLibraryHint": "ጣቢያዎችን በማስጀመሪያ ፍርግርግ ውስጥ በቡድኖች ያደራጁ።",

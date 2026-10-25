@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Otsi veebiruume",
   "libraryNoResults": "Vasteid pole",
   "siteImportedFile": "Imporditud fail",
+  "libraryAutoView": "Automaatne paigutus",
+  "libraryGridView": "Ruudustikuvaade",
   "libraryListView": "Loendivaade",
   "appSettingsExperimentalFolderLibrary": "Alternatiivne kujundus",
   "appSettingsExperimentalFolderLibraryHint": "Korralda saidid rühmadesse käivitusruudustikus.",

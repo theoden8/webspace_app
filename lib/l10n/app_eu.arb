@@ -1099,6 +1099,8 @@
   "librarySearchWebspaces": "Bilatu webgune-espazioak",
   "libraryNoResults": "Ez dago emaitzarik",
   "siteImportedFile": "Inportatutako fitxategia",
+  "libraryAutoView": "Diseinu automatikoa",
+  "libraryGridView": "Sareta-ikuspegia",
   "libraryListView": "Zerrenda-ikuspegia",
   "appSettingsExperimentalFolderLibrary": "Diseinu alternatiboa",
   "appSettingsExperimentalFolderLibraryHint": "Antolatu webguneak taldeka abiarazlearen saretan.",
