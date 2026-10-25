@@ -339,6 +339,39 @@ the override under the sites already loaded.
    code builds it so; a nested screen opened from a tab that runs as
    another site still runs as the site whose slot it is, which the spec
    does not decide.
+20. **2026-10-25, branch `claude/tor-identity-change`.** A slot that ran
+   as another site stayed loaded unless one process-wide proxy was in
+   force: a tab switch's rebind and a reroute's flip took the slot out of
+   the loaded sites only then (`TabTable._identityChanges`, attempt 13), so
+   its webview was built again on its new route beside sites on the old
+   one. Two rules other sites share were missed. Under a Tor runtime the
+   one `ExitNodes` moved, until the commit's Tor sync unloaded the sites
+   on the old exit outside any step. Under the router a slot could move
+   into the shared default session; the world printed for the new reads
+   found it: site 3's tap is in flight, site 1's child tab runs as site 2
+   outside the session, the tap's plan reads the slot as site 2 and
+   unloads nothing, a reroute flips the tab back to site 1, and the tap
+   commits site 3 on route 2 beside site 1 on route 1, both in the
+   session. Now both arms ask `MovesRule(a, b)`, a definition of the tab
+   table: the slot's old or new identity contends (every site under one
+   process-wide proxy, the session's under the router), or a Tor runtime
+   exists. The code's flips outside a step read the same per site
+   (`TabCalls.movesRule`). The commit's Tor sync no longer lets a site on
+   screen but not loaded decide the pin (`SiteUnloadEngine.torSyncOrder`):
+   that site waits for its activation, which would otherwise find the
+   sites on the old exit already gone. The walk now holds `Inv_OneRoute`'s
+   Tor half after every step, and records the sync's unloads as a
+   violation instead of stopping at them. Planted and caught:
+   `torkeepsslot` (`MovesRule` without the Tor runtime), by `Inv_OneRoute`
+   in `activation_tabs_child_nested_tor_containers.cfg` and
+   `activation_tabs_reroute_tor_containers.cfg` and by the walk's Tor
+   half; `sessionkeepsslot` (`MovesRule` as one process-wide proxy), by
+   `Inv_OneRoute` in `activation_tabs_reroute_router_containers.cfg` and
+   the route assert under the schedules. *Why:* the arms named one proxy
+   override where the rule they need is any route another running site
+   shares. *Partial:* a settings change of a site's Tor exit is still left
+   to the commit's Tor sync, an unload outside any step
+   (`SlotIdentityChanged` plans the proxy's contenders only).
 
 ## Known open gaps
 
@@ -380,11 +413,7 @@ the override under the sites already loaded.
   The model reaches that state and no invariant names it.
 - A reroute that arrives while the tab gate is held waits in the code and
   is not taken by the model (`steps_uncovered.tsv`).
-- A slot that changes the site it runs as under a Tor runtime stays
-  loaded: the rebind leaves the loaded sites only under one process-wide
-  proxy (`TabTable._identityChanges`, attempt 13), and
-  `SlotIdentityChanged` plans only the proxy's contenders. A world of
-  site 1's child tab on another exit beside site 1's nested screen breaks
-  `Inv_OneRoute` (`ChildTab`, `NestedOpen`, the child's rebind), so it is
-  not among the checked worlds; a reroute's flip under Tor is the same
-  case.
+- A settings change of a site's Tor exit unloads the loaded sites on
+  another exit in the commit's Tor sync, outside any step. The model does
+  not take the sync, and no walk changes a site's settings, so nothing
+  checks it.

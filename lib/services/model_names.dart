@@ -316,6 +316,7 @@ enum ModelDef {
   share,
   tabBusy,
   reopens,
+  movesRule,
   capture,
   bound,
   takes,

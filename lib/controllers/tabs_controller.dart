@@ -389,19 +389,19 @@ class TabsController {
   /// [flips] written in [commit], each tab's old key returned for its file's
   /// removal. A slot that runs as another site from this turn lets its
   /// webview go in the same turn (LIR-024): a plan between the two would
-  /// read the new identity's route for a webview on the old one. Under one
-  /// process-wide proxy the slot also leaves the loaded sites ([retire],
-  /// where no step's write takes it out), so nothing builds it on its new
-  /// route beside the sites it contends with, and it opens again.
+  /// read the new identity's route for a webview on the old one. Across a
+  /// rule another site shares ([TabCalls.movesRule]) the slot also leaves
+  /// the loaded sites ([retire], where no step's write takes it out), so
+  /// nothing builds it on its new route beside the sites it contends with,
+  /// and it opens again.
   Map<TabId, String> _applyFlips(
     List<LinkFlip> flips, {
     required Commit commit,
     required bool retire,
     required Set<WebViewModel> loadedBefore,
   }) {
-    final global = residency.proxyTopology is ProcessGlobalProxy;
     final dropped = <TabId, String>{};
-    final moved = <WebViewModel>{};
+    final movedFrom = <WebViewModel, WebViewModel>{};
     for (final (:owner, :tab, :opener, :host) in flips) {
       final identityBefore = owner.runningIdentity;
       dropped[tab.id] = owner.stateKeyForTab(tab.id);
@@ -410,15 +410,19 @@ class TabsController {
           sensitive: true);
       if (tab.id == owner.activeTabId) _host.cancelPendingCapture(owner.siteId);
       SiteTab.hostCell.write(at: tab, to: host, commit: commit);
-      if (!identical(identityBefore, owner.runningIdentity)) moved.add(owner);
+      if (!identical(identityBefore, owner.runningIdentity)) {
+        movedFrom.putIfAbsent(owner, () => identityBefore);
+      }
     }
-    for (final model in moved) {
-      if (global && retire) _sites.retired(model, commit: commit);
-      if (global && loadedBefore.contains(model)) {
+    for (final MapEntry(key: model, value: from) in movedFrom.entries) {
+      final moves =
+          TabCalls(this).movesRule(from: from, to: model.runningIdentity);
+      if (moves && retire) _sites.retired(model, commit: commit);
+      if (moves && loadedBefore.contains(model)) {
         _host.noteUnloaded(model, why: 'identity change');
       }
       model.disposeWebView(commit: commit);
-      if (global && retire) _reopen(model);
+      if (moves && retire) _reopen(model);
     }
     return dropped;
   }

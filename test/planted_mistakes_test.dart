@@ -53,6 +53,23 @@ const WalkProxies _mismatched = (
   defaultSession: [],
 );
 
+/// Sites 0 and 1 on one Tor exit and site 2 on another (TOR-014).
+const WalkProxies _exitPair = (
+  routes: [null, null, null],
+  exits: ['de', 'de', 'fr'],
+  scope: WalkScope.session,
+  defaultSession: [],
+);
+
+/// Sites 0 and 2 in the router's shared session, on two routes, and site 1
+/// outside it (PROXY-013).
+const WalkProxies _routerSession = (
+  routes: ['p1', 'p1', 'p2'],
+  exits: [null, null, null],
+  scope: WalkScope.router,
+  defaultSession: [0, 2],
+);
+
 /// Site 0 following the app-wide level, site 1 asking for level 2 and
 /// site 2 with DNS blocking off; levels 1 and 2 to download (DNS-022).
 const WalkDns _dnsSites = (siteLevels: [null, 2, kDnsLevelOff], levels: [1, 2]);
@@ -172,6 +189,29 @@ _Catch _catching(Mutant m) => switch (m) {
     setup: const [Tap(0)],
     script: const [ChildTab(0, host: 2), OpenNested(0)],
     breaks: _twoRoutes,
+  ),
+  Mutant.sessionkeepsslot => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _routerSession,
+      rehosts: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), Reroute()],
+    script: const [Tap(2), ChildTab(0, host: 1, follows: true), Reroute()],
+    breaks: _twoRoutes,
+    preemptions: 3,
+  ),
+  Mutant.torkeepsslot => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _exitPair,
+      rehosts: true,
+      declared: d,
+    ),
+    setup: const [Tap(1), Tap(0)],
+    script: const [ChildTab(0, host: 2)],
+    breaks: 'two running Tor sites run different exits',
   ),
   Mutant.screenskipsslot => _By(
     world: (d) => ActivationWorld(

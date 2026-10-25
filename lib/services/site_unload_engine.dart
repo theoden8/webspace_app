@@ -1179,6 +1179,18 @@ class SiteUnloadEngine {
   /// switched to SOCKS5 constrains nothing.
   static String? torExitConstraint(WebViewModel model) => _torExitPin(model);
 
+  /// The sites a Tor sync reads, in the order that decides the pin: the
+  /// site on screen while it is loaded, then the loaded ones, most recently
+  /// used first. A site on screen but not loaded waits for its activation,
+  /// whose plan moves the exit (LIR-024).
+  static Set<WebViewModel> torSyncOrder({
+    required WebViewModel? shown,
+    required Iterable<WebViewModel> loaded,
+  }) => {
+    if (shown != null && loaded.contains(shown)) shown,
+    ...loaded.toList().reversed,
+  };
+
   static String? _torExitPin(WebViewModel model) {
     final effective = resolveEffectiveProxy(
       model.proxySettings,

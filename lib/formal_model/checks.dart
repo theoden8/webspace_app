@@ -19,6 +19,7 @@ enum Env {
   linkTab(op: ModelConst.links, by: 'LinkOne'),
   torOn(op: ModelConst.torRuntime, by: 'TorOn'),
   exitSplit(op: ModelConst.torExit, by: 'ExitSplit'),
+  exitPair(op: ModelConst.torExit, by: 'ExitPair'),
   notifyAll(op: ModelConst.notified, by: 'NotifyAll'),
   wakesUp(op: ModelConst.waking, by: 'WakesUp'),
   dnsAsk(op: ModelConst.siteLevel, by: 'DnsAsk'),
@@ -476,6 +477,89 @@ enum ActivationWorld {
         "site 1's child tab on another route beside site 1's nested screen: "
         'each runs as its own site, and the screen and the slot run one '
         'route (BUG-037, PROXY-008)',
+  ),
+  tabsChildNestedTorContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // As tabsChildNestedContainers, on two Tor exits: the one Tor runtime
+    // is a rule the whole process shares, as one proxy override is.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.torOn, Env.exitSplit, Env.linkAny},
+    allowed: {'ChildTab', 'NestedOpen', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tab on another Tor exit beside site 1's nested "
+        'screen: a switch to it takes the slot out of the loaded sites, and '
+        'one exit runs (BUG-037, TOR-014)',
+  ),
+  tabsRerouteTorContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // Sites 1 and 2 loaded on one exit, then site 1's link tab switched to
+    // and rerouted: the fourth input moves the slot to site 3's exit.
+    inputs: 4,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.torOn, Env.exitPair, Env.linkTab},
+    allowed: {'OpenTab', 'Reroute', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's link tab into site 3's domain under a Tor runtime, site 3 "
+        'on another exit: a reroute or a tab switch that moves the slot to '
+        'another site takes it out of the loaded sites and opens it again '
+        '(LIR-024, TOR-014)',
+  ),
+  tabsDnsProxyContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // The switch's and the reroute's unload arms meet a view gone over the
+    // loaded sites only where MovesRule holds, which a generated world's
+    // needs cannot name: a disjunction needs nothing either side does not.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {
+      Env.proxyGlobal,
+      Env.globalProxy,
+      Env.routeSplit,
+      Env.dnsAsk,
+      Env.dnsTwo,
+    },
+    allowed: {
+      'ChildTab',
+      'CloseTab',
+      'DuplicateTab',
+      'GoHome',
+      'HomeLanding',
+      'NewTab',
+      'OpenTab',
+      'OwnerRun',
+      'ParkChild',
+      'Reroute',
+    },
+    invariants: [..._core, ..._tabs, Inv.oneRoute, Inv.told],
+    holds:
+        "site 1's tabs under one process-wide proxy beside two DNS levels: "
+        'a slot that moves its route leaves the loaded sites while views '
+        'come and go, and every live view runs its level (BUG-037, DNS-022)',
+  ),
+  tabsRerouteRouterContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    // A tap of site 3 in flight while site 1's child tab runs as site 2,
+    // outside the router's shared session, and a reroute flips it back.
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.routerContending, Env.routeSplit, Env.routerShared},
+    allowed: {'ChildTab', 'Reroute', 'Tap'},
+    invariants: [..._core, ..._tabs, Inv.oneRoute],
+    holds:
+        "site 1's child tab under the router's shared session, rerouted: a "
+        'slot that moves into or out of the session leaves the loaded '
+        'sites, and the session runs one route (BUG-037, LIR-024)',
   ),
   tabsChildDeleteContainers(
     cookies: Cookies.containers,
@@ -972,6 +1056,27 @@ enum Mutant {
         "a slot a tab's rebind moves to another site under one process-wide "
         'proxy opening again while its own nested screen is up on another '
         'route (BUG-037, caught)',
+  ),
+  sessionkeepsslot(
+    world: ActivationWorld.tabsRerouteRouterContainers,
+    by: Inv.oneRoute,
+    doc:
+        "a slot that moves into the router's shared session staying "
+        'loaded: an activation planned while it ran outside commits beside '
+        'it on another route (BUG-037, caught)',
+  ),
+  torkeepsslot(
+    world: ActivationWorld.tabsChildNestedTorContainers,
+    by: Inv.oneRoute,
+    doc:
+        'a slot that runs as another site under a Tor runtime staying '
+        'loaded: its webview is built again on another exit beside its '
+        'nested screen (BUG-037, caught)',
+    also: {
+      ActivationWorld.tabsRerouteTorContainers:
+          'a reroute that moves a loaded slot to another Tor exit keeping it '
+          'loaded beside a site on the first (BUG-037, caught)',
+    },
   ),
   screenskipsslot(
     world: ActivationWorld.tabsChildNestedContainers,

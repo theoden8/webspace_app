@@ -67,6 +67,22 @@ Def<bool, TabFlow> _reopensBesideNested() {
   );
 }
 
+/// `MovesRule` with [body] over its two sites in place of the code's.
+Def<bool, TabFlow> _movesRuleOf(
+  Expr<bool, TabFlow> Function({
+    required Expr<WebViewModel, TabFlow> from,
+    required Expr<WebViewModel, TabFlow> to,
+  }) body,
+) {
+  const a = Bound<WebViewModel, TabFlow>('a');
+  const b = Bound<WebViewModel, TabFlow>('b');
+  return Def(
+    ModelDef.movesRule,
+    params: const [a, b],
+    body: body(from: a.it, to: b.it),
+  );
+}
+
 /// `ProxyContenders` with the loaded slots read without the asking site's
 /// own (`t # a`): what a site's nested screen asks for no longer sees that
 /// site's slot, whatever it runs as.
@@ -640,6 +656,32 @@ Tables mutated(Mutant m) => switch (m) {
   // BUG-037 attempt 19.
   Mutant.reopenbesidenested => _with(
     ops: _withDef(tables.ops, def: _reopensBesideNested()),
+  ),
+  // A slot that runs as another site under a Tor runtime stays loaded, the
+  // shape before BUG-037 attempt 20: the one exit is no rule `MovesRule`
+  // counts, so the slot's webview is built again on another exit beside
+  // the sites on the first.
+  Mutant.torkeepsslot => _with(
+    ops: _withDef(
+      tables.ops,
+      def: _movesRuleOf(
+        ({required from, required to}) =>
+            TabTable.contending.has(from) | TabTable.contending.has(to),
+      ),
+    ),
+  ),
+  // A slot that moves into or out of the router's shared session stays
+  // loaded, the shape before BUG-037 attempt 20: only one process-wide
+  // proxy counts, so an activation planned while the slot ran as a site
+  // outside the session commits beside it on another route.
+  Mutant.sessionkeepsslot => _with(
+    ops: _withDef(
+      tables.ops,
+      def: _movesRuleOf(
+        ({required from, required to}) =>
+            TabTable.globalProxy | TabTable.torRuntime,
+      ),
+    ),
   ),
   // The proxy rule skips the asking site's own slot, the shape before
   // BUG-037 attempt 19: a site whose active tab runs as another site opens

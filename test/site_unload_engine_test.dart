@@ -476,6 +476,27 @@ void main() {
       );
     });
 
+    test("a Tor sync's order leaves out a site on screen that is not "
+        'loaded: its activation moves the exit (BUG-037)', () {
+      final models = _sites([_tor('de'), _tor('de'), _tor('fr')]);
+      expect(
+        SiteUnloadEngine.torSyncOrder(
+          shown: models[0],
+          loaded: [models[2], models[1]],
+        ),
+        [models[1], models[2]],
+        reason: 'site 0 is between a rebind and its activation',
+      );
+      expect(
+        SiteUnloadEngine.torSyncOrder(
+          shown: models[2],
+          loaded: [models[2], models[1]],
+        ),
+        [models[2], models[1]],
+        reason: 'the site on screen decides first, then the most recent',
+      );
+    });
+
     test('a nested open runs as its site and reads its own slot as the site '
         'that slot runs as (BUG-037)', () {
       final models = _sites([null, _http('p1:8080')]);

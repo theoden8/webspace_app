@@ -286,13 +286,16 @@ abstract final class TabTable {
   );
 
   /// LIR-024: a tab switch whose target runs as another site than the
-  /// slot does under one process-wide proxy, where the slot leaves the
-  /// loaded sites. Only under containers does a tab run as another site
-  /// ([mayHost]).
+  /// slot does, across a rule another site shares ([movesRule]), where the
+  /// slot leaves the loaded sites. Only under containers does a tab run as
+  /// another site ([mayHost]).
   static final _identityChanges =
       _containers &
-      _globalProxy &
-      _tabHost.at(_site.value).at(_tab.value).neq(_runsAs(_site.value));
+      _tabHost.at(_site.value).at(_tab.value).neq(_runsAs(_site.value)) &
+      movesRule.call([
+        _runsAs(_site.value),
+        _tabHost.at(_site.value).at(_tab.value),
+      ]);
 
   static final _containers = Constant<bool, TabFlow>(
     ModelConst.containers,
@@ -469,10 +472,46 @@ abstract final class TabTable {
   /// site.
   static final _slotFlips = _relinked(_site.value).has(_active.at(_site.value));
 
-  static final _globalProxy = Constant<bool, TabFlow>(
+  /// `Contending`: the sites in a proxy scope another site's activation
+  /// repoints, every one under one process-wide proxy and the router's
+  /// shared session under the router.
+  static final contending = Members<WebViewModel, TabFlow>(
+    ModelConst.contending,
+    test: (w, {required member}) =>
+        w._c.residency.proxyTopology.contends(member),
+  );
+  static final globalProxy = Constant<bool, TabFlow>(
     ModelConst.globalProxy,
     read: (w) => TabCalls(w._c).processGlobal,
   ).value;
+  static final torRuntime = Constant<bool, TabFlow>(
+    ModelConst.torRuntime,
+    read: (w) => TabCalls(w._c).torRuntime,
+  ).value;
+
+  /// Whether a slot that runs as `a` and comes to run as `b` moves a rule
+  /// another running site shares: a proxy scope either contends in, or the
+  /// one Tor runtime's exit (PROXY-008, TOR-014). The slot then leaves the
+  /// loaded sites, and its activation's plan unloads what its new route
+  /// would move; the code's flips outside a step read [TabCalls.movesRule].
+  static final movesRule = () {
+    const a = Bound<WebViewModel, TabFlow>('a');
+    const b = Bound<WebViewModel, TabFlow>('b');
+    return Def<bool, TabFlow>(
+      ModelDef.movesRule,
+      params: const [a, b],
+      body: contending.has(a.it) | contending.has(b.it) | torRuntime,
+    );
+  }();
+
+  /// The site [s]'s slot runs as once a reroute flips its tab on screen:
+  /// a relinked tab moves between its owner and its link's site.
+  static Expr<WebViewModel, TabFlow> _flippedAs(Expr<WebViewModel, TabFlow> s) =>
+      Expr.choose(
+        when: _runsAs(s).eq(s),
+        then: _link.at(s).at(_active.at(s)).unwrapped,
+        otherwise: s,
+      );
   static final _tabHost = TabVars.host<TabFlow>();
   static Expr<WebViewModel, TabFlow> _runsAs(Expr<WebViewModel, TabFlow> s) =>
       TabVars.runsAs<TabFlow>().call([s]);
@@ -795,7 +834,7 @@ abstract final class TabTable {
       // List, pointer and webview move in one turn: the bytes read are
       // queued for the target, the old webview goes, the rebuild frame
       // builds one for the target from them (TAB-003). A target that runs
-      // as another site under one process-wide proxy takes the slot out of
+      // as another site across a rule another site shares takes the slot out of
       // the loaded sites in the same turn, and the site's activation for its
       // new route starts in that turn too, the arm's spawn (LIR-024).
       TabPlace.tRebind => Step(
@@ -1033,7 +1072,7 @@ abstract final class TabTable {
         otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.done)),
       ),
       // The flips, in the reroute's turn. The tab on screen moves the slot
-      // to the other site: under one process-wide proxy it leaves the
+      // to the other site: across a rule another site shares it leaves the
       // loaded sites and its activation for the new route starts here, the
       // arm's spawn (LIR-024); else its webview is built again as the other
       // site, as a tab switch's rebind builds it.
@@ -1044,7 +1083,9 @@ abstract final class TabTable {
         branches: [
           Branch(
             StepOutcome.unload,
-            when: _slotFlips & _globalProxy,
+            when:
+                _slotFlips &
+                movesRule.call([_runsAs(_site.value), _flippedAs(_site.value)]),
             then: [
               _beforeReroute,
               Act.of([
