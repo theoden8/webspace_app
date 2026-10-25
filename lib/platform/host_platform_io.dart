@@ -13,7 +13,6 @@ bool get hostIsIOS => io.Platform.isIOS;
 bool get hostIsMacOS => io.Platform.isMacOS;
 bool get hostIsLinux => io.Platform.isLinux;
 bool get hostIsWindows => io.Platform.isWindows;
-bool get hostIsFuchsia => io.Platform.isFuchsia;
 
 /// A desktop OS: a window, a mouse and a hardware keyboard.
 bool get hostIsDesktop => hostIsMacOS || hostIsLinux || hostIsWindows;

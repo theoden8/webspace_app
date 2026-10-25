@@ -78,8 +78,4 @@ class TorBridgeSecureStorage {
   /// they are reaching Tor through a bridge that is not configured.
   Future<bool> save(TorBridgeConfig config) =>
       _store.exclusive(() => _store.write(config));
-
-  /// Forget everything. Used when the user clears bridges, and by the
-  /// app-data wipe path. A refusal leaves no bridges in force either way.
-  Future<void> clear() => _store.exclusive(_store.delete);
 }

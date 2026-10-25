@@ -331,17 +331,6 @@ final class TabVars {
     ];
   }
 
-  /// A capture of [site]'s back stack saved: `file' = Capture(site, t, h,
-  /// a)` over what the capture read as it started.
-  static Write<W> captured<W>(Expr<WebViewModel, W> site) => file<W>().becomes(
-    capture<W>().call([
-      site,
-      capTab<W>().value,
-      capHist<W>().value,
-      capAs<WebViewModel, W>().value,
-    ]),
-  );
-
   /// The frame after a commit built the site's webview: bound to its
   /// active tab, showing what was queued for that tab, the queue taken,
   /// among the [loaded] sites the frame sees.

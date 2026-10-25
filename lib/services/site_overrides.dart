@@ -23,10 +23,7 @@ enum TrackingProtectionForce {
   httpsUpgrade(true),
 
   /// ETP-024: the oldest cross-site tracking channel, forced off.
-  thirdPartyCookies(false),
-
-  /// ETP-023: a provisioned Widevine identifier outlives every reset.
-  protectedContent(false);
+  thirdPartyCookies(false);
 
   const TrackingProtectionForce(this.forcedTo);
 

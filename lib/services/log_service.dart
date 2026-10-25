@@ -39,7 +39,6 @@ enum LogTag {
   experimental('Experimental'),
   externalUrl('ExternalUrl'),
   firefoxUa('FirefoxUA'),
-  htmlCache('HtmlCache'),
   htmlImport('HtmlImport'),
   httpAuthStore('HttpAuthStore'),
   icon('Icon'),

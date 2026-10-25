@@ -180,8 +180,6 @@ final class SlotIdentityChanged extends ResidencyEvent {
 final class ResidencyPlan {
   const ResidencyPlan({this.unloads = const [], this.cacheClears = const []});
 
-  static const none = ResidencyPlan();
-
   /// In the order they run.
   final List<({WebViewModel site, UnloadReason reason})> unloads;
 

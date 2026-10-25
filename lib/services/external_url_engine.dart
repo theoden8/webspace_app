@@ -230,7 +230,4 @@ class ExternalUrlSuppressor {
     }
     return true;
   }
-
-  /// Test hook.
-  static void clear() => _suppressed.clear();
 }

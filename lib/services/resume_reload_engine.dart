@@ -135,9 +135,6 @@ class ResumeReloadEngine {
   bool _stallGraceSpent = false;
   int _attempts = 0;
 
-  /// Whether a main-frame navigation is currently running.
-  bool get isLoading => _inFlight;
-
   /// URL of the last main-frame load that failed retryably and has not been
   /// re-issued yet, or null.
   String? get failedUrl => _failedUrl;

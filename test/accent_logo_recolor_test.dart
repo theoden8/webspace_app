@@ -190,7 +190,6 @@ void main() {
     test('race condition: using wrong isLight with icon produces wrong result', () {
       // Simulate the race condition bug: light icon processed with dark alpha
       final (lightSrc, _, _) = _loadIcon(lightIconPath);
-      final (darkSrc, _, _) = _loadIcon(darkIconPath);
 
       // Correct: light icon + isLight=true
       final correctLight = Uint8List.fromList(lightSrc);

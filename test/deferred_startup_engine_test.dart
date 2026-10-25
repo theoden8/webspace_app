@@ -24,8 +24,7 @@ class _FakeSite {
       this.tp = false,
       this.incognito = false,
       this.lat,
-      this.lng,
-      this.tz});
+      this.lng});
   final SiteId siteId;
   bool notif;
   bool fromLoc;
