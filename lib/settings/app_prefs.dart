@@ -122,7 +122,10 @@ enum AppPref<T extends Object> {
   blockScreenshots('blockScreenshots', fallback: false),
   // WEBSPACE-015: the library's folders show their sites as rows rather than
   // a grid of icons, every folder at once.
-  libraryList('libraryList', fallback: false);
+  libraryList('libraryList', fallback: false),
+  // WEBSPACE-015: the library's home shows its webspaces as rows, apart from
+  // how the folders show their sites.
+  libraryWebspaceList('libraryWebspaceList', fallback: false);
 
   const AppPref(this.key, {required this.fallback,this.legacyKey})
       : assert(fallback is bool || fallback is int || fallback is String);

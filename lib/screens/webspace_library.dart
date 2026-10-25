@@ -13,6 +13,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
+import 'package:webspace/widgets/launcher_row.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_list_menu.dart';
@@ -125,10 +126,10 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   /// The open panel's height at its last layout, which a pull is measured in.
   double _panelHeight = 0;
 
-  /// How far the folders have turned from a grid into rows, following
-  /// [AppPref.libraryList] (WEBSPACE-015).
-  late final AnimationController _view;
-  late final CurvedAnimation _rows;
+  /// How far the folders' sites, and apart from them the home's webspaces,
+  /// have turned from a grid into rows (WEBSPACE-015).
+  late final _Rows _rows;
+  late final _Rows _homeRows;
 
   /// The open folder's pages, one per webspace in the grid's order, as a
   /// phone's home screen has pages: made on the selected webspace's page
@@ -188,27 +189,18 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       reverseDuration: Motion.launchBack,
     )..addStatusListener(_panelSettled);
     _pull = AnimationController.unbounded(vsync: this);
-    _view = AnimationController(
+    bool still() => MediaQuery.disableAnimationsOf(context);
+    _rows = _Rows(pref: AppPref.libraryList, vsync: this, still: still);
+    _homeRows = _Rows(
+      pref: AppPref.libraryWebspaceList,
       vsync: this,
-      duration: Motion.layoutMorph,
-      value: AppPref.libraryList.value ? 1 : 0,
+      still: still,
     );
-    _rows = CurvedAnimation(parent: _view, curve: Motion.layoutCurve);
-    AppPref.libraryList.listenable.addListener(_layoutChanged);
     _growth = CurvedAnimation(
       parent: _panel,
       curve: Motion.launchCurve,
       reverseCurve: Motion.launchCurve.flipped,
     );
-  }
-
-  void _layoutChanged() {
-    final rows = AppPref.libraryList.value;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _view.value = rows ? 1 : 0;
-    } else {
-      unawaited(rows ? _view.forward() : _view.reverse());
-    }
   }
 
   void _panelSettled(AnimationStatus status) {
@@ -250,6 +242,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     }
     return WebspaceGroupTile.wellIn(
       tile.localToGlobal(Offset.zero, ancestor: stack) & tile.size,
+      list: _homeRows.value,
+      direction: Directionality.of(context),
     );
   }
 
@@ -269,9 +263,8 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     _growth.dispose();
     _panel.dispose();
     _pull.dispose();
-    AppPref.libraryList.listenable.removeListener(_layoutChanged);
     _rows.dispose();
-    _view.dispose();
+    _homeRows.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -333,7 +326,12 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             if (pages != null)
               LayoutBuilder(
                 builder: (context, constraints) => AnimatedBuilder(
-                  animation: Listenable.merge([_growth, pages, _pull, _rows]),
+                  animation: Listenable.merge([
+                    _growth,
+                    pages,
+                    _pull,
+                    _rows.animation,
+                  ]),
                   builder: (context, _) => _panelLayer(
                     context,
                     webspace: webspace!,
@@ -406,7 +404,30 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                 horizontal: Spacing.lg,
                 vertical: Spacing.sm,
               ),
-              child: TextField(
+              child: Row(
+                children: [
+                  Expanded(child: _searchField(context)),
+                  const SizedBox(width: Spacing.sm),
+                  _LayoutSwitch(rows: _homeRows),
+                ],
+              ),
+            ),
+            Expanded(
+              child: AnimatedBuilder(
+                animation: _homeRows.animation,
+                builder: (context, _) => _groups(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchField(BuildContext context) {
+    final theme = Theme.of(context);
+    final loc = AppLocalizations.of(context);
+    return TextField(
                 key: const ValueKey('library-search'),
                 controller: _search,
                 onChanged: (_) => setState(() {}),
@@ -435,13 +456,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                   ),
                   contentPadding: const EdgeInsets.all(Spacing.lg),
                 ),
-              ),
-            ),
-            Expanded(child: _groups(context)),
-          ],
-        ),
-      ),
-    );
+              );
   }
 
   /// The open folder: a panel over the blurred, dimmed grid, which grows out
@@ -647,7 +662,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
         (rows - 1) * Spacing.lg +
         Spacing.lg * 2;
     final list =
-        math.max(1, count) * SiteGridTile.rowExtentFor(context) +
+        math.max(1, count) * LauncherMorphTile.rowExtentFor(context) +
         Spacing.sm * 2;
     final dots = widget.webspaces.length > 1 ? LibraryStyle.pageDots : 0;
     final room = size.height - insets.vertical - Spacing.xl * 2;
@@ -933,6 +948,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   }) {
     final loc = AppLocalizations.of(context);
     final reorder = query.isEmpty ? widget.onReorder : null;
+    final list = _homeRows.value;
     // This grid's own keys: it builds icons lazily while a crossfade fades
     // it out, after the next grid has taken fresh ones.
     final tiles = _groupTiles;
@@ -954,12 +970,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
               _searchHeading(context, label: loc.libraryWebspaces),
             if (shown.isNotEmpty)
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  Spacing.lg,
-                  Spacing.xl,
-                  Spacing.lg,
-                  Spacing.xl,
-                ),
+                // Rows run the width, their wells under the title's start.
+                padding: EdgeInsets.lerp(
+                  const EdgeInsets.fromLTRB(
+                    Spacing.lg,
+                    Spacing.xl,
+                    Spacing.lg,
+                    Spacing.xl,
+                  ),
+                  const EdgeInsets.symmetric(vertical: Spacing.sm),
+                  list,
+                )!,
                 sliver: LauncherGrid<WebspaceId>(
                   order: [for (final w in shown) w.id],
                   fixed: (id) => id == WebspaceId.all,
@@ -968,15 +989,24 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                       : (id, {required to}) =>
                             _moveGroup(id, to: to, reorder: reorder),
                   builder: (context, {required places}) => SliverGrid.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: Spacing.sm,
-                      mainAxisSpacing: Spacing.xl,
-                      mainAxisExtent: WebspaceGroupTile.extentFor(
-                        textScaler: scaler,
-                        textTheme: Theme.of(context).textTheme,
-                        well: LibraryStyle.siteWell,
+                    gridDelegate: LauncherMorph(
+                      grid: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: Spacing.sm,
+                        mainAxisSpacing: Spacing.xl,
+                        mainAxisExtent: WebspaceGroupTile.extentFor(
+                          textScaler: scaler,
+                          textTheme: Theme.of(context).textTheme,
+                          well: LibraryStyle.siteWell,
+                        ),
                       ),
+                      rows: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 1,
+                        mainAxisExtent: LauncherMorphTile.rowExtentFor(
+                          context,
+                        ),
+                      ),
+                      list: list,
                     ),
                     itemCount: places.length,
                     findChildIndexCallback: (key) {
@@ -994,12 +1024,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         child: LauncherCell<WebspaceId>(
                           index: index,
                           child: LauncherSlot(
+                            morphing: list > 0 && list < 1,
                             child: Builder(
                               builder: (cell) => WebspaceGroupTile(
                                 key: tiles.putIfAbsent(
                                   webspace.id,
                                   GlobalKey.new,
                                 ),
+                                list: list,
                                 webspace: webspace,
                                 sites: [
                                   for (final i in _order(webspace.id))
@@ -1141,7 +1173,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             ),
             rows: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 1,
-              mainAxisExtent: SiteGridTile.rowExtentFor(context),
+              mainAxisExtent: LauncherMorphTile.rowExtentFor(context),
             ),
             list: list,
           ),
@@ -1289,19 +1321,56 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   }
 }
 
-/// The open folder's switch between its sites as a grid of icons and as rows,
-/// which every folder follows ([AppPref.libraryList]); its thumb slides with
-/// the folder's [rows] as they turn.
+/// How far one level of the library has turned from a grid into rows,
+/// following its [pref] (WEBSPACE-015): it moves there as the pref changes,
+/// or jumps where motion is reduced ([still]).
+final class _Rows {
+  _Rows({
+    required this.pref,
+    required TickerProvider vsync,
+    required this.still,
+  }) : _view = AnimationController(
+         vsync: vsync,
+         duration: Motion.layoutMorph,
+         value: pref.value ? 1 : 0,
+       ) {
+    animation = CurvedAnimation(parent: _view, curve: Motion.layoutCurve);
+    pref.listenable.addListener(_changed);
+  }
+
+  final AppPref<bool> pref;
+  final bool Function() still;
+  final AnimationController _view;
+  late final CurvedAnimation animation;
+
+  double get value => animation.value;
+
+  void _changed() {
+    if (still()) {
+      _view.value = pref.value ? 1 : 0;
+    } else {
+      unawaited(pref.value ? _view.forward() : _view.reverse());
+    }
+  }
+
+  void dispose() {
+    pref.listenable.removeListener(_changed);
+    animation.dispose();
+    _view.dispose();
+  }
+}
+
+/// A switch between a level of the library as a grid of icons and as rows,
+/// set app-wide by its [rows]' pref; its thumb slides as the rows turn.
 class _LayoutSwitch extends StatelessWidget {
   const _LayoutSwitch({required this.rows});
 
-  final Animation<double> rows;
+  final _Rows rows;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final label = AppLocalizations.of(context).libraryListView;
-    final on = AppPref.libraryList.value;
     const segment = LibraryStyle.layoutSwitchSegment;
     Widget icon(IconData data, {required double shown}) => SizedBox.fromSize(
       size: segment,
@@ -1315,63 +1384,71 @@ class _LayoutSwitch extends StatelessWidget {
         ),
       ),
     );
-    return Tooltip(
-      message: label,
-      child: Semantics(
-        container: true,
-        toggled: on,
-        label: label,
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: () => unawaited(AppPref.libraryList.set(!on)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: kMinInteractiveDimension,
-            ),
-            child: Center(
-              widthFactor: 1,
-              child: Container(
-                padding: const EdgeInsets.all(LibraryStyle.layoutSwitchInset),
-                decoration: ShapeDecoration(
-                  color: LibraryStyle.field(theme.brightness),
-                  shape: const StadiumBorder(),
+    return AnimatedBuilder(
+      animation: Listenable.merge([rows.animation, rows.pref.listenable]),
+      builder: (context, _) {
+        final on = rows.pref.value;
+        return Tooltip(
+          message: label,
+          child: Semantics(
+            container: true,
+            toggled: on,
+            label: label,
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () => unawaited(rows.pref.set(!on)),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: kMinInteractiveDimension,
                 ),
-                child: AnimatedBuilder(
-                  animation: rows,
-                  builder: (context, _) => Stack(
-                    children: [
-                      PositionedDirectional(
-                        start: segment.width * rows.value,
-                        top: 0,
-                        width: segment.width,
-                        height: segment.height,
-                        child: DecoratedBox(
-                          decoration: ShapeDecoration(
-                            color: theme.colorScheme.primary,
-                            shape: const StadiumBorder(),
+                child: Center(
+                  widthFactor: 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(
+                      LibraryStyle.layoutSwitchInset,
+                    ),
+                    decoration: ShapeDecoration(
+                      color: LibraryStyle.field(theme.brightness),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: Stack(
+                      children: [
+                        PositionedDirectional(
+                          start: segment.width * rows.value,
+                          top: 0,
+                          width: segment.width,
+                          height: segment.height,
+                          child: DecoratedBox(
+                            decoration: ShapeDecoration(
+                              color: theme.colorScheme.primary,
+                              shape: const StadiumBorder(),
+                            ),
                           ),
                         ),
-                      ),
-                      ExcludeSemantics(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            icon(
-                              Icons.grid_view_rounded,
-                              shown: 1 - rows.value,
-                            ),
-                            icon(Icons.view_agenda_outlined, shown: rows.value),
-                          ],
+                        ExcludeSemantics(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              icon(
+                                Icons.grid_view_rounded,
+                                shown: 1 - rows.value,
+                              ),
+                              icon(
+                                Icons.view_agenda_outlined,
+                                shown: rows.value,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

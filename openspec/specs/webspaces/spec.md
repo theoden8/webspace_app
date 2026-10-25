@@ -379,6 +379,22 @@ reorder by dragging as icons do (WEBSPACE-011). A site SHALL open from its
 row's icon and close back into it, its card starting at that icon's size and
 colour. Reduced motion SHALL switch at once.
 
+The library's home SHALL hold a switch of its own beside its search, which
+shows the webspaces, browsed or found by a search, as rows in the same way:
+each its cluster of site icons at the start, its name over its site count,
+and a mark while selected. It SHALL be set app-wide apart from the folders'
+switch, persist and ride a backup the same way, and leave how the folders
+show their sites as it was. A folder SHALL open out of its row's cluster and
+close back into it, and rows SHALL reorder by dragging as the grid does.
+
+#### Scenario: Turn the webspaces into rows
+
+**Given** Alternative design is enabled and the home shows its webspaces as a grid
+**When** the user taps the list view switch beside the search
+**Then** each webspace's cluster moves to the start of its row, beside its name and site count
+**When** the user opens Work
+**Then** its folder grows out of Work's row and shows its sites as the folders' switch has them
+
 #### Scenario: Turn a folder into rows
 
 **Given** Alternative design is enabled and the All folder is open as a grid

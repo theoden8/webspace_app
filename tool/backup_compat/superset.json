@@ -257,6 +257,7 @@
     "httpsUpgradeEnabled": false,
     "blockScreenshots": true,
     "libraryList": true,
+    "libraryWebspaceList": true,
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },
   "suggestedSites": [
