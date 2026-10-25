@@ -337,7 +337,7 @@ The unload SHALL ask its decision again just before the dispose, with no await b
 **Given** memory pressure is unloading site A, which is at `cacheCleared`
 **When** the unload backs off because A started activating during its capture
 **Then** A stays loaded at its own tier, not `savedForRestore`
-**Because** `pickPromotionTarget` never picks a loaded site at `savedForRestore`, so one left there would be out of memory pressure's reach
+**Because** the pressure plan picks only from `pressureResident` and `pressureCleared`, never a loaded site at `savedForRestore`, so one left there would be out of memory pressure's reach
 
 #### Scenario: Webspace switch in legacy mode preserves restorable state
 

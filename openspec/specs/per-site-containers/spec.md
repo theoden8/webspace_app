@@ -362,9 +362,10 @@ under this policy, two backstops apply:
    webspaces.
 2. **OS memory pressure**
    (`WidgetsBindingObserver.didHaveMemoryPressure`). Each event
-   promotes one site one lifecycle tier deeper via
-   [`SiteLifecyclePromotionEngine.pickPromotionTarget`](../../../lib/services/site_lifecycle_promotion_engine.dart)
-   (see webview-pause-lifecycle). The OS controls the curve: if
+   promotes one site one lifecycle tier deeper through the activation
+   table's pressure plan, which picks from
+   [`ActivationTable.pressureResident`](../../../lib/controllers/activation_table.dart),
+   else `pressureCleared` (see webview-pause-lifecycle). The OS controls the curve: if
    pressure persists, the callback fires again and the next site is
    picked. One-per-event matches
    the OS signaling cadence and avoids over-evicting on transient
