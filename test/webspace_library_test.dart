@@ -7,13 +7,16 @@ import 'package:image/image.dart' as image;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/screens/webspace_library.dart';
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/library_layout.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
@@ -65,6 +68,10 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
 
   void disableTabs(WebViewModel site) =>
       setState(() => site.tabsEnabled = false);
+
+  void giveGlyph(WebspaceGlyph glyph, {required String to}) => setState(
+    () => webspaces.singleWhere((w) => w.name == to).glyph = glyph,
+  );
 
   /// Gives every site an icon of its own but the ones [twins] lists, which
   /// share one.
@@ -119,6 +126,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
           onAddSite: ({required into}) => addedInto.add(into),
           onShowTabs: tabsScopes.add,
           onOpenSettings: () async => settingsOpened++,
+          accentColor: AccentColor.blue,
         ),
       ),
     );
@@ -157,12 +165,19 @@ Finder _siteWell(int index) => find.descendant(
   matching: find.byType(AnimatedContainer),
 );
 
-/// Starts each test on a grid, with somewhere for the switch to save.
+/// Starts each test on grids, with somewhere for the switches to save: the
+/// tests here are of the grid unless they choose another layout.
 void _layoutStartsAsGrid() {
   SharedPreferences.setMockInitialValues({});
-  AppPref.libraryList.debugValue = false;
-  addTearDown(() => AppPref.libraryList.debugValue = false);
+  for (final pref in [AppPref.libraryLayout, AppPref.libraryWebspaceLayout]) {
+    pref.debugValue = LibraryLayout.grid.name;
+    addTearDown(() => pref.debugValue = pref.fallback);
+  }
 }
+
+/// The tile of webspace [name] on the home.
+Finder _groupTile(String name) =>
+    find.ancestor(of: _group(name), matching: find.byType(WebspaceGroupTile));
 
 /// Runs the screen reader's [label] move on the icon [finder] shows.
 Future<void> _semanticMove(
@@ -195,6 +210,8 @@ Future<void> _lift(
 }
 
 void main() {
+  setUp(_layoutStartsAsGrid);
+
   for (final brightness in Brightness.values) {
     testWidgets(
       'selection keeps group backgrounds stable in ${brightness.name}',
@@ -1376,7 +1393,6 @@ void main() {
   testWidgets(
     'the switch turns every folder into rows and back, its icons gliding with their places as the panel fits them (WEBSPACE-015)',
     (tester) async {
-      _layoutStartsAsGrid();
       await pumpLocalized(
         tester,
         home: const _LibraryHarness(),
@@ -1410,12 +1426,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(AppPref.libraryList.value, isTrue);
+      expect(AppPref.libraryLayout.value, LibraryLayout.list.name);
       expect(
-        (await SharedPreferences.getInstance()).getBool(
-          AppPref.libraryList.key,
+        (await SharedPreferences.getInstance()).getString(
+          AppPref.libraryLayout.key,
         ),
-        isTrue,
+        LibraryLayout.list.name,
       );
       final panel = tester.getRect(_panel);
       final rows = [for (var i = 0; i < 8; i++) tester.getRect(tiles.at(i))];
@@ -1457,12 +1473,12 @@ void main() {
         reason: 'every folder shows rows',
       );
 
-      await tester.tap(_inPanel(find.byTooltip('List view')));
+      await tester.tap(_inPanel(find.byTooltip('Grid view')));
       await tester.pumpAndSettle();
       await tester.tap(dot('All'));
       await tester.pumpAndSettle();
       expect(tester.getRect(tiles.at(1)), gridTile);
-      expect(AppPref.libraryList.value, isFalse);
+      expect(AppPref.libraryLayout.value, LibraryLayout.grid.name);
       expect(tester.takeException(), isNull);
     },
   );
@@ -1470,8 +1486,7 @@ void main() {
   testWidgets(
     'a site in a row opens from and closes into its row\'s icon (WEBSPACE-015)',
     (tester) async {
-      _layoutStartsAsGrid();
-      AppPref.libraryList.debugValue = true;
+      AppPref.libraryLayout.debugValue = LibraryLayout.list.name;
       await pumpLocalized(tester, home: const _LibraryHarness());
       await tester.pumpAndSettle();
       await tester.tap(_group('Work'));
@@ -1491,8 +1506,7 @@ void main() {
   testWidgets('rows reorder by dragging as icons do (WEBSPACE-015)', (
     tester,
   ) async {
-    _layoutStartsAsGrid();
-    AppPref.libraryList.debugValue = true;
+    AppPref.libraryLayout.debugValue = LibraryLayout.list.name;
     await pumpLocalized(tester, home: const _LibraryHarness());
     await tester.pumpAndSettle();
     await tester.tap(_group('Work'));
@@ -1506,10 +1520,299 @@ void main() {
     expect(_panel, findsOneWidget);
   });
 
+  testWidgets(
+    'the home\'s own switch turns the webspaces into rows and back, apart from the folders (WEBSPACE-015)',
+    (tester) async {
+      await pumpLocalized(
+        tester,
+        home: const _LibraryHarness(),
+        size: const Size(411, 900),
+      );
+      await tester.pumpAndSettle();
+      final gridTile = tester.getRect(_groupTile('Work'));
+      final gridWell = _well(tester, name: 'Work');
+
+      await tester.tap(find.byTooltip('List view'));
+      await tester.pump();
+      await tester.pump(Motion.layoutMorph ~/ 2);
+      final turning = _well(tester, name: 'Work');
+      expect(
+        turning.width,
+        inExclusiveRange(LibraryStyle.rowWell, LibraryStyle.siteWell),
+      );
+      expect(
+        tester.getRect(_groupTile('Work')),
+        tester.getRect(
+          find.ancestor(
+            of: _groupTile('Work'),
+            matching: find.byType(LauncherCell<WebspaceId>),
+          ),
+        ),
+        reason: 'a webspace goes with its place as the layout turns',
+      );
+      await tester.pumpAndSettle();
+
+      expect(AppPref.libraryWebspaceLayout.value, LibraryLayout.list.name);
+      expect(
+        AppPref.libraryLayout.value,
+        LibraryLayout.grid.name,
+        reason: 'folders keep theirs',
+      );
+      expect(
+        (await SharedPreferences.getInstance()).getString(
+          AppPref.libraryWebspaceLayout.key,
+        ),
+        LibraryLayout.list.name,
+      );
+      final rows = [
+        for (final name in ['All', 'Work', 'Privacy'])
+          tester.getRect(_groupTile(name)),
+      ];
+      for (final (i, row) in rows.indexed) {
+        expect(row.width, 411);
+        if (i > 0) expect(row.top, rows[i - 1].bottom);
+      }
+      final rowWell = _well(tester, name: 'Work');
+      expect(
+        rowWell,
+        WebspaceGroupTile.wellIn(
+          rows[1],
+          list: 1,
+          direction: TextDirection.ltr,
+        ),
+      );
+      expect(
+        turning.center.dx,
+        inExclusiveRange(rowWell.center.dx, gridWell.center.dx),
+      );
+
+      await tester.tap(_group('Work'));
+      await tester.pump();
+      expect(
+        tester.getRect(_panel),
+        rowWell,
+        reason: 'the folder grows out of its row\'s cluster',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(_inPanel(find.byType(SiteGridTile)).first).width,
+        lessThan(tester.getRect(_panel).width / 2),
+        reason: 'the folder keeps its grid',
+      );
+      await _tapOutside(tester);
+
+      await tester.enterText(find.byType(TextField), 'work');
+      await tester.pumpAndSettle();
+      expect(tester.getRect(_groupTile('Work')).width, 411);
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Grid view'));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(_groupTile('Work')), gridTile);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('webspace rows reorder by dragging (WEBSPACE-015)', (
+    tester,
+  ) async {
+    AppPref.libraryWebspaceLayout.debugValue = LibraryLayout.list.name;
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    final state = tester.state<_LibraryHarnessState>(
+      find.byType(_LibraryHarness),
+    );
+    await _lift(tester, from: _groupTile('Privacy'), to: _groupTile('Work'));
+    expect([for (final w in state.webspaces) w.name].take(3), [
+      'All',
+      'Privacy',
+      'Work',
+    ]);
+  });
+
+  testWidgets(
+    'Auto shows each level as rows while its items all fit, and as icons once '
+    'they would not, again as the window resizes (WEBSPACE-015)',
+    (tester) async {
+      for (final pref in [
+        AppPref.libraryLayout,
+        AppPref.libraryWebspaceLayout,
+      ]) {
+        pref.debugValue = LibraryLayout.auto.name;
+      }
+      await pumpLocalized(
+        tester,
+        home: const _LibraryHarness(),
+        size: const Size(411, 900),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(_groupTile('Work')).width,
+        411,
+        reason: 'four webspaces fit as rows',
+      );
+      await tester.tap(_group('All'));
+      await tester.pumpAndSettle();
+      final panel = tester.getRect(_panel);
+      expect(
+        tester.getRect(_inPanel(find.byType(SiteGridTile)).at(1)).width,
+        panel.width - Spacing.sm * 2,
+        reason: 'eight sites fit a tall window as rows',
+      );
+      await _tapOutside(tester);
+
+      // Eight rows would fit this window, but not the panel within it.
+      setViewSize(tester, size: const Size(411, 480));
+      await tester.pumpAndSettle();
+      await tester.tap(_group('All'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(_inPanel(find.byType(SiteGridTile)).at(1)).width,
+        lessThan(tester.getRect(_panel).width / 2),
+        reason: 'rows only where the panel holds them all',
+      );
+      await _tapOutside(tester);
+
+      setViewSize(tester, size: const Size(411, 360));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(_groupTile('Work')).width,
+        lessThan(411 / 2),
+        reason: 'four webspaces no longer fit a short window as rows',
+      );
+      await tester.tap(_group('All'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(_inPanel(find.byType(SiteGridTile)).at(1)).width,
+        lessThan(tester.getRect(_panel).width / 2),
+        reason: 'eight sites no longer fit as rows',
+      );
+      // Halfway to Work, each page shows its own layout.
+      final gesture = await tester.startGesture(
+        tester.getCenter(_panel) + const Offset(100, 0),
+      );
+      await gesture.moveBy(const Offset(-kTouchSlop - 1, 0));
+      await gesture.moveBy(const Offset(-150, 0));
+      await tester.pump();
+      final work = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      ).sites[0];
+      final workTile = find.byWidgetPredicate(
+        (widget) =>
+            widget is SiteGridTile &&
+            identical(widget.site, work) &&
+            widget.list == 1,
+      );
+      expect(
+        _inPanel(workTile),
+        findsOneWidget,
+        reason: 'two sites still fit as rows, each folder by its own count',
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'on a wide window rows flow into columns rather than run its width '
+    '(WEBSPACE-015)',
+    (tester) async {
+      AppPref.libraryWebspaceLayout.debugValue = LibraryLayout.list.name;
+      AppPref.libraryLayout.debugValue = LibraryLayout.list.name;
+      await pumpLocalized(
+        tester,
+        home: const _LibraryHarness(),
+        size: const Size(1280, 800),
+      );
+      await tester.pumpAndSettle();
+      final rows = [
+        for (final name in ['All', 'Work', 'Privacy'])
+          tester.getRect(_groupTile(name)),
+      ];
+      expect(rows[0].width, lessThan(1280 / 2));
+      expect(rows[1].top, rows[0].top, reason: 'side by side');
+      expect(rows[1].left, rows[0].right);
+      await tester.tap(_group('All'));
+      await tester.pumpAndSettle();
+      final sites = _inPanel(find.byType(SiteGridTile));
+      expect(
+        tester.getRect(sites.at(1)).top,
+        tester.getRect(sites.at(0)).top,
+        reason: 'the folder\'s rows flow into columns too',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('the switch offers Auto, Grid and List, and marks the one in use', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    bool? selected(String label) => tester
+        .widget<Semantics>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics &&
+                widget.properties.button == true &&
+                widget.properties.label == label,
+          ),
+        )
+        .properties
+        .selected;
+    expect(selected('Grid view'), isTrue);
+    await tester.tap(find.byTooltip('Automatic layout'));
+    await tester.pumpAndSettle();
+    expect(AppPref.libraryWebspaceLayout.value, LibraryLayout.auto.name);
+    expect(selected('Automatic layout'), isTrue);
+    expect(selected('Grid view'), isFalse);
+  });
+
+  testWidgets(
+    'a webspace\'s glyph leads its name on the home and in its folder, and '
+    'the home\'s title carries the app\'s logo (WEBSPACE-016)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final state = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      expect(find.byType(AccentLogo), findsOneWidget);
+      expect(
+        tester.getRect(find.byType(AccentLogo)).right,
+        lessThan(tester.getRect(find.text('Webspaces')).left),
+        reason: 'the logo sits before the title',
+      );
+      expect(find.byIcon(Icons.work_outline), findsNothing);
+      state.giveGlyph(WebspaceGlyph.work, to: 'Work');
+      await tester.pumpAndSettle();
+      // The glyph's placeholder is part of the name's text now.
+      final work = find.byWidgetPredicate(
+        (widget) =>
+            widget is WebspaceGroupTile && widget.webspace.name == 'Work',
+      );
+      expect(
+        find.descendant(of: work, matching: find.byIcon(Icons.work_outline)),
+        findsOneWidget,
+      );
+      await tester.tap(work);
+      await tester.pumpAndSettle();
+      expect(_inPanel(find.byIcon(Icons.work_outline)), findsOneWidget);
+      AppPref.libraryWebspaceLayout.debugValue = LibraryLayout.list.name;
+      await _tapOutside(tester);
+      expect(
+        find.descendant(of: work, matching: find.byIcon(Icons.work_outline)),
+        findsOneWidget,
+        reason: 'and in its row',
+      );
+    },
+  );
+
   testWidgets('reduced motion turns a folder into rows at once', (
     tester,
   ) async {
-    _layoutStartsAsGrid();
     await pumpLocalized(
       tester,
       home: const MediaQuery(

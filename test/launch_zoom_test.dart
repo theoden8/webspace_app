@@ -84,8 +84,7 @@ void main() {
         final opening = zoom.open(
           site,
           from: _icon,
-          show: () async {},
-          shown: () => true,
+          to: (show: () async {}, shown: () => true),
         );
         await tester.pump();
         final color = tester.widget<Material>(_card).color;
@@ -128,8 +127,7 @@ void main() {
           customIconPng: _png(3),
         ),
         from: row,
-        show: () async {},
-        shown: () => true,
+        to: (show: () async {}, shown: () => true),
       );
       await tester.pump();
       final icon = find.descendant(of: _card, matching: find.byType(Image));
@@ -157,8 +155,7 @@ void main() {
       final opening = zoom.open(
         _site(),
         from: _icon,
-        show: () async => shown++,
-        shown: () => shown > 0,
+        to: (show: () async => shown++, shown: () => shown > 0),
       );
       await tester.pump();
       expect(tester.getRect(_card), _icon, reason: 'it starts as the icon');
@@ -196,12 +193,14 @@ void main() {
       var shown = 0;
       final closing = zoom.close(
         _site(),
-        show: () async {
-          shown++;
-          laidOut = _icon;
-        },
-        shown: () => shown > 0,
-        into: () => laidOut,
+        to: (
+          show: () async {
+            shown++;
+            laidOut = _icon;
+          },
+          shown: () => shown > 0,
+          into: () => laidOut,
+        ),
       );
       await tester.pump();
       expect(tester.getRect(_card), _screen);
@@ -245,8 +244,7 @@ void main() {
       final opening = zoom.open(
         _site(),
         from: null,
-        show: () async => shown++,
-        shown: () => shown > 0,
+        to: (show: () async => shown++, shown: () => shown > 0),
       );
       await tester.pump();
       await tester.pump(Motion.reveal ~/ 2);
@@ -268,9 +266,7 @@ void main() {
     final zoom = await _pump(tester, onButton: () {});
     final closing = zoom.close(
       _site(),
-      show: () async {},
-      shown: () => true,
-      into: () => null,
+      to: (show: () async {}, shown: () => true, into: () => null),
     );
     double opacity() => tester
         .widget<Opacity>(
@@ -303,8 +299,7 @@ void main() {
       final opening = zoom.open(
         _site(),
         from: _icon,
-        show: () => never.future,
-        shown: () => false,
+        to: (show: () => never.future, shown: () => false),
       );
       await tester.pump();
       await tester.pump(Motion.launch);
@@ -319,8 +314,7 @@ void main() {
       final quick = zoom.open(
         _site(),
         from: _icon,
-        show: () async {},
-        shown: () => on,
+        to: (show: () async {}, shown: () => on),
       );
       await tester.pump();
       await tester.pump(Motion.launch);
@@ -344,8 +338,7 @@ void main() {
     final opening = zoom.open(
       _site(),
       from: _icon,
-      show: () async => shown++,
-      shown: () => true,
+      to: (show: () async => shown++, shown: () => true),
     );
     expect(shown, 1);
     await tester.pump();
@@ -353,12 +346,190 @@ void main() {
     await opening;
     await zoom.close(
       _site(),
-      show: () async => shown++,
-      shown: () => true,
-      into: () => _icon,
+      to: (show: () async => shown++, shown: () => true, into: () => _icon),
     );
     await tester.pump();
     expect(shown, 2);
     expect(_card, findsNothing);
+  });
+
+  group('a card held by its top bar (WEBSPACE-008)', () {
+    const grab = Offset(200, 30);
+
+    /// A hold at [grab] over a library that shows when [library] completes,
+    /// in the order [events] records the switches.
+    Future<CardHold> hold(
+      WidgetTester tester, {
+      required List<String> events,
+      Completer<void>? library,
+      bool reduceMotion = false,
+    }) async {
+      final zoom = await _pump(
+        tester,
+        onButton: () {},
+        reduceMotion: reduceMotion,
+      );
+      var libraryShown = false;
+      var siteShown = false;
+      return zoom.hold(
+        _site(),
+        at: grab,
+        to: (
+          show: () async {
+            events.add('library');
+            await library?.future;
+            libraryShown = true;
+          },
+          shown: () => libraryShown,
+          into: () => _icon,
+        ),
+        back: (
+          show: () async {
+            events.add('site');
+            siteShown = true;
+          },
+          shown: () => siteShown,
+        ),
+      )!;
+    }
+
+    /// Where the card puts the point it was lifted by.
+    Offset held(Rect card) =>
+        card.topLeft + grab * (card.width / _screen.width);
+
+    testWidgets(
+      'lifts by the point held, follows the finger, smaller the further down, '
+      'and past a quarter of the screen lands in the site\'s icon',
+      (tester) async {
+        final events = <String>[];
+        final card = await hold(tester, events: events);
+        await tester.pumpAndSettle();
+        expect(events, ['library'], reason: 'the library comes under it');
+        final lifted = tester.getRect(_card);
+        expect(lifted.width, lessThan(_screen.width));
+        expect((held(lifted) - grab).distance, lessThan(.001));
+
+        card.move(to: grab + const Offset(30, 400));
+        await tester.pump();
+        final pulled = tester.getRect(_card);
+        expect(pulled.width, lessThan(lifted.width));
+        expect(
+          (held(pulled) - (grab + const Offset(30, 400))).distance,
+          lessThan(.001),
+        );
+
+        final landing = card.letGo(velocity: Offset.zero);
+        await tester.pump();
+        await tester.pump();
+        await tester.pump();
+        final leaving = tester.getRect(_card);
+        expect(
+          (leaving.topLeft - pulled.topLeft).distance +
+              (leaving.bottomRight - pulled.bottomRight).distance,
+          lessThan(.001),
+          reason: 'it leaves from where it is',
+        );
+        await tester.pump(Motion.launchBack);
+        expect(tester.getRect(_card), _icon);
+        await tester.pumpAndSettle();
+        await landing;
+        expect(_card, findsNothing);
+        expect(events, ['library']);
+      },
+    );
+
+    testWidgets(
+      'let go short of a quarter, it goes back over the screen and the site '
+      'is shown once the library has been',
+      (tester) async {
+        final events = <String>[];
+        final library = Completer<void>();
+        final card = await hold(tester, events: events, library: library);
+        await tester.pump();
+        await tester.pump(Motion.reveal);
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(Motion.settle);
+        card.move(to: grab + const Offset(0, 150));
+        await tester.pump();
+        expect(
+          tester.getRect(_card),
+          _screen,
+          reason: 'it lifts once the library is under it, so the site is '
+              'never seen around it',
+        );
+        final back = card.letGo(velocity: Offset.zero);
+        await tester.pump();
+        await tester.pump(Motion.settle);
+        expect(tester.getRect(_card), _screen);
+        expect(events, ['library'], reason: 'the library is still coming');
+        await tester.pump(Motion.launchHold ~/ 2);
+        expect(events, ['library'], reason: 'the site waits for the library');
+        expect(tester.getRect(_card), _screen);
+        library.complete();
+        await tester.pumpAndSettle();
+        await back;
+        expect(events, ['library', 'site']);
+        expect(_card, findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a library that never shows keeps the site waiting no longer than the '
+      'card\'s cap',
+      (tester) async {
+        final events = <String>[];
+        final library = Completer<void>();
+        final card = await hold(tester, events: events, library: library);
+        await tester.pump();
+        await tester.pump(Motion.reveal);
+        final back = card.letGo(velocity: Offset.zero);
+        await tester.pump();
+        await tester.pump(Motion.settle);
+        // An animation ends on the frame after its last value, which starts
+        // the wait.
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(Motion.launchHold);
+        expect(events, ['library', 'site']);
+        await tester.pumpAndSettle();
+        expect(_card, findsNothing);
+        library.complete();
+        await back;
+      },
+    );
+
+    for (final (name, pull, velocity, closes) in [
+      ('flung down from near the top, it closes', 50.0, 1000.0, true),
+      ('flung back up from far down, it goes back', 400.0, -1000.0, false),
+    ]) {
+      testWidgets(name, (tester) async {
+        final events = <String>[];
+        final card = await hold(tester, events: events);
+        await tester.pumpAndSettle();
+        card.move(to: grab + Offset(0, pull));
+        await tester.pump();
+        final letGo = card.letGo(velocity: Offset(0, velocity));
+        await tester.pumpAndSettle();
+        await letGo;
+        expect(events, closes ? ['library'] : ['library', 'site']);
+      });
+    }
+
+    testWidgets(
+      'with reduced motion nothing lifts, and only a let-go that closes goes '
+      'back to the library',
+      (tester) async {
+        for (final (pull, closes) in [(50.0, false), (400.0, true)]) {
+          final events = <String>[];
+          final card = await hold(tester, events: events, reduceMotion: true);
+          await tester.pump();
+          expect(_card, findsNothing);
+          expect(events, isEmpty);
+          card.move(to: grab + Offset(0, pull));
+          await card.letGo(velocity: Offset.zero);
+          await tester.pump();
+          expect(events, closes ? ['library'] : isEmpty);
+        }
+      },
+    );
   });
 }

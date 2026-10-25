@@ -120,9 +120,11 @@ enum AppPref<T extends Object> {
   // SCREENBLOCK-002: withhold the whole app from screenshots, recordings
   // and the recent-apps preview. Android only.
   blockScreenshots('blockScreenshots', fallback: false),
-  // WEBSPACE-015: the library's folders show their sites as rows rather than
-  // a grid of icons, every folder at once.
-  libraryList('libraryList', fallback: false);
+  // WEBSPACE-015: how the library's folders lay out their sites, every folder
+  // at once, and apart from them how its home lays out the webspaces: a
+  // LibraryLayout's name.
+  libraryLayout('libraryLayout', fallback: 'auto'),
+  libraryWebspaceLayout('libraryWebspaceLayout', fallback: 'auto');
 
   const AppPref(this.key, {required this.fallback,this.legacyKey})
       : assert(fallback is bool || fallback is int || fallback is String);

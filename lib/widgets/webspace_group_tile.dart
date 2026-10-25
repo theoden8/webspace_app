@@ -5,8 +5,11 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/launcher_lift.dart';
+import 'package:webspace/widgets/launcher_row.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 
-/// A launcher group represented by a compact cluster of its site icons.
+/// A launcher group represented by a compact cluster of its site icons, over
+/// its name, or [list] of the way to a row beside it (WEBSPACE-015).
 class WebspaceGroupTile extends StatelessWidget {
   const WebspaceGroupTile({
     super.key,
@@ -15,6 +18,7 @@ class WebspaceGroupTile extends StatelessWidget {
     required this.selected,
     required this.onOpen,
     required this.onMenu,
+    this.list = 0,
   });
 
   final Webspace webspace;
@@ -25,11 +29,26 @@ class WebspaceGroupTile extends StatelessWidget {
   /// The group's menu, at a global position.
   final ValueChanged<Offset> onMenu;
 
-  /// Where a tile laid out at [tile] draws its well, which an open group
-  /// grows out of and closes back into.
-  static Rect wellIn(Rect tile) => Rect.fromLTWH(
-    tile.center.dx - LibraryStyle.siteWell / 2,
-    tile.top,
+  /// How far the tile has turned into a row: 0 its cluster over its name, 1
+  /// its cluster at the start of a row beside its name and site count.
+  final double list;
+
+  /// Where a tile laid out at [tile], [list] of the way to a row, draws its
+  /// well, which an open group grows out of and closes back into.
+  static Rect wellIn(
+    Rect tile, {
+    required double list,
+    required TextDirection direction,
+  }) => LauncherMorphTile.wellIn(
+    tile,
+    grid: _gridWell,
+    list: list,
+    direction: direction,
+  );
+
+  static Rect _gridWell(Size tile) => Rect.fromLTWH(
+    tile.width / 2 - LibraryStyle.siteWell / 2,
+    0,
     LibraryStyle.siteWell,
     LibraryStyle.siteWell,
   );
@@ -65,10 +84,22 @@ class WebspaceGroupTile extends StatelessWidget {
         data: webspace.isAll ? null : webspace.id,
         onOpen: onOpen,
         onMenu: onMenu,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            AnimatedContainer(
+        child: ExcludeSemantics(
+          child: LauncherMorphTile(
+            list: list,
+            icon: (
+              well: _gridWell,
+              caption: _caption(theme, count: count),
+              captionHeight:
+                  extentFor(
+                    textScaler: MediaQuery.textScalerOf(context),
+                    textTheme: theme.textTheme,
+                    well: well,
+                  ) -
+                  well,
+              corner: const [],
+            ),
+            well: AnimatedContainer(
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
                   : Motion.settle,
@@ -83,75 +114,70 @@ class WebspaceGroupTile extends StatelessWidget {
                   width: LibraryStyle.selectionWidth,
                 ),
               ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: ExcludeSemantics(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: LibraryStyle.group(
-                            theme.brightness,
-                            id: webspace.id,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            LibraryStyle.radius,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(Spacing.sm),
-                          child: _previews(theme),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: Spacing.md),
-            ExcludeSemantics(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      webspace.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: LibraryStyle.siteTitleSize,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  if (selected) ...[
-                    const SizedBox(width: Spacing.xs),
-                    Icon(
-                      Icons.check_circle,
-                      size: IconSizes.inline,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: Spacing.xs),
-            ExcludeSemantics(
-              child: Text(
-                count,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: LibraryStyle.group(theme.brightness, id: webspace.id),
+                  borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.sm),
+                  child: _previews(theme),
                 ),
               ),
             ),
-          ],
+            row: LauncherRowText(
+              name: webspace.name,
+              icon: webspace.glyph?.icon,
+              detail: count,
+              trailing: [if (selected) _check(theme)],
+            ),
+          ),
         ),
       ),
     );
   }
+
+  Widget _check(ThemeData theme) => Icon(
+    Icons.check_circle,
+    size: IconSizes.inline,
+    color: theme.colorScheme.primary,
+  );
+
+  /// The name under the cluster, marked while selected, over the site count.
+  Widget _caption(ThemeData theme, {required String count}) => Column(
+    children: [
+      const SizedBox(height: Spacing.md),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: WebspaceName(
+              webspace,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: LibraryStyle.siteTitleSize,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (selected) ...[
+            const SizedBox(width: Spacing.xs),
+            _check(theme),
+          ],
+        ],
+      ),
+      const SizedBox(height: Spacing.xs),
+      Text(
+        count,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    ],
+  );
 
   Widget _previews(ThemeData theme) {
     final hasRemainder = sites.length > 4;

@@ -794,6 +794,7 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     onAddSite: ({required into}) {},
     onShowTabs: (_) {},
     onOpenSettings: () async {},
+    accentColor: AccentColor.blue,
     onReorder: (from, {required newIndex}) => setState(() {
       final moved = _webspaces.removeAt(from);
       _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);

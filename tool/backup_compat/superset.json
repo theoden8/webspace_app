@@ -202,6 +202,7 @@
     {
       "id": "ws-compat-work",
       "name": "Work",
+      "icon": "work",
       "siteIndices": [0, 2, 3],
       "siteIds": ["compat-site-a", "compat-site-c", "compat-site-d"]
     },
@@ -256,7 +257,8 @@
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,
     "blockScreenshots": true,
-    "libraryList": true,
+    "libraryLayout": "list",
+    "libraryWebspaceLayout": "grid",
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },
   "suggestedSites": [

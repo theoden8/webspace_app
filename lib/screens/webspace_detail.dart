@@ -6,6 +6,7 @@ import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/site_address.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 
 class WebspaceDetailScreen extends StatefulWidget {
   final Webspace webspace;
@@ -30,6 +31,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
   late final _nameController =
       TextEditingController(text: widget.webspace.name);
   late final _selectedIndices = Set<int>.from(widget.webspace.siteIndices);
+  late WebspaceGlyph? _glyph = widget.webspace.glyph;
 
   @override
   void initState() {
@@ -42,7 +44,11 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
 
   @override
   Record snapshot() =>
-      (name: _nameController.text, sites: ValueSet(_selectedIndices));
+      (
+        name: _nameController.text,
+        glyph: _glyph,
+        sites: ValueSet(_selectedIndices),
+      );
 
   @override
   void dispose() {
@@ -59,6 +65,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
     }
     widget.onSave(widget.webspace.copyWith(
       name: trimmedName,
+      glyph: (to: _glyph),
       siteIndices: _selectedIndices.toList()..sort(),
     ));
     Navigator.pop(context);
@@ -101,6 +108,25 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
                 hintText: loc.webspaceDetailNameHint,
                 border: OutlineInputBorder(),
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              enabled: !widget.isReadOnly,
+              leading: Icon(_glyph?.icon ?? Icons.workspaces),
+              title: Text(loc.webspaceGlyphTitle),
+              subtitle: Text(_glyph?.label(loc) ?? loc.webspaceGlyphNone),
+              onTap: () async {
+                final picked = await pickWebspaceGlyph(
+                  context,
+                  current: _glyph,
+                );
+                if (picked != null && mounted) {
+                  setState(() => _glyph = picked.to);
+                }
+              },
             ),
           ),
           Padding(

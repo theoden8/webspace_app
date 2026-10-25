@@ -69,6 +69,7 @@ abstract final class LibraryStyle {
   static const double siteWell = 80;
   static const double previewIcon = 24;
   static const double titleSize = 30;
+  static const double logoSize = 36;
   static const double siteTitleSize = 14;
 
   /// An open group: a panel over the dimmed grid, as a phone opens a folder.
@@ -86,6 +87,25 @@ abstract final class LibraryStyle {
   static const double pullFling = 700;
   static const double pullShrink = .1;
 
+  /// Whether a pull let go [pulled] down a surface [extent] tall, moving at
+  /// [velocity], closes it: flung down, or let go past [pullToClose] of it
+  /// and not flung back up. An open folder and a site's held card both close
+  /// by it.
+  static bool pullCloses({
+    required double pulled,
+    required double extent,
+    required double velocity,
+  }) =>
+      velocity > pullFling ||
+      (velocity > -pullFling && pulled > extent * pullToClose);
+
+  /// A site's card held by its top bar (WEBSPACE-008): the size it lifts to,
+  /// how much more of it a pull down the whole screen takes away, and the
+  /// corners it has once lifted.
+  static const double cardLift = .94;
+  static const double cardPullShrink = .6;
+  static const double cardRadius = 32;
+
   /// The open folder's page dots: the row under its pages, and one dot.
   static const double pageDots = 28;
   static const double pageDot = 6;
@@ -98,9 +118,15 @@ abstract final class LibraryStyle {
   static const Curve gridCaptionOut = Interval(0, .4, curve: Curves.easeOut);
   static const Curve rowCaptionIn = Interval(.5, 1, curve: Curves.easeOut);
 
-  /// The open folder's switch between a grid and rows: each of its two
-  /// segments, and the track around them.
-  static const Size layoutSwitchSegment = Size(36, 28);
+  /// A webspace's glyph beside its name, against the name's font size.
+  static const double glyphScale = 1.15;
+
+  /// The narrowest a row may be before rows flow into fewer columns.
+  static const double rowMinWidth = 360;
+
+  /// The switch between a level's layouts: each of its segments, and the
+  /// track around them.
+  static const Size layoutSwitchSegment = Size(32, 28);
   static const double layoutSwitchInset = 2;
 
   /// An icon held down, lifted, and the gap it leaves while dragged.

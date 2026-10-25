@@ -34,7 +34,8 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 
 Users SHALL be able to select and switch between webspaces to view filtered sites.
 
-With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL open App Settings, and its add button SHALL offer adding a site or creating a webspace (EDIT-012). On a wide screen the library and an open folder SHALL widen with the window, up to a fixed number of columns. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
+With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL lead its title with
+the app's logo in the chosen accent, SHALL open App Settings, and its add button SHALL offer adding a site or creating a webspace (EDIT-012). On a wide screen the library and an open folder SHALL widen with the window, up to a fixed number of columns. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
 
 #### Scenario: Select a webspace
 
@@ -166,6 +167,8 @@ The open panel's top bar SHALL pull it down: the panel follows the finger, shrin
 
 A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. A site or tab picked where no icon is (a tabs sheet, the tab strip) SHALL open through the same card faded in over the screen. Returning to the library SHALL fade that card in over the site, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL wait for the switch under it no longer than a fixed cap, SHALL take no input while it moves, and reduced motion SHALL show no card.
 
+A site's top bar, held, SHALL fade the site's card in over it and bring the library back under the card, which SHALL then come off the screen by the point held, so the site is never seen around it, and follow the finger, smaller the further down it is pulled, even once the bar itself has left the screen. Let go past a quarter of the screen's height, or flung down, the card SHALL shrink into the site's icon as a return to the library does; let go short of that, or flung back up, it SHALL go back over the screen and the site SHALL be shown again once the library has been, or once the card's cap has passed. A pull on the bar with no hold first SHALL leave the site on screen, so a pull on the page still refreshes it. A locked kiosk session SHALL lift nothing, and with reduced motion no card SHALL lift: a let-go that would close returns to the library at once.
+
 Icons SHALL move as a phone's do: one the grid moves (a drop, a menu's Move, a search narrowing the grid) slides from its old place to its new one without first appearing at the new one, one let go after a drag lands from where it was let go, scrolling slides none, and going between browsing, search results and no results crossfades. These motions share one set of durations and curves.
 
 With Alternative design enabled, the site browser SHALL use a grid button to return directly to the previous library view, retaining its selected group. It SHALL NOT create a navigation drawer or show a hamburger button. The return SHALL preserve the site's loaded state and tab selection. A locked kiosk session SHALL expose neither navigation affordance.
@@ -205,6 +208,16 @@ With Alternative design enabled, the site browser SHALL use a grid button to ret
 **Given** the user is viewing a folder's sites
 **When** the user scrolls, drags stray, taps the panel, or long-presses and drags a site
 **Then** the folder stays open
+
+#### Scenario: Pull a site down by its top bar
+
+**Given** Alternative design is enabled and Alpha, opened from the Work folder, is on screen
+**When** the user drags Alpha's top bar down without holding it first
+**Then** Alpha stays on screen
+**When** the user holds Alpha's top bar, drags it down a third of the screen and lets go
+**Then** Alpha's card follows the finger, smaller, over the library, and shrinks into Alpha's icon in the still open folder
+**When** the user opens Alpha again, holds its top bar, drags it down a little and lets go
+**Then** the card goes back over the screen and Alpha is shown again
 
 #### Scenario: Open a site and return
 
@@ -364,8 +377,11 @@ its icon has, from its first frame.
 ### Requirement: WEBSPACE-015 - A Folder's Sites as Rows
 
 With Alternative design enabled, an open folder's top bar SHALL hold a switch
-between its sites as a grid of icons and as a list of rows, each row the
-site's icon at its start, its name over its web address, and its grants and
+between three layouts of its sites: Automatic, the default, which shows them
+as rows while every site fits the panel as a row and as a grid of icons once
+they would not, as the drawer packs its sites; Grid; and List. Each folder
+SHALL take the layout its own count calls for, and the choice SHALL be made
+again as the window resizes. A row is the site's icon at its start, its name over its web address, and its grants and
 tab count at its end. A site imported from a file SHALL show "Imported file"
 where the address would be, there and wherever else a site or tab shows its
 address under its name, never its file handle. The choice SHALL apply to every folder, persist across
@@ -375,9 +391,37 @@ names under the icons fading early and the rows' text fading in late, and the
 panel SHALL take the new layout's height as the icons move. In either layout
 the panel SHALL be as tall as its sites need up to most of the screen,
 resizing late in a swipe to another folder (WEBSPACE-008), and rows SHALL
-reorder by dragging as icons do (WEBSPACE-011). A site SHALL open from its
+reorder by dragging as icons do (WEBSPACE-011). Where the window is wide
+enough, rows SHALL flow into columns rather than run its whole width. A site
+SHALL open from its
 row's icon and close back into it, its card starting at that icon's size and
 colour. Reduced motion SHALL switch at once.
+
+The library's home SHALL hold a switch of its own beside its search, with
+the same three layouts for the webspaces, browsed or found by a search;
+Automatic shows them as rows while they all fit the room under the search.
+Shown as rows, the webspaces read in the same way:
+each its cluster of site icons at the start, its name over its site count,
+and a mark while selected. It SHALL be set app-wide apart from the folders'
+switch, persist and ride a backup the same way, and leave how the folders
+show their sites as it was. A folder SHALL open out of its row's cluster and
+close back into it, and rows SHALL reorder by dragging as the grid does.
+
+#### Scenario: Automatic follows how much fits
+
+**Given** Alternative design is enabled, both switches are on Automatic, and the window is tall
+**When** the user opens All, which holds eight sites
+**Then** the home shows its webspaces as rows and All shows its sites as rows
+**When** the window is made short enough that they no longer fit
+**Then** the home shows its webspaces as icons, All shows its sites as icons, and Work, which holds two, still shows rows
+
+#### Scenario: Turn the webspaces into rows
+
+**Given** Alternative design is enabled and the home shows its webspaces as a grid
+**When** the user taps the list view switch beside the search
+**Then** each webspace's cluster moves to the start of its row, beside its name and site count
+**When** the user opens Work
+**Then** its folder grows out of Work's row and shows its sites as the folders' switch has them
 
 #### Scenario: Turn a folder into rows
 
@@ -393,6 +437,28 @@ colour. Reduced motion SHALL switch at once.
 **Given** a folder is open as rows
 **When** the user taps a row
 **Then** the site's card grows out of that row's icon
+
+---
+
+### Requirement: WEBSPACE-016 - A Webspace's Icon
+
+A webspace's edit screen SHALL offer a symbol to stand beside its name,
+picked from a fixed set of the app's own icons, each read out by its name,
+or none, which is how every webspace starts. The symbol SHALL lead the
+webspace's name wherever the name is shown: the library's tiles and rows,
+an open folder's top bar, the labels on search results, the add-site
+picker's chips, the drawer's heading, the app bar and the classic list,
+where it replaces the generic webspace icon. It SHALL be saved with the
+webspace and ride a settings backup; a stored symbol the app does not know,
+or one of the wrong type, SHALL read as none.
+
+#### Scenario: Give Work an icon
+
+**Given** the webspace Work has no icon
+**When** the user edits Work and picks the code symbol
+**Then** Work's name is led by that symbol on the home and in its folder
+**When** the user edits Work again and picks No icon
+**Then** its name shows alone and nothing is saved for its icon
 
 ---
 

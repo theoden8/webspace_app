@@ -6,6 +6,30 @@ import 'package:webspace/webspace_model.dart';
 
 void main() {
   group('Webspace model', () {
+    test('a webspace\'s glyph is saved by name, an unknown or mistyped one '
+        'reads as none, and an edit can clear it (WEBSPACE-016)', () {
+      final work = Webspace(name: 'Work', glyph: WebspaceGlyph.work);
+      expect(work.toJson()['icon'], 'work');
+      expect(Webspace.fromJson(work.toJson()).glyph, WebspaceGlyph.work);
+      expect(
+        Webspace(name: 'Plain').toJson().containsKey('icon'),
+        isFalse,
+        reason: 'a webspace without one writes nothing new',
+      );
+      for (final stored in ['sparkles', 7, null]) {
+        expect(
+          Webspace.fromJson({'name': 'Odd', 'icon': stored}).glyph,
+          isNull,
+        );
+      }
+      expect(work.copyWith(name: 'Job').glyph, WebspaceGlyph.work);
+      expect(work.copyWith(glyph: (to: null)).glyph, isNull);
+      expect(
+        work.copyWith(glyph: (to: WebspaceGlyph.code)).glyph,
+        WebspaceGlyph.code,
+      );
+    });
+
     test('default-constructed webspace has empty siteIds and siteIndices', () {
       final webspace = Webspace(name: 'Test Workspace');
       expect(webspace.name, 'Test Workspace');

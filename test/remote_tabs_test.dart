@@ -106,6 +106,49 @@ void main() {
   });
 
   testWidgets(
+      'a chip a remote can reach still fills the strip from edge to edge '
+      '(NAV-016)', (tester) async {
+    // The outline once came in a loose Stack, and every chip shrank to its
+    // text at the strip's top on a phone.
+    final sites = [
+      for (final name in ['Alpha', 'Beta'])
+        WebViewModel(initUrl: 'https://$name.test', name: name),
+    ];
+    for (final onReorder in [null, (int from, {required int to}) {}]) {
+      await _pumpTv(
+        tester,
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: SiteTabStrip(
+            edge: TabStripEdge.bottom,
+            models: sites,
+            order: const [0, 1],
+            current: 0,
+            revealed: false,
+            onHide: () {},
+            onOpen: (_) {},
+            onShowTabs: () {},
+            onReorder: onReorder,
+            menu: const SizedBox.shrink(),
+          ),
+        ),
+      );
+      final list = tester.getRect(find.byType(ListView));
+      for (final name in ['Alpha', 'Beta']) {
+        final chip = tester.getRect(find
+            .ancestor(
+              of: find.text(name),
+              matching: find.byWidgetPredicate(
+                  (w) => w is Container && w.decoration != null),
+            )
+            .first);
+        expect((chip.top, chip.bottom), (list.top, list.bottom),
+            reason: '$name, reorderable: ${onReorder != null}');
+      }
+    }
+  });
+
+  testWidgets(
       'a remote reaches web search and every tab of the Tabs sheet, and opens '
       'a tab (NAV-016)', (tester) async {
     final site = _chain('Alpha', urls: [

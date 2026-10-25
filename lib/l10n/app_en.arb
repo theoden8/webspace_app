@@ -5309,9 +5309,105 @@
   "@siteImportedFile": {
     "description": "Shown under a site's name, where a web address would be, when the site is an HTML file the user imported from their device and so has no address on the web."
   },
+  "libraryAutoView": "Automatic layout",
+  "@libraryAutoView": {
+    "description": "Tooltip and accessibility label of the first of three buttons that choose how a level of the library lays out its items: the webspaces on the library's home (buttons beside its search) or a folder's sites (buttons in an open folder's top bar). Automatic shows items as rows while they all fit the screen and as a grid of icons once there are too many. Applies app-wide to its own level."
+  },
+  "libraryGridView": "Grid view",
+  "@libraryGridView": {
+    "description": "Tooltip and accessibility label of the button, among three that choose how a level of the library lays out its items (the webspaces on the home, or a folder's sites), that always shows them as a grid of icons."
+  },
   "libraryListView": "List view",
   "@libraryListView": {
-    "description": "Tooltip and accessibility label of the switch in an open webspace folder's top bar that shows the folder's sites as rows, each with its name and web address, instead of a grid of icons. Turning it on or off applies to every folder."
+    "description": "Tooltip and accessibility label of the button, among three that choose how a level of the library lays out its items (the webspaces on the home, or a folder's sites), that always shows them as rows, each with its name and its site count or web address."
+  },
+  "webspaceGlyphTitle": "Icon",
+  "@webspaceGlyphTitle": {
+    "description": "Row in a webspace's edit screen, and title of the dialog it opens, for picking a symbol shown beside the webspace's name wherever the name appears."
+  },
+  "webspaceGlyphNone": "No icon",
+  "@webspaceGlyphNone": {
+    "description": "In a webspace's edit screen: the button that removes its symbol, and the row's value while it has none."
+  },
+  "webspaceGlyphWork": "Work",
+  "@webspaceGlyphWork": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows a job, an office or a briefcase."
+  },
+  "webspaceGlyphHome": "Home",
+  "@webspaceGlyphHome": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows a house, home life."
+  },
+  "webspaceGlyphSchool": "School",
+  "@webspaceGlyphSchool": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows school, studies, a graduation cap."
+  },
+  "webspaceGlyphChat": "Chat",
+  "@webspaceGlyphChat": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows chatting, a speech bubble."
+  },
+  "webspaceGlyphMail": "Mail",
+  "@webspaceGlyphMail": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows email, an envelope."
+  },
+  "webspaceGlyphPeople": "People",
+  "@webspaceGlyphPeople": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows friends, contacts, a group of people."
+  },
+  "webspaceGlyphWorld": "World",
+  "@webspaceGlyphWorld": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows the world, the web, a globe."
+  },
+  "webspaceGlyphNews": "News",
+  "@webspaceGlyphNews": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows news, a newspaper."
+  },
+  "webspaceGlyphShopping": "Shopping",
+  "@webspaceGlyphShopping": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows shopping, a shopping bag."
+  },
+  "webspaceGlyphMoney": "Money",
+  "@webspaceGlyphMoney": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows money, banking, a wallet."
+  },
+  "webspaceGlyphCode": "Code",
+  "@webspaceGlyphCode": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows programming, source code."
+  },
+  "webspaceGlyphGames": "Games",
+  "@webspaceGlyphGames": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows video games, a game controller."
+  },
+  "webspaceGlyphMusic": "Music",
+  "@webspaceGlyphMusic": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows music, a musical note."
+  },
+  "webspaceGlyphVideo": "Video",
+  "@webspaceGlyphVideo": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows watching videos, a play screen."
+  },
+  "webspaceGlyphPhotos": "Photos",
+  "@webspaceGlyphPhotos": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows photos, a picture."
+  },
+  "webspaceGlyphBooks": "Books",
+  "@webspaceGlyphBooks": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows reading, an open book."
+  },
+  "webspaceGlyphTravel": "Travel",
+  "@webspaceGlyphTravel": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows travel, an aeroplane."
+  },
+  "webspaceGlyphFood": "Food",
+  "@webspaceGlyphFood": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows food, eating out, a knife and fork."
+  },
+  "webspaceGlyphHealth": "Health",
+  "@webspaceGlyphHealth": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows health, wellbeing, a heart."
+  },
+  "webspaceGlyphPrivacy": "Privacy",
+  "@webspaceGlyphPrivacy": {
+    "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows privacy, security, a padlock."
   },
   "appSettingsExperimentalFolderLibrary": "Alternative design",
   "appSettingsExperimentalFolderLibraryHint": "Organize sites into groups in a launcher grid.",

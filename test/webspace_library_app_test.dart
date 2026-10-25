@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
@@ -445,10 +446,12 @@ void main() {
         of: find.byType(LaunchZoom),
         matching: find.byType(Material),
       );
-      final icon = SiteGridTile.wellIn(
-        tester.getRect(_siteTile('Alpha')),
-        list: 0,
-        direction: TextDirection.ltr,
+      // The well the tile draws, as a grid's icon or a row's.
+      final icon = tester.getRect(
+        find.descendant(
+          of: _siteTile('Alpha'),
+          matching: find.byType(AnimatedContainer),
+        ),
       );
       await tester.tap(_siteTile('Alpha'));
       await tester.pump();
@@ -468,6 +471,71 @@ void main() {
         tester.getSize(find.byType(LaunchZoom)),
         reason: 'a full card covers the switch back',
       );
+      await settleRealApp(tester);
+      expect(card, findsNothing);
+      expect(find.byKey(const ValueKey('library-folder')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a site\'s top bar held and pulled down closes the site into its icon, '
+    'and pulled with no hold leaves it on screen (WEBSPACE-008)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      await tester.tap(_siteTile('Alpha'));
+      await settleRealApp(tester);
+      final title = find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Alpha'),
+      );
+      final card = find.descendant(
+        of: find.byType(LaunchZoom),
+        matching: find.byType(Material),
+      );
+
+      await tester.drag(title, const Offset(0, 400));
+      await settleRealApp(tester);
+      expect(card, findsNothing);
+      expect(
+        find.byType(WebspaceLibrary),
+        findsNothing,
+        reason: 'a pull with no hold is the page\'s, as a refresh is',
+      );
+
+      final finger = await tester.startGesture(tester.getCenter(title));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      await settleRealApp(tester);
+      expect(
+        find.byType(AppBar),
+        findsNothing,
+        reason: 'the library is back under the lifted card',
+      );
+      final lifted = tester.getRect(card);
+      await finger.moveBy(const Offset(0, 300));
+      await tester.pump();
+      final pulled = tester.getRect(card);
+      expect(
+        pulled.top,
+        greaterThan(lifted.top),
+        reason: 'the finger is followed after its bar has gone',
+      );
+      expect(pulled.width, lessThan(lifted.width));
+      await finger.up();
       await settleRealApp(tester);
       expect(card, findsNothing);
       expect(find.byKey(const ValueKey('library-folder')), findsOneWidget);
@@ -736,6 +804,61 @@ void main() {
           .map((raw) => jsonDecode(raw) as Map<String, dynamic>)
           .singleWhere((value) => value['id'] == work.id);
       expect(saved['siteIds'], [second.siteId]);
+    },
+  );
+
+  testWidgets(
+    'a glyph picked in a webspace\'s editor leads its name and is saved; No '
+    'icon takes it off (WEBSPACE-016)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      Future<Map<String, dynamic>> saved() async =>
+          (await SharedPreferences.getInstance())
+              .getStringList('webspaces')!
+              .map((raw) => jsonDecode(raw) as Map<String, dynamic>)
+              .singleWhere((value) => value['id'] == work.id);
+      final workTile = find.byWidgetPredicate(
+        (widget) => widget is WebspaceGroupTile && widget.webspace.id == work.id,
+      );
+      Future<void> edit(Future<void> Function() pick) async {
+        await tester.longPress(workTile);
+        await settleRealApp(tester);
+        await tester.tap(find.text('Edit'));
+        await settleRealApp(tester);
+        await tester.tap(find.text('Icon'));
+        await settleRealApp(tester);
+        await pick();
+        await settleRealApp(tester);
+        await tester.tap(find.bySemanticsLabel('Save'));
+        await settleRealApp(tester);
+      }
+
+      await edit(() => tester.tap(find.byTooltip('Code')));
+      expect(
+        find.descendant(
+          of: find.byType(WebspaceGroupTile),
+          matching: find.byIcon(Icons.code),
+        ),
+        findsOneWidget,
+      );
+      expect((await saved())['icon'], 'code');
+
+      await edit(() => tester.tap(find.text('No icon')));
+      expect(find.byIcon(Icons.code), findsNothing);
+      expect((await saved()).containsKey('icon'), isFalse);
     },
   );
 }
