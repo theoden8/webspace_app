@@ -87,6 +87,25 @@ abstract final class LibraryStyle {
   static const double pullFling = 700;
   static const double pullShrink = .1;
 
+  /// Whether a pull let go [pulled] down a surface [extent] tall, moving at
+  /// [velocity], closes it: flung down, or let go past [pullToClose] of it
+  /// and not flung back up. An open folder and a site's held card both close
+  /// by it.
+  static bool pullCloses({
+    required double pulled,
+    required double extent,
+    required double velocity,
+  }) =>
+      velocity > pullFling ||
+      (velocity > -pullFling && pulled > extent * pullToClose);
+
+  /// A site's card held by its top bar (WEBSPACE-008): the size it lifts to,
+  /// how much more of it a pull down the whole screen takes away, and the
+  /// corners it has once lifted.
+  static const double cardLift = .94;
+  static const double cardPullShrink = .6;
+  static const double cardRadius = 32;
+
   /// The open folder's page dots: the row under its pages, and one dot.
   static const double pageDots = 28;
   static const double pageDot = 6;

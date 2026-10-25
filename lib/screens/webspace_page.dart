@@ -832,10 +832,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                     ?.name ??
                 loc.tabsAllSites,
         onOpenTab: (site, {required tabId}) =>
-            unawaited(_throughCard(site,
-                show: () => _tabs.openTab(site, tabId: tabId),
-                shown: () =>
-                    identical(_sites.shown, site) && site.activeTabId == tabId)),
+            unawaited(_throughCard(site, to: (
+              show: () => _tabs.openTab(site, tabId: tabId),
+              shown: () => identical(_sites.shown, site) && site.activeTabId == tabId,
+            ))),
         onNewTab: (site) => unawaited(_tabs.newTab(site)),
         onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),
         onCloseTab: (site, {required tabId}) =>
@@ -849,20 +849,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  /// [show] puts [site] on screen; in Alternative design it runs behind the
+  /// [to] puts [site] on screen; in Alternative design it runs behind the
   /// site's card, grown from the site's icon where the library shows it and
   /// faded in over the screen elsewhere, so every switch looks the same.
-  Future<void> _throughCard(WebViewModel site,
-      {required Future<void> Function() show,
-      required bool Function() shown}) async {
+  Future<void> _throughCard(WebViewModel site, {required CardSwitch to}) async {
     final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
-    if (zoom == null || shown()) return show();
+    if (zoom == null || to.shown()) return to.show();
     await zoom.open(site,
         from: _sites.shown == null
             ? _libraryKey.currentState?.siteWell(site.siteId)
             : null,
-        show: show,
-        shown: shown);
+        to: to);
   }
 
   Future<void> _showLibraryTabs(WebspaceId scope) async {
@@ -1043,10 +1040,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     setState(() {});
   }
 
-  AppBar _buildAppBar() {
+  PreferredSizeWidget _buildAppBar() {
     final loc = AppLocalizations.of(context);
     final currentModel = _sites.shown;
-    return AppBar(
+    return CardHandle(
+      onHold: currentModel == null || _kioskLocked || !_folderLibraryEnabled
+          ? null
+          : (at) => _launchZoom.currentState?.hold(currentModel,
+              at: at, to: _library(currentModel), back: _siteOnScreen(currentModel)),
+      child: AppBar(
       bottom: currentModel == null
           ? null
           : PageLoadBar(
@@ -1104,7 +1106,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (currentModel != null && !AppPref.showTabStrip.value)
           _siteMenu(SiteMenuPlacement.appBar),
       ],
-    );
+    ));
   }
 
   /// Whether the tab strip is on screen, at either edge. Out of fullscreen it
@@ -1241,22 +1243,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
       case SiteMenuAction.backToWebspaces:
-        Future<void> showLibrary() async {
-          await _activation.activate(null);
-          if (mounted) setState(() {});
-        }
         final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
         if (model != null && zoom != null) {
-          await zoom.close(model,
-              show: showLibrary,
-              shown: () => _sites.shown == null,
-              into: () => _libraryKey.currentState?.siteWell(model.siteId));
+          await zoom.close(model, to: _library(model));
         } else {
-          await showLibrary();
+          await _toLibrary();
         }
-        if (!mounted) return;
-        await _shell.saveSelectedWebspaceId();
-        await _shell.saveCurrentIndex();
       case SiteMenuAction.search:
         _toggleFind();
       case SiteMenuAction.webSearch:
@@ -1328,24 +1320,27 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  /// The selected webspace's name, or null while none is selected.
-  Webspace? get _selectedWebspace {
-    final id = _sites.selectedWebspaceId;
-    if (id == null) return null;
-    return _sites.webspaces
-        .firstWhere((ws) => ws.id == id, orElse: () => Webspace(name: 'Unknown'));
-  }
+  /// The selected webspace, or null while none is selected.
+  Webspace? get _selectedWebspace => _sites.webspaces
+      .where((ws) => ws.id == _sites.selectedWebspaceId)
+      .firstOrNull;
 
-  Future<void> _backToWebspacesFromDrawer() async {
-    _libraryKey.currentState?.closeFolder();
+  /// Back to the webspaces: from the drawer, the grid button or a held card.
+  Future<void> _toLibrary() async {
     await _activation.activate(null);
     if (!mounted) return;
     setState(() {});
     await _shell.saveSelectedWebspaceId();
     await _shell.saveCurrentIndex();
-    if (!mounted) return;
-    _scaffoldKey.currentState?.closeDrawer();
+    if (mounted) _scaffoldKey.currentState?.closeDrawer();
   }
+
+  /// The library [site]'s card returns to, landing in its icon there.
+  CardLanding _library(WebViewModel site) => (
+        show: _toLibrary,
+        shown: () => _sites.shown == null,
+        into: () => _libraryKey.currentState?.siteWell(site.siteId),
+      );
 
   /// A site picked in the drawer, the library or the tab strip, once a
   /// webspace switch in flight lands.
@@ -1362,9 +1357,13 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// A site picked in the tab strip or the library, or by its keyboard
   /// shortcut, shown behind its card.
-  Future<void> _openSite(WebViewModel site) => _throughCard(site,
-      show: () => _openSiteFromDrawer(site),
-      shown: () => identical(_sites.shown, site));
+  Future<void> _openSite(WebViewModel site) =>
+      _throughCard(site, to: _siteOnScreen(site));
+
+  CardSwitch _siteOnScreen(WebViewModel site) => (
+        show: () => _openSiteFromDrawer(site),
+        shown: () => identical(_sites.shown, site),
+      );
 
   /// `siteId` -> display name for the sites the protection report may name.
   /// Archive-tier sites are excluded: they never contribute a count
@@ -1619,7 +1618,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         order: _sites.filteredIndices(),
         current: _sites.current,
         showsTabCount: _tabs.enabledFor,
-        onBackToWebspaces: () => unawaited(_backToWebspacesFromDrawer()),
+        onBackToWebspaces: () => unawaited(_toLibrary()),
         onOpen: (site) => unawaited(_openSiteFromDrawer(site)),
         onMenu: _showSiteContextMenu,
         onReorder: _webspaces.canReorderView

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
@@ -470,6 +471,71 @@ void main() {
         tester.getSize(find.byType(LaunchZoom)),
         reason: 'a full card covers the switch back',
       );
+      await settleRealApp(tester);
+      expect(card, findsNothing);
+      expect(find.byKey(const ValueKey('library-folder')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a site\'s top bar held and pulled down closes the site into its icon, '
+    'and pulled with no hold leaves it on screen (WEBSPACE-008)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      await tester.tap(_siteTile('Alpha'));
+      await settleRealApp(tester);
+      final title = find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Alpha'),
+      );
+      final card = find.descendant(
+        of: find.byType(LaunchZoom),
+        matching: find.byType(Material),
+      );
+
+      await tester.drag(title, const Offset(0, 400));
+      await settleRealApp(tester);
+      expect(card, findsNothing);
+      expect(
+        find.byType(WebspaceLibrary),
+        findsNothing,
+        reason: 'a pull with no hold is the page\'s, as a refresh is',
+      );
+
+      final finger = await tester.startGesture(tester.getCenter(title));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      await settleRealApp(tester);
+      expect(
+        find.byType(AppBar),
+        findsNothing,
+        reason: 'the library is back under the lifted card',
+      );
+      final lifted = tester.getRect(card);
+      await finger.moveBy(const Offset(0, 300));
+      await tester.pump();
+      final pulled = tester.getRect(card);
+      expect(
+        pulled.top,
+        greaterThan(lifted.top),
+        reason: 'the finger is followed after its bar has gone',
+      );
+      expect(pulled.width, lessThan(lifted.width));
+      await finger.up();
       await settleRealApp(tester);
       expect(card, findsNothing);
       expect(find.byKey(const ValueKey('library-folder')), findsOneWidget);

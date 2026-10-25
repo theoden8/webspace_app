@@ -825,13 +825,14 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     );
   }
 
-  /// The top bar let go after a pull: flung down, or let go past a share of
-  /// the panel's height and not flung back up, it closes the folder into its
-  /// tile; short of that the panel springs back.
+  /// The top bar let go after a pull closes the folder into its tile where
+  /// [LibraryStyle.pullCloses] says so; short of that the panel springs back.
   void _letGo({required double velocity}) {
-    if (velocity > LibraryStyle.pullFling ||
-        (velocity > -LibraryStyle.pullFling &&
-            _pull.value > _panelHeight * LibraryStyle.pullToClose)) {
+    if (LibraryStyle.pullCloses(
+      pulled: _pull.value,
+      extent: _panelHeight,
+      velocity: velocity,
+    )) {
       closeFolder();
       return;
     }
