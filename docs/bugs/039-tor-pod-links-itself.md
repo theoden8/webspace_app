@@ -1,6 +1,6 @@
 # BUG-039 — The Tor pod links its own framework
 
-Status: open
+Status: closed. Attempt 2 removes the lookup by name that every instance went through.
 
 **Spec:** [platform-support](../../openspec/specs/platform-support/spec.md)
 PLATFORM-006 (macOS ships); `tor-proxy` TOR-007 (the Tor pod on macOS)
@@ -44,9 +44,10 @@ pod's link names the vendored binary, never a framework by name.
    matched. *Why:* every instance went through the one name lookup. Both
    Podfiles carry it, since the iOS pod links the same way.
 
+   On the Xcode 26.3 machine that hit the binary case, a clean
+   `flutter build macos --release` then built.
+
 ## Known open gaps
 
-- Attempt 2 is checked on CI's runner, where the build never failed, and on
-  the Xcode 26.3 machine that hit the binary case once it builds there.
 - Which Xcode 26.3 step leaves `Tor.framework/Versions/A/Tor` before the link
   is not known; the fix does not depend on it.
