@@ -32,7 +32,7 @@ enum ShortcutFate { keep, reassign, disable }
 
 /// A shortcut tap: what it resolved to, and on Android the tile tapped, so a
 /// choice the user makes about it rewrites that tile (HS-017).
-typedef _Tap = ({LaunchResolution resolution, ShortcutId? tile});
+typedef _Tap = ({LaunchResolution<WebViewModel> resolution, ShortcutId? tile});
 
 /// The questions the shortcut flows put to the user.
 abstract interface class ShortcutPrompts {
@@ -271,8 +271,8 @@ class ShortcutController implements HomeShortcutsHost {
   }) async {
     final tap = await _resolveLaunch(warm: false);
     final resolution = tap.resolution;
-    if (resolution is! LaunchOpenSite) {
-      if (resolution is! LaunchNone) _parked = tap;
+    if (resolution is! LaunchOpenSite<WebViewModel>) {
+      if (resolution is! LaunchNone<WebViewModel>) _parked = tap;
       return null;
     }
     final site = resolution.site;
@@ -304,7 +304,7 @@ class ShortcutController implements HomeShortcutsHost {
   }
 
   Future<_Tap> _resolveLaunch({required bool warm}) async {
-    const none = (resolution: LaunchNone(), tile: null);
+    const none = (resolution: LaunchNone<WebViewModel>(), tile: null);
     final launch = await ShortcutService.getLaunch();
     if (launch == null) return none;
     if (warm) {

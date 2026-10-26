@@ -1,35 +1,43 @@
 import 'dart:typed_data';
 import 'package:webspace/settings/shortcut_id.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/site_ids.dart';
 
-import 'package:webspace/web_view_model.dart';
+/// What a shortcut's resolution reads of a site: its id, the home url a
+/// domain match is made on, and whether it is archive-tier (ARCH-006).
+abstract interface class ShortcutTarget {
+  SiteId get siteId;
+  String get initUrl;
+  bool get isArchiveTier;
+}
 
 /// Outcome of resolving a tapped home shortcut against the current site list.
 /// The engine only decides *what* should happen; the caller owns the dialogs,
 /// the activation, site creation, and remap persistence.
-sealed class LaunchResolution {
+sealed class LaunchResolution<S extends ShortcutTarget> {
   const LaunchResolution();
 }
 
 /// No shortcut intent, or nothing actionable (e.g. a legacy shortcut whose
 /// siteId is gone and that carried no url to fall back on). Caller lands on
 /// the home screen without activating a site.
-class LaunchNone extends LaunchResolution {
+class LaunchNone<S extends ShortcutTarget> extends LaunchResolution<S> {
   const LaunchNone();
 }
 
 /// The shortcut resolved directly to a known site (by siteId or a remembered
 /// remap). Caller switches to [site] with no prompt.
-class LaunchOpenSite extends LaunchResolution {
-  final WebViewModel site;
+class LaunchOpenSite<S extends ShortcutTarget> extends LaunchResolution<S> {
+  final S site;
   const LaunchOpenSite(this.site);
 }
 
 /// The shortcut's siteId is gone, but a current [site] matches the
 /// shortcut url's base domain. Caller prompts the user to open it; on confirm,
 /// remembers `shortcutSiteId -> that site` so the next tap resolves directly.
-class LaunchConfirmExisting extends LaunchResolution {
-  final WebViewModel site;
+class LaunchConfirmExisting<S extends ShortcutTarget>
+    extends LaunchResolution<S> {
+  final S site;
   final SiteId shortcutSiteId;
   const LaunchConfirmExisting({
     required this.site,
@@ -40,7 +48,8 @@ class LaunchConfirmExisting extends LaunchResolution {
 /// The shortcut's siteId is gone and no current site matches its domain.
 /// Caller offers to create a new site for [url]; on confirm, creates it and
 /// remembers `shortcutSiteId -> new site`.
-class LaunchOfferCreate extends LaunchResolution {
+class LaunchOfferCreate<S extends ShortcutTarget>
+    extends LaunchResolution<S> {
   final String url;
   final SiteId shortcutSiteId;
   const LaunchOfferCreate({
@@ -54,7 +63,8 @@ class LaunchOfferCreate extends LaunchResolution {
 /// resolves to a placeholder entity so the tile stays tappable instead of
 /// reading "no longer available". Caller offers to reroute the handle to an
 /// existing site; on confirm, remembers `shortcutSiteId -> chosen site`.
-class LaunchOfferReroute extends LaunchResolution {
+class LaunchOfferReroute<S extends ShortcutTarget>
+    extends LaunchResolution<S> {
   final SiteId shortcutSiteId;
   const LaunchOfferReroute({required this.shortcutSiteId});
 }
@@ -76,15 +86,15 @@ class StartupRestoreEngine {
   ///
   /// Falls back to [LaunchNone] when there's no intent, or the siteId is
   /// gone with no url and no sites to reroute to.
-  static LaunchResolution resolveLaunch({
+  static LaunchResolution<S> resolveLaunch<S extends ShortcutTarget>({
     required SiteId? shortcutSiteId,
     required String? shortcutUrl,
-    required List<WebViewModel> models,
+    required List<S> models,
     required Map<SiteId, SiteId> rememberedRemap,
   }) {
-    if (shortcutSiteId == null) return const LaunchNone();
+    if (shortcutSiteId == null) return LaunchNone<S>();
 
-    WebViewModel? first(bool Function(WebViewModel) test) {
+    S? first(bool Function(S) test) {
       for (final m in models) {
         if (test(m)) return m;
       }
@@ -107,8 +117,8 @@ class StartupRestoreEngine {
       // resolved (placeholder), so offer to reroute it to an existing site if
       // there is one; otherwise land on the home screen.
       return models.isEmpty
-          ? const LaunchNone()
-          : LaunchOfferReroute(shortcutSiteId: shortcutSiteId);
+          ? LaunchNone<S>()
+          : LaunchOfferReroute<S>(shortcutSiteId: shortcutSiteId);
     }
 
     final base = getBaseDomain(url);
@@ -118,14 +128,14 @@ class StartupRestoreEngine {
       }
     }
 
-    return LaunchOfferCreate(url: url, shortcutSiteId: shortcutSiteId);
+    return LaunchOfferCreate<S>(url: url, shortcutSiteId: shortcutSiteId);
   }
 
   /// FS-008: whether activating a site should land in fullscreen.
   ///
   /// Combines the global "full screen on shortcut launch" option
   /// ([fullscreenOnShortcut]) with the site's own per-site
-  /// [WebViewModel.fullscreenMode]. A shortcut launch ([viaShortcut] true)
+  /// `fullscreenMode`. A shortcut launch ([viaShortcut] true)
   /// forces fullscreen when the global option is on; every launch still
   /// honors the per-site flag. A normal in-app switch ([viaShortcut] false)
   /// depends on the per-site flag alone, so the global option never changes
@@ -194,12 +204,12 @@ class ShortcutUrlLedger {
 class ShortcutPinState {
   /// Each pinned tile and the site a tap on it opens, null where none does:
   /// the site it names is gone and no remembered rebind resolves it (HS-011).
-  static Map<ShortcutId, WebViewModel?> sitesOpened({
+  static Map<ShortcutId, S?> sitesOpened<S extends ShortcutTarget>({
     required Map<ShortcutId, SiteId> pinned,
     required Map<SiteId, SiteId> rememberedRemap,
-    required List<WebViewModel> models,
+    required List<S> models,
   }) {
-    WebViewModel? opened(SiteId named) {
+    S? opened(SiteId named) {
       final opens = StartupRestoreEngine.resolveLaunch(
         shortcutSiteId: named,
         shortcutUrl: null,
@@ -219,11 +229,11 @@ class ShortcutPinState {
   /// The pinned tiles a tap on which opens [siteId]. Its menu offers no
   /// second tile while one does (HS-005), and deleting it asks about them
   /// (HS-013).
-  static Set<ShortcutId> tilesReaching({
+  static Set<ShortcutId> tilesReaching<S extends ShortcutTarget>({
     required SiteId siteId,
     required Map<ShortcutId, SiteId> pinned,
     required Map<SiteId, SiteId> rememberedRemap,
-    required List<WebViewModel> models,
+    required List<S> models,
   }) {
     final opened = sitesOpened(
       pinned: pinned,
@@ -238,10 +248,10 @@ class ShortcutPinState {
 
   /// Each pinned tile that opens a site, and that site. An archive-tier site
   /// is left out: its name and icon never reach an OS surface (ARCH-006).
-  static Map<ShortcutId, WebViewModel> sitesOfTiles({
+  static Map<ShortcutId, S> sitesOfTiles<S extends ShortcutTarget>({
     required Map<ShortcutId, SiteId> pinned,
     required Map<SiteId, SiteId> rememberedRemap,
-    required List<WebViewModel> models,
+    required List<S> models,
   }) {
     final opened = sitesOpened(
       pinned: pinned,

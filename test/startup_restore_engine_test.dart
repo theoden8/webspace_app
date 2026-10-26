@@ -32,7 +32,7 @@ void main() {
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchOpenSite>());
-      expect((r as LaunchOpenSite).site, same(b));
+      expect((r as LaunchOpenSite<WebViewModel>).site, same(b));
     });
 
     test('the first match wins if siteIds collide (hand-edited backup)', () {
@@ -44,7 +44,7 @@ void main() {
         models: [a, b],
         rememberedRemap: const {},
       );
-      expect((r as LaunchOpenSite).site, same(a));
+      expect((r as LaunchOpenSite<WebViewModel>).site, same(a));
     });
 
     test('siteId gone but remembered remap resolves -> LaunchOpenSite', () {
@@ -57,7 +57,7 @@ void main() {
         rememberedRemap: {SiteId('stale-id'): b.siteId},
       );
       expect(r, isA<LaunchOpenSite>());
-      expect((r as LaunchOpenSite).site, same(b));
+      expect((r as LaunchOpenSite<WebViewModel>).site, same(b));
     });
 
     test('remembered remap takes priority over a domain match', () {
@@ -70,7 +70,7 @@ void main() {
         models: [a, b],
         rememberedRemap: {SiteId('stale-id'): b.siteId},
       );
-      expect((r as LaunchOpenSite).site, same(b));
+      expect((r as LaunchOpenSite<WebViewModel>).site, same(b));
     });
 
     test('stale remap (target deleted) falls through to domain match', () {
@@ -82,7 +82,7 @@ void main() {
         rememberedRemap: {SiteId('stale-id'): SiteId('also-gone')},
       );
       expect(r, isA<LaunchConfirmExisting>());
-      expect((r as LaunchConfirmExisting).site, same(a));
+      expect((r as LaunchConfirmExisting<WebViewModel>).site, same(a));
       expect(r.shortcutSiteId, 'stale-id');
     });
 
@@ -96,7 +96,7 @@ void main() {
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchConfirmExisting>());
-      expect((r as LaunchConfirmExisting).site, same(b));
+      expect((r as LaunchConfirmExisting<WebViewModel>).site, same(b));
     });
 
     test('siteId gone, no domain match -> LaunchOfferCreate', () {
@@ -108,7 +108,7 @@ void main() {
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchOfferCreate>());
-      expect((r as LaunchOfferCreate).url, 'https://newsite.example/');
+      expect((r as LaunchOfferCreate<WebViewModel>).url, 'https://newsite.example/');
       expect(r.shortcutSiteId, 'stale-id');
     });
 
@@ -122,7 +122,7 @@ void main() {
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchOfferReroute>());
-      expect((r as LaunchOfferReroute).shortcutSiteId, 'stale-id');
+      expect((r as LaunchOfferReroute<WebViewModel>).shortcutSiteId, 'stale-id');
     });
 
     test('placeholder handle (siteId gone, no url) with no sites -> LaunchNone',
@@ -130,7 +130,7 @@ void main() {
       final r = StartupRestoreEngine.resolveLaunch(
         shortcutSiteId: SiteId('stale-id'),
         shortcutUrl: null,
-        models: const [],
+        models: const <WebViewModel>[],
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchNone>());

@@ -21,6 +21,8 @@ import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/opensearch_engine.dart'
     show SiteSearchTarget;
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/startup_restore_engine.dart'
+    show ShortcutTarget;
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -76,8 +78,10 @@ export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
-class WebViewModel implements MediaGrantRecord {
+class WebViewModel implements MediaGrantRecord, ShortcutTarget {
+  @override
   final SiteId siteId;
+  @override
   String initUrl;
 
   /// This site's tabs, in tree order (a child follows its parent). Never
@@ -569,6 +573,7 @@ class WebViewModel implements MediaGrantRecord {
   /// action can flip the tier of an existing model in place — the
   /// running webview keeps its controller and only the per-site routing
   /// changes.
+  @override
   bool isArchiveTier;
 
   /// Effective notification permission for runtime gating. Archive-tier
