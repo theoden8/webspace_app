@@ -62,6 +62,7 @@ class WebspaceLibrary extends StatefulWidget {
     required this.onSelectWebspace,
     required this.onAddWebspace,
     required this.onEditWebspace,
+    required this.onRetitleWebspace,
     required this.onDeleteWebspace,
     required this.onReorder,
     required this.onOpenSite,
@@ -81,6 +82,11 @@ class WebspaceLibrary extends StatefulWidget {
   final ValueChanged<Webspace> onSelectWebspace;
   final VoidCallback onAddWebspace;
   final ValueChanged<Webspace> onEditWebspace;
+
+  /// A webspace renamed, or given another glyph, from its open folder's
+  /// title (WEBSPACE-018).
+  final Future<void> Function(WebspaceId id, {required WebspaceTitle to})
+  onRetitleWebspace;
   final ValueChanged<Webspace> onDeleteWebspace;
   final void Function(int from, {required int newIndex})? onReorder;
   final ValueChanged<WebViewModel> onOpenSite;
@@ -694,6 +700,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     iconExtent: (column) =>
         SiteGridTile.extentFor(context, width: column, webspaceCount: labels),
     iconColumnMin: LibraryStyle.iconColumnMin(MediaQuery.textScalerOf(context)),
+    fill: LibraryStyle.packedFillOf(MediaQuery.sizeOf(context)),
     icons: const (
       padding: EdgeInsets.all(Spacing.lg),
       across: Spacing.sm,
@@ -895,11 +902,19 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      WebspaceName(
+                      EditableWebspaceName(
                         webspace,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
+                        onRetitle: webspace.isAll
+                            ? null
+                            : (title) => unawaited(
+                                widget.onRetitleWebspace(
+                                  webspace.id,
+                                  to: title,
+                                ),
+                              ),
                       ),
                       Text(
                         loc.webspacesListSiteCount(order.length),
@@ -1023,6 +1038,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             width: column,
           ),
           iconColumnMin: LibraryStyle.iconColumnMin(scaler),
+          fill: LibraryStyle.packedFillOf(MediaQuery.sizeOf(context)),
           // Rows run the width, their wells under the title's start.
           icons: const (
             padding: EdgeInsets.fromLTRB(
@@ -1401,12 +1417,14 @@ typedef _Spacing = ({EdgeInsets padding, double across, double down});
 
 /// One level of the library as it lays out (WEBSPACE-015): how tall its rows
 /// are, how tall its icons are in a column so wide, the narrowest column an
-/// icon keeps its whole caption in, and how each is spaced.
+/// icon keeps its whole caption in, the share of its height Automatic fills
+/// ([LibraryStyle.packedFillOf]), and how each is spaced.
 final class _Level {
   const _Level({
     required this.rowExtent,
     required this.iconExtent,
     required this.iconColumnMin,
+    required this.fill,
     required this.icons,
     required this.rows,
   });
@@ -1414,6 +1432,7 @@ final class _Level {
   final double rowExtent;
   final double Function(double column) iconExtent;
   final double iconColumnMin;
+  final double fill;
   final _Spacing icons;
   final _Spacing rows;
 
@@ -1453,36 +1472,27 @@ final class _Level {
 
   /// What the level has room for, [width] wide and [height] tall.
   LibraryRoom room({required double width, required double height}) {
-    final listColumns = _fitting(
-      LibraryForm.rows,
-      min: LibraryStyle.rowMinWidth,
-      width: width,
-    );
     final gridColumns = _fitting(
       LibraryForm.icons,
       min: iconColumnMin,
       width: width,
     );
-    final rowColumns = math.max(
-      listColumns,
-      _fitting(
-        LibraryForm.rows,
-        min: LibraryStyle.packedRowMinWidth,
-        width: width,
-      ),
+    final rowColumns = _fitting(
+      LibraryForm.rows,
+      min: LibraryStyle.packedRowMinWidth,
+      width: width,
     );
     int tall(LibraryForm form, {required double extent}) {
       final spacing = _of(form);
       return math.max(
         0,
-        ((height - spacing.padding.vertical + spacing.down) /
+        ((height * fill - spacing.padding.vertical + spacing.down) /
                 (extent + spacing.down))
             .floor(),
       );
     }
 
     return (
-      listColumns: listColumns,
       gridColumns: gridColumns,
       rowColumns: rowColumns,
       mostColumns: [

@@ -95,6 +95,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
           },
           onAddWebspace: () => webspacesAdded++,
           onEditWebspace: (webspace) => edited = webspace,
+          onRetitleWebspace: (id, {required to}) async {},
           onDeleteWebspace: (webspace) => deleted = webspace,
           onReorder: (from, {required newIndex}) => setState(() {
             WebspaceSelectionEngine.reorder(

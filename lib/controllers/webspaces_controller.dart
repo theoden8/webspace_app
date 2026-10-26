@@ -142,6 +142,21 @@ class WebspacesController {
     );
   }
 
+  /// Gives webspace [id] the title [to] where its folder shows it, as a
+  /// launcher's folder is renamed in place (WEBSPACE-018). All keeps its
+  /// own, and a blank name leaves the webspace as it was.
+  Future<void> retitle(WebspaceId id, {required WebspaceTitle to}) async {
+    final name = to.name.trim();
+    final index = _sites.webspaces.indexWhere((ws) => ws.id == id);
+    if (id == WebspaceId.all || name.isEmpty || index < 0) return;
+    _sites.webspaces[index] = _sites.webspaces[index].copyWith(
+      name: name,
+      glyph: (to: to.glyph),
+    );
+    _host.rebuild();
+    await _shell.saveWebspaces();
+  }
+
   Future<void> delete(Webspace webspace) async {
     if (webspace.id == WebspaceId.all) {
       _host.toast((loc) => loc.homeCannotDeleteAllWebspace);

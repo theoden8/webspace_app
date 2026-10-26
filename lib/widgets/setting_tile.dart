@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -136,6 +138,78 @@ final class PrefToggle extends SettingControl {
   const PrefToggle(this.pref);
 
   final AppPref<bool> pref;
+}
+
+/// A slider bound to a whole-number app pref: its title with the value it
+/// shows, and the slider, which sets the pref once let go, so a drag writes
+/// it once.
+class PrefSlider extends StatefulWidget {
+  const PrefSlider(
+    this.pref, {
+    super.key,
+    required this.title,
+    required this.hint,
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.label,
+    this.enabled = true,
+  });
+
+  final AppPref<int> pref;
+  final String title;
+  final String? hint;
+  final int min;
+  final int max;
+  final int step;
+
+  /// How a value reads beside the title and over the thumb.
+  final String Function(int value) label;
+  final bool enabled;
+
+  @override
+  State<PrefSlider> createState() => _PrefSliderState();
+}
+
+class _PrefSliderState extends State<PrefSlider> {
+  double? _drag;
+
+  @override
+  Widget build(BuildContext context) {
+    final value =
+        _drag ?? widget.pref.value.clamp(widget.min, widget.max).toDouble();
+    final label = widget.label(value.round());
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              Expanded(child: HintedTitle(widget.title, hint: widget.hint)),
+              Text(label),
+            ],
+          ),
+        ),
+        Slider(
+          value: value,
+          min: widget.min.toDouble(),
+          max: widget.max.toDouble(),
+          divisions: (widget.max - widget.min) ~/ widget.step,
+          label: label,
+          onChanged: widget.enabled
+              ? (value) => setState(() => _drag = value)
+              : null,
+          onChangeEnd: widget.enabled
+              ? (value) {
+                  unawaited(widget.pref.set(value.round()));
+                  setState(() => _drag = null);
+                }
+              : null,
+        ),
+      ],
+    );
+  }
 }
 
 /// Opens a screen or a picker; drawn with a chevron.

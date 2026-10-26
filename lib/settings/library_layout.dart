@@ -6,6 +6,8 @@ enum LibraryLayout {
   /// and an icon past that; past the most columns, they scroll.
   auto,
   grid,
+
+  /// One column of rows, however wide the level.
   list;
 
   /// The layout [stored] names; [auto] for none, or for one it no longer
@@ -15,16 +17,15 @@ enum LibraryLayout {
   /// Where [count] items go in [room].
   LibraryPlacement place({required int count, required LibraryRoom room}) {
     assert(
-      1 <= room.listColumns &&
-          room.listColumns <= room.rowColumns &&
+      1 <= room.rowColumns &&
           room.rowColumns <= room.mostColumns &&
           room.gridColumns <= room.mostColumns,
-      'a level holds at least a column, and List and Grid within its most',
+      'a level holds at least a column of rows, and Grid within its most',
     );
     return switch (this) {
       auto => _packed(count: count, room: room),
       grid => (form: LibraryForm.icons, columns: room.gridColumns),
-      list => (form: LibraryForm.rows, columns: room.listColumns),
+      list => (form: LibraryForm.rows, columns: 1),
     };
   }
 
@@ -36,11 +37,7 @@ enum LibraryLayout {
       form: columns <= room.rowColumns ? LibraryForm.rows : LibraryForm.icons,
       columns: columns,
     );
-    for (
-      var columns = room.listColumns;
-      columns < room.mostColumns;
-      columns++
-    ) {
+    for (var columns = 1; columns < room.mostColumns; columns++) {
       final placement = across(columns);
       final tall = switch (placement.form) {
         LibraryForm.rows => room.rowsTall,
@@ -59,13 +56,12 @@ enum LibraryForm { rows, icons }
 /// So many [columns] across, each item a [form].
 typedef LibraryPlacement = ({LibraryForm form, int columns});
 
-/// What a level has room for, as it measures itself: the columns List and
-/// Grid lay out in, the most columns of rows its width holds, the most
-/// columns Auto takes, and how many items a column holds without scrolling,
-/// as rows and as icons so many columns across, which are smaller in
-/// narrower columns and so hold more.
+/// What a level has room for, as it measures itself: the columns Grid lays
+/// out in, the most columns of rows its width holds, the most columns Auto
+/// takes, and how many items a column holds without scrolling, as rows and
+/// as icons so many columns across, which are smaller in narrower columns
+/// and so hold more.
 typedef LibraryRoom = ({
-  int listColumns,
   int gridColumns,
   int rowColumns,
   int mostColumns,

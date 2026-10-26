@@ -13,14 +13,17 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_drawer.dart';
+import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 import 'helpers/real_app.dart';
 import 'helpers/group_tile.dart';
 
@@ -859,6 +862,103 @@ void main() {
       await edit(() => tester.tap(find.text('No icon')));
       expect(find.byIcon(Icons.code), findsNothing);
       expect((await saved()).containsKey('icon'), isFalse);
+    },
+  );
+
+  testWidgets(
+    'a site picked in the tab strip switches behind its card over the page '
+    'only, the top bar and the strip left in view (WEBSPACE-008)',
+    (tester) async {
+      final first = WebViewModel(
+        initUrl: 'https://first.example.test',
+        name: 'First',
+      );
+      final second = WebViewModel(
+        initUrl: 'https://second.example.test',
+        name: 'Second',
+      );
+      await pumpRealApp(
+        tester,
+        sites: [first, second],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.showTabStrip.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'All');
+      await tester.tap(_siteTile('First'));
+      await settleRealApp(tester);
+      final strip = find.byType(SiteTabStrip);
+      await tester.tap(
+        find.descendant(of: strip, matching: find.text('Second')),
+      );
+      await tester.pump();
+      await tester.pump(Motion.reveal);
+      final card = tester.getRect(
+        find.descendant(
+          of: find.byType(LaunchZoom),
+          matching: find.byType(Material),
+        ),
+      );
+      for (final bar in [find.byType(AppBar), strip]) {
+        expect(
+          tester.getRect(bar).overlaps(card),
+          isFalse,
+          reason: '$bar stays in view',
+        );
+      }
+      await settleRealApp(tester);
+      expect(
+        find.descendant(of: find.byType(AppBar), matching: find.text('Second')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'a webspace renamed from its open folder\'s name is saved under the new '
+    'name, and a blank name keeps the old one (WEBSPACE-018)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      final title = find.byType(EditableWebspaceName);
+      Future<Map<String, dynamic>> rename(String name, {required String from}) async {
+        await tester.tap(find.descendant(of: title, matching: find.text(from)));
+        await settleRealApp(tester);
+        await tester.enterText(
+          find.descendant(of: title, matching: find.byType(TextField)),
+          name,
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await settleRealApp(tester);
+        return (await SharedPreferences.getInstance())
+            .getStringList('webspaces')!
+            .map((raw) => jsonDecode(raw) as Map<String, dynamic>)
+            .singleWhere((value) => value['id'] == work.id);
+      }
+
+      final saved = await rename('Projects', from: 'Work');
+      expect(saved['name'], 'Projects');
+      expect(saved['siteIds'], [alpha.siteId], reason: 'its sites stay');
+      expect((await rename('  ', from: 'Projects'))['name'], 'Projects');
+      expect(
+        find.descendant(of: title, matching: find.text('Projects')),
+        findsOneWidget,
+      );
     },
   );
 }

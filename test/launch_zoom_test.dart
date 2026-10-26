@@ -14,12 +14,15 @@ import 'helpers/localized.dart';
 const _screen = Rect.fromLTWH(0, 0, 400, 800);
 const _icon = Rect.fromLTWH(40, 300, 80, 80);
 
+/// Where the page under the card shows a site, under a bar of its own.
+const _area = Rect.fromLTWH(0, 56, 400, 744);
+
 final _card = find.descendant(
   of: find.byType(LaunchZoom),
   matching: find.byType(Material),
 );
 
-/// The card over a button standing in for the page under it.
+/// The card over a bar and a button standing in for the page under it.
 Future<LaunchZoomState> _pump(
   WidgetTester tester, {
   required VoidCallback onButton,
@@ -27,6 +30,7 @@ Future<LaunchZoomState> _pump(
   List<WebViewModel> sites = const [],
 }) async {
   final zoom = GlobalKey<LaunchZoomState>();
+  final area = GlobalKey();
   await pumpLocalized(
     tester,
     size: _screen.size,
@@ -35,13 +39,21 @@ Future<LaunchZoomState> _pump(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Center(
-            child: ElevatedButton(
-              onPressed: onButton,
-              child: const Text('Page'),
-            ),
+          Column(
+            children: [
+              SizedBox(height: _area.top),
+              Expanded(
+                key: area,
+                child: Center(
+                  child: ElevatedButton(
+                    onPressed: onButton,
+                    child: const Text('Page'),
+                  ),
+                ),
+              ),
+            ],
           ),
-          LaunchZoom(key: zoom, sites: sites),
+          LaunchZoom(key: zoom, sites: sites, area: area),
         ],
       ),
     ),
@@ -237,7 +249,9 @@ void main() {
   );
 
   testWidgets(
-    'with no icon to grow from, a site opens through its card fading in and out',
+    'with no icon to grow from, a site opens through its card fading in and '
+    'out over where sites show, the bars around them left in view '
+    '(WEBSPACE-008)',
     (tester) async {
       final zoom = await _pump(tester, onButton: () {});
       var shown = 0;
@@ -248,11 +262,11 @@ void main() {
       );
       await tester.pump();
       await tester.pump(Motion.reveal ~/ 2);
-      expect(tester.getRect(_card).center, _screen.center);
-      expect(tester.getRect(_card).width, lessThan(_screen.width));
+      expect(tester.getRect(_card).center, _area.center);
+      expect(tester.getRect(_card).width, lessThan(_area.width));
       expect(shown, 0, reason: 'the switch waits under a full card');
       await tester.pump(Motion.reveal);
-      expect(tester.getRect(_card), _screen);
+      expect(tester.getRect(_card), _area);
       expect(shown, 1);
       await tester.pumpAndSettle();
       await opening;

@@ -1121,6 +1121,9 @@
   "webspaceGlyphPrivacy": "தனியுரிமை",
   "appSettingsExperimentalFolderLibrary": "மாற்று வடிவமைப்பு",
   "appSettingsExperimentalFolderLibraryHint": "துவக்கி கட்டத்தில் தளங்களைக் குழுக்களாக ஒழுங்கமைக்கவும்.",
+  "appSettingsLibraryIconSize": "ஐகான் அளவு",
+  "appSettingsLibraryIconSizeHint": "ஒவ்வொரு தளம் மற்றும் வெப்ஸ்பேஸ் ஐகானும் எவ்வளவு பெரிதாக வரையப்படுகிறது. பெரிய ஐகான்கள் ஒரு வரிசையில் குறைவாகப் பொருந்தும்; சிறியவை அதிகமாகப் பொருந்தும்.",
+  "libraryRenameWebspace": "வெப்ஸ்பேஸின் பெயரை மாற்று",
   "siteRedirectHomeSuggestion": "இந்தத் தளம் {url} முகவரிக்குத் திருப்பிவிடப்பட்டது. இதை அதன் முகப்புப் பக்கமாகப் பயன்படுத்தவா? புதிய களத்திற்கான இணைப்புகளும் இங்கே திறக்கும்.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

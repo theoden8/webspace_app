@@ -1121,6 +1121,9 @@
   "webspaceGlyphPrivacy": "ಗೌಪ್ಯತೆ",
   "appSettingsExperimentalFolderLibrary": "ಪರ್ಯಾಯ ವಿನ್ಯಾಸ",
   "appSettingsExperimentalFolderLibraryHint": "ಲಾಂಚರ್ ಗ್ರಿಡ್‌ನಲ್ಲಿ ಸೈಟ್‌ಗಳನ್ನು ಗುಂಪುಗಳಾಗಿ ಜೋಡಿಸಿ.",
+  "appSettingsLibraryIconSize": "ಐಕಾನ್ ಗಾತ್ರ",
+  "appSettingsLibraryIconSizeHint": "ಪ್ರತಿ ಸೈಟ್ ಮತ್ತು ವೆಬ್‌ಸ್ಪೇಸ್ ಐಕಾನ್ ಎಷ್ಟು ದೊಡ್ಡದಾಗಿ ಚಿತ್ರಿಸಲಾಗುತ್ತದೆ. ದೊಡ್ಡ ಐಕಾನ್‌ಗಳು ಒಂದು ಸಾಲಿನಲ್ಲಿ ಕಡಿಮೆ ಹಿಡಿಯುತ್ತವೆ; ಚಿಕ್ಕವು ಹೆಚ್ಚು ಹಿಡಿಯುತ್ತವೆ.",
+  "libraryRenameWebspace": "ವೆಬ್‌ಸ್ಪೇಸ್ ಮರುಹೆಸರಿಸಿ",
   "siteRedirectHomeSuggestion": "ಈ ಸೈಟ್ {url} ಗೆ ಮರುನಿರ್ದೇಶಿಸಿದೆ. ಇದನ್ನು ಅದರ ಮುಖಪುಟವಾಗಿ ಬಳಸಬೇಕೇ? ಹೊಸ ಡೊಮೇನ್‌ನ ಲಿಂಕ್‌ಗಳೂ ಇಲ್ಲಿಯೇ ತೆರೆಯುತ್ತವೆ.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

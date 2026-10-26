@@ -93,9 +93,6 @@ class AppBehaviourScreen extends StatefulWidget {
 
 class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     with SettingsOpenGuard, RebuildOnAppPref {
-  /// The tab width while its slider is dragged; persisted on release.
-  double? _tabWidthDrag;
-
   void _setTabStrip(TabStrip mode) {
     unawaited(AppPref.showTabStrip.set(mode == TabStrip.pinned));
     unawaited(AppPref.tabBarButton.set(mode == TabStrip.button));
@@ -153,8 +150,6 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     final backOpensMenuHint = hostIsAndroid
         ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
         : loc.appSettingsBackOpensMenuHint;
-    final tabWidth = _tabWidthDrag ?? AppPref.tabMaxWidth.value.toDouble();
-    final tabWidthLabel = '${tabWidth.round()} px';
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
@@ -194,26 +189,15 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
                   : null,
             ),
           ),
-          _row(
-            HintedTitle(loc.appSettingsTabMaxWidth,
-                hint: loc.appSettingsTabMaxWidthHint),
-            trailing: Text(tabWidthLabel),
-          ),
-          Slider(
-            value: tabWidth,
+          PrefSlider(
+            AppPref.tabMaxWidth,
+            title: loc.appSettingsTabMaxWidth,
+            hint: loc.appSettingsTabMaxWidthHint,
             min: 80,
             max: 320,
-            divisions: 24,
-            label: tabWidthLabel,
-            onChanged: _tabStripCanShow
-                ? (value) => setState(() => _tabWidthDrag = value)
-                : null,
-            onChangeEnd: _tabStripCanShow
-                ? (value) {
-                    _tabWidthDrag = null;
-                    unawaited(AppPref.tabMaxWidth.set(value.round()));
-                  }
-                : null,
+            step: 10,
+            label: (width) => '$width px',
+            enabled: _tabStripCanShow,
           ),
           SettingsSection(loc.appSettingsGroupOpening),
           SettingTile(

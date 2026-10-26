@@ -5301,6 +5301,10 @@
   "@libraryListView": {
     "description": "Tooltip and accessibility label of the button, among three that choose how a level of the library lays out its items (the webspaces on the home, or a folder's sites), that always shows them as rows, each with its name and its site count or web address."
   },
+  "libraryRenameWebspace": "Rename webspace",
+  "@libraryRenameWebspace": {
+    "description": "In an open folder of the launcher, the accessibility hint of the webspace's name, which a tap turns into a text field to rename it in place; also the field's placeholder while it is empty."
+  },
   "webspaceGlyphTitle": "Icon",
   "@webspaceGlyphTitle": {
     "description": "Row in a webspace's edit screen, and title of the dialog it opens, for picking a symbol shown beside the webspace's name wherever the name appears."
@@ -5396,6 +5400,14 @@
   },
   "@appSettingsExperimentalFolderLibraryHint": {
     "description": "Explanation behind the Alternative design experiment hint button. Each webspace is a cluster of site icons that expands into a launcher grid."
+  },
+  "appSettingsLibraryIconSize": "Icon size",
+  "@appSettingsLibraryIconSize": {
+    "description": "Title of a slider in App Settings, Appearance, under the Alternative design heading: how large the launcher draws every site and webspace icon, shown beside it as a percentage."
+  },
+  "appSettingsLibraryIconSizeHint": "How large every site and webspace icon is drawn. Larger icons fit fewer to a row; smaller ones fit more.",
+  "@appSettingsLibraryIconSizeHint": {
+    "description": "Explanation behind the hint button of the Icon size slider in Appearance, which sizes all launcher icons in Alternative design at once."
   },
   "siteRedirectHomeSuggestion": "This site redirected to {url}. Use this as its homepage? Links to the new domain will also open here.",
   "@siteRedirectHomeSuggestion": {

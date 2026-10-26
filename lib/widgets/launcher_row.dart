@@ -45,10 +45,10 @@ class LauncherMorphTile extends StatelessWidget {
     final row = Rect.fromLTWH(
       direction == TextDirection.ltr
           ? tile.left + Spacing.lg
-          : tile.right - Spacing.lg - LibraryStyle.rowWell,
-      tile.center.dy - LibraryStyle.rowWell / 2,
-      LibraryStyle.rowWell,
-      LibraryStyle.rowWell,
+          : tile.right - Spacing.lg - LibraryStyle.rowIconWell,
+      tile.center.dy - LibraryStyle.rowIconWell / 2,
+      LibraryStyle.rowIconWell,
+      LibraryStyle.rowIconWell,
     );
     return Rect.lerp(grid(tile.size).shift(tile.topLeft), row, list)!;
   }
@@ -61,7 +61,7 @@ class LauncherMorphTile extends StatelessWidget {
     final scaler = MediaQuery.textScalerOf(context);
     final text = Theme.of(context).textTheme;
     return math.max(
-      LibraryStyle.rowWell,
+      LibraryStyle.rowIconWell,
       scaler.scale(LibraryStyle.rowTitleSize) * (text.bodyMedium!.height ?? 1) +
           scaler.scale(text.bodySmall!.fontSize!) *
               (text.bodySmall!.height ?? 1),

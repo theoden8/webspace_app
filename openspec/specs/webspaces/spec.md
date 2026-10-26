@@ -165,7 +165,7 @@ An open folder SHALL hold every group as a page, in the group grid's order, as a
 
 The open panel's top bar SHALL pull it down: the panel follows the finger, shrinking a little as the grid behind it brightens. Let go past a quarter of its height, or flung down, it SHALL close into its tile; let go short of that, it SHALL spring back.
 
-A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. A site or tab picked where no icon is (a tabs sheet, the tab strip) SHALL open through the same card faded in over the screen. Returning to the library SHALL fade that card in over the site, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL wait for the switch under it no longer than a fixed cap, SHALL take no input while it moves, and reduced motion SHALL show no card.
+A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. A site or tab picked where no icon is (a tabs sheet, the tab strip) SHALL open through the same card faded in over where sites show, the top bar and the tab strip left in view. Returning to the library SHALL fade that card in over the site, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL wait for the switch under it no longer than a fixed cap, SHALL take no input while it moves, and reduced motion SHALL show no card.
 
 A site's top bar, held, SHALL fade the site's card in over it and bring the library back under the card, which SHALL then come off the screen by the point held, so the site is never seen around it, and follow the finger, smaller the further down it is pulled, even once the bar itself has left the screen. Let go past a quarter of the screen's height, or flung down, the card SHALL shrink into the site's icon as a return to the library does; let go short of that, or flung back up, it SHALL go back over the screen and the site SHALL be shown again once the library has been, or once the card's cap has passed. A pull on the bar with no hold first SHALL leave the site on screen, so a pull on the page still refreshes it. A locked kiosk session SHALL lift nothing, and with reduced motion no card SHALL lift: a let-go that would close returns to the library at once.
 
@@ -383,7 +383,10 @@ every site without scrolling, each site a row while its column is at least
 as wide as a row's narrowest and an icon past that, smaller and named on one
 line where its column is narrower than the grid's; past four columns, or the
 grid's own where it holds more, the sites SHALL scroll. So a phone's folder
-shows one column of rows, then two, then four smaller icons across. Each
+shows one column of rows, then two, then four smaller icons across. A phone's
+column SHALL fill its height, as the drawer's does; on a window wider than a
+phone's, a column SHALL take another beside it once it fills four fifths of
+the height, so it stops short of the window's edge. Each
 folder SHALL take the layout its own count calls for, and the choice SHALL be
 made again as the window resizes. A row is the site's icon at its start, its name over its web address, and its grants and
 tab count at its end. A site imported from a file SHALL show "Imported file"
@@ -395,8 +398,9 @@ names under the icons fading early and the rows' text fading in late, and the
 panel SHALL take the new layout's height as the icons move. In either layout
 the panel SHALL be as tall as its sites need up to most of the screen,
 resizing late in a swipe to another folder (WEBSPACE-008), and rows SHALL
-reorder by dragging as icons do (WEBSPACE-011). Where the window is wide
-enough, rows SHALL flow into columns rather than run its whole width. A site
+reorder by dragging as icons do (WEBSPACE-011). List SHALL show one column
+of rows however wide the window; only Automatic takes more columns, and only
+once one does not hold every site. A site
 SHALL open from its
 row's icon and close back into it, its card starting at that icon's size and
 colour. Reduced motion SHALL switch at once.
@@ -424,6 +428,14 @@ close back into it, and rows SHALL reorder by dragging as the grid does.
 **And** Work, which holds two, still shows one column of rows
 **When** the window is made short enough that the webspaces overflow a column of rows
 **Then** the home shows them in two columns of rows, and as icons once those overflow too
+
+#### Scenario: List is one column on a wide window
+
+**Given** Alternative design is enabled and a window wide enough for several columns of rows
+**When** the user picks List beside the search
+**Then** the home shows its webspaces in one column of rows across its width, and so does an open folder its sites
+**When** the user picks Automatic and every webspace fits one column of rows
+**Then** the home still shows one column, taking more only once they overflow it
 
 #### Scenario: Turn the webspaces into rows
 
@@ -453,8 +465,9 @@ close back into it, and rows SHALL reorder by dragging as the grid does.
 ### Requirement: WEBSPACE-016 - A Webspace's Icon
 
 A webspace's edit screen SHALL offer a symbol to stand beside its name,
-picked from a fixed set of the app's own icons, each read out by its name,
-or none, which is how every webspace starts. The symbol SHALL lead the
+picked from a fixed set of the app's own icons, laid out in a grid about as
+tall as it is wide, each read out by its name, or none, which is how every
+webspace starts. The symbol SHALL lead the
 webspace's name wherever the name is shown: the library's tiles and rows,
 an open folder's top bar, the labels on search results, the add-site
 picker's chips, the drawer's heading, the app bar and the classic list,
@@ -469,6 +482,47 @@ or one of the wrong type, SHALL read as none.
 **Then** Work's name is led by that symbol on the home and in its folder
 **When** the user edits Work again and picks No icon
 **Then** its name shows alone and nothing is saved for its icon
+
+### Requirement: WEBSPACE-017 - One Size for Every Library Icon
+
+With Alternative design enabled, App Settings > Appearance SHALL offer an
+icon size, from 80% to 140% of the icons' own size in steps of 10%, 100% to
+start with. It SHALL size every icon in the library at once, sites' and
+webspaces', in grids and in rows; Grid SHALL lay as many to a row as the
+icons' size leaves room for, so larger icons fit fewer and smaller ones more.
+The size SHALL be set once a drag of its slider ends, persist across
+launches and ride a settings backup. Outside Alternative design the setting
+SHALL not show.
+
+#### Scenario: Make every icon larger
+
+**Given** Alternative design is enabled and All shows its sites as a grid
+**When** the user sets the icon size to 140% in Appearance
+**Then** every site's icon in All, and every webspace's on the home, is drawn at 140% of its size
+**And** All's grid lays fewer icons to a row
+**When** All shows its sites as rows
+**Then** each row's icon is drawn at 140% of its size too
+
+### Requirement: WEBSPACE-018 - Rename a Folder Where It Opens
+
+With Alternative design enabled, an open folder's name SHALL be renamed in
+place, as a phone launcher's folder is: a tap or a hold on the name SHALL
+turn it into a field holding the name, all of it selected, and the name
+typed SHALL be saved once the field is submitted or left. A name that is
+blank once trimmed SHALL keep the old one. The webspace's glyph SHALL be
+picked from beside the name: a tap on the glyph, or on the place one would
+go while the name is edited, SHALL open the same picker the edit screen
+does. Its sites SHALL stay as they were. All's name SHALL only be shown.
+
+#### Scenario: Rename Work from its folder
+
+**Given** Alternative design is enabled and Work is open
+**When** the user taps Work's name, types Projects and submits
+**Then** the folder and its tile are named Projects, and Projects is saved with Work's sites
+**When** the user taps Projects, clears it and leaves the field
+**Then** it is still named Projects
+**When** the user taps the glyph beside the name and picks the code symbol
+**Then** Projects is led by that symbol
 
 ---
 

@@ -12,6 +12,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/utils/stable_palette.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -68,10 +69,18 @@ abstract final class LibraryStyle {
   static const int maxColumns = 8;
   static const double tileMinWidth = 112;
 
+  /// The share of their own size the library draws its icons at, as
+  /// Appearance sets it for every icon at once (WEBSPACE-017), and the
+  /// percentages it may be set to.
+  static double get iconScale => AppPref.libraryIconSize.value / 100;
+  static const int iconSizeMin = 80;
+  static const int iconSizeMax = 140;
+  static const int iconSizeStep = 10;
+
   /// The narrowest column an icon keeps its full caption in, wider as the
-  /// text grows; Grid lays icons out no narrower.
+  /// text grows and as the icons do; Grid lays icons out no narrower.
   static double iconColumnMin(TextScaler scaler) =>
-      tileMinWidth * math.max(1, scaler.scale(1) * .7);
+      tileMinWidth * iconScale * math.max(1, scaler.scale(1) * .7);
   static const double siteIcon = 64;
   static const double siteWell = 80;
   static const double previewIcon = 24;
@@ -121,6 +130,9 @@ abstract final class LibraryStyle {
   /// name's size; a tile turning into a row loses its name under the icon
   /// early in the way and gains the row's late.
   static const double rowWell = 44;
+
+  /// A row's icon well at [iconScale].
+  static double get rowIconWell => rowWell * iconScale;
   static const double rowTitleSize = 15;
   static const Curve gridCaptionOut = Interval(0, .4, curve: Curves.easeOut);
   static const Curve rowCaptionIn = Interval(.5, 1, curve: Curves.easeOut);
@@ -128,19 +140,24 @@ abstract final class LibraryStyle {
   /// A webspace's glyph beside its name, against the name's font size.
   static const double glyphScale = 1.15;
 
-  /// The narrowest a row may be before rows flow into fewer columns.
-  static const double rowMinWidth = 360;
-
   /// Automatic layout, as the drawer packs its sites: the narrowest a row
   /// may be once rows take more columns to hold every item, and the most
   /// columns it takes before the items scroll, as the drawer's four.
   static const double packedRowMinWidth = 150;
   static const int packedColumns = 4;
 
-  /// An icon's well in a column [width] wide: its full size, or smaller
-  /// where Automatic layout packs icons into narrower columns.
+  /// The share of a level's height Automatic fills before it takes another
+  /// column: all of a phone's, as the drawer does, and less of a window at
+  /// least [packedFillFrom] wide, so a long column stops short of its edge.
+  static const double packedFill = .8;
+  static const double packedFillFrom = 600;
+  static double packedFillOf(Size window) =>
+      window.width >= packedFillFrom ? packedFill : 1;
+
+  /// An icon's well in a column [width] wide: its full size at [iconScale],
+  /// or smaller where Automatic layout packs icons into narrower columns.
   static double wellFor({required double width}) =>
-      (width - Spacing.lg).clamp(0, siteWell);
+      (width - Spacing.lg).clamp(0, siteWell * iconScale);
 
   /// The switch between a level's layouts: each of its segments, and the
   /// track around them.

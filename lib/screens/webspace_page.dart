@@ -144,6 +144,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
   final _libraryKey = GlobalKey<WebspaceLibraryState>();
   final _launchZoom = GlobalKey<LaunchZoomState>();
+  final _siteArea = GlobalKey();
   final _urlBar = GlobalKey<UrlBarState>();
   bool get _folderLibraryEnabled => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.folderLibrary);
@@ -851,15 +852,12 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// [to] puts [site] on screen; in Alternative design it runs behind the
   /// site's card, grown from the site's icon where the library shows it and
-  /// faded in over the screen elsewhere, so every switch looks the same.
+  /// faded in where sites show elsewhere, so every switch looks the same.
   Future<void> _throughCard(WebViewModel site, {required CardSwitch to}) async {
     final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
     if (zoom == null || to.shown()) return to.show();
-    await zoom.open(site,
-        from: _sites.shown == null
-            ? _libraryKey.currentState?.siteWell(site.siteId)
-            : null,
-        to: to);
+    final icon = _libraryKey.currentState?.siteWell(site.siteId);
+    await zoom.open(site, from: _sites.shown == null ? icon : null, to: to);
   }
 
   Future<void> _showLibraryTabs(WebspaceId scope) async {
@@ -1438,6 +1436,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           Expanded(
             key: const ValueKey('site-stack'),
             child: Stack(
+              key: _siteArea,
               children: [
                 Offstage(
                   offstage: _sites.shown != null,
@@ -1453,14 +1452,14 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
+                    onRetitleWebspace: _webspaces.retitle,
                     onOpenSite: (site) => unawaited(_openSite(site)),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
                         ? (from, {required to}) =>
                               _webspaces.reorderSite(from, newListIndex: to)
                         : null,
-                    onAddSite: ({required into}) =>
-                        unawaited(_editing.addSite(into: into)),
+                    onAddSite: ({required into}) => unawaited(_editing.addSite(into: into)),
                     onShowTabs: (scope) => unawaited(_showLibraryTabs(scope)),
                     onOpenSettings: _openAppSettings,
                     accentColor: _shell.theme.accentColor,
@@ -1557,7 +1556,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       fit: StackFit.expand,
       children: [
         _buildMainTree(context, webviewIsVisible: webviewIsVisible),
-        if (_folderLibraryEnabled) LaunchZoom(key: _launchZoom, sites: _sites.models),
+        if (_folderLibraryEnabled)
+          LaunchZoom(key: _launchZoom, sites: _sites.models, area: _siteArea),
         // Snapshot-time mask: an opaque surface overlays everything so the
         // task-switcher / recents preview never captures archive content
         // (ARCH-009). Only the painted output is replaced.

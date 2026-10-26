@@ -1121,6 +1121,9 @@
   "webspaceGlyphPrivacy": "კონფიდენციალურობა",
   "appSettingsExperimentalFolderLibrary": "ალტერნატიული დიზაინი",
   "appSettingsExperimentalFolderLibraryHint": "დააჯგუფეთ საიტები გამშვების ბადეში.",
+  "appSettingsLibraryIconSize": "ხატულების ზომა",
+  "appSettingsLibraryIconSizeHint": "რა ზომით იხატება საიტებისა და ვებსივრცეების ყველა ხატულა. დიდი ხატულები რიგში ნაკლები ეტევა, პატარები კი მეტი.",
+  "libraryRenameWebspace": "ვებსივრცის სახელის შეცვლა",
   "siteRedirectHomeSuggestion": "ეს საიტი გადამისამართდა მისამართზე {url}. გამოვიყენოთ ეს მისამართი მის მთავარ გვერდად? ახალი დომენის ბმულებიც აქ გაიხსნება.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

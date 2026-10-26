@@ -1121,6 +1121,9 @@
   "webspaceGlyphPrivacy": "Príobháideacht",
   "appSettingsExperimentalFolderLibrary": "Dearadh malartach",
   "appSettingsExperimentalFolderLibraryHint": "Eagraigh suíomhanna ina ngrúpaí i ngreille lainseála.",
+  "appSettingsLibraryIconSize": "Méid na ndeilbhíní",
+  "appSettingsLibraryIconSizeHint": "Cé chomh mór is a tharraingítear gach deilbhín suímh agus spáis ghréasáin. Is lú deilbhíní móra a oireann i ró; is mó beaga a oireann.",
+  "libraryRenameWebspace": "Athainmnigh an spás gréasáin",
   "siteRedirectHomeSuggestion": "Rinne an suíomh seo atreorú chuig {url}. An úsáidfear é seo mar a leathanach baile? Osclófar naisc chuig an bhfearann nua anseo freisin.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

@@ -1121,6 +1121,9 @@
   "webspaceGlyphPrivacy": "Soukromí",
   "appSettingsExperimentalFolderLibrary": "Alternativní vzhled",
   "appSettingsExperimentalFolderLibraryHint": "Uspořádejte weby do skupin v mřížce spouštěče.",
+  "appSettingsLibraryIconSize": "Velikost ikon",
+  "appSettingsLibraryIconSizeHint": "Jak velké se kreslí všechny ikony webů a webových prostorů. Větších ikon se do řádku vejde méně, menších více.",
+  "libraryRenameWebspace": "Přejmenovat webový prostor",
   "siteRedirectHomeSuggestion": "Tento web přesměroval na {url}. Použít tuto adresu jako jeho domovskou stránku? Odkazy na novou doménu se také budou otevírat zde.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

@@ -20,6 +20,7 @@ import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 import 'helpers/localized.dart';
 import 'helpers/group_tile.dart';
 
@@ -57,6 +58,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   ];
   WebspaceId selected = WebspaceId.all;
   Webspace? edited;
+  final retitled = <(WebspaceId, WebspaceTitle)>[];
   Webspace? deleted;
   WebViewModel? opened;
   var settingsOpened = 0;
@@ -124,6 +126,14 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
           },
           onAddWebspace: () => webspacesAdded++,
           onEditWebspace: (webspace) => edited = webspace,
+          onRetitleWebspace: (id, {required to}) async => setState(() {
+            retitled.add((id, to));
+            final at = webspaces.indexWhere((w) => w.id == id);
+            webspaces[at] = webspaces[at].copyWith(
+              name: to.name,
+              glyph: (to: to.glyph),
+            );
+          }),
           onDeleteWebspace: (webspace) => deleted = webspace,
           onReorder: (from, {required newIndex}) => setState(() {
             WebspaceSelectionEngine.reorder(
@@ -1266,6 +1276,53 @@ void main() {
     expect(tester.getRect(_panel).width, greaterThan(800));
   });
 
+  testWidgets(
+    'the icon size Appearance sets sizes every icon at once: wells in grids '
+    'and rows, and Grid lays fewer to a row as they grow (WEBSPACE-017)',
+    (tester) async {
+      addTearDown(
+        () => AppPref.libraryIconSize.debugValue =
+            AppPref.libraryIconSize.fallback,
+      );
+      Future<({double well, int across, double row})> measure(int size) async {
+        AppPref.libraryIconSize.debugValue = size;
+        AppPref.libraryLayout.debugValue = LibraryLayout.grid.name;
+        await pumpLocalized(
+          tester,
+          home: const _LibraryHarness(),
+          size: const Size(800, 900),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(_group('All'));
+        await tester.pumpAndSettle();
+        final grid = (
+          well: tester.getRect(_siteWell(0)).width,
+          across: _across(
+            tester,
+            of: _inPanel(find.byType(SiteGridTile)),
+          ).count,
+        );
+        AppPref.libraryLayout.debugValue = LibraryLayout.list.name;
+        await tester.pumpAndSettle();
+        final row = tester.getRect(_siteWell(0)).width;
+        await tester.pumpWidget(const SizedBox());
+        return (well: grid.well, across: grid.across, row: row);
+      }
+
+      final normal = await measure(100);
+      final large = await measure(LibraryStyle.iconSizeMax);
+      final small = await measure(LibraryStyle.iconSizeMin);
+      expect(normal.well, moreOrLessEquals(LibraryStyle.siteWell));
+      expect(large.well, moreOrLessEquals(LibraryStyle.siteWell * 1.4));
+      expect(small.well, moreOrLessEquals(LibraryStyle.siteWell * .8));
+      expect(large.row, moreOrLessEquals(LibraryStyle.rowWell * 1.4));
+      expect(small.row, moreOrLessEquals(LibraryStyle.rowWell * .8));
+      expect(large.across, lessThan(normal.across));
+      expect(small.across, greaterThan(normal.across));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('a dropped icon lands from where it was let go', (tester) async {
     await pumpLocalized(tester, home: const _LibraryHarness());
     await tester.pumpAndSettle();
@@ -1790,32 +1847,97 @@ void main() {
   );
 
   testWidgets(
-    'on a wide window rows flow into columns rather than run its width '
+    'on a window wider than a phone Auto takes another column once one fills '
+    'most of the height, short of the window\'s edge (WEBSPACE-015)',
+    (tester) async {
+      for (final pref in [
+        AppPref.libraryLayout,
+        AppPref.libraryWebspaceLayout,
+      ]) {
+        pref.debugValue = LibraryLayout.auto.name;
+      }
+      Future<int> across({required double width, required int sites}) async {
+        await pumpLocalized(
+          tester,
+          home: const _LibraryHarness(),
+          size: Size(width, 700),
+        );
+        await tester.pumpAndSettle();
+        tester
+            .state<_LibraryHarnessState>(find.byType(_LibraryHarness))
+            .addSites(sites - 8);
+        await tester.pumpAndSettle();
+        await tester.tap(_group('All'));
+        await tester.pumpAndSettle();
+        final count = _across(
+          tester,
+          of: _inPanel(find.byType(SiteGridTile)),
+        ).count;
+        await tester.pumpWidget(const SizedBox());
+        return count;
+      }
+
+      var phone = 8;
+      while (await across(width: 393, sites: phone + 1) == 1) {
+        phone++;
+      }
+      expect(
+        await across(width: 1280, sites: phone),
+        2,
+        reason: 'a phone\'s column holds $phone; a wide window\'s, as tall, '
+            'stops short of that',
+      );
+      var wide = 8;
+      while (await across(width: 1280, sites: wide + 1) == 1) {
+        wide++;
+      }
+      expect(
+        wide,
+        inInclusiveRange(
+          (phone * LibraryStyle.packedFill).floor() - 1,
+          (phone * LibraryStyle.packedFill).ceil(),
+        ),
+        reason: 'it fills about ${LibraryStyle.packedFill} of the height',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'on a wide window List is one column of rows across the level, and so is '
+    'Auto while one column holds every item, as the drawer packs '
     '(WEBSPACE-015)',
     (tester) async {
-      AppPref.libraryWebspaceLayout.debugValue = LibraryLayout.list.name;
-      AppPref.libraryLayout.debugValue = LibraryLayout.list.name;
-      await pumpLocalized(
-        tester,
-        home: const _LibraryHarness(),
-        size: const Size(1280, 800),
-      );
-      await tester.pumpAndSettle();
-      final rows = [
-        for (final name in ['All', 'Work', 'Privacy'])
-          tester.getRect(_groupTile(name)),
-      ];
-      expect(rows[0].width, lessThan(1280 / 2));
-      expect(rows[1].top, rows[0].top, reason: 'side by side');
-      expect(rows[1].left, rows[0].right);
-      await tester.tap(_group('All'));
-      await tester.pumpAndSettle();
-      final sites = _inPanel(find.byType(SiteGridTile));
-      expect(
-        tester.getRect(sites.at(1)).top,
-        tester.getRect(sites.at(0)).top,
-        reason: 'the folder\'s rows flow into columns too',
-      );
+      for (final layout in [LibraryLayout.list, LibraryLayout.auto]) {
+        AppPref.libraryWebspaceLayout.debugValue = layout.name;
+        AppPref.libraryLayout.debugValue = layout.name;
+        await pumpLocalized(
+          tester,
+          home: const _LibraryHarness(),
+          size: const Size(1280, 800),
+        );
+        await tester.pumpAndSettle();
+        expect(_across(tester, of: _homeTiles), (count: 1, list: 1.0));
+        final level = tester.getRect(
+          find.ancestor(
+            of: _groupTile('All'),
+            matching: find.byType(CustomScrollView),
+          ),
+        );
+        expect(
+          tester.getRect(_groupTile('All')).width,
+          greaterThan(level.width * .9),
+          reason: '${layout.name}: a row runs the level\'s width',
+        );
+        await tester.tap(_group('All'));
+        await tester.pumpAndSettle();
+        expect(
+          _across(tester, of: _inPanel(find.byType(SiteGridTile))),
+          (count: 1, list: 1.0),
+          reason: '${layout.name}: the folder\'s rows are one column too',
+        );
+        await tester.pumpWidget(const SizedBox());
+      }
       expect(tester.takeException(), isNull);
     },
   );
@@ -1883,6 +2005,103 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'an open folder\'s name is renamed in place, as a launcher\'s is, and its '
+    'glyph is picked from beside it (WEBSPACE-018)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final harness = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      final work = harness.webspaces[1].id;
+      final title = _inPanel(find.byType(EditableWebspaceName));
+      Finder named(String name) =>
+          find.descendant(of: title, matching: find.text(name));
+      Future<void> rename(String name, {required bool hold}) async {
+        await (hold
+            ? tester.longPress(named(harness.webspaces[1].name))
+            : tester.tap(named(harness.webspaces[1].name)));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(of: title, matching: find.byType(TextField)),
+          name,
+        );
+      }
+
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      await rename('Projects', hold: false);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(harness.retitled, [(work, (name: 'Projects', glyph: null))]);
+      expect(named('Projects'), findsOneWidget);
+      expect(
+        find.descendant(of: title, matching: find.byType(TextField)),
+        findsNothing,
+      );
+
+      await rename(' Projects ', hold: true);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(harness.retitled, hasLength(1), reason: 'the same name again');
+
+      await rename('Labs', hold: false);
+      await tester.tap(
+        find.descendant(of: title, matching: find.byTooltip('Icon')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        harness.retitled.last,
+        (work, (name: 'Labs', glyph: null)),
+        reason: 'leaving the field keeps what was typed',
+      );
+      await tester.tap(find.byTooltip('Code'));
+      await tester.pumpAndSettle();
+      expect(harness.retitled.last, (
+        work,
+        (name: 'Labs', glyph: WebspaceGlyph.code),
+      ));
+      expect(
+        find.descendant(of: title, matching: find.byIcon(Icons.code)),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.descendant(of: title, matching: find.byIcon(Icons.code)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('No icon'));
+      await tester.pumpAndSettle();
+      expect(harness.retitled.last, (work, (name: 'Labs', glyph: null)));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('All\'s name in its open folder stays as it is (WEBSPACE-018)', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.tap(_group('All'));
+    await tester.pumpAndSettle();
+    final title = _inPanel(find.byType(EditableWebspaceName));
+    await tester.tap(find.descendant(of: title, matching: find.text('All')));
+    await tester.pumpAndSettle();
+    await tester.longPress(
+      find.descendant(of: title, matching: find.text('All')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: title, matching: find.byType(TextField)),
+      findsNothing,
+    );
+    expect(
+      tester
+          .state<_LibraryHarnessState>(find.byType(_LibraryHarness))
+          .retitled,
+      isEmpty,
+    );
+  });
 
   testWidgets('reduced motion turns a folder into rows at once', (
     tester,

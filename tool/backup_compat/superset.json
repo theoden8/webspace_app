@@ -260,6 +260,7 @@
     "blockScreenshots": true,
     "libraryLayout": "list",
     "libraryWebspaceLayout": "grid",
+    "libraryIconSize": 120,
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },
   "suggestedSites": [
