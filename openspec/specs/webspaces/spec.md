@@ -479,6 +479,26 @@ or one of the wrong type, SHALL read as none.
 **When** the user edits Work again and picks No icon
 **Then** its name shows alone and nothing is saved for its icon
 
+### Requirement: WEBSPACE-017 - One Size for Every Library Icon
+
+With Alternative design enabled, App Settings > Appearance SHALL offer an
+icon size, from 80% to 140% of the icons' own size in steps of 10%, 100% to
+start with. It SHALL size every icon in the library at once, sites' and
+webspaces', in grids and in rows; Grid SHALL lay as many to a row as the
+icons' size leaves room for, so larger icons fit fewer and smaller ones more.
+The size SHALL be set once a drag of its slider ends, persist across
+launches and ride a settings backup. Outside Alternative design the setting
+SHALL not show.
+
+#### Scenario: Make every icon larger
+
+**Given** Alternative design is enabled and All shows its sites as a grid
+**When** the user sets the icon size to 140% in Appearance
+**Then** every site's icon in All, and every webspace's on the home, is drawn at 140% of its size
+**And** All's grid lays fewer icons to a row
+**When** All shows its sites as rows
+**Then** each row's icon is drawn at 140% of its size too
+
 ---
 
 ## Data Model

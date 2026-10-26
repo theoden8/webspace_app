@@ -124,7 +124,10 @@ enum AppPref<T extends Object> {
   // at once, and apart from them how its home lays out the webspaces: a
   // LibraryLayout's name.
   libraryLayout('libraryLayout', fallback: 'auto'),
-  libraryWebspaceLayout('libraryWebspaceLayout', fallback: 'auto');
+  libraryWebspaceLayout('libraryWebspaceLayout', fallback: 'auto'),
+  // WEBSPACE-017: every icon in the library at once, as a percentage of its
+  // own size.
+  libraryIconSize('libraryIconSize', fallback: 100);
 
   const AppPref(this.key, {required this.fallback,this.legacyKey})
       : assert(fallback is bool || fallback is int || fallback is String);

@@ -5397,6 +5397,14 @@
   "@appSettingsExperimentalFolderLibraryHint": {
     "description": "Explanation behind the Alternative design experiment hint button. Each webspace is a cluster of site icons that expands into a launcher grid."
   },
+  "appSettingsLibraryIconSize": "Icon size",
+  "@appSettingsLibraryIconSize": {
+    "description": "Title of a slider in App Settings, Appearance, under the Alternative design heading: how large the launcher draws every site and webspace icon, shown beside it as a percentage."
+  },
+  "appSettingsLibraryIconSizeHint": "How large every site and webspace icon is drawn. Larger icons fit fewer to a row; smaller ones fit more.",
+  "@appSettingsLibraryIconSizeHint": {
+    "description": "Explanation behind the hint button of the Icon size slider in Appearance, which sizes all launcher icons in Alternative design at once."
+  },
   "siteRedirectHomeSuggestion": "This site redirected to {url}. Use this as its homepage? Links to the new domain will also open here.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

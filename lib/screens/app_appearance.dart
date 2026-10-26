@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -10,7 +12,8 @@ import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/icon_choice_chips.dart';
 import 'package:webspace/widgets/theme_icon.dart';
 
-/// How the app itself looks: UI language, theme mode and accent colour.
+/// How the app itself looks: UI language, theme mode and accent colour, and
+/// in Alternative design how large the launcher's icons are.
 class AppAppearanceScreen extends StatefulWidget {
   const AppAppearanceScreen({
     super.key,
@@ -110,6 +113,20 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
               ],
             ),
           ),
+          if (ExperimentalFeaturesService.instance.isEnabled(
+            ExperimentalFeature.folderLibrary,
+          )) ...[
+            SettingsSection(loc.appSettingsExperimentalFolderLibrary),
+            PrefSlider(
+              AppPref.libraryIconSize,
+              title: loc.appSettingsLibraryIconSize,
+              hint: loc.appSettingsLibraryIconSizeHint,
+              min: LibraryStyle.iconSizeMin,
+              max: LibraryStyle.iconSizeMax,
+              step: LibraryStyle.iconSizeStep,
+              label: (size) => '$size%',
+            ),
+          ],
           const SizedBox(height: 24),
         ],
       ),

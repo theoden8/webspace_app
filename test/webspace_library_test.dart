@@ -1266,6 +1266,53 @@ void main() {
     expect(tester.getRect(_panel).width, greaterThan(800));
   });
 
+  testWidgets(
+    'the icon size Appearance sets sizes every icon at once: wells in grids '
+    'and rows, and Grid lays fewer to a row as they grow (WEBSPACE-017)',
+    (tester) async {
+      addTearDown(
+        () => AppPref.libraryIconSize.debugValue =
+            AppPref.libraryIconSize.fallback,
+      );
+      Future<({double well, int across, double row})> measure(int size) async {
+        AppPref.libraryIconSize.debugValue = size;
+        AppPref.libraryLayout.debugValue = LibraryLayout.grid.name;
+        await pumpLocalized(
+          tester,
+          home: const _LibraryHarness(),
+          size: const Size(800, 900),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(_group('All'));
+        await tester.pumpAndSettle();
+        final grid = (
+          well: tester.getRect(_siteWell(0)).width,
+          across: _across(
+            tester,
+            of: _inPanel(find.byType(SiteGridTile)),
+          ).count,
+        );
+        AppPref.libraryLayout.debugValue = LibraryLayout.list.name;
+        await tester.pumpAndSettle();
+        final row = tester.getRect(_siteWell(0)).width;
+        await tester.pumpWidget(const SizedBox());
+        return (well: grid.well, across: grid.across, row: row);
+      }
+
+      final normal = await measure(100);
+      final large = await measure(LibraryStyle.iconSizeMax);
+      final small = await measure(LibraryStyle.iconSizeMin);
+      expect(normal.well, moreOrLessEquals(LibraryStyle.siteWell));
+      expect(large.well, moreOrLessEquals(LibraryStyle.siteWell * 1.4));
+      expect(small.well, moreOrLessEquals(LibraryStyle.siteWell * .8));
+      expect(large.row, moreOrLessEquals(LibraryStyle.rowWell * 1.4));
+      expect(small.row, moreOrLessEquals(LibraryStyle.rowWell * .8));
+      expect(large.across, lessThan(normal.across));
+      expect(small.across, greaterThan(normal.across));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('a dropped icon lands from where it was let go', (tester) async {
     await pumpLocalized(tester, home: const _LibraryHarness());
     await tester.pumpAndSettle();
