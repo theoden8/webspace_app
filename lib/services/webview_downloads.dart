@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/blob_url_capture.dart';
@@ -12,7 +11,6 @@ import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/widgets/root_messenger.dart';
 
 /// Downloads a site webview starts: http(s) through the site's proxy, data:
 /// and blob: URLs from the page, each saved where the user picks.
@@ -40,8 +38,27 @@ abstract final class WebViewDownloads {
             blobUrl: urlStr, suggestedFilename: req.suggestedFilename);
         return;
       default:
-        _showDownloadSnack('Can\'t download $scheme: URL.');
+        refused(scheme: scheme, url: urlStr,
+            suggestedFilename: req.suggestedFilename);
     }
+  }
+
+  /// A download whose scheme no path above takes, listed as failed where
+  /// every other failed download is (DL-006).
+  static DownloadTask refused({
+    required String scheme,
+    required String url,
+    required String? suggestedFilename,
+  }) {
+    final downloads = DownloadsService.instance;
+    final task = downloads.start(
+      filename: suggestedFilename?.isNotEmpty == true
+          ? suggestedFilename!
+          : 'download',
+      url: url,
+    );
+    downloads.fail(task.id, message: 'Can\'t download $scheme: URLs.');
+    return task;
   }
 
   static Future<void> _handleHttpDownload(
@@ -194,12 +211,6 @@ abstract final class WebViewDownloads {
       await hostWriteBytes(outputPath, bytes: result.bytes);
     }
     return outputPath;
-  }
-
-  static void _showDownloadSnack(String message) {
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text(message)),
-    );
   }
 
   /// Coerce a JS handler arg to an int. Small integers come back as int

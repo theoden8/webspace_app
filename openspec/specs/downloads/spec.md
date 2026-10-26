@@ -341,6 +341,12 @@ task list is empty.
 **And** tapping the icon opens a bottom sheet listing each task with
   its own progress bar, bytes done/total, and filename
 
+#### Scenario: A download no path takes
+**Given** `onDownloadStartRequest` fires with a scheme other than `http`,
+  `https`, `data` or `blob`
+**Then** a `DownloadTask` is listed in `DownloadState.failed`, its message
+  naming the scheme, as every other failed download is
+
 #### Scenario: Download completes
 **Given** a download finishes successfully
 **When** the save dialog resolves with a path

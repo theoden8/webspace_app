@@ -1,8 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/download_manager.dart';
+import 'package:webspace/services/webview_downloads.dart';
 
 void main() {
   setUp(() => DownloadsService.instance.resetForTest());
+
+  test('a download no path takes is listed as failed, naming its scheme '
+      '(DL-006)', () {
+    final task = WebViewDownloads.refused(
+      scheme: 'ftp',
+      url: 'ftp://example.test/a.zip',
+      suggestedFilename: 'a.zip',
+    );
+    final s = DownloadsService.instance;
+    expect(s.tasks.single.id, task.id);
+    expect(task.state, DownloadState.failed);
+    expect(task.filename, 'a.zip');
+    expect(task.errorMessage, contains('ftp:'));
+  });
 
   test('a task id the page hands back parses only as one the app minted', () {
     final minted = DownloadsService.instance.start(filename: 'a').id;
