@@ -163,6 +163,7 @@ PopupMenuItem<T> siteMenuNavRow<T>(
   required bool loading,
 }) {
   final loc = AppLocalizations.of(menuContext);
+  final names = MaterialLocalizations.of(menuContext);
 
   void close(VoidCallback then) {
     Navigator.pop(menuContext);
@@ -178,7 +179,7 @@ PopupMenuItem<T> siteMenuNavRow<T>(
       children: [
         IconButton(
           icon: Icon(Icons.arrow_back),
-          tooltip: loc.homeGoBackTooltip,
+          tooltip: shortcutTooltip<GoBack>(loc.homeGoBackTooltip, names: names),
           onLongPress:
               backInNewTab == null ? null : () => close(backInNewTab),
           onPressed: () => close(nav.back),
@@ -196,7 +197,10 @@ PopupMenuItem<T> siteMenuNavRow<T>(
         ),
         IconButton(
           icon: Icon(loading ? Icons.close : Icons.refresh),
-          tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
+          tooltip: loading
+              ? loc.homeStopTooltip
+              : shortcutTooltip<ReloadPage>(loc.homeRefreshTooltip,
+                  names: names),
           onLongPress:
               duplicateTab == null ? null : () => close(duplicateTab),
           onPressed: () => close(loading ? nav.stop : nav.reload),

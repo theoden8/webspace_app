@@ -12,6 +12,16 @@ String? shortcutLabel<T extends KeyboardShortcut>(MaterialLocalizations names) {
   return describeKey(key, names: names, mac: hostIsMacOS);
 }
 
+/// [label] as the tooltip of a button that a [KeyboardShortcut] of type [T]
+/// also runs, its key on a line of its own on the desktop (NAV-014).
+String shortcutTooltip<T extends KeyboardShortcut>(
+  String label, {
+  required MaterialLocalizations names,
+}) => switch (shortcutLabel<T>(names)) {
+  final keys? => '$label\n$keys',
+  null => label,
+};
+
 /// [key] as the platform's menus write one: "⌘T" on a Mac, "Ctrl+T"
 /// elsewhere, in [names]' words for the keys that have them.
 String describeKey(

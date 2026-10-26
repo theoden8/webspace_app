@@ -569,8 +569,8 @@ macOS where the others take Control:
 | Ctrl/Cmd-L | put the cursor in the URL bar with the address selected, where the URL bar is on |
 | Ctrl/Cmd-R, F5 | the site menu's Refresh |
 | Ctrl/Cmd-F | the site menu's Find in page, out of full screen |
-| Alt-Left; Cmd-[ on macOS | the site menu's Back |
-| Alt-Right; Cmd-] on macOS | one step forward, where the page has one |
+| Alt-Left; Cmd-[ or Cmd-Left on macOS | the site menu's Back |
+| Alt-Right; Cmd-] or Cmd-Right on macOS | one step forward, where the page has one |
 | Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the tab strip, round at either end |
 | Ctrl/Cmd-1 to 8, Ctrl/Cmd-9 | the site at that place along the tab strip, the last one |
 
@@ -582,7 +582,10 @@ SHALL go on to the focused widget, and so SHALL every other key: Ctrl/Cmd-A sele
 all in the page or the field that has focus, as the webview and the text field do on
 their own. While a dialog, a sheet, a menu or another screen is over the page, the
 keys SHALL be theirs. A held key SHALL ask once. A locked kiosk session (KIOSK-002)
-SHALL keep only Refresh, Back and Forward, which stay on the site.
+SHALL keep only Refresh, Back and Forward, which stay on the site. While one of the
+app's own text fields has focus (the URL bar, the find bar), Cmd-Left and Cmd-Right
+SHALL be the field's, taking the caret to the line's ends as Safari leaves them; the
+other keys, Cmd-[ and Alt-Left among them, keep their action there.
 
 A nested screen (NAV-008) on top SHALL answer the keys for its own page: Refresh,
 Find in page, its URL bar, Forward, and Back as its back gesture does it, so at the
@@ -591,7 +594,8 @@ back arrow does. New tab and the site keys are the page's and do nothing there.
 
 Both menus SHALL write the key beside each item one runs, as the platform's menus
 write keys: "⌘T" on macOS, "Ctrl+T" elsewhere, with the platform localizations'
-names for the keys. No key is written off the desktop.
+names for the keys. The buttons of their top row that a key runs, Back and Refresh,
+SHALL name it on a second line of their tooltips. No key is written off the desktop.
 
 #### Scenario: A new tab and its close
 
@@ -630,6 +634,14 @@ names for the keys. No key is written off the desktop.
 - **GIVEN** a site on screen on Linux
 - **WHEN** the user opens the site menu
 - **THEN** New tab reads Ctrl+T and Find reads Ctrl+F beside them
+- **AND** the Back button's tooltip names Alt+← and the Refresh button's Ctrl+R
+
+#### Scenario: Command-Left in the URL bar
+
+- **GIVEN** a site on screen on macOS with the cursor in the URL bar
+- **WHEN** the user presses Cmd-Left
+- **THEN** the caret goes to the start of the address and the page stays
+- **AND** outside the URL bar Cmd-Left goes back
 
 #### Scenario: A kiosk stays on its site
 
@@ -867,7 +879,7 @@ Home button pressed
 
 #### `lib/services/keyboard_shortcuts.dart`
 - `KeyboardShortcut.keys` — every key a shortcut takes, per platform (NAV-014)
-- `KeyboardShortcuts` — takes the keys for the `ShortcutScreen` on top, through `FocusManager.addEarlyKeyEventHandler`, on desktop only
+- `KeyboardShortcuts` — takes the keys for the `ShortcutScreen` on top, through `FocusManager.addEarlyKeyEventHandler`, on desktop only; `editingText` leaves Cmd-Left and Cmd-Right to a focused text field
 
 #### `lib/controllers/keyboard_shortcut_controller.dart`
 - `KeyboardShortcutController.answerShortcut` — the page's answer to each, through the controllers that own tabs, Refresh, Back and Forward; the nested screen's own answers are `_InAppWebViewScreenState.answerShortcut`
