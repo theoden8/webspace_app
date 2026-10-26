@@ -949,6 +949,22 @@
   "@appSettingsBackOpensMenuHintExit": {
     "description": "Extra sentence appended to the back-gesture hint on Android only: once that gesture has opened the menu, a further back press leaves the app."
   },
+  "appSettingsKeepRunningWhenClosed": "Keep running when closed",
+  "@appSettingsKeepRunningWhenClosed": {
+    "description": "Toggle title in app settings, desktop only (Linux and macOS): closing the app's window hides it and the app keeps running in the background"
+  },
+  "appSettingsKeepRunningWhenClosedHint": "Closing the window hides it instead of quitting, so sites with notifications on keep running and can still notify you.",
+  "@appSettingsKeepRunningWhenClosedHint": {
+    "description": "Hint dialog body for that toggle: with it on, the window's close button hides the window rather than quitting the app, so websites that send notifications keep running and their notifications still arrive"
+  },
+  "appSettingsKeepRunningWhenClosedHintMac": "Click the Dock icon to show it again. Quit from the app menu or with Command-Q.",
+  "@appSettingsKeepRunningWhenClosedHintMac": {
+    "description": "Extra sentences appended to that hint on macOS only: clicking the app's icon in the macOS Dock brings the hidden window back, and the app is quit from its menu bar menu or with the Command-Q keys"
+  },
+  "appSettingsKeepRunningWhenClosedHintLinux": "Open Webspace again or click one of its notifications to show it again. Ctrl+Q quits.",
+  "@appSettingsKeepRunningWhenClosedHintLinux": {
+    "description": "Extra sentences appended to that hint on Linux only: launching the app (named Webspace) again or clicking a notification it posted brings the hidden window back, and the Ctrl+Q keys quit the app"
+  },
   "appSettingsFullscreenTabStrip": "In full screen, tab strip",
   "@appSettingsFullscreenTabStrip": {
     "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible options)"

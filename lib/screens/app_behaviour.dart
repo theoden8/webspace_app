@@ -7,6 +7,7 @@ import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
@@ -150,6 +151,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     final backOpensMenuHint = hostIsAndroid
         ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
         : loc.appSettingsBackOpensMenuHint;
+    final keepRunningHint = '${loc.appSettingsKeepRunningWhenClosedHint} '
+        '${hostIsMacOS ? loc.appSettingsKeepRunningWhenClosedHintMac : loc.appSettingsKeepRunningWhenClosedHintLinux}';
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
@@ -241,6 +244,12 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
               title: loc.appSettingsBackOpensMenu,
               hint: backOpensMenuHint,
               control: const PrefToggle(AppPref.backOpensMenu),
+            ),
+          if (DesktopWindow.offered)
+            SettingTile(
+              title: loc.appSettingsKeepRunningWhenClosed,
+              hint: keepRunningHint,
+              control: const PrefToggle(AppPref.keepRunningWhenClosed),
             ),
           if (widget.homeShortcuts case final shortcuts?)
             ValueListenableBuilder<List<HomeShortcut>>(

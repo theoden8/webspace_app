@@ -16,6 +16,7 @@ import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -198,6 +199,8 @@ void main([List<String> args = const []]) async {
     case ProcessLaunch.backgroundWake:
       break;
   }
+  // Before the restore loads the prefs, so the runner hears the stored value.
+  DesktopWindow.instance.start();
   LaunchTimeline.reached(LaunchMark.runApp);
   unawaited(WidgetsBinding.instance.waitUntilFirstFrameRasterized
       .then((_) => LaunchTimeline.reached(LaunchMark.firstFrame)));

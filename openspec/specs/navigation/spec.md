@@ -573,6 +573,7 @@ macOS where the others take Control:
 | Alt-Right; Cmd-] or Cmd-Right on macOS | one step forward, where the page has one |
 | Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the tab strip, round at either end |
 | Ctrl/Cmd-1 to 8, Ctrl/Cmd-9 | the site at that place along the tab strip, the last one |
+| Ctrl-Q off macOS | leave the app, from any screen, a window a close only hides included (NOTIF-018); on macOS Command-Q is the app menu's |
 
 A key SHALL reach the shortcuts before the focused widget: Linux's webview keeps
 every key it is given. On macOS a page has the first chance at a key, as WKWebView

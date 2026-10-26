@@ -319,6 +319,7 @@ as on a resume (LIR-004).
 | Proxy | Full (per-site) | Full (global override) | Full (per-site) | Full (fan-out across default + every container session) |
 | Find-in-page | Yes | Yes | Yes | Yes |
 | Theme injection | Yes | Yes | Yes | Yes |
+| Keep running when closed (NOTIF-018) | No | No | Yes | Yes |
 
 ---
 

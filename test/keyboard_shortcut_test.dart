@@ -9,6 +9,7 @@ import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
@@ -346,6 +347,15 @@ void main() {
       );
     });
 
+    test('off a Mac, Ctrl-Q leaves the app; on one, Command-Q is the menu\'s '
+        '(NOTIF-018)', () async {
+      expect(await press(LogicalKeyboardKey.keyQ, mac: false, holding: [control]),
+          isA<QuitApp>());
+      expect(await press(LogicalKeyboardKey.keyQ, mac: true, holding: [command]),
+          isNull,
+          reason: 'AppKit runs the menu\'s Quit before any view sees the key');
+    });
+
     test('a locked kiosk keeps reload, back and forward only (KIOSK-002)', () {
       final kept = {
         for (final (_, shortcut) in KeyboardShortcut.keys(mac: false))
@@ -359,12 +369,15 @@ void main() {
     final one = WebViewModel(initUrl: 'https://one.test', name: 'One');
     final two = WebViewModel(initUrl: 'https://two.test', name: 'Two');
 
-    KeyboardShortcutController over(_Page page) {
+    var quits = 0;
+    final window = DesktopWindow(offered: true, exit: () async => quits++);
+
+    KeyboardShortcutController over(_Page page, {bool siteShown = true}) {
       final sites = SiteRuntime()
         ..isolation = fakeSharedJar()
         ..applied(SitesLoaded([one, two]))
         ..selectedWebspaceId = WebspaceId.all;
-      sites.seed(loaded: [one], shown: one);
+      if (siteShown) sites.seed(loaded: [one], shown: one);
       final untouched = _Untouched();
       return KeyboardShortcutController(
         sites,
@@ -372,6 +385,7 @@ void main() {
         tabs: untouched,
         resets: untouched,
         back: untouched,
+        window: window,
       );
     }
 
@@ -382,6 +396,25 @@ void main() {
       expect(keys.answerShortcut(const SiteAt(1)), isFalse);
       expect(keys.answerShortcut(const FocusUrlBar()), isFalse);
       expect(page.opened, isEmpty);
+    });
+
+    test('Ctrl-Q leaves the app, with a site on screen or none (NOTIF-018)',
+        () async {
+      quits = 0;
+      final page = _Page(kioskLocked: false);
+      expect(over(page).answerShortcut(const QuitApp()), isTrue);
+      expect(over(page, siteShown: false).answerShortcut(const QuitApp()), isTrue,
+          reason: 'the webspace list is where a hidden window comes back to');
+      await pumpEventQueue();
+      expect(quits, 2);
+    });
+
+    test('a locked kiosk keeps the app (KIOSK-002)', () async {
+      quits = 0;
+      expect(over(_Page(kioskLocked: true)).answerShortcut(const QuitApp()),
+          isFalse);
+      await pumpEventQueue();
+      expect(quits, 0);
     });
 
     test('unlocked, the same keys move along the sites', () {

@@ -8,7 +8,9 @@ import FlutterMacOS
   /// on macOS. Flutter's own integration_test plugin answers
   /// `captureScreenshot` with not-implemented here, and a capture of Flutter's
   /// layer alone would leave out the site, which WKWebView draws in another
-  /// process. Debug builds only: no shipped build can image its own window.
+  /// process. `close` is the close button's own path, for
+  /// integration_test/close_keeps_running_test.dart (NOTIF-018). Debug builds
+  /// only: no shipped build can image its own window.
   enum WindowCapturePlugin {
     static func attach(
       to messenger: FlutterBinaryMessenger, window: MainFlutterWindow
@@ -56,6 +58,9 @@ import FlutterMacOS
                 message: "window capture needs macOS 14.4 (ScreenCaptureKit)",
                 details: nil))
           }
+        case "close":
+          window.performClose(nil)
+          result(nil)
         default:
           result(FlutterMethodNotImplemented)
         }

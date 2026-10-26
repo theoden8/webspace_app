@@ -128,7 +128,10 @@ enum AppPref<T extends Object> {
   libraryWebspaceLayout('libraryWebspaceLayout', fallback: 'auto'),
   // WEBSPACE-017: every icon in the library at once, as a percentage of its
   // own size.
-  libraryIconSize('libraryIconSize', fallback: 100);
+  libraryIconSize('libraryIconSize', fallback: 100),
+  // NOTIF-018: closing the desktop window hides it and the app keeps running,
+  // so its sites can still notify. Linux and macOS only.
+  keepRunningWhenClosed('keepRunningWhenClosed', fallback: false);
 
   const AppPref(this.key, {required this.fallback,this.legacyKey})
       : assert(fallback is bool || fallback is int || fallback is String);

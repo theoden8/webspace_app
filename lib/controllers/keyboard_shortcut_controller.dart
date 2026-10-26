@@ -4,6 +4,7 @@ import 'package:webspace/controllers/back_gesture_controller.dart';
 import 'package:webspace/controllers/site_reset_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -36,7 +37,9 @@ class KeyboardShortcutController implements ShortcutScreen {
     required TabsController tabs,
     required SiteResetController resets,
     required BackGestureController back,
+    DesktopWindow? window,
   }) : _host = host,
+       _window = window ?? DesktopWindow.instance,
        _tabs = tabs,
        _resets = resets,
        _back = back;
@@ -46,6 +49,7 @@ class KeyboardShortcutController implements ShortcutScreen {
   final TabsController _tabs;
   final SiteResetController _resets;
   final BackGestureController _back;
+  final DesktopWindow _window;
 
   late final _keys = KeyboardShortcuts(this);
 
@@ -59,9 +63,11 @@ class KeyboardShortcutController implements ShortcutScreen {
   /// Runs [shortcut] for the site on screen, and says whether it did.
   @override
   bool answerShortcut(KeyboardShortcut shortcut) {
-    final site = _sites.shown;
-    if (site == null) return false;
     if (_host.kioskLocked && !shortcut.keptInKiosk) return false;
+    final site = _sites.shown;
+    if (site == null) {
+      return shortcut is QuitApp && _run(_quit);
+    }
     return switch (shortcut) {
       OpenNewTab() => _run(_tabs.forShownSite(_tabs.newTab)),
       CloseActiveTab() => _run(
@@ -78,8 +84,11 @@ class KeyboardShortcutController implements ShortcutScreen {
       PreviousSite() => _step(site, by: -1),
       SiteAt(:final place) => _openAt(place),
       LastSite() => _openAt(_strip.length - 1),
+      QuitApp() => _run(_quit),
     };
   }
+
+  void _quit() => unawaited(_window.quit());
 
   static bool _run(void Function()? act) {
     if (act == null) return false;

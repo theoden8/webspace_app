@@ -608,9 +608,11 @@ exported. Engine tests: `test/background_wake_engine_test.dart`.
 
 ### Requirement: NOTIF-015 - No foreground service for notifications
 
-The system SHALL NOT keep a notification site running in the background by
-keeping the app resident: no Android foreground service of any type, and no
-iOS background mode held open for it. A site's page runs while the app is
+On Android and iOS the system SHALL NOT keep a notification site running in
+the background by keeping the app resident: no Android foreground service of
+any type, and no iOS background mode held open for it. A desktop app that
+stays running once its window is closed, where the user asks for it, is
+NOTIF-018, not this. A site's page runs while the app is
 visible and in the grace the OS gives on leaving it (NOTIF-005-I,
 NOTIF-011); after that, the background wake (NOTIF-005-A, NOTIF-013,
 NOTIF-014) is what reaches the user. Delivering in real time from the
@@ -833,3 +835,49 @@ one is.
   (`savedForRestore`)
 **When** Site B is preloaded again
 **Then** it is loaded at the lowest tier, where memory pressure can pick it
+
+### Requirement: NOTIF-018 - A desktop window a close only hides
+
+On Linux and macOS the system SHALL offer an app-wide setting, Keep running
+when closed, in App Settings > Behaviour, off by default. With it on, the
+window's close button SHALL hide the window instead of quitting: the app keeps
+running and its loaded sites with it, so a notification site behind the
+hidden window still posts (NOTIF-002). Nothing the app runs pauses for a
+hidden window: a desktop never reports `paused` (webview-pause-lifecycle). The
+window SHALL come back:
+
+- on macOS, on a click on the Dock icon, or `open` of the running app;
+- on Linux, on a second launch of the app (PLATFORM-010);
+- on either, on a click on one of its notifications (NOTIF-003).
+
+Quitting stays: the macOS app menu's Quit and Command-Q, and Ctrl-Q on Linux
+(NAV-014). With the setting off, a close quits as it always has. The runner
+decides each close as it lands, from what `DesktopWindow`
+([lib/services/desktop_window.dart](../../../lib/services/desktop_window.dart))
+told it of the setting at start and on every change; the hide is the runner's
+own (`linux/my_application.cc`, `macos/Runner/MainFlutterWindow.swift`).
+Unlike NOTIF-015 it holds no OS background mode, on desktops whose apps
+commonly stay resident, and only where the user asked for it.
+
+Checks: `test/desktop_window_test.dart` (what the runner is told),
+`test/notification_launch_app_test.dart` (a click shows the window), and
+`integration_test/close_keeps_running_test.dart`, which both desktop tiers run.
+
+#### Scenario: A close with the setting on
+
+**Given** Linux or macOS, the setting on, and a loaded site with notifications on
+**When** the user closes the window
+**Then** the window hides and the app keeps running
+**And** a message the site's server sends after that reaches the page, which posts it as a notification
+
+#### Scenario: The window comes back
+
+**Given** a window a close hid
+**When** the user clicks the Dock icon (macOS), launches the app again (Linux), or clicks one of its notifications
+**Then** the window shows again, its sites as they were
+
+#### Scenario: A close with the setting off
+
+**Given** the setting off
+**When** the user closes the window
+**Then** the app quits

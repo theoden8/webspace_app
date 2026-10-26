@@ -65,6 +65,11 @@ static void method_call_cb(FlMethodChannel* /*channel*/, FlMethodCall* call,
     response = resize(window, fl_method_call_get_args(call));
   } else if (g_strcmp0(method, "capture") == 0) {
     response = capture(window);
+  } else if (g_strcmp0(method, "close") == 0) {
+    // The close button's own path: a delete-event, as the window manager
+    // sends (NOTIF-018).
+    gtk_window_close(window);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
