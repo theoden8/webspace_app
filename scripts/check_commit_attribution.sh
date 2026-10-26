@@ -18,12 +18,13 @@
 #
 # $PR_BODY, when set (CI passes the pull request's body), is held to 5 too.
 #
-# Base defaults to origin/master; override with $BASE. Skips when the base is
-# unreachable (a shallow clone with no base fetched) rather than failing.
+# Base defaults to origin/master, the tip to HEAD; override with $BASE and
+# $TIP (CI checks out a merge commit with no history, so it passes the PR's
+# head). Skips when either is unreachable rather than failing.
 
 set -e
 
-SESSION_LINK='^Claude-Session:|claude\.ai/code/session'
+SESSION_LINK='^Claude-Session:|claude\.ai/code/session_[A-Za-z0-9]'
 
 EXIT_CODE=0
 
@@ -47,12 +48,14 @@ if ! git rev-parse --verify --quiet "$BASE" >/dev/null; then
     exit "$EXIT_CODE"
 fi
 
-if ! MERGE_BASE=$(git merge-base "$BASE" HEAD 2>/dev/null); then
+TIP="${TIP:-HEAD}"
+
+if ! MERGE_BASE=$(git merge-base "$BASE" "$TIP" 2>/dev/null); then
     echo "check_commit_attribution: no merge base with '$BASE', skipping."
     exit "$EXIT_CODE"
 fi
 
-COMMITS=$(git rev-list "$MERGE_BASE..HEAD")
+COMMITS=$(git rev-list "$MERGE_BASE..$TIP")
 if [ -z "$COMMITS" ]; then
     echo "check_commit_attribution: no commits ahead of $BASE."
     exit "$EXIT_CODE"
