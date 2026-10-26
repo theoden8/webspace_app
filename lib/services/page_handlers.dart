@@ -66,7 +66,6 @@ abstract final class PageHandlers {
     inapp.InAppWebViewController controller, {
     required WebViewConfig config,
     required UserScriptService userScriptService,
-    required String? Function() sourceUrl,
   }) {
     // Live geolocation: forward navigator.geolocation calls from the
     // shim into the platform's native location service. Permission is
@@ -259,21 +258,33 @@ abstract final class PageHandlers {
       return null;
     });
     if (!hostIsAndroid) {
-      // The WebKit interceptor's question about a Bloom hit. [sourceUrl] is
-      // the hosting page, so `$domain=` rules apply.
-      controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
-        if (args.isEmpty || args[0] is! String) return false;
-        final verdict = judgeAndRecord(
-          config,
-          query: UrlQuery(args[0] as String,
-              sourceUrl: sourceUrl() ?? '', requestType: 'other'),
-        );
-        return switch (verdict) {
-          Allowed() => false,
-          Blocked() => true,
-          Redirect(:final url) => url,
-        };
-      });
+      // The WebKit interceptor's question about a Bloom hit, judged against
+      // the asking frame's origin so `$domain=` rules apply. The bridge
+      // attaches the origin behind its secret and a document never changes
+      // it, so the URL is the only input that varies within one document,
+      // and the script keeps each answer by URL (CB-020). An opaque origin
+      // names no site.
+      controller.addJavaScriptHandler(
+        handlerName: 'blockCheck',
+        callback: (inapp.JavaScriptHandlerFunctionData data) {
+          final args = data.args;
+          if (args.isEmpty || args[0] is! String) return false;
+          final origin = data.origin;
+          final verdict = judgeAndRecord(
+            config,
+            query: UrlQuery(args[0] as String,
+                sourceUrl: origin.isScheme('http') || origin.isScheme('https')
+                    ? origin.toString()
+                    : '',
+                requestType: 'other'),
+          );
+          return switch (verdict) {
+            Allowed() => false,
+            Blocked() => true,
+            Redirect(:final url) => url,
+          };
+        },
+      );
       // One-shot merged Bloom filter delivery to JS. Bloom bits only: the
       // handler is reachable from any page, so nothing host-identifying
       // (in particular the app-wide domain-decision cache, which records

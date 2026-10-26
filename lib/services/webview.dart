@@ -809,7 +809,6 @@ class WebViewFactory {
           controller,
           config: config,
           userScriptService: userScriptService,
-          sourceUrl: () => lastLoadStartUrl,
         );
         if (iconEngine != null) {
           // Frame-aware, all three: Blink and WebKit take icons from the top

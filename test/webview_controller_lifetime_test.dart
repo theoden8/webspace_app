@@ -5,12 +5,10 @@ import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
-import 'helpers/capture_fakes.dart';
-import 'package:webspace/services/cookie_manager.dart';
+import 'helpers/silent_hooks.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
 
@@ -53,29 +51,6 @@ class _NativeController implements inapp.InAppWebViewController {
 
 final _site = WebViewModel(initUrl: 'https://example.com/');
 
-/// A host that answers nothing: these tests never reach a prompt.
-WebViewHostHooks _hooks() => WebViewHostHooks(
-      cookieManager: CookieManager(),
-      containerCookieManager: null,
-      globalUserScripts: () => const [],
-      save: () async {},
-      rebuild: () {},
-      onScreen: (_) => true,
-      launchNested: (_, {required posture, homeTitle}) {},
-      openInBrowser: (_) async => false,
-      routeOutbound:
-          (_, {required url, required decision, required hadGesture}) => false,
-      linkMenu: (_, {required url}) {},
-      openSiteSettings: (_) {},
-      showPopup: (_, {required url}) async {},
-      externalScheme: (_, {required loadIn}) async {},
-      confirmScriptFetch: (_) async => false,
-      untrustedCertificate: (_, {required port, required certificate}) async =>
-          false,
-      httpAuth: (_) async => null,
-      media: FakePrompter(),
-    );
-
 Widget _webView({
   Key? key,
   String? initialHtml,
@@ -88,7 +63,7 @@ Widget _webView({
           key: key,
           posture:
               _site.sitePosture(globalUserScripts: const <UserScriptConfig>[]),
-          hooks: _hooks(),
+          hooks: silentHooks(),
           initialUrl: 'https://example.com/',
           initialHtml: initialHtml,
           onReloadIssued: onReloadIssued,

@@ -43,7 +43,6 @@ abstract final class HeadlessSiteChecks {
     final httpAuth = httpAuthSessionFor(config);
     final check = HeadlessSiteCheck._();
     final created = Completer<inapp.InAppWebViewController>();
-    String? loadStartUrl;
     final headless = inapp.HeadlessInAppWebView(
       initialSettings: WebViewFactory.siteSettings(
         binding,
@@ -64,7 +63,6 @@ abstract final class HeadlessSiteChecks {
           controller,
           config: config,
           userScriptService: page.userScriptService,
-          sourceUrl: () => loadStartUrl,
         );
         if (!created.isCompleted) created.complete(controller);
       },
@@ -74,10 +72,7 @@ abstract final class HeadlessSiteChecks {
           WebViewFactory.onSiteNavigationPolicy(config, navigationAction: navigationAction,
               allowCaptcha: false,
               refusePlainHttp: posture.blocking.httpsUpgrade),
-      onLoadStart: (_, url) {
-        loadStartUrl = url?.toString();
-        check._loading = true;
-      },
+      onLoadStart: (_, _) => check._loading = true,
       onLoadStop: (_, _) => check._loading = false,
       onReceivedError: (_, request, _) {
         if (request.isForMainFrame ?? true) check._loading = false;

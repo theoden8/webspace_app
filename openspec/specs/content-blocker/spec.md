@@ -217,7 +217,8 @@ rules match exactly as before
 **Given** the engine is active on iOS or macOS
 **And** the DNS-only Bloom prefilter has been delivered to the webview's JS interceptor
 **When** the page issues a `fetch('https://tracker.example.com/beacon')` call
-**Then** the JS interceptor invokes the `blockCheck` handler, passing URL + `lastLoadStartUrl` as `sourceUrl`
+**Then** the JS interceptor invokes the `blockCheck` handler with the URL
+**And** the Dart handler judges it with the asking frame's origin as `sourceUrl`, the one the bridge attaches (CB-020)
 **And** the Dart handler routes through `ContentBlockerService.isBlocked` (engine call)
 **And** the result is honoured by the JS interceptor
 
@@ -968,6 +969,55 @@ the body is parsed
 **Given** any script in `lib/js`, run with its sample config
 **When** it runs on a document that has no root element
 **Then** the document still has no root element afterwards
+
+---
+
+### Requirement: CB-020 - The WebKit interceptor reuses an answer only for the same question
+
+The `blockCheck` handler SHALL judge a URL against the asking frame's origin,
+which the bridge attaches behind its secret, and SHALL read nothing else that
+varies from one request of a document to the next: not the webview's last
+load, which a subframe does not share and which changes under a document that
+is still running. An opaque origin names no site and is judged with no source.
+
+Within one document, the interceptor SHALL keep each answer under the URL it
+asked about, and SHALL reuse it only for a request with that same URL: the
+document's origin is fixed and the URL is the rest of the question. It SHALL
+NOT reuse an answer for another URL on the same host, since a path rule
+(`||youtube.com/pagead/`) answers two such URLs differently. A request made
+while the same question is in flight SHALL wait on that answer rather than ask
+again. The cache SHALL be bounded and let its oldest answer go first, and an
+answer that failed SHALL NOT be kept.
+
+`test/perf/block_check_bench_test.dart` counts what a page asks: on the
+EasyList family and Hagezi Pro, nearly every request, because a token like
+`https` is some hostless rule's token and a few rules have no token at all.
+The cache removes only repeats; the prefilter decides the rest.
+
+#### Scenario: The same URL is asked once
+
+**Given** a document asked `blockCheck` about `https://cdn.example/a.js`
+**When** it requests that URL again, by any path the interceptor covers
+**Then** the answer is applied in the same task, without the bridge
+
+#### Scenario: Another URL on the same host is asked anew
+
+**Given** `||paths.example/ads/` and a document that loaded `https://paths.example/app.js`
+**When** it requests `https://paths.example/ads/x.js`
+**Then** the interceptor asks `blockCheck`
+**And** the request is blocked
+
+#### Scenario: Another document asks for itself
+
+**Given** `||tracker.example^$domain=news.example`, and documents on `news.example` and `blog.example`
+**When** each requests `https://tracker.example/t.js`
+**Then** each asks `blockCheck`
+**And** only the one on `news.example` is blocked
+
+#### Scenario: Copies in flight share one question
+
+**Given** three images with one `src` inserted together, and the bridge has not answered
+**Then** the interceptor asks once, and applies the answer to all three
 
 ---
 

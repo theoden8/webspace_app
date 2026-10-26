@@ -63,7 +63,6 @@ abstract final class PopupWebView {
           controller,
           config: parent,
           userScriptService: page.userScriptService,
-          sourceUrl: () => parent.initialUrl,
         );
       },
       // The popup exists for one challenge: its documents pass the site's
