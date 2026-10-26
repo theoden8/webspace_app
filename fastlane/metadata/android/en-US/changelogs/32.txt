@@ -4,7 +4,7 @@
 
 🔧 Improvements:
 • Desktop keyboard shortcuts
-• Android TV support
+• Improved Android TV support
 • Sites with different proxies load side by side on Android
 • Faster content blocking on iOS and macOS
 • GPU rendering on Linux
