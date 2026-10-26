@@ -46,33 +46,43 @@ class WebspaceGroupTile extends StatelessWidget {
     direction: direction,
   );
 
-  static Rect _gridWell(Size tile) => Rect.fromLTWH(
-    tile.width / 2 - LibraryStyle.siteWell / 2,
-    0,
-    LibraryStyle.siteWell,
-    LibraryStyle.siteWell,
-  );
+  static Rect _gridWell(Size tile) {
+    final well = LibraryStyle.wellFor(width: tile.width);
+    return Rect.fromLTWH(tile.width / 2 - well / 2, 0, well, well);
+  }
 
+  /// A tile's height in a column [width] wide.
   static double extentFor({
     required TextScaler textScaler,
     required TextTheme textTheme,
-    required double well,
+    required double width,
   }) {
     final title = textTheme.bodyMedium!.copyWith(
       fontSize: LibraryStyle.siteTitleSize,
     );
+    final line = textScaler.scale(title.fontSize!) * (title.height ?? 1);
+    final well = LibraryStyle.wellFor(width: width);
+    if (_packed(textScaler, width: width)) {
+      return well + Spacing.sm + line;
+    }
     final count = textTheme.bodySmall!;
     return well +
         Spacing.md +
         Spacing.sm +
-        textScaler.scale(title.fontSize!) * (title.height ?? 1) * 2 +
+        line * 2 +
         textScaler.scale(count.fontSize!) * (count.height ?? 1);
   }
+
+  /// Whether a tile [width] wide is in a column narrower than Grid lays
+  /// icons in, as Automatic layout packs them: its caption is its name on
+  /// one line.
+  static bool _packed(TextScaler scaler, {required double width}) =>
+      width < LibraryStyle.iconColumnMin(scaler);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const well = LibraryStyle.siteWell;
+    final scaler = MediaQuery.textScalerOf(context);
     final count = AppLocalizations.of(
       context,
     ).webspacesListSiteCount(sites.length);
@@ -85,51 +95,60 @@ class WebspaceGroupTile extends StatelessWidget {
         onOpen: onOpen,
         onMenu: onMenu,
         child: ExcludeSemantics(
-          child: LauncherMorphTile(
-            list: list,
-            icon: (
-              well: _gridWell,
-              caption: _caption(theme, count: count),
-              captionHeight:
-                  extentFor(
-                    textScaler: MediaQuery.textScalerOf(context),
-                    textTheme: theme.textTheme,
-                    well: well,
-                  ) -
-                  well,
-              corner: const [],
-            ),
-            well: AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : Motion.settle,
-              width: well,
-              height: well,
-              foregroundDecoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(LibraryStyle.radius),
-                border: Border.all(
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : Colors.transparent,
-                  width: LibraryStyle.selectionWidth,
+          child: LayoutBuilder(
+            builder: (context, cell) => LauncherMorphTile(
+              list: list,
+              icon: (
+                well: _gridWell,
+                caption: _caption(
+                  theme,
+                  count: count,
+                  packed: _packed(scaler, width: cell.maxWidth),
                 ),
+                captionHeight:
+                    extentFor(
+                      textScaler: scaler,
+                      textTheme: theme.textTheme,
+                      width: cell.maxWidth,
+                    ) -
+                    LibraryStyle.wellFor(width: cell.maxWidth),
+                corner: const [],
               ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: LibraryStyle.group(theme.brightness, id: webspace.id),
+              well: AnimatedContainer(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : Motion.settle,
+                width: LibraryStyle.siteWell,
+                height: LibraryStyle.siteWell,
+                foregroundDecoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                  border: Border.all(
+                    color: selected
+                        ? theme.colorScheme.primary
+                        : Colors.transparent,
+                    width: LibraryStyle.selectionWidth,
+                  ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(Spacing.sm),
-                  child: _previews(theme),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: LibraryStyle.group(
+                      theme.brightness,
+                      id: webspace.id,
+                    ),
+                    borderRadius: BorderRadius.circular(LibraryStyle.radius),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(Spacing.sm),
+                    child: _previews(theme),
+                  ),
                 ),
               ),
-            ),
-            row: LauncherRowText(
-              name: webspace.name,
-              icon: webspace.glyph?.icon,
-              detail: count,
-              trailing: [if (selected) _check(theme)],
+              row: LauncherRowText(
+                name: webspace.name,
+                icon: webspace.glyph?.icon,
+                detail: count,
+                trailing: [if (selected) _check(theme)],
+              ),
             ),
           ),
         ),
@@ -143,17 +162,22 @@ class WebspaceGroupTile extends StatelessWidget {
     color: theme.colorScheme.primary,
   );
 
-  /// The name under the cluster, marked while selected, over the site count.
-  Widget _caption(ThemeData theme, {required String count}) => Column(
+  /// The name under the cluster, marked while selected, over the site count;
+  /// [packed], the name alone on one line.
+  Widget _caption(
+    ThemeData theme, {
+    required String count,
+    required bool packed,
+  }) => Column(
     children: [
-      const SizedBox(height: Spacing.md),
+      SizedBox(height: packed ? Spacing.sm : Spacing.md),
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Flexible(
             child: WebspaceName(
               webspace,
-              maxLines: 2,
+              maxLines: packed ? 1 : 2,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: LibraryStyle.siteTitleSize,
@@ -167,15 +191,17 @@ class WebspaceGroupTile extends StatelessWidget {
           ],
         ],
       ),
-      const SizedBox(height: Spacing.xs),
-      Text(
-        count,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+      if (!packed) ...[
+        const SizedBox(height: Spacing.xs),
+        Text(
+          count,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
-      ),
+      ],
     ],
   );
 
