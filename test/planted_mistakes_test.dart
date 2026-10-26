@@ -202,6 +202,16 @@ _Catch _catching(Mutant m) => switch (m) {
     breaks: _twoRoutes,
     preemptions: 3,
   ),
+  Mutant.savekeepsgone => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      rehosts: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [GoHome(), Reroute()],
+    breaks: 'outlived the reroute',
+  ),
   Mutant.torkeepsslot => _By(
     world: (d) => ActivationWorld(
       _mixedContainers,

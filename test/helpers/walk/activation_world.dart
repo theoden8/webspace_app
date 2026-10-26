@@ -524,7 +524,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     native.pace = gate.pace;
     navStates
       ..pace = gate.pace
-      ..onSave = _onSave;
+      ..onSave = _onSave
+      ..onRemove = _onRemove;
     sites
       ..isolation = page.containers
           ? Containers(engine: ContainerIsolationEngine(containerNative: native))
@@ -1445,6 +1446,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       if (at == label) return tab;
     }
     return label;
+  }
+
+  /// The keys a reroute took a tab's back stack off (LIR-024).
+  final Set<String> _movedOff = {};
+
+  void _onRemove(String key) {
+    if (_flowActions[currentFlow()] is Reroute) _movedOff.add(key);
   }
 
   /// A duplicate writes its source's history under its copy's key.
@@ -2407,8 +2415,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     );
   }
 
-  /// TAB-003: a site's one webview shows its active tab's history, and each
-  /// tab's state file holds that tab's history.
+  /// TAB-003: a site's one webview shows its active tab's history, each
+  /// tab's state file holds that tab's history, and a back stack a reroute
+  /// moved off a key stays off it until a tab runs under that key again
+  /// (LIR-024, BUG-036).
   void _checkTabs() {
     for (final m in sites.models) {
       expect([for (final t in m.tabs) t.id], contains(m.activeTabId),
@@ -2432,6 +2442,15 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           key.substring(key.indexOf('.') + 1),
           reason: 'the state file $key holds another tab\'s history');
     });
+    final listed = {
+      for (final m in sites.models)
+        for (final t in m.tabs) m.stateKeyForTab(t.id),
+    };
+    for (final key in navStates.files.keys) {
+      if (!_movedOff.contains(key) || listed.contains(key)) continue;
+      fail('the state file $key outlived the reroute that moved its tab off '
+          'the key (TAB-003, LIR-024, BUG-036)');
+    }
   }
 
   void _checkSharedJar() {

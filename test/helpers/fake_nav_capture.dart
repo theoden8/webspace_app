@@ -26,4 +26,7 @@ final class FakeNavCapture implements NavCapture {
     saved.add(bytes);
     return true;
   }
+
+  @override
+  Future<void> unsave() async => saved.removeLast();
 }

@@ -97,6 +97,33 @@ with the tab they were read for.
    only the walk's setups and TLC's worlds within their bounds hold the
    activation's reads to it; `Staged` was the one left reading at the reply.
 
+5. **2026-10-26, branch `claude/capture-unsave`.** The capture checked its
+   tab at the webview's reply and then saved, so a reroute that landed while
+   the save was out (LIR-024) removed the tab's file under the key it left
+   and the save wrote it back: the moved tab kept a back stack under that
+   key, which a move back restored. TLC found it with an invariant stated
+   apart from the capture: at rest, a listed tab keeps a file only under the
+   key of the site it runs as (`Inv_TabFilesHosted`). In
+   `activation_tabs_reroute_containers` going home captures site 1's link
+   tab, a reroute flips it to site 3 and removes its file under site 1, and
+   the home capture's save lands after. Now a capture's save that lands when
+   its tab no longer holds under the key, closed or moved, takes its file
+   back (`NavCapture.unsave`, a step of its own after the save in every flow
+   that captures, and the same sequence in `captureStateBytes`). The walk
+   holds that no key a reroute took a back stack off has a file at rest
+   unless a tab runs under it again. Planted and caught: `savekeepsgone`
+   (the home capture's save without its `gone` arm), by
+   `Inv_TabFilesHosted` in the reroute world and by the walk on `[GoHome(),
+   Reroute()]`. The same invariant found the model's reroute removing a
+   flipped tab's file under its link, where a child tab hosted on another
+   site had run (`activation_tabs_containers`); the code removes the key it
+   recorded before the flip (`dropped`), and the model now records each
+   tab's host as the flow begins (`ranAs`). *Why:* the capture's two
+   checks guarded its read, and nothing guarded the write's own await. *Partial:* a close removes the closed tab's file before the
+   tab leaves the list (below); and a tab moved away and back while the
+   save is out holds under its key again, so the save keeps bytes read
+   before the moves, which no variable of the model tells apart.
+
 ## Known open gaps
 
 - Under a process-global proxy (Android, Linux) a tab switch that changes the
@@ -110,6 +137,11 @@ with the tab they were read for.
   tab input on a site off screen activates it inside the tab gate, a nesting
   the activation table does not print yet, so those schedules are checked by
   the world's invariants and listed in `formal/trace/steps_uncovered.tsv`.
-- A capture of a tab that closes while its write is in flight can leave that
-  tab's file behind. Nothing restores it (no tab has that id again); the
-  startup orphan sweep reaps it.
+- A close removes the closed tab's file (`tRemove`) before the tab leaves
+  the list (`tRebind`, after the next tab's file is read), so a capture of
+  it whose save lands between finds it listed and keeps its file: the
+  schedules reach it on `[CloseTab(0, tab: 0), Tap(1)]` and `[CloseTab(0,
+  tab: 0), GoHome()]`. Nothing restores it (no tab has that id again), and
+  the startup orphan sweep reaps it. Lifting it means the close takes the
+  tab off the list before its file goes, as the reroute does, and
+  `Inv_TabFilesHosted` over every tab, listed or not.

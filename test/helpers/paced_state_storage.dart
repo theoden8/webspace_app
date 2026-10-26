@@ -16,6 +16,9 @@ final class PacedStateStorage implements WebViewStateStorage {
   /// Told of each write as it lands.
   void Function(String key, {required Uint8List state})? onSave;
 
+  /// Told of each removal as it lands.
+  void Function(String key)? onRemove;
+
   /// The stored bytes by state key.
   Map<String, Uint8List> get files => Map.unmodifiable(_files);
 
@@ -38,6 +41,7 @@ final class PacedStateStorage implements WebViewStateStorage {
   Future<void> removeState(String key) async {
     await pace?.call(PlatformCall.navStateRemove);
     _files.remove(key);
+    onRemove?.call(key);
   }
 
   @override

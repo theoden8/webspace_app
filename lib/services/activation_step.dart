@@ -148,7 +148,14 @@ enum ActivationStep {
     outcomes: {StepOutcome.go, StepOutcome.skip},
     calls: {PlatformCall.webViewSaveState},
   ),
-  unloadNavSave(calls: {PlatformCall.navStateSave}),
+  unloadNavSave(
+    outcomes: {StepOutcome.none, StepOutcome.gone},
+    calls: {PlatformCall.navStateSave},
+  ),
+
+  /// The victim's saved back stack removed again: its tab closed or moved
+  /// while the save was out.
+  unloadNavUnsave(calls: {PlatformCall.navStateRemove}),
 
   /// The capture over: the container path disposes here, the jar path
   /// waits for the jar's turn.
@@ -254,7 +261,14 @@ enum ActivationStep {
     outcomes: {StepOutcome.go, StepOutcome.skip},
     calls: {PlatformCall.webViewSaveState},
   ),
-  homeCaptureSave(calls: {PlatformCall.navStateSave}),
+  homeCaptureSave(
+    outcomes: {StepOutcome.none, StepOutcome.gone},
+    calls: {PlatformCall.navStateSave},
+  ),
+
+  /// The site left's saved back stack removed again: its tab closed or
+  /// moved while the save was out.
+  homeCaptureUnsave(calls: {PlatformCall.navStateRemove}),
 
   /// Going home's page stop and pause, after its capture.
   homeQuiesceReply(
@@ -420,7 +434,14 @@ enum ActivationStep {
     outcomes: {StepOutcome.go, StepOutcome.gone, StepOutcome.skip},
     calls: {PlatformCall.webViewSaveState},
   ),
-  tabCaptureSave(calls: {PlatformCall.navStateSave}),
+  tabCaptureSave(
+    outcomes: {StepOutcome.none, StepOutcome.gone},
+    calls: {PlatformCall.navStateSave},
+  ),
+
+  /// The tab left's saved back stack removed again: it closed or moved
+  /// while the save was out.
+  tabCaptureUnsave(calls: {PlatformCall.navStateRemove}),
 
   /// The target tab's saved back stack read.
   tabNavReply(

@@ -329,7 +329,10 @@ class SiteActivationController {
     if (capture == null) return false;
     final bytes = await capture.read();
     if (bytes == null || !capture.stillHolds()) return false;
-    return capture.save(bytes);
+    if (!await capture.save(bytes)) return false;
+    if (capture.stillHolds()) return true;
+    await capture.unsave();
+    return false;
   }
 
   /// A capture of [model]'s back stack, keyed by the tab its webview was

@@ -104,6 +104,7 @@ abstract final class TabTable {
   static const _keep = Field<bool, TabFlow>(FlowField.keep);
   static const _rest = Field<List<SiteTab>, TabFlow>(FlowField.rest);
   static const _closing = Field<List<TabId>, TabFlow>(FlowField.closing);
+  static const _ranAs = Field<Map<TabId, WebViewModel>, TabFlow>(FlowField.ranAs);
   static const _copy = Field<TabId, TabFlow>(FlowField.copy);
   static const _copyAs = Field<WebViewModel, TabFlow>(FlowField.copyAs);
   static const _label = Field<Uint8List?, TabFlow>(FlowField.label);
@@ -452,17 +453,6 @@ abstract final class TabTable {
     );
   }
 
-  /// The site [tab] of [s] ran as before a reroute flipped it, whose key
-  /// its old file is under.
-  static Expr<WebViewModel, TabFlow> _left(
-    Expr<WebViewModel, TabFlow> s, {
-    required Expr<TabId, TabFlow> tab,
-  }) => Expr.choose(
-    when: _tabHost.at(s).at(tab).eq(s),
-    then: _link.at(s).at(tab).unwrapped,
-    otherwise: s,
-  );
-
   /// The loaded sites as a reroute's flips found them.
   static final _beforeReroute = Note<TabFlow>(
     (c) => _flow.from(c).loadedBefore = _page.from(c).loaded,
@@ -662,6 +652,7 @@ abstract final class TabTable {
             _kind.becomes(Expr.constant(FlowKind.tab)),
             _site.becomes(_rerouted),
             _closing.becomes(_relinked(_rerouted)),
+            _ranAs.becomes(_tabHost.at(_rerouted)),
           ],
           next: to(TabPlace.rFlip),
         ),
@@ -738,6 +729,7 @@ abstract final class TabTable {
       ),
       TabPlace.tCap ||
       TabPlace.tCapSave ||
+      TabPlace.tCapUnsave ||
       TabPlace.tNav ||
       TabPlace.tRebind ||
       TabPlace.tRemove ||
@@ -757,11 +749,19 @@ abstract final class TabTable {
   );
 
   /// The outgoing tab's back stack captured under the webview's tab, in
-  /// the capture's two steps; a target tab that left the list meanwhile
-  /// ends the switch first.
+  /// the capture's steps; a target tab that left the list meanwhile ends
+  /// the switch first.
   static final _capture = captureSteps<WebViewModel, TabFlow, TabPlace>(
-    names: (read: ActivationStep.tabCaptureReply, save: ActivationStep.tabCaptureSave),
-    places: (save: TabPlace.tCapSave, after: to(TabPlace.tNav)),
+    names: (
+      read: ActivationStep.tabCaptureReply,
+      save: ActivationStep.tabCaptureSave,
+      unsave: ActivationStep.tabCaptureUnsave,
+    ),
+    places: (
+      save: TabPlace.tCapSave,
+      unsave: TabPlace.tCapUnsave,
+      after: to(TabPlace.tNav),
+    ),
     of: (
       site: _site.value,
       built: (s) => s.tabBinding.built,
@@ -799,6 +799,7 @@ abstract final class TabTable {
       // (Capture); a target closed meanwhile ends the switch.
       TabPlace.tCap => _capture.read,
       TabPlace.tCapSave => _capture.save,
+      TabPlace.tCapUnsave => _capture.unsave,
       // The target's saved back stack read; then list, pointer and webview
       // move in one turn (tRebind), unless the slot's identity changes
       // under a process-global proxy (LIR-024), which moves the pointer
@@ -1148,7 +1149,7 @@ abstract final class TabTable {
             TabVars.removedAs(
               _site.value,
               tab: _eachClosing.it,
-              as: _left(_site.value, tab: _eachClosing.it),
+              as: _ranAs.value.at(_eachClosing.it),
             ),
           ],
         ),
