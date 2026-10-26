@@ -136,25 +136,34 @@ the reason the import screen shows (WEBEXT-013).
   optional ones, the background kind, an action and an options page.
 
 The engine does no I/O; writing the files under
-`<app support>/web_extensions/<WebExtensionId>/` is the store's (task 2.3).
+`<documents>/web_extensions/<WebExtensionId>/` is the store's (task 2.3).
 `WebExtensionId` is an extension type minted on import (CLAUDE.md rule 5);
 the manifest's own `key` or Gecko id is not trusted as identity.
 
 ### D6. Storage and lifecycle
 
-- The library is a list of `{id, name, version, path}` in a store beside the
-  user scripts' (`ShellStore`), not in backups (WEBEXT-011).
+- The library is `WebExtensionLibrary` (`lib/services/web_extension_library.dart`):
+  a list of `{id, name, version, permissions, hosts}` in SharedPreferences, and
+  each extension's files in its own folder, written through `ExtensionFolders`
+  so a test runs it on a fake disk. A service rather than a `ShellStore` value:
+  it owns files on disk, and the posture that reads it is resolved outside the
+  page too (a background wake's headless check). Not in backups (WEBEXT-011).
+- A launch deletes every folder no entry names, so an import or removal cut
+  short, or one made in demo mode, leaves nothing behind.
 - A site's choice is a `SiteField` (`enabledWebExtensions`, a set of ids), QR
-  `false`; `planSettingsImport` drops it as it drops user script opt-ins
-  (BACKUP-011).
+  withheld. A backup keeps it as it keeps user script opt-ins, and
+  `sanitizeImportedSites` clears it (BACKUP-011): the ids name another device's
+  library.
 - The switch is an `AppPref` in the Experimental group, read through
-  `ExperimentalFeaturesService` and offered when `WebExtensionSupport.probe`
-  says the system has the API.
+  `ExperimentalFeaturesService`. It is offered where `hostRunsWebExtensions`
+  holds: iOS 18.4+ or macOS 15.4+, by `AppleOsFloor.webExtensions`, the same
+  floor check as Lockdown Mode's, so no channel is needed.
 - Deleting a site asks the fork to remove the controller's data records; the
   store is an `OrphanStore` value (`webExtensionData`, scope session), so the
   orphan sweep covers sites deleted while the app was not running.
 - Removing a library entry deletes its folder and its data records on every
-  controller, and drops its id from every site.
+  controller. A site that had it switched on keeps the id, which names nothing:
+  the plan reads only the library's entries, and an id is minted, never reused.
 
 ### D7. The delegate in the fork
 

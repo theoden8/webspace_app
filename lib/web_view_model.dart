@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/web_extension_attach_engine.dart';
+import 'package:webspace/services/web_extension_library.dart';
 import 'package:flutter/material.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_color_engine.dart';
@@ -51,6 +53,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/archive_cookie_queue.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -343,6 +346,10 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// are stored once in app state (shared source/URL) and each site
   /// independently enables which ones to inject.
   Set<UserScriptId> enabledGlobalScriptIds;
+  /// The library's extensions this site switched on (WEBEXT-004). Kept
+  /// while the experiment is off, so switching it back restores them
+  /// (WEBEXT-012).
+  Set<WebExtensionId> enabledWebExtensions;
   Set<BlockedCookie> blockedCookies;
   LocationMode locationMode;
   double? spoofLatitude;
@@ -666,6 +673,18 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   ContainerName? boundContainerId(Isolation isolation) => containerIdFor(
       isolation: isolation, key: containerKey, incognito: effectiveIncognito);
 
+  /// What the site's webviews load of the extension library (WEBEXT-016),
+  /// and why none when none: the posture's and the Extensions row's answer.
+  ExtensionAttach get extensionPlan => planExtensionAttach((
+        offered: webExtensionsOffered,
+        archived: isArchiveTier,
+        kiosk: kioskMode,
+        incognito: effectiveIncognito,
+        enabled: enabledWebExtensions,
+        library: WebExtensionLibrary.instance.installed.value,
+        claims: effectiveDomainClaims,
+      ));
+
   /// Everything a webview that runs as this site applies (CLAUDE.md, "Per-site
   /// settings MUST apply to nested webviews"). The archive tier's overrides
   /// come from the `effective*` getters above; Tracking Protection's forced
@@ -730,6 +749,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         externalLinks: effectiveExternalLinkMode,
         signInPopups: PopupKind.signInOpens(choice: Scoped.fromStored(signInPopups)),
         notifications: effectiveNotificationsEnabled,
+        extensions: extensionPlan,
       ),
     );
   }
@@ -865,6 +885,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     this.captures = CaptureGrants.none,
     List<UserScriptConfig>? userScripts,
     Set<UserScriptId>? enabledGlobalScriptIds,
+    Set<WebExtensionId>? enabledWebExtensions,
     Set<BlockedCookie>? blockedCookies,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -896,6 +917,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         _outboundPreferences = outboundPreferences ?? [],
         searchSites = searchSites ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
+        enabledWebExtensions = enabledWebExtensions ?? {},
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? SiteId.mint(),
         name = name ?? extractDomain(initUrl),

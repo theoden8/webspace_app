@@ -23,7 +23,11 @@ enum ExperimentalFeature {
   /// A page's sign-in window, opened by the user's tap, shown as a real popup
   /// so its result reaches the page (nested-url-blocking NESTED-014). New, so
   /// off by default.
-  signInPopups(AppPref.experimentalSignInPopups);
+  signInPopups(AppPref.experimentalSignInPopups),
+
+  /// Web extensions per site, where WebKit runs them (WEBEXT-001). New, so
+  /// off by default.
+  webExtensions(AppPref.experimentalWebExtensions);
 
   const ExperimentalFeature(this.pref);
 

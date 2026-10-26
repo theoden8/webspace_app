@@ -24,6 +24,7 @@ import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/web_intercept_native.dart';
+import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/background_log.dart';
@@ -157,6 +158,7 @@ void main([List<String> args = const []]) async {
     // Read directly by the menus rather than plumbed.
     DeveloperModeService.instance.initialize(),
     ExperimentalFeaturesService.instance.initialize(),
+    WebExtensionLibrary.instance.initialize(),
     ExternalTorSettings.initialize(),
   ]);
 

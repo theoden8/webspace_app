@@ -10,6 +10,7 @@ library;
 
 import 'package:meta/meta.dart';
 import 'package:webspace/services/container_names.dart';
+import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/settings/blocked_cookie.dart';
@@ -77,6 +78,8 @@ typedef SitePage = ({
   // (NESTED-014).
   bool signInPopups,
   bool notifications,
+  // What the site's webviews load of the extension library (WEBEXT-016).
+  ExtensionAttach extensions,
 });
 
 @immutable

@@ -84,3 +84,7 @@ final class WebExtensionEntry {
     );
   }
 }
+
+/// A library entry and the folder its files are unpacked in, which the
+/// webview loads it from.
+typedef InstalledExtension = ({WebExtensionEntry entry, String folder});

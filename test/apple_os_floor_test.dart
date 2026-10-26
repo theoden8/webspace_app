@@ -39,4 +39,20 @@ void main() {
       expect(meets('Version 13.0 (Build 22A380)', isIOS: false), isTrue);
     });
   });
+
+  group('appleOsMeetsFloor for web extensions', () {
+    bool meets(String version, {required bool isIOS}) => appleOsMeetsFloor(
+        version, isIOS: isIOS, floor: AppleOsFloor.webExtensions);
+
+    test('iOS 18.4 and macOS 15.4 are the floor, minor version included', () {
+      expect(meets('Version 18.3.2 (Build 22D82)', isIOS: true), isFalse);
+      expect(meets('Version 18 (Build 22A3354)', isIOS: true), isFalse);
+      expect(meets('Version 18.4 (Build 22E240)', isIOS: true), isTrue);
+      expect(meets('Version 18.10 (Build 22X1)', isIOS: true), isTrue);
+      expect(meets('Version 26.0 (Build 23A340)', isIOS: true), isTrue);
+      expect(meets('Version 15.3.2 (Build 24D81)', isIOS: false), isFalse);
+      expect(meets('Version 15.4.1 (Build 24E263)', isIOS: false), isTrue);
+      expect(meets('Version 26.1 (Build 25B78)', isIOS: false), isTrue);
+    });
+  });
 }

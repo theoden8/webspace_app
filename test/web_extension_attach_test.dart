@@ -19,20 +19,21 @@ final _reader = WebExtensionEntry(
 );
 
 ExtensionAttachInputs _inputs({
-  bool supported = true,
-  bool experimentOn = true,
+  bool offered = true,
   bool archived = false,
   bool kiosk = false,
   bool incognito = false,
   Set<WebExtensionId>? enabled,
 }) => (
-  supported: supported,
-  experimentOn: experimentOn,
+  offered: offered,
   archived: archived,
   kiosk: kiosk,
   incognito: incognito,
   enabled: enabled ?? {_ublock.id},
-  library: [_ublock, _reader],
+  library: [
+    (entry: _ublock, folder: '/lib/we-ublock'),
+    (entry: _reader, folder: '/lib/we-reader'),
+  ],
   claims: [DomainClaim.baseDomain('example.com')],
 );
 
@@ -59,8 +60,7 @@ final _rows = <(String, ExtensionAttachInputs, String)>[
     _inputs(enabled: {WebExtensionId('we-gone')}),
     'none:noneEnabled',
   ),
-  ('an older system', _inputs(supported: false), 'none:unsupported'),
-  ('the experiment off', _inputs(experimentOn: false), 'none:experimentOff'),
+  ('not offered here', _inputs(offered: false), 'none:notOffered'),
   ('an archived site', _inputs(archived: true), 'none:archive'),
   ('a kiosk site', _inputs(kiosk: true), 'none:kiosk'),
   (
@@ -69,9 +69,9 @@ final _rows = <(String, ExtensionAttachInputs, String)>[
     'none:archive',
   ),
   (
-    'unsupported wins over the switch',
-    _inputs(supported: false, experimentOn: false),
-    'none:unsupported',
+    'not offered wins over the archive',
+    _inputs(offered: false, archived: true),
+    'none:notOffered',
   ),
 ];
 
@@ -83,8 +83,7 @@ List<String> _misses(ExtensionAttach Function(ExtensionAttachInputs) plan) => [
 /// Planted mistake: the archive tier not consulted.
 ExtensionAttach _archiveIgnored(ExtensionAttachInputs i) =>
     planExtensionAttach((
-      supported: i.supported,
-      experimentOn: i.experimentOn,
+      offered: i.offered,
       archived: false,
       kiosk: i.kiosk,
       incognito: i.incognito,
@@ -106,12 +105,11 @@ ExtensionAttach _incognitoPersistent(ExtensionAttachInputs i) =>
 /// Planted mistake: every library entry loaded, switched on or not.
 ExtensionAttach _ignoresEnabled(ExtensionAttachInputs i) =>
     planExtensionAttach((
-      supported: i.supported,
-      experimentOn: i.experimentOn,
+      offered: i.offered,
       archived: i.archived,
       kiosk: i.kiosk,
       incognito: i.incognito,
-      enabled: {for (final e in i.library) e.id},
+      enabled: {for (final e in i.library) e.entry.id},
       library: i.library,
       claims: i.claims,
     ));
@@ -126,6 +124,16 @@ void main() {
       final attach = planExtensionAttach(_inputs()) as AttachExtensions;
       expect(attach.loads.single.grants.matchPatterns, {'*://*.example.com/*'});
       expect(attach.loads.single.grants.permissions, {'storage'});
+    });
+
+    test('each extension loads from its own folder', () {
+      final attach =
+          planExtensionAttach(_inputs(enabled: {_ublock.id, _reader.id}))
+              as AttachExtensions;
+      expect([for (final l in attach.loads) l.folder], [
+        '/lib/we-ublock',
+        '/lib/we-reader',
+      ]);
     });
   });
 

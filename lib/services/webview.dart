@@ -35,6 +35,7 @@ import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/web_intercept_native.dart';
+import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/opensearch_engine.dart';
@@ -381,6 +382,8 @@ class WebViewFactory {
       // ETP-032, iOS 16+ and macOS 13+. Null when off, so a device in Lockdown
       // Mode keeps it for the site.
       ..lockdownModeEnabled = posture.page.lockdownMode ? true : null
+      // WEBEXT-016, iOS 18.4+ and macOS 15.4+; the plan says none elsewhere.
+      ..webExtensions = nativeExtensions(posture.page.extensions)
       // No-op on platforms and providers without the feature.
       ..backForwardCacheEnabled = AppPref.backForwardCacheEnabled.value
       ..thirdPartyCookiesEnabled = posture.container.thirdPartyCookies

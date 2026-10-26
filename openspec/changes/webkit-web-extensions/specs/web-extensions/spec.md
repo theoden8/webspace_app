@@ -185,13 +185,19 @@ A nested screen or popup a site opens SHALL run the site's extensions with the s
 
 ### Requirement: WEBEXT-011 - Backups and QR shares carry no extensions
 
-A settings backup and a site's QR share SHALL carry neither the extension library nor which sites enable an extension. An imported backup SHALL enable no extension on any site.
+A settings backup SHALL NOT carry the extension library: no extension's files, manifest or name. A site's QR share SHALL NOT carry which extensions the site switched on. An imported backup SHALL switch on no extension on any site, since the ids it holds name another device's library.
 
 #### Scenario: Exporting
 
-- **GIVEN** sites with extensions switched on
+- **GIVEN** an extension in the library, switched on for a site
 - **WHEN** the user exports settings
-- **THEN** the backup names no extension
+- **THEN** the backup holds none of the extension's files, manifest or name
+
+#### Scenario: Importing
+
+- **GIVEN** a backup in which a site switched an extension on
+- **WHEN** the user imports it
+- **THEN** the site runs no extension until the user switches one on there
 
 ### Requirement: WEBEXT-012 - Turning the experiment off detaches every extension
 

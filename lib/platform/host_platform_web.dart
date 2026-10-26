@@ -53,6 +53,8 @@ Future<void> hostEnsureDirectory(String path) async {}
 
 Future<void> hostDeleteDirectory(String path) async {}
 
+Future<List<String>> hostListDirectoryNames(String path) async => const [];
+
 /// No zlib on web. These exist so compression call sites compile; using one
 /// throws rather than silently returning the input, which would hand a caller
 /// compressed bytes labelled as plain.

@@ -271,6 +271,8 @@ List<HeldScript> sanitizeImportedSites(
       globalOptIns[id]?.add(site);
     }
     site.enabledGlobalScriptIds.clear();
+    // The ids name another device's extension library (WEBEXT-011).
+    site.enabledWebExtensions.clear();
     for (final script in site.userScripts) {
       if (script.enabled) {
         heldSiteScripts.add(HeldSiteScript(script, site: site));

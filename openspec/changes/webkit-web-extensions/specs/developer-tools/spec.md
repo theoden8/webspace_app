@@ -21,7 +21,7 @@ The features are:
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
 | Android: a sign-in window the user's tap opened, shown as a real popup (`nested-url-blocking` NESTED-014) | Sign-in popups | off | `PopupKind.signInOffered`, read when a site's webview is built and when a Behaviour screen is built |
-| iOS 18.4+ and macOS 15.4+: browser extensions the user imports, switched on per site (`web-extensions` WEBEXT-001) | Web extensions | off | `WebExtensionSupport`, read when a site's webview is built and when App Settings or a site's Settings is built |
+| iOS 18.4+ and macOS 15.4+: browser extensions the user imports, switched on per site (`web-extensions` WEBEXT-001) | Web extensions | off | `WebViewModel.sitePosture`, read when a site's webview is built, and the App Settings and site Settings screens, read when they are built |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 

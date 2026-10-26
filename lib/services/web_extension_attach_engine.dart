@@ -19,11 +19,9 @@ final class NoExtensions extends ExtensionAttach {
 }
 
 enum NoExtensionsReason {
-  /// This system's WebKit cannot load extensions.
-  unsupported,
-
-  /// Developer mode or the Web extensions switch is off.
-  experimentOff,
+  /// Not offered here: this system's WebKit cannot load extensions, or
+  /// developer mode or the Web extensions switch is off.
+  notOffered,
 
   /// The site is in an archive.
   archive,
@@ -46,35 +44,34 @@ final class AttachExtensions extends ExtensionAttach {
   final List<ExtensionLoad> loads;
 }
 
-/// One extension a site loads, and what it may reach there.
-typedef ExtensionLoad = ({WebExtensionId id, ExtensionGrants grants});
+/// One extension a site loads, from where, and what it may reach there.
+typedef ExtensionLoad = ({
+  WebExtensionId id,
+  String folder,
+  ExtensionGrants grants,
+});
 
 /// What decides a site's extensions.
 typedef ExtensionAttachInputs = ({
-  bool supported,
-  bool experimentOn,
+  bool offered,
   bool archived,
   bool kiosk,
   bool incognito,
   Set<WebExtensionId> enabled,
-  List<WebExtensionEntry> library,
+  List<InstalledExtension> library,
   List<DomainClaim> claims,
 });
 
 ExtensionAttach planExtensionAttach(ExtensionAttachInputs inputs) {
-  if (!inputs.supported) {
-    return const NoExtensions(NoExtensionsReason.unsupported);
-  }
-  if (!inputs.experimentOn) {
-    return const NoExtensions(NoExtensionsReason.experimentOff);
-  }
+  if (!inputs.offered) return const NoExtensions(NoExtensionsReason.notOffered);
   if (inputs.archived) return const NoExtensions(NoExtensionsReason.archive);
   if (inputs.kiosk) return const NoExtensions(NoExtensionsReason.kiosk);
   final loads = [
-    for (final entry in inputs.library)
+    for (final (:entry, :folder) in inputs.library)
       if (inputs.enabled.contains(entry.id))
         (
           id: entry.id,
+          folder: folder,
           grants: planExtensionGrants(entry, claims: inputs.claims),
         ),
   ];

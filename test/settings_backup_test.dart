@@ -13,6 +13,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
 /// What the export path builds for [sites] under default app settings.
@@ -832,6 +833,28 @@ void main() {
       // Global scripts inject on per-site opt-in regardless of their own
       // `enabled` flag, so the opt-in set is what has to be dropped.
       expect(restored.single.enabledGlobalScriptIds, isEmpty);
+    });
+
+    test('an imported site switches on no extension (WEBEXT-011)', () {
+      final siteJson = WebViewModel(
+        initUrl: 'https://a.com',
+        enabledWebExtensions: {WebExtensionId('we-ublock')},
+      ).toJson();
+      expect(siteJson['enabledWebExtensions'], ['we-ublock'],
+          reason: 'the file keeps the choice; the import drops it');
+      expect(importSanitized(siteJson).single.enabledWebExtensions, isEmpty);
+    });
+
+    test('a backup carries no extension library (WEBEXT-011)', () {
+      final json = SettingsBackupService.exportToJson(
+        SettingsBackupService.createBackup(
+          webViewModels: [WebViewModel(initUrl: 'https://a.com')],
+          webspaces: [Webspace.all()],
+          themeMode: 0,
+          globalPrefs: {for (final p in AppPref.values) p.key: p.value},
+        ),
+      );
+      expect(json, isNot(contains('webExtensionLibrary')));
     });
 
     test('round-trips through JSON string without loss', () async {

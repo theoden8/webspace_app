@@ -78,6 +78,20 @@ Future<void> hostDeleteDirectory(String path) async {
   if (await dir.exists()) await dir.delete(recursive: true);
 }
 
+/// The names of the directories directly under [path]; none when it is
+/// absent.
+Future<List<String>> hostListDirectoryNames(String path) async {
+  final dir = io.Directory(path);
+  if (!await dir.exists()) return const [];
+  final names = <String>[];
+  await for (final entry in dir.list(followLinks: false)) {
+    if (entry is io.Directory) {
+      names.add(entry.uri.pathSegments.lastWhere((s) => s.isNotEmpty));
+    }
+  }
+  return names;
+}
+
 /// The platform's gzip / zlib decoders, as plain converters so callers keep
 /// their own bounded-inflation guards.
 Converter<List<int>, List<int>> get hostGzipDecoder => io.gzip.decoder;
