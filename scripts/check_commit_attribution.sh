@@ -13,32 +13,51 @@
 #   3. a Cherry-picked-from commit is authored by someone other than the
 #      committer, which is what preserving the original author looks like
 #   4. no trailer carries a language model provider's address
+#   5. no line links a Claude session (a Claude-Session trailer or a
+#      claude.ai/code/session URL): it opens only for its own account
+#
+# $PR_BODY, when set (CI passes the pull request's body), is held to 5 too.
 #
 # Base defaults to origin/master; override with $BASE. Skips when the base is
 # unreachable (a shallow clone with no base fetched) rather than failing.
 
 set -e
 
+SESSION_LINK='^Claude-Session:|claude\.ai/code/session'
+
+EXIT_CODE=0
+
+if [ -n "${PR_BODY:-}" ]; then
+    LINKS=$(printf '%s\n' "$PR_BODY" | grep -iE "$SESSION_LINK" || true)
+    if [ -n "$LINKS" ]; then
+        echo "FAIL pull request body"
+        printf '%s\n' "$LINKS" | while IFS= read -r LINE; do
+            echo "  session link: $LINE"
+        done
+        echo "  A Claude session link opens only for its own account; drop the line."
+        EXIT_CODE=1
+    fi
+fi
+
 BASE="${BASE:-origin/master}"
 
 if ! git rev-parse --verify --quiet "$BASE" >/dev/null; then
     echo "check_commit_attribution: base '$BASE' not found, skipping."
     echo "  (shallow clone? try: git fetch --depth=50 origin master)"
-    exit 0
+    exit "$EXIT_CODE"
 fi
 
 if ! MERGE_BASE=$(git merge-base "$BASE" HEAD 2>/dev/null); then
     echo "check_commit_attribution: no merge base with '$BASE', skipping."
-    exit 0
+    exit "$EXIT_CODE"
 fi
 
 COMMITS=$(git rev-list "$MERGE_BASE..HEAD")
 if [ -z "$COMMITS" ]; then
     echo "check_commit_attribution: no commits ahead of $BASE."
-    exit 0
+    exit "$EXIT_CODE"
 fi
 
-EXIT_CODE=0
 COUNT=0
 
 for SHA in $COMMITS; do
@@ -77,6 +96,16 @@ for SHA in $COMMITS; do
             echo "  model provider trailer: $LINE"
         done
         echo "  The person who commits is the author; drop the line."
+        EXIT_CODE=1
+    fi
+
+    LINKS=$(printf '%s\n' "$BODY" | grep -iE "$SESSION_LINK" || true)
+    if [ -n "$LINKS" ]; then
+        echo "FAIL $SHORT $SUBJECT"
+        printf '%s\n' "$LINKS" | while IFS= read -r LINE; do
+            echo "  session link: $LINE"
+        done
+        echo "  A Claude session link opens only for its own account; drop the line."
         EXIT_CODE=1
     fi
 

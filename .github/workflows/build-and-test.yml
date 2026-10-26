@@ -175,6 +175,8 @@ jobs:
       # Shallow checkout has no master to diff against; 50 covers any branch
       # worth reviewing, and the script skips rather than fails past that.
       - name: Check commit attribution
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           git fetch --no-tags --depth=50 origin master
           BASE=FETCH_HEAD ./scripts/check_commit_attribution.sh
