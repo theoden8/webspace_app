@@ -1,0 +1,197 @@
+{
+  "appLocaleOverride": [
+    "String"
+  ],
+  "backForwardCacheEnabled": [
+    "Bool"
+  ],
+  "backOpensMenu": [
+    "Bool"
+  ],
+  "blockScreenshots": [
+    "Bool"
+  ],
+  "blockStatsV1": [
+    "String"
+  ],
+  "clearurl_last_updated": [
+    "String"
+  ],
+  "content_blocker_list_masks": [
+    "String"
+  ],
+  "content_blocker_lists": [
+    "String"
+  ],
+  "cookies_fallback": [
+    "String"
+  ],
+  "cookies_migrated_to_secure": [
+    "Bool"
+  ],
+  "currentIndex": [
+    "Int"
+  ],
+  "developerMode": [
+    "Bool"
+  ],
+  "dns_block_downloaded_levels": [
+    "StringList"
+  ],
+  "dns_block_last_updated": [
+    "String"
+  ],
+  "dns_block_level": [
+    "Int"
+  ],
+  "experimentalContentRuleLists": [
+    "Bool"
+  ],
+  "experimentalExternalTor": [
+    "Bool"
+  ],
+  "experimentalFolderLibrary": [
+    "Bool"
+  ],
+  "experimentalProxyRouter": [
+    "Bool"
+  ],
+  "experimentalSignInPopups": [
+    "Bool"
+  ],
+  "experimentalTextureRendering": [
+    "Bool"
+  ],
+  "externalLinkMode": [
+    "String"
+  ],
+  "externalTorAddress": [
+    "String"
+  ],
+  "externalTorControl": [
+    "String"
+  ],
+  "firefoxUaAutoRefresh": [
+    "Bool"
+  ],
+  "firefox_ua_last_checked": [
+    "String"
+  ],
+  "firefox_ua_major_version": [
+    "Int"
+  ],
+  "fullscreenOnShortcut": [
+    "Bool"
+  ],
+  "globalOutboundProxy": [
+    "String"
+  ],
+  "globalUserScripts": [
+    "StringList"
+  ],
+  "globalUserScriptsOptInMigrated": [
+    "Bool"
+  ],
+  "httpsUpgradeEnabled": [
+    "Bool"
+  ],
+  "image_cache_version": [
+    "String"
+  ],
+  "libraryLayout": [
+    "String"
+  ],
+  "libraryWebspaceLayout": [
+    "String"
+  ],
+  "linkHandlingClaimDomains": [
+    "Bool"
+  ],
+  "linkHandlingEnabled": [
+    "Bool"
+  ],
+  "localcdn_cache_index": [
+    "String"
+  ],
+  "localcdn_last_updated": [
+    "String"
+  ],
+  "osmTileUrl": [
+    "String"
+  ],
+  "proxyLibrary": [
+    "String"
+  ],
+  "routeOutboundLinks": [
+    "Bool"
+  ],
+  "selectedWebspaceId": [
+    "String"
+  ],
+  "showStatsBanner": [
+    "Bool"
+  ],
+  "showTabStrip": [
+    "Bool"
+  ],
+  "showUrlBar": [
+    "Bool"
+  ],
+  "signInPopups": [
+    "Bool"
+  ],
+  "site_search_list_last_updated": [
+    "String"
+  ],
+  "suggested_sites": [
+    "String"
+  ],
+  "tabBarButton": [
+    "Bool"
+  ],
+  "tabBarButtonOnRight": [
+    "Bool"
+  ],
+  "tabMaxWidth": [
+    "Int"
+  ],
+  "tabStripEdge": [
+    "String"
+  ],
+  "tabStripInFullscreen": [
+    "Bool"
+  ],
+  "tabsEnabled": [
+    "Bool"
+  ],
+  "themeSettings": [
+    "Int"
+  ],
+  "trustedHosts": [
+    "StringList"
+  ],
+  "tz_polygons_last_updated": [
+    "String"
+  ],
+  "tz_polygons_zone_count": [
+    "Int"
+  ],
+  "useUboResources": [
+    "Bool"
+  ],
+  "wakeUnreadBaselines": [
+    "String"
+  ],
+  "webSearchDefaultSite": [
+    "String"
+  ],
+  "webViewModels": [
+    "StringList"
+  ],
+  "webspaces": [
+    "StringList"
+  ],
+  "webview_state_cache_version": [
+    "String"
+  ]
+}
