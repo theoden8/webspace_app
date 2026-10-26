@@ -112,10 +112,19 @@ post_install do |installer|
       defs = [defs] unless defs.is_a?(Array)
       defs << 'NS_BLOCK_ASSERTIONS=1' unless defs.include?('NS_BLOCK_ASSERTIONS=1')
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
-      # With eager linking on, ld met Xcode's stub of this pod's own framework
-      # (EagerLinkingTBDs/.../Tor.tbd) while linking it, and stopped: "can't
-      # link a dylib with itself".
-      config.build_settings['EAGER_LINKING'] = 'NO'
+      # The pod links its vendored tor.framework as `-framework "tor"`, which
+      # on a case-insensitive disk also finds the pod's own Tor.framework:
+      # Xcode's eager-linking stub of it, or with Xcode 26.3 the built binary,
+      # even in a clean build. ld then stops: "can't link a dylib with itself"
+      # (BUG-039). Naming the slice's binary by path leaves nothing to find.
+      xcconfig = config.base_configuration_reference.real_path
+      text = File.read(xcconfig)
+      slices = text[/^FRAMEWORK_SEARCH_PATHS = .*"(\$\{PODS_XCFRAMEWORKS_BUILD_DIR\}\/Tor\/[^"]+)"/, 1]
+      raise "[webspace] #{xcconfig}: no tor.xcframework search path" unless slices
+      tor = "\"#{slices}/tor.framework/tor\""
+      text = text.sub('-framework "tor"', tor)
+      raise "[webspace] #{xcconfig}: Tor does not link #{tor}" unless text.include?(tor)
+      File.write(xcconfig, text)
     end
   end
 
