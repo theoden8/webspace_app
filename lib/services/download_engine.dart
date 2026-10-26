@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/bounded_inflate.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -339,35 +340,12 @@ class DownloadEngine {
   static bool _sameOrigin(Uri a, {required Uri b}) =>
       a.scheme == b.scheme && a.host == b.host && a.port == b.port;
 
-  /// Inflate [compressed] through [codec] in chunks, aborting the moment the
-  /// running output exceeds [_maxBytes] so a decompression bomb never fully
-  /// materializes. Throws [DownloadException] on overflow.
+  /// [compressed] inflated through [codec], or a [DownloadException] once
+  /// the output passes [_maxBytes].
   Uint8List _inflateBounded(Converter<List<int>, List<int>> codec, {
-      required Uint8List compressed}) {
-    final out = BytesBuilder(copy: false);
-    var total = 0;
-    var overflow = false;
-    final sink = _CountingByteSink((chunk) {
-      total += chunk.length;
-      if (total > _maxBytes) {
-        overflow = true;
-      } else {
-        out.add(chunk);
-      }
-    });
-    final conv = codec.startChunkedConversion(sink);
-    const step = 64 * 1024;
-    for (var i = 0; i < compressed.length && !overflow; i += step) {
-      final end =
-          (i + step < compressed.length) ? i + step : compressed.length;
-      conv.add(compressed.sublist(i, end));
-    }
-    conv.close();
-    if (overflow) {
-      throw DownloadException('Download exceeds size limit');
-    }
-    return out.takeBytes();
-  }
+      required Uint8List compressed}) =>
+      inflateBounded(codec, compressed: compressed, limit: _maxBytes) ??
+      (throw DownloadException('Download exceeds size limit'));
 
   static String _sanitize(String name) {
     return name
@@ -485,22 +463,6 @@ class DownloadEngine {
 
 /// Byte sink that forwards each inflated chunk to [onData] so the caller
 /// can tally the running output and abort a decompression bomb early.
-class _CountingByteSink extends ByteConversionSink {
-  final void Function(List<int>) onData;
-  _CountingByteSink(this.onData);
-
-  @override
-  void add(List<int> chunk) => onData(chunk);
-
-  @override
-  void addSlice(List<int> chunk, int start, int end, bool isLast) {
-    onData(chunk.sublist(start, end));
-  }
-
-  @override
-  void close() {}
-}
-
 /// Sentinel client returned by [DownloadEngine._defaultClient] when the
 /// configured proxy cannot be honored from Dart-side. Any request through
 /// it raises [DownloadException] before touching the network so we never
