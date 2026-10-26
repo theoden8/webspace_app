@@ -280,6 +280,34 @@ again.
 
 Tests: `test/file_store_test.dart`, `test/purged_download_refetch_test.dart`.
 
+### Requirement: PLATFORM-011 - One Linux instance
+
+On Linux the app SHALL run as one instance per application ID (PLATFORM-009)
+on a session bus: a second launch, and a `webspace://` URI opened while the
+app runs, SHALL hand its activation to the running instance and exit, and the
+running instance SHALL bring its one window to the front, a window a close
+only hid (NOTIF-018) included, and never build a second. Two instances would
+share one profile: the sites, the settings and every container's data. A
+build meant to run beside an installed one takes its own ID through
+`WEBSPACE_APPLICATION_ID`. With no session bus, GApplication runs the launch
+as an instance of its own, as every launch ran before.
+
+A `webspace://` URI handed over this way is read when the window comes back,
+as on a resume (LIR-004).
+
+#### Scenario: A second launch
+
+**Given** the app running, its window hidden by a close or behind others
+**When** the user launches it again
+**Then** the second launch exits after handing over its activation
+**And** the running app's window comes to the front
+
+#### Scenario: A launch while the window shows
+
+**Given** the app running with its window on screen
+**When** the user launches it again
+**Then** no second window opens
+
 ---
 
 ## Platform Capabilities Matrix

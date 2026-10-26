@@ -64,9 +64,20 @@ static void share_method_call_handler(FlMethodChannel* /*channel*/,
   }
 }
 
-// Implements GApplication::activate.
+// The one window this process builds, or null before activate builds it.
+static GtkWindow* my_application_window(MyApplication* self) {
+  GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
+  return windows != nullptr ? GTK_WINDOW(windows->data) : nullptr;
+}
+
+// Implements GApplication::activate. PLATFORM-010: a second launch reaches
+// the running instance here, and brings back the window it already has.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  if (GtkWindow* existing = my_application_window(self)) {
+    gtk_window_present(existing);
+    return;
+  }
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
@@ -132,9 +143,8 @@ static void my_application_open(GApplication* application, GFile** files,
     my_application_set_pending_share_url(self, uri);
   }
   // GApplication suppresses ::activate when ::open fires, so we have to
-  // ensure a window exists. Activate explicitly: idempotent because the
-  // flutter view re-uses the existing GtkApplicationWindow on subsequent
-  // hits within the same process.
+  // ensure a window exists. Activate explicitly: idempotent because activate
+  // brings back the window this process already has (PLATFORM-010).
   g_application_activate(application);
 }
 
@@ -194,9 +204,11 @@ static void my_application_class_init(MyApplicationClass* klass) {
 
 static void my_application_init(MyApplication* self) {}
 
+// PLATFORM-010: unique, so a second launch hands its activation, or its
+// webspace:// URI, to the instance already running and exits.
 MyApplication* my_application_new() {
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID,
-                                     "flags", G_APPLICATION_NON_UNIQUE | G_APPLICATION_HANDLES_OPEN,
+                                     "flags", G_APPLICATION_HANDLES_OPEN,
                                      nullptr));
 }

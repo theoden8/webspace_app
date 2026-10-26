@@ -893,6 +893,12 @@ jobs:
               status=0
               for t in $LINUX_TIER_FILES; do
                 echo "::group::$t"
+                # One instance per session bus (PLATFORM-010): an app a killed
+                # run left behind would take the next launch and send it away.
+                for p in /proc/[0-9]*; do
+                  [ "$(cat "$p/comm" 2>/dev/null)" = webspace_app ] \
+                    && kill -9 "${p#/proc/}" 2>/dev/null
+                done
                 # Hard per-test wall-clock cap: a WebView mount can deadlock
                 # the platform thread below Dart timeout layer, which would
                 # otherwise hang the job to the 6h runner limit. SIGTERM at
