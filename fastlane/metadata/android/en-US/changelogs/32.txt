@@ -8,8 +8,8 @@
 • Sites with different proxies load side by side on Android
 • Faster content blocking on iOS and macOS
 • GPU rendering on Linux
-• Status bar stays above a top tab strip in full screen
 
 🐛 Bug Fixes:
+• Status bar stays above a top tab strip in full screen
 • Tor bridges after the app was suspended
 • Requests leaving through another site's proxy
