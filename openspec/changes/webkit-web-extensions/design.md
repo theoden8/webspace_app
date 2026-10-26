@@ -101,24 +101,43 @@ so the site's webview, its nested screens and popups and a background wake's
 headless check get the same plan (WEBEXT-010). `forNested()` keeps it. The
 factory hands `AttachExtensions` to the fork as the `webExtensions` setting.
 
-### D5. Import is a pure unpacker
+### D5. Import is a pure reader of the package's bytes
 
-`unpackExtension(bytes, kind:)` (`kind`: `zip`, `crx`, `xpi`) returns a sealed
-`UnpackResult`:
+`readExtensionPackage(bytes)` (`lib/services/web_extension_package_engine.dart`)
+returns a sealed `PackageRead`: an `ExtensionPackage` (format, files by path,
+manifest summary) or a `PackageRefused` whose sealed `PackageRefusal` names
+the reason the import screen shows (WEBEXT-013).
 
-- `.crx` version 2 (`Cr24`, version, key length, signature length, key,
-  signature) and version 3 (`Cr24`, version, header length, header) are cut to
-  the ZIP after the header; the signature is not read;
-- every entry is checked before anything is written: no absolute path, no `..`
-  segment, no symlink, a cap on entry count and total size;
-- `manifest.json` must sit at the root and parse; its name, version,
-  `manifest_version`, permissions, host permissions and content script matches
-  make the summary the import screen shows.
+- The format is told from the bytes (`envelopeOf`): `Cr24` version 2 (key
+  length, signature length, key, signature) and version 3 (header length,
+  header) are cut to the archive after the header; a ZIP is read as it is.
+  No signature is read; the package says whether it carried one.
+- The ZIP is read by the engine itself, not by `package:archive`'s decoder,
+  which merges duplicate names, skips the CRC check, ignores the encryption
+  flag and raises `RangeError` on a malformed directory. Every offset is
+  checked before use, and every entry before any is inflated: UTF-8 name,
+  no absolute path, `..`, `.`, empty segment, backslash or control
+  character, no symlink, no path equal to another ignoring case (a
+  case-insensitive file system) or running through another file; stored or
+  deflate only; no encryption, ZIP64 or split archive; caps on entries and
+  on declared total size (`PackageLimits`).
+- Deflate goes through the platform's zlib (`hostDeflateDecoder`, raw) via
+  `inflateBounded` (`lib/services/bounded_inflate.dart`), the one bounded
+  inflation the download engine and the QR codec now share: output stops
+  where it passes the entry's declared size, then the size and CRC must
+  match. `package:archive`'s pure Dart `Inflate` was rejected: 4.0.9 loops
+  forever on some 50-byte streams and raises `RangeError` on others.
+- `manifest.json` at the root must parse (a byte order mark allowed) with
+  `manifest_version` 2 or 3, a name and a version; `__MSG_` names resolve
+  from `default_locale`'s messages, case-insensitively as Chrome does. The
+  summary splits API permissions from hosts (Manifest V2's patterns among
+  permissions, `host_permissions`, content script matches), and reads the
+  optional ones, the background kind, an action and an options page.
 
-It runs over the `archive` package already in `pubspec.yaml`. The files land in
-`<app support>/web_extensions/<WebExtensionId>/`; `WebExtensionId` is an
-extension type minted on import (CLAUDE.md rule 5). The manifest's own `key`
-or Gecko id is not trusted as identity.
+The engine does no I/O; writing the files under
+`<app support>/web_extensions/<WebExtensionId>/` is the store's (task 2.3).
+`WebExtensionId` is an extension type minted on import (CLAUDE.md rule 5);
+the manifest's own `key` or Gecko id is not trusted as identity.
 
 ### D6. Storage and lifecycle
 
@@ -164,7 +183,7 @@ removing data on delete needs one, it becomes a `Step` of
 
 | Layer | Test | Planted mistake it must catch |
 |---|---|---|
-| Unpack | `test/web_extension_unpack_test.dart`: CRX2, CRX3, ZIP and XPI built in the test with `archive`; truncated headers; traversal, absolute and symlink entries; missing or broken manifest; a seeded fuzz that never throws | CRX3 header length read as CRX2's; `..` entries accepted |
+| Package | `test/web_extension_package_test.dart`: CRX2, CRX3, ZIP and signed XPI built byte by byte in the test (`test/helpers/extension_packages.dart`); envelope and entry-name tables; every unsafe entry kind; encryption, ZIP64, split archives and other methods; lying sizes and CRCs; a deflate bomb; the stream that loops a pure Dart inflater; manifest problems, locales, permissions and background kinds; 3000 seeded damaged packages read or refused the same way twice | CRX3 header length read as CRX2's; a `..` segment let through; inflating through `package:archive`'s `Inflate` (the looping stream times out) |
 | Grants | `test/web_extension_grants_test.dart`: manifests by claims, including `<all_urls>`, `*://*/*`, wildcard claims, IP hosts, `file:` | `<all_urls>` passed through; a wildcard claim granting the bare suffix's siblings; `nativeMessaging` allowed |
 | Attach plan | `test/web_extension_attach_test.dart`: the matrix of support, experiment, archive, kiosk, incognito and enabled sets, each cell's `ExtensionAttach` | archive tier ignored; incognito given a persistent controller |
 | Posture | NESTED-010's posture test gains the field; `forNested()` keeps it | `forNested()` dropping it |

@@ -30,27 +30,20 @@ Web extensions SHALL be reachable only on iOS 18.4+ and macOS 15.4+, and there o
 
 ### Requirement: WEBEXT-002 - The user imports an extension from a file; the app fetches none
 
-App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`. The app SHALL download no extension, check no store signature and update none on its own. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for.
+App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`, read as WEBEXT-013 says. The app SHALL download no extension and update none on its own. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for, and say when the package carried a signature the app did not check.
 
 #### Scenario: A Chrome package
 
-- **GIVEN** a `.crx` file (version 2 or 3) holding a valid extension
+- **GIVEN** a `.crx` file holding a valid extension
 - **WHEN** the user imports it
-- **THEN** the package header is removed and the archive behind it is read
-- **AND** the summary shows the extension's name, version and what it asks for
+- **THEN** the summary shows the extension's name, version and what it asks for
 - **AND** the summary says the package's signature was not checked
 
 #### Scenario: A file that is not an extension
 
-- **GIVEN** a `.zip` with no `manifest.json` at its root
+- **GIVEN** a file WEBEXT-013 refuses
 - **WHEN** the user imports it
-- **THEN** nothing is added and the user is told the file holds no extension
-
-#### Scenario: An archive entry outside the extension's folder
-
-- **GIVEN** a `.zip` with an entry named `../evil.js` or an absolute path
-- **WHEN** the user imports it
-- **THEN** nothing is added and nothing is written outside the app's extension folder
+- **THEN** nothing is added and the user is told why, in the words of the refusal
 
 #### Scenario: Removing an extension
 
@@ -210,3 +203,55 @@ With the Web extensions switch or developer mode off, no webview SHALL attach an
 - **WHEN** the user turns Web extensions off, reopens the site, then turns it back on
 - **THEN** the site ran with no extension while it was off
 - **AND** the extension runs on the site again after it is back on
+
+### Requirement: WEBEXT-013 - A package is read from its bytes, or refused with the reason
+
+A package SHALL be told from its bytes, never its name: a Chrome package (version 2 or 3) is read from the archive after its header, a `.zip` or `.xpi` as it is. It SHALL be refused, naming why, when it is cut short, its records disagree, an entry could land outside the extension's folder or on another entry, an entry is not what the archive declares, it passes the size limits, or its root has no readable manifest. Reading SHALL never throw.
+
+#### Scenario: Chrome packages of both versions
+
+- **GIVEN** a `.crx` of version 3 (a header length, then a signed header) or version 2 (a key length and a signature length, then both)
+- **WHEN** it is read
+- **THEN** the archive after the header is read, and the package is marked as carrying a signature the app did not check
+
+#### Scenario: A signed Firefox package
+
+- **GIVEN** an `.xpi` holding `META-INF/mozilla.rsa`
+- **WHEN** it is read
+- **THEN** it is read as a ZIP and marked as carrying a signature the app did not check
+
+#### Scenario: An entry outside the folder
+
+- **GIVEN** an archive with an entry named `../evil.js`, `/abs.js`, `a\b.js`, a symbolic link, `A.js` beside `a.js`, or `a` beside `a/b.js`
+- **WHEN** it is read
+- **THEN** it is refused, naming the entry and its problem, and nothing is inflated
+
+#### Scenario: An entry larger than it declares
+
+- **GIVEN** an entry declaring 1 KiB whose deflate stream makes 2 MiB
+- **WHEN** it is read
+- **THEN** inflating stops past 1 KiB and the package is refused as corrupt
+
+#### Scenario: A deflate stream built to never end
+
+- **GIVEN** an entry whose stream loops a pure Dart inflater forever
+- **WHEN** it is read
+- **THEN** the package is refused as corrupt, promptly
+
+#### Scenario: Sizes past the limit
+
+- **GIVEN** an archive whose entries declare more than 256 MiB in all
+- **WHEN** it is read
+- **THEN** it is refused as too large before any entry is inflated
+
+#### Scenario: A localized name
+
+- **GIVEN** a manifest named `__MSG_extName__` with `default_locale` `en` and `_locales/en/messages.json` naming `ExtName` `Tidy`
+- **WHEN** it is read
+- **THEN** the extension's name is `Tidy`
+
+#### Scenario: Any bytes at all
+
+- **GIVEN** random bytes, or a package with bytes changed or cut at random
+- **WHEN** it is read
+- **THEN** it is read or refused, the same way each time, and nothing is thrown

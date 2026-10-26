@@ -82,6 +82,10 @@ Future<void> hostDeleteDirectory(String path) async {
 /// their own bounded-inflation guards.
 Converter<List<int>, List<int>> get hostGzipDecoder => io.gzip.decoder;
 Converter<List<int>, List<int>> get hostZlibDecoder => io.zlib.decoder;
+
+/// Raw deflate, as a ZIP archive's entries hold it: no zlib header.
+Converter<List<int>, List<int>> get hostDeflateDecoder =>
+    io.ZLibDecoder(raw: true);
 Converter<List<int>, List<int>> get hostGzipEncoder => io.gzip.encoder;
 
 /// Synchronous read, for the compute-isolate parse paths that take a path.

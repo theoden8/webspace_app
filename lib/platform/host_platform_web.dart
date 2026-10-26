@@ -68,6 +68,7 @@ class _UnsupportedCodec extends Converter<List<int>, List<int>> {
 
 Converter<List<int>, List<int>> get hostGzipDecoder => const _UnsupportedCodec('gzip.decoder');
 Converter<List<int>, List<int>> get hostZlibDecoder => const _UnsupportedCodec('zlib.decoder');
+Converter<List<int>, List<int>> get hostDeflateDecoder => const _UnsupportedCodec('deflate.decoder');
 Converter<List<int>, List<int>> get hostGzipEncoder => const _UnsupportedCodec('gzip.encoder');
 
 String hostReadFileTextSync(String path) =>

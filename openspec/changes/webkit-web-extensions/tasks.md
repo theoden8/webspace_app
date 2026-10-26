@@ -7,8 +7,9 @@
 
 ## 2. Import and library
 
-- [ ] 2.1 Add `lib/services/web_extension_unpack.dart`: `unpackExtension(bytes, kind:)` and the sealed `UnpackResult` (design D5), pure Dart over `archive`; verify `node test/js/layers.test.js` passes
-- [ ] 2.2 Add `test/web_extension_unpack_test.dart`: CRX2, CRX3, ZIP and XPI built in the test, truncated headers, traversal, absolute and symlink entries, missing or broken manifest, a seeded fuzz, and the two planted mutants from design D9; test names cite WEBEXT-002; verify it passes
+- [x] 2.1 Add `lib/services/web_extension_package_engine.dart`: `readExtensionPackage(bytes)`, the sealed `PackageRead` and `PackageRefusal` (design D5), inflating through the shared `inflateBounded` and `hostDeflateDecoder`; verify `node --test test/js/layers.test.js` and `test/named_arguments_test.dart` pass
+- [x] 2.2 Add `test/web_extension_package_test.dart` and `test/helpers/extension_packages.dart`: the cases and planted mistakes of design D9's Package row; test names cite WEBEXT-013; verify `flutter test test/web_extension_package_test.dart` passes
+- [x] 2.2a Move the download engine's and the QR codec's bounded inflation into `lib/services/bounded_inflate.dart`, tested by `test/bounded_inflate_test.dart`; verify `flutter test test/bounded_inflate_test.dart test/download_engine_test.dart test/site_settings_qr_codec_test.dart` passes
 - [ ] 2.3 Add `WebExtensionId` (an extension type with `parse` and `mint`), the library store beside the user scripts' in `ShellStore`, and the folder under app support; verify a store round-trip test passes
 - [ ] 2.4 Add App Settings > Extensions: import through `FileDialog`, the summary before adding (signature not checked), WebKit's errors per entry (WEBEXT-003), removal (WEBEXT-002); strings in `lib/l10n/app_en.arb`; verify a widget test of the import summary, an entry's errors and removal passes and `npm run test:js` passes the l10n and hint gates
 
