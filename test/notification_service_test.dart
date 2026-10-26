@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/notification_service.dart';
 
 void main() {
@@ -43,6 +44,16 @@ void main() {
       FlutterLocalNotificationsPlatform.instance = _NoLaunchDetails();
       expect(await NotificationService.instance.launchSiteId(), isNull);
     });
+  });
+
+  group('NOTIF-007 the permission on Linux', () {
+    test('a freedesktop server asks nothing, so a post is never dropped',
+        () async {
+      FlutterLocalNotificationsPlatform.instance = _NoLaunchDetails();
+      expect(await NotificationService.instance.requestPermission(), isTrue);
+      expect(await NotificationService.instance.osPermission(), isTrue);
+      expect(NotificationService.instance.permissionGranted, isTrue);
+    }, skip: !hostIsLinux);
   });
 
   group('NOTIF-016 a post off screen never prompts', () {

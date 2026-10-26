@@ -349,6 +349,13 @@ The system SHALL request OS-level notification permission before displaying the 
 **Then** the system requests notification permission via `UNUserNotificationCenter`
 **And** notifications are displayed only if the user allows it
 
+#### Scenario: Linux has no permission to ask for
+
+**Given** the platform is Linux
+**When** a site attempts to show a notification
+**Then** no permission is requested and the notification goes to the desktop's notification server on the session bus
+**And** the post is never dropped as denied: a freedesktop server has no permission to grant
+
 #### Scenario: First notification on Android 13+ triggers permission request
 
 **Given** the platform is Android with API level >= 33
