@@ -2914,7 +2914,7 @@ final class _WalkResidency implements ResidencyHost {
         world.proxies != null && world.proxies?.scope != WalkScope.session
         ? ProxyBinding.processWide
         : ProxyBinding.perSite,
-    routerActive: world.proxies?.scope == WalkScope.router,
+    routesPerSite: world.proxies?.scope == WalkScope.router,
     sharesDefaultSession: world._inDefaultSession,
   );
 

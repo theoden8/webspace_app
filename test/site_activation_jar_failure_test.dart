@@ -105,7 +105,7 @@ final class _Residency implements ResidencyHost {
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
       binding: ProxyBinding.perSite,
-      routerActive: false,
+      routesPerSite: false,
       sharesDefaultSession: (_) => false);
 
   @override

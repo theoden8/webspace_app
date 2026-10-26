@@ -375,6 +375,27 @@ the override under the sites already loaded.
    proxy's contenders and left the rest to the commit's Tor sync.
    *Partial:* the model takes no settings change, since a site's route and
    exit are its constants (`Route`, `TorExit`).
+21. **2026-10-26, branch `claude/router-decided`.** The gap "turning router
+   mode off with sites on different routes loaded" had a path after all.
+   The router decides at the launch, which binds the relay as the rule
+   and then waits for its proof (PROXY-015), and the grid takes taps
+   meanwhile. The residency plan read router mode from
+   `ProxyRouterService.isActive`, true as soon as the relay was bound, so
+   two sites tapped on different proxies stayed loaded side by side. A
+   proof that failed then stood the relay down with both under one rule,
+   pointed at a stopped port: two routes running on one rule, which
+   `Inv_OneRoute` and `ProcessRoute`'s assert rule out. The launch's own
+   activation, which would have unloaded one, is skipped once a tap
+   activated. Now residency reads `routesPerSite`, true only once the
+   launch's proof has passed (the topology, the wake's view of the rule,
+   the notification switch's conflict). Before that a tap unloads the
+   other route as under PROXY-008. The stand-down is private to `activate`, asserting it never
+   follows a proof. *Why:* the topology moves only one way over a run,
+   from every site contending to the router's shared session, and a
+   weaker rule keeps what a stronger one planned. *Partial:* the model
+   still holds the topology as a constant per world, and the order is
+   checked by `proxy_router_service_test`'s two BUG-037 cases, each
+   caught reading `routesPerSite` as `isActive`.
 
 ## Known open gaps
 
@@ -396,8 +417,9 @@ the override under the sites already loaded.
   external-scheme cancel in `webview.dart` and at the nested hop in
   `web_view_model.dart`); this pair is untested on a device.
 
-- Turning router mode off with sites on different routes loaded leaves them
-  on one rule; nothing unloads them.
+- After a launch whose router proof failed, the one route left loaded
+  runs on the stopped relay's port, failing closed, until the next
+  activation writes its rule.
 - The model holds which sites run, not the route the rule is set to: the
   order of two writes (a nested open's apply against a webview build, a
   webview build against the app's return closing a wake's checks) is

@@ -1373,6 +1373,13 @@ credentials are answered `502` for the rest of the run, so their sites
 fail closed. Router mode stays up for every other identity: standing it
 down mid-run would move loaded sites onto another route.
 
+Until the launch's proof passes, the app SHALL place the sites the user
+opens as under PROXY-008, though the relay already owns the rule: the grid
+takes taps while the proof runs, and a proof that fails stands the relay
+down with every site it let load left on one rule. Router mode routes sites
+apart only once the proof has passed, and it does not stand down after
+that (BUG-037).
+
 This exists because the failure it detects is otherwise invisible.
 Chromium caches a proxy credential per `HttpNetworkSession` and does not
 partition proxy entries by `NetworkAnonymizationKey`, so on a device
@@ -1400,6 +1407,15 @@ credential
 **And** the relay is stopped
 **And** the app falls back to the PROXY-008 serialisation
 **And** the failure is logged naming the identity that could not be proven
+
+#### Scenario: A site opened while the launch checks is placed as under PROXY-008
+
+**Given** router mode is starting with sites A and B, on different
+proxies, and its proof is still running
+**When** the user opens A and then B
+**Then** opening B unloads A
+**And** if the proof then fails, only B is loaded when the relay stands
+down
 
 #### Scenario: An unproven site is treated as a failed one
 
