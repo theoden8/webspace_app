@@ -176,7 +176,7 @@ Future<void> main() async {
   WebViewFactory.hybridComposition = true;
   final q = Uri.base.queryParameters;
   runApp(GalleryApp(
-    cardId: q['card'],
+    card: galleryCards.where((c) => c.id == q['card']).firstOrNull,
     brightness: q['theme'] == 'dark' ? Brightness.dark : Brightness.light,
     accent: (AccentColor.values.asNameMap()[q['accent']] ?? AccentColor.blue).color,
     localeCode: q['locale'],
@@ -352,13 +352,14 @@ class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
 class GalleryApp extends StatelessWidget {
   const GalleryApp({
     super.key,
-    this.cardId,
+    this.card,
     this.brightness = Brightness.light,
     this.accent = accentBlue,
     this.localeCode,
   });
 
-  final String? cardId;
+  /// The one card to draw full screen, or null for the index.
+  final GalleryCard? card;
   final Brightness brightness;
   final Color accent;
   final String? localeCode;
@@ -366,9 +367,7 @@ class GalleryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = buildAccentColorScheme(accent, brightness: brightness);
-    final single = cardId == null
-        ? null
-        : galleryCards.where((c) => c.id == cardId).firstOrNull;
+    final card = this.card;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -380,11 +379,11 @@ class GalleryApp extends StatelessWidget {
         scaffoldBackgroundColor:
             brightness == Brightness.light ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
       ),
-      home: single == null
+      home: card == null
           ? const _GalleryIndex()
-          : single.fullBleed
-              ? single.builder(context)
-              : Scaffold(body: SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: single.builder(context)))),
+          : card.fullBleed
+              ? card.builder(context)
+              : Scaffold(body: SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: card.builder(context)))),
     );
   }
 }
