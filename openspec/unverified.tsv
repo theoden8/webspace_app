@@ -189,15 +189,15 @@ US-012	no check: not implemented: userscript-metadata tasks 4.3, 5.2 open (no GM
 WEBEXT-001	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
 WEBEXT-002	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
 WEBEXT-003	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
-WEBEXT-004	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
-WEBEXT-005	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
-WEBEXT-006	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
-WEBEXT-007	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-004	no check: no widget test of the site Extensions screen or its consent sheet yet (tasks 3.5) (partly: test/web_extension_attach_test.dart, "every row attaches what the site and app call for")
+WEBEXT-005	no check: the native refusal of run-time requests and the site-only tab view need the macOS integration test (task 6.1) (partly: test/web_extension_grants_test.dart, "every host row grants the overlap of what was asked and claimed")
+WEBEXT-006	no check: storage per container and removal on delete are native; the macOS integration test is task 6.1 (partly: test/web_extension_attach_test.dart, "every row attaches what the site and app call for")
+WEBEXT-007	no check: the native refusal of messages to apps needs the macOS integration test (task 6.1) (partly: test/web_extension_grants_test.dart, "only the permissions an extension may hold are granted")
 WEBEXT-008	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
-WEBEXT-009	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-009	no check: the locked Extensions row is not built (task 3.5) (partly: test/web_extension_attach_test.dart, "every row attaches what the site and app call for")
 WEBEXT-010	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
 WEBEXT-011	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
-WEBEXT-012	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-012	no check: hiding the screens is not built (tasks 1.2, 2.4) (partly: test/web_extension_attach_test.dart, "every row attaches what the site and app call for")
 # web-push-notifications
 NOTIF-001	no check: the Dart webNotificationRequestPermission handler in lib/services/page_handlers.dart that answers from the toggle is untested; the JS test stubs the bridge to 'granted', and the hidden-toggle scenario has no test (partly: test/js/notification_polyfill_shim.test.js, "requestPermission asks the bridge and adopts its answer")
 # web-screen-sharing

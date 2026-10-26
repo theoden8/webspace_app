@@ -255,3 +255,70 @@ A package SHALL be told from its bytes, never its name: a Chrome package (versio
 - **GIVEN** random bytes, or a package with bytes changed or cut at random
 - **WHEN** it is read
 - **THEN** it is read or refused, the same way each time, and nothing is thrown
+
+### Requirement: WEBEXT-014 - An extension's hosts are what it asked for within the site
+
+On a site, an extension SHALL be granted the pages both a pattern it asked for and a pattern the site's claims cover name, and no other. An exact host claim covers that host; a base-domain claim, the domain and its subdomains; a wildcard claim, its subdomains and the bare host, which a match pattern cannot leave out. A claim with a port covers nothing. Only http and https pages are granted, matched on a dot boundary.
+
+#### Scenario: Every site asked for, one site claimed
+
+- **GIVEN** an extension asking for `<all_urls>` on a site claiming base domain `example.com`
+- **WHEN** its grants are planned
+- **THEN** it is granted `*://*.example.com/*` and nothing else
+
+#### Scenario: A narrower request stays narrow
+
+- **GIVEN** an extension asking for `https://mail.example.com/*` on the same site
+- **WHEN** its grants are planned
+- **THEN** it is granted `https://mail.example.com/*`
+
+#### Scenario: A host that only ends in the domain
+
+- **GIVEN** an extension asking for `*://*.evilexample.com/*` on the same site
+- **WHEN** its grants are planned
+- **THEN** it is granted nothing
+
+#### Scenario: A claim with a port
+
+- **GIVEN** a site claiming `localhost:8080` and an extension asking for `http://localhost:8080/*`
+- **WHEN** its grants are planned
+- **THEN** it is granted nothing
+
+### Requirement: WEBEXT-015 - An extension holds only the permissions the app allows
+
+An extension SHALL be granted only the API permissions it asked for that the app lets an extension hold (storage, tabs, scripting, alarms, context menus, cookies, declarative net request, web navigation, web request, clipboard write, active tab, unlimited storage), never `nativeMessaging` or any other.
+
+#### Scenario: Native messaging asked for
+
+- **GIVEN** an extension asking for `storage`, `tabs`, `scripting`, `nativeMessaging`, `debugger` and `downloads`
+- **WHEN** its grants are planned
+- **THEN** it is granted `storage`, `tabs` and `scripting`
+
+### Requirement: WEBEXT-016 - A site's webviews attach what the site switched on, where it may
+
+A site's webviews SHALL attach the extensions the site switched on that are still in the library, each with its WEBEXT-014 and WEBEXT-015 grants, keeping their data unless the site is incognito. They SHALL attach none, and name why, when the system cannot run extensions, the experiment is off, the site is archived or a kiosk, or none is switched on, checked in that order.
+
+#### Scenario: An ordinary site
+
+- **GIVEN** a site that switched on one extension, on a supported system with the experiment on
+- **WHEN** its webviews' extensions are planned
+- **THEN** that extension attaches, keeping its data
+
+#### Scenario: An incognito site
+
+- **GIVEN** the same site set incognito
+- **WHEN** its webviews' extensions are planned
+- **THEN** the extension attaches without keeping data
+
+#### Scenario: An archived or kiosk site
+
+- **GIVEN** the same site in an archive, or set as a kiosk
+- **WHEN** its webviews' extensions are planned
+- **THEN** none attaches, and the reason names the archive or the kiosk
+
+#### Scenario: An extension removed from the library
+
+- **GIVEN** a site whose only switched-on extension is no longer in the library
+- **WHEN** its webviews' extensions are planned
+- **THEN** none attaches
+

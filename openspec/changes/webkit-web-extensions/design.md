@@ -66,31 +66,32 @@ sites becomes a channel between their containers, which defeats
 
 ### D3. Grants are a plan the Dart side computes
 
-`planExtensionGrants(manifest:, claims:)` is a pure function from an
-extension's requested permissions and host patterns and the site's domain
-claims (`effectiveDomainClaims`) to an `ExtensionGrants` record:
+`planExtensionGrants(entry, claims:)` (`lib/services/web_extension_grants_engine.dart`,
+WEBEXT-014, WEBEXT-015) is a pure function from what an extension asked for
+(its library entry keeps the manifest's permissions and host patterns) and the
+site's domain claims (`effectiveDomainClaims`) to an `ExtensionGrants` record:
 
-- host patterns granted: one `*://host/*` per claimed host and `*://*.host/*`
-  per wildcard claim, whatever the extension asked (`<all_urls>`, `*://*/*` or
-  narrower hosts are all narrowed to these);
-- host patterns denied: `<all_urls>` and every requested pattern the claims do
-  not cover;
-- permissions granted from an allow list (`storage`, `tabs`, `scripting`,
-  `activeTab`, `alarms`, `contextMenus`, `declarativeNetRequest`,
-  `webNavigation`, `cookies`, `unlimitedStorage`); everything else denied,
-  `nativeMessaging` always.
+- host patterns: for each pattern asked for and each pattern the claims cover
+  (`siteMatchPatterns`), the pages both name: the narrower host, the narrower
+  scheme, the path asked for. `<all_urls>` on a site claiming `example.com`
+  becomes `*://*.example.com/*`; a request for `https://mail.example.com/*`
+  stays that. Hosts are compared on a dot boundary. A wildcard claim's pattern
+  takes the bare host too, which a match pattern cannot leave out; a claim with
+  a port grants nothing, since match patterns do not name ports.
+- permissions: what it asked for that is on `grantablePermissions`;
+  `nativeMessaging` never is.
 
-The fork applies it with `setPermissionStatus(.grantedExplicitly / .deniedExplicitly, for:)`
-when it loads the context, and the delegate's `promptForPermissions`,
-`promptForPermissionMatchPatterns` and `promptForPermissionToAccess` answer
-from the same record without showing anything (WEBEXT-005). The user consents
-once, per site, when switching the extension on (WEBEXT-004), which is also
-what App Store guideline 4.7.3 asks.
+The fork applies the grants with `setPermissionStatus(.grantedExplicitly, for:)`
+before it loads the context, and its delegate answers `promptForPermissions`,
+`promptForPermissionMatchPatterns` and `promptForPermissionToAccess` from the
+same grants without showing anything (WEBEXT-005). The user consents once,
+per site, when switching the extension on (WEBEXT-004), which is also what App
+Store guideline 4.7.3 asks.
 
 ### D4. What a webview gets is a sealed plan
 
-`planExtensionAttach(posture inputs, library, support, experiment)` returns a
-sealed `ExtensionAttach`:
+`planExtensionAttach(ExtensionAttachInputs)` (`lib/services/web_extension_attach_engine.dart`,
+WEBEXT-016) returns a sealed `ExtensionAttach`, the reasons checked in this order:
 
 - `NoExtensions(reason)`, with `reason` an enum: `unsupported`,
   `experimentOff`, `archive`, `kiosk`, `noneEnabled`;

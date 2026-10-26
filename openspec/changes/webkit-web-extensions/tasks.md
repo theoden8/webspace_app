@@ -16,15 +16,16 @@
 ## 3. Per site
 
 - [ ] 3.1 Add the `enabledWebExtensions` `SiteField` (QR excluded) and its save and read arms in `lib/web_view_model_json.dart`; drop it in `planSettingsImport` (WEBEXT-011); verify `fvm flutter test test/settings_backup_test.dart test/settings_backup_compat_test.dart` passes and `tool/backup_compat/superset.json` names the field
-- [ ] 3.2 Add `planExtensionGrants` (design D3) and `test/web_extension_grants_test.dart` with its planted mutants; test names cite WEBEXT-005 and WEBEXT-007; verify it passes
-- [ ] 3.3 Add `planExtensionAttach` and the sealed `ExtensionAttach` (design D4), resolved in `WebViewModel.sitePosture` into `SitePage.extensions`; add `test/web_extension_attach_test.dart` over the matrix with its planted mutants; test names cite WEBEXT-006, WEBEXT-009, WEBEXT-010, WEBEXT-012; verify it passes
+- [x] 3.2 Add `planExtensionGrants` (design D3) and `test/web_extension_grants_test.dart` with its planted mutants; test names cite WEBEXT-014 and WEBEXT-015; verify it passes
+- [x] 3.3 Add `planExtensionAttach` and the sealed `ExtensionAttach` (design D4) and `test/web_extension_attach_test.dart` over the matrix with its planted mutants; test names cite WEBEXT-016; verify it passes
+- [ ] 3.3a Resolve it in `WebViewModel.sitePosture` into `SitePage.extensions` and hand `AttachExtensions` to the fork's `webExtensions` setting in the factory; verify the posture and factory tests pass
 - [ ] 3.4 Extend the NESTED-010 posture test so `forNested()` keeps `extensions`; verify it fails with the field dropped and passes as built
 - [ ] 3.5 Add the site's Settings > Extensions screen: a switch per library entry, the consent sheet before switching one on, the archive and kiosk lock (WEBEXT-004, WEBEXT-009); verify its widget test passes and `npm run test:js` passes the l10n and hint gates
 - [ ] 3.6 Add `OrphanStore.webExtensionData` and its sweep in `PageOrphanSweep`; verify `fvm flutter analyze` is clean (the sweep's exhaustive switch) and the orphan sweep test passes
 
 ## 4. Fork (iOS and macOS)
 
-- [ ] 4.1 In `theoden8/flutter_inappwebview`, add the `webExtensions` setting to `InAppWebViewSettings` (platform interface, iOS, macOS) and apply it in `preWKWebViewConfiguration` beside the container binding: the per-container controller cache (design D2), contexts loaded from paths, grants applied (D3); verify `tool/swift_typecheck/check.sh` passes against the fork's sources
+- [ ] 4.1 In `theoden8/flutter_inappwebview` (branch `claude/web-extensions`, commit 823cb4b, written), add the `webExtensions` setting to `InAppWebViewSettings` (platform interface, iOS, macOS) and apply it in `preWKWebViewConfiguration` beside the container binding: the per-container controller cache (design D2), contexts loaded from paths, grants applied (D3), refusals of tabs, windows and native messaging; verify the app's Build iOS & macOS job compiles it with the app pinned to that commit
 - [ ] 4.2 Add the `WKWebExtensionControllerDelegate` (design D7): the site's window and tabs, tab and window requests, popup and options page presentation, refusals; verify XCTests in the fork's `RunnerTests` for controller reuse per container id, grants on a loaded context and each refusal pass
 - [ ] 4.3 Add the channel the site menu uses: list attached contexts' actions, `performAction`, remove a controller's data records; verify a Dart test of the channel's codec passes
 - [ ] 4.4 Tag the fork and move the `dependency_overrides` ref in `pubspec.yaml`; verify `fvm flutter pub get` and `fvm flutter build macos --release` succeed
