@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "隱私",
   "appSettingsExperimentalFolderLibrary": "替代設計",
   "appSettingsExperimentalFolderLibraryHint": "在啟動器網格中將網站整理為群組。",
+  "appSettingsLibraryIconSize": "圖示大小",
+  "appSettingsLibraryIconSizeHint": "所有網站與網路空間圖示的繪製大小。圖示越大，一列能放的越少；越小則放得越多。",
   "siteRedirectHomeSuggestion": "這個網站重新導向至 {url}。要將這個網址設為首頁嗎？新網域的連結也會在此開啟。",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

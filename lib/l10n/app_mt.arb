@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "Privatezza",
   "appSettingsExperimentalFolderLibrary": "Disinn alternattiv",
   "appSettingsExperimentalFolderLibraryHint": "Organizza s-siti fi gruppi fi grilja tat-tnedija.",
+  "appSettingsLibraryIconSize": "Daqs tal-ikoni",
+  "appSettingsLibraryIconSizeHint": "Kemm huma kbar l-ikoni kollha tas-siti u tal-ispazji tal-web. Ikoni akbar jidħlu inqas f'ringiela; iżgħar jidħlu aktar.",
   "siteRedirectHomeSuggestion": "Dan is-sit irridirezzjona lejn {url}. Tuża dan l-indirizz bħala l-paġna ewlenija tiegħu? Il-links għad-dominju l-ġdid se jinfetħu hawn ukoll.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

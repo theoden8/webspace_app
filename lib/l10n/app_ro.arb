@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "Confidențialitate",
   "appSettingsExperimentalFolderLibrary": "Design alternativ",
   "appSettingsExperimentalFolderLibraryHint": "Organizează site-urile în grupuri într-o grilă de lansare.",
+  "appSettingsLibraryIconSize": "Dimensiunea pictogramelor",
+  "appSettingsLibraryIconSizeHint": "Cât de mari sunt desenate toate pictogramele site-urilor și spațiilor web. Pictogramele mai mari încap mai puține pe rând, cele mai mici mai multe.",
   "siteRedirectHomeSuggestion": "Acest site a redirecționat către {url}. Folosiți această adresă ca pagină de pornire? Linkurile către noul domeniu se vor deschide tot aici.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

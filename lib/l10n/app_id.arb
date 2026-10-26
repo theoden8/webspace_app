@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "Privasi",
   "appSettingsExperimentalFolderLibrary": "Desain alternatif",
   "appSettingsExperimentalFolderLibraryHint": "Atur situs ke dalam grup pada kisi peluncur.",
+  "appSettingsLibraryIconSize": "Ukuran ikon",
+  "appSettingsLibraryIconSizeHint": "Seberapa besar setiap ikon situs dan ruang web digambar. Ikon yang lebih besar muat lebih sedikit dalam satu baris; yang lebih kecil muat lebih banyak.",
   "siteRedirectHomeSuggestion": "Situs ini dialihkan ke {url}. Gunakan alamat ini sebagai berandanya? Tautan ke domain baru juga akan terbuka di sini.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

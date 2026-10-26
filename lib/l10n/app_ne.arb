@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "गोपनीयता",
   "appSettingsExperimentalFolderLibrary": "वैकल्पिक डिजाइन",
   "appSettingsExperimentalFolderLibraryHint": "लन्चर ग्रिडमा साइटहरूलाई समूहमा मिलाउनुहोस्।",
+  "appSettingsLibraryIconSize": "आइकनको आकार",
+  "appSettingsLibraryIconSizeHint": "प्रत्येक साइट र वेबस्पेस आइकन कति ठूलो कोरिन्छ। ठूला आइकन एक पङ्क्तिमा थोरै अटाउँछन्; साना धेरै अटाउँछन्।",
   "siteRedirectHomeSuggestion": "यो साइट {url} मा रिडिरेक्ट भएको छ। यसलाई यसको गृहपृष्ठको रूपमा प्रयोग गर्ने? नयाँ डोमेनका लिङ्कहरू पनि यहाँ खुल्नेछन्।",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

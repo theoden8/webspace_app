@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "Faragha",
   "appSettingsExperimentalFolderLibrary": "Muundo mbadala",
   "appSettingsExperimentalFolderLibraryHint": "Panga tovuti katika vikundi kwenye gridi ya kuzindua.",
+  "appSettingsLibraryIconSize": "Ukubwa wa aikoni",
+  "appSettingsLibraryIconSizeHint": "Jinsi kila aikoni ya tovuti na nafasi ya wavuti inavyochorwa kwa ukubwa. Aikoni kubwa zaidi hutoshea chache kwa safu; ndogo zaidi hutoshea nyingi.",
   "siteRedirectHomeSuggestion": "Tovuti hii imeelekeza upya kwenye {url}. Tumia anwani hii kama ukurasa wake wa mwanzo? Viungo vya kikoa kipya pia vitafunguliwa hapa.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

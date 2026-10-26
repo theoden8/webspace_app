@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "Riservatezza",
   "appSettingsExperimentalFolderLibrary": "Design alternativo",
   "appSettingsExperimentalFolderLibraryHint": "Organizza i siti in gruppi in una griglia di avvio.",
+  "appSettingsLibraryIconSize": "Dimensione delle icone",
+  "appSettingsLibraryIconSizeHint": "La grandezza con cui vengono disegnate tutte le icone di siti e spazi web. Le icone più grandi ne stanno meno per riga; quelle più piccole di più.",
   "siteRedirectHomeSuggestion": "Questo sito ha reindirizzato a {url}. Usare questo indirizzo come pagina iniziale? Anche i link al nuovo dominio si apriranno qui.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

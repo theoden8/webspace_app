@@ -1121,6 +1121,8 @@
   "webspaceGlyphPrivacy": "Գաղտնիություն",
   "appSettingsExperimentalFolderLibrary": "Այլընտրանքային ձևավորում",
   "appSettingsExperimentalFolderLibraryHint": "Դասավորեք կայքերը խմբերով գործարկիչի ցանցում։",
+  "appSettingsLibraryIconSize": "Պատկերակների չափ",
+  "appSettingsLibraryIconSizeHint": "Որքան մեծ են գծվում կայքերի և վեբ տարածքների բոլոր պատկերակները։ Մեծ պատկերակները մեկ տողում ավելի քիչ են տեղավորվում, փոքրերը՝ ավելի շատ։",
   "siteRedirectHomeSuggestion": "Այս կայքը վերահղվել է դեպի {url}։ Օգտագործե՞լ այս հասցեն որպես իր գլխավոր էջ։ Նոր տիրույթի հղումները նույնպես կբացվեն այստեղ։",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
