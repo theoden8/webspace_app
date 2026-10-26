@@ -141,6 +141,16 @@ void main() {
       expect(tor.closedCircuits, ['7']);
     });
 
+    test('a circuit id that is not letters and digits is never sent back',
+        () async {
+      tor.circuits = [
+        '7;SIGNAL BUILT \$AA~a,\$BB~b,\$CC~c PURPOSE=GENERAL',
+        '10 BUILT \$AA~a,\$BB~b,\$CC~c PURPOSE=GENERAL',
+      ];
+      await link.pin('{de}');
+      expect(tor.closedCircuits, ['10']);
+    });
+
     test('a country with no exit is refused before tor sees it', () async {
       await expectLater(link.pin('{fr}'), throwsA(isA<TorExitCountryEmpty>()));
       expect(tor.config['ExitNodes'] ?? const [], isEmpty);
