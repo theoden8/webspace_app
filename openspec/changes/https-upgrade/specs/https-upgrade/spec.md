@@ -227,7 +227,8 @@ registered in `AppPref` with the default `true`, and a per-site
 
 On the site's Privacy screen the per-site value SHALL be a switch that shows
 the value the site runs with, dimmed while the site follows the app; a tap
-gives the site its own value and a long press goes back to following.
+gives the site its own value and a long press moves between following and
+keeping the shown value as the site's own (BEHAV-007).
 
 The per-site value SHALL ride `toJson`/`fromJson`, the `WebViewConfig`, the
 `launchUrl` signature and the nested `InAppWebViewScreen`, per the per-site

@@ -1032,7 +1032,8 @@ prominent card; the umbrella as a second prominent card labeled "Tracking
 Protection" with subtitle "Anti-fingerprinting + force tracker blocking";
 a "Trackers and ads" group holding ClearURLs, DNS Blocklist, Content
 Blocker, LocalCDN (Android only) and Third-party cookies; and a
-"Fingerprinting" group holding the letterbox switch.
+"Fingerprinting" group holding the letterbox switch; and, where WebKit
+has a per-site Lockdown Mode, a "Security" group holding it (ETP-032).
 
 Subordinates SHALL render `onChanged: null` while the umbrella is on,
 with `value: true` for ETP-002's four and `value: false` for third-party
@@ -1351,6 +1352,82 @@ site will run, not the stored one.
 **And** the row reads "Direct connections blocked by Tracking Protection
 behind a proxy"
 **And** picking "Disabled" is still possible and is stored
+
+---
+
+### Requirement: ETP-032 - Lockdown Mode per site, following the umbrella
+
+Each site SHALL carry a stored `lockdownModeEnabled` that runs its pages in
+WebKit's Lockdown Mode (`WKWebpagePreferences.isLockdownModeEnabled`, iOS 16+
+and macOS 13+): JavaScript runs without its JIT and the features attacks and
+fingerprinting go through (WebGL, WebAssembly and others WebKit chooses) are
+off. Null, the default, SHALL follow the site's `trackingProtectionEnabled`, so
+a site under the umbrella runs it and a site without does not. A value the
+site sets SHALL win over the umbrella either way: unlike ETP-002's blockers,
+the mode breaks pages, so a site can leave it without giving up the rest of the
+umbrella. The rule is `resolveLockdownMode` in `site_overrides.dart`, which the
+model and the Privacy screen both read.
+
+The decision SHALL be resolved once, as `WebViewModel.effectiveLockdownModeEnabled`
+into `SitePosture.page.lockdownMode`, so the site's webview, a nested screen,
+a popup and a background check all run it. `WebViewFactory.siteSettings` SHALL
+write `lockdownModeEnabled: true` when it is on and `null`, never `false`, when
+it is off: `false` would take the site out of a Lockdown Mode the user turned on
+for the whole device, and only the device's owner may do that. The fork applies
+the setting before the WebView is constructed, so the first page's process
+starts in the mode, and again on every navigation, so a window the page opens
+takes it too.
+
+No other engine the app runs on has the mode: Android WebView has none and WPE
+WebKit exposes none. The setting SHALL be written everywhere and ignored there
+(as ETP-019's Android-only settings are elsewhere), and the switch SHALL be
+shown only where `hostHasLockdownMode` holds, the host being iOS 16+ or macOS
+13+.
+
+The switch SHALL sit on the Privacy screen in its own "Security" group below
+Fingerprinting, as a `ScopedToggle` following Tracking Protection (BEHAV-007):
+dimmed and captioned "Follows Tracking Protection" while the site follows, a
+tap giving the site the other value, and a long press moving between following
+and keeping the shown value. It is never locked. With the umbrella off, the
+Privacy row's summary SHALL name Lockdown Mode among the enabled protections
+while it is on.
+
+The stored value SHALL be written to the site's JSON only when the site set
+one, so a following site saves the same bytes as before, and SHALL travel in a
+QR share (QR-001): it is configuration.
+
+#### Scenario: A following site takes the umbrella's value
+
+**Given** a site with no `lockdownModeEnabled` of its own
+**When** its Tracking Protection is on
+**Then** the posture has `page.lockdownMode: true`
+**And** the native settings carry `lockdownModeEnabled: true`
+**When** its Tracking Protection is off
+**Then** the native settings carry `lockdownModeEnabled: null`
+
+#### Scenario: The site's own value wins either way
+
+**Given** a site with Tracking Protection on and `lockdownModeEnabled: false`
+**Then** the native settings carry `lockdownModeEnabled: null`
+**Given** a site with Tracking Protection off and `lockdownModeEnabled: true`
+**Then** the native settings carry `lockdownModeEnabled: true`
+
+#### Scenario: Only where WebKit has the mode
+
+**Given** the host is Android, Linux, iOS 15 or macOS 12
+**When** the user opens a site's Privacy screen
+**Then** no Lockdown Mode switch is shown
+
+#### Scenario: The switch follows the umbrella dimmed
+
+**Given** the host is iOS 16+ or macOS 13+, the umbrella is on and the site
+follows it
+**When** the user opens the site's Privacy screen
+**Then** the Lockdown Mode switch shows on, dimmed, reading "Follows Tracking
+Protection", and can be changed
+**When** the user taps it
+**Then** the site stores `lockdownModeEnabled: false` and the switch is fully
+opaque
 
 ---
 

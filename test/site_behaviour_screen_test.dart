@@ -348,8 +348,8 @@ void main() {
   });
 
   group('Tabs (TAB-013)', () {
-    testWidgets('inheritance dims an enabled switch and long press restores it',
-        (tester) async {
+    testWidgets('inheritance dims an enabled switch; a long press restores it '
+        'and keeps the followed value (BEHAV-007)', (tester) async {
       final semantics = tester.ensureSemantics();
       try {
         SiteBehaviourValues? seen;
@@ -377,8 +377,15 @@ void main() {
         expect(opacity(), lessThan(1));
         expect(changes, 2, reason: 'releasing a long press must not also tap');
         await _resetTabs(tester);
-        expect(seen!.tabsEnabled, const FollowApp<bool>());
+        expect(seen!.tabsEnabled, const Own(false),
+            reason: 'a following switch keeps what it shows as its own');
         expect(_selectedTabs(tester), isFalse);
+        expect(opacity(), 1);
+        expect(changes, 3);
+        AppPref.tabsEnabled.debugValue = true;
+        await tester.pumpAndSettle();
+        expect(_selectedTabs(tester), isFalse,
+            reason: 'the kept value no longer follows the app');
       } finally {
         semantics.dispose();
       }

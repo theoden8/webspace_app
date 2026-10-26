@@ -286,18 +286,13 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
   /// (NESTED-014); absent where this host does not offer it.
   Widget _signInPopups(AppLocalizations loc) => SettingTile(
         title: loc.siteSettingsSignInPopups,
-        hint: '${loc.siteSettingsSignInPopupsHint}\n\n'
-            '${loc.settingRestoreDefaultHint}',
-        subtitle: _values.signInPopups is FollowApp
-            ? loc.webSearchUseAppDefault
-            : null,
-        control: Toggle(
+        hint: loc.siteSettingsSignInPopupsHint,
+        control: ScopedToggle(
           PopupKind.signInOpens(choice: _values.signInPopups),
-          followsApp: _values.signInPopups is FollowApp,
-          onChanged: (value) =>
-              _update(_values.copyWith(signInPopups: Own(value))),
-          onRestoreDefault: () =>
-              _update(_values.copyWith(signInPopups: const FollowApp())),
+          choice: _values.signInPopups,
+          source: FollowSource.app,
+          onChoice: (choice) =>
+              _update(_values.copyWith(signInPopups: choice)),
         ),
       );
 
@@ -475,15 +470,12 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
           // stored choice.
           SettingTile(
             title: loc.siteSettingsTabs,
-            hint: '${loc.siteSettingsTabsHint}\n\n${loc.settingRestoreDefaultHint}',
-            subtitle: _values.tabsEnabled is FollowApp
-                ? loc.webSearchUseAppDefault
-                : null,
-            control: Toggle(
+            hint: loc.siteSettingsTabsHint,
+            control: ScopedToggle(
               _values.effectiveTabsEnabled,
-              followsApp: _values.tabsEnabled is FollowApp,
-              onChanged: (value) => _setTabs(Own(value)),
-              onRestoreDefault: () => _setTabs(const FollowApp()),
+              choice: _values.tabsEnabled,
+              source: FollowSource.app,
+              onChoice: _setTabs,
             ),
           ),
           // WPE has no per-load cache policy, so there is nothing to switch.

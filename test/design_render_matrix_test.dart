@@ -19,6 +19,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
@@ -46,15 +47,19 @@ final Map<String, Widget Function()> _subjects = {
       onUrlSubmitted: _ignore),
   'setting-toggle (inherited)': () => SettingTile(
         title: 'Tabs',
-        hint: 'Long press to restore the app default.',
-        subtitle: 'App default',
-        control: Toggle(true, followsApp: true,
-            onChanged: (_) {}, onRestoreDefault: () {}),
+        hint: 'Each site opens links in tabs of its own.',
+        control: ScopedToggle(true,
+            choice: const FollowApp(),
+            source: FollowSource.app,
+            onChoice: (_) {}),
       ),
   'setting-toggle (override)': () => SettingTile(
         title: 'Tabs',
-        hint: 'Long press to restore the app default.',
-        control: Toggle(true, onChanged: (_) {}, onRestoreDefault: () {}),
+        hint: 'Each site opens links in tabs of its own.',
+        control: ScopedToggle(true,
+            choice: const Own(true),
+            source: FollowSource.app,
+            onChoice: (_) {}),
       ),
   'hint-button': () => const HintButton(
       title: 'Cookie isolation',

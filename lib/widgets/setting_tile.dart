@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
@@ -90,16 +91,44 @@ sealed class SettingControl {
 }
 
 final class Toggle extends SettingControl {
-  const Toggle(this.value, {
-    required this.onChanged,
-    this.onRestoreDefault,
-    this.followsApp = false,
-  }) : assert(!followsApp || onRestoreDefault != null);
+  const Toggle(this.value, {required this.onChanged});
 
   final bool value;
   final ValueChanged<bool> onChanged;
-  final VoidCallback? onRestoreDefault;
-  final bool followsApp;
+}
+
+/// A switch over a site's [choice], which follows [source] until the site
+/// makes its own (BEHAV-007). It shows [value], what the site runs with,
+/// dimmed while it follows. A tap makes the other value the site's own; a
+/// long press moves between following and keeping the shown value as the
+/// site's own, so it never flips the switch.
+final class ScopedToggle extends SettingControl {
+  const ScopedToggle(this.value, {
+    required this.choice,
+    required this.source,
+    required this.onChoice,
+  });
+
+  final bool value;
+  final Scoped<bool> choice;
+  final FollowSource source;
+  final ValueChanged<Scoped<bool>> onChoice;
+}
+
+/// What a [ScopedToggle] follows until the site sets its own value.
+enum FollowSource { app, trackingProtection }
+
+extension on FollowSource {
+  String label(AppLocalizations loc) => switch (this) {
+        FollowSource.app => loc.webSearchUseAppDefault,
+        FollowSource.trackingProtection => loc.settingFollowsTrackingProtection,
+      };
+
+  String longPressHint(AppLocalizations loc) => switch (this) {
+        FollowSource.app => loc.settingFollowAppHint,
+        FollowSource.trackingProtection =>
+          loc.settingFollowTrackingProtectionHint,
+      };
 }
 
 /// A switch bound to an app pref: shows its live value and sets it.
@@ -156,11 +185,21 @@ class SettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final locked = lock != null;
-    final text = lock?.reason(AppLocalizations.of(context)) ?? subtitle;
+    final scoped = switch (control) {
+      final ScopedToggle t => t,
+      _ => null,
+    };
+    final following = scoped?.choice is FollowApp<bool>;
+    final text = lock?.reason(loc) ??
+        subtitle ??
+        (following ? scoped?.source.label(loc) : null);
     final titleRow = HintedTitle(
       title,
-      hint: hint,
+      hint: scoped == null
+          ? hint
+          : [?hint, scoped.source.longPressHint(loc)].join('\n\n'),
       hintTitle: hintTitle,
       warn: missingData,
     );
@@ -181,11 +220,12 @@ Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
       value: value,
       onChanged: locked ? null : onChanged,
     );
-    if (control case Toggle(
-        :final value, :final onChanged, :final onRestoreDefault?, :final followsApp)) {
+    if (control case ScopedToggle(
+        :final value, :final source, :final onChoice)) {
       return MergeSemantics(
         child: Semantics(
-          onLongPressHint: AppLocalizations.of(context).webSearchUseAppDefault,
+          onLongPressHint:
+              following ? loc.settingKeepForSite : source.label(loc),
           child: ListTile(
             leading: leading,
             contentPadding: contentPadding,
@@ -193,14 +233,16 @@ Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
             title: titleRow,
             subtitle: subtitleText,
             trailing: Opacity(
-              opacity: followsApp ? SettingStyle.inheritedOpacity : 1,
+              opacity: following && !locked ? SettingStyle.inheritedOpacity : 1,
               child: Switch(
                 value: value,
-                onChanged: locked ? null : onChanged,
+                onChanged: locked ? null : (v) => onChoice(Own(v)),
               ),
             ),
-            onTap: locked ? null : () => onChanged(!value),
-            onLongPress: locked ? null : onRestoreDefault,
+            onTap: locked ? null : () => onChoice(Own(!value)),
+            onLongPress: locked
+                ? null
+                : () => onChoice(following ? Own(value) : const FollowApp()),
           ),
         ),
       );
@@ -221,7 +263,7 @@ Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
         onTap,
       ),
       Trailing(:final child, :final onTap) => (child, onTap),
-      Toggle() || PrefToggle() || null => (null, null),
+      Toggle() || ScopedToggle() || PrefToggle() || null => (null, null),
     };
     return ListTile(
       leading: leading,

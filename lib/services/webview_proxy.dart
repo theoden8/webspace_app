@@ -551,7 +551,8 @@ class PlatformInfo {
       // ignored and the site would load over the device IP (LEAK-003), so
       // report no support: the row is hidden and `_bindingFor` fails closed.
       _isProxySupportedCached =
-          appleOsMeetsFloor(hostOperatingSystemVersion, isIOS: hostIsIOS);
+          appleOsMeetsFloor(hostOperatingSystemVersion,
+              isIOS: hostIsIOS, floor: AppleOsFloor.stores);
       return;
     }
     if (hostIsLinux) {

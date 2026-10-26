@@ -64,6 +64,8 @@ typedef SiteMedia = ({CaptureGrants capture, bool? protectedContent});
 /// How pages are run and presented.
 typedef SitePage = ({
   bool javascript,
+  // WebKit's Lockdown Mode (ETP-032); off leaves the device's own setting.
+  bool lockdownMode,
   String? userAgent,
   String? language,
   int zoomPercent,

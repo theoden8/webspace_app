@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -18,6 +19,7 @@ SitePrivacyValues _values({
   bool contentBlock = false,
   bool localCdn = false,
   bool thirdPartyCookies = false,
+  Scoped<bool> lockdownMode = const FollowApp(),
   bool letterbox = false,
   bool incognito = false,
   bool blockScreenshots = false,
@@ -31,6 +33,7 @@ SitePrivacyValues _values({
       contentBlockEnabled: contentBlock,
       localCdnEnabled: localCdn,
       thirdPartyCookiesEnabled: thirdPartyCookies,
+      lockdownMode: lockdownMode,
       letterboxEnabled: letterbox,
       incognito: incognito,
       blockScreenshots: blockScreenshots,
@@ -80,6 +83,7 @@ void main() {
         contentBlockEnabled: false,
         localCdnEnabled: false,
         thirdPartyCookiesEnabled: false,
+        lockdownMode: const FollowApp(),
         letterboxEnabled: false,
         incognito: false,
       );
@@ -98,6 +102,7 @@ void main() {
         contentBlockEnabled: false,
         localCdnEnabled: false,
         thirdPartyCookiesEnabled: true,
+        lockdownMode: const FollowApp(),
         letterboxEnabled: false,
         incognito: false,
       );
@@ -116,6 +121,71 @@ void main() {
             .effectiveThirdPartyCookies,
         isTrue,
       );
+    });
+  });
+
+  group('Lockdown Mode follows Tracking Protection (ETP-032)', () {
+    tearDown(() => debugHostHasLockdownMode = null);
+
+    Finder tile() => find.ancestor(
+        of: find.text('Lockdown Mode'), matching: find.byType(ListTile));
+    Finder toggle() =>
+        find.descendant(of: tile(), matching: find.byType(Switch));
+    double opacity(WidgetTester tester) => tester.widget<Opacity>(
+        find.ancestor(of: toggle(), matching: find.byType(Opacity)).first)
+        .opacity;
+
+    test('a following site runs it exactly when the umbrella is on', () {
+      final following = _values();
+      expect(following.effectiveLockdownMode, isFalse);
+      expect(following.copyWith(trackingProtectionEnabled: true)
+          .effectiveLockdownMode, isTrue);
+      final own = _values(trackingProtection: true, lockdownMode: const Own(false));
+      expect(own.effectiveLockdownMode, isFalse,
+          reason: 'the site may leave it under the umbrella');
+    });
+
+    testWidgets('absent where WebKit has no per-site Lockdown Mode',
+        (tester) async {
+      debugHostHasLockdownMode = false;
+      await _pump(tester, values: _values(lockdownMode: const Own(true)));
+      expect(find.text('Lockdown Mode'), findsNothing);
+      expect(find.text('Security'), findsNothing);
+    });
+
+    testWidgets('under the umbrella it shows on, dimmed and not locked',
+        (tester) async {
+      debugHostHasLockdownMode = true;
+      await _pump(tester, values: _values(trackingProtection: true));
+      expect(tester.widget<Switch>(toggle()).value, isTrue);
+      expect(tester.widget<Switch>(toggle()).onChanged, isNotNull);
+      expect(opacity(tester), lessThan(1));
+      expect(find.descendant(of: tile(),
+          matching: find.text('Follows Tracking Protection')), findsOneWidget);
+    });
+
+    testWidgets('a tap leaves it for the site, a long press keeps what it shows',
+        (tester) async {
+      debugHostHasLockdownMode = true;
+      SitePrivacyValues? seen;
+      await _pump(tester,
+          values: _values(trackingProtection: true),
+          onChanged: (v) => seen = v);
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(seen!.lockdownMode, const Own(false));
+      expect(seen!.effectiveLockdownMode, isFalse);
+      expect(opacity(tester), 1);
+      await tester.longPress(toggle());
+      await tester.pumpAndSettle();
+      expect(seen!.lockdownMode, const FollowApp<bool>());
+      expect(tester.widget<Switch>(toggle()).value, isTrue);
+      await tester.longPress(toggle());
+      await tester.pumpAndSettle();
+      expect(seen!.lockdownMode, const Own(true));
+      expect(seen!.copyWith(trackingProtectionEnabled: false)
+          .effectiveLockdownMode, isTrue,
+          reason: 'a kept value no longer follows the umbrella');
     });
   });
 

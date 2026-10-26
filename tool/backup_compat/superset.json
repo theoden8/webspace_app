@@ -64,6 +64,7 @@
       "disabledFilterLists": ["easylist"],
       "contentBlockEnabled": false,
       "trackingProtectionEnabled": false,
+      "lockdownModeEnabled": true,
       "localCdnEnabled": false,
       "externalLinkMode": "browser",
       "fullscreenMode": true,

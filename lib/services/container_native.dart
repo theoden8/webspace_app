@@ -146,7 +146,8 @@ class _ContainerNative implements ContainerNative {
         _supportedCache = inapp.ContainerController.isClassSupported(
               platform: defaultTargetPlatform,
             ) &&
-            appleOsMeetsFloor(hostOperatingSystemVersion, isIOS: hostIsIOS);
+            appleOsMeetsFloor(hostOperatingSystemVersion,
+                isIOS: hostIsIOS, floor: AppleOsFloor.stores);
       } else if (hostIsLinux) {
         // The fork's `containerId` join requires WPE WebKit 2.40+
         // (`webkit_network_session_new`) and its CMakeLists refuses to

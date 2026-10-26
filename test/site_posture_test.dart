@@ -100,7 +100,8 @@ void main() {
         );
 
         test(
-          '$cell: media and page follow tier and TP (ETP-023, ARCH-006, NOTIF-004)',
+          '$cell: media and page follow tier and TP '
+          '(ETP-023, ETP-032, ARCH-006, NOTIF-004)',
           () {
             final p = _posture(_site(tp: tp, archived: archived));
             expect(
@@ -124,6 +125,7 @@ void main() {
               reason: cell,
             );
             expect(p.page.notifications, !archived, reason: cell);
+            expect(p.page.lockdownMode, tp, reason: cell);
             expect(
               p.page.externalLinks,
               archived ? ExternalLinkMode.inApp : ExternalLinkMode.browser,
