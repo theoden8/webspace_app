@@ -184,7 +184,7 @@ void main() {
         ProxyConflictEngine.canEnable(
           targetProxy: target,
           otherEnabledProxies: others,
-          routerActive: true,
+          routesPerSite: true,
         ),
         isTrue,
       );
@@ -193,7 +193,7 @@ void main() {
           targetProxy: target,
           others: others,
           proxyOf: (p) => p,
-          routerActive: true,
+          routesPerSite: true,
         ),
         isNull,
       );

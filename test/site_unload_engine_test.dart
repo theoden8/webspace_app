@@ -47,18 +47,18 @@ UserProxySettings _default() => UserProxySettings(type: ProxyType.DEFAULT);
 /// The topologies a host produces, built the way the app builds them.
 final _perSession = ProxyTopology.of(
   binding: ProxyBinding.perSite,
-  routerActive: false,
+  routesPerSite: false,
   sharesDefaultSession: (_) => false,
 );
 final _processGlobal = ProxyTopology.of(
   binding: ProxyBinding.processWide,
-  routerActive: false,
+  routesPerSite: false,
   sharesDefaultSession: (_) => false,
 );
 ProxyTopology _routed(bool Function(WebViewModel model) sharesDefaultSession) =>
     ProxyTopology.of(
       binding: ProxyBinding.processWide,
-      routerActive: true,
+      routesPerSite: true,
       sharesDefaultSession: sharesDefaultSession,
     );
 
@@ -660,7 +660,7 @@ void main() {
     ProxyTopology of({required ProxyBinding binding, bool router = false}) =>
         ProxyTopology.of(
           binding: binding,
-          routerActive: router,
+          routesPerSite: router,
           sharesDefaultSession: (_) => false,
         );
 

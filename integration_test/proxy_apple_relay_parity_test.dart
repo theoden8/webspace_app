@@ -79,8 +79,7 @@ void main() {
     // Put it back: this flag is off in every other arm and in the app, and a
     // leaked true would quietly move them onto a path they do not take.
     ProxyRouterService.appleRelayEnabled = false;
-    await ProxyRouterService.instance.deactivate();
-    ProxyRouterService.instance.resetForTest();
+    await ProxyRouterService.instance.stopForTest();
     await upstreamA.close();
     await upstreamB.close();
   });

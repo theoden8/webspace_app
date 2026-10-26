@@ -35,7 +35,7 @@ class _ProcessGlobal extends Fake implements ResidencyHost {
   @override
   final ProxyTopology proxyTopology = ProxyTopology.of(
     binding: ProxyBinding.processWide,
-    routerActive: false,
+    routesPerSite: false,
     sharesDefaultSession: (_) => false,
   );
 }

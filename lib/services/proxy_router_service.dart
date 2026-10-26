@@ -88,10 +88,28 @@ class ProxyRouterService {
     _state = null;
     _host = null;
     _port = null;
+    _proven = false;
   }
 
-  /// True once the relay is bound and holding a route table.
+  /// [resetForTest], and the relay stopped.
+  @visibleForTesting
+  Future<void> stopForTest() async {
+    _proven = false;
+    await _standDown();
+  }
+
+  /// True once the relay is bound and holding a route table: it owns the
+  /// process-wide rule and answers the challenges its credentials meet.
   bool get isActive => _state != null && _port != null && _host != null;
+
+  /// Whether sites may run on different routes beside each other: the
+  /// launch's checks have proved this device delivers per-site routing
+  /// (PROXY-015), and router mode does not stand down for the rest of the
+  /// run. Until then the relay is up but a site the user opens is placed
+  /// as under PROXY-008, since a check that fails stands the relay down
+  /// with every site it let load left on one rule (BUG-037).
+  bool get routesPerSite => isActive && _proven;
+  bool _proven = false;
 
   /// Loopback address the relay bound, or null. A random one in 127/8,
   /// so it is not interchangeable with `127.0.0.1`.
@@ -252,7 +270,7 @@ class ProxyRouterService {
         !await bindOverride(endpoint.host, port: port)) {
       LogTag.proxy
           .error('Proxy override did not apply; not activating router mode');
-      await deactivate();
+      await _standDown();
       return null;
     }
     // PROXY-015. Everything above proves the app WANTS per-site routing;
@@ -269,9 +287,10 @@ class ProxyRouterService {
             if (_routed.contains(identity)) identity,
         ])) {
       LogTag.proxy.error('Attribution not proven; not activating router mode');
-      await deactivate();
+      await _standDown();
       return null;
     }
+    _proven = true;
 
     LogTag.proxy.info('Router mode active on ${endpoint.host}:$port for '
         '${perSiteProxies.length} site(s)', sensitive: true);
@@ -374,8 +393,11 @@ class ProxyRouterService {
     return ok;
   }
 
-  /// Tear the relay down and forget every credential.
-  Future<void> deactivate() async {
+  /// Tear the relay down and forget every credential: only the launch's
+  /// [activate] does, before its checks pass.
+  Future<void> _standDown() async {
+    assert(!_proven,
+        'router mode never stands down once its launch checks pass (BUG-037)');
     _attribution?.end();
     _attribution = null;
     _table = const {};

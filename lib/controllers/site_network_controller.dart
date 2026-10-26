@@ -266,7 +266,7 @@ class SiteNetworkController {
   /// the router it still shares a cached credential.
   ProxyTopology get topology => ProxyTopology.of(
         binding: ProxyManager.binding,
-        routerActive: ProxyRouterService.instance.isActive,
+        routesPerSite: ProxyRouterService.instance.routesPerSite,
         sharesDefaultSession: (m) => !ownsContainerProfile(m),
       );
 
@@ -310,10 +310,11 @@ class SiteNetworkController {
 
   /// Bring up the per-site proxy router (PROXY-013).
   ///
-  /// Failure at any step leaves `ProxyRouterService.isActive` false, which
-  /// puts every downstream branch back on the PROXY-008 serialisation —
-  /// the pre-router behaviour, which is correct, just slower on switch.
-  /// Nothing here may clear the proxy override on failure.
+  /// Until its checks pass `ProxyRouterService.routesPerSite` is false, and
+  /// failure at any step keeps it so: every downstream branch stays on the
+  /// PROXY-008 serialisation, the pre-router behaviour, which is correct,
+  /// just slower on switch. Nothing here may clear the proxy override on
+  /// failure.
   Future<void> activateRouter() async {
     if (!ProxyRouterService.isSupported(useContainers: _sites.useContainers)) {
       return;

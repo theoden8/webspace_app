@@ -222,13 +222,18 @@ void main() {
       );
     });
 
-    test('refuses every challenge again after deactivation', () async {
-      await service.activate(perSiteProxies: const {});
-      final realm = service.realm;
-      await service.deactivate();
+    test('refuses every challenge again after a stand-down', () async {
+      await service.activate(
+        perSiteProxies: const {},
+        bindOverride: (h, {required port}) async => false,
+      );
 
       expect(service.isActive, isFalse);
-      expect(service.ownsChallenge(host: '127.0.0.1', realm: realm), isFalse);
+      expect(
+        service.ownsChallenge(
+            host: FakeRelay.boundHost, realm: relay.startedRealm),
+        isFalse,
+      );
       expect(relay.stopCalls, 1);
     });
   });
@@ -578,6 +583,55 @@ void main() {
       expect(service.credentialFor(RouterIdentity.ofSite(SiteId('a'))), isNull);
       expect(relay.stopCalls, greaterThan(0),
           reason: 'the relay must not be left listening after a failed check');
+    });
+
+    /// The grid takes taps while the launch's checks run, and the relay
+    /// already owns the rule. Placed as routed then, two sites on different
+    /// proxies stayed loaded, and a check that failed stood the relay down
+    /// with both on one rule; the launch's own activation, which a tap
+    /// skips, was the only cleanup. The residency plan reads
+    /// [ProxyRouterService.routesPerSite], so a tap in that window unloads
+    /// the other route as under PROXY-008.
+    test('sites route apart only once the launch checks pass (BUG-037)',
+        () async {
+      final gate = Completer<void>();
+      final device = honestDevice()..gates[a] = gate;
+      final launch = service.activate(
+        perSiteProxies: {
+          for (final id in [a, b])
+            id: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        },
+        probe: device.probe,
+      );
+      await pumpEventQueue();
+      expect(service.isActive, isTrue,
+          reason: 'the relay owns the rule while it checks');
+      expect(service.routesPerSite, isFalse,
+          reason: 'a site opened now is placed as under PROXY-008');
+
+      gate.complete();
+      expect(await launch, 43210);
+      expect(service.routesPerSite, isTrue);
+    });
+
+    test('a launch whose checks fail never routes sites apart (BUG-037)',
+        () async {
+      final gate = Completer<void>();
+      final device = sharedAuthCacheDevice()..gates[a] = gate;
+      final launch = service.activate(
+        perSiteProxies: {
+          for (final id in [a, b])
+            id: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        },
+        probe: device.probe,
+      );
+      await pumpEventQueue();
+      expect(service.routesPerSite, isFalse);
+
+      gate.complete();
+      expect(await launch, isNull);
+      expect(service.isActive, isFalse);
+      expect(service.routesPerSite, isFalse);
     });
 
     test('refuses when any site fails to report at all', () async {

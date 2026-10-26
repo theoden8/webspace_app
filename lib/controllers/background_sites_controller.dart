@@ -108,7 +108,7 @@ class BackgroundSitesController {
       targetProxy: target.outboundProxySettings,
       others: others,
       proxyOf: (m) => m.outboundProxySettings,
-      routerActive: ProxyRouterService.instance.isActive,
+      routesPerSite: ProxyRouterService.instance.routesPerSite,
     );
     if (blocker == null) return null;
     return blocker.name.isNotEmpty
@@ -412,7 +412,7 @@ class _WakeHost implements BackgroundWakeHost<WebViewModel> {
 
   /// Android outside router mode: one proxy override for the process.
   static bool get _proxyIsGlobal =>
-      hostIsAndroid && !ProxyRouterService.instance.isActive;
+      hostIsAndroid && !ProxyRouterService.instance.routesPerSite;
 
   @override
   List<WakeCandidate> wakeCandidates() {

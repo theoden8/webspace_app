@@ -205,15 +205,16 @@ sealed class ProxyTopology {
     RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(model),
   };
 
-  /// Where the [binding] puts a proxy, until the router runs (Android only);
+  /// Where the [binding] puts a proxy, until the router routes sites apart
+  /// (Android only, `ProxyRouterService.routesPerSite`);
   /// [sharesDefaultSession] then names the sites that still share one
   /// credential.
   factory ProxyTopology.of({
     required ProxyBinding binding,
-    required bool routerActive,
+    required bool routesPerSite,
     required bool Function(WebViewModel model) sharesDefaultSession,
   }) {
-    if (routerActive) return RoutedProxy._(sharesDefaultSession);
+    if (routesPerSite) return RoutedProxy._(sharesDefaultSession);
     return switch (binding) {
       ProxyBinding.perSite => const PerSessionProxy._(),
       ProxyBinding.processWide => const ProcessGlobalProxy._(),
