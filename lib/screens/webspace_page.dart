@@ -1251,8 +1251,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         }
       case SiteMenuAction.search:
         _toggleFind();
-      case SiteMenuAction.webSearch:
-        await _links.webSearch();
       case SiteMenuAction.toggleUrlBar:
         await AppPref.showUrlBar.set(!AppPref.showUrlBar.value);
       case SiteMenuAction.fullscreen:
