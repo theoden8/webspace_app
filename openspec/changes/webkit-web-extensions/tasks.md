@@ -26,10 +26,10 @@
 
 ## 4. Fork (iOS and macOS)
 
-- [ ] 4.1 In `theoden8/flutter_inappwebview` (branch `claude/web-extensions`, commit 823cb4b, written), add the `webExtensions` setting to `InAppWebViewSettings` (platform interface, iOS, macOS) and apply it in `preWKWebViewConfiguration` beside the container binding: the per-container controller cache (design D2), contexts loaded from paths, grants applied (D3), refusals of tabs, windows and native messaging; verify the app's Build iOS & macOS job compiles it with the app pinned to that commit
+- [x] 4.1 In `theoden8/flutter_inappwebview` (branch `claude/web-extensions`, commit 823cb4b), add the `webExtensions` setting to `InAppWebViewSettings` (platform interface, iOS, macOS) and apply it in `preWKWebViewConfiguration` beside the container binding: the per-container controller cache (design D2), contexts loaded from paths, grants applied (D3), refusals of tabs, windows and native messaging; verified: the app's Build IPA and Build macOS steps compiled it with the app pinned to that commit
 - [ ] 4.2 Add the `WKWebExtensionControllerDelegate` (design D7): the site's window and tabs, tab and window requests, popup and options page presentation, refusals; verify XCTests in the fork's `RunnerTests` for controller reuse per container id, grants on a loaded context and each refusal pass
 - [ ] 4.3 Add the channel the site menu uses: list attached contexts' actions, `performAction`, remove a controller's data records; verify a Dart test of the channel's codec passes
-- [ ] 4.4 Tag the fork and move the `dependency_overrides` ref in `pubspec.yaml`; verify `fvm flutter pub get` and `fvm flutter build macos --release` succeed
+- [x] 4.4 Tag the fork (`v6.2.0-beta.3-privacy-v13.8`, at 823cb4b) and move the `dependency_overrides` ref in `pubspec.yaml`; `flutter pub get` resolves the same commit, which CI built for iOS and macOS
 
 ## 5. Runner and UI glue
 
