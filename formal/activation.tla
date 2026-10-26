@@ -381,6 +381,9 @@ RouterShared == {1, 3}
 \* off Tor, a runtime present (TOR-025).
 ExitSplit == <<1, 2, 0>>
 TorOn == TRUE
+\* The Tor reroute config's: sites 1 and 2 on one exit, site 3 on another,
+\* so a slot of site 1 that runs as site 3 moves the exit under site 2.
+ExitPair == <<1, 1, 2>>
 \* The nested configs': a link may open any site nested (LIR-011).
 LinkAny == Sites
 \* The wake configs': every site's notifications on, and the app goes

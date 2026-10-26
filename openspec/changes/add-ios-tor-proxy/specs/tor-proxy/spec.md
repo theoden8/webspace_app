@@ -645,6 +645,18 @@ mis-routing the whole fail-closed posture exists to prevent.
 - **THEN** site A is unloaded before `ExitNodes` flips to `{nl}`
 - **AND** site A never issues a request from a Dutch exit
 
+#### Scenario: A slot that comes to run as a differently-pinned site leaves first
+
+- **GIVEN** site A and site B are loaded with `torExitCountry = "de"`
+- **AND** site A has a tab that runs as site C, with `torExitCountry = "nl"`
+  (a link tab under containers, LIR-024)
+- **WHEN** the user switches A to that tab, or a reroute moves A's tab on
+  screen to run as C
+- **THEN** A's slot leaves the loaded sites in that turn and opens again
+  as C's activation, which unloads site B before `ExitNodes` flips to
+  `{nl}`
+- **AND** no webview runs as C beside site B (BUG-037)
+
 #### Scenario: Same-country sites coexist
 
 - **GIVEN** site A and site B both have `torExitCountry = "de"`

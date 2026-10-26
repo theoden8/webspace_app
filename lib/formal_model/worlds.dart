@@ -184,6 +184,7 @@ Set<Env> _with(Env e) => switch (e) {
     Env.routeSplit,
   },
   Env.torOn || Env.exitSplit => {Env.torOn, Env.exitSplit},
+  Env.exitPair => {Env.torOn, Env.exitPair},
   Env.notifyAll || Env.wakesUp => {Env.notifyAll, Env.wakesUp},
   Env.dnsAsk || Env.dnsTwo => {Env.dnsAsk, Env.dnsTwo},
   Env.residentOne || Env.capTwo => {Env.residentOne, Env.capTwo},

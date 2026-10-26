@@ -476,6 +476,40 @@ void main() {
       );
     });
 
+    test("a slot whose Tor exit changes in its settings unloads the sites "
+        'on another exit before the new exit applies (TOR-014, BUG-037)', () {
+      final models = _sites([_tor('nl'), _tor('de'), null]);
+      final page = _ContainerPage(models)..torAvailable = true;
+      expect(
+        unloads(
+          SiteUnloadEngine.plan(page, event: const SlotIdentityChanged(0)),
+        ),
+        [(models[1], UnloadReason.torExitMismatch)],
+        reason: 'site 0 now exits from nl; site 2 does not use Tor',
+      );
+    });
+
+    test("a Tor sync's order leaves out a site on screen that is not "
+        'loaded: its activation moves the exit (BUG-037)', () {
+      final models = _sites([_tor('de'), _tor('de'), _tor('fr')]);
+      expect(
+        SiteUnloadEngine.torSyncOrder(
+          shown: models[0],
+          loaded: [models[2], models[1]],
+        ),
+        [models[1], models[2]],
+        reason: 'site 0 is between a rebind and its activation',
+      );
+      expect(
+        SiteUnloadEngine.torSyncOrder(
+          shown: models[2],
+          loaded: [models[2], models[1]],
+        ),
+        [models[2], models[1]],
+        reason: 'the site on screen decides first, then the most recent',
+      );
+    });
+
     test('a nested open runs as its site and reads its own slot as the site '
         'that slot runs as (BUG-037)', () {
       final models = _sites([null, _http('p1:8080')]);

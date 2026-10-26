@@ -167,8 +167,9 @@ final class NestedOpening extends ResidencyEvent {
   final int target;
 }
 
-/// The slot on screen at [slot] now runs as another site, so its proxy may
-/// have changed under its contenders (LIR-024).
+/// The slot on screen at [slot] now runs as another site, or its own proxy
+/// or Tor exit changed in its settings, so its route may have moved under
+/// the sites it shares a rule with (LIR-024, PROXY-008, TOR-014).
 final class SlotIdentityChanged extends ResidencyEvent {
   const SlotIdentityChanged(this.slot);
 
@@ -385,6 +386,10 @@ class SiteUnloadEngine {
         unload(
           proxyContenders(runsAs: identityOf(slot)),
           reason: UnloadReason.proxyMismatch,
+        );
+        unload(
+          torDissenters(runsAs: identityOf(slot)),
+          reason: UnloadReason.torExitMismatch,
         );
     }
     return ResidencyPlan(unloads: unloads);
@@ -1178,6 +1183,18 @@ class SiteUnloadEngine {
   /// global proxy's country, and a country left over on a site since
   /// switched to SOCKS5 constrains nothing.
   static String? torExitConstraint(WebViewModel model) => _torExitPin(model);
+
+  /// The sites a Tor sync reads, in the order that decides the pin: the
+  /// site on screen while it is loaded, then the loaded ones, most recently
+  /// used first. A site on screen but not loaded waits for its activation,
+  /// whose plan moves the exit (LIR-024).
+  static Set<WebViewModel> torSyncOrder({
+    required WebViewModel? shown,
+    required Iterable<WebViewModel> loaded,
+  }) => {
+    if (shown != null && loaded.contains(shown)) shown,
+    ...loaded.toList().reversed,
+  };
 
   static String? _torExitPin(WebViewModel model) {
     final effective = resolveEffectiveProxy(

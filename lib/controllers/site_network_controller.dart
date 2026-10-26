@@ -217,7 +217,10 @@ class SiteNetworkController {
     // used; a saved change can leave two loaded sites wanting different
     // pins, and the one that loses is unloaded before the pin moves, as
     // activation does, or it is rebuilt under a country it never chose.
-    final order = {?_sites.shown, ..._sites.loaded.toList().reversed};
+    final order = SiteUnloadEngine.torSyncOrder(
+      shown: _sites.shown,
+      loaded: _sites.loaded,
+    );
     final rows = [for (final m in order) _sites.models.indexOf(m)];
     final plan = SiteUnloadEngine.plan(residency, event: TorExitSettled(rows));
     await SiteUnloadEngine.apply(residency, plan: plan,

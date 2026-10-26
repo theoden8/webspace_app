@@ -500,9 +500,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     assert(!archived || page.containers, 'an archive needs containers');
     assert(!deletes || page.containers, 'the delete world runs on containers');
     assert(
-      !rehosts || (page.containers && proxies?.scope == WalkScope.global),
+      !rehosts ||
+          (page.containers &&
+              (proxies?.scope != WalkScope.session || _torRuntime)),
       'a link tab runs as another site only with containers, and its '
-      'identity reroutes only under one process-wide proxy (LIR-024)',
+      'identity reroutes only across a rule another site shares: a proxy '
+      'scope or one Tor runtime (LIR-024, TOR-014)',
     );
     // The sites the page proxies resolve against the app-wide proxy, direct.
     if (proxies != null) GlobalOutboundProxy.resetForTest();
@@ -1801,11 +1804,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     }
   }
 
-  /// PROXY-008: running webviews in one proxy scope run one route, held
-  /// after every step as TLC holds `Inv_OneRoute` in every state: a loaded
-  /// slot and a wake's headless check as the site their slot runs as
-  /// (LIR-024), a nested screen as its own. The model's Tor half is the
-  /// activation's own assert, which these worlds' one runtime never splits.
+  /// PROXY-008: running webviews in one proxy scope run one route, and
+  /// running Tor webviews one exit (TOR-014), held after every step as TLC
+  /// holds `Inv_OneRoute` in every state: a loaded slot and a wake's
+  /// headless check as the site their slot runs as (LIR-024), a nested
+  /// screen as its own.
   void _checkOneRoute() {
     if (proxies == null) return;
     final topology = _WalkResidency(this).proxyTopology;
@@ -1821,6 +1824,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     if (routes.length > 1) {
       _violations.add('two running sites in one proxy scope run different '
           'routes (PROXY-008)');
+    }
+    final exits = {
+      for (final a in running) ?SiteUnloadEngine.torExitConstraint(a),
+    };
+    if (exits.length > 1) {
+      _violations.add('two running Tor sites run different exits (TOR-014)');
     }
   }
 
@@ -2659,14 +2668,18 @@ final class _WalkCommitHost implements SiteSetCommitHost {
   @override
   Future<void> syncTorHolders() async {
     final sites = world.sites;
-    final order = {?sites.shown, ...sites.loaded.toList().reversed};
+    final order = SiteUnloadEngine.torSyncOrder(
+      shown: sites.shown,
+      loaded: sites.loaded,
+    );
     final plan = SiteUnloadEngine.plan(
       _WalkResidency(world),
       event: TorExitSettled([for (final m in order) sites.models.indexOf(m)]),
     );
-    expect(plan.unloads, isEmpty,
-        reason: 'a commit\'s Tor sync would unload a site; run it as the '
-            'page does');
+    if (plan.unloads.isNotEmpty) {
+      world._violations.add('a commit\'s Tor sync would unload a site; run '
+          'it as the page does');
+    }
   }
 
   /// Not awaited by the commit, and the relay's table is not the model's.

@@ -1108,6 +1108,18 @@ credential
 **And** no incognito or archive-tier site is active or loaded
 **Then** the route table has no entry for the shared identity
 
+#### Scenario: A slot that comes to run as a shared-profile site leaves first
+
+**Given** router mode is active on Android
+**And** Site A runs in the shared profile with proxy P1, its slot on a tab
+that runs as Site C, outside the shared profile
+**And** Site B, in the shared profile with proxy P2, is being activated
+**When** a reroute or a tab switch brings A's slot back to run as A
+**Then** A's slot leaves the loaded sites in that turn and opens again as
+its own activation, whose plan unloads what the shared identity's route
+would move
+**And** Site B never commits beside A on another route (BUG-037)
+
 ---
 
 ### Requirement: PROXY-014 - Relay stays unencrypted on loopback

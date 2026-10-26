@@ -111,7 +111,7 @@ void main() {
           greaterThan(apply.indexOf('SiteTab.hostCell.write(')),
           reason: 'a plan between the two would read the new identity\'s '
               'route for a webview still on the old one');
-      expect(apply, contains('if (global && retire) _sites.retired(model, commit: commit);'));
+      expect(apply, contains('if (moves && retire) _sites.retired(model, commit: commit);'));
     });
 
     test('a vanished opener leaves the tab where it is', () {

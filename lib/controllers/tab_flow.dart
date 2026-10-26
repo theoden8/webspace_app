@@ -72,6 +72,13 @@ final class TabCalls {
   bool get mounted => _c._host.mounted;
   bool get gateBusy => _c._gate.busy;
   bool get processGlobal => _c.residency.proxyTopology is ProcessGlobalProxy;
+  bool get torRuntime => _c.residency.torAvailable;
+
+  /// The tab table's `MovesRule(from, to)`, where no step's guard reads it.
+  bool movesRule({required WebViewModel from, required WebViewModel to}) {
+    final topology = _c.residency.proxyTopology;
+    return topology.contends(from) || topology.contends(to) || torRuntime;
+  }
   bool isShown(WebViewModel site) => identical(site, _c._sites.shown);
   bool isLoaded(WebViewModel site) => _c._sites.loaded.contains(site);
 
