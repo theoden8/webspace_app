@@ -19,6 +19,7 @@ enum TabPlace {
   tCapUnsave,
   tNav,
   tRebind,
+  tClosed,
   tRemove,
   tDupRead,
   tDupSave,

@@ -577,6 +577,12 @@ const _tabRegressions =
         setup: _oneSignedIn,
         script: [OpenTab(0, tab: 1), GoHome()],
       ),
+      // BUG-036 attempt 6: the leaving capture's save lands between the
+      // close's removal and its list write.
+      'a close leaves no file for a capture of its tab to keep': (
+        setup: [Tap(0), OpenTab(0, tab: 1)],
+        script: [CloseTab(0, tab: 1), Tap(1)],
+      ),
     };
 
 const _alphabet = <SiteAction>[

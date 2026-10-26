@@ -524,8 +524,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     native.pace = gate.pace;
     navStates
       ..pace = gate.pace
-      ..onSave = _onSave
-      ..onRemove = _onRemove;
+      ..onSave = _onSave;
     sites
       ..isolation = page.containers
           ? Containers(engine: ContainerIsolationEngine(containerNative: native))
@@ -1446,13 +1445,6 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       if (at == label) return tab;
     }
     return label;
-  }
-
-  /// The keys a reroute took a tab's back stack off (LIR-024).
-  final Set<String> _movedOff = {};
-
-  void _onRemove(String key) {
-    if (_flowActions[currentFlow()] is Reroute) _movedOff.add(key);
   }
 
   /// A duplicate writes its source's history under its copy's key.
@@ -2446,10 +2438,17 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       for (final m in sites.models)
         for (final t in m.tabs) m.stateKeyForTab(t.id),
     };
+    // A site that left the list keeps its files until the startup orphan
+    // sweep, which the walk does not run.
+    final left = {
+      for (final m in {?_deleted, ..._archived})
+        if (!sites.models.contains(m))
+          for (final t in m.tabs) m.stateKeyForTab(t.id),
+    };
     for (final key in navStates.files.keys) {
-      if (!_movedOff.contains(key) || listed.contains(key)) continue;
-      fail('the state file $key outlived the reroute that moved its tab off '
-          'the key (TAB-003, LIR-024, BUG-036)');
+      if (listed.contains(key) || left.contains(key)) continue;
+      fail('the state file $key outlived its tab, closed or moved off the '
+          'key (TAB-003, LIR-024, BUG-036)');
     }
   }
 

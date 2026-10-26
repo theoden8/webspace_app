@@ -124,6 +124,28 @@ with the tab they were read for.
    save is out holds under its key again, so the save keeps bytes read
    before the moves, which no variable of the model tells apart.
 
+6. **2026-10-26, branch `claude/close-list-first`.** A close removed the
+   closed tab's file (`tRemove`) before the tab left the list (`tRebind`, or
+   the parked close's own install), so a capture of it whose save landed
+   between found it listed and kept the file: a back stack under a key no
+   tab holds, until the startup orphan sweep. Now the close decides in a
+   step with no await of its own (`tClosed`), the list lets the tab go, and
+   only then are its files removed, under the key it ran as when the close
+   began (the flow's `ranAs`, the code's recorded keys), as the
+   reroute's flips come before its removals. A save that lands after the
+   list moved takes its file back (attempt 5). `Inv_TabFilesListed` holds
+   that at rest a tab its site no longer lists keeps no file, and the walk
+   that every file at rest belongs to a listed tab or to a site that left
+   the list. Planted and caught: `rebindskipsclose` (a close's rebind ends
+   the flow), by `Inv_TabFilesListed` in `activation_tabs` and by the walk
+   on `[CloseTab(0, tab: 0)]`. The old order itself spans four actions, so
+   no single mutant plants it; with it put back the walk breaks on `[Tap(0),
+   OpenTab(0, tab: 1)]` then `[CloseTab(0, tab: 1), Tap(1)]`, kept as a
+   named schedule. *Why:* the reroute already removed after its flips; the
+   close was the one flow that removed first. *Partial:* a tab moved away
+   and back while a save is out still keeps bytes read before the moves
+   (attempt 5).
+
 ## Known open gaps
 
 - Under a process-global proxy (Android, Linux) a tab switch that changes the
@@ -137,11 +159,3 @@ with the tab they were read for.
   tab input on a site off screen activates it inside the tab gate, a nesting
   the activation table does not print yet, so those schedules are checked by
   the world's invariants and listed in `formal/trace/steps_uncovered.tsv`.
-- A close removes the closed tab's file (`tRemove`) before the tab leaves
-  the list (`tRebind`, after the next tab's file is read), so a capture of
-  it whose save lands between finds it listed and keeps its file: the
-  schedules reach it on `[CloseTab(0, tab: 0), Tap(1)]` and `[CloseTab(0,
-  tab: 0), GoHome()]`. Nothing restores it (no tab has that id again), and
-  the startup orphan sweep reaps it. Lifting it means the close takes the
-  tab off the list before its file goes, as the reroute does, and
-  `Inv_TabFilesHosted` over every tab, listed or not.

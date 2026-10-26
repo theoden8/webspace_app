@@ -842,7 +842,13 @@ class TabsController {
     required TabCloseResult result,
   }) async {
     if (result.closedIds.isEmpty) return;
-    final c = StepContext(TabFlow(this, site: model)..result = result);
+    final c = StepContext(
+      TabFlow(this, site: model)
+        ..result = result
+        ..dropped = {
+          for (final id in result.closedIds) id: model.stateKeyForTab(id),
+        },
+    );
     TabTable._kind.put(c, value: FlowKind.tab);
     TabTable._site.put(c, value: model);
     TabTable._tab.put(
@@ -852,7 +858,8 @@ class TabsController {
     TabTable._keep.put(c, value: false);
     TabTable._rest.put(c, value: result.tabs);
     TabTable._closing.put(c, value: result.closedIds);
-    await _runTabFlow(c, from: TabPlace.tRemove);
+    TabTable._ranAs.put(c, value: model.tabHosts);
+    await _runTabFlow(c, from: TabPlace.tClosed);
   }
 
   /// Close [tabId], or its subtree, in [model] (TAB-007). On the site on

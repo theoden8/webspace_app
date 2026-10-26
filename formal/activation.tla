@@ -431,6 +431,10 @@ Inv_TabFiles ==
 \* for a move back to restore (BUG-036).
 Inv_TabFilesHosted == Idle => \A s \in Tabbed : \A t \in tabs[s] : \A h \in Sites :
     file[s][t][h] # 0 => host[s][t] = h
+\* TAB-003: at rest a tab its site no longer lists keeps no file, so a
+\* close leaves no back stack for a capture still out to keep (BUG-036).
+Inv_TabFilesListed == Idle => \A s \in Tabbed : \A t \in TabIds \ tabs[s] :
+    \A h \in Sites : file[s][t][h] = 0
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
 Inv_TabActive == Idle => \A s \in Tabbed :
     /\ active[s] \in tabs[s]

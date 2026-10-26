@@ -210,7 +210,13 @@ _Catch _catching(Mutant m) => switch (m) {
     ),
     setup: const [Tap(0), OpenTab(0, tab: 1)],
     script: const [GoHome(), Reroute()],
-    breaks: 'outlived the reroute',
+    breaks: 'outlived its tab',
+  ),
+  Mutant.rebindskipsclose => _By(
+    world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
+    setup: const [Tap(0), OpenTab(0, tab: 1), OpenTab(0, tab: 0)],
+    script: const [CloseTab(0, tab: 0)],
+    breaks: 'outlived its tab',
   ),
   Mutant.torkeepsslot => _By(
     world: (d) => ActivationWorld(

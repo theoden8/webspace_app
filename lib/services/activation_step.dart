@@ -454,10 +454,13 @@ enum ActivationStep {
   /// loaded sites in it (LIR-024).
   tabRebind(outcomes: {StepOutcome.none, StepOutcome.unload}),
 
-  /// A closed tab's saved back stack removed; the last removal installs the
-  /// list or goes on to a rebind.
+  /// A close decided: the list installed, or a rebind to the tab that
+  /// takes over.
+  tabClosed(outcomes: {StepOutcome.end, StepOutcome.rebind}),
+
+  /// A closed tab's saved back stack removed, once no list holds it.
   tabRemoveReply(
-    outcomes: {StepOutcome.more, StepOutcome.end, StepOutcome.rebind},
+    outcomes: {StepOutcome.more, StepOutcome.end},
     calls: {PlatformCall.navStateRemove},
   ),
 

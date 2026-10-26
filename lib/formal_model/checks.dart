@@ -91,6 +91,7 @@ enum Inv {
   tabShown(reads: {ModelVar.built, ModelVar.hist}),
   tabFiles(reads: {ModelVar.file}),
   tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
+  tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
   tabActive(atRest: true, reads: {ModelVar.active, ModelVar.built, ModelVar.loaded, ModelVar.tabs}),
   retired(
@@ -129,6 +130,7 @@ const _tabs = [
   Inv.tabShown,
   Inv.tabFiles,
   Inv.tabFilesHosted,
+  Inv.tabFilesListed,
   Inv.tabBound,
   Inv.tabActive,
 ];
@@ -1079,6 +1081,13 @@ enum Mutant {
         "a capture whose save lands after a reroute moved its tab keeping "
         "the file under the key the tab left, which a move back restores "
         '(BUG-036, caught)',
+  ),
+  rebindskipsclose(
+    world: ActivationWorld.tabs,
+    by: Inv.tabFilesListed,
+    doc:
+        "a close of the active tab whose rebind ends the flow, so the closed "
+        "tab's file outlives it (BUG-036, caught)",
   ),
   torkeepsslot(
     world: ActivationWorld.tabsChildNestedTorContainers,

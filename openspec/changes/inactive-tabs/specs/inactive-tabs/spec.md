@@ -86,8 +86,8 @@ id none of the site's tabs had: a capture of the closed tab still in flight
 would otherwise land in the new tab's file. Gate: the switch, the close and the
 duplicate are step tables (`TabTable.tabInputs`, `tabFlow`) printed into
 `formal/activation.tla`, whose `Inv_TabShown`, `Inv_TabFiles`,
-`Inv_TabFilesHosted`, `Inv_TabBound` and `Inv_TabActive` TLC holds on
-`activation_tabs.cfg`; the tab schedules in
+`Inv_TabFilesHosted`, `Inv_TabFilesListed`, `Inv_TabBound` and
+`Inv_TabActive` TLC holds on `activation_tabs.cfg`; the tab schedules in
 `test/activation_schedules_test.dart` are replayed against it.
 
 #### Scenario: Switching tabs inside a site
@@ -132,6 +132,14 @@ duplicate are step tables (`TabTable.tabInputs`, `tabFlow`) printed into
   run as Mastodon while the capture going home makes is being saved
 - **THEN** the file that save wrote under GitHub's key for T2 is removed
 - **AND** moving T2 back to GitHub restores no back stack from before the move
+
+#### Scenario: A tab closed while its capture saves
+
+- **GIVEN** GitHub is on screen on T2, with T1 parked
+- **WHEN** the user closes T2 and, before the close is done, taps Mastodon, so
+  the capture leaving GitHub saves T2's history
+- **THEN** once both settle no file holds T2's back stack, under any key
+- **AND** GitHub's webview is built for T1
 
 #### Scenario: Switching sites leaves tabs alone
 
