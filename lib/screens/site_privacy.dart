@@ -502,24 +502,15 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
                 onChanged: (value) =>
                     _update(_values.copyWith(thirdPartyCookiesEnabled: value))),
           ),
-          // Follows App Settings until the site picks its own value, and can
-          // go back to following (HTTPS-005).
           SettingTile(
             title: loc.siteSettingsHttpsUpgrade,
-            hint: '${loc.siteSettingsHttpsUpgradeHint}\n\n'
-                '${loc.settingRestoreDefaultHint}',
-            subtitle: _values.httpsUpgrade is FollowApp
-                ? loc.webSearchUseAppDefault
-                : null,
+            hint: loc.siteSettingsHttpsUpgradeHint,
             lock: _umbrella(TrackingProtectionForce.httpsUpgrade),
-            control: Toggle(
+            control: ScopedToggle(
               _values.effectiveHttpsUpgrade,
-              followsApp: _values.httpsUpgrade is FollowApp &&
-                  !_values.trackingProtectionEnabled,
-              onChanged: (value) =>
-                  _update(_values.copyWith(httpsUpgrade: Own(value))),
-              onRestoreDefault: () =>
-                  _update(_values.copyWith(httpsUpgrade: const FollowApp())),
+              choice: _values.httpsUpgrade,
+              onChoice: (choice) =>
+                  _update(_values.copyWith(httpsUpgrade: choice)),
             ),
           ),
           SettingsSection(loc.privacyGroupFingerprinting),

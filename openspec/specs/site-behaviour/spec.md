@@ -176,9 +176,13 @@ state or reset gesture; it inherits only through External links → App default.
 Tabs and Sign-in popups SHALL each use a switch that is slightly dimmed while
 following the app and fully opaque for an explicit override. It SHALL remain
 interactive in both states and show an App default subtitle while following.
-Tapping SHALL create an explicit override. A long press SHALL clear it and
-restore inheritance, without also toggling on release. The hint SHALL explain
-the gesture and accessibility semantics SHALL expose the reset action.
+Tapping SHALL create an explicit override. A long press SHALL move between
+the two states without flipping the switch: on an override it clears it and
+restores inheritance, and while following it keeps the value shown as the
+site's own. It SHALL not also toggle on release. One control owns this rule
+(`ScopedToggle`), so every switch that follows a default behaves alike. The
+hint SHALL explain the gesture and accessibility semantics SHALL expose the
+long-press action under the name of what it does next.
 Restoring App default SHALL participate in the dirty edit
 snapshot and persist through save, restart and backup. The inherited value
 SHALL be visible without opening another screen. Changing the app default
@@ -230,6 +234,15 @@ explicit choice each survive restart and backup without becoming the other.
 **Then** the following switch shows Tabs off
 **When** the user taps it
 **Then** it stores an explicit Tabs-on choice and is fully opaque
+
+#### Scenario: Long press keeps the value a following switch shows
+
+**Given** the app disables Tabs and a site follows it
+**When** the user long presses the Tabs switch
+**Then** the site stores an explicit Tabs-off choice
+**And** the switch is fully opaque and still shows Tabs off
+**When** the app enables Tabs
+**Then** the site's switch still shows Tabs off
 
 #### Scenario: A site keeps its own Sign-in popups choice
 
