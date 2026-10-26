@@ -119,7 +119,10 @@ void main() {
     listenFixture(server, onEvent: (req) {
       switch (req.uri.path) {
         case '/events':
+          // Buffered, dart:io holds even a flushed event until the response
+          // closes, and the page saw the message only at teardown.
           final res = req.response
+            ..bufferOutput = false
             ..headers.contentType = ContentType('text', 'event-stream')
             ..headers.set('Cache-Control', 'no-store')
             ..write(': open\n\n');
