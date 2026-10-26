@@ -383,7 +383,10 @@ every site without scrolling, each site a row while its column is at least
 as wide as a row's narrowest and an icon past that, smaller and named on one
 line where its column is narrower than the grid's; past four columns, or the
 grid's own where it holds more, the sites SHALL scroll. So a phone's folder
-shows one column of rows, then two, then four smaller icons across. Each
+shows one column of rows, then two, then four smaller icons across. A phone's
+column SHALL fill its height, as the drawer's does; on a window wider than a
+phone's, a column SHALL take another beside it once it fills four fifths of
+the height, so it stops short of the window's edge. Each
 folder SHALL take the layout its own count calls for, and the choice SHALL be
 made again as the window resizes. A row is the site's icon at its start, its name over its web address, and its grants and
 tab count at its end. A site imported from a file SHALL show "Imported file"

@@ -1837,6 +1837,63 @@ void main() {
   );
 
   testWidgets(
+    'on a window wider than a phone Auto takes another column once one fills '
+    'most of the height, short of the window\'s edge (WEBSPACE-015)',
+    (tester) async {
+      for (final pref in [
+        AppPref.libraryLayout,
+        AppPref.libraryWebspaceLayout,
+      ]) {
+        pref.debugValue = LibraryLayout.auto.name;
+      }
+      Future<int> across({required double width, required int sites}) async {
+        await pumpLocalized(
+          tester,
+          home: const _LibraryHarness(),
+          size: Size(width, 700),
+        );
+        await tester.pumpAndSettle();
+        tester
+            .state<_LibraryHarnessState>(find.byType(_LibraryHarness))
+            .addSites(sites - 8);
+        await tester.pumpAndSettle();
+        await tester.tap(_group('All'));
+        await tester.pumpAndSettle();
+        final count = _across(
+          tester,
+          of: _inPanel(find.byType(SiteGridTile)),
+        ).count;
+        await tester.pumpWidget(const SizedBox());
+        return count;
+      }
+
+      var phone = 8;
+      while (await across(width: 393, sites: phone + 1) == 1) {
+        phone++;
+      }
+      expect(
+        await across(width: 1280, sites: phone),
+        2,
+        reason: 'a phone\'s column holds $phone; a wide window\'s, as tall, '
+            'stops short of that',
+      );
+      var wide = 8;
+      while (await across(width: 1280, sites: wide + 1) == 1) {
+        wide++;
+      }
+      expect(
+        wide,
+        inInclusiveRange(
+          (phone * LibraryStyle.packedFill).floor() - 1,
+          (phone * LibraryStyle.packedFill).ceil(),
+        ),
+        reason: 'it fills about ${LibraryStyle.packedFill} of the height',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'on a wide window List is one column of rows across the level, and so is '
     'Auto while one column holds every item, as the drawer packs '
     '(WEBSPACE-015)',

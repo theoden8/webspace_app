@@ -146,6 +146,14 @@ abstract final class LibraryStyle {
   static const double packedRowMinWidth = 150;
   static const int packedColumns = 4;
 
+  /// The share of a level's height Automatic fills before it takes another
+  /// column: all of a phone's, as the drawer does, and less of a window at
+  /// least [packedFillFrom] wide, so a long column stops short of its edge.
+  static const double packedFill = .8;
+  static const double packedFillFrom = 600;
+  static double packedFillOf(Size window) =>
+      window.width >= packedFillFrom ? packedFill : 1;
+
   /// An icon's well in a column [width] wide: its full size at [iconScale],
   /// or smaller where Automatic layout packs icons into narrower columns.
   static double wellFor({required double width}) =>

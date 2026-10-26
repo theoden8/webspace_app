@@ -694,6 +694,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     iconExtent: (column) =>
         SiteGridTile.extentFor(context, width: column, webspaceCount: labels),
     iconColumnMin: LibraryStyle.iconColumnMin(MediaQuery.textScalerOf(context)),
+    fill: LibraryStyle.packedFillOf(MediaQuery.sizeOf(context)),
     icons: const (
       padding: EdgeInsets.all(Spacing.lg),
       across: Spacing.sm,
@@ -1023,6 +1024,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             width: column,
           ),
           iconColumnMin: LibraryStyle.iconColumnMin(scaler),
+          fill: LibraryStyle.packedFillOf(MediaQuery.sizeOf(context)),
           // Rows run the width, their wells under the title's start.
           icons: const (
             padding: EdgeInsets.fromLTRB(
@@ -1401,12 +1403,14 @@ typedef _Spacing = ({EdgeInsets padding, double across, double down});
 
 /// One level of the library as it lays out (WEBSPACE-015): how tall its rows
 /// are, how tall its icons are in a column so wide, the narrowest column an
-/// icon keeps its whole caption in, and how each is spaced.
+/// icon keeps its whole caption in, the share of its height Automatic fills
+/// ([LibraryStyle.packedFillOf]), and how each is spaced.
 final class _Level {
   const _Level({
     required this.rowExtent,
     required this.iconExtent,
     required this.iconColumnMin,
+    required this.fill,
     required this.icons,
     required this.rows,
   });
@@ -1414,6 +1418,7 @@ final class _Level {
   final double rowExtent;
   final double Function(double column) iconExtent;
   final double iconColumnMin;
+  final double fill;
   final _Spacing icons;
   final _Spacing rows;
 
@@ -1467,7 +1472,7 @@ final class _Level {
       final spacing = _of(form);
       return math.max(
         0,
-        ((height - spacing.padding.vertical + spacing.down) /
+        ((height * fill - spacing.padding.vertical + spacing.down) /
                 (extent + spacing.down))
             .floor(),
       );
