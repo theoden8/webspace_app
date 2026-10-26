@@ -184,7 +184,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _sites,
     host: _PageHost(this),
     residency: _ResidencyHost(this),
-    background: _background,
+    activation: _activation,
   );
   late final TabsController _tabs = TabsController(
     _sites,

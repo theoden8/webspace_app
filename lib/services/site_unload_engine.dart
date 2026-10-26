@@ -30,7 +30,11 @@ enum UnloadReason {
 
   /// An always-open-home or incognito site sent back to its home page: by a
   /// shortcut launch, or before a link opens in it (LIR-011).
-  homeReset('home reset');
+  homeReset('home reset'),
+
+  /// A site whose pinned certificate the user stopped trusting: its webview
+  /// goes so its next load handshakes again (ISO-002).
+  trustRevoked('certificate trust revoked');
 
   const UnloadReason(this.label);
 
@@ -46,11 +50,13 @@ enum UnloadReason {
     UnloadReason.webspaceSwitch => true,
     // It goes back to its home page, which is the point (always-open-home).
     UnloadReason.homeReset => false,
+    // What it remembered of the revoked host's session is wiped too.
+    UnloadReason.trustRevoked => false,
   };
 
   /// Whether the plan chose the site rather than being bound to unload it:
-  /// retention priority's picks, a webspace switch's (WEBSPACE-013) and a
-  /// home reset's.
+  /// retention priority's picks, a webspace switch's (WEBSPACE-013), a home
+  /// reset's and a revoke's.
   /// A choice spares the site on screen and an activation's target when it
   /// is made, and backs off if its site has become one of them by the time
   /// it would be disposed (PAUSE-006, BUG-033).
@@ -58,7 +64,8 @@ enum UnloadReason {
     UnloadReason.loadedSiteCap ||
     UnloadReason.memoryPressure ||
     UnloadReason.webspaceSwitch ||
-    UnloadReason.homeReset => true,
+    UnloadReason.homeReset ||
+    UnloadReason.trustRevoked => true,
     UnloadReason.domainConflict ||
     UnloadReason.proxyMismatch ||
     UnloadReason.torExitMismatch => false,
@@ -72,7 +79,8 @@ enum UnloadReason {
     UnloadReason.memoryPressure => LogLevel.warning,
     UnloadReason.loadedSiteCap ||
     UnloadReason.webspaceSwitch ||
-    UnloadReason.homeReset => LogLevel.info,
+    UnloadReason.homeReset ||
+    UnloadReason.trustRevoked => LogLevel.info,
   };
 }
 

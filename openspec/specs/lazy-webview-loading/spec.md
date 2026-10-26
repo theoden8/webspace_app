@@ -139,7 +139,7 @@ The system SHALL clear the loaded set when importing settings.
 
 ### Requirement: LAZY-007 - The Site On Screen Is Built
 
-Whenever no activation is in flight, the site on screen SHALL be in the loaded set (`Inv_CurrentLoaded` in `formal/kernel.tla`). A switch whose residency step unloaded the site on screen (a domain conflict, a proxy mismatch) and that a change then supersedes without choosing a site (a delete or an archive close of another site) SHALL leave for the webspace list, as a change that removes the site on screen does, never LAZY-003's placeholder. The loaded set, the site on screen and every flow's target SHALL be held as sites, not rows, so no row move or removal can make any of them name another site; a removal takes its sites out of the loaded set and the screen. A row move SHALL supersede nothing: a switch it lands in finishes on the site it was opening (BUG-029). A home reset of the site on screen SHALL keep it loaded, its webview let go of so the frame builds it afresh at its home page (`SiteActivationController.unload`). The activation walks (`test/site_activation_walk_test.dart`) and every schedule within a bound (`test/activation_schedules_test.dart`) check both, and `formal/activation.tla`, whose `loaded` and `current` are sites, catches the mistake `nohome` in its delete world.
+Whenever no activation is in flight, the site on screen SHALL be in the loaded set (`Inv_CurrentLoaded` in `formal/kernel.tla`). A switch whose residency step unloaded the site on screen (a domain conflict, a proxy mismatch) and that a change then supersedes without choosing a site (a delete or an archive close of another site) SHALL leave for the webspace list, as a change that removes the site on screen does, never LAZY-003's placeholder. The loaded set, the site on screen and every flow's target SHALL be held as sites, not rows, so no row move or removal can make any of them name another site; a removal takes its sites out of the loaded set and the screen. A row move SHALL supersede nothing: a switch it lands in finishes on the site it was opening (BUG-029). A home reset of the site on screen SHALL keep it loaded, its webview let go of so the frame builds it afresh at its home page (`SiteActivationController.unload`), and so SHALL a revoke of the certificate pinned for its host, which unloads that host's sites off screen through the same input (`UnloadReason.trustRevoked`, `test/trust_revoke_test.dart`). The activation walks (`test/site_activation_walk_test.dart`) and every schedule within a bound (`test/activation_schedules_test.dart`) check both, and `formal/activation.tla`, whose `loaded` and `current` are sites, catches the mistake `nohome` in its delete world.
 
 #### Scenario: A delete supersedes a switch that unloaded the site on screen
 
@@ -154,6 +154,14 @@ Whenever no activation is in flight, the site on screen SHALL be in the loaded s
 **Given** site A always opens home and is on screen
 **When** a link into A resets it to its home page
 **Then** A stays loaded and is built afresh at its home page
+**And** LAZY-003's placeholder is never shown
+
+#### Scenario: The certificate of the site on screen is revoked
+
+**Given** sites A, on screen, and B are loaded, both homed on a host whose certificate the user pinned
+**When** the user stops trusting that certificate
+**Then** A stays loaded and is built afresh
+**And** B leaves the loaded set
 **And** LAZY-003's placeholder is never shown
 
 #### Scenario: A row move lands while a switch is opening a site

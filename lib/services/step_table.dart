@@ -772,9 +772,6 @@ enum Unmodeled {
   /// at once, as an import may, or a tab another site opened.
   identityChange,
 
-  /// A revoked certificate's trust unloads the sites pinned to it (ISO-002).
-  trustRevoked,
-
   /// A change to the set of sites no step takes: an add, an import, an
   /// archive's open, a site's edit (`SiteSetCommit.commit`). A delete and
   /// an archive's close land in their drop's step, and a move is the

@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
+import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/isolation.dart';
@@ -39,19 +39,24 @@ class SiteNetworkController {
     this._sites, {
     required PageHost host,
     required this.residency,
-    required this.background,
-  }) : _host = host;
+    required SiteActivationController activation,
+  }) : _host = host,
+       _activation = activation;
 
   final SiteRuntime _sites;
   final PageHost _host;
   final ResidencyHost residency;
-  final BackgroundSitesController background;
+  final SiteActivationController _activation;
 
   /// The PROXY-015 probe the router comes up with. The on-device fallback
   /// test crosses two sites' profiles here, the one way to make a real
   /// WebView fail the check.
   @visibleForTesting
   static ProxyAttributionProbe attributionProbe = runAttributionProbe;
+
+  /// The process-wide engine cache a revoke flushes; a test has no engine.
+  @visibleForTesting
+  static Future<bool> Function() clearCache = clearEngineCache;
 
   StreamSubscription<TrustedHostEntry>? _untrustSub;
   StreamSubscription<TorStatus>? _torStatusSub;
@@ -142,26 +147,26 @@ class SiteNetworkController {
     }
     // Static: flushes the Chromium network service every WebView and
     // profile shares.
-    if (await clearEngineCache()) {
+    if (await clearCache()) {
       LogTag.tls.debug('clearAllCache(disk=true) completed for revoke of '
           '${entry.host}:${entry.port}', sensitive: true);
     }
     if (!_host.mounted) return;
-    var changed = false;
+    // Sites, not rows: the loop awaits, and a row can name another site
+    // after an await.
+    final pinned = [
+      for (final model in _sites.models)
+        if (_pinnedBy(model, host: host, port: entry.port)) model,
+    ];
     final wiped = <ContainerKey>[];
-    for (final model in _sites.models) {
-      if (!_pinnedBy(model, host: host, port: entry.port)) continue;
-      // Outside the unload funnel on purpose: the session is wiped so the
-      // next load re-handshakes (ISO-002).
-      if (_sites.retired(
-        model,
-        commit: const Commit.unmodeled(Unmodeled.trustRevoked),
-      )) {
-        model.disposeWebView(
-          commit: const Commit.unmodeled(Unmodeled.trustRevoked),
-        );
-        background.noteUnloaded(model, reason: 'certificate trust revoked');
-        changed = true;
+    var unloaded = false;
+    for (final model in pinned) {
+      // The unload input's: the site on screen stays loaded with a fresh
+      // webview (LAZY-007), and one off screen goes as a home reset's does.
+      if (_sites.loaded.contains(model)) {
+        await _activation.unload(model, reason: UnloadReason.trustRevoked);
+        if (!_host.mounted) return;
+        unloaded = true;
       }
       wiped.add(model.containerKey);
     }
@@ -186,7 +191,7 @@ class SiteNetworkController {
           'cleared $cleared of ${wiped.length} container(s) after '
           'revoke of ${entry.host}:${entry.port}', sensitive: true);
     }
-    if (changed && _host.mounted) _host.rebuild();
+    if (unloaded && _host.mounted) _host.rebuild();
   }
 
   /// Whether [model]'s home is the pinned [host] and [port].
