@@ -28,11 +28,16 @@ typedef CardLanding = ({
 /// never seen, and takes no input while it moves. A hold on the site's top
 /// bar lifts it, and the finger carries it until let go.
 class LaunchZoom extends StatefulWidget {
-  const LaunchZoom({super.key, required this.sites});
+  const LaunchZoom({super.key, required this.sites, required this.area});
 
   /// Every saved site, which says whether another shows a site's icon, and so
   /// whether its card is marked in its container's colour as its tile is.
   final List<WebViewModel> sites;
+
+  /// The part of the window a site shows in: a card with no icon to grow
+  /// from covers only it, so the bars around a site stay in view as another
+  /// replaces it.
+  final GlobalKey area;
 
   @override
   State<LaunchZoom> createState() => LaunchZoomState();
@@ -78,6 +83,10 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
   /// view to land on, and the card fades out where it is instead.
   Rect? _icon;
 
+  /// What a card with no icon to grow from covers, in this widget's
+  /// coordinates; null for the whole screen.
+  Rect? _over;
+
   /// Whether the card, with no icon, shrinks a little as it fades out (and
   /// grows as it fades in), as Material's fade-through does. A card fading
   /// in to shrink into an icon next keeps its size.
@@ -89,8 +98,8 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
   /// Grows [site]'s card out of its icon at [from], in global coordinates,
   /// until it covers the screen, then switches [to] the site and fades off
   /// it once it is on screen. With no icon to grow from (a tab picked in a
-  /// list, a site picked in the tab strip) the card fades in over the screen
-  /// instead, so every switch passes through it.
+  /// list, a site picked in the tab strip) the card fades in over the
+  /// [LaunchZoom.area] instead, so every switch passes through it.
   Future<void> open(
     WebViewModel site, {
     required Rect? from,
@@ -107,6 +116,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
       _site = site;
       _lookalike = _sharesAnIcon(site);
       _icon = from == null ? null : _local(from);
+      _over = from == null ? _area() : null;
       _fadeScales = true;
     });
     await _play(from == null ? _fade.forward() : _size.forward());
@@ -255,7 +265,14 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
 
   void _done() {
     _grip = null;
+    _over = null;
     if (mounted) setState(() => _site = null);
+  }
+
+  Rect? _area() {
+    final area = widget.area.currentContext?.findRenderObject();
+    if (area is! RenderBox || !area.hasSize) return null;
+    return _local(area.localToGlobal(Offset.zero) & area.size);
   }
 
   Offset _localPoint(Offset global) =>
@@ -342,11 +359,12 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     // A card out of a smaller well than a grid's (a folder's rows) starts
     // with its icon and corners at that well's scale.
     final start = icon == null ? 1.0 : icon.width / LibraryStyle.siteWell;
-    final top = _top(screen);
+    final area = _over ?? screen;
+    final top = _top(area);
     // How far a held card is off the screen, which its corners and its
     // shadow show.
     final lifted =
-        ((1 - top.width / screen.width) / (1 - LibraryStyle.cardLift)).clamp(
+        ((1 - top.width / area.width) / (1 - LibraryStyle.cardLift)).clamp(
           0.0,
           1.0,
         );
