@@ -36,12 +36,12 @@ sealed class _SiteGridOf {
 }
 
 final class _FolderPage extends _SiteGridOf {
-  const _FolderPage({required this.reorders, required this.list});
+  const _FolderPage({required this.reorders, required this.placing});
 
   final bool reorders;
 
-  /// How far the page's sites have turned into rows.
-  final double list;
+  /// Where the page's sites stand on the way between two layouts.
+  final _Placing placing;
 }
 
 final class _SearchResults extends _SiteGridOf {
@@ -142,9 +142,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   late final _Layout _folderLayout;
   late final _Layout _homeLayout;
 
-  /// How many sites fit an open folder as rows, and how far the home's
-  /// webspaces have turned into rows, at their last layout.
-  int _folderFit = 0;
+  /// What an open folder has room for, and how far the home's webspaces
+  /// have turned into rows, at their last layout.
+  LibraryRoom? _folderRoom;
   double _homeList = 0;
 
   /// The open folder's pages, one per webspace in the grid's order, as a
@@ -239,13 +239,16 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     final context = keys?[site]?.currentContext;
     final tile = context?.findRenderObject();
     if (context == null || tile is! RenderBox || !tile.hasSize) return null;
+    final room = _folderRoom;
     final well = SiteGridTile.wellIn(
       tile.localToGlobal(Offset.zero) & tile.size,
-      list: _open
-          ? _folderLayout.list(
-              count: _order(widget.selectedWebspaceId).length,
-              fit: _folderFit,
-            )
+      list: _open && room != null
+          ? _folderLayout
+                .placing(
+                  count: _order(widget.selectedWebspaceId).length,
+                  room: room,
+                )
+                .list
           : 0,
       direction: Directionality.of(context),
     );
@@ -309,14 +312,6 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     for (final i in order)
       if (widget.showsTabCount(widget.sites[i])) widget.sites[i].tabs.length,
   ].fold(0, (sum, n) => sum + n);
-
-  int _siteColumns(BuildContext context, {required double width}) {
-    final scale = MediaQuery.textScalerOf(context).scale(1);
-    return ((width - Spacing.lg * 2 + Spacing.sm) /
-            (LibraryStyle.tileMinWidth * math.max(1, scale * .7) + Spacing.sm))
-        .floor()
-        .clamp(1, LibraryStyle.maxColumns);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -507,14 +502,17 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
         (pages.hasClients ? pages.page : null) ?? pages.initialPage.toDouble();
     final lower = page.floor().clamp(0, last);
     final upper = page.ceil().clamp(0, last);
-    _folderFit = _rowsFitting(context, size: size);
+    final room = _folderRoom = _folderLevel(context, labels: 0).room(
+      width: _panelWidth(size),
+      height: _folderHeight(context, size: size),
+    );
     Rect sized(int index) {
       final count = _order(widget.webspaces[index].id).length;
       return _panelRect(
         context,
         size: size,
         count: count,
-        list: _folderLayout.list(count: count, fit: _folderFit),
+        placing: _folderLayout.placing(count: count, room: room),
       );
     }
     // A swipe keeps the size of the page it leaves, the selected one, until
@@ -683,56 +681,49 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   double _panelRoom(BuildContext context, {required Size size}) =>
       size.height - MediaQuery.paddingOf(context).vertical - Spacing.xl * 2;
 
-  /// How many sites an open folder holds as rows without scrolling.
-  int _rowsFitting(BuildContext context, {required Size size}) {
-    final dots = widget.webspaces.length > 1 ? LibraryStyle.pageDots : 0;
-    final height =
-        _panelRoom(context, size: size) -
-        _panelHeader(context) -
-        dots -
-        Spacing.sm * 2;
-    return (height / LauncherMorphTile.rowExtentFor(context)).floor() *
-        _rowColumns(width: _panelWidth(size) - Spacing.sm * 2);
-  }
+  /// How tall an open folder's sites may be in a library of [size].
+  double _folderHeight(BuildContext context, {required Size size}) =>
+      _panelRoom(context, size: size) -
+      _panelHeader(context) -
+      (widget.webspaces.length > 1 ? LibraryStyle.pageDots : 0);
 
-  /// How many columns of rows a level [width] wide holds.
-  int _rowColumns({required double width}) => (width / LibraryStyle.rowMinWidth)
-      .floor()
-      .clamp(1, LibraryStyle.maxColumns);
+  /// A folder's sites as a level, each icon over as many webspace [labels]
+  /// as the most any of them has.
+  _Level _folderLevel(BuildContext context, {required int labels}) => _Level(
+    rowExtent: LauncherMorphTile.rowExtentFor(context),
+    iconExtent: (column) =>
+        SiteGridTile.extentFor(context, width: column, webspaceCount: labels),
+    iconColumnMin: LibraryStyle.iconColumnMin(MediaQuery.textScalerOf(context)),
+    icons: const (
+      padding: EdgeInsets.all(Spacing.lg),
+      across: Spacing.sm,
+      down: Spacing.lg,
+    ),
+    rows: const (
+      padding: EdgeInsets.all(Spacing.sm),
+      across: Spacing.sm,
+      down: 0,
+    ),
+  );
 
-  /// Centered, as wide as a phone's folder, and as tall as its sites need
-  /// up to most of the screen, [list] of the way from icons to rows.
+  /// Centered, as wide as a phone's folder, and as tall as its [count]
+  /// sites need, as [placing] has them, up to most of the screen.
   Rect _panelRect(
     BuildContext context, {
     required Size size,
     required int count,
-    required double list,
+    required _Placing placing,
   }) {
     final insets = MediaQuery.paddingOf(context);
     final width = _panelWidth(size);
-    final rows = math.max(
-      1,
-      (count / _siteColumns(context, width: width)).ceil(),
-    );
-    final header = _panelHeader(context);
-    final grid =
-        rows *
-            SiteGridTile.extentFor(
-              context,
-              well: LibraryStyle.siteWell,
-              webspaceCount: 0,
-            ) +
-        (rows - 1) * Spacing.lg +
-        Spacing.lg * 2;
-    final rowCount = math.max(
-      1,
-      (count / _rowColumns(width: width - Spacing.sm * 2)).ceil(),
-    );
-    final asRows =
-        rowCount * LauncherMorphTile.rowExtentFor(context) + Spacing.sm * 2;
+    final level = _folderLevel(context, labels: 0);
+    double tall(LibraryPlacement placement) =>
+        level.height(placement, count: math.max(1, count), width: width);
     final dots = widget.webspaces.length > 1 ? LibraryStyle.pageDots : 0;
     final height = math.min(
-      header + lerpDouble(grid, asRows, list)! + dots,
+      _panelHeader(context) +
+          lerpDouble(tall(placing.from), tall(placing.to), placing.at)! +
+          dots,
       _panelRoom(context, size: size),
     );
     return Rect.fromLTWH(
@@ -952,9 +943,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         keys: _panelSites.putIfAbsent(webspace.id, () => {}),
                         of: _FolderPage(
                           reorders: webspace.id == widget.selectedWebspaceId,
-                          list: _folderLayout.list(
+                          placing: _folderLayout.placing(
                             count: order.length,
-                            fit: _folderFit,
+                            room: _folderRoom!,
                           ),
                         ),
                       ),
@@ -1023,21 +1014,37 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     return LayoutBuilder(
       builder: (context, constraints) {
         final scaler = MediaQuery.textScalerOf(context);
-        final minimum =
-            LibraryStyle.tileMinWidth * math.max(1, scaler.scale(1) * .7);
-        final columns =
-            ((constraints.maxWidth - Spacing.lg * 2 + Spacing.sm) /
-                    (minimum + Spacing.sm))
-                .floor()
-                .clamp(1, LibraryStyle.maxColumns);
-        final rowColumns = _rowColumns(width: constraints.maxWidth);
-        final rowExtent = LauncherMorphTile.rowExtentFor(context);
-        final list = _homeList = _homeLayout.list(
-          count: shown.length,
-          fit:
-              ((constraints.maxHeight - Spacing.sm * 2) / rowExtent).floor() *
-              rowColumns,
+        final width = constraints.maxWidth;
+        final level = _Level(
+          rowExtent: LauncherMorphTile.rowExtentFor(context),
+          iconExtent: (column) => WebspaceGroupTile.extentFor(
+            textScaler: scaler,
+            textTheme: Theme.of(context).textTheme,
+            width: column,
+          ),
+          iconColumnMin: LibraryStyle.iconColumnMin(scaler),
+          // Rows run the width, their wells under the title's start.
+          icons: const (
+            padding: EdgeInsets.fromLTRB(
+              Spacing.lg,
+              Spacing.xl,
+              Spacing.lg,
+              Spacing.xl,
+            ),
+            across: Spacing.sm,
+            down: Spacing.xl,
+          ),
+          rows: const (
+            padding: EdgeInsets.symmetric(vertical: Spacing.sm),
+            across: 0,
+            down: 0,
+          ),
         );
+        final placing = _homeLayout.placing(
+          count: shown.length,
+          room: level.room(width: width, height: constraints.maxHeight),
+        );
+        final list = _homeList = placing.list;
         return CustomScrollView(
           key: const PageStorageKey('webspace-groups'),
           slivers: [
@@ -1045,17 +1052,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
               _searchHeading(context, label: loc.libraryWebspaces),
             if (shown.isNotEmpty)
               SliverPadding(
-                // Rows run the width, their wells under the title's start.
-                padding: EdgeInsets.lerp(
-                  const EdgeInsets.fromLTRB(
-                    Spacing.lg,
-                    Spacing.xl,
-                    Spacing.lg,
-                    Spacing.xl,
-                  ),
-                  const EdgeInsets.symmetric(vertical: Spacing.sm),
-                  list,
-                )!,
+                padding: level.padding(placing),
                 sliver: LauncherGrid<WebspaceId>(
                   order: [for (final w in shown) w.id],
                   fixed: (id) => id == WebspaceId.all,
@@ -1064,23 +1061,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                       : (id, {required to}) =>
                             _moveGroup(id, to: to, reorder: reorder),
                   builder: (context, {required places}) => SliverGrid.builder(
-                    gridDelegate: LauncherMorph(
-                      grid: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        crossAxisSpacing: Spacing.sm,
-                        mainAxisSpacing: Spacing.xl,
-                        mainAxisExtent: WebspaceGroupTile.extentFor(
-                          textScaler: scaler,
-                          textTheme: Theme.of(context).textTheme,
-                          well: LibraryStyle.siteWell,
-                        ),
-                      ),
-                      rows: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: rowColumns,
-                        mainAxisExtent: rowExtent,
-                      ),
-                      list: list,
-                    ),
+                    gridDelegate: level.morph(placing, width: width),
                     itemCount: places.length,
                     findChildIndexCallback: (key) {
                       final at = key is ValueKey
@@ -1097,7 +1078,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                         child: LauncherCell<WebspaceId>(
                           index: index,
                           child: LauncherSlot(
-                            morphing: list > 0 && list < 1,
+                            morphing: placing.moving,
                             child: Builder(
                               builder: (cell) => WebspaceGroupTile(
                                 key: tiles.putIfAbsent(
@@ -1199,9 +1180,9 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     required Map<SiteId, GlobalKey> keys,
     required _SiteGridOf of,
   }) {
-    final (memberships, reorders, list) = switch (of) {
-      _FolderPage(:final reorders, :final list) => (false, reorders, list),
-      _SearchResults() => (true, false, 0.0),
+    final memberships = switch (of) {
+      _FolderPage() => false,
+      _SearchResults() => true,
     };
     final labels = {
       for (final i in shown)
@@ -1214,14 +1195,28 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                   .toList()
             : const <Webspace>[],
     };
+    final level = _folderLevel(
+      context,
+      labels: shown.map((i) => labels[i]!.length).reduce(math.max),
+    );
+    final (reorders, placing) = switch (of) {
+      _FolderPage(:final reorders, :final placing) => (reorders, placing),
+      // Search results are a grid whatever the folders' layout.
+      _SearchResults() => (
+        false,
+        _Placing.settled(
+          LibraryLayout.grid.place(
+            count: shown.length,
+            room: level.room(width: width, height: 0),
+          ),
+        ),
+      ),
+    };
+    final list = placing.list;
     final reorder = reorders && order.length > 1 ? widget.onReorderSite : null;
     final onReorder = reorder;
     return SliverPadding(
-      padding: EdgeInsets.lerp(
-        const EdgeInsets.all(Spacing.lg),
-        const EdgeInsets.all(Spacing.sm),
-        list,
-      )!,
+      padding: level.padding(placing),
       sliver: LauncherGrid<int>(
         order: [for (final i in shown) order.indexOf(i)],
         fixed: (_) => false,
@@ -1229,28 +1224,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
             ? null
             : (from, {required to}) => onReorder(from, to: to),
         builder: (context, {required places}) => SliverGrid.builder(
-          gridDelegate: LauncherMorph(
-            grid: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _siteColumns(context, width: width),
-              crossAxisSpacing: Spacing.sm,
-              mainAxisSpacing: Spacing.lg,
-              mainAxisExtent: shown
-                  .map(
-                    (i) => SiteGridTile.extentFor(
-                      context,
-                      well: LibraryStyle.siteWell,
-                      webspaceCount: labels[i]!.length,
-                    ),
-                  )
-                  .reduce(math.max),
-            ),
-            rows: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _rowColumns(width: width - Spacing.sm * 2),
-              crossAxisSpacing: Spacing.sm,
-              mainAxisExtent: LauncherMorphTile.rowExtentFor(context),
-            ),
-            list: list,
-          ),
+          gridDelegate: level.morph(placing, width: width),
           itemCount: places.length,
           findChildIndexCallback: (key) {
             final at = places.indexWhere(
@@ -1266,7 +1240,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
               child: LauncherCell<int>(
                 index: index,
                 child: LauncherSlot(
-                  morphing: list > 0 && list < 1,
+                  morphing: placing.moving,
                   child: SiteGridTile(
                     key: ValueKey(site.siteId),
                     site: site,
@@ -1395,6 +1369,179 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   }
 }
 
+/// A level's items [at] of the way [from] one placement [to] another.
+final class _Placing {
+  const _Placing({required this.from, required this.to, required this.at});
+
+  const _Placing.settled(LibraryPlacement placement)
+    : from = placement,
+      to = placement,
+      at = 1;
+
+  final LibraryPlacement from;
+  final LibraryPlacement to;
+  final double at;
+
+  /// How far the items have turned into rows.
+  double get list => lerpDouble(_rows(from), _rows(to), at)!;
+
+  /// Whether the items are on their way, their places moving with the layout
+  /// rather than sliding after it.
+  bool get moving => at > 0 && at < 1 && from != to;
+
+  static double _rows(LibraryPlacement placement) => switch (placement.form) {
+    LibraryForm.rows => 1,
+    LibraryForm.icons => 0,
+  };
+}
+
+/// The padding around a level's items laid out one way, and the gaps between
+/// them across and down.
+typedef _Spacing = ({EdgeInsets padding, double across, double down});
+
+/// One level of the library as it lays out (WEBSPACE-015): how tall its rows
+/// are, how tall its icons are in a column so wide, the narrowest column an
+/// icon keeps its whole caption in, and how each is spaced.
+final class _Level {
+  const _Level({
+    required this.rowExtent,
+    required this.iconExtent,
+    required this.iconColumnMin,
+    required this.icons,
+    required this.rows,
+  });
+
+  final double rowExtent;
+  final double Function(double column) iconExtent;
+  final double iconColumnMin;
+  final _Spacing icons;
+  final _Spacing rows;
+
+  _Spacing _of(LibraryForm form) => switch (form) {
+    LibraryForm.rows => rows,
+    LibraryForm.icons => icons,
+  };
+
+  double _column(
+    LibraryForm form, {
+    required int columns,
+    required double width,
+  }) {
+    final spacing = _of(form);
+    return (width -
+            spacing.padding.horizontal -
+            spacing.across * (columns - 1)) /
+        columns;
+  }
+
+  /// How many columns at least [min] wide fit [width].
+  int _fitting(LibraryForm form, {required double min, required double width}) {
+    final spacing = _of(form);
+    return ((width - spacing.padding.horizontal + spacing.across) /
+            (min + spacing.across))
+        .floor()
+        .clamp(1, LibraryStyle.maxColumns);
+  }
+
+  double _extent(LibraryPlacement placement, {required double width}) =>
+      switch (placement.form) {
+        LibraryForm.rows => rowExtent,
+        LibraryForm.icons => iconExtent(
+          _column(LibraryForm.icons, columns: placement.columns, width: width),
+        ),
+      };
+
+  /// What the level has room for, [width] wide and [height] tall.
+  LibraryRoom room({required double width, required double height}) {
+    final listColumns = _fitting(
+      LibraryForm.rows,
+      min: LibraryStyle.rowMinWidth,
+      width: width,
+    );
+    final gridColumns = _fitting(
+      LibraryForm.icons,
+      min: iconColumnMin,
+      width: width,
+    );
+    final rowColumns = math.max(
+      listColumns,
+      _fitting(
+        LibraryForm.rows,
+        min: LibraryStyle.packedRowMinWidth,
+        width: width,
+      ),
+    );
+    int tall(LibraryForm form, {required double extent}) {
+      final spacing = _of(form);
+      return math.max(
+        0,
+        ((height - spacing.padding.vertical + spacing.down) /
+                (extent + spacing.down))
+            .floor(),
+      );
+    }
+
+    return (
+      listColumns: listColumns,
+      gridColumns: gridColumns,
+      rowColumns: rowColumns,
+      mostColumns: [
+        gridColumns,
+        rowColumns,
+        LibraryStyle.packedColumns,
+      ].reduce(math.max),
+      rowsTall: tall(LibraryForm.rows, extent: rowExtent),
+      iconsTall: (columns) => tall(
+        LibraryForm.icons,
+        extent: iconExtent(
+          _column(LibraryForm.icons, columns: columns, width: width),
+        ),
+      ),
+    );
+  }
+
+  /// Each item's place [placing] has it at, across [width].
+  LauncherMorph morph(_Placing placing, {required double width}) =>
+      LauncherMorph(
+        from: _delegate(placing.from, width: width),
+        to: _delegate(placing.to, width: width),
+        at: placing.at,
+      );
+
+  SliverGridDelegateWithFixedCrossAxisCount _delegate(
+    LibraryPlacement placement, {
+    required double width,
+  }) {
+    final spacing = _of(placement.form);
+    return SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: placement.columns,
+      crossAxisSpacing: spacing.across,
+      mainAxisSpacing: spacing.down,
+      mainAxisExtent: _extent(placement, width: width),
+    );
+  }
+
+  /// The padding around the items, [placing] of the way.
+  EdgeInsets padding(_Placing placing) => EdgeInsets.lerp(
+    _of(placing.from.form).padding,
+    _of(placing.to.form).padding,
+    placing.at,
+  )!;
+
+  /// How tall [count] items are as [placement] has them, padding and all.
+  double height(
+    LibraryPlacement placement, {
+    required int count,
+    required double width,
+  }) {
+    final spacing = _of(placement.form);
+    final lines = (count / placement.columns).ceil();
+    return spacing.padding.vertical +
+        lines * _extent(placement, width: width) +
+        math.max(0, lines - 1) * spacing.down;
+  }
+}
+
 /// How one level of the library lays out its items, following its [pref]
 /// (WEBSPACE-015), and the switch from the layout it had to the one it has,
 /// which moves rather than jumps unless motion is reduced ([still]).
@@ -1423,13 +1570,13 @@ final class _Layout {
 
   LibraryLayout get mode => _to;
 
-  /// How far [count] items, of which [fit] fit as rows, have turned into
-  /// rows.
-  double list({required int count, required int fit}) {
-    double rows(LibraryLayout layout) =>
-        layout.showsRows(count: count, fit: fit) ? 1 : 0;
-    return lerpDouble(rows(_from), rows(_to), animation.value)!;
-  }
+  /// Where [count] items in [room] stand on the way from where the layout
+  /// this level had puts them to where the one it has does.
+  _Placing placing({required int count, required LibraryRoom room}) => _Placing(
+    from: _from.place(count: count, room: room),
+    to: _to.place(count: count, room: room),
+    at: animation.value,
+  );
 
   /// Where the switch's thumb is, in segments from the first.
   double get thumb =>

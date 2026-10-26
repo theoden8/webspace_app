@@ -183,36 +183,34 @@ class _CellMoves extends InheritedWidget {
   bool updateShouldNotify(_CellMoves oldWidget) => false;
 }
 
-/// A launcher grid's places [list] of the way from [grid] to [rows]: each
-/// place moves on a line between where the two put it, so icons glide into
-/// rows and back rather than jumping (WEBSPACE-015).
+/// A launcher grid's places [at] of the way [from] one layout [to] another:
+/// each place moves on a line between where the two put it, so icons glide
+/// into rows, or into more columns, and back rather than jumping
+/// (WEBSPACE-015).
 class LauncherMorph extends SliverGridDelegate {
-  const LauncherMorph({
-    required this.grid,
-    required this.rows,
-    required this.list,
-  }) : assert(list >= 0 && list <= 1, 'list is a share of the way');
+  const LauncherMorph({required this.from, required this.to, required this.at})
+    : assert(at >= 0 && at <= 1, 'at is a share of the way');
 
-  final SliverGridDelegateWithFixedCrossAxisCount grid;
-  final SliverGridDelegateWithFixedCrossAxisCount rows;
-  final double list;
+  final SliverGridDelegateWithFixedCrossAxisCount from;
+  final SliverGridDelegateWithFixedCrossAxisCount to;
+  final double at;
 
   @override
   SliverGridLayout getLayout(SliverConstraints constraints) {
-    if (list == 0) return grid.getLayout(constraints);
-    if (list == 1) return rows.getLayout(constraints);
+    if (at == 0) return from.getLayout(constraints);
+    if (at == 1) return to.getLayout(constraints);
     return _Between(
-      from: grid.getLayout(constraints),
-      to: rows.getLayout(constraints),
-      t: list,
+      from: from.getLayout(constraints),
+      to: to.getLayout(constraints),
+      t: at,
     );
   }
 
   @override
   bool shouldRelayout(LauncherMorph oldDelegate) =>
-      list != oldDelegate.list ||
-      grid.shouldRelayout(oldDelegate.grid) ||
-      rows.shouldRelayout(oldDelegate.rows);
+      at != oldDelegate.at ||
+      from.shouldRelayout(oldDelegate.from) ||
+      to.shouldRelayout(oldDelegate.to);
 }
 
 class _Between extends SliverGridLayout {

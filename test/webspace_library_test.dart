@@ -69,6 +69,19 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   void disableTabs(WebViewModel site) =>
       setState(() => site.tabsEnabled = false);
 
+  /// Adds [count] sites, which only All holds.
+  void addSites(int count) => setState(() {
+    final first = sites.length;
+    sites.addAll([
+      for (var i = first; i < first + count; i++)
+        WebViewModel(
+          name: 'Site $i',
+          initUrl: 'https://site$i.example.test',
+          customIconPng: _icon,
+        ),
+    ]);
+  });
+
   void giveGlyph(WebspaceGlyph glyph, {required String to}) => setState(
     () => webspaces.singleWhere((w) => w.name == to).glyph = glyph,
   );
@@ -173,6 +186,22 @@ void _layoutStartsAsGrid() {
     pref.debugValue = LibraryLayout.grid.name;
     addTearDown(() => pref.debugValue = pref.fallback);
   }
+}
+
+final _homeTiles = find.byType(WebspaceGroupTile);
+
+/// How many of [of]'s tiles share the first one's line, and how far that one
+/// has turned into a row.
+({int count, double list}) _across(WidgetTester tester, {required Finder of}) {
+  final first = tester.getRect(of.first);
+  final tile = tester.widget(of.first);
+  return (
+    count: [
+      for (final element in of.evaluate())
+        tester.getRect(find.byElementPredicate((e) => e == element)),
+    ].where((rect) => (rect.top - first.top).abs() < 1).length,
+    list: tile is SiteGridTile ? tile.list : (tile as WebspaceGroupTile).list,
+  );
 }
 
 /// The tile of webspace [name] on the home.
@@ -1632,8 +1661,9 @@ void main() {
   });
 
   testWidgets(
-    'Auto shows each level as rows while its items all fit, and as icons once '
-    'they would not, again as the window resizes (WEBSPACE-015)',
+    'Auto packs each level as the drawer does: one column of rows, more once '
+    'they fill it, then smaller icons, scrolling only past the most columns, '
+    'again as the window resizes (WEBSPACE-015)',
     (tester) async {
       for (final pref in [
         AppPref.libraryLayout,
@@ -1644,73 +1674,117 @@ void main() {
       await pumpLocalized(
         tester,
         home: const _LibraryHarness(),
-        size: const Size(411, 900),
+        size: const Size(393, 852),
       );
       await tester.pumpAndSettle();
-      expect(
-        tester.getRect(_groupTile('Work')).width,
-        411,
-        reason: 'four webspaces fit as rows',
+      final harness = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
       );
+      expect(_across(tester, of: _homeTiles), (count: 1, list: 1.0));
       await tester.tap(_group('All'));
       await tester.pumpAndSettle();
-      final panel = tester.getRect(_panel);
+      final sites = _inPanel(find.byType(SiteGridTile));
       expect(
-        tester.getRect(_inPanel(find.byType(SiteGridTile)).at(1)).width,
-        panel.width - Spacing.sm * 2,
-        reason: 'eight sites fit a tall window as rows',
+        _across(tester, of: sites),
+        (count: 1, list: 1.0),
+        reason: 'eight sites fill a column of rows',
       );
-      await _tapOutside(tester);
+      harness.addSites(4);
+      await tester.pumpAndSettle();
+      expect(
+        _across(tester, of: sites),
+        (count: 2, list: 1.0),
+        reason: 'twelve overflow one column, and two still fit as rows',
+      );
+      // The page's own, nearest the icons, inside the pages' sideways one.
+      final scroll = find
+          .ancestor(of: sites.first, matching: find.byType(Scrollable))
+          .first;
+      harness.addSites(10);
+      await tester.pumpAndSettle();
+      expect(
+        _across(tester, of: sites),
+        (count: 2, list: 1.0),
+        reason: 'two columns of rows hold twenty-two',
+      );
+      expect(
+        tester.state<ScrollableState>(scroll).position.maxScrollExtent,
+        lessThan(1),
+        reason: 'all twenty-two in view',
+      );
+      harness.addSites(1);
+      await tester.pumpAndSettle();
+      expect(
+        _across(tester, of: sites),
+        (count: 4, list: 0.0),
+        reason: 'twenty-three overflow two columns of rows; smaller icons '
+            'four across hold them',
+      );
+      expect(
+        tester.getRect(_siteWell(0)).width,
+        lessThan(LibraryStyle.siteWell),
+      );
+      expect(
+        tester
+            .widgetList<Text>(
+              find.descendant(of: sites.first, matching: find.byType(Text)),
+            )
+            .first
+            .maxLines,
+        1,
+        reason: 'a packed icon\'s name is one line',
+      );
+      expect(
+        tester.state<ScrollableState>(scroll).position.maxScrollExtent,
+        lessThan(1),
+        reason: 'all twenty-three in view',
+      );
+      harness.addSites(2);
+      await tester.pumpAndSettle();
+      expect(
+        _across(tester, of: sites),
+        (count: 4, list: 0.0),
+        reason: 'four across is the most, as the drawer\'s',
+      );
+      expect(
+        tester.state<ScrollableState>(scroll).position.maxScrollExtent,
+        greaterThan(1),
+        reason: 'past what four across hold, they scroll',
+      );
 
-      // Eight rows would fit this window, but not the panel within it.
-      setViewSize(tester, size: const Size(411, 480));
-      await tester.pumpAndSettle();
-      await tester.tap(_group('All'));
-      await tester.pumpAndSettle();
-      expect(
-        tester.getRect(_inPanel(find.byType(SiteGridTile)).at(1)).width,
-        lessThan(tester.getRect(_panel).width / 2),
-        reason: 'rows only where the panel holds them all',
-      );
-      await _tapOutside(tester);
-
-      setViewSize(tester, size: const Size(411, 360));
-      await tester.pumpAndSettle();
-      expect(
-        tester.getRect(_groupTile('Work')).width,
-        lessThan(411 / 2),
-        reason: 'four webspaces no longer fit a short window as rows',
-      );
-      await tester.tap(_group('All'));
-      await tester.pumpAndSettle();
-      expect(
-        tester.getRect(_inPanel(find.byType(SiteGridTile)).at(1)).width,
-        lessThan(tester.getRect(_panel).width / 2),
-        reason: 'eight sites no longer fit as rows',
-      );
-      // Halfway to Work, each page shows its own layout.
+      // Halfway to Work, each page lays out by its own count.
       final gesture = await tester.startGesture(
         tester.getCenter(_panel) + const Offset(100, 0),
       );
       await gesture.moveBy(const Offset(-kTouchSlop - 1, 0));
       await gesture.moveBy(const Offset(-150, 0));
       await tester.pump();
-      final work = tester.state<_LibraryHarnessState>(
-        find.byType(_LibraryHarness),
-      ).sites[0];
       final workTile = find.byWidgetPredicate(
         (widget) =>
             widget is SiteGridTile &&
-            identical(widget.site, work) &&
+            identical(widget.site, harness.sites[0]) &&
             widget.list == 1,
       );
-      expect(
-        _inPanel(workTile),
-        findsOneWidget,
-        reason: 'two sites still fit as rows, each folder by its own count',
-      );
+      expect(_inPanel(workTile), findsOneWidget, reason: 'Work holds two');
       await gesture.up();
       await tester.pumpAndSettle();
+      await _tapOutside(tester);
+
+      // A shorter window holds fewer of each.
+      setViewSize(tester, size: const Size(393, 300));
+      await tester.pumpAndSettle();
+      expect(
+        _across(tester, of: _homeTiles),
+        (count: 2, list: 1.0),
+        reason: 'four webspaces overflow a short column of rows',
+      );
+      setViewSize(tester, size: const Size(393, 260));
+      await tester.pumpAndSettle();
+      expect(
+        _across(tester, of: _homeTiles).list,
+        0.0,
+        reason: 'nor do two columns of rows hold them',
+      );
       expect(tester.takeException(), isNull);
     },
   );

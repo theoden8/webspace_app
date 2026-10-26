@@ -1,15 +1,109 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/library_layout.dart';
 
+/// A phone's folder: one column of rows runs its width, two fit at the
+/// narrowest a row may be, its grid holds two icons across, and icons packed
+/// three or four across hold three or five a column.
+final LibraryRoom _phone = (
+  listColumns: 1,
+  gridColumns: 2,
+  rowColumns: 2,
+  mostColumns: 4,
+  rowsTall: 9,
+  iconsTall: (columns) => switch (columns) {
+    3 => 3,
+    4 => 5,
+    _ => 2,
+  },
+);
+
+/// A wide window's folder: rows flow into two columns even in List, five
+/// fit at their narrowest, and its grid holds seven icons across.
+final LibraryRoom _wide = (
+  listColumns: 2,
+  gridColumns: 7,
+  rowColumns: 5,
+  mostColumns: 7,
+  rowsTall: 10,
+  iconsTall: (columns) => 4,
+);
+
+LibraryPlacement _auto(int count, {required LibraryRoom room}) =>
+    LibraryLayout.auto.place(count: count, room: room);
+
 void main() {
-  test('Auto shows rows while every item fits as one, as the drawer packs '
-      'its sites; Grid and List hold whatever the count (WEBSPACE-015)', () {
-    expect(LibraryLayout.auto.showsRows(count: 4, fit: 4), isTrue);
-    expect(LibraryLayout.auto.showsRows(count: 5, fit: 4), isFalse);
-    expect(LibraryLayout.auto.showsRows(count: 0, fit: 0), isTrue);
+  test('Auto packs a phone\'s folder as the drawer does: one column of rows, '
+      'two once they fill it, smaller icons four across once those do, and '
+      'only then scrolls (WEBSPACE-015)', () {
+    for (final (counts, placement) in [
+      ([0, 1, 9], (form: LibraryForm.rows, columns: 1)),
+      ([10, 18], (form: LibraryForm.rows, columns: 2)),
+      ([19, 20], (form: LibraryForm.icons, columns: 4)),
+      ([21, 60], (form: LibraryForm.icons, columns: 4)),
+    ]) {
+      for (final count in counts) {
+        expect(_auto(count, room: _phone), placement, reason: '$count sites');
+      }
+    }
+  });
+
+  test('Auto takes as few columns as hold every item, never fewer than List '
+      'flows rows into, and rows while a column is wide enough for one '
+      '(WEBSPACE-015)', () {
+    for (final room in [_phone, _wide]) {
+      for (var count = 0; count <= 80; count++) {
+        final placed = _auto(count, room: room);
+        int holds(LibraryPlacement placement) =>
+            placement.columns *
+            switch (placement.form) {
+              LibraryForm.rows => room.rowsTall,
+              LibraryForm.icons => room.iconsTall(placement.columns),
+            };
+        expect(
+          placed.columns,
+          inInclusiveRange(room.listColumns, room.mostColumns),
+        );
+        expect(
+          placed.form,
+          placed.columns <= room.rowColumns
+              ? LibraryForm.rows
+              : LibraryForm.icons,
+          reason: '$count items in ${placed.columns} columns',
+        );
+        if (holds(placed) < count) {
+          expect(
+            placed.columns,
+            room.mostColumns,
+            reason: 'only the most columns scroll ($count items)',
+          );
+        }
+        for (var fewer = room.listColumns; fewer < placed.columns; fewer++) {
+          final form = fewer <= room.rowColumns
+              ? LibraryForm.rows
+              : LibraryForm.icons;
+          expect(
+            holds((form: form, columns: fewer)),
+            lessThan(count),
+            reason: '$count items fit $fewer columns',
+          );
+        }
+      }
+    }
+    expect(_auto(3, room: _wide), (form: LibraryForm.rows, columns: 2));
+    expect(_auto(50, room: _wide), (form: LibraryForm.rows, columns: 5));
+    expect(_auto(51, room: _wide), (form: LibraryForm.icons, columns: 7));
+  });
+
+  test('Grid and List hold whatever the count (WEBSPACE-015)', () {
     for (final count in [0, 4, 40]) {
-      expect(LibraryLayout.grid.showsRows(count: count, fit: 10), isFalse);
-      expect(LibraryLayout.list.showsRows(count: count, fit: 10), isTrue);
+      expect(
+        LibraryLayout.grid.place(count: count, room: _phone),
+        (form: LibraryForm.icons, columns: 2),
+      );
+      expect(
+        LibraryLayout.list.place(count: count, room: _wide),
+        (form: LibraryForm.rows, columns: 2),
+      );
     }
   });
 

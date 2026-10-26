@@ -58,12 +58,18 @@ class SiteGridTile extends StatelessWidget {
   final void Function(BuildContext context, {required Offset globalPosition})
   onMenu;
 
+  /// A library tile's height in a column [width] wide, under [webspaceCount]
+  /// webspace labels.
   static double extentFor(
     BuildContext context, {
-    required double well,
+    required double width,
     required int webspaceCount,
   }) {
     final scaler = MediaQuery.textScalerOf(context);
+    final well = LibraryStyle.wellFor(width: width);
+    if (_packed(context, width: width)) {
+      return well + Spacing.sm + _packedCaption(context);
+    }
     final label = Theme.of(context).textTheme.labelSmall!;
     final rows = webspaceCount.clamp(0, LibraryStyle.membershipLimit);
     return well +
@@ -72,6 +78,18 @@ class SiteGridTile extends StatelessWidget {
         rows *
             (scaler.scale(label.fontSize!) * (label.height ?? 1) +
                 Spacing.xs * 3);
+  }
+
+  /// Whether a library tile [width] wide is in a column narrower than Grid
+  /// lays icons in, as Automatic layout packs them: its caption is one line.
+  static bool _packed(BuildContext context, {required double width}) =>
+      width < LibraryStyle.iconColumnMin(MediaQuery.textScalerOf(context));
+
+  static double _packedCaption(BuildContext context) {
+    final title = Theme.of(context).textTheme.bodyMedium!;
+    return Spacing.xs +
+        MediaQuery.textScalerOf(context).scale(LibraryStyle.siteTitleSize) *
+            (title.height ?? 1);
   }
 
   /// Where a library tile laid out at [tile], [list] of the way to a row,
@@ -88,12 +106,10 @@ class SiteGridTile extends StatelessWidget {
     direction: direction,
   );
 
-  static Rect _gridWell(Size tile) => Rect.fromLTWH(
-    tile.width / 2 - LibraryStyle.siteWell / 2,
-    Spacing.sm,
-    LibraryStyle.siteWell,
-    LibraryStyle.siteWell,
-  );
+  static Rect _gridWell(Size tile) {
+    final well = LibraryStyle.wellFor(width: tile.width);
+    return Rect.fromLTWH(tile.width / 2 - well / 2, Spacing.sm, well, well);
+  }
 
   /// The colour [site]'s icon is marked in: its container's, only where the
   /// icon alone does not tell the site apart, because another site shows the
@@ -220,37 +236,44 @@ class _SiteGridTileContent extends StatelessWidget {
     );
   }
 
-  Widget _library(BuildContext context) => LauncherMorphTile(
-    list: list,
-    icon: (
-      well: SiteGridTile._gridWell,
-      caption: _caption(context),
-      captionHeight:
-          SiteGridTile.extentFor(
-            context,
-            well: LibraryStyle.siteWell,
-            webspaceCount: webspaces.length,
-          ) -
-          LibraryStyle.siteWell -
-          Spacing.sm,
-      corner: [
-        if (showTabCount)
-          TabCountPill(count: site.tabs.length, active: selected),
-      ],
-    ),
-    well: _well(context),
-    row: LauncherRowText(
-      name: site.getDisplayName(),
-      detail: addressOf(site.initUrl, loc: AppLocalizations.of(context)),
-      trailing: [
-        SitePermissionBadges(model: site, iconSize: IconSizes.inline),
-        if (showTabCount) ...[
-          const SizedBox(width: Spacing.sm),
-          TabCountPill(count: site.tabs.length, active: selected),
-        ],
-      ],
-    ),
+  Widget _library(BuildContext context) => LayoutBuilder(
+    builder: (context, cell) => _libraryIn(context, width: cell.maxWidth),
   );
+
+  Widget _libraryIn(BuildContext context, {required double width}) =>
+      LauncherMorphTile(
+        list: list,
+        icon: (
+          well: SiteGridTile._gridWell,
+          caption: SiteGridTile._packed(context, width: width)
+              ? _packedName(context)
+              : _caption(context),
+          captionHeight:
+              SiteGridTile.extentFor(
+                context,
+                width: width,
+                webspaceCount: webspaces.length,
+              ) -
+              LibraryStyle.wellFor(width: width) -
+              Spacing.sm,
+          corner: [
+            if (showTabCount)
+              TabCountPill(count: site.tabs.length, active: selected),
+          ],
+        ),
+        well: _well(context),
+        row: LauncherRowText(
+          name: site.getDisplayName(),
+          detail: addressOf(site.initUrl, loc: AppLocalizations.of(context)),
+          trailing: [
+            SitePermissionBadges(model: site, iconSize: IconSizes.inline),
+            if (showTabCount) ...[
+              const SizedBox(width: Spacing.sm),
+              TabCountPill(count: site.tabs.length, active: selected),
+            ],
+          ],
+        ),
+      );
 
   Widget _well(BuildContext context) {
     final theme = Theme.of(context);
@@ -292,6 +315,32 @@ class _SiteGridTileContent extends StatelessWidget {
           child: icon,
         );
       },
+    );
+  }
+
+  /// The name under a packed icon on one line, beside its grants.
+  Widget _packedName(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.xs),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(
+              site.getDisplayName(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: LibraryStyle.siteTitleSize,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          SitePermissionBadges(model: site, iconSize: IconSizes.inline),
+        ],
+      ),
     );
   }
 

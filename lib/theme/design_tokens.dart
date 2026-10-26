@@ -9,6 +9,8 @@
 // Colours that follow the user's accent live in accent_theme.dart; the ones
 // here are the fixed chrome that does not.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:webspace/utils/stable_palette.dart';
 import 'package:webspace/webspace_model.dart';
@@ -65,6 +67,11 @@ abstract final class LibraryStyle {
   static const double maxWidth = 1440;
   static const int maxColumns = 8;
   static const double tileMinWidth = 112;
+
+  /// The narrowest column an icon keeps its full caption in, wider as the
+  /// text grows; Grid lays icons out no narrower.
+  static double iconColumnMin(TextScaler scaler) =>
+      tileMinWidth * math.max(1, scaler.scale(1) * .7);
   static const double siteIcon = 64;
   static const double siteWell = 80;
   static const double previewIcon = 24;
@@ -123,6 +130,17 @@ abstract final class LibraryStyle {
 
   /// The narrowest a row may be before rows flow into fewer columns.
   static const double rowMinWidth = 360;
+
+  /// Automatic layout, as the drawer packs its sites: the narrowest a row
+  /// may be once rows take more columns to hold every item, and the most
+  /// columns it takes before the items scroll, as the drawer's four.
+  static const double packedRowMinWidth = 150;
+  static const int packedColumns = 4;
+
+  /// An icon's well in a column [width] wide: its full size, or smaller
+  /// where Automatic layout packs icons into narrower columns.
+  static double wellFor({required double width}) =>
+      (width - Spacing.lg).clamp(0, siteWell);
 
   /// The switch between a level's layouts: each of its segments, and the
   /// track around them.
