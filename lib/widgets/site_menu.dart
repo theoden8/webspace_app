@@ -12,7 +12,6 @@ enum SiteMenuAction {
   newTab,
   backToWebspaces,
   search,
-  webSearch,
   toggleUrlBar,
   fullscreen,
   repaint,
@@ -127,9 +126,6 @@ class SiteMenuButton extends StatelessWidget {
               : null,
         SiteMenuAction.search =>
           (Icons.search, loc.homeFindMenu, shortcutLabel<FindInPage>(names)),
-        // Where the site has tabs, web search lives in the Tabs sheet.
-        SiteMenuAction.webSearch =>
-          state.tabsOn ? null : (Icons.travel_explore, loc.webSearchMenu, null),
         SiteMenuAction.toggleUrlBar => AppPref.showUrlBar.value
             ? (Icons.visibility_off, loc.homeHideUrlBarMenu, null)
             : (Icons.visibility, loc.homeShowUrlBarMenu, null),

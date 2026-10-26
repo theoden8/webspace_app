@@ -39,18 +39,17 @@ void main() {
   }
 
   group('web search (LIR-029 to LIR-031)', () {
-    test('the Tabs sheet offers Web search; the menus only with tabs off', () {
+    test('the Tabs sheet offers Web search; popup menus do not', () {
       expect(bodyOf(main, signature: 'Future<void> _presentTabsSheet('),
           contains('onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),'),
           reason: 'the sheet of a site on screen offers it; the library\'s tab tree, with none, does not');
       expect(
         File('lib/widgets/site_menu.dart').readAsStringSync(),
-        matches(RegExp(r'SiteMenuAction\.webSearch =>\s*state\.tabsOn \? null :')),
-        reason: 'the overflow menus offer it only while tabs are off',
+        isNot(contains('webSearch')),
+        reason: 'neither popup menu offers web search, even with tabs off',
       );
       expect(main, contains('tabsOn: _tabs.enabledFor(_sites.shown),'));
-      expect(main,
-          matches(RegExp(r'case SiteMenuAction\.webSearch:\s*await _links\.webSearch\(\);')));
+      expect(main, isNot(contains('SiteMenuAction.webSearch')));
     });
 
     test('web search needs no developer mode (LIR-029)', () {
