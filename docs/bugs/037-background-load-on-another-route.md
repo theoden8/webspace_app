@@ -369,9 +369,12 @@ the override under the sites already loaded.
    `Inv_OneRoute` in `activation_tabs_reroute_router_containers.cfg` and
    the route assert under the schedules. *Why:* the arms named one proxy
    override where the rule they need is any route another running site
-   shares. *Partial:* a settings change of a site's Tor exit is still left
-   to the commit's Tor sync, an unload outside any step
-   (`SlotIdentityChanged` plans the proxy's contenders only).
+   shares. A settings change of a loaded site's proxy or Tor exit plans
+   `SlotIdentityChanged` before the webview takes the new route; that plan
+   now unloads the exit's dissenters too, where it unloaded only the
+   proxy's contenders and left the rest to the commit's Tor sync.
+   *Partial:* the model takes no settings change, since a site's route and
+   exit are its constants (`Route`, `TorExit`).
 
 ## Known open gaps
 
@@ -413,7 +416,6 @@ the override under the sites already loaded.
   The model reaches that state and no invariant names it.
 - A reroute that arrives while the tab gate is held waits in the code and
   is not taken by the model (`steps_uncovered.tsv`).
-- A settings change of a site's Tor exit unloads the loaded sites on
-  another exit in the commit's Tor sync, outside any step. The model does
-  not take the sync, and no walk changes a site's settings, so nothing
-  checks it.
+- A settings change of a site's proxy or Tor exit is checked only by the
+  residency plan's unit tests: the model holds a site's route and exit as
+  constants, and no walk changes a site's settings.

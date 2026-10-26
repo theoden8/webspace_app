@@ -167,8 +167,9 @@ final class NestedOpening extends ResidencyEvent {
   final int target;
 }
 
-/// The slot on screen at [slot] now runs as another site, so its proxy may
-/// have changed under its contenders (LIR-024).
+/// The slot on screen at [slot] now runs as another site, or its own proxy
+/// or Tor exit changed in its settings, so its route may have moved under
+/// the sites it shares a rule with (LIR-024, PROXY-008, TOR-014).
 final class SlotIdentityChanged extends ResidencyEvent {
   const SlotIdentityChanged(this.slot);
 
@@ -385,6 +386,10 @@ class SiteUnloadEngine {
         unload(
           proxyContenders(runsAs: identityOf(slot)),
           reason: UnloadReason.proxyMismatch,
+        );
+        unload(
+          torDissenters(runsAs: identityOf(slot)),
+          reason: UnloadReason.torExitMismatch,
         );
     }
     return ResidencyPlan(unloads: unloads);
