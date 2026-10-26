@@ -19,6 +19,7 @@ import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/opensearch_engine.dart'
     show SiteSearchTarget;
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/settings_backup.dart' show BackedUpSite;
 import 'package:webspace/services/startup_restore_engine.dart'
     show ShortcutTarget;
 import 'package:webspace/services/proxy_coverage_engine.dart';
@@ -77,7 +78,7 @@ export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
-class WebViewModel implements MediaGrantRecord, ShortcutTarget {
+class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   @override
   final SiteId siteId;
   @override
@@ -1942,6 +1943,7 @@ bool dispatch(NavigationDecision decision,
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See
   /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
+  @override
   Map<String, dynamic> toJson() => toJsonMap();
 
   /// What an archive seals for this site (ARCH-012).
