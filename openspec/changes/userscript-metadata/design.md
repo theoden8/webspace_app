@@ -30,6 +30,10 @@ so only the page knows which URL a run is for. Scripts run in the top frame only
 **Non-Goals:**
 
 - `GM_*` / `GM.*` APIs, `@require`, `@resource`, update checks, `@icon`.
+  Decided against: most published scripts use them, and a script that needs
+  them is reported as such instead.
+- An in-app script catalogue (Greasy Fork, OpenUserJS). Decided against: a
+  script comes in as source or a URL the user picks.
 - Running in frames. `@noframes` is accepted and changes nothing.
 - Tampermonkey's `.tld` host suffix and `@match` extensions beyond Chrome's.
 - Telling the user in the site's screen that a script names none of the site's
