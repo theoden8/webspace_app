@@ -35,6 +35,7 @@ import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/controllers/webspaces_controller.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/webspace_name.dart';
@@ -619,16 +620,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     rebuild: () {
       if (mounted) setState(() {});
     },
-    onScreen: (slot) => identical(_sites.shown, slot),
     launchNested: launchUrl,
     openInBrowser: launchUrlInSystemBrowser,
-    routeOutbound: _links.routeOutbound,
-    // Identity, not index: the list can have been reordered by the time the
-    // native event lands.
-    linkMenu: (source, {required url}) =>
-        unawaited(_showLinkLongPressMenu(source, url: url)),
-    firstPageLoaded: (source, {required url}) =>
-        unawaited(_editing.offerRedirectHome(source, url: url)),
     openSiteSettings: _openSiteSettingsById,
     showPopup: _prompts.showPopup,
     externalScheme: (info, {required loadIn}) async {
@@ -640,6 +633,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     untrustedCertificate: _prompts.untrustedCertificate,
     httpAuth: _prompts.httpAuth,
     media: _prompts,
+  );
+
+  late final SiteHooks _siteHooks = SiteHooks(
+    host: _webViewHooks,
+    onScreen: (slot) => identical(_sites.shown, slot),
+    routeOutbound: _links.routeOutbound,
+    linkMenu: _showLinkLongPressMenu,
+    firstPageLoaded: _editing.offerRedirectHome,
   );
 
   Future<void> launchUrl(
@@ -724,7 +725,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   WebViewController? getController() =>
-      _sites.shown?.getController(_webViewHooks);
+      _sites.shown?.getController(_siteHooks);
 
   /// User-driven full session wipe for a single site. Under containers the
   /// container's data goes in place (the fork's `clearContainerData`, made for
@@ -1494,7 +1495,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         models: _sites.models,
                         loaded: _sites.loadedRows,
                         current: _sites.current,
-                        hooks: _webViewHooks,
+                        hooks: _siteHooks,
                         showStatsBanner: AppPref.showStatsBanner.value,
                       ),
                     ),
@@ -1921,7 +1922,7 @@ class _PageHost
 
   @override
   WebViewController? controllerOf(WebViewModel model) =>
-      model.getController(_s._webViewHooks);
+      model.getController(_s._siteHooks);
 
   @override
   Future<void> launchNestedFor(WebViewModel model, {required String url,

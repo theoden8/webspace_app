@@ -30,6 +30,7 @@ import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_hooks.dart';
 
 import 'helpers/capture_fakes.dart';
 import 'helpers/fake_outbound.dart';
@@ -138,7 +139,6 @@ WebViewHostHooks _hooks({
           {required WebViewController? loadIn})?
       externalScheme,
   Isolation Function()? isolation,
-  void Function(WebViewModel source, {required String url})? firstPageLoaded,
   Future<void> Function(int windowId,
           {required String url, required PopupKind kind})?
       showPopup,
@@ -148,13 +148,8 @@ WebViewHostHooks _hooks({
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},
-      onScreen: (_) => true,
       launchNested: (_, {required posture, homeTitle}) {},
       openInBrowser: (_) async => false,
-      routeOutbound:
-          (_, {required url, required decision, required hadGesture}) => false,
-      linkMenu: (_, {required url}) {},
-      firstPageLoaded: firstPageLoaded ?? (_, {required url}) {},
       openSiteSettings: (_) {},
       showPopup: showPopup ?? (_, {required url, required kind}) async {},
       externalScheme: externalScheme ?? (_, {required loadIn}) async {},
@@ -163,6 +158,21 @@ WebViewHostHooks _hooks({
           false,
       httpAuth: (_) async => null,
       media: FakePrompter(),
+    );
+
+/// [_hooks] for a site's own webview, on screen, keeping every link;
+/// [firstPageLoaded] hears the redirect-home offer.
+SiteHooks _siteHooks({
+  Future<void> Function(WebViewModel source, {required String url})?
+      firstPageLoaded,
+}) =>
+    SiteHooks(
+      host: _hooks(),
+      onScreen: (_) => true,
+      routeOutbound:
+          (_, {required url, required decision, required hadGesture}) => false,
+      linkMenu: (_, {required url}) async {},
+      firstPageLoaded: firstPageLoaded ?? (_, {required url}) async {},
     );
 
 Widget _webView({
@@ -316,7 +326,7 @@ void main() {
     const home = 'file:///import/site.html';
     final guardian = WebViewModel(initUrl: home);
     await tester.pumpWidget(MaterialApp(home: guardian.getWebView(
-      _hooks(), cacheFirst: false, initialHtml: '<p>Imported page with scripts</p>',
+      _siteHooks(), cacheFirst: false, initialHtml: '<p>Imported page with scripts</p>',
     )));
     final (:params, :native) = await _attach(tester);
     await tester.runAsync(() async {
@@ -332,8 +342,8 @@ void main() {
       (tester) async {
     final guardian = WebViewModel(initUrl: 'https://theguardian.co.uk/');
     final offered = <String>[];
-    await tester.pumpWidget(MaterialApp(home: guardian.getWebView(_hooks(
-      firstPageLoaded: (_, {required url}) => offered.add(url),
+    await tester.pumpWidget(MaterialApp(home: guardian.getWebView(_siteHooks(
+      firstPageLoaded: (_, {required url}) async => offered.add(url),
     ), cacheFirst: false)));
     final (:params, :native) = await _attach(tester);
     const canonical = 'https://www.theguardian.com/uk';

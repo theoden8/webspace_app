@@ -33,7 +33,7 @@ test('the factory binds the container the posture resolved', () => {
 // The posture is the slot's running identity's, which is the host for a hosted
 // tab (LIR-018).
 test('the model reads the binding from the posture of the site webview config', () => {
-  assert.match(model, /final posture = id\.sitePosture\(\s*globalUserScripts: globalUserScripts, isolation: hooks\.isolation\(\)\);/);
+  assert.match(model, /final posture = id\.sitePosture\(\s*globalUserScripts: globalUserScripts, isolation: hooks\.host\.isolation\(\)\);/);
   assert.match(callArgs(model, model.indexOf('WebViewFactory.storeBinding(')), /^posture$/);
   const config = callArgs(model, model.indexOf('webview = WebViewFactory.createWebView('));
   assert.match(config, /posture: posture,/);

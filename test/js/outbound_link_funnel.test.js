@@ -4,8 +4,8 @@
 // mode) hands each cross-domain link it would nest or send to the system
 // browser to the host first, which may open it as the site that claims it.
 // A link the site's external-link mode blocks goes to the same hook, so the
-// host can say it was blocked. The hook is a required field of
-// WebViewHostHooks, which every site webview is built from, so no webview
+// host can say it was blocked. The hook is a required field of SiteHooks,
+// which every site's own webview is built from, so no webview
 // lacks it; what remains to check is that each launch in
 // `WebViewModel.getWebView` asks it first. A launch that does not opens the
 // link with the source's own posture instead.
@@ -41,7 +41,7 @@ test('every launch asks the outbound hook first', () => {
     /bool takenOver\(\) =>\s*hooks\.routeOutbound\(\s*this,\s*url: url,\s*decision: decision,\s*hadGesture: hadGesture\);/,
     'the hook is asked about the link being launched');
   const launches = [...getWebView.matchAll(
-    /\b(hooks\.launchNested|hooks\.openInBrowser)\(/g)];
+    /\b(hooks\.host\.launchNested|hooks\.host\.openInBrowser)\(/g)];
   assert.equal(launches.length, 2, 'one nested and one external launch');
   for (const m of launches) {
     const prev = previousLine(getWebView, m.index + m[0].length) + getWebView

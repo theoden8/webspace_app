@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/html_source.dart';
-import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
@@ -25,7 +25,7 @@ class SiteWebViewStack extends StatelessWidget {
   final List<WebViewModel> models;
   final Set<int> loaded;
   final int? current;
-  final WebViewHostHooks hooks;
+  final SiteHooks hooks;
   final bool showStatsBanner;
 
   @override
@@ -56,7 +56,7 @@ class _SiteWebView extends StatelessWidget {
   }) : super(key: GlobalObjectKey(site));
 
   final WebViewModel site;
-  final WebViewHostHooks hooks;
+  final SiteHooks hooks;
   final bool showStatsBanner;
 
   @override
@@ -119,9 +119,9 @@ class _SiteWebView extends StatelessWidget {
               blocked: blocked,
               onGoBack: () {
                 site.blockedNavigation = null;
-                hooks.rebuild();
+                hooks.host.rebuild();
               },
-              onOpenProxySettings: () => hooks.openSiteSettings(site.siteId),
+              onOpenProxySettings: () => hooks.host.openSiteSettings(site.siteId),
             ),
           ),
       ],
