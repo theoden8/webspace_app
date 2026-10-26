@@ -6,8 +6,6 @@ import 'dart:typed_data';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
@@ -53,6 +51,7 @@ import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/services/archive_cookie_queue.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/isolation.dart';
@@ -1524,7 +1523,7 @@ bool dispatch(NavigationDecision decision,
               sensitive: true);
           controller = ctrl;
           unawaited(setController());
-          unawaited(_pushPendingArchiveCookies(ctrl));
+          unawaited(pendingArchiveCookies.pushInto(ctrl));
           // Apply any state queued by the activation flow when this
           // model came back from SavedForRestore. The InAppWebView's
           // `initialUrlRequest` already kicked off a navigation to
@@ -1926,53 +1925,16 @@ bool dispatch(NavigationDecision decision,
   ContainerKey get containerKey =>
       archiveContainerKey ?? ContainerKey.ofSite(siteId);
 
-  /// Cookies queued by the archive open flow to be pushed into the per-site
-  /// container as soon as the WebView controller exists. Without this, an
-  /// archive-tier site that uses native containers would load with an empty
-  /// cookie jar even though [`ArchiveHandle.state.cookies`] holds the user's
-  /// saved login. Consumed once by [getWebView]'s `onControllerCreated`.
-  List<Cookie>? _pendingArchiveCookies;
+  /// Cookies an archive's open queued for this site's container, pushed by
+  /// [getWebView]'s `onControllerCreated`.
+  final ArchiveCookieQueue pendingArchiveCookies = ArchiveCookieQueue();
 
-  /// Queues [cookies] to be written into the per-site container on the
-  /// next WebView construction. Idempotent: caller replaces the queue
-  /// each time (e.g. on archive re-open). Setting also seeds
-  /// [cookies] so the in-Dart cookie-blocking machinery
-  /// (`onCookiesChanged`) starts from the right baseline.
+  /// Queues [cookies] for the container and seeds [cookies] with them, so the
+  /// in-Dart cookie-blocking machinery (`onCookiesChanged`) starts from the
+  /// right baseline.
   void setPendingArchiveCookies(List<Cookie> archiveCookies) {
-    _pendingArchiveCookies = List<Cookie>.from(archiveCookies);
+    pendingArchiveCookies.queue(archiveCookies);
     cookies = List<Cookie>.from(archiveCookies);
-  }
-
-  Future<void> _pushPendingArchiveCookies(WebViewController ctrl) async {
-    final pending = _pendingArchiveCookies;
-    if (pending == null || pending.isEmpty) return;
-    _pendingArchiveCookies = null;
-    for (final cookie in pending) {
-      if (cookie.name.isEmpty || cookie.value.isEmpty) continue;
-      final dom = cookie.domain ?? '';
-      final cleanDomain = dom.startsWith('.') ? dom.substring(1) : dom;
-      if (cleanDomain.isEmpty) continue;
-      final path = cookie.path ?? '/';
-      // The plugin asserts both are non-empty.
-      if (path.isEmpty) continue;
-      try {
-        await cookieChannel((plugin) => plugin.setCookie(
-              url: inapp.WebUri('https://$cleanDomain$path'),
-              name: cookie.name,
-              value: cookie.value.toString(),
-              domain: cookie.domain,
-              path: path,
-              expiresDate: cookie.expiresDate,
-              isSecure: cookie.isSecure,
-              isHttpOnly: cookie.isHttpOnly,
-              webViewController: ctrl.nativeController,
-            ));
-      } on CookieJarFailure {
-        // Best effort. A cookie that fails to insert (malformed attributes from
-        // a legacy import, expired, etc.) is simply dropped from the runtime
-        // jar; archive state still has it for future round-trips.
-      }
-    }
   }
 
   String getDisplayName() => name;
