@@ -50,7 +50,7 @@ import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/site_permission_state.dart';
-import 'package:webspace/widgets/surface_nudge_scope.dart';
+import 'package:webspace/services/surface_nudge_scope.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/http_auth_challenge.dart';

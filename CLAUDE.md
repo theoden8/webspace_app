@@ -114,7 +114,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 
 Layers: UI `screens`, `widgets`, `controllers`, `theme`, `main.dart`, `app.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.
 
-Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · services → UI (`webview.dart` → `surface_nudge_scope`).
+Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface).
 
 | Axis | Budget | Now | Funnel |
 |---|---|---|---|
