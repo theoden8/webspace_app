@@ -4,6 +4,22 @@ import 'package:webspace/services/download_manager.dart';
 void main() {
   setUp(() => DownloadsService.instance.resetForTest());
 
+  test('a task id the page hands back parses only as one the app minted', () {
+    final minted = DownloadsService.instance.start(filename: 'a').id;
+    expect(DownloadTaskId.parse(minted as String), minted);
+    for (final madeUp in <Object?>[
+      'dl-1',
+      'task-9',
+      'dl-1-0123456789abcdeg',
+      'dl-x-0123456789abcdef',
+      '',
+      42,
+      null,
+    ]) {
+      expect(DownloadTaskId.parse(madeUp), isNull, reason: '$madeUp');
+    }
+  });
+
   test('start appends a task at the front, isActive', () {
     final s = DownloadsService.instance;
     expect(s.tasks, isEmpty);
@@ -84,11 +100,12 @@ void main() {
 
   test('unknown id is a no-op', () {
     final s = DownloadsService.instance;
-    s.updateProgress('missing', bytesDone: 100);
-    s.complete('missing');
-    s.fail('missing', message: 'err');
-    s.cancel('missing');
-    s.dismiss('missing');
+    final missing = DownloadTaskId.mint(serial: 99);
+    s.updateProgress(missing, bytesDone: 100);
+    s.complete(missing);
+    s.fail(missing, message: 'err');
+    s.cancel(missing);
+    s.dismiss(missing);
     expect(s.tasks, isEmpty);
   });
 

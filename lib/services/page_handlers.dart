@@ -456,9 +456,9 @@ abstract final class PageHandlers {
         final filename = args[0] is String ? args[0] as String : '';
         final base64Data = args[1] is String ? args[1] as String : '';
         final mimeType = args[2] is String ? args[2] as String : '';
-        final taskId = args[3] is String ? args[3] as String : '';
+        final taskId = DownloadTaskId.parse(args[3]);
         if (base64Data.isEmpty) {
-          if (taskId.isNotEmpty) {
+          if (taskId != null) {
             DownloadsService.instance.fail(taskId, message: 'empty payload');
           }
           return null;
@@ -469,13 +469,13 @@ abstract final class PageHandlers {
             suggestedFilename: filename.isEmpty ? null : filename,
             mimeType: mimeType.isEmpty ? null : mimeType,
           );
-          if (taskId.isNotEmpty) {
+          if (taskId != null) {
             DownloadsService.instance.updateProgress(taskId,
                 bytesDone: result.bytes.length,
                 bytesTotal: result.bytes.length);
           }
           final saved = await WebViewDownloads.saveViaPicker(result);
-          if (taskId.isNotEmpty) {
+          if (taskId != null) {
             if (saved == null) {
               DownloadsService.instance.cancel(taskId);
             } else {
@@ -484,19 +484,19 @@ abstract final class PageHandlers {
             }
           }
         } on DownloadException catch (e) {
-          if (taskId.isNotEmpty) {
+          if (taskId != null) {
             DownloadsService.instance.fail(taskId, message: e.message);
           }
         } on FileDialogFailure catch (e, stack) {
           LogTag.webView.error(
               'Blob download error: $e\n$stack', sensitive: true);
-          if (taskId.isNotEmpty) {
+          if (taskId != null) {
             DownloadsService.instance.fail(taskId, message: e.toString());
           }
         } on IOException catch (e, stack) {
           LogTag.webView.error(
               'Blob download error: $e\n$stack', sensitive: true);
-          if (taskId.isNotEmpty) {
+          if (taskId != null) {
             DownloadsService.instance.fail(taskId, message: e.toString());
           }
         }
@@ -507,10 +507,8 @@ abstract final class PageHandlers {
       handlerName: '_webspaceBlobDownloadError',
       callback: (args) {
         final msg = args.isNotEmpty ? args[0].toString() : 'unknown';
-        final taskId = args.length >= 2 && args[1] is String
-            ? args[1] as String
-            : '';
-        if (taskId.isNotEmpty) {
+        final taskId = args.length >= 2 ? DownloadTaskId.parse(args[1]) : null;
+        if (taskId != null) {
           DownloadsService.instance.fail(taskId, message: msg);
         }
         return null;
@@ -520,10 +518,10 @@ abstract final class PageHandlers {
       handlerName: '_webspaceBlobProgress',
       callback: (args) {
         if (args.length < 3) return null;
-        final taskId = args[0] is String ? args[0] as String : '';
+        final taskId = DownloadTaskId.parse(args[0]);
         final done = WebViewDownloads.asInt(args[1]);
         final total = WebViewDownloads.asInt(args[2]);
-        if (taskId.isEmpty) return null;
+        if (taskId == null) return null;
         DownloadsService.instance.updateProgress(
           taskId,
           bytesDone: done,

@@ -174,7 +174,7 @@ abstract final class WebViewDownloads {
     }
   }
 
-  static void _failed(String taskId,
+  static void _failed(DownloadTaskId taskId,
       {required String what,
       required Exception error,
       required StackTrace stack}) {

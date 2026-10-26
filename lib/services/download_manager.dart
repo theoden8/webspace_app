@@ -2,10 +2,35 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+final RegExp _kDownloadTaskIdPattern = RegExp(r'^dl-[0-9]+-[0-9a-f]{16}$');
+
+/// A download's identity, which the page's blob handlers hand back
+/// (`_webspaceBlobDownload` and the rest). Unguessable: those handlers are
+/// page-reachable, so a sequential `dl-N` would let a hostile page
+/// enumerate and interfere with another site's download in flight; the
+/// 64-bit secure-random suffix defeats guessing.
+extension type const DownloadTaskId._(String raw) implements String {
+  /// A fresh id for the [serial]th download of this run.
+  factory DownloadTaskId.mint({required int serial}) {
+    final a = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    final b = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    return DownloadTaskId._('dl-$serial-$a$b');
+  }
+
+  static final Random _rng = Random.secure();
+
+  /// [raw] when it is an id [DownloadTaskId.mint] could have made; null
+  /// otherwise, as for a value a page made up.
+  static DownloadTaskId? parse(Object? raw) =>
+      raw is String && _kDownloadTaskIdPattern.hasMatch(raw)
+          ? DownloadTaskId._(raw)
+          : null;
+}
+
 enum DownloadState { downloading, completed, failed, cancelled }
 
 class DownloadTask {
-  final String id;
+  final DownloadTaskId id;
   final String? url;
   String filename;
   int bytesDone;
@@ -48,13 +73,6 @@ class DownloadsService extends ChangeNotifier {
 
   final List<DownloadTask> _tasks = [];
   int _counter = 0;
-  static final Random _rng = Random.secure();
-
-  static String _randomToken() {
-    final a = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
-    final b = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
-    return '$a$b';
-  }
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   bool get hasActive => _tasks.any((t) => t.isActive);
@@ -68,12 +86,7 @@ class DownloadsService extends ChangeNotifier {
     int? bytesTotal,
   }) {
     final task = DownloadTask(
-      // Unguessable id: the blob-download JS handlers
-      // (_webspaceBlobProgress / _webspaceBlobDownload / *Error) are
-      // page-reachable and take a taskId, so a sequential `dl-N` would let a
-      // hostile page enumerate and interfere with another site's in-flight
-      // download. A 64-bit secure-random suffix defeats guessing.
-      id: 'dl-${++_counter}-${_randomToken()}',
+      id: DownloadTaskId.mint(serial: ++_counter),
       filename: filename,
       url: url,
       bytesTotal: bytesTotal,
@@ -85,7 +98,7 @@ class DownloadsService extends ChangeNotifier {
 
   /// Updates progress fields on an already-started task and notifies.
   /// Silent if the id is unknown (task may have been cleared from history).
-  void updateProgress(String id, {int? bytesDone, int? bytesTotal}) {
+  void updateProgress(DownloadTaskId id, {int? bytesDone, int? bytesTotal}) {
     final task = _tasks.where((t) => t.id == id).firstOrNull;
     if (task == null) return;
     if (bytesDone != null) task.bytesDone = bytesDone;
@@ -93,7 +106,7 @@ class DownloadsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void complete(String id, {String? savedPath}) {
+  void complete(DownloadTaskId id, {String? savedPath}) {
     final task = _tasks.where((t) => t.id == id).firstOrNull;
     if (task == null) return;
     task.state = DownloadState.completed;
@@ -102,7 +115,7 @@ class DownloadsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void fail(String id, {required String message}) {
+  void fail(DownloadTaskId id, {required String message}) {
     final task = _tasks.where((t) => t.id == id).firstOrNull;
     if (task == null) return;
     task.state = DownloadState.failed;
@@ -110,7 +123,7 @@ class DownloadsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void cancel(String id) {
+  void cancel(DownloadTaskId id) {
     final task = _tasks.where((t) => t.id == id).firstOrNull;
     if (task == null) return;
     task.state = DownloadState.cancelled;
@@ -118,7 +131,7 @@ class DownloadsService extends ChangeNotifier {
   }
 
   /// Remove a single finished/failed/cancelled task.
-  void dismiss(String id) {
+  void dismiss(DownloadTaskId id) {
     _tasks.removeWhere((t) => t.id == id);
     notifyListeners();
   }
