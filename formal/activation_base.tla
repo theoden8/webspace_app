@@ -13,7 +13,7 @@ CONSTANTS
     ColdStart,    \* TRUE: from launch, with what the last session left in
                   \* the jar; FALSE: mid-session, sites already loaded
     Mistake,      \* "none" or a planted bug of the environment's operators
-                  \* (HandMistake in lib/formal_model/checks.dart); a
+                  \* (HandMistake in test/formal_model/checks.dart); a
                   \* mistake in an engine is a printed mutant instead
     MaxInputs,    \* user and OS events in one behavior
     Tabbed,       \* sites whose tabs the model follows (TAB-003); every

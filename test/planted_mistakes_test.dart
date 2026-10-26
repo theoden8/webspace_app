@@ -1,6 +1,6 @@
 // Each mistake the model's mutants plant, planted in the code too: the
 // runner takes a mutant's tables and definitions in place of the code's
-// (`planted`, lib/formal_model/mutants.dart), so the schedules must catch it
+// (`planted`, test/formal_model/mutants.dart), so the schedules must catch it
 // as TLC does, by the script named here at the bound the schedules run at,
 // on a check the walk states apart from the code it checks. A mutant no
 // script of the walk reaches owes why, and the owed only shrink.
@@ -8,8 +8,8 @@
 // Apart from activation_schedules_test.dart: a planted run's traces are a
 // mutant's, which formal/verify.sh must not replay against the model.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/formal_model/checks.dart' show Mutant;
-import 'package:webspace/formal_model/models.dart';
+import 'formal_model/checks.dart' show Mutant;
+import 'formal_model/models.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/tor_engine.dart';

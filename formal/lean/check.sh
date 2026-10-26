@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The Lean check (formal/lean/): the theorems on how a check of
 # activation.tla may be split, built with no open proof, and, given the
-# footprints lib/formal_model/main.dart prints, the decision that every
+# footprints test/formal_model/main.dart prints, the decision that every
 # invariant is checked in a world that takes its whole cone.
 #
 # usage: check.sh [<printed lean/Footprints.lean>]

@@ -61,7 +61,7 @@
 (* engine's definition is a mutant instead: a copy with the fault, printed  *)
 (* beside the real one. The worlds this is checked in, the witnesses it    *)
 (* must reach and both kinds of mistake are the enums of                    *)
-(* lib/formal_model/checks.dart, each printed as one TLC config.            *)
+(* test/formal_model/checks.dart, each printed as one TLC config.           *)
 (*                                                                          *)
 (* The cold start's clear is housekeeping, not what keeps sessions apart:  *)
 (* every load restores, and a restore saves only loaded sites' shares and  *)

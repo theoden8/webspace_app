@@ -1,11 +1,10 @@
 // Writes every model the code declares under FORMAL_OUT, for formal/ to
-// check (formal/verify.sh runs it). A separate entry point, as the design
-// app is: the engines import Flutter, so it runs headless under the test
-// runner, `flutter test lib/formal_model/main.dart`, which exits 79 because
-// a main declares no tests.
+// check (formal/verify.sh runs it). The engines import Flutter, so it runs
+// headless under the test runner, `flutter test test/formal_model/main.dart`,
+// which exits 79 because a main declares no tests.
 import 'dart:io';
 
-import 'package:webspace/formal_model/models.dart';
+import 'models.dart';
 
 void main() {
   final out = Platform.environment['FORMAL_OUT'];

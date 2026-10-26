@@ -15,7 +15,7 @@
 #
 # Exit non-zero if any expectation is unmet. formal/verify.sh prints the
 # modules and runs this; on its own it needs FORMAL_MODEL, the directory
-# lib/formal_model/main.dart wrote (FORMAL_OUT). FORMAL_ONLY=<SECTION>
+# test/formal_model/main.dart wrote (FORMAL_OUT). FORMAL_ONLY=<SECTION>
 # runs one section (verify.sh --fast runs ACTIVATION).
 #
 # The list below is walked twice. The first walk only collects the TLC runs
@@ -476,7 +476,7 @@ expect jar_nonempty_reach.cfg jar_nonempty.tla "Reach_Nuked is violated" \
 
 section "ACTIVATION" "switches, pressure, moves and the jar at await granularity"
 # The worlds, witnesses and planted mistakes are values of the enums in
-# lib/formal_model/checks.dart, printed as one config each and listed in
+# test/formal_model/checks.dart, printed as one config each and listed in
 # checks.tsv: config, expected line, label, mutant (empty for the model as
 # printed). Read on its own descriptor, so nothing TLC reads takes a line.
 # A world's holding check also records which actions it took, for the

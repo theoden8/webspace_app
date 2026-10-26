@@ -108,7 +108,7 @@ class.
   `Inv_JarRepopulated` (once nuked, the jar is always repopulated before the engine returns to
   rest); the `bail` demonstrator restores-with-bail and leaves the jar empty for the next
   activation to capture and persist as `[]` (the session-wipe). Standalone.
-- **`activation.tla`** + the configs printed from `lib/formal_model/checks.dart` — site activation at the granularity of its
+- **`activation.tla`** + the configs printed from `test/formal_model/checks.dart` — site activation at the granularity of its
   awaits (specs: `lazy-webview-loading`, `per-site-cookie-isolation`, `per-site-containers`,
   `webview-pause-lifecycle`). Taps, home, memory pressure, preloads, row moves and sign-ins
   land only when every flow waits on a platform reply, as an event does in Dart; what runs between two
@@ -190,7 +190,7 @@ class.
   writes the model's variables through one declaration each (`Var`, `Mutable`, `Indexed`,
   `Members`), so a guard or a write is one tree that runs in the engine and prints as TLA+,
   and the runner asserts after every step that nothing outside the arm's declared writes
-  changed; `lib/formal_model/main.dart` prints the tables' actions: `activation_tables` from
+  changed; `test/formal_model/main.dart` prints the tables' actions: `activation_tables` from
   `SiteActivationController`, `SiteUnloadEngine` and `CookieIsolationEngine`, and
   `activation_steps` (`Outcomes`) from `ActivationStep`. The inputs that start a flow (a tap,
   home, a preload, memory pressure) are steps of the activation table too (`Step.input`),
@@ -210,7 +210,7 @@ class.
   clear), the invariants and the witnesses. A mistake in a table or a definition is a mutant,
   a copy with the fault printed beside it under `mutants/<name>/`; a mistake in the environment
   is a `Mistake` value. Every check of `activation.tla` is a value of an enum in
-  `lib/formal_model/checks.dart`: an `ActivationWorld` (its constants and the invariants that
+  `test/formal_model/checks.dart`: an `ActivationWorld` (its constants and the invariants that
   hold there), a `Witness` it must reach, a `Mutant` with the invariant it breaks and the
   worlds it breaks it in, a `HandMistake`. Each prints as one config, and `check.sh` runs the
   list (`checks.tsv`), so a mutant that names no check does not compile. A check of a
@@ -397,7 +397,7 @@ world takes from TLC's coverage of the world's holding check, which `check.sh` r
   on an action a world takes without it fails every run. What a value needs to be false
   (`unless`) is carried too, so an arm needs the failing of every branch before it, and
   a choice of next place needs its condition.
-- **Worlds are printed where two actions meet** (`lib/formal_model/worlds.dart`): for
+- **Worlds are printed where two actions meet** (`test/formal_model/worlds.dart`): for
   every pair that shares a variable and that no world written in `checks.dart` gives
   both their needs (for some kind of flow each runs in), the printer makes the smallest
   world that does. A variable only some of an action's arms write meets the other action
@@ -456,7 +456,7 @@ and is `verify.sh`'s LEAN step, which skips without `lake` and fails without it 
 - **`pairwise_unsound`**: three actions where every world of two holds an invariant the
   three break, so the footprint gate's pairs are coverage, not soundness.
 
-`lib/formal_model/main.dart` prints the activation model's footprints as
+`test/formal_model/main.dart` prints the activation model's footprints as
 `model/lean/Footprints.lean`: every action's declared reads and writes, each world's
 constants, inputs and invariants, and what each way to an action needs. There
 `every_invariant_licensed` decides that every invariant is checked in some world that takes
@@ -589,7 +589,7 @@ a listener another flow's future runs inline is its own segment. What the model'
 (as the page and the fakes hold them) changed across a segment is charged to the step its
 flow marks next, or to the last one it marked there, and must be among that step's declared
 writes; the environment's actions and the rendered frames are exempt. A planted table that
-leaves a write out (`FrameMistake` in `lib/formal_model/models.dart`) fails a schedule.
+leaves a write out (`FrameMistake` in `test/formal_model/models.dart`) fails a schedule.
 
 ## Honest limits
 

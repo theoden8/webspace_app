@@ -3,7 +3,7 @@
 # models are printed from the code, so nothing derived is committed and each
 # run checks the code as it is now:
 #
-#   PRINT    lib/formal_model/main.dart prints the modules the code
+#   PRINT    test/formal_model/main.dart prints the modules the code
 #            defines (FORMAL_OUT)
 #   SCHEDULES flutter test explores schedules and writes their traces
 #            (MODEL_STEPS_DIR)
@@ -56,9 +56,9 @@ prepare() {
   echo "══ PRINT: the modules the code defines ══"
   local status=0 jar="${TLA2TOOLS_JAR:-$ROOT/formal/tla2tools.jar}"
   case "$jar" in /*) ;; *) jar="$ROOT/formal/$jar" ;; esac
-  FORMAL_OUT="$OUT/model" $FLUTTER test lib/formal_model/main.dart || status=$?
+  FORMAL_OUT="$OUT/model" $FLUTTER test test/formal_model/main.dart || status=$?
   [ "$status" -eq 0 ] || [ "$status" -eq 79 ] || return "$status"
-  [ -f "$OUT/model/models.json" ] || { echo "lib/formal_model/main.dart wrote nothing under $OUT/model" >&2; return 1; }
+  [ -f "$OUT/model/models.json" ] || { echo "test/formal_model/main.dart wrote nothing under $OUT/model" >&2; return 1; }
   FORMAL_MODEL="$OUT/model" TLA2TOOLS_JAR="$jar" "$ROOT/formal/check.sh" --jar
   if [ ! "$jar" -ef "$OUT/model/tla2tools.jar" ]; then
     cp "$jar" "$OUT/model/tla2tools.jar"
