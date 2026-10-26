@@ -180,6 +180,11 @@ ETP-029	no check: not implemented: task 6.3 of upstream-webview-defects is open 
 # user-scripts
 US-001d	no check: no test drives the globalUserScriptsOptInMigrated one-time fill or asserts it does not run again
 US-003	no check: no widget test drives the User Scripts screen (per-site vs library mode, delete confirmation, toggle, reorder, Make Global); only the editor's discard guard is tested (partly: test/editor_discard_guard_test.dart, "an unsaved edit asks first, and Keep editing keeps it")
+US-008	no check: not implemented: userscript-metadata tasks 1.2, 4.2 open (the header parser and the run paths' tests)
+US-009	no check: not implemented: userscript-metadata tasks 2.2, 3.2, 4.2, 6.1 open (the match table, the gate, the run paths and the end-to-end test)
+US-010	no check: not implemented: userscript-metadata tasks 4.2, 5.2 open (`@run-at` in the run paths and the editor lock)
+US-011	no check: not implemented: userscript-metadata task 5.2 open (the editor's name prefill)
+US-012	no check: not implemented: userscript-metadata tasks 4.3, 5.2 open (no GM functions in pages, the editor's not-provided list)
 # web-push-notifications
 NOTIF-001	no check: the Dart webNotificationRequestPermission handler in lib/services/page_handlers.dart that answers from the toggle is untested; the JS test stubs the bridge to 'granted', and the hidden-toggle scenario has no test (partly: test/js/notification_polyfill_shim.test.js, "requestPermission asks the bridge and adopts its answer")
 # web-screen-sharing
