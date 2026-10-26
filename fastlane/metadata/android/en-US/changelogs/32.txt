@@ -1,11 +1,11 @@
 ✨ New Features:
-• Desktop keyboard shortcuts
-• TV remote support
-• Sites with different proxies load side by side
 • Sign-in popups on iOS, macOS and Linux
 • Per-site Lockdown Mode on iOS and macOS
 
 🔧 Improvements:
+• Desktop keyboard shortcuts
+• Android TV support
+• Sites with different proxies load side by side on Android
 • Faster content blocking on iOS and macOS
 • GPU rendering on Linux
 • Status bar stays above a top tab strip in full screen
