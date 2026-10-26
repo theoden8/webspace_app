@@ -172,12 +172,24 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Fastlane metadata
         run: ./scripts/validate_fastlane_metadata.sh
-      # Shallow checkout has no master to diff against; 50 covers any branch
-      # worth reviewing, and the script skips rather than fails past that.
+      # A pull request checks out its merge commit with no history, so the
+      # PR's head is fetched beside master; 50 covers any branch worth
+      # reviewing, and the script skips rather than fails past that. The body
+      # is read as it is now, not as the event carried it, so a re-run sees
+      # an edit.
       - name: Check commit attribution
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TIP: ${{ github.event.pull_request.head.sha }}
         run: |
-          git fetch --no-tags --depth=50 origin master
-          BASE=FETCH_HEAD ./scripts/check_commit_attribution.sh
+          git fetch --no-tags --depth=50 origin +refs/heads/master:refs/remotes/origin/master
+          if [ -n "$PR_NUMBER" ]; then
+            git fetch --no-tags --depth=50 origin "$TIP"
+            PR_BODY=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""')
+            export PR_BODY
+          fi
+          BASE=origin/master ./scripts/check_commit_attribution.sh
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
