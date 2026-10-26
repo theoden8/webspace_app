@@ -157,11 +157,13 @@ abstract final class HeadlessSiteChecks {
     // would load the page's trackers unfiltered, so its load never starts.
     if (hostIsAndroid) {
       final attached = await WebInterceptNative.attachToHeadless(
-        headlessId: headless.id,
-        siteId: posture.siteId,
-        dnsLevel: config.effectiveDnsLevel,
-        localCdn: posture.blocking.localCdn,
-        contentBlock: posture.blocking.contentBlock,
+        headless,
+        blockers: (
+          site: posture.siteId,
+          dnsLevel: config.effectiveDnsLevel,
+          localCdn: posture.blocking.localCdn,
+          contentBlock: posture.blocking.contentBlock,
+        ),
       );
       if (!attached &&
           (posture.blocking.dns ||

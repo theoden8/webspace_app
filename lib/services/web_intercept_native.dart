@@ -3,11 +3,13 @@ import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/view_blockers.dart';
 
 /// Dart-side bridge to the native Android interceptor that runs as part of
 /// flutter_inappwebview's ContentBlockerHandler path. The native handler
@@ -128,24 +130,18 @@ class WebInterceptNative {
     }
   }
 
-  /// Attaches the interceptor to the headless webview [headlessId] alone
-  /// (NOTIF-016), by its headless id: a headless webview has no platform
-  /// view. True once attached.
-  static Future<bool> attachToHeadless({
-    required String headlessId,
-    required SiteId siteId,
-    required int dnsLevel,
-    required bool localCdn,
-    required bool contentBlock,
+  /// Attaches the interceptor to [headless] alone (NOTIF-016), by its
+  /// headless id: a headless webview has no platform view. True once
+  /// attached.
+  static Future<bool> attachToHeadless(
+    inapp.HeadlessInAppWebView headless, {
+    required SiteBlockers blockers,
   }) async {
     if (!isSupported) return false;
     try {
       final attached = await _channel.invokeMethod<bool>('attachToHeadless', {
-        'headlessId': headlessId,
-        'siteId': siteId,
-        'dnsLevel': dnsLevel,
-        'localCdn': localCdn,
-        'contentBlock': contentBlock,
+        'headlessId': headless.id,
+        ..._told(blockers),
       });
       return attached ?? false;
     } on PlatformException catch (e) {
@@ -157,34 +153,20 @@ class WebInterceptNative {
     }
   }
 
-  /// Attaches the interceptor to the webview behind platform view [viewId],
-  /// for [siteId] alone. True once attached; the view's first load waits for
-  /// it, so the first document's sub-resources meet the site's blockers.
-  /// [dnsLevel] is the severity level this site blocks at (0 = the site has
-  /// DNS blocking off). The interceptor applies it per request, which is the
-  /// only place Android sub-resources learn about a site's DNS posture — the
-  /// blocklist itself is app-wide. [localCdn] is whether this site's
-  /// sub-resources may be served from the app-wide LocalCDN cache (LCDN-007),
-  /// [contentBlock] whether they meet the app-wide filter lists (CB-006).
-  static Future<bool> attachToView({
-    required Object viewId,
-    required SiteId siteId,
-    required int dnsLevel,
-    required bool localCdn,
-    required bool contentBlock,
-  }) async {
+  /// Attaches the interceptor to the webview behind the platform view
+  /// [attach] names, for its site alone. True once attached; the view's
+  /// first load waits for it, so the first document's sub-resources meet the
+  /// site's blockers.
+  static Future<bool> attachToView(ViewAttach attach) async {
     if (!isSupported) return true;
     try {
       final attached = await _channel.invokeMethod<bool>('attachToView', {
-        'viewId': viewId,
-        'siteId': siteId,
-        'dnsLevel': dnsLevel,
-        'localCdn': localCdn,
-        'contentBlock': contentBlock,
+        'viewId': attach.view,
+        ..._told(attach.blockers),
       });
       if (attached != true) {
         LogTag.webIntercept.warning(
-            'No webview behind platform view $viewId to attach to',
+            'No webview behind platform view ${attach.view} to attach to',
             sensitive: true);
       }
       return attached ?? false;
@@ -195,6 +177,16 @@ class WebInterceptNative {
       return false;
     }
   }
+
+  /// What the channel carries of [b]. The interceptor applies the level per
+  /// request, the only place Android sub-resources learn a site's DNS
+  /// posture: the blocklist itself is app-wide.
+  static Map<String, Object> _told(SiteBlockers b) => {
+        'siteId': b.site,
+        'dnsLevel': b.dnsLevel,
+        'localCdn': b.localCdn,
+        'contentBlock': b.contentBlock,
+      };
 
   /// Re-reads each attached webview's site settings into its interceptor,
   /// after a dataset or a setting changed. Returns how many are attached.

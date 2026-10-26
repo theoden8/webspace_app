@@ -1,15 +1,18 @@
 import 'package:webspace/settings/site_ids.dart';
 
-/// What a live site webview is told about its blockers: its site, the
-/// level it runs at, whether LocalCDN serves it and whether the filter lists
-/// judge it.
-typedef ViewAttach = ({
-  Object view,
+/// What a site webview's native interceptor is told: its site, the DNS
+/// level it runs at (`kDnsLevelOff` when its DNS blocking is off), whether
+/// LocalCDN may serve its sub-resources (LCDN-007) and whether the filter
+/// lists judge them (CB-006).
+typedef SiteBlockers = ({
   SiteId site,
   int dnsLevel,
   bool localCdn,
   bool contentBlock,
 });
+
+/// A live site webview, by its platform view id, and its blockers.
+typedef ViewAttach = ({Object view, SiteBlockers blockers});
 
 /// One site webview as its native interceptor was last told (DNS-022).
 final class _View {
@@ -48,8 +51,9 @@ final class ViewBlockers {
   final Map<Object, _View> _views = {};
 
   /// [view] is built for [site]: it attaches at the level its site resolves
-  /// to now, and is told again whenever that moves. Returns that level.
-  int built(
+  /// to now, and is told again whenever that moves. Returns the attach its
+  /// build sends.
+  ViewAttach built(
     Object view, {
     required SiteId site,
     required int? siteLevel,
@@ -64,7 +68,15 @@ final class ViewBlockers {
       contentBlock: contentBlock,
       told: level,
     );
-    return level;
+    return (
+      view: view,
+      blockers: (
+        site: site,
+        dnsLevel: level,
+        localCdn: localCdn,
+        contentBlock: contentBlock,
+      ),
+    );
   }
 
   /// [view] has left the tree: nothing tells it any more.
@@ -93,10 +105,12 @@ final class ViewBlockers {
       v.told = now;
       send((
         view: view,
-        site: v.site,
-        dnsLevel: now,
-        localCdn: v.localCdn,
-        contentBlock: v.contentBlock,
+        blockers: (
+          site: v.site,
+          dnsLevel: now,
+          localCdn: v.localCdn,
+          contentBlock: v.contentBlock,
+        ),
       ));
     }
   }

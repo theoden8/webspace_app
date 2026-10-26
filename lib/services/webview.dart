@@ -874,17 +874,13 @@ class WebViewFactory {
         final viewId = controller.getViewId();
         final attached = holdsFirstLoad && viewId != null
             ? WebInterceptNative.attachToView(
-                viewId: viewId as Object,
-                siteId: config.posture.siteId,
-                dnsLevel: DnsBlockService.instance.views.built(
-                  viewId,
+                DnsBlockService.instance.views.built(
+                  viewId as Object,
                   site: config.posture.siteId,
                   siteLevel: config.siteDnsAsk,
                   localCdn: config.posture.blocking.localCdn,
                   contentBlock: config.posture.blocking.contentBlock,
                 ),
-                localCdn: config.posture.blocking.localCdn,
-                contentBlock: config.posture.blocking.contentBlock,
               )
             : Future.value(!holdsFirstLoad);
         final wrappedController = view = PlatformWebViewController(

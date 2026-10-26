@@ -272,13 +272,7 @@ class DnsBlockService {
   );
 
   static void _attachNative(ViewAttach a) =>
-      unawaited(WebInterceptNative.attachToView(
-        viewId: a.view,
-        siteId: a.site,
-        dnsLevel: a.dnsLevel,
-        localCdn: a.localCdn,
-        contentBlock: a.contentBlock,
-      ));
+      unawaited(WebInterceptNative.attachToView(a));
 
   void _notifyBlocklistChanged() {
     // Invalidate the merged Bloom since the DNS half changed. The
