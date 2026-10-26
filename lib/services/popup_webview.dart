@@ -162,17 +162,13 @@ abstract final class PopupWebView {
         if (WebInterceptNative.isSupported && viewId != null) {
           attachedView = viewId as Object;
           unawaited(WebInterceptNative.attachToView(
-            viewId: viewId,
-            siteId: parent.posture.siteId,
-            dnsLevel: DnsBlockService.instance.views.built(
+            DnsBlockService.instance.views.built(
               viewId,
               site: parent.posture.siteId,
               siteLevel: parent.siteDnsAsk,
               localCdn: parent.posture.blocking.localCdn,
               contentBlock: parent.posture.blocking.contentBlock,
             ),
-            localCdn: parent.posture.blocking.localCdn,
-            contentBlock: parent.posture.blocking.contentBlock,
           ));
         }
         // A view made again replaces the one its opener holds, which would

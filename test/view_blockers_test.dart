@@ -60,7 +60,7 @@ void main() {
     buildAll();
     expect(await dns.downloadList(1), isTrue);
     expect(dns.views.told, {follows: 1, asksTwo: 1, off: 0});
-    expect([for (final a in sent) (a.site, a.dnsLevel)],
+    expect([for (final a in sent) (a.blockers.site, a.blockers.dnsLevel)],
         unorderedEquals([(follows, 1), (asksTwo, 1)]));
   });
 
@@ -70,7 +70,7 @@ void main() {
     sent.clear();
     expect(await dns.downloadLevel(2), isTrue);
     expect(dns.views.told, {follows: 1, asksTwo: 2, off: 0});
-    expect([for (final a in sent) (a.site, a.dnsLevel)], [(asksTwo, 2)]);
+    expect([for (final a in sent) (a.blockers.site, a.blockers.dnsLevel)], [(asksTwo, 2)]);
   });
 
   test('the clear tells every view off', () async {
@@ -82,7 +82,7 @@ void main() {
     expect(dns.level, 0);
     expect(dns.downloadedLevels, isEmpty);
     expect(dns.views.told, {follows: 0, asksTwo: 0, off: 0});
-    expect([for (final a in sent) (a.site, a.dnsLevel)],
+    expect([for (final a in sent) (a.blockers.site, a.blockers.dnsLevel)],
         unorderedEquals([(follows, 0), (asksTwo, 0)]));
   });
 
@@ -91,7 +91,21 @@ void main() {
     dns.views.gone(#follows);
     await dns.downloadList(1);
     expect(dns.views.told.containsKey(follows), isFalse);
-    expect([for (final a in sent) a.site], isNot(contains(follows)));
+    expect([for (final a in sent) a.blockers.site], isNot(contains(follows)));
+  });
+
+  test('a build attaches with the blockers its view is told again with', () {
+    final attach = dns.views.built(#cdn,
+        site: follows, siteLevel: null, localCdn: true, contentBlock: false);
+    expect(attach, (
+      view: #cdn,
+      blockers: (
+        site: follows,
+        dnsLevel: 0,
+        localCdn: true,
+        contentBlock: false,
+      ),
+    ));
   });
 
   test('a view keeps its LocalCDN and filter-list flags when it is told again',
@@ -99,8 +113,8 @@ void main() {
     dns.views.built(#cdn,
         site: follows, siteLevel: null, localCdn: true, contentBlock: false);
     await dns.downloadList(1);
-    expect(sent.single.localCdn, isTrue);
-    expect(sent.single.contentBlock, isFalse);
+    expect(sent.single.blockers.localCdn, isTrue);
+    expect(sent.single.blockers.contentBlock, isFalse);
   });
 
   // The fold asserts the views were told what the model's `told` says, so
