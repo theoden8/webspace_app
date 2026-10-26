@@ -5417,5 +5417,252 @@
         "type": "String"
       }
     }
+  },
+  "appSettingsExperimentalWebExtensions": "Web extensions",
+  "@appSettingsExperimentalWebExtensions": {
+    "description": "Title of the switch in App Settings > Developer > Experimental that turns on browser extensions (add-ons such as ad blockers, imported from a file) on iOS and macOS."
+  },
+  "appSettingsExperimentalWebExtensionsHint": "Run browser extensions you import from a file (a Chrome .crx, a Firefox .xpi or a .zip) on the sites you choose. WebKit runs what it supports of each one. An extension runs on no site until you switch it on in that site's settings, and there it reaches only that site.",
+  "@appSettingsExperimentalWebExtensionsHint": {
+    "description": "Explanation behind the hint button of the Web extensions experiment switch. .crx, .xpi and .zip are file types; WebKit is the browser engine; keep those names as they are."
+  },
+  "appSettingsExtensions": "Extensions",
+  "@appSettingsExtensions": {
+    "description": "Title of the App Settings row, and of the screen it opens, that lists the browser extensions (add-ons) imported on this device. Also the title of the per-site screen choosing which of them run on a site."
+  },
+  "appSettingsExtensionsNone": "None imported",
+  "@appSettingsExtensionsNone": {
+    "description": "Summary under the App Settings Extensions row when no browser extension has been imported."
+  },
+  "appSettingsExtensionsCount": "{count, plural, one{{count} extension} other{{count} extensions}}",
+  "@appSettingsExtensionsCount": {
+    "description": "Summary under the App Settings Extensions row: how many browser extensions are imported.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extensionsImport": "Import from a file",
+  "@extensionsImport": {
+    "description": "Row on the Extensions screen that opens a file picker to import a browser extension package."
+  },
+  "extensionsImportSubtitle": "A .crx, .xpi or .zip package",
+  "@extensionsImportSubtitle": {
+    "description": "Subtitle under 'Import from a file': the kinds of file it takes. .crx, .xpi and .zip are file types; keep them as they are."
+  },
+  "extensionsImportHint": "The app downloads no extension and updates none: you pick the file, and import it again for a newer version. A package's signature is not checked.",
+  "@extensionsImportHint": {
+    "description": "Explanation behind the hint button of the 'Import from a file' row on the Extensions screen."
+  },
+  "extensionsLibrary": "Imported",
+  "@extensionsLibrary": {
+    "description": "Section header on the Extensions screen above the list of browser extensions imported on this device."
+  },
+  "extensionsVersion": "Version {version}",
+  "@extensionsVersion": {
+    "description": "Subtitle of an imported browser extension: its version number as its author wrote it.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsRefused": "Not imported: {reason}",
+  "@extensionsRefused": {
+    "description": "Snackbar after a picked file could not be imported as a browser extension. {reason} is one of the extensionsRefused... sentences.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsRefusedNotAPackage": "the file is not a .crx, .xpi or .zip package",
+  "@extensionsRefusedNotAPackage": {
+    "description": "Reason a picked file is not imported as a browser extension: it is not an extension package. Fills {reason} in 'Not imported: {reason}', so starts lower case where the language allows."
+  },
+  "extensionsRefusedDamaged": "the file is damaged or incomplete",
+  "@extensionsRefusedDamaged": {
+    "description": "Reason a picked file is not imported as a browser extension: the file is damaged or cut short. Fills {reason} in 'Not imported: {reason}'."
+  },
+  "extensionsRefusedTooLarge": "the extension is too large",
+  "@extensionsRefusedTooLarge": {
+    "description": "Reason a picked file is not imported as a browser extension: it is larger than the app accepts. Fills {reason} in 'Not imported: {reason}'."
+  },
+  "extensionsRefusedUnsupported": "the package is packed in a way the app does not read",
+  "@extensionsRefusedUnsupported": {
+    "description": "Reason a picked file is not imported as a browser extension: the archive uses a packing feature (encryption, an unusual compression) the app does not read. Fills {reason} in 'Not imported: {reason}'."
+  },
+  "extensionsRefusedUnsafeName": "a file in the package has a name the app will not write: {name}",
+  "@extensionsRefusedUnsafeName": {
+    "description": "Reason a picked file is not imported as a browser extension: one of the files inside it has a path that could write outside the extension's folder or over another file. {name} is that path. Fills {reason} in 'Not imported: {reason}'.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsRefusedNoManifest": "the package has no manifest.json",
+  "@extensionsRefusedNoManifest": {
+    "description": "Reason a picked file is not imported as a browser extension: it lacks the manifest.json file every extension has. manifest.json is a file name; keep it as it is. Fills {reason} in 'Not imported: {reason}'."
+  },
+  "extensionsRefusedBadManifest": "its manifest.json cannot be read",
+  "@extensionsRefusedBadManifest": {
+    "description": "Reason a picked file is not imported as a browser extension: its manifest.json file is not valid or misses the extension's name or version. manifest.json is a file name; keep it as it is. Fills {reason} in 'Not imported: {reason}'."
+  },
+  "extensionsRefusedManifestVersion": "WebKit runs Manifest V2 and V3 extensions, and this is neither",
+  "@extensionsRefusedManifestVersion": {
+    "description": "Reason a picked file is not imported as a browser extension: it is written for a manifest version WebKit does not run. WebKit, Manifest V2 and Manifest V3 are names; keep them as they are. Fills {reason} in 'Not imported: {reason}'."
+  },
+  "extensionsImportFailed": "Could not import the extension: {error}",
+  "@extensionsImportFailed": {
+    "description": "Snackbar when the file picker fails or the extension's files cannot be saved. {error} is the system's message.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsAddTitle": "Add {name}?",
+  "@extensionsAddTitle": {
+    "description": "Title of the dialog shown before an imported browser extension is added. {name} is the extension's own name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsAsks": "It asks for: {permissions}",
+  "@extensionsAsks": {
+    "description": "Line in the dialog before adding a browser extension: the permissions its manifest asks for, as the technical names extensions use (storage, tabs).",
+    "placeholders": {
+      "permissions": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsAsksNothing": "It asks for no permissions.",
+  "@extensionsAsksNothing": {
+    "description": "Line in the dialog before adding a browser extension whose manifest asks for no permissions."
+  },
+  "extensionsReaches": "Pages it asks to reach: {hosts}",
+  "@extensionsReaches": {
+    "description": "Line in the dialog before adding a browser extension: the web addresses or patterns (such as *://*.example.com/*) it asks to read and change.",
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsReachesNothing": "It asks to reach no pages.",
+  "@extensionsReachesNothing": {
+    "description": "Line in the dialog before adding a browser extension that asks to read and change no web pages."
+  },
+  "extensionsOnlyItsSite": "On each site you switch it on for, it reaches only that site's pages.",
+  "@extensionsOnlyItsSite": {
+    "description": "Line in the dialog before adding a browser extension: whatever it asks for, the app limits it to the site it is switched on for."
+  },
+  "extensionsSignatureUnchecked": "The package is signed; the app does not check the signature.",
+  "@extensionsSignatureUnchecked": {
+    "description": "Line in the dialog before adding a browser extension whose package carries a publisher's signature, which the app does not verify."
+  },
+  "extensionsAlwaysLoaded": "Its background page stays loaded while a site that runs it is open.",
+  "@extensionsAlwaysLoaded": {
+    "description": "Line in the dialog before adding a browser extension that keeps a background page running all the time, which costs memory and battery."
+  },
+  "extensionsAdded": "{name} added",
+  "@extensionsAdded": {
+    "description": "Snackbar after a browser extension was imported. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsRemoveTitle": "Remove {name}?",
+  "@extensionsRemoveTitle": {
+    "description": "Title of the dialog confirming the removal of an imported browser extension. {name} is its name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsRemoveBody": "Its files are deleted and it stops running on every site.",
+  "@extensionsRemoveBody": {
+    "description": "Body of the dialog confirming the removal of an imported browser extension."
+  },
+  "extensionsRemoved": "{name} removed",
+  "@extensionsRemoved": {
+    "description": "Snackbar after an imported browser extension was removed. {name} is its name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsExtensionsHint": "Browser extensions imported in App Settings that run on this site's pages. Each one reaches only this site, and a change applies when the site next loads.",
+  "@siteSettingsExtensionsHint": {
+    "description": "Explanation behind the hint button of the Extensions row in a site's settings."
+  },
+  "siteSettingsExtensionsNone": "None on",
+  "@siteSettingsExtensionsNone": {
+    "description": "Subtitle of the Extensions row in a site's settings when no browser extension is switched on for the site."
+  },
+  "siteSettingsExtensionsOn": "{count, plural, one{{count} on} other{{count} on}}",
+  "@siteSettingsExtensionsOn": {
+    "description": "Subtitle of the Extensions row in a site's settings: how many browser extensions are switched on for the site.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "siteExtensionsEmpty": "No extension is imported. Import one in App Settings, under Extensions.",
+  "@siteExtensionsEmpty": {
+    "description": "Shown on a site's Extensions screen when no browser extension has been imported on this device."
+  },
+  "siteExtensionsKioskLocked": "Off while Kiosk mode is on",
+  "@siteExtensionsKioskLocked": {
+    "description": "Subtitle of a site's locked Extensions row: a site in Kiosk mode runs no browser extension. 'Kiosk mode' is the name of a site setting."
+  },
+  "siteExtensionsConsentTitle": "Run {name} on this site?",
+  "@siteExtensionsConsentTitle": {
+    "description": "Title of the dialog before a browser extension is switched on for a site. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "siteExtensionsConsentReaches": "It can read and change these pages of this site: {patterns}",
+  "@siteExtensionsConsentReaches": {
+    "description": "Line in the dialog before a browser extension is switched on for a site: the address patterns (such as *://*.example.com/*) of this site it will reach.",
+    "placeholders": {
+      "patterns": {
+        "type": "String"
+      }
+    }
+  },
+  "siteExtensionsConsentReachesNothing": "It reaches none of this site's pages.",
+  "@siteExtensionsConsentReachesNothing": {
+    "description": "Line in the dialog before a browser extension is switched on for a site: what it asked to reach includes none of this site's pages."
+  },
+  "siteExtensionsConsentPermissions": "It gets: {permissions}",
+  "@siteExtensionsConsentPermissions": {
+    "description": "Line in the dialog before a browser extension is switched on for a site: the permissions it is granted there, as the technical names extensions use (storage, tabs).",
+    "placeholders": {
+      "permissions": {
+        "type": "String"
+      }
+    }
+  },
+  "siteExtensionsConsentNoPermissions": "It gets no permissions.",
+  "@siteExtensionsConsentNoPermissions": {
+    "description": "Line in the dialog before a browser extension is switched on for a site that grants it no permission."
+  },
+  "siteExtensionsSwitchOn": "Switch on",
+  "@siteExtensionsSwitchOn": {
+    "description": "Confirm button of the dialog that switches a browser extension on for a site."
   }
 }

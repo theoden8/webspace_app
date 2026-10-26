@@ -3,7 +3,7 @@
 ## 1. Gate
 
 - [x] 1.1 Add `hostRunsWebExtensions` (`AppleOsFloor.webExtensions`: iOS 18.4+ and macOS 15.4+, minor version included; false elsewhere) and the Web extensions `AppPref` with its `ExperimentalFeature` (WEBEXT-001, design D6); verify `fvm flutter test test/apple_os_floor_test.dart test/settings_backup_test.dart` passes (the pref rides `AppPref.values`)
-- [ ] 1.2 Add the row to the Experimental group's screen and a widget test that the switch shows on a supported Apple build and not on Android, Linux or an older system; test names cite WEBEXT-001 and DEVTOOLS-011; verify it passes
+- [x] 1.2 Add the row to the Experimental group's screen and a widget test that the switch shows where `hostRunsWebExtensions` holds and not elsewhere (`test/web_extension_screens_test.dart`, WEBEXT-001); verify it passes
 
 ## 2. Import and library
 
@@ -11,7 +11,8 @@
 - [x] 2.2 Add `test/web_extension_package_test.dart` and `test/helpers/extension_packages.dart`: the cases and planted mistakes of design D9's Package row; test names cite WEBEXT-013; verify `flutter test test/web_extension_package_test.dart` passes
 - [x] 2.2a Move the download engine's and the QR codec's bounded inflation into `lib/services/bounded_inflate.dart`, tested by `test/bounded_inflate_test.dart`; verify `flutter test test/bounded_inflate_test.dart test/download_engine_test.dart test/site_settings_qr_codec_test.dart` passes
 - [x] 2.3 Add `WebExtensionId` (an extension type with `parse` and `mint`), the library store `WebExtensionLibrary` over `ExtensionFolders`, its folder under the documents directory, and its start in `main`; verify `test/web_extension_library_test.dart` passes (round trip, an import cut short, removal, the launch sweep)
-- [ ] 2.4 Add App Settings > Extensions: import through `FileDialog`, the summary before adding (signature not checked), WebKit's errors per entry (WEBEXT-003), removal (WEBEXT-002); strings in `lib/l10n/app_en.arb`; verify a widget test of the import summary, an entry's errors and removal passes and `npm run test:js` passes the l10n and hint gates
+- [x] 2.4 Add App Settings > Extensions (`lib/screens/app_extensions.dart`): import through `FileDialog` of any file, read off the UI thread, the summary before adding (signature not checked), a refusal in its own words, removal (WEBEXT-002); strings in `lib/l10n/app_en.arb`; verify `test/web_extension_screens_test.dart` and `npm run test:js` pass
+- [ ] 2.5 Show what WebKit reports it could not load on each library entry (WEBEXT-003); needs the channel of task 4.3
 
 ## 3. Per site
 
@@ -20,7 +21,7 @@
 - [x] 3.3 Add `planExtensionAttach` and the sealed `ExtensionAttach` (design D4) and `test/web_extension_attach_test.dart` over the matrix with its planted mutants; test names cite WEBEXT-016; verify it passes
 - [x] 3.3a Resolve it in `WebViewModel.sitePosture` into `SitePage.extensions` and hand `AttachExtensions` to the fork's `webExtensions` setting in the factory (`nativeExtensions`, `lib/services/web_extension_native.dart`); verify `test/web_extension_posture_test.dart` passes
 - [x] 3.4 `forNested()` keeps `extensions`: `SitePage` is a record with every field required, so dropping it does not compile, and the NESTED-010 test compares the page whole; `test/web_extension_posture_test.dart` checks the nested posture holds the same plan
-- [ ] 3.5 Add the site's Settings > Extensions screen: a switch per library entry, the consent sheet before switching one on, the archive and kiosk lock (WEBEXT-004, WEBEXT-009); verify its widget test passes and `npm run test:js` passes the l10n and hint gates
+- [x] 3.5 Add the site's Settings > Extensions screen (`lib/screens/site_extensions.dart`): a switch per library entry, the consent dialog before switching one on with what the site grants, the archive and kiosk lock read from the site's plan (WEBEXT-004, WEBEXT-009); verify `test/web_extension_screens_test.dart` and `npm run test:js` pass
 - [ ] 3.6 Add `OrphanStore.webExtensionData` and its sweep in `PageOrphanSweep`; verify `fvm flutter analyze` is clean (the sweep's exhaustive switch) and the orphan sweep test passes
 
 ## 4. Fork (iOS and macOS)
