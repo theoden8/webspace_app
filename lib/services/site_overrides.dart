@@ -7,6 +7,7 @@ library;
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/scoped.dart';
 
 /// What Tracking Protection holds a subordinate setting at while it is on.
 /// The stored value survives underneath, so turning the umbrella off restores
@@ -87,6 +88,14 @@ bool? resolveProtectedContent({
   required bool archived,
   required bool trackingProtection,
 }) => archived || trackingProtection ? false : stored;
+
+/// WebKit's Lockdown Mode follows the site's Tracking Protection until the
+/// site makes its own choice (ETP-032): the mode breaks some pages, so a site
+/// can leave it without giving up the rest of the umbrella.
+bool resolveLockdownMode({
+  required Scoped<bool> choice,
+  required bool trackingProtection,
+}) => choice.resolve(trackingProtection);
 
 /// A kiosk site runs as one page, never with tabs (TAB-013).
 bool resolveTabs({required bool tabs, required bool kiosk}) => tabs && !kiosk;

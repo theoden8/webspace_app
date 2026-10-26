@@ -290,6 +290,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         control: ScopedToggle(
           PopupKind.signInOpens(choice: _values.signInPopups),
           choice: _values.signInPopups,
+          source: FollowSource.app,
           onChoice: (choice) =>
               _update(_values.copyWith(signInPopups: choice)),
         ),
@@ -473,6 +474,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             control: ScopedToggle(
               _values.effectiveTabsEnabled,
               choice: _values.tabsEnabled,
+              source: FollowSource.app,
               onChoice: _setTabs,
             ),
           ),

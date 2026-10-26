@@ -377,6 +377,9 @@ class WebViewFactory {
       ..webViewMediaIntegrityApiStatus = tp
           ? inapp.WebViewMediaIntegrityApiStatus.ENABLED_WITHOUT_APP_IDENTITY
           : null
+      // ETP-032, iOS 16+ and macOS 13+. Null when off, so a device in Lockdown
+      // Mode keeps it for the site.
+      ..lockdownModeEnabled = posture.page.lockdownMode ? true : null
       // No-op on platforms and providers without the feature.
       ..backForwardCacheEnabled = AppPref.backForwardCacheEnabled.value
       ..thirdPartyCookiesEnabled = posture.container.thirdPartyCookies

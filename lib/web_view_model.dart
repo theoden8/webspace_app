@@ -345,6 +345,9 @@ class WebViewModel implements MediaGrantRecord {
   /// contentBlockEnabled to behave as on regardless of their own value.
   /// When false, the three sub-toggles act independently.
   bool trackingProtectionEnabled;
+  /// Null follows [trackingProtectionEnabled]; read
+  /// [effectiveLockdownModeEnabled].
+  bool? lockdownModeEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   /// Where a cross-domain link that is not covered by this site's domain
   /// claims goes: null follows the app, otherwise a nested webview, the browser
@@ -647,6 +650,11 @@ class WebViewModel implements MediaGrantRecord {
       stored: Scoped.fromStored(httpsUpgradeEnabled)
           .resolve(AppPref.httpsUpgradeEnabled.value));
 
+  /// WebKit's Lockdown Mode for this site's pages (ETP-032).
+  bool get effectiveLockdownModeEnabled => resolveLockdownMode(
+      choice: Scoped.fromStored(lockdownModeEnabled),
+      trackingProtection: trackingProtectionEnabled);
+
   bool _forcedByTrackingProtection(TrackingProtectionForce force,
           {required bool stored}) =>
       force.resolve(
@@ -774,6 +782,7 @@ class WebViewModel implements MediaGrantRecord {
       media: effectiveMedia,
       page: (
         javascript: javascriptEnabled,
+        lockdownMode: effectiveLockdownModeEnabled,
         userAgent: effectiveUserAgentOrNull,
         language: language,
         zoomPercent: zoomPercent,
@@ -904,6 +913,7 @@ class WebViewModel implements MediaGrantRecord {
     this.contentBlockEnabled = true,
     this.disabledFilterLists = const <FilterListId>{},
     this.trackingProtectionEnabled = true,
+    this.lockdownModeEnabled,
     this.localCdnEnabled = true,
     this.externalLinkMode,
     this.fullscreenMode = false,

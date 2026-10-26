@@ -4249,6 +4249,14 @@
   "@settingKeepForSite": {
     "description": "Spoken name of the long-press action on a dimmed per-site switch that follows a default: the action keeps the value the switch shows as the site's own setting."
   },
+  "settingFollowsTrackingProtection": "Follows Tracking Protection",
+  "@settingFollowsTrackingProtection": {
+    "description": "Subtitle under a dimmed per-site switch that has no value of its own and is on exactly when the site's Tracking Protection is on. Also the spoken name of the long-press action that makes a switch follow Tracking Protection again."
+  },
+  "settingFollowTrackingProtectionHint": "Dimmed, it follows Tracking Protection. Long press to keep the value it shows for this site, or to follow Tracking Protection again.",
+  "@settingFollowTrackingProtectionHint": {
+    "description": "Hint paragraph under a per-site switch that follows the site's Tracking Protection: while the switch is dimmed it is on exactly when Tracking Protection is; a long press either keeps the shown value as the site's own or, for a site that set its own, goes back to following Tracking Protection."
+  },
   "settingFollowsApp": "App default ({value})",
   "@settingFollowsApp": {
     "description": "Choice on a per-site row meaning the site follows the App Settings value instead of its own. {value} is that value as the row names it, such as a theme.",
@@ -4281,6 +4289,18 @@
   "appSettingsBlockScreenshotsHint": "Screenshots, screen recordings and screen sharing show the app blank on every screen, the site list included, and its preview in recent apps is hidden. To cover only some sites, leave this off and turn it on in those sites' privacy settings.",
   "@appSettingsBlockScreenshotsHint": {
     "description": "Explanatory popup for the app-wide Block screenshots switch: what is kept out of captures, that it covers the whole app, and that sites can turn it on individually instead."
+  },
+  "privacyGroupSecurity": "Security",
+  "@privacyGroupSecurity": {
+    "description": "Heading for the group in a site's privacy settings holding the switch that runs the site's pages in Lockdown Mode, a hardened mode of Apple's web engine."
+  },
+  "siteSettingsLockdownMode": "Lockdown Mode",
+  "@siteSettingsLockdownMode": {
+    "description": "Title of the switch that runs a site's pages in Lockdown Mode, Apple's hardened mode of its web engine; use the name Apple gives the iPhone and Mac setting in this language. Also listed in the summary of a site's privacy settings while it is on."
+  },
+  "siteSettingsLockdownModeHint": "Runs this site's pages in Apple's Lockdown Mode: JavaScript runs without its just-in-time compiler, and features that attacks often go through, such as WebGL and WebAssembly, are off. Pages are slower and some may not work. With it off, the device's own Lockdown Mode setting still applies.",
+  "@siteSettingsLockdownModeHint": {
+    "description": "Explanatory popup for a site's Lockdown Mode switch: what the mode turns off, what it costs, and that turning it off never takes the site out of the device-wide Lockdown Mode."
   },
   "siteSettingsNeedsTrackingProtection": "Requires Tracking Protection",
   "@siteSettingsNeedsTrackingProtection": {

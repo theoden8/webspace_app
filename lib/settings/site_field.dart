@@ -41,6 +41,7 @@ enum SiteField {
   disabledFilterLists('disabledFilterLists', qr: QrShare.carried),
   contentBlockEnabled('contentBlockEnabled', qr: QrShare.carried),
   trackingProtectionEnabled('trackingProtectionEnabled', qr: QrShare.carried),
+  lockdownModeEnabled('lockdownModeEnabled', qr: QrShare.carried),
   localCdnEnabled('localCdnEnabled', qr: QrShare.carried),
   // Never shared so far: sharing it is its own decision.
   externalLinkMode('externalLinkMode',

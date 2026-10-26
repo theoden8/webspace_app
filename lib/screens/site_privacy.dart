@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:webspace/settings/filter_list_id.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -40,6 +41,7 @@ class SitePrivacyValues {
     required this.localCdnEnabled,
     required this.thirdPartyCookiesEnabled,
     this.httpsUpgrade = const FollowApp(),
+    required this.lockdownMode,
     required this.letterboxEnabled,
     required this.incognito,
     this.blockScreenshots = false,
@@ -59,6 +61,7 @@ class SitePrivacyValues {
   final bool localCdnEnabled;
   final bool thirdPartyCookiesEnabled;
   final Scoped<bool> httpsUpgrade;
+  final Scoped<bool> lockdownMode;
   final bool letterboxEnabled;
   final bool incognito;
   final bool blockScreenshots;
@@ -73,6 +76,7 @@ class SitePrivacyValues {
     Set<FilterListId>? disabledFilterLists,
     bool? localCdnEnabled,
     bool? thirdPartyCookiesEnabled,
+    Scoped<bool>? lockdownMode,
     bool? letterboxEnabled,
     bool? incognito,
     bool? blockScreenshots,
@@ -90,6 +94,7 @@ class SitePrivacyValues {
         localCdnEnabled: localCdnEnabled ?? this.localCdnEnabled,
         thirdPartyCookiesEnabled:
             thirdPartyCookiesEnabled ?? this.thirdPartyCookiesEnabled,
+        lockdownMode: lockdownMode ?? this.lockdownMode,
         letterboxEnabled: letterboxEnabled ?? this.letterboxEnabled,
         incognito: incognito ?? this.incognito,
         blockScreenshots: blockScreenshots ?? this.blockScreenshots,
@@ -114,6 +119,8 @@ class SitePrivacyValues {
           stored: thirdPartyCookiesEnabled);
   bool get effectiveHttpsUpgrade => _forced(TrackingProtectionForce.httpsUpgrade,
       stored: httpsUpgrade.resolve(AppPref.httpsUpgradeEnabled.value));
+  bool get effectiveLockdownMode => resolveLockdownMode(
+      choice: lockdownMode, trackingProtection: trackingProtectionEnabled);
   bool get effectiveIncognito =>
       ArchiveFold.incognito(stored: incognito, archived: archived);
 
@@ -509,6 +516,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
             control: ScopedToggle(
               _values.effectiveHttpsUpgrade,
               choice: _values.httpsUpgrade,
+              source: FollowSource.app,
               onChoice: (choice) =>
                   _update(_values.copyWith(httpsUpgrade: choice)),
             ),
@@ -529,6 +537,20 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
           // not happening.
           if (_values.trackingProtectionEnabled)
             SettingsNote(loc.privacyFingerprintingNote),
+          if (hostHasLockdownMode) ...[
+            SettingsSection(loc.privacyGroupSecurity),
+            SettingTile(
+              title: loc.siteSettingsLockdownMode,
+              hint: loc.siteSettingsLockdownModeHint,
+              control: ScopedToggle(
+                _values.effectiveLockdownMode,
+                choice: _values.lockdownMode,
+                source: FollowSource.trackingProtection,
+                onChoice: (choice) =>
+                    _update(_values.copyWith(lockdownMode: choice)),
+              ),
+            ),
+          ],
           if (ScreenCaptureGuard.isSupported) ...[
             SettingsSection(loc.privacyGroupScreenCapture),
             SettingTile(

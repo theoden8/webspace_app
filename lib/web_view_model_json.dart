@@ -95,6 +95,9 @@ extension WebViewModelJson on WebViewModel {
         },
       SiteField.contentBlockEnabled => {key: contentBlockEnabled},
       SiteField.trackingProtectionEnabled => {key: trackingProtectionEnabled},
+      SiteField.lockdownModeEnabled => {
+          if (lockdownModeEnabled != null) key: lockdownModeEnabled,
+        },
       SiteField.localCdnEnabled => {key: localCdnEnabled},
       SiteField.externalLinkMode => {key: externalLinkMode?.name},
       SiteField.fullscreenMode => {key: fullscreenMode},
@@ -351,6 +354,8 @@ class _SiteJson {
         model.contentBlockEnabled = value<bool>(field) ?? true;
       case SiteField.trackingProtectionEnabled:
         model.trackingProtectionEnabled = value<bool>(field) ?? true;
+      case SiteField.lockdownModeEnabled:
+        model.lockdownModeEnabled = value<bool>(field);
       case SiteField.localCdnEnabled:
         model.localCdnEnabled = value<bool>(field) ?? true;
       case SiteField.externalLinkMode:

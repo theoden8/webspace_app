@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -170,6 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   late bool _contentBlockEnabled;
   late Set<FilterListId> _disabledFilterLists;
   late bool _trackingProtectionEnabled;
+  late bool? _lockdownModeEnabled;
   late bool _letterboxEnabled;
   late bool _blockScreenshots;
   late bool _localCdnEnabled;
@@ -261,6 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         contentBlockEnabled: _contentBlockEnabled,
         disabledFilterLists: ValueSet(_disabledFilterLists),
         trackingProtectionEnabled: _trackingProtectionEnabled,
+        lockdownModeEnabled: _lockdownModeEnabled,
         letterboxEnabled: _letterboxEnabled,
         blockScreenshots: _blockScreenshots,
         localCdnEnabled: _localCdnEnabled,
@@ -428,6 +431,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     _contentBlockEnabled = m.contentBlockEnabled;
     _disabledFilterLists = {...m.disabledFilterLists};
     _trackingProtectionEnabled = m.trackingProtectionEnabled;
+    _lockdownModeEnabled = m.lockdownModeEnabled;
     _letterboxEnabled = m.letterboxEnabled;
     _blockScreenshots = m.blockScreenshots;
     _localCdnEnabled = m.localCdnEnabled;
@@ -549,6 +553,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     m.contentBlockEnabled = _contentBlockEnabled;
     m.disabledFilterLists = {..._disabledFilterLists};
     m.trackingProtectionEnabled = _trackingProtectionEnabled;
+    m.lockdownModeEnabled = _lockdownModeEnabled;
     m.letterboxEnabled = _letterboxEnabled;
     m.blockScreenshots = _blockScreenshots;
     m.localCdnEnabled = _localCdnEnabled;
@@ -976,6 +981,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         localCdnEnabled: _localCdnEnabled,
         thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
         httpsUpgrade: Scoped.fromStored(_httpsUpgradeEnabled),
+        lockdownMode: Scoped.fromStored(_lockdownModeEnabled),
         letterboxEnabled: _letterboxEnabled,
         incognito: _incognito,
         blockScreenshots: _blockScreenshots,
@@ -1002,6 +1008,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                 if (v.effectiveContentBlock) loc.siteSettingsContentBlocker,
                 if (hostIsAndroid && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
                 if (v.effectiveIncognito) loc.siteSettingsIncognito,
+                if (hostHasLockdownMode && v.effectiveLockdownMode)
+                  loc.siteSettingsLockdownMode,
                 if (ScreenCaptureGuard.isSupported && v.effectiveBlockScreenshots)
                   loc.siteSettingsBlockScreenshots,
               ],
@@ -1025,6 +1033,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _localCdnEnabled = values.localCdnEnabled;
           _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
           _httpsUpgradeEnabled = values.httpsUpgrade.stored;
+          _lockdownModeEnabled = values.lockdownMode.stored;
           _letterboxEnabled = values.letterboxEnabled;
           _incognito = values.incognito;
           _blockScreenshots = values.blockScreenshots;

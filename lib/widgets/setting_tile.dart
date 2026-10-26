@@ -97,17 +97,38 @@ final class Toggle extends SettingControl {
   final ValueChanged<bool> onChanged;
 }
 
-/// A switch over a site's [choice], which follows the app until the site
+/// A switch over a site's [choice], which follows [source] until the site
 /// makes its own (BEHAV-007). It shows [value], what the site runs with,
 /// dimmed while it follows. A tap makes the other value the site's own; a
 /// long press moves between following and keeping the shown value as the
 /// site's own, so it never flips the switch.
 final class ScopedToggle extends SettingControl {
-  const ScopedToggle(this.value, {required this.choice, required this.onChoice});
+  const ScopedToggle(this.value, {
+    required this.choice,
+    required this.source,
+    required this.onChoice,
+  });
 
   final bool value;
   final Scoped<bool> choice;
+  final FollowSource source;
   final ValueChanged<Scoped<bool>> onChoice;
+}
+
+/// What a [ScopedToggle] follows until the site sets its own value.
+enum FollowSource { app, trackingProtection }
+
+extension on FollowSource {
+  String label(AppLocalizations loc) => switch (this) {
+        FollowSource.app => loc.webSearchUseAppDefault,
+        FollowSource.trackingProtection => loc.settingFollowsTrackingProtection,
+      };
+
+  String longPressHint(AppLocalizations loc) => switch (this) {
+        FollowSource.app => loc.settingFollowAppHint,
+        FollowSource.trackingProtection =>
+          loc.settingFollowTrackingProtectionHint,
+      };
 }
 
 /// A switch bound to an app pref: shows its live value and sets it.
@@ -173,12 +194,12 @@ class SettingTile extends StatelessWidget {
     final following = scoped?.choice is FollowApp<bool>;
     final text = lock?.reason(loc) ??
         subtitle ??
-        (following ? loc.webSearchUseAppDefault : null);
+        (following ? scoped?.source.label(loc) : null);
     final titleRow = HintedTitle(
       title,
       hint: scoped == null
           ? hint
-          : [?hint, loc.settingFollowAppHint].join('\n\n'),
+          : [?hint, scoped.source.longPressHint(loc)].join('\n\n'),
       hintTitle: hintTitle,
       warn: missingData,
     );
@@ -199,11 +220,12 @@ Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
       value: value,
       onChanged: locked ? null : onChanged,
     );
-    if (control case ScopedToggle(:final value, :final onChoice)) {
+    if (control case ScopedToggle(
+        :final value, :final source, :final onChoice)) {
       return MergeSemantics(
         child: Semantics(
           onLongPressHint:
-              following ? loc.settingKeepForSite : loc.webSearchUseAppDefault,
+              following ? loc.settingKeepForSite : source.label(loc),
           child: ListTile(
             leading: leading,
             contentPadding: contentPadding,
