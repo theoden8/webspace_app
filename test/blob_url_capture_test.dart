@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/blob_url_capture.dart';
+import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/page_js.dart';
+
+final _task = DownloadTaskId.mint(serial: 1);
 
 void main() {
   group('PageJs.blobUrlCapture.script', () {
@@ -86,7 +89,7 @@ void main() {
       // path and falls back to fetch — which is what we just fixed.
       final iife = buildBlobDownloadIife(
         blobUrl: 'blob:https://example.test/x',
-        taskId: 't1',
+        taskId: _task,
         suggestedFilename: 'f.bin',
       );
       expect(iife, contains('window.__webspaceBlobs'));
@@ -105,11 +108,11 @@ void main() {
       // asserting the JSON-encoded form is present.
       final iife = buildBlobDownloadIife(
         blobUrl: 'blob:https://example.test/abc',
-        taskId: 'task-9',
+        taskId: _task,
         suggestedFilename: 'doc with "quotes".pdf',
       );
       expect(iife, contains('"blob:https://example.test/abc"'));
-      expect(iife, contains('"task-9"'));
+      expect(iife, contains('"$_task"'));
       expect(iife, contains(r'"doc with \"quotes\".pdf"'));
     });
 
@@ -119,7 +122,7 @@ void main() {
       // would propagate to the save dialog as the filename.
       final iife = buildBlobDownloadIife(
         blobUrl: 'blob:https://example.test/y',
-        taskId: 't2',
+        taskId: _task,
       );
       expect(iife, contains('""'));
       expect(iife, isNot(contains('"null"')));
@@ -130,7 +133,7 @@ void main() {
       // drops the fast path the file would still parse but the CSP
       // bypass would silently regress.
       final iife = buildBlobDownloadIife(
-        blobUrl: 'blob:test', taskId: 't',
+        blobUrl: 'blob:test', taskId: _task,
       );
       expect(iife, contains('window.__webspaceBlobs.get(blobUrl)'));
       expect(iife, contains('readBlob(captured)'));
@@ -141,7 +144,7 @@ void main() {
       // filename, base64, mimeType, taskId — the Dart handler signature.
       // Reordering or omitting one corrupts every blob download.
       final iife = buildBlobDownloadIife(
-        blobUrl: 'blob:test', taskId: 't',
+        blobUrl: 'blob:test', taskId: _task,
       );
       expect(iife, contains("'_webspaceBlobDownload'"));
       // Argument order is positional — assert by surrounding context.
@@ -156,7 +159,7 @@ void main() {
       // through the same handler so the Dart side sees a single error
       // shape. A divergent error-reporting shape gets dropped silently.
       final iife = buildBlobDownloadIife(
-        blobUrl: 'blob:test', taskId: 't',
+        blobUrl: 'blob:test', taskId: _task,
       );
       expect(iife, contains("'_webspaceBlobDownloadError'"));
       expect(iife, contains('reader.onerror'));
@@ -166,7 +169,7 @@ void main() {
 
     test('reports progress through _webspaceBlobProgress', () {
       final iife = buildBlobDownloadIife(
-        blobUrl: 'blob:test', taskId: 't',
+        blobUrl: 'blob:test', taskId: _task,
       );
       expect(iife, contains("'_webspaceBlobProgress'"));
       expect(iife, contains('reader.onprogress'));

@@ -1,3 +1,4 @@
+import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/page_js.dart';
 
 /// The blob download of [blobUrl], evaluated in the main frame when
@@ -5,7 +6,7 @@ import 'package:webspace/services/page_js.dart';
 /// [taskId].
 String buildBlobDownloadIife({
   required String blobUrl,
-  required String taskId,
+  required DownloadTaskId taskId,
   String? suggestedFilename,
 }) =>
     PageJs.blobDownload.withConfig({
