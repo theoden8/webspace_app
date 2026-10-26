@@ -143,6 +143,20 @@ if [[ "$MODE" == "mas" ]]; then
   cp "$MACOS_PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
 fi
 
+# A Developer ID build carries no profile. One here means Xcode signed the
+# build for development with a team from Signing.local.xcconfig, and the
+# entitlements this script would sign with came from that profile.
+if [[ "$MODE" == "devid" ]]; then
+  profiles=$(find "$APP" -name embedded.provisionprofile)
+  if [[ -n "$profiles" ]]; then
+    echo "ERROR: the build carries a development provisioning profile:" >&2
+    printf '%s\n' "$profiles" | sed 's/^/  /' >&2
+    echo "Move macos/Runner/Configs/Signing.local.xcconfig aside, rm -rf build/macos" >&2
+    echo "and build again; see docs/releasing-macos.md." >&2
+    exit 1
+  fi
+fi
+
 materialize_entitlements "$APP" "$APP_ENTITLEMENTS" "$WORK/app.entitlements"
 
 # Nested code first: a signature over a bundle whose contents change
