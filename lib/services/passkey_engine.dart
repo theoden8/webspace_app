@@ -23,6 +23,27 @@ import 'package:webspace/services/url_host.dart';
 
 enum PasskeyOp { create, get }
 
+/// A relying party id the calling document may use: its host, or a
+/// registrable domain suffix of it. Only [RpId.of] makes one, so a ceremony
+/// cannot be planned for an id that was not checked against its origin.
+extension type const RpId._(String raw) implements String {
+  /// [claimed], lowercased, when it is [host] or a registrable domain
+  /// suffix of it; null otherwise.
+  ///
+  /// The registrable part comes from [getBaseDomain], the same reading the
+  /// app isolates cookies by. It errs long on suffixes it does not know, so
+  /// an unknown registry suffix is refused as an rpId rather than accepted.
+  static RpId? of(String claimed, {required String host}) {
+    final r = claimed.toLowerCase();
+    final h = host.toLowerCase();
+    if (r.isEmpty) return null;
+    if (PasskeyEngine._isIpLiteral(h)) return r == h ? RpId._(r) : null;
+    if (r != h && !h.endsWith('.$r')) return null;
+    final base = getBaseDomain(h);
+    return r == base || r.endsWith('.$base') ? RpId._(r) : null;
+  }
+}
+
 /// Who answers a page's WebAuthn call.
 enum PasskeyBackend {
   /// The shim and this app's Credential Manager bridge (PASSKEY-003..009).
@@ -137,7 +158,7 @@ class PasskeyCeremony {
 
   /// The calling document's serialized origin, what the provider is told.
   final String origin;
-  final String rpId;
+  final RpId rpId;
 
   /// The page's WebAuthn-JSON options with the rp id filled in.
   final String requestJson;
@@ -237,7 +258,8 @@ class PasskeyEngine {
     request['challenge'] = challenge;
 
     final host = originUri.host.toLowerCase();
-    final String rpId;
+    final String claimed;
+    final Map<String, Object?>? rpObj;
     if (operation == PasskeyOp.create) {
       final rp = request['rp'];
       final user = request['user'];
@@ -254,18 +276,26 @@ class PasskeyEngine {
         return PasskeyPlan.reject(
             PasskeyError.typeError('user.name and user.displayName are required.'));
       }
-      final rpObj = Map<String, Object?>.from(rp);
-      rpId = rpObj['id'] is String ? (rpObj['id'] as String).toLowerCase() : host;
-      rpObj['id'] = rpId;
-      request['rp'] = rpObj;
+      rpObj = Map<String, Object?>.from(rp);
+      claimed = switch (rpObj['id']) {
+        final String id => id,
+        _ => host,
+      };
     } else {
-      rpId = request['rpId'] is String
-          ? (request['rpId'] as String).toLowerCase()
-          : host;
-      request['rpId'] = rpId;
+      rpObj = null;
+      claimed = switch (request['rpId']) {
+        final String id => id,
+        _ => host,
+      };
     }
-    if (!isValidRpId(rpId, host: host)) {
+    final rpId = RpId.of(claimed, host: host);
+    if (rpId == null) {
       return const PasskeyPlan.reject(PasskeyError.badRpId);
+    }
+    if (rpObj != null) {
+      request['rp'] = rpObj..['id'] = rpId;
+    } else {
+      request['rpId'] = rpId;
     }
 
     final clientDataJson = buildClientDataJson(
@@ -359,21 +389,6 @@ class PasskeyEngine {
         host.endsWith('.localhost') ||
         host == '::1' ||
         RegExp(r'^127(\.\d{1,3}){3}$').hasMatch(host);
-  }
-
-  /// Whether [rpId] is [host] or a registrable domain suffix of it.
-  ///
-  /// The registrable part comes from [getBaseDomain], the same reading the
-  /// app isolates cookies by. It errs long on suffixes it does not know, so
-  /// an unknown registry suffix is refused as an rpId rather than accepted.
-  static bool isValidRpId(String rpId, {required String host}) {
-    final r = rpId.toLowerCase();
-    final h = host.toLowerCase();
-    if (r.isEmpty) return false;
-    if (_isIpLiteral(h)) return r == h;
-    if (r != h && !h.endsWith('.$r')) return false;
-    final base = getBaseDomain(h);
-    return r == base || r.endsWith('.$base');
   }
 
   /// CollectedClientData in the WebAuthn L3 §5.8.1.1 serialization, which

@@ -195,12 +195,12 @@ void main() {
     });
 
     test('an IP origin can only name itself', () {
-      expect(PasskeyEngine.isValidRpId('127.0.0.1', host: '127.0.0.1'), isTrue);
-      expect(PasskeyEngine.isValidRpId('0.0.1', host: '127.0.0.1'), isFalse);
+      expect(RpId.of('127.0.0.1', host: '127.0.0.1'), '127.0.0.1');
+      expect(RpId.of('0.0.1', host: '127.0.0.1'), isNull);
     });
 
     test('localhost is its own relying party', () {
-      expect(PasskeyEngine.isValidRpId('localhost', host: 'localhost'), isTrue);
+      expect(RpId.of('localhost', host: 'localhost'), 'localhost');
     });
   });
 
