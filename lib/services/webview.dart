@@ -894,6 +894,7 @@ class WebViewFactory {
           settings: settings,
           loadsAfter: attached,
           refuses: refused,
+          navigationHeaders: headers,
           fileImport: fileImport,
         );
         stopFollowingBlockers?.call();
@@ -1637,7 +1638,8 @@ class WebViewFactory {
                       pauseHack: pauseHack,
                       settings: settings,
                       loadsAfter: Future<void>.value(),
-                      refuses: refused),
+                      refuses: refused,
+                      navigationHeaders: headers),
             );
           } on CookieJarFailure catch (e) {
             // A read that failed is not an empty jar: the site keeps the

@@ -693,6 +693,28 @@ Test: [test/route_cover_test.dart](../../../test/route_cover_test.dart)
 
 ---
 
+### Requirement: NAV-018 - A Refresh While A Page Loads Loads It Again
+
+A Refresh of any kind (Ctrl/Cmd-R, F5, pull-to-refresh, the menus' Refresh) while the
+page is still loading SHALL load the page in flight again, as a browser's reload does,
+not the page shown before it. WebKit's reload reloads the document on screen, so in
+the middle of a navigation it drops the load the user is waiting on, or does nothing
+before the first page commits. A load in flight at an http or https address SHALL be
+issued again with the headers a navigation the app issues carries (the site's
+language among them), which replaces the pending load; any other load reloads. A load
+the site may not issue (LEAK-010) SHALL stay refused.
+
+#### Scenario: Ctrl-R on a slow first load
+
+- **GIVEN** a site whose first page is still loading
+- **WHEN** the user presses Ctrl/Cmd-R
+- **THEN** that page is requested again, in the site's language
+- **AND** a page that has finished loading reloads as before
+
+Test: [test/webview_controller_lifetime_test.dart](../../../test/webview_controller_lifetime_test.dart)
+
+---
+
 ### Requirement: NAV-016 - A TV Remote Reaches The Page And The App Bar
 
 Where a remote's D-pad drives the device rather than a touchscreen (Android TV, or an
@@ -901,6 +923,9 @@ Home button pressed
 #### `lib/services/keyboard_shortcuts.dart`
 - `KeyboardShortcut.keys` — every key a shortcut takes, per platform (NAV-014)
 - `KeyboardShortcuts` — takes the keys for the `ShortcutScreen` on top, through `FocusManager.addEarlyKeyEventHandler`, on desktop only; `editingText` leaves Cmd-Left and Cmd-Right to a focused text field
+
+#### `lib/services/webview_controller.dart`
+- `PlatformWebViewController.reload` — issues a load in flight again rather than reloading the page before it (NAV-018)
 
 #### `lib/services/route_cover.dart`
 - `RouteCover.over` — veils a site's page on macOS while another route covers it, so a click there reaches that route (NAV-017)

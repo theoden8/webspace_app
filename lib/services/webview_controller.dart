@@ -325,17 +325,23 @@ class PlatformWebViewController implements WebViewController {
   /// load to no navigation callback.
   final bool Function(String url) _refuses;
 
+  /// The headers a navigation the app issues carries
+  /// ([WebViewFactory.navigationHeaders]), for a load [reload] issues again.
+  final Map<String, String> _navigationHeaders;
+
   PlatformWebViewController(
     this._c, {
     required PauseTimersHackState pauseHack,
     required inapp.InAppWebViewSettings settings,
     required Future<void> loadsAfter,
     required bool Function(String url) refuses,
+    required Map<String, String> navigationHeaders,
     FileImportDocument? fileImport,
   })  : _pauseHack = pauseHack,
         _settings = settings,
         _loadsAfter = loadsAfter,
         _refuses = refuses,
+        _navigationHeaders = navigationHeaders,
         _import = fileImport;
 
   /// Null when the webview is gone or the platform refused: a native
@@ -416,6 +422,17 @@ class PlatformWebViewController implements WebViewController {
     if (fileImport != null &&
         FileImportDocument.rendersOnReload(isAndroid: hostIsAndroid)) {
       return loadHtml(fileImport.html, baseUrl: fileImport.url);
+    }
+    // WebKit reloads the document on screen, so mid-navigation it drops the
+    // load the user is waiting on, or does nothing before the first page
+    // commits. A load in flight is issued again instead, which replaces it.
+    if (await _native(_c.isLoading) ?? false) {
+      if (await _native(_c.getUrl) case final url?
+          when url.isScheme('http') || url.isScheme('https')) {
+        await loadRequest(
+            inapp.URLRequest(url: url, headers: _navigationHeaders));
+        return true;
+      }
     }
     return await _load(() => _c.reload().then((_) => true)) ?? false;
   }
