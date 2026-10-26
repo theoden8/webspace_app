@@ -49,6 +49,9 @@ enum WebspaceGlyph {
       stored is String ? values.asNameMap()[stored] : null;
 }
 
+/// What a webspace is called: its name and the glyph leading it, if any.
+typedef WebspaceTitle = ({String name, WebspaceGlyph? glyph});
+
 class Webspace {
   WebspaceId id;
   String name;

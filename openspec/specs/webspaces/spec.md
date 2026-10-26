@@ -502,6 +502,27 @@ SHALL not show.
 **When** All shows its sites as rows
 **Then** each row's icon is drawn at 140% of its size too
 
+### Requirement: WEBSPACE-018 - Rename a Folder Where It Opens
+
+With Alternative design enabled, an open folder's name SHALL be renamed in
+place, as a phone launcher's folder is: a tap or a hold on the name SHALL
+turn it into a field holding the name, all of it selected, and the name
+typed SHALL be saved once the field is submitted or left. A name that is
+blank once trimmed SHALL keep the old one. The webspace's glyph SHALL be
+picked from beside the name: a tap on the glyph, or on the place one would
+go while the name is edited, SHALL open the same picker the edit screen
+does. Its sites SHALL stay as they were. All's name SHALL only be shown.
+
+#### Scenario: Rename Work from its folder
+
+**Given** Alternative design is enabled and Work is open
+**When** the user taps Work's name, types Projects and submits
+**Then** the folder and its tile are named Projects, and Projects is saved with Work's sites
+**When** the user taps Projects, clears it and leaves the field
+**Then** it is still named Projects
+**When** the user taps the glyph beside the name and picks the code symbol
+**Then** Projects is led by that symbol
+
 ---
 
 ## Data Model

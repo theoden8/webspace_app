@@ -62,6 +62,7 @@ class WebspaceLibrary extends StatefulWidget {
     required this.onSelectWebspace,
     required this.onAddWebspace,
     required this.onEditWebspace,
+    required this.onRetitleWebspace,
     required this.onDeleteWebspace,
     required this.onReorder,
     required this.onOpenSite,
@@ -81,6 +82,11 @@ class WebspaceLibrary extends StatefulWidget {
   final ValueChanged<Webspace> onSelectWebspace;
   final VoidCallback onAddWebspace;
   final ValueChanged<Webspace> onEditWebspace;
+
+  /// A webspace renamed, or given another glyph, from its open folder's
+  /// title (WEBSPACE-018).
+  final Future<void> Function(WebspaceId id, {required WebspaceTitle to})
+  onRetitleWebspace;
   final ValueChanged<Webspace> onDeleteWebspace;
   final void Function(int from, {required int newIndex})? onReorder;
   final ValueChanged<WebViewModel> onOpenSite;
@@ -896,11 +902,19 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      WebspaceName(
+                      EditableWebspaceName(
                         webspace,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
+                        onRetitle: webspace.isAll
+                            ? null
+                            : (title) => unawaited(
+                                widget.onRetitleWebspace(
+                                  webspace.id,
+                                  to: title,
+                                ),
+                              ),
                       ),
                       Text(
                         loc.webspacesListSiteCount(order.length),

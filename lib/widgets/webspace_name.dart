@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -82,6 +84,138 @@ class WebspaceName extends StatelessWidget {
     overflow: TextOverflow.ellipsis,
     textAlign: textAlign,
   );
+}
+
+/// An open folder's name, as a launcher's: a tap or a hold on it edits it
+/// in place, saved as the field is left or submitted, and a tap on the glyph
+/// before it, or on the place one would go while the name is edited, picks
+/// another (WEBSPACE-018). With no [onRetitle] (All) it is only shown.
+class EditableWebspaceName extends StatefulWidget {
+  const EditableWebspaceName(
+    this.webspace, {
+    super.key,
+    required this.style,
+    required this.onRetitle,
+  });
+
+  final Webspace webspace;
+  final TextStyle? style;
+  final ValueChanged<WebspaceTitle>? onRetitle;
+
+  @override
+  State<EditableWebspaceName> createState() => _EditableWebspaceNameState();
+}
+
+class _EditableWebspaceNameState extends State<EditableWebspaceName> {
+  final _name = TextEditingController();
+  final _focus = FocusNode();
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus && _editing) _commit();
+    });
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _edit() {
+    final name = widget.webspace.name;
+    _name.value = TextEditingValue(
+      text: name,
+      selection: TextSelection(baseOffset: 0, extentOffset: name.length),
+    );
+    setState(() => _editing = true);
+    _focus.requestFocus();
+  }
+
+  void _commit() {
+    setState(() => _editing = false);
+    final name = _name.text.trim();
+    if (name == widget.webspace.name) return;
+    widget.onRetitle?.call((name: name, glyph: widget.webspace.glyph));
+  }
+
+  Future<void> _pickGlyph() async {
+    final picked = await pickWebspaceGlyph(
+      context,
+      current: widget.webspace.glyph,
+    );
+    if (picked == null || !mounted) return;
+    widget.onRetitle?.call((name: widget.webspace.name, glyph: picked.to));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onRetitle = widget.onRetitle;
+    if (onRetitle == null) {
+      return WebspaceName(widget.webspace, style: widget.style);
+    }
+    final loc = AppLocalizations.of(context);
+    final glyph = widget.webspace.glyph;
+    final size = MediaQuery.textScalerOf(context).scale(
+      (widget.style?.fontSize ??
+              DefaultTextStyle.of(context).style.fontSize ??
+              14) *
+          LibraryStyle.glyphScale,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (glyph != null || _editing)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: Spacing.xs),
+            child: Tooltip(
+              message: loc.webspaceGlyphTitle,
+              child: InkResponse(
+                onTap: () => unawaited(_pickGlyph()),
+                radius: size,
+                child: Icon(
+                  glyph?.icon ?? Icons.add_circle_outline,
+                  size: size,
+                ),
+              ),
+            ),
+          ),
+        Flexible(
+          child: _editing
+              ? TextField(
+                  controller: _name,
+                  focusNode: _focus,
+                  style: widget.style,
+                  maxLines: 1,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration.collapsed(
+                    hintText: loc.libraryRenameWebspace,
+                  ),
+                  onSubmitted: (_) => _focus.unfocus(),
+                )
+              : Semantics(
+                  button: true,
+                  hint: loc.libraryRenameWebspace,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _edit,
+                    onLongPress: _edit,
+                    child: Text(
+                      widget.webspace.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: widget.style,
+                    ),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Asks for the glyph to show beside a webspace's name, [current] marked:

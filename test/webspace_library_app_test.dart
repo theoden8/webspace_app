@@ -23,6 +23,7 @@ import 'package:webspace/widgets/site_drawer.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 import 'helpers/real_app.dart';
 import 'helpers/group_tile.dart';
 
@@ -910,6 +911,52 @@ void main() {
       await settleRealApp(tester);
       expect(
         find.descendant(of: find.byType(AppBar), matching: find.text('Second')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'a webspace renamed from its open folder\'s name is saved under the new '
+    'name, and a blank name keeps the old one (WEBSPACE-018)',
+    (tester) async {
+      final alpha = WebViewModel(
+        initUrl: 'https://alpha.example.test',
+        name: 'Alpha',
+      );
+      final work = Webspace(name: 'Work', siteIds: [alpha.siteId]);
+      await pumpRealApp(
+        tester,
+        sites: [alpha],
+        webspaces: [work],
+        prefs: {
+          AppPref.developerMode.key: true,
+          AppPref.experimentalFolderLibrary.key: true,
+        },
+      );
+      await openWebspace(tester, name: 'Work');
+      final title = find.byType(EditableWebspaceName);
+      Future<Map<String, dynamic>> rename(String name, {required String from}) async {
+        await tester.tap(find.descendant(of: title, matching: find.text(from)));
+        await settleRealApp(tester);
+        await tester.enterText(
+          find.descendant(of: title, matching: find.byType(TextField)),
+          name,
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await settleRealApp(tester);
+        return (await SharedPreferences.getInstance())
+            .getStringList('webspaces')!
+            .map((raw) => jsonDecode(raw) as Map<String, dynamic>)
+            .singleWhere((value) => value['id'] == work.id);
+      }
+
+      final saved = await rename('Projects', from: 'Work');
+      expect(saved['name'], 'Projects');
+      expect(saved['siteIds'], [alpha.siteId], reason: 'its sites stay');
+      expect((await rename('  ', from: 'Projects'))['name'], 'Projects');
+      expect(
+        find.descendant(of: title, matching: find.text('Projects')),
         findsOneWidget,
       );
     },

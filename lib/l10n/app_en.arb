@@ -5301,6 +5301,10 @@
   "@libraryListView": {
     "description": "Tooltip and accessibility label of the button, among three that choose how a level of the library lays out its items (the webspaces on the home, or a folder's sites), that always shows them as rows, each with its name and its site count or web address."
   },
+  "libraryRenameWebspace": "Rename webspace",
+  "@libraryRenameWebspace": {
+    "description": "In an open folder of the launcher, the accessibility hint of the webspace's name, which a tap turns into a text field to rename it in place; also the field's placeholder while it is empty."
+  },
   "webspaceGlyphTitle": "Icon",
   "@webspaceGlyphTitle": {
     "description": "Row in a webspace's edit screen, and title of the dialog it opens, for picking a symbol shown beside the webspace's name wherever the name appears."

@@ -787,6 +787,13 @@ class _SiteGroupsCardState extends State<_SiteGroupsCard> {
     },
     onAddWebspace: () {},
     onEditWebspace: (_) {},
+    onRetitleWebspace: (id, {required to}) async => setState(() {
+      final at = _webspaces.indexWhere((w) => w.id == id);
+      _webspaces[at] = _webspaces[at].copyWith(
+        name: to.name,
+        glyph: (to: to.glyph),
+      );
+    }),
     onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
     onOpenSite: (_) {},
     onSiteMenu: (context, {required site, required position}) {},

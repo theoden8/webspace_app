@@ -1454,14 +1454,14 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onEditWebspace: _webspaces.edit,
                     onDeleteWebspace: _webspaces.delete,
                     onReorder: _webspaces.reorder,
+                    onRetitleWebspace: _webspaces.retitle,
                     onOpenSite: (site) => unawaited(_openSite(site)),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
                         ? (from, {required to}) =>
                               _webspaces.reorderSite(from, newListIndex: to)
                         : null,
-                    onAddSite: ({required into}) =>
-                        unawaited(_editing.addSite(into: into)),
+                    onAddSite: ({required into}) => unawaited(_editing.addSite(into: into)),
                     onShowTabs: (scope) => unawaited(_showLibraryTabs(scope)),
                     onOpenSettings: _openAppSettings,
                     accentColor: _shell.theme.accentColor,

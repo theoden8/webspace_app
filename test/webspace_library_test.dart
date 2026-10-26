@@ -20,6 +20,7 @@ import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
+import 'package:webspace/widgets/webspace_name.dart';
 import 'helpers/localized.dart';
 import 'helpers/group_tile.dart';
 
@@ -57,6 +58,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
   ];
   WebspaceId selected = WebspaceId.all;
   Webspace? edited;
+  final retitled = <(WebspaceId, WebspaceTitle)>[];
   Webspace? deleted;
   WebViewModel? opened;
   var settingsOpened = 0;
@@ -124,6 +126,14 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
           },
           onAddWebspace: () => webspacesAdded++,
           onEditWebspace: (webspace) => edited = webspace,
+          onRetitleWebspace: (id, {required to}) async => setState(() {
+            retitled.add((id, to));
+            final at = webspaces.indexWhere((w) => w.id == id);
+            webspaces[at] = webspaces[at].copyWith(
+              name: to.name,
+              glyph: (to: to.glyph),
+            );
+          }),
           onDeleteWebspace: (webspace) => deleted = webspace,
           onReorder: (from, {required newIndex}) => setState(() {
             WebspaceSelectionEngine.reorder(
@@ -1995,6 +2005,103 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'an open folder\'s name is renamed in place, as a launcher\'s is, and its '
+    'glyph is picked from beside it (WEBSPACE-018)',
+    (tester) async {
+      await pumpLocalized(tester, home: const _LibraryHarness());
+      await tester.pumpAndSettle();
+      final harness = tester.state<_LibraryHarnessState>(
+        find.byType(_LibraryHarness),
+      );
+      final work = harness.webspaces[1].id;
+      final title = _inPanel(find.byType(EditableWebspaceName));
+      Finder named(String name) =>
+          find.descendant(of: title, matching: find.text(name));
+      Future<void> rename(String name, {required bool hold}) async {
+        await (hold
+            ? tester.longPress(named(harness.webspaces[1].name))
+            : tester.tap(named(harness.webspaces[1].name)));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(of: title, matching: find.byType(TextField)),
+          name,
+        );
+      }
+
+      await tester.tap(_group('Work'));
+      await tester.pumpAndSettle();
+      await rename('Projects', hold: false);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(harness.retitled, [(work, (name: 'Projects', glyph: null))]);
+      expect(named('Projects'), findsOneWidget);
+      expect(
+        find.descendant(of: title, matching: find.byType(TextField)),
+        findsNothing,
+      );
+
+      await rename(' Projects ', hold: true);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(harness.retitled, hasLength(1), reason: 'the same name again');
+
+      await rename('Labs', hold: false);
+      await tester.tap(
+        find.descendant(of: title, matching: find.byTooltip('Icon')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        harness.retitled.last,
+        (work, (name: 'Labs', glyph: null)),
+        reason: 'leaving the field keeps what was typed',
+      );
+      await tester.tap(find.byTooltip('Code'));
+      await tester.pumpAndSettle();
+      expect(harness.retitled.last, (
+        work,
+        (name: 'Labs', glyph: WebspaceGlyph.code),
+      ));
+      expect(
+        find.descendant(of: title, matching: find.byIcon(Icons.code)),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.descendant(of: title, matching: find.byIcon(Icons.code)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('No icon'));
+      await tester.pumpAndSettle();
+      expect(harness.retitled.last, (work, (name: 'Labs', glyph: null)));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('All\'s name in its open folder stays as it is (WEBSPACE-018)', (
+    tester,
+  ) async {
+    await pumpLocalized(tester, home: const _LibraryHarness());
+    await tester.pumpAndSettle();
+    await tester.tap(_group('All'));
+    await tester.pumpAndSettle();
+    final title = _inPanel(find.byType(EditableWebspaceName));
+    await tester.tap(find.descendant(of: title, matching: find.text('All')));
+    await tester.pumpAndSettle();
+    await tester.longPress(
+      find.descendant(of: title, matching: find.text('All')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: title, matching: find.byType(TextField)),
+      findsNothing,
+    );
+    expect(
+      tester
+          .state<_LibraryHarnessState>(find.byType(_LibraryHarness))
+          .retitled,
+      isEmpty,
+    );
+  });
 
   testWidgets('reduced motion turns a folder into rows at once', (
     tester,
