@@ -1,0 +1,47 @@
+# Tasks
+
+## 1. Gate
+
+- [ ] 1.1 Add `WebExtensionSupport.probe` (iOS 18.4+ and macOS 15.4+ through a method channel the Runner answers; false elsewhere) and the Web extensions `AppPref` in the Experimental group, offered only where the probe is true (WEBEXT-001, design D6); verify `fvm flutter test test/settings_backup_test.dart` passes (the pref rides `AppPref.values`)
+- [ ] 1.2 Add the row to the Experimental group's screen and a widget test that the switch shows on a supported Apple build and not on Android, Linux or an older system; test names cite WEBEXT-001 and DEVTOOLS-011; verify it passes
+
+## 2. Import and library
+
+- [ ] 2.1 Add `lib/services/web_extension_unpack.dart`: `unpackExtension(bytes, kind:)` and the sealed `UnpackResult` (design D5), pure Dart over `archive`; verify `node test/js/layers.test.js` passes
+- [ ] 2.2 Add `test/web_extension_unpack_test.dart`: CRX2, CRX3, ZIP and XPI built in the test, truncated headers, traversal, absolute and symlink entries, missing or broken manifest, a seeded fuzz, and the two planted mutants from design D9; test names cite WEBEXT-002; verify it passes
+- [ ] 2.3 Add `WebExtensionId` (an extension type with `parse` and `mint`), the library store beside the user scripts' in `ShellStore`, and the folder under app support; verify a store round-trip test passes
+- [ ] 2.4 Add App Settings > Extensions: import through `FileDialog`, the summary before adding (signature not checked), WebKit's errors per entry (WEBEXT-003), removal (WEBEXT-002); strings in `lib/l10n/app_en.arb`; verify a widget test of the import summary, an entry's errors and removal passes and `npm run test:js` passes the l10n and hint gates
+
+## 3. Per site
+
+- [ ] 3.1 Add the `enabledWebExtensions` `SiteField` (QR excluded) and its save and read arms in `lib/web_view_model_json.dart`; drop it in `planSettingsImport` (WEBEXT-011); verify `fvm flutter test test/settings_backup_test.dart test/settings_backup_compat_test.dart` passes and `tool/backup_compat/superset.json` names the field
+- [ ] 3.2 Add `planExtensionGrants` (design D3) and `test/web_extension_grants_test.dart` with its planted mutants; test names cite WEBEXT-005 and WEBEXT-007; verify it passes
+- [ ] 3.3 Add `planExtensionAttach` and the sealed `ExtensionAttach` (design D4), resolved in `WebViewModel.sitePosture` into `SitePage.extensions`; add `test/web_extension_attach_test.dart` over the matrix with its planted mutants; test names cite WEBEXT-006, WEBEXT-009, WEBEXT-010, WEBEXT-012; verify it passes
+- [ ] 3.4 Extend the NESTED-010 posture test so `forNested()` keeps `extensions`; verify it fails with the field dropped and passes as built
+- [ ] 3.5 Add the site's Settings > Extensions screen: a switch per library entry, the consent sheet before switching one on, the archive and kiosk lock (WEBEXT-004, WEBEXT-009); verify its widget test passes and `npm run test:js` passes the l10n and hint gates
+- [ ] 3.6 Add `OrphanStore.webExtensionData` and its sweep in `PageOrphanSweep`; verify `fvm flutter analyze` is clean (the sweep's exhaustive switch) and the orphan sweep test passes
+
+## 4. Fork (iOS and macOS)
+
+- [ ] 4.1 In `theoden8/flutter_inappwebview`, add the `webExtensions` setting to `InAppWebViewSettings` (platform interface, iOS, macOS) and apply it in `preWKWebViewConfiguration` beside the container binding: the per-container controller cache (design D2), contexts loaded from paths, grants applied (D3); verify `tool/swift_typecheck/check.sh` passes against the fork's sources
+- [ ] 4.2 Add the `WKWebExtensionControllerDelegate` (design D7): the site's window and tabs, tab and window requests, popup and options page presentation, refusals; verify XCTests in the fork's `RunnerTests` for controller reuse per container id, grants on a loaded context and each refusal pass
+- [ ] 4.3 Add the channel the site menu uses: list attached contexts' actions, `performAction`, remove a controller's data records; verify a Dart test of the channel's codec passes
+- [ ] 4.4 Tag the fork and move the `dependency_overrides` ref in `pubspec.yaml`; verify `fvm flutter pub get` and `fvm flutter build macos --release` succeed
+
+## 5. Runner and UI glue
+
+- [ ] 5.1 Show each attached extension's action in the site menu (`lib/widgets/site_menu.dart`) and call `performAction` on pick (WEBEXT-008); verify a widget test with a fake channel passes
+- [ ] 5.2 Remove a deleted site's extension data through `SiteDeletion`; if it adds an await, make it a `Step` of `SiteDeletion.deleteTable` and run `./formal/verify.sh`; verify the deletion test and, if touched, `verify.sh` pass
+- [ ] 5.3 Commit the 66 translated `app_*.arb` files in their own commit after the strings of groups 2 and 3; verify `npm run test:js` passes `l10n_coverage` and `l10n_language`
+
+## 6. End to end and bookkeeping
+
+- [ ] 6.1 Add `integration_test/web_extensions_test.dart` (design D9, end to end) and run it in the macOS CI job; verify it passes on a macOS 15.4+ runner and fails with the planted shared controller
+- [ ] 6.2 Add a map row for the extension plan to `CLAUDE.md` and the slug to its OpenSpec table; verify `npm run test:js` passes
+- [ ] 6.3 Remove WEBEXT-001 to WEBEXT-012 from `openspec/unverified.tsv` as their tests land; verify `node --test test/js/spec_verification.test.js` passes
+- [ ] 6.4 Run `./scripts/test_all.sh`, `fvm flutter analyze` and `npx openspec validate --no-interactive --all`; verify each exits 0
+
+## Workflow follow-up
+
+- Ask App Review about user-imported extensions (guidelines 2.5.2 and 4.7) before the feature leaves the Experimental group.
+- Sync the deltas into `openspec/specs/` and archive the change once merged.

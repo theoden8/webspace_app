@@ -185,6 +185,19 @@ US-009	no check: not implemented: userscript-metadata tasks 2.2, 3.2, 4.2, 6.1 o
 US-010	no check: not implemented: userscript-metadata tasks 4.2, 5.2 open (`@run-at` in the run paths and the editor lock)
 US-011	no check: not implemented: userscript-metadata task 5.2 open (the editor's name prefill)
 US-012	no check: not implemented: userscript-metadata tasks 4.3, 5.2 open (no GM functions in pages, the editor's not-provided list)
+# web-extensions
+WEBEXT-001	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-002	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-003	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-004	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-005	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-006	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-007	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-008	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-009	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-010	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-011	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
+WEBEXT-012	no check: not implemented: webkit-web-extensions is a proposal; no code or test exists yet
 # web-push-notifications
 NOTIF-001	no check: the Dart webNotificationRequestPermission handler in lib/services/page_handlers.dart that answers from the toggle is untested; the JS test stubs the bridge to 'granted', and the hidden-toggle scenario has no test (partly: test/js/notification_polyfill_shim.test.js, "requestPermission asks the bridge and adopts its answer")
 # web-screen-sharing
