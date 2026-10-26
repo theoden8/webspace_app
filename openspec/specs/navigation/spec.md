@@ -568,7 +568,7 @@ macOS where the others take Control:
 | Ctrl/Cmd-W | close the tab on screen, as the Tabs sheet does, where the site has tabs |
 | Ctrl/Cmd-L | put the cursor in the URL bar with the address selected, where the URL bar is on |
 | Ctrl/Cmd-R, F5 | the site menu's Refresh |
-| Ctrl/Cmd-F | the site menu's Find in page, out of full screen |
+| Ctrl/Cmd-F | the site menu's Find in page, out of full screen; Escape in its field closes it |
 | Alt-Left; Cmd-[ or Cmd-Left on macOS | the site menu's Back |
 | Alt-Right; Cmd-] or Cmd-Right on macOS | one step forward, where the page has one |
 | Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the tab strip, round at either end |

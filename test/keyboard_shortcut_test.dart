@@ -482,6 +482,23 @@ void main() {
       expect(find.byType(FindToolbar), findsNothing);
     });
 
+    testWidgets('Escape in the find bar closes it', (tester) async {
+      await openOne(tester);
+
+      await chord(tester, key: LogicalKeyboardKey.keyF);
+      final field = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(FindToolbar),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(field.focusNode.hasFocus, isTrue, reason: 'the bar opens focused');
+      webViewCalls.clear();
+      await chord(tester, key: LogicalKeyboardKey.escape, holding: const []);
+      expect(find.byType(FindToolbar), findsNothing);
+      expect(webViewCalls, contains(#clearMatches));
+    });
+
     testWidgets('the back key goes back', (tester) async {
       await openOne(tester);
 
