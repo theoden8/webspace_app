@@ -672,6 +672,27 @@ Test: [test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.da
 
 ---
 
+### Requirement: NAV-017 - A Click Beside A Menu Over The Page Closes It
+
+A click on a site's page while a menu, a dialog or a sheet is over it SHALL reach the
+route on top, as a click anywhere else does: a menu closes, and the page takes nothing.
+This holds for the site's own page and a nested screen's (NAV-008). On macOS a
+platform view takes every click Flutter has not painted over (flutter/flutter#128519),
+and a menu's barrier paints nothing, so while another route covers the page it SHALL
+be painted over with a veil no eye can see; the page under it SHALL NOT be remounted
+when the veil comes or goes. Elsewhere the page is Flutter's to hit-test, and the
+route's barrier already takes the click.
+
+#### Scenario: A click on the page closes the site menu
+
+- **GIVEN** the site menu open over a site's page on macOS
+- **WHEN** the user clicks the page beside the menu
+- **THEN** the menu closes and the page receives no click
+
+Test: [test/route_cover_test.dart](../../../test/route_cover_test.dart)
+
+---
+
 ### Requirement: NAV-016 - A TV Remote Reaches The Page And The App Bar
 
 Where a remote's D-pad drives the device rather than a touchscreen (Android TV, or an
@@ -880,6 +901,9 @@ Home button pressed
 #### `lib/services/keyboard_shortcuts.dart`
 - `KeyboardShortcut.keys` — every key a shortcut takes, per platform (NAV-014)
 - `KeyboardShortcuts` — takes the keys for the `ShortcutScreen` on top, through `FocusManager.addEarlyKeyEventHandler`, on desktop only; `editingText` leaves Cmd-Left and Cmd-Right to a focused text field
+
+#### `lib/services/route_cover.dart`
+- `RouteCover.over` — veils a site's page on macOS while another route covers it, so a click there reaches that route (NAV-017)
 
 #### `lib/controllers/keyboard_shortcut_controller.dart`
 - `KeyboardShortcutController.answerShortcut` — the page's answer to each, through the controllers that own tabs, Refresh, Back and Forward; the nested screen's own answers are `_InAppWebViewScreenState.answerShortcut`

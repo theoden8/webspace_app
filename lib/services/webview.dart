@@ -63,6 +63,7 @@ import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/remote_focus.dart';
+import 'package:webspace/services/route_cover.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/page_js.dart';
 
@@ -1895,8 +1896,8 @@ class WebViewFactory {
       },
       child: webViewWidget,
     );
-    return _applyLetterbox(config,
-        webView: _applyRefreshGate(config, webView: remote?.wrap(scoped) ?? scoped));
+    return RouteCover.over(_applyLetterbox(config,
+        webView: _applyRefreshGate(config, webView: remote?.wrap(scoped) ?? scoped)));
   }
 
   /// Tells a live view when the blockers' data changes under it: a level's
