@@ -1790,32 +1790,40 @@ void main() {
   );
 
   testWidgets(
-    'on a wide window rows flow into columns rather than run its width '
+    'on a wide window List is one column of rows across the level, and so is '
+    'Auto while one column holds every item, as the drawer packs '
     '(WEBSPACE-015)',
     (tester) async {
-      AppPref.libraryWebspaceLayout.debugValue = LibraryLayout.list.name;
-      AppPref.libraryLayout.debugValue = LibraryLayout.list.name;
-      await pumpLocalized(
-        tester,
-        home: const _LibraryHarness(),
-        size: const Size(1280, 800),
-      );
-      await tester.pumpAndSettle();
-      final rows = [
-        for (final name in ['All', 'Work', 'Privacy'])
-          tester.getRect(_groupTile(name)),
-      ];
-      expect(rows[0].width, lessThan(1280 / 2));
-      expect(rows[1].top, rows[0].top, reason: 'side by side');
-      expect(rows[1].left, rows[0].right);
-      await tester.tap(_group('All'));
-      await tester.pumpAndSettle();
-      final sites = _inPanel(find.byType(SiteGridTile));
-      expect(
-        tester.getRect(sites.at(1)).top,
-        tester.getRect(sites.at(0)).top,
-        reason: 'the folder\'s rows flow into columns too',
-      );
+      for (final layout in [LibraryLayout.list, LibraryLayout.auto]) {
+        AppPref.libraryWebspaceLayout.debugValue = layout.name;
+        AppPref.libraryLayout.debugValue = layout.name;
+        await pumpLocalized(
+          tester,
+          home: const _LibraryHarness(),
+          size: const Size(1280, 800),
+        );
+        await tester.pumpAndSettle();
+        expect(_across(tester, of: _homeTiles), (count: 1, list: 1.0));
+        final level = tester.getRect(
+          find.ancestor(
+            of: _groupTile('All'),
+            matching: find.byType(CustomScrollView),
+          ),
+        );
+        expect(
+          tester.getRect(_groupTile('All')).width,
+          greaterThan(level.width * .9),
+          reason: '${layout.name}: a row runs the level\'s width',
+        );
+        await tester.tap(_group('All'));
+        await tester.pumpAndSettle();
+        expect(
+          _across(tester, of: _inPanel(find.byType(SiteGridTile))),
+          (count: 1, list: 1.0),
+          reason: '${layout.name}: the folder\'s rows are one column too',
+        );
+        await tester.pumpWidget(const SizedBox());
+      }
       expect(tester.takeException(), isNull);
     },
   );

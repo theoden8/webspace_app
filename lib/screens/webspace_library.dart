@@ -1453,23 +1453,15 @@ final class _Level {
 
   /// What the level has room for, [width] wide and [height] tall.
   LibraryRoom room({required double width, required double height}) {
-    final listColumns = _fitting(
-      LibraryForm.rows,
-      min: LibraryStyle.rowMinWidth,
-      width: width,
-    );
     final gridColumns = _fitting(
       LibraryForm.icons,
       min: iconColumnMin,
       width: width,
     );
-    final rowColumns = math.max(
-      listColumns,
-      _fitting(
-        LibraryForm.rows,
-        min: LibraryStyle.packedRowMinWidth,
-        width: width,
-      ),
+    final rowColumns = _fitting(
+      LibraryForm.rows,
+      min: LibraryStyle.packedRowMinWidth,
+      width: width,
     );
     int tall(LibraryForm form, {required double extent}) {
       final spacing = _of(form);
@@ -1482,7 +1474,6 @@ final class _Level {
     }
 
     return (
-      listColumns: listColumns,
       gridColumns: gridColumns,
       rowColumns: rowColumns,
       mostColumns: [

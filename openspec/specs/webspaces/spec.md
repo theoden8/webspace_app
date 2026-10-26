@@ -395,8 +395,9 @@ names under the icons fading early and the rows' text fading in late, and the
 panel SHALL take the new layout's height as the icons move. In either layout
 the panel SHALL be as tall as its sites need up to most of the screen,
 resizing late in a swipe to another folder (WEBSPACE-008), and rows SHALL
-reorder by dragging as icons do (WEBSPACE-011). Where the window is wide
-enough, rows SHALL flow into columns rather than run its whole width. A site
+reorder by dragging as icons do (WEBSPACE-011). List SHALL show one column
+of rows however wide the window; only Automatic takes more columns, and only
+once one does not hold every site. A site
 SHALL open from its
 row's icon and close back into it, its card starting at that icon's size and
 colour. Reduced motion SHALL switch at once.
@@ -424,6 +425,14 @@ close back into it, and rows SHALL reorder by dragging as the grid does.
 **And** Work, which holds two, still shows one column of rows
 **When** the window is made short enough that the webspaces overflow a column of rows
 **Then** the home shows them in two columns of rows, and as icons once those overflow too
+
+#### Scenario: List is one column on a wide window
+
+**Given** Alternative design is enabled and a window wide enough for several columns of rows
+**When** the user picks List beside the search
+**Then** the home shows its webspaces in one column of rows across its width, and so does an open folder its sites
+**When** the user picks Automatic and every webspace fits one column of rows
+**Then** the home still shows one column, taking more only once they overflow it
 
 #### Scenario: Turn the webspaces into rows
 

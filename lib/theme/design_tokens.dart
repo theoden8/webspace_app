@@ -128,9 +128,6 @@ abstract final class LibraryStyle {
   /// A webspace's glyph beside its name, against the name's font size.
   static const double glyphScale = 1.15;
 
-  /// The narrowest a row may be before rows flow into fewer columns.
-  static const double rowMinWidth = 360;
-
   /// Automatic layout, as the drawer packs its sites: the narrowest a row
   /// may be once rows take more columns to hold every item, and the most
   /// columns it takes before the items scroll, as the drawer's four.
