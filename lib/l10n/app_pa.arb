@@ -1123,6 +1123,7 @@
   "appSettingsExperimentalFolderLibraryHint": "ਲਾਂਚਰ ਗ੍ਰਿਡ ਵਿੱਚ ਸਾਈਟਾਂ ਨੂੰ ਗਰੁੱਪਾਂ ਵਿੱਚ ਸਜਾਓ।",
   "appSettingsLibraryIconSize": "ਆਈਕਨ ਦਾ ਆਕਾਰ",
   "appSettingsLibraryIconSizeHint": "ਹਰ ਸਾਈਟ ਅਤੇ ਵੈੱਬਸਪੇਸ ਆਈਕਨ ਕਿੰਨਾ ਵੱਡਾ ਬਣਾਇਆ ਜਾਂਦਾ ਹੈ। ਵੱਡੇ ਆਈਕਨ ਇੱਕ ਕਤਾਰ ਵਿੱਚ ਘੱਟ ਆਉਂਦੇ ਹਨ; ਛੋਟੇ ਵੱਧ ਆਉਂਦੇ ਹਨ।",
+  "libraryRenameWebspace": "ਵੈੱਬਸਪੇਸ ਦਾ ਨਾਮ ਬਦਲੋ",
   "siteRedirectHomeSuggestion": "ਇਹ ਸਾਈਟ {url} ਉੱਤੇ ਰੀਡਾਇਰੈਕਟ ਹੋਈ ਹੈ। ਇਸ ਨੂੰ ਇਸ ਦਾ ਮੁੱਖ ਪੰਨਾ ਬਣਾਉਣਾ ਹੈ? ਨਵੇਂ ਡੋਮੇਨ ਦੇ ਲਿੰਕ ਵੀ ਇੱਥੇ ਖੁੱਲ੍ਹਣਗੇ।",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

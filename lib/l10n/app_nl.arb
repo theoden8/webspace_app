@@ -1123,6 +1123,7 @@
   "appSettingsExperimentalFolderLibraryHint": "Orden websites in groepen in een startraster.",
   "appSettingsLibraryIconSize": "Pictogramgrootte",
   "appSettingsLibraryIconSizeHint": "Hoe groot alle pictogrammen van sites en webspaces worden getekend. Grotere pictogrammen passen minder vaak in een rij, kleinere vaker.",
+  "libraryRenameWebspace": "Webspace hernoemen",
   "siteRedirectHomeSuggestion": "Deze site heeft doorgestuurd naar {url}. Dit adres als startpagina gebruiken? Links naar het nieuwe domein worden ook hier geopend.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

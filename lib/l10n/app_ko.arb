@@ -1123,6 +1123,7 @@
   "appSettingsExperimentalFolderLibraryHint": "런처 그리드에서 사이트를 그룹으로 정리합니다.",
   "appSettingsLibraryIconSize": "아이콘 크기",
   "appSettingsLibraryIconSizeHint": "모든 사이트와 웹스페이스 아이콘을 그리는 크기입니다. 아이콘이 클수록 한 줄에 적게 들어가고, 작을수록 많이 들어갑니다.",
+  "libraryRenameWebspace": "웹스페이스 이름 바꾸기",
   "siteRedirectHomeSuggestion": "이 사이트가 {url}(으)로 리디렉션되었습니다. 이 주소를 홈페이지로 사용할까요? 새 도메인의 링크도 여기에서 열립니다.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

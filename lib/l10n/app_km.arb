@@ -1123,6 +1123,7 @@
   "appSettingsExperimentalFolderLibraryHint": "រៀបចំគេហទំព័រជាក្រុមក្នុងក្រឡាចត្រង្គកម្មវិធីបើក។",
   "appSettingsLibraryIconSize": "ទំហំរូបតំណាង",
   "appSettingsLibraryIconSizeHint": "ទំហំដែលរូបតំណាងគេហទំព័រ និងលំហបណ្ដាញនីមួយៗត្រូវបានគូរ។ រូបតំណាងធំៗដាក់បានតិចក្នុងមួយជួរ ហើយរូបតូចៗដាក់បានច្រើន។",
+  "libraryRenameWebspace": "ប្ដូរឈ្មោះលំហបណ្ដាញ",
   "siteRedirectHomeSuggestion": "គេហទំព័រនេះបានបញ្ជូនបន្តទៅ {url}។ ប្រើអាសយដ្ឋាននេះជាទំព័រដើមរបស់វា? តំណទៅដែនថ្មីក៏នឹងបើកនៅទីនេះដែរ។",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",

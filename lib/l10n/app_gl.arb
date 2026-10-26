@@ -1123,6 +1123,7 @@
   "appSettingsExperimentalFolderLibraryHint": "Organiza os sitios en grupos nunha grade de inicio.",
   "appSettingsLibraryIconSize": "Tamaño das iconas",
   "appSettingsLibraryIconSizeHint": "O tamaño co que se debuxan todas as iconas de sitios e espazos web. As iconas máis grandes caben menos por fila; as máis pequenas, máis.",
+  "libraryRenameWebspace": "Cambiar o nome do espazo web",
   "siteRedirectHomeSuggestion": "Este sitio redirixiu a {url}. Usar este enderezo como a súa páxina de inicio? As ligazóns ao novo dominio tamén se abrirán aquí.",
   "@siteRedirectHomeSuggestion": {
     "description": "Confirmation after the first successful live load reaches a URL the site’s ordinary user-opened-link decision would handle externally (nested webview, system browser, or blocked outbound link). Save uses the full displayed {url} as the homepage and adds the destination domain claim while preserving existing claims. Cancel keeps the homepage and claims. URLs allowed in place, including internal domain aliases, do not show this question.",
