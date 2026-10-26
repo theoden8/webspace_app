@@ -465,8 +465,9 @@ close back into it, and rows SHALL reorder by dragging as the grid does.
 ### Requirement: WEBSPACE-016 - A Webspace's Icon
 
 A webspace's edit screen SHALL offer a symbol to stand beside its name,
-picked from a fixed set of the app's own icons, each read out by its name,
-or none, which is how every webspace starts. The symbol SHALL lead the
+picked from a fixed set of the app's own icons, laid out in a grid about as
+tall as it is wide, each read out by its name, or none, which is how every
+webspace starts. The symbol SHALL lead the
 webspace's name wherever the name is shown: the library's tiles and rows,
 an open folder's top bar, the labels on search results, the add-site
 picker's chips, the drawer's heading, the app bar and the classic list,

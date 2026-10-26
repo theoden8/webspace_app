@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -219,7 +220,8 @@ class _EditableWebspaceNameState extends State<EditableWebspaceName> {
 }
 
 /// Asks for the glyph to show beside a webspace's name, [current] marked:
-/// a glyph, `(to: null)` for none, or null when the user turned away.
+/// a glyph, `(to: null)` for none, or null when the user turned away. The
+/// glyphs lie in a grid about as tall as it is wide.
 Future<({WebspaceGlyph? to})?> pickWebspaceGlyph(
   BuildContext context, {
   required WebspaceGlyph? current,
@@ -243,10 +245,17 @@ Future<({WebspaceGlyph? to})?> pickWebspaceGlyph(
     context: context,
     builder: (dialog) => AlertDialog(
       title: Text(loc.webspaceGlyphTitle),
-      content: SingleChildScrollView(
-        child: Wrap(
-          spacing: Spacing.xs,
-          runSpacing: Spacing.xs,
+      // A width of its own, which the dialog sizes itself by without
+      // asking the grid.
+      content: SizedBox(
+        width:
+            _glyphColumns * kMinInteractiveDimension +
+            (_glyphColumns - 1) * Spacing.xs,
+        child: GridView.count(
+          crossAxisCount: _glyphColumns,
+          shrinkWrap: true,
+          mainAxisSpacing: Spacing.xs,
+          crossAxisSpacing: Spacing.xs,
           children: [
             for (final glyph in WebspaceGlyph.values)
               choice(dialog, glyph: glyph),
@@ -266,3 +275,6 @@ Future<({WebspaceGlyph? to})?> pickWebspaceGlyph(
     ),
   );
 }
+
+/// Columns enough for the glyph picker's grid to be about square.
+final int _glyphColumns = math.sqrt(WebspaceGlyph.values.length).ceil();
