@@ -17,6 +17,7 @@ import 'package:webspace/settings/proxy.dart';
 
 import '../integration_test/self_signed_cert.dart';
 import '../integration_test/socks5_fixture.dart';
+import 'helpers/option_refusing_socket.dart';
 
 /// One CONNECT through the relay, optionally presenting a credential.
 /// Returns everything the relay sent back, so the caller can tell a 200 from
@@ -118,6 +119,44 @@ void main() {
 
   String get(String path) => 'GET $path HTTP/1.1\r\nHost: $originHost\r\n'
       'Connection: close\r\n\r\n';
+
+  test('a client the platform refuses a socket option for is closed, and '
+      'the relay serves the next', () async {
+    // macOS answers setsockopt with EINVAL once the peer has reset the
+    // connection, which a client WebKit opens and drops before the relay
+    // serves it does (proxy_apple_relay_parity_test, macOS CI).
+    final listening = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final refusing = LocalProxyRelay(realm: 'webspace-test');
+    addTearDown(refusing.stop);
+    final started = await IOOverrides.runZoned(
+      refusing.start,
+      serverSocketBind: (address, port,
+              {backlog = 0, v6Only = false, shared = false}) async =>
+          OptionRefusingServer(listening, refusing: 1),
+    );
+    expect(started, isTrue);
+    refusing.setRoutes({});
+
+    final first = await Socket.connect(refusing.host!, refusing.port!);
+    final heard = <int>[];
+    try {
+      await first
+          .listen(heard.addAll)
+          .asFuture<void>()
+          .timeout(const Duration(seconds: 6));
+    } on SocketException {
+      // Closed by a reset rather than a FIN: closed all the same.
+    }
+    expect(heard, isEmpty, reason: 'the refused client is closed unanswered');
+
+    final next = await connectThroughRelay(
+      host: refusing.host!,
+      port: refusing.port!,
+      targetHost: originHost,
+      targetPort: origin.port,
+    );
+    expect(next, contains('407'), reason: 'the relay still serves');
+  });
 
   test('a tunnel with no credential is challenged, not relayed', () async {
     relay.setRoutes({});

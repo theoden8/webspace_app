@@ -112,7 +112,6 @@ class LocalProxyRelay {
 
   Future<void> _serve(Socket client) async {
     _clients.add(client);
-    client.setOption(SocketOption.tcpNoDelay, true);
     final head = _HeadBuffer();
     final incoming = client.listen(
       head.add,
@@ -124,6 +123,9 @@ class LocalProxyRelay {
         .catchError((Object _) => client, test: (e) => e is SocketException));
     Socket? upstream;
     try {
+      // Refused (macOS: EINVAL) for a client that reset the connection
+      // before it was served.
+      client.setOption(SocketOption.tcpNoDelay, true);
       LocalProxyRoute? route;
       ({String host, int port})? target;
       // A client that is challenged retries on the same connection, so the
