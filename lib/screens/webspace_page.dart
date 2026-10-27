@@ -104,7 +104,7 @@ import 'package:webspace/widgets/link_prompts.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
 import 'package:webspace/widgets/protection_shield_button.dart';
 import 'package:webspace/widgets/shortcut_prompts.dart';
-import 'package:webspace/widgets/surface_nudge_scope.dart';
+import 'package:webspace/services/surface_nudge_scope.dart';
 import 'package:webspace/widgets/webspace_prompts.dart';
 import 'package:webspace/widgets/webview_prompts.dart';
 import 'package:webspace/theme/app_theme.dart';
