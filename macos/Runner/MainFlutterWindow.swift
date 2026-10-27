@@ -18,7 +18,7 @@ class MainFlutterWindow: NSWindow {
   /// over the `desktop_window` channel. With it on, a close hides the window
   /// and the app keeps running; the Dock icon (AppDelegate) and the channel's
   /// `show` bring it back.
-  private var closeHides = false
+  private(set) var closeHides = false
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()

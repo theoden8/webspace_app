@@ -46,12 +46,18 @@ class DesktopWindow {
   @visibleForTesting
   void stop() => AppPref.keepRunningWhenClosed.listenable.removeListener(_tell);
 
-  void _tell() => unawaited(_invoke('setKeepRunningWhenClosed',
-      args: {'keep': AppPref.keepRunningWhenClosed.value}));
+  void _tell() {
+    final keep = AppPref.keepRunningWhenClosed.value;
+    unawaited(_invoke('setKeepRunningWhenClosed', args: {'keep': keep})
+        .then((told) {
+      if (told) LogTag.lifecycle.debug('Desktop window: a close hides it: $keep');
+    }));
+  }
 
   /// Brings a hidden window back, in front.
-  Future<void> show() =>
-      _offered ? _invoke('show', args: null) : Future.value();
+  Future<void> show() async {
+    if (_offered) await _invoke('show', args: null);
+  }
 
   /// Leaves the app, where a close of the window may only hide it.
   Future<void> quit() => _exit();
@@ -60,13 +66,17 @@ class DesktopWindow {
     await ServicesBinding.instance.exitApplication(AppExitType.required);
   }
 
-  Future<void> _invoke(String method, {required Object? args}) async {
+  /// Whether the runner took [method].
+  Future<bool> _invoke(String method, {required Object? args}) async {
     try {
       await _channel.invokeMethod<void>(method, args);
+      return true;
     } on PlatformException catch (e) {
       LogTag.lifecycle.error('Desktop window $method failed: ${e.code}');
     } on MissingPluginException {
-      // A runner without the channel closes as it always has.
+      // Such a runner closes as it always has, whatever the setting says.
+      LogTag.lifecycle.warning('Desktop window $method: the runner has no channel');
     }
+    return false;
   }
 }

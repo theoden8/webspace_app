@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
@@ -218,6 +219,12 @@ void main() {
     }
     await until(() => streams.isNotEmpty,
         what: 'the page to open its event stream');
+    // The runner answers the close from what it was told, so a close before
+    // it took the setting quits the app and takes this test with it.
+    await until(
+        () => LogService.instance.allEntriesMerged.any(
+            (e) => e.message == 'Desktop window: a close hides it: true'),
+        what: 'the runner to take the setting');
 
     await close();
 

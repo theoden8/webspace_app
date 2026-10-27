@@ -23,8 +23,9 @@ class AppDelegate: FlutterAppDelegate {
     shareIntent.receive([])
   }
 
+  // NOTIF-018: a window a close only hid is not the app closed.
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-    return true
+    return !((mainFlutterWindow as? MainFlutterWindow)?.closeHides ?? false)
   }
 
   // NOTIF-018: a window that a close only hid comes back on a click on the
