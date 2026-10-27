@@ -8,6 +8,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/desktop_window.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
@@ -151,9 +152,15 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     final backOpensMenuHint = hostIsAndroid
         ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
         : loc.appSettingsBackOpensMenuHint;
-    final keepRunningHint = '${loc.appSettingsKeepRunningWhenClosedHint} '
-        '${hostIsMacOS ? loc.appSettingsKeepRunningWhenClosedHintMac : loc.appSettingsKeepRunningWhenClosedHintLinux} '
-        '${loc.appSettingsKeepRunningWhenClosedHintTray}';
+    final keepRunningHint = [
+      loc.appSettingsKeepRunningWhenClosedHint,
+      hostIsMacOS
+          ? loc.appSettingsKeepRunningWhenClosedHintMac
+          : loc.appSettingsKeepRunningWhenClosedHintLinux,
+      if (ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.desktopTray))
+        loc.appSettingsKeepRunningWhenClosedHintTray,
+    ].join(' ');
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(

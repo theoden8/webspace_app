@@ -885,12 +885,13 @@ Checks: `test/desktop_window_test.dart` (what the runner is told),
 
 ### Requirement: NOTIF-019 - The tray while a close only hides the window
 
-While Keep running when closed (NOTIF-018) is on, the system SHALL keep an
-icon in the desktop's status area: the menu bar on macOS, and on Linux the
+While Keep running when closed (NOTIF-018) is on and the Tray icon
+experiment is reachable (App Settings > Developer > Experimental, developer
+mode on, DEVTOOLS-011), the system SHALL keep an icon in the desktop's status
+area: the menu bar on macOS, and on Linux the
 system tray of a desktop that hosts StatusNotifierItem (AppIndicator's D-Bus
 protocol, which Plasma, Xfce, Cinnamon and Ubuntu's GNOME host; stock GNOME
-needs the AppIndicator extension). With the setting off there SHALL be no
-icon. Its menu SHALL hold, in order:
+needs the AppIndicator extension). With either off there SHALL be no icon. Its menu SHALL hold, in order:
 
 - Show WebSpace, which shows the window and brings it to the front;
 - each site with notifications on (`effectiveNotificationsEnabled`, so never
@@ -918,7 +919,7 @@ bus), `test/desktop_tray_test.dart` (the app), and
 
 #### Scenario: The menu as the window hides
 
-**Given** Linux or macOS, the setting on, and a loaded site Chat with notifications on whose page title reads "(2) Chat"
+**Given** Linux or macOS, the setting and the Tray icon experiment on, and a loaded site Chat with notifications on whose page title reads "(2) Chat"
 **When** the user closes the window and opens the tray icon's menu
 **Then** it reads Show WebSpace, Chat (2), Quit WebSpace
 
@@ -928,8 +929,8 @@ bus), `test/desktop_tray_test.dart` (the app), and
 **When** the user presses Chat in the tray icon's menu
 **Then** the window shows with Chat on screen
 
-#### Scenario: The setting turned off
+#### Scenario: The setting or the experiment turned off
 
 **Given** the tray icon shown
-**When** the user turns Keep running when closed off
+**When** the user turns Keep running when closed, the Tray icon experiment or developer mode off
 **Then** the icon leaves the status area

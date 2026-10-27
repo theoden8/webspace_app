@@ -5446,6 +5446,14 @@
   "@appSettingsExperimentalWebExtensionsHint": {
     "description": "Explanation behind the hint button of the Web extensions experiment switch. .crx, .xpi and .zip are file types; WebKit is the browser engine; keep those names as they are."
   },
+  "appSettingsExperimentalDesktopTray": "Tray icon",
+  "@appSettingsExperimentalDesktopTray": {
+    "description": "Title of the switch in App Settings > Developer > Experimental (Linux and macOS only) that shows the app's icon in the Linux system tray or the macOS menu bar while the app keeps running with its window closed."
+  },
+  "appSettingsExperimentalDesktopTrayHint": "While Keep running when closed is on, show WebSpace's icon in the menu bar or system tray. Its menu shows the window, opens a site with notifications on, or quits. On Linux it needs a desktop that hosts tray icons (AppIndicator).",
+  "@appSettingsExperimentalDesktopTrayHint": {
+    "description": "Explanation behind the hint button of the Tray icon experiment switch. Keep running when closed is the name of another setting; WebSpace is the app's name; AppIndicator is the name of a Linux desktop protocol; keep those as written."
+  },
   "appSettingsExtensions": "Extensions",
   "@appSettingsExtensions": {
     "description": "Title of the App Settings row, and of the screen it opens, that lists the browser extensions (add-ons) imported on this device. Also the title of the per-site screen choosing which of them run on a site."

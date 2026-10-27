@@ -7,6 +7,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/popup_webview.dart';
@@ -45,6 +46,10 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.webExtensions, Icons.extension_outlined,
             loc.appSettingsExperimentalWebExtensions,
             loc.appSettingsExperimentalWebExtensionsHint),
+      if (DesktopWindow.offered)
+        (ExperimentalFeature.desktopTray, Icons.web_asset_outlined,
+            loc.appSettingsExperimentalDesktopTray,
+            loc.appSettingsExperimentalDesktopTrayHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

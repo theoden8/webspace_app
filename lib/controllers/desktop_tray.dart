@@ -9,6 +9,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/background_wake_engine.dart'
     show unreadCountFromTitle;
 import 'package:webspace/services/desktop_window.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/menu_bar_tray.dart';
 import 'package:webspace/services/status_notifier_tray.dart';
 import 'package:webspace/services/tray_icon.dart';
@@ -21,7 +22,8 @@ import 'package:webspace/widgets/root_messenger.dart';
 /// The icon a desktop keeps for the app in its status area while a close only
 /// hides the window (NOTIF-019): it shows the window, opens a site with
 /// notifications on as a tap on its notification does, and quits. It is
-/// there exactly while [AppPref.keepRunningWhenClosed] is on, on a desktop
+/// there exactly while [AppPref.keepRunningWhenClosed] is on and the
+/// [ExperimentalFeature.desktopTray] experiment is reachable, on a desktop
 /// whose runner can hide its window ([DesktopWindow.offered]).
 class DesktopTray {
   DesktopTray(this._sites, {required void Function(SiteId site) open})
@@ -48,24 +50,36 @@ class DesktopTray {
       ? MenuBarTray(handlers: handlers)
       : StatusNotifierTray(handlers: handlers);
 
+  static bool get _wanted =>
+      AppPref.keepRunningWhenClosed.value &&
+      ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.desktopTray);
+
   void start() {
     if (!DesktopWindow.offered) return;
-    AppPref.keepRunningWhenClosed.listenable.addListener(_follow);
+    AppPref.anyChange.addListener(_follow);
     // The window going away is when the tray gets looked at.
     _lifecycle = AppLifecycleListener(onHide: () => unawaited(refresh()));
     _follow();
   }
 
   void dispose() {
-    AppPref.keepRunningWhenClosed.listenable.removeListener(_follow);
+    AppPref.anyChange.removeListener(_follow);
     _lifecycle?.dispose();
     if (_shown) _turns.enqueue(_remove);
   }
 
+  /// The last answer of [_wanted] acted on, so the queue gets each flip once
+  /// and in order, whatever is still in it.
+  var _decided = false;
+
   void _follow() {
-    if (AppPref.keepRunningWhenClosed.value) {
+    final wanted = _wanted;
+    if (wanted == _decided) return;
+    _decided = wanted;
+    if (wanted) {
       unawaited(refresh());
-    } else if (_shown) {
+    } else {
       _turns.enqueue(_remove);
     }
   }
@@ -79,7 +93,7 @@ class DesktopTray {
   /// notifications on, with the unread count its page's title shows.
   Future<void> refresh() async {
     final labels = _labels();
-    if (labels == null || !AppPref.keepRunningWhenClosed.value) return;
+    if (labels == null || !_wanted) return;
     final notifying = [
       for (final m in _sites.models)
         if (m.effectiveNotificationsEnabled) m,
@@ -97,7 +111,7 @@ class DesktopTray {
     _turns.enqueue(() async {
       try {
         // Turned off while the titles were read.
-        if (!AppPref.keepRunningWhenClosed.value) return;
+        if (!_wanted) return;
         _shown = true;
         await _icon.show(menu);
       } finally {

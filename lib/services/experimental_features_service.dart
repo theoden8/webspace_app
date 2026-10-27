@@ -22,7 +22,11 @@ enum ExperimentalFeature {
 
   /// Web extensions per site, where WebKit runs them (WEBEXT-001). New, so
   /// off by default.
-  webExtensions(AppPref.experimentalWebExtensions);
+  webExtensions(AppPref.experimentalWebExtensions),
+
+  /// The desktop tray icon while a close only hides the window (NOTIF-019).
+  /// New, so off by default.
+  desktopTray(AppPref.experimentalDesktopTray);
 
   const ExperimentalFeature(this.pref);
 

@@ -31,10 +31,17 @@ void main() {
   Finder inAppBar(String text) =>
       find.descendant(of: find.byType(AppBar), matching: find.text(text));
 
+  /// Keep running when closed, and the Tray icon experiment reachable.
+  const trayOn = {
+    'keepRunningWhenClosed': true,
+    'developerMode': true,
+    'experimentalDesktopTray': true,
+  };
+
   testWidgets('NOTIF-019 the tray lists the notifying sites while a close '
       'only hides the window, and goes when that is turned off', (tester) async {
     await pumpRealApp(tester,
-        sites: [news, chat], prefs: {'keepRunningWhenClosed': true});
+        sites: [news, chat], prefs: trayOn);
 
     expect(tray.lines, ['Show WebSpace', '-', 'Chat', '-', 'Quit WebSpace']);
 
@@ -45,9 +52,31 @@ void main() {
 
   testWidgets('NOTIF-019 with the window closing as it always has there is '
       'no tray', (tester) async {
-    await pumpRealApp(tester, sites: [news, chat]);
+    await pumpRealApp(tester, sites: [news, chat], prefs: {
+      'developerMode': true,
+      'experimentalDesktopTray': true,
+    });
 
     expect(tray.lines, isNull);
+  }, skip: !DesktopWindow.offered);
+
+  testWidgets('NOTIF-019 the tray waits for its experiment, which developer '
+      'mode gates', (tester) async {
+    await pumpRealApp(tester,
+        sites: [news, chat], prefs: {'keepRunningWhenClosed': true});
+    expect(tray.lines, isNull, reason: 'the experiment is off');
+
+    await tester.runAsync(() async {
+      await AppPref.developerMode.set(true);
+      await AppPref.experimentalDesktopTray.set(true);
+    });
+    await settleRealApp(tester);
+    expect(tray.lines, contains('Show WebSpace'));
+
+    await tester.runAsync(() => AppPref.developerMode.set(false));
+    await settleRealApp(tester);
+    expect(tray.lines, isNull,
+        reason: 'an experiment is reachable only in developer mode');
   }, skip: !DesktopWindow.offered);
 
   testWidgets('NOTIF-019 a site pressed in the tray opens in the window it '
@@ -63,7 +92,7 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null));
     await pumpRealApp(tester,
-        sites: [news, chat], prefs: {'keepRunningWhenClosed': true});
+        sites: [news, chat], prefs: trayOn);
 
     await tester.runAsync(() async {
       tray.press(TrayOpenSite(chat.siteId));
