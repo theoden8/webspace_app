@@ -3,6 +3,7 @@ import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
+import 'package:webspace/controllers/desktop_tray.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/wake_candidates.dart';
@@ -73,6 +74,9 @@ class BackgroundSitesController {
   /// The wake's side of the app: its checks, the route they run on, and
   /// the app's lifecycle as the wake's table hears it (NOTIF-016).
   late final _WakeHost _wakeHost = _WakeHost(_sites, host: _host);
+
+  /// The desktop's status icon, whose sites open as a notification's do.
+  late final DesktopTray _tray = DesktopTray(_sites, open: _openFromOutside);
 
   /// What the background log reports instead of names: sites with
   /// notifications on, how many of them are loaded, and how many have a live
@@ -299,8 +303,10 @@ class BackgroundSitesController {
     });
   }
 
-  void _onNotificationTapped(SiteId siteId) {
-    // A window a close hid is where the tapped site shows (NOTIF-018).
+  /// A tap on a site's notification, or a press on it in the tray
+  /// (NOTIF-019).
+  void _openFromOutside(SiteId siteId) {
+    // A window a close hid is where the site shows (NOTIF-018).
     unawaited(DesktopWindow.instance.show());
     final site = _siteTapped(siteId);
     if (site == null) return;
@@ -326,7 +332,7 @@ class BackgroundSitesController {
   /// in place of the webspace list; the tap that launched the app reaches no
   /// callback.
   Future<WebViewModel?> wireTaps() async {
-    NotificationService.instance.onNotificationTapped = _onNotificationTapped;
+    NotificationService.instance.onNotificationTapped = _openFromOutside;
     final siteId = await NotificationService.instance.launchSiteId();
     return siteId == null ? null : _siteTapped(siteId);
   }
@@ -386,9 +392,13 @@ class BackgroundSitesController {
     };
     MediaSessionService.instance.initialize();
     unawaited(reschedule());
+    _tray.start();
   }
 
-  void dispose() => _stopForegroundPoll();
+  void dispose() {
+    _stopForegroundPoll();
+    _tray.dispose();
+  }
 }
 
 class _WakeHost implements BackgroundWakeHost<WebViewModel> {

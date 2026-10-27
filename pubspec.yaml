@@ -159,6 +159,9 @@ flutter:
     - assets/licenses/
     - assets/webspace_icon.png
     - assets/webspace_icon_dark.png
+    # The desktop tray's pictures (NOTIF-019).
+    - assets/webspace_icon_monochrome.png
+    - assets/webspace_icon_round.png
     - lib/js/
     - lib/l10n/
 

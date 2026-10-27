@@ -848,7 +848,8 @@ window SHALL come back:
 
 - on macOS, on a click on the Dock icon, or `open` of the running app;
 - on Linux, on a second launch of the app (PLATFORM-011);
-- on either, on a click on one of its notifications (NOTIF-003).
+- on either, on a click on one of its notifications (NOTIF-003);
+- on either, from its icon in the menu bar or system tray (NOTIF-019).
 
 Quitting stays: the macOS app menu's Quit and Command-Q, and Ctrl-Q on Linux
 (NAV-014). With the setting off, a close quits as it always has. The runner
@@ -881,3 +882,54 @@ Checks: `test/desktop_window_test.dart` (what the runner is told),
 **Given** the setting off
 **When** the user closes the window
 **Then** the app quits
+
+### Requirement: NOTIF-019 - The tray while a close only hides the window
+
+While Keep running when closed (NOTIF-018) is on, the system SHALL keep an
+icon in the desktop's status area: the menu bar on macOS, and on Linux the
+system tray of a desktop that hosts StatusNotifierItem (AppIndicator's D-Bus
+protocol, which Plasma, Xfce, Cinnamon and Ubuntu's GNOME host; stock GNOME
+needs the AppIndicator extension). With the setting off there SHALL be no
+icon. Its menu SHALL hold, in order:
+
+- Show WebSpace, which shows the window and brings it to the front;
+- each site with notifications on (`effectiveNotificationsEnabled`, so never
+  an archive-tier site, ARCH-006), by its name, followed by the unread count
+  its page's title shows ("Chat (3)", the count `unreadCountFromTitle` reads,
+  NOTIF-014), read as the menu opens and as the window hides; a press opens
+  the site in the window as a tap on its notification does (NOTIF-003);
+- Quit WebSpace, which quits (NAV-014's Ctrl-Q and Command-Q).
+
+On Linux a click on the icon itself shows the window and the menu opens on a
+right click; the icon is registered by its object path, so it needs no bus
+name of its own, and a watcher that appears later, or returns after its shell
+restarts, is registered with as it appears. A desktop with no status area
+shows nothing, and the window still comes back the ways NOTIF-018 names.
+`DesktopTray` ([lib/controllers/desktop_tray.dart](../../../lib/controllers/desktop_tray.dart))
+owns when the icon shows; `TrayMenus`
+([lib/services/tray_menu_engine.dart](../../../lib/services/tray_menu_engine.dart))
+what its menu holds, each line keeping its id while the app runs so a press
+on a menu the desktop read before a change opens what that menu named.
+
+Checks: `test/tray_menu_engine_test.dart` (the menu),
+`test/status_notifier_tray_test.dart` (the D-Bus protocol, against a private
+bus), `test/desktop_tray_test.dart` (the app), and
+`integration_test/tray_test.dart`, which both desktop tiers run.
+
+#### Scenario: The menu as the window hides
+
+**Given** Linux or macOS, the setting on, and a loaded site Chat with notifications on whose page title reads "(2) Chat"
+**When** the user closes the window and opens the tray icon's menu
+**Then** it reads Show WebSpace, Chat (2), Quit WebSpace
+
+#### Scenario: A site pressed in the tray
+
+**Given** a window a close hid
+**When** the user presses Chat in the tray icon's menu
+**Then** the window shows with Chat on screen
+
+#### Scenario: The setting turned off
+
+**Given** the tray icon shown
+**When** the user turns Keep running when closed off
+**Then** the icon leaves the status area

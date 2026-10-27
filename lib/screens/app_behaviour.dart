@@ -152,7 +152,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
         ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
         : loc.appSettingsBackOpensMenuHint;
     final keepRunningHint = '${loc.appSettingsKeepRunningWhenClosedHint} '
-        '${hostIsMacOS ? loc.appSettingsKeepRunningWhenClosedHintMac : loc.appSettingsKeepRunningWhenClosedHintLinux}';
+        '${hostIsMacOS ? loc.appSettingsKeepRunningWhenClosedHintMac : loc.appSettingsKeepRunningWhenClosedHintLinux} '
+        '${loc.appSettingsKeepRunningWhenClosedHintTray}';
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
