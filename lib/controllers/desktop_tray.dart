@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter/widgets.dart' show AppLifecycleListener;
 
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -43,7 +42,6 @@ class DesktopTray {
 
   late final TrayIcon _icon = (debugIconOverride ?? _platformIcon)(
       (pressed: _pressed, opening: refresh));
-  AppLifecycleListener? _lifecycle;
   var _shown = false;
 
   static TrayIcon _platformIcon(TrayHandlers handlers) => hostIsMacOS
@@ -55,19 +53,17 @@ class DesktopTray {
   static bool get offered => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.desktopTray);
 
-  static bool get _wanted => AppPref.keepRunningWhenClosed.value && offered;
+  static bool get _wanted =>
+      DesktopWindow.offered && AppPref.keepRunningWhenClosed.value && offered;
 
   void start() {
     if (!DesktopWindow.offered) return;
     AppPref.anyChange.addListener(_follow);
-    // The window going away is when the tray gets looked at.
-    _lifecycle = AppLifecycleListener(onHide: () => unawaited(refresh()));
     _follow();
   }
 
   void dispose() {
     AppPref.anyChange.removeListener(_follow);
-    _lifecycle?.dispose();
     if (_shown) _turns.enqueue(_remove);
   }
 

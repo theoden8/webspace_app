@@ -50,6 +50,29 @@ void main() {
     expect(tray.lines, isNull);
   }, skip: !DesktopWindow.offered);
 
+  testWidgets('NOTIF-019 the menu is read again as the window hides',
+      (tester) async {
+    await pumpRealApp(tester, sites: [news, chat], prefs: trayOn);
+    final shown = tray.shows;
+
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
+    await settleRealApp(tester);
+    expect(tray.shows, shown + 1);
+
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
+    await settleRealApp(tester);
+  }, skip: !DesktopWindow.offered);
+
   testWidgets('NOTIF-019 with the window closing as it always has there is '
       'no tray', (tester) async {
     await pumpRealApp(tester, sites: [news, chat], prefs: {
@@ -113,11 +136,13 @@ void main() {
 class _FakeTray implements TrayIcon {
   late TrayHandlers handlers;
   List<String>? lines;
+  var shows = 0;
 
   void press(TrayAction action) => handlers.pressed(action);
 
   @override
   Future<bool> show(TrayMenu menu) async {
+    shows++;
     lines = [
       for (final entry in menu.entries)
         switch (entry) {

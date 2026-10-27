@@ -395,6 +395,9 @@ class BackgroundSitesController {
     _tray.start();
   }
 
+  /// The window went away, which is when the tray gets looked at.
+  void windowHidden() => unawaited(_tray.refresh());
+
   void dispose() {
     _stopForegroundPoll();
     _tray.dispose();
