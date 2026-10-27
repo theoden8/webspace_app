@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/webspace_page.dart' show debugWebViewStateStorageOverride;
 import 'package:webspace/services/notification_service.dart';
@@ -54,6 +54,30 @@ void main() {
     await settleRealApp(tester);
 
     expect(inAppBar('News'), findsOneWidget);
+  });
+
+  testWidgets('a tap on a notification shows the window a close hid (NOTIF-018)',
+      (tester) async {
+    const channel =
+        MethodChannel('org.codeberg.theoden8.webspace/desktop_window');
+    final asked = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+        (call) async {
+      asked.add(call.method);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    await pumpRealApp(tester, sites: [news, mail]);
+
+    await tester.runAsync(() async {
+      NotificationService.instance.onNotificationTapped!(mail.siteId);
+    });
+    await settleRealApp(tester);
+
+    expect(asked, contains('show'),
+        reason: 'the site the tap opens is in a window the user cannot see');
+    expect(inAppBar('Mail'), findsOneWidget);
   });
 }
 

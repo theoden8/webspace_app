@@ -263,6 +263,7 @@
     "libraryLayout": "list",
     "libraryWebspaceLayout": "grid",
     "libraryIconSize": 120,
+    "keepRunningWhenClosed": true,
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },
   "suggestedSites": [

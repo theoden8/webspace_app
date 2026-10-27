@@ -16,11 +16,18 @@
 static const char* kShareChannel =
     "org.codeberg.theoden8.webspace/share_intent";
 
+// NOTIF-018: lib/services/desktop_window.dart tells this runner whether a
+// close hides the window, and asks it to show the window again.
+static const char* kDesktopWindowChannel =
+    "org.codeberg.theoden8.webspace/desktop_window";
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
   char* pending_share_url;
   FlMethodChannel* share_channel;
+  FlMethodChannel* desktop_window_channel;
+  gboolean keep_running_when_closed;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -64,11 +71,67 @@ static void share_method_call_handler(FlMethodChannel* /*channel*/,
   }
 }
 
-// Implements GApplication::activate.
+// The one window this process builds, or null before activate builds it.
+static GtkWindow* my_application_window(MyApplication* self) {
+  GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
+  return windows != nullptr ? GTK_WINDOW(windows->data) : nullptr;
+}
+
+// Connected before FlView's own handler, which asks Flutter to exit: with
+// the setting on, the close hides the window and the app keeps running
+// (NOTIF-018).
+static gboolean window_delete_event_cb(GtkWidget* window, GdkEvent* /*event*/,
+                                       gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  if (!self->keep_running_when_closed) return FALSE;
+  gtk_widget_hide(window);
+  return TRUE;
+}
+
+static void desktop_window_method_call_handler(FlMethodChannel* /*channel*/,
+                                               FlMethodCall* method_call,
+                                               gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  const gchar* method = fl_method_call_get_name(method_call);
+  FlValue* args = fl_method_call_get_args(method_call);
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (g_strcmp0(method, "setKeepRunningWhenClosed") == 0) {
+    FlValue* keep = args != nullptr &&
+                            fl_value_get_type(args) == FL_VALUE_TYPE_MAP
+                        ? fl_value_lookup_string(args, "keep")
+                        : nullptr;
+    if (keep == nullptr || fl_value_get_type(keep) != FL_VALUE_TYPE_BOOL) {
+      response = FL_METHOD_RESPONSE(fl_method_error_response_new(
+          "bad_args", "setKeepRunningWhenClosed takes keep", nullptr));
+    } else {
+      self->keep_running_when_closed = fl_value_get_bool(keep);
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+    }
+  } else if (g_strcmp0(method, "show") == 0) {
+    GtkWindow* window = my_application_window(self);
+    if (window != nullptr) gtk_window_present(window);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  g_autoptr(GError) error = nullptr;
+  if (!fl_method_call_respond(method_call, response, &error)) {
+    g_warning("Failed to send desktop-window response: %s", error->message);
+  }
+}
+
+// Implements GApplication::activate. PLATFORM-011: a second launch reaches
+// the running instance here, and brings back the window it already has.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  if (GtkWindow* existing = my_application_window(self)) {
+    gtk_window_present(existing);
+    return;
+  }
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  g_signal_connect(window, "delete-event", G_CALLBACK(window_delete_event_cb),
+                   self);
 
   gboolean use_header_bar = TRUE;
 #ifdef GDK_WINDOWING_X11
@@ -114,6 +177,15 @@ static void my_application_activate(GApplication* application) {
     fl_method_channel_set_method_call_handler(
         self->share_channel, share_method_call_handler, self, nullptr);
   }
+  if (self->desktop_window_channel == nullptr) {
+    g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+    self->desktop_window_channel = fl_method_channel_new(
+        fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+        kDesktopWindowChannel, FL_METHOD_CODEC(codec));
+    fl_method_channel_set_method_call_handler(
+        self->desktop_window_channel, desktop_window_method_call_handler, self,
+        nullptr);
+  }
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -132,9 +204,8 @@ static void my_application_open(GApplication* application, GFile** files,
     my_application_set_pending_share_url(self, uri);
   }
   // GApplication suppresses ::activate when ::open fires, so we have to
-  // ensure a window exists. Activate explicitly: idempotent because the
-  // flutter view re-uses the existing GtkApplicationWindow on subsequent
-  // hits within the same process.
+  // ensure a window exists. Activate explicitly: idempotent because activate
+  // brings back the window this process already has (PLATFORM-011).
   g_application_activate(application);
 }
 
@@ -182,6 +253,7 @@ static void my_application_dispose(GObject* object) {
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_pointer(&self->pending_share_url, g_free);
   g_clear_object(&self->share_channel);
+  g_clear_object(&self->desktop_window_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
@@ -194,9 +266,11 @@ static void my_application_class_init(MyApplicationClass* klass) {
 
 static void my_application_init(MyApplication* self) {}
 
+// PLATFORM-011: unique, so a second launch hands its activation, or its
+// webspace:// URI, to the instance already running and exits.
 MyApplication* my_application_new() {
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID,
-                                     "flags", G_APPLICATION_NON_UNIQUE | G_APPLICATION_HANDLES_OPEN,
+                                     "flags", G_APPLICATION_HANDLES_OPEN,
                                      nullptr));
 }

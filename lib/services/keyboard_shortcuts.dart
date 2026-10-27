@@ -76,6 +76,8 @@ sealed class KeyboardShortcut {
       for (final (place, digit) in _placeDigits.indexed)
         (command(digit), SiteAt(place)),
       (command(LogicalKeyboardKey.digit9), const LastSite()),
+      // Command-Q is the Mac menu's, which AppKit runs before any view.
+      if (!mac) (command(LogicalKeyboardKey.keyQ), const QuitApp()),
     ];
   }
 
@@ -108,7 +110,8 @@ sealed class KeyboardShortcut {
     NextSite() ||
     PreviousSite() ||
     SiteAt() ||
-    LastSite() => false,
+    LastSite() ||
+    QuitApp() => false,
   };
 }
 
@@ -164,6 +167,11 @@ final class SiteAt extends KeyboardShortcut {
 
 final class LastSite extends KeyboardShortcut {
   const LastSite();
+}
+
+/// Leaves the app, where closing its window may only hide it (NOTIF-018).
+final class QuitApp extends KeyboardShortcut {
+  const QuitApp();
 }
 
 /// A screen that answers keyboard shortcuts while it is the route on top.

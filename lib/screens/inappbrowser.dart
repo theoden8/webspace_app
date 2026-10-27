@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
@@ -469,6 +470,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         unawaited(_goForwardAndRepaint());
       case CloseActiveTab():
         Navigator.of(context).pop();
+      case QuitApp():
+        unawaited(DesktopWindow.instance.quit());
       case OpenNewTab() ||
           NextSite() ||
           PreviousSite() ||

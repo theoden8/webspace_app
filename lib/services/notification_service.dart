@@ -219,6 +219,10 @@ class NotificationService {
   /// platform has no read or the read failed.
   Future<bool?> osPermission() async {
     if (!_initialized) await init();
+    // A freedesktop notification server has no permission to ask for: the
+    // desktop shows what the session bus hands it (NOTIF-007). Read as
+    // denied, every post on Linux was dropped.
+    if (hostIsLinux) return true;
     try {
       if (hostIsAndroid) {
         return await _plugin
@@ -351,6 +355,8 @@ class NotificationService {
       granted = await macPlugin?.requestPermissions(
               alert: true, badge: true, sound: true) ??
           false;
+    } else if (hostIsLinux) {
+      granted = await osPermission() ?? false;
     }
     final changed = _permissionGranted != granted;
     _permissionGranted = granted;

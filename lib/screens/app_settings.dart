@@ -15,6 +15,7 @@ import 'package:webspace/screens/app_extensions.dart';
 import 'package:webspace/screens/app_network.dart';
 import 'package:webspace/screens/app_privacy.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -264,6 +265,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             loc.appSettingsFullscreenOnShortcut,
           if (backOpensMenuOffered() && AppPref.backOpensMenu.value)
             loc.appSettingsBackOpensMenu,
+          if (DesktopWindow.offered && AppPref.keepRunningWhenClosed.value)
+            loc.appSettingsKeepRunningWhenClosed,
           if (AppPref.linkHandlingEnabled.value) loc.appSettingsLinkHandling,
         ],
         none: loc.behaviourSummaryNothingOn,

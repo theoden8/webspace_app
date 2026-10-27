@@ -11,6 +11,7 @@ import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/background_wake_engine.dart';
+import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/foreground_poll_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
@@ -299,6 +300,8 @@ class BackgroundSitesController {
   }
 
   void _onNotificationTapped(SiteId siteId) {
+    // A window a close hid is where the tapped site shows (NOTIF-018).
+    unawaited(DesktopWindow.instance.show());
     final site = _siteTapped(siteId);
     if (site == null) return;
     _host.resetForEntry();
