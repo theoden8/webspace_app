@@ -538,18 +538,28 @@ const Set<String> _exitCapablePurposes = {
   'CONFLUX_UNLINKED',
 };
 
+/// A circuit's id as tor's control port names it: letters and digits only,
+/// so one interpolated into a command cannot carry a second.
+extension type TorCircuitId._(String raw) implements String {
+  static final _shape = RegExp(r'^[A-Za-z0-9]+$');
+
+  static TorCircuitId? parse(String word) =>
+      _shape.hasMatch(word) ? TorCircuitId._(word) : null;
+}
+
 /// IDs of the circuits a `circuit-status` value lists as able to carry exit
 /// traffic (`TorControllerPlugin.exitCircuitIds`).
-List<String> torExitCircuitIds(String raw) {
-  final out = <String>[];
+List<TorCircuitId> torExitCircuitIds(String raw) {
+  final out = <TorCircuitId>[];
   for (final line in raw.split('\n')) {
     final words = line.trim().split(' ');
     if (words.length < 2) continue;
-    if (!RegExp(r'^[A-Za-z0-9]+$').hasMatch(words[0])) continue;
+    final id = TorCircuitId.parse(words[0]);
+    if (id == null) continue;
     if (words[1] == 'CLOSED' || words[1] == 'FAILED') continue;
     final purpose = RegExp(r'(?:^| )PURPOSE=(\S+)').firstMatch(line)?.group(1);
     if (purpose != null && !_exitCapablePurposes.contains(purpose)) continue;
-    out.add(words[0]);
+    out.add(id);
   }
   return out;
 }
