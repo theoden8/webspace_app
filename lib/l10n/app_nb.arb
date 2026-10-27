@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Fortsett å kjøre etter lukking",
   "appSettingsKeepRunningWhenClosedHint": "Når du lukker vinduet, skjules det i stedet for at appen avsluttes, så nettsteder med varsler slått på fortsetter å kjøre og kan fortsatt varsle deg.",
   "appSettingsKeepRunningWhenClosedHintMac": "Klikk på symbolet i Dock for å vise vinduet igjen. Avslutt fra appmenyen eller med Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Åpne Webspace igjen, eller klikk på et av varslene fra den for å vise vinduet igjen. Ctrl+Q avslutter appen.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Åpne WebSpace igjen, eller klikk på et av varslene fra den for å vise vinduet igjen. Ctrl+Q avslutter appen.",
   "appSettingsFullscreenTabStrip": "I fullskjerm, fanelinje",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Alltid synlig",

@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Continua a funzionare dopo la chiusura",
   "appSettingsKeepRunningWhenClosedHint": "Chiudere la finestra la nasconde invece di uscire dall'app, così i siti con le notifiche attive continuano a funzionare e possono ancora avvisarti.",
   "appSettingsKeepRunningWhenClosedHintMac": "Fai clic sull'icona nel Dock per mostrare di nuovo la finestra. Esci dal menu dell'app o con Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Apri di nuovo Webspace o fai clic su una delle sue notifiche per mostrare di nuovo la finestra. Ctrl+Q chiude l'app.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Apri di nuovo WebSpace o fai clic su una delle sue notifiche per mostrare di nuovo la finestra. Ctrl+Q chiude l'app.",
   "appSettingsFullscreenTabStrip": "A schermo intero, barra delle schede",
   "appSettingsFullscreenTabStripHidden": "Nascosta",
   "appSettingsFullscreenTabStripAlways": "Sempre visibile",

@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Kapatıldığında çalışmaya devam et",
   "appSettingsKeepRunningWhenClosedHint": "Pencereyi kapatmak uygulamadan çıkmak yerine pencereyi gizler; böylece bildirimleri açık olan siteler çalışmaya devam eder ve size hâlâ bildirim gönderebilir.",
   "appSettingsKeepRunningWhenClosedHintMac": "Pencereyi yeniden göstermek için Dock'taki simgeye tıklayın. Uygulama menüsünden veya Command-Q ile çıkın.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Pencereyi yeniden göstermek için Webspace'i yeniden açın veya bildirimlerinden birine tıklayın. Ctrl+Q uygulamadan çıkar.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Pencereyi yeniden göstermek için WebSpace'i yeniden açın veya bildirimlerinden birine tıklayın. Ctrl+Q uygulamadan çıkar.",
   "appSettingsFullscreenTabStrip": "Tam ekranda, sekme çubuğu",
   "appSettingsFullscreenTabStripHidden": "Gizli",
   "appSettingsFullscreenTabStripAlways": "Her zaman görünür",

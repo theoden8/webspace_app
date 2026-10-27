@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Bežať aj po zatvorení",
   "appSettingsKeepRunningWhenClosedHint": "Zatvorením sa okno skryje namiesto ukončenia aplikácie, takže stránky so zapnutými upozorneniami ďalej bežia a stále vás môžu upozorňovať.",
   "appSettingsKeepRunningWhenClosedHintMac": "Okno znova zobrazíte kliknutím na ikonu v Docku. Aplikáciu ukončíte z ponuky aplikácie alebo skratkou Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Okno znova zobrazíte opätovným otvorením Webspace alebo kliknutím na niektoré z jeho upozornení. Ctrl+Q aplikáciu ukončí.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Okno znova zobrazíte opätovným otvorením WebSpace alebo kliknutím na niektoré z jeho upozornení. Ctrl+Q aplikáciu ukončí.",
   "appSettingsFullscreenTabStrip": "Na celej obrazovke, panel kariet",
   "appSettingsFullscreenTabStripHidden": "Skrytý",
   "appSettingsFullscreenTabStripAlways": "Vždy viditeľný",

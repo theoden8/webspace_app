@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Halda áfram að keyra eftir lokun",
   "appSettingsKeepRunningWhenClosedHint": "Þegar glugganum er lokað er hann falinn í stað þess að hætta í forritinu, svo vefsvæði með kveikt á tilkynningum halda áfram að keyra og geta enn látið þig vita.",
   "appSettingsKeepRunningWhenClosedHintMac": "Smelltu á táknið í Dock til að birta gluggann aftur. Hættu í forritinu úr forritsvalmyndinni eða með Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Opnaðu Webspace aftur eða smelltu á eina af tilkynningum þess til að birta gluggann aftur. Ctrl+Q lokar forritinu.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Opnaðu WebSpace aftur eða smelltu á eina af tilkynningum þess til að birta gluggann aftur. Ctrl+Q lokar forritinu.",
   "appSettingsFullscreenTabStrip": "Í fullum skjá, flipastika",
   "appSettingsFullscreenTabStripHidden": "Falin",
   "appSettingsFullscreenTabStripAlways": "Alltaf sýnileg",

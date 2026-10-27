@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Futás bezárás után is",
   "appSettingsKeepRunningWhenClosedHint": "Az ablak bezárásakor az alkalmazás nem lép ki, csak elrejti az ablakot, így a bekapcsolt értesítésekkel rendelkező oldalak tovább futnak, és továbbra is értesíthetik Önt.",
   "appSettingsKeepRunningWhenClosedHintMac": "Az ablak újbóli megjelenítéséhez kattintson az ikonra a Dockban. Kilépni az alkalmazásmenüből vagy a Command-Q billentyűkkel lehet.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Az ablak újbóli megjelenítéséhez nyissa meg újra a Webspace-t, vagy kattintson valamelyik értesítésére. A Ctrl+Q billentyűkkel kiléphet az alkalmazásból.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Az ablak újbóli megjelenítéséhez nyissa meg újra a WebSpace-t, vagy kattintson valamelyik értesítésére. A Ctrl+Q billentyűkkel kiléphet az alkalmazásból.",
   "appSettingsFullscreenTabStrip": "Teljes képernyőn, lapsáv",
   "appSettingsFullscreenTabStripHidden": "Rejtett",
   "appSettingsFullscreenTabStripAlways": "Mindig látható",

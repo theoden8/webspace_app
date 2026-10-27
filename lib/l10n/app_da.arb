@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Kør videre efter lukning",
   "appSettingsKeepRunningWhenClosedHint": "Når du lukker vinduet, skjules det i stedet for at appen afsluttes, så websteder med notifikationer slået til kører videre og stadig kan give dig besked.",
   "appSettingsKeepRunningWhenClosedHintMac": "Klik på symbolet i Dock for at vise vinduet igen. Afslut fra appmenuen eller med Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Åbn Webspace igen, eller klik på en af dens notifikationer for at vise vinduet igen. Ctrl+Q afslutter appen.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Åbn WebSpace igen, eller klik på en af dens notifikationer for at vise vinduet igen. Ctrl+Q afslutter appen.",
   "appSettingsFullscreenTabStrip": "I fuld skærm, fanebjælke",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Altid synlig",

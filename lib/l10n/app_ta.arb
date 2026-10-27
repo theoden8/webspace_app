@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "மூடிய பிறகும் இயங்கட்டும்",
   "appSettingsKeepRunningWhenClosedHint": "சாளரத்தை மூடினால் செயலியிலிருந்து வெளியேறுவதற்குப் பதிலாக அது மறைக்கப்படும், எனவே அறிவிப்புகள் இயக்கப்பட்ட தளங்கள் தொடர்ந்து இயங்கும், இன்னும் உங்களுக்கு அறிவிப்புகளை அனுப்பலாம்.",
   "appSettingsKeepRunningWhenClosedHintMac": "சாளரத்தை மீண்டும் காட்ட Dock இல் உள்ள ஐகானைக் கிளிக் செய்யவும். செயலி மெனுவிலிருந்து அல்லது Command-Q மூலம் வெளியேறவும்.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "சாளரத்தை மீண்டும் காட்ட Webspace ஐ மீண்டும் திறக்கவும் அல்லது அதன் அறிவிப்புகளில் ஒன்றைக் கிளிக் செய்யவும். Ctrl+Q அழுத்தினால் செயலி மூடப்படும்.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "சாளரத்தை மீண்டும் காட்ட WebSpace ஐ மீண்டும் திறக்கவும் அல்லது அதன் அறிவிப்புகளில் ஒன்றைக் கிளிக் செய்யவும். Ctrl+Q அழுத்தினால் செயலி மூடப்படும்.",
   "appSettingsFullscreenTabStrip": "முழுத்திரையில், தாவல் பட்டி",
   "appSettingsFullscreenTabStripHidden": "மறைக்கப்பட்டது",
   "appSettingsFullscreenTabStripAlways": "எப்போதும் தெரியும்",

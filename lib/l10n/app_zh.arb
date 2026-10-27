@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "關閉後繼續執行",
   "appSettingsKeepRunningWhenClosedHint": "關閉視窗只會將其隱藏而不會結束應用程式，因此已開啟通知的網站會繼續執行，仍能向您傳送通知。",
   "appSettingsKeepRunningWhenClosedHintMac": "按一下 Dock 中的圖示即可再次顯示視窗。可從應用程式選單或按 Command-Q 結束。",
-  "appSettingsKeepRunningWhenClosedHintLinux": "再次開啟 Webspace 或按一下它的任一則通知，即可再次顯示視窗。按 Ctrl+Q 即可結束。",
+  "appSettingsKeepRunningWhenClosedHintLinux": "再次開啟 WebSpace 或按一下它的任一則通知，即可再次顯示視窗。按 Ctrl+Q 即可結束。",
   "appSettingsFullscreenTabStrip": "全螢幕時，分頁列",
   "appSettingsFullscreenTabStripHidden": "隱藏",
   "appSettingsFullscreenTabStripAlways": "永遠顯示",

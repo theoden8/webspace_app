@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Nastavi raditi nakon zatvaranja",
   "appSettingsKeepRunningWhenClosedHint": "Zatvaranje prozora skriva ga umjesto izlaska iz aplikacije, pa stranice s uključenim obavijestima nastavljaju raditi i i dalje vas mogu obavještavati.",
   "appSettingsKeepRunningWhenClosedHintMac": "Kliknite ikonu u Docku da ponovno prikažete prozor. Izađite iz izbornika aplikacije ili pomoću Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Ponovno otvorite Webspace ili kliknite jednu od njegovih obavijesti da ponovno prikažete prozor. Ctrl+Q zatvara aplikaciju.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Ponovno otvorite WebSpace ili kliknite jednu od njegovih obavijesti da ponovno prikažete prozor. Ctrl+Q zatvara aplikaciju.",
   "appSettingsFullscreenTabStrip": "U punom zaslonu, traka kartica",
   "appSettingsFullscreenTabStripHidden": "Skriveno",
   "appSettingsFullscreenTabStripAlways": "Uvijek vidljivo",

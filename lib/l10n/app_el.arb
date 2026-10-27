@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Συνέχιση λειτουργίας μετά το κλείσιμο",
   "appSettingsKeepRunningWhenClosedHint": "Το κλείσιμο του παραθύρου το αποκρύπτει αντί να τερματίζει την εφαρμογή, ώστε οι ιστότοποι με ενεργές ειδοποιήσεις να συνεχίζουν να λειτουργούν και να μπορούν ακόμη να σας ειδοποιούν.",
   "appSettingsKeepRunningWhenClosedHintMac": "Κάντε κλικ στο εικονίδιο στο Dock για να εμφανιστεί ξανά το παράθυρο. Τερματίστε από το μενού της εφαρμογής ή με Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Ανοίξτε ξανά το Webspace ή κάντε κλικ σε μία από τις ειδοποιήσεις του για να εμφανιστεί ξανά το παράθυρο. Το Ctrl+Q τερματίζει την εφαρμογή.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Ανοίξτε ξανά το WebSpace ή κάντε κλικ σε μία από τις ειδοποιήσεις του για να εμφανιστεί ξανά το παράθυρο. Το Ctrl+Q τερματίζει την εφαρμογή.",
   "appSettingsFullscreenTabStrip": "Σε πλήρη οθόνη, γραμμή καρτελών",
   "appSettingsFullscreenTabStripHidden": "Κρυφή",
   "appSettingsFullscreenTabStripAlways": "Πάντα ορατή",

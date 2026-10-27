@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Coinnigh ag rith nuair a dhúntar é",
   "appSettingsKeepRunningWhenClosedHint": "Nuair a dhúntar an fhuinneog, cuirtear i bhfolach í in ionad an feidhmchlár a scor, mar sin leanann suíomhanna a bhfuil fógraí casta air acu ar aghaidh ag rith agus is féidir leo fógraí a sheoladh chugat fós.",
   "appSettingsKeepRunningWhenClosedHintMac": "Cliceáil ar an deilbhín sa Duga chun an fhuinneog a thaispeáint arís. Scoir ó roghchlár an fheidhmchláir nó le Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Oscail Webspace arís nó cliceáil ar cheann dá fhógraí chun an fhuinneog a thaispeáint arís. Scoireann Ctrl+Q an feidhmchlár.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Oscail WebSpace arís nó cliceáil ar cheann dá fhógraí chun an fhuinneog a thaispeáint arís. Scoireann Ctrl+Q an feidhmchlár.",
   "appSettingsFullscreenTabStrip": "Sa scáileán iomlán, barra cluaisíní",
   "appSettingsFullscreenTabStripHidden": "Folaithe",
   "appSettingsFullscreenTabStripAlways": "Le feiceáil i gcónaí",

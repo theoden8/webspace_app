@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "បន្តដំណើរការនៅពេលបិទ",
   "appSettingsKeepRunningWhenClosedHint": "ការបិទបង្អួចនឹងលាក់វា ជំនួសឱ្យការចាកចេញពីកម្មវិធី ដូច្នេះគេហទំព័រដែលបើកការជូនដំណឹងនៅតែបន្តដំណើរការ ហើយនៅតែអាចជូនដំណឹងអ្នកបាន។",
   "appSettingsKeepRunningWhenClosedHintMac": "ចុចរូបតំណាងនៅក្នុង Dock ដើម្បីបង្ហាញបង្អួចម្ដងទៀត។ ចាកចេញពីម៉ឺនុយកម្មវិធី ឬដោយប្រើ Command-Q។",
-  "appSettingsKeepRunningWhenClosedHintLinux": "បើក Webspace ម្ដងទៀត ឬចុចការជូនដំណឹងមួយរបស់វា ដើម្បីបង្ហាញបង្អួចម្ដងទៀត។ Ctrl+Q នឹងចាកចេញពីកម្មវិធី។",
+  "appSettingsKeepRunningWhenClosedHintLinux": "បើក WebSpace ម្ដងទៀត ឬចុចការជូនដំណឹងមួយរបស់វា ដើម្បីបង្ហាញបង្អួចម្ដងទៀត។ Ctrl+Q នឹងចាកចេញពីកម្មវិធី។",
   "appSettingsFullscreenTabStrip": "ក្នុងអេក្រង់ពេញ របារផ្ទាំង",
   "appSettingsFullscreenTabStripHidden": "លាក់",
   "appSettingsFullscreenTabStripAlways": "បង្ហាញជានិច្ច",

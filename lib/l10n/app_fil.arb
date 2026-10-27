@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Patuloy na tumakbo kapag isinara",
   "appSettingsKeepRunningWhenClosedHint": "Kapag isinara ang window, itinatago ito sa halip na lumabas sa app, kaya patuloy na tumatakbo ang mga site na naka-on ang notification at makakapagpadala pa rin sila sa iyo ng notification.",
   "appSettingsKeepRunningWhenClosedHintMac": "I-click ang icon sa Dock para ipakita muli ang window. Lumabas sa app mula sa menu nito o gamit ang Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Buksan muli ang Webspace o i-click ang isa sa mga notification nito para ipakita muli ang window. Gamitin ang Ctrl+Q para lumabas sa app.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Buksan muli ang WebSpace o i-click ang isa sa mga notification nito para ipakita muli ang window. Gamitin ang Ctrl+Q para lumabas sa app.",
   "appSettingsFullscreenTabStrip": "Sa full screen, tab bar",
   "appSettingsFullscreenTabStripHidden": "Nakatago",
   "appSettingsFullscreenTabStripAlways": "Palaging nakikita",

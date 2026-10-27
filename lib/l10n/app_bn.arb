@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "বন্ধ করলেও চালু থাকবে",
   "appSettingsKeepRunningWhenClosedHint": "উইন্ডো বন্ধ করলে অ্যাপ থেকে প্রস্থান না করে সেটি লুকিয়ে যায়, ফলে বিজ্ঞপ্তি চালু থাকা সাইটগুলি চলতে থাকে এবং এখনও আপনাকে বিজ্ঞপ্তি দিতে পারে।",
   "appSettingsKeepRunningWhenClosedHintMac": "উইন্ডোটি আবার দেখাতে Dock-এর আইকনে ক্লিক করুন। অ্যাপ মেনু থেকে বা Command-Q দিয়ে অ্যাপ থেকে প্রস্থান করুন।",
-  "appSettingsKeepRunningWhenClosedHintLinux": "উইন্ডোটি আবার দেখাতে Webspace আবার খুলুন বা এর কোনও একটি বিজ্ঞপ্তিতে ক্লিক করুন। Ctrl+Q চাপলে অ্যাপটি বন্ধ হয়ে যায়।",
+  "appSettingsKeepRunningWhenClosedHintLinux": "উইন্ডোটি আবার দেখাতে WebSpace আবার খুলুন বা এর কোনও একটি বিজ্ঞপ্তিতে ক্লিক করুন। Ctrl+Q চাপলে অ্যাপটি বন্ধ হয়ে যায়।",
   "appSettingsFullscreenTabStrip": "ফুলস্ক্রিনে, ট্যাব বার",
   "appSettingsFullscreenTabStripHidden": "লুকানো",
   "appSettingsFullscreenTabStripAlways": "সর্বদা দৃশ্যমান",

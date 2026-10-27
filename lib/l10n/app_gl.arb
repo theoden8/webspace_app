@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Seguir en execución ao pechar",
   "appSettingsKeepRunningWhenClosedHint": "Ao pechar a xanela, esta agóchase en lugar de saír da aplicación, polo que os sitios coas notificacións activadas seguen en execución e aínda poden avisarte.",
   "appSettingsKeepRunningWhenClosedHintMac": "Fai clic na icona do Dock para volver mostrar a xanela. Sae desde o menú da aplicación ou con Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Abre Webspace de novo ou fai clic nunha das súas notificacións para volver mostrar a xanela. Ctrl+Q pecha a aplicación.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Abre WebSpace de novo ou fai clic nunha das súas notificacións para volver mostrar a xanela. Ctrl+Q pecha a aplicación.",
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de lapelas",
   "appSettingsFullscreenTabStripHidden": "Agochada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",

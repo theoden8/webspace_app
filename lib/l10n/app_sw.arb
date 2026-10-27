@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Endelea kufanya kazi ikifungwa",
   "appSettingsKeepRunningWhenClosedHint": "Kufunga dirisha hulificha badala ya kuondoka kwenye programu, kwa hivyo tovuti zilizowasha arifa huendelea kufanya kazi na bado zinaweza kukuarifu.",
   "appSettingsKeepRunningWhenClosedHintMac": "Bofya aikoni kwenye Dock ili kuonyesha dirisha tena. Ondoka kwenye programu kupitia menyu ya programu au kwa Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Fungua Webspace tena au bofya mojawapo ya arifa zake ili kuonyesha dirisha tena. Ctrl+Q hufunga programu.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Fungua WebSpace tena au bofya mojawapo ya arifa zake ili kuonyesha dirisha tena. Ctrl+Q hufunga programu.",
   "appSettingsFullscreenTabStrip": "Katika skrini nzima, upau wa vichupo",
   "appSettingsFullscreenTabStripHidden": "Imefichwa",
   "appSettingsFullscreenTabStripAlways": "Inaonekana kila wakati",

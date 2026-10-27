@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "बंद करने पर भी चलता रहे",
   "appSettingsKeepRunningWhenClosedHint": "विंडो बंद करने पर ऐप से बाहर निकलने के बजाय विंडो छिप जाती है, इसलिए जिन साइटों की सूचनाएँ चालू हैं वे चलती रहती हैं और आपको अब भी सूचित कर सकती हैं।",
   "appSettingsKeepRunningWhenClosedHintMac": "विंडो को फिर से दिखाने के लिए Dock में आइकन पर क्लिक करें। ऐप मेनू से या Command-Q से ऐप से बाहर निकलें।",
-  "appSettingsKeepRunningWhenClosedHintLinux": "विंडो को फिर से दिखाने के लिए Webspace दोबारा खोलें या उसकी किसी सूचना पर क्लिक करें। Ctrl+Q दबाने पर ऐप बंद हो जाता है।",
+  "appSettingsKeepRunningWhenClosedHintLinux": "विंडो को फिर से दिखाने के लिए WebSpace दोबारा खोलें या उसकी किसी सूचना पर क्लिक करें। Ctrl+Q दबाने पर ऐप बंद हो जाता है।",
   "appSettingsFullscreenTabStrip": "फ़ुल स्क्रीन में, टैब बार",
   "appSettingsFullscreenTabStripHidden": "छिपा हुआ",
   "appSettingsFullscreenTabStripAlways": "हमेशा दृश्यमान",

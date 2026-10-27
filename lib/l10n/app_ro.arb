@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Continuă să ruleze după închidere",
   "appSettingsKeepRunningWhenClosedHint": "Închiderea ferestrei o ascunde în loc să închidă aplicația, așa că site-urile cu notificările activate continuă să ruleze și te pot anunța în continuare.",
   "appSettingsKeepRunningWhenClosedHintMac": "Dă clic pe pictograma din Dock pentru a afișa din nou fereastra. Ieși din meniul aplicației sau cu Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Deschide din nou Webspace sau dă clic pe una dintre notificările sale pentru a afișa din nou fereastra. Ctrl+Q închide aplicația.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Deschide din nou WebSpace sau dă clic pe una dintre notificările sale pentru a afișa din nou fereastra. Ctrl+Q închide aplicația.",
   "appSettingsFullscreenTabStrip": "Pe ecran complet, bara de file",
   "appSettingsFullscreenTabStripHidden": "Ascunsă",
   "appSettingsFullscreenTabStripAlways": "Întotdeauna vizibilă",

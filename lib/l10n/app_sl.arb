@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Deluj tudi po zaprtju",
   "appSettingsKeepRunningWhenClosedHint": "Zapiranje okna ga skrije, namesto da bi zaprlo aplikacijo, zato spletna mesta z vklopljenimi obvestili še naprej delujejo in vas lahko še vedno obveščajo.",
   "appSettingsKeepRunningWhenClosedHintMac": "Kliknite ikono v Docku, da znova prikažete okno. Aplikacijo zaprete v meniju aplikacije ali s Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Znova odprite Webspace ali kliknite eno od njegovih obvestil, da znova prikažete okno. Ctrl+Q zapre aplikacijo.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Znova odprite WebSpace ali kliknite eno od njegovih obvestil, da znova prikažete okno. Ctrl+Q zapre aplikacijo.",
   "appSettingsFullscreenTabStrip": "V celozaslonskem načinu, vrstica zavihkov",
   "appSettingsFullscreenTabStripHidden": "Skrito",
   "appSettingsFullscreenTabStripAlways": "Vedno vidno",

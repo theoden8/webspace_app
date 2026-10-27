@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Vazhdo të punojë pas mbylljes",
   "appSettingsKeepRunningWhenClosedHint": "Mbyllja e dritares e fsheh atë në vend që të dalësh nga aplikacioni, kështu që sajtet me njoftimet aktive vazhdojnë të punojnë dhe mund të të njoftojnë ende.",
   "appSettingsKeepRunningWhenClosedHintMac": "Kliko ikonën në Dock për ta shfaqur sërish dritaren. Dil nga menyja e aplikacionit ose me Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Hap sërish Webspace ose kliko një nga njoftimet e tij për ta shfaqur sërish dritaren. Ctrl+Q e mbyll aplikacionin.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Hap sërish WebSpace ose kliko një nga njoftimet e tij për ta shfaqur sërish dritaren. Ctrl+Q e mbyll aplikacionin.",
   "appSettingsFullscreenTabStrip": "Në ekran të plotë, shiriti i skedave",
   "appSettingsFullscreenTabStripHidden": "I fshehur",
   "appSettingsFullscreenTabStripAlways": "Gjithmonë i dukshëm",

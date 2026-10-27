@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Post clausuram operari pergere",
   "appSettingsKeepRunningWhenClosedHint": "Fenestra clausa celatur, applicatione non relicta, itaque loci quibus renuntiationes activae sunt operari pergunt et te adhuc certiorem facere possunt.",
   "appSettingsKeepRunningWhenClosedHintMac": "Preme iconem in Dock ut fenestram iterum ostendas. Ex applicatione exi per menu applicationis vel cum Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Aperi Webspace iterum vel preme unam ex eius renuntiationibus ut fenestram iterum ostendas. Ctrl+Q applicationem claudit.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Aperi WebSpace iterum vel preme unam ex eius renuntiationibus ut fenestram iterum ostendas. Ctrl+Q applicationem claudit.",
   "appSettingsFullscreenTabStrip": "In pleno schemate, series tabularum",
   "appSettingsFullscreenTabStripHidden": "Occultata",
   "appSettingsFullscreenTabStripAlways": "Semper visibilis",

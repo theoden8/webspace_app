@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "להמשיך לפעול אחרי סגירה",
   "appSettingsKeepRunningWhenClosedHint": "סגירת החלון מסתירה אותו במקום לצאת מהאפליקציה, כך שאתרים שההתראות שלהם מופעלות ממשיכים לפעול ועדיין יכולים לשלוח לך התראות.",
   "appSettingsKeepRunningWhenClosedHintMac": "לחץ על הסמל ב-Dock כדי להציג את החלון שוב. צא מתפריט האפליקציה או באמצעות Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "פתח שוב את Webspace או לחץ על אחת מההתראות שלו כדי להציג את החלון שוב. Ctrl+Q יוצא מהאפליקציה.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "פתח שוב את WebSpace או לחץ על אחת מההתראות שלו כדי להציג את החלון שוב. Ctrl+Q יוצא מהאפליקציה.",
   "appSettingsFullscreenTabStrip": "במסך מלא, סרגל כרטיסיות",
   "appSettingsFullscreenTabStripHidden": "מוסתר",
   "appSettingsFullscreenTabStripAlways": "תמיד גלוי",

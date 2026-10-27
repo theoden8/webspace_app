@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Nach dem Schließen weiterlaufen",
   "appSettingsKeepRunningWhenClosedHint": "Beim Schließen wird das Fenster nur ausgeblendet, statt die App zu beenden, sodass Websites mit aktivierten Benachrichtigungen weiterlaufen und Sie weiterhin benachrichtigen können.",
   "appSettingsKeepRunningWhenClosedHintMac": "Klicken Sie auf das Symbol im Dock, um das Fenster wieder anzuzeigen. Beenden Sie die App über das App-Menü oder mit Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Öffnen Sie Webspace erneut oder klicken Sie auf eine seiner Benachrichtigungen, um das Fenster wieder anzuzeigen. Ctrl+Q beendet die App.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Öffnen Sie WebSpace erneut oder klicken Sie auf eine seiner Benachrichtigungen, um das Fenster wieder anzuzeigen. Ctrl+Q beendet die App.",
   "appSettingsFullscreenTabStrip": "Im Vollbild, Tableiste",
   "appSettingsFullscreenTabStripHidden": "Ausgeblendet",
   "appSettingsFullscreenTabStripAlways": "Immer sichtbar",

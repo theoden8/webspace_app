@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "მუშაობის გაგრძელება დახურვის შემდეგ",
   "appSettingsKeepRunningWhenClosedHint": "ფანჯრის დახურვა მას მალავს აპლიკაციიდან გასვლის ნაცვლად, ამიტომ საიტები ჩართული შეტყობინებებით აგრძელებენ მუშაობას და კვლავ შეუძლიათ შეგატყობინონ.",
   "appSettingsKeepRunningWhenClosedHintMac": "დააწკაპუნეთ Dock-ის ხატულაზე, რომ ფანჯარა ხელახლა გამოჩნდეს. გადით აპლიკაციის მენიუდან ან Command-Q-ით.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "ხელახლა გახსენით Webspace ან დააწკაპუნეთ მის რომელიმე შეტყობინებაზე, რომ ფანჯარა ხელახლა გამოჩნდეს. Ctrl+Q ხურავს აპლიკაციას.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "ხელახლა გახსენით WebSpace ან დააწკაპუნეთ მის რომელიმე შეტყობინებაზე, რომ ფანჯარა ხელახლა გამოჩნდეს. Ctrl+Q ხურავს აპლიკაციას.",
   "appSettingsFullscreenTabStrip": "სრულ ეკრანზე, ჩანართების ზოლი",
   "appSettingsFullscreenTabStripHidden": "დამალული",
   "appSettingsFullscreenTabStripAlways": "ყოველთვის ხილული",

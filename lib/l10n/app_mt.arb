@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Ibqa' għaddej wara l-għeluq",
   "appSettingsKeepRunningWhenClosedHint": "L-għeluq tat-tieqa jaħbiha minflok ma joħroġ mill-app, għalhekk is-siti bin-notifiki mixgħula jibqgħu għaddejjin u xorta jistgħu jibagħtulek notifiki.",
   "appSettingsKeepRunningWhenClosedHintMac": "Ikklikkja l-ikona fid-Dock biex terġa' turi t-tieqa. Oħroġ mill-menu tal-app jew b'Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Erġa' iftaħ Webspace jew ikklikkja waħda min-notifiki tiegħu biex terġa' turi t-tieqa. Ctrl+Q joħroġ mill-app.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Erġa' iftaħ WebSpace jew ikklikkja waħda min-notifiki tiegħu biex terġa' turi t-tieqa. Ctrl+Q joħroġ mill-app.",
   "appSettingsFullscreenTabStrip": "Fl-iskrin sħiħ, bar tat-tabs",
   "appSettingsFullscreenTabStripHidden": "Moħbi",
   "appSettingsFullscreenTabStripAlways": "Dejjem viżibbli",

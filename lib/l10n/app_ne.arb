@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "बन्द गरेपछि पनि चलिरहोस्",
   "appSettingsKeepRunningWhenClosedHint": "विन्डो बन्द गर्दा एपबाट बाहिरिनुको सट्टा विन्डो लुकाइन्छ, त्यसैले सूचनाहरू सक्रिय भएका साइटहरू चलिरहन्छन् र अझै पनि तपाईंलाई सूचित गर्न सक्छन्।",
   "appSettingsKeepRunningWhenClosedHintMac": "विन्डो फेरि देखाउन Dock मा रहेको आइकनमा क्लिक गर्नुहोस्। एप मेनुबाट वा Command-Q ले एपबाट बाहिरिनुहोस्।",
-  "appSettingsKeepRunningWhenClosedHintLinux": "विन्डो फेरि देखाउन Webspace फेरि खोल्नुहोस् वा यसको कुनै एउटा सूचनामा क्लिक गर्नुहोस्। Ctrl+Q थिच्दा एप बन्द हुन्छ।",
+  "appSettingsKeepRunningWhenClosedHintLinux": "विन्डो फेरि देखाउन WebSpace फेरि खोल्नुहोस् वा यसको कुनै एउटा सूचनामा क्लिक गर्नुहोस्। Ctrl+Q थिच्दा एप बन्द हुन्छ।",
   "appSettingsFullscreenTabStrip": "पूर्ण स्क्रिनमा, ट्याब बार",
   "appSettingsFullscreenTabStripHidden": "लुकाइएको",
   "appSettingsFullscreenTabStripAlways": "सधैं देखिने",

@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "બંધ કર્યા પછી પણ ચાલુ રહે",
   "appSettingsKeepRunningWhenClosedHint": "વિન્ડો બંધ કરવાથી ઍપમાંથી બહાર નીકળવાને બદલે વિન્ડો છુપાઈ જાય છે, તેથી સૂચનાઓ ચાલુ હોય તેવી સાઇટ્સ ચાલતી રહે છે અને હજુ પણ તમને સૂચના આપી શકે છે.",
   "appSettingsKeepRunningWhenClosedHintMac": "વિન્ડો ફરી બતાવવા માટે Dock માંના આઇકન પર ક્લિક કરો. ઍપ મેનૂમાંથી અથવા Command-Q વડે ઍપમાંથી બહાર નીકળો.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "વિન્ડો ફરી બતાવવા માટે Webspace ફરીથી ખોલો અથવા તેની કોઈ એક સૂચના પર ક્લિક કરો. Ctrl+Q દબાવવાથી ઍપ બંધ થાય છે.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "વિન્ડો ફરી બતાવવા માટે WebSpace ફરીથી ખોલો અથવા તેની કોઈ એક સૂચના પર ક્લિક કરો. Ctrl+Q દબાવવાથી ઍપ બંધ થાય છે.",
   "appSettingsFullscreenTabStrip": "પૂર્ણ સ્ક્રીનમાં, ટૅબ બાર",
   "appSettingsFullscreenTabStripHidden": "છુપાયેલ",
   "appSettingsFullscreenTabStripAlways": "હંમેશા દૃશ્યમાન",

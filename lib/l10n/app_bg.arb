@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Продължава да работи след затваряне",
   "appSettingsKeepRunningWhenClosedHint": "Затварянето на прозореца го скрива, вместо да излиза от приложението, така че сайтовете с включени известия продължават да работят и все още могат да ви известяват.",
   "appSettingsKeepRunningWhenClosedHintMac": "Щракнете върху иконата в Dock, за да покажете прозореца отново. Излезте от менюто на приложението или с Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Отворете Webspace отново или щракнете върху някое от известията му, за да покажете прозореца отново. Ctrl+Q затваря приложението.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Отворете WebSpace отново или щракнете върху някое от известията му, за да покажете прозореца отново. Ctrl+Q затваря приложението.",
   "appSettingsFullscreenTabStrip": "На цял екран, лента с раздели",
   "appSettingsFullscreenTabStripHidden": "Скрита",
   "appSettingsFullscreenTabStripAlways": "Винаги видима",

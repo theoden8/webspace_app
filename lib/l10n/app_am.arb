@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "ሲዘጋ መሥራቱን ይቀጥል",
   "appSettingsKeepRunningWhenClosedHint": "መስኮቱን መዝጋት መተግበሪያውን ከማቋረጥ ይልቅ መስኮቱን ይደብቃል፤ ስለዚህ ማሳወቂያዎቻቸው የበሩ ጣቢያዎች መሥራታቸውን ይቀጥላሉ፣ አሁንም ሊያሳውቁዎት ይችላሉ።",
   "appSettingsKeepRunningWhenClosedHintMac": "መስኮቱን እንደገና ለማሳየት በDock ውስጥ ያለውን አዶ ጠቅ ያድርጉ። ከመተግበሪያው ምናሌ ወይም በCommand-Q ያቋርጡ።",
-  "appSettingsKeepRunningWhenClosedHintLinux": "መስኮቱን እንደገና ለማሳየት Webspaceን እንደገና ይክፈቱ ወይም ከማሳወቂያዎቹ አንዱን ጠቅ ያድርጉ። Ctrl+Q መተግበሪያውን ያቋርጣል።",
+  "appSettingsKeepRunningWhenClosedHintLinux": "መስኮቱን እንደገና ለማሳየት WebSpaceን እንደገና ይክፈቱ ወይም ከማሳወቂያዎቹ አንዱን ጠቅ ያድርጉ። Ctrl+Q መተግበሪያውን ያቋርጣል።",
   "appSettingsFullscreenTabStrip": "በሙሉ ማያ ገጽ፣ የትር አሞሌ",
   "appSettingsFullscreenTabStripHidden": "ተደብቋል",
   "appSettingsFullscreenTabStripAlways": "ሁልጊዜ የሚታይ",

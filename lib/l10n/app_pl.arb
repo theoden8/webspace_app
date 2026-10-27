@@ -811,7 +811,7 @@
   "appSettingsKeepRunningWhenClosed": "Działaj dalej po zamknięciu",
   "appSettingsKeepRunningWhenClosedHint": "Zamknięcie okna ukrywa je zamiast zamykać aplikację, więc witryny z włączonymi powiadomieniami nadal działają i wciąż mogą Cię powiadamiać.",
   "appSettingsKeepRunningWhenClosedHintMac": "Kliknij ikonę w Docku, aby ponownie wyświetlić okno. Zakończ działanie aplikacji z jej menu lub skrótem Command-Q.",
-  "appSettingsKeepRunningWhenClosedHintLinux": "Otwórz ponownie Webspace lub kliknij jedno z jego powiadomień, aby ponownie wyświetlić okno. Ctrl+Q kończy działanie aplikacji.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Otwórz ponownie WebSpace lub kliknij jedno z jego powiadomień, aby ponownie wyświetlić okno. Ctrl+Q kończy działanie aplikacji.",
   "appSettingsFullscreenTabStrip": "Na pełnym ekranie, pasek kart",
   "appSettingsFullscreenTabStripHidden": "Ukryty",
   "appSettingsFullscreenTabStripAlways": "Zawsze widoczny",
