@@ -8,7 +8,6 @@ const { layerOf, sources, upward } = require('./helpers/layers');
 
 const DEBT = new Set([
   'lib/services/cookie_isolation.dart -> lib/web_view_model.dart',
-  'lib/services/settings_backup.dart -> lib/web_view_model.dart',
   'lib/services/settings_import_engine.dart -> lib/web_view_model.dart',
   'lib/services/site_unload_engine.dart -> lib/web_view_model.dart',
   'lib/services/webview_host_hooks.dart -> lib/web_view_model.dart',

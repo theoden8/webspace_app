@@ -6,10 +6,15 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 const int kBackupVersion = 1;
+
+/// What a backup reads of a site: its JSON, which already leaves the proxy
+/// password out (PWD-005).
+abstract interface class BackedUpSite {
+  Map<String, dynamic> toJson();
+}
 
 /// Data class representing a backup of app settings.
 ///
@@ -164,7 +169,7 @@ class SettingsBackupService {
   /// stripped, and re-enters proxy passwords on the proxy settings screen.
   /// Both losses are explicit; both are the same UX contract.
   static SettingsBackup createBackup({
-    required List<WebViewModel> webViewModels,
+    required List<BackedUpSite> webViewModels,
     required List<Webspace> webspaces,
     required int themeMode,
     Map<String, Object?>? globalPrefs,
@@ -337,16 +342,6 @@ class SettingsBackupService {
     } on IOException catch (e) {
       return failed(e);
     }
-  }
-
-  /// Non-secure cookies from the backup are restored.
-  static List<WebViewModel> restoreSites(
-    SettingsBackup backup, {
-    required Function? stateSetterF,
-  }) {
-    return backup.sites.map((json) {
-      return WebViewModel.fromJson(json, stateSetterF: stateSetterF);
-    }).toList();
   }
 
   static List<Webspace> restoreWebspaces(SettingsBackup backup) {

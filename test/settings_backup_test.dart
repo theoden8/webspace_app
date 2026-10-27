@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/settings_import_engine.dart'
-    show sanitizeImportedSites;
+    show planSettingsImport;
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
@@ -372,7 +372,7 @@ void main() {
     });
   });
 
-  group('SettingsBackupService.restoreSites', () {
+  group('planSettingsImport sites', () {
     test('should restore WebViewModels from backup', () {
       final backup = _backupOf(sites: [
         {
@@ -382,7 +382,7 @@ void main() {
       ]);
 
       final sites =
-          SettingsBackupService.restoreSites(backup, stateSetterF: null);
+          planSettingsImport(backup).sites;
 
       expect(sites, hasLength(1));
       expect(sites[0].initUrl, equals('https://example.com'));
@@ -391,14 +391,14 @@ void main() {
     });
 
     test('throws on a site entry missing a required field', () {
-      // Contract the `BackupController.import` guard relies on: restoreSites must
+      // Contract the `BackupController.import` guard relies on: the plan must
       // fail loudly (not silently drop or half-build) so the caller can
       // abort BEFORE clearing live state. A backup whose site is missing
       // `initUrl` is malformed/hostile.
       final backup = _backupOf(sites: [_siteEntry(null, name: 'No initUrl')]);
 
       expect(
-        () => SettingsBackupService.restoreSites(backup, stateSetterF: null),
+        () => planSettingsImport(backup).sites,
         throwsA(anything),
       );
     });
@@ -412,7 +412,7 @@ void main() {
       ]);
 
       final sites =
-          SettingsBackupService.restoreSites(backup, stateSetterF: null);
+          planSettingsImport(backup).sites;
 
       // Non-secure cookies should be restored
       expect(sites[0].cookies, hasLength(2));
@@ -427,7 +427,7 @@ void main() {
       ]);
 
       final sites =
-          SettingsBackupService.restoreSites(backup, stateSetterF: null);
+          planSettingsImport(backup).sites;
 
       expect(sites, hasLength(3));
       expect(sites[0].initUrl, equals('https://a.com'));
@@ -524,8 +524,7 @@ void main() {
       final importedBackup = SettingsBackupService.importFromJson(jsonString);
       expect(importedBackup, isNotNull);
 
-      final restoredSites = SettingsBackupService.restoreSites(importedBackup!,
-          stateSetterF: null);
+      final restoredSites = planSettingsImport(importedBackup!).sites;
       final restoredWebspaces = SettingsBackupService.restoreWebspaces(importedBackup);
 
       // Verify sites
@@ -556,9 +555,7 @@ void main() {
     test('should handle multiple export/import cycles', () {
       // First cycle
       final sites1 = [WebViewModel(initUrl: 'https://first.com')];
-      final restored1 = SettingsBackupService.restoreSites(
-          _reimport(_export(sites1)),
-          stateSetterF: null);
+      final restored1 = planSettingsImport(_reimport(_export(sites1))).sites;
 
       // Add more sites
       restored1.add(WebViewModel(initUrl: 'https://second.com'));
@@ -572,7 +569,7 @@ void main() {
       );
       final imported2 = _reimport(backup2);
       final restored2 =
-          SettingsBackupService.restoreSites(imported2, stateSetterF: null);
+          planSettingsImport(imported2).sites;
       final restoredWs2 = SettingsBackupService.restoreWebspaces(imported2);
 
       // Verify final state
@@ -650,8 +647,7 @@ void main() {
       expect(cookies1, hasLength(1));
       expect(cookies1[0]['name'], equals('theme'));
 
-      final restored1 = SettingsBackupService.restoreSites(_reimport(backup1),
-          stateSetterF: null);
+      final restored1 = planSettingsImport(_reimport(backup1)).sites;
 
       expect(restored1[0].cookies, hasLength(1));
       expect(restored1[0].cookies[0].name, equals('theme'));
@@ -681,22 +677,15 @@ void main() {
           globalPrefs: readExportedAppPrefs(prefs),
         );
 
-    /// [siteJson] restored from a hand-written backup file, then sanitised
-    /// the way an import is.
-    List<WebViewModel> importSanitized(Map<String, dynamic> siteJson) {
-      final restored = SettingsBackupService.restoreSites(
-        SettingsBackup(
+    /// [siteJson] as an import of a hand-written backup file restores it.
+    List<WebViewModel> importSanitized(Map<String, dynamic> siteJson) =>
+        planSettingsImport(SettingsBackup(
           version: 1,
           sites: [siteJson],
           webspaces: const [],
           themeMode: 0,
           exportedAt: DateTime(2026, 1, 1),
-        ),
-        stateSetterF: null,
-      );
-      sanitizeImportedSites(restored, globalScripts: const []);
-      return restored;
-    }
+        )).sites;
 
     test('every registered key round-trips through export and import', () async {
       // Write a non-default value for every registered key.
@@ -982,9 +971,7 @@ void main() {
     ]) {
       test(name, () {
         final site = WebViewModel(initUrl: 'https://example.com', name: siteName);
-        final restored = SettingsBackupService.restoreSites(
-            _reimport(_export([site])),
-            stateSetterF: null);
+        final restored = planSettingsImport(_reimport(_export([site]))).sites;
         expect(restored[0].name, equals(siteName));
       });
     }
@@ -999,8 +986,7 @@ void main() {
 
       expect(backup.sites, hasLength(100));
 
-      final restored = SettingsBackupService.restoreSites(_reimport(backup),
-          stateSetterF: null);
+      final restored = planSettingsImport(_reimport(backup)).sites;
 
       expect(restored, hasLength(100));
       expect(restored[99].initUrl, equals('https://site99.com'));
@@ -1043,9 +1029,7 @@ void main() {
         ),
       ];
 
-      final restored = SettingsBackupService.restoreSites(
-          _reimport(_export(sites)),
-          stateSetterF: null);
+      final restored = planSettingsImport(_reimport(_export(sites))).sites;
 
       expect(restored[0].proxySettings.type, equals(ProxyType.DEFAULT));
       expect(restored[1].proxySettings.type, equals(ProxyType.HTTP));
