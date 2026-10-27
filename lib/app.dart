@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/app_locale.dart';
@@ -32,11 +33,13 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      ValueListenableBuilder<String>(
-        valueListenable: AppPref.appLocaleOverride.listenable,
-        builder: (context, localeTag, _) => _buildApp(localeFromTag(localeTag)),
-      );
+  Widget build(BuildContext context) {
+    LaunchTimeline.reached(LaunchMark.firstBuild);
+    return ValueListenableBuilder<String>(
+      valueListenable: AppPref.appLocaleOverride.listenable,
+      builder: (context, localeTag, _) => _buildApp(localeFromTag(localeTag)),
+    );
+  }
 
   Widget _buildApp(Locale? locale) {
     final Color accentColor = _themeSettings.accentColor.color;

@@ -478,13 +478,13 @@ The App Logs ring (DEVTOOLS-004) cannot answer that question. It lives in memory
 
 ### Requirement: DEVTOOLS-013 - Launch Timeline
 
-Each launch SHALL write one App Logs line, tagged Startup, giving the time from `main()` to each launch phase it reached: runApp, first frame, sites on page, site activated, webview built, page started, page settled. The line SHALL be written when the launched site's first load settles or stops being waited for (`kLaunchLoadWait`), or as soon as the activation ends when the launch opened no site. It names no site and is not sensitive, so a launch can be timed on a device with no debugger attached ([launch_timeline.dart](../../../lib/services/launch_timeline.dart)).
+Each launch SHALL write one App Logs line, tagged Startup, giving the time from `main()` to each launch phase it reached (`LaunchMark`), in the order this launch reached them, then the first time it marked each activation step (`ActivationStep`, named as `formal/activation.tla` names it). The line SHALL be written when the launched site's first load settles or stops being waited for (`kLaunchLoadWait`), or as soon as the activation ends when the launch opened no site. It names no site and is not sensitive, so a launch can be timed on a device with no debugger attached ([launch_timeline.dart](../../../lib/services/launch_timeline.dart)).
 
 #### Scenario: A shortcut launch is timed on the device
 
 **Given** a release build launched from a shortcut
 **When** the site's first load settles
-**Then** App Logs carries one Startup line listing each phase reached with its milliseconds from `main()`
+**Then** App Logs carries one Startup line listing each phase reached with its milliseconds from `main()`, in the order reached, and each activation step the launch marked
 
 #### Scenario: One line per process
 
