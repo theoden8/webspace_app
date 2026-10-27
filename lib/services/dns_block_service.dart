@@ -934,7 +934,7 @@ class DnsBlockService {
   @visibleForTesting
   set store(FileStore store) => _storeOverride = store;
 
-  FileStore get _store => _storeOverride ??= defaultFileStore('dns_blocklist');
+  FileStore get _store => _storeOverride ??= defaultFileStore('dns_blocklist', kind: StoreKind.cache);
 }
 
 /// The partition and the app-wide level in force, as the model's `dns`:

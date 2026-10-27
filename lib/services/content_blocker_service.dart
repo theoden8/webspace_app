@@ -1380,7 +1380,7 @@ class ContentBlockerService {
   @visibleForTesting
   set store(FileStore store) => _storeOverride = store;
 
-  FileStore get _store => _storeOverride ??= defaultFileStore(_cacheDir);
+  FileStore get _store => _storeOverride ??= defaultFileStore(_cacheDir, kind: StoreKind.cache);
 
   static const String _engineCacheName = '.engine.bin';
   static const String _engineCachePrefilterName = '.engine.prefilter';

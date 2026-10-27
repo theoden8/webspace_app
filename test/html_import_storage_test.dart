@@ -37,7 +37,7 @@ void main() {
   Future<HtmlImportStorage> newStorage() async {
     final storage = HtmlImportStorage(
       secureStorage: fakeStorage,
-      store: IoFileStore('html_imports', overrideRoot: tempDir),
+      store: IoFileStore('html_imports', kind: StoreKind.data, overrideRoot: tempDir),
     );
     await storage.initialize();
     return storage;
@@ -241,7 +241,7 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
         mode: encrypt.AESMode.cbc),
   );
   final iv = encrypt.IV(Uint8List.fromList(keyBytes.sublist(0, 16)));
-  await IoFileStore('html_imports', overrideRoot: tempDir).writeText(
+  await IoFileStore('html_imports', kind: StoreKind.data, overrideRoot: tempDir).writeText(
       '$siteId.enc',
       contents: encrypter.encrypt(plaintext, iv: iv).base64);
 }
@@ -306,7 +306,7 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
       final wire = base64.decode(await fileContents('a'));
       // Flip a ciphertext byte, past the 12-byte nonce.
       wire[wire.length - 20] ^= 0x01;
-      await IoFileStore('html_imports', overrideRoot: tempDir)
+      await IoFileStore('html_imports', kind: StoreKind.data, overrideRoot: tempDir)
           .writeText('a.enc', contents: base64.encode(wire));
 
       final reopened = await newStorage();
@@ -326,7 +326,7 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
       await cache.writeText('x.enc', contents: 'left alone');
       final storage = HtmlImportStorage(
           secureStorage: fakeStorage,
-          store: IoFileStore('html_imports', overrideRoot: tempDir),
+          store: IoFileStore('html_imports', kind: StoreKind.data, overrideRoot: tempDir),
           retiredCache: cache);
       await storage.initialize();
       await storage.retireSnapshotCache();
@@ -343,7 +343,7 @@ Future<void> writeLegacyBlob(String siteId, {required String plaintext}) async {
       await cache.writeText('s1.enc', contents: 'maybe an import');
       final storage = HtmlImportStorage(
           secureStorage: fakeStorage,
-          store: IoFileStore('html_imports', overrideRoot: tempDir),
+          store: IoFileStore('html_imports', kind: StoreKind.data, overrideRoot: tempDir),
           retiredCache: cache);
       await storage.initialize();
       fakeStorage.throwOnRead = true;

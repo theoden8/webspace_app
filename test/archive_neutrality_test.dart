@@ -16,6 +16,7 @@ import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
@@ -342,7 +343,7 @@ void main() {
         // store rooted at our temp docs dir.
         final stateStore = SecureWebViewStateStorage(
           secureStorage: MockFlutterSecureStorage(),
-          store: IoFileStore('webview_state', overrideRoot: docs),
+          store: IoFileStore('webview_state', kind: StoreKind.data, overrideRoot: docs),
           versionProvider: () => 'test-v1',
         );
         await stateStore.saveState(

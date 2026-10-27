@@ -218,6 +218,70 @@ an install keeps both across an upgrade.
 
 ---
 
+### Requirement: PLATFORM-010 - The app's files live in its own cache and data directories
+
+Every store the app keeps on disk SHALL live in the platform directory its
+kind names (`StoreKind`, declared where the store is made):
+
+- **cache**, what the app downloads or derives and can fetch again: the filter
+  lists and their engine cache, the DNS blocklist, LocalCDN, the ClearURLs
+  rules, the site-search list, the timezone polygons, site icons. The
+  platform's cache directory: `$XDG_CACHE_HOME/<app id>` on Linux, `cacheDir`
+  on Android, `Library/Caches` on iOS and macOS, none of them backed up.
+- **data**, what it cannot fetch again: imported HTML, saved back stacks, the
+  protection report's detail. The application support directory:
+  `$XDG_DATA_HOME/<app id>` on Linux, beside the preferences, `filesDir` on
+  Android, `Library/Application Support` on iOS and macOS.
+
+Never the documents directory. On Linux that is the user's Documents folder,
+or `$HOME` where `user-dirs.dirs` names none, which is what a Flatpak sees,
+and a Flatpak without home access keeps nothing written there: the downloads
+were gone at every launch while their records in the preferences said
+otherwise, so the content blocker ran with no rules. On iOS it is backed up to
+iCloud, which re-downloadable data must not be.
+
+An entry an earlier release kept in the documents directory SHALL move to its
+new place the first time it is asked for in a process: a rename on one file
+system, and across two a copy staged beside its target and renamed into place.
+An entry already in its new place is left as it is.
+
+A cache the OS or the user clears loses downloads the app still has a record
+of. A download's record SHALL follow its file: a filter list or the ClearURLs
+rules whose file is gone read as not downloaded, and the app-wide DNS level
+whose list is gone blocks nothing. A launch the user made SHALL then fetch
+each of them again (an enabled filter list from its own URL, the app-wide DNS
+level, the ClearURLs rules) through the app-wide proxy, as their download
+buttons would, after the first frame; a background wake's process fetches
+nothing. A site's own DNS level runs at the app-wide one until it is chosen
+again.
+
+#### Scenario: A Flatpak keeps its downloads
+
+**Given** the Flatpak, with no filesystem permission
+**When** a filter list is downloaded and the app is started again
+**Then** the list's file is under `~/.var/app/<app id>/cache/<app id>/content_blocker_cache/`
+**And** the engine is built from it at launch
+
+#### Scenario: An upgrade moves what the documents directory held
+
+**Given** an install whose imports and lists an earlier release wrote under the documents directory
+**When** the app asks for a store the first time after the upgrade
+**Then** the store's directory is moved into the directory its kind names, whole
+**And** nothing of it is left in the documents directory
+
+#### Scenario: A cleared cache is fetched again
+
+**Given** an enabled filter list, the app-wide DNS level and the ClearURLs rules were downloaded
+**And** the OS or the user cleared the cache since
+**When** the user starts the app
+**Then** each reads as not downloaded until its download lands
+**And** each is fetched again once, through the app-wide proxy
+**And** a disabled filter list is not fetched
+
+Tests: `test/file_store_test.dart`, `test/purged_download_refetch_test.dart`.
+
+---
+
 ## Platform Capabilities Matrix
 
 | Feature | iOS | Android | macOS | Linux |

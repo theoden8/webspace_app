@@ -23,7 +23,7 @@ abstract class BlockStatsDetailStore {
   Future<void> clear();
 }
 
-/// The detail sealed by [KeychainAead] in `<docs>/block_stats/detail.enc`.
+/// The detail sealed by [KeychainAead] in `<data>/block_stats/detail.enc`.
 /// The file survives app upgrades: a report wiped by an update is the
 /// complaint this answers.
 ///
@@ -69,7 +69,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final aead = await KeychainAead.open(_secureStorage,
         keyName: _encryptionKeyKey, logTag: LogTag.blockStats);
     if (aead == null) return;
-    final store = _overrideStore ?? defaultFileStore(_storageDir);
+    final store = _overrideStore ?? defaultFileStore(_storageDir, kind: StoreKind.data);
     try {
       await store.ensure();
     } on IOException catch (e) {

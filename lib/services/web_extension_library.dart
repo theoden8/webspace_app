@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
@@ -107,7 +108,8 @@ class WebExtensionLibrary {
     try {
       final found =
           folders ??
-          _HostExtensionFolders('${await hostDocumentsPath()}/$_directory');
+          _HostExtensionFolders(
+              await hostEntryPath(_directory, kind: StoreKind.data));
       final named = {for (final e in entries) e.id as String};
       for (final name in await found.names()) {
         final id = WebExtensionId.parse(name);

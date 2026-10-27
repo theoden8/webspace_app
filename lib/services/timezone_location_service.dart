@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/utils/concurrency.dart';
@@ -83,8 +84,8 @@ class TimezoneLocationService {
     }
   }
 
-  Future<String> _cachePath() async =>
-      '${await hostDocumentsPath()}/$_cacheFileName';
+  Future<String> _cachePath() =>
+      hostEntryPath(_cacheFileName, kind: StoreKind.cache);
 
   /// Configured download URL (user-overridable in app settings).
   Future<String> getUrl() async {

@@ -309,7 +309,7 @@ the event to its site.
 ### Requirement: STATS-009 - Detail Persistence, Encrypted
 
 The itemised detail SHALL survive process death, and SHALL reach disk only encrypted:
-an AES-256-GCM blob under the app's documents directory whose key lives in
+an AES-256-GCM blob under the app's support directory (PLATFORM-010) whose key lives in
 `flutter_secure_storage`, sealed under a fresh `Random.secure()` 12-byte nonce per
 write and stored as `nonce || ciphertext || tag`. Hosts and `siteId`s SHALL NOT be
 written anywhere in plaintext. There SHALL be no plaintext fallback: where the key or

@@ -45,7 +45,7 @@ The system SHALL route every adblock decision — network blocking, cosmetic sel
 
 #### Scenario: Serialized engine cache speeds up warm starts
 
-**Given** a previous run wrote `<docs>/content_blocker_cache/.engine.bin`, `.engine.prefilter` and `.engine.meta`
+**Given** a previous run wrote `<cache>/content_blocker_cache/.engine.bin`, `.engine.prefilter` and `.engine.meta`
 **And** the meta names the same inputs as the current state: the app build (which fixes the pruning, rewrite and parser code), the platform the lists are pruned for, the uBO flag, and per enabled list in order its file stamp (size and modification time) or its inline rules' hash, and the hosts masked away from it
 **When** the next `_rebuildEngine` runs
 **Then** the engine is hydrated from the blob via `AdblockEngine.loadFromSerialized` and the interceptor prefilter is read from `.engine.prefilter`
@@ -115,7 +115,7 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 **Given** the user taps the download button on EasyList
 **When** the download completes
-**Then** the list text is saved to `<docs>/content_blocker_cache/<id>.txt`
+**Then** the list text is saved to `<cache>/content_blocker_cache/<id>.txt`, in the platform cache directory (PLATFORM-010)
 **And** the engine is rebuilt with the new list included
 **And** a coarse line-count proxy is stored as `ruleCount` for the settings UI
 
@@ -1171,8 +1171,8 @@ All licensed under GPL-3.0 / CC BY-SA 3.0 (dual-licensed, used under CC BY-SA 3.
 
 ### Storage
 
-- Filter list files: `<docs>/content_blocker_cache/<id>.txt`
-- Engine cache: `<docs>/content_blocker_cache/.engine.bin` + `.engine.prefilter` (interceptor prefilter, JSON) + `.engine.meta` (hash of the build inputs, written last)
+- Filter list files: `<cache>/content_blocker_cache/<id>.txt`
+- Engine cache: `<cache>/content_blocker_cache/.engine.bin` + `.engine.prefilter` (interceptor prefilter, JSON) + `.engine.meta` (hash of the build inputs, written last)
 - List metadata: SharedPreferences key `content_blocker_lists` (JSON string)
 
 ### Hook Point in WebView

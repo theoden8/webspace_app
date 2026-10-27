@@ -282,7 +282,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   // AES-encrypted on-disk storage for per-site `controller.saveState()`
   // bytes. A 256-bit AES key in `FlutterSecureStorage`, per-site files under
-  // `<docs>/webview_state/<siteId>.enc`. Bytes survive webspace
+  // `<data>/webview_state/<siteId>.enc`. Bytes survive webspace
   // switches, LRU evictions, memory-pressure disposals, AND cold
   // starts (cleared on app-version upgrade alongside the key).
   //

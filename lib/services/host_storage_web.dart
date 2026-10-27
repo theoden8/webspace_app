@@ -6,8 +6,9 @@ import 'package:webspace/services/tor_control_link.dart'
 import 'package:webspace/services/tor_engine.dart' show TorSocksProbe;
 import 'package:webspace/services/tor_geoip.dart' show TorGeoIpStore;
 
-/// No documents directory on web; cache-backed services run empty.
-FileStore createFileStore(String directoryName) => MemoryFileStore();
+/// No app directories on web; cache-backed services run empty.
+FileStore createFileStore(String directoryName, {required StoreKind kind}) =>
+    MemoryFileStore();
 
 /// No Tor runtime on web: no GeoIP table to keep and no listener to ask.
 TorGeoIpStore? createTorGeoIpStore() => null;
@@ -16,12 +17,12 @@ ExternalTorIdentify? createExternalTorIdentify() => null;
 TorControlConnect? createTorControlConnect() => null;
 TorCookieRead? createTorCookieRead() => null;
 
-/// No documents directory on web: downloaded caches simply stay empty, which
+/// No cache directory on web: downloaded caches simply stay empty, which
 /// leaves the depending services in their no-data state.
-Future<String?> hostReadDocumentText(String name) async => null;
+Future<String?> hostReadCacheText(String name) async => null;
 
-Future<void> hostWriteDocumentText(String name,
-    {required String contents}) async {}
+Future<void> hostWriteCacheText(String name, {required String contents}) async {}
 
-/// No documents directory on web: path-backed caches read as empty.
-Future<String> hostDocumentsPath() async => '';
+/// No app directories on web: path-backed stores read as empty.
+Future<String> hostEntryPath(String name, {required StoreKind kind}) async =>
+    '';

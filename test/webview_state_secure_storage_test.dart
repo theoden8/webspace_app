@@ -78,7 +78,7 @@ void main() {
   SecureWebViewStateStorage newStorage({String version = 'v1'}) {
     return SecureWebViewStateStorage(
       secureStorage: fakeStorage,
-      store: IoFileStore('webview_state', overrideRoot: tempDir),
+      store: IoFileStore('webview_state', kind: StoreKind.data, overrideRoot: tempDir),
       versionProvider: () => version,
     );
   }

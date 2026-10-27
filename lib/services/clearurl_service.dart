@@ -49,7 +49,7 @@ class ClearUrlService {
   /// Call in main() at app startup.
   Future<void> initialize() async {
     try {
-      final contents = await hostReadDocumentText(_rulesFileName);
+      final contents = await hostReadCacheText(_rulesFileName);
       if (contents != null) {
         final json = jsonDecode(contents);
         if (json is! Map<String, dynamic>) {
@@ -83,7 +83,7 @@ class ClearUrlService {
     try {
       final json = jsonDecode(response.body);
       if (json is! Map<String, dynamic>) return false;
-      await hostWriteDocumentText(_rulesFileName, contents: response.body);
+      await hostWriteCacheText(_rulesFileName, contents: response.body);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
       _parseRules(json);

@@ -50,9 +50,21 @@ abstract class FileStore {
   Future<void> deleteAll();
 }
 
-/// The platform's store for a directory under the app's documents directory.
-FileStore defaultFileStore(String directoryName) =>
-    impl.createFileStore(directoryName);
+/// What a store keeps, which decides the platform directory it lives in
+/// (PLATFORM-010).
+enum StoreKind {
+  /// What the app downloads or derives and fetches again when it is gone:
+  /// the platform's cache directory, which the OS or the user may clear.
+  cache,
+
+  /// What the app cannot fetch again (an imported file, a saved back stack,
+  /// the protection report): the platform's application support directory.
+  data,
+}
+
+/// The platform's store for [directoryName] in the directory [kind] names.
+FileStore defaultFileStore(String directoryName, {required StoreKind kind}) =>
+    impl.createFileStore(directoryName, kind: kind);
 
 /// Throw unless [name] addresses a direct child of the store directory.
 ///

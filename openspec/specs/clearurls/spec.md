@@ -32,7 +32,7 @@ Users SHALL be able to download ClearURLs rules from App Settings.
 **Given** the user opens App Settings
 **When** the user taps the download button in the Privacy section
 **Then** rules are fetched from `https://rules2.clearurls.xyz/data.minify.json`
-**And** rules are saved to the app documents directory
+**And** rules are saved to the platform cache directory (PLATFORM-010)
 **And** a success SnackBar is shown
 
 #### Scenario: Download failure
@@ -391,7 +391,7 @@ The Dart-side handler is registered in `onWebViewCreated` via `addJavaScriptHand
 
 ### Rules File Storage
 
-- Cached at `getApplicationDocumentsDirectory()/clearurl_rules.json`
+- Cached at `<cache>/clearurl_rules.json`
 - Last updated timestamp stored in SharedPreferences key `clearurl_last_updated`
 - Rules source: `https://rules2.clearurls.xyz/data.minify.json`
 

@@ -1,4 +1,4 @@
-// The documents directory and the services built on it.
+// The app's cache and data directories and the services built on them.
 //
 // Kept apart from host_platform because path_provider pulls in Flutter:
 // host_platform has to stay importable from plain Dart, and this half does
