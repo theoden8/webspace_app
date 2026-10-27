@@ -961,7 +961,7 @@
   "@appSettingsKeepRunningWhenClosedHintMac": {
     "description": "Extra sentences appended to that hint on macOS only: clicking the app's icon in the macOS Dock brings the hidden window back, and the app is quit from its menu bar menu or with the Command-Q keys"
   },
-  "appSettingsKeepRunningWhenClosedHintLinux": "Open Webspace again or click one of its notifications to show it again. Ctrl+Q quits.",
+  "appSettingsKeepRunningWhenClosedHintLinux": "Open WebSpace again or click one of its notifications to show it again. Ctrl+Q quits.",
   "@appSettingsKeepRunningWhenClosedHintLinux": {
     "description": "Extra sentences appended to that hint on Linux only: launching the app (named Webspace) again or clicking a notification it posted brings the hidden window back, and the Ctrl+Q keys quit the app"
   },
