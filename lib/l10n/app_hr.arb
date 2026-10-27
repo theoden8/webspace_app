@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Predmemorija ikona očišćena",
   "appSettingsExperimentalTextureRendering": "Prikaz stranica kroz teksturu",
   "appSettingsExperimentalTextureRenderingHint": "Crta svaku stranicu u teksturu koju WebSpace sam slaže, umjesto kao zaseban Android prikaz složen s aplikacijom. To može spriječiti stranice koje ostaju prazne i bijele dok ne okrenete telefon ili ne promijenite aplikaciju. Tipkanje, odabir teksta i čitači zaslona manje su testirani na ovaj način, a brzo pomicanje može zapinjati. Stupa na snagu pri sljedećem pokretanju aplikacije.",
-  "appSettingsExperimentalContentRuleLists": "WebKit blokiranje sadržaja",
-  "appSettingsExperimentalContentRuleListsHint": "Predaje mrežna pravila vaših popisa filtara WebKitu, koji zatim blokira te zahtjeve prije nego što se pošalju, uključujući one koje pokrene HTML same stranice prije nego što ih uobičajeni blokator može vidjeti. Pravila se prevode jednom po skupu popisa, u pozadini, a stranice otvorene nakon toga ih koriste. Kozmetička pravila i preusmjeravanja ostaju kod uobičajenog blokatora, koji nastavlja raditi.",
   "siteSettingsSignInPopups": "Skočni prozori za prijavu",
   "siteSettingsSignInPopupsHint": "Omogućuje gumbima poput Nastavi s Googleom da otvore svoj prozor za prijavu, prikazan preko web-mjesta s postavkama samog web-mjesta. Samo se stranice za prijavu Googlea, Applea, Microsofta i GitHuba otvaraju na ovaj način. Stranice više ne mogu otvoriti prozor osim ako ne dodirnete, što bi nekim captcha provjerama moglo trebati. Primjenjuje se na web-mjesta učitana nakon promjene prekidača.",
   "externalTor": "Tor (vanjski)",

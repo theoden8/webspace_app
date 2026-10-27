@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Ikoonide vahemälu tühjendatud",
   "appSettingsExperimentalTextureRendering": "Lehtede renderdamine tekstuurina",
   "appSettingsExperimentalTextureRenderingHint": "Joonistab iga lehe tekstuuri, mille WebSpace ise kokku paneb, mitte eraldi Androidi vaatena rakenduse peal. See võib ära hoida lehed, mis jäävad tühjaks ja valgeks, kuni telefoni pöörate või rakendust vahetate. Trükkimist, teksti valimist ja ekraanilugejaid on nii vähem katsetatud ning kiire kerimine võib hakitud olla. Jõustub rakenduse järgmisel käivitusel.",
-  "appSettingsExperimentalContentRuleLists": "WebKiti sisublokeerimine",
-  "appSettingsExperimentalContentRuleListsHint": "Annab sinu filtriloendite võrgureeglid WebKitile, mis blokeerib need päringud enne nende saatmist, sealhulgas need, mille lehe enda HTML käivitab enne, kui tavaline sisublokeerija neid näha saab. Reeglid kompileeritakse iga loendikomplekti jaoks üks kord taustal ning pärast seda avatud saidid kasutavad neid. Kosmeetilised reeglid ja ümbersuunamised jäävad tavalisele sisublokeerijale, mis jätkab tööd.",
   "siteSettingsSignInPopups": "Sisselogimise hüpikaknad",
   "siteSettingsSignInPopupsHint": "Laseb nuppudel nagu Jätka Google'iga avada oma sisselogimisakna, mis kuvatakse saidi kohal saidi enda seadetega. Nii avanevad ainult Google'i, Apple'i, Microsofti ja GitHubi sisselogimislehed. Lehed ei saa enam akent avada, kui sa ei puuduta, mida mõni captcha-kontroll võib vajada. Kehtib saitidele, mis laaditakse pärast lüliti muutmist.",
   "externalTor": "Tor (väline)",

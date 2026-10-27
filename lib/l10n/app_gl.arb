@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Caché de iconas limpada",
   "appSettingsExperimentalTextureRendering": "Renderizado de páxinas en textura",
   "appSettingsExperimentalTextureRenderingHint": "Debuxa cada páxina nunha textura que o propio WebSpace compón, en lugar de como unha vista de Android separada superposta á aplicación. Pode evitar as páxinas que quedan en branco ata que xiras o teléfono ou cambias de aplicación. A escritura, a selección de texto e os lectores de pantalla probáronse menos deste xeito, e o desprazamento rápido pode ir a saltos. Aplícase a próxima vez que se inicie a aplicación.",
-  "appSettingsExperimentalContentRuleLists": "Bloqueo de contido de WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Entrega as regras de rede das túas listas de filtros a WebKit, que entón bloquea esas solicitudes antes de que se envíen, incluídas as que inicia o propio HTML da páxina antes de que o bloqueador habitual poida velas. As regras compílanse unha vez por cada conxunto de listas, en segundo plano, e os sitios que se abran despois úsanas. As regras cosméticas e as redireccións quedan co bloqueador habitual, que segue funcionando.",
   "siteSettingsSignInPopups": "Xanelas emerxentes de inicio de sesión",
   "siteSettingsSignInPopupsHint": "Permite que botóns como Continuar con Google abran a súa xanela de inicio de sesión, mostrada sobre o sitio coa configuración propia do sitio. Só se abren así as páxinas de inicio de sesión de Google, Apple, Microsoft e GitHub. As páxinas xa non poden abrir unha xanela se non tocas, algo que algunhas comprobacións captcha poden necesitar. Aplícase aos sitios cargados despois de cambiar o interruptor.",
   "externalTor": "Tor (externo)",

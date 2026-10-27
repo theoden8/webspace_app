@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "아이콘 캐시가 지워졌습니다",
   "appSettingsExperimentalTextureRendering": "텍스처 페이지 렌더링",
   "appSettingsExperimentalTextureRenderingHint": "각 페이지를 앱과 겹쳐진 별도의 Android 뷰가 아니라 WebSpace가 직접 합성하는 텍스처에 그립니다. 휴대전화를 회전하거나 앱을 전환할 때까지 하얗게 비어 있는 페이지를 막을 수 있습니다. 이 방식에서는 입력, 텍스트 선택, 화면 낭독기가 덜 검증되었고 빠른 스크롤이 끊길 수 있습니다. 다음에 앱을 시작할 때 적용됩니다.",
-  "appSettingsExperimentalContentRuleLists": "WebKit 콘텐츠 차단",
-  "appSettingsExperimentalContentRuleListsHint": "필터 목록의 네트워크 규칙을 WebKit에 넘겨, WebKit이 해당 요청을 보내기 전에 차단하게 합니다. 일반 콘텐츠 차단기가 보기 전에 페이지 자체의 HTML이 시작하는 요청도 포함됩니다. 규칙은 목록 조합마다 한 번 백그라운드에서 컴파일되며, 그 이후에 연 사이트에서 사용됩니다. 외형 규칙과 리디렉션은 계속 실행되는 일반 차단기가 맡습니다.",
   "siteSettingsSignInPopups": "로그인 팝업",
   "siteSettingsSignInPopupsHint": "'Google로 계속하기' 같은 버튼이 로그인 창을 열 수 있게 합니다. 창은 사이트 자체 설정으로 사이트 위에 표시됩니다. 이 방식으로는 Google, Apple, Microsoft, GitHub의 로그인 페이지만 열립니다. 이제 탭하지 않으면 페이지가 창을 열 수 없으며, 일부 captcha 확인에 필요할 수 있습니다. 스위치를 바꾼 뒤 로드되는 사이트에 적용됩니다.",
   "externalTor": "Tor (외부)",

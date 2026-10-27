@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "圖示快取已清除",
   "appSettingsExperimentalTextureRendering": "以紋理繪製頁面",
   "appSettingsExperimentalTextureRenderingHint": "將每個頁面繪製到由 WebSpace 自行合成的紋理中，而不是作為與應用程式分層的獨立 Android 檢視。這可能避免頁面一直保持空白，直到你旋轉手機或切換應用程式。以這種方式時，輸入、選取文字和螢幕閱讀器的測試較少，快速捲動也可能卡頓。下次啟動應用程式時生效。",
-  "appSettingsExperimentalContentRuleLists": "WebKit 內容封鎖",
-  "appSettingsExperimentalContentRuleListsHint": "將過濾清單中的網路規則交給 WebKit，由它在請求送出前就加以封鎖，包括網頁本身的 HTML 在一般封鎖器看到之前就發出的請求。規則會針對每組清單在背景編譯一次，之後開啟的網站便會使用。外觀規則與重新導向仍由持續運作的一般封鎖器負責。",
   "siteSettingsSignInPopups": "登入彈出視窗",
   "siteSettingsSignInPopupsHint": "讓「使用 Google 帳戶繼續」等按鈕開啟其登入視窗，並以網站自己的設定顯示在網站上方。只有 Google、Apple、Microsoft 和 GitHub 的登入頁面會以這種方式開啟。除非你點按，否則網頁無法再開啟視窗，部分 captcha 檢查可能需要這項功能。適用於切換開關後載入的網站。",
   "externalTor": "Tor（外部）",

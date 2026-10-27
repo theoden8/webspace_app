@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Ikonoen cachea garbituta",
   "appSettingsExperimentalTextureRendering": "Orrien errendatzea testura gisa",
   "appSettingsExperimentalTextureRenderingHint": "Orri bakoitza WebSpacek berak konposatzen duen testura batean marrazten du, aplikazioarekin geruzatutako Android ikuspegi bereizi gisa marraztu beharrean. Telefonoa biratu edo aplikazioz aldatu arte zuri eta hutsik geratzen diren orriak saihes ditzake. Idaztea, testua hautatzea eta pantaila-irakurgailuak gutxiago probatu dira modu honetan, eta korritze azkarrak saltoka egin dezake. Aplikazioa hurrengo aldiz abiarazten denean hartuko du eragina.",
-  "appSettingsExperimentalContentRuleLists": "WebKit eduki-blokeoa",
-  "appSettingsExperimentalContentRuleListsHint": "Zure iragazki-zerrenden sare-arauak WebKiti ematen dizkio, eta honek eskaera horiek blokeatzen ditu bidali aurretik, baita orriaren HTMLak berak hasten dituenak ere, ohiko blokeatzaileak ikusi baino lehen. Arauak behin konpilatzen dira zerrenda-multzo bakoitzeko, atzeko planoan, eta ondoren irekitako guneek erabiltzen dituzte. Arau kosmetikoak eta birbideratzeak ohiko blokeatzailearekin geratzen dira, eta hark lanean jarraitzen du.",
   "siteSettingsSignInPopups": "Saioa hasteko leiho gainerakorrak",
   "siteSettingsSignInPopupsHint": "Jarraitu Google-rekin bezalako botoiei saioa hasteko leihoa irekitzen uzten die, gunearen gainean gunearen ezarpen propioekin erakutsita. Google, Apple, Microsoft eta GitHub-en saioa hasteko orriak soilik irekitzen dira horrela. Orriek ezin dute leihorik ireki zuk sakatu ezean, eta captcha egiaztapen batzuek hori behar izan dezakete. Etengailua aldatu ondoren kargatutako guneei aplikatzen zaie.",
   "externalTor": "Tor (kanpokoa)",

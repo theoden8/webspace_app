@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Il-cache tal-ikoni tneħħa",
   "appSettingsExperimentalTextureRendering": "Wiri tal-paġni bħala tessitura",
   "appSettingsExperimentalTextureRenderingHint": "Ipinġi kull paġna f'tessitura li WebSpace jgħaqqad hu stess, minflok bħala veduta separata ta' Android imqiegħda f'saffi mal-app. Jista' jwaqqaf il-paġni li jibqgħu vojta u bojod sakemm iddawwar it-telefon jew taqleb l-app. It-tajpjar, l-għażla tat-test u l-qarrejja tal-iskrin huma inqas ittestjati b'dan il-mod, u l-iscrolling mgħaġġel jista' jaqbeż. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
-  "appSettingsExperimentalContentRuleLists": "Imblukkar tal-kontenut b'WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Jagħti r-regoli tan-netwerk tal-listi ta' filtri tiegħek lil WebKit, li mbagħad jimblokka dawk it-talbiet qabel ma jintbagħtu, inklużi dawk li jibda l-HTML tal-paġna stess qabel ma l-imblokk tas-soltu jkun jista' jarahom. Ir-regoli jiġu kkompilati darba għal kull sett ta' listi, fl-isfond, u s-siti miftuħa wara jużawhom. Ir-regoli kożmetiċi u r-ridirezzjonijiet jibqgħu mal-imblokk tas-soltu, li jibqa' jaħdem.",
   "siteSettingsSignInPopups": "Twieqi pop-up tad-dħul",
   "siteSettingsSignInPopupsHint": "Jippermetti li buttuni bħal Kompli b'Google jiftħu t-tieqa tad-dħul tagħhom, murija fuq is-sit bl-issettjar tas-sit stess. Il-paġni tad-dħul ta' Google, Apple, Microsoft u GitHub biss jinfetħu b'dan il-mod. Il-paġni ma jistgħux jibqgħu jiftħu tieqa sakemm ma tagħfasx, li xi kontrolli captcha jistgħu jeħtieġu. Japplika għas-siti mgħobbija wara li jinbidel is-swiċċ.",
   "externalTor": "Tor (estern)",

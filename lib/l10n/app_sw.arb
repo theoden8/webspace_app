@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Akiba ya aikoni imefutwa",
   "appSettingsExperimentalTextureRendering": "Uonyeshaji wa kurasa kama umbile",
   "appSettingsExperimentalTextureRenderingHint": "Huchora kila ukurasa ndani ya umbile ambalo WebSpace huliunganisha yenyewe, badala ya kuwa mwonekano tofauti wa Android uliopangwa juu ya programu. Hii inaweza kuzuia kurasa zinazobaki tupu nyeupe hadi uzungushe simu au ubadilishe programu. Kuandika, kuchagua maandishi na visomaji skrini havijajaribiwa sana kwa njia hii, na kusogeza kwa haraka kunaweza kukwama. Huanza kutumika wakati ujao programu itakapoanza.",
-  "appSettingsExperimentalContentRuleLists": "Uzuiaji wa maudhui kupitia WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Inakabidhi sheria za mtandao za orodha zako za vichujio kwa WebKit, ambayo kisha huzuia maombi hayo kabla hayajatumwa, yakiwemo yale ambayo HTML ya ukurasa wenyewe huanzisha kabla kizuizi cha kawaida hakijayaona. Sheria hukusanywa mara moja kwa kila seti ya orodha, chinichini, na tovuti zinazofunguliwa baada ya hapo huzitumia. Sheria za mwonekano na uelekezaji upya hubaki kwa kizuizi cha kawaida, ambacho kinaendelea kufanya kazi.",
   "siteSettingsSignInPopups": "Madirisha ibukizi ya kuingia",
   "siteSettingsSignInPopupsHint": "Huruhusu vitufe kama Endelea na Google kufungua dirisha lao la kuingia, linaloonyeshwa juu ya tovuti kwa mipangilio ya tovuti yenyewe. Ni kurasa za kuingia za Google, Apple, Microsoft na GitHub pekee zinazofunguka hivi. Kurasa haziwezi tena kufungua dirisha usipogusa, jambo ambalo baadhi ya ukaguzi wa captcha unaweza kuhitaji. Hutumika kwa tovuti zinazopakiwa baada ya swichi kubadilishwa.",
   "externalTor": "Tor (ya nje)",

@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Memoria cache a pictogramelor a fost ștearsă",
   "appSettingsExperimentalTextureRendering": "Randarea paginilor ca textură",
   "appSettingsExperimentalTextureRenderingHint": "Desenează fiecare pagină într-o textură pe care WebSpace o compune singur, în loc de o vizualizare Android separată suprapusă cu aplicația. Poate opri paginile care rămân albe și goale până când rotiți telefonul sau schimbați aplicația. Tastarea, selectarea textului și cititoarele de ecran sunt mai puțin testate în acest mod, iar derularea rapidă poate sacada. Intră în vigoare la următoarea pornire a aplicației.",
-  "appSettingsExperimentalContentRuleLists": "Blocare de conținut prin WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Predă regulile de rețea din listele tale de filtre către WebKit, care blochează apoi acele cereri înainte să fie trimise, inclusiv pe cele pe care HTML-ul paginii le pornește înainte ca blocatorul obișnuit să le poată vedea. Regulile sunt compilate o singură dată pentru fiecare set de liste, în fundal, iar site-urile deschise după aceea le folosesc. Regulile cosmetice și redirecționările rămân la blocatorul obișnuit, care continuă să funcționeze.",
   "siteSettingsSignInPopups": "Ferestre pop-up de conectare",
   "siteSettingsSignInPopupsHint": "Permite butoanelor precum Continuă cu Google să își deschidă fereastra de conectare, afișată peste site cu setările proprii ale site-ului. Doar paginile de conectare Google, Apple, Microsoft și GitHub se deschid astfel. Paginile nu mai pot deschide o fereastră decât dacă atingi, lucru de care unele verificări captcha ar putea avea nevoie. Se aplică site-urilor încărcate după schimbarea comutatorului.",
   "externalTor": "Tor (extern)",
