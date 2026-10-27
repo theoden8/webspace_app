@@ -107,9 +107,17 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 #### Scenario: Default filter lists
 
 **Given** the user opens App Settings for the first time
-**Then** 4 default lists are shown: EasyList, EasyPrivacy, Fanboy's Social Blocking List, Fanboy's Annoyance List
-**And** all lists are enabled by default
-**And** no lists have been downloaded yet (rule count shows 0)
+**Then** 6 default lists are shown: EasyList, EasyPrivacy, Fanboy's Social, Fanboy's Annoyance, EasyList Cookie and AdGuard Annoyances
+**And** no lists have been downloaded yet (each shows Not downloaded)
+**And** each switches on when it downloads
+
+#### Scenario: A list that joins the defaults reaches an existing install once
+
+**Given** an install from before EasyList Cookie and AdGuard Annoyances were defaults, with the four lists it was offered then
+**When** the app starts
+**Then** the two lists are added after the user's own, not downloaded and switched off
+**And** a default the user removes afterwards is not added again on a later start
+**And** a default the user had removed before the upgrade stays removed
 
 #### Scenario: Download a filter list
 
@@ -445,13 +453,14 @@ app-wide
 
 ### Requirement: CB-007 - License Attribution
 
-The EasyList filter lists SHALL be credited under CC BY-SA 3.0, and `adblock-rust` plus its transitive dependencies SHALL be credited in the app's license page; the README names EasyList and `adblock-rust` in its feature list.
+The EasyList filter lists SHALL be credited under CC BY-SA 3.0 (the EasyList Cookie List under the CC BY 3.0 its header names), the AdGuard Annoyances filter under GPL-3.0, and `adblock-rust` plus its transitive dependencies SHALL be credited in the app's license page; the README names EasyList and `adblock-rust` in its feature list. The app ships none of these lists: it downloads each from its publisher when the user asks.
 
 #### Scenario: EasyList license visible
 
 **Given** the user opens the Licenses page
 **Then** an entry for "EasyList filter lists (filter data)" is shown
 **And** it displays the CC BY-SA 3.0 license text crediting "The EasyList authors"
+**And** an entry for "AdGuard filters (filter data)" names GPL-3.0 and the AdguardFilters repository
 
 #### Scenario: Adblock-rust deps listed
 

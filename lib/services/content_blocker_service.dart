@@ -101,29 +101,48 @@ class FilterList {
       };
 }
 
-/// Default filter lists added on first initialization.
-const List<Map<String, String>> _defaultLists = [
-  {
-    'id': 'easylist',
-    'name': 'EasyList',
-    'url': 'https://easylist.to/easylist/easylist.txt',
-  },
-  {
-    'id': 'easyprivacy',
-    'name': 'EasyPrivacy',
-    'url': 'https://easylist.to/easylist/easyprivacy.txt',
-  },
-  {
-    'id': 'fanboy-social',
-    'name': "Fanboy's Social",
-    'url': 'https://easylist.to/easylist/fanboy-social.txt',
-  },
-  {
-    'id': 'fanboy-annoyance',
-    'name': "Fanboy's Annoyance",
-    'url': 'https://easylist.to/easylist/fanboy-annoyance.txt',
-  },
+/// A filter list the app offers on its own.
+typedef _DefaultList = ({String id, String name, String url});
+
+/// The lists the app offers, in the order Settings shows them. A list here
+/// that an install was not offered yet is added to it once, not downloaded,
+/// and stays gone once the user removes it (CB-002).
+const List<_DefaultList> _defaultLists = [
+  (
+    id: 'easylist',
+    name: 'EasyList',
+    url: 'https://easylist.to/easylist/easylist.txt',
+  ),
+  (
+    id: 'easyprivacy',
+    name: 'EasyPrivacy',
+    url: 'https://easylist.to/easylist/easyprivacy.txt',
+  ),
+  (
+    id: 'fanboy-social',
+    name: "Fanboy's Social",
+    url: 'https://easylist.to/easylist/fanboy-social.txt',
+  ),
+  (
+    id: 'fanboy-annoyance',
+    name: "Fanboy's Annoyance",
+    url: 'https://easylist.to/easylist/fanboy-annoyance.txt',
+  ),
+  (
+    id: 'fanboy-cookiemonster',
+    name: 'EasyList Cookie',
+    url: 'https://secure.fanboy.co.nz/fanboy-cookiemonster.txt',
+  ),
+  (
+    id: 'adguard-annoyances',
+    name: 'AdGuard Annoyances',
+    url: 'https://filters.adtidy.org/extension/ublock/filters/14.txt',
+  ),
 ];
+
+/// How many of [_defaultLists] every install was offered before the app
+/// recorded which it offered.
+const int _offeredBeforeRecord = 4;
 
 /// Singleton service for managing ABP filter lists.
 ///
@@ -141,6 +160,7 @@ typedef _EngineInputs = ({
 class ContentBlockerService {
   static const String _listsKey = 'content_blocker_lists';
   static const String _listMasksKey = 'content_blocker_list_masks';
+  static const String _offeredKey = 'content_blocker_offered_lists';
   static const String _cacheDir = 'content_blocker_cache';
 
   /// Bump when the engine cache's own format changes. The app build is part
@@ -768,23 +788,13 @@ class ContentBlockerService {
       _listMasks = _readListMasks(prefs);
       final listsJson = prefs.getString(_listsKey);
 
-      if (listsJson != null) {
-        _lists = switch (jsonDecode(listsJson)) {
-          final List<Object?> entries => [
-              for (final e in entries) ?FilterList.tryFromJson(e),
-            ],
-          _ => [],
-        };
-      } else {
-        _lists = _defaultLists
-            .map((d) => FilterList(
-                  id: FilterListId(d['id']!),
-                  name: d['name']!,
-                  url: d['url']!,
-                ))
-            .toList();
-        await _saveLists();
-      }
+      _lists = switch (listsJson == null ? null : jsonDecode(listsJson)) {
+        final List<Object?> entries => [
+            for (final e in entries) ?FilterList.tryFromJson(e),
+          ],
+        _ => [],
+      };
+      await _offerNewDefaults(prefs, upgrade: listsJson != null);
 
       await _forgetPurgedDownloads();
       await _rebuildEngine();
@@ -1374,6 +1384,29 @@ class ContentBlockerService {
         await _saveLists();
         await _rebuildEngine();
       });
+
+  /// Adds each of [_defaultLists] this install was not offered yet, and
+  /// records it as offered. An [upgrade] from before the record was offered
+  /// the first [_offeredBeforeRecord].
+  Future<void> _offerNewDefaults(SharedPreferences prefs,
+      {required bool upgrade}) async {
+    final recorded = prefs.getStringList(_offeredKey);
+    final offered = {
+      ...?recorded,
+      if (recorded == null && upgrade)
+        for (final d in _defaultLists.take(_offeredBeforeRecord)) d.id,
+    };
+    final fresh = [
+      for (final d in _defaultLists)
+        if (!offered.contains(d.id) && !_lists.any((l) => l.id == d.id))
+          FilterList(id: FilterListId(d.id), name: d.name, url: d.url),
+    ];
+    if (recorded != null && fresh.isEmpty) return;
+    _lists = [..._lists, ...fresh];
+    await _saveLists();
+    await prefs.setStringList(
+        _offeredKey, {...offered, for (final d in _defaultLists) d.id}.toList());
+  }
 
   Future<void> _saveLists() async {
     assert(_edits.isHeld, 'the filter lists saved outside an edit turn');
