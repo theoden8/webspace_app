@@ -893,7 +893,7 @@ jobs:
               status=0
               for t in $LINUX_TIER_FILES; do
                 echo "::group::$t"
-                # One instance per session bus (PLATFORM-010): an app a killed
+                # One instance per session bus (PLATFORM-011): an app a killed
                 # run left behind would take the next launch and send it away.
                 for p in /proc/[0-9]*; do
                   [ "$(cat "$p/comm" 2>/dev/null)" = webspace_app ] \

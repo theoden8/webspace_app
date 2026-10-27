@@ -1,4 +1,4 @@
-// NOTIF-018 and PLATFORM-010 on the desktop tiers: a close that only hides
+// NOTIF-018 and PLATFORM-011 on the desktop tiers: a close that only hides
 // the window, a site that keeps notifying behind it, and the ways back.
 //
 // The close takes the runner's own path: the debug `window_capture` channel's
@@ -264,7 +264,7 @@ void main() {
     }
 
     if (Platform.isLinux && sessionBus) {
-      // PLATFORM-010: a second launch is the other way back, and it does not
+      // PLATFORM-011: a second launch is the other way back, and it does not
       // become a second app.
       await close();
       // A second launch that became an app of its own would run this file

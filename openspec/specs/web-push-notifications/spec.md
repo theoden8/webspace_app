@@ -847,7 +847,7 @@ hidden window: a desktop never reports `paused` (webview-pause-lifecycle). The
 window SHALL come back:
 
 - on macOS, on a click on the Dock icon, or `open` of the running app;
-- on Linux, on a second launch of the app (PLATFORM-010);
+- on Linux, on a second launch of the app (PLATFORM-011);
 - on either, on a click on one of its notifications (NOTIF-003).
 
 Quitting stays: the macOS app menu's Quit and Command-Q, and Ctrl-Q on Linux

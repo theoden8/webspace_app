@@ -29,7 +29,7 @@ class DesktopWindow {
 
   /// Where the runner can hide its window and be asked for it again: the
   /// Dock on macOS, a second launch of the one instance on Linux
-  /// (PLATFORM-010).
+  /// (PLATFORM-011).
   static bool get offered => hostIsMacOS || hostIsLinux;
 
   final bool _offered;
