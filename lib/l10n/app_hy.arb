@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Վեբ ընդլայնումներ",
   "appSettingsExperimentalWebExtensionsHint": "Գործարկեք ֆայլից ներմուծված դիտարկիչի ընդլայնումները (Chrome-ի .crx, Firefox-ի .xpi կամ .zip) ձեր ընտրած կայքերում։ WebKit-ը յուրաքանչյուրից գործարկում է այն, ինչ աջակցում է։ Ընդլայնումը ոչ մի կայքում չի աշխատում, մինչև այն չմիացնեք տվյալ կայքի կարգավորումներում, և այնտեղ այն հասնում է միայն այդ կայքին։",
+  "appSettingsExperimentalDesktopTray": "Համակարգային սկուտեղի պատկերակ",
+  "appSettingsExperimentalDesktopTrayHint": "Քանի դեռ «Աշխատել նաև փակելուց հետո» կարգավորումը միացված է, ցուցադրում է WebSpace-ի պատկերակը ընտրացանկի տողում կամ համակարգային սկուտեղում։ Դրա ընտրացանկը ցուցադրում է պատուհանը, բացում է ծանուցումները միացված կայք կամ դուրս է գալիս հավելվածից։ Linux-ում անհրաժեշտ է աշխատասեղան, որն աջակցում է սկուտեղի պատկերակներ (AppIndicator)։",
   "appSettingsExtensions": "Ընդլայնումներ",
   "appSettingsExtensionsNone": "Ոչինչ ներմուծված չէ",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ընդլայնում} other{{count} ընդլայնում}}",

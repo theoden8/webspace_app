@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "இணைய நீட்டிப்புகள்",
   "appSettingsExperimentalWebExtensionsHint": "கோப்பிலிருந்து நீங்கள் இறக்குமதி செய்யும் உலாவி நீட்டிப்புகளை (Chrome .crx, Firefox .xpi அல்லது .zip) நீங்கள் தேர்ந்தெடுக்கும் தளங்களில் இயக்கும். ஒவ்வொன்றிலும் தான் ஆதரிப்பதை WebKit இயக்கும். ஒரு தளத்தின் அமைப்புகளில் நீங்கள் இயக்கும் வரை நீட்டிப்பு எந்தத் தளத்திலும் இயங்காது, அங்கே அது அந்தத் தளத்தை மட்டுமே அணுகும்.",
+  "appSettingsExperimentalDesktopTray": "சிஸ்டம் ட்ரே ஐகான்",
+  "appSettingsExperimentalDesktopTrayHint": "\"மூடிய பிறகும் இயங்கட்டும்\" இயக்கத்தில் இருக்கும்போது, மெனு பட்டி அல்லது சிஸ்டம் ட்ரேயில் WebSpace இன் ஐகானைக் காட்டும். அதன் மெனு சாளரத்தைக் காட்டும், அறிவிப்புகள் இயக்கப்பட்ட தளத்தைத் திறக்கும் அல்லது செயலியிலிருந்து வெளியேறும். Linux இல் இதற்கு ட்ரே ஐகான்களை ஆதரிக்கும் டெஸ்க்டாப் தேவை (AppIndicator).",
   "appSettingsExtensions": "நீட்டிப்புகள்",
   "appSettingsExtensionsNone": "எதுவும் இறக்குமதி செய்யப்படவில்லை",
   "appSettingsExtensionsCount": "{count, plural, one{{count} நீட்டிப்பு} other{{count} நீட்டிப்புகள்}}",

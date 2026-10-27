@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Ekstensi web",
   "appSettingsExperimentalWebExtensionsHint": "Jalankan ekstensi peramban yang Anda impor dari berkas (.crx Chrome, .xpi Firefox, atau .zip) di situs pilihan Anda. WebKit menjalankan bagian yang didukungnya dari setiap ekstensi. Ekstensi tidak berjalan di situs mana pun hingga Anda mengaktifkannya di pengaturan situs tersebut, dan di sana ekstensi hanya menjangkau situs itu.",
+  "appSettingsExperimentalDesktopTray": "Ikon baki sistem",
+  "appSettingsExperimentalDesktopTrayHint": "Selama \"Tetap berjalan saat ditutup\" aktif, menampilkan ikon WebSpace di bilah menu atau baki sistem. Menunya menampilkan jendela, membuka situs yang notifikasinya aktif, atau keluar dari aplikasi. Di Linux, diperlukan desktop yang mendukung ikon baki sistem (AppIndicator).",
   "appSettingsExtensions": "Ekstensi",
   "appSettingsExtensionsNone": "Belum ada yang diimpor",
   "appSettingsExtensionsCount": "{count, plural, other{{count} ekstensi}}",

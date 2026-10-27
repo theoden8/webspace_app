@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensiones interretiales",
   "appSettingsExperimentalWebExtensionsHint": "Extensiones navigatri ex plica importatas (.crx Chrome, .xpi Firefox vel .zip) in situbus quos eligis exsequere. WebKit ex quaque id exsequitur quod sustinet. Extensio in nullo situ currit donec eam in institutionibus illius situs accendas, et ibi solum illum situm attingit.",
+  "appSettingsExperimentalDesktopTray": "Icon alveoli systematis",
+  "appSettingsExperimentalDesktopTrayHint": "Dum \"Post clausuram operari pergere\" activum est, iconem WebSpace in tabula menu vel in alveolo systematis ostendit. Menu eius fenestram ostendit, locum cuius renuntiationes activae sunt aperit, vel ex applicatione exit. In Linux opus est mensa quae icones alveoli systematis sustinet (AppIndicator).",
   "appSettingsExtensions": "Extensiones",
   "appSettingsExtensionsNone": "Nulla importata",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensio} other{{count} extensiones}}",

@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensiones web",
   "appSettingsExperimentalWebExtensionsHint": "Ejecuta las extensiones de navegador que importes desde un archivo (un .crx de Chrome, un .xpi de Firefox o un .zip) en los sitios que elijas. WebKit ejecuta lo que admite de cada una. Una extensión no se ejecuta en ningún sitio hasta que la actives en los ajustes de ese sitio, y allí solo llega a ese sitio.",
+  "appSettingsExperimentalDesktopTray": "Icono en la bandeja del sistema",
+  "appSettingsExperimentalDesktopTrayHint": "Mientras \"Seguir en ejecución al cerrar\" está activado, muestra el icono de WebSpace en la barra de menús o en la bandeja del sistema. Su menú muestra la ventana, abre un sitio con las notificaciones activadas o sale de la aplicación. En Linux necesita un escritorio que admita iconos en la bandeja del sistema (AppIndicator).",
   "appSettingsExtensions": "Extensiones",
   "appSettingsExtensionsNone": "Ninguna importada",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensión} many{{count} de extensiones} other{{count} extensiones}}",

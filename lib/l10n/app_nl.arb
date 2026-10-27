@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Webextensies",
   "appSettingsExperimentalWebExtensionsHint": "Voer browserextensies die je uit een bestand importeert (een .crx van Chrome, een .xpi van Firefox of een .zip) uit op de sites die je kiest. WebKit voert van elke extensie uit wat het ondersteunt. Een extensie draait op geen enkele site tot je haar aanzet in de instellingen van die site, en daar bereikt ze alleen die site.",
+  "appSettingsExperimentalDesktopTray": "Symbool in systeemvak",
+  "appSettingsExperimentalDesktopTrayHint": "Zolang \"Blijven draaien na sluiten\" aan staat, toont dit het symbool van WebSpace in de menubalk of het systeemvak. Het menu ervan toont het venster, opent een site met meldingen aan of stopt de app. Op Linux is een bureaublad nodig dat symbolen in het systeemvak ondersteunt (AppIndicator).",
   "appSettingsExtensions": "Extensies",
   "appSettingsExtensionsNone": "Geen geïmporteerd",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensie} other{{count} extensies}}",

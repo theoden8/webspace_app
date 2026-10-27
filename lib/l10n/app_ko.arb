@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "웹 확장 프로그램",
   "appSettingsExperimentalWebExtensionsHint": "파일에서 가져온 브라우저 확장 프로그램(Chrome .crx, Firefox .xpi 또는 .zip)을 선택한 사이트에서 실행합니다. WebKit은 각 확장 프로그램에서 지원하는 부분만 실행합니다. 확장 프로그램은 해당 사이트 설정에서 켜기 전까지 어느 사이트에서도 실행되지 않으며, 켠 사이트에만 접근합니다.",
+  "appSettingsExperimentalDesktopTray": "시스템 트레이 아이콘",
+  "appSettingsExperimentalDesktopTrayHint": "\"닫아도 계속 실행\"이 켜져 있는 동안 메뉴 막대나 시스템 트레이에 WebSpace 아이콘을 표시합니다. 아이콘의 메뉴로 창을 표시하거나, 알림을 켠 사이트를 열거나, 앱을 종료할 수 있습니다. Linux에서는 트레이 아이콘을 지원하는 데스크톱(AppIndicator)이 필요합니다.",
   "appSettingsExtensions": "확장 프로그램",
   "appSettingsExtensionsNone": "가져온 항목 없음",
   "appSettingsExtensionsCount": "{count, plural, other{확장 프로그램 {count}개}}",

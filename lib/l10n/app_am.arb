@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "የድር ቅጥያዎች",
   "appSettingsExperimentalWebExtensionsHint": "ከፋይል የሚያስመጧቸውን የአሳሽ ቅጥያዎች (የChrome .crx፣ የFirefox .xpi ወይም .zip) በሚመርጧቸው ጣቢያዎች ላይ ያሂዱ። WebKit ከእያንዳንዱ የሚደግፈውን ያሄዳል። አንድ ቅጥያ በዚያ ጣቢያ ቅንብሮች ውስጥ እስኪያበሩት ድረስ በየትኛውም ጣቢያ ላይ አይሄድም፤ እዚያም የሚደርሰው ያንን ጣቢያ ብቻ ነው።",
+  "appSettingsExperimentalDesktopTray": "የሲስተም ትሪ አዶ",
+  "appSettingsExperimentalDesktopTrayHint": "\"ሲዘጋ መሥራቱን ይቀጥል\" በርቶ ሳለ፣ የWebSpace አዶን በምናሌ አሞሌው ወይም በሲስተም ትሪው ውስጥ ያሳያል። ምናሌው መስኮቱን ያሳያል፣ ማሳወቂያዎቹ የበሩ ጣቢያን ይከፍታል ወይም መተግበሪያውን ያቋርጣል። በLinux ላይ የትሪ አዶዎችን የሚደግፍ ዴስክቶፕ ያስፈልገዋል (AppIndicator)።",
   "appSettingsExtensions": "ቅጥያዎች",
   "appSettingsExtensionsNone": "ምንም አልመጣም",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ቅጥያ} other{{count} ቅጥያዎች}}",

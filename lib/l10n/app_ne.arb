@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "वेब एक्सटेन्सनहरू",
   "appSettingsExperimentalWebExtensionsHint": "फाइलबाट आयात गर्नुभएका ब्राउजर एक्सटेन्सनहरू (Chrome .crx, Firefox .xpi वा .zip) तपाईंले छान्नुभएका साइटहरूमा चलाउनुहोस्। WebKit ले प्रत्येकको समर्थित भाग चलाउँछ। कुनै एक्सटेन्सन त्यस साइटको सेटिङमा तपाईंले सक्रिय नगरेसम्म कुनै पनि साइटमा चल्दैन, र त्यहाँ यो त्यही साइटसम्म मात्र पुग्छ।",
+  "appSettingsExperimentalDesktopTray": "सिस्टम ट्रे आइकन",
+  "appSettingsExperimentalDesktopTrayHint": "\"बन्द गरेपछि पनि चलिरहोस्\" सक्रिय हुँदा, मेनु बार वा सिस्टम ट्रेमा WebSpace को आइकन देखाउँछ। यसको मेनुले विन्डो देखाउँछ, सूचनाहरू सक्रिय भएको साइट खोल्छ वा एपबाट बाहिरिन्छ। Linux मा यसका लागि ट्रे आइकनहरू समर्थन गर्ने डेस्कटप चाहिन्छ (AppIndicator)।",
   "appSettingsExtensions": "एक्सटेन्सनहरू",
   "appSettingsExtensionsNone": "कुनै आयात गरिएको छैन",
   "appSettingsExtensionsCount": "{count, plural, one{{count} एक्सटेन्सन} other{{count} एक्सटेन्सनहरू}}",

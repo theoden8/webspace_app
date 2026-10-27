@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "ওয়েব এক্সটেনশন",
   "appSettingsExperimentalWebExtensionsHint": "ফাইল থেকে ইম্পোর্ট করা ব্রাউজার এক্সটেনশন (Chrome-এর .crx, Firefox-এর .xpi বা একটি .zip) আপনার বেছে নেওয়া সাইটগুলিতে চালান। প্রতিটির যতটুকু WebKit সমর্থন করে, ততটুকুই চালায়। আপনি সেই সাইটের সেটিংসে চালু না করা পর্যন্ত কোনো এক্সটেনশন কোনো সাইটে চলে না, আর সেখানে এটি শুধু সেই সাইটেই পৌঁছায়।",
+  "appSettingsExperimentalDesktopTray": "সিস্টেম ট্রে আইকন",
+  "appSettingsExperimentalDesktopTrayHint": "\"বন্ধ করলেও চালু থাকবে\" চালু থাকলে, মেনু বার বা সিস্টেম ট্রেতে WebSpace-এর আইকন দেখায়। এর মেনু উইন্ডোটি দেখায়, বিজ্ঞপ্তি চালু থাকা কোনও সাইট খোলে বা অ্যাপ থেকে প্রস্থান করে। Linux-এ এর জন্য এমন একটি ডেস্কটপ দরকার যা ট্রে আইকন সমর্থন করে (AppIndicator)।",
   "appSettingsExtensions": "এক্সটেনশন",
   "appSettingsExtensionsNone": "কিছু ইম্পোর্ট করা হয়নি",
   "appSettingsExtensionsCount": "{count, plural, one{{count}টি এক্সটেনশন} other{{count}টি এক্সটেনশন}}",

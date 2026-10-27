@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "תוספי אינטרנט",
   "appSettingsExperimentalWebExtensionsHint": "מריץ תוספי דפדפן שמייבאים מקובץ (.crx של Chrome, .xpi של Firefox או .zip) באתרים שבוחרים. WebKit מריץ מכל תוסף את מה שהוא תומך בו. תוסף לא פועל באף אתר עד שמפעילים אותו בהגדרות של אותו אתר, ושם הוא מגיע רק לאתר הזה.",
+  "appSettingsExperimentalDesktopTray": "סמל במגש המערכת",
+  "appSettingsExperimentalDesktopTrayHint": "כל עוד \"להמשיך לפעול אחרי סגירה\" מופעל, מוצג הסמל של WebSpace בשורת התפריטים או במגש המערכת. התפריט שלו מציג את החלון, פותח אתר שההתראות שלו מופעלות או יוצא מהאפליקציה. ב-Linux נדרשת סביבת שולחן עבודה שתומכת בסמלים במגש המערכת (AppIndicator).",
   "appSettingsExtensions": "תוספים",
   "appSettingsExtensionsNone": "אף תוסף לא יובא",
   "appSettingsExtensionsCount": "{count, plural, one{{count} תוסף} two{{count} תוספים} other{{count} תוספים}}",

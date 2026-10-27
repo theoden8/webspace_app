@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "ਵੈੱਬ ਐਕਸਟੈਂਸ਼ਨਾਂ",
   "appSettingsExperimentalWebExtensionsHint": "ਫ਼ਾਈਲ ਤੋਂ ਇੰਪੋਰਟ ਕੀਤੀਆਂ ਬ੍ਰਾਊਜ਼ਰ ਐਕਸਟੈਂਸ਼ਨਾਂ (Chrome .crx, Firefox .xpi ਜਾਂ .zip) ਆਪਣੀਆਂ ਚੁਣੀਆਂ ਸਾਈਟਾਂ 'ਤੇ ਚਲਾਓ। WebKit ਹਰੇਕ ਦਾ ਉਹ ਹਿੱਸਾ ਚਲਾਉਂਦਾ ਹੈ ਜਿਸਦਾ ਇਹ ਸਮਰਥਨ ਕਰਦਾ ਹੈ। ਕੋਈ ਐਕਸਟੈਂਸ਼ਨ ਕਿਸੇ ਵੀ ਸਾਈਟ 'ਤੇ ਉਦੋਂ ਤੱਕ ਨਹੀਂ ਚੱਲਦੀ ਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਉਸ ਸਾਈਟ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਸਨੂੰ ਚਾਲੂ ਨਹੀਂ ਕਰਦੇ, ਅਤੇ ਉੱਥੇ ਇਹ ਸਿਰਫ਼ ਉਸੇ ਸਾਈਟ ਤੱਕ ਪਹੁੰਚਦੀ ਹੈ।",
+  "appSettingsExperimentalDesktopTray": "ਸਿਸਟਮ ਟ੍ਰੇ ਆਈਕਨ",
+  "appSettingsExperimentalDesktopTrayHint": "ਜਦੋਂ \"ਬੰਦ ਕਰਨ 'ਤੇ ਵੀ ਚੱਲਦੀ ਰਹੇ\" ਚਾਲੂ ਹੋਵੇ, ਤਾਂ ਮੀਨੂ ਬਾਰ ਜਾਂ ਸਿਸਟਮ ਟ੍ਰੇ ਵਿੱਚ WebSpace ਦਾ ਆਈਕਨ ਦਿਖਾਉਂਦਾ ਹੈ। ਇਸ ਦਾ ਮੀਨੂ ਵਿੰਡੋ ਦਿਖਾਉਂਦਾ ਹੈ, ਕੋਈ ਅਜਿਹੀ ਸਾਈਟ ਖੋਲ੍ਹਦਾ ਹੈ ਜਿਸ ਦੀਆਂ ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਹਨ, ਜਾਂ ਐਪ ਤੋਂ ਬਾਹਰ ਨਿਕਲਦਾ ਹੈ। Linux 'ਤੇ ਇਸ ਲਈ ਅਜਿਹਾ ਡੈਸਕਟਾਪ ਚਾਹੀਦਾ ਹੈ ਜੋ ਟ੍ਰੇ ਆਈਕਨਾਂ ਦਾ ਸਮਰਥਨ ਕਰਦਾ ਹੋਵੇ (AppIndicator)।",
   "appSettingsExtensions": "ਐਕਸਟੈਂਸ਼ਨਾਂ",
   "appSettingsExtensionsNone": "ਕੋਈ ਇੰਪੋਰਟ ਨਹੀਂ ਕੀਤੀ",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ਐਕਸਟੈਂਸ਼ਨ} other{{count} ਐਕਸਟੈਂਸ਼ਨਾਂ}}",

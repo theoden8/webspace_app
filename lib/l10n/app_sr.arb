@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Веб проширења",
   "appSettingsExperimentalWebExtensionsHint": "Покреће проширења прегледача која увезете из фајла (Chrome .crx, Firefox .xpi или .zip) на сајтовима које изаберете. WebKit покреће оно што подржава од сваког. Проширење не ради ни на једном сајту док га не укључите у подешавањима тог сајта, и тамо досеже само тај сајт.",
+  "appSettingsExperimentalDesktopTray": "Иконица у системској траци",
+  "appSettingsExperimentalDesktopTrayHint": "Док је „Настави рад након затварања“ укључено, приказује иконицу апликације WebSpace на траци менија или у системској траци. Њен мени приказује прозор, отвара сајт са укљученим обавештењима или излази из апликације. На систему Linux потребно је радно окружење које подржава иконице у системској траци (AppIndicator).",
   "appSettingsExtensions": "Проширења",
   "appSettingsExtensionsNone": "Ниједно није увезено",
   "appSettingsExtensionsCount": "{count, plural, one{{count} проширење} few{{count} проширења} other{{count} проширења}}",

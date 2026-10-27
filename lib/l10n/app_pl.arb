@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Rozszerzenia przeglądarki",
   "appSettingsExperimentalWebExtensionsHint": "Uruchamiaj na wybranych witrynach rozszerzenia przeglądarki zaimportowane z pliku (Chrome .crx, Firefox .xpi lub .zip). WebKit uruchamia z każdego z nich to, co obsługuje. Rozszerzenie nie działa na żadnej witrynie, dopóki nie włączysz go w ustawieniach tej witryny, a tam ma dostęp tylko do niej.",
+  "appSettingsExperimentalDesktopTray": "Ikona w zasobniku systemowym",
+  "appSettingsExperimentalDesktopTrayHint": "Gdy „Działaj dalej po zamknięciu” jest włączone, pokazuje ikonę WebSpace na pasku menu lub w zasobniku systemowym. Jej menu wyświetla okno, otwiera witrynę z włączonymi powiadomieniami lub kończy działanie aplikacji. W systemie Linux wymaga środowiska pulpitu obsługującego ikony w zasobniku systemowym (AppIndicator).",
   "appSettingsExtensions": "Rozszerzenia",
   "appSettingsExtensionsNone": "Brak zaimportowanych",
   "appSettingsExtensionsCount": "{count, plural, one{{count} rozszerzenie} few{{count} rozszerzenia} many{{count} rozszerzeń} other{{count} rozszerzenia}}",

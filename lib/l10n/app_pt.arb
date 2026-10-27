@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensões web",
   "appSettingsExperimentalWebExtensionsHint": "Execute extensões de navegador que importa de um ficheiro (um .crx do Chrome, um .xpi do Firefox ou um .zip) nos sites que escolher. O WebKit executa o que suporta de cada uma. Uma extensão não é executada em nenhum site até a ativar nas definições desse site, e aí só tem acesso a esse site.",
+  "appSettingsExperimentalDesktopTray": "Ícone na área de notificação",
+  "appSettingsExperimentalDesktopTrayHint": "Enquanto \"Continuar em execução ao fechar\" estiver ativado, mostra o ícone do WebSpace na barra de menus ou na área de notificação. O seu menu mostra a janela, abre um site com notificações ativadas ou sai da aplicação. No Linux, é necessário um ambiente de trabalho que suporte ícones na área de notificação (AppIndicator).",
   "appSettingsExtensions": "Extensões",
   "appSettingsExtensionsNone": "Nenhuma importada",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensão} many{{count} extensões} other{{count} extensões}}",

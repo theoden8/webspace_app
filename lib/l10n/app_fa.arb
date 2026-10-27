@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "افزونه‌های وب",
   "appSettingsExperimentalWebExtensionsHint": "افزونه‌های مرورگری را که از یک فایل وارد می‌کنید (یک .crx از Chrome، یک .xpi از Firefox یا یک .zip) روی سایت‌هایی که انتخاب می‌کنید اجرا می‌کند. WebKit از هر افزونه آنچه را پشتیبانی می‌کند اجرا می‌کند. یک افزونه تا وقتی آن را در تنظیمات آن سایت روشن نکنید روی هیچ سایتی اجرا نمی‌شود، و آنجا فقط به همان سایت دسترسی دارد.",
+  "appSettingsExperimentalDesktopTray": "نماد سینی سیستم",
+  "appSettingsExperimentalDesktopTrayHint": "تا زمانی که «ادامهٔ اجرا پس از بستن» روشن است، نماد WebSpace را در نوار منو یا سینی سیستم نشان می‌دهد. منوی آن پنجره را نمایش می‌دهد، سایتی را که اعلان‌هایش روشن است باز می‌کند یا از برنامه خارج می‌شود. در Linux به میزکاری نیاز دارد که از نمادهای سینی سیستم پشتیبانی کند (AppIndicator).",
   "appSettingsExtensions": "افزونه‌ها",
   "appSettingsExtensionsNone": "هیچ‌کدام وارد نشده",
   "appSettingsExtensionsCount": "{count, plural, one{{count} افزونه} other{{count} افزونه}}",

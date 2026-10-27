@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Web-Erweiterungen",
   "appSettingsExperimentalWebExtensionsHint": "Führt Browsererweiterungen, die Sie aus einer Datei importieren (.crx aus Chrome, .xpi aus Firefox oder .zip), auf den Websites aus, die Sie wählen. WebKit führt von jeder aus, was es unterstützt. Eine Erweiterung läuft auf keiner Website, bis Sie sie in den Einstellungen dieser Website einschalten, und dort erreicht sie nur diese Website.",
+  "appSettingsExperimentalDesktopTray": "Symbol im Infobereich",
+  "appSettingsExperimentalDesktopTrayHint": "Zeigt, solange \"Nach dem Schließen weiterlaufen\" aktiviert ist, das Symbol von WebSpace in der Menüleiste oder im Infobereich an. Sein Menü zeigt das Fenster an, öffnet eine Website mit aktivierten Benachrichtigungen oder beendet die App. Unter Linux ist eine Desktopumgebung nötig, die Symbole im Infobereich unterstützt (AppIndicator).",
   "appSettingsExtensions": "Erweiterungen",
   "appSettingsExtensionsNone": "Keine importiert",
   "appSettingsExtensionsCount": "{count, plural, one{{count} Erweiterung} other{{count} Erweiterungen}}",

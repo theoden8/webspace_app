@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Webové rozšírenia",
   "appSettingsExperimentalWebExtensionsHint": "Spúšťa rozšírenia prehliadača, ktoré importujete zo súboru (Chrome .crx, Firefox .xpi alebo .zip), na weboch, ktoré si vyberiete. WebKit z každého spustí to, čo podporuje. Rozšírenie nebeží na žiadnom webe, kým ho nezapnete v nastaveniach daného webu, a tam má prístup len k tomuto webu.",
+  "appSettingsExperimentalDesktopTray": "Ikona v oblasti oznámení",
+  "appSettingsExperimentalDesktopTrayHint": "Kým je zapnuté „Bežať aj po zatvorení“, zobrazuje ikonu WebSpace na lište menu alebo v oblasti oznámení. Jej menu zobrazí okno, otvorí stránku so zapnutými upozorneniami alebo ukončí aplikáciu. V Linuxe vyžaduje pracovné prostredie, ktoré podporuje ikony v oblasti oznámení (AppIndicator).",
   "appSettingsExtensions": "Rozšírenia",
   "appSettingsExtensionsNone": "Žiadne importované",
   "appSettingsExtensionsCount": "{count, plural, one{{count} rozšírenie} few{{count} rozšírenia} many{{count} rozšírenia} other{{count} rozšírení}}",

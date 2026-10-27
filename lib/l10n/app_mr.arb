@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "वेब विस्तार",
   "appSettingsExperimentalWebExtensionsHint": "फाइलमधून आयात केलेले ब्राउझर विस्तार (Chrome .crx, Firefox .xpi किंवा .zip) तुम्ही निवडलेल्या साइट्सवर चालवा. प्रत्येकातील जे समर्थित आहे ते WebKit चालवते. एखाद्या साइटच्या सेटिंग्जमध्ये तुम्ही चालू करेपर्यंत विस्तार कोणत्याही साइटवर चालत नाही, आणि तिथे तो फक्त त्या साइटपर्यंत पोहोचतो.",
+  "appSettingsExperimentalDesktopTray": "सिस्टम ट्रे आयकॉन",
+  "appSettingsExperimentalDesktopTrayHint": "\"बंद केल्यावरही सुरू राहू द्या\" सुरू असताना, मेनू बार किंवा सिस्टम ट्रेमध्ये WebSpace चा आयकॉन दाखवते. त्याचा मेनू विंडो दाखवतो, सूचना सुरू असलेली साइट उघडतो किंवा अ‍ॅपमधून बाहेर पडतो. Linux वर यासाठी ट्रे आयकॉनना समर्थन देणारा डेस्कटॉप लागतो (AppIndicator).",
   "appSettingsExtensions": "विस्तार",
   "appSettingsExtensionsNone": "काहीही आयात केलेले नाही",
   "appSettingsExtensionsCount": "{count, plural, one{{count} विस्तार} other{{count} विस्तार}}",

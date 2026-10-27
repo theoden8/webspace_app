@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Уеб разширения",
   "appSettingsExperimentalWebExtensionsHint": "Изпълнява разширения за браузър, които импортирате от файл (.crx за Chrome, .xpi за Firefox или .zip), на избраните от вас сайтове. WebKit изпълнява от всяко това, което поддържа. Разширението не работи на нито един сайт, докато не го включите в настройките на този сайт, и там достига само до този сайт.",
+  "appSettingsExperimentalDesktopTray": "Икона в системния трей",
+  "appSettingsExperimentalDesktopTrayHint": "Докато „Продължава да работи след затваряне“ е включено, показва иконата на WebSpace в лентата с менюта или в системния трей. Менюто ѝ показва прозореца, отваря сайт с включени известия или излиза от приложението. В Linux е нужна работна среда, която поддържа икони в системния трей (AppIndicator).",
   "appSettingsExtensions": "Разширения",
   "appSettingsExtensionsNone": "Няма импортирани",
   "appSettingsExtensionsCount": "{count, plural, one{{count} разширение} other{{count} разширения}}",

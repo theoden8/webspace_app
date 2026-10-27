@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensii web",
   "appSettingsExperimentalWebExtensionsHint": "Rulează pe site-urile pe care le alegi extensii de browser importate dintr-un fișier (un .crx pentru Chrome, un .xpi pentru Firefox sau un .zip). WebKit rulează din fiecare ce suportă. O extensie nu rulează pe niciun site până nu o activezi în setările acelui site, iar acolo ajunge doar la acel site.",
+  "appSettingsExperimentalDesktopTray": "Pictogramă în zona de notificare",
+  "appSettingsExperimentalDesktopTrayHint": "Cât timp \"Continuă să ruleze după închidere\" este activat, afișează pictograma WebSpace în bara de meniu sau în zona de notificare. Meniul ei afișează fereastra, deschide un site cu notificările activate sau iese din aplicație. Pe Linux este nevoie de un mediu desktop care acceptă pictograme în zona de notificare (AppIndicator).",
   "appSettingsExtensions": "Extensii",
   "appSettingsExtensionsNone": "Niciuna importată",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensie} few{{count} extensii} other{{count} de extensii}}",

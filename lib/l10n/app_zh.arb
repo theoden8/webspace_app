@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "網頁擴充功能",
   "appSettingsExperimentalWebExtensionsHint": "在您選擇的網站上執行從檔案匯入的瀏覽器擴充功能（Chrome .crx、Firefox .xpi 或 .zip）。WebKit 會執行各擴充功能中它支援的部分。在您於該網站的設定中開啟之前，擴充功能不會在任何網站上執行；開啟後也只能存取該網站。",
+  "appSettingsExperimentalDesktopTray": "系統匣圖示",
+  "appSettingsExperimentalDesktopTrayHint": "「關閉後繼續執行」開啟時，在選單列或系統匣中顯示 WebSpace 的圖示。其選單可顯示視窗、前往已開啟通知的網站，或結束應用程式。在 Linux 上需要支援系統匣圖示的桌面環境（AppIndicator）。",
   "appSettingsExtensions": "擴充功能",
   "appSettingsExtensionsNone": "尚未匯入",
   "appSettingsExtensionsCount": "{count, plural, other{{count} 個擴充功能}}",

@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Verkkolaajennukset",
   "appSettingsExperimentalWebExtensionsHint": "Suorittaa tiedostosta tuomiasi selainlaajennuksia (Chromen .crx, Firefoxin .xpi tai .zip) valitsemillasi sivustoilla. WebKit suorittaa kustakin sen, mitä se tukee. Laajennus ei toimi millään sivustolla ennen kuin otat sen käyttöön sivuston asetuksissa, ja siellä se ulottuu vain kyseiseen sivustoon.",
+  "appSettingsExperimentalDesktopTray": "Ilmoitusalueen kuvake",
+  "appSettingsExperimentalDesktopTrayHint": "Kun \"Pidä käynnissä suljettaessa\" on päällä, näyttää WebSpacen kuvakkeen valikkorivillä tai ilmoitusalueella. Sen valikosta voi näyttää ikkunan, avata sivuston, jonka ilmoitukset ovat päällä, tai lopettaa sovelluksen. Linuxissa se vaatii työpöytäympäristön, joka tukee ilmoitusalueen kuvakkeita (AppIndicator).",
   "appSettingsExtensions": "Laajennukset",
   "appSettingsExtensionsNone": "Yhtään ei ole tuotu",
   "appSettingsExtensionsCount": "{count, plural, one{{count} laajennus} other{{count} laajennusta}}",

@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Webuitbreidings",
   "appSettingsExperimentalWebExtensionsHint": "Laat blaaieruitbreidings wat jy uit 'n lêer invoer ('n Chrome-.crx, 'n Firefox-.xpi of 'n .zip) loop op die werwe wat jy kies. WebKit voer uit wat dit van elkeen ondersteun. 'n Uitbreiding loop op geen werf nie totdat jy dit in daardie werf se instellings aanskakel, en daar bereik dit slegs daardie werf.",
+  "appSettingsExperimentalDesktopTray": "Stelselbakikoon",
+  "appSettingsExperimentalDesktopTrayHint": "Terwyl \"Bly loop wanneer toegemaak\" aan is, wys dit WebSpace se ikoon in die kieslysbalk of stelselbak. Die kieslys daarvan wys die venster, maak 'n webwerf met kennisgewings aan oop of sluit die program af. Op Linux het dit 'n werkskerm nodig wat stelselbakikone ondersteun (AppIndicator).",
   "appSettingsExtensions": "Uitbreidings",
   "appSettingsExtensionsNone": "Geen ingevoer nie",
   "appSettingsExtensionsCount": "{count, plural, one{{count} uitbreiding} other{{count} uitbreidings}}",

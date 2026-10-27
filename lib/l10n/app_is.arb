@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Vefviðbætur",
   "appSettingsExperimentalWebExtensionsHint": "Keyrðu vafraviðbætur sem þú flytur inn úr skrá (.crx frá Chrome, .xpi frá Firefox eða .zip) á vefsvæðunum sem þú velur. WebKit keyrir það sem það styður í hverri þeirra. Viðbót keyrir á engu vefsvæði fyrr en þú kveikir á henni í stillingum þess vefsvæðis, og þar nær hún aðeins til þess vefsvæðis.",
+  "appSettingsExperimentalDesktopTray": "Tákn í kerfisbakka",
+  "appSettingsExperimentalDesktopTrayHint": "Á meðan kveikt er á „Halda áfram að keyra eftir lokun“ birtist tákn WebSpace í valmyndastikunni eða kerfisbakkanum. Valmynd þess birtir gluggann, opnar vefsvæði með kveikt á tilkynningum eða hættir í forritinu. Á Linux þarf skjáborðsumhverfi sem styður tákn í kerfisbakka (AppIndicator).",
   "appSettingsExtensions": "Viðbætur",
   "appSettingsExtensionsNone": "Engin flutt inn",
   "appSettingsExtensionsCount": "{count, plural, one{{count} viðbót} other{{count} viðbætur}}",

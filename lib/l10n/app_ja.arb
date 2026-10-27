@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Web 拡張機能",
   "appSettingsExperimentalWebExtensionsHint": "ファイルからインポートしたブラウザ拡張機能（Chrome の .crx、Firefox の .xpi、または .zip）を、選んだサイトで実行します。WebKit は各拡張機能のうち対応している部分を実行します。拡張機能は、そのサイトの設定でオンにするまでどのサイトでも実行されず、オンにしたサイトにだけアクセスできます。",
+  "appSettingsExperimentalDesktopTray": "システムトレイのアイコン",
+  "appSettingsExperimentalDesktopTrayHint": "「閉じても実行を続ける」がオンの間、メニューバーまたはシステムトレイに WebSpace のアイコンを表示します。そのメニューから、ウィンドウを表示したり、通知をオンにしたサイトを開いたり、アプリを終了したりできます。Linux では、トレイアイコンに対応したデスクトップ（AppIndicator）が必要です。",
   "appSettingsExtensions": "拡張機能",
   "appSettingsExtensionsNone": "インポートなし",
   "appSettingsExtensionsCount": "{count, plural, other{{count} 個の拡張機能}}",

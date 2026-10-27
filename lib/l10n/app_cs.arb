@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Webová rozšíření",
   "appSettingsExperimentalWebExtensionsHint": "Spouští rozšíření prohlížeče importovaná ze souboru (.crx z Chromu, .xpi z Firefoxu nebo .zip) na webech, které zvolíte. WebKit z každého spustí to, co podporuje. Rozšíření neběží na žádném webu, dokud ho nezapnete v nastavení daného webu, a tam dosáhne jen na tento web.",
+  "appSettingsExperimentalDesktopTray": "Ikona v oznamovací oblasti",
+  "appSettingsExperimentalDesktopTrayHint": "Když je zapnuto „Běžet i po zavření“, zobrazí ikonu WebSpace na řádku nabídek nebo v oznamovací oblasti. Její nabídka zobrazí okno, otevře web se zapnutými oznámeními nebo aplikaci ukončí. V Linuxu vyžaduje pracovní prostředí, které podporuje ikony v oznamovací oblasti (AppIndicator).",
   "appSettingsExtensions": "Rozšíření",
   "appSettingsExtensionsNone": "Žádná importovaná",
   "appSettingsExtensionsCount": "{count, plural, one{{count} rozšíření} few{{count} rozšíření} many{{count} rozšíření} other{{count} rozšíření}}",

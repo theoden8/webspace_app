@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Tīmekļa paplašinājumi",
   "appSettingsExperimentalWebExtensionsHint": "Palaidiet no faila importētus pārlūkprogrammas paplašinājumus (Chrome .crx, Firefox .xpi vai .zip) izvēlētajās vietnēs. WebKit no katra palaiž to, ko atbalsta. Paplašinājums nedarbojas nevienā vietnē, kamēr to neieslēdzat attiecīgās vietnes iestatījumos, un tur tas piekļūst tikai šai vietnei.",
+  "appSettingsExperimentalDesktopTray": "Sistēmas teknes ikona",
+  "appSettingsExperimentalDesktopTrayHint": "Kamēr ir ieslēgts \"Turpināt darboties pēc aizvēršanas\", WebSpace ikona tiek rādīta izvēļņu joslā vai sistēmas teknē. Tās izvēlne parāda logu, atver vietni ar ieslēgtiem paziņojumiem vai iziet no lietotnes. Operētājsistēmā Linux ir nepieciešama darbvirsma, kas atbalsta sistēmas teknes ikonas (AppIndicator).",
   "appSettingsExtensions": "Paplašinājumi",
   "appSettingsExtensionsNone": "Nav importēts neviens",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} paplašinājumu} one{{count} paplašinājums} other{{count} paplašinājumi}}",

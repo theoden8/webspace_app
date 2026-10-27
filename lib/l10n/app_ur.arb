@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "ویب ایکسٹینشنز",
   "appSettingsExperimentalWebExtensionsHint": "فائل سے آپ کی درآمد کردہ براؤزر ایکسٹینشنز (Chrome .crx، Firefox .xpi یا .zip) آپ کی منتخب کردہ سائٹس پر چلاتا ہے۔ WebKit ہر ایک میں سے وہ چلاتا ہے جو وہ سپورٹ کرتا ہے۔ کوئی ایکسٹینشن کسی سائٹ پر تب تک نہیں چلتی جب تک آپ اسے اس سائٹ کی سیٹنگز میں آن نہ کریں، اور وہاں وہ صرف اسی سائٹ تک پہنچتی ہے۔",
+  "appSettingsExperimentalDesktopTray": "سسٹم ٹرے آئیکن",
+  "appSettingsExperimentalDesktopTrayHint": "جب \"بند کرنے کے بعد بھی چلتی رہے\" آن ہو، تو مینو بار یا سسٹم ٹرے میں WebSpace کا آئیکن دکھاتا ہے۔ اس کا مینو ونڈو دکھاتا ہے، ایسی سائٹ کھولتا ہے جس کی اطلاعات آن ہیں، یا ایپ سے باہر نکلتا ہے۔ Linux پر اس کے لیے ایسا ڈیسک ٹاپ درکار ہے جو ٹرے آئیکنز کو سپورٹ کرتا ہو (AppIndicator)۔",
   "appSettingsExtensions": "ایکسٹینشنز",
   "appSettingsExtensionsNone": "کوئی درآمد نہیں ہوئی",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ایکسٹینشن} other{{count} ایکسٹینشنز}}",

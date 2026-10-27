@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Webbtillägg",
   "appSettingsExperimentalWebExtensionsHint": "Kör webbläsartillägg som du importerar från en fil (en Chrome .crx, en Firefox .xpi eller en .zip) på de webbplatser du väljer. WebKit kör det som det stöder av varje tillägg. Ett tillägg körs inte på någon webbplats förrän du slår på det i den webbplatsens inställningar, och där når det bara den webbplatsen.",
+  "appSettingsExperimentalDesktopTray": "Symbol i systemfältet",
+  "appSettingsExperimentalDesktopTrayHint": "Medan \"Fortsätt köra efter stängning\" är på visas symbolen för WebSpace i menyraden eller systemfältet. Dess meny visar fönstret, öppnar en webbplats med aviseringar på eller avslutar appen. På Linux krävs en skrivbordsmiljö som stöder symboler i systemfältet (AppIndicator).",
   "appSettingsExtensions": "Tillägg",
   "appSettingsExtensionsNone": "Inga importerade",
   "appSettingsExtensionsCount": "{count, plural, one{{count} tillägg} other{{count} tillägg}}",

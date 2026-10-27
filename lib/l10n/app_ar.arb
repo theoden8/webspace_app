@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "إضافات الويب",
   "appSettingsExperimentalWebExtensionsHint": "شغّل إضافات المتصفح التي تستوردها من ملف (.crx من Chrome أو .xpi من Firefox أو .zip) على المواقع التي تختارها. يشغّل WebKit ما يدعمه من كل إضافة. لا تعمل الإضافة على أي موقع حتى تفعّلها في إعدادات ذلك الموقع، وهناك لا تصل إلا إلى ذلك الموقع.",
+  "appSettingsExperimentalDesktopTray": "أيقونة علبة النظام",
+  "appSettingsExperimentalDesktopTrayHint": "أثناء تفعيل \"مواصلة العمل عند الإغلاق\"، يعرض أيقونة WebSpace في شريط القوائم أو علبة النظام. تتيح قائمتها إظهار النافذة، أو فتح موقع فعّلت له الإشعارات، أو الخروج من التطبيق. على Linux يتطلب سطح مكتب يدعم أيقونات علبة النظام (AppIndicator).",
   "appSettingsExtensions": "الإضافات",
   "appSettingsExtensionsNone": "لم يُستورد شيء",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} إضافة} one{{count} إضافة} two{{count} إضافتان} few{{count} إضافات} many{{count} إضافةً} other{{count} إضافة}}",

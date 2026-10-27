@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "ವೆಬ್ ವಿಸ್ತರಣೆಗಳು",
   "appSettingsExperimentalWebExtensionsHint": "ಫೈಲ್‌ನಿಂದ ನೀವು ಆಮದು ಮಾಡುವ ಬ್ರೌಸರ್ ವಿಸ್ತರಣೆಗಳನ್ನು (Chrome .crx, Firefox .xpi ಅಥವಾ .zip) ನೀವು ಆಯ್ಕೆಮಾಡುವ ಸೈಟ್‌ಗಳಲ್ಲಿ ಚಲಾಯಿಸಿ. ಪ್ರತಿಯೊಂದರಲ್ಲಿ ತಾನು ಬೆಂಬಲಿಸುವುದನ್ನು WebKit ಚಲಾಯಿಸುತ್ತದೆ. ಆ ಸೈಟ್‌ನ ಸೆಟ್ಟಿಂಗ್ಸ್‌ನಲ್ಲಿ ನೀವು ಆನ್ ಮಾಡುವವರೆಗೆ ವಿಸ್ತರಣೆ ಯಾವುದೇ ಸೈಟ್‌ನಲ್ಲಿ ಚಲಿಸುವುದಿಲ್ಲ, ಮತ್ತು ಅಲ್ಲಿ ಅದು ಆ ಸೈಟ್ ಅನ್ನು ಮಾತ್ರ ತಲುಪುತ್ತದೆ.",
+  "appSettingsExperimentalDesktopTray": "ಸಿಸ್ಟಮ್ ಟ್ರೇ ಐಕಾನ್",
+  "appSettingsExperimentalDesktopTrayHint": "\"ಮುಚ್ಚಿದ ನಂತರವೂ ಚಾಲನೆಯಲ್ಲಿರಲಿ\" ಆನ್ ಆಗಿರುವಾಗ, ಮೆನು ಬಾರ್ ಅಥವಾ ಸಿಸ್ಟಮ್ ಟ್ರೇಯಲ್ಲಿ WebSpace ನ ಐಕಾನ್ ಅನ್ನು ತೋರಿಸುತ್ತದೆ. ಅದರ ಮೆನು ವಿಂಡೋವನ್ನು ತೋರಿಸುತ್ತದೆ, ಅಧಿಸೂಚನೆಗಳು ಆನ್ ಆಗಿರುವ ಸೈಟ್ ಅನ್ನು ತೆರೆಯುತ್ತದೆ ಅಥವಾ ಆ್ಯಪ್‌ನಿಂದ ನಿರ್ಗಮಿಸುತ್ತದೆ. Linux ನಲ್ಲಿ ಇದಕ್ಕೆ ಟ್ರೇ ಐಕಾನ್‌ಗಳನ್ನು ಬೆಂಬಲಿಸುವ ಡೆಸ್ಕ್‌ಟಾಪ್ ಬೇಕು (AppIndicator).",
   "appSettingsExtensions": "ವಿಸ್ತರಣೆಗಳು",
   "appSettingsExtensionsNone": "ಯಾವುದನ್ನೂ ಆಮದು ಮಾಡಿಲ್ಲ",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ವಿಸ್ತರಣೆ} other{{count} ವಿಸ್ತರಣೆಗಳು}}",

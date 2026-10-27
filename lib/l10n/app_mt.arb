@@ -1140,6 +1140,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Estensjonijiet tal-web",
   "appSettingsExperimentalWebExtensionsHint": "Ħaddem estensjonijiet tal-browser li timporta minn fajl (.crx ta' Chrome, .xpi ta' Firefox jew .zip) fuq is-siti li tagħżel. WebKit iħaddem dak li jappoġġja minn kull waħda. Estensjoni ma taħdem fuq l-ebda sit sakemm tixgħelha fis-settings ta' dak is-sit, u hemmhekk tilħaq biss dak is-sit.",
+  "appSettingsExperimentalDesktopTray": "Ikona fit-tray tas-sistema",
+  "appSettingsExperimentalDesktopTrayHint": "Waqt li \"Ibqa' għaddej wara l-għeluq\" ikun mixgħul, turi l-ikona ta' WebSpace fil-bar tal-menu jew fit-tray tas-sistema. Il-menu tagħha juri t-tieqa, jiftaħ sit bin-notifiki mixgħula, jew joħroġ mill-app. Fuq Linux teħtieġ desktop li jappoġġja ikoni fit-tray tas-sistema (AppIndicator).",
   "appSettingsExtensions": "Estensjonijiet",
   "appSettingsExtensionsNone": "L-ebda waħda importata",
   "appSettingsExtensionsCount": "{count, plural, one{{count} estensjoni} two{{count} estensjonijiet} few{{count} estensjonijiet} many{{count} estensjoni} other{{count} estensjoni}}",
