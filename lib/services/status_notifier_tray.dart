@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io' show IOException;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:dbus/dbus.dart';
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tray_icon.dart';
 import 'package:webspace/services/tray_menu_engine.dart';
