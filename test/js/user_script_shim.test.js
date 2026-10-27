@@ -16,8 +16,10 @@
 // jsdom doesn't enforce CSP, so we can't replicate the *failure* here.
 // What we can replicate is the *interception*: after running the shim,
 // DarkReader's exact pattern must trigger a call to the inline-script
-// handler, and the script element must never enter the live DOM. Those
-// two facts together prove the bridge fires on the production code path.
+// handler, and the script element must reach the DOM under a type no engine
+// runs. Those two facts together prove the bridge fires on the production
+// code path; test/browser/bridge_privilege_escalation.test.js holds the
+// second one in a real engine.
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -26,6 +28,7 @@ const { makeDom, pageJs, runInDom } = require('./helpers/load_shim.js');
 
 const INLINE_HANDLER = '__ws_i_test';
 const SRC_HANDLER = '__ws_s_test';
+const BRIDGED_TYPE = 'text/x-webspace-bridged';
 const FETCH_HANDLER = '__ws_f_test';
 const SHIM = pageJs('user_script', {
   scriptHandler: SRC_HANDLER,
@@ -78,10 +81,12 @@ test('DarkReader injectProxy pattern is bridged through inline-script handler', 
   assert.strictEqual(inlineCalls[0][1], proxyCode,
     'bridged source must match the proxy code DarkReader assembled');
 
-  // The script element must NOT have ended up in the live DOM. If it had,
-  // a real browser's CSP would have run (and blocked) it.
+  // The element went in under a type no engine runs, so CSP never saw it and
+  // the bridge is its only execution; DarkReader's own remove() took it out.
+  assert.strictEqual(proxy.type, BRIDGED_TYPE,
+    'a bridged script must not be runnable by the engine as well');
   assert.strictEqual(document.head.querySelector('script'), null,
-    'inline script must not enter the live DOM — bridge handles execution');
+    'proxy.remove() must find the element where the page put it');
 });
 
 test('inline script via appendChild is bridged too', () => {
@@ -94,8 +99,58 @@ test('inline script via appendChild is bridged too', () => {
   const inlineCalls = calls.filter(c => c[0] === INLINE_HANDLER);
   assert.strictEqual(inlineCalls.length, 1);
   assert.strictEqual(inlineCalls[0][1], 'window.__viaAppendChild = true;');
-  assert.strictEqual(s.parentNode, null,
-    'native append must be skipped — element stays unattached');
+  assert.strictEqual(s.parentNode, document.head,
+    'the page asked for the element to be appended, and it is');
+  assert.strictEqual(s.type, BRIDGED_TYPE);
+});
+
+// US-DR-008. Bing's sj_appHTML moves parsed nodes into a fragment with
+// `for (h = createDocumentFragment(); u.length;) h.appendChild(u[0])`, where
+// `u` is the live childNodes of a scratch div. A shim that took a script and
+// skipped the insertion left `u[0]` in place forever: the page's main thread
+// spun, and each turn sent the script's source across the bridge (26,535
+// messages, 415 MB in three seconds on a Russian results page), which on iOS
+// ran the app out of address space decoding them. The loop here is bounded so
+// a regression fails instead of hanging the suite.
+test('US-DR-008: a page draining nodes through appendChild finishes, bridging each script once', () => {
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const scratch = document.createElement('div');
+  scratch.innerHTML = '<br><p>result</p>';
+  const s = document.createElement('script');
+  s.text = 'window.__drained = "погода";';
+  scratch.appendChild(s);
+  scratch.removeChild(scratch.firstChild);
+
+  const u = scratch.childNodes;
+  const fragment = document.createDocumentFragment();
+  let turns = 0;
+  while (u.length && turns < 100) {
+    fragment.appendChild(u[0]);
+    turns++;
+  }
+  document.body.appendChild(fragment);
+
+  assert.strictEqual(u.length, 0, `the drain loop never emptied its source (${turns} turns)`);
+  assert.strictEqual(turns, 2);
+  const inlineCalls = calls.filter(c => c[0] === INLINE_HANDLER);
+  assert.deepStrictEqual(inlineCalls.map(c => c[1]), ['window.__drained = "погода";'],
+    'each script crosses the bridge once, however often the page moves it');
+  assert.strictEqual(s.parentNode, document.body);
+});
+
+test('US-DR-008: moving a bridged script again does not bridge it again', () => {
+  const { dom, calls } = setup();
+  const { document } = dom.window;
+  const s = document.createElement('script');
+  s.text = 'window.__once = (window.__once || 0) + 1;';
+  document.head.appendChild(s);
+  document.body.appendChild(s);
+  document.head.insertBefore(s, document.head.firstChild);
+  document.body.append(s);
+
+  assert.strictEqual(calls.filter(c => c[0] === INLINE_HANDLER).length, 1,
+    'a script element runs once in a browser, and once through the bridge');
 });
 
 test('inline script via insertBefore is bridged too', () => {
@@ -200,7 +255,7 @@ test('explicit classic-JS type is still bridged', () => {
   const inlineCalls = calls.filter(c => c[0] === INLINE_HANDLER);
   assert.strictEqual(inlineCalls.length, 1,
     'an explicit classic JS type must still be bridged');
-  assert.strictEqual(s.parentNode, null);
+  assert.strictEqual(s.type, BRIDGED_TYPE);
 });
 
 test('whitelisted <script src> still routes through the src handler', () => {
@@ -216,6 +271,9 @@ test('whitelisted <script src> still routes through the src handler', () => {
   assert.strictEqual(srcCalls[0][1], s.src);
   assert.strictEqual(inlineCalls.length, 0,
     'src-script must not be misrouted through the inline handler');
+  assert.strictEqual(s.parentNode, document.head);
+  assert.strictEqual(s.type, BRIDGED_TYPE,
+    'the engine must not fetch and run what the bridge already injects');
 });
 
 test('non-whitelisted <script src> from the page is NOT intercepted', () => {

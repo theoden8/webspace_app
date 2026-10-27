@@ -530,6 +530,42 @@ checked, which the `http` client does not expose.
 
 ---
 
+### Requirement: US-DR-008 - A bridged script is still inserted
+
+The shim's `appendChild`, `insertBefore` and `append` SHALL insert every node
+the page passes them, a script the bridge takes included. A taken script SHALL
+go in under a `type` that names no script language, so the engine neither runs
+it nor checks it against CSP, and the bridge is its one execution. The same
+`type` marks it as taken: moving it again SHALL NOT send it across the bridge
+again, as a browser runs a script element once.
+
+The shim used to return a taken script without inserting it. A page that moves
+nodes until their source is empty (Bing's `sj_appHTML`:
+`for (h = createDocumentFragment(); u.length;) h.appendChild(u[0])`) then
+never ended its loop, and each turn sent the script's source across the
+bridge: 26,535 messages, 415 MB in three seconds on a Russian-language results
+page. On iOS each message is decoded on the main thread and held by a handler
+awaiting a page that no longer answers, which ran the app out of address space
+(TestFlight 0.4.1 (38), opening a result from DuckDuckGo in a nested screen,
+which inherits the site's scripts).
+
+#### Scenario: A page draining nodes through appendChild finishes
+
+**Given** a site with the bridge installed
+**When** page script moves a scratch div's children, a script among them, into
+a fragment one `appendChild(u[0])` at a time until none are left
+**Then** the loop ends after one turn per node
+**And** the script's source crosses the bridge once
+**And** connecting the fragment does not run it natively
+
+#### Scenario: Moving a bridged script does not bridge it again
+
+**Given** an inline script the bridge has taken
+**When** the page appends or inserts the same element elsewhere
+**Then** nothing more crosses the bridge
+
+---
+
 ## Implementation Details
 
 ### Data Model
