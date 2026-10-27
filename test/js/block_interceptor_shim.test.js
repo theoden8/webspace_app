@@ -28,8 +28,8 @@ const EMPTY = { bits64: Buffer.alloc(8, 0).toString('base64'), bitCount: 64, k: 
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-async function setup(bloom) {
-  const dom = makeDom();
+async function setup(bloom, { url } = {}) {
+  const dom = makeDom({ url });
   const w = dom.window;
   const checks = [];
   const batches = [];
@@ -133,6 +133,44 @@ test('a burst the bridge refuses fails every request in it', async () => {
   const outcomes = await Promise.allSettled([
     w.fetch('https://a.example/1'), w.fetch('https://b.example/2')]);
   assert.deepEqual(outcomes.map((o) => o.status), ['rejected', 'rejected']);
+});
+
+test('a relative request is checked as the URL the page resolves it to (CB-003)', async () => {
+  const { w, checks, fetched } = await setup(SATURATED, { url: 'https://blocked.example/search' });
+  await assert.rejects(w.fetch('/rest/event/analytics'), (e) => /Blocked/.test(e.message));
+  assert.deepEqual(checks, ['https://blocked.example/rest/event/analytics']);
+  assert.deepEqual(fetched, []);
+});
+
+test('a URL object or a protocol-relative src is checked like its absolute form (CB-003)', async () => {
+  const { w, checks, fetched } = await setup(SATURATED, { url: 'https://allowed.example/' });
+  await assert.rejects(w.fetch(new w.URL('https://blocked.example/a.js')));
+  const img = w.document.createElement('img');
+  img.src = '//redirect.example/pixel.gif';
+  await tick();
+  assert.equal(img.getAttribute('src'), REDIRECT);
+  assert.deepEqual(checks, ['https://blocked.example/a.js', 'https://redirect.example/pixel.gif']);
+  assert.deepEqual(fetched, []);
+});
+
+test('an element inserted with a relative src is checked by the observer (CB-003)', async () => {
+  const { w, checks } = await setup(SATURATED, { url: 'https://blocked.example/' });
+  const div = w.document.createElement('div');
+  div.innerHTML = '<img id="p" src="/pixel.gif">';
+  w.document.body.appendChild(div);
+  await tick();
+  await tick();
+  assert.equal(w.document.getElementById('p'), null);
+  assert.deepEqual(checks, ['https://blocked.example/pixel.gif']);
+});
+
+test('a data: or blob: URL is never asked about', async () => {
+  const { w, checks } = await setup(SATURATED, { url: 'https://blocked.example/' });
+  const img = w.document.createElement('img');
+  img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+  await w.fetch('blob:https://blocked.example/1234');
+  assert.equal(img.getAttribute('src'), 'data:image/gif;base64,R0lGODlhAQABAAAAACw=');
+  assert.deepEqual(checks, []);
 });
 
 test('a Bloom miss is allowed synchronously, without the bridge', async () => {

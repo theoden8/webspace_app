@@ -21,7 +21,7 @@ The app instead routes every ABP decision through `adblock-rust`, the same engin
 Four-layer content blocking, all driven by the same engine instance:
 
 1. **Main-document blocking** — `ContentBlockerService.isBlocked(url, sourceUrl, requestType)` in `shouldOverrideUrlLoading` cancels navs that match the engine's blocking rules.
-2. **Sub-resource blocking** — Android uses a native `FastSubresourceInterceptor` that holds a JNI handle to the same engine; iOS/macOS route through the JS interceptor's `blockCheckBatch` handler back into the Dart engine wrapper.
+2. **Sub-resource blocking** — Android uses a native `FastSubresourceInterceptor` that holds a JNI handle to the same engine; iOS, macOS and Linux route through the JS interceptor's `blockCheckBatch` handler back into the Dart engine wrapper.
 3. **CSS cosmetic filtering** — `<style>` tag injection at `DOCUMENT_START` for `##selector` hides, sourced from the engine's `cosmeticResources(url)` API plus the on-demand generic-class/id scan path (`hidden_class_id_selectors`).
 4. **Procedural actions** — `:has-text()`, `:upward(N)`, `:remove()`, `:remove-attr()`, `:remove-class()`, and `:style()` rules are emitted by the engine and run by the page-side procedural shim.
 
@@ -232,14 +232,24 @@ rules match exactly as before
 **And** the JNI layer dispatches to the same adblock-rust engine the Dart side uses
 **And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource
 
-#### Scenario: Sub-resource blocking on iOS/macOS via JS bridge
+#### Scenario: Sub-resource blocking on WebKit via JS bridge
 
-**Given** the engine is active on iOS or macOS
+**Given** the engine is active on iOS, macOS or Linux
 **And** the DNS-only Bloom prefilter has been delivered to the webview's JS interceptor
 **When** the page issues a `fetch('https://tracker.example.com/beacon')` call
 **Then** the JS interceptor invokes the `blockCheckBatch` handler, passing URL + `lastLoadStartUrl` as `sourceUrl`
 **And** the Dart handler routes through `ContentBlockerService.isBlocked` (engine call)
 **And** the result is honoured by the JS interceptor
+
+#### Scenario: A relative request is matched as the URL it resolves to
+
+**Given** the engine is active on iOS, macOS or Linux and knows `||example.com/rest/event/analytics`
+**When** a page on `https://example.com/` calls `fetch('/rest/event/analytics')`, passes a `URL` object to `fetch`, opens an XHR to a path, or sets a relative or protocol-relative `src`/`href`
+**Then** the JS interceptor resolves the value against the document's base URL and checks that absolute URL, as the page itself would request it
+**And** the request is blocked, so a first-party tracker on a relative path is not let through for lacking a scheme
+**And** a `data:` or `blob:` URL is never asked about
+
+Test: `test/js/block_interceptor_shim.test.js`; on a live engine, `integration_test/content_blocker_layers_test.dart` (Linux runs it with the content rule lists off, so the interceptor is held on its own).
 
 #### Scenario: Android falls back to DNS-only when JNI library missing
 
