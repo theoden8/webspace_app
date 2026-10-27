@@ -63,16 +63,20 @@ final class AttachStored implements RuleListPlan {
 }
 
 /// The wanted set is missing or incomplete: convert the rules and compile
-/// it. [stale] may name ids the compile writes again; those stay.
+/// it. Until it is in place, a webview attaches [interim], a complete set of
+/// ours compiled for an earlier rule set (empty when there is none), so a
+/// recompile never leaves it with no list. [stale] may name ids the compile
+/// writes again; those stay.
 final class CompileFresh implements RuleListPlan {
-  CompileFresh({required this.key, required this.stale});
+  CompileFresh({required this.key, required this.interim, required this.stale});
 
   final RuleSetKey key;
+  final List<RuleListId> interim;
   @override
   final List<RuleListId> stale;
 }
 
-/// No set is wanted: the experiment is off, or no list has rules.
+/// No set is wanted: the content blocker is off, or no list has rules.
 final class AttachNone implements RuleListPlan {
   AttachNone({required this.stale});
 
@@ -88,20 +92,34 @@ RuleListPlan planRuleLists({
 }) {
   final ours = <RuleListId>[for (final raw in stored) ?RuleListId.parse(raw)];
   if (wanted == null) return AttachNone(stale: ours);
-  final byCount = <int, Map<int, RuleListId>>{};
-  for (final id in ours.where((id) => id.key == wanted)) {
-    (byCount[id.count] ??= {})[id.index] = id;
-  }
-  for (final MapEntry(key: count, value: byIndex) in byCount.entries) {
-    if (byIndex.length != count) continue;
-    final lists = [for (var i = 0; i < count; i++) byIndex[i]!];
-    return AttachStored(
-      lists: lists,
-      stale: [
-        for (final id in ours)
-          if (!lists.contains(id)) id,
-      ],
+  final lists = _completeSet(ours.where((id) => id.key == wanted));
+  if (lists == null) {
+    return CompileFresh(
+      key: wanted,
+      interim: _completeSet(ours.where((id) => id.key != wanted)) ?? const [],
+      stale: ours,
     );
   }
-  return CompileFresh(key: wanted, stale: ours);
+  return AttachStored(
+    lists: lists,
+    stale: [
+      for (final id in ours)
+        if (!lists.contains(id)) id,
+    ],
+  );
+}
+
+/// The first set among [ids] that holds every list it was split into, in
+/// index order; null when none does.
+List<RuleListId>? _completeSet(Iterable<RuleListId> ids) {
+  final sets = <(RuleSetKey, int), Map<int, RuleListId>>{};
+  for (final id in ids) {
+    (sets[(id.key, id.count)] ??= {})[id.index] = id;
+  }
+  for (final MapEntry(key: (_, count), value: byIndex) in sets.entries) {
+    if (byIndex.length == count) {
+      return [for (var i = 0; i < count; i++) byIndex[i]!];
+    }
+  }
+  return null;
 }

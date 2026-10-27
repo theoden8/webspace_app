@@ -1063,8 +1063,9 @@ fork opens the store its webviews read.
 
 **Given** the store lacks a list of the current rule set
 **When** the engine is rebuilt
-**Then** the rules are converted on a background isolate and each list compiled into the store
-**And** webviews created during the compile attach no list
+**Then** the rules are converted on a background isolate and each list compiled into the store, one set at a time
+**And** a change made while a set compiles waits for it, and of the changes that waited only the newest set compiles: WebKit parses a list on the main thread as its compile starts, half a second for the default lists on WPE
+**And** until the set is compiled, webviews created keep the set attached before it, or after a launch a complete set of ours already in the store, so a recompile never leaves them with no list
 **And** webviews created after it attach every list of the set
 **And** our lists of other rule sets are removed from the store, and lists we did not name are left alone
 

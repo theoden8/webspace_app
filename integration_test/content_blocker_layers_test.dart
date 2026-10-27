@@ -18,6 +18,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -74,6 +75,7 @@ void main() {
   late HttpServer server;
   late int port;
   late FilterListId list;
+  late List<String> listsBefore;
   final requested = <String>[];
 
   void log(String m) {
@@ -86,6 +88,7 @@ void main() {
       native: WebInterceptNative.initialize(),
     );
     await DnsBlockService.instance.initialize();
+    listsBefore = ContentBlockerService.instance.contentRuleListIdentifiers;
     list = await ContentBlockerService.instance.addLocalList(
       'blocker layers probe',
       rules: _rules,
@@ -181,10 +184,14 @@ void main() {
       addTearDown(() => blocker.debugWithholdRuleLists = false);
       const waitReal = RealWait(interval: Duration(milliseconds: 300));
       if (ruleLists) {
-        // A new rule set compiles after the rebuild returns.
+        // A new rule set compiles after the rebuild returns, and until then
+        // webviews keep the set before it.
         await waitReal(
           tester,
-          done: () => blocker.contentRuleListIdentifiers.isNotEmpty,
+          done: () {
+            final now = blocker.contentRuleListIdentifiers;
+            return now.isNotEmpty && !listEquals(now, listsBefore);
+          },
           label: 'rule lists compiled',
         );
       }
