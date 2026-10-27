@@ -179,7 +179,8 @@ abstract final class PopupWebView {
             settings: settings,
             loadsAfter: Future<void>.value(),
             refuses: (url) =>
-                WebViewFactory.refusesLoad(binding, url: url) != null);
+                WebViewFactory.refusesLoad(binding, url: url) != null,
+            navigationHeaders: WebViewFactory.navigationHeaders(parent));
         opener?.adopt(popupView, close: () => onCloseWindow?.call());
         PageHandlers.registerPageHandlers(
           controller,

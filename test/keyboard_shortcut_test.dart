@@ -61,6 +61,7 @@ void main() {
     LogicalKeyboardKey key, {
     required bool mac,
     List<LogicalKeyboardKey> holding = const [],
+    bool editingText = false,
   }) async {
     for (final modifier in holding) {
       await simulateKeyDownEvent(modifier);
@@ -74,6 +75,7 @@ void main() {
       ),
       keyboard: HardwareKeyboard.instance,
       mac: mac,
+      editingText: editingText,
     );
     for (final modifier in holding.reversed) {
       await simulateKeyUpEvent(modifier);
@@ -190,6 +192,16 @@ void main() {
           mac ? isNull : isA<GoBack>(),
           reason: 'Option-Left moves the caret a word on a Mac',
         );
+        expect(
+          await press(
+            LogicalKeyboardKey.arrowLeft,
+            mac: mac,
+            holding: [primary],
+          ),
+          mac ? isA<GoBack>() : isNull,
+          reason: 'Command-Left goes back in a Mac\'s browsers; Control-Left '
+              'moves the caret a word elsewhere',
+        );
       });
 
       testWidgets('$on, the platform\'s forward key goes forward', (
@@ -210,6 +222,46 @@ void main() {
         expect(
           await press(LogicalKeyboardKey.arrowRight, mac: mac, holding: [alt]),
           mac ? isNull : isA<GoForward>(),
+        );
+        expect(
+          await press(
+            LogicalKeyboardKey.arrowRight,
+            mac: mac,
+            holding: [primary],
+          ),
+          mac ? isA<GoForward>() : isNull,
+        );
+      });
+
+      testWidgets('$on, a text field keeps the keys that move its caret', (
+        tester,
+      ) async {
+        Future<KeyboardShortcut?> editing(
+          LogicalKeyboardKey key, {
+          required List<LogicalKeyboardKey> holding,
+        }) => press(key, mac: mac, holding: holding, editingText: true);
+
+        expect(
+          await editing(LogicalKeyboardKey.arrowLeft, holding: [primary]),
+          isNull,
+          reason: 'Command-Left takes the caret to the line\'s start',
+        );
+        expect(
+          await editing(LogicalKeyboardKey.arrowRight, holding: [primary]),
+          isNull,
+        );
+        expect(
+          await editing(
+            mac ? LogicalKeyboardKey.bracketLeft : LogicalKeyboardKey.arrowLeft,
+            holding: [mac ? command : alt],
+          ),
+          isA<GoBack>(),
+          reason: 'the platform\'s first back key goes back from the URL bar '
+              'too, as its browsers\' do',
+        );
+        expect(
+          await editing(LogicalKeyboardKey.keyR, holding: [primary]),
+          isA<ReloadPage>(),
         );
       });
 
@@ -249,6 +301,34 @@ void main() {
       });
     }
 
+    testWidgets('the app\'s own text field has the keys, the page does not', (
+      tester,
+    ) async {
+      final field = FocusNode();
+      final page = FocusNode();
+      addTearDown(field.dispose);
+      addTearDown(page.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Column(
+              children: [
+                TextField(focusNode: field),
+                Focus(focusNode: page, child: const SizedBox(height: 10)),
+              ],
+            ),
+          ),
+        ),
+      );
+      expect(KeyboardShortcuts.editingText, isFalse);
+      field.requestFocus();
+      await tester.pump();
+      expect(KeyboardShortcuts.editingText, isTrue);
+      page.requestFocus();
+      await tester.pump();
+      expect(KeyboardShortcuts.editingText, isFalse);
+    });
+
     test('a held key asks once', () {
       final repeat = KeyRepeatEvent(
         physicalKey: PhysicalKeyboardKey.f5,
@@ -260,6 +340,7 @@ void main() {
           repeat,
           keyboard: HardwareKeyboard.instance,
           mac: false,
+          editingText: false,
         ),
         isNull,
       );
@@ -401,6 +482,23 @@ void main() {
       expect(find.byType(FindToolbar), findsNothing);
     });
 
+    testWidgets('Escape in the find bar closes it', (tester) async {
+      await openOne(tester);
+
+      await chord(tester, key: LogicalKeyboardKey.keyF);
+      final field = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(FindToolbar),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(field.focusNode.hasFocus, isTrue, reason: 'the bar opens focused');
+      webViewCalls.clear();
+      await chord(tester, key: LogicalKeyboardKey.escape, holding: const []);
+      expect(find.byType(FindToolbar), findsNothing);
+      expect(webViewCalls, contains(#clearMatches));
+    });
+
     testWidgets('the back key goes back', (tester) async {
       await openOne(tester);
 
@@ -539,11 +637,17 @@ void main() {
         await settleRealApp(tester);
 
         final row = find
-            .ancestor(of: find.byTooltip('Go Back'), matching: find.byType(Row))
+            .ancestor(
+              of: find.byTooltip(RegExp('^Go Back')),
+              matching: find.byType(Row),
+            )
             .first;
         for (final tooltip in ['Share', 'Refresh']) {
           expect(
-            find.descendant(of: row, matching: find.byTooltip(tooltip)),
+            find.descendant(
+              of: row,
+              matching: find.byTooltip(RegExp('^$tooltip')),
+            ),
             findsOneWidget,
             reason: '$tooltip sits in the row beside Back',
           );
@@ -552,7 +656,7 @@ void main() {
         expect(find.text('Open in Browser'), findsOneWidget);
         webViewCalls.clear();
         await tester.tap(
-          find.descendant(of: row, matching: find.byTooltip('Refresh')),
+          find.descendant(of: row, matching: find.byTooltip(RegExp('^Refresh'))),
         );
         await settleRealApp(tester);
         expect(webViewCalls.where((c) => c == #reload), hasLength(1));
@@ -637,6 +741,29 @@ void main() {
         hostIsMacOS ? '⌘F' : 'Ctrl+F',
       );
       expect(keysOf('Settings'), findsNothing);
+    });
+
+    testWidgets('the menu\'s Back and Refresh buttons name theirs', (
+      tester,
+    ) async {
+      await pumpRealApp(
+        tester,
+        sites: [WebViewModel(initUrl: 'https://one.test', name: 'One')],
+      );
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'One');
+      await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>));
+      await settleRealApp(tester);
+
+      expect(
+        find.byTooltip(hostIsMacOS ? 'Go Back\n⌘[' : 'Go Back\nAlt+←'),
+        findsOneWidget,
+      );
+      expect(
+        find.byTooltip(hostIsMacOS ? 'Refresh\n⌘R' : 'Refresh\nCtrl+R'),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Share'), findsOneWidget, reason: 'no key runs it');
     });
   });
 }

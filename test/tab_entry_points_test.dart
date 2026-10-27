@@ -40,7 +40,8 @@ void main() {
 
   test('a long press on the menus\' refresh button duplicates the tab', () {
     final refresh = RegExp(
-      r'tooltip: loading \? loc\.homeStopTooltip : loc\.homeRefreshTooltip,\s*'
+      r'tooltip: loading\s*\? loc\.homeStopTooltip\s*'
+      r': shortcutTooltip<ReloadPage>\(loc\.homeRefreshTooltip,\s*names: names\),\s*'
       r'onLongPress:\s*duplicateTab == null \? null : \(\) => close\(duplicateTab\),',
     );
     expect(refresh.allMatches(menu).length, 1);
@@ -50,7 +51,7 @@ void main() {
   test('a long press on the menus\' back button opens the back page in a '
       'new tab', () {
     final back = RegExp(
-      r'tooltip: loc\.homeGoBackTooltip,\s*'
+      r'tooltip: shortcutTooltip<GoBack>\(loc\.homeGoBackTooltip, names: names\),\s*'
       r'onLongPress:\s*backInNewTab == null \? null : \(\) => close\(backInNewTab\),',
     );
     expect(back.allMatches(menu).length, 1);

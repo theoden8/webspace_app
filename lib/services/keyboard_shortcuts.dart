@@ -6,17 +6,28 @@ import 'package:webspace/platform/host_platform.dart';
 sealed class KeyboardShortcut {
   const KeyboardShortcut();
 
-  /// The shortcut [event] presses with [keyboard]'s modifiers, or null.
+  /// The shortcut [event] presses with [keyboard]'s modifiers, or null. While
+  /// [editingText], a key the text field moves its caret with is the field's.
   static KeyboardShortcut? of(
     KeyEvent event, {
     required HardwareKeyboard keyboard,
     required bool mac,
+    required bool editingText,
   }) {
     for (final (key, shortcut) in keys(mac: mac)) {
-      if (key.accepts(event, keyboard)) return shortcut;
+      if (key.accepts(event, keyboard)) {
+        return editingText && _movesCaret(key) ? null : shortcut;
+      }
     }
     return null;
   }
+
+  /// Command-Left and -Right take a Mac text field's caret to the line's
+  /// ends, so Safari leaves them to the field and goes back only outside it.
+  static bool _movesCaret(SingleActivator key) =>
+      key.meta &&
+      (key.trigger == LogicalKeyboardKey.arrowLeft ||
+          key.trigger == LogicalKeyboardKey.arrowRight);
 
   /// Every key a shortcut takes, Command on a Mac where elsewhere it is
   /// Control, as the platform's browsers take them. A held key asks once.
@@ -43,10 +54,12 @@ sealed class KeyboardShortcut {
       (plain(LogicalKeyboardKey.f5), const ReloadPage()),
       (command(LogicalKeyboardKey.keyF), const FindInPage()),
       // Option-Left moves the caret a word on a Mac, so back is Command-[
-      // there, as in Safari.
+      // or Command-Left there, as in Safari.
       if (mac) ...[
         (command(LogicalKeyboardKey.bracketLeft), const GoBack()),
         (command(LogicalKeyboardKey.bracketRight), const GoForward()),
+        (command(LogicalKeyboardKey.arrowLeft), const GoBack()),
+        (command(LogicalKeyboardKey.arrowRight), const GoForward()),
       ] else ...[
         (plain(LogicalKeyboardKey.arrowLeft, alt: true), const GoBack()),
         (plain(LogicalKeyboardKey.arrowRight, alt: true), const GoForward()),
@@ -179,11 +192,20 @@ final class KeyboardShortcuts {
 
   void dispose() => FocusManager.instance.removeEarlyKeyEventHandler(_onKey);
 
+  /// Whether one of the app's own text fields has the keys, the URL bar's or
+  /// the find bar's. A page's field is the webview's to answer for.
+  @visibleForTesting
+  static bool get editingText =>
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorStateOfType<EditableTextState>() !=
+      null;
+
   KeyEventResult _onKey(KeyEvent event) {
     final shortcut = KeyboardShortcut.of(
       event,
       keyboard: HardwareKeyboard.instance,
       mac: hostIsMacOS,
+      editingText: editingText,
     );
     if (shortcut == null || !_screen.onTop) return KeyEventResult.ignored;
     return _screen.answerShortcut(shortcut)

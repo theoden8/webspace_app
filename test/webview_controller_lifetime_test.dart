@@ -84,6 +84,16 @@ class _NativeController implements inapp.InAppWebViewController {
   @override
   Future<void> reload() => _call('reload');
 
+  /// Whether a load is in flight, and the URL the view reports meanwhile.
+  bool loading = false;
+  inapp.WebUri? url;
+
+  @override
+  Future<bool> isLoading() async => loading;
+
+  @override
+  Future<inapp.WebUri?> getUrl() async => url;
+
   @override
   Future<void> loadUrl({
     required inapp.URLRequest urlRequest,
@@ -1025,6 +1035,7 @@ void main() {
       settings: inapp.InAppWebViewSettings(),
       loadsAfter: Future<void>.value(),
       refuses: (_) => false,
+      navigationHeaders: const {},
       fileImport: const FileImportDocument(
           url: 'file:///Notes.html', html: '<p>notes</p>'),
     );
@@ -1033,6 +1044,58 @@ void main() {
         inapp.URLRequest(url: inapp.WebUri('file:///Notes.html')));
     await controller.loadUrl('https://example.com/');
     expect(native.calls, ['loadData', 'loadData', 'loadUrl']);
+  });
+
+  group('NAV-018: a reload while a page loads', () {
+    PlatformWebViewController over(
+      _NativeController native, {
+      bool Function(String url)? refuses,
+    }) =>
+        PlatformWebViewController(
+          native,
+          pauseHack: PauseTimersHackState(),
+          settings: inapp.InAppWebViewSettings(),
+          loadsAfter: Future<void>.value(),
+          refuses: refuses ?? (_) => false,
+          navigationHeaders: const {'Accept-Language': 'de, *;q=0.5'},
+        );
+
+    test('NAV-018: loads the page in flight again, with the site\'s headers',
+        () async {
+      final native = _NativeController()
+        ..loading = true
+        ..url = inapp.WebUri('https://example.com/slow');
+      expect(await over(native).reload(), isTrue);
+      expect(native.calls, ['loadUrl'],
+          reason: 'WebKit\'s reload would reload the page before it');
+      expect(native.requests.single.url.toString(), 'https://example.com/slow');
+      expect(native.requests.single.headers,
+          {'Accept-Language': 'de, *;q=0.5'});
+    });
+
+    test('NAV-018: a settled page reloads as before', () async {
+      final native = _NativeController()
+        ..url = inapp.WebUri('https://example.com/');
+      expect(await over(native).reload(), isTrue);
+      expect(native.calls, ['reload']);
+    });
+
+    test('NAV-018: a load in flight with no web address reloads', () async {
+      final native = _NativeController()
+        ..loading = true
+        ..url = inapp.WebUri('about:blank');
+      await over(native).reload();
+      expect(native.calls, ['reload']);
+    });
+
+    test('NAV-018: a load the site may not issue stays refused (LEAK-010)',
+        () async {
+      final native = _NativeController()
+        ..loading = true
+        ..url = inapp.WebUri('https://example.com/slow');
+      await over(native, refuses: (_) => true).reload();
+      expect(native.calls, isEmpty);
+    });
   });
 
   group('a cookie jar that fails (ISO-014, CONT-009)', () {
