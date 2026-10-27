@@ -50,10 +50,12 @@ class DesktopTray {
       ? MenuBarTray(handlers: handlers)
       : StatusNotifierTray(handlers: handlers);
 
-  static bool get _wanted =>
-      AppPref.keepRunningWhenClosed.value &&
-      ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.desktopTray);
+  /// Whether the tray's experiment is reachable, so a close that only hides
+  /// the window leaves an icon behind.
+  static bool get offered => ExperimentalFeaturesService.instance
+      .isEnabled(ExperimentalFeature.desktopTray);
+
+  static bool get _wanted => AppPref.keepRunningWhenClosed.value && offered;
 
   void start() {
     if (!DesktopWindow.offered) return;

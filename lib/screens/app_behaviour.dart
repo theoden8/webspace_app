@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/controllers/desktop_tray.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/desktop_window.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
@@ -157,9 +157,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       hostIsMacOS
           ? loc.appSettingsKeepRunningWhenClosedHintMac
           : loc.appSettingsKeepRunningWhenClosedHintLinux,
-      if (ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.desktopTray))
-        loc.appSettingsKeepRunningWhenClosedHintTray,
+      if (DesktopTray.offered) loc.appSettingsKeepRunningWhenClosedHintTray,
     ].join(' ');
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
