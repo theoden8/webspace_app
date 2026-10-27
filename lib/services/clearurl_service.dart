@@ -49,7 +49,8 @@ class ClearUrlService {
   /// Call in main() at app startup.
   Future<void> initialize() async {
     try {
-      final contents = await hostReadDocumentText(_rulesFileName);
+      final contents = await hostReadCacheText(_rulesFileName);
+      if (contents == null) await _forgetPurgedDownload();
       if (contents != null) {
         final json = jsonDecode(contents);
         if (json is! Map<String, dynamic>) {
@@ -64,6 +65,29 @@ class ClearUrlService {
     } on IOException catch (e) {
       LogTag.clearUrls.error('Error loading cached rules: $e');
     }
+  }
+
+  /// Whether [initialize] found the rules downloaded but their file gone.
+  bool _purged = false;
+
+  /// The download is the file: a date with no file (the OS or the user
+  /// cleared the cache, PLATFORM-010) is dropped, so the row offers the
+  /// download, and [refetchPurged] fetches it again.
+  Future<void> _forgetPurgedDownload() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey(_lastUpdatedKey)) return;
+    LogTag.clearUrls.warning('The rules were downloaded but their file is '
+        'gone; nothing is cleaned until they are fetched again');
+    await prefs.remove(_lastUpdatedKey);
+    _purged = true;
+  }
+
+  /// Downloads the rules again when the cache lost them, as the row's
+  /// download button would (PLATFORM-010).
+  Future<bool> refetchPurged() async {
+    if (!_purged) return false;
+    _purged = false;
+    return downloadRules();
   }
 
   /// Download rules from the ClearURLs server, cache to disk, and parse.
@@ -83,7 +107,7 @@ class ClearUrlService {
     try {
       final json = jsonDecode(response.body);
       if (json is! Map<String, dynamic>) return false;
-      await hostWriteDocumentText(_rulesFileName, contents: response.body);
+      await hostWriteCacheText(_rulesFileName, contents: response.body);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
       _parseRules(json);
@@ -216,7 +240,10 @@ class ClearUrlService {
 
   /// No rules, as before [initialize]: a load always adds the built-ins.
   @visibleForTesting
-  void resetForTest() => _providers = [];
+  void resetForTest() {
+    _providers = [];
+    _purged = false;
+  }
 
   void _parseRules(Map<String, dynamic> json) {
     final providers = <ClearUrlProvider>[];

@@ -37,7 +37,7 @@ void main() {
 
     test('every entry point refuses a name that leaves the directory',
         () async {
-      final store = IoFileStore('lists', overrideRoot: root);
+      final store = IoFileStore('lists', kind: StoreKind.cache, overrideRoot: root);
       await store.ensure();
 
       for (final name in traversalNames) {
@@ -60,7 +60,7 @@ void main() {
     });
 
     test('a plain name still round-trips', () async {
-      final store = IoFileStore('lists', overrideRoot: root);
+      final store = IoFileStore('lists', kind: StoreKind.cache, overrideRoot: root);
       await store.writeText('easylist.txt', contents: 'rules');
       expect(await store.readText('easylist.txt'), 'rules');
       expect(await store.exists('easylist.txt'), isTrue);

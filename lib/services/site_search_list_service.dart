@@ -7,6 +7,7 @@ import 'package:flutter/services.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -64,7 +65,7 @@ class SiteSearchListService {
 
   /// Load the stored list, if any. Called at startup; nothing is fetched.
   Future<void> initialize() async {
-    final text = await hostReadDocumentText(_cacheFileName);
+    final text = await hostReadCacheText(_cacheFileName);
     if (text == null) return;
     final Object? decoded;
     try {
@@ -106,7 +107,7 @@ class SiteSearchListService {
         LogTag.searchList.error('Download held no usable entry');
         return false;
       }
-      await hostWriteDocumentText(_cacheFileName, contents: jsonEncode(table));
+      await hostWriteCacheText(_cacheFileName, contents: jsonEncode(table));
       final now = DateTime.now();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedPrefKey, now.toIso8601String());
@@ -130,7 +131,8 @@ class SiteSearchListService {
   Future<void> clear() async {
     _table = const {};
     _lastUpdated = null;
-    await hostDeleteFile('${await hostDocumentsPath()}/$_cacheFileName');
+    await hostDeleteFile(
+        await hostEntryPath(_cacheFileName, kind: StoreKind.cache));
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_lastUpdatedPrefKey);
     _notify();

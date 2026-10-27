@@ -709,6 +709,39 @@ class ContentBlockerService {
     );
   }
 
+  /// The enabled lists [_forgetPurgedDownloads] found gone, which
+  /// [BlockerLoaded.refetchPurged] downloads again.
+  List<FilterListId> _purged = const [];
+
+  /// A list's download is its file. One the metadata calls downloaded whose
+  /// file is gone (the OS or the user cleared the cache, PLATFORM-010) reads
+  /// as not downloaded, so the screens offer the download instead of
+  /// counting rules the engine never read.
+  Future<void> _forgetPurgedDownloads() async {
+    assert(_edits.isHeld, 'the lists read outside an edit turn');
+    final purged = <FilterListId>[];
+    var forgot = false;
+    for (final list in _lists) {
+      if (list.isLocal || list.lastUpdated == null) continue;
+      try {
+        if (await _store.exists(_cacheName(list.id))) continue;
+      } on IOException {
+        continue;
+      }
+      LogTag.contentBlocker.warning(
+          '${list.name} was downloaded but its file is gone; '
+          'it reads as not downloaded until it is fetched again');
+      list
+        ..lastUpdated = null
+        ..ruleCount = 0
+        ..skippedCount = 0;
+      forgot = true;
+      if (list.enabled) purged.add(list.id);
+    }
+    _purged = purged;
+    if (forgot) await _saveLists();
+  }
+
   /// How far [initialize] got: once [BlockerData.ready], the engine is the
   /// one the lists on disk build, or none when they build none.
   BlockerData get data => _data;
@@ -760,6 +793,7 @@ class ContentBlockerService {
         await _saveLists();
       }
 
+      await _forgetPurgedDownloads();
       await _rebuildEngine();
       if (_ruleListsExperimental && !_watchingRuleListSwitch) {
         _watchingRuleListSwitch = true;
@@ -1380,7 +1414,7 @@ class ContentBlockerService {
   @visibleForTesting
   set store(FileStore store) => _storeOverride = store;
 
-  FileStore get _store => _storeOverride ??= defaultFileStore(_cacheDir);
+  FileStore get _store => _storeOverride ??= defaultFileStore(_cacheDir, kind: StoreKind.cache);
 
   static const String _engineCacheName = '.engine.bin';
   static const String _engineCachePrefilterName = '.engine.prefilter';
@@ -1461,6 +1495,7 @@ class ContentBlockerService {
   void reset() {
     _data = BlockerData.pending;
     _lists = [];
+    _purged = const [];
     _rustEngine?.dispose();
     _rustEngine = null;
     _engineCosmeticCache.clear();
@@ -1534,5 +1569,18 @@ extension type const BlockerLoaded._(ContentBlockerService _service)
   void seedHostsInto(DnsLoaded dns) {
     addRulesChangedListener(() => dns.setAbpNetworkHosts(abpNetworkBlockHosts));
     dns.setAbpNetworkHosts(abpNetworkBlockHosts);
+  }
+
+  /// Downloads again each enabled list whose file the cache lost, from the
+  /// URL it was downloaded from, as a tap on its download button would
+  /// (PLATFORM-010). Returns how many landed.
+  Future<int> refetchPurged() async {
+    final purged = _service._purged;
+    _service._purged = const [];
+    var landed = 0;
+    for (final id in purged) {
+      if (await downloadList(id)) landed++;
+    }
+    return landed;
   }
 }

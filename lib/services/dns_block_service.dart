@@ -442,6 +442,10 @@ class DnsBlockService {
 
   /// Initialize the service by loading the cached blocklist from disk (no
   /// network). Call in main() at app startup.
+  /// The app-wide level whose list [_load] found gone, which
+  /// [DnsLoaded.refetchPurged] downloads again.
+  int? _purgedLevel;
+
   Future<DnsLoaded> initialize() async {
     await _load();
     return DnsLoaded._(this);
@@ -454,6 +458,13 @@ class DnsBlockService {
       _level = level is int ? level : 0;
 
       await _loadFromDisk(prefs);
+      // A level is stored only once its list has landed, so a level with no
+      // list is one the cache lost (PLATFORM-010).
+      if (_level > 0 && _levelSets.isEmpty) {
+        _purgedLevel = _level;
+        LogTag.dnsBlock.warning('Level $_level was downloaded but its list is '
+            'gone; nothing is blocked by it until it is fetched again');
+      }
       if (!_levelSets.isEmpty) {
         LogTag.dnsBlock.info(
             'Loaded ${_levelSets.domainCount} domains from cache '
@@ -914,6 +925,7 @@ class DnsBlockService {
   @visibleForTesting
   void resetForTest() {
     _data = BlockerData.pending;
+    _purgedLevel = null;
     _folds = 0;
     _foldedAt.clear();
     _levelSets = DnsLevelSets.empty;
@@ -934,7 +946,7 @@ class DnsBlockService {
   @visibleForTesting
   set store(FileStore store) => _storeOverride = store;
 
-  FileStore get _store => _storeOverride ??= defaultFileStore('dns_blocklist');
+  FileStore get _store => _storeOverride ??= defaultFileStore('dns_blocklist', kind: StoreKind.cache);
 }
 
 /// The partition and the app-wide level in force, as the model's `dns`:
@@ -1285,5 +1297,14 @@ extension type const DnsLoaded._(DnsBlockService _service)
   Future<void> mirrorInto(NativeIntercept native) async {
     addBlocklistChangedListener(() => native.sendDnsLevelGroups(levelGroups));
     if (hasBlocklist) await native.sendDnsLevelGroups(levelGroups);
+  }
+
+  /// Downloads again the app-wide level whose list the cache lost, as the
+  /// level's download button would (PLATFORM-010).
+  Future<bool> refetchPurged() async {
+    final level = _service._purgedLevel;
+    _service._purgedLevel = null;
+    if (level == null) return false;
+    return downloadList(level);
   }
 }

@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/block_stats_detail_storage.dart';
+import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/file_store_io.dart';
 
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
@@ -26,7 +27,7 @@ void main() {
   SecureBlockStatsDetailStore newStore({FlutterSecureStorage? secureStorage}) =>
       SecureBlockStatsDetailStore(
         secureStorage: secureStorage ?? keychain,
-        store: IoFileStore('block_stats', overrideRoot: tempDir),
+        store: IoFileStore('block_stats', kind: StoreKind.data, overrideRoot: tempDir),
       );
 
   String payloadFor(String host, {required String siteId}) => jsonEncode({

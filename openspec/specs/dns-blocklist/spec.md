@@ -1218,7 +1218,7 @@ Reports each host once, in batches, via `addJavaScriptHandler('blockResourceLoad
 
 ### Storage
 
-- Domain file: `getApplicationDocumentsDirectory()/dns_blocklist.txt`
+- Domain file: `<cache>/dns_blocklist/` (the platform cache directory, PLATFORM-010)
 - Level: SharedPreferences key `dns_block_level`
 - Timestamp: SharedPreferences key `dns_block_last_updated`
 

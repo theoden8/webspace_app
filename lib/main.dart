@@ -187,6 +187,17 @@ void main([List<String> args = const []]) async {
   // may go through (LEAK-004). Preset UAs re-render from the cached version
   // on the next build.
   unawaited(FirefoxUserAgentService.instance.maybeAutoRefresh());
+  // Downloads the OS or the user cleared from the cache come back on their
+  // own, after the same proxy (PLATFORM-010). A wake's process makes no
+  // request the user did not start.
+  switch (launch) {
+    case ProcessLaunch.user:
+      unawaited((await blocker).refetchPurged());
+      unawaited((await dns).refetchPurged());
+      unawaited(ClearUrlService.instance.refetchPurged());
+    case ProcessLaunch.backgroundWake:
+      break;
+  }
   LaunchTimeline.reached(LaunchMark.runApp);
   unawaited(WidgetsBinding.instance.waitUntilFirstFrameRasterized
       .then((_) => LaunchTimeline.reached(LaunchMark.firstFrame)));

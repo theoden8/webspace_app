@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/clearurl_service.dart';
 
 import 'helpers/fake_path_provider.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('ClearUrlService', () {
     late ClearUrlService service;
 
@@ -510,6 +513,7 @@ void main() {
     setUp(() async {
       docs = await Directory.systemTemp.createTemp('clearurl_rules');
       useFakePathProvider(docs);
+      SharedPreferences.setMockInitialValues({});
       ClearUrlService.instance.resetForTest();
     });
     tearDown(() async {

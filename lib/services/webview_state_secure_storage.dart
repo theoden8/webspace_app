@@ -18,7 +18,7 @@ import 'package:webspace/utils/concurrency.dart';
 
 /// AES-encrypted, on-disk implementation of [WebViewStateStorage]: each
 /// state blob sealed by [KeychainAead] and written to
-/// `<docs>/webview_state/<siteId>.<tabId>.enc`.
+/// `<data>/webview_state/<siteId>.<tabId>.enc`.
 ///
 /// State survives cold starts. On app upgrade the cache directory is
 /// nuked and the key rotated alongside it: a back/forward stack from a
@@ -34,7 +34,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
 
   final FlutterSecureStorage _secureStorage;
   /// Optional override for the cache parent directory. When null,
-  /// `getApplicationDocumentsDirectory()` is queried at init. Tests
+  /// the app's support directory is queried at init. Tests
   /// inject a temp dir to avoid the path_provider plugin.
   final FileStore? _overrideStore;
   /// Optional override for the version-tracking SharedPreferences-
@@ -73,7 +73,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     void failed(Exception e) =>
         LogTag.webViewState.error('Error initializing state storage: $e');
     try {
-      _store = _overrideStore ?? defaultFileStore(_cacheDir);
+      _store = _overrideStore ?? defaultFileStore(_cacheDir, kind: StoreKind.data);
       _aead = await KeychainAead.open(_secureStorage,
           keyName: _encryptionKeyKey, logTag: LogTag.webViewState);
       await _clearCacheOnUpgrade();

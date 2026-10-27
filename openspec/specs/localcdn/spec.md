@@ -214,7 +214,7 @@ CDN URL matching SHALL strip query parameters before pattern matching.
 
 ### LCDN-012: Cache Persistence
 
-The cache index SHALL be persisted via SharedPreferences and the resource files SHALL be stored in the app's documents directory.
+The cache index SHALL be persisted via SharedPreferences and the resource files SHALL be stored in the platform cache directory (PLATFORM-010).
 
 #### Scenario: App restart
 
@@ -335,7 +335,7 @@ A curated list of ~80 popular resources is built into the service, covering:
 ### Storage
 
 - Cache index: `SharedPreferences` key `localcdn_cache_index` (JSON map of cache key -> file path)
-- Resource files: `getApplicationDocumentsDirectory()/localcdn_cache/` directory
+- Resource files: `<cache>/localcdn_cache/` directory
 - Last updated timestamp: `SharedPreferences` key `localcdn_last_updated`
 
 ### Hook Ordering

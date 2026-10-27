@@ -7,6 +7,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
@@ -313,7 +314,7 @@ class LocalCdnService {
 
   Future<CdnLoaded> initialize() async {
     if (!_initialized) {
-      _cacheDir = '${await hostDocumentsPath()}/localcdn_cache';
+      _cacheDir = await hostEntryPath('localcdn_cache', kind: StoreKind.cache);
       await hostEnsureDirectory(_cacheDir!);
       await _edits.run(_loadCacheIndex);
       _initialized = true;

@@ -42,7 +42,7 @@ class SiteIconStore {
       '${sha256.convert(utf8.encode(siteUrl))}.png';
 
   Future<void> initialize() {
-    final store = _store ??= _overrideStore ?? defaultFileStore(_dir);
+    final store = _store ??= _overrideStore ?? defaultFileStore(_dir, kind: StoreKind.cache);
     return _disk(() async {
       var loaded = false;
       for (final name in await store.list()) {

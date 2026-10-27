@@ -51,7 +51,7 @@ class HtmlImportStorage {
   final Map<SiteId, String> _memoryStore = {};
 
   Future<void> initialize() async {
-    _store = _overrideStore ?? defaultFileStore(_storageDir);
+    _store = _overrideStore ?? defaultFileStore(_storageDir, kind: StoreKind.data);
 
     _aead = await KeychainAead.open(_secureStorage, keyName: _encryptionKeyKey,
         logTag: LogTag.htmlImport);
@@ -205,7 +205,7 @@ class HtmlImportStorage {
   Future<void> retireSnapshotCache() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey(_retiredCacheVersion)) return;
-    final cache = _retiredCache ?? defaultFileStore(_retiredCacheDir);
+    final cache = _retiredCache ?? defaultFileStore(_retiredCacheDir, kind: StoreKind.data);
     try {
       final names = await cache.list();
       if (names.isNotEmpty) {
