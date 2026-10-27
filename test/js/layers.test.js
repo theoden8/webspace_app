@@ -10,7 +10,6 @@ const DEBT = new Set([
   'lib/services/cookie_isolation.dart -> lib/web_view_model.dart',
   'lib/services/settings_import_engine.dart -> lib/web_view_model.dart',
   'lib/services/site_unload_engine.dart -> lib/web_view_model.dart',
-  'lib/services/webview_host_hooks.dart -> lib/web_view_model.dart',
 ]);
 
 test('no file imports a layer above its own, beyond the recorded debt', () => {

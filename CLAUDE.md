@@ -59,7 +59,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 |---|---|---|
 | `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture:, homeTitle:)`; `WebViewConfig.posture` |
 | `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
-| `WebViewHostHooks` | the host's answers to every site webview: prompts, outbound links, capture | one required-field class, passed whole |
+| `WebViewHostHooks`, `SiteHooks` (`web_view_model_hooks.dart`) | the host's answers to every webview that runs as a site: prompts, popups, capture; and to a site's own webview, those that name the site (on screen, its outbound links, its link menu) | one required-field class each, passed whole; `SiteHooks(host:, ...)` to `getWebView` |
 | `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
 | `PopupKind` (`services/popup_webview.dart`) | which window a page asks for opens as a real popup (a captcha; a sign-in host where the site's sign-in popups are on, NESTED-014) and which hosts besides the site's that popup may show; whether this host offers sign-in popups (always but on Android, where the experiment does) and a site's resolved choice | `PopupKind.signInOpens(choice:)` → `SitePage.signInPopups`; `PopupKind.forWindow(url, siteUrl:, signInPopups:)` in `onCreateWindow`; `showPopup(windowId, url:, kind:)`; `onSiteNavigationPolicy(..., popup:)` |
 | `NavigationBoundary` (`services/navigation_decision_engine.dart`) | the site's declared and initial resolved domains; the redirect exception ends when its first document commits | `WebViewConfig.navigationBoundary`, shared by native callbacks and navigation decisions |
@@ -767,10 +767,12 @@ A nested screen differs from the site's own webview only where
 the site (callbacks, `backForwardGestures`, the slot's `backgroundAudioEnabled`,
 the site icon and search targets) stays a `WebViewConfig` field the owning
 surface sets. What the host answers (prompts, popups, capture resolvers,
-cookie jars, routing) is one `WebViewHostHooks`
+cookie jars) is one `WebViewHostHooks`
 ([webview_host_hooks.dart](lib/services/webview_host_hooks.dart)) that
 the page builds once and both surfaces take whole; a new host answer is a
-required field there (BUG-028).
+required field there (BUG-028). The site's own webview takes it inside a
+`SiteHooks` ([web_view_model_hooks.dart](lib/web_view_model_hooks.dart)),
+beside the answers that name the site, which a nested screen never asks.
 
 If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., frames: ShimFrames.all)` ([page_shim.dart](lib/services/page_shim.dart)) so the shim reaches cross-origin iframes.
 

@@ -79,7 +79,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: site.getWebView(bareHooks(leaving: left.add), cacheFirst: false),
+        body: site.getWebView(bareSiteHooks(leaving: left.add), cacheFirst: false),
       ),
     ));
     await pumpFor(tester, total: const Duration(seconds: 2));

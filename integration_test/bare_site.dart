@@ -5,6 +5,7 @@ import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -68,18 +69,11 @@ WebViewHostHooks bareHooks({
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},
-      onScreen: (_) => true,
       launchNested: (url, {required posture, homeTitle}) => leaving?.call(url),
       openInBrowser: (url) async {
         leaving?.call(url);
         return false;
       },
-      routeOutbound: (_, {required url, required decision, required hadGesture}) {
-        leaving?.call(url);
-        return false;
-      },
-      linkMenu: (_, {required url}) {},
-      firstPageLoaded: (_, {required url}) {},
       openSiteSettings: (_) {},
       showPopup: (_, {required url, required kind}) async {},
       externalScheme: (_, {required loadIn}) async {},
@@ -88,6 +82,19 @@ WebViewHostHooks bareHooks({
           false,
       httpAuth: httpAuth ?? (_) async => null,
       media: _NoPrompts(),
+    );
+
+/// [bareHooks] for a site's own webview, which is on screen and takes no
+/// link to another site's slot ([leaving] hears it).
+SiteHooks bareSiteHooks({void Function(String url)? leaving}) => SiteHooks(
+      host: bareHooks(leaving: leaving),
+      onScreen: (_) => true,
+      routeOutbound: (_, {required url, required decision, required hadGesture}) {
+        leaving?.call(url);
+        return false;
+      },
+      linkMenu: (_, {required url}) async {},
+      firstPageLoaded: (_, {required url}) async {},
     );
 
 /// A capture prompt in these tests is a bug in the test.

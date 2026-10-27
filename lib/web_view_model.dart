@@ -40,7 +40,7 @@ import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/services/webview_host_hooks.dart';
+import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/services/webview_tab_binding.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -1157,7 +1157,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// the first page from the engine's cache, then loads it live
   /// (`loadsCacheFirst`).
   Widget? getWebView(
-    WebViewHostHooks hooks, {
+    SiteHooks hooks, {
     required bool cacheFirst,
     String? initialHtml,
   }) {
@@ -1180,7 +1180,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         onReturnToOwner != null &&
         getNormalizedDomain(url) == ownerDomain;
     bool isActive() => hooks.onScreen(this);
-    final globalUserScripts = hooks.globalUserScripts();
+    final globalUserScripts = hooks.host.globalUserScripts();
     // Carries out a navigation decision, for a tap and a redirect alike:
     // false when this webview must not load [url]. The host's outbound hook
     // may take a leaving link over first (LIR-014) and hears of a blocked one
@@ -1203,16 +1203,16 @@ bool dispatch(NavigationDecision decision,
           return false;
         case NavigationDecision.blockOpenNested:
           if (!takenOver()) {
-            hooks.launchNested(
+            hooks.host.launchNested(
               url,
               posture: id.sitePosture(
-                  globalUserScripts: globalUserScripts, isolation: hooks.isolation()),
+                  globalUserScripts: globalUserScripts, isolation: hooks.host.isolation()),
               homeTitle: id.name,
             );
           }
           return false;
         case NavigationDecision.blockOpenExternal:
-          if (!takenOver()) unawaited(hooks.openInBrowser(url));
+          if (!takenOver()) unawaited(hooks.host.openInBrowser(url));
           return false;
         case NavigationDecision.blockOutbound:
           takenOver();
@@ -1279,7 +1279,7 @@ bool dispatch(NavigationDecision decision,
         isFileImport: isFileImportUrl(currentUrl),
       );
       final posture = id.sitePosture(
-          globalUserScripts: globalUserScripts, isolation: hooks.isolation());
+          globalUserScripts: globalUserScripts, isolation: hooks.host.isolation());
       final storeBinding = WebViewFactory.storeBinding(posture);
       // A first load the route refuses restores nothing either: the queued
       // back stack is still taken, and dropped, since replaying it would
@@ -1301,12 +1301,12 @@ bool dispatch(NavigationDecision decision,
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
           posture: posture,
-          hooks: hooks,
+          hooks: hooks.host,
           initialUrl: currentUrl,
           navigationBoundary: navigationBoundary,
           onFirstPageLoaded: (url) {
             if (activeTabId == builtTab && !runsForeignTab && currentUrl == url) {
-              hooks.firstPageLoaded(this, url: url);
+              unawaited(hooks.firstPageLoaded(this, url: url));
             }
           },
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
@@ -1315,17 +1315,17 @@ bool dispatch(NavigationDecision decision,
           backForwardGestures: true,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-          onLinkLongPress: (url) => hooks.linkMenu(this, url: url),
+          onLinkLongPress: (url) => unawaited(hooks.linkMenu(this, url: url)),
           grants: PersistedGrantStore(
             id,
-            prompter: hooks.media,
+            prompter: hooks.host.media,
             isSiteActive: isActive,
-            save: hooks.save,
+            save: hooks.host.save,
           ),
           pullToRefreshGate: pullToRefreshGate,
           onUnproxiedNavigationBlocked: (blocked) {
             blockedNavigation = blocked;
-            hooks.rebuild();
+            hooks.host.rebuild();
           },
           shouldOverrideUrlLoading: (url, {required hasGesture, required frame}) {
             LogTag.webView.debug(
@@ -1451,14 +1451,14 @@ bool dispatch(NavigationDecision decision,
               // subsequent work — saveFunc below is Dart-only.
               unawaited(controller?.setThemePreference(effectiveTheme));
             }
-            await hooks.save();
+            await hooks.host.save();
             lastSavedUrl = currentNotifyUrl;
           },
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar. The mirror
             // and the block list are those of the site the slot runs as.
             if (id.blockedCookies.isNotEmpty) {
-              await hooks.removeBlockedCookies(
+              await hooks.host.removeBlockedCookies(
                 newCookies
                     .where((c) => id.isCookieBlocked(c.name, domain: c.domain))
                     .toList(),
@@ -1471,7 +1471,7 @@ bool dispatch(NavigationDecision decision,
             } else {
               id.cookies = newCookies;
             }
-            await hooks.save();
+            await hooks.host.save();
           },
           onFindResult: (activeMatch, {required totalMatches}) {
             findMatches.activeMatchOrdinal = activeMatch;
@@ -1502,7 +1502,7 @@ bool dispatch(NavigationDecision decision,
                   onSearch: (found) {
                     if (!id.offerDiscoveredSearch(found)) return;
                     stateSetterF?.call();
-                    unawaited(hooks.save());
+                    unawaited(hooks.host.save());
                   },
                 )
               : null,
@@ -1587,7 +1587,7 @@ bool dispatch(NavigationDecision decision,
     return webview;
   }
 
-  WebViewController? getController(WebViewHostHooks hooks) {
+  WebViewController? getController(SiteHooks hooks) {
     if (webview == null) getWebView(hooks, cacheFirst: false);
     if (controller != null) {
       unawaited(setController());

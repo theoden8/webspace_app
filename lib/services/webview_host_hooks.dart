@@ -6,11 +6,9 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
-import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/user_script.dart';
-import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/site_posture.dart';
@@ -24,12 +22,8 @@ final class WebViewHostHooks {
     required this.globalUserScripts,
     required this.save,
     required this.rebuild,
-    required this.onScreen,
     required this.launchNested,
     required this.openInBrowser,
-    required this.routeOutbound,
-    required this.linkMenu,
-    required this.firstPageLoaded,
     required this.openSiteSettings,
     required this.showPopup,
     required this.externalScheme,
@@ -69,26 +63,12 @@ final class WebViewHostHooks {
   final Future<void> Function() save;
   final VoidCallback rebuild;
 
-  /// Whether [slot] is the site on screen: a background site opens nothing
-  /// nested and gets no device capture (MIC-014).
-  final bool Function(WebViewModel slot) onScreen;
   final LaunchUrlFunc launchNested;
 
   /// Hands [url] to the system browser, the external-link mode's way out
   /// (NESTED-009).
   final Future<bool> Function(String url) openInBrowser;
 
-  /// [source]'s webview is about to nest, send out or block [url]: true when
-  /// the host took the link over (LIR-014, NESTED-009).
-  final bool Function(WebViewModel source,
-      {required String url,
-      required NavigationDecision decision,
-      required bool hadGesture}) routeOutbound;
-
-  /// A long-press on a link in [source]'s webview (TAB-006).
-  final void Function(WebViewModel source, {required String url}) linkMenu;
-  /// Offers an unclaimed domain reached by this slot's first live page.
-  final void Function(WebViewModel source, {required String url}) firstPageLoaded;
   final void Function(SiteId siteId) openSiteSettings;
   /// Shows the popup window [windowId] a page asked for, as [kind] decided.
   final Future<void> Function(int windowId,
@@ -115,13 +95,8 @@ final class WebViewHostHooks {
         globalUserScripts: globalUserScripts,
         save: save,
         rebuild: rebuild,
-        onScreen: (_) => false,
         launchNested: (_, {required posture, homeTitle}) {},
         openInBrowser: (_) async => false,
-        routeOutbound:
-            (_, {required url, required decision, required hadGesture}) => true,
-        linkMenu: (_, {required url}) {},
-        firstPageLoaded: (_, {required url}) {},
         openSiteSettings: (_) {},
         showPopup: (_, {required url, required kind}) async {},
         externalScheme: (_, {required loadIn}) async {},
