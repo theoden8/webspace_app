@@ -18,10 +18,7 @@ abstract interface class ContentRuleListStore {
 }
 
 class MethodChannelContentRuleListStore implements ContentRuleListStore {
-  const MethodChannelContentRuleListStore._(
-    this._channel, {
-    required this.experimental,
-  });
+  const MethodChannelContentRuleListStore._(this._channel);
 
   /// The store this host's webviews attach from, or null where WebKit has
   /// none. On iOS and macOS the Runner's `ContentRuleListPlugin` compiles into
@@ -32,22 +29,14 @@ class MethodChannelContentRuleListStore implements ContentRuleListStore {
           MethodChannel(
             'com.pichillilorenzo/flutter_inappwebview_content_rule_list_store',
           ),
-          experimental: true,
         )
       : hostIsIOS || hostIsMacOS
       ? const MethodChannelContentRuleListStore._(
           MethodChannel('org.codeberg.theoden8.webspace/content_rule_lists'),
-          experimental: false,
         )
       : null;
 
   final MethodChannel _channel;
-
-  /// Whether this host's lists attach only with the `contentRuleLists`
-  /// experiment on (DEVTOOLS-011). On iOS and macOS they graduated and attach
-  /// whenever a site's content blocker runs; Linux, whose store is the fork's
-  /// own, is still in the Experimental group.
-  final bool experimental;
 
   @override
   Future<List<String>> identifiers() async =>

@@ -7,7 +7,6 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/dev_tools.dart';
-import 'package:webspace/services/content_rule_lists.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/popup_webview.dart';
@@ -39,10 +38,6 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
             loc.appSettingsExperimentalTextureRenderingHint),
-      if (MethodChannelContentRuleListStore.here?.experimental ?? false)
-        (ExperimentalFeature.contentRuleLists, Icons.shield_outlined,
-            loc.appSettingsExperimentalContentRuleLists,
-            loc.appSettingsExperimentalContentRuleListsHint),
       if (PopupKind.signInExperimental)
         (ExperimentalFeature.signInPopups, Icons.login,
             loc.siteSettingsSignInPopups, loc.siteSettingsSignInPopupsHint),

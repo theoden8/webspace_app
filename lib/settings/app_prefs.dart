@@ -75,7 +75,6 @@ enum AppPref<T extends Object> {
   // DEVTOOLS-011: the Experimental switches, each new when it was added, so
   // off.
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
-  experimentalContentRuleLists('experimentalContentRuleLists', fallback: false),
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),
   experimentalSignInPopups('experimentalSignInPopups', fallback: false),
   experimentalWebExtensions('experimentalWebExtensions', fallback: false),

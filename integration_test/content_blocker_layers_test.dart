@@ -11,9 +11,9 @@
 //   * a generic class on an element added after load: the scan's observer
 //   * a `:has-text()` rule: the procedural shim
 //
-// Where the lists are an experiment (Linux) the page runs with them off too,
-// so the page interceptor is held on its own. Every verdict is logged before
-// any is asserted, so one run names every layer that fails.
+// The page also runs with the rule lists withheld, so the page interceptor is
+// held on its own. Every verdict is logged before any is asserted, so one run
+// names every layer that fails.
 
 import 'dart:async';
 import 'dart:io';
@@ -23,9 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/content_rule_lists.dart';
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_config.dart';
@@ -172,40 +170,31 @@ void main() {
     return out;
   }
 
-  final experimental = MethodChannelContentRuleListStore.here?.experimental;
-  for (final ruleLists in [if (experimental ?? false) false, true]) {
+  final hasStore = MethodChannelContentRuleListStore.here != null;
+  for (final ruleLists in [false, if (hasStore) true]) {
     testWidgets('each blocker layer reaches the page, CB-003 CB-004 CB-005 '
-        'CB-020 (content rule lists ${ruleLists ? 'on' : 'off'})', (
+        'CB-020 (content rule lists ${ruleLists ? 'on' : 'withheld'})', (
       tester,
     ) async {
-      await tester.runAsync(() async {
-        DeveloperModeService.instance.debugSet(on: ruleLists);
-        ExperimentalFeaturesService.instance.debugSet(
-          ExperimentalFeature.contentRuleLists,
-          on: ruleLists,
-        );
-        // A rebuild queued behind the switch's own, which reads the store.
-        await ContentBlockerService.instance.toggleList(list, enabled: true);
-      });
+      final blocker = ContentBlockerService.instance;
+      blocker.debugWithholdRuleLists = !ruleLists;
+      addTearDown(() => blocker.debugWithholdRuleLists = false);
       const waitReal = RealWait(interval: Duration(milliseconds: 300));
-      if (ruleLists && experimental != null) {
+      if (ruleLists) {
         // A new rule set compiles after the rebuild returns.
         await waitReal(
           tester,
-          done: () => ContentBlockerService
-              .instance
-              .contentRuleListIdentifiers
-              .isNotEmpty,
+          done: () => blocker.contentRuleListIdentifiers.isNotEmpty,
           label: 'rule lists compiled',
         );
       }
       log(
         'rule lists: '
-        '${ContentBlockerService.instance.contentRuleListIdentifiers}',
+        '${blocker.contentRuleListIdentifiers}',
       );
       requested.clear();
       final url =
-          'http://localhost:$port/probe-${ruleLists ? 'lists' : 'scripts'}';
+          'http://localhost:$port/probe-${ruleLists ? 'lists' : 'withheld'}';
       final c = await mount(tester, url: url);
       await waitReal(
         tester,
@@ -235,7 +224,7 @@ void main() {
         isNot(contains('/wsprobe-ad/dynamic.js')),
         reason: 'page interceptor: appended script',
       );
-      if (ruleLists && experimental != null) {
+      if (ruleLists) {
         expect(
           requested,
           isNot(contains('/wsprobe-ad/parsed.js')),

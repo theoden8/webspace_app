@@ -1010,13 +1010,11 @@ the body is parsed
 
 ---
 
-### Requirement: CB-020 - WebKit content rule lists (iOS and macOS; experimental on Linux)
+### Requirement: CB-020 - WebKit content rule lists (iOS, macOS and Linux)
 
-iOS and macOS webviews SHALL attach the network rules of the enabled filter
-lists as compiled WebKit content rule lists whenever the site's content
-blocker runs, and Linux webviews SHALL do so with the `contentRuleLists`
-experiment on (DEVTOOLS-011: developer mode and its own switch), so WebKit
-blocks a request before it is sent, including the requests the page's own HTML
+iOS, macOS and Linux webviews SHALL attach the network rules of the enabled
+filter lists as compiled WebKit content rule lists whenever the site's content
+blocker runs, so WebKit blocks a request before it is sent, including the requests the page's own HTML
 starts before the page interceptor sees them. The lists are converted by
 adblock-rust (`ws_filters_to_content_rule_lists`) from the same rules text the
 engine parses, compiled once per rule set into the store this host's webviews
@@ -1024,8 +1022,8 @@ attach from, and found again by name on later launches; a webview only names the
 (`contentRuleListIdentifiers`, a setting of the webview fork). The page
 interceptor and the cosmetic pass keep running: the lists carry no cosmetic
 rules, redirects, `$csp`, `$removeparam` or scriptlets, and WebKit reports no
-match back. On Linux with the experiment off, nothing changes; the switch is
-offered only there (`MethodChannelContentRuleListStore.experimental`).
+match back. No switch gates them: Linux ran them behind an Experimental switch
+(DEVTOOLS-011) until they graduated, and its stored value is no longer read.
 
 The rule set is named by the head of the engine inputs key, so a change of
 enabled lists, of their per-site masks, or of the app build names a new set.
@@ -1068,23 +1066,22 @@ fork opens the store its webviews read.
 **Then** the lists of the set already compiled are removed
 **And** webviews attach no list
 
-#### Scenario: Per-site off, or the Linux experiment off
+#### Scenario: Per-site off
 
-**Given** a site with the content blocker off, or the Linux app with the experiment off
+**Given** a site with the content blocker off
 **When** its webview is created
 **Then** its `contentRuleListIdentifiers` is empty
-**And** turning the experiment off removes our lists from the store
 
-#### Scenario: iOS and macOS attach without developer mode
+#### Scenario: Every WebKit host attaches without developer mode
 
-**Given** an iOS or macOS build with developer mode off and a site with the content blocker on
+**Given** an iOS, macOS or Linux build with developer mode off and a site with the content blocker on
 **When** its webview is created after the rule set is in the store
 **Then** it attaches every list of the set
 **And** the Experimental group offers no WebKit content blocking switch
 
 #### Scenario: Linux compiles into the webview plugin's store
 
-**Given** the Linux app with the experiment on
+**Given** the Linux app
 **When** a rule set is compiled
 **Then** it goes into the webview fork's `WebKitUserContentFilterStore` over the fork's store channel
 **And** a webview created after it attaches the set by name before its first load

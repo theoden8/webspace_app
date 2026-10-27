@@ -18,7 +18,6 @@ import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/content_rule_list_engine.dart';
 import 'package:webspace/services/content_rule_lists.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
@@ -762,12 +761,6 @@ class ContentBlockerService {
     try {
       final prefs = await SharedPreferences.getInstance();
       AppPref.useUboResources.load(prefs);
-      // The first engine build runs before developer mode and the
-      // Experimental switches load; where the rule lists are still an
-      // experiment, reading them unloaded would drop the compiled lists and
-      // recompile them on every launch (CB-020).
-      AppPref.developerMode.load(prefs);
-      ExperimentalFeature.contentRuleLists.pref.load(prefs);
       if (hostIsAndroid) {
         _rustEngineSupported =
             await WebInterceptNative.isAdblockEngineSupported();
@@ -795,12 +788,6 @@ class ContentBlockerService {
 
       await _forgetPurgedDownloads();
       await _rebuildEngine();
-      if (_ruleListsExperimental && !_watchingRuleListSwitch) {
-        _watchingRuleListSwitch = true;
-        ExperimentalFeature.contentRuleLists.pref.listenable
-            .addListener(_onRuleListSwitch);
-        AppPref.developerMode.listenable.addListener(_onRuleListSwitch);
-      }
 
       LogTag.contentBlocker.info(
           'Initialized: ${_lists.length} list(s), engine '
@@ -1065,17 +1052,15 @@ class ContentBlockerService {
     null => null,
   };
 
-  /// Whether the lists attach only with the experiment on (Linux); where
-  /// they graduated (iOS, macOS) the switch and developer mode are not read.
-  final bool _ruleListsExperimental =
-      MethodChannelContentRuleListStore.here?.experimental ?? false;
-  bool _watchingRuleListSwitch = false;
-
   /// What a webview created now names in `contentRuleListIdentifiers`: empty
-  /// where WebKit has no store, on Linux while the experiment is off, and
-  /// until a set is in the store.
+  /// where WebKit has no store, and until a set is in the store.
   List<String> get contentRuleListIdentifiers =>
-      _ruleLists?.identifiers ?? const [];
+      debugWithholdRuleLists ? const [] : _ruleLists?.identifiers ?? const [];
+
+  /// Test seam: new webviews attach no rule list, so a test can hold the
+  /// page interceptor to what it blocks on its own.
+  @visibleForTesting
+  bool debugWithholdRuleLists = false;
 
   /// Points new webviews at the rule lists for the rule set [key] names, or
   /// at none. Reads [rulesText] only when the set has to be compiled.
@@ -1083,20 +1068,10 @@ class ContentBlockerService {
       {required String? key, required Future<String> Function() rulesText}) {
     final ruleLists = _ruleLists;
     if (ruleLists == null) return Future<void>.value();
-    final on = !_ruleListsExperimental ||
-        ExperimentalFeaturesService.instance
-            .isEnabled(ExperimentalFeature.contentRuleLists);
     return ruleLists.sync(
-        wanted: on && key != null ? RuleSetKey.of(key) : null,
+        wanted: key != null ? RuleSetKey.of(key) : null,
         rulesText: rulesText);
   }
-
-  void _onRuleListSwitch() => unawaited(_rebuilds.run(() async {
-        final inputs = _inputsNow();
-        await _syncRuleLists(
-            key: await _engineInputsKey(inputs),
-            rulesText: () async => (await _rulesFromLists(inputs)).rulesText);
-      }));
 
   Future<void> _rebuildEngine() => _rebuilds.run(_rebuildEngineInner);
 
