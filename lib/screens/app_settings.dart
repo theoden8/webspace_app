@@ -11,6 +11,7 @@ import 'package:webspace/screens/app_backup.dart';
 import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/screens/app_developer.dart';
+import 'package:webspace/screens/app_extensions.dart';
 import 'package:webspace/screens/app_network.dart';
 import 'package:webspace/screens/app_privacy.dart';
 import 'package:webspace/screens/user_scripts.dart';
@@ -19,6 +20,7 @@ import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
+import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -350,6 +352,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               isGlobalLibrary: true,
             )),
           ),
+          if (webExtensionsOffered)
+            SummaryNavRow(
+              leading: const Icon(Icons.extension_outlined),
+              title: loc.appSettingsExtensions,
+              summary: switch (
+                  WebExtensionLibrary.instance.installed.value.length) {
+                0 => loc.appSettingsExtensionsNone,
+                final count => loc.appSettingsExtensionsCount(count),
+              },
+              onTap: () => _open(const AppExtensionsScreen()),
+            ),
           SettingsSection(loc.appSettingsData),
           SummaryNavRow(
             leading: const Icon(Icons.settings_backup_restore),

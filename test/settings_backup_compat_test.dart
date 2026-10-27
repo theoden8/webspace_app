@@ -109,6 +109,7 @@ Object? _expectedImported(String key, {required Object? value}) =>
       'backgroundAudioEnabled' => null,
       'protectedContentAllowed' => value == true ? null : value,
       'enabledGlobalScriptIds' => null,
+      'enabledWebExtensions' => null,
       'disabledFilterLists' => ([...value as List]..sort()),
       _ => value,
     };
@@ -286,6 +287,7 @@ void _expectSanitised(SettingsImportPlan plan, {required String reason}) {
         reason: '$reason: siteId ${site.siteId} shared by two sites');
     expect(site.proxySettings.password, isNull, reason: reason);
     expect(site.enabledGlobalScriptIds, isEmpty, reason: reason);
+    expect(site.enabledWebExtensions, isEmpty, reason: reason);
     expect(site.userScripts.where((s) => s.enabled), isEmpty, reason: reason);
     for (final kind in CaptureKind.values) {
       expect(kind.grantOf(site.captures).mode.state,

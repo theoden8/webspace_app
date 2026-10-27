@@ -36,6 +36,8 @@ import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
+import 'package:webspace/screens/site_extensions.dart';
+import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
@@ -110,8 +112,9 @@ class SettingsScreen extends StatefulWidget {
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired when the user toggles / edits / adds / deletes / opts in to a
-  /// user script. Parent should dispose this site's webview so the next
-  /// render recreates it with the updated [initialUserScripts].
+  /// user script, or switches an extension. Parent should dispose this
+  /// site's webview so the next render recreates it with the updated
+  /// [initialUserScripts] and extensions.
   final VoidCallback? onScriptsChanged;
   final bool useContainers;
 
@@ -488,6 +491,32 @@ class _SettingsScreenState extends State<SettingsScreen>
           credentialsId: _proxySettings.credentialsId,
         ),
       );
+
+  Widget _buildExtensionsRow(AppLocalizations loc) {
+    final plan = widget.webViewModel.extensionPlan;
+    return SettingTile(
+      title: loc.appSettingsExtensions,
+      hint: loc.siteSettingsExtensionsHint,
+      subtitle: switch (siteExtensionsOn(plan)) {
+        0 => loc.siteSettingsExtensionsNone,
+        final count => loc.siteSettingsExtensionsOn(count),
+      },
+      lock: siteExtensionsLock(plan),
+      control: Opens(() {
+        unawaited(Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SiteExtensionsScreen(
+              site: widget.webViewModel,
+              onChanged: () => widget.onScriptsChanged?.call(),
+            ),
+          ),
+        ).then((_) {
+          if (mounted) setState(() {});
+        }));
+      }),
+    );
+  }
 
   String _userScriptsSubtitle() {
     final loc = AppLocalizations.of(context);
@@ -1219,6 +1248,7 @@ IconButton zoomStep(IconData icon,
               ));
             }),
           ),
+          if (webExtensionsOffered) _buildExtensionsRow(loc),
           SettingsSection(loc.siteSettingsSectionSite),
           _buildBehaviourRow(),
           _buildNetworkRow(),

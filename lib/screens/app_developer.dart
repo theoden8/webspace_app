@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/content_rule_lists.dart';
@@ -45,6 +46,10 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
       if (PopupKind.signInExperimental)
         (ExperimentalFeature.signInPopups, Icons.login,
             loc.siteSettingsSignInPopups, loc.siteSettingsSignInPopupsHint),
+      if (hostRunsWebExtensions)
+        (ExperimentalFeature.webExtensions, Icons.extension_outlined,
+            loc.appSettingsExperimentalWebExtensions,
+            loc.appSettingsExperimentalWebExtensionsHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

@@ -72,6 +72,7 @@ enum LogTag {
   torLog('TorLog'),
   tz('TZ'),
   userScript('UserScript'),
+  webExtension('WebExtension'),
   webIntercept('WebIntercept'),
   webSearch('WebSearch'),
   webView('WebView'),

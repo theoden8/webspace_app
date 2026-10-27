@@ -15,6 +15,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
+import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/web_view_model.dart';
@@ -122,6 +123,10 @@ extension WebViewModelJson on WebViewModel {
       SiteField.enabledGlobalScriptIds => {
           if (enabledGlobalScriptIds.isNotEmpty)
             key: enabledGlobalScriptIds.toList(),
+        },
+      SiteField.enabledWebExtensions => {
+          if (enabledWebExtensions.isNotEmpty)
+            key: enabledWebExtensions.toList(),
         },
       SiteField.blockedCookies => {
           if (blockedCookies.isNotEmpty)
@@ -397,6 +402,10 @@ class _SiteJson {
       case SiteField.enabledGlobalScriptIds:
         model.enabledGlobalScriptIds = {
           ...?value<List>(field)?.map(UserScriptId.parse).nonNulls,
+        };
+      case SiteField.enabledWebExtensions:
+        model.enabledWebExtensions = {
+          ...?value<List>(field)?.map(WebExtensionId.parse).nonNulls,
         };
       case SiteField.blockedCookies:
         model.blockedCookies =

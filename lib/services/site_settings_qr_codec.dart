@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/bounded_inflate.dart';
 import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
@@ -88,34 +88,16 @@ class SiteSettingsQrCodec {
   static const int _kMaxCompressedBytes = 64 * 1024;
   static const int _kMaxDecodedBytes = 256 * 1024;
 
-  /// Gzip-inflate [compressed], feeding it in small chunks and aborting the
-  /// moment the running output exceeds [maxOut]. Returns null on overflow or
-  /// malformed input, so a bomb never fully materializes in memory.
+  /// Gzip-inflate [compressed], or null on output past [maxOut] or a
+  /// malformed stream.
   static List<int>? _gunzipBounded(List<int> compressed,
       {required int maxOut}) {
-    final out = BytesBuilder(copy: false);
-    var total = 0;
-    var overflow = false;
-    final counting = _CountingByteSink((chunk) {
-      total += chunk.length;
-      if (total > maxOut) {
-        overflow = true;
-      } else {
-        out.add(chunk);
-      }
-    });
     try {
-      final conv = hostGzipDecoder.startChunkedConversion(counting);
-      const step = 4096;
-      for (var i = 0; i < compressed.length && !overflow; i += step) {
-        final end = (i + step < compressed.length) ? i + step : compressed.length;
-        conv.add(compressed.sublist(i, end));
-      }
-      conv.close();
+      return inflateBounded(hostGzipDecoder,
+          compressed: compressed, limit: maxOut);
     } on FormatException {
       return null;
     }
-    return overflow ? null : out.takeBytes();
   }
 
   /// Decode a `webspace://qr/site/vN/<payload>` URI back to a shareable
@@ -231,23 +213,4 @@ class _ParsedQr {
   final int version;
   final String payload;
   _ParsedQr({required this.version, required this.payload});
-}
-
-/// Byte sink that forwards each inflated chunk to [onData], letting the
-/// caller tally the running output and abort a decompression bomb before
-/// it fully materializes.
-class _CountingByteSink extends ByteConversionSink {
-  final void Function(List<int>) onData;
-  _CountingByteSink(this.onData);
-
-  @override
-  void add(List<int> chunk) => onData(chunk);
-
-  @override
-  void addSlice(List<int> chunk, int start, int end, bool isLast) {
-    onData(chunk.sublist(start, end));
-  }
-
-  @override
-  void close() {}
 }
