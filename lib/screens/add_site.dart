@@ -16,6 +16,12 @@ import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
+import '../services/reentry_guard.dart';
+import '../services/top_sites_engine.dart' show siteAddress;
+import '../services/top_sites_service.dart';
+import '../settings/app_prefs.dart';
+import '../widgets/datasets.dart' show TopSitesDataset;
+import '../widgets/setting_tile.dart' show HintedTitle;
 import '../services/url_host.dart';
 import '../settings/proxy.dart';
 import '../settings/site_suggestion.dart';
@@ -427,6 +433,9 @@ class AddSiteScreen extends StatefulWidget {
   final Function(List<SiteSuggestion>) onSuggestionsChanged;
   final String? initialUrl;
 
+  /// The homes of the sites already added, which the field does not offer.
+  final List<String> existingUrls;
+
   /// The named webspaces offered to the new site, and those picked for it;
   /// null where none are offered.
   final WebspacePick? webspaces;
@@ -434,6 +443,7 @@ class AddSiteScreen extends StatefulWidget {
   AddSiteScreen({
     required this.suggestions,
     required this.onSuggestionsChanged,
+    required this.existingUrls,
     this.initialUrl,
     this.webspaces,
   });
@@ -444,6 +454,18 @@ class AddSiteScreen extends StatefulWidget {
 
 class _AddSiteScreenState extends State<AddSiteScreen> {
   final TextEditingController _urlController = TextEditingController();
+  final FocusNode _urlFocus = FocusNode();
+  late final Set<String> _added = {
+    for (final url in widget.existingUrls) siteAddress(url),
+  };
+
+  /// The popular sites list, offered here until it is downloaded or the
+  /// offer is dismissed (SUGGEST-012); read before the offer shows, so a
+  /// list on disk never flashes it.
+  final TopSitesDataset _topSites = TopSitesDataset();
+  final ReentryGuard _topSitesDownload = ReentryGuard();
+  bool _topSitesRead = false;
+  bool _downloadingTopSites = false;
   Timer? _debounceTimer;
   String? _previewUrl;
   late List<SiteSuggestion> _suggestions;
@@ -452,6 +474,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   void initState() {
     super.initState();
     _suggestions = List.of(widget.suggestions);
+    _topSites.addListener(_rebuild);
+    unawaited(TopSitesService.instance.load().then((_) {
+      if (mounted) setState(() => _topSitesRead = true);
+    }));
     _urlController.addListener(_onUrlChanged);
     if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
       _urlController.text = widget.initialUrl!;
@@ -464,8 +490,71 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     _debounceTimer?.cancel();
     _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
+    _urlFocus.dispose();
+    _topSites.removeListener(_rebuild);
+    _topSites.dispose();
     super.dispose();
   }
+
+  void _rebuild() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _offerTopSites =>
+      _topSitesRead && !_topSites.ready && AppPref.topSitesOffer.value;
+
+  Future<void> _downloadTopSites() async {
+    await _topSitesDownload.run(() async {
+      final loc = AppLocalizations.of(context);
+      setState(() => _downloadingTopSites = true);
+      final message = await _topSites.download(loc);
+      if (!mounted) return;
+      setState(() => _downloadingTopSites = false);
+      ScaffoldMessenger.of(context).toast(message);
+    });
+  }
+
+  void _dismissTopSitesOffer() {
+    unawaited(AppPref.topSitesOffer.set(false));
+    setState(() {});
+    ScaffoldMessenger.of(context)
+        .toast(AppLocalizations.of(context).topSitesOfferDismissed);
+  }
+
+  /// The popular sites list offered where it is used (SUGGEST-012).
+  Widget _topSitesOffer(AppLocalizations loc) => Padding(
+        padding: const EdgeInsets.only(top: Spacing.sm),
+        child: Row(
+          children: [
+            Icon(Icons.public,
+                size: IconSizes.action,
+                color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: Spacing.sm),
+            Expanded(
+              child: HintedTitle(
+                loc.topSitesOffer,
+                hint: loc.topSitesHint,
+                hintTitle: loc.topSitesTitle,
+              ),
+            ),
+            if (_downloadingTopSites)
+              const SizedBox.square(
+                dimension: IconSizes.action,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              TextButton(
+                onPressed: () => unawaited(_downloadTopSites()),
+                child: Text(loc.appSettingsDownload),
+              ),
+            IconButton(
+              icon: const Icon(Icons.close, size: IconSizes.action),
+              tooltip: loc.commonClose,
+              onPressed: _downloadingTopSites ? null : _dismissTopSitesOffer,
+            ),
+          ],
+        ),
+      );
 
   void _onUrlChanged() {
     _debounceTimer?.cancel();
@@ -682,34 +771,47 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextField(
-                        controller: _urlController,
-                        autofocus: true,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        keyboardType: TextInputType.url,
-                        decoration: InputDecoration(
-                          labelText: loc.addSiteEnterUrlLabel,
-                          prefixIcon: _previewUrl != null
-                              ? Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: UnifiedFaviconImage(
-                                      url: _previewUrl!,
-                                      size: 24,
+                      // Popular sites complete the address on this device
+                      // only: no option's icon is fetched (SUGGEST-007).
+                      Autocomplete<String>(
+                        textEditingController: _urlController,
+                        focusNode: _urlFocus,
+                        optionsBuilder: (value) => TopSitesService.instance
+                            .match(value.text, added: _added),
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onSubmitted) =>
+                                TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          autofocus: true,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          keyboardType: TextInputType.url,
+                          onSubmitted: (_) => onSubmitted(),
+                          decoration: InputDecoration(
+                            labelText: loc.addSiteEnterUrlLabel,
+                            prefixIcon: _previewUrl != null
+                                ? Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: UnifiedFaviconImage(
+                                        url: _previewUrl!,
+                                        size: 24,
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : null,
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.qr_code_scanner),
-                            tooltip: loc.addSiteAddFromQr,
-                            onPressed: _addByQr,
+                                  )
+                                : null,
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.qr_code_scanner),
+                              tooltip: loc.addSiteAddFromQr,
+                              onPressed: _addByQr,
+                            ),
                           ),
                         ),
                       ),
+                      if (_offerTopSites) _topSitesOffer(loc),
                       if (widget.webspaces case final pick?) ...[
                         const SizedBox(height: Spacing.md),
                         WebspaceChips(pick: pick),

@@ -51,6 +51,7 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
     String? initialUrl,
     required List<Webspace> spaces,
     required Set<WebspaceId> picked,
+    required List<String> existingUrls,
   }) async {
     final offered = _offered(spaces);
     // Not disposed: the screen still listens while its route animates out.
@@ -66,6 +67,7 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
             shell.suggestedSites = sites;
             unawaited(suggested_sites.saveSuggestedSites(sites));
           },
+          existingUrls: existingUrls,
           initialUrl: initialUrl,
           webspaces: pick,
         ),

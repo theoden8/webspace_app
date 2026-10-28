@@ -41,6 +41,7 @@ void main() {
         home: AddSiteScreen(
           suggestions: suggestions!,
           onSuggestionsChanged: (_) {},
+          existingUrls: const [],
         ),
       );
       await tester.pump();

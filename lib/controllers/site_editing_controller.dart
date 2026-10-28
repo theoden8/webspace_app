@@ -25,11 +25,13 @@ typedef SiteAddition = ({Map<String, dynamic> site, Set<WebspaceId>? spaces});
 
 abstract interface class SiteEditingPrompts {
   /// [spaces] are the named webspaces the new site may join and [picked]
-  /// those it starts in; null when closed.
+  /// those it starts in; [existingUrls] the homes of the sites already
+  /// added; null when closed.
   Future<SiteAddition?> addSite({
     String? initialUrl,
     required List<Webspace> spaces,
     required Set<WebspaceId> picked,
+    required List<String> existingUrls,
   });
 
   /// Mandatory review of a QR-borne site configuration before it is created
@@ -144,6 +146,7 @@ class SiteEditingController {
         initialUrl: initialUrl,
         spaces: [for (final ws in _sites.webspaces) if (!ws.isAll) ws],
         picked: {if (into != null && into != WebspaceId.all) into},
+        existingUrls: [for (final site in _sites.models) site.initUrl],
       );
     }
     if (addition == null || !_host.mounted) return;

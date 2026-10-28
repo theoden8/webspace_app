@@ -58,7 +58,8 @@ sealed class AppProxyFetch {
   const AppProxyFetch();
 }
 
-/// The server answered 200; [response] holds the whole body.
+/// The server answered 200, or 206 to a request for the body's first bytes;
+/// [response] holds the whole body, or as much of it as was asked for.
 final class Fetched extends AppProxyFetch {
   const Fetched(this.response);
   final http.Response response;
@@ -81,14 +82,18 @@ final class FetchFailed extends AppProxyFetch {
 /// GET [url] through the app-wide outbound proxy, for the downloaded data
 /// the services keep (blocklists, rules, datasets). [timeout] bounds the
 /// whole exchange, body included; a body longer than [maxBytes] is
-/// abandoned as it arrives.
+/// abandoned as it arrives. With [firstBytes] only the body's start is
+/// wanted: the request asks for that range, and the read stops once that
+/// much has arrived, also from a server that sends the whole body.
 Future<AppProxyFetch> fetchViaAppProxy(
   Uri url, {
   required LogTag tag,
   Duration timeout = const Duration(seconds: 15),
   int? maxBytes,
+  int? firstBytes,
   Map<String, String> headers = const {},
 }) async {
+  assert(firstBytes == null || firstBytes > 0, 'a range has a first byte');
   if (url.scheme != 'https' && url.scheme != 'http') {
     return _fetchFailed(tag, url: url, reason: 'not an http(s) URL');
   }
@@ -104,8 +109,15 @@ Future<AppProxyFetch> fetchViaAppProxy(
   // passes through unwrapped (a TLS handshake, a SOCKS refusal), and a body
   // its declared encoding does not decode.
   try {
+    final request = http.Request('GET', url)..headers.addAll(headers);
+    if (firstBytes != null) {
+      request.headers['Range'] = 'bytes=0-${firstBytes - 1}';
+    }
     return await _fetch(client,
-            url: url, tag: tag, maxBytes: maxBytes, headers: headers)
+            request: request,
+            tag: tag,
+            maxBytes: maxBytes,
+            firstBytes: firstBytes)
         .timeout(timeout);
   } on http.ClientException catch (e) {
     return _fetchFailed(tag, url: url, reason: '$e');
@@ -122,20 +134,23 @@ Future<AppProxyFetch> fetchViaAppProxy(
 
 Future<AppProxyFetch> _fetch(
   http.Client client, {
-  required Uri url,
+  required http.Request request,
   required LogTag tag,
   required int? maxBytes,
-  required Map<String, String> headers,
+  required int? firstBytes,
 }) async {
-  final streamed =
-      await client.send(http.Request('GET', url)..headers.addAll(headers));
-  if (streamed.statusCode != 200) {
+  final url = request.url;
+  final streamed = await client.send(request);
+  final answered = streamed.statusCode == 200 ||
+      (firstBytes != null && streamed.statusCode == 206);
+  if (!answered) {
     unawaited(streamed.stream.listen(null).cancel());
     return _fetchFailed(tag, url: url, reason: 'HTTP ${streamed.statusCode}');
   }
   final body = BytesBuilder(copy: false);
   await for (final chunk in streamed.stream) {
     body.add(chunk);
+    if (firstBytes != null && body.length >= firstBytes) break;
     if (maxBytes != null && body.length > maxBytes) {
       return _fetchFailed(tag, url: url, reason: 'larger than $maxBytes bytes');
     }

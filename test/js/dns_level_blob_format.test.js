@@ -17,11 +17,13 @@ const { read } = require('./helpers/source');
 
 const writerRel = 'lib/services/web_intercept_native.dart';
 const storeRel = 'lib/services/dns_block_service.dart';
+const parserRel = 'lib/services/domain_list.dart';
 const readerRel =
   'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/DnsHostBlocklist.kt';
 
 const writer = read(writerRel);
 const store = read(storeRel);
+const parser = read(parserRel);
 const reader = read(readerRel);
 
 test('both Dart writers emit the marker as "#" + hex', () => {
@@ -99,11 +101,17 @@ test('both sides agree on the level range', () => {
 });
 
 test('a domain line never starts with the marker character', () => {
-  // Both parsers drop `#` comment lines from the upstream list before a
-  // domain can reach a group, which is what makes the marker unambiguous.
+  // Both parsers drop `#` comments from the upstream list before a domain
+  // can reach a group, which is what makes the marker unambiguous. The Dart
+  // one cuts every line at its first `#`, and the store reads an upstream
+  // list only through it.
   assert.match(
-    store,
-    /if \(trimmed\.isEmpty \|\| trimmed\.startsWith\('#'\)\) continue;/,
-    `${storeRel} must drop comment lines when parsing an upstream list`,
+    parser,
+    /final hash = line\.indexOf\('#'\);\s+final text = \(hash < 0 \? line : line\.substring\(0, hash\)\)/,
+    `${parserRel} must cut each line at its first "#" before taking the domain`,
   );
+  assert.match(store, /listedDomains\(/,
+    `${storeRel} must parse an upstream list through ${parserRel}`);
+  assert.doesNotMatch(store, /\.split\('\\n'\)/,
+    `${storeRel} must not split an upstream list by hand`);
 });

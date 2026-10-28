@@ -1029,6 +1029,7 @@ Widget _siteBehaviour(BuildContext _) {
 Widget _addSite(BuildContext _) => AddSiteScreen(
       suggestions: const [],
       onSuggestionsChanged: (_) {},
+      existingUrls: const [],
     );
 
 /// The real per-site SettingsScreen, driven by a seeded WebViewModel. Every

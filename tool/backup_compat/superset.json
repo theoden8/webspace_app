@@ -256,6 +256,8 @@
     "useUboResources": false,
     "appLocaleOverride": "de",
     "firefoxUaAutoRefresh": true,
+    "topSitesKeepFilters": true,
+    "topSitesOffer": false,
     "backForwardCacheEnabled": false,
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,

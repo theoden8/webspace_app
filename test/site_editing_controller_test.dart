@@ -73,14 +73,17 @@ class _Prompts implements SiteEditingPrompts, ShortcutPrompts {
   /// What the add-site screen answers, and what it was offered.
   SiteAddition? addition;
   ({List<Webspace> spaces, Set<WebspaceId> picked})? addOffer;
+  List<String>? existingUrls;
 
   @override
   Future<SiteAddition?> addSite({
     String? initialUrl,
     required List<Webspace> spaces,
     required Set<WebspaceId> picked,
+    required List<String> existingUrls,
   }) async {
     addOffer = (spaces: spaces, picked: picked);
+    this.existingUrls = existingUrls;
     return addition;
   }
 
@@ -350,6 +353,15 @@ void main() {
       await controller(prompts).addSite();
       expect(prompts.addOffer?.picked, isEmpty, reason: 'from the home');
       expect(host.commits, isEmpty, reason: 'closed, nothing is added');
+    });
+
+    test('the screen is told the homes of the sites already added, which '
+        'it does not offer again (SUGGEST-010)', () async {
+      sites.models.add(WebViewModel(initUrl: 'https://www.added.example/page'));
+      final prompts = _Prompts(null);
+      await controller(prompts).addSite();
+      expect(prompts.existingUrls, contains('https://www.added.example/page'));
+      expect(prompts.existingUrls, hasLength(sites.models.length));
     });
 
     test('the site joins the webspaces picked on the screen', () async {
