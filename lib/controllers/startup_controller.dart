@@ -10,6 +10,8 @@ import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_list_store.dart';
+import 'package:webspace/controllers/site_network_controller.dart'
+    show LaunchedSite;
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
@@ -42,7 +44,7 @@ abstract interface class StartupHost implements PageHost {
   /// supported.
   CookieIsolationEngine get legacyJar;
 
-  Future<void> activateRouter();
+  Future<void> activateRouter({required LaunchedSite launch});
   Future<void> handleShareIntent({required Reached<Launched> after});
 }
 
@@ -142,10 +144,17 @@ class StartupController implements DeferredStartupHost {
       if (onPage == null) return;
       LaunchTimeline.reached(LaunchMark.sitesOnPage);
       final suggested = _loadSuggestedSites(after: await prefs);
-      final routes = _host.activateRouter();
-      await _shortcuts.pruneAgainst(_sites.siteIds, after: onPage);
-      LaunchTimeline.reached(LaunchMark.shortcutsPruned);
-      final target = await _launchTarget(after: onPage);
+      final launching = _shortcuts
+          .pruneAgainst(_sites.siteIds, after: onPage)
+          .then((_) {
+        LaunchTimeline.reached(LaunchMark.shortcutsPruned);
+        return _launchTarget(after: onPage);
+      });
+      final routes = _host.activateRouter(launch: (
+        site: launching.then((target) => target?.site),
+        settled: _launched.future.then((_) => launchedSiteLoaded()),
+      ));
+      final target = await launching;
       if (target == null) return;
       LaunchTimeline.reached(LaunchMark.launchTarget);
       final pins = _shortcuts.refreshPinned(after: onPage);

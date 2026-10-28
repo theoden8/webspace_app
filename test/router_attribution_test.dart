@@ -18,10 +18,14 @@ void main() {
     failures = [];
   });
 
-  RouterAttribution checksOver(FakeAuthCaches device) => RouterAttribution(
+  RouterAttribution checksOver(
+    FakeAuthCaches device, {
+    Future<void>? queuedAfter,
+  }) => RouterAttribution(
     probe: device.probe,
     observed: () async => Map.of(observed),
     onFailed: failures.add,
+    queuedAfter: queuedAfter,
   );
 
   FakeAuthCaches honest() => FakeAuthCaches(
@@ -108,6 +112,55 @@ void main() {
       checks.end();
       expect(await answer, isFalse);
     });
+  });
+
+  group('around the launch (PROXY-015)', () {
+    test('the launched site leads the proof', () async {
+      final device = honest();
+      final checks = checksOver(device);
+      expect(
+        await checks.prove([site('a'), site('b'), site('c')], first: site('c')),
+        isTrue,
+      );
+      expect(device.started.take(2), [site('c'), site('a')]);
+      expect(await checks.attributed(site('b')), isTrue);
+    });
+
+    test('a launched site the proof cannot check leaves its order', () async {
+      final device = honest();
+      final checks = checksOver(device);
+      expect(
+        await checks.prove([site('a'), site('b')], first: RouterIdentity.shared),
+        isTrue,
+      );
+      expect(device.started, [site('a'), site('b')]);
+    });
+
+    test(
+      'queued checks wait for the launched page; a site that asks does not',
+      () async {
+        final device = honest();
+        final settled = Completer<void>();
+        final checks = checksOver(device, queuedAfter: settled.future);
+        expect(
+          await checks.prove([site('a'), site('b'), site('c'), site('d')]),
+          isTrue,
+        );
+        await pumpEventQueue();
+        expect(device.started, [site('a'), site('b')]);
+        expect(await checks.attributed(site('d')), isTrue);
+        expect(device.started, isNot(contains(site('c'))));
+
+        settled.complete();
+        await pumpEventQueue();
+        expect(device.started, contains(site('c')));
+        expect(
+          device.started.where((s) => s == site('d')),
+          hasLength(1),
+          reason: 'a site checked on demand leaves the queue',
+        );
+      },
+    );
   });
 
   group('after the proof', () {

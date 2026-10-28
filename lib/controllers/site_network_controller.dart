@@ -25,6 +25,11 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
 
+/// The site a launch opens, or null, and when its page has settled or is no
+/// longer waited for: what the router's checks are ordered around
+/// (PROXY-015).
+typedef LaunchedSite = ({Future<WebViewModel?> site, Future<void> settled});
+
 /// Where the sites' traffic goes and what a change to it does to them: the
 /// proxy topology and the router's routes (PROXY-008, PROXY-013), the Tor
 /// runtime's holders and exit pin (TOR-002, TOR-014), Tor endpoint changes
@@ -308,14 +313,15 @@ class SiteNetworkController {
         ],
       );
 
-  /// Bring up the per-site proxy router (PROXY-013).
+  /// Bring up the per-site proxy router (PROXY-013), its checks ordered
+  /// around [launch] (PROXY-015).
   ///
   /// Until its checks pass `ProxyRouterService.routesPerSite` is false, and
   /// failure at any step keeps it so: every downstream branch stays on the
   /// PROXY-008 serialisation, the pre-router behaviour, which is correct,
   /// just slower on switch. Nothing here may clear the proxy override on
   /// failure.
-  Future<void> activateRouter() async {
+  Future<void> activateRouter({required LaunchedSite launch}) async {
     if (!ProxyRouterService.isSupported(useContainers: _sites.useContainers)) {
       return;
     }
@@ -337,6 +343,16 @@ class SiteNetworkController {
       // PROXY-015: never trust router mode without proving on THIS device
       // that each container presents its own credential.
       probe: attributionProbe,
+      launch: RouterLaunch(
+        presents: launch.site.then((site) => switch (site) {
+              final site? => ProxyRouterEngine.identityFor(
+                  siteId: site.siteId,
+                  ownsContainer: ownsContainerProfile(site),
+                ),
+              null => null,
+            }),
+        settled: launch.settled,
+      ),
     );
     // A null return stands the router down but never clears the override:
     // the `activate` that follows re-applies the site's PROXY-008

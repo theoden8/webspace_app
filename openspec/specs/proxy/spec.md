@@ -1357,12 +1357,16 @@ starts after the other's ended: Chromium then sends the cached credential
 with the probe before any challenge. Checks run side by side all start
 cold, each answers its challenge with its own credential, and a device
 whose profiles share one cache passes them all. The launch SHALL therefore
-wait for a proof of two identities checked one after the other; a failed
+wait for a proof of two identities checked one after the other, the first
+of them the identity of the site the launch opens when the route table
+holds it, so the launched webview waits for no third check; a failed
 proof, a probe that fails to run, or a missing pair prevents activation
 and falls back to PROXY-008. The other identities, and any that appear
 later in the run, SHALL be checked after the proof, a few at a time, each
 against profiles whose caches are already warm, so the launch waits about
-two probes however many sites there are.
+two probes however many sites there are. None of them SHALL start before
+the launched page has settled or its wait has run out, so their probes do
+not load beside it.
 
 A webview's challenge for an identity not yet checked SHALL wait for that
 identity's check, which runs at once if it is still queued: a site opened
@@ -1397,6 +1401,24 @@ credential to send.
 **And** the relay records each nonce against the site that fetched it
 **Then** router mode activates
 **And** C is checked after the launch
+
+#### Scenario: The launched site is proven first
+
+**Given** router mode is starting with sites A, B and C
+**And** the launch opens C
+**When** the launch's proof runs
+**Then** C is checked first and A after it
+**And** C's webview presents its credential without waiting for another
+check
+
+#### Scenario: Queued checks wait for the launched page
+
+**Given** router mode came up after checking C and A, at a launch that
+opened C
+**And** C's page has not settled
+**Then** B is not checked yet
+**And** B is checked at once if B's webview asks
+**And** otherwise B is checked once C's page has settled
 
 #### Scenario: A device that mixes credentials is refused
 
@@ -1439,7 +1461,7 @@ down
 
 #### Scenario: An identity new to the run is checked as it appears
 
-**Given** router mode is active
+**Given** router mode is active and the launched page has settled
 **When** a route for a new identity is installed
 **Then** that identity is checked without waiting for a webview to ask
 
