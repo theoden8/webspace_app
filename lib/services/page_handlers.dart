@@ -19,9 +19,11 @@ import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/file_dialog.dart' show FileDialogFailure;
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
+import 'package:webspace/services/view_key.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/services/webview_config.dart';
@@ -71,10 +73,13 @@ abstract final class PageHandlers {
 
   /// Register the Dart side of every shim [PageScripts.buildPageScripts] installs.
   /// The two go together: a shim whose handler is missing leaves the
-  /// promise it hands the page unresolved.
+  /// promise it hands the page unresolved. [grants] answers this view's
+  /// capture requests, chosen by the surface: the site's own for its webview,
+  /// a popup's own, none for a headless check.
   static void registerPageHandlers(
     inapp.InAppWebViewController controller, {
     required WebViewConfig config,
+    required GrantStore? grants,
     required UserScriptService userScriptService,
     required PageSide page,
   }) {
@@ -148,7 +153,6 @@ abstract final class PageHandlers {
     // bridge secret, where page script can neither forge them nor call the
     // handler around them. A kind that does not reach subframes is denied one
     // HERE rather than only in its shim's realm (SHARE-005).
-    final grants = config.grants;
     if (grants != null) {
       for (final kind in CaptureKind.values) {
         controller.addJavaScriptHandler(
@@ -178,11 +182,18 @@ abstract final class PageHandlers {
       // of the share [ScreenShare] holds (SHARE-018). Top document only, as
       // the decision is (SHARE-005), and started only on a `real` answer
       // given again here, so a page that calls the handler directly is held
-      // to the same gate as one that went through the shim.
+      // to the same gate as one that went through the shim. Its site leaving
+      // the screen is read from the store's own gate at every step, so the
+      // share ends whatever site the page runs as (a hosted tab runs as its
+      // host, while the slot that left is its own).
       final owner = (
         site: config.posture.siteId,
-        view: WebViewFactory.viewKey(controller),
+        view: ViewKey.of(controller),
       );
+      Future<ShareFrame> offScreen() async {
+        await ScreenShare.instance.stop(owner);
+        return const ShareEnded();
+      }
       controller.addJavaScriptHandler(
         handlerName: ShareHandlers.start,
         callback: (inapp.JavaScriptHandlerFunctionData data) async {
@@ -199,21 +210,28 @@ abstract final class PageHandlers {
             notice:
                 grants.prompter.shareNotice(Uri.tryParse(origin)?.host ?? origin),
           );
-          return size == null
-              ? null
-              : {'width': size.width, 'height': size.height};
+          if (size == null) return null;
+          if (!grants.isSiteActive()) {
+            await offScreen();
+            return null;
+          }
+          return {'width': size.width, 'height': size.height};
         },
       );
       controller.addJavaScriptHandler(
         handlerName: ShareHandlers.frame,
         callback: (inapp.JavaScriptHandlerFunctionData data) async {
           if (!data.isMainFrame) return const ShareEnded().toBridgeJson();
+          if (!grants.isSiteActive()) return (await offScreen()).toBridgeJson();
           final after = switch (data.args.firstOrNull) {
-            final int seq => seq,
+            final int seq when seq >= 0 && seq <= ShareLimits.maxSeq => seq,
             _ => 0,
           };
-          return (await ScreenShare.instance.frame(owner, after: after))
-              .toBridgeJson();
+          final frame = await ScreenShare.instance.frame(owner, after: after);
+          // A frame taken after the site left the screen shows what replaced
+          // it, so it is never handed over.
+          if (!grants.isSiteActive()) return (await offScreen()).toBridgeJson();
+          return frame.toBridgeJson();
         },
       );
       controller.addJavaScriptHandler(
@@ -231,7 +249,7 @@ abstract final class PageHandlers {
     final passkeys = config.passkeys;
     if (passkeys != null &&
         passkeys.backend == PasskeyBackend.credentialManager) {
-      final webviewKey = WebViewFactory.viewKey(controller);
+      final webviewKey = ViewKey.of(controller);
       controller.addJavaScriptHandler(
         handlerName: 'webauthnStatus',
         callback: (args) async =>

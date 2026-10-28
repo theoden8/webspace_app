@@ -16,7 +16,10 @@ import 'package:webspace/services/webview_tls.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_handlers.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/page_phase.dart';
+import 'package:webspace/services/screen_share.dart';
+import 'package:webspace/services/view_key.dart';
 import 'package:webspace/services/webview.dart';
 
 /// What a window a site's page asked for is opened for, when the app shows
@@ -142,6 +145,19 @@ abstract final class PopupWebView {
     );
     PlatformWebViewController? view;
     Object? attachedView;
+    ViewKey? shareView;
+    // A popup decides for itself as a nested screen does: a page in it is
+    // not the one the user answered for the site, so a remembered `real`
+    // goes back to asking and an answer given here stays here (SHARE-014,
+    // CAM-005, MIC-005). It is on screen while its opener's site is.
+    final siteGrants = parent.grants;
+    final grants = siteGrants == null
+        ? null
+        : InMemoryGrantStore(
+            parent.posture.forNested().media,
+            prompter: parent.hooks.media,
+            isSiteActive: siteGrants.isSiteActive,
+          );
     // The popup's documents, which a script its handlers evaluate lands in.
     final phases = PagePhases(
       blocking: parent.posture.blocking,
@@ -182,9 +198,11 @@ abstract final class PopupWebView {
                 WebViewFactory.refusesLoad(binding, url: url) != null,
             navigationHeaders: WebViewFactory.navigationHeaders(parent));
         opener?.adopt(popupView, close: () => onCloseWindow?.call());
+        shareView = ViewKey.of(controller);
         PageHandlers.registerPageHandlers(
           controller,
           config: parent,
+          grants: grants,
           userScriptService: page.userScriptService,
           page: (
             sourceUrl: () => parent.initialUrl,
@@ -195,6 +213,7 @@ abstract final class PopupWebView {
       onLoadStart: (controller, _) {
         started = true;
         phases.on(PageEvent.loadStarted, view: controller.platform);
+        unawaited(ScreenShare.instance.endView(ViewKey.of(controller)));
       },
       // The popup exists for one flow: its documents pass the site's DNS and
       // content-blocker checks, and its top document stays on the site's own
@@ -230,6 +249,9 @@ abstract final class PopupWebView {
     return ControllerScope(
       onUnmount: () {
         phases.unmounted();
+        if (shareView case final key?) {
+          unawaited(ScreenShare.instance.endView(key));
+        }
         if (view case final popupView?) opener?.disown(popupView);
         view?.markDisposed();
         if (attachedView case final id?) DnsBlockService.instance.views.gone(id);

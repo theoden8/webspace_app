@@ -6,15 +6,17 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/view_key.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 /// The webview a share was started for: the site it runs as, and the native
 /// webview, so a nested screen of the same site is a different owner.
-typedef ShareOwner = ({SiteId site, String view});
+typedef ShareOwner = ({SiteId site, ViewKey view});
 
 /// What the page asked of the surface, already bounded: a cap on each side (0
 /// for none) and the frames per second it wants.
@@ -36,6 +38,10 @@ abstract final class ShareHandlers {
 abstract final class ShareLimits {
   static const int maxLongSide = 1280;
   static const int maxFps = 15;
+
+  /// The frame numbers a page may name: every native side reads them as a
+  /// 32-bit int.
+  static const int maxSeq = 0x7fffffff;
 }
 
 /// The page's `getDisplayMedia` constraints as the shim forwards them. Read
@@ -121,8 +127,10 @@ final class ScreenShare {
     required ScreenShareNative native,
     this.idle = const Duration(seconds: 10),
     DateTime Function() now = DateTime.now,
+    bool Function() inFront = _appInFront,
   })  : _native = native,
-        _now = now {
+        _now = now,
+        _inFront = inFront {
     _native.onEnded = _endedByUser;
   }
 
@@ -131,7 +139,19 @@ final class ScreenShare {
 
   final ScreenShareNative _native;
   final DateTime Function() _now;
+  final bool Function() _inFront;
   final Duration idle;
+
+  /// Unknown before the first lifecycle report, when the app is starting in
+  /// front.
+  static bool _appInFront() => switch (SchedulerBinding.instance.lifecycleState) {
+        null || AppLifecycleState.resumed => true,
+        AppLifecycleState.inactive ||
+        AppLifecycleState.hidden ||
+        AppLifecycleState.paused ||
+        AppLifecycleState.detached =>
+          false,
+      };
 
   /// The owner of the share the system is running.
   ShareOwner? _live;
@@ -148,15 +168,17 @@ final class ScreenShare {
   /// is in the background, which is what a share is for.
   bool sharing(SiteId site) => _live?.site == site;
 
-  /// Starts a share for [owner], ending any other first. Null when the user
-  /// declined the system's prompt, another prompt is already up, or the site
-  /// left the screen while it was.
+  /// Starts a share for [owner], ending any other first. Null when the app is
+  /// not in front (a share is the user's act, and a prompt raised from the
+  /// background lands over another app or not at all), the user declined
+  /// the system's prompt, another prompt is already up, or the site left
+  /// the screen while it was.
   Future<ShareSize?> start(
     ShareOwner owner, {
     required ShareRequest request,
     required ShareNotice notice,
   }) async {
-    if (_pending != null) return null;
+    if (_pending != null || !_inFront()) return null;
     _pending = owner;
     _pendingCancelled = false;
     final ShareSize? size;
@@ -188,7 +210,9 @@ final class ScreenShare {
     final frame = await _native.frame(after: after);
     _lastPull = _now();
     if (_live != owner) return const ShareEnded();
-    if (frame is ShareEnded) _clear(reason: 'the system ended it');
+    // Told to native too: an ended answer can be a failed call, behind
+    // which the capture still runs.
+    if (frame is ShareEnded) await _end(reason: 'the system ended it');
     return frame;
   }
 
@@ -199,14 +223,22 @@ final class ScreenShare {
 
   /// [site] left the screen, or its webview went (SHARE-017).
   Future<void> endSite(SiteId site) async {
-    if (_pending?.site == site) _pendingCancelled = true;
+    if (_pending?.site == site) await _cancelPending();
     if (_live?.site == site) await _end(reason: 'its site left the screen');
   }
 
-  /// The document that started the share in [view] was replaced.
-  Future<void> endView(String view) async {
-    if (_pending?.view == view) _pendingCancelled = true;
+  /// The document that started the share in [view] was replaced, or the
+  /// view went.
+  Future<void> endView(ViewKey view) async {
+    if (_pending?.view == view) await _cancelPending();
     if (_live?.view == view) await _end(reason: 'its page navigated away');
+  }
+
+  /// A start whose owner went: its share is stopped if the user still says
+  /// yes, and the system's prompt is taken down where the platform can.
+  Future<void> _cancelPending() async {
+    _pendingCancelled = true;
+    await _native.stop();
   }
 
   void _checkIdle() {

@@ -2,10 +2,14 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/screen_share.dart';
+import 'package:webspace/services/view_key.dart';
 import 'package:webspace/settings/site_ids.dart';
+
+import 'helpers/fake_platform_controller.dart';
 
 /// Android's side of a share as the app sees it: a prompt the test answers,
 /// frames it hands out, and an end the user can press.
@@ -36,17 +40,30 @@ final class FakeAndroidShare implements ScreenShareNative {
       frames.isEmpty ? NoNewFrame(after) : frames.removeAt(0);
 
   @override
-  Future<void> stop() async => stops++;
+  Future<void> stop() async {
+    stops++;
+    // As macOS and Linux do: a stop takes down a prompt still up.
+    if (prompt case final p? when !p.isCompleted) p.complete(null);
+  }
 }
+
+/// A webview as the plugin presents it: each callback gets a wrapper of its
+/// own over the one platform controller.
+inapp.InAppWebViewController _wrapper(inapp.PlatformInAppWebViewController view) =>
+    inapp.InAppWebViewController.fromPlatform(platform: view);
 
 const _notice = (title: 'Sharing', text: 'a.example', stop: 'Stop');
 const _request = (maxWidth: 0, maxHeight: 0, fps: 10);
 const _size = (width: 640, height: 1280);
-final _a = (site: SiteId('a'), view: 'wv1');
-final _aNested = (site: SiteId('a'), view: 'wv2');
-final _b = (site: SiteId('b'), view: 'wv3');
+final _viewA = FakePlatformController();
+final _a = (site: SiteId('a'), view: ViewKey.of(_wrapper(_viewA)));
+final _aNested = (site: SiteId('a'), view: ViewKey.of(_wrapper(FakePlatformController())));
+final _b = (site: SiteId('b'), view: ViewKey.of(_wrapper(FakePlatformController())));
 
 void main() {
+  // The default in-front check reads the binding's lifecycle state, which
+  // is unknown here: a starting app is in front.
+  TestWidgetsFlutterBinding.ensureInitialized();
   late FakeAndroidShare android;
   late ScreenShare share;
 
@@ -90,17 +107,35 @@ void main() {
         '(SHARE-017)', () async {
       final start = share.start(_a, request: _request, notice: _notice);
       await share.endSite(SiteId('a'));
-      android.prompt!.complete(_size);
       expect(await start, isNull);
       expect(share.sharing(SiteId('a')), isFalse);
-      expect(android.stops, 1, reason: 'the projection Android began is ended');
+      expect(android.stops, 1, reason: 'the prompt is taken down');
     });
 
-    test('a page that navigates during the prompt gets no share', () async {
+    test('a page that navigates during the prompt gets no share, and the '
+        'prompt is taken down', () async {
       final start = share.start(_a, request: _request, notice: _notice);
-      await share.endView('wv1');
-      android.prompt!.complete(_size);
+      await share.endView(ViewKey.of(_wrapper(_viewA)));
       expect(await start, isNull);
+      expect(android.stops, 1);
+    });
+
+    test('a prompt Android answers yes after its page left is stopped',
+        () async {
+      final start = share.start(_a, request: _request, notice: _notice);
+      final prompt = android.prompt!;
+      android.prompt = null;
+      await share.endView(_a.view);
+      prompt.complete(_size);
+      expect(await start, isNull);
+      expect(share.sharing(SiteId('a')), isFalse);
+      expect(android.stops, 2, reason: 'the cancel, then the late yes');
+    });
+
+    test('no share starts while the app is not in front', () async {
+      final s = ScreenShare(native: android, inFront: () => false);
+      expect(await s.start(_a, request: _request, notice: _notice), isNull);
+      expect(android.asked, isEmpty, reason: 'no system prompt is raised');
     });
 
     test('another site leaving the screen does not cancel the prompt',
@@ -130,11 +165,14 @@ void main() {
       expect(await share.frame(_a, after: 0), isA<FrameReady>());
     });
 
-    test('a frame Android reports ended clears the share', () async {
+    test('a frame Android reports ended clears the share, and tells Android '
+        'to stop: the answer can be a failed call behind a running capture',
+        () async {
       await started(_a);
       android.frames.add(const ShareEnded());
       expect(await share.frame(_a, after: 0), isA<ShareEnded>());
       expect(share.sharing(SiteId('a')), isFalse);
+      expect(android.stops, 1);
     });
 
     test('a pull that returns after the share ended reads as ended', () async {
@@ -155,6 +193,24 @@ void main() {
           .toBridgeJson(), {'seq': 3, 'jpeg': '/9g='});
       expect(const NoNewFrame(3).toBridgeJson(), {'seq': 3});
       expect(const ShareEnded().toBridgeJson(), {'ended': true});
+    });
+  });
+
+  group('the view (SHARE-017)', () {
+    test('every callback of one view names it alike, though each gets a '
+        'wrapper of its own', () {
+      final view = FakePlatformController();
+      expect(ViewKey.of(_wrapper(view)), ViewKey.of(_wrapper(view)));
+      expect(ViewKey.of(_wrapper(view)),
+          isNot(ViewKey.of(_wrapper(FakePlatformController()))));
+    });
+
+    test('a load reported through another wrapper ends the share its view '
+        'started', () async {
+      await started(_a);
+      await share.endView(ViewKey.of(_wrapper(_viewA)));
+      expect(share.sharing(SiteId('a')), isFalse);
+      expect(await share.frame(_a, after: 0), isA<ShareEnded>());
     });
   });
 

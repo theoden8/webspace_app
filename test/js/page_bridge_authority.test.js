@@ -160,6 +160,32 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
     + 'popup can inherit it');
 });
 
+test('SHARE-014: a popup decides capture for itself, as a nested screen does', () => {
+  // Not a type: the popup takes the site's whole config, and only its
+  // capture store must differ, which the config's type cannot say.
+  const body = blockAfter(WEBVIEW, 'static Widget createPopupWebView({', '}) {',
+    'webview.dart');
+  assert.match(body,
+    /InMemoryGrantStore\(\s*parent\.posture\.forNested\(\)\.media,/,
+    'a popup\'s page is not the one the user answered for the site: a '
+    + 'remembered real grant goes back to asking there, and its answers stay there');
+  assert.match(body,
+    /PageHandlers\.registerPageHandlers\(\s*controller,\s*config: parent,\s*grants: grants,/,
+    'the popup\'s handlers answer from its own store, never the site\'s');
+});
+
+test('LIR-034: a foreign tab decides capture as a nested screen of its opener does', () => {
+  // Not a type: which store a slot's webview takes is chosen per tab as it
+  // builds, from a value (runsForeignTab) no type carries.
+  const model = read('lib/web_view_model.dart').replace(/\s+/g, ' ');
+  assert.ok(model.includes(
+    'final posture = runsForeignTab ? identityPosture.forNested() : identityPosture;'),
+    'another domain\'s pages in the opener\'s tab start from the opener\'s nested '
+    + 'posture, where a remembered real grant asks again');
+  assert.ok(/grants: runsForeignTab \? InMemoryGrantStore\( posture\.media,/.test(model),
+    'an answer given in a foreign tab is not saved onto the opener');
+});
+
 // --- top-document steering from a subframe --------------------------------
 
 test('NESTED-013: a subframe cannot steer the top document through an external scheme', () => {
@@ -434,7 +460,7 @@ test('PASSKEY-015: a ceremony cannot hold the gate past its timeout or its page'
   assert.notEqual(load, -1, 'onLoadStart is gone');
   const loadBody = WEBVIEW.slice(load, load + 1500);
   assert.match(loadBody,
-    /passkeyGate\.active[\s\S]*?startsWith\('\$\{viewKey\(controller\)\}:'\)[\s\S]*?PasskeyNative\.cancel\(/,
+    /passkeyGate\.active[\s\S]*?startsWith\('\$\{ViewKey\.of\(controller\)\}:'\)[\s\S]*?PasskeyNative\.cancel\(/,
     'a main-frame load must cancel the ceremony its webview started, and only that one');
 });
 
@@ -509,13 +535,32 @@ test('SHARE-018: the screen share bridge serves the top document only', () => {
     'only a real decision starts a share');
   assert.ok(start.includes('realOffered'),
     'a platform that does not offer the real screen starts none');
+  assert.ok(/ScreenShare\.instance\.start\([\s\S]*grants\.isSiteActive\(\)/.test(start),
+    'a share the user said yes to after its site left the screen is stopped');
+  const frame = handler('frame').replace(/\s+/g, ' ');
+  const pull = frame.indexOf('ScreenShare.instance.frame(');
+  const gate = 'if (!grants.isSiteActive()) return (await offScreen())';
+  assert.ok(frame.indexOf(gate) !== -1 && frame.indexOf(gate) < pull,
+    'a pull from a page whose site is off screen ends the share: the owner\'s '
+    + 'site is the one the page runs as, which in a hosted tab is not the slot');
+  assert.ok(frame.indexOf(gate, pull) > pull,
+    'a frame taken after the site left shows what replaced it, and is not handed over');
 });
 
 test('SHARE-017: a main-frame load ends the share its webview started', () => {
   const load = WEBVIEW.indexOf('onLoadStart: (controller, url) async {');
   const loadBody = WEBVIEW.slice(load, load + 2000);
-  assert.match(loadBody, /ScreenShare\.instance\.endView\(viewKey\(controller\)\)/,
+  assert.match(loadBody, /ScreenShare\.instance\.endView\(ViewKey\.of\(controller\)\)/,
     'the document the user allowed is gone, and its successor has not asked');
+  const unmount = WEBVIEW.slice(WEBVIEW.indexOf('final scoped = ControllerScope('));
+  assert.match(unmount.slice(0, 800), /ScreenShare\.instance\.endView\(key\)/,
+    'a view that unmounts (a nested screen closed mid-share) ends its share');
+  const popup = read('lib/services/popup_webview.dart');
+  assert.match(popup,
+    /onLoadStart: \(controller, _\) \{[\s\S]*?ScreenShare\.instance\.endView\(ViewKey\.of\(controller\)\)/,
+    'a popup\'s next document does not inherit its share');
+  assert.match(popup, /onUnmount: \(\) \{[\s\S]*?ScreenShare\.instance\.endView\(key\)/,
+    'a closed popup ends its share');
   const model = read('lib/web_view_model.dart');
   assert.match(model,
     /Future<void> stopRealCapture\(\) async \{\s*await ScreenShare\.instance\.endSite\(siteId\);/,

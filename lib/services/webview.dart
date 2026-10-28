@@ -27,6 +27,7 @@ import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
 import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
+import 'package:webspace/services/view_key.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -339,11 +340,6 @@ class WebViewFactory {
 
   /// Numbers each passkey request for the log, which names no origin.
   static int passkeyRequests = 0;
-
-  /// Names one native webview while it lives: the prefix of every gate key
-  /// its passkey ceremonies hold, and the owner of a screen share it starts.
-  static String viewKey(inapp.InAppWebViewController controller) =>
-      'wv${identityHashCode(controller)}';
 
   /// The native settings that follow from the site's posture, shared by the
   /// site's webview and the popups it spawns, so a popup is held to the same
@@ -699,6 +695,7 @@ class WebViewFactory {
     );
     final grants = config.grants;
     PlatformWebViewController? view;
+    ViewKey? shareView;
 
     final initialRequest = (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
       url: inapp.WebUri(blankFirstLoad ? 'about:blank' : config.initialUrl),
@@ -907,9 +904,11 @@ class WebViewFactory {
         );
         onControllerCreated(wrappedController);
         remote?.attach(controller);
+        shareView = ViewKey.of(controller);
         PageHandlers.registerPageHandlers(
           controller,
           config: config,
+          grants: config.grants,
           userScriptService: userScriptService,
           page: (
             sourceUrl: () => lastLoadStartUrl,
@@ -1459,13 +1458,13 @@ class WebViewFactory {
         // main-frame load replaces that document (PASSKEY-015).
         final pendingPasskey = passkeyGate.active;
         if (pendingPasskey != null &&
-            pendingPasskey.startsWith('${viewKey(controller)}:')) {
+            pendingPasskey.startsWith('${ViewKey.of(controller)}:')) {
           LogTag.passkey.debug('page left, request cancelled');
           unawaited(PasskeyNative.cancel(pendingPasskey));
         }
         // So does a screen share (SHARE-017): the document the user allowed
         // is gone, and its successor has not asked.
-        unawaited(ScreenShare.instance.endView(viewKey(controller)));
+        unawaited(ScreenShare.instance.endView(ViewKey.of(controller)));
         if (iconEngine != null) {
           iconEngine.onLoadStarted(url?.toString()).forEach(siteIcon!.onIcon);
           logSiteIcon('loadStart ${iconEngine.stateForLog}');
@@ -1899,6 +1898,8 @@ class WebViewFactory {
         phases.unmounted();
         stopFollowingBlockers?.call();
         view?.markDisposed();
+        // A share outlives no view: nothing else ends a nested screen's.
+        if (shareView case final key?) unawaited(ScreenShare.instance.endView(key));
       },
       child: webViewWidget,
     );

@@ -464,6 +464,20 @@ is back to `ask` one hop out (SEC-007), and `virtual` and `block` are
 inherited. A share a nested screen starts is its own webview's: the site's
 own page cannot read it.
 
+A popup window a site's page opens (a captcha or sign-in popup) and a foreign
+tab (LIR-034, another domain's pages in the opener's slot) SHALL decide the
+same way: each starts from the opener's nested posture and keeps its answers
+for itself, so a `real` grant the user gave the site never reaches a page the
+user did not answer for, and an Allow given there is not saved onto the site
+(SEC-031, SEC-032). Each is on screen while its site's slot is.
+
+#### Scenario: A popup does not inherit the site's grant
+
+**Given** a site set to `real`, and a popup its page opened
+**When** the popup's page calls `getDisplayMedia()`
+**Then** the app's popup asks, naming the popup's origin
+**And** the site's stored mode is still `real`, whatever the answer
+
 #### Scenario: Outbound link to a page that wants a share
 
 **Given** a site set to `real` whose outbound link opens a nested webview on another domain
@@ -506,14 +520,17 @@ by a check:
 | A site shares only after the user allowed it for that site | SHARE-001, SHARE-019 |
 | Every share starts with the system's own prompt | SHARE-018 |
 | Only the site on screen can start one | SHARE-011 |
-| A share ends when its site leaves the screen | `WebViewModel.stopRealCapture`, `ScreenShare.endSite` |
-| A share ends when the document that started it goes | `onLoadStart`, `ScreenShare.endView` |
+| A share starts only while the app is in front | `ScreenShare.start` (the app's lifecycle), and on Android the plugin's own check that its activity is resumed |
+| A share ends when its site leaves the screen | `WebViewModel.stopRealCapture`, `ScreenShare.endSite`; and every frame pull asks the slot's on-screen gate before and after it waits, so a page running as another site (a hosted tab) gets no frame either |
+| A share ends when the document that started it goes | `onLoadStart`, `ScreenShare.endView`, keyed by the platform controller (`ViewKey`), which every callback of one view shares |
+| A share ends with its view | the webview's and the popup's unmount, `ScreenShare.endView` |
 | A share ends when no page has read it for ten seconds | `ScreenShare.idle` |
+| A share ends with the app that runs its page | on Android, `ScreenSharePlugin.dispose` when its engine goes and `ScreenShareService.onTaskRemoved` |
 | At most one share runs | `ScreenShare.start` ends the one before |
-| Only the webview that started it reads its frames | `ScreenShare.frame` by owner |
+| Only the webview that started it reads its frames | `ScreenShare.frame` by owner; on Android also by the plugin that started it, since a second activity runs an engine of its own (SEC-033) |
 | The share is visible while it runs | the system's indicator (on Android also the notification with Stop), the drawer badge (PERMBADGE-001) |
 | An archive-tier site never shares, and its stored intent survives | SHARE-006 / ARCH-006 |
-| A nested screen decides for itself and persists nothing | SHARE-014 |
+| A nested screen, a popup and a foreign tab decide for themselves and persist nothing | SHARE-014 |
 | A subframe never shares | SHARE-005 |
 | The decision is never shared as configuration, nor carried by an import | SHARE-007, SHARE-001 |
 | No bridge means no share | SHARE-010 |
