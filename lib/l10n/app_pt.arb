@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "A aplicação não transfere nem atualiza extensões: escolhe o ficheiro e volta a importá-lo para obter uma versão mais recente. A assinatura do pacote não é verificada.",
   "extensionsLibrary": "Importadas",
   "extensionsVersion": "Versão {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versão {version} · {count} problema comunicado} other{Versão {version} · {count} problemas comunicados}}",
+  "extensionsProblemsHint": "O WebKit comunicou estes problemas ao ler a extensão. Continua a ser executada nos sites em que a ativar, mas o que eles indicam pode não funcionar.\n\n{problems}",
   "extensionsRefused": "Não importada: {reason}",
   "extensionsRefusedNotAPackage": "o ficheiro não é um pacote .crx, .xpi ou .zip",
   "extensionsRefusedDamaged": "o ficheiro está danificado ou incompleto",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "A respetiva página em segundo plano fica carregada enquanto estiver aberto um site que a execute.",
   "extensionsAdded": "{name} adicionada",
   "extensionsRemoveTitle": "Remover {name}?",
-  "extensionsRemoveBody": "Os respetivos ficheiros são eliminados e deixa de ser executada em todos os sites.",
+  "extensionsRemoveBody": "Deixa de ser executada em todos os sites, e os respetivos ficheiros e o que guardou em cada site são eliminados.",
   "extensionsRemoved": "{name} removida",
   "siteSettingsExtensionsHint": "Extensões de navegador importadas nas definições da aplicação que são executadas nas páginas deste site. Cada uma só tem acesso a este site, e uma alteração aplica-se na próxima vez que o site carregar.",
   "siteSettingsExtensionsNone": "Nenhuma ativada",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Não tem acesso a nenhuma página deste site.",
   "siteExtensionsConsentPermissions": "Recebe: {permissions}",
   "siteExtensionsConsentNoPermissions": "Não recebe permissões.",
-  "siteExtensionsSwitchOn": "Ativar"
+  "siteExtensionsSwitchOn": "Ativar",
+  "siteExtensionsSettings": "Definições",
+  "siteExtensionsOpen": "Abrir",
+  "siteExtensionsPageFailed": "Não foi possível abrir {name} aqui"
 }

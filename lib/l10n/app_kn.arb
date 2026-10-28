@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "ಆ್ಯಪ್ ಯಾವುದೇ ವಿಸ್ತರಣೆಯನ್ನು ಡೌನ್‌ಲೋಡ್ ಅಥವಾ ಅಪ್‌ಡೇಟ್ ಮಾಡುವುದಿಲ್ಲ: ನೀವೇ ಫೈಲ್ ಆಯ್ಕೆಮಾಡುತ್ತೀರಿ, ಹೊಸ ಆವೃತ್ತಿಗಾಗಿ ಅದನ್ನು ಮತ್ತೆ ಆಮದು ಮಾಡುತ್ತೀರಿ. ಪ್ಯಾಕೇಜ್‌ನ ಸಹಿಯನ್ನು ಪರಿಶೀಲಿಸಲಾಗುವುದಿಲ್ಲ.",
   "extensionsLibrary": "ಆಮದು ಮಾಡಿದವು",
   "extensionsVersion": "ಆವೃತ್ತಿ {version}",
+  "extensionsVersionProblems": "{count, plural, =1{ಆವೃತ್ತಿ {version} · {count} ಸಮಸ್ಯೆ ವರದಿಯಾಗಿದೆ} other{ಆವೃತ್ತಿ {version} · {count} ಸಮಸ್ಯೆಗಳು ವರದಿಯಾಗಿವೆ}}",
+  "extensionsProblemsHint": "ವಿಸ್ತರಣೆಯನ್ನು ಓದುವಾಗ WebKit ಈ ಸಮಸ್ಯೆಗಳನ್ನು ವರದಿ ಮಾಡಿದೆ. ನೀವು ಇದನ್ನು ಆನ್ ಮಾಡುವ ಸೈಟ್‌ಗಳಲ್ಲಿ ಇದು ಇನ್ನೂ ಚಲಿಸುತ್ತದೆ, ಆದರೆ ಇವು ಹೆಸರಿಸುವುದು ಕೆಲಸ ಮಾಡದಿರಬಹುದು.\n\n{problems}",
   "extensionsRefused": "ಆಮದು ಮಾಡಲಾಗಿಲ್ಲ: {reason}",
   "extensionsRefusedNotAPackage": "ಫೈಲ್ .crx, .xpi ಅಥವಾ .zip ಪ್ಯಾಕೇಜ್ ಅಲ್ಲ",
   "extensionsRefusedDamaged": "ಫೈಲ್ ಹಾಳಾಗಿದೆ ಅಥವಾ ಅಪೂರ್ಣವಾಗಿದೆ",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "ಇದನ್ನು ಚಲಾಯಿಸುವ ಸೈಟ್ ತೆರೆದಿರುವವರೆಗೆ ಇದರ ಹಿನ್ನೆಲೆ ಪುಟ ಲೋಡ್ ಆಗಿಯೇ ಇರುತ್ತದೆ.",
   "extensionsAdded": "{name} ಸೇರಿಸಲಾಗಿದೆ",
   "extensionsRemoveTitle": "{name} ಅನ್ನು ತೆಗೆದುಹಾಕಬೇಕೆ?",
-  "extensionsRemoveBody": "ಇದರ ಫೈಲ್‌ಗಳನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಇದು ಎಲ್ಲಾ ಸೈಟ್‌ಗಳಲ್ಲಿ ಚಲಿಸುವುದನ್ನು ನಿಲ್ಲಿಸುತ್ತದೆ.",
+  "extensionsRemoveBody": "ಇದು ಎಲ್ಲಾ ಸೈಟ್‌ಗಳಲ್ಲಿ ಚಲಿಸುವುದನ್ನು ನಿಲ್ಲಿಸುತ್ತದೆ, ಮತ್ತು ಇದರ ಫೈಲ್‌ಗಳು ಹಾಗೂ ಪ್ರತಿ ಸೈಟ್‌ನಲ್ಲಿ ಇದು ಸಂಗ್ರಹಿಸಿದ್ದನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ.",
   "extensionsRemoved": "{name} ತೆಗೆದುಹಾಕಲಾಗಿದೆ",
   "siteSettingsExtensionsHint": "ಅಪ್ಲಿಕೇಶನ್ ಸೆಟ್ಟಿಂಗ್ಸ್‌ನಲ್ಲಿ ಆಮದು ಮಾಡಿದ, ಈ ಸೈಟ್‌ನ ಪುಟಗಳಲ್ಲಿ ಚಲಿಸುವ ಬ್ರೌಸರ್ ವಿಸ್ತರಣೆಗಳು. ಪ್ರತಿಯೊಂದೂ ಈ ಸೈಟ್ ಅನ್ನು ಮಾತ್ರ ತಲುಪುತ್ತದೆ, ಮತ್ತು ಬದಲಾವಣೆಯು ಸೈಟ್ ಮುಂದಿನ ಬಾರಿ ಲೋಡ್ ಆದಾಗ ಅನ್ವಯವಾಗುತ್ತದೆ.",
   "siteSettingsExtensionsNone": "ಯಾವುದೂ ಆನ್ ಇಲ್ಲ",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "ಇದು ಈ ಸೈಟ್‌ನ ಯಾವುದೇ ಪುಟವನ್ನು ತಲುಪುವುದಿಲ್ಲ.",
   "siteExtensionsConsentPermissions": "ಇದು ಪಡೆಯುವ ಅನುಮತಿಗಳು: {permissions}",
   "siteExtensionsConsentNoPermissions": "ಇದು ಯಾವುದೇ ಅನುಮತಿಗಳನ್ನು ಪಡೆಯುವುದಿಲ್ಲ.",
-  "siteExtensionsSwitchOn": "ಆನ್ ಮಾಡಿ"
+  "siteExtensionsSwitchOn": "ಆನ್ ಮಾಡಿ",
+  "siteExtensionsSettings": "ಸೆಟ್ಟಿಂಗ್ಸ್",
+  "siteExtensionsOpen": "ತೆರೆಯಿರಿ",
+  "siteExtensionsPageFailed": "{name} ಅನ್ನು ಇಲ್ಲಿ ತೆರೆಯಲಾಗಲಿಲ್ಲ"
 }

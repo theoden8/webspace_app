@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Az alkalmazás nem tölt le és nem frissít bővítményt: Ön választja ki a fájlt, és újabb verzióhoz újra importálja. A csomag aláírását nem ellenőrzi.",
   "extensionsLibrary": "Importált",
   "extensionsVersion": "Verzió: {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Verzió: {version} · {count} jelentett probléma} other{Verzió: {version} · {count} jelentett probléma}}",
+  "extensionsProblemsHint": "A WebKit ezeket a problémákat jelezte a bővítmény beolvasásakor. A bővítmény továbbra is fut azokon a webhelyeken, amelyeken bekapcsolja, de amit ezek megneveznek, az lehet, hogy nem működik.\n\n{problems}",
   "extensionsRefused": "Nincs importálva: {reason}",
   "extensionsRefusedNotAPackage": "a fájl nem .crx, .xpi vagy .zip csomag",
   "extensionsRefusedDamaged": "a fájl sérült vagy hiányos",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "A háttéroldala betöltve marad, amíg egy azt futtató webhely nyitva van.",
   "extensionsAdded": "{name} hozzáadva",
   "extensionsRemoveTitle": "{name} eltávolítása?",
-  "extensionsRemoveBody": "A fájljai törlődnek, és egyik webhelyen sem fut tovább.",
+  "extensionsRemoveBody": "Egyik webhelyen sem fut tovább, és törlődnek a fájljai, valamint mindaz, amit az egyes webhelyeken tárolt.",
   "extensionsRemoved": "{name} eltávolítva",
   "siteSettingsExtensionsHint": "Az Alkalmazás beállításaiban importált böngészőbővítmények, amelyek ennek a webhelynek az oldalain futnak. Mindegyik csak ezt a webhelyet éri el, és a módosítás a webhely következő betöltésekor lép életbe.",
   "siteSettingsExtensionsNone": "Egyik sincs bekapcsolva",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "A webhely egyetlen oldalát sem éri el.",
   "siteExtensionsConsentPermissions": "Ezt kapja: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nem kap engedélyt.",
-  "siteExtensionsSwitchOn": "Bekapcsolás"
+  "siteExtensionsSwitchOn": "Bekapcsolás",
+  "siteExtensionsSettings": "Beállítások",
+  "siteExtensionsOpen": "Megnyitás",
+  "siteExtensionsPageFailed": "{name} megnyitása itt nem sikerült"
 }

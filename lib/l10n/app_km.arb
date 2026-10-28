@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "កម្មវិធីមិនទាញយក ឬធ្វើបច្ចុប្បន្នភាពកម្មវិធីបន្ថែមណាមួយទេ៖ អ្នកជ្រើសឯកសារ ហើយនាំចូលវាម្ដងទៀតសម្រាប់កំណែថ្មីជាង។ ហត្ថលេខារបស់កញ្ចប់មិនត្រូវបានពិនិត្យទេ។",
   "extensionsLibrary": "បាននាំចូល",
   "extensionsVersion": "កំណែ {version}",
+  "extensionsVersionProblems": "{count, plural, =1{កំណែ {version} · បានរាយការណ៍បញ្ហា {count}} other{កំណែ {version} · បានរាយការណ៍បញ្ហា {count}}}",
+  "extensionsProblemsHint": "WebKit បានរាយការណ៍បញ្ហាទាំងនេះ ពេលអានកម្មវិធីបន្ថែម។ វានៅតែដំណើរការលើគេហទំព័រដែលអ្នកបើកវា ប៉ុន្តែអ្វីដែលបញ្ហាទាំងនេះនិយាយដល់ប្រហែលជាមិនដំណើរការទេ។\n\n{problems}",
   "extensionsRefused": "មិនបាននាំចូល៖ {reason}",
   "extensionsRefusedNotAPackage": "ឯកសារមិនមែនជាកញ្ចប់ .crx, .xpi ឬ .zip ទេ",
   "extensionsRefusedDamaged": "ឯកសារខូច ឬមិនពេញលេញ",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "ទំព័រផ្ទៃខាងក្រោយរបស់វានៅតែផ្ទុក ខណៈដែលគេហទំព័រដែលដំណើរការវាកំពុងបើក។",
   "extensionsAdded": "បានបន្ថែម {name}",
   "extensionsRemoveTitle": "ដកចេញ {name}?",
-  "extensionsRemoveBody": "ឯកសាររបស់វាត្រូវបានលុប ហើយវាឈប់ដំណើរការលើគ្រប់គេហទំព័រ។",
+  "extensionsRemoveBody": "វាឈប់ដំណើរការលើគ្រប់គេហទំព័រ ហើយឯកសាររបស់វា និងអ្វីដែលវាបានរក្សាទុកលើគេហទំព័រនីមួយៗត្រូវបានលុប។",
   "extensionsRemoved": "បានដកចេញ {name}",
   "siteSettingsExtensionsHint": "កម្មវិធីបន្ថែមកម្មវិធីរុករកដែលបាននាំចូលក្នុងការកំណត់កម្មវិធី ហើយដំណើរការលើទំព័ររបស់គេហទំព័រនេះ។ នីមួយៗចូលដល់តែគេហទំព័រនេះ ហើយការផ្លាស់ប្ដូរមានប្រសិទ្ធភាពនៅពេលគេហទំព័រផ្ទុកលើកក្រោយ។",
   "siteSettingsExtensionsNone": "គ្មានអ្វីបើកទេ",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "វាមិនចូលដល់ទំព័រណាមួយរបស់គេហទំព័រនេះទេ។",
   "siteExtensionsConsentPermissions": "វាទទួលបាន៖ {permissions}",
   "siteExtensionsConsentNoPermissions": "វាមិនទទួលបានការអនុញ្ញាតណាមួយទេ។",
-  "siteExtensionsSwitchOn": "បើក"
+  "siteExtensionsSwitchOn": "បើក",
+  "siteExtensionsSettings": "ការកំណត់",
+  "siteExtensionsOpen": "បើក",
+  "siteExtensionsPageFailed": "មិនអាចបើក {name} នៅទីនេះបានទេ"
 }

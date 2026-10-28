@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikacija ne preuzima i ne ažurira nijedno proširenje: vi odabirete datoteku i ponovno je uvozite za noviju verziju. Potpis paketa ne provjerava se.",
   "extensionsLibrary": "Uvezeno",
   "extensionsVersion": "Verzija {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Verzija {version} · {count} prijavljen problem} few{Verzija {version} · {count} prijavljena problema} other{Verzija {version} · {count} prijavljenih problema}}",
+  "extensionsProblemsHint": "WebKit je prijavio ove probleme pri čitanju proširenja. Ono i dalje radi na web-mjestima za koja ga uključite, ali ono što navode možda neće raditi.\n\n{problems}",
   "extensionsRefused": "Nije uvezeno: {reason}",
   "extensionsRefusedNotAPackage": "datoteka nije paket .crx, .xpi ili .zip",
   "extensionsRefusedDamaged": "datoteka je oštećena ili nepotpuna",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Njegova pozadinska stranica ostaje učitana dok je otvoreno web-mjesto koje ga pokreće.",
   "extensionsAdded": "{name} dodano",
   "extensionsRemoveTitle": "Ukloniti {name}?",
-  "extensionsRemoveBody": "Njegove datoteke brišu se i prestaje raditi na svim web-mjestima.",
+  "extensionsRemoveBody": "Prestaje raditi na svim web-mjestima, a brišu se njegove datoteke i ono što je spremilo na svakom web-mjestu.",
   "extensionsRemoved": "{name} uklonjeno",
   "siteSettingsExtensionsHint": "Proširenja preglednika uvezena u Postavkama aplikacije koja rade na stranicama ovog web-mjesta. Svako doseže samo ovo web-mjesto, a promjena se primjenjuje pri sljedećem učitavanju web-mjesta.",
   "siteSettingsExtensionsNone": "Nijedno nije uključeno",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ne doseže nijednu stranicu ovog web-mjesta.",
   "siteExtensionsConsentPermissions": "Dobiva: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ne dobiva nikakva dopuštenja.",
-  "siteExtensionsSwitchOn": "Uključi"
+  "siteExtensionsSwitchOn": "Uključi",
+  "siteExtensionsSettings": "Postavke",
+  "siteExtensionsOpen": "Otvori",
+  "siteExtensionsPageFailed": "{name} nije moguće otvoriti ovdje"
 }

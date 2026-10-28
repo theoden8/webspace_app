@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "अॅप कोणताही विस्तार डाउनलोड किंवा अपडेट करत नाही: फाइल तुम्ही निवडता, आणि नवीन आवृत्तीसाठी ती पुन्हा आयात करता. पॅकेजची स्वाक्षरी तपासली जात नाही.",
   "extensionsLibrary": "आयात केलेले",
   "extensionsVersion": "आवृत्ती {version}",
+  "extensionsVersionProblems": "{count, plural, =1{आवृत्ती {version} · {count} समस्या नोंदवली} other{आवृत्ती {version} · {count} समस्या नोंदवल्या}}",
+  "extensionsProblemsHint": "विस्तार वाचताना WebKit ने या समस्या नोंदवल्या. तुम्ही ज्या साइटसाठी तो चालू करता तिथे तो अजूनही चालतो, पण यांत ज्याचा उल्लेख आहे ते कदाचित काम करणार नाही.\n\n{problems}",
   "extensionsRefused": "आयात केले नाही: {reason}",
   "extensionsRefusedNotAPackage": "फाइल .crx, .xpi किंवा .zip पॅकेज नाही",
   "extensionsRefusedDamaged": "फाइल खराब किंवा अपूर्ण आहे",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "तो चालवणारी साइट उघडी असेपर्यंत त्याचे पार्श्वभूमी पृष्ठ लोड केलेले राहते.",
   "extensionsAdded": "{name} जोडले",
   "extensionsRemoveTitle": "{name} काढायचे?",
-  "extensionsRemoveBody": "त्याच्या फाइल्स हटवल्या जातात आणि तो कोणत्याही साइटवर चालत नाही.",
+  "extensionsRemoveBody": "तो कोणत्याही साइटवर चालत नाही, आणि त्याच्या फाइल्स व त्याने प्रत्येक साइटवर साठवलेले सर्व हटवले जाते.",
   "extensionsRemoved": "{name} काढले",
   "siteSettingsExtensionsHint": "अॅप सेटिंग्जमध्ये आयात केलेले, या साइटच्या पृष्ठांवर चालणारे ब्राउझर विस्तार. प्रत्येक विस्तार फक्त या साइटपर्यंत पोहोचतो, आणि बदल साइट पुढच्या वेळी लोड झाल्यावर लागू होतो.",
   "siteSettingsExtensionsNone": "एकही चालू नाही",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "तो या साइटच्या कोणत्याही पृष्ठापर्यंत पोहोचत नाही.",
   "siteExtensionsConsentPermissions": "त्याला मिळते: {permissions}",
   "siteExtensionsConsentNoPermissions": "त्याला कोणतीही परवानगी मिळत नाही.",
-  "siteExtensionsSwitchOn": "चालू करा"
+  "siteExtensionsSwitchOn": "चालू करा",
+  "siteExtensionsSettings": "सेटिंग्ज",
+  "siteExtensionsOpen": "उघडा",
+  "siteExtensionsPageFailed": "{name} येथे उघडता आले नाही"
 }

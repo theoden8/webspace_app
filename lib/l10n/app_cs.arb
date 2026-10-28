@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikace žádná rozšíření nestahuje ani neaktualizuje: soubor vybíráte vy a pro novější verzi ho importujete znovu. Podpis balíčku se nekontroluje.",
   "extensionsLibrary": "Importovaná",
   "extensionsVersion": "Verze {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Verze {version} · {count} nahlášený problém} few{Verze {version} · {count} nahlášené problémy} other{Verze {version} · {count} nahlášených problémů}}",
+  "extensionsProblemsHint": "WebKit nahlásil tyto problémy při čtení rozšíření. Na webech, kde ho zapnete, stále běží, ale to, co uvádějí, nemusí fungovat.\n\n{problems}",
   "extensionsRefused": "Neimportováno: {reason}",
   "extensionsRefusedNotAPackage": "soubor není balíček .crx, .xpi ani .zip",
   "extensionsRefusedDamaged": "soubor je poškozený nebo neúplný",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Jeho stránka na pozadí zůstává načtená, dokud je otevřený web, na kterém běží.",
   "extensionsAdded": "{name} přidáno",
   "extensionsRemoveTitle": "Odebrat {name}?",
-  "extensionsRemoveBody": "Jeho soubory se smažou a přestane běžet na všech webech.",
+  "extensionsRemoveBody": "Přestane běžet na všech webech a jeho soubory i to, co uložilo na jednotlivých webech, se smažou.",
   "extensionsRemoved": "{name} odebráno",
   "siteSettingsExtensionsHint": "Rozšíření prohlížeče importovaná v Nastavení aplikace, která běží na stránkách tohoto webu. Každé dosáhne jen na tento web a změna se projeví při příštím načtení webu.",
   "siteSettingsExtensionsNone": "Žádné zapnuté",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Nedosáhne na žádnou stránku tohoto webu.",
   "siteExtensionsConsentPermissions": "Získá: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nezíská žádná oprávnění.",
-  "siteExtensionsSwitchOn": "Zapnout"
+  "siteExtensionsSwitchOn": "Zapnout",
+  "siteExtensionsSettings": "Nastavení",
+  "siteExtensionsOpen": "Otevřít",
+  "siteExtensionsPageFailed": "{name} se zde nepodařilo otevřít"
 }

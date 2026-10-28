@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikasi tidak memuat turun atau mengemas kini sebarang sambungan: anda memilih fail, dan mengimportnya semula untuk versi yang lebih baharu. Tandatangan pakej tidak diperiksa.",
   "extensionsLibrary": "Diimport",
   "extensionsVersion": "Versi {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versi {version} · {count} masalah dilaporkan} other{Versi {version} · {count} masalah dilaporkan}}",
+  "extensionsProblemsHint": "WebKit melaporkan masalah ini semasa membaca sambungan. Ia masih berjalan pada tapak yang anda hidupkan untuknya, tetapi perkara yang disebut mungkin tidak berfungsi.\n\n{problems}",
   "extensionsRefused": "Tidak diimport: {reason}",
   "extensionsRefusedNotAPackage": "fail itu bukan pakej .crx, .xpi atau .zip",
   "extensionsRefusedDamaged": "fail itu rosak atau tidak lengkap",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Halaman latar belakangnya kekal dimuatkan selagi tapak yang menjalankannya dibuka.",
   "extensionsAdded": "{name} ditambah",
   "extensionsRemoveTitle": "Buang {name}?",
-  "extensionsRemoveBody": "Failnya dipadam dan ia berhenti berjalan pada setiap tapak.",
+  "extensionsRemoveBody": "Ia berhenti berjalan pada setiap tapak, dan failnya serta data yang disimpannya pada setiap tapak dipadam.",
   "extensionsRemoved": "{name} dibuang",
   "siteSettingsExtensionsHint": "Sambungan pelayar yang diimport dalam tetapan aplikasi dan berjalan pada halaman tapak ini. Setiap satu hanya mencapai tapak ini, dan perubahan berkuat kuasa apabila tapak dimuatkan semula nanti.",
   "siteSettingsExtensionsNone": "Tiada dihidupkan",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ia tidak mencapai mana-mana halaman tapak ini.",
   "siteExtensionsConsentPermissions": "Ia mendapat: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ia tidak mendapat sebarang kebenaran.",
-  "siteExtensionsSwitchOn": "Hidupkan"
+  "siteExtensionsSwitchOn": "Hidupkan",
+  "siteExtensionsSettings": "Tetapan",
+  "siteExtensionsOpen": "Buka",
+  "siteExtensionsPageFailed": "{name} tidak dapat dibuka di sini"
 }

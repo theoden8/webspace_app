@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Rakendus ei laadi alla ega uuenda ühtegi laiendust: sina valid faili ja uuema versiooni jaoks impordid selle uuesti. Paketi allkirja ei kontrollita.",
   "extensionsLibrary": "Imporditud",
   "extensionsVersion": "Versioon {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versioon {version} · {count} teatatud probleem} other{Versioon {version} · {count} teatatud probleemi}}",
+  "extensionsProblemsHint": "WebKit teatas laienduse lugemisel neist probleemidest. See töötab endiselt saitidel, kus selle sisse lülitad, kuid see, mida need nimetavad, ei pruugi töötada.\n\n{problems}",
   "extensionsRefused": "Ei imporditud: {reason}",
   "extensionsRefusedNotAPackage": "fail ei ole .crx-, .xpi- ega .zip-pakett",
   "extensionsRefusedDamaged": "fail on kahjustatud või puudulik",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Selle taustaleht jääb laadituks, kuni mõni seda käitav sait on avatud.",
   "extensionsAdded": "{name} lisatud",
   "extensionsRemoveTitle": "Kas eemaldada {name}?",
-  "extensionsRemoveBody": "Selle failid kustutatakse ja see lõpetab töö kõigil saitidel.",
+  "extensionsRemoveBody": "See lõpetab töö kõigil saitidel ning selle failid ja see, mida see igale saidile salvestas, kustutatakse.",
   "extensionsRemoved": "{name} eemaldatud",
   "siteSettingsExtensionsHint": "Rakenduse seadetes imporditud brauserilaiendused, mis töötavad selle saidi lehtedel. Igaüks neist ulatub ainult sellele saidile ja muudatus rakendub saidi järgmisel laadimisel.",
   "siteSettingsExtensionsNone": "Ükski pole sees",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "See ei ulatu ühelegi selle saidi lehele.",
   "siteExtensionsConsentPermissions": "See saab õigused: {permissions}",
   "siteExtensionsConsentNoPermissions": "See ei saa ühtegi õigust.",
-  "siteExtensionsSwitchOn": "Lülita sisse"
+  "siteExtensionsSwitchOn": "Lülita sisse",
+  "siteExtensionsSettings": "Seaded",
+  "siteExtensionsOpen": "Ava",
+  "siteExtensionsPageFailed": "{name} avamine siin ebaõnnestus"
 }

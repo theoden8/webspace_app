@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "ઍપ કોઈ એક્સ્ટેન્શન ડાઉનલોડ કે અપડેટ કરતી નથી: તમે ફાઇલ પસંદ કરો છો, અને નવા વર્ઝન માટે તેને ફરી આયાત કરો છો. પેકેજની સહી તપાસવામાં આવતી નથી.",
   "extensionsLibrary": "આયાત કરેલા",
   "extensionsVersion": "વર્ઝન {version}",
+  "extensionsVersionProblems": "{count, plural, =1{વર્ઝન {version} · {count} સમસ્યાની જાણ થઈ} other{વર્ઝન {version} · {count} સમસ્યાઓની જાણ થઈ}}",
+  "extensionsProblemsHint": "એક્સ્ટેન્શન વાંચતી વખતે WebKit એ આ સમસ્યાઓની જાણ કરી. તમે જે સાઇટ્સ માટે તેને ચાલુ કરો છો ત્યાં તે હજી પણ ચાલે છે, પરંતુ તેમાં જેનો ઉલ્લેખ છે તે કદાચ કામ ન કરે.\n\n{problems}",
   "extensionsRefused": "આયાત થયું નહીં: {reason}",
   "extensionsRefusedNotAPackage": "ફાઇલ .crx, .xpi અથવા .zip પેકેજ નથી",
   "extensionsRefusedDamaged": "ફાઇલ ક્ષતિગ્રસ્ત અથવા અધૂરી છે",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "તેને ચલાવતી કોઈ સાઇટ ખુલ્લી હોય ત્યાં સુધી તેનું બેકગ્રાઉન્ડ પેજ લોડ થયેલું રહે છે.",
   "extensionsAdded": "{name} ઉમેરાયું",
   "extensionsRemoveTitle": "{name} દૂર કરવું છે?",
-  "extensionsRemoveBody": "તેની ફાઇલો કાઢી નાખવામાં આવે છે અને તે દરેક સાઇટ પર ચાલવાનું બંધ કરે છે.",
+  "extensionsRemoveBody": "તે દરેક સાઇટ પર ચાલવાનું બંધ કરે છે, અને તેની ફાઇલો અને તેણે દરેક સાઇટ પર જે સંગ્રહિત કર્યું હતું તે કાઢી નાખવામાં આવે છે.",
   "extensionsRemoved": "{name} દૂર કરાયું",
   "siteSettingsExtensionsHint": "એપ્લિકેશન સેટિંગ્સમાં આયાત કરેલા બ્રાઉઝર એક્સ્ટેન્શન્સ જે આ સાઇટના પેજ પર ચાલે છે. દરેક ફક્ત આ સાઇટ સુધી જ પહોંચે છે, અને ફેરફાર સાઇટ આગલી વખતે લોડ થાય ત્યારે લાગુ થાય છે.",
   "siteSettingsExtensionsNone": "કોઈ ચાલુ નથી",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "તે આ સાઇટના કોઈ પેજ સુધી પહોંચતું નથી.",
   "siteExtensionsConsentPermissions": "તેને આ મળે છે: {permissions}",
   "siteExtensionsConsentNoPermissions": "તેને કોઈ પરવાનગી મળતી નથી.",
-  "siteExtensionsSwitchOn": "ચાલુ કરો"
+  "siteExtensionsSwitchOn": "ચાલુ કરો",
+  "siteExtensionsSettings": "સેટિંગ્સ",
+  "siteExtensionsOpen": "ખોલો",
+  "siteExtensionsPageFailed": "{name} અહીં ખોલી શકાયું નહીં"
 }

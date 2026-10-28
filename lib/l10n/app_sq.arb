@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikacioni nuk shkarkon dhe nuk përditëson asnjë shtesë: ti zgjedh skedarin dhe e importon sërish për një version më të ri. Nënshkrimi i paketës nuk kontrollohet.",
   "extensionsLibrary": "Të importuara",
   "extensionsVersion": "Versioni {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versioni {version} · u raportua {count} problem} other{Versioni {version} · u raportuan {count} probleme}}",
+  "extensionsProblemsHint": "WebKit raportoi këto probleme gjatë leximit të shtesës. Ajo ende ekzekutohet në sajtet ku e aktivizon, por ato që përmendin mund të mos funksionojnë.\n\n{problems}",
   "extensionsRefused": "Nuk u importua: {reason}",
   "extensionsRefusedNotAPackage": "skedari nuk është paketë .crx, .xpi ose .zip",
   "extensionsRefusedDamaged": "skedari është i dëmtuar ose i paplotë",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Faqja e saj në sfond mbetet e ngarkuar sa kohë që është i hapur një sajt që e ekzekuton.",
   "extensionsAdded": "{name} u shtua",
   "extensionsRemoveTitle": "Të hiqet {name}?",
-  "extensionsRemoveBody": "Skedarët e saj fshihen dhe ajo nuk ekzekutohet më në asnjë sajt.",
+  "extensionsRemoveBody": "Ajo nuk ekzekutohet më në asnjë sajt, dhe skedarët e saj dhe ato që ruajti në çdo sajt fshihen.",
   "extensionsRemoved": "{name} u hoq",
   "siteSettingsExtensionsHint": "Shtesat e shfletuesit të importuara te Cilësimet e aplikacionit që ekzekutohen në faqet e këtij sajti. Secila arrin vetëm këtë sajt, dhe një ndryshim zbatohet herën tjetër që ngarkohet sajti.",
   "siteSettingsExtensionsNone": "Asnjë aktive",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Nuk arrin asnjë nga faqet e këtij sajti.",
   "siteExtensionsConsentPermissions": "Merr: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nuk merr asnjë leje.",
-  "siteExtensionsSwitchOn": "Aktivizo"
+  "siteExtensionsSwitchOn": "Aktivizo",
+  "siteExtensionsSettings": "Cilësimet",
+  "siteExtensionsOpen": "Hap",
+  "siteExtensionsPageFailed": "{name} nuk mund të hapej këtu"
 }

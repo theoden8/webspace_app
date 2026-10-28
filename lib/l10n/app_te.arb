@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "యాప్ ఏ ఎక్స్‌టెన్షన్‌నూ డౌన్‌లోడ్ చేయదు, అప్‌డేట్ చేయదు: ఫైల్‌ను మీరే ఎంచుకుంటారు, కొత్త వెర్షన్ కోసం మళ్లీ దిగుమతి చేస్తారు. ప్యాకేజీ సంతకం తనిఖీ చేయబడదు.",
   "extensionsLibrary": "దిగుమతి చేసినవి",
   "extensionsVersion": "వెర్షన్ {version}",
+  "extensionsVersionProblems": "{count, plural, =1{వెర్షన్ {version} · {count} సమస్య నివేదించబడింది} other{వెర్షన్ {version} · {count} సమస్యలు నివేదించబడ్డాయి}}",
+  "extensionsProblemsHint": "ఎక్స్‌టెన్షన్‌ను చదువుతున్నప్పుడు WebKit ఈ సమస్యలను నివేదించింది. మీరు దీన్ని ఆన్ చేసే సైట్‌లలో ఇది ఇప్పటికీ నడుస్తుంది, కానీ ఇవి పేర్కొన్నవి పని చేయకపోవచ్చు.\n\n{problems}",
   "extensionsRefused": "దిగుమతి కాలేదు: {reason}",
   "extensionsRefusedNotAPackage": "ఫైల్ .crx, .xpi లేదా .zip ప్యాకేజీ కాదు",
   "extensionsRefusedDamaged": "ఫైల్ పాడైంది లేదా అసంపూర్ణంగా ఉంది",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "దీన్ని నడిపే సైట్ తెరిచి ఉన్నంత వరకు దీని నేపథ్య పేజీ లోడ్ అయి ఉంటుంది.",
   "extensionsAdded": "{name} జోడించబడింది",
   "extensionsRemoveTitle": "{name} ను తీసివేయాలా?",
-  "extensionsRemoveBody": "దీని ఫైల్‌లు తొలగించబడతాయి, ఇది ఏ సైట్‌లోనూ ఇక నడవదు.",
+  "extensionsRemoveBody": "ఇది ఏ సైట్‌లోనూ ఇక నడవదు, దీని ఫైల్‌లు మరియు ఇది ప్రతి సైట్‌లో నిల్వ చేసినవి తొలగించబడతాయి.",
   "extensionsRemoved": "{name} తీసివేయబడింది",
   "siteSettingsExtensionsHint": "యాప్ సెట్టింగ్‌లలో దిగుమతి చేసి, ఈ సైట్ పేజీలలో నడిచే బ్రౌజర్ ఎక్స్‌టెన్షన్‌లు. ప్రతిదీ ఈ సైట్‌ను మాత్రమే చేరుకుంటుంది, మార్పు సైట్ తదుపరిసారి లోడ్ అయినప్పుడు వర్తిస్తుంది.",
   "siteSettingsExtensionsNone": "ఏవీ ఆన్‌లో లేవు",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "ఇది ఈ సైట్ పేజీలలో దేనినీ చేరుకోదు.",
   "siteExtensionsConsentPermissions": "దీనికి లభించేవి: {permissions}",
   "siteExtensionsConsentNoPermissions": "దీనికి ఏ అనుమతులూ లభించవు.",
-  "siteExtensionsSwitchOn": "ఆన్ చేయి"
+  "siteExtensionsSwitchOn": "ఆన్ చేయి",
+  "siteExtensionsSettings": "సెట్టింగ్‌లు",
+  "siteExtensionsOpen": "తెరువు",
+  "siteExtensionsPageFailed": "{name} ను ఇక్కడ తెరవడం సాధ్యం కాలేదు"
 }

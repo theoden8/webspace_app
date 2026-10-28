@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "ਐਪ ਕੋਈ ਐਕਸਟੈਂਸ਼ਨ ਨਾ ਡਾਊਨਲੋਡ ਕਰਦੀ ਹੈ ਨਾ ਅੱਪਡੇਟ: ਫ਼ਾਈਲ ਤੁਸੀਂ ਚੁਣਦੇ ਹੋ, ਅਤੇ ਨਵੇਂ ਸੰਸਕਰਣ ਲਈ ਇਸਨੂੰ ਮੁੜ ਇੰਪੋਰਟ ਕਰਦੇ ਹੋ। ਪੈਕੇਜ ਦੇ ਦਸਤਖਤ ਦੀ ਜਾਂਚ ਨਹੀਂ ਹੁੰਦੀ।",
   "extensionsLibrary": "ਇੰਪੋਰਟ ਕੀਤੀਆਂ",
   "extensionsVersion": "ਸੰਸਕਰਣ {version}",
+  "extensionsVersionProblems": "{count, plural, =1{ਸੰਸਕਰਣ {version} · {count} ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕੀਤੀ ਗਈ} other{ਸੰਸਕਰਣ {version} · {count} ਸਮੱਸਿਆਵਾਂ ਦੀ ਰਿਪੋਰਟ ਕੀਤੀ ਗਈ}}",
+  "extensionsProblemsHint": "ਐਕਸਟੈਂਸ਼ਨ ਪੜ੍ਹਦੇ ਸਮੇਂ WebKit ਨੇ ਇਹ ਸਮੱਸਿਆਵਾਂ ਦੱਸੀਆਂ। ਜਿਨ੍ਹਾਂ ਸਾਈਟਾਂ ਲਈ ਤੁਸੀਂ ਇਸਨੂੰ ਚਾਲੂ ਕਰਦੇ ਹੋ, ਉਨ੍ਹਾਂ 'ਤੇ ਇਹ ਅਜੇ ਵੀ ਚੱਲਦੀ ਹੈ, ਪਰ ਇਨ੍ਹਾਂ ਵਿੱਚ ਜਿਸਦਾ ਜ਼ਿਕਰ ਹੈ ਉਹ ਸ਼ਾਇਦ ਕੰਮ ਨਾ ਕਰੇ।\n\n{problems}",
   "extensionsRefused": "ਇੰਪੋਰਟ ਨਹੀਂ ਹੋਈ: {reason}",
   "extensionsRefusedNotAPackage": "ਫ਼ਾਈਲ .crx, .xpi ਜਾਂ .zip ਪੈਕੇਜ ਨਹੀਂ ਹੈ",
   "extensionsRefusedDamaged": "ਫ਼ਾਈਲ ਖਰਾਬ ਜਾਂ ਅਧੂਰੀ ਹੈ",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "ਜਦੋਂ ਤੱਕ ਇਸਨੂੰ ਚਲਾਉਣ ਵਾਲੀ ਕੋਈ ਸਾਈਟ ਖੁੱਲ੍ਹੀ ਹੈ, ਇਸਦਾ ਬੈਕਗ੍ਰਾਊਂਡ ਪੰਨਾ ਲੋਡ ਰਹਿੰਦਾ ਹੈ।",
   "extensionsAdded": "{name} ਜੋੜੀ ਗਈ",
   "extensionsRemoveTitle": "{name} ਹਟਾਈਏ?",
-  "extensionsRemoveBody": "ਇਸਦੀਆਂ ਫ਼ਾਈਲਾਂ ਮਿਟਾ ਦਿੱਤੀਆਂ ਜਾਂਦੀਆਂ ਹਨ ਅਤੇ ਇਹ ਹਰ ਸਾਈਟ 'ਤੇ ਚੱਲਣਾ ਬੰਦ ਕਰ ਦਿੰਦੀ ਹੈ।",
+  "extensionsRemoveBody": "ਇਹ ਹਰ ਸਾਈਟ 'ਤੇ ਚੱਲਣਾ ਬੰਦ ਕਰ ਦਿੰਦੀ ਹੈ, ਅਤੇ ਇਸਦੀਆਂ ਫ਼ਾਈਲਾਂ ਅਤੇ ਇਸਨੇ ਹਰ ਸਾਈਟ 'ਤੇ ਜੋ ਸਟੋਰ ਕੀਤਾ ਸੀ, ਉਹ ਮਿਟਾ ਦਿੱਤਾ ਜਾਂਦਾ ਹੈ।",
   "extensionsRemoved": "{name} ਹਟਾਈ ਗਈ",
   "siteSettingsExtensionsHint": "ਐਪ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇੰਪੋਰਟ ਕੀਤੀਆਂ ਬ੍ਰਾਊਜ਼ਰ ਐਕਸਟੈਂਸ਼ਨਾਂ ਜੋ ਇਸ ਸਾਈਟ ਦੇ ਪੰਨਿਆਂ 'ਤੇ ਚੱਲਦੀਆਂ ਹਨ। ਹਰੇਕ ਸਿਰਫ਼ ਇਸ ਸਾਈਟ ਤੱਕ ਪਹੁੰਚਦੀ ਹੈ, ਅਤੇ ਕੋਈ ਬਦਲਾਅ ਸਾਈਟ ਦੇ ਅਗਲੀ ਵਾਰ ਲੋਡ ਹੋਣ 'ਤੇ ਲਾਗੂ ਹੁੰਦਾ ਹੈ।",
   "siteSettingsExtensionsNone": "ਕੋਈ ਚਾਲੂ ਨਹੀਂ",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "ਇਹ ਇਸ ਸਾਈਟ ਦੇ ਕਿਸੇ ਵੀ ਪੰਨੇ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚਦੀ।",
   "siteExtensionsConsentPermissions": "ਇਸਨੂੰ ਮਿਲਦੇ ਹਨ: {permissions}",
   "siteExtensionsConsentNoPermissions": "ਇਸਨੂੰ ਕੋਈ ਅਧਿਕਾਰ ਨਹੀਂ ਮਿਲਦਾ।",
-  "siteExtensionsSwitchOn": "ਚਾਲੂ ਕਰੋ"
+  "siteExtensionsSwitchOn": "ਚਾਲੂ ਕਰੋ",
+  "siteExtensionsSettings": "ਸੈਟਿੰਗਾਂ",
+  "siteExtensionsOpen": "ਖੋਲ੍ਹੋ",
+  "siteExtensionsPageFailed": "{name} ਇੱਥੇ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ"
 }

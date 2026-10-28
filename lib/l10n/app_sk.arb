@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikácia nesťahuje ani neaktualizuje žiadne rozšírenia: súbor vyberiete vy a pre novšiu verziu ho importujete znova. Podpis balíka sa nekontroluje.",
   "extensionsLibrary": "Importované",
   "extensionsVersion": "Verzia {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Verzia {version} · {count} nahlásený problém} few{Verzia {version} · {count} nahlásené problémy} many{Verzia {version} · {count} nahláseného problému} other{Verzia {version} · {count} nahlásených problémov}}",
+  "extensionsProblemsHint": "WebKit nahlásil tieto problémy pri čítaní rozšírenia. Na weboch, kde ho zapnete, stále beží, ale to, čo uvádzajú, nemusí fungovať.\n\n{problems}",
   "extensionsRefused": "Neimportované: {reason}",
   "extensionsRefusedNotAPackage": "súbor nie je balík .crx, .xpi ani .zip",
   "extensionsRefusedDamaged": "súbor je poškodený alebo neúplný",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Jeho stránka na pozadí zostáva načítaná, kým je otvorený web, na ktorom beží.",
   "extensionsAdded": "Pridané: {name}",
   "extensionsRemoveTitle": "Odstrániť {name}?",
-  "extensionsRemoveBody": "Jeho súbory sa odstránia a prestane bežať na všetkých weboch.",
+  "extensionsRemoveBody": "Prestane bežať na všetkých weboch a jeho súbory aj to, čo uložilo na jednotlivých weboch, sa odstránia.",
   "extensionsRemoved": "Odstránené: {name}",
   "siteSettingsExtensionsHint": "Rozšírenia prehliadača importované v Nastaveniach aplikácie, ktoré bežia na stránkach tohto webu. Každé má prístup len k tomuto webu a zmena sa prejaví pri ďalšom načítaní webu.",
   "siteSettingsExtensionsNone": "Žiadne zapnuté",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Nemá prístup k žiadnej stránke tohto webu.",
   "siteExtensionsConsentPermissions": "Dostane: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nedostane žiadne povolenia.",
-  "siteExtensionsSwitchOn": "Zapnúť"
+  "siteExtensionsSwitchOn": "Zapnúť",
+  "siteExtensionsSettings": "Nastavenia",
+  "siteExtensionsOpen": "Otvoriť",
+  "siteExtensionsPageFailed": "{name} sa tu nepodarilo otvoriť"
 }

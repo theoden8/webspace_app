@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "යෙදුම කිසිදු දිගුවක් බාගත කිරීම හෝ යාවත්කාලීන කිරීම නොකරයි: ඔබ ගොනුව තෝරා, නව අනුවාදයක් සඳහා එය නැවත ආයාත කරයි. පැකේජයේ අත්සන පරීක්ෂා නොකෙරේ.",
   "extensionsLibrary": "ආයාත කළ",
   "extensionsVersion": "අනුවාදය {version}",
+  "extensionsVersionProblems": "{count, plural, =1{අනුවාදය {version} · ගැටලු {count}ක් වාර්තා විය} other{අනුවාදය {version} · ගැටලු {count}ක් වාර්තා විය}}",
+  "extensionsProblemsHint": "දිගුව කියවන විට WebKit මෙම ගැටලු වාර්තා කළේය. ඔබ එය සක්‍රිය කරන අඩවිවල එය තවමත් ධාවනය වේ, නමුත් මේවායේ සඳහන් දේ ක්‍රියා නොකිරීමට ඉඩ ඇත.\n\n{problems}",
   "extensionsRefused": "ආයාත නොකෙරිණි: {reason}",
   "extensionsRefusedNotAPackage": "ගොනුව .crx, .xpi හෝ .zip පැකේජයක් නොවේ",
   "extensionsRefusedDamaged": "ගොනුව හානි වී ඇත හෝ අසම්පූර්ණයි",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "එය ධාවනය කරන අඩවියක් විවෘතව ඇති තාක් එහි පසුබිම් පිටුව පූරණය වී පවතී.",
   "extensionsAdded": "{name} එක් කරන ලදී",
   "extensionsRemoveTitle": "{name} ඉවත් කරන්නද?",
-  "extensionsRemoveBody": "එහි ගොනු මකා දමනු ලබන අතර එය සෑම අඩවියකම ධාවනය වීම නවතී.",
+  "extensionsRemoveBody": "එය සෑම අඩවියකම ධාවනය වීම නවතින අතර, එහි ගොනු සහ එය එක් එක් අඩවියේ ගබඩා කළ දේ මකා දමනු ලැබේ.",
   "extensionsRemoved": "{name} ඉවත් කරන ලදී",
   "siteSettingsExtensionsHint": "යෙදුම් සැකසුම්වල ආයාත කළ, මෙම අඩවියේ පිටුවල ධාවනය වන බ්‍රවුසර දිගු. එක් එක් දිගුව ළඟා වන්නේ මෙම අඩවියට පමණක් වන අතර, වෙනසක් බලපාන්නේ අඩවිය ඊළඟ වතාවේ පූරණය වන විටය.",
   "siteSettingsExtensionsNone": "කිසිවක් සක්‍රිය නැත",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "එය මෙම අඩවියේ කිසිදු පිටුවකට ළඟා නොවේ.",
   "siteExtensionsConsentPermissions": "එයට ලැබෙන්නේ: {permissions}",
   "siteExtensionsConsentNoPermissions": "එයට කිසිදු අවසරයක් නොලැබේ.",
-  "siteExtensionsSwitchOn": "සක්‍රිය කරන්න"
+  "siteExtensionsSwitchOn": "සක්‍රිය කරන්න",
+  "siteExtensionsSettings": "සැකසුම්",
+  "siteExtensionsOpen": "විවෘත කරන්න",
+  "siteExtensionsPageFailed": "{name} මෙහි විවෘත කළ නොහැකි විය"
 }

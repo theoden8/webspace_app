@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Appen henter og opdaterer ingen udvidelser: du vælger filen og importerer den igen for at få en nyere version. En pakkes signatur kontrolleres ikke.",
   "extensionsLibrary": "Importeret",
   "extensionsVersion": "Version {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Version {version} · {count} rapporteret problem} other{Version {version} · {count} rapporterede problemer}}",
+  "extensionsProblemsHint": "WebKit rapporterede disse problemer under læsningen af udvidelsen. Den kører stadig på de websteder, du slår den til for, men det, de nævner, virker måske ikke.\n\n{problems}",
   "extensionsRefused": "Ikke importeret: {reason}",
   "extensionsRefusedNotAPackage": "filen er ikke en .crx-, .xpi- eller .zip-pakke",
   "extensionsRefusedDamaged": "filen er beskadiget eller ufuldstændig",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Dens baggrundsside forbliver indlæst, mens et websted, der kører den, er åbent.",
   "extensionsAdded": "{name} tilføjet",
   "extensionsRemoveTitle": "Fjern {name}?",
-  "extensionsRemoveBody": "Dens filer slettes, og den holder op med at køre på alle websteder.",
+  "extensionsRemoveBody": "Den holder op med at køre på alle websteder, og dens filer og det, den har gemt på hvert websted, slettes.",
   "extensionsRemoved": "{name} fjernet",
   "siteSettingsExtensionsHint": "Browserudvidelser importeret i Appindstillinger, som kører på dette websteds sider. Hver af dem når kun dette websted, og en ændring træder i kraft, næste gang webstedet indlæses.",
   "siteSettingsExtensionsNone": "Ingen slået til",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Den når ingen af dette websteds sider.",
   "siteExtensionsConsentPermissions": "Den får: {permissions}",
   "siteExtensionsConsentNoPermissions": "Den får ingen tilladelser.",
-  "siteExtensionsSwitchOn": "Slå til"
+  "siteExtensionsSwitchOn": "Slå til",
+  "siteExtensionsSettings": "Indstillinger",
+  "siteExtensionsOpen": "Åbn",
+  "siteExtensionsPageFailed": "{name} kunne ikke åbnes her"
 }

@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "L'app no baixa ni actualitza cap extensió: trieu el fitxer i el torneu a importar per tenir-ne una versió més nova. No es comprova la signatura del paquet.",
   "extensionsLibrary": "Importades",
   "extensionsVersion": "Versió {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versió {version} · {count} problema notificat} other{Versió {version} · {count} problemes notificats}}",
+  "extensionsProblemsHint": "WebKit ha notificat aquests problemes en llegir l'extensió. Continua executant-se als llocs on l'activeu, però el que esmenten pot no funcionar.\n\n{problems}",
   "extensionsRefused": "No s'ha importat: {reason}",
   "extensionsRefusedNotAPackage": "el fitxer no és un paquet .crx, .xpi o .zip",
   "extensionsRefusedDamaged": "el fitxer està malmès o incomplet",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "La seva pàgina en segon pla es manté carregada mentre hi hagi obert un lloc que l'executa.",
   "extensionsAdded": "S'ha afegit {name}",
   "extensionsRemoveTitle": "Voleu eliminar {name}?",
-  "extensionsRemoveBody": "Se n'esborren els fitxers i deixa d'executar-se a tots els llocs.",
+  "extensionsRemoveBody": "Deixa d'executar-se a tots els llocs, i se n'esborren els fitxers i el que havia desat a cada lloc.",
   "extensionsRemoved": "S'ha eliminat {name}",
   "siteSettingsExtensionsHint": "Extensions de navegador importades a Configuració de l'app que s'executen a les pàgines d'aquest lloc. Cadascuna només arriba a aquest lloc, i un canvi s'aplica la propera vegada que es carrega el lloc.",
   "siteSettingsExtensionsNone": "Cap activada",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "No arriba a cap pàgina d'aquest lloc.",
   "siteExtensionsConsentPermissions": "Obté: {permissions}",
   "siteExtensionsConsentNoPermissions": "No obté cap permís.",
-  "siteExtensionsSwitchOn": "Activa"
+  "siteExtensionsSwitchOn": "Activa",
+  "siteExtensionsSettings": "Configuració",
+  "siteExtensionsOpen": "Obre",
+  "siteExtensionsPageFailed": "No s'ha pogut obrir {name} aquí"
 }

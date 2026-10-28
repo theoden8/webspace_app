@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Uygulama hiçbir uzantıyı indirmez ve güncellemez: dosyayı siz seçersiniz ve daha yeni bir sürüm için yeniden içe aktarırsınız. Paket imzası denetlenmez.",
   "extensionsLibrary": "İçe aktarılanlar",
   "extensionsVersion": "Sürüm {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Sürüm {version} · {count} sorun bildirildi} other{Sürüm {version} · {count} sorun bildirildi}}",
+  "extensionsProblemsHint": "WebKit, uzantıyı okurken bu sorunları bildirdi. Uzantı, açtığınız sitelerde çalışmaya devam eder, ancak bu sorunlarda adı geçenler çalışmayabilir.\n\n{problems}",
   "extensionsRefused": "İçe aktarılmadı: {reason}",
   "extensionsRefusedNotAPackage": "dosya bir .crx, .xpi veya .zip paketi değil",
   "extensionsRefusedDamaged": "dosya hasarlı veya eksik",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Onu çalıştıran bir site açık olduğu sürece arka plan sayfası yüklü kalır.",
   "extensionsAdded": "{name} eklendi",
   "extensionsRemoveTitle": "{name} kaldırılsın mı?",
-  "extensionsRemoveBody": "Dosyaları silinir ve artık hiçbir sitede çalışmaz.",
+  "extensionsRemoveBody": "Artık hiçbir sitede çalışmaz; dosyaları ve her sitede depoladığı veriler silinir.",
   "extensionsRemoved": "{name} kaldırıldı",
   "siteSettingsExtensionsHint": "Uygulama Ayarları'nda içe aktarılan ve bu sitenin sayfalarında çalışan tarayıcı uzantıları. Her biri yalnızca bu siteye erişir; bir değişiklik, site bir sonraki yüklendiğinde geçerli olur.",
   "siteSettingsExtensionsNone": "Hiçbiri açık değil",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Bu sitenin hiçbir sayfasına erişmez.",
   "siteExtensionsConsentPermissions": "Alacağı izinler: {permissions}",
   "siteExtensionsConsentNoPermissions": "Hiçbir izin almaz.",
-  "siteExtensionsSwitchOn": "Aç"
+  "siteExtensionsSwitchOn": "Aç",
+  "siteExtensionsSettings": "Ayarlar",
+  "siteExtensionsOpen": "Aç",
+  "siteExtensionsPageFailed": "{name} burada açılamadı"
 }

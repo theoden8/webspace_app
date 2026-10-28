@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "ആപ്പ് ഒരു എക്സ്റ്റൻഷനും ഡൗൺലോഡ് ചെയ്യുകയോ അപ്ഡേറ്റ് ചെയ്യുകയോ ഇല്ല: ഫയൽ നിങ്ങൾ തിരഞ്ഞെടുക്കുന്നു, പുതിയ പതിപ്പിനായി അത് വീണ്ടും ഇറക്കുമതി ചെയ്യുന്നു. പാക്കേജിന്റെ ഒപ്പ് പരിശോധിക്കുന്നില്ല.",
   "extensionsLibrary": "ഇറക്കുമതി ചെയ്തവ",
   "extensionsVersion": "പതിപ്പ് {version}",
+  "extensionsVersionProblems": "{count, plural, =1{പതിപ്പ് {version} · {count} പ്രശ്നം റിപ്പോർട്ട് ചെയ്തു} other{പതിപ്പ് {version} · {count} പ്രശ്നങ്ങൾ റിപ്പോർട്ട് ചെയ്തു}}",
+  "extensionsProblemsHint": "എക്സ്റ്റൻഷൻ വായിക്കുമ്പോൾ WebKit ഈ പ്രശ്നങ്ങൾ റിപ്പോർട്ട് ചെയ്തു. നിങ്ങൾ ഇത് ഓണാക്കുന്ന സൈറ്റുകളിൽ ഇത് ഇപ്പോഴും പ്രവർത്തിക്കും, എന്നാൽ ഇവ പരാമർശിക്കുന്നവ പ്രവർത്തിച്ചേക്കില്ല.\n\n{problems}",
   "extensionsRefused": "ഇറക്കുമതി ചെയ്തില്ല: {reason}",
   "extensionsRefusedNotAPackage": "ഫയൽ ഒരു .crx, .xpi അല്ലെങ്കിൽ .zip പാക്കേജ് അല്ല",
   "extensionsRefusedDamaged": "ഫയൽ കേടായതോ അപൂർണ്ണമോ ആണ്",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "ഇത് പ്രവർത്തിപ്പിക്കുന്ന ഒരു സൈറ്റ് തുറന്നിരിക്കുമ്പോൾ ഇതിന്റെ പശ്ചാത്തല പേജ് ലോഡ് ചെയ്ത നിലയിൽ തുടരും.",
   "extensionsAdded": "{name} ചേർത്തു",
   "extensionsRemoveTitle": "{name} നീക്കം ചെയ്യണോ?",
-  "extensionsRemoveBody": "ഇതിന്റെ ഫയലുകൾ ഇല്ലാതാക്കും, എല്ലാ സൈറ്റുകളിലും ഇത് പ്രവർത്തിക്കുന്നത് നിർത്തും.",
+  "extensionsRemoveBody": "എല്ലാ സൈറ്റുകളിലും ഇത് പ്രവർത്തിക്കുന്നത് നിർത്തും, ഇതിന്റെ ഫയലുകളും ഓരോ സൈറ്റിലും ഇത് സംഭരിച്ചവയും ഇല്ലാതാക്കും.",
   "extensionsRemoved": "{name} നീക്കം ചെയ്തു",
   "siteSettingsExtensionsHint": "ആപ്പ് ക്രമീകരണങ്ങളിൽ ഇറക്കുമതി ചെയ്ത, ഈ സൈറ്റിന്റെ പേജുകളിൽ പ്രവർത്തിക്കുന്ന ബ്രൗസർ എക്സ്റ്റൻഷനുകൾ. ഓരോന്നും ഈ സൈറ്റിൽ മാത്രം എത്തുന്നു, ഒരു മാറ്റം സൈറ്റ് അടുത്ത തവണ ലോഡ് ചെയ്യുമ്പോൾ പ്രാബല്യത്തിൽ വരും.",
   "siteSettingsExtensionsNone": "ഒന്നും ഓണല്ല",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "ഈ സൈറ്റിന്റെ ഒരു പേജിലും ഇത് എത്തുന്നില്ല.",
   "siteExtensionsConsentPermissions": "ഇതിന് ലഭിക്കുന്നത്: {permissions}",
   "siteExtensionsConsentNoPermissions": "ഇതിന് അനുമതികളൊന്നും ലഭിക്കുന്നില്ല.",
-  "siteExtensionsSwitchOn": "ഓണാക്കുക"
+  "siteExtensionsSwitchOn": "ഓണാക്കുക",
+  "siteExtensionsSettings": "ക്രമീകരണങ്ങൾ",
+  "siteExtensionsOpen": "തുറക്കുക",
+  "siteExtensionsPageFailed": "{name} ഇവിടെ തുറക്കാനായില്ല"
 }

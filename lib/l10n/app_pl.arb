@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikacja nie pobiera ani nie aktualizuje rozszerzeń: sam wybierasz plik, a nowszą wersję importujesz ponownie. Podpis pakietu nie jest sprawdzany.",
   "extensionsLibrary": "Zaimportowane",
   "extensionsVersion": "Wersja {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Wersja {version} · zgłoszono {count} problem} few{Wersja {version} · zgłoszono {count} problemy} many{Wersja {version} · zgłoszono {count} problemów} other{Wersja {version} · zgłoszono {count} problemu}}",
+  "extensionsProblemsHint": "WebKit zgłosił te problemy podczas odczytu rozszerzenia. Nadal działa ono na witrynach, na których je włączysz, ale to, co wymieniają, może nie działać.\n\n{problems}",
   "extensionsRefused": "Nie zaimportowano: {reason}",
   "extensionsRefusedNotAPackage": "plik nie jest pakietem .crx, .xpi ani .zip",
   "extensionsRefusedDamaged": "plik jest uszkodzony lub niekompletny",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Jego strona w tle pozostaje wczytana, dopóki otwarta jest witryna, która je uruchamia.",
   "extensionsAdded": "Dodano {name}",
   "extensionsRemoveTitle": "Usunąć {name}?",
-  "extensionsRemoveBody": "Jego pliki zostaną usunięte i przestanie działać na wszystkich witrynach.",
+  "extensionsRemoveBody": "Przestanie działać na wszystkich witrynach, a jego pliki i to, co zapisało na każdej witrynie, zostaną usunięte.",
   "extensionsRemoved": "Usunięto {name}",
   "siteSettingsExtensionsHint": "Rozszerzenia przeglądarki zaimportowane w ustawieniach aplikacji, które działają na stronach tej witryny. Każde ma dostęp tylko do tej witryny, a zmiana zacznie obowiązywać przy następnym wczytaniu witryny.",
   "siteSettingsExtensionsNone": "Brak włączonych",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Nie ma dostępu do żadnej strony tej witryny.",
   "siteExtensionsConsentPermissions": "Otrzymuje: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nie otrzymuje żadnych uprawnień.",
-  "siteExtensionsSwitchOn": "Włącz"
+  "siteExtensionsSwitchOn": "Włącz",
+  "siteExtensionsSettings": "Ustawienia",
+  "siteExtensionsOpen": "Otwórz",
+  "siteExtensionsPageFailed": "Nie udało się tu otworzyć {name}"
 }

@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikazioak ez du luzapenik deskargatzen ez eguneratzen: zuk aukeratzen duzu fitxategia, eta berriro inportatzen duzu bertsio berriago baterako. Paketearen sinadura ez da egiaztatzen.",
   "extensionsLibrary": "Inportatuak",
   "extensionsVersion": "{version} bertsioa",
+  "extensionsVersionProblems": "{count, plural, =1{{version} bertsioa · {count} arazo jakinarazi da} other{{version} bertsioa · {count} arazo jakinarazi dira}}",
+  "extensionsProblemsHint": "WebKitek arazo hauek jakinarazi ditu luzapena irakurtzean. Aktibatzen duzun guneetan exekutatzen jarraitzen du, baina aipatzen dutenak agian ez du funtzionatuko.\n\n{problems}",
   "extensionsRefused": "Ez da inportatu: {reason}",
   "extensionsRefusedNotAPackage": "fitxategia ez da .crx, .xpi edo .zip pakete bat",
   "extensionsRefusedDamaged": "fitxategia hondatuta edo osatu gabe dago",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Bere atzeko planoko orria kargatuta geratzen da hura exekutatzen duen gune bat irekita dagoen bitartean.",
   "extensionsAdded": "{name} gehitu da",
   "extensionsRemoveTitle": "{name} kendu?",
-  "extensionsRemoveBody": "Bere fitxategiak ezabatzen dira eta gune guztietan exekutatzeari uzten dio.",
+  "extensionsRemoveBody": "Gune guztietan exekutatzeari uzten dio, eta bere fitxategiak eta gune bakoitzean gordetakoa ezabatzen dira.",
   "extensionsRemoved": "{name} kendu da",
   "siteSettingsExtensionsHint": "Aplikazioaren ezarpenetan inportatutako nabigatzaile-luzapenak, gune honen orrietan exekutatzen direnak. Bakoitza gune honetara soilik iristen da, eta aldaketak gunea hurrengoan kargatzen denean du eragina.",
   "siteSettingsExtensionsNone": "Bat ere ez aktibatuta",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ez da gune honetako orrietako batera ere iristen.",
   "siteExtensionsConsentPermissions": "Baimen hauek jasotzen ditu: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ez du baimenik jasotzen.",
-  "siteExtensionsSwitchOn": "Aktibatu"
+  "siteExtensionsSwitchOn": "Aktibatu",
+  "siteExtensionsSettings": "Ezarpenak",
+  "siteExtensionsOpen": "Ireki",
+  "siteExtensionsPageFailed": "Ezin izan da {name} hemen ireki"
 }

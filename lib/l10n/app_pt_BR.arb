@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "O app não baixa nem atualiza extensões: você escolhe o arquivo e importa de novo para ter uma versão mais nova. A assinatura do pacote não é verificada.",
   "extensionsLibrary": "Importadas",
   "extensionsVersion": "Versão {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versão {version} · {count} problema relatado} other{Versão {version} · {count} problemas relatados}}",
+  "extensionsProblemsHint": "O WebKit relatou estes problemas ao ler a extensão. Ela continua rodando nos sites em que você a ativar, mas o que eles citam pode não funcionar.\n\n{problems}",
   "extensionsRefused": "Não importada: {reason}",
   "extensionsRefusedNotAPackage": "o arquivo não é um pacote .crx, .xpi ou .zip",
   "extensionsRefusedDamaged": "o arquivo está corrompido ou incompleto",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "A página em segundo plano dela fica carregada enquanto um site que a executa estiver aberto.",
   "extensionsAdded": "{name} adicionada",
   "extensionsRemoveTitle": "Remover {name}?",
-  "extensionsRemoveBody": "Os arquivos dela são excluídos e ela para de rodar em todos os sites.",
+  "extensionsRemoveBody": "Ela para de rodar em todos os sites, e os arquivos dela e o que ela armazenou em cada site são excluídos.",
   "extensionsRemoved": "{name} removida",
   "siteSettingsExtensionsHint": "Extensões de navegador importadas nas configurações do app que rodam nas páginas deste site. Cada uma só acessa este site, e uma mudança vale a partir do próximo carregamento do site.",
   "siteSettingsExtensionsNone": "Nenhuma ativada",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ela não acessa nenhuma página deste site.",
   "siteExtensionsConsentPermissions": "Ela recebe: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ela não recebe nenhuma permissão.",
-  "siteExtensionsSwitchOn": "Ativar"
+  "siteExtensionsSwitchOn": "Ativar",
+  "siteExtensionsSettings": "Configurações",
+  "siteExtensionsOpen": "Abrir",
+  "siteExtensionsPageFailed": "Não foi possível abrir {name} aqui"
 }

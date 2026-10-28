@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikasi tidak mengunduh atau memperbarui ekstensi apa pun: Anda yang memilih berkasnya, lalu mengimpornya lagi untuk versi yang lebih baru. Tanda tangan paket tidak diperiksa.",
   "extensionsLibrary": "Diimpor",
   "extensionsVersion": "Versi {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versi {version} · {count} masalah dilaporkan} other{Versi {version} · {count} masalah dilaporkan}}",
+  "extensionsProblemsHint": "WebKit melaporkan masalah ini saat membaca ekstensi. Ekstensi tetap berjalan di situs tempat Anda mengaktifkannya, tetapi hal yang disebutkan mungkin tidak berfungsi.\n\n{problems}",
   "extensionsRefused": "Tidak diimpor: {reason}",
   "extensionsRefusedNotAPackage": "berkas bukan paket .crx, .xpi, atau .zip",
   "extensionsRefusedDamaged": "berkas rusak atau tidak lengkap",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Halaman latarnya tetap dimuat selama situs yang menjalankannya terbuka.",
   "extensionsAdded": "{name} ditambahkan",
   "extensionsRemoveTitle": "Hapus {name}?",
-  "extensionsRemoveBody": "Berkasnya dihapus dan ekstensi berhenti berjalan di semua situs.",
+  "extensionsRemoveBody": "Ekstensi berhenti berjalan di semua situs, dan berkasnya serta data yang disimpannya di setiap situs dihapus.",
   "extensionsRemoved": "{name} dihapus",
   "siteSettingsExtensionsHint": "Ekstensi peramban yang diimpor di Pengaturan Aplikasi dan berjalan di halaman situs ini. Masing-masing hanya menjangkau situs ini, dan perubahan berlaku saat situs dimuat berikutnya.",
   "siteSettingsExtensionsNone": "Tidak ada yang aktif",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ekstensi ini tidak menjangkau halaman mana pun di situs ini.",
   "siteExtensionsConsentPermissions": "Ekstensi ini mendapat: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ekstensi ini tidak mendapat izin apa pun.",
-  "siteExtensionsSwitchOn": "Aktifkan"
+  "siteExtensionsSwitchOn": "Aktifkan",
+  "siteExtensionsSettings": "Pengaturan",
+  "siteExtensionsOpen": "Buka",
+  "siteExtensionsPageFailed": "{name} tidak dapat dibuka di sini"
 }

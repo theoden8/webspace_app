@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "本應用程式不會下載或更新任何擴充功能：檔案由您選擇，若要較新版本請重新匯入。套件的簽章不會受到檢查。",
   "extensionsLibrary": "已匯入",
   "extensionsVersion": "版本 {version}",
+  "extensionsVersionProblems": "{count, plural, =1{版本 {version} · 回報了 {count} 個問題} other{版本 {version} · 回報了 {count} 個問題}}",
+  "extensionsProblemsHint": "WebKit 在讀取此擴充功能時回報了這些問題。它仍會在您開啟它的網站上執行，但其中提到的部分可能無法運作。\n\n{problems}",
   "extensionsRefused": "未匯入：{reason}",
   "extensionsRefusedNotAPackage": "檔案不是 .crx、.xpi 或 .zip 套件",
   "extensionsRefusedDamaged": "檔案已損毀或不完整",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "只要有執行它的網站開著，其背景頁面就會保持載入。",
   "extensionsAdded": "已新增 {name}",
   "extensionsRemoveTitle": "要移除 {name} 嗎？",
-  "extensionsRemoveBody": "其檔案會被刪除，並停止在所有網站上執行。",
+  "extensionsRemoveBody": "它會停止在所有網站上執行，其檔案及在各網站上儲存的資料都會被刪除。",
   "extensionsRemoved": "已移除 {name}",
   "siteSettingsExtensionsHint": "在應用程式設定中匯入、並在此網站網頁上執行的瀏覽器擴充功能。每個都只能存取此網站，變更會在網站下次載入時生效。",
   "siteSettingsExtensionsNone": "未開啟任何項目",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "它無法存取此網站的任何網頁。",
   "siteExtensionsConsentPermissions": "取得的權限：{permissions}",
   "siteExtensionsConsentNoPermissions": "不會取得任何權限。",
-  "siteExtensionsSwitchOn": "開啟"
+  "siteExtensionsSwitchOn": "開啟",
+  "siteExtensionsSettings": "設定",
+  "siteExtensionsOpen": "開啟",
+  "siteExtensionsPageFailed": "無法在此開啟 {name}"
 }

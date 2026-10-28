@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "L-app la tniżżel u lanqas taġġorna estensjonijiet: int tagħżel il-fajl, u terġa' timportah għal verżjoni aktar ġdida. Il-firma tal-pakkett ma tiġix ivverifikata.",
   "extensionsLibrary": "Importati",
   "extensionsVersion": "Verżjoni {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Verżjoni {version} · problema waħda rrappurtata} other{Verżjoni {version} · {count} problemi rrappurtati}}",
+  "extensionsProblemsHint": "WebKit irrapporta dawn il-problemi waqt li kien qed jaqra l-estensjoni. Għadha taħdem fuq is-siti li tixgħelha għalihom, iżda dak li jsemmu jista' ma jaħdimx.\n\n{problems}",
   "extensionsRefused": "Mhux importata: {reason}",
   "extensionsRefusedNotAPackage": "il-fajl mhuwiex pakkett .crx, .xpi jew .zip",
   "extensionsRefusedDamaged": "il-fajl għandu l-ħsara jew mhux komplut",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Il-paġna tal-isfond tagħha tibqa' mgħobbija sakemm ikun miftuħ sit li jħaddimha.",
   "extensionsAdded": "{name} ġiet miżjuda",
   "extensionsRemoveTitle": "Tneħħi {name}?",
-  "extensionsRemoveBody": "Il-fajls tagħha jitħassru u tieqaf taħdem fuq kull sit.",
+  "extensionsRemoveBody": "Tieqaf taħdem fuq kull sit, u l-fajls tagħha u dak li ħażnet fuq kull sit jitħassru.",
   "extensionsRemoved": "{name} tneħħiet",
   "siteSettingsExtensionsHint": "Estensjonijiet tal-browser importati fis-settings tal-app li jaħdmu fuq il-paġni ta' dan is-sit. Kull waħda tilħaq biss dan is-sit, u bidla tidħol fis-seħħ id-darba li jmiss li jitgħabba s-sit.",
   "siteSettingsExtensionsNone": "L-ebda waħda mixgħula",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ma tilħaq l-ebda paġna ta' dan is-sit.",
   "siteExtensionsConsentPermissions": "Tingħata: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ma tingħata l-ebda permess.",
-  "siteExtensionsSwitchOn": "Ixgħel"
+  "siteExtensionsSwitchOn": "Ixgħel",
+  "siteExtensionsSettings": "Settings",
+  "siteExtensionsOpen": "Iftaħ",
+  "siteExtensionsPageFailed": "{name} ma setgħetx tinfetaħ hawn"
 }

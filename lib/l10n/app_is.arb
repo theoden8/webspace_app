@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Forritið hleður engum viðbótum niður og uppfærir engar: þú velur skrána og flytur hana aftur inn til að fá nýrri útgáfu. Undirskrift pakka er ekki athuguð.",
   "extensionsLibrary": "Innfluttar",
   "extensionsVersion": "Útgáfa {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Útgáfa {version} · {count} vandamál tilkynnt} other{Útgáfa {version} · {count} vandamál tilkynnt}}",
+  "extensionsProblemsHint": "WebKit tilkynnti þessi vandamál við lestur viðbótarinnar. Hún keyrir enn á þeim vefsvæðum sem þú kveikir á henni fyrir, en það sem þau nefna virkar hugsanlega ekki.\n\n{problems}",
   "extensionsRefused": "Ekki flutt inn: {reason}",
   "extensionsRefusedNotAPackage": "skráin er ekki .crx-, .xpi- eða .zip-pakki",
   "extensionsRefusedDamaged": "skráin er skemmd eða ófullgerð",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Bakgrunnssíða hennar helst hlaðin á meðan vefsvæði sem keyrir hana er opið.",
   "extensionsAdded": "{name} bætt við",
   "extensionsRemoveTitle": "Fjarlægja {name}?",
-  "extensionsRemoveBody": "Skrám hennar er eytt og hún hættir að keyra á öllum vefsvæðum.",
+  "extensionsRemoveBody": "Hún hættir að keyra á öllum vefsvæðum, og skrám hennar og því sem hún vistaði á hverju vefsvæði er eytt.",
   "extensionsRemoved": "{name} fjarlægð",
   "siteSettingsExtensionsHint": "Vafraviðbætur sem fluttar eru inn í forritsstillingum og keyra á síðum þessa vefsvæðis. Hver þeirra nær aðeins til þessa vefsvæðis og breyting tekur gildi næst þegar vefsvæðið hleðst.",
   "siteSettingsExtensionsNone": "Engin virk",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Hún nær ekki til neinna síðna þessa vefsvæðis.",
   "siteExtensionsConsentPermissions": "Hún fær: {permissions}",
   "siteExtensionsConsentNoPermissions": "Hún fær engar heimildir.",
-  "siteExtensionsSwitchOn": "Kveikja á"
+  "siteExtensionsSwitchOn": "Kveikja á",
+  "siteExtensionsSettings": "Stillingar",
+  "siteExtensionsOpen": "Opna",
+  "siteExtensionsPageFailed": "Ekki tókst að opna {name} hér"
 }

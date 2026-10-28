@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Applicatio nullam extensionem detrahit nec renovat: tu plicam eligis, et pro versione recentiore iterum importas. Subscriptio fasciculi non probatur.",
   "extensionsLibrary": "Importatae",
   "extensionsVersion": "Versio {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versio {version} · {count} difficultas nuntiata} other{Versio {version} · {count} difficultates nuntiatae}}",
+  "extensionsProblemsHint": "WebKit has difficultates nuntiavit dum extensionem legit. In sitibus quibus eam accendis adhuc currit, sed quae nominant fortasse non operabuntur.\n\n{problems}",
   "extensionsRefused": "Non importata: {reason}",
   "extensionsRefusedNotAPackage": "plica non est fasciculus .crx, .xpi vel .zip",
   "extensionsRefusedDamaged": "plica corrupta aut imperfecta est",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Pagina eius in fundo onerata manet dum situs qui eam exsequitur apertus est.",
   "extensionsAdded": "{name} addita",
   "extensionsRemoveTitle": "{name} removere?",
-  "extensionsRemoveBody": "Plicae eius delentur et in omni situ currere desinit.",
+  "extensionsRemoveBody": "In omni situ currere desinit, et plicae eius et quae in quoque situ servavit delentur.",
   "extensionsRemoved": "{name} remota",
   "siteSettingsExtensionsHint": "Extensiones navigatri in Institutionibus applicationis importatae quae in paginis huius situs currunt. Quaeque solum hunc situm attingit, et mutatio valet cum situs proxime oneratur.",
   "siteSettingsExtensionsNone": "Nulla accensa",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Nullam paginam huius situs attingit.",
   "siteExtensionsConsentPermissions": "Accipit: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nullas permissiones accipit.",
-  "siteExtensionsSwitchOn": "Accendere"
+  "siteExtensionsSwitchOn": "Accendere",
+  "siteExtensionsSettings": "Institutiones",
+  "siteExtensionsOpen": "Aperire",
+  "siteExtensionsPageFailed": "{name} hic aperiri non potuit"
 }

@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "ऐप कोई एक्सटेंशन डाउनलोड या अपडेट नहीं करता: आप फ़ाइल चुनते हैं, और नए संस्करण के लिए उसे फिर से आयात करते हैं। पैकेज के हस्ताक्षर की जाँच नहीं होती।",
   "extensionsLibrary": "आयात किए गए",
   "extensionsVersion": "संस्करण {version}",
+  "extensionsVersionProblems": "{count, plural, =1{संस्करण {version} · {count} समस्या की सूचना मिली} other{संस्करण {version} · {count} समस्याओं की सूचना मिली}}",
+  "extensionsProblemsHint": "एक्सटेंशन पढ़ते समय WebKit ने ये समस्याएँ बताईं। आप जिन साइटों के लिए इसे चालू करते हैं, उन पर यह अब भी चलता है, लेकिन इनमें जिसका ज़िक्र है वह शायद काम न करे।\n\n{problems}",
   "extensionsRefused": "आयात नहीं हुआ: {reason}",
   "extensionsRefusedNotAPackage": "फ़ाइल .crx, .xpi या .zip पैकेज नहीं है",
   "extensionsRefusedDamaged": "फ़ाइल खराब या अधूरी है",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "इसे चलाने वाली कोई साइट खुली रहने तक इसका बैकग्राउंड पेज लोड रहता है।",
   "extensionsAdded": "{name} जोड़ा गया",
   "extensionsRemoveTitle": "{name} हटाएँ?",
-  "extensionsRemoveBody": "इसकी फ़ाइलें मिटा दी जाती हैं और यह हर साइट पर चलना बंद कर देता है।",
+  "extensionsRemoveBody": "यह हर साइट पर चलना बंद कर देता है, और इसकी फ़ाइलें और इसने हर साइट पर जो सहेजा था, वह मिटा दिया जाता है।",
   "extensionsRemoved": "{name} हटाया गया",
   "siteSettingsExtensionsHint": "ऐप सेटिंग में आयात किए गए ब्राउज़र एक्सटेंशन जो इस साइट के पेजों पर चलते हैं। हर एक केवल इसी साइट तक पहुँचता है, और कोई बदलाव साइट के अगली बार लोड होने पर लागू होता है।",
   "siteSettingsExtensionsNone": "कोई चालू नहीं",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "यह इस साइट के किसी पेज तक नहीं पहुँचता।",
   "siteExtensionsConsentPermissions": "इसे मिलता है: {permissions}",
   "siteExtensionsConsentNoPermissions": "इसे कोई अनुमति नहीं मिलती।",
-  "siteExtensionsSwitchOn": "चालू करें"
+  "siteExtensionsSwitchOn": "चालू करें",
+  "siteExtensionsSettings": "सेटिंग",
+  "siteExtensionsOpen": "खोलें",
+  "siteExtensionsPageFailed": "{name} यहाँ नहीं खुल सका"
 }

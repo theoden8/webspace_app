@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "แอปไม่ดาวน์โหลดและไม่อัปเดตส่วนขยายใดๆ: คุณเป็นผู้เลือกไฟล์ และนำเข้าอีกครั้งเพื่อรับเวอร์ชันใหม่กว่า ลายเซ็นของแพ็กเกจจะไม่ถูกตรวจสอบ",
   "extensionsLibrary": "ที่นำเข้าแล้ว",
   "extensionsVersion": "เวอร์ชัน {version}",
+  "extensionsVersionProblems": "{count, plural, =1{เวอร์ชัน {version} · มีรายงานปัญหา {count} รายการ} other{เวอร์ชัน {version} · มีรายงานปัญหา {count} รายการ}}",
+  "extensionsProblemsHint": "WebKit รายงานปัญหาเหล่านี้ขณะอ่านส่วนขยาย ส่วนขยายยังคงทำงานในเว็บไซต์ที่คุณเปิดใช้ แต่สิ่งที่ปัญหาเหล่านี้กล่าวถึงอาจใช้งานไม่ได้\n\n{problems}",
   "extensionsRefused": "ไม่ได้นำเข้า: {reason}",
   "extensionsRefusedNotAPackage": "ไฟล์ไม่ใช่แพ็กเกจ .crx, .xpi หรือ .zip",
   "extensionsRefusedDamaged": "ไฟล์เสียหายหรือไม่สมบูรณ์",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "หน้าเบื้องหลังของส่วนขยายจะโหลดค้างไว้ตลอดที่เว็บไซต์ที่เรียกใช้ยังเปิดอยู่",
   "extensionsAdded": "เพิ่ม {name} แล้ว",
   "extensionsRemoveTitle": "นำ {name} ออกไหม",
-  "extensionsRemoveBody": "ไฟล์ของส่วนขยายจะถูกลบ และจะหยุดทำงานในทุกเว็บไซต์",
+  "extensionsRemoveBody": "ส่วนขยายจะหยุดทำงานในทุกเว็บไซต์ และไฟล์ของส่วนขยายรวมถึงสิ่งที่บันทึกไว้ในแต่ละเว็บไซต์จะถูกลบ",
   "extensionsRemoved": "นำ {name} ออกแล้ว",
   "siteSettingsExtensionsHint": "ส่วนขยายเบราว์เซอร์ที่นำเข้าในการตั้งค่าแอปซึ่งทำงานบนหน้าของเว็บไซต์นี้ แต่ละรายการเข้าถึงได้เฉพาะเว็บไซต์นี้ และการเปลี่ยนแปลงจะมีผลเมื่อเว็บไซต์โหลดครั้งถัดไป",
   "siteSettingsExtensionsNone": "ไม่มีที่เปิดอยู่",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "ไม่เข้าถึงหน้าใดของเว็บไซต์นี้",
   "siteExtensionsConsentPermissions": "ได้รับสิทธิ์: {permissions}",
   "siteExtensionsConsentNoPermissions": "ไม่ได้รับสิทธิ์ใดๆ",
-  "siteExtensionsSwitchOn": "เปิด"
+  "siteExtensionsSwitchOn": "เปิด",
+  "siteExtensionsSettings": "การตั้งค่า",
+  "siteExtensionsOpen": "เปิด",
+  "siteExtensionsPageFailed": "ไม่สามารถเปิด {name} ที่นี่ได้"
 }

@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Апликацијата не презема и не ажурира екстензии: Вие ја избирате датотеката и повторно ја увезувате за понова верзија. Потписот на пакетот не се проверува.",
   "extensionsLibrary": "Увезени",
   "extensionsVersion": "Верзија {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Верзија {version} · пријавен е {count} проблем} other{Верзија {version} · пријавени се {count} проблеми}}",
+  "extensionsProblemsHint": "WebKit ги пријави овие проблеми при читањето на екстензијата. Таа сè уште работи на сајтовите за кои ја вклучувате, но она што го наведуваат можеби нема да работи.\n\n{problems}",
   "extensionsRefused": "Не е увезено: {reason}",
   "extensionsRefusedNotAPackage": "датотеката не е пакет .crx, .xpi или .zip",
   "extensionsRefusedDamaged": "датотеката е оштетена или нецелосна",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Нејзината позадинска страница останува вчитана додека е отворен сајт што ја извршува.",
   "extensionsAdded": "{name} е додадена",
   "extensionsRemoveTitle": "Да се отстрани {name}?",
-  "extensionsRemoveBody": "Нејзините датотеки се бришат и престанува да работи на сите сајтови.",
+  "extensionsRemoveBody": "Престанува да работи на сите сајтови, а нејзините датотеки и она што го зачувала на секој сајт се бришат.",
   "extensionsRemoved": "{name} е отстранета",
   "siteSettingsExtensionsHint": "Екстензии за прелистувач увезени во Поставки на апликацијата што работат на страниците на овој сајт. Секоја пристапува само до овој сајт, а промената важи при следното вчитување на сајтот.",
   "siteSettingsExtensionsNone": "Ниедна не е вклучена",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Не пристапува до ниедна страница од овој сајт.",
   "siteExtensionsConsentPermissions": "Добива: {permissions}",
   "siteExtensionsConsentNoPermissions": "Не добива никакви дозволи.",
-  "siteExtensionsSwitchOn": "Вклучи"
+  "siteExtensionsSwitchOn": "Вклучи",
+  "siteExtensionsSettings": "Поставки",
+  "siteExtensionsOpen": "Отвори",
+  "siteExtensionsPageFailed": "{name} не можеше да се отвори тука"
 }

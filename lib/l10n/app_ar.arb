@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "لا ينزّل التطبيق أي إضافة ولا يحدّثها: أنت تختار الملف، وتستورده مجددًا للحصول على إصدار أحدث. لا يُتحقق من توقيع الحزمة.",
   "extensionsLibrary": "المستوردة",
   "extensionsVersion": "الإصدار {version}",
+  "extensionsVersionProblems": "{count, plural, =1{الإصدار {version} · أُبلغ عن مشكلة واحدة} two{الإصدار {version} · أُبلغ عن مشكلتين} few{الإصدار {version} · أُبلغ عن {count} مشاكل} many{الإصدار {version} · أُبلغ عن {count} مشكلة} other{الإصدار {version} · أُبلغ عن {count} مشكلة}}",
+  "extensionsProblemsHint": "أبلغ WebKit عن هذه المشاكل أثناء قراءة الإضافة. لا تزال تعمل على المواقع التي تفعّلها عليها، لكن ما تذكره هذه المشاكل قد لا يعمل.\n\n{problems}",
   "extensionsRefused": "لم تُستورد: {reason}",
   "extensionsRefusedNotAPackage": "الملف ليس حزمة .crx أو .xpi أو .zip",
   "extensionsRefusedDamaged": "الملف تالف أو غير مكتمل",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "تبقى صفحتها الخلفية محمّلة ما دام موقع يشغّلها مفتوحًا.",
   "extensionsAdded": "أُضيفت {name}",
   "extensionsRemoveTitle": "إزالة {name}؟",
-  "extensionsRemoveBody": "تُحذف ملفاتها وتتوقف عن العمل على كل المواقع.",
+  "extensionsRemoveBody": "تتوقف عن العمل على كل المواقع، وتُحذف ملفاتها وما خزّنته على كل موقع.",
   "extensionsRemoved": "أُزيلت {name}",
   "siteSettingsExtensionsHint": "إضافات المتصفح المستوردة في إعدادات التطبيق التي تعمل على صفحات هذا الموقع. لا تصل كل منها إلا إلى هذا الموقع، ويسري أي تغيير عند تحميل الموقع في المرة التالية.",
   "siteSettingsExtensionsNone": "لا شيء مفعّل",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "لا تصل إلى أي من صفحات هذا الموقع.",
   "siteExtensionsConsentPermissions": "تحصل على: {permissions}",
   "siteExtensionsConsentNoPermissions": "لا تحصل على أي أذونات.",
-  "siteExtensionsSwitchOn": "تفعيل"
+  "siteExtensionsSwitchOn": "تفعيل",
+  "siteExtensionsSettings": "الإعدادات",
+  "siteExtensionsOpen": "فتح",
+  "siteExtensionsPageFailed": "تعذّر فتح {name} هنا"
 }

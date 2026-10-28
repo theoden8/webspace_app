@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "La app no descarga ni actualiza ninguna extensión: tú eliges el archivo y lo vuelves a importar para tener una versión más nueva. No se comprueba la firma del paquete.",
   "extensionsLibrary": "Importadas",
   "extensionsVersion": "Versión {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versión {version} · {count} problema notificado} other{Versión {version} · {count} problemas notificados}}",
+  "extensionsProblemsHint": "WebKit notificó estos problemas al leer la extensión. Sigue ejecutándose en los sitios en los que la actives, pero lo que mencionan puede no funcionar.\n\n{problems}",
   "extensionsRefused": "No importada: {reason}",
   "extensionsRefusedNotAPackage": "el archivo no es un paquete .crx, .xpi o .zip",
   "extensionsRefusedDamaged": "el archivo está dañado o incompleto",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Su página en segundo plano sigue cargada mientras esté abierto un sitio que la ejecute.",
   "extensionsAdded": "Se añadió {name}",
   "extensionsRemoveTitle": "¿Quitar {name}?",
-  "extensionsRemoveBody": "Se eliminan sus archivos y deja de ejecutarse en todos los sitios.",
+  "extensionsRemoveBody": "Deja de ejecutarse en todos los sitios, y se eliminan sus archivos y lo que guardó en cada sitio.",
   "extensionsRemoved": "Se quitó {name}",
   "siteSettingsExtensionsHint": "Extensiones de navegador importadas en Ajustes de la app que se ejecutan en las páginas de este sitio. Cada una solo llega a este sitio, y un cambio se aplica la próxima vez que se cargue el sitio.",
   "siteSettingsExtensionsNone": "Ninguna activada",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "No llega a ninguna página de este sitio.",
   "siteExtensionsConsentPermissions": "Obtiene: {permissions}",
   "siteExtensionsConsentNoPermissions": "No obtiene ningún permiso.",
-  "siteExtensionsSwitchOn": "Activar"
+  "siteExtensionsSwitchOn": "Activar",
+  "siteExtensionsSettings": "Ajustes",
+  "siteExtensionsOpen": "Abrir",
+  "siteExtensionsPageFailed": "No se pudo abrir {name} aquí"
 }

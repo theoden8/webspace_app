@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "برنامه هیچ افزونه‌ای را دانلود یا به‌روز نمی‌کند: شما فایل را انتخاب می‌کنید و برای نسخهٔ جدیدتر دوباره آن را وارد می‌کنید. امضای بسته بررسی نمی‌شود.",
   "extensionsLibrary": "واردشده",
   "extensionsVersion": "نسخهٔ {version}",
+  "extensionsVersionProblems": "{count, plural, =1{نسخهٔ {version} · {count} مشکل گزارش شده} other{نسخهٔ {version} · {count} مشکل گزارش شده}}",
+  "extensionsProblemsHint": "WebKit هنگام خواندن افزونه این مشکل‌ها را گزارش کرد. افزونه همچنان روی سایت‌هایی که برایشان روشنش می‌کنید اجرا می‌شود، اما آنچه این مشکل‌ها نام می‌برند ممکن است کار نکند.\n\n{problems}",
   "extensionsRefused": "وارد نشد: {reason}",
   "extensionsRefusedNotAPackage": "فایل یک بستهٔ .crx، .xpi یا .zip نیست",
   "extensionsRefusedDamaged": "فایل آسیب‌دیده یا ناقص است",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "صفحهٔ پس‌زمینهٔ آن تا وقتی سایتی که آن را اجرا می‌کند باز است، بارگذاری‌شده می‌ماند.",
   "extensionsAdded": "{name} افزوده شد",
   "extensionsRemoveTitle": "{name} برداشته شود؟",
-  "extensionsRemoveBody": "فایل‌هایش حذف می‌شوند و دیگر روی هیچ سایتی اجرا نمی‌شود.",
+  "extensionsRemoveBody": "دیگر روی هیچ سایتی اجرا نمی‌شود و فایل‌هایش و آنچه روی هر سایت ذخیره کرده بود حذف می‌شوند.",
   "extensionsRemoved": "{name} برداشته شد",
   "siteSettingsExtensionsHint": "افزونه‌های مرورگری که در تنظیمات برنامه وارد شده‌اند و روی صفحه‌های این سایت اجرا می‌شوند. هر کدام فقط به این سایت دسترسی دارد و هر تغییر از بارگذاری بعدی سایت اعمال می‌شود.",
   "siteSettingsExtensionsNone": "هیچ‌کدام روشن نیست",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "به هیچ‌یک از صفحه‌های این سایت دسترسی ندارد.",
   "siteExtensionsConsentPermissions": "این مجوزها را می‌گیرد: {permissions}",
   "siteExtensionsConsentNoPermissions": "هیچ مجوزی نمی‌گیرد.",
-  "siteExtensionsSwitchOn": "روشن کردن"
+  "siteExtensionsSwitchOn": "روشن کردن",
+  "siteExtensionsSettings": "تنظیمات",
+  "siteExtensionsOpen": "باز کردن",
+  "siteExtensionsPageFailed": "{name} اینجا باز نشد"
 }

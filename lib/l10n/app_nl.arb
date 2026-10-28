@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "De app downloadt geen extensies en werkt er geen bij: je kiest zelf het bestand en importeert het opnieuw voor een nieuwere versie. De handtekening van een pakket wordt niet gecontroleerd.",
   "extensionsLibrary": "Geïmporteerd",
   "extensionsVersion": "Versie {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versie {version} · {count} probleem gemeld} other{Versie {version} · {count} problemen gemeld}}",
+  "extensionsProblemsHint": "WebKit meldde deze problemen bij het lezen van de extensie. De extensie draait nog steeds op de sites waarvoor je haar aanzet, maar wat in deze meldingen staat, werkt misschien niet.\n\n{problems}",
   "extensionsRefused": "Niet geïmporteerd: {reason}",
   "extensionsRefusedNotAPackage": "het bestand is geen .crx-, .xpi- of .zip-pakket",
   "extensionsRefusedDamaged": "het bestand is beschadigd of onvolledig",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Haar achtergrondpagina blijft geladen zolang een site die haar uitvoert open is.",
   "extensionsAdded": "{name} toegevoegd",
   "extensionsRemoveTitle": "{name} verwijderen?",
-  "extensionsRemoveBody": "Haar bestanden worden gewist en ze draait op geen enkele site meer.",
+  "extensionsRemoveBody": "Ze draait op geen enkele site meer, en haar bestanden en wat ze op elke site heeft opgeslagen, worden gewist.",
   "extensionsRemoved": "{name} verwijderd",
   "siteSettingsExtensionsHint": "Browserextensies, geïmporteerd in de app-instellingen, die op de pagina's van deze site draaien. Elke extensie bereikt alleen deze site, en een wijziging geldt vanaf de volgende keer dat de site laadt.",
   "siteSettingsExtensionsNone": "Geen aan",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ze bereikt geen enkele pagina van deze site.",
   "siteExtensionsConsentPermissions": "Ze krijgt: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ze krijgt geen machtigingen.",
-  "siteExtensionsSwitchOn": "Inschakelen"
+  "siteExtensionsSwitchOn": "Inschakelen",
+  "siteExtensionsSettings": "Instellingen",
+  "siteExtensionsOpen": "Openen",
+  "siteExtensionsPageFailed": "{name} kon hier niet worden geopend"
 }

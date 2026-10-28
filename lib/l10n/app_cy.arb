@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Nid yw'r ap yn llwytho unrhyw estyniad i lawr nac yn diweddaru un: chi sy'n dewis y ffeil, ac yn ei mewnforio eto ar gyfer fersiwn newydd. Nid yw llofnod pecyn yn cael ei wirio.",
   "extensionsLibrary": "Wedi'u mewnforio",
   "extensionsVersion": "Fersiwn {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Fersiwn {version} · adroddwyd am un broblem} other{Fersiwn {version} · adroddwyd am {count} problem}}",
+  "extensionsProblemsHint": "Adroddodd WebKit y problemau hyn wrth ddarllen yr estyniad. Mae'n dal i redeg ar y gwefannau rydych chi'n ei droi ymlaen ar eu cyfer, ond efallai na fydd yr hyn maen nhw'n ei enwi yn gweithio.\n\n{problems}",
   "extensionsRefused": "Heb ei fewnforio: {reason}",
   "extensionsRefusedNotAPackage": "nid yw'r ffeil yn becyn .crx, .xpi neu .zip",
   "extensionsRefusedDamaged": "mae'r ffeil wedi'i difrodi neu'n anghyflawn",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Mae ei dudalen gefndir yn aros wedi'i llwytho tra bo gwefan sy'n ei redeg ar agor.",
   "extensionsAdded": "Ychwanegwyd {name}",
   "extensionsRemoveTitle": "Tynnu {name}?",
-  "extensionsRemoveBody": "Caiff ei ffeiliau eu dileu ac mae'n stopio rhedeg ar bob gwefan.",
+  "extensionsRemoveBody": "Mae'n stopio rhedeg ar bob gwefan, a chaiff ei ffeiliau a'r hyn a storiodd ar bob gwefan eu dileu.",
   "extensionsRemoved": "Tynnwyd {name}",
   "siteSettingsExtensionsHint": "Estyniadau porwr a fewnforiwyd yng Ngosodiadau'r Ap sy'n rhedeg ar dudalennau'r wefan hon. Dim ond y wefan hon y mae pob un yn ei chyrraedd, ac mae newid yn dod i rym pan fydd y wefan yn llwytho nesaf.",
   "siteSettingsExtensionsNone": "Dim ymlaen",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Nid yw'n cyrraedd unrhyw un o dudalennau'r wefan hon.",
   "siteExtensionsConsentPermissions": "Mae'n cael: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nid yw'n cael unrhyw ganiatâd.",
-  "siteExtensionsSwitchOn": "Troi ymlaen"
+  "siteExtensionsSwitchOn": "Troi ymlaen",
+  "siteExtensionsSettings": "Gosodiadau",
+  "siteExtensionsOpen": "Agor",
+  "siteExtensionsPageFailed": "Nid oedd modd agor {name} yma"
 }

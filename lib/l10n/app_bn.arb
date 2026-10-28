@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "অ্যাপ কোনো এক্সটেনশন ডাউনলোড বা আপডেট করে না: ফাইলটি আপনি বেছে নেন, আর নতুন সংস্করণের জন্য আবার ইম্পোর্ট করেন। প্যাকেজের স্বাক্ষর যাচাই করা হয় না।",
   "extensionsLibrary": "ইম্পোর্ট করা",
   "extensionsVersion": "সংস্করণ {version}",
+  "extensionsVersionProblems": "{count, plural, =1{সংস্করণ {version} · {count}টি সমস্যা জানানো হয়েছে} other{সংস্করণ {version} · {count}টি সমস্যা জানানো হয়েছে}}",
+  "extensionsProblemsHint": "এক্সটেনশনটি পড়ার সময় WebKit এই সমস্যাগুলি জানিয়েছে। আপনি যে সাইটগুলিতে এটি চালু করেন সেখানে এটি এখনও চলে, তবে এগুলিতে যা উল্লেখ করা হয়েছে তা কাজ নাও করতে পারে।\n\n{problems}",
   "extensionsRefused": "ইম্পোর্ট হয়নি: {reason}",
   "extensionsRefusedNotAPackage": "ফাইলটি .crx, .xpi বা .zip প্যাকেজ নয়",
   "extensionsRefusedDamaged": "ফাইলটি ক্ষতিগ্রস্ত বা অসম্পূর্ণ",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "এটি চালানো কোনো সাইট খোলা থাকা পর্যন্ত এর ব্যাকগ্রাউন্ড পেজ লোড থাকে।",
   "extensionsAdded": "{name} যোগ করা হয়েছে",
   "extensionsRemoveTitle": "{name} সরাবেন?",
-  "extensionsRemoveBody": "এর ফাইলগুলি মুছে ফেলা হয় এবং এটি সব সাইটে চলা বন্ধ করে।",
+  "extensionsRemoveBody": "এটি সব সাইটে চলা বন্ধ করে, এবং এর ফাইলগুলি ও প্রতিটি সাইটে এটি যা সংরক্ষণ করেছিল তা মুছে ফেলা হয়।",
   "extensionsRemoved": "{name} সরানো হয়েছে",
   "siteSettingsExtensionsHint": "অ্যাপ সেটিংসে ইম্পোর্ট করা যে ব্রাউজার এক্সটেনশনগুলি এই সাইটের পৃষ্ঠাগুলিতে চলে। প্রতিটি শুধু এই সাইটেই পৌঁছায়, আর পরিবর্তন কার্যকর হয় সাইটটি পরের বার লোড হলে।",
   "siteSettingsExtensionsNone": "কোনোটি চালু নেই",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "এটি এই সাইটের কোনো পৃষ্ঠায় পৌঁছায় না।",
   "siteExtensionsConsentPermissions": "এটি পায়: {permissions}",
   "siteExtensionsConsentNoPermissions": "এটি কোনো অনুমতি পায় না।",
-  "siteExtensionsSwitchOn": "চালু করুন"
+  "siteExtensionsSwitchOn": "চালু করুন",
+  "siteExtensionsSettings": "সেটিংস",
+  "siteExtensionsOpen": "খুলুন",
+  "siteExtensionsPageFailed": "{name} এখানে খোলা যায়নি"
 }

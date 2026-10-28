@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "앱은 확장 프로그램을 다운로드하거나 업데이트하지 않습니다. 파일은 직접 선택하고, 새 버전은 다시 가져오세요. 패키지 서명은 확인하지 않습니다.",
   "extensionsLibrary": "가져온 항목",
   "extensionsVersion": "버전 {version}",
+  "extensionsVersionProblems": "{count, plural, =1{버전 {version} · 문제 {count}개 보고됨} other{버전 {version} · 문제 {count}개 보고됨}}",
+  "extensionsProblemsHint": "WebKit이 확장 프로그램을 읽는 중에 이 문제들을 보고했습니다. 켜 둔 사이트에서는 계속 실행되지만, 여기에 언급된 부분은 작동하지 않을 수 있습니다.\n\n{problems}",
   "extensionsRefused": "가져오지 못함: {reason}",
   "extensionsRefusedNotAPackage": "파일이 .crx, .xpi 또는 .zip 패키지가 아닙니다",
   "extensionsRefusedDamaged": "파일이 손상되었거나 불완전합니다",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "이 확장 프로그램을 실행하는 사이트가 열려 있는 동안 백그라운드 페이지가 로드된 상태로 유지됩니다.",
   "extensionsAdded": "{name} 추가됨",
   "extensionsRemoveTitle": "{name}을(를) 제거할까요?",
-  "extensionsRemoveBody": "파일이 삭제되고 모든 사이트에서 실행이 중지됩니다.",
+  "extensionsRemoveBody": "모든 사이트에서 실행이 중지되고, 파일과 각 사이트에 저장한 데이터가 삭제됩니다.",
   "extensionsRemoved": "{name} 제거됨",
   "siteSettingsExtensionsHint": "앱 설정에서 가져온, 이 사이트의 페이지에서 실행되는 브라우저 확장 프로그램입니다. 각각 이 사이트에만 접근하며, 변경 사항은 사이트를 다음에 로드할 때 적용됩니다.",
   "siteSettingsExtensionsNone": "켜진 항목 없음",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "이 사이트의 어떤 페이지에도 접근하지 않습니다.",
   "siteExtensionsConsentPermissions": "부여되는 권한: {permissions}",
   "siteExtensionsConsentNoPermissions": "권한이 부여되지 않습니다.",
-  "siteExtensionsSwitchOn": "켜기"
+  "siteExtensionsSwitchOn": "켜기",
+  "siteExtensionsSettings": "설정",
+  "siteExtensionsOpen": "열기",
+  "siteExtensionsPageFailed": "여기서 {name}을(를) 열 수 없습니다"
 }

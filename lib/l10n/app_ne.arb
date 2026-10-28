@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "एपले कुनै एक्सटेन्सन डाउनलोड वा अपडेट गर्दैन: फाइल तपाईं आफैँ छान्नुहुन्छ, र नयाँ संस्करणका लागि फेरि आयात गर्नुहुन्छ। प्याकेजको हस्ताक्षर जाँचिँदैन।",
   "extensionsLibrary": "आयात गरिएका",
   "extensionsVersion": "संस्करण {version}",
+  "extensionsVersionProblems": "{count, plural, =1{संस्करण {version} · {count} समस्या रिपोर्ट गरियो} other{संस्करण {version} · {count} समस्याहरू रिपोर्ट गरिए}}",
+  "extensionsProblemsHint": "एक्सटेन्सन पढ्दा WebKit ले यी समस्याहरू रिपोर्ट गर्‍यो। तपाईंले यसलाई सक्रिय गर्ने साइटहरूमा यो अझै चल्छ, तर यिनले उल्लेख गरेका कुराहरूले काम नगर्न सक्छन्।\n\n{problems}",
   "extensionsRefused": "आयात गरिएन: {reason}",
   "extensionsRefusedNotAPackage": "फाइल .crx, .xpi वा .zip प्याकेज होइन",
   "extensionsRefusedDamaged": "फाइल बिग्रेको वा अपूर्ण छ",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "यसलाई चलाउने साइट खुला रहुन्जेल यसको पृष्ठभूमि पृष्ठ लोड भइरहन्छ।",
   "extensionsAdded": "{name} थपियो",
   "extensionsRemoveTitle": "{name} हटाउने?",
-  "extensionsRemoveBody": "यसका फाइलहरू मेटाइन्छन् र यो कुनै पनि साइटमा चल्न छोड्छ।",
+  "extensionsRemoveBody": "यो कुनै पनि साइटमा चल्न छोड्छ, र यसका फाइलहरू र यसले प्रत्येक साइटमा भण्डारण गरेका कुराहरू मेटाइन्छन्।",
   "extensionsRemoved": "{name} हटाइयो",
   "siteSettingsExtensionsHint": "एप सेटिङमा आयात गरिएका, यस साइटका पृष्ठहरूमा चल्ने ब्राउजर एक्सटेन्सनहरू। प्रत्येक यही साइटसम्म मात्र पुग्छ, र परिवर्तन साइट अर्को पटक लोड हुँदा लागू हुन्छ।",
   "siteSettingsExtensionsNone": "कुनै सक्रिय छैन",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "यो यस साइटको कुनै पनि पृष्ठमा पुग्दैन।",
   "siteExtensionsConsentPermissions": "यसले पाउँछ: {permissions}",
   "siteExtensionsConsentNoPermissions": "यसले कुनै अनुमति पाउँदैन।",
-  "siteExtensionsSwitchOn": "सक्रिय गर्नुहोस्"
+  "siteExtensionsSwitchOn": "सक्रिय गर्नुहोस्",
+  "siteExtensionsSettings": "सेटिङ",
+  "siteExtensionsOpen": "खोल्नुहोस्",
+  "siteExtensionsPageFailed": "{name} यहाँ खोल्न सकिएन"
 }

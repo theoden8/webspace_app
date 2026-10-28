@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "செயலி எந்த நீட்டிப்பையும் பதிவிறக்குவதோ புதுப்பிப்பதோ இல்லை: நீங்களே கோப்பைத் தேர்ந்தெடுத்து, புதிய பதிப்புக்கு மீண்டும் இறக்குமதி செய்கிறீர்கள். தொகுப்பின் கையொப்பம் சரிபார்க்கப்படுவதில்லை.",
   "extensionsLibrary": "இறக்குமதி செய்தவை",
   "extensionsVersion": "பதிப்பு {version}",
+  "extensionsVersionProblems": "{count, plural, =1{பதிப்பு {version} · {count} சிக்கல் புகாரளிக்கப்பட்டது} other{பதிப்பு {version} · {count} சிக்கல்கள் புகாரளிக்கப்பட்டன}}",
+  "extensionsProblemsHint": "நீட்டிப்பைப் படிக்கும்போது WebKit இந்தச் சிக்கல்களைப் புகாரளித்தது. நீங்கள் இதை இயக்கும் தளங்களில் இது இன்னும் இயங்கும், ஆனால் இவை குறிப்பிடுபவை வேலை செய்யாமல் போகலாம்.\n\n{problems}",
   "extensionsRefused": "இறக்குமதி செய்யப்படவில்லை: {reason}",
   "extensionsRefusedNotAPackage": "கோப்பு .crx, .xpi அல்லது .zip தொகுப்பு அல்ல",
   "extensionsRefusedDamaged": "கோப்பு சேதமடைந்துள்ளது அல்லது முழுமையற்றது",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "இதை இயக்கும் தளம் திறந்திருக்கும் வரை இதன் பின்னணிப் பக்கம் ஏற்றப்பட்டே இருக்கும்.",
   "extensionsAdded": "{name} சேர்க்கப்பட்டது",
   "extensionsRemoveTitle": "{name} ஐ அகற்றவா?",
-  "extensionsRemoveBody": "இதன் கோப்புகள் நீக்கப்படும், இது எல்லாத் தளங்களிலும் இயங்குவது நிற்கும்.",
+  "extensionsRemoveBody": "இது எல்லாத் தளங்களிலும் இயங்குவது நிற்கும், இதன் கோப்புகளும் ஒவ்வொரு தளத்திலும் இது சேமித்தவையும் நீக்கப்படும்.",
   "extensionsRemoved": "{name} அகற்றப்பட்டது",
   "siteSettingsExtensionsHint": "செயலி அமைப்புகளில் இறக்குமதி செய்யப்பட்டு, இந்தத் தளத்தின் பக்கங்களில் இயங்கும் உலாவி நீட்டிப்புகள். ஒவ்வொன்றும் இந்தத் தளத்தை மட்டுமே அணுகும், மாற்றம் அடுத்த முறை தளம் ஏற்றப்படும்போது பொருந்தும்.",
   "siteSettingsExtensionsNone": "எதுவும் இயக்கத்தில் இல்லை",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "இந்தத் தளத்தின் எந்தப் பக்கத்தையும் இது அணுகாது.",
   "siteExtensionsConsentPermissions": "இதற்குக் கிடைப்பவை: {permissions}",
   "siteExtensionsConsentNoPermissions": "இதற்கு எந்த அனுமதியும் கிடைக்காது.",
-  "siteExtensionsSwitchOn": "இயக்கு"
+  "siteExtensionsSwitchOn": "இயக்கு",
+  "siteExtensionsSettings": "அமைப்புகள்",
+  "siteExtensionsOpen": "திற",
+  "siteExtensionsPageFailed": "{name} ஐ இங்கே திறக்க முடியவில்லை"
 }

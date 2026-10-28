@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Die App lädt keine Erweiterung herunter und aktualisiert keine: Sie wählen die Datei und importieren sie für eine neuere Version erneut. Die Signatur eines Pakets wird nicht geprüft.",
   "extensionsLibrary": "Importiert",
   "extensionsVersion": "Version {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Version {version} · {count} Problem gemeldet} other{Version {version} · {count} Probleme gemeldet}}",
+  "extensionsProblemsHint": "WebKit hat diese Probleme beim Lesen der Erweiterung gemeldet. Die Erweiterung läuft weiterhin auf den Websites, für die Sie sie einschalten, aber was in den Meldungen genannt wird, funktioniert möglicherweise nicht.\n\n{problems}",
   "extensionsRefused": "Nicht importiert: {reason}",
   "extensionsRefusedNotAPackage": "die Datei ist kein .crx-, .xpi- oder .zip-Paket",
   "extensionsRefusedDamaged": "die Datei ist beschädigt oder unvollständig",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Ihre Hintergrundseite bleibt geladen, solange eine Website geöffnet ist, die sie ausführt.",
   "extensionsAdded": "{name} hinzugefügt",
   "extensionsRemoveTitle": "{name} entfernen?",
-  "extensionsRemoveBody": "Ihre Dateien werden gelöscht, und sie läuft auf keiner Website mehr.",
+  "extensionsRemoveBody": "Sie läuft auf keiner Website mehr, und ihre Dateien sowie das, was sie auf den einzelnen Websites gespeichert hat, werden gelöscht.",
   "extensionsRemoved": "{name} entfernt",
   "siteSettingsExtensionsHint": "In den App-Einstellungen importierte Browsererweiterungen, die auf den Seiten dieser Website laufen. Jede erreicht nur diese Website, und eine Änderung gilt beim nächsten Laden der Website.",
   "siteSettingsExtensionsNone": "Keine eingeschaltet",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Erreicht keine Seite dieser Website.",
   "siteExtensionsConsentPermissions": "Erhält: {permissions}",
   "siteExtensionsConsentNoPermissions": "Erhält keine Berechtigungen.",
-  "siteExtensionsSwitchOn": "Einschalten"
+  "siteExtensionsSwitchOn": "Einschalten",
+  "siteExtensionsSettings": "Einstellungen",
+  "siteExtensionsOpen": "Öffnen",
+  "siteExtensionsPageFailed": "{name} konnte hier nicht geöffnet werden"
 }

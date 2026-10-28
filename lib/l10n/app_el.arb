@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Η εφαρμογή δεν κατεβάζει ούτε ενημερώνει επεκτάσεις: εσείς επιλέγετε το αρχείο και το εισάγετε ξανά για νεότερη έκδοση. Η υπογραφή του πακέτου δεν ελέγχεται.",
   "extensionsLibrary": "Εισαγμένες",
   "extensionsVersion": "Έκδοση {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Έκδοση {version} · αναφέρθηκε {count} πρόβλημα} other{Έκδοση {version} · αναφέρθηκαν {count} προβλήματα}}",
+  "extensionsProblemsHint": "Το WebKit ανέφερε αυτά τα προβλήματα κατά την ανάγνωση της επέκτασης. Εξακολουθεί να εκτελείται στους ιστοτόπους όπου την ενεργοποιείτε, αλλά όσα αναφέρουν ίσως να μη λειτουργούν.\n\n{problems}",
   "extensionsRefused": "Δεν εισήχθη: {reason}",
   "extensionsRefusedNotAPackage": "το αρχείο δεν είναι πακέτο .crx, .xpi ή .zip",
   "extensionsRefusedDamaged": "το αρχείο είναι κατεστραμμένο ή ελλιπές",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Η σελίδα παρασκηνίου της μένει φορτωμένη όσο είναι ανοιχτός ένας ιστότοπος που την εκτελεί.",
   "extensionsAdded": "Προστέθηκε: {name}",
   "extensionsRemoveTitle": "Αφαίρεση {name};",
-  "extensionsRemoveBody": "Τα αρχεία της διαγράφονται και σταματά να εκτελείται σε όλους τους ιστοτόπους.",
+  "extensionsRemoveBody": "Σταματά να εκτελείται σε όλους τους ιστοτόπους, και τα αρχεία της και όσα αποθήκευσε σε κάθε ιστότοπο διαγράφονται.",
   "extensionsRemoved": "Αφαιρέθηκε: {name}",
   "siteSettingsExtensionsHint": "Επεκτάσεις προγράμματος περιήγησης που εισήχθησαν στις Ρυθμίσεις εφαρμογής και εκτελούνται στις σελίδες αυτού του ιστότοπου. Η καθεμία φτάνει μόνο σε αυτόν τον ιστότοπο, και μια αλλαγή ισχύει την επόμενη φορά που θα φορτωθεί ο ιστότοπος.",
   "siteSettingsExtensionsNone": "Καμία ενεργή",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Δεν φτάνει σε καμία σελίδα αυτού του ιστότοπου.",
   "siteExtensionsConsentPermissions": "Λαμβάνει: {permissions}",
   "siteExtensionsConsentNoPermissions": "Δεν λαμβάνει καμία άδεια.",
-  "siteExtensionsSwitchOn": "Ενεργοποίηση"
+  "siteExtensionsSwitchOn": "Ενεργοποίηση",
+  "siteExtensionsSettings": "Ρυθμίσεις",
+  "siteExtensionsOpen": "Άνοιγμα",
+  "siteExtensionsPageFailed": "Δεν ήταν δυνατό να ανοίξει εδώ: {name}"
 }

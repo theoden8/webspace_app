@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Die toepassing laai geen uitbreiding af en werk geen by nie: jy kies die lêer, en voer dit weer in vir 'n nuwer weergawe. 'n Pakket se handtekening word nie nagegaan nie.",
   "extensionsLibrary": "Ingevoer",
   "extensionsVersion": "Weergawe {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Weergawe {version} · {count} probleem aangemeld} other{Weergawe {version} · {count} probleme aangemeld}}",
+  "extensionsProblemsHint": "WebKit het hierdie probleme aangemeld toe dit die uitbreiding gelees het. Dit loop steeds op die werwe waarvoor jy dit aanskakel, maar wat hulle noem, werk dalk nie.\n\n{problems}",
   "extensionsRefused": "Nie ingevoer nie: {reason}",
   "extensionsRefusedNotAPackage": "die lêer is nie 'n .crx-, .xpi- of .zip-pakket nie",
   "extensionsRefusedDamaged": "die lêer is beskadig of onvolledig",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Sy agtergrondbladsy bly gelaai terwyl 'n werf wat dit laat loop, oop is.",
   "extensionsAdded": "{name} bygevoeg",
   "extensionsRemoveTitle": "Verwyder {name}?",
-  "extensionsRemoveBody": "Sy lêers word uitgevee en dit hou op om op enige werf te loop.",
+  "extensionsRemoveBody": "Dit hou op om op enige werf te loop, en sy lêers en wat dit op elke werf gestoor het, word uitgevee.",
   "extensionsRemoved": "{name} verwyder",
   "siteSettingsExtensionsHint": "Blaaieruitbreidings wat in App-instellings ingevoer is en op hierdie werf se bladsye loop. Elkeen bereik slegs hierdie werf, en 'n verandering geld wanneer die werf weer laai.",
   "siteSettingsExtensionsNone": "Geen aan nie",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Dit bereik geen van hierdie werf se bladsye nie.",
   "siteExtensionsConsentPermissions": "Dit kry: {permissions}",
   "siteExtensionsConsentNoPermissions": "Dit kry geen toestemmings nie.",
-  "siteExtensionsSwitchOn": "Skakel aan"
+  "siteExtensionsSwitchOn": "Skakel aan",
+  "siteExtensionsSettings": "Instellings",
+  "siteExtensionsOpen": "Maak oop",
+  "siteExtensionsPageFailed": "{name} kon nie hier oopmaak nie"
 }

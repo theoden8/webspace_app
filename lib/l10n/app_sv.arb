@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Appen laddar inte ned några tillägg och uppdaterar inga: du väljer filen och importerar den igen för en nyare version. Ett pakets signatur kontrolleras inte.",
   "extensionsLibrary": "Importerade",
   "extensionsVersion": "Version {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Version {version} · {count} rapporterat problem} other{Version {version} · {count} rapporterade problem}}",
+  "extensionsProblemsHint": "WebKit rapporterade de här problemen när tillägget lästes. Det körs fortfarande på de webbplatser du slår på det för, men det de nämner kanske inte fungerar.\n\n{problems}",
   "extensionsRefused": "Inte importerat: {reason}",
   "extensionsRefusedNotAPackage": "filen är inte ett .crx-, .xpi- eller .zip-paket",
   "extensionsRefusedDamaged": "filen är skadad eller ofullständig",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Dess bakgrundssida förblir inläst medan en webbplats som kör det är öppen.",
   "extensionsAdded": "{name} har lagts till",
   "extensionsRemoveTitle": "Ta bort {name}?",
-  "extensionsRemoveBody": "Dess filer raderas och det slutar köras på alla webbplatser.",
+  "extensionsRemoveBody": "Det slutar köras på alla webbplatser, och dess filer och det som det har sparat på varje webbplats raderas.",
   "extensionsRemoved": "{name} har tagits bort",
   "siteSettingsExtensionsHint": "Webbläsartillägg som importerats i Appinställningar och som körs på den här webbplatsens sidor. Vart och ett når bara den här webbplatsen, och en ändring gäller nästa gång webbplatsen läses in.",
   "siteSettingsExtensionsNone": "Inga på",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Det når inga av den här webbplatsens sidor.",
   "siteExtensionsConsentPermissions": "Det får: {permissions}",
   "siteExtensionsConsentNoPermissions": "Det får inga behörigheter.",
-  "siteExtensionsSwitchOn": "Slå på"
+  "siteExtensionsSwitchOn": "Slå på",
+  "siteExtensionsSettings": "Inställningar",
+  "siteExtensionsOpen": "Öppna",
+  "siteExtensionsPageFailed": "{name} kunde inte öppnas här"
 }

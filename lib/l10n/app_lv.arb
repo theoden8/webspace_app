@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Lietotne nelejupielādē un neatjaunina paplašinājumus: failu izvēlaties jūs, un jaunākai versijai to importējat vēlreiz. Pakotnes paraksts netiek pārbaudīts.",
   "extensionsLibrary": "Importētie",
   "extensionsVersion": "Versija {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versija {version} · ziņots par {count} problēmu} other{Versija {version} · ziņots par {count} problēmām}}",
+  "extensionsProblemsHint": "WebKit, lasot paplašinājumu, ziņoja par šīm problēmām. Tas joprojām darbojas vietnēs, kurās to ieslēdzat, taču tas, ko tās min, var nedarboties.\n\n{problems}",
   "extensionsRefused": "Nav importēts: {reason}",
   "extensionsRefusedNotAPackage": "fails nav .crx, .xpi vai .zip pakotne",
   "extensionsRefusedDamaged": "fails ir bojāts vai nepilnīgs",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Tā fona lapa paliek ielādēta, kamēr ir atvērta vietne, kurā tas darbojas.",
   "extensionsAdded": "{name} pievienots",
   "extensionsRemoveTitle": "Noņemt {name}?",
-  "extensionsRemoveBody": "Tā faili tiek dzēsti, un tas pārstāj darboties visās vietnēs.",
+  "extensionsRemoveBody": "Tas pārstāj darboties visās vietnēs, un tiek dzēsti tā faili un tas, ko tas saglabāja katrā vietnē.",
   "extensionsRemoved": "{name} noņemts",
   "siteSettingsExtensionsHint": "Lietotnes iestatījumos importēti pārlūkprogrammas paplašinājumi, kas darbojas šīs vietnes lapās. Katrs piekļūst tikai šai vietnei, un izmaiņas stājas spēkā nākamajā vietnes ielādē.",
   "siteSettingsExtensionsNone": "Neviens nav ieslēgts",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Tas nepiekļūst nevienai šīs vietnes lapai.",
   "siteExtensionsConsentPermissions": "Tas saņem: {permissions}",
   "siteExtensionsConsentNoPermissions": "Tas nesaņem nekādas atļaujas.",
-  "siteExtensionsSwitchOn": "Ieslēgt"
+  "siteExtensionsSwitchOn": "Ieslēgt",
+  "siteExtensionsSettings": "Iestatījumi",
+  "siteExtensionsOpen": "Atvērt",
+  "siteExtensionsPageFailed": "{name} šeit neizdevās atvērt"
 }

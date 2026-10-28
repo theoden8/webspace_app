@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "האפליקציה לא מורידה תוספים ולא מעדכנת אותם: בוחרים את הקובץ, ומייבאים אותו שוב כדי לקבל גרסה חדשה יותר. החתימה של החבילה לא נבדקת.",
   "extensionsLibrary": "מיובאים",
   "extensionsVersion": "גרסה {version}",
+  "extensionsVersionProblems": "{count, plural, =1{גרסה {version} · דווחה בעיה אחת} other{גרסה {version} · דווחו {count} בעיות}}",
+  "extensionsProblemsHint": "WebKit דיווח על הבעיות האלה בזמן קריאת התוסף. הוא עדיין פועל באתרים שבהם תפעילו אותו, אבל מה שהן מזכירות עלול לא לעבוד.\n\n{problems}",
   "extensionsRefused": "לא יובא: {reason}",
   "extensionsRefusedNotAPackage": "הקובץ אינו חבילת .crx, .xpi או .zip",
   "extensionsRefusedDamaged": "הקובץ פגום או חלקי",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "דף הרקע שלו נשאר טעון כל עוד אתר שמריץ אותו פתוח.",
   "extensionsAdded": "{name} נוסף",
   "extensionsRemoveTitle": "להסיר את {name}?",
-  "extensionsRemoveBody": "הקבצים שלו נמחקים והוא מפסיק לפעול בכל האתרים.",
+  "extensionsRemoveBody": "הוא מפסיק לפעול בכל האתרים, והקבצים שלו ומה שהוא שמר בכל אתר נמחקים.",
   "extensionsRemoved": "{name} הוסר",
   "siteSettingsExtensionsHint": "תוספי דפדפן שיובאו בהגדרות האפליקציה ופועלים בדפים של האתר הזה. כל אחד מהם מגיע רק לאתר הזה, ושינוי חל בטעינה הבאה של האתר.",
   "siteSettingsExtensionsNone": "אף אחד לא מופעל",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "הוא לא מגיע לאף דף של האתר הזה.",
   "siteExtensionsConsentPermissions": "הוא מקבל: {permissions}",
   "siteExtensionsConsentNoPermissions": "הוא לא מקבל הרשאות.",
-  "siteExtensionsSwitchOn": "הפעלה"
+  "siteExtensionsSwitchOn": "הפעלה",
+  "siteExtensionsSettings": "הגדרות",
+  "siteExtensionsOpen": "פתח",
+  "siteExtensionsPageFailed": "לא ניתן לפתוח את {name} כאן"
 }

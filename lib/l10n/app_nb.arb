@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Appen verken laster ned eller oppdaterer utvidelser: du velger filen selv, og importerer den på nytt for en nyere versjon. Signaturen til en pakke blir ikke kontrollert.",
   "extensionsLibrary": "Importert",
   "extensionsVersion": "Versjon {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versjon {version} · {count} rapportert problem} other{Versjon {version} · {count} rapporterte problemer}}",
+  "extensionsProblemsHint": "WebKit rapporterte disse problemene under lesingen av utvidelsen. Den kjører fortsatt på nettstedene du slår den på for, men det de nevner, fungerer kanskje ikke.\n\n{problems}",
   "extensionsRefused": "Ikke importert: {reason}",
   "extensionsRefusedNotAPackage": "filen er ikke en .crx-, .xpi- eller .zip-pakke",
   "extensionsRefusedDamaged": "filen er skadet eller ufullstendig",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Bakgrunnssiden dens forblir lastet så lenge et nettsted som kjører den, er åpent.",
   "extensionsAdded": "{name} lagt til",
   "extensionsRemoveTitle": "Fjerne {name}?",
-  "extensionsRemoveBody": "Filene dens slettes, og den slutter å kjøre på alle nettsteder.",
+  "extensionsRemoveBody": "Den slutter å kjøre på alle nettsteder, og filene dens og det den har lagret på hvert nettsted, slettes.",
   "extensionsRemoved": "{name} fjernet",
   "siteSettingsExtensionsHint": "Nettleserutvidelser importert i app-innstillingene som kjører på sidene til dette nettstedet. Hver av dem når bare dette nettstedet, og en endring gjelder neste gang nettstedet lastes inn.",
   "siteSettingsExtensionsNone": "Ingen på",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Den når ingen av sidene på dette nettstedet.",
   "siteExtensionsConsentPermissions": "Den får: {permissions}",
   "siteExtensionsConsentNoPermissions": "Den får ingen tillatelser.",
-  "siteExtensionsSwitchOn": "Slå på"
+  "siteExtensionsSwitchOn": "Slå på",
+  "siteExtensionsSettings": "Innstillinger",
+  "siteExtensionsOpen": "Åpne",
+  "siteExtensionsPageFailed": "{name} kunne ikke åpnes her"
 }

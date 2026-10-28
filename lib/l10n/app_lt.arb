@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Programa nesiunčia ir neatnaujina jokių plėtinių: failą pasirenkate jūs, o naujesnei versijai importuojate jį iš naujo. Paketo parašas netikrinamas.",
   "extensionsLibrary": "Importuoti plėtiniai",
   "extensionsVersion": "Versija {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versija {version} · pranešta apie {count} problemą} few{Versija {version} · pranešta apie {count} problemas} other{Versija {version} · pranešta apie {count} problemų}}",
+  "extensionsProblemsHint": "WebKit pranešė apie šias problemas skaitydamas plėtinį. Jis vis dar veikia svetainėse, kuriose jį įjungiate, bet tai, ką jos nurodo, gali neveikti.\n\n{problems}",
   "extensionsRefused": "Neimportuota: {reason}",
   "extensionsRefusedNotAPackage": "failas nėra .crx, .xpi arba .zip paketas",
   "extensionsRefusedDamaged": "failas sugadintas arba nepilnas",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Jo foninis puslapis lieka įkeltas, kol atidaryta jį vykdanti svetainė.",
   "extensionsAdded": "{name} pridėtas",
   "extensionsRemoveTitle": "Pašalinti {name}?",
-  "extensionsRemoveBody": "Jo failai ištrinami ir jis nebeveikia jokioje svetainėje.",
+  "extensionsRemoveBody": "Jis nebeveikia jokioje svetainėje, o jo failai ir tai, ką jis išsaugojo kiekvienoje svetainėje, ištrinami.",
   "extensionsRemoved": "{name} pašalintas",
   "siteSettingsExtensionsHint": "Programos nustatymuose importuoti naršyklės plėtiniai, veikiantys šios svetainės puslapiuose. Kiekvienas pasiekia tik šią svetainę, o pakeitimas įsigalioja kitą kartą įkėlus svetainę.",
   "siteSettingsExtensionsNone": "Nė vienas neįjungtas",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Jis nepasiekia jokių šios svetainės puslapių.",
   "siteExtensionsConsentPermissions": "Jis gauna: {permissions}",
   "siteExtensionsConsentNoPermissions": "Jis negauna jokių leidimų.",
-  "siteExtensionsSwitchOn": "Įjungti"
+  "siteExtensionsSwitchOn": "Įjungti",
+  "siteExtensionsSettings": "Nustatymai",
+  "siteExtensionsOpen": "Atidaryti",
+  "siteExtensionsPageFailed": "Nepavyko čia atidaryti {name}"
 }

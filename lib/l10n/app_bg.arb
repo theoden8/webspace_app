@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Приложението не изтегля и не обновява разширения: вие избирате файла и го импортирате отново за по-нова версия. Подписът на пакета не се проверява.",
   "extensionsLibrary": "Импортирани",
   "extensionsVersion": "Версия {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Версия {version} · {count} съобщен проблем} other{Версия {version} · {count} съобщени проблема}}",
+  "extensionsProblemsHint": "WebKit съобщи за тези проблеми при четенето на разширението. То пак работи на сайтовете, за които го включите, но това, което те посочват, може да не работи.\n\n{problems}",
   "extensionsRefused": "Не е импортирано: {reason}",
   "extensionsRefusedNotAPackage": "файлът не е пакет .crx, .xpi или .zip",
   "extensionsRefusedDamaged": "файлът е повреден или непълен",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Фоновата му страница остава заредена, докато е отворен сайт, който го изпълнява.",
   "extensionsAdded": "{name} е добавено",
   "extensionsRemoveTitle": "Премахване на {name}?",
-  "extensionsRemoveBody": "Файловете му се изтриват и то спира да работи на всички сайтове.",
+  "extensionsRemoveBody": "То спира да работи на всички сайтове, а файловете му и това, което е съхранило на всеки сайт, се изтриват.",
   "extensionsRemoved": "{name} е премахнато",
   "siteSettingsExtensionsHint": "Разширения за браузър, импортирани в Настройки на приложението, които работят на страниците на този сайт. Всяко достига само до този сайт, а промяната важи при следващото зареждане на сайта.",
   "siteSettingsExtensionsNone": "Няма включени",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Не достига до нито една страница на този сайт.",
   "siteExtensionsConsentPermissions": "Получава: {permissions}",
   "siteExtensionsConsentNoPermissions": "Не получава разрешения.",
-  "siteExtensionsSwitchOn": "Включи"
+  "siteExtensionsSwitchOn": "Включи",
+  "siteExtensionsSettings": "Настройки",
+  "siteExtensionsOpen": "Отвори",
+  "siteExtensionsPageFailed": "{name} не можа да се отвори тук"
 }

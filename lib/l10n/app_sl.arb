@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikacija ne prenaša in ne posodablja razširitev: datoteko izberete sami in jo za novejšo različico znova uvozite. Podpis paketa se ne preverja.",
   "extensionsLibrary": "Uvožene",
   "extensionsVersion": "Različica {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Različica {version} · {count} sporočena težava} two{Različica {version} · {count} sporočeni težavi} few{Različica {version} · {count} sporočene težave} other{Različica {version} · {count} sporočenih težav}}",
+  "extensionsProblemsHint": "WebKit je te težave sporočil med branjem razširitve. Še vedno se izvaja na spletnih mestih, za katera jo vklopite, vendar to, kar navajajo, morda ne bo delovalo.\n\n{problems}",
   "extensionsRefused": "Ni uvoženo: {reason}",
   "extensionsRefusedNotAPackage": "datoteka ni paket .crx, .xpi ali .zip",
   "extensionsRefusedDamaged": "datoteka je poškodovana ali nepopolna",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Njena stran v ozadju ostane naložena, dokler je odprto spletno mesto, ki jo izvaja.",
   "extensionsAdded": "Dodano: {name}",
   "extensionsRemoveTitle": "Želite odstraniti {name}?",
-  "extensionsRemoveBody": "Njene datoteke se izbrišejo in ne izvaja se več na nobenem spletnem mestu.",
+  "extensionsRemoveBody": "Ne izvaja se več na nobenem spletnem mestu, njene datoteke in to, kar je shranila na posameznem spletnem mestu, pa se izbrišejo.",
   "extensionsRemoved": "Odstranjeno: {name}",
   "siteSettingsExtensionsHint": "Razširitve brskalnika, uvožene v Nastavitvah aplikacije, ki se izvajajo na straneh tega spletnega mesta. Vsaka doseže samo to mesto, sprememba pa začne veljati ob naslednjem nalaganju mesta.",
   "siteSettingsExtensionsNone": "Nobena ni vklopljena",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ne doseže nobene strani tega spletnega mesta.",
   "siteExtensionsConsentPermissions": "Dobi: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ne dobi nobenih dovoljenj.",
-  "siteExtensionsSwitchOn": "Vklopi"
+  "siteExtensionsSwitchOn": "Vklopi",
+  "siteExtensionsSettings": "Nastavitve",
+  "siteExtensionsOpen": "Odpri",
+  "siteExtensionsPageFailed": "{name} tukaj ni bilo mogoče odpreti"
 }

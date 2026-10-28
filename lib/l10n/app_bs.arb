@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplikacija ne preuzima niti ažurira proširenja: vi birate datoteku i ponovo je uvozite za noviju verziju. Potpis paketa se ne provjerava.",
   "extensionsLibrary": "Uvezeno",
   "extensionsVersion": "Verzija {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Verzija {version} · {count} prijavljen problem} few{Verzija {version} · {count} prijavljena problema} other{Verzija {version} · {count} prijavljenih problema}}",
+  "extensionsProblemsHint": "WebKit je prijavio ove probleme pri čitanju proširenja. Ono i dalje radi na stranicama za koje ga uključite, ali ono što navode možda neće raditi.\n\n{problems}",
   "extensionsRefused": "Nije uvezeno: {reason}",
   "extensionsRefusedNotAPackage": "datoteka nije paket .crx, .xpi ili .zip",
   "extensionsRefusedDamaged": "datoteka je oštećena ili nepotpuna",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Njegova pozadinska stranica ostaje učitana dok je otvorena stranica koja ga pokreće.",
   "extensionsAdded": "{name} dodano",
   "extensionsRemoveTitle": "Ukloniti {name}?",
-  "extensionsRemoveBody": "Njegove datoteke se brišu i prestaje raditi na svim stranicama.",
+  "extensionsRemoveBody": "Prestaje raditi na svim stranicama, a njegove datoteke i ono što je pohranilo na svakoj stranici se brišu.",
   "extensionsRemoved": "{name} uklonjeno",
   "siteSettingsExtensionsHint": "Proširenja preglednika uvezena u Postavkama aplikacije koja se pokreću na ovoj stranici. Svako doseže samo ovu stranicu, a promjena se primjenjuje kad se stranica sljedeći put učita.",
   "siteSettingsExtensionsNone": "Nijedno uključeno",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ne doseže nijedan dio ove stranice.",
   "siteExtensionsConsentPermissions": "Dobiva: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ne dobiva nikakve dozvole.",
-  "siteExtensionsSwitchOn": "Uključi"
+  "siteExtensionsSwitchOn": "Uključi",
+  "siteExtensionsSettings": "Postavke",
+  "siteExtensionsOpen": "Otvori",
+  "siteExtensionsPageFailed": "{name} nije moguće otvoriti ovdje"
 }

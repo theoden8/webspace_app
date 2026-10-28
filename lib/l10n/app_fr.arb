@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "L'application ne télécharge ni ne met à jour aucune extension : vous choisissez le fichier, et vous l'importez à nouveau pour une version plus récente. La signature d'un paquet n'est pas vérifiée.",
   "extensionsLibrary": "Importées",
   "extensionsVersion": "Version {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Version {version} · {count} problème signalé} other{Version {version} · {count} problèmes signalés}}",
+  "extensionsProblemsHint": "WebKit a signalé ces problèmes en lisant l'extension. Elle s'exécute toujours sur les sites où vous l'activez, mais ce qu'ils mentionnent risque de ne pas fonctionner.\n\n{problems}",
   "extensionsRefused": "Non importée : {reason}",
   "extensionsRefusedNotAPackage": "le fichier n'est pas un paquet .crx, .xpi ou .zip",
   "extensionsRefusedDamaged": "le fichier est endommagé ou incomplet",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Sa page d'arrière-plan reste chargée tant qu'un site qui l'exécute est ouvert.",
   "extensionsAdded": "{name} ajoutée",
   "extensionsRemoveTitle": "Retirer {name} ?",
-  "extensionsRemoveBody": "Ses fichiers sont supprimés et elle cesse de s'exécuter sur tous les sites.",
+  "extensionsRemoveBody": "Elle cesse de s'exécuter sur tous les sites, et ses fichiers ainsi que ce qu'elle a stocké sur chaque site sont supprimés.",
   "extensionsRemoved": "{name} retirée",
   "siteSettingsExtensionsHint": "Extensions de navigateur importées dans les paramètres de l'application qui s'exécutent sur les pages de ce site. Chacune n'atteint que ce site, et une modification s'applique au prochain chargement du site.",
   "siteSettingsExtensionsNone": "Aucune activée",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Elle n'atteint aucune page de ce site.",
   "siteExtensionsConsentPermissions": "Elle obtient : {permissions}",
   "siteExtensionsConsentNoPermissions": "Elle n'obtient aucune autorisation.",
-  "siteExtensionsSwitchOn": "Activer"
+  "siteExtensionsSwitchOn": "Activer",
+  "siteExtensionsSettings": "Paramètres",
+  "siteExtensionsOpen": "Ouvrir",
+  "siteExtensionsPageFailed": "Impossible d'ouvrir {name} ici"
 }

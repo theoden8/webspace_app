@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Walang extension na dina-download o ina-update ang app: ikaw ang pumipili ng file, at i-import ito ulit para sa mas bagong bersyon. Hindi sinusuri ang pirma ng package.",
   "extensionsLibrary": "Na-import",
   "extensionsVersion": "Bersyon {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Bersyon {version} · {count} problemang naiulat} other{Bersyon {version} · {count} problemang naiulat}}",
+  "extensionsProblemsHint": "Iniulat ng WebKit ang mga ito habang binabasa ang extension. Tumatakbo pa rin ito sa mga site kung saan mo ito i-on, pero maaaring hindi gumana ang binabanggit ng mga ito.\n\n{problems}",
   "extensionsRefused": "Hindi na-import: {reason}",
   "extensionsRefusedNotAPackage": "hindi package na .crx, .xpi o .zip ang file",
   "extensionsRefusedDamaged": "sira o kulang ang file",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Nananatiling naka-load ang pahina nito sa background habang bukas ang isang site na nagpapatakbo rito.",
   "extensionsAdded": "Naidagdag ang {name}",
   "extensionsRemoveTitle": "Alisin ang {name}?",
-  "extensionsRemoveBody": "Buburahin ang mga file nito at titigil ito sa pagtakbo sa lahat ng site.",
+  "extensionsRemoveBody": "Titigil ito sa pagtakbo sa lahat ng site, at buburahin ang mga file nito at ang inimbak nito sa bawat site.",
   "extensionsRemoved": "Naalis ang {name}",
   "siteSettingsExtensionsHint": "Mga browser extension na na-import sa Mga Setting ng App na tumatakbo sa mga pahina ng site na ito. Sa site lang na ito umaabot ang bawat isa, at magkakabisa ang pagbabago sa susunod na pag-load ng site.",
   "siteSettingsExtensionsNone": "Walang naka-on",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Wala itong naaabot sa mga pahina ng site na ito.",
   "siteExtensionsConsentPermissions": "Makukuha nito: {permissions}",
   "siteExtensionsConsentNoPermissions": "Wala itong makukuhang pahintulot.",
-  "siteExtensionsSwitchOn": "I-on"
+  "siteExtensionsSwitchOn": "I-on",
+  "siteExtensionsSettings": "Mga Setting",
+  "siteExtensionsOpen": "Buksan",
+  "siteExtensionsPageFailed": "Hindi mabuksan dito ang {name}"
 }

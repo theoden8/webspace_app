@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "アプリは拡張機能をダウンロードも更新もしません。ファイルはご自身で選び、新しいバージョンにするには再度インポートしてください。パッケージの署名は確認されません。",
   "extensionsLibrary": "インポート済み",
   "extensionsVersion": "バージョン {version}",
+  "extensionsVersionProblems": "{count, plural, =1{バージョン {version} · {count} 件の問題が報告されました} other{バージョン {version} · {count} 件の問題が報告されました}}",
+  "extensionsProblemsHint": "WebKit は拡張機能の読み込み中にこれらの問題を報告しました。オンにしたサイトでは引き続き実行されますが、問題に挙げられた部分は動作しない可能性があります。\n\n{problems}",
   "extensionsRefused": "インポートされませんでした: {reason}",
   "extensionsRefusedNotAPackage": "ファイルが .crx、.xpi、.zip パッケージではありません",
   "extensionsRefusedDamaged": "ファイルが破損しているか不完全です",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "この拡張機能を実行するサイトが開いている間、バックグラウンドページが読み込まれたままになります。",
   "extensionsAdded": "{name} を追加しました",
   "extensionsRemoveTitle": "{name} を削除しますか？",
-  "extensionsRemoveBody": "ファイルが削除され、すべてのサイトで実行されなくなります。",
+  "extensionsRemoveBody": "すべてのサイトで実行されなくなり、ファイルと各サイトに保存していたデータが削除されます。",
   "extensionsRemoved": "{name} を削除しました",
   "siteSettingsExtensionsHint": "アプリ設定でインポートした、このサイトのページで実行されるブラウザ拡張機能です。各拡張機能はこのサイトにのみアクセスし、変更はサイトの次回読み込み時に適用されます。",
   "siteSettingsExtensionsNone": "すべてオフ",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "このサイトのページにはアクセスしません。",
   "siteExtensionsConsentPermissions": "付与される権限: {permissions}",
   "siteExtensionsConsentNoPermissions": "権限は付与されません。",
-  "siteExtensionsSwitchOn": "オンにする"
+  "siteExtensionsSwitchOn": "オンにする",
+  "siteExtensionsSettings": "設定",
+  "siteExtensionsOpen": "開く",
+  "siteExtensionsPageFailed": "{name} をここで開けませんでした"
 }

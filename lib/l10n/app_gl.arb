@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "A aplicación non descarga nin actualiza ningunha extensión: ti escolles o ficheiro e impórtalo de novo para unha versión máis recente. Non se comproba a sinatura do paquete.",
   "extensionsLibrary": "Importadas",
   "extensionsVersion": "Versión {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versión {version} · {count} problema notificado} other{Versión {version} · {count} problemas notificados}}",
+  "extensionsProblemsHint": "WebKit notificou estes problemas ao ler a extensión. Segue executándose nos sitios nos que a actives, pero o que mencionan pode non funcionar.\n\n{problems}",
   "extensionsRefused": "Non importada: {reason}",
   "extensionsRefusedNotAPackage": "o ficheiro non é un paquete .crx, .xpi ou .zip",
   "extensionsRefusedDamaged": "o ficheiro está danado ou incompleto",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "A súa páxina en segundo plano segue cargada mentres estea aberto un sitio que a executa.",
   "extensionsAdded": "{name} engadida",
   "extensionsRemoveTitle": "Quitar {name}?",
-  "extensionsRemoveBody": "Bórranse os seus ficheiros e deixa de executarse en todos os sitios.",
+  "extensionsRemoveBody": "Deixa de executarse en todos os sitios, e bórranse os seus ficheiros e o que gardou en cada sitio.",
   "extensionsRemoved": "{name} quitada",
   "siteSettingsExtensionsHint": "Extensións de navegador importadas en Axustes da aplicación que se executan nas páxinas deste sitio. Cada unha só chega a este sitio, e un cambio aplícase a próxima vez que se cargue o sitio.",
   "siteSettingsExtensionsNone": "Ningunha activada",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Non chega a ningunha páxina deste sitio.",
   "siteExtensionsConsentPermissions": "Recibe: {permissions}",
   "siteExtensionsConsentNoPermissions": "Non recibe ningún permiso.",
-  "siteExtensionsSwitchOn": "Activar"
+  "siteExtensionsSwitchOn": "Activar",
+  "siteExtensionsSettings": "Axustes",
+  "siteExtensionsOpen": "Abrir",
+  "siteExtensionsPageFailed": "Non se puido abrir {name} aquí"
 }

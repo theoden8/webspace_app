@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Sovellus ei lataa eikä päivitä laajennuksia: sinä valitset tiedoston ja tuot sen uudelleen uudempaa versiota varten. Paketin allekirjoitusta ei tarkisteta.",
   "extensionsLibrary": "Tuodut",
   "extensionsVersion": "Versio {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versio {version} · {count} raportoitu ongelma} other{Versio {version} · {count} raportoitua ongelmaa}}",
+  "extensionsProblemsHint": "WebKit raportoi nämä ongelmat lukiessaan laajennusta. Se toimii yhä sivustoilla, joilla otat sen käyttöön, mutta niissä mainitut asiat eivät ehkä toimi.\n\n{problems}",
   "extensionsRefused": "Ei tuotu: {reason}",
   "extensionsRefusedNotAPackage": "tiedosto ei ole .crx-, .xpi- tai .zip-paketti",
   "extensionsRefusedDamaged": "tiedosto on vioittunut tai vajaa",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Sen taustasivu pysyy ladattuna, kun jokin sitä suorittava sivusto on auki.",
   "extensionsAdded": "{name} lisätty",
   "extensionsRemoveTitle": "Poistetaanko {name}?",
-  "extensionsRemoveBody": "Sen tiedostot poistetaan, eikä se enää toimi millään sivustolla.",
+  "extensionsRemoveBody": "Se ei enää toimi millään sivustolla, ja sen tiedostot ja se, mitä se tallensi kullekin sivustolle, poistetaan.",
   "extensionsRemoved": "{name} poistettu",
   "siteSettingsExtensionsHint": "Sovellusasetuksissa tuodut selainlaajennukset, jotka toimivat tämän sivuston sivuilla. Kukin ulottuu vain tähän sivustoon, ja muutos tulee voimaan, kun sivusto ladataan seuraavan kerran.",
   "siteSettingsExtensionsNone": "Ei yhtään käytössä",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Se ei ulotu mihinkään tämän sivuston sivuun.",
   "siteExtensionsConsentPermissions": "Se saa: {permissions}",
   "siteExtensionsConsentNoPermissions": "Se ei saa käyttöoikeuksia.",
-  "siteExtensionsSwitchOn": "Ota käyttöön"
+  "siteExtensionsSwitchOn": "Ota käyttöön",
+  "siteExtensionsSettings": "Asetukset",
+  "siteExtensionsOpen": "Avaa",
+  "siteExtensionsPageFailed": "{name} ei auennut tässä"
 }

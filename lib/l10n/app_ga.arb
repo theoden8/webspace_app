@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Ní íoslódálann an aip eisínteachtaí ná ní nuashonraíonn sí iad: roghnaíonn tú an comhad, agus iompórtálann tú arís é le haghaidh leagan níos nuaí. Ní sheiceáiltear síniú pacáiste.",
   "extensionsLibrary": "Iompórtáilte",
   "extensionsVersion": "Leagan {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Leagan {version} · tuairiscíodh fadhb amháin} other{Leagan {version} · tuairiscíodh {count} fadhb}}",
+  "extensionsProblemsHint": "Thuairiscigh WebKit na fadhbanna seo agus an eisínteacht á léamh aige. Ritheann sí fós ar na suíomhanna a gcuireann tú ar siúl í dóibh, ach seans nach n-oibreoidh an méid a luann siad.\n\n{problems}",
   "extensionsRefused": "Níor iompórtáladh: {reason}",
   "extensionsRefusedNotAPackage": "ní pacáiste .crx, .xpi ná .zip é an comhad",
   "extensionsRefusedDamaged": "tá an comhad damáistithe nó neamhiomlán",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Fanann a leathanach cúlra lódáilte fad atá suíomh a ritheann í oscailte.",
   "extensionsAdded": "Cuireadh {name} leis",
   "extensionsRemoveTitle": "Bain {name}?",
-  "extensionsRemoveBody": "Scriostar a comhaid agus stopann sí ag rith ar gach suíomh.",
+  "extensionsRemoveBody": "Stopann sí ag rith ar gach suíomh, agus scriostar a comhaid agus a raibh stóráilte aici ar gach suíomh.",
   "extensionsRemoved": "Baineadh {name}",
   "siteSettingsExtensionsHint": "Eisínteachtaí brabhsálaí a iompórtáladh i Socruithe na hAipe a ritheann ar leathanaigh an tsuímh seo. Ní shroicheann gach ceann acu ach an suíomh seo, agus cuirtear athrú i bhfeidhm an chéad uair eile a lódálann an suíomh.",
   "siteSettingsExtensionsNone": "Níl aon cheann ar siúl",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Ní shroicheann sí aon cheann de leathanaigh an tsuímh seo.",
   "siteExtensionsConsentPermissions": "Faigheann sí: {permissions}",
   "siteExtensionsConsentNoPermissions": "Ní fhaigheann sí aon chead.",
-  "siteExtensionsSwitchOn": "Cuir ar siúl"
+  "siteExtensionsSwitchOn": "Cuir ar siúl",
+  "siteExtensionsSettings": "Socruithe",
+  "siteExtensionsOpen": "Oscail",
+  "siteExtensionsPageFailed": "Níorbh fhéidir {name} a oscailt anseo"
 }

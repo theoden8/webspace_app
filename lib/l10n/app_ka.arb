@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "აპი არცერთ გაფართოებას არ ჩამოტვირთავს და არ განაახლებს: ფაილს თქვენ ირჩევთ, ახალი ვერსიისთვის კი მას ხელახლა აიმპორტებთ. პაკეტის ხელმოწერა არ მოწმდება.",
   "extensionsLibrary": "იმპორტირებული",
   "extensionsVersion": "ვერსია {version}",
+  "extensionsVersionProblems": "{count, plural, =1{ვერსია {version} · მოხსენებულია {count} პრობლემა} other{ვერსია {version} · მოხსენებულია {count} პრობლემა}}",
+  "extensionsProblemsHint": "WebKit-მა გაფართოების წაკითხვისას ეს პრობლემები შეატყობინა. ის კვლავ მუშაობს საიტებზე, სადაც მას ჩართავთ, მაგრამ ის, რასაც ისინი ასახელებენ, შეიძლება არ იმუშაოს.\n\n{problems}",
   "extensionsRefused": "არ დაიმპორტდა: {reason}",
   "extensionsRefusedNotAPackage": "ფაილი არ არის .crx, .xpi ან .zip პაკეტი",
   "extensionsRefusedDamaged": "ფაილი დაზიანებული ან არასრულია",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "მისი ფონური გვერდი ჩატვირთული რჩება, სანამ მისი გამშვები საიტი ღიაა.",
   "extensionsAdded": "{name} დაემატა",
   "extensionsRemoveTitle": "მოიშოროს {name}?",
-  "extensionsRemoveBody": "მისი ფაილები წაიშლება და ის ყველა საიტზე შეწყვეტს მუშაობას.",
+  "extensionsRemoveBody": "ის ყველა საიტზე შეწყვეტს მუშაობას და წაიშლება მისი ფაილები და ის, რაც მან თითოეულ საიტზე შეინახა.",
   "extensionsRemoved": "{name} მოშორდა",
   "siteSettingsExtensionsHint": "აპის პარამეტრებში იმპორტირებული ბრაუზერის გაფართოებები, რომლებიც ამ საიტის გვერდებზე მუშაობს. თითოეული მხოლოდ ამ საიტს სწვდება, ცვლილება კი საიტის შემდეგი ჩატვირთვისას ამოქმედდება.",
   "siteSettingsExtensionsNone": "არცერთი არ არის ჩართული",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "ამ საიტის არცერთ გვერდს არ სწვდება.",
   "siteExtensionsConsentPermissions": "იღებს: {permissions}",
   "siteExtensionsConsentNoPermissions": "არცერთ ნებართვას არ იღებს.",
-  "siteExtensionsSwitchOn": "ჩართვა"
+  "siteExtensionsSwitchOn": "ჩართვა",
+  "siteExtensionsSettings": "პარამეტრები",
+  "siteExtensionsOpen": "გახსნა",
+  "siteExtensionsPageFailed": "{name} აქ ვერ გაიხსნა"
 }

@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Հավելվածը ոչ մի ընդլայնում չի ներբեռնում և չի թարմացնում. ֆայլն ընտրում եք դուք, իսկ ավելի նոր տարբերակի համար այն կրկին ներմուծում եք։ Փաթեթի ստորագրությունը չի ստուգվում։",
   "extensionsLibrary": "Ներմուծված",
   "extensionsVersion": "Տարբերակ {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Տարբերակ {version} · հաղորդվել է {count} խնդիր} other{Տարբերակ {version} · հաղորդվել է {count} խնդիր}}",
+  "extensionsProblemsHint": "WebKit-ը ընդլայնումը կարդալիս հաղորդել է այս խնդիրները։ Այն դեռ աշխատում է այն կայքերում, որոնց համար այն միացնում եք, բայց դրանցում նշվածը կարող է չաշխատել։\n\n{problems}",
   "extensionsRefused": "Չի ներմուծվել՝ {reason}",
   "extensionsRefusedNotAPackage": "ֆայլը .crx, .xpi կամ .zip փաթեթ չէ",
   "extensionsRefusedDamaged": "ֆայլը վնասված է կամ թերի",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Դրա ֆոնային էջը մնում է բեռնված, քանի դեռ բաց է այն գործարկող կայքը։",
   "extensionsAdded": "{name}-ն ավելացվեց",
   "extensionsRemoveTitle": "Հեռացնե՞լ {name}-ը",
-  "extensionsRemoveBody": "Դրա ֆայլերը ջնջվում են, և այն դադարում է աշխատել բոլոր կայքերում։",
+  "extensionsRemoveBody": "Այն դադարում է աշխատել բոլոր կայքերում, և ջնջվում են դրա ֆայլերը և այն, ինչ այն պահել էր յուրաքանչյուր կայքում։",
   "extensionsRemoved": "{name}-ը հեռացվեց",
   "siteSettingsExtensionsHint": "Հավելվածի կարգավորումներում ներմուծված դիտարկիչի ընդլայնումներ, որոնք աշխատում են այս կայքի էջերում։ Յուրաքանչյուրը հասնում է միայն այս կայքին, և փոփոխությունը կիրառվում է կայքի հաջորդ բեռնման ժամանակ։",
   "siteSettingsExtensionsNone": "Ոչ մեկը միացված չէ",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Այն չի հասնում այս կայքի ոչ մի էջի։",
   "siteExtensionsConsentPermissions": "Այն ստանում է՝ {permissions}",
   "siteExtensionsConsentNoPermissions": "Այն ոչ մի թույլտվություն չի ստանում։",
-  "siteExtensionsSwitchOn": "Միացնել"
+  "siteExtensionsSwitchOn": "Միացնել",
+  "siteExtensionsSettings": "Կարգավորումներ",
+  "siteExtensionsOpen": "Բացել",
+  "siteExtensionsPageFailed": "{name}-ը չհաջողվեց բացել այստեղ"
 }

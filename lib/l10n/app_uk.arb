@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Застосунок не завантажує й не оновлює розширення: ви вибираєте файл і для новішої версії імпортуєте його знову. Підпис пакета не перевіряється.",
   "extensionsLibrary": "Імпортовані",
   "extensionsVersion": "Версія {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Версія {version} · повідомлено про {count} проблему} few{Версія {version} · повідомлено про {count} проблеми} many{Версія {version} · повідомлено про {count} проблем} other{Версія {version} · повідомлено про {count} проблеми}}",
+  "extensionsProblemsHint": "WebKit повідомив про ці проблеми під час читання розширення. Воно й далі працює на сайтах, для яких ви його ввімкнете, але те, що в них згадано, може не працювати.\n\n{problems}",
   "extensionsRefused": "Не імпортовано: {reason}",
   "extensionsRefusedNotAPackage": "файл не є пакетом .crx, .xpi або .zip",
   "extensionsRefusedDamaged": "файл пошкоджений або неповний",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Його фонова сторінка лишається завантаженою, поки відкрито сайт, на якому воно працює.",
   "extensionsAdded": "Додано: {name}",
   "extensionsRemoveTitle": "Прибрати {name}?",
-  "extensionsRemoveBody": "Його файли буде видалено, і воно перестане працювати на всіх сайтах.",
+  "extensionsRemoveBody": "Воно перестане працювати на всіх сайтах, а його файли й те, що воно зберегло на кожному сайті, буде видалено.",
   "extensionsRemoved": "Прибрано: {name}",
   "siteSettingsExtensionsHint": "Розширення браузера, імпортовані в Налаштуваннях застосунку, що працюють на сторінках цього сайту. Кожне має доступ лише до цього сайту, а зміна діє з наступного завантаження сайту.",
   "siteSettingsExtensionsNone": "Жодного не ввімкнено",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Воно не має доступу до жодної сторінки цього сайту.",
   "siteExtensionsConsentPermissions": "Отримує: {permissions}",
   "siteExtensionsConsentNoPermissions": "Не отримує жодних дозволів.",
-  "siteExtensionsSwitchOn": "Увімкнути"
+  "siteExtensionsSwitchOn": "Увімкнути",
+  "siteExtensionsSettings": "Налаштування",
+  "siteExtensionsOpen": "Відкрити",
+  "siteExtensionsPageFailed": "Не вдалося відкрити {name} тут"
 }

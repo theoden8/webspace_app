@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Programu haipakui wala haisasishi kiendelezi chochote: wewe unachagua faili, na unaileta tena kwa toleo jipya zaidi. Sahihi ya kifurushi haikaguliwi.",
   "extensionsLibrary": "Vilivyoletwa",
   "extensionsVersion": "Toleo {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Toleo {version} · tatizo {count} limeripotiwa} other{Toleo {version} · matatizo {count} yameripotiwa}}",
+  "extensionsProblemsHint": "WebKit iliripoti matatizo haya ilipokuwa ikisoma kiendelezi. Bado kinaendeshwa kwenye tovuti unazokiwashia, lakini kinachotajwa na matatizo haya huenda kisifanye kazi.\n\n{problems}",
   "extensionsRefused": "Haijaletwa: {reason}",
   "extensionsRefusedNotAPackage": "faili si kifurushi cha .crx, .xpi au .zip",
   "extensionsRefusedDamaged": "faili imeharibika au haijakamilika",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Ukurasa wake wa chinichini hubaki umepakiwa wakati tovuti inayokiendesha iko wazi.",
   "extensionsAdded": "{name} kimeongezwa",
   "extensionsRemoveTitle": "Ondoa {name}?",
-  "extensionsRemoveBody": "Faili zake zinafutwa na kinaacha kuendeshwa kwenye kila tovuti.",
+  "extensionsRemoveBody": "Kinaacha kuendeshwa kwenye kila tovuti, na faili zake pamoja na kile kilichohifadhi kwenye kila tovuti vinafutwa.",
   "extensionsRemoved": "{name} kimeondolewa",
   "siteSettingsExtensionsHint": "Viendelezi vya kivinjari vilivyoletwa katika Mipangilio ya Programu vinavyoendeshwa kwenye kurasa za tovuti hii. Kila kimoja kinafikia tovuti hii pekee, na badiliko linatumika tovuti itakapopakiwa tena.",
   "siteSettingsExtensionsNone": "Hakuna kilichowashwa",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Hakifikii ukurasa wowote wa tovuti hii.",
   "siteExtensionsConsentPermissions": "Kinapata: {permissions}",
   "siteExtensionsConsentNoPermissions": "Hakipati ruhusa yoyote.",
-  "siteExtensionsSwitchOn": "Washa"
+  "siteExtensionsSwitchOn": "Washa",
+  "siteExtensionsSettings": "Mipangilio",
+  "siteExtensionsOpen": "Fungua",
+  "siteExtensionsPageFailed": "{name} hakikuweza kufunguka hapa"
 }

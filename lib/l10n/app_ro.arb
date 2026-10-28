@@ -1168,6 +1168,8 @@
   "extensionsImportHint": "Aplicația nu descarcă și nu actualizează nicio extensie: tu alegi fișierul și îl imporți din nou pentru o versiune mai nouă. Semnătura pachetului nu este verificată.",
   "extensionsLibrary": "Importate",
   "extensionsVersion": "Versiunea {version}",
+  "extensionsVersionProblems": "{count, plural, =1{Versiunea {version} · {count} problemă raportată} few{Versiunea {version} · {count} probleme raportate} other{Versiunea {version} · {count} de probleme raportate}}",
+  "extensionsProblemsHint": "WebKit a raportat aceste probleme la citirea extensiei. Aceasta rulează în continuare pe site-urile pentru care o activezi, dar ce menționează ele s-ar putea să nu funcționeze.\n\n{problems}",
   "extensionsRefused": "Neimportată: {reason}",
   "extensionsRefusedNotAPackage": "fișierul nu este un pachet .crx, .xpi sau .zip",
   "extensionsRefusedDamaged": "fișierul este deteriorat sau incomplet",
@@ -1188,7 +1190,7 @@
   "extensionsAlwaysLoaded": "Pagina sa de fundal rămâne încărcată cât timp e deschis un site care o rulează.",
   "extensionsAdded": "{name} a fost adăugată",
   "extensionsRemoveTitle": "Elimini {name}?",
-  "extensionsRemoveBody": "Fișierele sale sunt șterse și nu mai rulează pe niciun site.",
+  "extensionsRemoveBody": "Nu mai rulează pe niciun site, iar fișierele sale și ce a stocat pe fiecare site sunt șterse.",
   "extensionsRemoved": "{name} a fost eliminată",
   "siteSettingsExtensionsHint": "Extensii de browser importate în setările aplicației, care rulează pe paginile acestui site. Fiecare ajunge doar la acest site, iar o modificare se aplică la următoarea încărcare a site-ului.",
   "siteSettingsExtensionsNone": "Niciuna activată",
@@ -1200,5 +1202,8 @@
   "siteExtensionsConsentReachesNothing": "Nu ajunge la nicio pagină a acestui site.",
   "siteExtensionsConsentPermissions": "Primește: {permissions}",
   "siteExtensionsConsentNoPermissions": "Nu primește nicio permisiune.",
-  "siteExtensionsSwitchOn": "Activează"
+  "siteExtensionsSwitchOn": "Activează",
+  "siteExtensionsSettings": "Setări",
+  "siteExtensionsOpen": "Deschide",
+  "siteExtensionsPageFailed": "{name} nu a putut fi deschisă aici"
 }
