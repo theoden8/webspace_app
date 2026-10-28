@@ -1,9 +1,9 @@
 name: Android toolchain
 description: >-
   Flutter from .fvmrc with the project's packages and localizations, and the
-  Rust, cargo-ndk, NDK and Gradle the APK build compiles the adblock library
-  with. Shared by the Android build and the Android screenshots, which build
-  the same app.
+  Rust, cargo-ndk and Gradle the APK build compiles the adblock library with.
+  Shared by the Android build and the Android screenshots, which build the
+  same app.
 inputs:
   cargo-ndk-version:
     description: The workflow's CARGO_NDK_VERSION, the one place it is set.
@@ -106,30 +106,14 @@ runs:
       shell: bash
       run: cargo install --locked "cargo-ndk@${{ inputs.cargo-ndk-version }}"
 
-    # cargo-ndk requires ANDROID_NDK_HOME pointing at a real NDK
-    # install. The ubuntu-latest runner ships a default NDK under
-    # $ANDROID_SDK_ROOT/ndk/, but the path is version-stamped and
-    # the actual version drifts across runner image releases. Use
-    # the dedicated setup action so we pin a known-good NDK and
-    # don't wedge on a path-shape change in the runner image.
-    - name: Setup Android NDK
-      uses: nttld/setup-ndk@v1
-      id: setup-ndk
-      with:
-        ndk-version: r26d
-        add-to-path: false
-
-    # The Rust .so is built by the buildRustAdblock Gradle task that
-    # phase 11 wired into the Android build (see android/app/build.
-    # gradle). It auto-runs as a dependency of mergeJniLibFolders, so
-    # we don't need an explicit build step here — but the task needs
-    # ANDROID_NDK_HOME set on the env, which we export here so every
-    # downstream gradle invocation (Kotlin tests + APK build) sees it.
-    # GRADLE_OPTS gives those invocations the heap a release build needs.
-    - name: Export ANDROID_NDK_HOME and GRADLE_OPTS
+    # The Rust .so is built by the buildRustAdblock Gradle task (see
+    # android/app/build.gradle) with the NDK the app's ndkVersion names,
+    # which Gradle installs here as it does for the plugins' native code.
+    # GRADLE_OPTS gives the Gradle invocations (Kotlin tests + APK build)
+    # the heap a release build needs.
+    - name: Export GRADLE_OPTS
       shell: bash
       run: |
-        echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
         echo "GRADLE_OPTS=-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> $GITHUB_ENV
 
     - name: Setup Gradle

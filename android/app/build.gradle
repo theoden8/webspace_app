@@ -165,10 +165,8 @@ flutter {
 // Hard prerequisites:
 //   * `cargo` on PATH (rustup recommended)
 //   * `cargo-ndk` (auto-installed on first run via `cargo install` if absent)
-//   * `ANDROID_NDK_HOME` env var pointing at an NDK install. Most installs
-//     have it under `$ANDROID_HOME/ndk/<version>`. If unset, we try to
-//     locate the highest-versioned NDK under `local.properties`'s
-//     sdk.dir → ndk/ subdir.
+//   * the NDK `ndkVersion` names, which links every other native library in
+//     the APK too. Gradle finds or installs it as it does for theirs.
 //
 // Skip with `-PskipRustAdblock=true` (e.g. for CI jobs that don't need
 // the .so, or for IDE indexing where the build_rust.sh side-effects
@@ -222,40 +220,12 @@ tasks.register("buildRustAdblock", Exec) {
     commandLine "bash", "-c",
         "set -e; for abi in ${selectedAbis.join(' ')}; do scripts/build_rust.sh android \"\$abi\"; done"
 
-    // Resolve ANDROID_NDK_HOME from env, then fall back to the NDK
-    // sub-directory of the SDK declared in local.properties. cargo-ndk
-    // refuses to run without it. The NDK version under sdk/ndk/ is
-    // platform-version-stamped and may be a single dir; pick the
-    // newest if multiple are present.
+    // cargo-ndk takes its NDK from ANDROID_NDK_HOME, so it is set to the one
+    // ndkVersion names, never the shell's or the newest installed: the .so
+    // would otherwise depend on the machine, and F-Droid's build of a tag
+    // could not reproduce the release's.
     doFirst {
-        def ndkHome = System.getenv("ANDROID_NDK_HOME") ?: System.getenv("ANDROID_NDK_ROOT")
-        if (ndkHome == null || ndkHome.isEmpty()) {
-            def localProps = new Properties()
-            def localPropsFile = rootProject.file('local.properties')
-            if (localPropsFile.exists()) {
-                localPropsFile.withReader('UTF-8') { localProps.load(it) }
-            }
-            def sdkDir = localProps.getProperty('sdk.dir')
-            if (sdkDir != null) {
-                def ndkBase = new File(sdkDir, 'ndk')
-                if (ndkBase.isDirectory()) {
-                    // listFiles(Closure) is ambiguous in Groovy
-                    // (FileFilter vs FilenameFilter overloads), so use
-                    // the no-arg form and findAll. Returns null if the
-                    // dir doesn't exist — handled by `?.`.
-                    def candidates = ndkBase.listFiles()?.findAll { it.isDirectory() }?.sort()
-                    if (candidates && candidates.size() > 0) {
-                        ndkHome = candidates.last().absolutePath
-                    }
-                }
-            }
-        }
-        if (ndkHome == null) {
-            throw new GradleException(
-                "ANDROID_NDK_HOME not set and no NDK found under \$ANDROID_HOME/ndk/. " +
-                "Install one with sdkmanager 'ndk;26.3.11579264' or set the env var. " +
-                "Alternatively run with -PskipRustAdblock=true to ship without engine support.")
-        }
+        def ndkHome = android.ndkDirectory.absolutePath
         environment "ANDROID_NDK_HOME", ndkHome
         logger.lifecycle("buildRustAdblock: ANDROID_NDK_HOME=${ndkHome}")
     }
