@@ -194,19 +194,18 @@ test('US-DR-008: a page draining a script into a fragment finishes, and the scri
 
 // The message TestFlight 0.4.1 (38) died decoding, rebuilt: one string over
 // 128K characters (so the Dart VM allocates it in old space), with escapes and
-// at least one character above U+00FF (a two-byte string), from an election
-// results page opened in a nested tab. An English page qualifies: a curly
-// apostrophe or an en dash is enough. The page drains a results script of
-// that shape the way sj_appHTML does; [cap] bounds the loop so a regression
-// fails here instead of hanging the suite.
-function drainResults(cap) {
-  var parties = ['Likud', 'Yesh Atid', 'National Unity', 'Shas', 'United Torah Judaism',
-    'Yisrael Beytenu', 'The Democrats', 'Ra’am', 'Hadash–Ta’al'];
+// at least one character above U+00FF (a two-byte string), from a page opened
+// in a nested tab. A curly apostrophe or an en dash is enough, so any page
+// qualifies. The page drains a data script of that shape the way sj_appHTML
+// does; [cap] bounds the loop so a regression fails here instead of hanging
+// the suite.
+function drainDataScript(cap) {
+  var labels = ['North', 'South', 'East', 'West', 'Centre', 'O’Hara', 'Upper–Lower'];
   var rows = [];
-  for (var i = 0; i < 3000; i++) {
-    rows.push({ station: 'Polling station ' + i, party: parties[i % parties.length], votes: (i * 7919) % 1000 });
+  for (var i = 0; i < 4000; i++) {
+    rows.push({ id: 'Row ' + i, label: labels[i % labels.length], value: (i * 7919) % 1000 });
   }
-  var source = 'window.__results = ' + JSON.stringify(rows) + ';';
+  var source = 'window.__data = ' + JSON.stringify(rows) + ';';
   var scratch = document.createElement('div');
   scratch.innerHTML = '<br><table></table><i></i>';
   var s = document.createElement('script');
@@ -224,7 +223,7 @@ function drainResults(cap) {
   window.__drain = { turns: turns, left: u.length };
 }
 
-const RESULTS_CAP = 40;
+const DRAIN_CAP = 40;
 
 // What crossed the bridge, measured as the plugin sends it: the arguments'
 // JSON, which is the string the app's jsonDecode reads.
@@ -237,9 +236,9 @@ function bridgedShapes(handler) {
   });
 }
 
-test('US-DR-008: the crash\'s results script crosses the bridge once, in the crash\'s shape',
+test('US-DR-008: a script of the crash\'s size and shape crosses the bridge once',
   async (t) => {
-    await withVictim(t, { scripts: { 'results.js': scriptOf(drainResults, RESULTS_CAP) } },
+    await withVictim(t, { scripts: { 'data.js': scriptOf(drainDataScript, DRAIN_CAP) } },
       async (page) => {
         const drained = await page.evaluate(() => window.__drain);
         const shapes = await page.evaluate(bridgedShapes, INLINE_HANDLER);
@@ -271,14 +270,14 @@ test('PLANTED: a shim that swallows the script spins the same page to its cap',
   async (t) => {
     await withVictim(t, {
       shim: scriptOf(swallowingShim, INLINE_HANDLER),
-      scripts: { 'results.js': scriptOf(drainResults, RESULTS_CAP) },
+      scripts: { 'data.js': scriptOf(drainDataScript, DRAIN_CAP) },
     }, async (page) => {
       const drained = await page.evaluate(() => window.__drain);
       const shapes = await page.evaluate(bridgedShapes, INLINE_HANDLER);
 
-      assert.deepEqual(drained, { turns: RESULTS_CAP, left: 1 },
+      assert.deepEqual(drained, { turns: DRAIN_CAP, left: 1 },
         'only the cap ends the loop: on a device nothing does');
-      assert.equal(shapes.length, RESULTS_CAP - 1,
+      assert.equal(shapes.length, DRAIN_CAP - 1,
         'every turn after the table\'s sends the whole script again');
       assert.ok(shapes.every((s) => s.length > 131072 && s.nonLatin1 && s.escapes));
     });

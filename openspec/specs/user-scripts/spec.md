@@ -543,7 +543,7 @@ The shim used to return a taken script without inserting it. A page that moves
 nodes until their source is empty (Bing's `sj_appHTML`:
 `for (h = createDocumentFragment(); u.length;) h.appendChild(u[0])`) then
 never ended its loop, and each turn sent the script's source across the
-bridge: 26,535 messages, 415 MB in three seconds on a Russian-language results
+bridge: 26,535 messages, 415 MB in three seconds on a Russian-language Bing search
 page. On iOS each message is decoded on the main thread and held by a handler
 awaiting a page that no longer answers, which ran the app out of address space
 (TestFlight 0.4.1 (38), opening a result from DuckDuckGo in a nested screen,

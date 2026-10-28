@@ -109,7 +109,7 @@ test('inline script via appendChild is bridged too', () => {
 // `u` is the live childNodes of a scratch div. A shim that took a script and
 // skipped the insertion left `u[0]` in place forever: the page's main thread
 // spun, and each turn sent the script's source across the bridge (26,535
-// messages, 415 MB in three seconds on a Russian results page), which on iOS
+// messages, 415 MB in three seconds on a Russian Bing search page), which on iOS
 // ran the app out of address space decoding them. The loop here is bounded so
 // a regression fails instead of hanging the suite.
 test('US-DR-008: a page draining nodes through appendChild finishes, bridging each script once', () => {
