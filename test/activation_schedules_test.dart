@@ -19,7 +19,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stack_trace/stack_trace.dart';
-import 'package:webspace/formal_model/models.dart';
+import 'formal_model/models.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';

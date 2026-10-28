@@ -616,7 +616,7 @@ its storage
 **Then** the tap bails and deletes S's container again
 
 Checks: `activation_archive_containers` with `Inv_Sealed` and the
-`closenoframe` mutant (`lib/formal_model/checks.dart`); the archive
+`closenoframe` mutant (`test/formal_model/checks.dart`); the archive
 schedules in `test/activation_schedules_test.dart`.
 
 ## Implementation Details

@@ -4,10 +4,10 @@
 // files are derivatives, written under build/formal/ and never committed.
 import 'dart:convert';
 
-import 'package:webspace/formal_model/checks.dart';
-import 'package:webspace/formal_model/lean_footprints.dart';
-import 'package:webspace/formal_model/types_proof.dart';
-import 'package:webspace/formal_model/worlds.dart';
+import 'checks.dart';
+import 'lean_footprints.dart';
+import 'types_proof.dart';
+import 'worlds.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/site_tab.dart';
@@ -452,7 +452,7 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
 /// record, from [FlowField]: what `activation_base` extends.
 String activationVars() => [
   '----------------------------- MODULE activation_vars --------------------------',
-  '(* Printed from ModelVar and FlowField by lib/formal_model/main.dart.     *)',
+  '(* Printed from ModelVar and FlowField by test/formal_model/main.dart.    *)',
   '(* Not committed; edit the enums.                                         *)',
   '',
   'VARIABLES',
@@ -471,7 +471,7 @@ String activationVars() => [
 String activationSteps() => [
   '---------------------------- MODULE activation_steps --------------------------',
   '(* Printed from ActivationStep and the step tables by                      *)',
-  '(* lib/formal_model/main.dart.                                            *)',
+  '(* test/formal_model/main.dart.                                           *)',
   '',
   r'\* Every action and the branches it can take, as the code marks them.',
   'Outcomes == [',
@@ -508,7 +508,7 @@ String activationSteps() => [
 String activationOps(Tables t) => [
   '----------------------------- MODULE activation_ops ---------------------------',
   '(* Printed from the definitions of RuntimeVars, ActivationTable,          *)',
-  '(* SiteUnloadEngine and CookieIsolationEngine by lib/formal_model/main.dart. *)',
+  '(* SiteUnloadEngine and CookieIsolationEngine by test/formal_model/main.dart. *)',
   '(* Not committed; edit the definitions.                                    *)',
   'EXTENDS activation_base',
   '',
@@ -750,7 +750,7 @@ String activationTables(
 }) => [
   '---------------------------- MODULE activation_tables -------------------------',
   '(* Printed from the step tables of ActivationTable,                       *)',
-  '(* SiteUnloadEngine and CookieIsolationEngine by lib/formal_model/main.dart. *)',
+  '(* SiteUnloadEngine and CookieIsolationEngine by test/formal_model/main.dart. *)',
   '(* Not committed; edit the tables.                                         *)',
   'EXTENDS activation_ops',
   '',
@@ -803,7 +803,7 @@ List<Step<Object?, Enum>> _inputSteps(Tables t) => [
 /// `TableStep` whole.
 String activationTablesProof(Tables t) => [
   '------------------------ MODULE activation_tables_proof -----------------------',
-  '(* Printed from the step tables by lib/formal_model/main.dart.            *)',
+  '(* Printed from the step tables by test/formal_model/main.dart.           *)',
   '(* Not committed; edit the tables instead.                                *)',
   'EXTENDS ${[for (final (path: p, text: _) in activationTablesParts(t)) p.replaceAll('.tla', ''), 'TLAPS'].join(', ')}',
   '',
@@ -833,7 +833,7 @@ const _tablesFacts = 'activation_tables_facts_proof';
 /// solver none of it.
 String activationTablesFacts() => [
   '---------------------- MODULE $_tablesFacts ----------------------',
-  '(* Printed from the step tables by lib/formal_model/main.dart.            *)',
+  '(* Printed from the step tables by test/formal_model/main.dart.           *)',
   '(* Not committed; edit the tables instead.                                *)',
   'EXTENDS activation, TLAPS',
   '',
@@ -862,7 +862,7 @@ List<PrintedFile> activationTablesParts(Tables t) {
         path: 'activation_tables_${i ~/ _partSize + 1}_proof.tla',
         text: [
           '---------------------- MODULE activation_tables_${i ~/ _partSize + 1}_proof ----------------------',
-          '(* Printed from the step tables by lib/formal_model/main.dart.            *)',
+          '(* Printed from the step tables by test/formal_model/main.dart.           *)',
           '(* Not committed; edit the tables instead.                                *)',
           'EXTENDS $_tablesFacts',
           '',
@@ -1091,7 +1091,7 @@ List<String> _rowsInd(
 /// `proofs/activation_turns.tla`'s.
 String activationInvariantsProof(Tables t) => [
   '--------------------- MODULE activation_invariants_proof ---------------------',
-  '(* Printed from Inv and the step tables by lib/formal_model/main.dart.   *)',
+  '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
   '(* Not committed; edit the declarations instead.                          *)',
   'EXTENDS activation_turns',
   '',

@@ -20,7 +20,7 @@ import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/controllers/webspaces_controller.dart';
-import 'package:webspace/formal_model/models.dart';
+import '../../formal_model/models.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/archive.dart';

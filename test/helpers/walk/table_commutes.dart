@@ -1,5 +1,5 @@
-import 'package:webspace/formal_model/models.dart';
-import 'package:webspace/formal_model/worlds.dart';
+import '../../formal_model/models.dart';
+import '../../formal_model/worlds.dart';
 import 'package:webspace/services/activation_step.dart';
 
 /// Whether two steps run in either order to one state, as the tables

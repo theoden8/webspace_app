@@ -4,8 +4,8 @@
 // Footprints.everyInvariantLicensed decides over them, by `decide`, that
 // every invariant is checked in some world that takes its whole cone.
 
-import 'package:webspace/formal_model/checks.dart';
-import 'package:webspace/formal_model/worlds.dart';
+import 'checks.dart';
+import 'worlds.dart';
 import 'package:webspace/services/model_names.dart';
 
 /// A world TLC checks the invariants in, as the Lean check reads it.
@@ -52,8 +52,8 @@ String footprintsLean({
     'def $name.all : List $name := ${_list([for (final c in ctors) '.$c'])}',
   ].join('\n');
   return [
-    '-- Printed from the step tables and lib/formal_model/checks.dart by',
-    '-- lib/formal_model/main.dart. Not committed; edit the declarations.',
+    '-- Printed from the step tables and test/formal_model/checks.dart by',
+    '-- test/formal_model/main.dart. Not committed; edit the declarations.',
     'import Footprint',
     '',
     'namespace Activation',

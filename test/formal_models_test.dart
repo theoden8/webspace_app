@@ -1,4 +1,4 @@
-// The models lib/formal_model/main.dart prints for formal/, held to what the
+// The models test/formal_model/main.dart prints for formal/, held to what the
 // code declares: every step with its outcomes and the jar's places once
 // each. formal/verify.sh runs the printer and the checkers on what it writes.
 
@@ -7,8 +7,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/controllers/activation_place.dart';
 import 'package:webspace/controllers/activation_table.dart';
-import 'package:webspace/formal_model/checks.dart';
-import 'package:webspace/formal_model/models.dart';
+import 'formal_model/checks.dart';
+import 'formal_model/models.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/step_table.dart';

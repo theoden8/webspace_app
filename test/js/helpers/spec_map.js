@@ -98,9 +98,9 @@ function checkFiles() {
       ...optional('formal', /\.(tla|cfg)$/).filter((f) => !f.includes('/states/')),
       ...optional('formal', /^check\.sh$/),
       // The checks activation.tla runs, each a value printed as a config.
-      ...optional('lib/formal_model', /^checks\.dart$/),
+      ...optional('test/formal_model', /^checks\.dart$/),
     ],
-    test: [...optional('test', /\.dart$/), ...js.filter((f) => !isGate(f) && f !== SELF)],
+    test: [...optional('test', /\.dart$/).filter((f) => !f.startsWith('test/formal_model/')), ...js.filter((f) => !isGate(f) && f !== SELF)],
     gate: js.filter((f) => isGate(f) && f !== SELF),
     integration: optional('integration_test', /\.dart$/),
     native: [

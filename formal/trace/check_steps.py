@@ -17,7 +17,7 @@ listed in steps_uncovered.tsv with its reason; a listed pair that is taken
 fails too, so the list only shrinks.
 
 The model is formal/activation.tla with the modules
-lib/formal_model/main.dart printed from the code into <model-dir>
+test/formal_model/main.dart printed from the code into <model-dir>
 (activation_steps, its Outcomes from ActivationStep; activation_tables).
 
 A replay that behaved is kept under FORMAL_CACHE (Memo), and one whose

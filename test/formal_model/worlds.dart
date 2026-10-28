@@ -5,7 +5,7 @@
 // TLC's coverage of every world, written or printed, is what the footprint
 // gate holds the pairs to.
 
-import 'package:webspace/formal_model/checks.dart';
+import 'checks.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/model_names.dart';
 

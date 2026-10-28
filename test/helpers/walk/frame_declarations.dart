@@ -1,4 +1,4 @@
-import 'package:webspace/formal_model/models.dart';
+import '../../formal_model/models.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/model_names.dart';
 

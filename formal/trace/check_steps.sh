@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Model <-> code, step for step, for every schedule the Dart enumeration ran
 # (test/helpers/walk/step_traces.dart, under MODEL_STEPS_DIR), against
-# formal/activation.tla with the modules lib/formal_model/main.dart
+# formal/activation.tla with the modules test/formal_model/main.dart
 # printed from the code into <model-dir> (FORMAL_OUT):
 #
 #   <trace-dir>  -> MUST hold: every step the code marked is a step of

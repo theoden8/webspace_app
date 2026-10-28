@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/formal_model/checks.dart';
-import 'package:webspace/formal_model/models.dart';
+import 'formal_model/checks.dart';
+import 'formal_model/models.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/model_names.dart';
 

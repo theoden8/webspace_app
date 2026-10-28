@@ -32,7 +32,7 @@ List<({String path, String text})> activationTypesProofs({
       'ZenonFirst == TRUE (*{ by (prover:"zenon"; timeout:1) by (prover:"smt3") }*)',
       '',
       '\\* What some steps need of their flow beyond TypeOK and Held at the place',
-      '\\* they run from (_supports in lib/formal_model/types_proof.dart).',
+      '\\* they run from (_supports in test/formal_model/types_proof.dart).',
       for (final MapEntry(key: place, value: fact) in _supports.entries)
         'Supported_$place(r) == $fact',
       'Supports == \\A g \\in Flows :',
@@ -664,7 +664,7 @@ List<String> _others({required bool spawns}) => [
   path: '$name.tla',
   text: [
     '${'-' * 16} MODULE $name ${'-' * 16}',
-    '(* Printed from FlowField and the step tables by lib/formal_model/main.dart. *)',
+    '(* Printed from FlowField and the step tables by test/formal_model/main.dart. *)',
     '(* Not committed; edit the declarations instead.                          *)',
     'EXTENDS $extending',
     '',
