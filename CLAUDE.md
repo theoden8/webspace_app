@@ -523,7 +523,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | captcha-support | |
 | clearurls | tracking-param removal, per-site toggle |
 | legal | App Store encryption declaration + licence composition of the shipped work |
-| configurable-suggested-sites | empty default for fdroid |
+| configurable-suggested-sites | the user's own list, empty in every build so no flavor changes the Dart |
 | content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam); per-site list selection is a mask over the app-wide set |
 | cookie-secure-storage | encrypted cookie persistence |
 | design-gallery | designer works in Dart on web; web-clean, token-validity, render-matrix and card gates |

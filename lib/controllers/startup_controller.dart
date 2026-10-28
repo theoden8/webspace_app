@@ -278,7 +278,7 @@ class StartupController implements DeferredStartupHost {
   Future<void> _loadSuggestedSites({
     required Reached<PrefsLoaded> after,
   }) async {
-    _shell.suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
+    _shell.suggestedSites = await suggested_sites.loadSuggestedSites();
   }
 
   /// Every launch starts on the webspace list unless a shortcut or the

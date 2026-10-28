@@ -2,9 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/screens/add_site.dart';
 import 'package:webspace/settings/site_suggestion.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/suggested_sites_service.dart';
+
+import 'helpers/localized.dart';
 
 void main() {
   group('SiteSuggestion', () {
@@ -20,50 +24,30 @@ void main() {
     });
   });
 
-  group('kDefaultSuggestions', () {
-    test('should contain expected sites', () {
-      expect(kDefaultSuggestions, isNotEmpty);
-      expect(kDefaultSuggestions.length, 21);
-
-      final names = kDefaultSuggestions.map((s) => s.name).toList();
-      expect(names, contains('Duck.ai'));
-      expect(names, contains('GitHub'));
-      expect(names, contains('Claude'));
-      expect(names, isNot(contains('DuckDuckGo')));
-    });
-
-    test('all entries should have valid URLs', () {
-      for (final s in kDefaultSuggestions) {
-        expect(s.name, isNotEmpty);
-        expect(s.url, startsWith('https://'));
-        expect(s.domain, isNotEmpty);
-        final uri = Uri.parse(s.url);
-        expect(uri.host, isNotEmpty);
-      }
-    });
-  });
-
-  group('Flavor detection', () {
-    // In test environment, FLUTTER_APP_FLAVOR is not set,
-    // so isFdroidFlavor should be false.
-    test('isFdroidFlavor is false when FLUTTER_APP_FLAVOR is not set', () {
-      expect(isFdroidFlavor, isFalse);
-    });
-
-    test('flavorDefaultSuggestions returns full list when not fdroid', () {
-      expect(flavorDefaultSuggestions, equals(kDefaultSuggestions));
-      expect(flavorDefaultSuggestions, isNotEmpty);
-    });
-  });
-
   group('Persistence', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('loadSuggestedSites returns null when no customization saved', () async {
-      final result = await loadSuggestedSites();
-      expect(result, isNull);
+    test('a fresh install has no suggested sites (SUGGEST-001)', () async {
+      expect(await loadSuggestedSites(), isEmpty);
+    });
+
+    testWidgets('a fresh install shows the empty suggestions grid (SUGGEST-001)',
+        (tester) async {
+      final suggestions = await tester.runAsync(loadSuggestedSites);
+      await pumpLocalized(
+        tester,
+        home: AddSiteScreen(
+          suggestions: suggestions!,
+          onSuggestionsChanged: (_) {},
+        ),
+      );
+      await tester.pump();
+
+      final loc = AppLocalizations.of(tester.element(find.byType(AddSiteScreen)));
+      expect(find.text(loc.addSiteNoSuggestions), findsOneWidget);
+      expect(find.byTooltip(loc.addSiteAddSuggestedTooltip), findsOneWidget);
     });
 
     test('saveSuggestedSites and loadSuggestedSites round-trip (SUGGEST-004)', () async {
@@ -75,8 +59,7 @@ void main() {
       await saveSuggestedSites(sites);
       final loaded = await loadSuggestedSites();
 
-      expect(loaded, isNotNull);
-      expect(loaded!.length, 2);
+      expect(loaded.length, 2);
       expect(loaded[0].name, 'Test');
       expect(loaded[0].url, 'https://test.com');
       expect(loaded[0].domain, 'test.com');
@@ -89,54 +72,21 @@ void main() {
       await saveSuggestedSites([]);
       final loaded = await loadSuggestedSites();
 
-      expect(loaded, isNotNull);
       expect(loaded, isEmpty);
     });
 
-    test('loadSuggestedSites returns null on corrupted JSON', () async {
+    test('loadSuggestedSites returns none on corrupted JSON', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('suggested_sites', 'not valid json');
 
-      final result = await loadSuggestedSites();
-      expect(result, isNull);
+      expect(await loadSuggestedSites(), isEmpty);
     });
 
-    test('loadSuggestedSites returns null on wrong JSON structure', () async {
+    test('loadSuggestedSites returns none on wrong JSON structure', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('suggested_sites', '{"foo": "bar"}');
 
-      final result = await loadSuggestedSites();
-      expect(result, isNull);
-    });
-  });
-
-  group('getEffectiveSuggestedSites', () {
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-    });
-
-    test('returns flavor defaults when no customization', () async {
-      final result = await getEffectiveSuggestedSites();
-      // In test env, flavor is not fdroid, so we get full defaults
-      expect(result, equals(kDefaultSuggestions));
-    });
-
-    test('returns custom list when customization saved', () async {
-      final custom = [
-        const SiteSuggestion(name: 'Custom', url: 'https://custom.io', domain: 'custom.io'),
-      ];
-      await saveSuggestedSites(custom);
-
-      final result = await getEffectiveSuggestedSites();
-      expect(result.length, 1);
-      expect(result[0].name, 'Custom');
-    });
-
-    test('returns empty list when empty customization saved', () async {
-      await saveSuggestedSites([]);
-
-      final result = await getEffectiveSuggestedSites();
-      expect(result, isEmpty);
+      expect(await loadSuggestedSites(), isEmpty);
     });
   });
 
@@ -162,15 +112,22 @@ void main() {
     test('handles many sites', () async {
       SharedPreferences.setMockInitialValues({});
 
-      await saveSuggestedSites(kDefaultSuggestions);
+      final sites = [
+        for (var i = 0; i < 30; i++)
+          SiteSuggestion(
+            name: 'Site $i',
+            url: 'https://site$i.example',
+            domain: 'site$i.example',
+          ),
+      ];
+      await saveSuggestedSites(sites);
       final loaded = await loadSuggestedSites();
 
-      expect(loaded, isNotNull);
-      expect(loaded!.length, kDefaultSuggestions.length);
-      for (var i = 0; i < kDefaultSuggestions.length; i++) {
-        expect(loaded[i].name, kDefaultSuggestions[i].name);
-        expect(loaded[i].url, kDefaultSuggestions[i].url);
-        expect(loaded[i].domain, kDefaultSuggestions[i].domain);
+      expect(loaded.length, sites.length);
+      for (var i = 0; i < sites.length; i++) {
+        expect(loaded[i].name, sites[i].name);
+        expect(loaded[i].url, sites[i].url);
+        expect(loaded[i].domain, sites[i].domain);
       }
     });
   });

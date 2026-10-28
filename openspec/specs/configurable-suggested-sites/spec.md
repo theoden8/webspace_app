@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Allow users to customize the suggested sites shown on the "Add new site" screen. The default list varies by build flavor: fdroid ships with an empty list (no third-party site suggestions), while other flavors include a curated default set.
+Allow users to customize the suggested sites shown on the "Add new site" screen. Every build ships an empty list: the app suggests no third-party site of its own, and no flavor changes the compiled Dart, so the F-Droid and store builds can be reproduced from one source.
 
 ## Status
 
@@ -13,22 +13,23 @@ Allow users to customize the suggested sites shown on the "Add new site" screen.
 
 ## Requirements
 
-### Requirement: SUGGEST-001 - Flavor-Dependent Defaults
+### Requirement: SUGGEST-001 - Empty Default
 
-The default suggested sites list SHALL depend on the build flavor.
+The default suggested sites list SHALL be empty in every build, whatever its flavor.
 
-#### Scenario: fdroid flavor has empty defaults
+#### Scenario: Fresh install shows no suggestions
 
-**Given** the app is built with the `fdroid` flavor
-**When** the user opens the "Add new site" screen for the first time
+**Given** the user has never saved a suggestions list
+**When** the user opens the "Add new site" screen
 **Then** no suggested sites are shown
-**And** an empty state message says "No suggested sites. Tap + to add some."
+**And** an empty state message says "No suggested sites"
+**And** the "+" button to add one is shown
 
-#### Scenario: Other flavors have curated defaults
+#### Scenario: Upgrade from a build that shipped defaults
 
-**Given** the app is built with the `fmain` or `fdebug` flavor
-**When** the user opens the "Add new site" screen for the first time
-**Then** the curated default list of suggested sites is shown (Duck.ai, Claude, ChatGPT, etc.)
+**Given** a build before this one showed a curated default list the user never edited
+**When** the user upgrades and opens the "Add new site" screen
+**Then** no suggested sites are shown, since that list was never saved
 
 ---
 
@@ -86,11 +87,11 @@ User customizations to the suggested sites list SHALL be persisted across app re
 **When** the app is closed and reopened
 **Then** the customized suggestions list is restored
 
-#### Scenario: No customization uses flavor defaults
+#### Scenario: No customization shows none
 
 **Given** the user has never modified the suggestions list
 **When** the app starts
-**Then** the flavor-appropriate default list is shown
+**Then** the suggestions list is empty
 
 ---
 
@@ -114,7 +115,7 @@ Suggested sites SHALL be included in settings backup/restore.
 
 **Given** a backup from an older version without `suggestedSites`
 **When** settings are imported
-**Then** the suggested sites list is unchanged (keeps current customization or flavor defaults)
+**Then** the suggested sites list is unchanged
 
 ---
 
@@ -146,7 +147,7 @@ Tapping a suggested site SHALL open a confirmation dialog to add the site, same 
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `suggested_sites` | String (JSON) | Serialized list of SiteSuggestion objects. Absent = use flavor defaults. |
+| `suggested_sites` | String (JSON) | Serialized list of SiteSuggestion objects. Absent = empty. |
 
 ### Backup JSON Format
 
@@ -161,50 +162,10 @@ Tapping a suggested site SHALL open a confirmation dialog to add the site, same 
 
 ---
 
-## Flavor Detection
-
-The build flavor is detected at runtime via:
-
-```dart
-const flavor = String.fromEnvironment('FLUTTER_APP_FLAVOR');
-```
-
-Flutter automatically sets `FLUTTER_APP_FLAVOR` when building with `--flavor`. The fdroid flavor results in an empty default list; all other flavors use the curated list defined in `kDefaultSuggestions`.
-
----
-
-## Default Suggested Sites (non-fdroid)
-
-| Name | URL | Domain |
-|------|-----|--------|
-| Duck.ai | https://duck.ai | duck.ai |
-| Claude | https://claude.ai | claude.ai |
-| ChatGPT | https://chatgpt.com | chatgpt.com |
-| Perplexity | https://perplexity.ai | perplexity.ai |
-| Instagram | https://instagram.com | instagram.com |
-| Facebook | https://facebook.com | facebook.com |
-| X (Twitter) | https://x.com | x.com |
-| Google Chat | https://chat.google.com | chat.google.com |
-| GitHub | https://github.com | github.com |
-| GitLab | https://gitlab.com | gitlab.com |
-| Gitea | https://gitea.com | gitea.com |
-| Codeberg | https://codeberg.org | codeberg.org |
-| Slack | https://slack.com | slack.com |
-| Discord | https://discord.com/login | discord.com |
-| Mattermost | https://mattermost.com | mattermost.com |
-| Gmail | https://gmail.com | gmail.com |
-| LinkedIn | https://linkedin.com | linkedin.com |
-| Reddit | https://reddit.com | reddit.com |
-| Mastodon | https://mastodon.social | mastodon.social |
-| Bluesky | https://bsky.app | bsky.app |
-| Hugging Face | https://huggingface.co | huggingface.co |
-
----
-
 ## Files
 
 ### Created
-- `lib/services/suggested_sites_service.dart` - Service for loading, saving, and managing suggested sites with flavor-aware defaults
+- `lib/services/suggested_sites_service.dart` - Service for loading and saving the suggested sites
 
 ### Modified
 - `lib/screens/add_site.dart` - Accept configurable suggestions, add/remove UI
@@ -215,17 +176,11 @@ Flutter automatically sets `FLUTTER_APP_FLAVOR` when building with `--flavor`. T
 
 ## Manual Test Procedure
 
-### Test: Verify fdroid empty defaults
-1. Build with `flutter build apk --flavor fdroid`
+### Test: Verify empty defaults
+1. Build any flavor
 2. Fresh install (clear app data)
 3. Tap "+" to add a site
 4. **Expected**: Empty suggestions grid with "No suggested sites" message
-
-### Test: Verify non-fdroid defaults
-1. Build with `flutter build apk --flavor fmain` or `fdebug`
-2. Fresh install
-3. Tap "+" to add a site
-4. **Expected**: Full curated suggestions grid (21 sites)
 
 ### Test: Add a custom suggestion
 1. On "Add new site" screen, tap the "+" next to "Suggested Sites"
