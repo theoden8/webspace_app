@@ -89,11 +89,11 @@ final class ShareEnded extends ShareFrame {
   Map<String, Object> toBridgeJson() => const {'ended': true};
 }
 
-/// Android's side of a share: its capture prompt, the projection and the
-/// foreground service that has to hold it.
+/// The system's side of a share: its own prompt and the capture behind it
+/// (`ScreenSharePlugin` on Android and on macOS).
 abstract interface class ScreenShareNative {
-  /// Shows Android's capture prompt and starts the share. Null when the user
-  /// declines, or the projection cannot start.
+  /// Shows the system's prompt and starts the share. Null when the user
+  /// declines, or the capture cannot start.
   Future<ShareSize?> start({
     required ShareRequest request,
     required ShareNotice notice,
@@ -105,7 +105,7 @@ abstract interface class ScreenShareNative {
   Future<void> stop();
 
   /// Called when the share ends without the app asking: the user stopped it
-  /// from Android's notification or status bar, or the system revoked it.
+  /// from the system's own controls, or the system revoked it.
   set onEnded(void Function() ended);
 }
 
@@ -113,7 +113,7 @@ abstract interface class ScreenShareNative {
 ///
 /// A share ends when its page stops its track, when the site leaves the
 /// screen ([endSite], from the deactivation stop), when the document that
-/// started it goes ([endView]), when the user stops it from Android's UI, and
+/// started it goes ([endView]), when the user stops it from the system, and
 /// when no page has pulled a frame for [idle]: a page that is gone, or frozen,
 /// is no reason to keep the screen captured.
 final class ScreenShare {
@@ -133,10 +133,10 @@ final class ScreenShare {
   final DateTime Function() _now;
   final Duration idle;
 
-  /// The owner of the share Android is running.
+  /// The owner of the share the system is running.
   ShareOwner? _live;
 
-  /// A start waiting on Android's prompt. Only one prompt can be up, and an
+  /// A start waiting on the system's prompt. Only one prompt can be up, and an
   /// end for its site that lands while it is up cancels it.
   ShareOwner? _pending;
   bool _pendingCancelled = false;
@@ -149,7 +149,7 @@ final class ScreenShare {
   bool sharing(SiteId site) => _live?.site == site;
 
   /// Starts a share for [owner], ending any other first. Null when the user
-  /// declined Android's prompt, another prompt is already up, or the site
+  /// declined the system's prompt, another prompt is already up, or the site
   /// left the screen while it was.
   Future<ShareSize?> start(
     ShareOwner owner, {
@@ -188,7 +188,7 @@ final class ScreenShare {
     final frame = await _native.frame(after: after);
     _lastPull = _now();
     if (_live != owner) return const ShareEnded();
-    if (frame is ShareEnded) _clear(reason: 'Android ended it');
+    if (frame is ShareEnded) _clear(reason: 'the system ended it');
     return frame;
   }
 
@@ -215,7 +215,7 @@ final class ScreenShare {
     unawaited(_end(reason: 'no page read it for ${idle.inSeconds}s'));
   }
 
-  void _endedByUser() => _clear(reason: 'Android ended it');
+  void _endedByUser() => _clear(reason: 'the system ended it');
 
   Future<void> _end({required String reason}) async {
     if (_live == null) return;
@@ -232,7 +232,7 @@ final class ScreenShare {
   }
 }
 
-/// [ScreenShareNative] over `ScreenSharePlugin` (Android).
+/// [ScreenShareNative] over `ScreenSharePlugin` (Android, macOS).
 final class ChannelScreenShareNative implements ScreenShareNative {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/screen_share');

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
@@ -74,7 +75,7 @@ void main() {
   });
 
   group('the screen sharing sheet (SHARE-002)', () {
-    tearDown(() => CaptureKind.debugRealScreenOffered = null);
+    tearDown(() => debugHostSharesScreen = null);
 
     Future<void> openSheet(WidgetTester tester,
         {ValueChanged<SitePermissionValues>? onChanged}) async {
@@ -92,10 +93,10 @@ void main() {
 
     testWidgets('where the real screen is not offered, Allowed is greyed and '
         'says why', (tester) async {
-      CaptureKind.debugRealScreenOffered = false;
+      debugHostSharesScreen = false;
       await openSheet(tester);
       expect(tileOf(tester, label: 'Allowed').onChanged, isNull);
-      expect(find.textContaining('Only Android lets WebSpace share'),
+      expect(find.textContaining('on Android and on macOS 14'),
           findsOneWidget);
       expect(find.text('Always allow'), findsNothing);
     });
@@ -103,13 +104,13 @@ void main() {
     testWidgets('on Android, Always allow warns what a share shows, and '
         'Cancel keeps Ask (SHARE-019)',
         (tester) async {
-      CaptureKind.debugRealScreenOffered = true;
+      debugHostSharesScreen = true;
       final changes = <SitePermissionValues>[];
       await openSheet(tester, onChanged: changes.add);
       expect(tileOf(tester, label: 'Always allow').onChanged, isNotNull);
       await tester.tap(find.text('Always allow').last);
       await tester.pumpAndSettle();
-      expect(find.textContaining('other apps and any notification'),
+      expect(find.textContaining('other apps and notifications'),
           findsOneWidget, reason: 'the warning names what the site will see');
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -118,7 +119,7 @@ void main() {
 
     testWidgets('on Android, confirming the warning stores the real grant',
         (tester) async {
-      CaptureKind.debugRealScreenOffered = true;
+      debugHostSharesScreen = true;
       final changes = <SitePermissionValues>[];
       await openSheet(tester, onChanged: changes.add);
       await tester.tap(find.text('Always allow').last);

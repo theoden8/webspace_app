@@ -4441,9 +4441,9 @@
   "@homeScreenShareTitle": {
     "description": "Title of the screen sharing permission dialog"
   },
-  "homeScreenShareAllowBody": "{origin} wants to share your screen.\n\nAllow opens Android's screen capture prompt. While you share, this site sees everything on the shared screen: your other sites in WebSpace, other apps and any notification that appears. Sharing ends when you stop it or switch to another site.\n\nOr pick an image or video that the site sees as the shared screen. Your choice is remembered for this site.",
+  "homeScreenShareAllowBody": "{origin} wants to share your screen.\n\nAllow opens your system's screen sharing prompt. While you share, this site sees everything in what you picked to share, which can include your other sites in WebSpace, other apps and notifications. Sharing ends when you stop it or switch to another site.\n\nOr pick an image or video that the site sees as the shared screen. Your choice is remembered for this site.",
   "@homeScreenShareAllowBody": {
-    "description": "Body of the screen sharing permission dialog on Android, where the real screen can be shared: warns that while sharing, the site sees everything on the shared screen (the user's other sites in the app, other apps, notifications), says sharing ends when the user stops it or switches site, and offers a picked image or video instead.",
+    "description": "Body of the screen sharing permission dialog on a device where the real screen can be shared (Android, macOS 14 and later): says Allow opens the system's own screen sharing prompt, warns that while sharing the site sees everything in what the user picked to share (which can include their other sites in the app, other apps and notifications), says sharing ends when the user stops it or switches site, and offers a picked image or video instead.",
     "placeholders": {
       "origin": {
         "type": "String"
@@ -4452,7 +4452,7 @@
   },
   "homeScreenShareFileOnlyBody": "{origin} wants to share your screen.\n\nThis device does not let WebSpace share your real screen. You can instead pick an image or video that the site sees as the shared screen. Your choice is remembered for this site.",
   "@homeScreenShareFileOnlyBody": {
-    "description": "Body of the screen sharing permission dialog on a platform where the real screen cannot be shared (iOS, macOS, Linux): says so, and offers a picked image or video that the site sees as the shared screen instead.",
+    "description": "Body of the screen sharing permission dialog on a device where the real screen cannot be shared (iOS, Linux, macOS before 14): says so, and offers a picked image or video that the site sees as the shared screen instead.",
     "placeholders": {
       "origin": {
         "type": "String"
@@ -4475,13 +4475,13 @@
   "@siteSettingsScreenShare": {
     "description": "List tile label and hint title for the per-site screen sharing setting."
   },
-  "siteSettingsScreenShareRealHint": "Controls whether this site may capture your screen.\n\nAlways allow (Android only): each share starts with Android's screen capture prompt. While it runs, the site sees everything on the shared screen, including your other sites in WebSpace and other apps. Sharing ends when you stop it or switch to another site.\nAsk (default): a popup asks the first time, then remembers your choice.\nMedia file: show the chosen file to the site as the shared screen.\nAlways block: reject every request.",
+  "siteSettingsScreenShareRealHint": "Controls whether this site may capture your screen.\n\nAlways allow (Android, macOS 14 and later): each share starts with your system's screen sharing prompt. While it runs, the site sees everything in what you picked to share, which can include your other sites in WebSpace and other apps. Sharing ends when you stop it or switch to another site.\nAsk (default): a popup asks the first time, then remembers your choice.\nMedia file: show the chosen file to the site as the shared screen.\nAlways block: reject every request.",
   "@siteSettingsScreenShareRealHint": {
-    "description": "Hint body describing the per-site screen sharing setting and its four options: always allow (Android only; each share starts with Android's own capture prompt, and while it runs the site sees everything on the shared screen, including the user's other sites in the app and other apps), ask, show a picked media file, and always block."
+    "description": "Hint body describing the per-site screen sharing setting and its four options: always allow (Android and macOS 14 and later only; each share starts with the system's own screen sharing prompt, and while it runs the site sees everything in what the user picked to share, which can include their other sites in the app and other apps), ask, show a picked media file, and always block."
   },
   "siteSettingsScreenShareAllow": "Always allow",
   "@siteSettingsScreenShareAllow": {
-    "description": "Screen sharing option: share the real device screen with the site whenever it asks while it is the one on screen, after Android's own capture prompt."
+    "description": "Screen sharing option: share the real screen with the site whenever it asks while it is the one on screen, after the system's own screen sharing prompt."
   },
   "siteSettingsScreenShareAsk": "Ask",
   "@siteSettingsScreenShareAsk": {
@@ -4503,13 +4503,13 @@
   "@siteSettingsScreenShareChooseSource": {
     "description": "Button in per-site settings to pick the image or video shown as the simulated screen"
   },
-  "permissionScreenShareUnavailable": "Not available on this device. Only Android lets WebSpace share the real screen.",
+  "permissionScreenShareUnavailable": "Not available on this device. WebSpace can share the real screen on Android and on macOS 14 and later.",
   "@permissionScreenShareUnavailable": {
-    "description": "Shown on the greyed-out Allowed option for screen sharing on iOS, macOS and Linux, where the app cannot share the real screen with a site."
+    "description": "Shown on the greyed-out Allowed option for screen sharing on a device where the app cannot share the real screen (iOS, Linux, macOS before 14), naming where it can."
   },
-  "siteSettingsScreenShareAllowWarning": "When this site asks to share your screen, Android's screen capture prompt opens. While you share, the site sees everything on the shared screen: your other sites in WebSpace, other apps and any notification that appears. Sharing ends when you stop it or switch to another site.",
+  "siteSettingsScreenShareAllowWarning": "When this site asks to share your screen, your system's screen sharing prompt opens. While you share, the site sees everything in what you picked to share, which can include your other sites in WebSpace, other apps and notifications. Sharing ends when you stop it or switch to another site.",
   "@siteSettingsScreenShareAllowWarning": {
-    "description": "Body of the confirmation shown when the user sets a site's screen sharing to always allow: warns what the site sees while a share runs and when it ends."
+    "description": "Body of the confirmation shown when the user sets a site's screen sharing to always allow: says the system's own screen sharing prompt opens for each share, warns what the site sees while a share runs, and when it ends."
   },
   "screenShareNotificationTitle": "Sharing your screen",
   "@screenShareNotificationTitle": {

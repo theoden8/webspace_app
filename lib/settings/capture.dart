@@ -13,7 +13,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
-import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/settings/shim_frames.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
@@ -70,8 +70,9 @@ enum MicrophoneAccessMode implements CaptureMode {
 
 /// `getDisplayMedia`.
 ///
-/// [real] shares the device screen through Android's `MediaProjection`, whose
-/// own prompt asks again for every share. A display capture is whole-surface,
+/// [real] shares the device screen through the system's own prompt, which
+/// asks again for every share: Android's `MediaProjection`, or the content
+/// picker on macOS 14 and later. A display capture is whole-surface,
 /// so while it runs the site sees whatever is on the shared screen: the
 /// drawer, the user's other sites, other apps. The app narrows it as it does
 /// the microphone (MIC-014): only the site on screen can start one, and it
@@ -357,17 +358,11 @@ enum CaptureKind {
 
   final _CaptureJsonKeys _json;
 
-  /// Whether this device can hand a page the real [real]. Only Android lets
-  /// an app capture the screen for a page: WebKit on iOS and macOS gives an
-  /// app no display capture to grant, and Linux WPE denies one natively.
+  /// Whether this device can hand a page the real [real].
   bool get realOffered => switch (this) {
     camera || microphone => true,
-    screenShare => debugRealScreenOffered ?? hostIsAndroid,
+    screenShare => hostSharesScreen,
   };
-
-  /// Stands in for the host in a test of the Android screen-share flow.
-  @visibleForTesting
-  static bool? debugRealScreenOffered;
 
   CaptureGrant grantOf(CaptureGrants grants) => switch (this) {
     camera => grants.camera,

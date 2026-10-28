@@ -2,20 +2,21 @@
 
 ## Purpose
 Let a site that asks to share the screen get what the user chooses for it:
-the real screen where the platform lets the app capture it (Android), or an
-image or video the user picks, served as a `MediaStream` shaped like a shared
-screen.
+the real screen where the platform lets the app capture it (Android, macOS 14
+and later), or an image or video the user picks, served as a `MediaStream`
+shaped like a shared screen.
 
 A display capture is whole-surface by construction. `MediaProjection` mirrors
 the whole Android device (or one app, where Android 14+ lets the user pick
-one), and this app's own window holds the drawer, the tab strip and whichever
-other site the user switches to. So a real share is not scoped to the
+one), the macOS picker hands over a display, a window or an app, and this
+app's own window holds the drawer, the tab strip and whichever other site the
+user switches to. So a real share is not scoped to the
 requesting site: while it runs, the site sees the user's other sites, other
 apps and any notification that appears. The feature therefore does not claim
 that a share shows only the site; it claims something narrower and
 enforceable, the microphone's contract applied to the screen (SHARE-017): no
-site shares without the user saying so for that site and again in Android's
-own prompt, every share is visible while it runs, and no site keeps a share
+site shares without the user saying so for that site and again in the
+system's own prompt, every share is visible while it runs, and no site keeps a share
 once it leaves the screen. The user is told what a share shows before granting
 it (SHARE-019).
 
@@ -34,11 +35,15 @@ shares the device screen (SHARE-018), `virtual` serves the picked surface
 (SHARE-008), `block` denies, and `ask` shows a popup naming the requesting
 origin and records the answer.
 
-`real` SHALL be offered only where `CaptureKind.realOffered` says the platform
-can capture the screen for a page, which is Android alone: WebKit on iOS and
-macOS gives an app no display capture to grant, and Linux WPE denies one
-natively (SHARE-003). Where it is not offered, the popup shows Block / Use a
-media file only and says the real screen cannot be shared on this device.
+`real` SHALL be offered only where `hostSharesScreen` says the platform lets
+the app capture the screen for a page: Android (`MediaProjection`) and macOS
+14 and later (`SCContentSharingPicker`). Not iOS, where sharing more than the
+app itself takes a broadcast extension, nor Linux, where WPE WebKit builds
+without WebRTC by default (Debian's among them), so no call could take a
+share; nor macOS before 14, which has no picker an app may show without the
+Screen Recording permission. Where it is not offered, the popup shows Block /
+Use a media file only and says the real screen cannot be shared on this
+device.
 
 A stored `real` SHALL parse as `real`. An older build reads it as `ask`, the
 safe direction for a downgrade: a grant becomes a prompt, never the reverse.
@@ -67,9 +72,9 @@ consent the user gave on the exporting device.
 **Then** the answer the page reads is `virtual` or `block`
 **And** only Allow answers `real`
 
-#### Scenario: The real screen is offered on Android alone
+#### Scenario: The real screen is offered on Android and macOS 14+ only
 
-**Given** a device that is not Android
+**Given** an iOS or Linux device, or macOS before 14
 **When** a site asks to share the screen
 **Then** the popup offers no Allow, and says the real screen cannot be shared here
 
@@ -77,8 +82,8 @@ consent the user gave on the exporting device.
 
 Per-site settings SHALL expose the decision as a control with Ask, Always
 allow, Simulated screen and Block. Where the real screen is not offered, the
-Allowed state SHALL be shown greyed and explained ("only Android lets WebSpace
-share the real screen") rather than omitted. Choosing Always allow SHALL first
+Allowed state SHALL be shown greyed and explained (it names Android and macOS
+14 and later) rather than omitted. Choosing Always allow SHALL first
 show the warning of SHARE-019 and store nothing unless the user confirms it.
 Selecting Simulated screen SHALL prompt for the source file and SHALL show the
 chosen file's name and a preview. The preview SHALL show the whole source at
@@ -99,16 +104,16 @@ its own aspect ratio, matching what the site receives, rather than the camera's
 **When** its model is serialized
 **Then** neither `screenShareMode` nor `virtualScreenSource` appears
 
-#### Scenario: Off Android the unreachable state is visible
+#### Scenario: Where it is not offered the unreachable state is visible
 
-**Given** the per-site permissions screen on iOS, macOS or Linux
+**Given** the per-site permissions screen on iOS, Linux or macOS before 14
 **When** the user opens the Screen sharing row
-**Then** an "Allowed" option is shown, disabled, saying only Android lets
-WebSpace share the real screen
+**Then** an "Allowed" option is shown, disabled, naming where WebSpace can
+share the real screen
 
-#### Scenario: On Android, Always allow asks first
+#### Scenario: Where it is offered, Always allow asks first
 
-**Given** the per-site permissions screen on Android
+**Given** the per-site permissions screen on Android or macOS 14+
 **When** the user picks Always allow and cancels the warning
 **Then** the stored mode is unchanged
 **And** confirming it stores `real`
@@ -350,7 +355,7 @@ bag with `displaySurface` and without `facingMode`
 If the `webScreenShareRequest` Dart bridge is unreachable, or answers with
 anything other than a well-formed decision, the shim SHALL deny the request.
 A `real` answer is not taken on the shim's word: the start handler asks the
-site's decision again before Android's prompt (SHARE-018), so an answer forged
+site's decision again before the system's prompt (SHARE-018), so an answer forged
 in the page's realm reaches no frame.
 
 #### Scenario: Missing bridge denies
@@ -500,14 +505,14 @@ by a check:
 | Clause | Carried by |
 |---|---|
 | A site shares only after the user allowed it for that site | SHARE-001, SHARE-019 |
-| Every share starts with Android's own capture prompt | SHARE-018 |
+| Every share starts with the system's own prompt | SHARE-018 |
 | Only the site on screen can start one | SHARE-011 |
 | A share ends when its site leaves the screen | `WebViewModel.stopRealCapture`, `ScreenShare.endSite` |
 | A share ends when the document that started it goes | `onLoadStart`, `ScreenShare.endView` |
 | A share ends when no page has read it for ten seconds | `ScreenShare.idle` |
 | At most one share runs | `ScreenShare.start` ends the one before |
 | Only the webview that started it reads its frames | `ScreenShare.frame` by owner |
-| The share is visible while it runs | Android's indicator, the notification with Stop, the drawer badge (PERMBADGE-001) |
+| The share is visible while it runs | the system's indicator (on Android also the notification with Stop), the drawer badge (PERMBADGE-001) |
 | An archive-tier site never shares, and its stored intent survives | SHARE-006 / ARCH-006 |
 | A nested screen decides for itself and persists nothing | SHARE-014 |
 | A subframe never shares | SHARE-005 |
@@ -523,14 +528,14 @@ SHALL end the share itself rather than rely on the page to stop it.
 
 **Given** site A on screen sharing the real screen
 **When** the user switches to site B
-**Then** Android's projection has stopped
+**Then** the system's capture has stopped
 **And** site A's track has ended and reported `ended`
 
 #### Scenario: A prompt answered after the site left gets no share
 
-**Given** site A waiting on Android's capture prompt
+**Given** site A waiting on the system's prompt
 **When** the user leaves site A, then answers the prompt with yes
-**Then** the projection Android began is stopped and the page is denied
+**Then** the capture the system began is stopped and the page is denied
 
 #### Scenario: Another webview cannot read the share
 
@@ -538,17 +543,25 @@ SHALL end the share itself rather than rely on the page to stop it.
 **When** a nested screen of site A, or site B, pulls a frame
 **Then** it reads that the share has ended
 
-### Requirement: SHARE-018 — The real screen on Android
+### Requirement: SHARE-018 — The real screen on Android and macOS
 
-Android WebView has no display capture, so the app runs one. On a `real`
-decision the shim SHALL call `webScreenShareStart` with the page's size caps
-and frame rate; the handler SHALL serve only the top document, ask the site's
-decision again (which also applies the on-screen gate), and then start the
-share through `ScreenShare`, which shows Android's capture prompt every time
-(`MediaProjectionManager.createScreenCaptureIntent`) and, on a yes, runs the
-projection in a `mediaProjection` foreground service. A no denies the request
-with `NotAllowedError`, as a dismissed browser picker does, and leaves the
-stored mode alone.
+Neither Android WebView nor WebKit lets the app grant a page a display capture
+of its own (SHARE-003), so the app runs one. On a `real` decision the shim
+SHALL call `webScreenShareStart` with the page's size caps and frame rate; the
+handler SHALL serve only the top document, ask the site's decision again
+(which also applies the on-screen gate), and then start the share through
+`ScreenShare`, which shows the system's own prompt every time:
+
+- **Android**: `MediaProjectionManager.createScreenCaptureIntent`, and on a
+  yes the projection runs in a `mediaProjection` foreground service, which
+  Android requires for any capture and which shows a notification with Stop.
+- **macOS 14 and later**: `SCContentSharingPicker`, where the user picks a
+  display, a window or an app; ScreenCaptureKit then captures only that, and
+  the app needs no Screen Recording permission. The menu bar shows the share
+  and can stop it.
+
+A no denies the request with `NotAllowedError`, as a dismissed browser picker
+does, and leaves the stored mode alone.
 
 Frames SHALL reach the page one at a time: the shim pulls the newest frame
 after the one it holds (`webScreenShareFrame`), draws it whole onto a canvas
@@ -557,40 +570,41 @@ second and a half for a new frame, so a still screen costs no busy loop. Every
 frame crosses the bridge as a JPEG, so the app caps the long side at 1280
 pixels and the rate at 15 frames a second whatever the page asks. The track
 presents as a display capture (SHARE-009). When the share ends outside the
-page (Android's Stop, the site leaving the screen), the track SHALL end and
+page (the system's Stop, the site leaving the screen), the track SHALL end and
 fire `ended`; when the page stops every track presenting it, the share SHALL
 stop (`webScreenShareStop`).
 
-#### Scenario: A real grant serves the device screen
+#### Scenario: A real grant serves the screen
 
-**Given** an on-screen site on Android with `screenShareMode == real`
-**When** the page calls `getDisplayMedia({video: true})` and the user says yes to Android's prompt
-**Then** the page receives a video track whose frames are the device screen
+**Given** an on-screen site on Android or macOS 14+ with `screenShareMode == real`
+**When** the page calls `getDisplayMedia({video: true})` and the user picks what to share in the system's prompt
+**Then** the page receives a video track whose frames are what the user picked
 
-#### Scenario: Declining Android's prompt denies the request
+#### Scenario: Declining the system's prompt denies the request
 
 **Given** the same site
-**When** the user declines Android's prompt
+**When** the user declines or cancels the system's prompt
 **Then** the request rejects with `NotAllowedError` and the stored mode is still `real`
 
-#### Scenario: A share Android ends ends the track
+#### Scenario: A share the system ends ends the track
 
 **Given** a running share
-**When** the user taps Stop in Android's notification
+**When** the user stops it from the system's controls
 **Then** the page's track ends and fires `ended`
 
 ### Requirement: SHARE-019 — The user is told what a share shows before granting it
 
 Before a site can share the real screen, the user SHALL be told that while a
-share runs the site sees everything on the shared screen, including their
-other sites in WebSpace, other apps and notifications, and that it ends when
-they stop it or switch site: in the popup's body on the first request, and in
-a confirmation the settings screen shows before storing Always allow. The
-popup's body off Android SHALL say the real screen cannot be shared there.
+share runs the site sees everything in what they picked to share, which can
+include their other sites in WebSpace, other apps and notifications, and that
+it ends when they stop it or switch site: in the popup's body on the first
+request, and in a confirmation the settings screen shows before storing Always
+allow. Where the real screen is not offered, the popup's body SHALL say it
+cannot be shared there.
 
 #### Scenario: The settings warning names what the site will see
 
-**Given** the per-site permissions screen on Android
+**Given** the per-site permissions screen on Android or macOS 14+
 **When** the user picks Always allow for screen sharing
 **Then** a confirmation names other sites in WebSpace, other apps and notifications
 

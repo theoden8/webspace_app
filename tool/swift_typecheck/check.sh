@@ -32,7 +32,7 @@ if [ "$(uname -s)" != "Darwin" ]; then
   # UIKit before Flutter and Network before WebKit: the Flutter stub types
   # its scene protocol in UIKit's terms and the WebKit stub
   # proxyConfigurations in Network's, exactly as the SDK has them.
-  modules="UIKit $modules Cocoa FlutterMacOS Network WebKit"
+  modules="UIKit $modules Cocoa FlutterMacOS Network WebKit CoreVideo CoreMedia CoreImage ImageIO ScreenCaptureKit"
 fi
 
 for module in $modules; do
@@ -65,5 +65,11 @@ if [ "$(uname -s)" != "Darwin" ]; then
       "$work/$side"/*.swift "$here/linux_foundation_gaps.swift"
   done
   echo "swift_typecheck: the shared Runner sources type-check for iOS and macOS"
+
+  # The macOS screen share (SHARE-018), against stubs of the frameworks it
+  # reaches; the Xcode build is the only other place it compiles.
+  "$swiftc" -typecheck -swift-version 5 -I "$work" \
+    "$root/macos/Runner/ScreenSharePlugin.swift"
+  echo "swift_typecheck: macos/Runner/ScreenSharePlugin.swift type-checks"
 fi
 

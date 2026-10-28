@@ -33,6 +33,7 @@
 		7AC2A0000000000000000008 /* ShareIntentPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000007 /* ShareIntentPlugin.swift */; };
 		7AC2A0000000000000000009 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000005 /* AppGroup.swift */; };
 		7AC2A0000000000000000H02 /* HostBrowserPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */; };
+		7AC2A0000000000000000S02 /* ScreenSharePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */; };
 		7AC2A0000000000000000T02 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000T01 /* TorControllerPlugin.swift */; };
 		C0471E5100000000000000C4 /* ContentRuleListPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */; };
 		7AC2A0000000000000000W02 /* WindowCapturePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000W01 /* WindowCapturePlugin.swift */; };
@@ -116,6 +117,7 @@
 		7AC2A0000000000000000005 /* AppGroup.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppGroup.swift; path = ../ios/Runner/AppGroup.swift; sourceTree = SOURCE_ROOT; };
 		7AC2A0000000000000000007 /* ShareIntentPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ShareIntentPlugin.swift; path = ../ios/Runner/ShareIntentPlugin.swift; sourceTree = SOURCE_ROOT; };
 		7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HostBrowserPlugin.swift; sourceTree = "<group>"; };
+		7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ScreenSharePlugin.swift; sourceTree = "<group>"; };
 		7AC2A0000000000000000T01 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = TorControllerPlugin.swift; path = ../ios/Runner/TorControllerPlugin.swift; sourceTree = SOURCE_ROOT; };
 		C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ContentRuleListPlugin.swift; path = ../ios/Runner/ContentRuleListPlugin.swift; sourceTree = SOURCE_ROOT; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -234,6 +236,7 @@
 				7AC2A0000000000000000005 /* AppGroup.swift */,
 				7AC2A0000000000000000007 /* ShareIntentPlugin.swift */,
 				7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */,
+				7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */,
 				7AC2A0000000000000000W01 /* WindowCapturePlugin.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
@@ -573,6 +576,7 @@
 				7AC2A0000000000000000006 /* AppGroup.swift in Sources */,
 				7AC2A0000000000000000008 /* ShareIntentPlugin.swift in Sources */,
 				7AC2A0000000000000000H02 /* HostBrowserPlugin.swift in Sources */,
+				7AC2A0000000000000000S02 /* ScreenSharePlugin.swift in Sources */,
 				7AC2A0000000000000000W02 /* WindowCapturePlugin.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
@@ -745,6 +749,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-Wl,-needed_framework,webspace_adblock",
+					"-Wl,-weak_framework,ScreenCaptureKit",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
 				SWIFT_VERSION = 5.0;
@@ -895,6 +900,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-Wl,-needed_framework,webspace_adblock",
+					"-Wl,-weak_framework,ScreenCaptureKit",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -933,6 +939,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-Wl,-needed_framework,webspace_adblock",
+					"-Wl,-weak_framework,ScreenCaptureKit",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
 				SWIFT_VERSION = 5.0;

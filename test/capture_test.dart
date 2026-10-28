@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
-import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/shim_frames.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -46,11 +46,11 @@ void main() {
       expect(CaptureKind.screenShare.frames, ShimFrames.top);
     });
 
-    test('the real screen is offered on Android alone, the devices everywhere '
-        '(SHARE-001)', () {
+    test('the real screen is offered where the host shares one, the devices '
+        'everywhere (SHARE-001)', () {
       expect(CaptureKind.camera.realOffered, isTrue);
       expect(CaptureKind.microphone.realOffered, isTrue);
-      expect(CaptureKind.screenShare.realOffered, hostIsAndroid);
+      expect(CaptureKind.screenShare.realOffered, hostSharesScreen);
     });
 
     test('the camera and microphone keep reaching cross-origin frames', () {
