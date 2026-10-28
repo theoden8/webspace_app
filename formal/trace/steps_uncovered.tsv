@@ -1,6 +1,5 @@
 # Action	outcome ("-" for none)	why no schedule takes it
 Login	-	a sign-in is a setup step, before the script the trace records
-NextUnload	skip	the first victim is checked in the turn the plan picks it; a later one leaves the loaded set only if another flow unloads it while the first unloads, which no schedule within two preemptions does
 NextClear	skip	a clear's site leaves the loaded set or the resident tier only if another flow unloads or clears it while the plan's unloads run, which no schedule within two preemptions does
 GrantUnload	spared	an incognito victim is spared at its turn only if a tap opens it between the plan and the turn, which neither incognito script does
 TabCaptureReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch, or by a delete, which the walk has none of

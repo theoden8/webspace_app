@@ -4,8 +4,9 @@
 // preemptions (schedules.dart says what counts), less those that only swap
 // two steps whose footprints share no variable (tableCommutes), which end
 // where the schedule kept does. The random walks sample past the bound;
-// the named scripts below, each a bug the code once had, run at the bound
-// that found them. SCHEDULE_LENGTH and SCHEDULE_PREEMPTIONS widen the bound
+// the named scripts below, each a bug the code once had or an arm no
+// schedule within the bound takes, run at the bound that reaches it.
+// SCHEDULE_LENGTH and SCHEDULE_PREEMPTIONS widen the bound
 // locally; SCHEDULE_REDUCTION=off runs every schedule within one
 // preemption, none pruned, as the search did before, and SCHEDULE_STATS=1
 // prints how many schedules ran.
@@ -226,6 +227,19 @@ const _nestedRegressions = <String, List<SiteAction>>{
     Tap(0),
   ],
 };
+
+/// A plan's later victim another flow unloaded first, at three
+/// preemptions, under the mismatched proxies, with sites 0 and 1 loaded on
+/// the one route and site 1's cache cleared: a tap of site 2 unloads both,
+/// and pressure evicts site 1 while site 0 unloads, so the plan's next step
+/// finds it gone.
+const _unloadRegressions =
+    <String, ({List<SiteAction> setup, List<SiteAction> script})>{
+      'a plan skips a victim another flow unloaded first': (
+        setup: [Tap(0), Preload(1), Pressure()],
+        script: [Tap(2), Pressure()],
+      ),
+    };
 
 /// A launch the code once broke, at two preemptions.
 const _launchRegressions = <String, List<SiteAction>>{
@@ -944,6 +958,25 @@ void main() {
             wakes: true,
           ),
           setup: const [],
+          script: script,
+          preemptions: _twoPast,
+        );
+      });
+    }
+  });
+
+  group('unload regressions', () {
+    final (:page, :launch) = _launches['mixed, containers, from launch']!;
+    for (final MapEntry(key: name, value: (:setup, :script))
+        in _unloadRegressions.entries) {
+      _scheduleTest(name, body: () async {
+        await _expectEvery(
+          world: () => ActivationWorld(
+            page,
+            launch: launch,
+            proxies: _proxied['mismatched proxies'],
+          ),
+          setup: setup,
           script: script,
           preemptions: _twoPast,
         );
