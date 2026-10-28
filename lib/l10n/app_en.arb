@@ -5546,6 +5546,27 @@
       }
     }
   },
+  "extensionsVersionProblems": "{count, plural, =1{Version {version} · 1 problem reported} other{Version {version} · {count} problems reported}}",
+  "@extensionsVersionProblems": {
+    "description": "Subtitle of an imported browser extension when WebKit, the browser engine, reported problems reading it: its version number as its author wrote it, and how many problems. The problems themselves are listed behind the row's hint button.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsProblemsHint": "WebKit reported these reading the extension. It still runs on the sites you switch it on for, but what they name may not work.\n\n{problems}",
+  "@extensionsProblemsHint": {
+    "description": "Explanation behind the hint button of an imported browser extension that WebKit, the browser engine, reported problems with. {problems} is WebKit's own messages, one per paragraph, in the system's language; leave it as is.",
+    "placeholders": {
+      "problems": {
+        "type": "String"
+      }
+    }
+  },
   "extensionsRefused": "Not imported: {reason}",
   "@extensionsRefused": {
     "description": "Snackbar after a picked file could not be imported as a browser extension. {reason} is one of the extensionsRefused... sentences.",
@@ -5666,7 +5687,7 @@
       }
     }
   },
-  "extensionsRemoveBody": "Its files are deleted and it stops running on every site.",
+  "extensionsRemoveBody": "It stops running on every site, and its files and what it stored on each site are deleted.",
   "@extensionsRemoveBody": {
     "description": "Body of the dialog confirming the removal of an imported browser extension."
   },
@@ -5742,5 +5763,22 @@
   "siteExtensionsSwitchOn": "Switch on",
   "@siteExtensionsSwitchOn": {
     "description": "Confirm button of the dialog that switches a browser extension on for a site."
+  },
+  "siteExtensionsSettings": "Settings",
+  "@siteExtensionsSettings": {
+    "description": "Button under a browser extension in a site's Extensions screen: opens the extension's own settings page, over the site, with what it stored for this site."
+  },
+  "siteExtensionsOpen": "Open",
+  "@siteExtensionsOpen": {
+    "description": "Button under a browser extension in a site's Extensions screen: does what pressing the extension's toolbar button does in a browser, usually opening its popup over the site."
+  },
+  "siteExtensionsPageFailed": "{name} could not open here",
+  "@siteExtensionsPageFailed": {
+    "description": "Snackbar after a browser extension's settings page or popup could not be shown over the site. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

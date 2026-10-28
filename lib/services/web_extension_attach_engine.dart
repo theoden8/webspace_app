@@ -4,6 +4,7 @@
 /// screens and its popups get the same answer.
 library;
 
+import 'package:webspace/services/container_names.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/web_extension_grants_engine.dart';
 import 'package:webspace/settings/web_extension.dart';
@@ -77,4 +78,25 @@ ExtensionAttach planExtensionAttach(ExtensionAttachInputs inputs) {
   ];
   if (loads.isEmpty) return const NoExtensions(NoExtensionsReason.noneEnabled);
   return AttachExtensions(persistent: !inputs.incognito, loads: loads);
+}
+
+/// Where a site's extensions keep what they store, and so where their pages
+/// open (WEBEXT-008): what the site loads, in the container its webviews
+/// bind.
+typedef ExtensionHome = ({AttachExtensions plan, ContainerName container});
+
+/// [plan]'s home in [container], or null where its extensions keep nothing:
+/// a site that loads none, an incognito site, a site with no container.
+ExtensionHome? extensionHomeOf(
+  ExtensionAttach plan, {
+  required ContainerName? container,
+}) {
+  if (container == null) return null;
+  return switch (plan) {
+    final AttachExtensions attach when attach.persistent => (
+      plan: attach,
+      container: container,
+    ),
+    AttachExtensions() || NoExtensions() => null,
+  };
 }

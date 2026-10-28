@@ -11,6 +11,8 @@ import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/isolations.dart';
+
 void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -242,7 +244,7 @@ void main() {
                   builder: (_) => SettingsScreen(
                     webViewModel: site,
                     appTheme: WebViewTheme.system,
-                    useContainers: true,
+                    isolation: fakeContainers(),
                   ),
                 ),
               ),
@@ -309,7 +311,7 @@ void main() {
                       SettingsScreen(
                         webViewModel: site,
                         appTheme: WebViewTheme.system,
-                        useContainers: routing,
+                        isolation: routing ? fakeContainers() : fakeSharedJar(),
                       ),
                 ),
               ),

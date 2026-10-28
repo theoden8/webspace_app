@@ -12,7 +12,7 @@
 - [x] 2.2a Move the download engine's and the QR codec's bounded inflation into `lib/services/bounded_inflate.dart`, tested by `test/bounded_inflate_test.dart`; verify `flutter test test/bounded_inflate_test.dart test/download_engine_test.dart test/site_settings_qr_codec_test.dart` passes
 - [x] 2.3 Add `WebExtensionId` (an extension type with `parse` and `mint`), the library store `WebExtensionLibrary` over `ExtensionFolders`, its folder under the documents directory, and its start in `main`; verify `test/web_extension_library_test.dart` passes (round trip, an import cut short, removal, the launch sweep)
 - [x] 2.4 Add App Settings > Extensions (`lib/screens/app_extensions.dart`): import through `FileDialog` of any file, read off the UI thread, the summary before adding (signature not checked), a refusal in its own words, removal (WEBEXT-002); strings in `lib/l10n/app_en.arb`; verify `test/web_extension_screens_test.dart` and `npm run test:js` pass
-- [ ] 2.5 Show what WebKit reports it could not load on each library entry (WEBEXT-003); needs the channel of task 4.3
+- [x] 2.5 Show what WebKit reports it could not load on each library entry (WEBEXT-003): `WebExtensionLibrary.reports`, read through the channel of task 4.3 at launch and on import, counted in the entry's subtitle and listed behind its hint; verified by `test/web_extension_pages_test.dart` and `test/web_extension_screens_test.dart`
 
 ## 3. Per site
 
@@ -27,13 +27,14 @@
 ## 4. Fork (iOS and macOS)
 
 - [x] 4.1 In `theoden8/flutter_inappwebview` (branch `claude/web-extensions`, commit 823cb4b), add the `webExtensions` setting to `InAppWebViewSettings` (platform interface, iOS, macOS) and apply it in `preWKWebViewConfiguration` beside the container binding: the per-container controller cache (design D2), contexts loaded from paths, grants applied (D3), refusals of tabs, windows and native messaging; verified: the app's Build IPA and Build macOS steps compiled it with the app pinned to that commit
-- [ ] 4.2 Add the `WKWebExtensionControllerDelegate` (design D7): the site's window and tabs, tab and window requests, popup and options page presentation, refusals; verify XCTests in the fork's `RunnerTests` for controller reuse per container id, grants on a loaded context and each refusal pass
-- [ ] 4.3 Add the channel the site menu uses: list attached contexts' actions, `performAction`, remove a controller's data records; verify a Dart test of the channel's codec passes
+- [ ] 4.2 Add the `WKWebExtensionControllerDelegate` (design D7): the site's window and tabs, tab and window requests, popup and options page presentation, refusals; verify XCTests in the fork's `RunnerTests` for controller reuse per container id, grants on a loaded context and each refusal pass. The delegate is in (`WebExtensionHost`: a container's webviews are one window's tabs, the options page and an extension's own pages in a sheet on iOS and a window on macOS, the popup over the app); the XCTests are not
+- [x] 4.3 Add the channel the site menu uses: `ContainerController.inspectWebExtension` (WebKit's errors, options page, action), `openWebExtensionPage` (options or action, loading the container's contexts first), `removeWebExtensionData` (unloads the extension from every live controller and removes its data records in each container); the app reaches them through `ExtensionEngine` (`lib/services/web_extension_native.dart`), whose fake in `test/helpers/fake_extension_engine.dart` the library and screen tests drive; the Build IPA and Build macOS steps compile the native side
+- [ ] 4.5 Open an extension's tab at a page of the site's domains as a nested screen of the site (WEBEXT-008): needs an event from the fork's delegate to Dart; until then such a tab is refused
 - [x] 4.4 Tag the fork (`v6.2.0-beta.3-privacy-v13.8`, at 823cb4b) and move the `dependency_overrides` ref in `pubspec.yaml`; `flutter pub get` resolves the same commit, which CI built for iOS and macOS
 
 ## 5. Runner and UI glue
 
-- [ ] 5.1 Show each attached extension's action in the site menu (`lib/widgets/site_menu.dart`) and call `performAction` on pick (WEBEXT-008); verify a widget test with a fake channel passes
+- [x] 5.1 Show each attached extension's action in the site menu (`lib/widgets/site_menu.dart`, `siteMenuExtensions`) and call `performAction` on pick, and its Settings and Open in the site's Extensions screen (WEBEXT-008); verified by `test/web_extension_screens_test.dart` with the fake engine
 - [ ] 5.2 Remove a deleted site's extension data through `SiteDeletion`; if it adds an await, make it a `Step` of `SiteDeletion.deleteTable` and run `./formal/verify.sh`; verify the deletion test and, if touched, `verify.sh` pass
 - [ ] 5.3 Commit the 66 translated `app_*.arb` files in their own commit after the strings of groups 2 and 3; verify `npm run test:js` passes `l10n_coverage` and `l10n_language`
 
