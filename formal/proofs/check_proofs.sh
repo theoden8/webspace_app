@@ -47,9 +47,21 @@ JOBS="${TLAPM_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 THREADS=$(( $(getconf _NPROCESSORS_ONLN) / JOBS ))
 [ "$THREADS" -ge 1 ] || THREADS=1
 printf 'TLAPS: jobs=%s threads=%s timeout stretch=%s\n' "$JOBS" "$THREADS" "$STRETCH"
+# A backend that times out has its shell killed, not the solver that shell
+# started, which goes on proving beside the next modules until it ends on its
+# own. So tlapm runs as a process group of its own (python3, as setsid is not
+# on macOS), and whatever of the group outlives it goes with it; the exit trap
+# takes the groups still running, which an interrupt no longer reaches.
 prove() {
-  tlapm -I "$KERNEL_DIR" ${FORMAL_MODEL:+-I "$FORMAL_MODEL"} --threads "$THREADS" \
-    --cache-dir "$CACHE" --safefp --stretch "$STRETCH" "$@" 2>&1 || true
+  local group
+  python3 -c 'import os, sys; os.setpgid(0, 0); os.execvp(sys.argv[1], sys.argv[1:])' \
+    tlapm -I "$KERNEL_DIR" ${FORMAL_MODEL:+-I "$FORMAL_MODEL"} --threads "$THREADS" \
+    --cache-dir "$CACHE" --safefp --stretch "$STRETCH" "$@" 2>&1 &
+  group=$!
+  touch "$work/groups/$group"
+  wait "$group" || true
+  kill -- -"$group" 2>/dev/null || true
+  rm -f "$work/groups/$group"
 }
 obligations() { sed -nE 's/.*All ([0-9]+) obligations? proved.*/\1/p' <<<"$1" | tail -1; }
 
@@ -99,7 +111,16 @@ TABLE_PARTS=1573
 # (activation_tables_proof, the tables' cases of activation_turns) are checked here
 # on their own.
 work="$(mktemp -d)"
-trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "$work"' EXIT
+mkdir "$work/groups"
+reap() {
+  local g
+  for g in "$work"/groups/*; do
+    [ ! -e "$g" ] || kill -- -"${g##*/}" 2>/dev/null || true
+  done
+  kill $(jobs -p) 2>/dev/null || true
+  rm -rf "$work"
+}
+trap reap EXIT
 # A module that falls short beside the others is proved again once they
 # have ended, alone and ignoring the cache: a failed obligation is
 # fingerprinted too, and replayed without a retry, so a timeout on a loaded
