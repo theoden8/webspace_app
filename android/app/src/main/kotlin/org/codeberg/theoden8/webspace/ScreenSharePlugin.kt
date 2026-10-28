@@ -6,6 +6,8 @@ import android.media.projection.MediaProjectionManager
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -21,6 +23,11 @@ import io.flutter.plugin.common.MethodChannel
  * main thread only: the method channel, the activity result, the service's
  * lifecycle and the projection callback all run there, and the capture
  * thread hands each encoded frame over with a post (BUG-007: none-shared).
+ *
+ * The share is the process's, while each Flutter engine (a second activity
+ * a share sheet opens has its own) runs its own Dart side: so a share
+ * belongs to the plugin that started it, and only that plugin reads its
+ * frames, stops it, and hears that it ended.
  */
 class ScreenSharePlugin(
     private val activity: Activity,
@@ -35,24 +42,59 @@ class ScreenSharePlugin(
 
     init {
         channel.setMethodCallHandler(this)
-        ScreenShareSession.onEnded = { channel.invokeMethod("ended", null) }
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "start" -> start(call, result)
-            "frame" -> ScreenShareSession.frame(call.argument<Int>("after") ?: 0, result)
+            "frame" -> ScreenShareSession.frame(
+                this,
+                call.argument<Number>("after")?.toInt() ?: 0,
+                result,
+            )
             "stop" -> {
-                ScreenShareService.end()
+                // A start still waiting on Android's prompt is left to it:
+                // Dart stops a share whose yes came too late, and stopping
+                // the service between the yes and its start would crash.
+                if (ScreenShareSession.liveOwner === this) ScreenShareService.end()
                 result.success(null)
             }
             else -> result.notImplemented()
         }
     }
 
+    /** The share's end, told to the Dart side that started it. */
+    internal fun ended() {
+        channel.invokeMethod("ended", null)
+    }
+
+    /**
+     * This plugin's engine is going: nothing would end its share or answer
+     * its start (SHARE-017).
+     */
+    fun dispose() {
+        channel.setMethodCallHandler(null)
+        val pending = ScreenShareSession.pendingStart
+        if (pending?.owner === this) {
+            // Before the yes the start is dropped; after it the service is
+            // already on its way, and ends as soon as it is up.
+            if (ScreenShareSession.consent == null) {
+                ScreenShareSession.pendingStart = null
+            } else {
+                pending.abandoned = true
+            }
+        }
+        if (ScreenShareSession.liveOwner === this) ScreenShareService.end()
+    }
+
     /** Asks Android for the screen; the answer arrives in [onActivityResult]. */
     private fun start(call: MethodCall, result: MethodChannel.Result) {
-        if (ScreenShareSession.pendingStart != null) {
+        // A share is the user's act, so the app is in front: a prompt raised
+        // from the background lands over another app, or, where Android
+        // blocks it, never answers.
+        val resumed = (activity as? LifecycleOwner)?.lifecycle?.currentState
+            ?.isAtLeast(Lifecycle.State.RESUMED) == true
+        if (ScreenShareSession.pendingStart != null || !resumed) {
             result.success(null)
             return
         }
@@ -71,7 +113,7 @@ class ScreenSharePlugin(
             return
         }
         ScreenShareService.end()
-        ScreenShareSession.pendingStart = PendingStart(request, result)
+        ScreenShareSession.pendingStart = PendingStart(request, result, owner = this)
         activity.startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_CODE)
     }
 
@@ -82,7 +124,8 @@ class ScreenSharePlugin(
      */
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (requestCode != REQUEST_CODE) return false
-        val pending = ScreenShareSession.pendingStart ?: return true
+        val pending = ScreenShareSession.pendingStart
+        if (pending == null || pending.owner !== this) return true
         if (resultCode != Activity.RESULT_OK || data == null) {
             ScreenShareSession.pendingStart = null
             pending.result.success(null)
@@ -109,7 +152,14 @@ internal data class ShareRequest(
     val stop: String,
 )
 
-internal class PendingStart(val request: ShareRequest, val result: MethodChannel.Result)
+internal class PendingStart(
+    val request: ShareRequest,
+    val result: MethodChannel.Result,
+    val owner: ScreenSharePlugin,
+) {
+    /** Its engine went after the user's yes: the service ends once up. */
+    var abandoned = false
+}
 
 internal class Consent(val resultCode: Int, val data: Intent)
 
@@ -135,15 +185,18 @@ internal object ScreenShareSession {
     var live: Any? = null
         private set
 
-    var onEnded: (() -> Unit)? = null
+    /** The plugin that started [live]: the only one that reads or stops it. */
+    var liveOwner: ScreenSharePlugin? = null
+        private set
 
     private var latest: ShareFrame? = null
     private var waiting: Waiting? = null
 
     private class Waiting(val after: Int, val result: MethodChannel.Result, val timeout: Runnable)
 
-    fun began(share: Any) {
+    fun began(share: Any, owner: ScreenSharePlugin) {
         live = share
+        liveOwner = owner
         latest = null
     }
 
@@ -161,8 +214,8 @@ internal object ScreenShareSession {
      * whose screen is still costs a round trip a second and a half, not a
      * busy loop over the bridge.
      */
-    fun frame(after: Int, result: MethodChannel.Result) {
-        if (live == null) {
+    fun frame(caller: ScreenSharePlugin, after: Int, result: MethodChannel.Result) {
+        if (live == null || liveOwner !== caller) {
             result.success(ENDED)
             return
         }
@@ -181,10 +234,12 @@ internal object ScreenShareSession {
 
     fun ended(share: Any) {
         if (live !== share) return
+        val owner = liveOwner
         live = null
+        liveOwner = null
         latest = null
         waiting?.let { w -> answer(w) { ENDED } }
-        onEnded?.invoke()
+        owner?.ended()
     }
 
     private fun answer(w: Waiting, reply: () -> Any) {

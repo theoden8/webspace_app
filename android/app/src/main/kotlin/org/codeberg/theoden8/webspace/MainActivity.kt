@@ -471,6 +471,8 @@ class MainActivity: FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         enginePlugins?.dispose()
         enginePlugins = null
+        screenSharePlugin?.dispose()
+        screenSharePlugin = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

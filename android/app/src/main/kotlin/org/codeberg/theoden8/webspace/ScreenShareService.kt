@@ -66,6 +66,14 @@ class ScreenShareService : Service() {
         ScreenShareSession.pendingStart = null
         ScreenShareSession.consent = null
         if (pending == null || consent == null) {
+            pending?.result?.success(null)
+            end()
+            return
+        }
+        if (pending.abandoned) {
+            // Entered first: a service started with startForegroundService
+            // that stops before it is in the foreground crashes the app.
+            enterForeground(pending.request)
             end()
             return
         }
@@ -82,7 +90,7 @@ class ScreenShareService : Service() {
             }
             val started = Share(this, projection, request)
             share = started
-            ScreenShareSession.began(started)
+            ScreenShareSession.began(started, owner = pending.owner)
             pending.result.success(mapOf("width" to started.width, "height" to started.height))
         } catch (e: SecurityException) {
             projection?.stop()
@@ -167,6 +175,15 @@ class ScreenShareService : Service() {
         stopSelf()
     }
 
+    /**
+     * The user swiped the app away: the page reading the share is gone. A
+     * service not yet in the foreground is left to [begin], which ends it.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (share != null) end()
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         end()
         if (instance === this) instance = null
@@ -219,6 +236,8 @@ class ScreenShareService : Service() {
                     null,
                 )
             } catch (e: SecurityException) {
+                null
+            } catch (e: IllegalStateException) {
                 null
             } ?: run {
                 reader.close()
