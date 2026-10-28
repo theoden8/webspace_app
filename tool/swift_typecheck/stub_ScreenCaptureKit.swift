@@ -4,9 +4,12 @@
 // Shapes from SCContentSharingPicker.h, SCStream.h and SCShareableContent.h:
 // the selectors as WebRTC calls them (modules/desktop_capture/mac/
 // screen_capturer_sck.mm, sck_picker_handle.mm) and the Swift names Apple's
-// "Capturing screen content in macOS" sample uses. `active` is declared with
-// getter=isActive, so Swift reads `isActive`; maximumStreamCount is an
-// NSNumber. See stub_FlutterMacOS.swift for what a stub can and cannot catch.
+// "Capturing screen content in macOS" sample uses, and the Swift-facing
+// shapes from the SDK's ScreenCaptureKit.swiftinterface where a header is
+// NS_REFINED_FOR_SWIFT: the picker configuration is a struct and
+// maximumStreamCount an Int?. `active` is declared with getter=isActive, so
+// Swift reads `isActive`. Availability is not modelled. See
+// stub_FlutterMacOS.swift for what a stub can and cannot catch.
 
 import CoreMedia
 import CoreVideo
@@ -22,11 +25,12 @@ public struct SCContentSharingPickerMode: OptionSet {
   public static let singleDisplay = SCContentSharingPickerMode(rawValue: 1 << 4)
 }
 
-public class SCContentSharingPickerConfiguration: NSObject {
+public struct SCContentSharingPickerConfiguration {
   public var allowedPickerModes: SCContentSharingPickerMode = []
-  public var allowsChangingSelectedContent: Bool = true
-  public var excludedBundleIDs: [String] = []
   public var excludedWindowIDs: [Int] = []
+  public var excludedBundleIDs: [String] = []
+  public var allowsChangingSelectedContent: Bool = true
+  public init() {}
 }
 
 public class SCContentFilter: NSObject {
@@ -83,10 +87,12 @@ public class SCStream: NSObject {
   public func addStreamOutput(
     _ output: SCStreamOutput, type: SCStreamOutputType, sampleHandlerQueue: DispatchQueue?
   ) throws {}
+  // - (BOOL)removeStreamOutput:type:error:
+  public func removeStreamOutput(_ output: SCStreamOutput, type: SCStreamOutputType) throws {}
   // - (void)startCaptureWithCompletionHandler:
-  public func startCapture(completionHandler: ((Error?) -> Void)? = nil) {}
+  public func startCapture(completionHandler: (@Sendable (Error?) -> Void)? = nil) {}
   // - (void)stopCaptureWithCompletionHandler:
-  public func stopCapture(completionHandler: ((Error?) -> Void)? = nil) {}
+  public func stopCapture(completionHandler: (@Sendable (Error?) -> Void)? = nil) {}
 }
 
 public protocol SCContentSharingPickerObserver: NSObjectProtocol {
@@ -100,9 +106,11 @@ public protocol SCContentSharingPickerObserver: NSObjectProtocol {
 }
 
 public class SCContentSharingPicker: NSObject {
+  // + (instancetype)sharedPicker; - (instancetype)init NS_UNAVAILABLE.
   public static let shared = SCContentSharingPicker()
+  private override init() {}
   public var defaultConfiguration = SCContentSharingPickerConfiguration()
-  public var maximumStreamCount: NSNumber?
+  public var maximumStreamCount: Int?
   public var isActive: Bool = false
   public func add(_ observer: SCContentSharingPickerObserver) {}
   public func remove(_ observer: SCContentSharingPickerObserver) {}

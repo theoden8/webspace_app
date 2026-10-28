@@ -6,8 +6,8 @@
 # them only on the Apple job. Two compile errors reached a device build
 # before this existed. It type-checks
 # against hand-transcribed stub modules (stub_*.swift), so it catches wrong
-# selectors, wrong argument labels and type errors -- not behaviour, and
-# nothing a stub gets wrong.
+# selectors, wrong argument labels and type errors -- not behaviour, not
+# availability (no stub declares any), and nothing a stub gets wrong.
 #
 # Needs any Swift 5 toolchain. Skips (0) when none is installed.
 set -euo pipefail

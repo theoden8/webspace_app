@@ -54,6 +54,15 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
     let fps: Int
   }
 
+  /// A start waiting on the picker. Only the first pick answers it, and a
+  /// stream started for one start never answers another.
+  private struct Pending {
+    let request: Request
+    let result: FlutterResult
+    let token: Int
+    var picked = false
+  }
+
   private struct Waiting {
     let after: Int
     let result: FlutterResult
@@ -66,7 +75,8 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
   private let picker = SCContentSharingPicker.shared
   private var observing = false
 
-  private var pending: (request: Request, result: FlutterResult)?
+  private var pending: Pending?
+  private var pendingTokens = 0
   private var live: Capture?
   private var latest: (seq: Int, jpeg: Data)?
   private var waiting: Waiting?
@@ -92,6 +102,7 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
     case "frame":
       frame(after: args["after"] as? Int ?? 0, result: result)
     case "stop":
+      answerStart(nil)
       end(notify: false)
       result(nil)
     default:
@@ -107,16 +118,19 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
       return
     }
     end(notify: false)
-    pending = (request, result)
+    pendingTokens += 1
+    pending = Pending(request: request, result: result, token: pendingTokens)
     if !observing {
       picker.add(self)
       observing = true
     }
-    let configuration = SCContentSharingPickerConfiguration()
+    var configuration = SCContentSharingPickerConfiguration()
     configuration.allowedPickerModes = [.singleDisplay, .singleWindow, .singleApplication]
     configuration.allowsChangingSelectedContent = false
     picker.defaultConfiguration = configuration
-    picker.maximumStreamCount = 1
+    // No maximumStreamCount: the picker presents nothing while that many
+    // streams still run, and a stopped one may not have finished stopping.
+    // One share at a time is this class's own rule.
     picker.isActive = true
     picker.present()
   }
@@ -138,7 +152,11 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
   }
 
   private func picked(_ filter: SCContentFilter) {
-    guard let request = pending?.request else { return }
+    guard var waiting = pending, !waiting.picked else { return }
+    waiting.picked = true
+    pending = waiting
+    let request = waiting.request
+    let token = waiting.token
     let scale = CGFloat(filter.pointPixelScale)
     let size = Self.fit(
       width: Int(filter.contentRect.width * scale),
@@ -167,9 +185,9 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
     stream.startCapture { [weak self] error in
       DispatchQueue.main.async {
         guard let self = self else { return }
-        guard error == nil, self.pending != nil else {
+        guard error == nil, self.pending?.token == token else {
           stream.stopCapture { _ in }
-          self.answerStart(nil)
+          if self.pending?.token == token { self.answerStart(nil) }
           return
         }
         self.live = capture
@@ -225,10 +243,17 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
 
   /// The user stopped it from the menu bar, or the system did.
   func stream(_ stream: SCStream, didStopWithError error: Error) {
-    DispatchQueue.main.async {
-      guard self.live?.stream === stream else { return }
-      self.end(notify: true)
-    }
+    DispatchQueue.main.async { self.stopped(stream) }
+  }
+
+  @available(macOS 14.4, *)
+  func userDidStopStream(_ stream: SCStream) {
+    DispatchQueue.main.async { self.stopped(stream) }
+  }
+
+  private func stopped(_ stream: SCStream) {
+    guard live?.stream === stream else { return }
+    end(notify: true)
   }
 
   private func end(notify: Bool) {
@@ -236,6 +261,7 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
     live = nil
     latest = nil
     picker.isActive = false
+    try? capture.stream.removeStreamOutput(capture, type: .screen)
     capture.stream.stopCapture { _ in }
     if let w = waiting { answer(w, reply: ["ended": true]) }
     if notify { channel.invokeMethod("ended", arguments: nil) }
@@ -282,13 +308,14 @@ private final class Capture: NSObject, SCStreamOutput {
   func stream(
     _ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType
   ) {
-    // Only a complete frame carries a new image; an idle one means the
-    // screen did not change.
+    // A complete frame, or the first one a stream sends, carries a new
+    // image; an idle one means the screen did not change.
     guard type == .screen,
       let attachments = CMSampleBufferGetSampleAttachmentsArray(
         sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
       let raw = attachments.first?[.status] as? Int,
-      SCFrameStatus(rawValue: raw) == .complete,
+      let status = SCFrameStatus(rawValue: raw),
+      status == .complete || status == .started,
       let pixels = CMSampleBufferGetImageBuffer(sampleBuffer)
     else { return }
     let image = CIImage(cvPixelBuffer: pixels)
