@@ -1,3 +1,8 @@
+// The StatusNotifierItem tray runs on Linux only, and package:dbus
+// authenticates nowhere else: on macOS a connection never opens.
+@TestOn('linux')
+library;
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';

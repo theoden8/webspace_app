@@ -4,7 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:dbus/dbus.dart';
 
-import 'package:webspace/platform/host_platform.dart' show IOException;
+import 'package:webspace/platform/host_platform.dart'
+    show IOException, hostIsLinux;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tray_icon.dart';
 import 'package:webspace/services/tray_menu_engine.dart';
@@ -30,7 +31,11 @@ class StatusNotifierTray implements TrayIcon {
     required TrayHandlers handlers,
     DBusClient Function()? connect,
     Future<List<SniPixmap>> Function()? pixmaps,
-  })  : _handlers = handlers,
+  })  : assert(
+            hostIsLinux,
+            'package:dbus authenticates only on Linux; elsewhere a connection '
+            'never opens'),
+        _handlers = handlers,
         _connect = connect ?? DBusClient.session,
         _pixmaps = pixmaps ?? _appPixmaps;
 
