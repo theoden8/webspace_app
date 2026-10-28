@@ -351,7 +351,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             routingTargets: _links.outboundCandidates(model)
                 .where((m) => m.siteId != model.siteId)
                 .toList(growable: false),
-            useContainers: _sites.useContainers,
+            isolation: _sites.isolation,
             notificationsBlockedBySite: _background.notificationsBlockedBy(model),
             globalUserScripts: _shell.globalUserScripts,
             onGlobalUserScriptsChanged: (scripts) {
@@ -1218,6 +1218,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             final shown? => _shortcuts.offersShortcutFor(shown),
             null => false,
           },
+          extensions: siteMenuExtensions(_sites.shown, isolation: _sites.isolation),
         ),
         nav: (
           back: () => unawaited(_back.goBackIfPossible()),

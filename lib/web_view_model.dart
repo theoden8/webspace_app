@@ -700,6 +700,13 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         claims: effectiveDomainClaims,
       ));
 
+  /// Where this site's extensions keep what they store and open their pages
+  /// under [isolation] (WEBEXT-008); null where they keep nothing.
+  ExtensionHome? extensionHome(Isolation isolation) => extensionHomeOf(
+        extensionPlan,
+        container: boundContainerId(isolation),
+      );
+
   /// Everything a webview that runs as this site applies (CLAUDE.md, "Per-site
   /// settings MUST apply to nested webviews"). The archive tier's overrides
   /// come from the `effective*` getters above; Tracking Protection's forced

@@ -39,8 +39,9 @@ Future<PackageRead> readPackageApart(Uint8List bytes) =>
     compute(readExtensionPackage, bytes);
 
 /// App Settings > Extensions (WEBEXT-002): the extensions imported on this
-/// device, an import from a file the user picks, and removal. Reached only
-/// while [webExtensionsOffered].
+/// device, what WebKit reported reading each (WEBEXT-003), an import from a
+/// file the user picks, and removal. Reached only while
+/// [webExtensionsOffered].
 class AppExtensionsScreen extends StatefulWidget {
   const AppExtensionsScreen({
     super.key,
@@ -146,9 +147,9 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
     final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsExtensions)),
-      body: ValueListenableBuilder<List<InstalledExtension>>(
-        valueListenable: _library.installed,
-        builder: (context, installed, _) => ListView(
+      body: ListenableBuilder(
+        listenable: Listenable.merge([_library.installed, _library.reports]),
+        builder: (context, _) => ListView(
           children: [
             SettingTile(
               leading: const Icon(Icons.file_open_outlined),
@@ -160,22 +161,36 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
                 onTap: () => unawaited(_import()),
               ),
             ),
-            if (installed.isNotEmpty) SettingsSection(loc.extensionsLibrary),
-            for (final (:entry, folder: _) in installed)
-              SettingTile(
-                leading: const Icon(Icons.extension_outlined),
-                title: entry.name,
-                hint: null,
-                subtitle: loc.extensionsVersion(entry.version),
-                control: Trailing(
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: loc.commonRemove,
-                    onPressed: () => unawaited(_remove(entry)),
-                  ),
-                ),
-              ),
+            if (_library.installed.value.isNotEmpty)
+              SettingsSection(loc.extensionsLibrary),
+            for (final (:entry, folder: _) in _library.installed.value)
+              _entryTile(entry, loc: loc),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// [entry] as the library lists it, with what WebKit reported reading it
+  /// (WEBEXT-003): the count in its subtitle, each problem behind its hint.
+  Widget _entryTile(WebExtensionEntry entry, {required AppLocalizations loc}) {
+    final problems =
+        _library.reports.value[entry.id]?.problems ?? const <String>[];
+    return SettingTile(
+      leading: const Icon(Icons.extension_outlined),
+      title: entry.name,
+      hint: problems.isEmpty
+          ? null
+          : loc.extensionsProblemsHint(problems.join('\n\n')),
+      subtitle: problems.isEmpty
+          ? loc.extensionsVersion(entry.version)
+          : loc.extensionsVersionProblems(problems.length, entry.version),
+      missingData: problems.isNotEmpty,
+      control: Trailing(
+        IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: loc.commonRemove,
+          onPressed: () => unawaited(_remove(entry)),
         ),
       ),
     );

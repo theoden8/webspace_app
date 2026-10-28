@@ -32,10 +32,19 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/stat_chip.dart';
+
+SharedJar _sharedJar() => SharedJar(CookieIsolationEngine(
+      cookieManager: CookieManager(),
+      storage: CookieSecureStorage(),
+    ));
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -129,7 +138,7 @@ Future<void> tapTile(WidgetTester tester,
     await pump(tester, home: SettingsScreen(
         webViewModel: freshModel(),
         appTheme: WebViewTheme.system,
-        useContainers: false));
+        isolation: _sharedJar()));
     await openPrivacy(tester);
     expect(warnIcon, findsNothing);
 
@@ -149,7 +158,7 @@ Future<void> tapTile(WidgetTester tester,
     await pump(tester, home: SettingsScreen(
         webViewModel: freshModel(),
         appTheme: WebViewTheme.system,
-        useContainers: false));
+        isolation: _sharedJar()));
     await openPrivacy(tester);
 
     final tile = await revealTile(tester, title: 'DNS Blocklist');
@@ -165,7 +174,7 @@ Future<void> tapTile(WidgetTester tester,
     await pump(tester, home: SettingsScreen(
         webViewModel: freshModel(),
         appTheme: WebViewTheme.system,
-        useContainers: false));
+        isolation: _sharedJar()));
     await openPrivacy(tester);
 
     final tile = await revealTile(tester, title: 'Tracking Protection');

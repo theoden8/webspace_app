@@ -9,6 +9,7 @@ import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/isolations.dart';
 import 'helpers/localized.dart';
 
 /// Taps Clear Cookies on a site's settings and confirms it.
@@ -19,7 +20,7 @@ Future<void> _clear(WidgetTester tester,
       home: SettingsScreen(
         webViewModel: WebViewModel(initUrl: 'https://example.com/'),
         appTheme: WebViewTheme.system,
-        useContainers: false,
+        isolation: fakeSharedJar(),
         onClearCookies: onClearCookies,
       ));
   await tester.pumpAndSettle();

@@ -15,6 +15,8 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/services/webview_proxy.dart';
 
+import 'helpers/isolations.dart';
+
 /// Pushes site settings over a plain home route, so a back press is a real
 /// pop that the unsaved-changes guard can intercept.
 Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
@@ -33,7 +35,7 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
             builder: (_) => SettingsScreen(
                 webViewModel: model,
                 appTheme: WebViewTheme.system,
-                useContainers: false),
+                isolation: fakeSharedJar()),
           ),
         ),
         child: const Text('open'),

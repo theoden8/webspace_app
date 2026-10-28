@@ -1,8 +1,10 @@
 /// The web extensions imported on this device (WEBEXT-002): each one's
-/// entry, saved in SharedPreferences, and its files, unpacked into a folder
-/// of its own. A backup carries neither (WEBEXT-011).
+/// entry, saved in SharedPreferences, its files, unpacked into a folder of
+/// its own, and what WebKit reported reading them (WEBEXT-003). A backup
+/// carries none of it (WEBEXT-011).
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +15,8 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/web_extension_attach_engine.dart';
+import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/pref_read.dart';
@@ -84,21 +88,34 @@ class WebExtensionLibrary {
   static const _directory = 'web_extensions';
 
   ExtensionFolders? _folders;
+  ExtensionEngine _engine = const NativeExtensionEngine();
   final ValueNotifier<List<InstalledExtension>> _installed = ValueNotifier(
     const [],
   );
+  final ValueNotifier<Map<WebExtensionId, ExtensionReport>> _reports =
+      ValueNotifier(const {});
 
   /// The extensions a site may switch on, in import order. Empty where the
   /// host runs none, or where their folders could not be found.
   ValueListenable<List<InstalledExtension>> get installed => _installed;
 
+  /// What WebKit reported reading each installed extension, once it has
+  /// read it.
+  ValueListenable<Map<WebExtensionId, ExtensionReport>> get reports =>
+      _reports;
+
   /// Whether an import can be unpacked here.
   bool get available => _folders != null;
 
   /// Reads the library and removes any folder no entry names: one left by
-  /// an import cut short, a removal cut short, or demo mode.
-  Future<void> initialize({@visibleForTesting ExtensionFolders? folders}) async {
+  /// an import cut short, a removal cut short, or demo mode. Then has WebKit
+  /// read each extension, without holding up the launch.
+  Future<void> initialize({
+    @visibleForTesting ExtensionFolders? folders,
+    @visibleForTesting ExtensionEngine? engine,
+  }) async {
     if (folders == null && !hostRunsWebExtensions) return;
+    if (engine != null) _engine = engine;
     final prefs = await SharedPreferences.getInstance();
     final entries = [
       for (final raw
@@ -121,6 +138,7 @@ class WebExtensionLibrary {
       return;
     }
     _publish(entries);
+    unawaited(_inspect(_installed.value));
   }
 
   /// Unpacks [package] and adds it, where [available]. Fails with an
@@ -149,24 +167,78 @@ class WebExtensionLibrary {
     _publish(entries);
     await _save(entries);
     LogTag.webExtension.debug('added ${entry.id}');
+    await _inspect([
+      for (final i in _installed.value)
+        if (i.entry.id == entry.id) i,
+    ]);
     return entry;
   }
 
-  /// Drops [id] from the library and deletes its files. A site that had it
-  /// switched on keeps the id, which names nothing any more.
+  /// Drops [id] from the library, stops it wherever it runs, and deletes
+  /// what it stored on every site and its files. A site that had it switched
+  /// on keeps the id, which names nothing any more.
   Future<void> remove(WebExtensionId id) async {
     final entries = [
       for (final i in _installed.value)
         if (i.entry.id != id) i.entry,
     ];
     _publish(entries);
+    _reports.value = Map.unmodifiable({
+      for (final MapEntry(:key, :value) in _reports.value.entries)
+        if (key != id) key: value,
+    });
     await _save(entries);
+    await _engine.forget(id);
     try {
       await _folders?.delete(id);
     } on IOException catch (e) {
       LogTag.webExtension.info('$id stays on disk until the next launch: $e');
     }
     LogTag.webExtension.debug('removed $id');
+  }
+
+  /// The extensions [home] runs that have [page], by what WebKit reported,
+  /// in import order (WEBEXT-008).
+  List<WebExtensionEntry> offering(
+    ExtensionPage page, {
+    required ExtensionHome home,
+  }) {
+    final runs = {for (final load in home.plan.loads) load.id};
+    return [
+      for (final (:entry, folder: _) in _installed.value)
+        if (runs.contains(entry.id))
+          if (_reports.value[entry.id] case final report?)
+            if (switch (page) {
+              ExtensionPage.options => report.hasOptionsPage,
+              ExtensionPage.action => report.hasAction,
+            })
+              entry,
+    ];
+  }
+
+  /// Shows [page] of [extension] over the site [home] belongs to; false
+  /// when it was not shown.
+  Future<bool> open(
+    ExtensionPage page, {
+    required WebExtensionId extension,
+    required ExtensionHome home,
+  }) => _engine.openPage(page, extension: extension, home: home);
+
+  Future<void> _inspect(List<InstalledExtension> installed) async {
+    for (final (:entry, :folder) in installed) {
+      final report = await _engine.inspect(folder);
+      if (report == null) continue;
+      if (!_installed.value.any((i) => i.entry.id == entry.id)) continue;
+      if (report.problems.isNotEmpty) {
+        LogTag.webExtension.info(
+          '${entry.id}: WebKit reported ${report.problems.length} problems',
+        );
+      }
+      _reports.value = Map.unmodifiable({
+        ..._reports.value,
+        entry.id: report,
+      });
+    }
   }
 
   void _publish(List<WebExtensionEntry> entries) {
@@ -200,6 +272,8 @@ class WebExtensionLibrary {
   @visibleForTesting
   void debugReset() {
     _folders = null;
+    _engine = const NativeExtensionEngine();
     _installed.value = const [];
+    _reports.value = const {};
   }
 }
