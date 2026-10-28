@@ -116,10 +116,11 @@ test('US-DR-008: a page draining nodes through appendChild finishes, bridging ea
   const { dom, calls } = setup();
   const { document } = dom.window;
   const scratch = document.createElement('div');
-  scratch.innerHTML = '<br><p>result</p>';
+  scratch.innerHTML = '<br><p>result</p><i></i>';
   const s = document.createElement('script');
   s.text = 'window.__drained = "погода";';
-  scratch.appendChild(s);
+  // As sj_appHTML places it: replaceChild, which the shim does not wrap.
+  scratch.replaceChild(s, scratch.lastChild);
   scratch.removeChild(scratch.firstChild);
 
   const u = scratch.childNodes;
