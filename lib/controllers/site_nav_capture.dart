@@ -48,4 +48,14 @@ final class SiteNavCapture implements NavCapture {
     );
     return true;
   }
+
+  @override
+  Future<void> unsave() async {
+    await _navStates.removeState(key);
+    LogTag.webViewState.debug(
+      'Removed the capture for "${model.name}" (state key: $key): its tab '
+      'closed or moved while it was saved',
+      sensitive: true,
+    );
+  }
 }

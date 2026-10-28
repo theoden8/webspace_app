@@ -433,9 +433,6 @@ the override under the sites already loaded.
   that flips the tabs of several owners at once, is written outside a
   step (`Unmodeled.identityChange`); only one owner's own links are a
   step (attempt 16).
-- A capture's save whose reply lands after a flip's remove leaves a back
-  stack under the identity the tab left, which a flip back would read.
-  The model reaches that state and no invariant names it.
 - A reroute that arrives while the tab gate is held waits in the code and
   is not taken by the model (`steps_uncovered.tsv`).
 - A settings change of a site's proxy or Tor exit is checked only by the

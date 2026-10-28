@@ -883,11 +883,19 @@ abstract final class ActivationTable {
   /// An activation, a preload and a return home, between their awaits, with
   /// the unload engine's table nested at its places and the jar's restore
   /// at the jar's.
-  /// Going home captures the site left, in the capture's two steps.
+  /// Going home captures the site left, in the capture's steps.
   static final _homeCapture =
       captureSteps<WebViewModel, ActivationFlow, ActivationPlace>(
-        names: (read: ActivationStep.homeCapture, save: ActivationStep.homeCaptureSave),
-        places: (save: ActivationPlace.hCapSave, after: to(ActivationPlace.hQuiesce)),
+        names: (
+          read: ActivationStep.homeCapture,
+          save: ActivationStep.homeCaptureSave,
+          unsave: ActivationStep.homeCaptureUnsave,
+        ),
+        places: (
+          save: ActivationPlace.hCapSave,
+          unsave: ActivationPlace.hCapUnsave,
+          after: to(ActivationPlace.hQuiesce),
+        ),
         of: (
           site: _site.value,
           built: (s) => s.tabBinding.built,
@@ -1118,6 +1126,7 @@ abstract final class ActivationTable {
       ActivationPlace.next ||
       ActivationPlace.uNav ||
       ActivationPlace.uNavSave ||
+      ActivationPlace.uNavUnsave ||
       ActivationPlace.uCaptured ||
       ActivationPlace.uTurn ||
       ActivationPlace.uCap ||
@@ -1632,6 +1641,7 @@ abstract final class ActivationTable {
       // webview stays loaded, so a near-immediate return keeps its tab.
       ActivationPlace.hCap => _homeCapture.read,
       ActivationPlace.hCapSave => _homeCapture.save,
+      ActivationPlace.hCapUnsave => _homeCapture.unsave,
       // Then the page it left is stopped and paused.
       ActivationPlace.hQuiesce => Step(
         ActivationStep.homeQuiesceReply,

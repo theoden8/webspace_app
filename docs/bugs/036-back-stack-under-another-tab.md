@@ -97,6 +97,55 @@ with the tab they were read for.
    only the walk's setups and TLC's worlds within their bounds hold the
    activation's reads to it; `Staged` was the one left reading at the reply.
 
+5. **2026-10-26, branch `claude/capture-unsave`.** The capture checked its
+   tab at the webview's reply and then saved, so a reroute that landed while
+   the save was out (LIR-024) removed the tab's file under the key it left
+   and the save wrote it back: the moved tab kept a back stack under that
+   key, which a move back restored. TLC found it with an invariant stated
+   apart from the capture: at rest, a listed tab keeps a file only under the
+   key of the site it runs as (`Inv_TabFilesHosted`). In
+   `activation_tabs_reroute_containers` going home captures site 1's link
+   tab, a reroute flips it to site 3 and removes its file under site 1, and
+   the home capture's save lands after. Now a capture's save that lands when
+   its tab no longer holds under the key, closed or moved, takes its file
+   back (`NavCapture.unsave`, a step of its own after the save in every flow
+   that captures, and the same sequence in `captureStateBytes`). The walk
+   holds that no key a reroute took a back stack off has a file at rest
+   unless a tab runs under it again. Planted and caught: `savekeepsgone`
+   (the home capture's save without its `gone` arm), by
+   `Inv_TabFilesHosted` in the reroute world and by the walk on `[GoHome(),
+   Reroute()]`. The same invariant found the model's reroute removing a
+   flipped tab's file under its link, where a child tab hosted on another
+   site had run (`activation_tabs_containers`); the code removes the key it
+   recorded before the flip (`dropped`), and the model now records each
+   tab's host as the flow begins (`ranAs`). *Why:* the capture's two
+   checks guarded its read, and nothing guarded the write's own await. *Partial:* a close removes the closed tab's file before the
+   tab leaves the list (below); and a tab moved away and back while the
+   save is out holds under its key again, so the save keeps bytes read
+   before the moves, which no variable of the model tells apart.
+
+6. **2026-10-26, branch `claude/close-list-first`.** A close removed the
+   closed tab's file (`tRemove`) before the tab left the list (`tRebind`, or
+   the parked close's own install), so a capture of it whose save landed
+   between found it listed and kept the file: a back stack under a key no
+   tab holds, until the startup orphan sweep. Now the close decides in a
+   step with no await of its own (`tClosed`), the list lets the tab go, and
+   only then are its files removed, under the key it ran as when the close
+   began (the flow's `ranAs`, the code's recorded keys), as the
+   reroute's flips come before its removals. A save that lands after the
+   list moved takes its file back (attempt 5). `Inv_TabFilesListed` holds
+   that at rest a tab its site no longer lists keeps no file, and the walk
+   that every file at rest belongs to a listed tab or to a site that left
+   the list. Planted and caught: `rebindskipsclose` (a close's rebind ends
+   the flow), by `Inv_TabFilesListed` in `activation_tabs` and by the walk
+   on `[CloseTab(0, tab: 0)]`. The old order itself spans four actions, so
+   no single mutant plants it; with it put back the walk breaks on `[Tap(0),
+   OpenTab(0, tab: 1)]` then `[CloseTab(0, tab: 1), Tap(1)]`, kept as a
+   named schedule. *Why:* the reroute already removed after its flips; the
+   close was the one flow that removed first. *Partial:* a tab moved away
+   and back while a save is out still keeps bytes read before the moves
+   (attempt 5).
+
 ## Known open gaps
 
 - Under a process-global proxy (Android, Linux) a tab switch that changes the
@@ -110,6 +159,3 @@ with the tab they were read for.
   tab input on a site off screen activates it inside the tab gate, a nesting
   the activation table does not print yet, so those schedules are checked by
   the world's invariants and listed in `formal/trace/steps_uncovered.tsv`.
-- A capture of a tab that closes while its write is in flight can leave that
-  tab's file behind. Nothing restores it (no tab has that id again); the
-  startup orphan sweep reaps it.

@@ -181,6 +181,10 @@ enum FlowField {
   keep('FALSE', range: r'BOOLEAN'),
   rest('{}', range: r'SUBSET TabIds'),
   closing('{}', range: r'SUBSET TabIds'),
+
+  /// The site each of a close's or a reroute's tabs ran as when the flow
+  /// began, whose key a removal takes once the tab no longer runs under it.
+  ranAs('<<>>', range: r'[TabIds -> Sites] \cup {<<>>}'),
   copy('0', range: r'TabIds \cup {0}'),
 
   /// The site a duplicate's copy runs as, its source's when the copy was

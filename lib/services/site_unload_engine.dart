@@ -656,8 +656,16 @@ class SiteUnloadEngine {
   /// The victim's back stack captured before it goes, when its reason
   /// keeps one.
   static final _capture = captureSteps<WebViewModel, UnloadFlow, UnloadPlace>(
-    names: (read: ActivationStep.unloadNavReply, save: ActivationStep.unloadNavSave),
-    places: (save: UnloadPlace.uNavSave, after: to(UnloadPlace.uCaptured)),
+    names: (
+      read: ActivationStep.unloadNavReply,
+      save: ActivationStep.unloadNavSave,
+      unsave: ActivationStep.unloadNavUnsave,
+    ),
+    places: (
+      save: UnloadPlace.uNavSave,
+      unsave: UnloadPlace.uNavUnsave,
+      after: to(UnloadPlace.uCaptured),
+    ),
     of: (
       site: _victim.value,
       built: (s) => s.tabBinding.built,
@@ -731,9 +739,10 @@ class SiteUnloadEngine {
           next: to(UnloadPlace.uNav),
         ),
       ),
-      // The victim's back stack captured, in the capture's two steps.
+      // The victim's back stack captured, in the capture's steps.
       UnloadPlace.uNav => _capture.read,
       UnloadPlace.uNavSave => _capture.save,
+      UnloadPlace.uNavUnsave => _capture.unsave,
       // The container path disposes here, the jar path waits for the jar's
       // turn.
       UnloadPlace.uCaptured => Step(

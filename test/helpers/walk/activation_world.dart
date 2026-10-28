@@ -2407,8 +2407,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     );
   }
 
-  /// TAB-003: a site's one webview shows its active tab's history, and each
-  /// tab's state file holds that tab's history.
+  /// TAB-003: a site's one webview shows its active tab's history, each
+  /// tab's state file holds that tab's history, and a back stack a reroute
+  /// moved off a key stays off it until a tab runs under that key again
+  /// (LIR-024, BUG-036).
   void _checkTabs() {
     for (final m in sites.models) {
       expect([for (final t in m.tabs) t.id], contains(m.activeTabId),
@@ -2432,6 +2434,22 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           key.substring(key.indexOf('.') + 1),
           reason: 'the state file $key holds another tab\'s history');
     });
+    final listed = {
+      for (final m in sites.models)
+        for (final t in m.tabs) m.stateKeyForTab(t.id),
+    };
+    // A site that left the list keeps its files until the startup orphan
+    // sweep, which the walk does not run.
+    final left = {
+      for (final m in {?_deleted, ..._archived})
+        if (!sites.models.contains(m))
+          for (final t in m.tabs) m.stateKeyForTab(t.id),
+    };
+    for (final key in navStates.files.keys) {
+      if (listed.contains(key) || left.contains(key)) continue;
+      fail('the state file $key outlived its tab, closed or moved off the '
+          'key (TAB-003, LIR-024, BUG-036)');
+    }
   }
 
   void _checkSharedJar() {

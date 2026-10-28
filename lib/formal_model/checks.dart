@@ -90,6 +90,8 @@ enum Inv {
   told(reads: {ModelVar.dns, ModelVar.told}),
   tabShown(reads: {ModelVar.built, ModelVar.hist}),
   tabFiles(reads: {ModelVar.file}),
+  tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
+  tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
   tabActive(atRest: true, reads: {ModelVar.active, ModelVar.built, ModelVar.loaded, ModelVar.tabs}),
   retired(
@@ -124,7 +126,14 @@ const _core = [
   Inv.places,
 ];
 const _jar = [Inv.oneSitePerBase, Inv.noSessionLoss, Inv.noForeignSession];
-const _tabs = [Inv.tabShown, Inv.tabFiles, Inv.tabBound, Inv.tabActive];
+const _tabs = [
+  Inv.tabShown,
+  Inv.tabFiles,
+  Inv.tabFilesHosted,
+  Inv.tabFilesListed,
+  Inv.tabBound,
+  Inv.tabActive,
+];
 
 /// A world `activation.tla` is checked in: its constants, and what holds
 /// there ([holds] null for a world only a hand-written mistake runs in).
@@ -1064,6 +1073,21 @@ enum Mutant {
         "a slot that moves into the router's shared session staying "
         'loaded: an activation planned while it ran outside commits beside '
         'it on another route (BUG-037, caught)',
+  ),
+  savekeepsgone(
+    world: ActivationWorld.tabsRerouteContainers,
+    by: Inv.tabFilesHosted,
+    doc:
+        "a capture whose save lands after a reroute moved its tab keeping "
+        "the file under the key the tab left, which a move back restores "
+        '(BUG-036, caught)',
+  ),
+  rebindskipsclose(
+    world: ActivationWorld.tabs,
+    by: Inv.tabFilesListed,
+    doc:
+        "a close of the active tab whose rebind ends the flow, so the closed "
+        "tab's file outlives it (BUG-036, caught)",
   ),
   torkeepsslot(
     world: ActivationWorld.tabsChildNestedTorContainers,

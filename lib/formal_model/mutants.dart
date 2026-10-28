@@ -657,6 +657,27 @@ Tables mutated(Mutant m) => switch (m) {
   Mutant.reopenbesidenested => _with(
     ops: _withDef(tables.ops, def: _reopensBesideNested()),
   ),
+  // Going home, a capture's save that lands after its tab moved keeps the
+  // file it wrote, under a key no tab holds.
+  Mutant.savekeepsgone => _with(
+    activation: _without(
+      tables.activation,
+      step: ActivationStep.homeCaptureSave,
+      outcome: StepOutcome.gone,
+    ),
+  ),
+  // The rebind a close of the active tab hands over to ends the flow, as a
+  // switch's does, so the closed tab's file is never removed. The order
+  // before BUG-036 attempt 6, the removals ahead of the list, spans four
+  // actions, which no single mutant plants.
+  Mutant.rebindskipsclose => _with(
+    tabFlow: _withArms(
+      tables.tabFlow,
+      step: ActivationStep.tabRebind,
+      // Its branches that go on to the removals are the first and third.
+      arms: (s) => s.withArms(branches: [s.branches[1]]),
+    ),
+  ),
   // A slot that runs as another site under a Tor runtime stays loaded, the
   // shape before BUG-037 attempt 20: the one exit is no rule `MovesRule`
   // counts, so the slot's webview is built again on another exit beside

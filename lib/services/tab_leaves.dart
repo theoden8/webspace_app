@@ -112,3 +112,12 @@ Write<W> captured<S, W>(Expr<S, W> site) => fileOf<S, W>().becomes(
     run: (_) => throw StateError('the platform holds file'),
   ),
 );
+
+/// What [captured] wrote taken back: its tab closed or moved while the save
+/// was out, so the file it wrote is under a key no tab holds.
+Write<W> uncaptured<S, W>(Expr<S, W> site) => fileOf<S, W>().becomes(
+  ModelDef.capture.over(
+    [site, capTab<W>().value, noTab<W>(), capAs<S, W>().value],
+    run: (_) => throw StateError('the platform holds file'),
+  ),
+);

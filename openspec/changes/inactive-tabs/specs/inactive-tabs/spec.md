@@ -78,13 +78,16 @@ A site's webview SHALL show its active tab's history. Bytes queued for a site's
 next webview SHALL carry the tab they were read for, and a webview built for
 any other tab SHALL drop them. A capture SHALL store a webview's bytes under
 the tab the webview was built for, never under whichever tab is active when
-the capture returns, and SHALL drop them when that tab closed meanwhile.
+the capture returns, and SHALL drop them when that tab closed meanwhile. A
+capture whose save lands after its tab closed, or moved to another site's key
+(LIR-024), SHALL remove the file it wrote.
 Closing a site's last tab SHALL land it on a new tab at its home page, with an
 id none of the site's tabs had: a capture of the closed tab still in flight
 would otherwise land in the new tab's file. Gate: the switch, the close and the
 duplicate are step tables (`TabTable.tabInputs`, `tabFlow`) printed into
-`formal/activation.tla`, whose `Inv_TabShown`, `Inv_TabFiles`, `Inv_TabBound`
-and `Inv_TabActive` TLC holds on `activation_tabs.cfg`; the tab schedules in
+`formal/activation.tla`, whose `Inv_TabShown`, `Inv_TabFiles`,
+`Inv_TabFilesHosted`, `Inv_TabFilesListed`, `Inv_TabBound` and
+`Inv_TabActive` TLC holds on `activation_tabs.cfg`; the tab schedules in
 `test/activation_schedules_test.dart` are replayed against it.
 
 #### Scenario: Switching tabs inside a site
@@ -121,6 +124,22 @@ and `Inv_TabActive` TLC holds on `activation_tabs.cfg`; the tab schedules in
 - **WHEN** the user goes back to the webspace list before that read returns
 - **THEN** the capture going home makes is stored under T1, whose history it
   is, and never under T2
+
+#### Scenario: A tab moved while its capture saves
+
+- **GIVEN** GitHub is on screen on its link tab T2, which runs as GitHub
+- **WHEN** the user goes back to the webspace list, and a reroute moves T2 to
+  run as Mastodon while the capture going home makes is being saved
+- **THEN** the file that save wrote under GitHub's key for T2 is removed
+- **AND** moving T2 back to GitHub restores no back stack from before the move
+
+#### Scenario: A tab closed while its capture saves
+
+- **GIVEN** GitHub is on screen on T2, with T1 parked
+- **WHEN** the user closes T2 and, before the close is done, taps Mastodon, so
+  the capture leaving GitHub saves T2's history
+- **THEN** once both settle no file holds T2's back stack, under any key
+- **AND** GitHub's webview is built for T1
 
 #### Scenario: Switching sites leaves tabs alone
 

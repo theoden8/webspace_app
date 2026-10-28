@@ -426,6 +426,15 @@ IncognitoOne == {3}
 
 Inv_TabFiles ==
     \A s \in Tabbed : \A t \in TabIds : \A h \in Sites : file[s][t][h] \in {0, t}
+\* TAB-003, LIR-024: at rest a listed tab keeps a file only under the key of
+\* the site it runs as, so a tab moved off a key leaves no back stack there
+\* for a move back to restore (BUG-036).
+Inv_TabFilesHosted == Idle => \A s \in Tabbed : \A t \in tabs[s] : \A h \in Sites :
+    file[s][t][h] # 0 => host[s][t] = h
+\* TAB-003: at rest a tab its site no longer lists keeps no file, so a
+\* close leaves no back stack for a capture still out to keep (BUG-036).
+Inv_TabFilesListed == Idle => \A s \in Tabbed : \A t \in TabIds \ tabs[s] :
+    \A h \in Sites : file[s][t][h] = 0
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
 Inv_TabActive == Idle => \A s \in Tabbed :
     /\ active[s] \in tabs[s]

@@ -22,6 +22,7 @@ enum UnloadPlace {
   next,
   uNav,
   uNavSave,
+  uNavUnsave,
   uCaptured,
   uTurn,
   uCap,
@@ -625,6 +626,7 @@ class CookieIsolationEngine {
       UnloadPlace.next ||
       UnloadPlace.uNav ||
       UnloadPlace.uNavSave ||
+      UnloadPlace.uNavUnsave ||
       UnloadPlace.uCaptured ||
       UnloadPlace.afterUnload ||
       UnloadPlace.nextClear ||

@@ -104,6 +104,7 @@ abstract final class TabTable {
   static const _keep = Field<bool, TabFlow>(FlowField.keep);
   static const _rest = Field<List<SiteTab>, TabFlow>(FlowField.rest);
   static const _closing = Field<List<TabId>, TabFlow>(FlowField.closing);
+  static const _ranAs = Field<Map<TabId, WebViewModel>, TabFlow>(FlowField.ranAs);
   static const _copy = Field<TabId, TabFlow>(FlowField.copy);
   static const _copyAs = Field<WebViewModel, TabFlow>(FlowField.copyAs);
   static const _label = Field<Uint8List?, TabFlow>(FlowField.label);
@@ -260,6 +261,50 @@ abstract final class TabTable {
     }
     return null;
   }
+
+  /// A close's rebind, whose closed tabs' files go after it; a switch
+  /// closes none.
+  static final _closes = ~_closing.valueOr(none: const []).isEmpty;
+
+  /// The rebind of a slot whose identity changes across a rule another
+  /// site shares: it leaves the loaded sites, and its activation for the
+  /// new route starts in the same turn (LIR-024).
+  static final List<Effect<TabFlow>> _rebindsAs = [
+    Act.of([
+      _active.except(_site.value, to: _tab.value),
+      _tabs.except(_site.value, to: _installed),
+      ...TabVars.dropped(_site.value, kept: _targetIn),
+      _loaded.becomes(_loaded.value.less(_site.value.asSet)),
+      ...TabVars.rebound(
+        _site.value,
+        tab: _tab.value,
+        label: _labelTla,
+        loaded: _loaded.value.less(_site.value.asSet),
+      ),
+    ], then: (c) => _page.from(c).rebindAs(c)),
+    Spawn(
+      ActivationStep.tap,
+      site: _site.value,
+      when: _reopened,
+      start: (c) => _page.from(c).activate(_site.of(c)),
+    ),
+  ];
+
+  /// List, pointer and webview moved in one turn.
+  static final List<Effect<TabFlow>> _rebinds = [
+    Act.of([
+      _active.except(_site.value, to: _tab.value),
+      _tabs.except(_site.value, to: _installed),
+      ...TabVars.dropped(_site.value, kept: _targetIn),
+      _tier.except(_site.value, to: _residentIfLoaded),
+      ...TabVars.rebound(
+        _site.value,
+        tab: _tab.value,
+        label: _labelTla,
+        loaded: _loaded.value,
+      ),
+    ], then: (c) => _page.from(c).rebind(c)),
+  ];
 
   static final _live = _currentVar.value.eq(_site.value) | _loaded.value.has(_site.value);
 
@@ -452,17 +497,6 @@ abstract final class TabTable {
     );
   }
 
-  /// The site [tab] of [s] ran as before a reroute flipped it, whose key
-  /// its old file is under.
-  static Expr<WebViewModel, TabFlow> _left(
-    Expr<WebViewModel, TabFlow> s, {
-    required Expr<TabId, TabFlow> tab,
-  }) => Expr.choose(
-    when: _tabHost.at(s).at(tab).eq(s),
-    then: _link.at(s).at(tab).unwrapped,
-    otherwise: s,
-  );
-
   /// The loaded sites as a reroute's flips found them.
   static final _beforeReroute = Note<TabFlow>(
     (c) => _flow.from(c).loadedBefore = _page.from(c).loaded,
@@ -587,7 +621,9 @@ abstract final class TabTable {
         ),
       ),
       // closeTab(site, tabId): the engine decides the survivors and the tab
-      // that takes over; the closed tab's file goes first (tRemove).
+      // that takes over, and each closed tab's key is kept: its file goes
+      // once the list has let it go (tRemove), so a capture of it still
+      // out finds it gone and takes back what it saves (TAB-003).
       TabPlace.closeTab => Step.input(
         ActivationStep.closeTab,
         enabled: _tabbedCurrent & (~_survivors.isEmpty | _hasFresh),
@@ -611,14 +647,18 @@ abstract final class TabTable {
                       activeTabId: f.site.activeTabId,
                       closeId: _chosenTab.run(c),
                     );
+              f.dropped = {
+                for (final id in f.result!.closedIds) id: f.site.stateKeyForTab(id),
+              };
             }),
             ..._starts,
             _tab.becomes(_chosenTab),
             _keep.becomes(_no),
             _rest.becomes(_resultTabs),
             _closing.becomes(_closedIds),
+            _ranAs.becomes(_tabHost.at(_current)),
           ],
-          next: to(TabPlace.tRemove),
+          next: to(TabPlace.tClosed),
         ),
       ),
       // duplicateTab(site): a copy of the active tab, parked beside it
@@ -662,6 +702,7 @@ abstract final class TabTable {
             _kind.becomes(Expr.constant(FlowKind.tab)),
             _site.becomes(_rerouted),
             _closing.becomes(_relinked(_rerouted)),
+            _ranAs.becomes(_tabHost.at(_rerouted)),
           ],
           next: to(TabPlace.rFlip),
         ),
@@ -738,8 +779,10 @@ abstract final class TabTable {
       ),
       TabPlace.tCap ||
       TabPlace.tCapSave ||
+      TabPlace.tCapUnsave ||
       TabPlace.tNav ||
       TabPlace.tRebind ||
+      TabPlace.tClosed ||
       TabPlace.tRemove ||
       TabPlace.tDupRead ||
       TabPlace.tDupSave ||
@@ -757,11 +800,19 @@ abstract final class TabTable {
   );
 
   /// The outgoing tab's back stack captured under the webview's tab, in
-  /// the capture's two steps; a target tab that left the list meanwhile
-  /// ends the switch first.
+  /// the capture's steps; a target tab that left the list meanwhile ends
+  /// the switch first.
   static final _capture = captureSteps<WebViewModel, TabFlow, TabPlace>(
-    names: (read: ActivationStep.tabCaptureReply, save: ActivationStep.tabCaptureSave),
-    places: (save: TabPlace.tCapSave, after: to(TabPlace.tNav)),
+    names: (
+      read: ActivationStep.tabCaptureReply,
+      save: ActivationStep.tabCaptureSave,
+      unsave: ActivationStep.tabCaptureUnsave,
+    ),
+    places: (
+      save: TabPlace.tCapSave,
+      unsave: TabPlace.tCapUnsave,
+      after: to(TabPlace.tNav),
+    ),
     of: (
       site: _site.value,
       built: (s) => s.tabBinding.built,
@@ -799,6 +850,7 @@ abstract final class TabTable {
       // (Capture); a target closed meanwhile ends the switch.
       TabPlace.tCap => _capture.read,
       TabPlace.tCapSave => _capture.save,
+      TabPlace.tCapUnsave => _capture.unsave,
       // The target's saved back stack read; then list, pointer and webview
       // move in one turn (tRebind), unless the slot's identity changes
       // under a process-global proxy (LIR-024), which moves the pointer
@@ -836,7 +888,8 @@ abstract final class TabTable {
       // builds one for the target from them (TAB-003). A target that runs
       // as another site across a rule another site shares takes the slot out of
       // the loaded sites in the same turn, and the site's activation for its
-      // new route starts in that turn too, the arm's spawn (LIR-024).
+      // new route starts in that turn too, the arm's spawn (LIR-024). A
+      // close's rebind goes on to its closed tabs' files.
       TabPlace.tRebind => Step(
         ActivationStep.tabRebind,
         holds: null,
@@ -844,71 +897,37 @@ abstract final class TabTable {
         branches: [
           Branch(
             StepOutcome.unload,
+            when: _identityChanges & _closes,
+            then: _rebindsAs,
+            next: to(TabPlace.tRemove),
+          ),
+          Branch(
+            StepOutcome.unload,
             when: _identityChanges,
-            then: [
-              Act.of([
-                _active.except(_site.value, to: _tab.value),
-                _tabs.except(_site.value, to: _installed),
-                ...TabVars.dropped(_site.value, kept: _targetIn),
-                _loaded.becomes(_loaded.value.less(_site.value.asSet)),
-                ...TabVars.rebound(
-                  _site.value,
-                  tab: _tab.value,
-                  label: _labelTla,
-                  loaded: _loaded.value.less(_site.value.asSet),
-                ),
-              ], then: (c) => _page.from(c).rebindAs(c)),
-              Spawn(
-                ActivationStep.tap,
-                site: _site.value,
-                when: _reopened,
-                start: (c) => _page.from(c).activate(_site.of(c)),
-              ),
-            ],
+            then: _rebindsAs,
             next: to(TabPlace.done),
+          ),
+          Branch(
+            StepOutcome.none,
+            when: _closes,
+            then: _rebinds,
+            next: to(TabPlace.tRemove),
           ),
         ],
         otherwise: Otherwise(
           StepOutcome.none,
-          then: [
-            Act.of([
-              _active.except(_site.value, to: _tab.value),
-              _tabs.except(_site.value, to: _installed),
-              ...TabVars.dropped(_site.value, kept: _targetIn),
-              _tier.except(_site.value, to: _residentIfLoaded),
-              ...TabVars.rebound(
-                _site.value,
-                tab: _tab.value,
-                label: _labelTla,
-                loaded: _loaded.value,
-              ),
-            ], then: (c) => _page.from(c).rebind(c)),
-          ],
+          then: _rebinds,
           next: to(TabPlace.done),
         ),
       ),
-      // A closed tab's file removed; the last removal decides: the site
-      // left with no tab lands on a fresh one at home, a closed active tab
-      // hands the webview to the engine's next, a parked one just goes.
-      TabPlace.tRemove => Step(
-        ActivationStep.tabRemoveReply,
+      // The close decided: the site left with no tab lands on a fresh one
+      // at home, a closed active tab hands the webview to the engine's next,
+      // a parked one just leaves the list. The closed tabs' files go after.
+      TabPlace.tClosed => Step(
+        ActivationStep.tabClosed,
         holds: null,
-        pick: _eachClosing,
-        call: Call.on(
-          _files,
-          run: (c) => c.api.removeState(
-            _site.of(c).stateKeyForTab(_eachClosing.it.run(c)),
-          ),
-          writes: [TabVars.removed(_site.value, tab: _eachClosing.it)],
-        ),
         site: _site.value,
         branches: [
-          Branch(
-            StepOutcome.more,
-            when: ~_closing.value.without(_eachClosing.it).isEmpty,
-            then: [_closing.becomes(_closing.value.without(_eachClosing.it))],
-            next: to(TabPlace.tRemove),
-          ),
           Branch(
             StepOutcome.rebind,
             when: _restIds.isEmpty,
@@ -947,8 +966,38 @@ abstract final class TabTable {
               ),
             ], then: (c) => _page.from(c).closed(c)),
           ],
-          next: to(TabPlace.done),
+          next: to(TabPlace.tRemove),
         ),
+      ),
+      // A closed tab's file removed under the key it had as the close began,
+      // one a step, once no list holds it.
+      TabPlace.tRemove => Step(
+        ActivationStep.tabRemoveReply,
+        holds: null,
+        pick: _eachClosing,
+        call: Call.on(
+          _files,
+          run: (c) => c.api.removeState(
+            _flow.from(c).dropped[_eachClosing.it.run(c)]!,
+          ),
+          writes: [
+            TabVars.removedAs(
+              _site.value,
+              tab: _eachClosing.it,
+              as: _ranAs.value.at(_eachClosing.it),
+            ),
+          ],
+        ),
+        site: _site.value,
+        branches: [
+          Branch(
+            StepOutcome.more,
+            when: ~_closing.value.without(_eachClosing.it).isEmpty,
+            then: [_closing.becomes(_closing.value.without(_eachClosing.it))],
+            next: to(TabPlace.tRemove),
+          ),
+        ],
+        otherwise: Otherwise(StepOutcome.end, then: [], next: to(TabPlace.done)),
       ),
       // The duplicate's source read: the webview's back stack when the
       // site is loaded and the webview is the source's, else its file.
@@ -1148,7 +1197,7 @@ abstract final class TabTable {
             TabVars.removedAs(
               _site.value,
               tab: _eachClosing.it,
-              as: _left(_site.value, tab: _eachClosing.it),
+              as: _ranAs.value.at(_eachClosing.it),
             ),
           ],
         ),
