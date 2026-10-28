@@ -86,6 +86,8 @@ class AppLifecycleController {
       _backgrounded();
     } else if (state == AppLifecycleState.resumed) {
       _foregrounded();
+    } else if (state == AppLifecycleState.hidden) {
+      background.windowHidden();
     }
   }
 

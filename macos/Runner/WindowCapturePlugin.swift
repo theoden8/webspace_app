@@ -9,8 +9,10 @@ import FlutterMacOS
   /// `captureScreenshot` with not-implemented here, and a capture of Flutter's
   /// layer alone would leave out the site, which WKWebView draws in another
   /// process. `close` is the close button's own path, for
-  /// integration_test/close_keeps_running_test.dart (NOTIF-018). Debug builds
-  /// only: no shipped build can image its own window.
+  /// integration_test/close_keeps_running_test.dart (NOTIF-018), and
+  /// `trayMenu`, `openTray` and `pressTray` read and click the menu bar icon's
+  /// menu for integration_test/tray_test.dart (NOTIF-019). Debug builds only:
+  /// no shipped build can image its own window.
   enum WindowCapturePlugin {
     static func attach(
       to messenger: FlutterBinaryMessenger, window: MainFlutterWindow
@@ -61,6 +63,20 @@ import FlutterMacOS
         case "close":
           window.performClose(nil)
           result(nil)
+        case "trayMenu":
+          result(window.trayMenuTitles)
+        case "openTray":
+          window.openTray()
+          result(nil)
+        case "pressTray":
+          guard let args = call.arguments as? [String: Any],
+            let index = args["index"] as? Int
+          else {
+            result(
+              FlutterError(code: "bad_args", message: "pressTray takes index", details: nil))
+            return
+          }
+          result(window.pressTray(at: index))
         default:
           result(FlutterMethodNotImplemented)
         }

@@ -963,7 +963,19 @@
   },
   "appSettingsKeepRunningWhenClosedHintLinux": "Open WebSpace again or click one of its notifications to show it again. Ctrl+Q quits.",
   "@appSettingsKeepRunningWhenClosedHintLinux": {
-    "description": "Extra sentences appended to that hint on Linux only: launching the app (named Webspace) again or clicking a notification it posted brings the hidden window back, and the Ctrl+Q keys quit the app"
+    "description": "Extra sentences appended to that hint on Linux only: launching the app (named WebSpace) again or clicking a notification it posted brings the hidden window back, and the Ctrl+Q keys quit the app"
+  },
+  "appSettingsKeepRunningWhenClosedHintTray": "While it runs, its icon in the menu bar or system tray shows the window, opens a site with notifications on, or quits.",
+  "@appSettingsKeepRunningWhenClosedHintTray": {
+    "description": "Last sentence of that hint on Linux and macOS: while the app keeps running, it shows an icon in the macOS menu bar or the Linux desktop's system tray, whose menu brings the window back, opens one of the websites that send notifications, or quits the app"
+  },
+  "trayShowApp": "Show WebSpace",
+  "@trayShowApp": {
+    "description": "Line in the menu of the app's icon in the macOS menu bar or the Linux system tray: brings the app's hidden window back. WebSpace is the app's name; keep it as written"
+  },
+  "trayQuitApp": "Quit WebSpace",
+  "@trayQuitApp": {
+    "description": "Last line in the menu of the app's icon in the macOS menu bar or the Linux system tray: quits the app. WebSpace is the app's name; keep it as written"
   },
   "appSettingsFullscreenTabStrip": "In full screen, tab strip",
   "@appSettingsFullscreenTabStrip": {
@@ -5433,6 +5445,14 @@
   "appSettingsExperimentalWebExtensionsHint": "Run browser extensions you import from a file (a Chrome .crx, a Firefox .xpi or a .zip) on the sites you choose. WebKit runs what it supports of each one. An extension runs on no site until you switch it on in that site's settings, and there it reaches only that site.",
   "@appSettingsExperimentalWebExtensionsHint": {
     "description": "Explanation behind the hint button of the Web extensions experiment switch. .crx, .xpi and .zip are file types; WebKit is the browser engine; keep those names as they are."
+  },
+  "appSettingsExperimentalDesktopTray": "Tray icon",
+  "@appSettingsExperimentalDesktopTray": {
+    "description": "Title of the switch in App Settings > Developer > Experimental (Linux and macOS only) that shows the app's icon in the Linux system tray or the macOS menu bar while the app keeps running with its window closed."
+  },
+  "appSettingsExperimentalDesktopTrayHint": "While Keep running when closed is on, show WebSpace's icon in the menu bar or system tray. Its menu shows the window, opens a site with notifications on, or quits. On Linux it needs a desktop that hosts tray icons (AppIndicator).",
+  "@appSettingsExperimentalDesktopTrayHint": {
+    "description": "Explanation behind the hint button of the Tray icon experiment switch. Keep running when closed is the name of another setting; WebSpace is the app's name; AppIndicator is the name of a Linux desktop protocol; keep those as written."
   },
   "appSettingsExtensions": "Extensions",
   "@appSettingsExtensions": {

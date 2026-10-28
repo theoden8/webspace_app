@@ -20,6 +20,13 @@ class MainFlutterWindow: NSWindow {
   /// `show` bring it back.
   private(set) var closeHides = false
 
+  /// NOTIF-019: the menu bar icon lib/services/menu_bar_tray.dart draws over
+  /// the `tray` channel while a close only hides the window. A press on a
+  /// line, and the menu about to open, go back over the same channel.
+  private var trayChannel: FlutterMethodChannel?
+  private var statusItem: NSStatusItem?
+  private let trayMenu = NSMenu()
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -33,6 +40,7 @@ class MainFlutterWindow: NSWindow {
       messenger: flutterViewController.engine.binaryMessenger)
     HostBrowserPlugin.attach(to: flutterViewController.engine.binaryMessenger)
     attachDesktopWindowChannel(to: flutterViewController.engine.binaryMessenger)
+    attachTrayChannel(to: flutterViewController.engine.binaryMessenger)
     #if DEBUG
       WindowCapturePlugin.attach(
         to: flutterViewController.engine.binaryMessenger, window: self)
@@ -74,6 +82,13 @@ class MainFlutterWindow: NSWindow {
         self.closeHides = keep
         result(nil)
       case "show":
+        // A press in the menu bar icon's menu leaves another app in front
+        // (NOTIF-019); the Dock and a notification activate the app themselves.
+        if #available(macOS 14.0, *) {
+          NSApp.activate()
+        } else {
+          NSApp.activate(ignoringOtherApps: true)
+        }
         self.makeKeyAndOrderFront(nil)
         result(nil)
       default:
@@ -81,6 +96,105 @@ class MainFlutterWindow: NSWindow {
       }
     }
   }
+
+  private func attachTrayChannel(to messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "org.codeberg.theoden8.webspace/tray",
+      binaryMessenger: messenger
+    )
+    trayMenu.delegate = self
+    trayMenu.autoenablesItems = false
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else {
+        result(FlutterError(code: "no_window", message: nil, details: nil))
+        return
+      }
+      switch call.method {
+      case "show":
+        guard let args = call.arguments as? [String: Any],
+          let title = args["title"] as? String,
+          let entries = args["entries"] as? [[String: Any]]
+        else {
+          result(
+            FlutterError(
+              code: "bad_args", message: "show takes title and entries", details: nil))
+          return
+        }
+        let icon = (args["icon"] as? FlutterStandardTypedData)?.data
+        self.showTray(title: title, icon: icon, entries: entries)
+        result(nil)
+      case "remove":
+        if let item = self.statusItem {
+          NSStatusBar.system.removeStatusItem(item)
+        }
+        self.statusItem = nil
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    trayChannel = channel
+  }
+
+  private func showTray(title: String, icon: Data?, entries: [[String: Any]]) {
+    let item =
+      statusItem ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    statusItem = item
+    if let button = item.button {
+      if let icon = icon, let image = NSImage(data: icon) {
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        button.image = image
+        button.title = ""
+      } else {
+        button.image = nil
+        button.title = title
+      }
+      button.toolTip = title
+    }
+    trayMenu.removeAllItems()
+    for entry in entries {
+      guard let id = entry["id"] as? Int else { continue }
+      guard let label = entry["label"] as? String else {
+        trayMenu.addItem(NSMenuItem.separator())
+        continue
+      }
+      let line = NSMenuItem(
+        title: label, action: #selector(trayPressed(_:)),
+        keyEquivalent: (entry["quits"] as? Bool ?? false) ? "q" : "")
+      line.target = self
+      line.tag = id
+      trayMenu.addItem(line)
+    }
+    item.menu = trayMenu
+  }
+
+  @objc private func trayPressed(_ sender: NSMenuItem) {
+    trayChannel?.invokeMethod("pressed", arguments: ["id": sender.tag])
+  }
+
+  #if DEBUG
+    /// The menu bar icon's lines, a separator as "-", or nil with no icon:
+    /// for window_capture's `trayMenu` (NOTIF-019).
+    var trayMenuTitles: [String]? {
+      statusItem == nil
+        ? nil : trayMenu.items.map { $0.isSeparatorItem ? "-" : $0.title }
+    }
+
+    /// What a click on the menu bar icon tells the app before the menu shows.
+    func openTray() {
+      menuWillOpen(trayMenu)
+    }
+
+    /// A press on line [index] of the menu, as a click sends it.
+    func pressTray(at index: Int) -> Bool {
+      guard statusItem != nil, index >= 0, index < trayMenu.items.count else {
+        return false
+      }
+      trayMenu.performActionForItem(at: index)
+      return true
+    }
+  #endif
 
   #if DEBUG
     /// Set by WindowCapturePlugin's resize. A store-size window is taller
@@ -94,4 +208,12 @@ class MainFlutterWindow: NSWindow {
         ? frameRect : super.constrainFrameRect(frameRect, to: screen)
     }
   #endif
+}
+
+extension MainFlutterWindow: NSMenuDelegate {
+  /// The app reads each site's unread count afresh and sends the menu again.
+  func menuWillOpen(_ menu: NSMenu) {
+    guard menu === trayMenu else { return }
+    trayChannel?.invokeMethod("opening", arguments: nil)
+  }
 }

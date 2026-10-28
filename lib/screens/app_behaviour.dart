@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/controllers/desktop_tray.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -151,8 +152,13 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     final backOpensMenuHint = hostIsAndroid
         ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
         : loc.appSettingsBackOpensMenuHint;
-    final keepRunningHint = '${loc.appSettingsKeepRunningWhenClosedHint} '
-        '${hostIsMacOS ? loc.appSettingsKeepRunningWhenClosedHintMac : loc.appSettingsKeepRunningWhenClosedHintLinux}';
+    final keepRunningHint = [
+      loc.appSettingsKeepRunningWhenClosedHint,
+      hostIsMacOS
+          ? loc.appSettingsKeepRunningWhenClosedHintMac
+          : loc.appSettingsKeepRunningWhenClosedHintLinux,
+      if (DesktopTray.offered) loc.appSettingsKeepRunningWhenClosedHintTray,
+    ].join(' ');
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(

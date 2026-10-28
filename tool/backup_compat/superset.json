@@ -244,6 +244,7 @@
     "experimentalFolderLibrary": true,
     "experimentalSignInPopups": true,
     "experimentalWebExtensions": true,
+    "experimentalDesktopTray": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,
     "experimentalExternalTor": true,
