@@ -158,6 +158,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           ? loc.appSettingsKeepRunningWhenClosedHintMac
           : loc.appSettingsKeepRunningWhenClosedHintLinux,
       if (DesktopTray.offered) loc.appSettingsKeepRunningWhenClosedHintTray,
+      if (DesktopTray.offered && hostIsLinux)
+        loc.appSettingsKeepRunningWhenClosedHintTrayLinux,
     ].join(' ');
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),

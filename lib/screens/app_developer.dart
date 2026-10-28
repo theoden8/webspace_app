@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/controllers/desktop_tray.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
@@ -46,7 +47,7 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.webExtensions, Icons.extension_outlined,
             loc.appSettingsExperimentalWebExtensions,
             loc.appSettingsExperimentalWebExtensionsHint),
-      if (DesktopWindow.offered)
+      if (DesktopWindow.offered && DesktopTray.experimental)
         (ExperimentalFeature.desktopTray, Icons.web_asset_outlined,
             loc.appSettingsExperimentalDesktopTray,
             loc.appSettingsExperimentalDesktopTrayHint),

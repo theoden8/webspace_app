@@ -21,9 +21,10 @@ import 'package:webspace/widgets/root_messenger.dart';
 /// The icon a desktop keeps for the app in its status area while a close only
 /// hides the window (NOTIF-019): it shows the window, opens a site with
 /// notifications on as a tap on its notification does, and quits. It is
-/// there exactly while [AppPref.keepRunningWhenClosed] is on and the
-/// [ExperimentalFeature.desktopTray] experiment is reachable, on a desktop
-/// whose runner can hide its window ([DesktopWindow.offered]).
+/// there exactly while [AppPref.keepRunningWhenClosed] is on, on a desktop
+/// whose runner can hide its window ([DesktopWindow.offered]), and, where
+/// the tray is still [experimental] (macOS), while its experiment is
+/// reachable.
 class DesktopTray {
   DesktopTray(this._sites, {required void Function(SiteId site) open})
       : _open = open;
@@ -48,10 +49,19 @@ class DesktopTray {
       ? MenuBarTray(handlers: handlers)
       : StatusNotifierTray(handlers: handlers);
 
-  /// Whether the tray's experiment is reachable, so a close that only hides
-  /// the window leaves an icon behind.
-  static bool get offered => ExperimentalFeaturesService.instance
-      .isEnabled(ExperimentalFeature.desktopTray);
+  /// Whether this host shows the tray only with the Tray icon experiment on
+  /// (DEVTOOLS-011): macOS. On Linux it graduated.
+  static bool get experimental => debugExperimental ?? hostIsMacOS;
+
+  /// Lets a test run either rule whatever its host.
+  @visibleForTesting
+  static bool? debugExperimental;
+
+  /// Whether a close that only hides the window leaves an icon behind.
+  static bool get offered =>
+      !experimental ||
+      ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.desktopTray);
 
   static bool get _wanted =>
       DesktopWindow.offered && AppPref.keepRunningWhenClosed.value && offered;

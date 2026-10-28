@@ -24,8 +24,8 @@ enum ExperimentalFeature {
   /// off by default.
   webExtensions(AppPref.experimentalWebExtensions),
 
-  /// The desktop tray icon while a close only hides the window (NOTIF-019).
-  /// New, so off by default.
+  /// The menu bar icon on macOS while a close only hides the window
+  /// (NOTIF-019); Linux's tray graduated. New, so off by default.
   desktopTray(AppPref.experimentalDesktopTray);
 
   const ExperimentalFeature(this.pref);
