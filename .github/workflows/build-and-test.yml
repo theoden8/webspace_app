@@ -484,6 +484,21 @@ jobs:
             bash scripts/check_jni_intact.sh "$apk"
           done
 
+      - name: Verify APK does not name its flavor
+        # F-Droid can ship the release's own fmain APKs only when its fdroid
+        # build matches them, so no entry may depend on the flavor.
+        run: |
+          set -e
+          shopt -s nullglob
+          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "ERROR: no fdroid APK found to scan" >&2
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            bash scripts/check_flavor_free.sh "$apk" fdroid
+          done
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:

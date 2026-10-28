@@ -625,7 +625,7 @@ class FastSubresourceInterceptor(
 
     /// The cached copy of a CDN sub-resource, or null to let the request
     /// through: [localCdnEnabled] is this site's own choice (LCDN-007).
-    internal fun localCdnResponse(url: String): WebResourceResponse? {
+    fun localCdnResponse(url: String): WebResourceResponse? {
         if (!localCdnEnabled) return null
         val patterns = cdnTables.patterns
         val index = cdnTables.index
@@ -689,7 +689,7 @@ class FastSubresourceInterceptor(
      * for binary + JS resources) and plain (rare; defensively
      * handled).
      */
-    internal fun redirectResponseFor(dataUrl: String): WebResourceResponse? {
+    fun redirectResponseFor(dataUrl: String): WebResourceResponse? {
         if (!dataUrl.startsWith("data:")) return null
         val semi = dataUrl.indexOf(';', startIndex = 5)
         val comma = dataUrl.indexOf(',', startIndex = if (semi >= 0) semi else 5)
@@ -721,7 +721,7 @@ class FastSubresourceInterceptor(
         return WebResourceResponse(mime, "utf-8", ByteArrayInputStream(body))
     }
 
-    internal fun mapResourceType(request: WebResourceRequestExt): String {
+    fun mapResourceType(request: WebResourceRequestExt): String {
         if (request.isForMainFrame()) return "document"
         val headers = request.headers ?: emptyMap()
         // Header keys come back as the original case the browser
