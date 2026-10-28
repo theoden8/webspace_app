@@ -120,6 +120,9 @@ void main() {
       if (c == null) return;
       // The attach retries for up to ~1.5s after the view is created.
       await Future<void>.delayed(const Duration(seconds: 3));
+      // A site writes its options once its view exists; the plugin used to
+      // clear the interceptor's rule list on that write and stop calling it.
+      await c.setOptions(javascriptEnabled: true);
       await c.loadUrl('$base/page?v=$version');
       final deadline = DateTime.now().add(const Duration(seconds: 30));
       while (DateTime.now().isBefore(deadline)) {

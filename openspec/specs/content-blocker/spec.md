@@ -240,6 +240,18 @@ rules match exactly as before
 **And** the JNI layer dispatches to the same adblock-rust engine the Dart side uses
 **And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource
 
+#### Scenario: A settings write leaves the Android interceptor attached
+
+**Given** a site's webview on Android with `FastSubresourceInterceptor` attached
+**When** the app writes the webview's settings (its options once the view exists, text zoom, the end of cache first)
+**Then** the plugin still calls `FastSubresourceInterceptor.checkUrl` for every sub-resource
+**And** its blocks and allowed requests still reach the site's stats
+
+The plugin calls a handler only while its rule list is non-empty and clears that list on
+every settings write, so the interceptor hands out a fresh one-rule list on each read.
+Test: `InterceptorRuleListTest.kt`; on an emulator, `integration_test/localcdn_per_site_test.dart`
+writes the options before its page loads.
+
 #### Scenario: Sub-resource blocking on WebKit via JS bridge
 
 **Given** the engine is active on iOS, macOS or Linux

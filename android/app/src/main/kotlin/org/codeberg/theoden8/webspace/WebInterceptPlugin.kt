@@ -481,12 +481,11 @@ class FastSubresourceInterceptor(
     /// race this avoids.
     fun clearHostDecisionCache() = hostDecision.with { clear() }
 
-    init {
-        // Dummy rule so the Java guard `ruleList.size() > 0` passes
-        val trigger = ContentBlockerTrigger(".*", null, null, null, null, null, null, null)
-        val action = ContentBlockerAction.fromMap(mapOf("type" to "block"))
-        ruleList.add(ContentBlocker(trigger, action))
-    }
+    /// The plugin calls [checkUrl] only while this list reads non-empty, and
+    /// clears it on every settings write (`InAppWebView.setSettings`, which
+    /// the app's first options write reaches), so each read is a fresh list
+    /// holding one rule: a write can no longer detach the interceptor.
+    override fun getRuleList(): MutableList<ContentBlocker> = mutableListOf(KEEPS_CHECKING)
 
     private enum class Decision(val blocked: Boolean, val source: String?) {
         ALLOWED(false, null),
@@ -770,6 +769,12 @@ class FastSubresourceInterceptor(
         const val DNS_READY_TIMEOUT_MS = 15_000L
 
         private const val HOST_DECISION_CAP = 1024
+
+        /// Never matched: [checkUrl] decides every request itself.
+        private val KEEPS_CHECKING = ContentBlocker(
+            ContentBlockerTrigger(".*", null, null, null, null, null, null, null),
+            ContentBlockerAction.fromMap(mapOf("type" to "block")),
+        )
 
         /// Shared empty-body buffer for blocked-request responses.
         /// Reused across calls so we don't allocate a fresh byte array
