@@ -71,6 +71,13 @@ Future<void> hostDeleteDirectory(String path) async {
   if (await dir.exists()) await dir.delete(recursive: true);
 }
 
+/// Whether the running macOS app carries the Mac App Store's receipt,
+/// `Contents/_MASReceipt/receipt`, which only an App Store install has.
+bool hostHasAppStoreReceipt() => io.File(
+  '${io.File(io.Platform.resolvedExecutable).parent.parent.path}'
+  '/_MASReceipt/receipt',
+).existsSync();
+
 /// Moves the directory at [path] to [to], which must not exist.
 Future<void> hostRenameDirectory(String path, {required String to}) async {
   await io.Directory(path).rename(to);

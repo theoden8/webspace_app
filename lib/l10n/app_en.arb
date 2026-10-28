@@ -5725,6 +5725,71 @@
       }
     }
   },
+  "extensionsSearch": "Search addons.mozilla.org",
+  "@extensionsSearch": {
+    "description": "Row on the Extensions screen that opens a search of addons.mozilla.org, Mozilla's catalogue of Firefox extensions. Keep the site name as it is."
+  },
+  "extensionsSearchSubtitle": "Each result says how well WebKit runs it",
+  "@extensionsSearchSubtitle": {
+    "description": "Subtitle of the Search addons.mozilla.org row: what its results show."
+  },
+  "extensionsSearchHint": "Lists Firefox extensions from addons.mozilla.org, none hidden. Each says whether WebKit runs it: Runs when WebKit supports everything it asks for, Runs in part when it asks for something WebKit lacks, Unknown when the listing does not say. Adding one works as adding from its link. Offered only in builds from outside the App Store.",
+  "@extensionsSearchHint": {
+    "description": "Explanation behind the hint button of the Search addons.mozilla.org row. Runs, Runs in part and Unknown are the labels extensionsFitWorks, extensionsFitPartly and extensionsFitUnknown; use the same words."
+  },
+  "extensionsSearchField": "Search extensions",
+  "@extensionsSearchField": {
+    "description": "Placeholder of the search field on the addons.mozilla.org search screen, and the tooltip of its search button."
+  },
+  "extensionsSearchRecommended": "Recommended only",
+  "@extensionsSearchRecommended": {
+    "description": "Filter chip on the addons.mozilla.org search screen: show only extensions Mozilla recommends."
+  },
+  "extensionsSearchEmpty": "No extension matches",
+  "@extensionsSearchEmpty": {
+    "description": "Line on the addons.mozilla.org search screen when a search found nothing."
+  },
+  "extensionsSearchUnreadable": "Could not search: the answer could not be read",
+  "@extensionsSearchUnreadable": {
+    "description": "Line on the addons.mozilla.org search screen when the site answered with something the app could not read."
+  },
+  "extensionsSearchMore": "More results",
+  "@extensionsSearchMore": {
+    "description": "Button at the end of the addons.mozilla.org search results that loads the next page."
+  },
+  "extensionsSearchUsers": "{count, plural, =1{1 user} other{{count} users}}",
+  "@extensionsSearchUsers": {
+    "description": "How many people use an extension, under a result on the addons.mozilla.org search screen.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extensionsRecommendedBadge": "Recommended by Mozilla",
+  "@extensionsRecommendedBadge": {
+    "description": "Marks a search result that Mozilla recommends."
+  },
+  "extensionsFitWorks": "Runs",
+  "@extensionsFitWorks": {
+    "description": "Label beside a search result whose every requested permission WebKit, the app's browser engine, supports."
+  },
+  "extensionsFitPartly": "Runs in part",
+  "@extensionsFitPartly": {
+    "description": "Label beside a search result that asks for something WebKit, the app's browser engine, lacks, so part of it may not work."
+  },
+  "extensionsFitUnknown": "Unknown",
+  "@extensionsFitUnknown": {
+    "description": "Label beside a search result whose listing does not say what it asks for, so the app cannot tell how well WebKit runs it."
+  },
+  "extensionsAutoUpdate": "Install updates without asking",
+  "@extensionsAutoUpdate": {
+    "description": "Switch on the Extensions screen: install an extension's update as soon as the daily check finds it."
+  },
+  "extensionsAutoUpdateHint": "Installs an extension's update as soon as the daily check finds it. An update that asks for more than the installed version still waits for you. Offered only in builds from outside the App Store.",
+  "@extensionsAutoUpdateHint": {
+    "description": "Explanation behind the hint button of the Install updates without asking switch."
+  },
   "extensionsLibrary": "Imported",
   "@extensionsLibrary": {
     "description": "Section header on the Extensions screen above the list of browser extensions imported on this device."

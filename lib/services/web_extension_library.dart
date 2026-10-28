@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -20,7 +21,9 @@ import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_backup_engine.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
+import 'package:webspace/services/web_extension_search_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/web_extension.dart';
@@ -412,6 +415,57 @@ class WebExtensionLibrary {
       };
       if (checked == null) continue;
       await _replaceEntry(checked);
+      if (checked.latest != null && installsWithoutAsking) {
+        await _installQuietly(checked.id);
+      }
+    }
+  }
+
+  /// Whether an update that asks for nothing new installs as soon as a
+  /// check finds it: only outside the App Store, where the user switched it
+  /// on (WEBEXT-019).
+  bool get installsWithoutAsking =>
+      hostDistribution == AppDistribution.direct &&
+      AppPref.webExtensionsAutoUpdate.value;
+
+  Future<void> _installQuietly(WebExtensionId id) async {
+    switch (await prepareUpdate(id)) {
+      case UpdateReady(:final package, asks: AsksNothingNew()):
+        try {
+          await install(id, package: package);
+        } on IOException catch (e) {
+          LogTag.webExtension.info('$id stays at its version: $e');
+        }
+      case UpdateReady(asks: AsksMore()) ||
+          UpdateUnreachable() ||
+          UpdateNoRelease() ||
+          UpdateNotAPackage():
+        LogTag.webExtension.debug('$id waits for the user to update');
+    }
+  }
+
+  /// A page of addons.mozilla.org's search for [text] (WEBEXT-019).
+  Future<SourceFetch<SearchRead>> search(
+    String text, {
+    required bool recommendedOnly,
+    required int page,
+  }) async {
+    final query = amoSearchQuery(
+      text,
+      recommendedOnly: recommendedOnly,
+      page: page,
+    );
+    switch (await _fetch(query, maxBytes: _releaseBytes)) {
+      case FetchRefused(:final reason) || FetchFailed(:final reason):
+        return SourceFailed(reason);
+      case Fetched(:final response):
+        try {
+          return SourceGot(
+            readAmoSearch(jsonDecode(utf8.decode(response.bodyBytes))),
+          );
+        } on FormatException {
+          return SourceGot(readAmoSearch(null));
+        }
     }
   }
 

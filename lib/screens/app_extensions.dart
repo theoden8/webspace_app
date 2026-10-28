@@ -4,14 +4,17 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/app_extension_entry.dart';
+import 'package:webspace/screens/extension_search.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/byte_size.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_source.dart';
@@ -24,7 +27,6 @@ import 'package:webspace/widgets/toast.dart';
 /// with [FileDialogFailure] or an [IOException].
 typedef PickPackage = Future<Uint8List?> Function();
 
-
 /// Any file: a package is told from its bytes, and iOS offers no file type
 /// for `.crx` or `.xpi`.
 Future<Uint8List?> pickPackageFile() async {
@@ -36,7 +38,6 @@ Future<Uint8List?> pickPackageFile() async {
         null => null,
       };
 }
-
 
 /// App Settings > Extensions (WEBEXT-002): the extensions imported on this
 /// device, what WebKit reported reading each (WEBEXT-003), an import from a
@@ -63,72 +64,91 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
     unawaited(_library.checkUpdates(now: DateTime.now()));
   }
 
-  /// Adds an extension from a link to its listing or repository: its
-  /// latest release, the package the user picks where there are several,
-  /// and the same summary as a file import (WEBEXT-017).
+  /// Adds an extension from a link to its listing or repository
+  /// (WEBEXT-017).
   Future<void> _addFromLink() async {
     await _guard.run(() async {
-      final loc = AppLocalizations.of(context);
-      final messenger = ScaffoldMessenger.of(context);
       final source = await showDialog<ExtensionSource>(
         context: context,
         builder: (_) => const ExtensionLinkDialog(),
       );
       if (source == null || !mounted) return;
-      setState(() => _reading = true);
-      try {
-        final ReleaseFound release;
-        switch (await _library.latest(source)) {
-          case SourceFailed(:final reason):
-            messenger.toast(loc.extensionsLinkUnreachable(reason));
-            return;
-          case SourceGot(value: ReleaseRefused(:final why)):
-            messenger.toast(loc.extensionsLinkNoRelease(why.label(loc)));
-            return;
-          case SourceGot(value: final ReleaseFound found):
-            release = found;
-        }
-        if (!mounted) return;
-        setState(() => _reading = false);
-        final candidate = release.candidates.length == 1
-            ? release.candidates.single
-            : await _pickCandidate(release);
-        if (candidate == null || !mounted) return;
-        setState(() => _reading = true);
-        final ExtensionPackage package;
-        switch (await _library.download(candidate)) {
-          case SourceFailed(:final reason):
-            messenger.toast(loc.extensionsLinkUnreachable(reason));
-            return;
-          case SourceGot(value: PackageRefused(:final why)):
-            messenger.toast(loc.extensionsRefused(why.label(loc)));
-            return;
-          case SourceGot(value: final ExtensionPackage read):
-            package = read;
-        }
-        if (!mounted) return;
-        setState(() => _reading = false);
-        if (!await _confirmAdd(package)) return;
-        try {
-          final entry = await _library.add(
-            package,
-            source: switch (source) {
-              AmoSource() => source,
-              GitHubSource(:final owner, :final repo) => GitHubSource(
-                owner: owner,
-                repo: repo,
-                asset: assetPattern(candidate.name, version: release.version),
-              ),
-            },
-          );
-          messenger.toast(loc.extensionsAdded(entry.name));
-        } on IOException catch (e) {
-          messenger.toast(loc.extensionsImportFailed('$e'));
-        }
-      } finally {
-        if (mounted) setState(() => _reading = false);
-      }
+      await _addFrom(source);
     });
+  }
+
+  /// Adds an extension the user picks in a search of addons.mozilla.org,
+  /// as from its link (WEBEXT-019).
+  Future<void> _addFromSearch() async {
+    await _guard.run(() async {
+      final source = await Navigator.push<ExtensionSource>(
+        context,
+        MaterialPageRoute(builder: (_) => const ExtensionSearchScreen()),
+      );
+      if (source == null || !mounted) return;
+      await _addFrom(source);
+    });
+  }
+
+  /// Adds the extension [source] publishes: its latest release, the
+  /// package the user picks where there are several, and the same summary
+  /// as a file import (WEBEXT-017).
+  Future<void> _addFrom(ExtensionSource source) async {
+    final loc = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _reading = true);
+    try {
+      final ReleaseFound release;
+      switch (await _library.latest(source)) {
+        case SourceFailed(:final reason):
+          messenger.toast(loc.extensionsLinkUnreachable(reason));
+          return;
+        case SourceGot(value: ReleaseRefused(:final why)):
+          messenger.toast(loc.extensionsLinkNoRelease(why.label(loc)));
+          return;
+        case SourceGot(value: final ReleaseFound found):
+          release = found;
+      }
+      if (!mounted) return;
+      setState(() => _reading = false);
+      final candidate = release.candidates.length == 1
+          ? release.candidates.single
+          : await _pickCandidate(release);
+      if (candidate == null || !mounted) return;
+      setState(() => _reading = true);
+      final ExtensionPackage package;
+      switch (await _library.download(candidate)) {
+        case SourceFailed(:final reason):
+          messenger.toast(loc.extensionsLinkUnreachable(reason));
+          return;
+        case SourceGot(value: PackageRefused(:final why)):
+          messenger.toast(loc.extensionsRefused(why.label(loc)));
+          return;
+        case SourceGot(value: final ExtensionPackage read):
+          package = read;
+      }
+      if (!mounted) return;
+      setState(() => _reading = false);
+      if (!await _confirmAdd(package)) return;
+      try {
+        final entry = await _library.add(
+          package,
+          source: switch (source) {
+            AmoSource() => source,
+            GitHubSource(:final owner, :final repo) => GitHubSource(
+              owner: owner,
+              repo: repo,
+              asset: assetPattern(candidate.name, version: release.version),
+            ),
+          },
+        );
+        messenger.toast(loc.extensionsAdded(entry.name));
+      } on IOException catch (e) {
+        messenger.toast(loc.extensionsImportFailed('$e'));
+      }
+    } finally {
+      if (mounted) setState(() => _reading = false);
+    }
   }
 
   /// Which of [release]'s packages to add, offered in the engine's order.
@@ -246,6 +266,21 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
                 onTap: () => unawaited(_addFromLink()),
               ),
             ),
+            if (hostDistribution == AppDistribution.direct) ...[
+              SettingTile(
+                leading: const Icon(Icons.search),
+                title: loc.extensionsSearch,
+                hint: loc.extensionsSearchHint,
+                subtitle: loc.extensionsSearchSubtitle,
+                control: Opens(() => unawaited(_addFromSearch())),
+              ),
+              SettingTile(
+                leading: const Icon(Icons.system_update_alt),
+                title: loc.extensionsAutoUpdate,
+                hint: loc.extensionsAutoUpdateHint,
+                control: const PrefToggle(AppPref.webExtensionsAutoUpdate),
+              ),
+            ],
             if (_reading)
               Semantics(
                 label: loc.extensionsReading,
@@ -299,8 +334,9 @@ extension PackageRefusalLabel on PackageRefusal {
   /// Why the file is not imported, in the refusal's own terms (WEBEXT-002).
   String label(AppLocalizations loc) => switch (this) {
     NotAPackage() => loc.extensionsRefusedNotAPackage,
-    Truncated() || BrokenArchive() || CorruptEntry() =>
-      loc.extensionsRefusedDamaged,
+    Truncated() ||
+    BrokenArchive() ||
+    CorruptEntry() => loc.extensionsRefusedDamaged,
     TooLarge() => loc.extensionsRefusedTooLarge,
     UnsupportedPackage() => loc.extensionsRefusedUnsupported,
     UnsafeEntry(:final name) => loc.extensionsRefusedUnsafeName(name),
