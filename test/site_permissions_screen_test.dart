@@ -96,7 +96,7 @@ void main() {
       debugHostSharesScreen = false;
       await openSheet(tester);
       expect(tileOf(tester, label: 'Allowed').onChanged, isNull);
-      expect(find.textContaining('on Android and on macOS 14'),
+      expect(find.textContaining('on Android, on Linux and on macOS 14'),
           findsOneWidget);
       expect(find.text('Always allow'), findsNothing);
     });

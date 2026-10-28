@@ -2,14 +2,14 @@
 
 ## Purpose
 Let a site that asks to share the screen get what the user chooses for it:
-the real screen where the platform lets the app capture it (Android, macOS 14
-and later), or an image or video the user picks, served as a `MediaStream`
-shaped like a shared screen.
+the real screen where the platform lets the app capture it (Android, Linux,
+macOS 14 and later), or an image or video the user picks, served as a
+`MediaStream` shaped like a shared screen.
 
 A display capture is whole-surface by construction. `MediaProjection` mirrors
 the whole Android device (or one app, where Android 14+ lets the user pick
-one), the macOS picker hands over a display, a window or an app, and this
-app's own window holds the drawer, the tab strip and whichever other site the
+one), the macOS picker hands over a display, a window or an app, the Linux
+desktop portal a display or a window, and this app's own window holds the drawer, the tab strip and whichever other site the
 user switches to. So a real share is not scoped to the
 requesting site: while it runs, the site sees the user's other sites, other
 apps and any notification that appears. The feature therefore does not claim
@@ -36,12 +36,11 @@ shares the device screen (SHARE-018), `virtual` serves the picked surface
 origin and records the answer.
 
 `real` SHALL be offered only where `hostSharesScreen` says the platform lets
-the app capture the screen for a page: Android (`MediaProjection`) and macOS
-14 and later (`SCContentSharingPicker`). Not iOS, where sharing more than the
-app itself takes a broadcast extension, nor Linux, where WPE WebKit builds
-without WebRTC by default (Debian's among them), so no call could take a
-share; nor macOS before 14, which has no picker an app may show without the
-Screen Recording permission. Where it is not offered, the popup shows Block /
+the app capture the screen for a page: Android (`MediaProjection`), Linux (the
+desktop portal's ScreenCast) and macOS 14 and later
+(`SCContentSharingPicker`). Not iOS, where sharing more than the app itself
+takes a broadcast extension, nor macOS before 14, which has no picker an app
+may show without the Screen Recording permission. Where it is not offered, the popup shows Block /
 Use a media file only and says the real screen cannot be shared on this
 device.
 
@@ -72,9 +71,9 @@ consent the user gave on the exporting device.
 **Then** the answer the page reads is `virtual` or `block`
 **And** only Allow answers `real`
 
-#### Scenario: The real screen is offered on Android and macOS 14+ only
+#### Scenario: The real screen is offered on Android, Linux and macOS 14+ only
 
-**Given** an iOS or Linux device, or macOS before 14
+**Given** an iOS device, or macOS before 14
 **When** a site asks to share the screen
 **Then** the popup offers no Allow, and says the real screen cannot be shared here
 
@@ -82,8 +81,8 @@ consent the user gave on the exporting device.
 
 Per-site settings SHALL expose the decision as a control with Ask, Always
 allow, Simulated screen and Block. Where the real screen is not offered, the
-Allowed state SHALL be shown greyed and explained (it names Android and macOS
-14 and later) rather than omitted. Choosing Always allow SHALL first
+Allowed state SHALL be shown greyed and explained (it names Android, Linux
+and macOS 14 and later) rather than omitted. Choosing Always allow SHALL first
 show the warning of SHARE-019 and store nothing unless the user confirms it.
 Selecting Simulated screen SHALL prompt for the source file and SHALL show the
 chosen file's name and a preview. The preview SHALL show the whole source at
@@ -106,14 +105,14 @@ its own aspect ratio, matching what the site receives, rather than the camera's
 
 #### Scenario: Where it is not offered the unreachable state is visible
 
-**Given** the per-site permissions screen on iOS, Linux or macOS before 14
+**Given** the per-site permissions screen on iOS or macOS before 14
 **When** the user opens the Screen sharing row
 **Then** an "Allowed" option is shown, disabled, naming where WebSpace can
 share the real screen
 
 #### Scenario: Where it is offered, Always allow asks first
 
-**Given** the per-site permissions screen on Android or macOS 14+
+**Given** the per-site permissions screen on Android, Linux or macOS 14+
 **When** the user picks Always allow and cancels the warning
 **Then** the stored mode is unchanged
 **And** confirming it stores `real`
@@ -543,7 +542,7 @@ SHALL end the share itself rather than rely on the page to stop it.
 **When** a nested screen of site A, or site B, pulls a frame
 **Then** it reads that the share has ended
 
-### Requirement: SHARE-018 — The real screen on Android and macOS
+### Requirement: SHARE-018 — The real screen on Android, Linux and macOS
 
 Neither Android WebView nor WebKit lets the app grant a page a display capture
 of its own (SHARE-003), so the app runs one. On a `real` decision the shim
@@ -559,6 +558,16 @@ handler SHALL serve only the top document, ask the site's decision again
   display, a window or an app; ScreenCaptureKit then captures only that, and
   the app needs no Screen Recording permission. The menu bar shows the share
   and can stop it.
+- **Linux**: the desktop portal's ScreenCast
+  (`org.freedesktop.portal.ScreenCast`), whose own dialog lets the user pick a
+  display or a window, and which hands over a PipeWire stream of only that.
+  The app asks no permission of its own, so a Flatpak build reaches it as
+  any other does, and the desktop's own indicator shows the share and can
+  stop it. The runner (`linux/screen_share.cc`) reads the stream's frames as
+  memory, never a GPU buffer. Distributions build WPE WebKit without WebRTC
+  by default (Debian's, Arch's), so there a call page can no more send the
+  share than it can send the camera; a page that records or shows it can,
+  and so can a WPE built with WebRTC.
 
 A no denies the request with `NotAllowedError`, as a dismissed browser picker
 does, and leaves the stored mode alone.
@@ -576,7 +585,7 @@ stop (`webScreenShareStop`).
 
 #### Scenario: A real grant serves the screen
 
-**Given** an on-screen site on Android or macOS 14+ with `screenShareMode == real`
+**Given** an on-screen site on Android, Linux or macOS 14+ with `screenShareMode == real`
 **When** the page calls `getDisplayMedia({video: true})` and the user picks what to share in the system's prompt
 **Then** the page receives a video track whose frames are what the user picked
 
@@ -604,7 +613,7 @@ cannot be shared there.
 
 #### Scenario: The settings warning names what the site will see
 
-**Given** the per-site permissions screen on Android or macOS 14+
+**Given** the per-site permissions screen on Android, Linux or macOS 14+
 **When** the user picks Always allow for screen sharing
 **Then** a confirmation names other sites in WebSpace, other apps and notifications
 

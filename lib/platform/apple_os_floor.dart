@@ -70,13 +70,13 @@ bool get hostRunsWebExtensions =>
 bool? debugHostRunsWebExtensions;
 
 /// Whether this host can share its real screen with a page (SHARE-018):
-/// Android through `MediaProjection`, macOS 14 and later through the system's
-/// content picker. Not iOS, where sharing more than the app itself takes a
-/// broadcast extension, and not Linux, where WPE WebKit builds without WebRTC
-/// by default (Debian's among them), so no call could take a share.
+/// Android through `MediaProjection`, Linux through the desktop portal's
+/// ScreenCast, macOS 14 and later through the system's content picker. Not
+/// iOS, where sharing more than the app itself takes a broadcast extension.
 bool get hostSharesScreen =>
     debugHostSharesScreen ??
     (hostIsAndroid ||
+        hostIsLinux ||
         (hostIsMacOS &&
             appleOsMeetsFloor(hostOperatingSystemVersion,
                 isIOS: false, floor: AppleOsFloor.screenSharePicker)));

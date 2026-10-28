@@ -90,7 +90,7 @@ final class ShareEnded extends ShareFrame {
 }
 
 /// The system's side of a share: its own prompt and the capture behind it
-/// (`ScreenSharePlugin` on Android and on macOS).
+/// (`ScreenSharePlugin` on Android and on macOS, `screen_share.cc` on Linux).
 abstract interface class ScreenShareNative {
   /// Shows the system's prompt and starts the share. Null when the user
   /// declines, or the capture cannot start.
@@ -232,7 +232,7 @@ final class ScreenShare {
   }
 }
 
-/// [ScreenShareNative] over `ScreenSharePlugin` (Android, macOS).
+/// [ScreenShareNative] over the `screen_share` channel.
 final class ChannelScreenShareNative implements ScreenShareNative {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/screen_share');
