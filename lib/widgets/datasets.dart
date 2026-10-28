@@ -14,6 +14,7 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/services/top_sites_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
@@ -267,6 +268,55 @@ class SiteSearchListDataset extends ChangeNotifier implements ClearableDataset {
       await _service.download()
       ? loc.webSearchSiteListLoaded(compactCount(_service.siteCount))
       : loc.webSearchSiteListFailed;
+
+  @override
+  Future<String?> clear(AppLocalizations loc) async {
+    await _service.clear();
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _service.removeListener(notifyListeners);
+    super.dispose();
+  }
+}
+
+/// The popular sites the add-site field completes from (SUGGEST-008),
+/// fetched only from its row.
+class TopSitesDataset extends ChangeNotifier implements ClearableDataset {
+  TopSitesDataset() {
+    _service.addListener(notifyListeners);
+    unawaited(_service.load());
+  }
+
+  final _service = TopSitesService.instance;
+
+  /// Whether the filter lists are kept between downloads (SUGGEST-011).
+  bool get keepFilters => AppPref.topSitesKeepFilters.value;
+
+  Future<void> setKeepFilters({required bool on}) async {
+    final saved = AppPref.topSitesKeepFilters.set(on);
+    notifyListeners();
+    await saved;
+  }
+
+  @override
+  bool get ready => _service.isLoaded;
+
+  @override
+  DateTime? get lastUpdated => ready ? _service.lastUpdated : null;
+
+  @override
+  String? status(AppLocalizations loc) => ready
+      ? loc.topSitesCount(compactCount(_service.siteCount))
+      : loc.appSettingsNotDownloaded;
+
+  @override
+  Future<String> download(AppLocalizations loc) async =>
+      await _service.download()
+      ? loc.topSitesLoaded(compactCount(_service.siteCount))
+      : loc.topSitesFailed;
 
   @override
   Future<String?> clear(AppLocalizations loc) async {

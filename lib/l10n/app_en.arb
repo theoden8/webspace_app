@@ -3627,6 +3627,56 @@
   "@webSearchSiteListFailed": {
     "description": "Snackbar when downloading the site search list fails."
   },
+  "topSitesGroup": "Adding sites",
+  "@topSitesGroup": {
+    "description": "Heading on the app Behaviour screen over the settings that help when adding a new site."
+  },
+  "topSitesTitle": "Popular sites",
+  "@topSitesTitle": {
+    "description": "Title of the App Settings row that downloads a list of the most visited websites, used to suggest sites while the user types an address on the Add site screen."
+  },
+  "topSitesHint": "About ten thousand of the most visited websites, from Google's Chrome UX Report (CC BY 4.0), filtered. With it, typing an address when adding a site suggests matching sites. It is fetched only when you tap Download, through the app-wide proxy, and kept on this device until you clear it. What you type is matched on this device and never sent anywhere.",
+  "@topSitesHint": {
+    "description": "Explanation behind the hint button of the Popular sites row in App Settings. Chrome UX Report is the name of a Google dataset and CC BY 4.0 a licence name; keep both as is."
+  },
+  "topSitesCount": "{count} sites",
+  "@topSitesCount": {
+    "description": "Subtitle of the Popular sites row once downloaded: how many websites the list holds. The number is already formatted.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "topSitesLoaded": "Popular sites ready: {count} sites",
+  "@topSitesLoaded": {
+    "description": "Snackbar after the popular sites list downloads. The number is already formatted.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "topSitesFailed": "Could not download the popular sites list",
+  "@topSitesFailed": {
+    "description": "Snackbar when downloading the popular sites list fails."
+  },
+  "topSitesOffer": "Suggest popular sites as you type",
+  "@topSitesOffer": {
+    "description": "Shown under the address field on the Add site screen while the popular sites list is not downloaded, beside a Download button that fetches it so typing suggests matching websites."
+  },
+  "topSitesOfferDismissed": "You can download popular sites later in App Settings > Behaviour.",
+  "@topSitesOfferDismissed": {
+    "description": "Snackbar after the user hides the offer to download the popular sites list on the Add site screen; says where the list can still be downloaded. App Settings and Behaviour are screen names."
+  },
+  "topSitesKeepFilters": "Keep filter lists",
+  "@topSitesKeepFilters": {
+    "description": "Switch under the Popular sites row in App Settings: keep the lists that filter the popular sites on the device between downloads, trading storage for less downloading."
+  },
+  "topSitesKeepFiltersHint": "Keeps the filter lists on this device, about 1.7 MB, so a refresh within a month downloads only the sites, about 250 KB, instead of about 2 MB. Off, they are downloaded again on each refresh and only the sites are kept.",
+  "@topSitesKeepFiltersHint": {
+    "description": "Explanation of the Keep filter lists switch, shown in the Popular sites row's hint after the switch's name. The sizes are approximate; keep the numbers and units."
+  },
   "webSearchNoWebSites": "None of your sites searches the web yet. Add a search engine, such as DuckDuckGo, as a site.",
   "@webSearchNoWebSites": {
     "description": "Shown instead of a list when the user has no site that is a web search engine."

@@ -299,6 +299,26 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             title: loc.webSearchSiteListTitle,
             hint: loc.webSearchSiteListHint,
           ),
+          SettingsSection(loc.topSitesGroup),
+          DatasetTile(
+            create: TopSitesDataset.new,
+            icon: Icons.public,
+            title: loc.topSitesTitle,
+            hint: '${loc.topSitesHint}\n\n'
+                '${loc.topSitesKeepFilters}: ${loc.topSitesKeepFiltersHint}',
+            below: (topSites, {required download}) => SwitchListTile(
+              // Placed as the Firefox version row's switch is, under the
+              // title column.
+              contentPadding:
+                  const EdgeInsetsDirectional.only(start: 72, end: 24),
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              title: Text(loc.topSitesKeepFilters,
+                  style: const TextStyle(fontSize: 13)),
+              value: topSites.keepFilters,
+              onChanged: (value) => topSites.setKeepFilters(on: value),
+            ),
+          ),
           const SizedBox(height: 24),
         ],
       ),

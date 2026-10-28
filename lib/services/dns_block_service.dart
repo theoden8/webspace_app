@@ -6,6 +6,7 @@ import 'dart:isolate' show IsolateSpawnException;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:webspace/platform/host_platform.dart' show IOException;
+import 'package:webspace/services/domain_list.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
@@ -161,6 +162,10 @@ const List<String?> _levelFiles = [
 /// mirror serving an error page or a truncated transfer, not a blocklist.
 const int _minPlausibleDomains = 1000;
 
+/// The same for a list of top-level domains: Hagezi's most abused TLDs name
+/// about 450.
+const int _minPlausibleTlds = 100;
+
 /// Mirror base URLs tried in order on failure.
 const List<String> _mirrorBaseUrls = [
   'https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/',
@@ -175,7 +180,43 @@ List<String> dnsMirrorUrlsForLevel(int level) {
   if (level < 1 || level >= _levelFiles.length) return const <String>[];
   final path = _levelFiles[level];
   if (path == null) return const <String>[];
-  return [for (final base in _mirrorBaseUrls) '$base$path'];
+  return hageziMirrorUrls(path);
+}
+
+/// [path] under each Hagezi mirror, in the order they are tried.
+List<String> hageziMirrorUrls(String path) =>
+    [for (final base in _mirrorBaseUrls) '$base$path'];
+
+/// The body of the domain list at the first of [urls] that answers with one,
+/// through the app-wide proxy; null where the proxy cannot be honoured or
+/// none does. A source that answers 200 with something else is skipped rather
+/// than folded into a working list; [tlds] where the list names top-level
+/// domains, which are fewer and have no dot. The DNS blocklist's levels and
+/// the popular sites' filter lists (SUGGEST-009) come here.
+Future<String?> fetchDomainList(
+  List<String> urls, {
+  required LogTag tag,
+  Duration timeout = const Duration(seconds: 15),
+  bool tlds = false,
+}) async {
+  for (final url in urls) {
+    tag.debug('Trying mirror: $url');
+    switch (await fetchViaAppProxy(Uri.parse(url), tag: tag, timeout: timeout)) {
+      case FetchRefused():
+        return null;
+      case FetchFailed():
+        continue;
+      case Fetched(:final response):
+        if (DnsBlockService.looksLikeDomainList(listedDomains(response.body),
+            tlds: tlds)) {
+          return response.body;
+        }
+        tag.error('$url returned ${response.body.length} bytes, not a domain '
+            'list. Skipping.');
+    }
+  }
+  tag.error('All mirrors failed for ${urls.firstOrNull}');
+  return null;
 }
 
 /// Singleton service for downloading, caching, and querying Hagezi DNS blocklists.
@@ -502,7 +543,7 @@ class DnsBlockService {
     final legacy = await _store.readText(_legacyCacheFileName);
     if (legacy == null) return;
     final builder = DnsLevelSetsBuilder()..startLevel(_level);
-    for (final domain in _extractDomains(legacy)) {
+    for (final domain in listedDomains(legacy).toSet()) {
       builder.add(domain);
     }
     final migrated = builder.build();
@@ -720,7 +761,7 @@ class DnsBlockService {
     final body = await _fetchLevelBody(level);
     if (body == null) return null;
     final builder = DnsLevelSetsBuilder.from(_levelSets)..startLevel(level);
-    for (final domain in _extractDomains(body)) {
+    for (final domain in listedDomains(body).toSet()) {
       builder.add(domain);
     }
     final folded = builder.build();
@@ -738,31 +779,11 @@ class DnsBlockService {
         contents: _serializeLevelSets(sets));
   }
 
-  /// Fetch [level]'s list body. Tries each mirror in order; a mirror that
-  /// answers 200 with something that isn't a domain list is skipped rather
-  /// than folded into a working partition.
+  /// Fetch [level]'s list body.
   Future<String?> _fetchLevelBody(int level) async {
     final filePath = _levelFiles[level];
     if (filePath == null) return null;
-
-    for (final baseUrl in _mirrorBaseUrls) {
-      final url = '$baseUrl$filePath';
-      LogTag.dnsBlock.debug('Trying mirror: $url');
-      switch (await fetchViaAppProxy(Uri.parse(url), tag: LogTag.dnsBlock)) {
-        case FetchRefused():
-          return null;
-        case FetchFailed():
-          continue;
-        case Fetched(:final response):
-          final domains = _extractDomains(response.body);
-          if (looksLikeDomainList(domains)) return response.body;
-          LogTag.dnsBlock.error(
-              'Mirror returned ${response.body.length} bytes yielding '
-              '${domains.length} usable entries, not a domain list. Skipping.');
-      }
-    }
-    LogTag.dnsBlock.error('All mirrors failed for level $level');
-    return null;
+    return fetchDomainList(hageziMirrorUrls(filePath), tag: LogTag.dnsBlock);
   }
 
   /// Check if a URL should be blocked by the DNS blocklist. Synchronous
@@ -853,7 +874,7 @@ class DnsBlockService {
   /// downloaded at [level] and made the app-wide level.
   @visibleForTesting
   void loadDomainsFromString(String data, {int level = 1}) {
-    final domains = _extractDomains(data);
+    final domains = listedDomains(data).toSet();
     if (domains.isEmpty) {
       _apply(sets: DnsLevelSets.empty, level: level);
       return;
@@ -873,7 +894,7 @@ class DnsBlockService {
     final builder = DnsLevelSetsBuilder();
     for (final level in levels) {
       builder.startLevel(level);
-      for (final domain in _extractDomains(byLevel[level]!)) {
+      for (final domain in listedDomains(byLevel[level]!).toSet()) {
         builder.add(domain);
       }
     }
@@ -893,30 +914,23 @@ class DnsBlockService {
     _apply(sets: _parseLevelSets(text), level: globalLevel ?? _level);
   }
 
-  static Set<String> _extractDomains(String data) {
-    final domains = <String>{};
-    for (final line in data.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-      domains.add(trimmed);
-    }
-    return domains;
-  }
-
   /// Whether a freshly downloaded body is a domain list at all. Guards the
   /// download path only: a mirror that answers 200 with an HTML error page
   /// or a truncated body must not overwrite a working cached blocklist.
   /// Samples the head rather than the whole set — a real list is uniform,
   /// and a bad one goes wrong from the first entry.
-  @visibleForTesting
-  static bool looksLikeDomainList(Set<String> domains) {
-    if (domains.length < _minPlausibleDomains) return false;
-    var checked = 0;
+  static bool looksLikeDomainList(Iterable<String> domains,
+      {bool tlds = false}) {
+    final enough = tlds ? _minPlausibleTlds : _minPlausibleDomains;
+    var count = 0;
     for (final d in domains) {
-      if (!d.contains('.') || d.contains(' ') || d.contains('<')) return false;
-      if (++checked >= 50) break;
+      if (count < 50 &&
+          ((!tlds && !d.contains('.')) || d.contains(' ') || d.contains('<'))) {
+        return false;
+      }
+      if (++count >= enough) return true;
     }
-    return true;
+    return false;
   }
 
   /// Drop every piece of in-memory state so a test can drive [initialize]

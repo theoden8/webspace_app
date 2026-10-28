@@ -31,7 +31,6 @@ CAPTCHA-003	no check: no test asserts allowFileAccess and allowContentAccess on 
 CAPTCHA-006	no check: no test shows a per-site third-party-cookie toggle reaching thirdPartyCookiesEnabled or a cross-site cookie being accepted; only the posture resolution is checked (partly: test/site_posture_test.dart, "$cell: container follows tier and TP (ETP-024, ARCH-006/007)")
 # clearurls
 # configurable-suggested-sites
-SUGGEST-001	no check: only the non-fdroid branch runs (FLUTTER_APP_FLAVOR unset in tests); nothing fails if the fdroid build ships the curated list, and the empty-state message is untested (partly: test/suggested_sites_test.dart, "flavorDefaultSuggestions returns full list when not fdroid")
 SUGGEST-002	no check: no widget test opens the '+' dialog, checks https:// prefixing or rejects empty fields
 SUGGEST-003	no check: no widget test long-presses a suggestion tile or checks the Remove/Cancel dialog
 SUGGEST-006	no check: no widget test taps a suggestion tile or checks the prefilled add dialog and its incognito toggle

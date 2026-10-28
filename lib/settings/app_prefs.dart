@@ -131,7 +131,14 @@ enum AppPref<T extends Object> {
   libraryIconSize('libraryIconSize', fallback: 100),
   // NOTIF-018: closing the desktop window hides it and the app keeps running,
   // so its sites can still notify. Linux and macOS only.
-  keepRunningWhenClosed('keepRunningWhenClosed', fallback: false);
+  keepRunningWhenClosed('keepRunningWhenClosed', fallback: false),
+  // SUGGEST-011: keep the popular sites' filter lists between downloads, so
+  // a refresh within a month fetches only the top rows: storage for
+  // bandwidth. Off: nothing is kept but the rows.
+  topSitesKeepFilters('topSitesKeepFilters', fallback: false),
+  // SUGGEST-012: the add-site screen offers the popular sites list until it
+  // is downloaded or this offer is dismissed.
+  topSitesOffer('topSitesOffer', fallback: true);
 
   const AppPref(this.key, {required this.fallback,this.legacyKey})
       : assert(fallback is bool || fallback is int || fallback is String);

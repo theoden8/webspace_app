@@ -3,54 +3,21 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_suggestion.dart';
 
-/// Default suggested sites for non-fdroid builds.
-const List<SiteSuggestion> kDefaultSuggestions = [
-  SiteSuggestion(name: 'Duck.ai', url: 'https://duck.ai', domain: 'duck.ai'),
-  SiteSuggestion(name: 'Claude', url: 'https://claude.ai', domain: 'claude.ai'),
-  SiteSuggestion(name: 'ChatGPT', url: 'https://chatgpt.com', domain: 'chatgpt.com'),
-  SiteSuggestion(name: 'Perplexity', url: 'https://perplexity.ai', domain: 'perplexity.ai'),
-  SiteSuggestion(name: 'Instagram', url: 'https://instagram.com', domain: 'instagram.com'),
-  SiteSuggestion(name: 'Facebook', url: 'https://facebook.com', domain: 'facebook.com'),
-  SiteSuggestion(name: 'X (Twitter)', url: 'https://x.com', domain: 'x.com'),
-  SiteSuggestion(name: 'Google Chat', url: 'https://chat.google.com', domain: 'chat.google.com'),
-  SiteSuggestion(name: 'GitHub', url: 'https://github.com', domain: 'github.com'),
-  SiteSuggestion(name: 'GitLab', url: 'https://gitlab.com', domain: 'gitlab.com'),
-  SiteSuggestion(name: 'Gitea', url: 'https://gitea.com', domain: 'gitea.com'),
-  SiteSuggestion(name: 'Codeberg', url: 'https://codeberg.org', domain: 'codeberg.org'),
-  SiteSuggestion(name: 'Slack', url: 'https://slack.com', domain: 'slack.com'),
-  SiteSuggestion(name: 'Discord', url: 'https://discord.com/login', domain: 'discord.com'),
-  SiteSuggestion(name: 'Mattermost', url: 'https://mattermost.com', domain: 'mattermost.com'),
-  SiteSuggestion(name: 'Gmail', url: 'https://gmail.com', domain: 'gmail.com'),
-  SiteSuggestion(name: 'LinkedIn', url: 'https://linkedin.com', domain: 'linkedin.com'),
-  SiteSuggestion(name: 'Reddit', url: 'https://reddit.com', domain: 'reddit.com'),
-  SiteSuggestion(name: 'Mastodon', url: 'https://mastodon.social', domain: 'mastodon.social'),
-  SiteSuggestion(name: 'Bluesky', url: 'https://bsky.app', domain: 'bsky.app'),
-  SiteSuggestion(name: 'Hugging Face', url: 'https://huggingface.co', domain: 'huggingface.co'),
-];
-
 const String _prefsKey = 'suggested_sites';
 
-bool get isFdroidFlavor {
-  const flavor = String.fromEnvironment('FLUTTER_APP_FLAVOR');
-  return flavor == 'fdroid';
-}
-
-List<SiteSuggestion> get flavorDefaultSuggestions =>
-    isFdroidFlavor ? const [] : kDefaultSuggestions;
-
-/// Load user-customized suggested sites from SharedPreferences.
-/// Returns null if user has not customized (use defaults).
-Future<List<SiteSuggestion>?> loadSuggestedSites() async {
+/// The suggested sites the user saved, or none: every build ships an empty
+/// list, so no flavor changes the compiled Dart (SUGGEST-001).
+Future<List<SiteSuggestion>> loadSuggestedSites() async {
   final prefs = await SharedPreferences.getInstance();
   final json = prefs.getString(_prefsKey);
-  if (json == null) return null;
+  if (json == null) return const [];
   final Object? list;
   try {
     list = jsonDecode(json);
   } on FormatException {
-    return null;
+    return const [];
   }
-  if (list is! List) return null;
+  if (list is! List) return const [];
   return [
     for (final e in list)
       if (e case {
@@ -68,9 +35,4 @@ Future<void> saveSuggestedSites(List<SiteSuggestion> sites) async {
       .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
       .toList());
   await prefs.setString(_prefsKey, json);
-}
-
-Future<List<SiteSuggestion>> getEffectiveSuggestedSites() async {
-  final custom = await loadSuggestedSites();
-  return custom ?? flavorDefaultSuggestions;
 }

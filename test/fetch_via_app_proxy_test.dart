@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -65,6 +66,41 @@ void main() {
         isA<FetchFailed>());
     expect(await _fetch(_answering(http.Response('x' * 10, 200)), maxBytes: 10),
         isA<Fetched>());
+  });
+
+  group('firstBytes', () {
+    Future<AppProxyFetch> ranged(FakeOutbound factory) {
+      outboundHttp = factory;
+      return fetchViaAppProxy(Uri.parse('https://a.example/x'),
+          tag: LogTag.test, firstBytes: 4);
+    }
+
+    test('asks for the body\'s start and takes the 206', () async {
+      final factory = _answering(http.Response('abcd', 206));
+      final result = await ranged(factory);
+      expect(factory.requests.single.headers['Range'], 'bytes=0-3');
+      expect((result as Fetched).response.body, 'abcd');
+    });
+
+    test('stops reading a 200 that ignores the range', () async {
+      final factory = FakeOutbound(
+          client: () => MockClient.streaming((request, _) async =>
+              http.StreamedResponse(
+                  Stream.fromIterable([
+                    'ab'.codeUnits,
+                    'cd'.codeUnits,
+                    'ef'.codeUnits,
+                    for (var i = 0; i < 1000; i++) 'more'.codeUnits,
+                  ]),
+                  200)));
+      final result = await ranged(factory);
+      expect((result as Fetched).response.body, 'abcd');
+    });
+
+    test('a 206 to a request without it is a failure', () async {
+      expect(await _fetch(_answering(http.Response('abcd', 206))),
+          isA<FetchFailed>());
+    });
   });
 
   test('a URL that is not http(s) is never requested', () async {

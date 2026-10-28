@@ -65,6 +65,7 @@ enum LogTag {
   test('Test'),
   title('Title'),
   tls('TLS'),
+  topSites('TopSites'),
   tor('Tor'),
   torGeoIp('TorGeoIP'),
   /// tor's own output, kept apart from [tor] (the runtime's lifecycle) so a
