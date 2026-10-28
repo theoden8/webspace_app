@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/screens/app_extension_entry.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -124,24 +125,6 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
     );
   }
 
-  Future<void> _remove(WebExtensionEntry entry) async {
-    await _guard.run(() async {
-      final loc = AppLocalizations.of(context);
-      final messenger = ScaffoldMessenger.of(context);
-      if (!await confirm(
-        context,
-        title: loc.extensionsRemoveTitle(entry.name),
-        body: loc.extensionsRemoveBody,
-        confirmLabel: loc.commonRemove,
-        destructive: true,
-      )) {
-        return;
-      }
-      await _library.remove(entry.id);
-      messenger.toast(loc.extensionsRemoved(entry.name));
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -172,7 +155,8 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
   }
 
   /// [entry] as the library lists it, with what WebKit reported reading it
-  /// (WEBEXT-003): the count in its subtitle, each problem behind its hint.
+  /// (WEBEXT-003), the count in its subtitle and each problem behind its
+  /// hint, and whether every site runs it; it opens the entry's screen.
   Widget _entryTile(WebExtensionEntry entry, {required AppLocalizations loc}) {
     final problems =
         _library.reports.value[entry.id]?.problems ?? const <String>[];
@@ -182,15 +166,20 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
       hint: problems.isEmpty
           ? null
           : loc.extensionsProblemsHint(problems.join('\n\n')),
-      subtitle: problems.isEmpty
-          ? loc.extensionsVersion(entry.version)
-          : loc.extensionsVersionProblems(problems.length, entry.version),
+      subtitle: problems.isNotEmpty
+          ? loc.extensionsVersionProblems(problems.length, entry.version)
+          : entry.everySite
+          ? loc.extensionsVersionEverySite(entry.version)
+          : loc.extensionsVersion(entry.version),
       missingData: problems.isNotEmpty,
-      control: Trailing(
-        IconButton(
-          icon: const Icon(Icons.delete_outline),
-          tooltip: loc.commonRemove,
-          onPressed: () => unawaited(_remove(entry)),
+      control: Opens(
+        () => unawaited(
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => ExtensionEntryScreen(id: entry.id),
+            ),
+          ),
         ),
       ),
     );

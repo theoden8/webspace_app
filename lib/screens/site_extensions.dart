@@ -9,6 +9,7 @@ import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_grants_engine.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_native.dart';
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
@@ -41,8 +42,9 @@ int siteExtensionsOn(ExtensionAttach plan) => switch (plan) {
 };
 
 /// A site's Settings > Extensions (WEBEXT-004): a switch per imported
-/// extension, each switched on only after the user has seen what it gets on
-/// this site, and the pages of those it runs (WEBEXT-008).
+/// extension that follows the extension's default until the site sets its
+/// own, each switched on only after the user has seen what it gets on this
+/// site, and the pages of those it runs (WEBEXT-008).
 class SiteExtensionsScreen extends StatefulWidget {
   const SiteExtensionsScreen({
     super.key,
@@ -64,18 +66,29 @@ class SiteExtensionsScreen extends StatefulWidget {
 class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
   final _guard = ReentryGuard();
 
-  Future<void> _set(WebExtensionEntry entry, {required bool on}) async {
+  /// Whether the site runs [entry]: its own choice, else the extension's
+  /// default (WEBEXT-004).
+  bool _runs(WebExtensionEntry entry) =>
+      widget.site.webExtensionChoices[entry.id] ?? entry.everySite;
+
+  Future<void> _choose(
+    WebExtensionEntry entry, {
+    required Scoped<bool> choice,
+  }) async {
     await _guard.run(() async {
       final site = widget.site;
-      if (on && !await _consent(entry)) return;
+      if (choice.resolve(entry.everySite) &&
+          !_runs(entry) &&
+          !await _consent(entry)) {
+        return;
+      }
       if (!mounted) return;
       setState(() {
-        site.enabledWebExtensions = on
-            ? {...site.enabledWebExtensions, entry.id}
-            : {
-                for (final id in site.enabledWebExtensions)
-                  if (id != entry.id) id,
-              };
+        site.webExtensionChoices = {
+          for (final MapEntry(:key, :value) in site.webExtensionChoices.entries)
+            if (key != entry.id) key: value,
+          if (choice case Own(:final value)) entry.id: value,
+        };
       });
       widget.onChanged();
     });
@@ -149,11 +162,14 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                   leading: const Icon(Icons.extension_outlined),
                   title: entry.name,
                   hint: null,
-                  subtitle: loc.extensionsVersion(entry.version),
-                  control: Toggle(
-                    value: lock == null &&
-                        widget.site.enabledWebExtensions.contains(entry.id),
-                    onChanged: (on) => unawaited(_set(entry, on: on)),
+                  control: ScopedToggle(
+                    value: lock == null && _runs(entry),
+                    choice: Scoped.fromStored(
+                      widget.site.webExtensionChoices[entry.id],
+                    ),
+                    source: FollowSource.extensionDefault,
+                    onChoice: (choice) =>
+                        unawaited(_choose(entry, choice: choice)),
                   ),
                   lock: lock,
                 ),

@@ -61,7 +61,7 @@ void main() {
   WebViewModel site({bool incognito = false}) => WebViewModel(
     initUrl: 'https://mail.example.com/',
     incognito: incognito,
-    enabledWebExtensions: {id},
+    webExtensionChoices: {id: true},
   );
 
   group('WEBEXT-016 a site\'s extensions reach every webview it builds', () {

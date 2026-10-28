@@ -156,6 +156,7 @@ class WebExtensionLibrary {
       version: manifest.version,
       permissions: manifest.permissions,
       hosts: manifest.hosts,
+      everySite: false,
     );
     try {
       await folders.unpack(entry.id, files: package.files);
@@ -172,6 +173,17 @@ class WebExtensionLibrary {
         if (i.entry.id == entry.id) i,
     ]);
     return entry;
+  }
+
+  /// Sets whether every site that sets no choice of its own runs [id]
+  /// (WEBEXT-004).
+  Future<void> setEverySite(WebExtensionId id, {required bool on}) async {
+    final entries = [
+      for (final i in _installed.value)
+        i.entry.id == id ? i.entry.withEverySite(on: on) : i.entry,
+    ];
+    _publish(entries);
+    await _save(entries);
   }
 
   /// Drops [id] from the library, stops it wherever it runs, and deletes

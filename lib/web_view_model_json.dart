@@ -124,9 +124,13 @@ extension WebViewModelJson on WebViewModel {
           if (enabledGlobalScriptIds.isNotEmpty)
             key: enabledGlobalScriptIds.toList(),
         },
-      SiteField.enabledWebExtensions => {
-          if (enabledWebExtensions.isNotEmpty)
-            key: enabledWebExtensions.toList(),
+      SiteField.webExtensionChoices => {
+          if (webExtensionChoices.isNotEmpty)
+            key: {
+              for (final MapEntry(key: id, value: on)
+                  in webExtensionChoices.entries)
+                id: on,
+            },
         },
       SiteField.blockedCookies => {
           if (blockedCookies.isNotEmpty)
@@ -403,9 +407,19 @@ class _SiteJson {
         model.enabledGlobalScriptIds = {
           ...?value<List>(field)?.map(UserScriptId.parse).nonNulls,
         };
-      case SiteField.enabledWebExtensions:
-        model.enabledWebExtensions = {
-          ...?value<List>(field)?.map(WebExtensionId.parse).nonNulls,
+      case SiteField.webExtensionChoices:
+        model.webExtensionChoices = switch (raw ?? legacy(field)) {
+          final Map<String, Object?> choices => {
+              for (final MapEntry(:key, :value) in choices.entries)
+                if ((WebExtensionId.parse(key), value)
+                    case (final WebExtensionId id, final bool on))
+                  id: on,
+            },
+          final List<Object?> switchedOn => {
+              for (final id in switchedOn.map(WebExtensionId.parse).nonNulls)
+                id: true,
+            },
+          _ => {},
         };
       case SiteField.blockedCookies:
         model.blockedCookies =

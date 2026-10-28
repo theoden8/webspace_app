@@ -72,7 +72,7 @@ void main() {
   }) => WebViewModel(
     initUrl: url,
     incognito: incognito,
-    enabledWebExtensions: on,
+    webExtensionChoices: {for (final id in on) id: true},
   );
 
   group('WEBEXT-003 what WebKit reports of an extension is on its entry', () {

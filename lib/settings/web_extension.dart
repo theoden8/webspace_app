@@ -32,8 +32,9 @@ extension type const WebExtensionId._(String raw) implements String {
       : null;
 }
 
-/// An extension in the library: who it is, and what its manifest asked for
-/// when it was imported, which is what a site's grants are cut from.
+/// An extension in the library: who it is, what its manifest asked for
+/// when it was imported, which is what a site's grants are cut from, and
+/// whether a site that sets no choice of its own runs it (WEBEXT-004).
 final class WebExtensionEntry {
   const WebExtensionEntry({
     required this.id,
@@ -41,6 +42,7 @@ final class WebExtensionEntry {
     required this.version,
     required this.permissions,
     required this.hosts,
+    required this.everySite,
   });
 
   final WebExtensionId id;
@@ -53,12 +55,26 @@ final class WebExtensionEntry {
   /// The match patterns it asked to reach.
   final Set<String> hosts;
 
+  /// What a site that follows the extension's default runs: off until the
+  /// user switches it on for every site.
+  final bool everySite;
+
+  WebExtensionEntry withEverySite({required bool on}) => WebExtensionEntry(
+    id: id,
+    name: name,
+    version: version,
+    permissions: permissions,
+    hosts: hosts,
+    everySite: on,
+  );
+
   Map<String, Object?> toJson() => {
     'id': id,
     'name': name,
     'version': version,
     'permissions': permissions.toList()..sort(),
     'hosts': hosts.toList()..sort(),
+    if (everySite) 'everySite': true,
   };
 
   /// Null when [json] does not name a valid id; a wrong-typed field reads
@@ -81,6 +97,7 @@ final class WebExtensionEntry {
       },
       permissions: strings(json['permissions']),
       hosts: strings(json['hosts']),
+      everySite: json['everySite'] == true,
     );
   }
 }

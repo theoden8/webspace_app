@@ -272,7 +272,7 @@ List<HeldScript> sanitizeImportedSites(
     }
     site.enabledGlobalScriptIds.clear();
     // The ids name another device's extension library (WEBEXT-011).
-    site.enabledWebExtensions.clear();
+    site.webExtensionChoices.clear();
     for (final script in site.userScripts) {
       if (script.enabled) {
         heldSiteScripts.add(HeldSiteScript(script, site: site));

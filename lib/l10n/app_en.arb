@@ -4335,6 +4335,14 @@
   "@settingFollowTrackingProtectionHint": {
     "description": "Hint paragraph under a per-site switch that follows the site's Tracking Protection: while the switch is dimmed it is on exactly when Tracking Protection is; a long press either keeps the shown value as the site's own or, for a site that set its own, goes back to following Tracking Protection."
   },
+  "settingFollowsExtensionDefault": "Follows its setting for every site",
+  "@settingFollowsExtensionDefault": {
+    "description": "Subtitle under a dimmed switch in a site's Extensions screen: the site has no choice of its own for this browser extension and runs it exactly when the extension is on for every site. Also the spoken name of the long-press action that makes the switch follow that setting again."
+  },
+  "settingFollowExtensionDefaultHint": "Dimmed, it follows the extension's setting for every site. Long press to keep the value it shows for this site, or to follow that setting again.",
+  "@settingFollowExtensionDefaultHint": {
+    "description": "Hint paragraph under a switch in a site's Extensions screen that can follow the browser extension's setting for every site: while dimmed it follows that setting; a long press either keeps the shown value as the site's own or, for a site that set its own, goes back to following it."
+  },
   "settingFollowsApp": "App default ({value})",
   "@settingFollowsApp": {
     "description": "Choice on a per-site row meaning the site follows the App Settings value instead of its own. {value} is that value as the row names it, such as a theme.",
@@ -5608,6 +5616,44 @@
         "type": "String"
       }
     }
+  },
+  "extensionsVersionEverySite": "Version {version} · on for every site",
+  "@extensionsVersionEverySite": {
+    "description": "Subtitle of an imported browser extension that every site runs unless the site sets its own choice: its version number as its author wrote it, and that it is on for every site.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsEverySite": "On for every site",
+  "@extensionsEverySite": {
+    "description": "Switch on an imported browser extension's own screen: whether every site runs the extension unless the site switched it on or off for itself."
+  },
+  "extensionsEverySiteHint": "Every site you have not switched it on or off for runs it, and on each it reaches only that site's pages. A site's own choice wins.",
+  "@extensionsEverySiteHint": {
+    "description": "Explanation behind the hint button of the On for every site switch of an imported browser extension."
+  },
+  "extensionsEverySiteConsentTitle": "Run {name} on every site?",
+  "@extensionsEverySiteConsentTitle": {
+    "description": "Title of the dialog before a browser extension is switched on for every site. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsEverySiteConsentBody": "Every site that has no choice of its own runs it from its next load. On each, it reaches only that site's pages.",
+  "@extensionsEverySiteConsentBody": {
+    "description": "Last paragraph of the dialog before a browser extension is switched on for every site, after the lines saying what it asks for."
+  },
+  "extensionsAsksSection": "What it asks for",
+  "@extensionsAsksSection": {
+    "description": "Section header on an imported browser extension's screen, above the permissions and pages it asked for."
+  },
+  "extensionsProblemsSection": "Reported by WebKit",
+  "@extensionsProblemsSection": {
+    "description": "Section header on an imported browser extension's screen, above the problems WebKit, the browser engine, reported reading it. Keep the name WebKit."
   },
   "extensionsRefused": "Not imported: {reason}",
   "@extensionsRefused": {

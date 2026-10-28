@@ -93,7 +93,7 @@
         }
       ],
       "enabledGlobalScriptIds": ["global-script-1"],
-      "enabledWebExtensions": ["we-compat-1"],
+      "webExtensionChoices": {"we-compat-1": true, "we-compat-2": false},
       "blockedCookies": [{"name": "_ga", "domain": ".example.com"}],
       "locationMode": "live",
       "spoofLatitude": 52.52,

@@ -361,10 +361,10 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// are stored once in app state (shared source/URL) and each site
   /// independently enables which ones to inject.
   Set<UserScriptId> enabledGlobalScriptIds;
-  /// The library's extensions this site switched on (WEBEXT-004). Kept
-  /// while the experiment is off, so switching it back restores them
-  /// (WEBEXT-012).
-  Set<WebExtensionId> enabledWebExtensions;
+  /// This site's own choice for each library extension it set one for;
+  /// the rest follow each extension's default (WEBEXT-004). Kept while the
+  /// experiment is off, so switching it back restores them (WEBEXT-012).
+  Map<WebExtensionId, bool> webExtensionChoices;
   Set<BlockedCookie> blockedCookies;
   LocationMode locationMode;
   double? spoofLatitude;
@@ -695,7 +695,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         archived: isArchiveTier,
         kiosk: kioskMode,
         incognito: effectiveIncognito,
-        enabled: enabledWebExtensions,
+        choices: webExtensionChoices,
         library: WebExtensionLibrary.instance.installed.value,
         claims: effectiveDomainClaims,
       ));
@@ -907,7 +907,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     this.captures = CaptureGrants.none,
     List<UserScriptConfig>? userScripts,
     Set<UserScriptId>? enabledGlobalScriptIds,
-    Set<WebExtensionId>? enabledWebExtensions,
+    Map<WebExtensionId, bool>? webExtensionChoices,
     Set<BlockedCookie>? blockedCookies,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -939,7 +939,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         _outboundPreferences = outboundPreferences ?? [],
         searchSites = searchSites ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
-        enabledWebExtensions = enabledWebExtensions ?? {},
+        webExtensionChoices = webExtensionChoices ?? {},
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? SiteId.mint(),
         name = name ?? extractDomain(initUrl),

@@ -234,7 +234,9 @@ void main() {
       final entry = await _imported();
       await pumpLocalized(tester, home: _library(picked: null));
       expect(find.text('Sample'), findsOneWidget);
-      await tester.tap(find.byTooltip('Remove'));
+      await tester.tap(find.text('Sample'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ListTile, 'Remove'));
       await tester.pumpAndSettle();
       expect(find.text('Remove Sample?'), findsOneWidget);
       await tester.tap(find.widgetWithText(TextButton, 'Remove'));
@@ -275,7 +277,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(
-        site.enabledWebExtensions,
+        site.webExtensionChoices,
         isEmpty,
         reason: 'nothing is switched on before the user says so',
       );
@@ -285,7 +287,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Switch on'));
       await tester.pumpAndSettle();
-      expect(site.enabledWebExtensions, {entry.id});
+      expect(site.webExtensionChoices, {entry.id: true});
       expect(changes, 1);
       expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
 
@@ -296,8 +298,92 @@ void main() {
         findsNothing,
         reason: 'switching off asks nothing',
       );
-      expect(site.enabledWebExtensions, isEmpty);
+      expect(
+        site.webExtensionChoices,
+        {entry.id: false},
+        reason: 'switched off, the site keeps its own choice',
+      );
       expect(changes, 2);
+    });
+  });
+
+  group('WEBEXT-004 an extension on for every site, unless a site says '
+      'otherwise', () {
+    setUp(() {
+      ExperimentalFeaturesService.instance.debugSet(
+        ExperimentalFeature.webExtensions,
+        on: true,
+      );
+    });
+
+    testWidgets('switching the default on asks once, then every site that '
+        'follows it runs it', (tester) async {
+      final entry = await _imported();
+      await pumpLocalized(tester, home: _library(picked: null));
+      await tester.tap(find.text('Sample'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(find.text('Run Sample on every site?'), findsOneWidget);
+      expect(_dialogText(tester), contains('reaches only that site'));
+      await tester.tap(find.text('Switch on'));
+      await tester.pumpAndSettle();
+
+      final saved = WebExtensionLibrary.instance.installed.value.single.entry;
+      expect(saved.everySite, isTrue);
+      final following = WebViewModel(initUrl: 'https://mail.example.com/');
+      final declining = WebViewModel(
+        initUrl: 'https://docs.example.org/',
+        webExtensionChoices: {entry.id: false},
+      );
+      expect(siteExtensionsOn(following.extensionPlan), 1);
+      expect(siteExtensionsOn(declining.extensionPlan), 0);
+
+      await WebExtensionLibrary.instance.initialize(
+        folders: disk,
+        engine: engine,
+      );
+      expect(
+        WebExtensionLibrary.instance.installed.value.single.entry.everySite,
+        isTrue,
+        reason: 'the default is kept',
+      );
+    });
+
+    testWidgets('a site follows the default dimmed; a long press keeps it '
+        'as its own, and a tap switches it off without asking', (
+      tester,
+    ) async {
+      final entry = await _imported();
+      await WebExtensionLibrary.instance.setEverySite(entry.id, on: true);
+      final site = WebViewModel(initUrl: 'https://mail.example.com/');
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: site,
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      expect(find.text('Follows its setting for every site'), findsOneWidget);
+
+      await tester.longPress(find.text('Sample'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing,
+          reason: 'keeping the value it already runs asks nothing');
+      expect(site.webExtensionChoices, {entry.id: true});
+
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(site.webExtensionChoices, {entry.id: false});
+
+      await tester.longPress(find.text('Sample'));
+      await tester.pumpAndSettle();
+      expect(find.text('Run Sample on this site?'), findsOneWidget,
+          reason: 'following again turns it on here, which asks');
     });
   });
 
@@ -340,7 +426,7 @@ void main() {
         tester,
         site: WebViewModel(
           initUrl: 'https://mail.example.com/',
-          enabledWebExtensions: {entry.id},
+          webExtensionChoices: {entry.id: true},
         ),
       );
       expect(rowSubtitle(tester), '1 on');
@@ -352,7 +438,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
         isArchiveTier: true,
       );
       await openSettings(tester, site: site);
@@ -366,7 +452,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
         kioskMode: true,
       );
       await openSettings(tester, site: site);
@@ -380,7 +466,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
       );
       setViewSize(tester, size: const Size(1000, 4000));
       await tester.pumpWidget(
@@ -394,7 +480,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Extensions'), findsNothing);
-      expect(site.enabledWebExtensions, {entry.id});
+      expect(site.webExtensionChoices, {entry.id: true});
     });
   });
 
@@ -453,7 +539,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
       );
       await pumpLocalized(
         tester,
@@ -489,7 +575,7 @@ void main() {
         home: SiteExtensionsScreen(
           site: WebViewModel(
             initUrl: 'https://mail.example.com/',
-            enabledWebExtensions: {entry.id},
+            webExtensionChoices: {entry.id: true},
           ),
           isolation: fakeContainers(),
           onChanged: () {},
@@ -522,7 +608,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
       );
       await pumpLocalized(
         tester,
@@ -571,7 +657,7 @@ void main() {
         siteMenuExtensions(
           WebViewModel(
             initUrl: 'https://mail.example.com/',
-            enabledWebExtensions: {entry.id},
+            webExtensionChoices: {entry.id: true},
             incognito: true,
           ),
           isolation: fakeContainers(),

@@ -30,7 +30,8 @@ enum NoExtensionsReason {
   /// The site runs as a kiosk.
   kiosk,
 
-  /// The site switched none on.
+  /// The site runs none: it switched none on, and follows no extension's
+  /// default that is on.
   noneEnabled,
 }
 
@@ -58,7 +59,9 @@ typedef ExtensionAttachInputs = ({
   bool archived,
   bool kiosk,
   bool incognito,
-  Set<WebExtensionId> enabled,
+  // The site's own choices; an extension it has none for follows the
+  // entry's default (WEBEXT-004).
+  Map<WebExtensionId, bool> choices,
   List<InstalledExtension> library,
   List<DomainClaim> claims,
 });
@@ -69,7 +72,7 @@ ExtensionAttach planExtensionAttach(ExtensionAttachInputs inputs) {
   if (inputs.kiosk) return const NoExtensions(NoExtensionsReason.kiosk);
   final loads = [
     for (final (:entry, :folder) in inputs.library)
-      if (inputs.enabled.contains(entry.id))
+      if (inputs.choices[entry.id] ?? entry.everySite)
         (
           id: entry.id,
           folder: folder,

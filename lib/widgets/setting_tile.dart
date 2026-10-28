@@ -119,18 +119,26 @@ final class ScopedToggle extends SettingControl {
 }
 
 /// What a [ScopedToggle] follows until the site sets its own value.
-enum FollowSource { app, trackingProtection }
+enum FollowSource {
+  app,
+  trackingProtection,
+
+  /// An extension's choice for every site (WEBEXT-004).
+  extensionDefault,
+}
 
 extension on FollowSource {
   String label(AppLocalizations loc) => switch (this) {
         FollowSource.app => loc.webSearchUseAppDefault,
         FollowSource.trackingProtection => loc.settingFollowsTrackingProtection,
+        FollowSource.extensionDefault => loc.settingFollowsExtensionDefault,
       };
 
   String longPressHint(AppLocalizations loc) => switch (this) {
         FollowSource.app => loc.settingFollowAppHint,
         FollowSource.trackingProtection =>
           loc.settingFollowTrackingProtectionHint,
+        FollowSource.extensionDefault => loc.settingFollowExtensionDefaultHint,
       };
 }
 
