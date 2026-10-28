@@ -78,6 +78,46 @@ void main() {
       expect(s.blocked, equals(0));
       expect(s.blockedByDns, equals(0));
       expect(s.log, isEmpty);
+      expect(s.topBlockedHosts(limit: 5), isEmpty);
+    });
+  });
+
+  group('DnsStats blocked hosts', () {
+    test('ranks hosts by requests blocked, folded counts included', () {
+      final s = DnsStats();
+      s.record('ads.example', wasBlocked: true, source: BlockSource.abp);
+      s.record('beacon.example',
+          wasBlocked: true, source: BlockSource.dns, count: 12);
+      s.record('ads.example',
+          wasBlocked: true, source: BlockSource.abp, count: 3);
+      s.record('cdn.example', wasBlocked: false, count: 40);
+      expect(s.topBlockedHosts(limit: 5), [
+        (host: 'beacon.example', count: 12),
+        (host: 'ads.example', count: 4),
+      ]);
+    });
+
+    test('keeps the busiest under the limit, ties by name', () {
+      final s = DnsStats();
+      for (final host in ['c.example', 'a.example', 'b.example']) {
+        s.record(host, wasBlocked: true, source: BlockSource.dns);
+      }
+      expect(s.topBlockedHosts(limit: 2), [
+        (host: 'a.example', count: 1),
+        (host: 'b.example', count: 1),
+      ]);
+    });
+
+    test('blockedBy reads each source', () {
+      final s = DnsStats();
+      s.record('a.example',
+          wasBlocked: true, source: BlockSource.dns, count: 2);
+      s.record('b.example',
+          wasBlocked: true, source: BlockSource.abp, count: 5);
+      expect(
+        {for (final source in BlockSource.values) source: s.blockedBy(source)},
+        {BlockSource.dns: 2, BlockSource.abp: 5},
+      );
     });
   });
 

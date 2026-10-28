@@ -539,7 +539,11 @@ A collapsible banner SHALL appear at the top of the webview showing live DNS act
 
 **Given** the DNS banner is visible
 **When** the user taps it
-**Then** it expands to show the 5 most recently blocked domains (unique, monospace)
+**Then** it expands to show how many requests each blocker stopped for the site, the DNS blocklist and the filter lists, named as the protection report names them
+**And** the 5 hosts with the most requests blocked, each with its count, busiest first (monospace)
+**And** a count folded from repeated requests (the Android interceptor's batches) counts every request it folds
+
+Test: `test/stats_banner_test.dart`; the setting in `test/site_webview_stack_test.dart`.
 
 #### Scenario: Toggle banner off in App Settings
 

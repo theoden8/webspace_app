@@ -6,23 +6,8 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
+import 'package:webspace/widgets/block_category_label.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
-
-String _categoryLabel(AppLocalizations loc,
-        {required BlockCategory category}) =>
-    switch (category) {
-      BlockCategory.filterList => loc.blockStatsCategoryFilterList,
-      BlockCategory.dnsBlocklist => loc.blockStatsCategoryDns,
-      BlockCategory.trackingParam => loc.blockStatsCategoryParam,
-      BlockCategory.localCdn => loc.blockStatsCategoryCdn,
-    };
-
-IconData _categoryIcon(BlockCategory category) => switch (category) {
-      BlockCategory.filterList => Icons.block,
-      BlockCategory.dnsBlocklist => Icons.dns_outlined,
-      BlockCategory.trackingParam => Icons.link_off,
-      BlockCategory.localCdn => Icons.cloud_off_outlined,
-    };
 
 String _rangeSubtitle(AppLocalizations loc, {required int days}) =>
     days == 7 ? loc.blockStatsSubtitleWeek : loc.blockStatsSubtitleMonth;
@@ -266,7 +251,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
     final rowLabels = <BlockCategory, String>{
       for (final category in ordered)
         category:
-            '${totals[category] ?? 0}  ${_categoryLabel(loc, category: category)}',
+            '${totals[category] ?? 0}  ${category.label(loc)}',
     };
     return [
       for (final category in ordered)
@@ -277,7 +262,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
-                Icon(_categoryIcon(category),
+                Icon(category.icon,
                     color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 16),
                 Expanded(
@@ -363,7 +348,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
     final sites = _namedSiteCounts(detail);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_categoryLabel(loc, category: category))),
+      appBar: AppBar(title: Text(category.label(loc))),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
@@ -382,7 +367,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
             _sectionHeader(theme, label: loc.blockStatsDetailItems),
             for (final item in items)
               _countRow(theme, label: item.label, count: item.count,
-                  icon: _categoryIcon(category)),
+                  icon: category.icon),
           ],
           if (sites.isNotEmpty) ...[
             _sectionHeader(theme, label: loc.blockStatsDetailSites),

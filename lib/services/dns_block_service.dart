@@ -26,6 +26,14 @@ import 'package:webspace/services/view_blockers.dart';
 
 export 'package:webspace/services/block_decision.dart' show BlockSource;
 
+/// The report category a block by this source counts under (STATS-002).
+extension BlockSourceCategory on BlockSource {
+  BlockCategory get category => switch (this) {
+        BlockSource.dns => BlockCategory.dnsBlocklist,
+        BlockSource.abp => BlockCategory.filterList,
+      };
+}
+
 /// A single request log entry (allowed or blocked).
 class DnsLogEntry {
   final DateTime timestamp;
@@ -62,8 +70,29 @@ class DnsStats {
   int _head = 0;
   int _size = 0;
 
+  /// Requests blocked per host, kept apart from the log: a log entry folds
+  /// an Android batch's repeats into one row.
+  final Map<String, int> _blockedHosts = {};
+
   int get total => allowed + blocked;
   double get blockRate => total > 0 ? blocked / total * 100 : 0;
+
+  int blockedBy(BlockSource source) => switch (source) {
+        BlockSource.dns => blockedByDns,
+        BlockSource.abp => blockedByAbp,
+      };
+
+  /// The hosts with the most requests blocked, at most [limit], ties by name.
+  List<({String host, int count})> topBlockedHosts({required int limit}) {
+    final ranked = _blockedHosts.entries.toList()
+      ..sort((a, b) => b.value != a.value
+          ? b.value.compareTo(a.value)
+          : a.key.compareTo(b.key));
+    return [
+      for (final MapEntry(key: host, value: count) in ranked.take(limit))
+        (host: host, count: count),
+    ];
+  }
 
   /// Snapshot of the log, oldest-first. Allocates a new list per call —
   /// the dev tools UI consumes this once per visible refresh, not per
@@ -89,6 +118,7 @@ class DnsStats {
     if (count < 1) count = 1;
     if (wasBlocked) {
       blocked += count;
+      _blockedHosts.update(domain, (n) => n + count, ifAbsent: () => count);
       switch (source) {
         case BlockSource.dns:
           blockedByDns += count;
@@ -125,6 +155,7 @@ class DnsStats {
     blocked = 0;
     blockedByDns = 0;
     blockedByAbp = 0;
+    _blockedHosts.clear();
     for (var i = 0; i < _maxLogEntries; i++) {
       _ring[i] = null;
     }
@@ -430,10 +461,7 @@ class DnsBlockService {
     if (source != null) {
       BlockStatsService.instance.record(
         siteId,
-        category: switch (source) {
-          BlockSource.dns => BlockCategory.dnsBlocklist,
-          BlockSource.abp => BlockCategory.filterList,
-        },
+        category: source.category,
         count: count,
         label: host,
       );
