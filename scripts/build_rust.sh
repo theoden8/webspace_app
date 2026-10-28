@@ -34,6 +34,11 @@ SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
 cd "$CRATE_DIR"
 
+# rustc writes the path of each registry source into the library's panic
+# messages, so naming Cargo's home /cargo keeps the build machine's home out
+# of it: F-Droid's build of a tag must be byte-identical to the release's.
+export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo"
+
 usage() {
   sed -n '2,18p' "$SELF" >&2
   exit 64
