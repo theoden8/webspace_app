@@ -19,6 +19,11 @@
          media collection. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- MIC-015: Chromium opens a page's microphone as a communication
+         stream, which it refuses without this normal, install-time
+         permission; the page then sees NotReadableError, which call apps
+         report as the microphone being used by another app. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- passkey-support: lets the app tell Credential Manager which web origin
          a passkey request is for, as a browser does. Normal protection level,
          granted at install; each credential provider still decides whether to

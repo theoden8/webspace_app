@@ -37,12 +37,18 @@ test('Android declares exactly the permissions it needs', () => {
     'android.permission.FOREGROUND_SERVICE',
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     'android.permission.INTERNET',
+    'android.permission.MODIFY_AUDIO_SETTINGS',
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.RECORD_AUDIO',
   ]);
   // Held for the per-site real-microphone grant (MIC-015), and requested only
   // while resolving a grant the user already allowed for a site on screen.
   assert.ok(declared.includes('android.permission.RECORD_AUDIO'));
+  // Its companion: Chromium's AudioManagerAndroid.setCommunicationDevice
+  // returns false without it, so MakeLowLatencyInputStream yields no stream
+  // and an allowed site's getUserMedia fails with NotReadableError. Normal
+  // protection level, so it opens no OS capability by itself.
+  assert.ok(declared.includes('android.permission.MODIFY_AUDIO_SETTINGS'));
   // Held for passkeys (PASSKEY-002): what lets the app name a page's origin
   // to Credential Manager. Normal protection level, so it opens no OS
   // capability by itself; every provider decides whether to trust the app
