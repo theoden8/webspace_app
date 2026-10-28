@@ -130,6 +130,7 @@ void main() {
       expect(find.text('Runs in part'), findsWidgets);
       expect(find.text('Runs'), findsWidgets);
       expect(find.textContaining('Recommended by Mozilla'), findsWidgets);
+      expect(find.textContaining('11,346,172 users'), findsOneWidget);
 
       await tester.tap(find.text('uBlock Origin'));
       await tester.pumpAndSettle();

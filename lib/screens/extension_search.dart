@@ -161,7 +161,11 @@ class _ResultTile extends StatelessWidget {
     };
     final details = [
       if (result.recommended) loc.extensionsRecommendedBadge,
-      if (result.users case final users?) loc.extensionsSearchUsers(users),
+      if (result.users case final users?)
+        loc.extensionsSearchUsers(
+          users,
+          MaterialLocalizations.of(context).formatDecimal(users),
+        ),
     ].join(' · ');
     return ListTile(
       leading: const Icon(Icons.extension_outlined),

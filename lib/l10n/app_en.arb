@@ -5757,12 +5757,15 @@
   "@extensionsSearchMore": {
     "description": "Button at the end of the addons.mozilla.org search results that loads the next page."
   },
-  "extensionsSearchUsers": "{count, plural, =1{1 user} other{{count} users}}",
+  "extensionsSearchUsers": "{count, plural, =1{1 user} other{{users} users}}",
   "@extensionsSearchUsers": {
-    "description": "How many people use an extension, under a result on the addons.mozilla.org search screen.",
+    "description": "How many people use an extension, under a result on the addons.mozilla.org search screen. {count} picks the plural form; {users} is the same number written with the language's digit grouping, like 11,346,172.",
     "placeholders": {
       "count": {
         "type": "int"
+      },
+      "users": {
+        "type": "String"
       }
     }
   },
