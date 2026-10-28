@@ -266,6 +266,14 @@ const _regressions =
         setup: _oneSignedIn,
         script: [Tap(2)],
       ),
+      // The walk kept an incognito site's sign-in past its unload, so the
+      // restore a switch ran between them read as its session lost.
+      'an incognito site opened again after its unload starts signed out '
+          '(INC-001)': (
+        page: _mixedIncognito,
+        setup: [..._slot2Behind, Pressure(), Pressure()],
+        script: [Tap(1), Tap(2)],
+      ),
       // Each loaded site's share goes back after the target's, one site at
       // a time (ISO-003).
       'a restore sets back the share of every other loaded site': (

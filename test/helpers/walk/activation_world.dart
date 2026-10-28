@@ -1900,8 +1900,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     });
   }
 
+  /// [model] left the loaded sites. An incognito site's session is
+  /// promised only while it is loaded (INC-001), so what its page signed in
+  /// with no longer is.
+  void _recordUnload(WebViewModel model, {required String why}) {
+    unloads.add('${model.siteId}:$why');
+    if (model.effectiveIncognito) _signedIn[model.siteId]?.clear();
+  }
+
   void _noteUnloaded(WebViewModel model, {required UnloadReason reason}) {
-    unloads.add('${model.siteId}:${reason.name}');
+    _recordUnload(model, why: reason.name);
     if (_newest case (:final target?, :final version, id: _)
         when identical(model, target) && version == sites.activationVersion) {
       _violations.add('${reason.label} unloaded ${model.siteId} while its '
@@ -3005,7 +3013,7 @@ final class _WalkTabsHost implements TabsHost {
 
   @override
   void noteUnloaded(WebViewModel model, {required String why}) =>
-      world.unloads.add('${model.siteId}:$why');
+      world._recordUnload(model, why: why);
 }
 
 /// The page as an archive sees it: its commits land as the page's
