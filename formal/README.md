@@ -503,6 +503,16 @@ mistakes prove the key: the planted nuke reads the kept replays, so a key that l
 the trace would remember it; and `--plant-key` replays under a key that leaves out the
 printed model, which the parse check must refuse.
 
+The proofs keep theirs beside tlapm's fingerprints, under `TLAPM_CACHE_DIR/memo`
+([check_proofs.sh](proofs/check_proofs.sh)), which CI keeps with them. A module's key holds
+tlapm's binary, which ships its library and backends, and every module in the directories
+tlapm searches (`proofs/`, the kernel's, the printed ones), more than any module reads, so
+a change to any of them proves every module again. A remembered module is held to its pin
+and the tables' sum as a proved one is, and only a module that proved what it must is kept.
+`test/js/formal_proofs_exit.test.js` plants five mistakes in a copy of the script, each
+caught by a case: a key that leaves out the inputs, a key that names the path, a kept
+failure, a remembered output let past its pin, a rerun that remembers.
+
 CI restores and saves these caches separately, saving completed work even when a
 later check fails. Each model shard and the proof job has a five-hour verification
 timeout inside the job's six-hour limit so cache saving has time to run.

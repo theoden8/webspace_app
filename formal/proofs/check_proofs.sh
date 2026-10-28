@@ -39,6 +39,28 @@ STRETCH="${TLAPM_STRETCH:-30}"
 # reproves only what it changed, and --safefp takes none another tlapm, zenon
 # or Isabelle version wrote.
 CACHE="${TLAPM_CACHE_DIR:-$(pwd)/.tlacache}"
+# A module's verdict is a function of tlapm and the modules it reads, which
+# are files under the directories it searches (this one, the kernel's, the
+# printed ones) or in tlapm's own library, which ships with the binary. So
+# a module proved under the same bytes of all of them is remembered under
+# MEMO, beside the fingerprints and kept with them: its output is read back,
+# marked "(remembered)", instead of preparing every obligation again, which
+# is most of a run even when each fingerprint hits. Only a module that
+# proved what it must is kept, so a failure always runs again;
+# FORMAL_RERUN=1 proves every one, and a kept module nothing has asked for
+# in a fortnight is dropped. Paths are not part of the key.
+MEMO="$CACHE/memo"
+mkdir -p "$MEMO"
+find "$MEMO" -type f -mtime +14 -delete
+if command -v sha256sum >/dev/null 2>&1; then digest() { sha256sum "$@"; }
+else digest() { shasum -a 256 "$@"; }; fi
+INPUTS="$(
+  digest <"$(command -v tlapm)" | sed 's/ .*/ tlapm/'
+  digest *.tla | sed 's|  |  proofs/|'
+  (cd "$KERNEL_DIR" && digest *.tla) | sed 's|  |  kernel/|'
+  (cd "$FORMAL_MODEL" && digest *.tla) | sed 's|  |  model/|'
+)"
+key() { printf '%s\n' "$INPUTS" "module $1 --safefp" | digest | cut -d' ' -f1; }
 # The modules share nothing and tlapm gains little from threads within one
 # (activation_turns: 309 s on one, 274 s on four): it prepares each
 # obligation on one thread, and that, not the backends, is most of a run.
@@ -128,17 +150,32 @@ trap reap EXIT
 # it proves afresh until the module ends, so the modules beside one can take
 # the memory it needs, and the kernel kills it.
 check() {
-  local f="$1" again="${2:-}" name out proved want start
+  local f="$1" again="${2:-}" name out proved want start kept="" memo tmp
   name="$(basename "$f")"
   start=$(date +%s)
-  echo "  $name: started${again:+ again, alone and without the cache}"
-  # Capture, then match: piping straight into `grep -q` lets grep exit on the
-  # first hit and SIGPIPE tlapm, which `pipefail` then reports as a failure.
-  out="$(prove ${again:+--nofp} "$f")"
+  case "$f" in
+    "$FORMAL_MODEL"/*) memo="$MEMO/$(key "model/$name")" ;;
+    *) memo="$MEMO/$(key "proofs/$name")" ;;
+  esac
+  if [ -z "$again" ] && [ -z "${FORMAL_RERUN:-}" ] && [ -f "$memo" ]; then
+    echo "  $name: remembered"
+    out="$(cat "$memo")"
+    touch "$memo"
+    kept=" (remembered)"
+  else
+    echo "  $name: started${again:+ again, alone and without the cache}"
+    # Capture, then match: piping straight into `grep -q` lets grep exit on the
+    # first hit and SIGPIPE tlapm, which `pipefail` then reports as a failure.
+    out="$(prove ${again:+--nofp} "$f")"
+  fi
   proved="$(obligations "$out")"
   want="$(min_obligations "$name")"
   if [ -n "$proved" ] && [ "$proved" -ge "$want" ]; then
-    echo "  OK: $proved obligations proved (>= $want)" >"$work/$name.out"
+    echo "  OK: $proved obligations proved (>= $want)$kept" >"$work/$name.out"
+    if [ -z "$kept" ]; then
+      tmp="$(mktemp "$MEMO/.$name.XXXXXX")"
+      printf '%s\n' "$out" >"$tmp" && mv "$tmp" "$memo"
+    fi
   elif [ -z "$again" ]; then
     echo "  $name: ${proved:-no} obligations proved after $(( $(date +%s) - start ))s, again once the rest end"
     echo "$f" >>"$work/again"
@@ -157,7 +194,7 @@ check() {
   # The summary below prints once every module has ended, so a run the job's
   # timeout kills says nothing; each module says when it ends instead.
   # Not the summary's "OK: N obligations proved", which levels.py counts.
-  local result="$proved proved"
+  local result="$proved proved$kept"
   [ ! -e "$work/$name.failed" ] || result=failed
   echo "  $name: $result in $(( $(date +%s) - start ))s"
 }
