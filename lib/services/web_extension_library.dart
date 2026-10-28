@@ -15,14 +15,17 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_backup_engine.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
+import 'package:webspace/services/web_extension_source_engine.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
+import 'package:webspace/settings/web_extension_source.dart';
 
 /// Whether extensions are offered here now (WEBEXT-001): on a host that runs
 /// them, with developer mode and the Web extensions switch on. Every
@@ -31,6 +34,73 @@ bool get webExtensionsOffered =>
     hostRunsWebExtensions &&
     ExperimentalFeaturesService.instance.isEnabled(
       ExperimentalFeature.webExtensions,
+    );
+
+/// What reading from an extension's source brought back: [value], or why
+/// nothing could be read (WEBEXT-017).
+sealed class SourceFetch<T> {
+  const SourceFetch();
+}
+
+final class SourceGot<T> extends SourceFetch<T> {
+  const SourceGot(this.value);
+  final T value;
+}
+
+final class SourceFailed<T> extends SourceFetch<T> {
+  const SourceFailed(this.reason);
+
+  /// The transport's or the app-wide proxy's words.
+  final String reason;
+}
+
+/// What getting an extension's update ready came to (WEBEXT-018).
+sealed class UpdatePrepared {
+  const UpdatePrepared();
+}
+
+/// Downloaded and read, with what it asks for beyond the installed version.
+final class UpdateReady extends UpdatePrepared {
+  const UpdateReady({required this.package, required this.asks});
+  final ExtensionPackage package;
+  final UpdateAsks asks;
+}
+
+/// The source or the package could not be reached.
+final class UpdateUnreachable extends UpdatePrepared {
+  const UpdateUnreachable(this.reason);
+  final String reason;
+}
+
+/// The source answered with no release to install.
+final class UpdateNoRelease extends UpdatePrepared {
+  const UpdateNoRelease(this.why);
+  final ReleaseProblem why;
+}
+
+/// The downloaded file is not a package WEBEXT-013 reads.
+final class UpdateNotAPackage extends UpdatePrepared {
+  const UpdateNotAPackage(this.why);
+  final PackageRefusal why;
+}
+
+/// [readExtensionPackage], run where it does not hold up the frame.
+typedef ReadPackage = Future<PackageRead> Function(Uint8List bytes);
+
+Future<PackageRead> readPackageApart(Uint8List bytes) =>
+    compute(readExtensionPackage, bytes);
+
+/// A GET through the app-wide proxy, of at most [maxBytes].
+typedef ExtensionFetch =
+    Future<AppProxyFetch> Function(Uri url, {required int maxBytes});
+
+Future<AppProxyFetch> _fetchViaAppProxy(Uri url, {required int maxBytes}) =>
+    fetchViaAppProxy(
+      url,
+      tag: LogTag.webExtension,
+      timeout: const Duration(seconds: 90),
+      maxBytes: maxBytes,
+      headers: const {'Accept': 'application/json, */*'},
     );
 
 /// Where the library's extensions are unpacked. Every call but [folderOf]
@@ -48,12 +118,22 @@ abstract interface class ExtensionFolders {
 
   Future<void> delete(WebExtensionId id);
 
+  /// Puts [files] in place of [id]'s folder, whole or not at all.
+  Future<void> replace(
+    WebExtensionId id, {
+    required Map<String, Uint8List> files,
+  });
+
   /// The files in [id]'s folder, keyed by their path inside it.
   Future<Map<String, Uint8List>> read(WebExtensionId id);
 
   /// The names of the folders present.
   Future<List<String>> names();
 }
+
+/// A folder an update is unpacked into before it takes the installed one's
+/// place. One an update cut short left is cleared by the next update.
+const _stagingPrefix = '.staging-';
 
 final class _HostExtensionFolders implements ExtensionFolders {
   _HostExtensionFolders(this.root);
@@ -81,6 +161,26 @@ final class _HostExtensionFolders implements ExtensionFolders {
   @override
   Future<void> delete(WebExtensionId id) => hostDeleteDirectory(folderOf(id));
 
+  /// Unpacked beside the folder first, so a write cut short leaves the
+  /// installed files as they were.
+  @override
+  Future<void> replace(
+    WebExtensionId id, {
+    required Map<String, Uint8List> files,
+  }) async {
+    final staging = '$root/$_stagingPrefix$id';
+    await hostDeleteDirectory(staging);
+    for (final MapEntry(key: path, value: bytes) in files.entries) {
+      final slash = path.lastIndexOf('/');
+      await hostEnsureDirectory(
+        slash < 0 ? staging : '$staging/${path.substring(0, slash)}',
+      );
+      await hostWriteFileBytes('$staging/$path', bytes: bytes);
+    }
+    await hostDeleteDirectory(folderOf(id));
+    await hostRenameDirectory(staging, to: folderOf(id));
+  }
+
   @override
   Future<Map<String, Uint8List>> read(WebExtensionId id) async {
     final folder = folderOf(id);
@@ -103,6 +203,8 @@ class WebExtensionLibrary {
 
   ExtensionFolders? _folders;
   ExtensionEngine _engine = const NativeExtensionEngine();
+  ExtensionFetch _fetch = _fetchViaAppProxy;
+  ReadPackage _read = readPackageApart;
   final ValueNotifier<List<InstalledExtension>> _installed = ValueNotifier(
     const [],
   );
@@ -126,9 +228,13 @@ class WebExtensionLibrary {
   Future<void> initialize({
     @visibleForTesting ExtensionFolders? folders,
     @visibleForTesting ExtensionEngine? engine,
+    @visibleForTesting ExtensionFetch? fetch,
+    @visibleForTesting ReadPackage? read,
   }) async {
     if (folders == null && !hostRunsWebExtensions) return;
     if (engine != null) _engine = engine;
+    if (fetch != null) _fetch = fetch;
+    if (read != null) _read = read;
     final prefs = await SharedPreferences.getInstance();
     final entries = [
       for (final raw
@@ -153,12 +259,18 @@ class WebExtensionLibrary {
     }
     _publish(entries);
     unawaited(_inspect(_installed.value));
+    if (webExtensionsOffered) {
+      unawaited(checkUpdates(now: DateTime.now()));
+    }
   }
 
-  /// Unpacks [package] and adds it, where [available]. Fails with an
-  /// [IOException], leaving nothing behind, when its files cannot be
-  /// written.
-  Future<WebExtensionEntry> add(ExtensionPackage package) async {
+  /// Unpacks [package] and adds it, where [available], keeping the [source]
+  /// it came from (WEBEXT-017). Fails with an [IOException], leaving
+  /// nothing behind, when its files cannot be written.
+  Future<WebExtensionEntry> add(
+    ExtensionPackage package, {
+    ExtensionSource? source,
+  }) async {
     final folders = _folders;
     if (folders == null) {
       throw StateError('import is offered only where the library has a folder');
@@ -171,6 +283,7 @@ class WebExtensionLibrary {
       permissions: manifest.permissions,
       hosts: manifest.hosts,
       everySite: false,
+      source: source,
     );
     try {
       await folders.unpack(entry.id, files: package.files);
@@ -192,12 +305,9 @@ class WebExtensionLibrary {
   /// Sets whether every site that sets no choice of its own runs [id]
   /// (WEBEXT-004).
   Future<void> setEverySite(WebExtensionId id, {required bool on}) async {
-    final entries = [
-      for (final i in _installed.value)
-        i.entry.id == id ? i.entry.withEverySite(on: on) : i.entry,
-    ];
-    _publish(entries);
-    await _save(entries);
+    if (_entryOf(id) case final entry?) {
+      await _replaceEntry(entry.withEverySite(on: on));
+    }
   }
 
   /// Drops [id] from the library, stops it wherever it runs, and deletes
@@ -240,6 +350,143 @@ class WebExtensionLibrary {
             })
               entry,
     ];
+  }
+
+  /// [bytes], a package the user picked, read as WEBEXT-013 says.
+  Future<PackageRead> readPackage(Uint8List bytes) => _read(bytes);
+
+  /// [source]'s latest release, read without downloading it (WEBEXT-017).
+  Future<SourceFetch<ReleaseRead>> latest(ExtensionSource source) async {
+    switch (await _fetch(releaseQuery(source), maxBytes: _releaseBytes)) {
+      case FetchRefused(:final reason) || FetchFailed(:final reason):
+        return SourceFailed(reason);
+      case Fetched(:final response):
+        final Object? json;
+        try {
+          json = jsonDecode(utf8.decode(response.bodyBytes));
+        } on FormatException {
+          return SourceGot(readRelease(source, json: null));
+        }
+        return SourceGot(readRelease(source, json: json));
+    }
+  }
+
+  static const _releaseBytes = 4 << 20;
+
+  /// [candidate] downloaded and read as WEBEXT-013 says.
+  Future<SourceFetch<PackageRead>> download(PackageCandidate candidate) async {
+    switch (await _fetch(
+      candidate.url,
+      maxBytes: PackageLimits.packageBytes,
+    )) {
+      case FetchRefused(:final reason) || FetchFailed(:final reason):
+        return SourceFailed(reason);
+      case Fetched(:final response):
+        return SourceGot(await _read(response.bodyBytes));
+    }
+  }
+
+  /// Reads the source of each extension added from a link whose last read
+  /// is a day old or more, and marks those with a newer release
+  /// (WEBEXT-018). A source that cannot be reached is read again next time.
+  Future<void> checkUpdates({required DateTime now}) async {
+    for (final (:entry, folder: _) in _installed.value) {
+      final source = entry.source;
+      if (source == null || !checkDue(lastChecked: entry.checkedAt, now: now)) {
+        continue;
+      }
+      final SourceFetch<ReleaseRead> read = await latest(source);
+      final checked = switch (read) {
+        SourceFailed() => null,
+        SourceGot(value: final release) => switch (checkUpdate(
+          installedVersion: entry.version,
+          release: release,
+        )) {
+          UpdateAvailable(:final version) => entry.withCheck(
+            at: now,
+            latest: version,
+          ),
+          UpToDate() => entry.withCheck(at: now, latest: null),
+          CheckFailed() => entry.withCheck(at: now, latest: entry.latest),
+        },
+      };
+      if (checked == null) continue;
+      await _replaceEntry(checked);
+    }
+  }
+
+  /// [id]'s update downloaded and read, with what it asks for beyond the
+  /// installed version, ready for [install] once the user accepts any of
+  /// that (WEBEXT-018).
+  Future<UpdatePrepared> prepareUpdate(WebExtensionId id) async {
+    final entry = _entryOf(id);
+    final source = entry?.source;
+    assert(source != null, 'only an extension with a source updates');
+    if (entry == null || source == null) {
+      return const UpdateNoRelease(ReleaseProblem.noPackage);
+    }
+    final PackageCandidate candidate;
+    switch (await latest(source)) {
+      case SourceFailed(:final reason):
+        return UpdateUnreachable(reason);
+      case SourceGot(value: ReleaseRefused(:final why)):
+        return UpdateNoRelease(why);
+      case SourceGot(value: ReleaseFound(:final candidates)):
+        candidate = candidates.first;
+    }
+    return switch (await download(candidate)) {
+      SourceFailed(:final reason) => UpdateUnreachable(reason),
+      SourceGot(value: PackageRefused(:final why)) => UpdateNotAPackage(why),
+      SourceGot(value: final ExtensionPackage package) => UpdateReady(
+        package: package,
+        asks: updateAsks(installed: entry, update: package.manifest),
+      ),
+    };
+  }
+
+  /// Puts [package] in place of [id]'s files, keeping its id, so the sites
+  /// that run it keep it and its data (WEBEXT-018). Fails with an
+  /// [IOException], leaving the installed files as they were, when its
+  /// files cannot be written.
+  Future<WebExtensionEntry> install(
+    WebExtensionId id, {
+    required ExtensionPackage package,
+  }) async {
+    final folders = _folders;
+    final entry = _entryOf(id);
+    if (folders == null || entry == null) {
+      throw StateError('an update installs over an installed extension');
+    }
+    await folders.replace(id, files: package.files);
+    final manifest = package.manifest;
+    final updated = entry.updatedTo(
+      name: manifest.name,
+      version: manifest.version,
+      permissions: manifest.permissions,
+      hosts: manifest.hosts,
+    );
+    await _replaceEntry(updated);
+    await _inspect([
+      for (final i in _installed.value)
+        if (i.entry.id == id) i,
+    ]);
+    LogTag.webExtension.debug('updated $id');
+    return updated;
+  }
+
+  WebExtensionEntry? _entryOf(WebExtensionId id) => [
+    for (final (:entry, folder: _) in _installed.value)
+      if (entry.id == id) entry,
+  ].firstOrNull;
+
+  Future<void> _replaceEntry(WebExtensionEntry replacement) async {
+    if (_entryOf(replacement.id) == null) return;
+    final entries = [
+      for (final (:entry, folder: _) in _installed.value)
+        entry.id == replacement.id ? replacement : entry,
+    ];
+    _publish(entries);
+    await _save(entries);
   }
 
   /// Each way a backup can carry the library, with its size (WEBEXT-011).
@@ -292,8 +539,7 @@ class WebExtensionLibrary {
     final links = {...relink.linked};
     final readable = <(WebExtensionId, ExtensionPackage)>[];
     for (final carried in relink.toAdd) {
-      if (await compute(readExtensionPackage, carried.package!)
-          case final ExtensionPackage package) {
+      if (await _read(carried.package!) case final ExtensionPackage package) {
         readable.add((carried.id, package));
       }
     }
@@ -367,6 +613,8 @@ class WebExtensionLibrary {
   void debugReset() {
     _folders = null;
     _engine = const NativeExtensionEngine();
+    _fetch = _fetchViaAppProxy;
+    _read = readPackageApart;
     _installed.value = const [];
     _reports.value = const {};
   }

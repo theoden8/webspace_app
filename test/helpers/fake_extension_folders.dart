@@ -31,6 +31,19 @@ class FakeExtensionFolders implements ExtensionFolders {
   @override
   Future<void> delete(WebExtensionId id) async => folders.remove(id);
 
+  /// Whole or not at all, as the host's staged replace is: [failAfter]
+  /// fails it before anything is put in place.
+  @override
+  Future<void> replace(
+    WebExtensionId id, {
+    required Map<String, Uint8List> files,
+  }) async {
+    if (failAfter case final limit? when files.length > limit) {
+      throw const FileSystemException('No space left on device');
+    }
+    folders[id] = Map.of(files);
+  }
+
   @override
   Future<Map<String, Uint8List>> read(WebExtensionId id) async =>
       Map.of(folders[id] ?? const {});

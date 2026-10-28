@@ -5592,6 +5592,139 @@
   "@extensionsImportHint": {
     "description": "Explanation behind the hint button of the 'Import from a file' row on the Extensions screen."
   },
+  "extensionsAddFromLink": "Add from a link",
+  "@extensionsAddFromLink": {
+    "description": "Row on the Extensions screen, and title of its dialog: adds a browser extension from a link to its page on addons.mozilla.org or its GitHub repository."
+  },
+  "extensionsAddFromLinkSubtitle": "addons.mozilla.org or GitHub",
+  "@extensionsAddFromLinkSubtitle": {
+    "description": "Subtitle of the Add from a link row: the two kinds of link it takes. Keep both names as they are."
+  },
+  "extensionsAddFromLinkHint": "Paste the link to an extension's page on addons.mozilla.org, or to a GitHub repository that publishes it in its releases. The app reads the latest release and shows what the extension asks for before adding it, and checks the same place for updates once a day.",
+  "@extensionsAddFromLinkHint": {
+    "description": "Explanation behind the hint button of the Add from a link row on the Extensions screen."
+  },
+  "extensionsLinkField": "Link",
+  "@extensionsLinkField": {
+    "description": "Label of the text field in the Add from a link dialog, where the user pastes a link to a browser extension."
+  },
+  "extensionsLinkExample": "https://addons.mozilla.org/… or https://github.com/…",
+  "@extensionsLinkExample": {
+    "description": "Placeholder in the Add from a link field showing the two kinds of link it takes. Keep the addresses as they are."
+  },
+  "extensionsLinkNotRead": "Not a link the app reads: paste an addons.mozilla.org page or a GitHub repository.",
+  "@extensionsLinkNotRead": {
+    "description": "Error under the Add from a link field when the pasted text is not a link to an addons.mozilla.org page or a GitHub repository."
+  },
+  "extensionsReading": "Reading the extension's source",
+  "@extensionsReading": {
+    "description": "Spoken name of the progress bar on the Extensions screen while the app reads a link's latest release and downloads its package."
+  },
+  "extensionsLinkUnreachable": "Could not reach the source: {reason}",
+  "@extensionsLinkUnreachable": {
+    "description": "Snackbar when the app could not read a browser extension's source or download its package. {reason} is the network's or proxy's message, in English; leave it as is.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsLinkNoRelease": "Nothing to add: {reason}",
+  "@extensionsLinkNoRelease": {
+    "description": "Snackbar when a browser extension's source answered but has no package to add. {reason} is one of the extensionsRelease... sentences.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsReleaseNotJson": "the source did not answer as expected",
+  "@extensionsReleaseNotJson": {
+    "description": "Reason a browser extension's source has nothing to add: its answer could not be read. Fills {reason} in 'Nothing to add: {reason}', so starts lower case where the language allows."
+  },
+  "extensionsReleaseNoVersion": "its latest release names no version",
+  "@extensionsReleaseNoVersion": {
+    "description": "Reason a browser extension's source has nothing to add: its latest release has no version number. Fills {reason} in 'Nothing to add: {reason}'."
+  },
+  "extensionsReleaseNoPackage": "its latest release has no .crx, .zip or .xpi package",
+  "@extensionsReleaseNoPackage": {
+    "description": "Reason a browser extension's source has nothing to add: its latest release offers no extension package. Fills {reason} in 'Nothing to add: {reason}'."
+  },
+  "extensionsPickPackage": "Version {version}: which file?",
+  "@extensionsPickPackage": {
+    "description": "Title of the dialog listing the package files of a browser extension's latest release, when it offers several (for Chrome, for Firefox). {version} is the release's version.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsSource": "Source",
+  "@extensionsSource": {
+    "description": "Row on a browser extension's screen naming the link it was added from, where its updates are read."
+  },
+  "extensionsSourceChecked": "{source}, checked {date}",
+  "@extensionsSourceChecked": {
+    "description": "Subtitle of the Source row on a browser extension's screen: the link it was added from, and the date its updates were last checked.",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsVersionUpdate": "Version {version} · {latest} available",
+  "@extensionsVersionUpdate": {
+    "description": "Subtitle of a browser extension in the library when a newer version was found at its source. {version} is the installed version, {latest} the newer one.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsUpdateTo": "Update to {version}",
+  "@extensionsUpdateTo": {
+    "description": "Row on a browser extension's screen when its source has a newer version; tapping it downloads and installs that version.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsUpdate": "Update",
+  "@extensionsUpdate": {
+    "description": "Confirm button of the dialog that installs a browser extension's update which asks for more than the installed version."
+  },
+  "extensionsUpdateAsksTitle": "Update {name}?",
+  "@extensionsUpdateAsksTitle": {
+    "description": "Title of the dialog before an update of a browser extension that asks for more than the installed version. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsUpdateAsksBody": "This update asks for more than the installed version. Every site that runs it gets this too, still only on its own pages:",
+  "@extensionsUpdateAsksBody": {
+    "description": "First paragraph of the dialog before an extension update that asks for more, above the new permissions and pages it asks for."
+  },
+  "extensionsUpdated": "{name} updated to {version}",
+  "@extensionsUpdated": {
+    "description": "Snackbar after a browser extension's update was installed. {name} is its name and {version} the new version.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "extensionsLibrary": "Imported",
   "@extensionsLibrary": {
     "description": "Section header on the Extensions screen above the list of browser extensions imported on this device."

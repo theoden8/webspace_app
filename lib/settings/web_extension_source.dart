@@ -32,6 +32,9 @@ sealed class ExtensionSource {
 
   Map<String, Object?> toJson();
 
+  /// The source as a person reads it, a link without its scheme.
+  String get label;
+
   /// Null when [json] names no source; a wrong-typed field reads as absent.
   static ExtensionSource? fromJson(Object? json) {
     if (json is! Map<String, Object?>) return null;
@@ -70,6 +73,9 @@ final class AmoSource extends ExtensionSource {
 
   @override
   Map<String, Object?> toJson() => {'from': _amo, 'slug': slug};
+
+  @override
+  String get label => 'addons.mozilla.org/firefox/addon/$slug';
 }
 
 /// A GitHub repository's latest release.
@@ -95,6 +101,9 @@ final class GitHubSource extends ExtensionSource {
     'repo': repo,
     'asset': ?asset,
   };
+
+  @override
+  String get label => 'github.com/$owner/$repo';
 }
 
 final RegExp _kLocalePattern = RegExp(r'^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$');

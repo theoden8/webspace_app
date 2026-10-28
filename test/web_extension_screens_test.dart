@@ -37,7 +37,7 @@ Future<PackageRead> _readHere(Uint8List bytes) async =>
     readExtensionPackage(bytes);
 
 AppExtensionsScreen _library({required Uint8List? picked}) =>
-    AppExtensionsScreen(pick: () async => picked, read: _readHere);
+    AppExtensionsScreen(pick: () async => picked);
 
 Future<WebExtensionEntry> _imported() async => WebExtensionLibrary.instance.add(
   switch (readExtensionPackage(sampleZip(manifest: _manifest))) {
@@ -102,6 +102,7 @@ void main() {
     await WebExtensionLibrary.instance.initialize(
       folders: disk,
       engine: engine,
+      read: _readHere,
     );
     debugHostRunsWebExtensions = true;
     DeveloperModeService.instance.debugSet(on: true);

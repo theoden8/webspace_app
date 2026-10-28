@@ -18,6 +18,7 @@ inapp.WebExtensionAttach? nativeExtensions(ExtensionAttach attach) =>
               inapp.WebExtensionContextSpec(
                 id: load.id,
                 path: load.folder,
+                revision: load.revision,
                 grantedMatchPatterns: load.grants.matchPatterns.toList()
                   ..sort(),
                 grantedPermissions: load.grants.permissions.toList()..sort(),

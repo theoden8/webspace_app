@@ -46,10 +46,12 @@ final class AttachExtensions extends ExtensionAttach {
   final List<ExtensionLoad> loads;
 }
 
-/// One extension a site loads, from where, and what it may reach there.
+/// One extension a site loads, from where, which version of its files
+/// (an update loads them again), and what it may reach there.
 typedef ExtensionLoad = ({
   WebExtensionId id,
   String folder,
+  String revision,
   ExtensionGrants grants,
 });
 
@@ -76,6 +78,7 @@ ExtensionAttach planExtensionAttach(ExtensionAttachInputs inputs) {
         (
           id: entry.id,
           folder: folder,
+          revision: entry.version,
           grants: planExtensionGrants(entry, claims: inputs.claims),
         ),
   ];
