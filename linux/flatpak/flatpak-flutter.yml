@@ -14,15 +14,31 @@ build-options:
   # search; flatpak-builder passes this to both.
   libdir: lib
 
+# Each entry names what needs it. Needing none: files through the FileChooser
+# portal (file_picker), links through OpenURI (url_launcher), a camera through
+# the Camera portal (WebKit's PipeWire capture), the app's own files under
+# ~/.var/app (PLATFORM-010), and its own id on the session bus (PLATFORM-011).
 finish-args:
-  - --share=ipc
-  - --share=network
+  # GTK's window under Wayland.
   - --socket=wayland
+  # GTK's window under X11 where no Wayland compositor runs.
   - --socket=fallback-x11
-  - --socket=pulseaudio
+  # X11 shared memory for the fallback window.
+  - --share=ipc
+  # Flutter's and WPE WebKit's GL rendering.
   - --device=dri
-  - --talk-name=org.freedesktop.secrets
+  # Every site, its proxy, and an external tor's SOCKS and control ports.
+  - --share=network
+  # WPE's GStreamer: a page's sound out, and its microphone in.
+  - --socket=pulseaudio
+  # flutter_local_notifications_linux calls it directly, not the notification portal.
   - --talk-name=org.freedesktop.Notifications
+  # libsecret (flutter_secure_storage_linux) where no Secret portal answers.
+  - --talk-name=org.freedesktop.secrets
+  # The tray icon's RegisterStatusNotifierItem (NOTIF-019).
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Debian's tor control socket and cookie, the path the control port hint names (TOR-026).
+  - --filesystem=/run/tor:ro
   # flatpak's default PS1 carries an emoji, and WebKit hands the whole
   # environment to flatpak-spawn, which cannot convert it under a non-UTF-8
   # locale and so never starts the web process.

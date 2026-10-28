@@ -64,3 +64,37 @@ test('the app module is named after the id, and its build paths follow', () => {
       `${MANIFEST} builds under /run/build/${dir}, not the app module's /run/build/${module}`);
   }
 });
+
+// The finish-args block: each entry with the line above it.
+function finishArgs() {
+  const lines = manifest.split('\n');
+  const start = lines.indexOf('finish-args:');
+  assert.ok(start >= 0, `${MANIFEST} has no finish-args:`);
+  const entries = [];
+  for (let i = start + 1; i < lines.length && /^\s|^$/.test(lines[i]); i++) {
+    const m = lines[i].match(/^ {2}- '?(--[^']*?)'?\s*$/);
+    if (m) entries.push({ arg: m[1], above: lines[i - 1] });
+  }
+  return entries;
+}
+
+// The sandbox's D-Bus proxy answers a call to a name the manifest does not
+// grant with ServiceUnknown, the error a desktop with no tray gives, so the
+// icon never shows and nothing fails.
+test('the flatpak may call the tray watcher the app registers with (NOTIF-019)', () => {
+  const watcher = read('lib/services/status_notifier_tray.dart')
+    .match(/^const _watcher = '([\w.]+)';$/m)?.[1];
+  assert.ok(watcher, '_watcher not found in lib/services/status_notifier_tray.dart');
+  assert.ok(finishArgs().some((e) => e.arg === `--talk-name=${watcher}`),
+    `${MANIFEST} lets the app call ${watcher} nowhere in finish-args`);
+});
+
+test('each sandbox permission names what needs it, and none is the whole bus or home', () => {
+  const entries = finishArgs();
+  assert.ok(entries.length > 0, `${MANIFEST}: no finish-args entries read`);
+  for (const { arg, above } of entries) {
+    assert.match(above, /^ {2}# \S/, `${MANIFEST}: ${arg} has no comment line above it`);
+    assert.doesNotMatch(arg, /^--socket=session-bus$|^--socket=system-bus$|^--filesystem=(home|host)(\b|$)/,
+      `${MANIFEST} grants ${arg}`);
+  }
+});
