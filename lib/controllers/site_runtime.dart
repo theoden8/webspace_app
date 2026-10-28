@@ -72,9 +72,9 @@ class SiteRuntime {
   bool get fore => _fore;
   bool _fore = true;
 
-  /// A site whose webview went outside the unload engine: deleted, its
-  /// trust revoked, or its slot's identity changed. Named here so those
-  /// three are the only writers beside the tables and [apply].
+  /// A site whose webview went outside the unload engine: its slot's
+  /// identity changed. Named here so that is the only writer beside the
+  /// tables and [apply].
   bool retired(WebViewModel site, {required Commit commit}) {
     final went = _loaded.remove(site);
     if (went) commit.wrote(ModelVar.loaded);

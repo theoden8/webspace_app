@@ -211,7 +211,8 @@ void main() {
 
         expect(page.loadedIndices, {1});
         expect(page.noted, [(a, reason)]);
-        expect(page.captured, reason == UnloadReason.homeReset ? isEmpty : [a]);
+        final goesHome = {UnloadReason.homeReset, UnloadReason.trustRevoked};
+        expect(page.captured, goesHome.contains(reason) ? isEmpty : [a]);
         expect(a.lifecycleState, SiteLifecycleState.savedForRestore);
       });
     }
