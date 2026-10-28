@@ -32,5 +32,9 @@ class FakeExtensionFolders implements ExtensionFolders {
   Future<void> delete(WebExtensionId id) async => folders.remove(id);
 
   @override
+  Future<Map<String, Uint8List>> read(WebExtensionId id) async =>
+      Map.of(folders[id] ?? const {});
+
+  @override
   Future<List<String>> names() async => folders.keys.toList();
 }

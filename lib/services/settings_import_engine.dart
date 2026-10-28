@@ -21,10 +21,20 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart'
     show ProxyLibraryData, resolveLibrary;
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings/web_extension.dart';
+import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/settings/site_ids.dart';
+
+/// A restored site's choices for the backup's extensions, by the ids they
+/// had on the device that exported it, held until the import links those
+/// extensions to this device's library (WEBEXT-011).
+typedef HeldExtensionChoices = ({
+  WebViewModel site,
+  Map<WebExtensionId, bool> choices,
+});
 
 /// A suggested site as the backup lists it.
 typedef ImportedSuggestion = ({String name, String url, String domain});
@@ -96,6 +106,13 @@ class SettingsImportPlan {
 
   /// What [sanitizeImportedSites] switched off that the backup ran.
   final List<HeldScript> heldScripts;
+
+  /// The extensions the backup carries; null when it carries none.
+  final BackupExtensions? webExtensions;
+
+  /// Each site's choices for [webExtensions], which [sanitizeImportedSites]
+  /// cleared; empty when the backup carries no extensions.
+  final List<HeldExtensionChoices> heldExtensionChoices;
   final List<ImportedSuggestion>? suggestedSites;
   final int? dnsBlockLevel;
   final List<Map<String, dynamic>>? contentBlockerLists;
@@ -115,6 +132,8 @@ class SettingsImportPlan {
     required this.currentIndex,
     required this.globalUserScripts,
     required this.heldScripts,
+    required this.webExtensions,
+    required this.heldExtensionChoices,
     required this.suggestedSites,
     required this.dnsBlockLevel,
     required this.contentBlockerLists,
@@ -146,6 +165,12 @@ SettingsImportPlan planSettingsImport(
   final globalScripts = backup.globalUserScripts
       ?.map(UserScriptConfig.fromJson)
       .toList();
+  final heldExtensionChoices = [
+    if (backup.webExtensions != null)
+      for (final site in sites)
+        if (site.webExtensionChoices.isNotEmpty)
+          (site: site, choices: Map.of(site.webExtensionChoices)),
+  ];
   final heldScripts =
       sanitizeImportedSites(sites, globalScripts: globalScripts ?? const []);
   // TAB-018: a restored site keeps its colour unless a site before it holds
@@ -207,6 +232,8 @@ SettingsImportPlan planSettingsImport(
             : null,
     globalUserScripts: globalScripts,
     heldScripts: heldScripts,
+    webExtensions: backup.webExtensions,
+    heldExtensionChoices: heldExtensionChoices,
     suggestedSites: backup.suggestedSites == null
         ? null
         : [

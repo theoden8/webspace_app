@@ -3489,6 +3489,15 @@
   "@homeImportBlocklistRedownloadHint": {
     "description": "Hint appended to the import-success snackbar when blocklists need re-downloading"
   },
+  "homeImportExtensionsMissingHint": "{count, plural, =1{1 extension the backup names is not on this device: import it in App Settings, under Extensions.} other{{count} extensions the backup names are not on this device: import them in App Settings, under Extensions.}}",
+  "@homeImportExtensionsMissingHint": {
+    "description": "Sentence added to the snackbar after a settings import when the backup named browser extensions this device does not have and could not add.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeSettingsImportedSuccess": "Settings imported successfully",
   "@homeSettingsImportedSuccess": {
     "description": "Snackbar shown after a successful settings import with no follow-up hints"
@@ -5787,6 +5796,70 @@
         "type": "String"
       }
     }
+  },
+  "backupExtensionsTitle": "Extensions in the backup",
+  "@backupExtensionsTitle": {
+    "description": "Title of the dialog, shown while exporting settings, that asks how the backup carries the browser extensions imported on this device."
+  },
+  "backupExtensionsBody": "{count, plural, =1{How should the backup carry the imported extension?} other{How should the backup carry the {count} imported extensions?}}",
+  "@backupExtensionsBody": {
+    "description": "Body of the dialog that asks how a settings backup carries the browser extensions imported on this device. {count} is how many there are.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupExtensionsLeaveOut": "Leave them out",
+  "@backupExtensionsLeaveOut": {
+    "description": "Choice in the dialog that asks how a settings backup carries browser extensions: the backup carries none."
+  },
+  "backupExtensionsLeaveOutDetail": "Adds nothing. After an import, sites run no extension until you switch them on.",
+  "@backupExtensionsLeaveOutDetail": {
+    "description": "Line under the Leave them out choice when a settings backup is exported: what that choice means."
+  },
+  "backupExtensionsReferences": "As references",
+  "@backupExtensionsReferences": {
+    "description": "Choice in the dialog that asks how a settings backup carries browser extensions: the backup names each extension without its files."
+  },
+  "backupExtensionsReferencesDetail": "Adds {size}. Names each one, so an import relinks those the device already has, and the sites that ran them run them again.",
+  "@backupExtensionsReferencesDetail": {
+    "description": "Line under the As references choice when a settings backup is exported. {size} is how much it adds to the backup file, like 640 B.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "backupExtensionsFiles": "With their files",
+  "@backupExtensionsFiles": {
+    "description": "Choice in the dialog that asks how a settings backup carries browser extensions: the backup carries each extension's files."
+  },
+  "backupExtensionsFilesDetail": "Adds {size}. Carries each one, so an import can add it, and the sites that ran it run it again.",
+  "@backupExtensionsFilesDetail": {
+    "description": "Line under the With their files choice when a settings backup is exported. {size} is how much it adds to the backup file, like 1.5 MB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "backupExtensionsUnreadable": "The backup was not saved: an extension's files could not be read.",
+  "@backupExtensionsUnreadable": {
+    "description": "Snackbar when a settings export stopped because the files of an imported browser extension could not be read from the device."
+  },
+  "backupExtensionsAddTitle": "{count, plural, =1{Add 1 extension from the backup?} other{Add {count} extensions from the backup?}}",
+  "@backupExtensionsAddTitle": {
+    "description": "Title of the dialog during a settings import that asks whether to add the browser extensions the backup carries and this device lacks. {count} is how many.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupExtensionsAddBody": "This device does not have them. Each starts off for every site, and the sites that ran it in the backup run it again.",
+  "@backupExtensionsAddBody": {
+    "description": "Body of the dialog during a settings import that asks whether to add the browser extensions the backup carries, above each one's name, version and what it asks for."
   },
   "siteSettingsExtensionsHint": "Browser extensions imported in App Settings that run on this site's pages. Each one reaches only this site, and a change applies when the site next loads.",
   "@siteSettingsExtensionsHint": {

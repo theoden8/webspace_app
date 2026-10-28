@@ -209,7 +209,7 @@ Exporting settings SHALL ask how to carry the extension library, naming the size
 
 - **GIVEN** a library of two extensions whose packages are 1.2 MB and 300 KB
 - **WHEN** the user exports settings
-- **THEN** the choices say that references add a few hundred bytes and files add about 1.5 MB
+- **THEN** the choices say that references add under a kilobyte and files add about 2 MB, the packages as the backup's text holds them
 
 #### Scenario: Files restored on another device
 

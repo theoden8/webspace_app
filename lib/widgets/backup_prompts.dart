@@ -3,6 +3,10 @@ import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/services/web_extension_backup_engine.dart';
+import 'package:webspace/services/web_extension_package_engine.dart';
+import 'package:webspace/settings/byte_size.dart';
+import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 
@@ -108,6 +112,104 @@ class DialogBackupPrompts implements BackupPrompts {
       ),
       confirmLabel: loc.homeImportHeldScriptsTurnOn,
       cancelLabel: loc.homeImportHeldScriptsLeaveOff,
+      destructive: false,
+    );
+  }
+
+  @override
+  Future<ExtensionCarry?> chooseExtensionCarry(ExtensionCarryOffer offer) {
+    final loc = AppLocalizations.of(context);
+    final choices = [
+      (
+        ExtensionCarry.leaveOut,
+        loc.backupExtensionsLeaveOut,
+        loc.backupExtensionsLeaveOutDetail,
+      ),
+      (
+        ExtensionCarry.references,
+        loc.backupExtensionsReferences,
+        loc.backupExtensionsReferencesDetail(
+          formatByteSize(offer.referencesBytes),
+        ),
+      ),
+      (
+        ExtensionCarry.files,
+        loc.backupExtensionsFiles,
+        loc.backupExtensionsFilesDetail(formatByteSize(offer.filesBytes)),
+      ),
+    ];
+    return showDialog<ExtensionCarry>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text(loc.backupExtensionsTitle),
+        contentPadding: const EdgeInsets.only(top: Spacing.md),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.xl),
+                child: Text(loc.backupExtensionsBody(offer.count)),
+              ),
+              const SizedBox(height: Spacing.sm),
+              for (final (carry, title, detail) in choices)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.xl,
+                  ),
+                  title: Text(title),
+                  subtitle: Text(detail),
+                  onTap: () => Navigator.pop(dialog, carry),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: Text(loc.commonCancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Future<bool> confirmAddExtensions(List<ExtensionPackage> packages) {
+    final loc = AppLocalizations.of(context);
+    final theme = Theme.of(context).textTheme;
+    return confirm(
+      context,
+      title: loc.backupExtensionsAddTitle(packages.length),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(loc.backupExtensionsAddBody),
+          for (final ExtensionPackage(:manifest, :signatureUnchecked)
+              in packages) ...[
+            const SizedBox(height: Spacing.md),
+            Text(manifest.name, style: theme.titleSmall),
+            Text(
+              [
+                loc.extensionsVersion(manifest.version),
+                manifest.permissions.isEmpty
+                    ? loc.extensionsAsksNothing
+                    : loc.extensionsAsks(
+                        (manifest.permissions.toList()..sort()).join(', ')),
+                manifest.hosts.isEmpty
+                    ? loc.extensionsReachesNothing
+                    : loc.extensionsReaches(
+                        (manifest.hosts.toList()..sort()).join(', ')),
+                if (signatureUnchecked) loc.extensionsSignatureUnchecked,
+              ].join('\n'),
+              style: theme.bodySmall,
+            ),
+          ],
+        ],
+      ),
+      confirmLabel: loc.commonAdd,
       destructive: false,
     );
   }

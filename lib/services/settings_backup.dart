@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/webspace_model.dart';
 
 const int kBackupVersion = 1;
@@ -51,6 +52,10 @@ class SettingsBackup {
   /// backup predates this field.
   final List<Map<String, dynamic>>? contentBlockerLists;
 
+  /// The extension library, as the user chose to carry it; null when left
+  /// out or when the backup predates the choice (WEBEXT-011).
+  final BackupExtensions? webExtensions;
+
   SettingsBackup({
     required this.version,
     required this.sites,
@@ -68,6 +73,7 @@ class SettingsBackup {
     this.dnsBlockLevel,
     this.contentBlockerLists,
     this.extraSections,
+    this.webExtensions,
   }) : globalPrefs = _normalizePrefs(
           globalPrefs,
           showUrlBar: showUrlBar,
@@ -91,6 +97,8 @@ class SettingsBackup {
           'contentBlockerLists': contentBlockerLists,
         if (extraSections != null && extraSections!.isNotEmpty)
           'extraSections': extraSections,
+        if (webExtensions case final section?)
+          'webExtensions': section.toJson(),
       };
 
   /// `sites` and `webspaces` are the backup; a malformed entry in either
@@ -133,6 +141,7 @@ class SettingsBackup {
       dnsBlockLevel:
           json['dnsBlockLevel'] is int ? json['dnsBlockLevel'] as int : null,
       contentBlockerLists: optionalMaps(json['contentBlockerLists']),
+      webExtensions: BackupExtensions.fromJson(json['webExtensions']),
       extraSections: json['extraSections'] is List
           ? (json['extraSections'] as List).whereType<String>().toList()
           : null,
@@ -183,6 +192,7 @@ class SettingsBackupService {
     int? dnsBlockLevel,
     List<Map<String, dynamic>>? contentBlockerLists,
     List<String>? extraSections,
+    BackupExtensions? webExtensions,
   }) {
     // Convert sites to JSON. `model.toJson` already omits the proxy
     // password (per PWD-005); we still need to strip secure cookies here.
@@ -219,6 +229,7 @@ class SettingsBackupService {
       dnsBlockLevel: dnsBlockLevel,
       contentBlockerLists: contentBlockerLists,
       extraSections: extraSections,
+      webExtensions: webExtensions,
     );
   }
 

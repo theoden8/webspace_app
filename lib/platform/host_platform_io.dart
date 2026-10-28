@@ -85,6 +85,21 @@ Future<List<String>> hostListDirectoryNames(String path) async {
   return names;
 }
 
+/// The path, relative to [path] and joined by `/`, of every file under it;
+/// none when it is absent.
+Future<List<String>> hostListFilesUnder(String path) async {
+  final dir = io.Directory(path);
+  if (!await dir.exists()) return const [];
+  final root = dir.absolute.uri.pathSegments.where((s) => s.isNotEmpty).length;
+  final paths = <String>[];
+  await for (final entry in dir.list(recursive: true, followLinks: false)) {
+    if (entry is io.File) {
+      paths.add(entry.absolute.uri.pathSegments.skip(root).join('/'));
+    }
+  }
+  return paths;
+}
+
 /// The platform's gzip / zlib decoders, as plain converters so callers keep
 /// their own bounded-inflation guards.
 Converter<List<int>, List<int>> get hostGzipDecoder => io.gzip.decoder;

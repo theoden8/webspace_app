@@ -5,6 +5,7 @@ import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -21,8 +22,12 @@ import 'package:webspace/services/suggested_sites_service.dart' as suggested_sit
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart' show UboTrustedSite, hostTrustedBy;
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/web_extension_backup_engine.dart';
+import 'package:webspace/services/web_extension_library.dart';
+import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_suggestion.dart';
+import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -40,6 +45,14 @@ abstract interface class BackupPrompts {
   /// Whether to run [held], the scripts the backup ran, again where it ran
   /// them.
   Future<bool> confirmRestoreScripts(List<HeldScript> held);
+
+  /// How the backup carries the extension library, each choice with its
+  /// size; null cancels the export (WEBEXT-011).
+  Future<ExtensionCarry?> chooseExtensionCarry(ExtensionCarryOffer offer);
+
+  /// Whether to add [packages], the extensions the backup carries files of
+  /// that this device lacks (WEBEXT-011).
+  Future<bool> confirmAddExtensions(List<ExtensionPackage> packages);
 }
 
 /// What a backup asks of the page.
@@ -87,6 +100,25 @@ class BackupController {
     final extraSections = await _archives.sectionsForExport();
     if (!_host.mounted) return;
 
+    final BackupExtensions? webExtensions;
+    final library = WebExtensionLibrary.instance;
+    if (library.installed.value.isEmpty) {
+      webExtensions = null;
+    } else {
+      final ExtensionCarryOffer offer;
+      try {
+        offer = await library.carryOffer();
+      } on IOException catch (e) {
+        LogTag.webExtension.info('export left extensions out: $e');
+        _host.toast((loc) => loc.backupExtensionsUnreadable);
+        return;
+      }
+      if (!_host.mounted) return;
+      final carry = await _prompts.chooseExtensionCarry(offer);
+      if (carry == null || !_host.mounted) return;
+      webExtensions = extensionSectionFor(carry, offer: offer);
+    }
+
     await _prompts.save(SettingsBackupService.createBackup(
       webViewModels: appTierModels,
       webspaces: ArchiveMembershipEngine.persistable(
@@ -113,7 +145,25 @@ class BackupController {
       dnsBlockLevel: DnsBlockService.instance.level,
       contentBlockerLists: ContentBlockerService.instance.exportListSelection(),
       extraSections: extraSections,
+      webExtensions: webExtensions,
     ));
+  }
+
+  /// Gives each restored site back its choices for the backup's extensions
+  /// this device has, or adds once the user accepts (WEBEXT-011). Returns
+  /// how many it could neither link nor add.
+  Future<int> _restoreExtensions(SettingsImportPlan plan) async {
+    final incoming = plan.webExtensions;
+    if (incoming == null) return 0;
+    final restored = await WebExtensionLibrary.instance.restoreFromBackup(
+      incoming,
+      confirmAdd: (packages) async =>
+          _host.mounted && await _prompts.confirmAddExtensions(packages),
+    );
+    for (final (:site, :choices) in plan.heldExtensionChoices) {
+      site.webExtensionChoices = relinkChoices(choices, links: restored.links);
+    }
+    return restored.missing;
   }
 
   /// uBO trusts a site by switching all filtering off on it; the per-site
@@ -208,6 +258,8 @@ class BackupController {
           .importListSelection(plan.contentBlockerLists!);
     }
     if (!_host.mounted) return;
+    final extensionsMissing = await _restoreExtensions(plan);
+    if (!_host.mounted) return;
     _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
     await _host.commitSites(SitesReplaced(
       sites: plan.sites,
@@ -270,12 +322,16 @@ class BackupController {
       await webViewModel.setAppTheme(webViewTheme);
     }
 
-    final hinted = plan.proxyPasswordsNeeded || plan.blocklistsNeedDownload;
+    final hinted = plan.proxyPasswordsNeeded ||
+        plan.blocklistsNeedDownload ||
+        extensionsMissing > 0;
     _host.toast(
       (loc) {
         final hints = <String>[
           if (plan.proxyPasswordsNeeded) loc.homeImportProxyPasswordsHint,
           if (plan.blocklistsNeedDownload) loc.homeImportBlocklistRedownloadHint,
+          if (extensionsMissing > 0)
+            loc.homeImportExtensionsMissingHint(extensionsMissing),
         ];
         return hints.isEmpty
             ? loc.homeSettingsImportedSuccess

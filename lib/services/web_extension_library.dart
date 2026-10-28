@@ -16,11 +16,13 @@ import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
+import 'package:webspace/services/web_extension_backup_engine.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/web_extension.dart';
+import 'package:webspace/settings/web_extension_backup.dart';
 
 /// Whether extensions are offered here now (WEBEXT-001): on a host that runs
 /// them, with developer mode and the Web extensions switch on. Every
@@ -45,6 +47,9 @@ abstract interface class ExtensionFolders {
   });
 
   Future<void> delete(WebExtensionId id);
+
+  /// The files in [id]'s folder, keyed by their path inside it.
+  Future<Map<String, Uint8List>> read(WebExtensionId id);
 
   /// The names of the folders present.
   Future<List<String>> names();
@@ -77,6 +82,15 @@ final class _HostExtensionFolders implements ExtensionFolders {
   Future<void> delete(WebExtensionId id) => hostDeleteDirectory(folderOf(id));
 
   @override
+  Future<Map<String, Uint8List>> read(WebExtensionId id) async {
+    final folder = folderOf(id);
+    return {
+      for (final path in await hostListFilesUnder(folder))
+        path: await hostReadFileBytes('$folder/$path'),
+    };
+  }
+
+  @override
   Future<List<String>> names() => hostListDirectoryNames(root);
 }
 
@@ -101,8 +115,7 @@ class WebExtensionLibrary {
 
   /// What WebKit reported reading each installed extension, once it has
   /// read it.
-  ValueListenable<Map<WebExtensionId, ExtensionReport>> get reports =>
-      _reports;
+  ValueListenable<Map<WebExtensionId, ExtensionReport>> get reports => _reports;
 
   /// Whether an import can be unpacked here.
   bool get available => _folders != null;
@@ -126,7 +139,8 @@ class WebExtensionLibrary {
       final found =
           folders ??
           _HostExtensionFolders(
-              await hostEntryPath(_directory, kind: StoreKind.data));
+            await hostEntryPath(_directory, kind: StoreKind.data),
+          );
       final named = {for (final e in entries) e.id as String};
       for (final name in await found.names()) {
         final id = WebExtensionId.parse(name);
@@ -228,6 +242,77 @@ class WebExtensionLibrary {
     ];
   }
 
+  /// Each way a backup can carry the library, with its size (WEBEXT-011).
+  /// Fails with an [IOException] when a folder cannot be read.
+  Future<ExtensionCarryOffer> carryOffer() async {
+    final folders = _folders;
+    if (folders == null) return offerExtensionCarry(const []);
+    final library = [
+      for (final (:entry, folder: _) in _installed.value)
+        (entry: entry, files: await folders.read(entry.id)),
+    ];
+    return compute(offerExtensionCarry, library);
+  }
+
+  /// Each installed extension by the fingerprint of its files, which an
+  /// imported backup's extensions are linked by (WEBEXT-011). Fails with an
+  /// [IOException] when a folder cannot be read.
+  Future<Map<String, WebExtensionId>> fingerprints() async {
+    final folders = _folders;
+    if (folders == null) return const {};
+    return {
+      for (final (:entry, folder: _) in _installed.value)
+        extensionFingerprint(await folders.read(entry.id)): entry.id,
+    };
+  }
+
+  /// Links [incoming], a backup's extensions, to the library by their
+  /// fingerprints, and adds those it carries files of that the library lacks
+  /// once [confirmAdd] accepts them (WEBEXT-011). Returns each linked or
+  /// added extension's id here by its id in the backup, and how many of the
+  /// backup's extensions it could neither link nor add.
+  Future<({Map<WebExtensionId, WebExtensionId> links, int missing})>
+  restoreFromBackup(
+    BackupExtensions incoming, {
+    required Future<bool> Function(List<ExtensionPackage> packages) confirmAdd,
+  }) async {
+    final all = {for (final e in incoming.extensions) e.id};
+    final none = (
+      links: const <WebExtensionId, WebExtensionId>{},
+      missing: all.length,
+    );
+    if (!available) return none;
+    final ExtensionRelinkPlan relink;
+    try {
+      relink = planExtensionRelink(incoming, library: await fingerprints());
+    } on IOException catch (e) {
+      LogTag.webExtension.info('backup not relinked: $e');
+      return none;
+    }
+    final links = {...relink.linked};
+    final readable = <(WebExtensionId, ExtensionPackage)>[];
+    for (final carried in relink.toAdd) {
+      if (await compute(readExtensionPackage, carried.package!)
+          case final ExtensionPackage package) {
+        readable.add((carried.id, package));
+      }
+    }
+    if (readable.isNotEmpty &&
+        await confirmAdd([for (final (_, package) in readable) package])) {
+      for (final (id, package) in readable) {
+        try {
+          links[id] = (await add(package)).id;
+        } on IOException catch (e) {
+          LogTag.webExtension.info('$id not added from the backup: $e');
+        }
+      }
+    }
+    return (
+      links: links,
+      missing: all.where((id) => !links.containsKey(id)).length,
+    );
+  }
+
   /// Shows [page] of [extension] over the site [home] belongs to; false
   /// when it was not shown.
   Future<bool> open(
@@ -246,10 +331,7 @@ class WebExtensionLibrary {
           '${entry.id}: WebKit reported ${report.problems.length} problems',
         );
       }
-      _reports.value = Map.unmodifiable({
-        ..._reports.value,
-        entry.id: report,
-      });
+      _reports.value = Map.unmodifiable({..._reports.value, entry.id: report});
     }
   }
 
