@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Táknaskyndiminni hreinsað",
   "appSettingsExperimentalTextureRendering": "Síðubirting sem áferð",
   "appSettingsExperimentalTextureRenderingHint": "Teiknar hverja síðu í áferð sem WebSpace setur sjálft saman, í stað sérstakrar Android-sýnar sem liggur ofan á forritinu. Það getur komið í veg fyrir síður sem haldast auðar og hvítar þar til þú snýrð símanum eða skiptir um forrit. Innsláttur, textaval og skjálesarar eru minna prófuð á þennan hátt og hröð skrunun getur hikstað. Tekur gildi næst þegar forritið er ræst.",
-  "appSettingsExperimentalContentRuleLists": "Efnislokun með WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Afhendir WebKit netreglur síunarlistanna þinna, sem lokar síðan á þær beiðnir áður en þær eru sendar, þar á meðal þær sem HTML síðunnar sjálfrar ræsir áður en venjulegi efnisblokkarinn getur séð þær. Reglurnar eru þýddar einu sinni fyrir hvert safn lista, í bakgrunni, og vefsvæði sem eru opnuð eftir það nota þær. Útlitsreglur og tilvísanir verða áfram hjá venjulega blokkaranum, sem heldur áfram að keyra.",
   "siteSettingsSignInPopups": "Sprettigluggar innskráningar",
   "siteSettingsSignInPopupsHint": "Leyfir hnöppum eins og Halda áfram með Google að opna innskráningarglugga sinn, sem birtist ofan á vefsvæðinu með stillingum vefsvæðisins sjálfs. Aðeins innskráningarsíður Google, Apple, Microsoft og GitHub opnast á þennan hátt. Síður geta ekki lengur opnað glugga nema þú ýtir, sem sumar captcha-athuganir gætu þurft. Gildir um vefsvæði sem eru hlaðin eftir að rofanum er breytt.",
   "externalTor": "Tor (ytri)",

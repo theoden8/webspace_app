@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_rule_list_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// WebKit's store of compiled content rule lists.
 abstract interface class ContentRuleListStore {
@@ -18,10 +19,7 @@ abstract interface class ContentRuleListStore {
 }
 
 class MethodChannelContentRuleListStore implements ContentRuleListStore {
-  const MethodChannelContentRuleListStore._(
-    this._channel, {
-    required this.experimental,
-  });
+  const MethodChannelContentRuleListStore._(this._channel);
 
   /// The store this host's webviews attach from, or null where WebKit has
   /// none. On iOS and macOS the Runner's `ContentRuleListPlugin` compiles into
@@ -32,22 +30,14 @@ class MethodChannelContentRuleListStore implements ContentRuleListStore {
           MethodChannel(
             'com.pichillilorenzo/flutter_inappwebview_content_rule_list_store',
           ),
-          experimental: true,
         )
       : hostIsIOS || hostIsMacOS
       ? const MethodChannelContentRuleListStore._(
           MethodChannel('org.codeberg.theoden8.webspace/content_rule_lists'),
-          experimental: false,
         )
       : null;
 
   final MethodChannel _channel;
-
-  /// Whether this host's lists attach only with the `contentRuleLists`
-  /// experiment on (DEVTOOLS-011). On iOS and macOS they graduated and attach
-  /// whenever a site's content blocker runs; Linux, whose store is the fork's
-  /// own, is still in the Experimental group.
-  final bool experimental;
 
   @override
   Future<List<String>> identifiers() async =>
@@ -77,13 +67,19 @@ class ContentRuleLists {
   List<RuleListId> _attached = const [];
   int _generation = 0;
 
+  /// One compile at a time: WebKit parses a list on the main thread as its
+  /// compile starts (half a second for the default lists on WPE), so a burst
+  /// of changes compiles the set running and then only the newest.
+  final SerialQueue _compiles = SerialQueue('contentRuleListCompiles');
+
   /// The lists a webview created now attaches.
   List<String> get identifiers => [for (final id in _attached) id.raw];
 
   /// Points new webviews at the set for [wanted], or at none when null.
   /// Returns once the store has been read; a set that has to be compiled is
-  /// compiled after, and attaches when it is done. A later call supersedes
-  /// one still compiling.
+  /// compiled after, and attaches when it is done, new webviews keeping the
+  /// set before until then. A later call supersedes one still compiling or
+  /// waiting to.
   Future<void> sync({
     required RuleSetKey? wanted,
     required Future<String> Function() rulesText,
@@ -111,10 +107,10 @@ class ContentRuleLists {
       case AttachNone(:final stale):
         _attached = const [];
         await _removeAll(stale);
-      case CompileFresh(:final key, :final stale):
-        _attached = const [];
-        unawaited(
-          _compile(
+      case CompileFresh(:final key, :final interim, :final stale):
+        if (_attached.isEmpty) _attached = interim;
+        _compiles.enqueue(
+          () => _compile(
             key: key,
             stale: stale,
             rulesText: rulesText,
@@ -130,6 +126,8 @@ class ContentRuleLists {
     required Future<String> Function() rulesText,
     required int generation,
   }) async {
+    assert(_compiles.isHeld, 'a rule set compiled outside its turn');
+    if (generation != _generation) return;
     final sw = Stopwatch()..start();
     final lists = await convert(await rulesText());
     if (generation != _generation) return;

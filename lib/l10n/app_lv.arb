@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Ikonu kešatmiņa notīrīta",
   "appSettingsExperimentalTextureRendering": "Lapu attēlošana tekstūrā",
   "appSettingsExperimentalTextureRenderingHint": "Zīmē katru lapu tekstūrā, ko WebSpace pati sastāda, nevis kā atsevišķu Android skatu, kas uzklāts lietotnei. Tas var novērst lapas, kas paliek tukšas un baltas, līdz pagriežat tālruni vai pārslēdzat lietotni. Rakstīšana, teksta atlase un ekrāna lasītāji šādā veidā ir mazāk pārbaudīti, un ātra ritināšana var raustīties. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
-  "appSettingsExperimentalContentRuleLists": "WebKit satura bloķēšana",
-  "appSettingsExperimentalContentRuleListsHint": "Nodod jūsu filtru sarakstu tīkla noteikumus WebKit, kas pēc tam bloķē šos pieprasījumus, pirms tie tiek nosūtīti, tostarp tos, kurus sāk pašas lapas HTML, pirms parastais satura bloķētājs tos var redzēt. Noteikumi tiek kompilēti vienreiz katrai sarakstu kopai, fonā, un pēc tam atvērtās vietnes tos izmanto. Kosmētiskie noteikumi un pāradresācijas paliek parastajam bloķētājam, kas turpina darboties.",
   "siteSettingsSignInPopups": "Pierakstīšanās uznirstošie logi",
   "siteSettingsSignInPopupsHint": "Ļauj pogām, piemēram, Turpināt ar Google, atvērt savu pierakstīšanās logu, kas tiek rādīts virs vietnes ar pašas vietnes iestatījumiem. Šādi atveras tikai Google, Apple, Microsoft un GitHub pierakstīšanās lapas. Lapas vairs nevar atvērt logu, ja jūs nepieskaraties, un dažām captcha pārbaudēm tas varētu būt vajadzīgs. Attiecas uz vietnēm, kas ielādētas pēc slēdža maiņas.",
   "externalTor": "Tor (ārējais)",

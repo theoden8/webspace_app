@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Simge önbelleği temizlendi",
   "appSettingsExperimentalTextureRendering": "Sayfaları doku olarak işleme",
   "appSettingsExperimentalTextureRenderingHint": "Her sayfayı uygulamayla katmanlanan ayrı bir Android görünümü olarak değil, WebSpace'in kendisinin birleştirdiği bir dokuya çizer. Telefonu döndürene ya da uygulama değiştirene kadar boş beyaz kalan sayfaları önleyebilir. Yazma, metin seçme ve ekran okuyucular bu yolla daha az denenmiştir ve hızlı kaydırma takılabilir. Uygulama bir sonraki başlatıldığında geçerli olur.",
-  "appSettingsExperimentalContentRuleLists": "WebKit içerik engelleme",
-  "appSettingsExperimentalContentRuleListsHint": "Süzgeç listelerinizin ağ kurallarını WebKit'e verir; WebKit de bu istekleri gönderilmeden önce engeller, buna sayfanın kendi HTML'sinin olağan engelleyici görmeden başlattıkları da dahildir. Kurallar her liste kümesi için bir kez, arka planda derlenir ve sonrasında açılan siteler bunları kullanır. Görünüm kuralları ve yönlendirmeler çalışmaya devam eden olağan engelleyicide kalır.",
   "siteSettingsSignInPopups": "Oturum açma açılır pencereleri",
   "siteSettingsSignInPopupsHint": "Google ile devam et gibi düğmelerin oturum açma pencerelerini açmasına izin verir; pencere, sitenin kendi ayarlarıyla sitenin üzerinde gösterilir. Yalnızca Google, Apple, Microsoft ve GitHub oturum açma sayfaları bu şekilde açılır. Sayfalar artık siz dokunmadıkça pencere açamaz; bazı captcha denetimleri buna ihtiyaç duyabilir. Anahtar değiştikten sonra yüklenen siteler için geçerlidir.",
   "externalTor": "Tor (harici)",

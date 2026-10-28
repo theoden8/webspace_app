@@ -241,7 +241,6 @@
     "experimentalProxyRouter": false,
     "experimentalSiteIconsOnly": true,
     "experimentalTextureRendering": true,
-    "experimentalContentRuleLists": true,
     "experimentalFolderLibrary": true,
     "experimentalSignInPopups": true,
     "experimentalWebExtensions": true,

@@ -50,6 +50,7 @@ void registerLicenses() {
     (['ClearURLs (rules data)'], 'assets/licenses/clearurls.txt'),
     (['Hagezi DNS Blocklists (domain data)'], 'assets/licenses/hagezi.txt'),
     (['EasyList filter lists (filter data)'], 'assets/licenses/easylist.txt'),
+    (['AdGuard filters (filter data)'], 'assets/licenses/adguard.txt'),
     (
       // uBO ships the redirect-resource bodies (noop.js, 1x1.gif,
       // neutered trackers, etc.) we embed at build time. uBO isn't

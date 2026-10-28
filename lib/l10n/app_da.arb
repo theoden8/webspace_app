@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Ikoncache ryddet",
   "appSettingsExperimentalTextureRendering": "Teksturgengivelse af sider",
   "appSettingsExperimentalTextureRenderingHint": "Tegner hver side i en tekstur, som WebSpace selv sammensætter, i stedet for som en separat Android-visning lagt oven på appen. Det kan forhindre sider, der forbliver tomme og hvide, indtil du drejer telefonen eller skifter app. Indtastning, tekstmarkering og skærmlæsere er mindre testet på denne måde, og hurtig rulning kan hakke. Træder i kraft næste gang appen starter.",
-  "appSettingsExperimentalContentRuleLists": "WebKit-indholdsblokering",
-  "appSettingsExperimentalContentRuleListsHint": "Giver netværksreglerne fra dine filterlister til WebKit, som så blokerer de anmodninger, før de sendes, også dem som sidens egen HTML starter, før den almindelige blokering kan se dem. Reglerne kompileres én gang pr. sæt lister, i baggrunden, og websteder, der åbnes derefter, bruger dem. Kosmetiske regler og omdirigeringer bliver hos den almindelige blokering, som fortsat kører.",
   "siteSettingsSignInPopups": "Pop op-vinduer til login",
   "siteSettingsSignInPopupsHint": "Lader knapper som Fortsæt med Google åbne deres loginvindue, vist oven på webstedet med webstedets egne indstillinger. Kun loginsiderne fra Google, Apple, Microsoft og GitHub åbnes på denne måde. Sider kan ikke længere åbne et vindue, medmindre du trykker, hvilket nogle captcha-tjek kan have brug for. Gælder for websteder, der indlæses, efter kontakten er ændret.",
   "externalTor": "Tor (ekstern)",

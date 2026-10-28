@@ -321,8 +321,6 @@
   "appSettingsIconCacheCleared": "Cella iconum purgata",
   "appSettingsExperimentalTextureRendering": "Paginarum pictura per texturam",
   "appSettingsExperimentalTextureRenderingHint": "Quamque paginam in texturam pingit quam WebSpace ipsum componit, non ut visum Android separatum cum applicatione stratum. Paginas quae vacuae et albae manent donec telephonum vertas aut applicationem mutes prohibere potest. Scriptio, selectio textus et lectores quadri hoc modo minus probati sunt, et celeris volutatio haesitare potest. Valebit proximo applicationis initio.",
-  "appSettingsExperimentalContentRuleLists": "Impeditio contenti per WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Regulas retis indicum percolationis tuorum WebKit tradit, quod deinde eas petitiones impedit antequam mittantur, etiam eas quas ipsum HTML paginae incipit antequam impeditor usitatus eas videre possit. Regulae semel pro unoquoque indicum coetu in recessu componuntur, et situs postea aperti eis utuntur. Regulae ornatus et redirectiones apud impeditorem usitatum manent, qui operari pergit.",
   "siteSettingsSignInPopups": "Fenestrae ingressus emergentes",
   "siteSettingsSignInPopupsHint": "Sinit bullas ut Perge cum Google fenestram ingressus suam aperire, quae super situm cum ipsius situs optionibus ostenditur. Solae paginae ingressus Google, Apple, Microsoft et GitHub hoc modo aperiuntur. Paginae iam fenestram aperire non possunt nisi tangis, quod nonnullae probationes captcha requirere possunt. Valet in situs post commutationem transitorii oneratos.",
   "externalTor": "Tor (externum)",

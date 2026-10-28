@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Pictogramcache gewist",
   "appSettingsExperimentalTextureRendering": "Pagina's weergeven als textuur",
   "appSettingsExperimentalTextureRenderingHint": "Tekent elke pagina in een textuur die WebSpace zelf samenstelt, in plaats van als aparte Android-weergave die met de app wordt gestapeld. Dat kan pagina's voorkomen die leeg en wit blijven tot je de telefoon draait of van app wisselt. Typen, tekst selecteren en schermlezers zijn zo minder getest, en snel scrollen kan haperen. Gaat in bij de volgende start van de app.",
-  "appSettingsExperimentalContentRuleLists": "WebKit-contentblokkering",
-  "appSettingsExperimentalContentRuleListsHint": "Geeft de netwerkregels van je filterlijsten aan WebKit, dat die verzoeken vervolgens blokkeert voordat ze worden verstuurd, ook verzoeken die de eigen HTML van de pagina start voordat de gewone blokkering ze kan zien. De regels worden één keer per set lijsten op de achtergrond gecompileerd, en sites die daarna worden geopend gebruiken ze. Cosmetische regels en omleidingen blijven bij de gewone blokkering, die blijft draaien.",
   "siteSettingsSignInPopups": "Pop-ups voor inloggen",
   "siteSettingsSignInPopupsHint": "Laat knoppen zoals Doorgaan met Google hun inlogvenster openen, getoond boven de site met de eigen instellingen van de site. Alleen de inlogpagina's van Google, Apple, Microsoft en GitHub openen zo. Pagina's kunnen geen venster meer openen tenzij je tikt, wat sommige captcha-controles nodig kunnen hebben. Geldt voor sites die worden geladen nadat de schakelaar is gewijzigd.",
   "externalTor": "Tor (extern)",

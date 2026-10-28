@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Cache de ícones limpo",
   "appSettingsExperimentalTextureRendering": "Renderização de páginas em textura",
   "appSettingsExperimentalTextureRenderingHint": "Desenha cada página em uma textura que o próprio WebSpace compõe, em vez de como uma visualização Android separada sobreposta ao app. Pode evitar páginas que ficam em branco até você girar o celular ou trocar de app. A digitação, a seleção de texto e os leitores de tela foram menos testados desse jeito, e a rolagem rápida pode travar. Tem efeito na próxima vez que o app for iniciado.",
-  "appSettingsExperimentalContentRuleLists": "Bloqueio de conteúdo do WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Entrega as regras de rede das suas listas de filtros ao WebKit, que passa a bloquear essas solicitações antes de serem enviadas, inclusive as que o próprio HTML da página inicia antes que o bloqueador habitual consiga vê-las. As regras são compiladas uma vez para cada conjunto de listas, em segundo plano, e os sites abertos depois disso as usam. As regras cosméticas e os redirecionamentos ficam com o bloqueador habitual, que continua funcionando.",
   "siteSettingsSignInPopups": "Pop-ups de login",
   "siteSettingsSignInPopupsHint": "Permite que botões como Continuar com o Google abram a janela de login, exibida sobre o site com as configurações do próprio site. Só as páginas de login do Google, Apple, Microsoft e GitHub abrem dessa forma. As páginas não podem mais abrir uma janela a menos que você toque, algo de que algumas verificações captcha podem precisar. Vale para sites carregados depois que a chave é alterada.",
   "externalTor": "Tor (externo)",

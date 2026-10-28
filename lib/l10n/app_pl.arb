@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Wyczyszczono pamięć podręczną ikon",
   "appSettingsExperimentalTextureRendering": "Renderowanie stron do tekstury",
   "appSettingsExperimentalTextureRenderingHint": "Rysuje każdą stronę w teksturze, którą WebSpace składa sam, zamiast jako osobny widok Androida nałożony na aplikację. Może to zapobiec stronom, które pozostają puste i białe, dopóki nie obrócisz telefonu lub nie przełączysz aplikacji. Pisanie, zaznaczanie tekstu i czytniki ekranu są w tym trybie mniej sprawdzone, a szybkie przewijanie może się zacinać. Zacznie obowiązywać przy następnym uruchomieniu aplikacji.",
-  "appSettingsExperimentalContentRuleLists": "Blokowanie treści przez WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Przekazuje reguły sieciowe z Twoich list filtrów do WebKit, który blokuje te żądania, zanim zostaną wysłane, w tym te, które uruchamia sam kod HTML strony, zanim zwykły bloker zdąży je zobaczyć. Reguły są kompilowane raz dla każdego zestawu list, w tle, a strony otwarte później z nich korzystają. Reguły kosmetyczne i przekierowania zostają przy zwykłym blokerze, który nadal działa.",
   "siteSettingsSignInPopups": "Wyskakujące okna logowania",
   "siteSettingsSignInPopupsHint": "Pozwala przyciskom takim jak Kontynuuj z Google otwierać okno logowania, wyświetlane nad witryną z jej własnymi ustawieniami. W ten sposób otwierają się tylko strony logowania Google, Apple, Microsoft i GitHub. Strony nie mogą już otworzyć okna, jeśli nie dotkniesz ekranu, czego mogą potrzebować niektóre testy captcha. Dotyczy witryn wczytanych po zmianie przełącznika.",
   "externalTor": "Tor (zewnętrzny)",

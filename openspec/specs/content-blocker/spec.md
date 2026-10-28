@@ -107,9 +107,17 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 #### Scenario: Default filter lists
 
 **Given** the user opens App Settings for the first time
-**Then** 4 default lists are shown: EasyList, EasyPrivacy, Fanboy's Social Blocking List, Fanboy's Annoyance List
-**And** all lists are enabled by default
-**And** no lists have been downloaded yet (rule count shows 0)
+**Then** 6 default lists are shown: EasyList, EasyPrivacy, Fanboy's Social, Fanboy's Annoyance, EasyList Cookie and AdGuard Annoyances
+**And** no lists have been downloaded yet (each shows Not downloaded)
+**And** each switches on when it downloads
+
+#### Scenario: A list that joins the defaults reaches an existing install once
+
+**Given** an install from before EasyList Cookie and AdGuard Annoyances were defaults, with the four lists it was offered then
+**When** the app starts
+**Then** the two lists are added after the user's own, not downloaded and switched off
+**And** a default the user removes afterwards is not added again on a later start
+**And** a default the user had removed before the upgrade stays removed
 
 #### Scenario: Download a filter list
 
@@ -445,13 +453,14 @@ app-wide
 
 ### Requirement: CB-007 - License Attribution
 
-The EasyList filter lists SHALL be credited under CC BY-SA 3.0, and `adblock-rust` plus its transitive dependencies SHALL be credited in the app's license page; the README names EasyList and `adblock-rust` in its feature list.
+The EasyList filter lists SHALL be credited under CC BY-SA 3.0 (the EasyList Cookie List under the CC BY 3.0 its header names), the AdGuard Annoyances filter under GPL-3.0, and `adblock-rust` plus its transitive dependencies SHALL be credited in the app's license page; the README names EasyList and `adblock-rust` in its feature list. The app ships none of these lists: it downloads each from its publisher when the user asks.
 
 #### Scenario: EasyList license visible
 
 **Given** the user opens the Licenses page
 **Then** an entry for "EasyList filter lists (filter data)" is shown
 **And** it displays the CC BY-SA 3.0 license text crediting "The EasyList authors"
+**And** an entry for "AdGuard filters (filter data)" names GPL-3.0 and the AdguardFilters repository
 
 #### Scenario: Adblock-rust deps listed
 
@@ -1010,13 +1019,11 @@ the body is parsed
 
 ---
 
-### Requirement: CB-020 - WebKit content rule lists (iOS and macOS; experimental on Linux)
+### Requirement: CB-020 - WebKit content rule lists (iOS, macOS and Linux)
 
-iOS and macOS webviews SHALL attach the network rules of the enabled filter
-lists as compiled WebKit content rule lists whenever the site's content
-blocker runs, and Linux webviews SHALL do so with the `contentRuleLists`
-experiment on (DEVTOOLS-011: developer mode and its own switch), so WebKit
-blocks a request before it is sent, including the requests the page's own HTML
+iOS, macOS and Linux webviews SHALL attach the network rules of the enabled
+filter lists as compiled WebKit content rule lists whenever the site's content
+blocker runs, so WebKit blocks a request before it is sent, including the requests the page's own HTML
 starts before the page interceptor sees them. The lists are converted by
 adblock-rust (`ws_filters_to_content_rule_lists`) from the same rules text the
 engine parses, compiled once per rule set into the store this host's webviews
@@ -1024,8 +1031,8 @@ attach from, and found again by name on later launches; a webview only names the
 (`contentRuleListIdentifiers`, a setting of the webview fork). The page
 interceptor and the cosmetic pass keep running: the lists carry no cosmetic
 rules, redirects, `$csp`, `$removeparam` or scriptlets, and WebKit reports no
-match back. On Linux with the experiment off, nothing changes; the switch is
-offered only there (`MethodChannelContentRuleListStore.experimental`).
+match back. No switch gates them: Linux ran them behind an Experimental switch
+(DEVTOOLS-011) until they graduated, and its stored value is no longer read.
 
 The rule set is named by the head of the engine inputs key, so a change of
 enabled lists, of their per-site masks, or of the app build names a new set.
@@ -1056,8 +1063,9 @@ fork opens the store its webviews read.
 
 **Given** the store lacks a list of the current rule set
 **When** the engine is rebuilt
-**Then** the rules are converted on a background isolate and each list compiled into the store
-**And** webviews created during the compile attach no list
+**Then** the rules are converted on a background isolate and each list compiled into the store, one set at a time
+**And** a change made while a set compiles waits for it, and of the changes that waited only the newest set compiles: WebKit parses a list on the main thread as its compile starts, half a second for the default lists on WPE
+**And** until the set is compiled, webviews created keep the set attached before it, or after a launch a complete set of ours already in the store, so a recompile never leaves them with no list
 **And** webviews created after it attach every list of the set
 **And** our lists of other rule sets are removed from the store, and lists we did not name are left alone
 
@@ -1068,23 +1076,22 @@ fork opens the store its webviews read.
 **Then** the lists of the set already compiled are removed
 **And** webviews attach no list
 
-#### Scenario: Per-site off, or the Linux experiment off
+#### Scenario: Per-site off
 
-**Given** a site with the content blocker off, or the Linux app with the experiment off
+**Given** a site with the content blocker off
 **When** its webview is created
 **Then** its `contentRuleListIdentifiers` is empty
-**And** turning the experiment off removes our lists from the store
 
-#### Scenario: iOS and macOS attach without developer mode
+#### Scenario: Every WebKit host attaches without developer mode
 
-**Given** an iOS or macOS build with developer mode off and a site with the content blocker on
+**Given** an iOS, macOS or Linux build with developer mode off and a site with the content blocker on
 **When** its webview is created after the rule set is in the store
 **Then** it attaches every list of the set
 **And** the Experimental group offers no WebKit content blocking switch
 
 #### Scenario: Linux compiles into the webview plugin's store
 
-**Given** the Linux app with the experiment on
+**Given** the Linux app
 **When** a rule set is compiled
 **Then** it goes into the webview fork's `WebKitUserContentFilterStore` over the fork's store channel
 **And** a webview created after it attaches the set by name before its first load

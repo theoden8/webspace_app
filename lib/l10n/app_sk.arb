@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Vyrovnávacia pamäť ikon vymazaná",
   "appSettingsExperimentalTextureRendering": "Vykresľovanie stránok do textúry",
   "appSettingsExperimentalTextureRenderingHint": "Kreslí každú stránku do textúry, ktorú WebSpace skladá sám, namiesto ako samostatné zobrazenie Androidu vrstvené s aplikáciou. Môže to zabrániť stránkam, ktoré zostávajú prázdne a biele, kým neotočíte telefón alebo neprepnete aplikáciu. Písanie, výber textu a čítačky obrazovky sú týmto spôsobom menej vyskúšané a rýchle posúvanie sa môže zasekávať. Prejaví sa pri najbližšom spustení aplikácie.",
-  "appSettingsExperimentalContentRuleLists": "Blokovanie obsahu cez WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Odovzdá sieťové pravidlá vašich zoznamov filtrov WebKitu, ktorý potom tieto požiadavky zablokuje skôr, než sa odošlú, vrátane tých, ktoré spustí samotné HTML stránky skôr, než ich bežný blokovač uvidí. Pravidlá sa skompilujú raz pre každú sadu zoznamov, na pozadí, a stránky otvorené potom ich používajú. Kozmetické pravidlá a presmerovania zostávajú pri bežnom blokovači, ktorý ďalej beží.",
   "siteSettingsSignInPopups": "Vyskakovacie okná prihlásenia",
   "siteSettingsSignInPopupsHint": "Umožní tlačidlám ako Pokračovať cez Google otvoriť svoje okno na prihlásenie, zobrazené nad webom s vlastnými nastaveniami webu. Takto sa otvárajú iba prihlasovacie stránky Googlu, Applu, Microsoftu a GitHubu. Stránky už nemôžu otvoriť okno, ak neklepnete, čo môžu niektoré kontroly captcha potrebovať. Platí pre weby načítané po zmene prepínača.",
   "externalTor": "Tor (externý)",

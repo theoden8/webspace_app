@@ -10,6 +10,7 @@ import 'helpers/fake_content_rule_list_store.dart';
 
 final _a = RuleSetKey.of('aaaaaaaaaaaaaaaa${'0' * 48}');
 final _b = RuleSetKey.of('bbbbbbbbbbbbbbbb${'0' * 48}');
+final _c = RuleSetKey.of('cccccccccccccccc${'0' * 48}');
 
 String _id(RuleSetKey key, {required int index, required int count}) =>
     RuleListId.mint(key: key, index: index, count: count).raw;
@@ -71,9 +72,28 @@ void main() {
       );
       plan as CompileFresh;
       expect(plan.key, _a);
+      expect(plan.interim, isEmpty);
       expect(
         [for (final id in plan.stale) id.raw],
         [_id(_a, index: 1, count: 2)],
+      );
+    });
+
+    test('a complete earlier set covers the compile, CB-020', () {
+      final plan = planRuleLists(
+        wanted: _a,
+        stored: [
+          _id(_c, index: 0, count: 2),
+          _id(_b, index: 1, count: 2),
+          _id(_b, index: 0, count: 2),
+          'ContentBlockingRules',
+        ],
+      );
+      plan as CompileFresh;
+      expect(
+        [for (final id in plan.interim) id.raw],
+        [_id(_b, index: 0, count: 2), _id(_b, index: 1, count: 2)],
+        reason: 'only a complete set, in index order',
       );
     });
   });
@@ -111,15 +131,16 @@ void main() {
     );
 
     test(
-      'a missing set compiles once, then attaches and drops the old one',
+      'a missing set compiles once, then attaches and drops the old one, '
+      'CB-020',
       () async {
         store = FakeContentRuleListStore(stored: [_id(_b, index: 0, count: 1)]);
         final subject = lists();
         await subject.sync(wanted: _a, rulesText: () async => '||ads^');
         expect(
           subject.identifiers,
-          isEmpty,
-          reason: 'webviews made during the compile attach nothing',
+          [_id(_b, index: 0, count: 1)],
+          reason: 'webviews made during the compile keep the set before',
         );
         await pumpEventQueue();
         expect(converted, ['||ads^']);
@@ -162,6 +183,54 @@ void main() {
       await pumpEventQueue();
       expect(subject.identifiers, isEmpty);
       expect(store.compiled, isEmpty);
+    });
+
+    test('the set attached stays until its successor is compiled, CB-020',
+        () async {
+      store = FakeContentRuleListStore(stored: [_id(_a, index: 0, count: 1)]);
+      final release = Completer<void>();
+      final subject = ContentRuleLists(
+        store: store,
+        convert: (_) async {
+          await release.future;
+          return [_rule];
+        },
+      );
+      await subject.sync(
+        wanted: _a,
+        rulesText: () => fail('rules read for a stored set'),
+      );
+      await subject.sync(wanted: _b, rulesText: () async => 'b');
+      await pumpEventQueue();
+      expect(subject.identifiers, [_id(_a, index: 0, count: 1)]);
+      release.complete();
+      await pumpEventQueue();
+      expect(subject.identifiers, [_id(_b, index: 0, count: 1)]);
+      expect(store.lists.keys, [_id(_b, index: 0, count: 1)]);
+    });
+
+    test('one compile at a time, and only the newest set waits, CB-020',
+        () async {
+      final release = Completer<void>();
+      final subject = ContentRuleLists(
+        store: store,
+        convert: (text) async {
+          converted.add(text);
+          if (text == 'a') await release.future;
+          return [_rule];
+        },
+      );
+      await subject.sync(wanted: _a, rulesText: () async => 'a');
+      await pumpEventQueue();
+      await subject.sync(wanted: _b, rulesText: () async => 'b');
+      await subject.sync(wanted: _c, rulesText: () async => 'c');
+      await pumpEventQueue();
+      expect(converted, ['a'], reason: 'the others wait for the first');
+      release.complete();
+      await pumpEventQueue();
+      expect(converted, ['a', 'c'], reason: 'b was superseded while waiting');
+      expect(store.compiled, [_id(_c, index: 0, count: 1)]);
+      expect(subject.identifiers, [_id(_c, index: 0, count: 1)]);
     });
 
     test('turning off drops our lists and keeps foreign ones', () async {

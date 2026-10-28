@@ -1,0 +1,11 @@
+GNU General Public License version 3 (GPL-3.0)
+
+Copyright (c) The AdGuard Filters authors
+
+The AdGuard Annoyances filter is published under the GNU General Public
+License version 3. WebSpace does not bundle it: the app downloads it from
+AdGuard's filter server when the user asks.
+
+Full license: https://www.gnu.org/licenses/gpl-3.0.html
+Licence file: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
+Source: https://github.com/AdguardTeam/AdguardFilters

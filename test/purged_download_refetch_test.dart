@@ -94,7 +94,8 @@ void main() {
 
       final loaded =
           await service.initialize(native: WebInterceptNative.initialize());
-      expect(service.lists.single.lastUpdated, isNotNull);
+      expect(service.lists.singleWhere((l) => l.id == 'kept').lastUpdated,
+          isNotNull);
       expect(await loaded.refetchPurged(), 0);
       expect(outbound.requested, isEmpty);
     });

@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Tembolok ikon dihapus",
   "appSettingsExperimentalTextureRendering": "Perenderan halaman sebagai tekstur",
   "appSettingsExperimentalTextureRenderingHint": "Menggambar setiap halaman ke dalam tekstur yang disusun WebSpace sendiri, bukan sebagai tampilan Android terpisah yang ditumpuk dengan aplikasi. Ini dapat mencegah halaman yang tetap kosong putih sampai Anda memutar ponsel atau berganti aplikasi. Mengetik, memilih teks, dan pembaca layar kurang teruji dengan cara ini, dan gulir cepat bisa tersendat. Berlaku saat aplikasi dimulai berikutnya.",
-  "appSettingsExperimentalContentRuleLists": "Pemblokiran konten WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Memberikan aturan jaringan dari daftar filter Anda kepada WebKit, yang kemudian memblokir permintaan tersebut sebelum dikirim, termasuk permintaan yang dimulai oleh HTML halaman itu sendiri sebelum pemblokir biasa dapat melihatnya. Aturan dikompilasi sekali untuk setiap kumpulan daftar, di latar belakang, dan situs yang dibuka setelahnya menggunakannya. Aturan kosmetik dan pengalihan tetap ditangani pemblokir biasa, yang terus berjalan.",
   "siteSettingsSignInPopups": "Pop-up masuk",
   "siteSettingsSignInPopupsHint": "Memungkinkan tombol seperti Lanjutkan dengan Google membuka jendela masuknya, yang ditampilkan di atas situs dengan setelan situs itu sendiri. Hanya halaman masuk Google, Apple, Microsoft, dan GitHub yang terbuka dengan cara ini. Halaman tidak lagi dapat membuka jendela kecuali Anda mengetuk, yang mungkin diperlukan beberapa pemeriksaan captcha. Berlaku untuk situs yang dimuat setelah sakelar diubah.",
   "externalTor": "Tor (eksternal)",

@@ -319,8 +319,6 @@
   "appSettingsIconCacheCleared": "Cache des icônes vidé",
   "appSettingsExperimentalTextureRendering": "Rendu des pages en texture",
   "appSettingsExperimentalTextureRenderingHint": "Dessine chaque page dans une texture que WebSpace compose lui-même, au lieu d'une vue Android distincte superposée à l'application. Cela peut éviter les pages qui restent blanches jusqu'à ce que vous tourniez le téléphone ou changiez d'application. La saisie, la sélection de texte et les lecteurs d'écran sont moins éprouvés ainsi, et le défilement rapide peut saccader. Prend effet au prochain démarrage de l'application.",
-  "appSettingsExperimentalContentRuleLists": "Blocage de contenu par WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Confie les règles réseau de vos listes de filtres à WebKit, qui bloque alors ces requêtes avant leur envoi, y compris celles que lance le HTML de la page avant que le bloqueur habituel puisse les voir. Les règles sont compilées une fois par ensemble de listes, en arrière-plan, et les sites ouverts ensuite les utilisent. Les règles cosmétiques et les redirections restent confiées au bloqueur habituel, qui continue de fonctionner.",
   "siteSettingsSignInPopups": "Fenêtres contextuelles de connexion",
   "siteSettingsSignInPopupsHint": "Permet aux boutons comme Continuer avec Google d'ouvrir leur fenêtre de connexion, affichée par-dessus le site avec les réglages propres au site. Seules les pages de connexion de Google, Apple, Microsoft et GitHub s'ouvrent ainsi. Les pages ne peuvent plus ouvrir de fenêtre sans que vous touchiez l'écran, ce dont certaines vérifications captcha peuvent avoir besoin. S'applique aux sites chargés après le changement de l'interrupteur.",
   "externalTor": "Tor (externe)",

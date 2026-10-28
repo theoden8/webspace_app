@@ -321,8 +321,6 @@
   "appSettingsIconCacheCleared": "Cache-ja e ikonave u pastrua",
   "appSettingsExperimentalTextureRendering": "Paraqitja e faqeve si teksturë",
   "appSettingsExperimentalTextureRenderingHint": "Vizaton çdo faqe në një teksturë që WebSpace e përbën vetë, në vend të një pamjeje të veçantë Android të mbivendosur me aplikacionin. Kjo mund të ndalojë faqet që mbeten bosh e të bardha derisa të rrotulloni telefonin ose të ndërroni aplikacion. Shkrimi, përzgjedhja e tekstit dhe lexuesit e ekranit janë provuar më pak në këtë mënyrë, dhe lëvizja e shpejtë mund të ngecë. Hyn në fuqi herën tjetër që niset aplikacioni.",
-  "appSettingsExperimentalContentRuleLists": "Bllokimi i përmbajtjes me WebKit",
-  "appSettingsExperimentalContentRuleListsHint": "Ia jep rregullat e rrjetit të listave tuaja të filtrave WebKit-it, i cili më pas i bllokon ato kërkesa para se të dërgohen, përfshirë ato që i nis vetë HTML-ja e faqes para se bllokuesi i zakonshëm t'i shohë. Rregullat përpilohen një herë për çdo grup listash, në sfond, dhe sajtet e hapura më pas i përdorin. Rregullat kozmetike dhe ridrejtimet mbeten te bllokuesi i zakonshëm, i cili vazhdon të punojë.",
   "siteSettingsSignInPopups": "Dritaret kërcyese të hyrjes",
   "siteSettingsSignInPopupsHint": "U lejon butonave si Vazhdo me Google të hapin dritaren e tyre të hyrjes, të shfaqur mbi sajtin me cilësimet e vetë sajtit. Vetëm faqet e hyrjes të Google, Apple, Microsoft dhe GitHub hapen në këtë mënyrë. Faqet nuk mund të hapin më dritare nëse nuk prekni, gjë që mund t'u duhet disa kontrolleve captcha. Zbatohet për sajtet e ngarkuara pasi ndryshon çelësi.",
   "externalTor": "Tor (i jashtëm)",

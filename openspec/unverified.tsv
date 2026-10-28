@@ -36,7 +36,6 @@ SUGGEST-002	no check: no widget test opens the '+' dialog, checks https:// prefi
 SUGGEST-003	no check: no widget test long-presses a suggestion tile or checks the Remove/Cancel dialog
 SUGGEST-006	no check: no widget test taps a suggestion tile or checks the prefilled add dialog and its incognito toggle
 # content-blocker
-CB-002	no check: no test checks the four default lists enabled by default; download, toggle, remove and persistence are each touched only in tests written for CB-016/CB-017/CB-021 (partly: test/filter_list_preparser_test.dart, "a downloaded list carries its sublists into the rule set")
 # cookie-secure-storage
 # design-gallery
 DESIGN-002	no check: the web compile is checked only by the CI design-web job running scripts/design_web.sh; no counted check builds either entrypoint or asserts --no-web-resources-cdn and the Roboto sync (partly: test/browser/design_app_packaging.test.js, "it boots inside an iframe served from a subdirectory")

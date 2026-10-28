@@ -7,6 +7,10 @@ Annoyance List are dual-licensed under the GNU General Public License
 version 3 (or later) and Creative Commons Attribution-ShareAlike 3.0
 Unported (or later). Used here under CC BY-SA 3.0.
 
+The EasyList Cookie List names Creative Commons Attribution 3.0
+Unported (CC BY 3.0) in its header, and is used here under it:
+https://creativecommons.org/licenses/by/3.0/
+
 You are free to share and adapt the material, provided you give
 appropriate credit, provide a link to the license, and indicate if
 changes were made. If you remix, transform, or build upon the material,

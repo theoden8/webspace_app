@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/content_rule_lists.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -78,12 +76,12 @@ void main() {
             'this gate (DEVTOOLS-011)');
   });
 
-  test('WebKit content blocking graduated on iOS and macOS: the switch is '
-      'offered on Linux alone (CB-020)', () {
-    expect(MethodChannelContentRuleListStore.here?.experimental ?? false,
-        hostIsLinux,
-        reason: "on iOS and macOS the lists attach whenever a site's content "
-            'blocker runs, so only Linux still reads this gate (DEVTOOLS-011)');
+  test('WebKit content blocking graduated: it has no switch (CB-020)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalContentRuleLists')),
+        reason: "the lists attach whenever a site's content blocker runs, on "
+            'Linux as on iOS and macOS (DEVTOOLS-011)');
   });
 
   test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
