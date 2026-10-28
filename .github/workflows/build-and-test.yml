@@ -717,6 +717,20 @@ jobs:
           fvm flutter build linux --release
           bash scripts/verify_adblock_shipped.sh linux
 
+      # The build above only compiles the runner's screen sharing
+      # (SHARE-018); this runs it against a real PipeWire stream and a
+      # stand-in for the desktop portal, and fails unless it also catches
+      # the mistakes it plants. Before the egress guard: apt needs the
+      # network.
+      - name: Screen sharing on a PipeWire stream
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            pipewire pipewire-bin wireplumber dbus-daemon dbus-bin jq \
+            gstreamer1.0-pipewire gstreamer1.0-tools gstreamer1.0-plugins-base
+          rm -rf /var/lib/apt/lists/*
+          test/linux/screen_share/check.sh
+
       # Everything the integration step would otherwise fetch mid-suite,
       # fetched here while the runner still has a network. The egress
       # guard below cannot tell a toolchain download from an app leak, and

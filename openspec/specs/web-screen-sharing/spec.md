@@ -567,7 +567,10 @@ handler SHALL serve only the top document, ask the site's decision again
   memory, never a GPU buffer. Distributions build WPE WebKit without WebRTC
   by default (Debian's, Arch's), so there a call page can no more send the
   share than it can send the camera; a page that records or shows it can,
-  and so can a WPE built with WebRTC.
+  and so can a WPE built with WebRTC. The Linux job runs the runner's side
+  against a real PipeWire stream and a stand-in portal
+  (`test/linux/screen_share/check.sh`), which must also catch the mistakes
+  it plants.
 
 A no denies the request with `NotAllowedError`, as a dismissed browser picker
 does, and leaves the stored mode alone.

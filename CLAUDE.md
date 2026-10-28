@@ -285,6 +285,11 @@ tar zxf swiftly-$(uname -m).tar.gz
 ./swiftly init --quiet-shell-followup --assume-yes
 . "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
 
+# PipeWire, WirePlumber and GStreamer: only to run
+# test/linux/screen_share/check.sh, which skips without them (fails with CI=true).
+sudo apt-get install -y pipewire pipewire-bin wireplumber dbus-daemon jq \
+  gstreamer1.0-pipewire gstreamer1.0-tools gstreamer1.0-plugins-base libpipewire-0.3-dev
+
 # elan: only to run formal/verify.sh's Lean check (formal/lean/). Skip it if
 # `command -v lake` already prints a path. With no default toolchain,
 # formal/lean/lean-toolchain alone picks the Lean release, as .fvmrc picks
