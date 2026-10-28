@@ -63,6 +63,19 @@ void main() {
       expect(sitePermissionBadges(site()), isEmpty);
     });
 
+    test('a real screen share is badged as real device access (SHARE-017)',
+        () {
+      const badge =
+          CaptureBadge(CaptureKind.screenShare, mode: ScreenShareMode.real);
+      expect(sitePermissionBadges(site(screenShareMode: ScreenShareMode.real)),
+          [badge]);
+      expect(isRealDeviceAccess(badge), isTrue);
+      expect(
+          sitePermissionBadges(site(
+              screenShareMode: ScreenShareMode.real, isArchiveTier: true)),
+          isEmpty);
+    });
+
     test('undecided and blocked grants stay invisible', () {
       final model = site(
         cameraMode: CameraAccessMode.block,

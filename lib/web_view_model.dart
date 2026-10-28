@@ -15,6 +15,7 @@ import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
+import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
@@ -1629,7 +1630,9 @@ bool dispatch(NavigationDecision decision,
   }
 
   /// End any device capture this site is running: camera (CAM-012) and
-  /// microphone (MIC-012), through one hook over the shims' shared registry.
+  /// microphone (MIC-012), through one hook over the shims' shared registry,
+  /// and a share of the screen (SHARE-017), which Android runs for the app
+  /// rather than the page, so it ends here whatever the page does.
   ///
   /// Called when the site stops being the one on screen. The simulated camera
   /// and microphone keep streaming: they are local files the user picked, so
@@ -1644,6 +1647,7 @@ bool dispatch(NavigationDecision decision,
   ///     notification and background-audio sites. Those sites may keep running
   ///     JS and audio in the background. The camera is not covered by either.
   Future<void> stopRealCapture() async {
+    await ScreenShare.instance.endSite(siteId);
     await controller?.evaluateJavascript(
       "if (typeof globalThis.__wsStopRealCapture === 'function') "
       'globalThis.__wsStopRealCapture();',
@@ -1751,6 +1755,7 @@ bool dispatch(NavigationDecision decision,
     // webview. Without this the OS transport controls outlive it and their
     // buttons reach nothing — a no-op unless this site owns them.
     unawaited(MediaSessionService.instance.stopForSite(siteId));
+    unawaited(ScreenShare.instance.endSite(siteId));
   }
 
   /// Drop the in-memory cache (decoded image cache + HTTP response cache)

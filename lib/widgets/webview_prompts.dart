@@ -160,9 +160,9 @@ class DialogWebViewPrompts implements MediaPrompter {
     return result ?? false;
   }
 
-  /// The first request shows Block / Use a file / Allow (no Allow for a kind
-  /// with no real mode); picking the file opens a picker and the chosen media
-  /// becomes the site's virtual source. The [GrantStore] remembers the answer,
+  /// The first request shows Block / Use a file / Allow (no Allow where the
+  /// kind's real mode is not offered); picking the file opens a picker and
+  /// the chosen media becomes the site's virtual source. The [GrantStore] remembers the answer,
   /// so this only collects user intent. A site already set to `virtual` but
   /// missing a file skips the popup for the picker. A dismissed popup returns
   /// `ask`, so the request is denied once and the popup returns next time; a
@@ -181,7 +181,6 @@ class DialogWebViewPrompts implements MediaPrompter {
     }
     final loc = AppLocalizations.of(context);
     final text = kind.text(loc);
-    final real = kind.real;
     final choice = await showDialog<_MediaChoice>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -189,7 +188,7 @@ class DialogWebViewPrompts implements MediaPrompter {
         content: Text(text.promptBody(origin)),
         actions: [
           for (final choice in _MediaChoice.values)
-            if (choice != _MediaChoice.allow || real != null)
+            if (choice != _MediaChoice.allow || kind.realOffered)
               TextButton(
                 onPressed: () => Navigator.pop(ctx, choice),
                 child: Text(switch (choice) {
@@ -202,12 +201,23 @@ class DialogWebViewPrompts implements MediaPrompter {
       ),
     );
     return switch (choice) {
-      _MediaChoice.allow => (mode: real ?? kind.block, source: null),
+      _MediaChoice.allow => (mode: kind.real, source: null),
       _MediaChoice.useFile =>
         await _pickVirtualOrKeep(kind, fallback: kind.ask),
       _MediaChoice.block => (mode: kind.block, source: null),
       null => (mode: kind.ask, source: null),
     };
+  }
+
+  @override
+  ShareNotice shareNotice(String origin) {
+    if (!context.mounted) return (title: origin, text: origin, stop: origin);
+    final loc = AppLocalizations.of(context);
+    return (
+      title: loc.screenShareNotificationTitle,
+      text: loc.screenShareNotificationText(origin),
+      stop: loc.screenShareNotificationStop,
+    );
   }
 
   /// Runs the picker. On success returns `virtual` with the source; on cancel

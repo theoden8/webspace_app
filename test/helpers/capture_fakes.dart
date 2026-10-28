@@ -66,7 +66,7 @@ final class FakePrompter implements MediaPrompter {
     if (choice == null) fail('$kind must not prompt for $origin');
     if (gate case final gate?) await gate.future;
     return switch (choice(kind, origin: origin, current: current)) {
-      Answer.allow => (mode: kind.real ?? kind.block, source: null),
+      Answer.allow => (mode: kind.real, source: null),
       Answer.useFile => (mode: kind.virtual, source: pickedFor(kind)),
       Answer.block => (mode: kind.block, source: null),
       Answer.dismiss => (mode: kind.ask, source: null),
@@ -82,4 +82,8 @@ final class FakePrompter implements MediaPrompter {
     if (gate case final gate?) await gate.future;
     return answer;
   }
+
+  @override
+  ShareNotice shareNotice(String origin) =>
+      (title: 'Sharing', text: origin, stop: 'Stop');
 }

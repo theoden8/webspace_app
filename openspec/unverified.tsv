@@ -193,7 +193,6 @@ WEBEXT-010	no check: that a nested screen's and a popup's WKWebView load the sam
 # web-push-notifications
 NOTIF-001	no check: the Dart webNotificationRequestPermission handler in lib/services/page_handlers.dart that answers from the toggle is untested; the JS test stubs the bridge to 'granted', and the hidden-toggle scenario has no test (partly: test/js/notification_polyfill_shim.test.js, "requestPermission asks the bridge and adopts its answer")
 # web-screen-sharing
-SHARE-002	no check: no widget test opens the Screen sharing row and asserts the Ask/Simulated/Block choices, the disabled 'Allowed' option with its reason, the file prompt or the preview; only the JSON half is tested (partly: test/capture_test.dart, "an untouched site writes no capture key")
 SHARE-016	no check: the strip functions are unit-tested, but nothing checks that the visual pick path runs them before the source lands on the model, nor the PNG-with-XMP case (partly: test/media_metadata_strip_test.dart, "other formats become PNG with the same pixels")
 # webspaces
 WEBSPACE-005	no check: no test restarts the app (or reruns the restore) and asserts the selected webspace and its drawer come back; only the Webspace JSON round-trip is tested (partly: test/webspace_model_test.dart, "JSON round-trip preserves siteIds")

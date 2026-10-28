@@ -36,6 +36,7 @@ test('Android declares exactly the permissions it needs', () => {
     'android.permission.CREDENTIAL_MANAGER_SET_ORIGIN',
     'android.permission.FOREGROUND_SERVICE',
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+    'android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION',
     'android.permission.INTERNET',
     'android.permission.MODIFY_AUDIO_SETTINGS',
     'android.permission.POST_NOTIFICATIONS',
@@ -49,6 +50,10 @@ test('Android declares exactly the permissions it needs', () => {
   // and an allowed site's getUserMedia fails with NotReadableError. Normal
   // protection level, so it opens no OS capability by itself.
   assert.ok(declared.includes('android.permission.MODIFY_AUDIO_SETTINGS'));
+  // Held for the per-site real screen share (SHARE-018): Android runs a
+  // projection only in a mediaProjection foreground service, and every share
+  // still starts with Android's own capture prompt.
+  assert.ok(declared.includes('android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION'));
   // Held for passkeys (PASSKEY-002): what lets the app name a page's origin
   // to Credential Manager. Normal protection level, so it opens no OS
   // capability by itself; every provider decides whether to trust the app

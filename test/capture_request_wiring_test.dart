@@ -102,17 +102,18 @@ void main() {
     expect(saves, 0, reason: 'nothing changed, so nothing to persist');
   });
 
-  test('no answer can produce a real-display grant (SHARE-001)', () async {
-    // The host UI is the only thing that could widen this, and it has no
-    // value to widen it to: every answer maps to a payload the shim reads as
-    // "serve a file" or "deny".
+  test('only an Allow answer produces a real-display grant (SHARE-001)',
+      () async {
+    // Every other answer maps to a payload the shim reads as "serve a file"
+    // or "deny"; Allow is the one that lets the start handler ask Android.
     for (final answer in Answer.values) {
       final grant = await _store(
         siteWith(CaptureKind.screenShare, mode: ScreenShareMode.ask),
         prompter:
             FakePrompter((_, {required origin, required current}) => answer),
       ).capture(CaptureKind.screenShare, origin: origin, isTopFrame: true);
-      expect(grant.toBridgeJson()['mode'], isIn(['virtual', 'block']),
+      expect(grant.toBridgeJson()['mode'],
+          answer == Answer.allow ? 'real' : isIn(['virtual', 'block']),
           reason: answer.name);
     }
   });

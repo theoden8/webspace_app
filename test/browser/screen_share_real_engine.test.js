@@ -1,5 +1,4 @@
-// Real-Chromium proof for the simulated screen-sharing shim
-// (lib/js/screen_share.js).
+// Real-Chromium proof for the screen-sharing shim (lib/js/screen_share.js).
 //
 // The jsdom tier (test/js/screen_share_shim.test.js) stubs canvas /
 // captureStream, so it proves the decision funnel but not that the served
@@ -30,9 +29,11 @@ async function armPage(page, decisionFactory) {
     window.__wsSurface = null;
     window.__wsBridgeCalls = 0;
     window.flutter_inappwebview = {
-      callHandler: (name) => {
+      callHandler: (name, arg) => {
         window.__wsBridgeCalls += 1;
         window.__wsLastHandler = name;
+        const share = window.__wsShare;
+        if (share && name in share) return Promise.resolve(share[name](arg));
         return Promise.resolve(window.__wsDecision ?? { mode: 'block' });
       },
     };
@@ -149,6 +150,141 @@ test('a virtual grant serves the picked surface under real Chromium (SHARE-008)'
       server.close();
     }
   });
+
+test("a real grant serves Android's frames under real Chromium (SHARE-018)",
+  async (t) => {
+    if (!requireBrowser(browser, t)) return;
+    // Android WebView has no display capture, so the shim draws the frames
+    // Android shares with the app onto a canvas. This proves the pixels a
+    // pulled JPEG carries are the pixels the page's track carries, and that
+    // the deactivation stop ends it as a device capture (SHARE-017).
+    const server = await startBlankServer();
+    const { port } = server.address();
+    const page = await browser.browser.newPage();
+    try {
+      await armPage(page);
+      await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
+      await page.evaluate(sampleStream);
+      const result = await page.evaluate(async () => {
+        const c = document.createElement('canvas');
+        c.width = 320; c.height = 240;
+        const ctx = c.getContext('2d');
+        const [r, g, b] = window.__wsSurfaceRgb;
+        ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+        ctx.fillRect(0, 0, 320, 240);
+        const jpeg = c.toDataURL('image/jpeg', 0.95).split(',')[1];
+        const seen = { pulls: [], stops: 0 };
+        window.__wsDecision = { mode: 'real' };
+        window.__wsShare = {
+          webScreenShareStart: () => ({ width: 320, height: 240 }),
+          webScreenShareFrame: (after) => {
+            seen.pulls.push(after);
+            return after < 1 ? { seq: 1, jpeg } : new Promise(() => {});
+          },
+          webScreenShareStop: () => { seen.stops += 1; return null; },
+        };
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const track = stream.getVideoTracks()[0];
+        const sampled = await window.__wsSample(stream);
+        const stopped = window.__wsStopRealCapture();
+        return {
+          ...sampled,
+          constructorName: track.constructor.name,
+          label: track.label,
+          stopped,
+          readyState: track.readyState,
+          pulls: seen.pulls,
+        };
+      });
+      assert.ok(result.rgb, 'the track must carry a frame');
+      result.rgb.forEach((v, i) => assert.ok(Math.abs(v - SURFACE_RGB[i]) <= 8,
+        `channel ${i}: ${v} is not the shared frame's ${SURFACE_RGB[i]}`));
+      assert.equal(result.width, 320);
+      assert.equal(result.height, 240);
+      assert.equal(result.constructorName, 'MediaStreamTrack');
+      assert.equal(result.label, 'Screen');
+      assert.deepEqual(result.pulls, [0, 1]);
+      assert.equal(result.stopped, 1,
+        'the real screen is a device capture: the deactivation stop ends it');
+      assert.equal(result.readyState, 'ended');
+    } finally {
+      await page.close();
+      server.close();
+    }
+  });
+
+test('a hidden page still sends the frames it pulls (SHARE-020)', async (t) => {
+  if (!requireBrowser(browser, t)) return;
+  // The share is for showing other apps, so the page is hidden while it
+  // runs. Frames arrive as bridge replies, not timers, and the canvas track
+  // must carry one delivered while the page is hidden. Read through a
+  // MediaStreamTrackProcessor, which needs no rendering of its own.
+  const server = await startBlankServer();
+  const { port } = server.address();
+  const page = await browser.browser.newPage();
+  const other = await browser.browser.newPage();
+  try {
+    await armPage(page);
+    await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
+    await page.bringToFront();
+    await page.evaluate(async () => {
+      const jpeg = (rgb) => {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = 'rgb(' + rgb + ')';
+        ctx.fillRect(0, 0, 64, 64);
+        return c.toDataURL('image/jpeg', 0.95).split(',')[1];
+      };
+      window.__wsJpeg = { red: jpeg('255,0,0'), blue: jpeg('0,0,255') };
+      window.__wsPulls = [];
+      window.__wsDecision = { mode: 'real' };
+      window.__wsShare = {
+        webScreenShareStart: () => ({ width: 64, height: 64 }),
+        webScreenShareFrame: () => new Promise((r) => window.__wsPulls.push(r)),
+      };
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const reader = new MediaStreamTrackProcessor({ track: stream.getVideoTracks()[0] })
+        .readable.getReader();
+      window.__wsGot = [];
+      (async () => {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) return;
+          const c = new OffscreenCanvas(1, 1).getContext('2d');
+          c.drawImage(await createImageBitmap(value), 0, 0, 1, 1);
+          const d = c.getImageData(0, 0, 1, 1).data;
+          window.__wsGot.push({ rgb: [d[0], d[1], d[2]], seen: document.visibilityState });
+          value.close();
+        }
+      })();
+    });
+    const deliver = (colour, seq) => page.evaluate((colour, seq) => {
+      const pull = window.__wsPulls.shift();
+      if (pull) pull({ seq, jpeg: window.__wsJpeg[colour] });
+      return !!pull;
+    }, colour, seq);
+    const settle = () => new Promise((r) => setTimeout(r, 600));
+    await settle();
+    assert.ok(await deliver('red', 1));
+    await settle();
+    await other.bringToFront();
+    await settle();
+    assert.equal(await page.evaluate(() => document.visibilityState), 'hidden');
+    assert.ok(await deliver('blue', 2));
+    await settle();
+    const got = await page.evaluate(() => window.__wsGot);
+    const last = got[got.length - 1];
+    assert.ok(last, 'the track must carry frames');
+    assert.equal(last.seen, 'hidden');
+    assert.ok(last.rgb[2] > 200 && last.rgb[0] < 40,
+      `the frame delivered while hidden must reach the track: ${JSON.stringify(last.rgb)}`);
+  } finally {
+    await other.close();
+    await page.close();
+    server.close();
+  }
+});
 
 test("the engine's own getDisplayMedia is unreachable once the shim is in",
   async (t) => {

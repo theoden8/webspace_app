@@ -1,4 +1,5 @@
 import 'package:webspace/services/page_js.dart';
+import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/settings/capture.dart';
 
 /// The shim that serves [kind]'s requests, injected at DOCUMENT_START under
@@ -17,6 +18,11 @@ String buildCaptureShim(CaptureKind kind) {
     if (device != null) ...{
       'modeHandler': device.modeHandler,
       'deviceKind': device.deviceKind,
+    },
+    if (kind == CaptureKind.screenShare) ...{
+      'startHandler': ShareHandlers.start,
+      'frameHandler': ShareHandlers.frame,
+      'stopHandler': ShareHandlers.stop,
     },
   });
 }

@@ -76,10 +76,9 @@ visibility as one of the clauses that make holding the recording capability
 defensible, and the drawer is the only surface that shows a grant the user
 settled months ago without their opening the site's settings.
 
-There is no `realScreenShare` badge because there is no mode that produces
-one (SHARE-001): a display capture is whole-surface, so granting one would
-hand the site every other site in the webspace, and the app offers no such
-grant on any platform.
+A screen share at `real` (Android only, SHARE-001) is badged the same way:
+a display capture shows the site everything on the screen, so the grant is the
+one the drawer most needs to keep in sight (SHARE-017).
 
 #### Scenario: A site with no grants shows nothing
 

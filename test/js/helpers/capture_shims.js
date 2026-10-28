@@ -22,5 +22,8 @@ module.exports = {
     shimGroup: 'screen_share',
     deviceLabel: 'Screen',
     requestHandler: 'webScreenShareRequest',
+    startHandler: 'webScreenShareStart',
+    frameHandler: 'webScreenShareFrame',
+    stopHandler: 'webScreenShareStop',
   }),
 };

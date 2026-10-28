@@ -73,6 +73,62 @@ void main() {
     expect(find.text('Ask'), findsWidgets);
   });
 
+  group('the screen sharing sheet (SHARE-002)', () {
+    tearDown(() => CaptureKind.debugRealScreenOffered = null);
+
+    Future<void> openSheet(WidgetTester tester,
+        {ValueChanged<SitePermissionValues>? onChanged}) async {
+      await _pump(tester, values: _values(), onChanged: onChanged);
+      await tester.tap(find.text('Screen sharing'));
+      await tester.pumpAndSettle();
+    }
+
+    RadioListTile<SitePermissionState> tileOf(WidgetTester tester,
+            {required String label}) =>
+        tester.widget<RadioListTile<SitePermissionState>>(find.ancestor(
+          of: find.text(label).last,
+          matching: find.byType(RadioListTile<SitePermissionState>),
+        ));
+
+    testWidgets('where the real screen is not offered, Allowed is greyed and '
+        'says why', (tester) async {
+      CaptureKind.debugRealScreenOffered = false;
+      await openSheet(tester);
+      expect(tileOf(tester, label: 'Allowed').onChanged, isNull);
+      expect(find.textContaining('Only Android lets WebSpace share'),
+          findsOneWidget);
+      expect(find.text('Always allow'), findsNothing);
+    });
+
+    testWidgets('on Android, Always allow warns what a share shows, and '
+        'Cancel keeps Ask (SHARE-019)',
+        (tester) async {
+      CaptureKind.debugRealScreenOffered = true;
+      final changes = <SitePermissionValues>[];
+      await openSheet(tester, onChanged: changes.add);
+      expect(tileOf(tester, label: 'Always allow').onChanged, isNotNull);
+      await tester.tap(find.text('Always allow').last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('other apps and any notification'),
+          findsOneWidget, reason: 'the warning names what the site will see');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(changes, isEmpty);
+    });
+
+    testWidgets('on Android, confirming the warning stores the real grant',
+        (tester) async {
+      CaptureKind.debugRealScreenOffered = true;
+      final changes = <SitePermissionValues>[];
+      await openSheet(tester, onChanged: changes.add);
+      await tester.tap(find.text('Always allow').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Allow').last);
+      await tester.pumpAndSettle();
+      expect(changes.last.captures.screenShare.mode, ScreenShareMode.real);
+    });
+  });
+
   testWidgets('location off reads as Blocked, never as a pass-through',
       (tester) async {
     await _pump(tester, values: _values(location: LocationMode.off));

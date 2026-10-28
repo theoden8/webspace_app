@@ -26,6 +26,7 @@ class MainActivity: FlutterActivity() {
     private var surfaceDiagPlugin: SurfaceDiagPlugin? = null
     private var enginePlugins: EnginePlugins? = null
     private var screenCapturePlugin: ScreenCapturePlugin? = null
+    private var screenSharePlugin: ScreenSharePlugin? = null
     private var passkeyPlugin: PasskeyPlugin? = null
     private var remoteInputPlugin: RemoteInputPlugin? = null
     private var pendingShareUrl: String? = null
@@ -84,6 +85,7 @@ class MainActivity: FlutterActivity() {
         microphonePermissionPlugin = CapturePermissionPlugin.microphone(this, flutterEngine)
         surfaceDiagPlugin = SurfaceDiagPlugin(this, flutterEngine)
         screenCapturePlugin = ScreenCapturePlugin(this, flutterEngine)
+        screenSharePlugin = ScreenSharePlugin(this, flutterEngine)
         passkeyPlugin = PasskeyPlugin(this, flutterEngine)
         remoteInputPlugin = RemoteInputPlugin(this, flutterEngine)
         captureSharePayload(intent)
@@ -470,6 +472,11 @@ class MainActivity: FlutterActivity() {
         enginePlugins?.dispose()
         enginePlugins = null
         super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (screenSharePlugin?.onActivityResult(requestCode, resultCode, data) == true) return
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun onRequestPermissionsResult(

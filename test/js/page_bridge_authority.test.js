@@ -434,7 +434,7 @@ test('PASSKEY-015: a ceremony cannot hold the gate past its timeout or its page'
   assert.notEqual(load, -1, 'onLoadStart is gone');
   const loadBody = WEBVIEW.slice(load, load + 1500);
   assert.match(loadBody,
-    /passkeyGate\.active[\s\S]*?startsWith\('\$\{passkeyWebviewKey\(controller\)\}:'\)[\s\S]*?PasskeyNative\.cancel\(/,
+    /passkeyGate\.active[\s\S]*?startsWith\('\$\{viewKey\(controller\)\}:'\)[\s\S]*?PasskeyNative\.cancel\(/,
     'a main-frame load must cancel the ceremony its webview started, and only that one');
 });
 
@@ -483,6 +483,43 @@ test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
   assert.match(grant, /final key = \(kind, origin\);[\s\S]*_inFlight\.run\(key,/,
     'media_grant_engine.dart: coalescing must be keyed by prompt origin, or a ' +
     'subframe rides the answer the user gave for the top document');
+});
+
+test('SHARE-018: the screen share bridge serves the top document only', () => {
+  const handler = (name) => {
+    const at = WEBVIEW.indexOf(`handlerName: ShareHandlers.${name}`);
+    assert.notEqual(at, -1, `the ${name} share handler is gone`);
+    return WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  };
+  for (const name of ['start', 'frame', 'stop']) {
+    const body = handler(name);
+    assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData data'),
+      `${name}: the frame-aware callback, so a frame cannot forge isMainFrame`);
+    assert.ok(body.includes('data.isMainFrame'),
+      `${name}: a subframe must not start, read or stop the share (SHARE-005)`);
+  }
+  const start = handler('start').replace(/\s+/g, ' ');
+  const ask = start.indexOf('grants.capture(CaptureKind.screenShare');
+  const share = start.indexOf('ScreenShare.instance.start(');
+  assert.ok(ask !== -1 && share > ask,
+    'the start handler asks the site\'s decision (and its on-screen gate) '
+    + 'again before Android\'s prompt, so a real answer forged in the page '
+    + 'reaches no share (SHARE-010)');
+  assert.ok(start.includes('grant.mode != ScreenShareMode.real) return null'),
+    'only a real decision starts a share');
+  assert.ok(start.includes('realOffered'),
+    'a platform that does not offer the real screen starts none');
+});
+
+test('SHARE-017: a main-frame load ends the share its webview started', () => {
+  const load = WEBVIEW.indexOf('onLoadStart: (controller, url) async {');
+  const loadBody = WEBVIEW.slice(load, load + 2000);
+  assert.match(loadBody, /ScreenShare\.instance\.endView\(viewKey\(controller\)\)/,
+    'the document the user allowed is gone, and its successor has not asked');
+  const model = read('lib/web_view_model.dart');
+  assert.match(model,
+    /Future<void> stopRealCapture\(\) async \{\s*await ScreenShare\.instance\.endSite\(siteId\);/,
+    'the deactivation stop ends the share itself, not through the page');
 });
 
 test('BGAUDIO-008: only a main frame takes the notification off a main frame', () => {

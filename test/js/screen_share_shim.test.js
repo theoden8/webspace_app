@@ -5,7 +5,8 @@
 // so we stub the minimum surface the shim wraps and assert *routing + shape*:
 //   - block    -> getDisplayMedia rejects NotAllowedError
 //   - virtual  -> resolves a canvas-backed stream carrying the picked file
-//   - no mode  -> there is no answer that yields a real display surface
+//   - real     -> starts the share over the bridge and draws the frames it
+//                 pulls; a device track the deactivation stop ends
 //   - subframe -> denied before the bridge is even asked
 //   - no bridge-> fail closed (block)
 //   - never an audio track, whatever the page asked for
@@ -47,6 +48,7 @@ function setupShareDom({
   noBridge = false,
   subframe = false,
   platformGetDisplayMedia = false,
+  share = null,
 } = {}) {
   const dom = makeDom({
     html: '<!doctype html><html><head></head><body><iframe></iframe></body></html>',
@@ -71,7 +73,9 @@ function setupShareDom({
   const mediaDevices = new MediaDevices();
 
   class MediaStreamTrack {
-    constructor() { this.kind = 'video'; this._ended = null; this.readyState = 'live'; }
+    constructor() {
+      this.kind = 'video'; this._ended = null; this.readyState = 'live'; this.events = [];
+    }
     get label() { return ''; }
     getSettings() { return {}; }
     getCapabilities() { return {}; }
@@ -80,6 +84,11 @@ function setupShareDom({
     clone() { return new MediaStreamTrack(); }
     stop() { this.readyState = 'ended'; calls.stopped.push(this); }
     addEventListener(type, cb) { if (type === 'ended') this._ended = cb; }
+    dispatchEvent(e) {
+      this.events.push(e.type);
+      if (e.type === 'ended' && this._ended) this._ended(e);
+      return true;
+    }
   }
   window.MediaStreamTrack = MediaStreamTrack;
   calls.MediaStreamTrack = MediaStreamTrack;
@@ -90,9 +99,10 @@ function setupShareDom({
 
   if (!noBridge) {
     window.flutter_inappwebview = {
-      callHandler(name, _arg) {
+      callHandler(name, arg) {
         calls.bridge += 1;
         calls.lastHandler = name;
+        if (share && name in share) return share[name](arg);
         return Promise.resolve(decision);
       },
     };
@@ -106,7 +116,10 @@ function setupShareDom({
       this.onload = null;
       this.onerror = null;
     }
-    set src(_v) { setTimeout(() => this.onload && this.onload(), 0); }
+    set src(v) {
+      this.url = v;
+      setTimeout(() => this.onload && this.onload(), 0);
+    }
   };
 
   // Video source: jsdom won't decode a data: URL, so hand back a fake <video>
@@ -138,8 +151,10 @@ function setupShareDom({
   proto.getContext = function getContext() {
     const canvas = this;
     return {
-      drawImage(_media, x, y, w, h) {
-        calls.drawn.push({ x, y, w, h, canvasW: canvas.width, canvasH: canvas.height });
+      drawImage(media, x, y, w, h) {
+        calls.drawn.push({
+          x, y, w, h, canvasW: canvas.width, canvasH: canvas.height, url: media && media.url,
+        });
       },
     };
   };
@@ -265,7 +280,8 @@ test('the track reports a display surface, not a camera (SHARE-009)', async () =
   assert.equal(track.getCapabilities().displaySurface, 'monitor');
   // No own properties: the overrides live on MediaStreamTrack.prototype.
   assert.deepEqual(
-    Object.getOwnPropertyNames(track).filter((k) => k !== 'kind' && k !== '_ended' && k !== 'readyState'),
+    Object.getOwnPropertyNames(track)
+      .filter((k) => !['kind', '_ended', 'readyState', 'events'].includes(k)),
     [],
   );
 });
@@ -324,6 +340,8 @@ test('a missing bridge fails closed', async () => {
 });
 
 test('a malformed bridge answer fails closed (SHARE-010)', async () => {
+  // `{mode: 'real'}` reaches the start handler, which answers the same
+  // malformed value here: no size, so no share.
   for (const answer of [null, undefined, 'virtual', 42, { mode: 'real' }, {}]) {
     const { window } = setupShareDom({ decision: answer });
     await assert.rejects(
@@ -390,3 +408,109 @@ test('stopping the track drops the repaint loop', async () => {
   track.stop();
   assert.equal(track.readyState, 'ended');
 });
+
+// --- The real screen (SHARE-018) --------------------------------------------
+
+// Android's side as the bridge shows it: a start that answers the surface's
+// size, and frames handed out one per pull. Past the last scripted frame a
+// pull waits forever, as a pull does while the screen does not change.
+function androidShare({ size = { width: 640, height: 1280 }, frames = [] } = {}) {
+  const seen = { starts: [], pulls: [], stops: 0 };
+  let next = 0;
+  return {
+    seen,
+    handlers: {
+      webScreenShareRequest: () => Promise.resolve({ mode: 'real' }),
+      webScreenShareStart: (arg) => { seen.starts.push(arg); return Promise.resolve(size); },
+      webScreenShareFrame: (after) => {
+        seen.pulls.push(after);
+        return next < frames.length ? Promise.resolve(frames[next++]) : new Promise(() => {});
+      },
+      webScreenShareStop: () => { seen.stops += 1; return Promise.resolve(null); },
+    },
+  };
+}
+
+const tick = (window) => new Promise((r) => window.setTimeout(r, 5));
+
+test('a real grant starts the share with what the page asked (SHARE-018)', async () => {
+  const android = androidShare();
+  const { window, calls } = setupShareDom({ share: android.handlers });
+  const stream = await window.navigator.mediaDevices.getDisplayMedia({
+    video: { width: { max: 800 }, height: { max: 600 }, frameRate: 5 },
+  });
+  // Built in the page's realm, so compared by value.
+  assert.deepEqual(JSON.parse(JSON.stringify(android.seen.starts)),
+    [{ maxWidth: 800, maxHeight: 600, fps: 5 }]);
+  const track = stream.getVideoTracks()[0];
+  const s = track.getSettings();
+  assert.equal(s.displaySurface, 'monitor');
+  assert.equal(s.width, 640);
+  assert.equal(s.height, 1280);
+  assert.equal(track.label, 'Screen');
+  assert.equal(calls.capturedFps, undefined, 'captured on every draw, not on a timer');
+});
+
+test('each pulled frame is drawn whole, newest only', async () => {
+  const android = androidShare({
+    frames: [{ seq: 1, jpeg: 'QQ==' }, { seq: 1, jpeg: 'Qg==' }, { seq: 2 }, { seq: 3, jpeg: 'Qw==' }],
+  });
+  const { window, calls } = setupShareDom({ share: android.handlers });
+  await window.navigator.mediaDevices.getDisplayMedia({ video: true });
+  for (let i = 0; i < 10; i++) await tick(window);
+  assert.deepEqual(android.seen.pulls, [0, 1, 1, 1, 3],
+    'each pull names the newest frame the page holds');
+  assert.deepEqual(calls.drawn.map((d) => d.url), [
+    'data:image/jpeg;base64,QQ==',
+    'data:image/jpeg;base64,Qw==',
+  ]);
+  for (const d of calls.drawn) {
+    assert.deepEqual([d.x, d.y, d.w, d.h], [0, 0, 640, 1280]);
+  }
+});
+
+test("declining Android's prompt denies the request", async () => {
+  const android = androidShare({ size: null });
+  const { window } = setupShareDom({ share: android.handlers });
+  await assert.rejects(
+    () => window.navigator.mediaDevices.getDisplayMedia({ video: true }),
+    (err) => err && err.name === 'NotAllowedError',
+  );
+  assert.deepEqual(android.seen.pulls, []);
+});
+
+test('a share Android ends, ends the track and says so', async () => {
+  const android = androidShare({ frames: [{ seq: 1, jpeg: 'QQ==' }, { ended: true }] });
+  const { window } = setupShareDom({ share: android.handlers });
+  const stream = await window.navigator.mediaDevices.getDisplayMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  for (let i = 0; i < 10; i++) await tick(window);
+  assert.equal(track.readyState, 'ended');
+  assert.deepEqual(track.events, ['ended'], 'a call app learns the share is over');
+  assert.equal(android.seen.pulls.length, 2, 'no pull after the end');
+});
+
+test('stopping the track stops the share, once', async () => {
+  const android = androidShare();
+  const { window } = setupShareDom({ share: android.handlers });
+  const stream = await window.navigator.mediaDevices.getDisplayMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  const copy = track.clone();
+  track.stop();
+  assert.equal(android.seen.stops, 0, 'a clone still shows the screen');
+  copy.stop();
+  copy.stop();
+  assert.equal(android.seen.stops, 1);
+});
+
+test('the deactivation stop ends the real screen, unlike a simulated one (SHARE-017)',
+  async () => {
+    const android = androidShare();
+    const { window } = setupShareDom({ share: android.handlers });
+    const stream = await window.navigator.mediaDevices.getDisplayMedia({ video: true });
+    const track = stream.getVideoTracks()[0];
+    const copy = track.clone();
+    assert.equal(window.__wsStopRealCapture(), 2);
+    assert.equal(track.readyState, 'ended');
+    assert.equal(copy.readyState, 'ended');
+  });

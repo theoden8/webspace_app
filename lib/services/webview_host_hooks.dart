@@ -121,4 +121,10 @@ final class _Declines implements MediaPrompter {
 
   @override
   Future<bool> protectedContent(String origin) async => false;
+
+  /// Never shown: a webview no one looks at is never the site on screen, so
+  /// its share is refused before it starts.
+  @override
+  ShareNotice shareNotice(String origin) =>
+      (title: origin, text: origin, stop: origin);
 }

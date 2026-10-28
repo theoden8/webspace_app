@@ -147,14 +147,14 @@ void main() {
   for (final kind in <CaptureKind>[CaptureKind.camera, CaptureKind.microphone]) {
     group('GrantStore.capture frame scoping for $kind (CAM-014 / MIC-016)', () {
       test('real settles for the top document', () async {
-        final host = _Host(kind, mode: kind.real!);
+        final host = _Host(kind, mode: kind.real);
         expect((await host.ask(kind)).toBridgeJson(), {'mode': 'real'});
         expect(host.prompter.asked, isEmpty);
       });
 
       test('a subframe does not inherit a settled real grant', () async {
         final host =
-            _Host(kind, mode: kind.real!, answer: _always(Answer.block));
+            _Host(kind, mode: kind.real, answer: _always(Answer.block));
         final grant = await host.ask(kind, origin: _frame, isTopFrame: false);
         expect(grant.mode, kind.block);
         expect(host.prompter.asked.single.$2, _frame,

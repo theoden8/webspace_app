@@ -132,6 +132,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -145,6 +146,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -158,6 +160,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, 1);
@@ -171,6 +174,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (i) => i == 1,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -193,6 +197,7 @@ void main() {
         loadedIndices: {0, 1, 2},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, flaggedIndex);
@@ -216,6 +221,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.flushCookies, isTrue);
@@ -231,6 +237,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.flushCookies, isFalse);
@@ -245,6 +252,7 @@ void main() {
         loadedIndices: const {},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.flushCookies, isFalse);
@@ -260,6 +268,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (i) => i == 1,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -276,6 +285,7 @@ void main() {
         loadedIndices: {0, 2},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -293,6 +303,7 @@ void main() {
           loadedIndices: {0, 1},
           notificationsEnabled: (_) => false,
           backgroundAudioEnabled: (_) => false,
+          sharingScreen: (_) => false,
         ),
         isNull,
       );
@@ -306,6 +317,7 @@ void main() {
           loadedIndices: {0, 1},
           notificationsEnabled: (_) => false,
           backgroundAudioEnabled: (_) => false,
+          sharingScreen: (_) => false,
         ),
         0,
       );
@@ -319,6 +331,7 @@ void main() {
           loadedIndices: {0, 1},
           notificationsEnabled: (i) => i == 0,
           backgroundAudioEnabled: (_) => false,
+          sharingScreen: (_) => false,
         ),
         isNull,
       );
@@ -334,6 +347,7 @@ void main() {
           loadedIndices: {0},
           notificationsEnabled: (_) => true,
           backgroundAudioEnabled: (_) => false,
+          sharingScreen: (_) => false,
         ),
         isNull,
       );
@@ -348,6 +362,38 @@ void main() {
     });
   });
 
+  group('SHARE-020 a site sharing the screen keeps running', () {
+    test('it vetoes the JS pause and keeps its media; the others pause', () {
+      final plan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: 0,
+        siteCount: 3,
+        loadedIndices: {0, 1, 2},
+        notificationsEnabled: (_) => false,
+        backgroundAudioEnabled: (_) => false,
+        sharingScreen: (i) => i == 0,
+        cookieFlushSupported: false,
+      );
+      expect(plan.jsPauseIndex, isNull,
+          reason: 'the user leaves the app to show what is on the screen');
+      expect(plan.mediaPauseIndices, [1, 2],
+          reason: 'the call it shares into keeps sounding; the rest stop');
+    });
+
+    test('a share that ended by the resume leaves nothing to resume', () {
+      expect(
+        AppLifecycleEngine.resumeJsIndex(
+          currentIndex: 0,
+          siteCount: 1,
+          loadedIndices: {0},
+          notificationsEnabled: (_) => false,
+          backgroundAudioEnabled: (_) => false,
+          sharingScreen: (_) => true,
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('BGAUDIO-009 media pause for sites without the toggle', () {
     test('every loaded site without background audio is listed, ascending', () {
       final plan = AppLifecycleEngine.backgroundPlan(
@@ -356,6 +402,7 @@ void main() {
         loadedIndices: {2, 0, 3},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.mediaPauseIndices, [0, 2, 3]);
@@ -371,6 +418,7 @@ void main() {
         loadedIndices: {0, 1, 2},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (i) => i == 1,
+        sharingScreen: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.mediaPauseIndices, [0, 2]);
@@ -384,6 +432,7 @@ void main() {
         loadedIndices: {1},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.mediaPauseIndices, [1]);
@@ -397,6 +446,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (i) => i == 0,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.mediaPauseIndices, [0, 1]);
@@ -410,6 +460,7 @@ void main() {
         loadedIndices: {-1, 0, 7},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: false,
       );
       expect(plan.mediaPauseIndices, [0]);
@@ -422,6 +473,7 @@ void main() {
         loadedIndices: const {},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.mediaPauseIndices, isEmpty);
@@ -436,6 +488,7 @@ void main() {
         loadedIndices: {0, 1},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (i) => i == 1,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -452,6 +505,7 @@ void main() {
         loadedIndices: {0, 2},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (i) => i == 2,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -465,6 +519,7 @@ void main() {
         loadedIndices: {0},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (i) => i == 2,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, 0);
@@ -479,6 +534,7 @@ void main() {
           loadedIndices: {0, 2},
           notificationsEnabled: (_) => false,
           backgroundAudioEnabled: (i) => i == 2,
+          sharingScreen: (_) => false,
         ),
         isNull,
       );
@@ -510,6 +566,7 @@ void main() {
         loadedIndices: {0, 2},
         notificationsEnabled: (i) => i == 2,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -526,6 +583,7 @@ void main() {
         loadedIndices: {0},
         notificationsEnabled: (i) => i == 2,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, isNull);
@@ -539,6 +597,7 @@ void main() {
         loadedIndices: {0},
         notificationsEnabled: (_) => false,
         backgroundAudioEnabled: (_) => false,
+        sharingScreen: (_) => false,
         cookieFlushSupported: true,
       );
       expect(plan.jsPauseIndex, 0);
@@ -556,6 +615,7 @@ void main() {
             loadedIndices: loaded,
             notificationsEnabled: (i) => i == 2,
             backgroundAudioEnabled: (_) => false,
+            sharingScreen: (_) => false,
           ),
           isNull,
           reason: 'loaded $loaded',

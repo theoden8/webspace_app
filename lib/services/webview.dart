@@ -25,6 +25,7 @@ import 'package:webspace/services/camera_permission_service.dart';
 import 'package:webspace/services/capture_permission_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
+import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
@@ -339,8 +340,9 @@ class WebViewFactory {
   /// Numbers each passkey request for the log, which names no origin.
   static int passkeyRequests = 0;
 
-  /// The prefix of every gate key this webview's ceremonies hold.
-  static String passkeyWebviewKey(inapp.InAppWebViewController controller) =>
+  /// Names one native webview while it lives: the prefix of every gate key
+  /// its passkey ceremonies hold, and the owner of a screen share it starts.
+  static String viewKey(inapp.InAppWebViewController controller) =>
       'wv${identityHashCode(controller)}';
 
   /// The native settings that follow from the site's posture, shared by the
@@ -1457,10 +1459,13 @@ class WebViewFactory {
         // main-frame load replaces that document (PASSKEY-015).
         final pendingPasskey = passkeyGate.active;
         if (pendingPasskey != null &&
-            pendingPasskey.startsWith('${passkeyWebviewKey(controller)}:')) {
+            pendingPasskey.startsWith('${viewKey(controller)}:')) {
           LogTag.passkey.debug('page left, request cancelled');
           unawaited(PasskeyNative.cancel(pendingPasskey));
         }
+        // So does a screen share (SHARE-017): the document the user allowed
+        // is gone, and its successor has not asked.
+        unawaited(ScreenShare.instance.endView(viewKey(controller)));
         if (iconEngine != null) {
           iconEngine.onLoadStarted(url?.toString()).forEach(siteIcon!.onIcon);
           logSiteIcon('loadStart ${iconEngine.stateForLog}');

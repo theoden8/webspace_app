@@ -208,7 +208,7 @@ void main() {
       }
     });
 
-    test('a screen share mode is inherited as it is: there is no real one '
+    test('a real screen share asks again one hop out; the rest is inherited '
         '(SHARE-014)', () {
       for (final mode in ScreenShareMode.values) {
         final p = _posture(
@@ -219,7 +219,10 @@ void main() {
             ),
           ),
         ).forNested();
-        expect(p.media.capture.screenShare.mode, mode);
+        expect(
+          p.media.capture.screenShare.mode,
+          mode == ScreenShareMode.real ? ScreenShareMode.ask : mode,
+        );
       }
     });
 

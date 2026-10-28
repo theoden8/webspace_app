@@ -9,6 +9,7 @@ import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
+import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
@@ -172,6 +173,56 @@ abstract final class PageHandlers {
           );
         }
       }
+      // A real screen share runs over this bridge, not the platform's: no
+      // webview this app ships captures a display, so the shim reads frames
+      // of the share [ScreenShare] holds (SHARE-018). Top document only, as
+      // the decision is (SHARE-005), and started only on a `real` answer
+      // given again here, so a page that calls the handler directly is held
+      // to the same gate as one that went through the shim.
+      final owner = (
+        site: config.posture.siteId,
+        view: WebViewFactory.viewKey(controller),
+      );
+      controller.addJavaScriptHandler(
+        handlerName: ShareHandlers.start,
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          if (!data.isMainFrame || !CaptureKind.screenShare.realOffered) {
+            return null;
+          }
+          final origin = await promptOrigin(controller, config: config);
+          final grant = await grants.capture(CaptureKind.screenShare,
+              origin: origin, isTopFrame: true);
+          if (grant.mode != ScreenShareMode.real) return null;
+          final size = await ScreenShare.instance.start(
+            owner,
+            request: shareRequestFromPage(data.args.firstOrNull),
+            notice:
+                grants.prompter.shareNotice(Uri.tryParse(origin)?.host ?? origin),
+          );
+          return size == null
+              ? null
+              : {'width': size.width, 'height': size.height};
+        },
+      );
+      controller.addJavaScriptHandler(
+        handlerName: ShareHandlers.frame,
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          if (!data.isMainFrame) return const ShareEnded().toBridgeJson();
+          final after = switch (data.args.firstOrNull) {
+            final int seq => seq,
+            _ => 0,
+          };
+          return (await ScreenShare.instance.frame(owner, after: after))
+              .toBridgeJson();
+        },
+      );
+      controller.addJavaScriptHandler(
+        handlerName: ShareHandlers.stop,
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          if (data.isMainFrame) await ScreenShare.instance.stop(owner);
+          return null;
+        },
+      );
     }
     // Passkey bridge (PASSKEY-004..009). The origin Credential Manager is
     // told is the bridge's frame origin, captured by the plugin's preamble
@@ -180,7 +231,7 @@ abstract final class PageHandlers {
     final passkeys = config.passkeys;
     if (passkeys != null &&
         passkeys.backend == PasskeyBackend.credentialManager) {
-      final webviewKey = WebViewFactory.passkeyWebviewKey(controller);
+      final webviewKey = WebViewFactory.viewKey(controller);
       controller.addJavaScriptHandler(
         handlerName: 'webauthnStatus',
         callback: (args) async =>

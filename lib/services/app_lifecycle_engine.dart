@@ -108,16 +108,19 @@ class AppLifecycleEngine {
   /// Loaded, in-bounds sites without background audio, ascending
   /// (BGAUDIO-009). The exemption is per-site, unlike the JS-pause veto: one
   /// opted-in site keeps its own audio, it does not license every other
-  /// loaded site to keep playing too.
+  /// loaded site to keep playing too. A site sharing the screen is exempt
+  /// as well (SHARE-020): the call it shares into is what the user leaves
+  /// the app to talk over.
   static List<int> mediaPauseIndices({
     required int siteCount,
     required Set<int> loadedIndices,
     required bool Function(int index) backgroundAudioEnabled,
+    required bool Function(int index) sharingScreen,
   }) {
     final out = <int>[];
     for (final i in loadedIndices) {
       if (i < 0 || i >= siteCount) continue;
-      if (backgroundAudioEnabled(i)) continue;
+      if (backgroundAudioEnabled(i) || sharingScreen(i)) continue;
       out.add(i);
     }
     out.sort();
@@ -140,11 +143,15 @@ class AppLifecycleEngine {
     return false;
   }
 
+  /// A loaded site sharing the screen vetoes the pause too (SHARE-020): the
+  /// user leaves the app to show what is on it, and a frozen page would send
+  /// the call a frozen screen.
   static bool _vetoesJsPause({
     required int siteCount,
     required Set<int> loadedIndices,
     required bool Function(int index) notificationsEnabled,
     required bool Function(int index) backgroundAudioEnabled,
+    required bool Function(int index) sharingScreen,
   }) =>
       anyNotifications(
         siteCount: siteCount,
@@ -153,7 +160,8 @@ class AppLifecycleEngine {
       anyLoadedBackgroundAudio(
         siteCount: siteCount,
         loadedIndices: loadedIndices,
-        backgroundAudioEnabled: backgroundAudioEnabled,
+        backgroundAudioEnabled: (i) =>
+            backgroundAudioEnabled(i) || sharingScreen(i),
       );
 
   /// Plan for `AppLifecycleState.paused`. The active site's JS timers pause
@@ -173,6 +181,7 @@ class AppLifecycleEngine {
     required Set<int> loadedIndices,
     required bool Function(int index) notificationsEnabled,
     required bool Function(int index) backgroundAudioEnabled,
+    required bool Function(int index) sharingScreen,
     required bool cookieFlushSupported,
   }) {
     final flushCookies = cookieFlushSupported && loadedIndices.isNotEmpty;
@@ -180,6 +189,7 @@ class AppLifecycleEngine {
       siteCount: siteCount,
       loadedIndices: loadedIndices,
       backgroundAudioEnabled: backgroundAudioEnabled,
+      sharingScreen: sharingScreen,
     );
     final active = activeLoadedIndex(
       currentIndex: currentIndex,
@@ -199,6 +209,7 @@ class AppLifecycleEngine {
       loadedIndices: loadedIndices,
       notificationsEnabled: notificationsEnabled,
       backgroundAudioEnabled: backgroundAudioEnabled,
+      sharingScreen: sharingScreen,
     );
     return LifecycleBackgroundPlan(
       jsPauseIndex: skipJsPause ? null : active,
@@ -219,6 +230,7 @@ class AppLifecycleEngine {
     required Set<int> loadedIndices,
     required bool Function(int index) notificationsEnabled,
     required bool Function(int index) backgroundAudioEnabled,
+    required bool Function(int index) sharingScreen,
   }) {
     final active = activeLoadedIndex(
       currentIndex: currentIndex,
@@ -231,6 +243,7 @@ class AppLifecycleEngine {
       loadedIndices: loadedIndices,
       notificationsEnabled: notificationsEnabled,
       backgroundAudioEnabled: backgroundAudioEnabled,
+      sharingScreen: sharingScreen,
     )) {
       return null;
     }

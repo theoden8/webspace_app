@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/shim_frames.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
@@ -69,16 +70,19 @@ enum MicrophoneAccessMode implements CaptureMode {
 
 /// `getDisplayMedia`.
 ///
-/// There is deliberately no mode that hands over the real screen, and adding
-/// one is not a matter of platform plumbing: a display capture is
-/// whole-surface by construction. On Android the only route is
-/// `MediaProjection`, which mirrors the entire device, and on any platform the
-/// app's own window holds the drawer, the tab strip and whichever other site
-/// the user switches to. A site granted a real screen would watch every other
-/// site in the webspace, which is the one thing per-site isolation exists to
-/// prevent. [virtual] serves a picked image or video as the shared surface.
+/// [real] shares the device screen through Android's `MediaProjection`, whose
+/// own prompt asks again for every share. A display capture is whole-surface,
+/// so while it runs the site sees whatever is on the shared screen: the
+/// drawer, the user's other sites, other apps. The app narrows it as it does
+/// the microphone (MIC-014): only the site on screen can start one, and it
+/// ends when that site leaves the screen (SHARE-017). Offered only where
+/// [CaptureKind.realOffered] says so. [virtual] serves a picked image or video
+/// as the shared surface.
+///
+/// An older build that does not know [real] reads it as [ask].
 enum ScreenShareMode implements CaptureMode {
   ask(SitePermissionState.ask),
+  real(SitePermissionState.allowed),
   virtual(SitePermissionState.simulated),
   block(SitePermissionState.blocked);
 
@@ -298,7 +302,7 @@ enum CaptureKind {
     ask: ScreenShareMode.ask,
     virtual: ScreenShareMode.virtual,
     block: ScreenShareMode.block,
-    real: null,
+    real: ScreenShareMode.real,
     medium: CaptureMedium.visual,
     json: (mode: 'screenShareMode', source: 'virtualScreenSource'),
     legacyAllowedKey: null,
@@ -328,8 +332,8 @@ enum CaptureKind {
   final CaptureMode virtual;
   final CaptureMode block;
 
-  /// The mode that hands over the device; null where none may exist.
-  final CaptureMode? real;
+  /// The mode that hands over the device.
+  final CaptureMode real;
 
   final CaptureMedium medium;
 
@@ -353,6 +357,18 @@ enum CaptureKind {
 
   final _CaptureJsonKeys _json;
 
+  /// Whether this device can hand a page the real [real]. Only Android lets
+  /// an app capture the screen for a page: WebKit on iOS and macOS gives an
+  /// app no display capture to grant, and Linux WPE denies one natively.
+  bool get realOffered => switch (this) {
+    camera || microphone => true,
+    screenShare => debugRealScreenOffered ?? hostIsAndroid,
+  };
+
+  /// Stands in for the host in a test of the Android screen-share flow.
+  @visibleForTesting
+  static bool? debugRealScreenOffered;
+
   CaptureGrant grantOf(CaptureGrants grants) => switch (this) {
     camera => grants.camera,
     microphone => grants.microphone,
@@ -372,7 +388,7 @@ enum CaptureKind {
     final legacy = legacyAllowedKey == null ? null : json[legacyAllowedKey];
     final mode = modes.asNameMap()[json[_json.mode]] ??
         switch (legacy) {
-          true => real ?? block,
+          true => real,
           false => block,
           _ => ask,
         };
