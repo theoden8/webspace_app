@@ -1820,7 +1820,7 @@ class _PageHost
   CookieIsolationEngine get legacyJar => _s._cookieIsolation;
 
   @override
-  Future<void> activateRouter() => _s._network.activateRouter();
+  Future<void> activateRouter({required LaunchedSite launch}) => _s._network.activateRouter(launch: launch);
 
   @override
   void closeDrawer() => _s._scaffoldKey.currentState?.closeDrawer();

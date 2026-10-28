@@ -15,6 +15,21 @@ import 'package:webspace/services/proxy_router_engine.dart';
 typedef ProxyAttributionProbe =
     Future<void> Function(RouterIdentity identity, {required String url});
 
+/// The launch the checks run beside (PROXY-015).
+final class RouterLaunch {
+  const RouterLaunch({required this.presents, required this.settled});
+
+  /// The identity the launched site presents, or null when the launch opens
+  /// none. The proof checks it first, so the launched webview waits for no
+  /// check of its own.
+  final Future<RouterIdentity?> presents;
+
+  /// Completes once the launched page has settled or is no longer waited
+  /// for. No queued check starts before it, so their probes do not load
+  /// beside that page.
+  final Future<void> settled;
+}
+
 /// Which routing identities this run has shown to present their own proxy
 /// credential, and the checks still to run (PROXY-015).
 ///
@@ -26,13 +41,21 @@ typedef ProxyAttributionProbe =
 /// trusted, and every later check runs against profiles whose caches are
 /// already warm. A webview presents an identity only once it is checked
 /// ([attributed]), so the rest are checked after the launch rather than
-/// before it.
+/// before it, from [queuedAfter] on.
 class RouterAttribution {
   RouterAttribution({
     required this.probe,
     required this.observed,
     required this.onFailed,
-  });
+    Future<void>? queuedAfter,
+  }) : _held = queuedAfter != null {
+    if (queuedAfter != null) {
+      unawaited(queuedAfter.then((_) {
+        _held = false;
+        _fill();
+      }));
+    }
+  }
 
   /// How many identities a successful proof checks one after the other.
   static const proofSize = 2;
@@ -61,16 +84,27 @@ class RouterAttribution {
   var _ended = false;
   var _slots = 0;
 
+  /// Queued checks wait while this holds; a webview's own never does.
+  bool _held;
+
   /// Identities a check found unproven this run.
   Set<RouterIdentity> get failed => Set.unmodifiable(_failed);
 
-  /// Check the first [proofSize] of [identities] one after the other and
-  /// queue the rest. False when the proof failed, and then nothing else is
-  /// checked.
-  Future<bool> prove(List<RouterIdentity> identities) async {
+  /// Check the first [proofSize] of [identities], [first] leading when it is
+  /// one of them, one after the other, and queue the rest. False when the
+  /// proof failed, and then nothing else is checked.
+  Future<bool> prove(
+    List<RouterIdentity> identities, {
+    RouterIdentity? first,
+  }) async {
     assert(!_proof.isCompleted, 'one proof per run');
+    final order = [
+      if (first != null && identities.contains(first)) first,
+      for (final identity in identities)
+        if (identity != first) identity,
+    ];
     var held = true;
-    for (final identity in identities.take(proofSize)) {
+    for (final identity in order.take(proofSize)) {
       if (!await _start(identity)) {
         held = false;
         break;
@@ -78,7 +112,7 @@ class RouterAttribution {
     }
     _proven = held;
     if (!_proof.isCompleted) _proof.complete(held);
-    if (held) enqueue(identities.skip(proofSize));
+    if (held) enqueue(order.skip(proofSize));
     return held && !_ended;
   }
 
@@ -121,7 +155,7 @@ class RouterAttribution {
   }
 
   void _fill() {
-    if (!_proven || _ended) return;
+    if (!_proven || _ended || _held) return;
     while (_slots < concurrency && _queue.isNotEmpty) {
       final identity = _queue.removeAt(0);
       _slots++;

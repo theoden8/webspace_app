@@ -10,6 +10,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
+import 'package:webspace/services/router_attribution.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/http_auth_challenge.dart';
 import 'package:webspace/services/http_auth_engine.dart';
@@ -709,6 +710,36 @@ void main() {
       await pumpEventQueue();
       expect(answered, isTrue);
       expect(answer?.password, service.tokenFor(d));
+    });
+
+    test(
+        "the launch's site leads the proof; the rest wait for its page",
+        () async {
+      final device = honestDevice();
+      final settled = Completer<void>();
+      final port = await service.activate(
+        perSiteProxies: {
+          for (final id in [a, b, c, d])
+            id: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+        },
+        probe: device.probe,
+        launch: RouterLaunch(
+          presents: Future.value(c),
+          settled: settled.future,
+        ),
+      );
+      expect(port, 43210);
+      expect(device.started, [c, a],
+          reason: 'the launched webview waits for no third check');
+      expect(await relayChallenge(c).then((r) => r?.password),
+          service.tokenFor(c));
+
+      await pumpEventQueue();
+      expect(device.started, [c, a],
+          reason: 'no queued probe loads beside the launched page');
+      settled.complete();
+      await pumpEventQueue();
+      expect(device.started.toSet(), {a, b, c, d});
     });
 
     test('a late failed check stops routing both identities it names',

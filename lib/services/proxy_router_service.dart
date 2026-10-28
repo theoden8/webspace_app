@@ -222,6 +222,8 @@ class ProxyRouterService {
   }
 
   /// Bind the relay and install the route table for [perSiteProxies].
+  /// [launch] orders the checks around the launch (PROXY-015); without one
+  /// the queued checks start as the proof holds.
   ///
   /// Callers gate on [isSupported] first; this method does not re-check
   /// the platform, which is what lets it be driven by a fake relay in
@@ -233,6 +235,7 @@ class ProxyRouterService {
     required Map<RouterIdentity, UserProxySettings> perSiteProxies,
     ProxyRouterOverrideBinder? bindOverride,
     ProxyAttributionProbe? probe,
+    RouterLaunch? launch,
   }) async {
     final state = _state ?? ProxyRouterState();
     final endpoint = await _relay.startRouter(state.realm);
@@ -247,7 +250,7 @@ class ProxyRouterService {
     _host = endpoint.host;
     _port = port;
     final attribution = switch (probe) {
-      final probe? => _checksWith(probe),
+      final probe? => _checksWith(probe, queuedAfter: launch?.settled),
       null => null,
     };
     _attribution = attribution;
@@ -275,17 +278,19 @@ class ProxyRouterService {
     }
     // PROXY-015. Everything above proves the app WANTS per-site routing;
     // only the proof shows this device DELIVERS it. The launch waits for two
-    // identities checked one after the other; the rest are checked after
-    // it, and each webview waits for its own ([attributed]). Skipping the
-    // check when no probe is supplied is deliberate for tests, but the app
-    // must always pass one: without it a device that shares a proxy auth
-    // cache across container profiles would route sites through each other
-    // and nothing would say so.
+    // identities checked one after the other, the launched site's first;
+    // the rest are checked once its page settles, and each webview waits
+    // for its own ([attributed]). Skipping the check when no probe is
+    // supplied is deliberate for tests, but the app must always pass one:
+    // without it a device that shares a proxy auth cache across container
+    // profiles would route sites through each other and nothing would say
+    // so.
+    final first = await launch?.presents;
     if (attribution != null &&
         !await attribution.prove([
           for (final identity in perSiteProxies.keys)
             if (_routed.contains(identity)) identity,
-        ])) {
+        ], first: first)) {
       LogTag.proxy.error('Attribution not proven; not activating router mode');
       await _standDown();
       return null;
@@ -313,12 +318,14 @@ class ProxyRouterService {
     return attribution.attributed(identity);
   }
 
-  RouterAttribution _checksWith(ProxyAttributionProbe probe) {
+  RouterAttribution _checksWith(ProxyAttributionProbe probe,
+      {required Future<void>? queuedAfter}) {
     late final RouterAttribution checks;
     return checks = RouterAttribution(
       probe: probe,
       observed: _relay.probeResults,
       onFailed: (failed) => _checkFailed(failed, by: checks),
+      queuedAfter: queuedAfter,
     );
   }
 
