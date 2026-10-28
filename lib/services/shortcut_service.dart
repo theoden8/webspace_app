@@ -2,9 +2,12 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/shortcut_id.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/services.dart';
+import 'package:webspace/services/launcher_tile_engine.dart';
 import 'package:webspace/services/startup_restore_engine.dart'
     show TileUpdate;
+import 'package:webspace/utils/concurrency.dart';
 
 /// One site as it crosses the platform-channel boundary into the iOS App
 /// Intents picker (HS-007). `iconUrl` is reserved for future favicon syncing
@@ -57,6 +60,10 @@ enum PinShortcutResult {
 class ShortcutService {
   static const _channel = MethodChannel('org.codeberg.theoden8.webspace/shortcuts');
 
+  /// Tile writes reach the launcher in call order: building a tile awaits,
+  /// and a later write whose tiles build sooner must not land first.
+  static final SerialQueue _tileWrites = SerialQueue('shortcutTileWrites');
+
   /// Request a pinned home screen shortcut for a site.
   ///
   /// Android: hands a tile with its own fresh [shortcutId] (HS-017) to
@@ -65,9 +72,10 @@ class ShortcutService {
   /// instructional dialog (HS-008) before invoking. [PinShortcutResult.failed]
   /// on platforms without either path.
   ///
-  /// [iconBytes] is a ready-to-use raster PNG (the caller rasterizes the
-  /// favicon, including SVG, before invoking — Android's BitmapFactory can't
-  /// decode SVG). Without it the shortcut uses the WebSpace app icon.
+  /// [iconBytes] is the site's icon as a raster PNG (the caller rasterizes
+  /// the favicon, including SVG, before invoking — Android's BitmapFactory
+  /// can't decode SVG), sent as a tile of its own (HS-018). Without it the
+  /// shortcut uses the WebSpace app icon.
   static Future<PinShortcutResult> pinShortcut({
     required SiteId siteId,
     required String label,
@@ -78,12 +86,15 @@ class ShortcutService {
       return PinShortcutResult.failed;
     }
     try {
-      final result = await _channel.invokeMethod('pinShortcut', {
-        'shortcutId': shortcutId,
-        'siteId': siteId,
-        'label': label,
-        'iconBytes': iconBytes,
-      });
+      final result = await _channel.invokeMethod(
+        'pinShortcut',
+        await tileArguments(
+          tile: shortcutId,
+          site: siteId,
+          label: label,
+          siteIcon: iconBytes,
+        ),
+      );
       return PinShortcutResult.fromChannel(result);
     } on PlatformException {
       return PinShortcutResult.failed;
@@ -174,23 +185,45 @@ class ShortcutService {
   /// rate-limits the call, so the caller retries on its next sync.
   static Future<bool> updateTiles(List<TileUpdate> updates) async {
     if (!hostIsAndroid) return false;
-    try {
-      final result = await _channel.invokeMethod('updateShortcuts', {
-        'tiles': [
-          for (final u in updates)
-            {
-              'shortcutId': u.tile,
-              'siteId': u.site,
-              'label': u.label,
-              'iconBytes': u.icon,
-            },
-        ],
-      });
-      return result == true;
-    } on PlatformException {
-      return false;
-    }
+    return _tileWrites.run(() async {
+      try {
+        final result = await _channel.invokeMethod('updateShortcuts', {
+          'tiles': [
+            for (final u in updates)
+              await tileArguments(
+                tile: u.tile,
+                site: u.site,
+                label: u.label,
+                siteIcon: u.icon,
+              ),
+          ],
+        });
+        return result == true;
+      } on PlatformException {
+        return false;
+      }
+    });
   }
+
+  /// What a tile crosses to native as: the id it is pinned under, the site
+  /// it opens, its label, and [siteIcon] built into a tile with a background
+  /// of its own (HS-018), built off the UI thread. A tile with no icon, or
+  /// one that does not decode, sends none: an update keeps the tile's icon,
+  /// a pin takes the app icon.
+  @visibleForTesting
+  static Future<Map<String, Object?>> tileArguments({
+    required ShortcutId? tile,
+    required SiteId site,
+    required String label,
+    required Uint8List? siteIcon,
+  }) async =>
+      {
+        'shortcutId': tile,
+        'siteId': site,
+        'label': label,
+        'iconBytes':
+            siteIcon == null ? null : await compute(launcherTileIcon, siteIcon),
+      };
 
   /// Disable a pinned shortcut (Android only). Android has no API to remove a
   /// pinned tile, so this greys it out and makes the launcher show "shortcut

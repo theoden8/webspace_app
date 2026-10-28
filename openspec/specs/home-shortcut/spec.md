@@ -71,7 +71,7 @@ The system SHALL navigate to the correct site when launched via a home screen sh
 
 ### Requirement: HS-003 - Shortcut Icon
 
-The system SHALL use the icon the drawer shows for the site as the shortcut icon when available (custom icon, then the site's page icon, then the fetched favicon; `displayedSiteIconAsPng`), falling back to the app icon. The favicon is rasterized to a PNG on the Dart side (`exportIconAsPng`) before it crosses to native, because Android's `BitmapFactory` cannot decode SVG; this covers PNG, ICO, and SVG favicons uniformly.
+The system SHALL use the icon the drawer shows for the site as the shortcut icon when available (custom icon, then the site's page icon, then the fetched favicon; `displayedSiteIconAsPng`), on a background of its own (HS-018), falling back to the app icon. The favicon is rasterized to a PNG on the Dart side (`exportIconAsPng`) before it crosses to native, because Android's `BitmapFactory` cannot decode SVG; this covers PNG, ICO, and SVG favicons uniformly.
 
 #### Scenario: Site has a raster favicon
 
@@ -598,6 +598,32 @@ App Settings > Behaviour SHALL list the enabled pinned tiles under "Home screen 
 
 **Given** a tile pinned as `site_<siteId>` before shortcut ids existed
 **Then** it is listed and can be pointed at another site like any other
+
+---
+
+### Requirement: HS-018 - A Tile Carries Its Own Background (Android)
+
+A pinned tile's icon SHALL carry a background of its own, so the launcher adds none. A site icon is often a single-colour logo on transparency, drawn for the page's colour scheme: GitHub's dark-mode logo is white. Sent as a plain bitmap, Launcher3 wraps it on a white background (`BaseIconFactory`'s `DEFAULT_WRAPPER_BACKGROUND`), whatever the system or app theme, and a white logo vanishes into it. The drawer gets this right only because the same theme picks both the logo and the drawer's background, and nothing ties a launcher to either.
+
+The tile is the site icon HS-003 and HS-016 choose, centred on an opaque plate and sent as an adaptive bitmap (`IconCompat.createWithAdaptiveBitmap`) of 108dp, with the icon inside the 66dp circle no launcher mask cuts into. The plate is white, the launcher's own, unless the icon is lost on white: fewer than a tenth of its visible pixels stand out from white (#E6E6E6 or darker). Then it is dark. So only an icon the launcher's white wrap hid changes; a pale brand colour (Hugging Face's yellow, CoinGecko's green) keeps the white it showed on. The plate depends on the icon alone, never on a theme: a tile is written once and outlives every theme change after it. Every icon reaches the launcher through `ShortcutService.tileArguments`, which builds the tile off the UI thread (`launcherTileIcon`); tile writes keep their call order.
+
+#### Scenario: A white logo on transparency
+
+**Given** a site whose page icon is a white logo on transparency (GitHub in dark mode)
+**When** a shortcut is pinned, or its tile is rewritten (HS-016)
+**Then** the tile shows the logo on a dark plate
+
+#### Scenario: A dark logo on transparency
+
+**Given** a site whose page icon is a dark logo on transparency (GitHub in light mode)
+**When** a shortcut is pinned
+**Then** the tile shows the logo on a light plate
+
+#### Scenario: A coloured icon
+
+**Given** a site whose icon is a coloured disc with a white glyph inside (Discord), or a pale one (Hugging Face)
+**When** a shortcut is pinned
+**Then** the tile shows it on a light plate, as the launcher's own wrap did
 
 ---
 

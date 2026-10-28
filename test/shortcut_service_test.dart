@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:webspace/services/launcher_tile_engine.dart';
 import 'package:webspace/settings/shortcut_id.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/shortcut_service.dart';
@@ -164,6 +166,44 @@ void main() {
     });
   });
 
+  group('ShortcutService.tileArguments (HS-018)', () {
+    test('a site icon crosses as a tile with its own background', () async {
+      // White on transparency, as GitHub's dark-mode logo is.
+      final logo = img.Image(width: 32, height: 32, numChannels: 4)
+        ..clear(img.ColorRgba8(0, 0, 0, 0));
+      img.fillCircle(logo,
+          x: 16, y: 16, radius: 14, color: img.ColorRgba8(255, 255, 255, 255));
+      final tile = ShortcutId.mint();
+      final args = await ShortcutService.tileArguments(
+        tile: tile,
+        site: SiteId('a'),
+        label: 'A',
+        siteIcon: img.encodePng(logo),
+      );
+      expect(args['shortcutId'], tile);
+      expect(args['siteId'], 'a');
+      expect(args['label'], 'A');
+      final sent = img.decodePng(args['iconBytes']! as Uint8List)!;
+      expect((sent.width, sent.height), (kLauncherTileEdge, kLauncherTileEdge));
+      final corner = sent.getPixel(0, 0);
+      expect((corner.r, corner.g, corner.b, corner.a),
+          (TilePlate.dark.r, TilePlate.dark.g, TilePlate.dark.b, 0xFF));
+    });
+
+    test('no icon, or one that does not decode, sends none', () async {
+      for (final siteIcon in [null, Uint8List.fromList([1, 2, 3])]) {
+        final args = await ShortcutService.tileArguments(
+          tile: null,
+          site: SiteId('a'),
+          label: 'A',
+          siteIcon: siteIcon,
+        );
+        expect(args.containsKey('iconBytes'), isTrue);
+        expect(args['iconBytes'], isNull, reason: '$siteIcon');
+      }
+    });
+  });
+
   group('PinShortcutResult.fromChannel', () {
     test('true is a pin request (Android dialog, or Shortcuts.app opened)', () {
       expect(PinShortcutResult.fromChannel(true), PinShortcutResult.requested);
@@ -199,8 +239,9 @@ void main() {
   // HS-015/HS-017: the tile's id is its own and the site it opens rides its
   // intent, so the app can point a pinned tile at another site and a fresh
   // pin never meets a disabled copy under its id (a device restore leaves
-  // one). No test can stage a launcher, so guard the lines that do it.
-  group('MainActivity.kt: tiles carry their own id (HS-017)', () {
+  // one). HS-018: its icon brings its own background. No test can stage a
+  // launcher, so guard the lines that do it.
+  group('MainActivity.kt: tiles carry their own id and background', () {
     final source = File(
             'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/MainActivity.kt')
         .readAsStringSync();
@@ -220,6 +261,14 @@ void main() {
       expect(shortcut, isNot(contains(r'"site_$')),
           reason: 'A tile id derived from the site makes a restored, '
               'disabled tile block pinning that site again (HS-015).');
+    });
+
+    test('a tile icon is an adaptive bitmap (HS-018)', () {
+      final decode = body('private fun decodeIcon(');
+      expect(decode, contains('IconCompat.createWithAdaptiveBitmap(bmp)'));
+      expect(decode, isNot(contains('createWithBitmap(')),
+          reason: 'A plain bitmap is wrapped on a background the launcher '
+              'picks (white in Launcher3), which hides a white logo.');
     });
 
     test('getPinnedShortcuts reads the site from the intent, enabled only',

@@ -283,10 +283,13 @@ class MainActivity: FlutterActivity() {
         return builder.build()
     }
 
+    // Dart sends a full-bleed tile with its own background (HS-018). As a
+    // plain bitmap the launcher would wrap it on a background of its own
+    // choosing (white in Launcher3), which hides a white logo.
     private fun decodeIcon(bytes: ByteArray?): IconCompat? {
         if (bytes == null) return null
         val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
-        return IconCompat.createWithBitmap(bmp)
+        return IconCompat.createWithAdaptiveBitmap(bmp)
     }
 
     // updateShortcuts is the documented way to change a pinned shortcut. It

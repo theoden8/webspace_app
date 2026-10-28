@@ -599,8 +599,8 @@ class ShortcutController implements HomeShortcutsHost {
     unawaited(ShortcutService.syncSites(sites, tombstones: tombstones));
   }
 
-  /// The tile writes stay in call order: nothing between the plan and the
-  /// channel call awaits.
+  /// The tile writes stay in call order: nothing between the plan and its
+  /// turn in `ShortcutService.updateTiles` awaits.
   void _syncTiles() {
     if (!hostIsAndroid || !_host.mounted) return;
     final sitesOfTiles = ShortcutPinState.sitesOfTiles(
