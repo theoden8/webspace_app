@@ -103,15 +103,15 @@ source_up() {
   exit 1
 }
 
-# Runs [harness] in [scenario] against a fresh source and portal; its exit
-# status.
+# Runs [harness] in [scenario] against a fresh source and a portal that
+# answers as [hostile] says (none: the real portal's answers); its exit status.
 run() {
-  local harness="$1" scenario="$2" code=0 close=""
+  local harness="$1" scenario="$2" hostile="${3:-}" code=0 close=""
   [ "$scenario" = declined ] && code=1
   [ "$scenario" = desktop_stops ] && close=2
   source_up
   PORTAL_NODE="$node" PORTAL_START_CODE="$code" PORTAL_CLOSE_AFTER="$close" \
-    "$work/mock_portal" > "$work/portal.log" 2>&1 &
+    PORTAL_HOSTILE="$hostile" "$work/mock_portal" > "$work/portal.log" 2>&1 &
   local portal=$!
   sleep 0.3
   local status=0
@@ -129,18 +129,31 @@ for scenario in share declined desktop_stops; do
     sed 's/^/  /' "$work/portal.log"
   fi
 done
+# A portal that is not the real one (a process that took its bus name) is
+# refused rather than followed or crashed on.
+for hostile in foreign_session bad_session fd_index_oob fd_index_neg; do
+  echo "== refused: $hostile"
+  if ! run "$work/harness" refused "$hostile"; then
+    failed=1
+    sed 's/^/  /' "$work/portal.log"
+  fi
+done
 [ "$failed" = 0 ] || { echo "screen_share check: FAILED" >&2; exit 1; }
 
-# Each planted mistake: a name, the scenario that must catch it, and the edit
-# that plants it.
+# Each planted mistake: a name, the scenario that must catch it (with the
+# portal's answers, after a colon), and the edit that plants it.
 mistakes=(
+  "trusts_any_session|refused:foreign_session|s/^      if (share_->expected_session != session) {/      if (false) {/"
   "channels|share|s/red_ = 2, green_ = 1, blue_ = 0;/red_ = 0, green_ = 1, blue_ = 2;/"
   "unthrottled|share|s/^  if (now >= due) {/  if (true) {/"
   "deaf_to_the_desktops_stop|desktop_stops|s/^  host->end(true);/  return;/"
   "takes_a_cancel_as_a_pick|declined|s/^  if (code != 0) {/  if (false) {/"
 )
 for mistake in "${mistakes[@]}"; do
-  IFS='|' read -r name scenario edit <<< "$mistake"
+  IFS='|' read -r name catch edit <<< "$mistake"
+  scenario="${catch%%:*}"
+  hostile=""
+  [ "$catch" != "$scenario" ] && hostile="${catch#*:}"
   planted="$work/$name.cc"
   sed "$edit" "$root/linux/screen_share.cc" > "$planted"
   if cmp -s "$planted" "$root/linux/screen_share.cc"; then
@@ -149,7 +162,7 @@ for mistake in "${mistakes[@]}"; do
   fi
   build "$planted" "$work/harness_$name"
   echo "== planted: $name ($scenario)"
-  if run "$work/harness_$name" "$scenario" > "$work/$name.log" 2>&1; then
+  if run "$work/harness_$name" "$scenario" "$hostile" > "$work/$name.log" 2>&1; then
     cat "$work/$name.log"
     echo "screen_share check: the harness missed the planted $name" >&2
     exit 1

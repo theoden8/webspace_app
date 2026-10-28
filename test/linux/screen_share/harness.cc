@@ -3,7 +3,7 @@
 // desktop's own Stop. The source under test is included whole
 // (SCREEN_SHARE_SOURCE), so check.sh can build it from a planted mistake.
 //
-//   harness share|declined|desktop_stops
+//   harness share|declined|desktop_stops|refused
 #include <gdk/gdk.h>
 // No window to parent the portal's dialog to.
 #undef GDK_WINDOWING_X11
@@ -224,7 +224,13 @@ int main(int argc, char** argv) {
                                             nullptr);
 
   g_autoptr(FlValue) started = call("start", start_args(), 20);
-  if (scenario == "declined") {
+  if (scenario == "refused") {
+    check(started != nullptr &&
+              fl_value_get_type(started) == FL_VALUE_TYPE_NULL,
+          "a portal's answer the runner cannot trust answers start with null");
+    g_autoptr(FlValue) f = call("frame", frame_args(0), 5);
+    check(ended(f), "and no share runs");
+  } else if (scenario == "declined") {
     check(started != nullptr &&
               fl_value_get_type(started) == FL_VALUE_TYPE_NULL,
           "a cancelled dialog answers start with null");

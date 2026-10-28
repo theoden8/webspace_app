@@ -35,6 +35,8 @@ constexpr guint kPullWaitMs = 1500;
 // From the portal's yes to the stream's first format.
 constexpr guint kStreamWaitMs = 10000;
 constexpr char kJpegQuality[] = "60";
+// The largest side a stream may report, as the EnumFormat offers it.
+constexpr uint32_t kMaxSide = 8192;
 
 struct Request {
   int max_width;
@@ -220,8 +222,11 @@ bool Stream::connect(int fd, uint32_t node) {
   pw_core_add_listener(core_, &core_listener_, &core_events, this);
   stream_ = pw_stream_new(
       core_, "webspace-screen-share",
+      // Only the node the user picked: never linked again to another
+      // source when that one goes.
       pw_properties_new(PW_KEY_MEDIA_TYPE, "Video", PW_KEY_MEDIA_CATEGORY,
-                        "Capture", PW_KEY_MEDIA_ROLE, "Screen", nullptr));
+                        "Capture", PW_KEY_MEDIA_ROLE, "Screen",
+                        PW_KEY_NODE_DONT_RECONNECT, "true", nullptr));
   if (stream_ == nullptr) return false;
   pw_stream_add_listener(stream_, &stream_listener_, &stream_events, this);
   timer_ = pw_loop_add_timer(pw_thread_loop_get_loop(loop_), on_timer, this);
@@ -232,7 +237,7 @@ bool Stream::connect(int fd, uint32_t node) {
   spa_pod_builder_init(&builder, buffer, sizeof(buffer));
   struct spa_rectangle min_size = {1, 1};
   struct spa_rectangle default_size = {1920, 1080};
-  struct spa_rectangle max_size = {8192, 8192};
+  struct spa_rectangle max_size = {kMaxSide, kMaxSide};
   struct spa_fraction no_rate = {0, 1};
   struct spa_fraction min_rate = {1, 1};
   struct spa_fraction asked_rate = {static_cast<uint32_t>(request_.fps), 1};
@@ -323,9 +328,12 @@ void Stream::negotiated(const struct spa_pod* param) {
     default:
       return;
   }
+  if (info.size.width < 1 || info.size.width > kMaxSide ||
+      info.size.height < 1 || info.size.height > kMaxSide) {
+    return;
+  }
   source_ = {static_cast<int>(info.size.width),
              static_cast<int>(info.size.height)};
-  if (source_.width <= 0 || source_.height <= 0) return;
 
   uint8_t buffer[256];
   struct spa_pod_builder builder;
@@ -366,17 +374,22 @@ void Stream::take(const struct spa_buffer* buffer) {
   if (source_.width <= 0 || buffer->n_datas < 1) return;
   const struct spa_data& data = buffer->datas[0];
   if (data.data == nullptr || data.chunk == nullptr) return;
-  if ((data.chunk->flags & SPA_CHUNK_FLAG_CORRUPTED) != 0 ||
-      data.chunk->size == 0) {
-    return;
-  }
+  // The chunk is memory the producer shares and may rewrite while it is
+  // read: each field is read once, and only that copy is checked and used.
+  const uint32_t offset = __atomic_load_n(&data.chunk->offset, __ATOMIC_RELAXED);
+  const uint32_t size = __atomic_load_n(&data.chunk->size, __ATOMIC_RELAXED);
+  const int32_t chunk_stride =
+      __atomic_load_n(&data.chunk->stride, __ATOMIC_RELAXED);
+  const int32_t flags = __atomic_load_n(&data.chunk->flags, __ATOMIC_RELAXED);
+  if ((flags & SPA_CHUNK_FLAG_CORRUPTED) != 0 || size == 0) return;
   const int width = source_.width;
   const int height = source_.height;
-  const int stride = data.chunk->stride != 0 ? data.chunk->stride : width * 4;
-  if (stride < width * 4) return;
-  const uint64_t end = static_cast<uint64_t>(data.chunk->offset) +
+  const int64_t row = static_cast<int64_t>(width) * 4;
+  const int64_t stride = chunk_stride != 0 ? chunk_stride : row;
+  if (stride < row) return;
+  const uint64_t end = static_cast<uint64_t>(offset) +
                        static_cast<uint64_t>(stride) * (height - 1) +
-                       static_cast<uint64_t>(width) * 4;
+                       static_cast<uint64_t>(row);
   if (end > data.maxsize) return;
   if (held_ == nullptr || gdk_pixbuf_get_width(held_) != width ||
       gdk_pixbuf_get_height(held_) != height) {
@@ -384,8 +397,7 @@ void Stream::take(const struct spa_buffer* buffer) {
     held_ = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, height);
     if (held_ == nullptr) return;
   }
-  const uint8_t* source =
-      static_cast<const uint8_t*>(data.data) + data.chunk->offset;
+  const uint8_t* source = static_cast<const uint8_t*>(data.data) + offset;
   guchar* pixels = gdk_pixbuf_get_pixels(held_);
   const int rowstride = gdk_pixbuf_get_rowstride(held_);
   for (int y = 0; y < height; y++) {
@@ -519,6 +531,7 @@ class Host {
     // The Request object whose Response the share waits on.
     std::string request_path;
     guint response = 0;
+    std::string expected_session;
     std::string session;
     guint closed = 0;
     guint32 node = 0;
@@ -570,6 +583,7 @@ class Host {
 
   std::string next_token();
   std::string request_path(const std::string& token) const;
+  std::string portal_path(const char* kind, const std::string& token) const;
 
   FlView* view_;
   FlMethodChannel* channel_;
@@ -719,6 +733,7 @@ void Host::create_session(GVariant* properties) {
   g_variant_lookup(properties, "version", "u", &share_->version);
   const std::string token = next_token();
   const std::string session_token = next_token();
+  share_->expected_session = portal_path("session", session_token);
   GVariantBuilder options;
   g_variant_builder_init(&options, G_VARIANT_TYPE_VARDICT);
   g_variant_builder_add(&options, "{sv}", "handle_token",
@@ -827,6 +842,12 @@ void Host::answered(guint32 code, GVariant* results) {
         fail("no session handle");
         return;
       }
+      // Every later call names it as an object path: one the portal did
+      // not make from this session's token is refused, not passed on.
+      if (share_->expected_session != session) {
+        fail("unexpected session handle");
+        return;
+      }
       share_->session = session;
       share_->closed = g_dbus_connection_signal_subscribe(
           bus_, kPortalBus, kSession, "Closed", share_->session.c_str(),
@@ -882,10 +903,12 @@ void Host::on_remote(GObject* source, GAsyncResult* result,
   }
   gint32 index = -1;
   g_variant_get(reply, "(h)", &index);
-  const int fd = g_unix_fd_list_get(fds, index, &error);
+  const int fd = index >= 0 && index < g_unix_fd_list_get_length(fds)
+                     ? g_unix_fd_list_get(fds, index, &error)
+                     : -1;
   g_object_unref(fds);
   if (fd < 0) {
-    host->fail(error->message);
+    host->fail(error != nullptr ? error->message : "no such fd in the reply");
     return;
   }
   host->stream_from(fd);
@@ -1057,9 +1080,17 @@ std::string Host::next_token() {
 // Where the portal puts the Request object for [token]: the caller's unique
 // bus name, its colon dropped and its dots made underscores.
 std::string Host::request_path(const std::string& token) const {
+  return portal_path("request", token);
+}
+
+// The object the portal makes for [token] under [kind] ("request",
+// "session"): the caller's unique bus name, its colon dropped and its dots
+// made underscores.
+std::string Host::portal_path(const char* kind,
+                              const std::string& token) const {
   std::string sender = g_dbus_connection_get_unique_name(bus_) + 1;
   std::replace(sender.begin(), sender.end(), '.', '_');
-  return std::string(kPortalPath) + "/request/" + sender + "/" + token;
+  return std::string(kPortalPath) + "/" + kind + "/" + sender + "/" + token;
 }
 
 void method_call_cb(FlMethodChannel* /*channel*/, FlMethodCall* call,

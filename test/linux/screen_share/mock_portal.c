@@ -3,8 +3,12 @@
 // (answered with PORTAL_START_CODE, 0 for a pick and 1 for a cancelled
 // dialog, and the stream PORTAL_NODE), and OpenPipeWireRemote (a socket to
 // $XDG_RUNTIME_DIR/pipewire-0). With PORTAL_CLOSE_AFTER=n it closes the
-// session n seconds after Start, as the desktop's own Stop does. Every call
-// it takes is printed.
+// session n seconds after Start, as the desktop's own Stop does. With
+// PORTAL_HOSTILE it answers as a portal that is not the real one might:
+// `foreign_session` names a session it did not make for the caller's token,
+// `bad_session` one that is not an object path, `fd_index_oob` and
+// `fd_index_neg` a handle outside the fd list. Every call it takes is
+// printed.
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
 #include <stdio.h>
@@ -117,6 +121,11 @@ static int pipewire_socket(void) {
   return fd;
 }
 
+static int hostile(const char *mode) {
+  const char *value = g_getenv("PORTAL_HOSTILE");
+  return value != NULL && g_str_equal(value, mode);
+}
+
 static int env_int(const char *name) {
   const char *value = g_getenv(name);
   return value != NULL && *value != 0 ? atoi(value) : -1;
@@ -146,7 +155,11 @@ static void call(GDBusConnection *c, const char *sender, const char *path, const
     g_dbus_method_invocation_return_value(inv, g_variant_new("(o)", req));
     GVariantBuilder b;
     g_variant_builder_init(&b, G_VARIANT_TYPE_VARDICT);
-    g_variant_builder_add(&b, "{sv}", "session_handle", g_variant_new_string(session_path));
+    const char *handle = hostile("bad_session")       ? "not a path"
+                         : hostile("foreign_session") ? "/org/freedesktop/portal/desktop/session/1_99/other"
+                                                      : session_path;
+    if (hostile("foreign_session")) expose(handle, 1);
+    g_variant_builder_add(&b, "{sv}", "session_handle", g_variant_new_string(handle));
     answer_later(sender, req, 0, g_variant_builder_end(&b));
     g_free(req);
     return;
@@ -195,6 +208,8 @@ static void call(GDBusConnection *c, const char *sender, const char *path, const
     g_autoptr(GUnixFDList) fds = g_unix_fd_list_new();
     int index = g_unix_fd_list_append(fds, fd, NULL);
     close(fd);
+    if (hostile("fd_index_oob")) index = 7;
+    if (hostile("fd_index_neg")) index = -1;
     g_dbus_method_invocation_return_value_with_unix_fd_list(inv, g_variant_new("(h)", index),
                                                              fds);
     return;
