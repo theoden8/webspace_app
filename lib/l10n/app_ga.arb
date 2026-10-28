@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Níl eisínteacht ar bith ag teacht leis",
   "extensionsSearchUnreadable": "Níorbh fhéidir cuardach: níorbh fhéidir an freagra a léamh",
   "extensionsSearchMore": "Tuilleadh torthaí",
-  "extensionsSearchUsers": "{count, plural, =1{{count} úsáideoir} other{{count} úsáideoir}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} úsáideoir} other{{users} úsáideoir}}",
   "extensionsRecommendedBadge": "Molta ag Mozilla",
   "extensionsFitWorks": "Ritheann",
   "extensionsFitPartly": "Ritheann go páirteach",

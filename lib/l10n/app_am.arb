@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "የሚዛመድ ቅጥያ የለም",
   "extensionsSearchUnreadable": "መፈለግ አልተቻለም: መልሱ ሊነበብ አልቻለም",
   "extensionsSearchMore": "ተጨማሪ ውጤቶች",
-  "extensionsSearchUsers": "{count, plural, =1{{count} ተጠቃሚ} other{{count} ተጠቃሚዎች}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} ተጠቃሚ} other{{users} ተጠቃሚዎች}}",
   "extensionsRecommendedBadge": "በ Mozilla የሚመከር",
   "extensionsFitWorks": "ይሰራል",
   "extensionsFitPartly": "በከፊል ይሰራል",

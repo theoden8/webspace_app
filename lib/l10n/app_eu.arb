@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Ez dago bat datorren luzapenik",
   "extensionsSearchUnreadable": "Ezin izan da bilatu: ezin izan da erantzuna irakurri",
   "extensionsSearchMore": "Emaitza gehiago",
-  "extensionsSearchUsers": "{count, plural, =1{{count} erabiltzaile} other{{count} erabiltzaile}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} erabiltzaile} other{{users} erabiltzaile}}",
   "extensionsRecommendedBadge": "Mozillak gomendatua",
   "extensionsFitWorks": "Funtzionatzen du",
   "extensionsFitPartly": "Partzialki funtzionatzen du",

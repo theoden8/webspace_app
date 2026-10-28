@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "لا توجد إضافة مطابقة",
   "extensionsSearchUnreadable": "تعذّر البحث: تعذّرت قراءة الرد",
   "extensionsSearchMore": "المزيد من النتائج",
-  "extensionsSearchUsers": "{count, plural, =1{مستخدم واحد} two{مستخدمان} few{{count} مستخدمين} many{{count} مستخدمًا} other{{count} مستخدم}}",
+  "extensionsSearchUsers": "{count, plural, =1{مستخدم واحد} two{مستخدمان} few{{users} مستخدمين} many{{users} مستخدمًا} other{{users} مستخدم}}",
   "extensionsRecommendedBadge": "موصى بها من Mozilla",
   "extensionsFitWorks": "تعمل",
   "extensionsFitPartly": "تعمل جزئيًا",

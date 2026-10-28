@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Žádné rozšíření neodpovídá",
   "extensionsSearchUnreadable": "Hledání selhalo: odpověď nešlo přečíst",
   "extensionsSearchMore": "Další výsledky",
-  "extensionsSearchUsers": "{count, plural, =1{{count} uživatel} few{{count} uživatelé} other{{count} uživatelů}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} uživatel} few{{users} uživatelé} other{{users} uživatelů}}",
   "extensionsRecommendedBadge": "Doporučuje Mozilla",
   "extensionsFitWorks": "Funguje",
   "extensionsFitPartly": "Funguje částečně",

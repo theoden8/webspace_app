@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Žiadne rozšírenie nezodpovedá",
   "extensionsSearchUnreadable": "Hľadanie zlyhalo: odpoveď sa nedala prečítať",
   "extensionsSearchMore": "Ďalšie výsledky",
-  "extensionsSearchUsers": "{count, plural, =1{{count} používateľ} few{{count} používatelia} many{{count} používateľa} other{{count} používateľov}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} používateľ} few{{users} používatelia} many{{users} používateľa} other{{users} používateľov}}",
   "extensionsRecommendedBadge": "Odporúča Mozilla",
   "extensionsFitWorks": "Funguje",
   "extensionsFitPartly": "Funguje čiastočne",

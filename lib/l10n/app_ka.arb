@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "შესაბამისი გაფართოება არ არის",
   "extensionsSearchUnreadable": "ძიება ვერ მოხერხდა: პასუხის წაკითხვა ვერ მოხერხდა",
   "extensionsSearchMore": "მეტი შედეგი",
-  "extensionsSearchUsers": "{count, plural, =1{{count} მომხმარებელი} other{{count} მომხმარებელი}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} მომხმარებელი} other{{users} მომხმარებელი}}",
   "extensionsRecommendedBadge": "Mozilla-ს რეკომენდაცია",
   "extensionsFitWorks": "მუშაობს",
   "extensionsFitPartly": "ნაწილობრივ მუშაობს",

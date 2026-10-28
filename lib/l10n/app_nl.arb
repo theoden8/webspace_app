@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Geen extensie gevonden",
   "extensionsSearchUnreadable": "Kon niet zoeken: het antwoord kon niet worden gelezen",
   "extensionsSearchMore": "Meer resultaten",
-  "extensionsSearchUsers": "{count, plural, =1{{count} gebruiker} other{{count} gebruikers}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} gebruiker} other{{users} gebruikers}}",
   "extensionsRecommendedBadge": "Aanbevolen door Mozilla",
   "extensionsFitWorks": "Werkt",
   "extensionsFitPartly": "Werkt deels",

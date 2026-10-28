@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Tiada sambungan yang sepadan",
   "extensionsSearchUnreadable": "Tidak dapat mencari: jawapan tidak dapat dibaca",
   "extensionsSearchMore": "Lagi hasil",
-  "extensionsSearchUsers": "{count, plural, =1{{count} pengguna} other{{count} pengguna}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} pengguna} other{{users} pengguna}}",
   "extensionsRecommendedBadge": "Disyorkan oleh Mozilla",
   "extensionsFitWorks": "Berjalan",
   "extensionsFitPartly": "Berjalan sebahagian",

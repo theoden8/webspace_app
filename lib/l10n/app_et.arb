@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Ükski laiendus ei sobi",
   "extensionsSearchUnreadable": "Otsing ebaõnnestus: vastust ei saanud lugeda",
   "extensionsSearchMore": "Rohkem tulemusi",
-  "extensionsSearchUsers": "{count, plural, =1{{count} kasutaja} other{{count} kasutajat}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} kasutaja} other{{users} kasutajat}}",
   "extensionsRecommendedBadge": "Mozilla soovitab",
   "extensionsFitWorks": "Töötab",
   "extensionsFitPartly": "Töötab osaliselt",

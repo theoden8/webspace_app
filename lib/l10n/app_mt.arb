@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "L-ebda estensjoni ma taqbel",
   "extensionsSearchUnreadable": "Ma setgħetx issir it-tfittxija: it-tweġiba ma setgħetx tinqara",
   "extensionsSearchMore": "Aktar riżultati",
-  "extensionsSearchUsers": "{count, plural, =1{utent wieħed} other{{count} utenti}}",
+  "extensionsSearchUsers": "{count, plural, =1{utent wieħed} other{{users} utenti}}",
   "extensionsRecommendedBadge": "Rakkomandata minn Mozilla",
   "extensionsFitWorks": "Taħdem",
   "extensionsFitPartly": "Taħdem parzjalment",

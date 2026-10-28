@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Mikään laajennus ei vastaa hakua",
   "extensionsSearchUnreadable": "Haku epäonnistui: vastausta ei voitu lukea",
   "extensionsSearchMore": "Lisää tuloksia",
-  "extensionsSearchUsers": "{count, plural, =1{{count} käyttäjä} other{{count} käyttäjää}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} käyttäjä} other{{users} käyttäjää}}",
   "extensionsRecommendedBadge": "Mozilla suosittelee",
   "extensionsFitWorks": "Toimii",
   "extensionsFitPartly": "Toimii osittain",

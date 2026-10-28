@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "പൊരുത്തപ്പെടുന്ന എക്സ്റ്റൻഷനില്ല",
   "extensionsSearchUnreadable": "തിരയാനായില്ല: മറുപടി വായിക്കാനായില്ല",
   "extensionsSearchMore": "കൂടുതൽ ഫലങ്ങൾ",
-  "extensionsSearchUsers": "{count, plural, =1{{count} ഉപയോക്താവ്} other{{count} ഉപയോക്താക്കൾ}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} ഉപയോക്താവ്} other{{users} ഉപയോക്താക്കൾ}}",
   "extensionsRecommendedBadge": "Mozilla ശുപാർശ ചെയ്തത്",
   "extensionsFitWorks": "പ്രവർത്തിക്കുന്നു",
   "extensionsFitPartly": "ഭാഗികമായി പ്രവർത്തിക്കുന്നു",

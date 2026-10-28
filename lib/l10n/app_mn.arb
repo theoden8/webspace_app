@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Тохирох өргөтгөл алга",
   "extensionsSearchUnreadable": "Хайж чадсангүй: хариуг уншиж чадсангүй",
   "extensionsSearchMore": "Илүү олон үр дүн",
-  "extensionsSearchUsers": "{count, plural, =1{{count} хэрэглэгч} other{{count} хэрэглэгч}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} хэрэглэгч} other{{users} хэрэглэгч}}",
   "extensionsRecommendedBadge": "Mozilla санал болгосон",
   "extensionsFitWorks": "Ажиллана",
   "extensionsFitPartly": "Хэсэгчлэн ажиллана",

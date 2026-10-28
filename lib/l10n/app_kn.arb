@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "ಯಾವುದೇ ವಿಸ್ತರಣೆ ಹೊಂದಿಕೆಯಾಗುವುದಿಲ್ಲ",
   "extensionsSearchUnreadable": "ಹುಡುಕಲಾಗಲಿಲ್ಲ: ಉತ್ತರವನ್ನು ಓದಲಾಗಲಿಲ್ಲ",
   "extensionsSearchMore": "ಇನ್ನಷ್ಟು ಫಲಿತಾಂಶಗಳು",
-  "extensionsSearchUsers": "{count, plural, =1{{count} ಬಳಕೆದಾರ} other{{count} ಬಳಕೆದಾರರು}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} ಬಳಕೆದಾರ} other{{users} ಬಳಕೆದಾರರು}}",
   "extensionsRecommendedBadge": "Mozilla ಶಿಫಾರಸು ಮಾಡಿದೆ",
   "extensionsFitWorks": "ಚಲಿಸುತ್ತದೆ",
   "extensionsFitPartly": "ಭಾಗಶಃ ಚಲಿಸುತ್ತದೆ",

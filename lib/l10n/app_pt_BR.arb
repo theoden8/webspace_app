@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Nenhuma extensão encontrada",
   "extensionsSearchUnreadable": "Não foi possível pesquisar: não foi possível ler a resposta",
   "extensionsSearchMore": "Mais resultados",
-  "extensionsSearchUsers": "{count, plural, =1{{count} usuário} other{{count} usuários}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} usuário} other{{users} usuários}}",
   "extensionsRecommendedBadge": "Recomendada pela Mozilla",
   "extensionsFitWorks": "Funciona",
   "extensionsFitPartly": "Funciona em parte",

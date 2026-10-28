@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "沒有相符的擴充功能",
   "extensionsSearchUnreadable": "無法搜尋：無法讀取回應",
   "extensionsSearchMore": "更多結果",
-  "extensionsSearchUsers": "{count, plural, =1{{count} 位使用者} other{{count} 位使用者}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} 位使用者} other{{users} 位使用者}}",
   "extensionsRecommendedBadge": "Mozilla 推薦",
   "extensionsFitWorks": "可執行",
   "extensionsFitPartly": "部分可執行",

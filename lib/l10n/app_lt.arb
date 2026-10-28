@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Jokių atitinkančių plėtinių",
   "extensionsSearchUnreadable": "Nepavyko ieškoti: nepavyko perskaityti atsakymo",
   "extensionsSearchMore": "Daugiau rezultatų",
-  "extensionsSearchUsers": "{count, plural, =1{{count} naudotojas} few{{count} naudotojai} other{{count} naudotojų}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} naudotojas} few{{users} naudotojai} other{{users} naudotojų}}",
   "extensionsRecommendedBadge": "Rekomenduoja Mozilla",
   "extensionsFitWorks": "Veikia",
   "extensionsFitPartly": "Veikia iš dalies",

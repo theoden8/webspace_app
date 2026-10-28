@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Ingen utvidelse passer",
   "extensionsSearchUnreadable": "Kunne ikke søke: svaret kunne ikke leses",
   "extensionsSearchMore": "Flere resultater",
-  "extensionsSearchUsers": "{count, plural, =1{{count} bruker} other{{count} brukere}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} bruker} other{{users} brukere}}",
   "extensionsRecommendedBadge": "Anbefalt av Mozilla",
   "extensionsFitWorks": "Kjører",
   "extensionsFitPartly": "Kjører delvis",

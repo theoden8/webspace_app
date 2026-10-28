@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "一致する拡張機能はありません",
   "extensionsSearchUnreadable": "検索できませんでした: 応答を読み取れませんでした",
   "extensionsSearchMore": "さらに表示",
-  "extensionsSearchUsers": "{count, plural, =1{{count} 人のユーザー} other{{count} 人のユーザー}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} 人のユーザー} other{{users} 人のユーザー}}",
   "extensionsRecommendedBadge": "Mozilla のおすすめ",
   "extensionsFitWorks": "動作",
   "extensionsFitPartly": "一部動作",

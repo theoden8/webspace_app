@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Does dim estyniad yn cyfateb",
   "extensionsSearchUnreadable": "Methwyd chwilio: nid oedd modd darllen yr ateb",
   "extensionsSearchMore": "Rhagor o ganlyniadau",
-  "extensionsSearchUsers": "{count, plural, =1{{count} defnyddiwr} other{{count} defnyddiwr}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} defnyddiwr} other{{users} defnyddiwr}}",
   "extensionsRecommendedBadge": "Argymhellwyd gan Mozilla",
   "extensionsFitWorks": "Yn rhedeg",
   "extensionsFitPartly": "Yn rhedeg yn rhannol",

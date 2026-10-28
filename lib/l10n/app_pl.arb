@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Brak pasujących rozszerzeń",
   "extensionsSearchUnreadable": "Nie udało się wyszukać: nie można odczytać odpowiedzi",
   "extensionsSearchMore": "Więcej wyników",
-  "extensionsSearchUsers": "{count, plural, =1{{count} użytkownik} few{{count} użytkowników} many{{count} użytkowników} other{{count} użytkownika}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} użytkownik} few{{users} użytkowników} many{{users} użytkowników} other{{users} użytkownika}}",
   "extensionsRecommendedBadge": "Polecane przez zespół Mozilla",
   "extensionsFitWorks": "Działa",
   "extensionsFitPartly": "Działa częściowo",

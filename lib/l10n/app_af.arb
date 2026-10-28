@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Geen uitbreiding pas nie",
   "extensionsSearchUnreadable": "Kon nie soek nie: die antwoord kon nie gelees word nie",
   "extensionsSearchMore": "Meer resultate",
-  "extensionsSearchUsers": "{count, plural, =1{{count} gebruiker} other{{count} gebruikers}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} gebruiker} other{{users} gebruikers}}",
   "extensionsRecommendedBadge": "Aanbeveel deur Mozilla",
   "extensionsFitWorks": "Loop",
   "extensionsFitPartly": "Loop gedeeltelik",

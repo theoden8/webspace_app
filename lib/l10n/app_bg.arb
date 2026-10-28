@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Няма съвпадащи разширения",
   "extensionsSearchUnreadable": "Търсенето не успя: отговорът не можа да бъде прочетен",
   "extensionsSearchMore": "Още резултати",
-  "extensionsSearchUsers": "{count, plural, =1{{count} потребител} other{{count} потребители}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} потребител} other{{users} потребители}}",
   "extensionsRecommendedBadge": "Препоръчано от Mozilla",
   "extensionsFitWorks": "Работи",
   "extensionsFitPartly": "Работи частично",

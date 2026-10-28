@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Cap extensió no coincideix",
   "extensionsSearchUnreadable": "No s'ha pogut cercar: no s'ha pogut llegir la resposta",
   "extensionsSearchMore": "Més resultats",
-  "extensionsSearchUsers": "{count, plural, =1{{count} usuari} other{{count} usuaris}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} usuari} other{{users} usuaris}}",
   "extensionsRecommendedBadge": "Recomanada per Mozilla",
   "extensionsFitWorks": "Funciona",
   "extensionsFitPartly": "Funciona en part",

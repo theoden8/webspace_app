@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Neviens paplašinājums neatbilst",
   "extensionsSearchUnreadable": "Neizdevās meklēt: atbildi nevarēja nolasīt",
   "extensionsSearchMore": "Vairāk rezultātu",
-  "extensionsSearchUsers": "{count, plural, =1{{count} lietotājs} other{{count} lietotāji}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} lietotājs} other{{users} lietotāji}}",
   "extensionsRecommendedBadge": "Iesaka Mozilla",
   "extensionsFitWorks": "Darbojas",
   "extensionsFitPartly": "Darbojas daļēji",

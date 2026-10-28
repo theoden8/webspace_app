@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "គ្មានកម្មវិធីបន្ថែមណាត្រូវគ្នាទេ",
   "extensionsSearchUnreadable": "មិនអាចស្វែងរកបានទេ៖ មិនអាចអានចម្លើយបានទេ",
   "extensionsSearchMore": "លទ្ធផលច្រើនទៀត",
-  "extensionsSearchUsers": "{count, plural, =1{អ្នកប្រើ {count} នាក់} other{អ្នកប្រើ {count} នាក់}}",
+  "extensionsSearchUsers": "{count, plural, =1{អ្នកប្រើ {users} នាក់} other{អ្នកប្រើ {users} នាក់}}",
   "extensionsRecommendedBadge": "ណែនាំដោយ Mozilla",
   "extensionsFitWorks": "ដំណើរការ",
   "extensionsFitPartly": "ដំណើរការមួយផ្នែក",

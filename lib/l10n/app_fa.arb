@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "هیچ افزونه‌ای مطابقت ندارد",
   "extensionsSearchUnreadable": "جست‌وجو ممکن نشد: پاسخ خوانده نشد",
   "extensionsSearchMore": "نتایج بیشتر",
-  "extensionsSearchUsers": "{count, plural, =1{{count} کاربر} other{{count} کاربر}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} کاربر} other{{users} کاربر}}",
   "extensionsRecommendedBadge": "پیشنهادشده از سوی Mozilla",
   "extensionsFitWorks": "اجرا می‌شود",
   "extensionsFitPartly": "تا حدی اجرا می‌شود",

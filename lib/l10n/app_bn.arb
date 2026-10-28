@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "কোনো এক্সটেনশন মেলেনি",
   "extensionsSearchUnreadable": "খোঁজা যায়নি: উত্তরটি পড়া যায়নি",
   "extensionsSearchMore": "আরও ফলাফল",
-  "extensionsSearchUsers": "{count, plural, =1{{count} জন ব্যবহারকারী} other{{count} জন ব্যবহারকারী}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} জন ব্যবহারকারী} other{{users} জন ব্যবহারকারী}}",
   "extensionsRecommendedBadge": "Mozilla-র প্রস্তাবিত",
   "extensionsFitWorks": "চলে",
   "extensionsFitPartly": "আংশিক চলে",

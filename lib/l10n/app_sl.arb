@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Nobena razširitev se ne ujema",
   "extensionsSearchUnreadable": "Iskanje ni uspelo: odgovora ni bilo mogoče prebrati",
   "extensionsSearchMore": "Več rezultatov",
-  "extensionsSearchUsers": "{count, plural, =1{{count} uporabnik} two{{count} uporabnika} few{{count} uporabniki} other{{count} uporabnikov}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} uporabnik} two{{users} uporabnika} few{{users} uporabniki} other{{users} uporabnikov}}",
   "extensionsRecommendedBadge": "Priporoča Mozilla",
   "extensionsFitWorks": "Deluje",
   "extensionsFitPartly": "Deluje delno",

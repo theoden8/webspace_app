@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Asnjë shtesë nuk përputhet",
   "extensionsSearchUnreadable": "Kërkimi dështoi: përgjigjja nuk u lexua dot",
   "extensionsSearchMore": "Më shumë rezultate",
-  "extensionsSearchUsers": "{count, plural, =1{{count} përdorues} other{{count} përdorues}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} përdorues} other{{users} përdorues}}",
   "extensionsRecommendedBadge": "Rekomanduar nga Mozilla",
   "extensionsFitWorks": "Funksionon",
   "extensionsFitPartly": "Funksionon pjesërisht",

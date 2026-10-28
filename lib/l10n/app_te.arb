@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "సరిపోలే ఎక్స్‌టెన్షన్ లేదు",
   "extensionsSearchUnreadable": "శోధించలేకపోయింది: సమాధానాన్ని చదవలేకపోయింది",
   "extensionsSearchMore": "మరిన్ని ఫలితాలు",
-  "extensionsSearchUsers": "{count, plural, =1{{count} వినియోగదారు} other{{count} వినియోగదారులు}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} వినియోగదారు} other{{users} వినియోగదారులు}}",
   "extensionsRecommendedBadge": "Mozilla సిఫార్సు చేసింది",
   "extensionsFitWorks": "నడుస్తుంది",
   "extensionsFitPartly": "పాక్షికంగా నడుస్తుంది",

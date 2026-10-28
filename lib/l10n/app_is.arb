@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Engin viðbót passar",
   "extensionsSearchUnreadable": "Ekki tókst að leita: ekki var hægt að lesa svarið",
   "extensionsSearchMore": "Fleiri niðurstöður",
-  "extensionsSearchUsers": "{count, plural, =1{{count} notandi} other{{count} notendur}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} notandi} other{{users} notendur}}",
   "extensionsRecommendedBadge": "Mozilla mælir með",
   "extensionsFitWorks": "Keyrir",
   "extensionsFitPartly": "Keyrir að hluta",

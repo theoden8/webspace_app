@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Համապատասխան ընդլայնում չկա",
   "extensionsSearchUnreadable": "Չհաջողվեց որոնել՝ պատասխանը հնարավոր չեղավ կարդալ",
   "extensionsSearchMore": "Ավելի շատ արդյունքներ",
-  "extensionsSearchUsers": "{count, plural, =1{{count} օգտատեր} other{{count} օգտատեր}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} օգտատեր} other{{users} օգտատեր}}",
   "extensionsRecommendedBadge": "Առաջարկվում է Mozilla-ի կողմից",
   "extensionsFitWorks": "Աշխատում է",
   "extensionsFitPartly": "Մասամբ է աշխատում",

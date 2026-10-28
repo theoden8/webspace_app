@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Inget tillägg matchar",
   "extensionsSearchUnreadable": "Det gick inte att söka: svaret kunde inte läsas",
   "extensionsSearchMore": "Fler resultat",
-  "extensionsSearchUsers": "{count, plural, =1{{count} användare} other{{count} användare}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} användare} other{{users} användare}}",
   "extensionsRecommendedBadge": "Rekommenderas av Mozilla",
   "extensionsFitWorks": "Fungerar",
   "extensionsFitPartly": "Fungerar delvis",

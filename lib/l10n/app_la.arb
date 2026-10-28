@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Nulla extensio congruit",
   "extensionsSearchUnreadable": "Quaerere non potuit: responsum legi non potuit",
   "extensionsSearchMore": "Plures eventus",
-  "extensionsSearchUsers": "{count, plural, =1{{count} usor} other{{count} usores}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} usor} other{{users} usores}}",
   "extensionsRecommendedBadge": "A Mozilla commendata",
   "extensionsFitWorks": "Currit",
   "extensionsFitPartly": "Ex parte currit",

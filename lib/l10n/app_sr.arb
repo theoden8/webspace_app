@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Ниједно проширење не одговара",
   "extensionsSearchUnreadable": "Претрага није успела: одговор није могао да се прочита",
   "extensionsSearchMore": "Још резултата",
-  "extensionsSearchUsers": "{count, plural, =1{{count} корисник} few{{count} корисника} other{{count} корисника}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} корисник} few{{users} корисника} other{{users} корисника}}",
   "extensionsRecommendedBadge": "Препоручује Mozilla",
   "extensionsFitWorks": "Ради",
   "extensionsFitPartly": "Делимично ради",

@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Nincs egyező bővítmény",
   "extensionsSearchUnreadable": "A keresés sikertelen: a válasz nem olvasható",
   "extensionsSearchMore": "További találatok",
-  "extensionsSearchUsers": "{count, plural, =1{{count} felhasználó} other{{count} felhasználó}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} felhasználó} other{{users} felhasználó}}",
   "extensionsRecommendedBadge": "A Mozilla ajánlja",
   "extensionsFitWorks": "Fut",
   "extensionsFitPartly": "Részben fut",

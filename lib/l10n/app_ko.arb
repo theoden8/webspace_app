@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "일치하는 확장 프로그램 없음",
   "extensionsSearchUnreadable": "검색하지 못했습니다: 응답을 읽을 수 없습니다",
   "extensionsSearchMore": "결과 더 보기",
-  "extensionsSearchUsers": "{count, plural, =1{사용자 {count}명} other{사용자 {count}명}}",
+  "extensionsSearchUsers": "{count, plural, =1{사용자 {users}명} other{사용자 {users}명}}",
   "extensionsRecommendedBadge": "Mozilla 추천",
   "extensionsFitWorks": "실행됨",
   "extensionsFitPartly": "일부 실행됨",

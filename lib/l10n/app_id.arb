@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Tidak ada ekstensi yang cocok",
   "extensionsSearchUnreadable": "Tidak dapat mencari: jawabannya tidak dapat dibaca",
   "extensionsSearchMore": "Hasil lainnya",
-  "extensionsSearchUsers": "{count, plural, =1{{count} pengguna} other{{count} pengguna}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} pengguna} other{{users} pengguna}}",
   "extensionsRecommendedBadge": "Direkomendasikan oleh Mozilla",
   "extensionsFitWorks": "Berjalan",
   "extensionsFitPartly": "Berjalan sebagian",

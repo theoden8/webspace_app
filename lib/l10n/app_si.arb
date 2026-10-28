@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "ගැළපෙන දිගුවක් නැත",
   "extensionsSearchUnreadable": "සෙවිය නොහැකි විය: පිළිතුර කියවිය නොහැකි විය",
   "extensionsSearchMore": "තවත් ප්‍රතිඵල",
-  "extensionsSearchUsers": "{count, plural, =1{පරිශීලකයින් {count}ක්} other{පරිශීලකයින් {count}ක්}}",
+  "extensionsSearchUsers": "{count, plural, =1{පරිශීලකයින් {users}ක්} other{පරිශීලකයින් {users}ක්}}",
   "extensionsRecommendedBadge": "Mozilla විසින් නිර්දේශිතයි",
   "extensionsFitWorks": "ධාවනය වේ",
   "extensionsFitPartly": "අර්ධව ධාවනය වේ",

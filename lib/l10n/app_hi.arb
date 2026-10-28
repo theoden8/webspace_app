@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "कोई एक्सटेंशन मेल नहीं खाता",
   "extensionsSearchUnreadable": "खोज नहीं की जा सकी: जवाब पढ़ा नहीं जा सका",
   "extensionsSearchMore": "और परिणाम",
-  "extensionsSearchUsers": "{count, plural, =1{{count} उपयोगकर्ता} other{{count} उपयोगकर्ता}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} उपयोगकर्ता} other{{users} उपयोगकर्ता}}",
   "extensionsRecommendedBadge": "Mozilla द्वारा अनुशंसित",
   "extensionsFitWorks": "चलता है",
   "extensionsFitPartly": "आंशिक रूप से चलता है",

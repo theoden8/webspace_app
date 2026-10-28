@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Немає відповідних розширень",
   "extensionsSearchUnreadable": "Не вдалося виконати пошук: не вдалося прочитати відповідь",
   "extensionsSearchMore": "Більше результатів",
-  "extensionsSearchUsers": "{count, plural, =1{{count} користувач} few{{count} користувачі} many{{count} користувачів} other{{count} користувача}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} користувач} few{{users} користувачі} many{{users} користувачів} other{{users} користувача}}",
   "extensionsRecommendedBadge": "Рекомендує Mozilla",
   "extensionsFitWorks": "Працює",
   "extensionsFitPartly": "Працює частково",

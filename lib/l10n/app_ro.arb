@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Nicio extensie nu se potrivește",
   "extensionsSearchUnreadable": "Căutarea nu a reușit: răspunsul nu a putut fi citit",
   "extensionsSearchMore": "Mai multe rezultate",
-  "extensionsSearchUsers": "{count, plural, =1{{count} utilizator} few{{count} utilizatori} other{{count} de utilizatori}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} utilizator} few{{users} utilizatori} other{{users} de utilizatori}}",
   "extensionsRecommendedBadge": "Recomandată de Mozilla",
   "extensionsFitWorks": "Funcționează",
   "extensionsFitPartly": "Funcționează parțial",

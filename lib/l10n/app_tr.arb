@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Eşleşen uzantı yok",
   "extensionsSearchUnreadable": "Aranamadı: yanıt okunamadı",
   "extensionsSearchMore": "Daha fazla sonuç",
-  "extensionsSearchUsers": "{count, plural, =1{{count} kullanıcı} other{{count} kullanıcı}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} kullanıcı} other{{users} kullanıcı}}",
   "extensionsRecommendedBadge": "Mozilla tarafından önerilen",
   "extensionsFitWorks": "Çalışıyor",
   "extensionsFitPartly": "Kısmen çalışıyor",

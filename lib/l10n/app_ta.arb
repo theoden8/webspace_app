@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "பொருந்தும் நீட்டிப்பு இல்லை",
   "extensionsSearchUnreadable": "தேட முடியவில்லை: பதிலைப் படிக்க முடியவில்லை",
   "extensionsSearchMore": "மேலும் முடிவுகள்",
-  "extensionsSearchUsers": "{count, plural, =1{{count} பயனர்} other{{count} பயனர்கள்}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} பயனர்} other{{users} பயனர்கள்}}",
   "extensionsRecommendedBadge": "Mozilla பரிந்துரைத்தது",
   "extensionsFitWorks": "இயங்கும்",
   "extensionsFitPartly": "பகுதியாக இயங்கும்",

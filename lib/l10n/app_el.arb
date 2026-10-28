@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Καμία επέκταση δεν ταιριάζει",
   "extensionsSearchUnreadable": "Η αναζήτηση απέτυχε: δεν ήταν δυνατή η ανάγνωση της απάντησης",
   "extensionsSearchMore": "Περισσότερα αποτελέσματα",
-  "extensionsSearchUsers": "{count, plural, =1{{count} χρήστης} other{{count} χρήστες}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} χρήστης} other{{users} χρήστες}}",
   "extensionsRecommendedBadge": "Προτείνεται από τη Mozilla",
   "extensionsFitWorks": "Λειτουργεί",
   "extensionsFitPartly": "Λειτουργεί εν μέρει",

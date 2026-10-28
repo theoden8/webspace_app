@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "ไม่มีส่วนขยายที่ตรงกัน",
   "extensionsSearchUnreadable": "ค้นหาไม่ได้: อ่านคำตอบไม่ได้",
   "extensionsSearchMore": "ผลลัพธ์เพิ่มเติม",
-  "extensionsSearchUsers": "{count, plural, =1{ผู้ใช้ {count} คน} other{ผู้ใช้ {count} คน}}",
+  "extensionsSearchUsers": "{count, plural, =1{ผู้ใช้ {users} คน} other{ผู้ใช้ {users} คน}}",
   "extensionsRecommendedBadge": "แนะนำโดย Mozilla",
   "extensionsFitWorks": "ใช้งานได้",
   "extensionsFitPartly": "ใช้งานได้บางส่วน",

@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "कुनै एक्सटेन्सन मेल खाएन",
   "extensionsSearchUnreadable": "खोज्न सकिएन: जवाफ पढ्न सकिएन",
   "extensionsSearchMore": "थप नतिजाहरू",
-  "extensionsSearchUsers": "{count, plural, =1{{count} प्रयोगकर्ता} other{{count} प्रयोगकर्ता}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} प्रयोगकर्ता} other{{users} प्रयोगकर्ता}}",
   "extensionsRecommendedBadge": "Mozilla द्वारा सिफारिस गरिएको",
   "extensionsFitWorks": "चल्छ",
   "extensionsFitPartly": "आंशिक रूपमा चल्छ",

@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "کوئی ایکسٹینشن مماثل نہیں",
   "extensionsSearchUnreadable": "تلاش نہیں ہو سکی: جواب پڑھا نہیں جا سکا",
   "extensionsSearchMore": "مزید نتائج",
-  "extensionsSearchUsers": "{count, plural, =1{{count} صارف} other{{count} صارفین}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} صارف} other{{users} صارفین}}",
   "extensionsRecommendedBadge": "Mozilla کی تجویز کردہ",
   "extensionsFitWorks": "چلتی ہے",
   "extensionsFitPartly": "جزوی طور پر چلتی ہے",

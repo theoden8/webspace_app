@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Walang tumutugmang extension",
   "extensionsSearchUnreadable": "Hindi makapaghanap: hindi mabasa ang sagot",
   "extensionsSearchMore": "Higit pang resulta",
-  "extensionsSearchUsers": "{count, plural, =1{{count} gumagamit} other{{count} na gumagamit}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} gumagamit} other{{users} na gumagamit}}",
   "extensionsRecommendedBadge": "Inirerekomenda ng Mozilla",
   "extensionsFitWorks": "Gumagana",
   "extensionsFitPartly": "Bahagyang gumagana",

@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "Hakuna kiendelezi kinacholingana",
   "extensionsSearchUnreadable": "Imeshindwa kutafuta: jibu halikuweza kusomwa",
   "extensionsSearchMore": "Matokeo zaidi",
-  "extensionsSearchUsers": "{count, plural, =1{mtumiaji {count}} other{watumiaji {count}}}",
+  "extensionsSearchUsers": "{count, plural, =1{mtumiaji {users}} other{watumiaji {users}}}",
   "extensionsRecommendedBadge": "Kimependekezwa na Mozilla",
   "extensionsFitWorks": "Kinafanya kazi",
   "extensionsFitPartly": "Kinafanya kazi kwa sehemu",

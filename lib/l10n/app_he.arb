@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "אין תוסף תואם",
   "extensionsSearchUnreadable": "לא ניתן לחפש: לא ניתן היה לקרוא את התשובה",
   "extensionsSearchMore": "תוצאות נוספות",
-  "extensionsSearchUsers": "{count, plural, =1{משתמש אחד} other{{count} משתמשים}}",
+  "extensionsSearchUsers": "{count, plural, =1{משתמש אחד} other{{users} משתמשים}}",
   "extensionsRecommendedBadge": "מומלץ על ידי Mozilla",
   "extensionsFitWorks": "פועל",
   "extensionsFitPartly": "פועל חלקית",

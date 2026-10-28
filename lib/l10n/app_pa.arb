@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "ਕੋਈ ਐਕਸਟੈਂਸ਼ਨ ਮੇਲ ਨਹੀਂ ਖਾਂਦੀ",
   "extensionsSearchUnreadable": "ਖੋਜ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ: ਜਵਾਬ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ",
   "extensionsSearchMore": "ਹੋਰ ਨਤੀਜੇ",
-  "extensionsSearchUsers": "{count, plural, =1{{count} ਵਰਤੋਂਕਾਰ} other{{count} ਵਰਤੋਂਕਾਰ}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} ਵਰਤੋਂਕਾਰ} other{{users} ਵਰਤੋਂਕਾਰ}}",
   "extensionsRecommendedBadge": "Mozilla ਵੱਲੋਂ ਸਿਫ਼ਾਰਸ਼ੀ",
   "extensionsFitWorks": "ਚੱਲਦੀ ਹੈ",
   "extensionsFitPartly": "ਅੰਸ਼ਕ ਤੌਰ 'ਤੇ ਚੱਲਦੀ ਹੈ",

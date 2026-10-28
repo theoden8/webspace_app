@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "કોઈ એક્સ્ટેન્શન મેળ ખાતું નથી",
   "extensionsSearchUnreadable": "શોધી શકાયું નહીં: જવાબ વાંચી શકાયો નહીં",
   "extensionsSearchMore": "વધુ પરિણામો",
-  "extensionsSearchUsers": "{count, plural, =1{{count} વપરાશકર્તા} other{{count} વપરાશકર્તાઓ}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} વપરાશકર્તા} other{{users} વપરાશકર્તાઓ}}",
   "extensionsRecommendedBadge": "Mozilla દ્વારા ભલામણ કરેલું",
   "extensionsFitWorks": "ચાલે છે",
   "extensionsFitPartly": "આંશિક રીતે ચાલે છે",

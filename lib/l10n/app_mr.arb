@@ -1198,7 +1198,7 @@
   "extensionsSearchEmpty": "कोणताही विस्तार जुळत नाही",
   "extensionsSearchUnreadable": "शोधता आले नाही: उत्तर वाचता आले नाही",
   "extensionsSearchMore": "आणखी निकाल",
-  "extensionsSearchUsers": "{count, plural, =1{{count} वापरकर्ता} other{{count} वापरकर्ते}}",
+  "extensionsSearchUsers": "{count, plural, =1{{users} वापरकर्ता} other{{users} वापरकर्ते}}",
   "extensionsRecommendedBadge": "Mozilla ने शिफारस केलेला",
   "extensionsFitWorks": "चालतो",
   "extensionsFitPartly": "अंशतः चालतो",
