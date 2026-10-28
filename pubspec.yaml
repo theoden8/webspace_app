@@ -62,6 +62,11 @@ dependencies:
   package_info_plus: ^9.0.1
   flutter_cache_manager: ^3.3.0
   path_provider: ^2.1.0
+  # Already locked through path_provider. 2.2.2 opens libgio by its soname;
+  # earlier ones looked for the libgio-2.0.so only GLib's development files
+  # install, so where those are missing (the GNOME runtime among them) every
+  # directory was named after the executable, not the app id (PLATFORM-010).
+  path_provider_linux: ^2.2.2
   encrypt: ^5.0.3
   # encrypt's own engine, already locked through it; the integration tiers
   # mint their certificates with it.

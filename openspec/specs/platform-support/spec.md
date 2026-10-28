@@ -200,8 +200,9 @@ ID and the desktop files (PLATFORM-008) all take it.
 
 Every other Linux build SHALL keep `org.codeberg.theoden8.webspace`, the ID
 earlier releases ran under. path_provider keeps the sites and settings under
-that ID, and flutter_secure_storage_linux names its keyring entry after it, so
-an install keeps both across an upgrade.
+that ID, or under the executable's name where an earlier release fell back to
+it (PLATFORM-010), and flutter_secure_storage_linux names its keyring entry
+after the ID, so an install keeps both across an upgrade.
 
 #### Scenario: Build the flatpak
 
@@ -232,6 +233,14 @@ kind names (`StoreKind`, declared where the store is made):
   protection report's detail. The application support directory:
   `$XDG_DATA_HOME/<app id>` on Linux, beside the preferences, `filesDir` on
   Android, `Library/Application Support` on iOS and macOS.
+
+On Linux `<app id>` is the GApplication's id (PLATFORM-009), which
+path_provider_linux reads from libgio. Before 2.2.2 it looked for the
+`libgio-2.0.so` only GLib's development files install, and where they were
+missing (every Flatpak runtime, and Debian or Ubuntu without `libglib2.0-dev`)
+it named both directories after
+the executable, `webspace_app`. `pubspec.yaml` holds it at 2.2.2 or later. An
+install that already has a directory named after the executable keeps using it.
 
 Never the documents directory. On Linux that is the user's Documents folder,
 or `$HOME` where `user-dirs.dirs` names none, which is what a Flatpak sees,
