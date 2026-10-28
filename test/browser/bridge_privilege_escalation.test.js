@@ -84,13 +84,15 @@ function attack(exfil, { sink = 'appendChild', type } = {}) {
 const ATTACK_INLINE = scriptOf(attack, EXFIL);
 const typedAttack = (type) => scriptOf(attack, EXFIL, { type });
 
-async function withVictim(t, { csp, scripts, shim = true, body }, fn) {
+// [shim] is the script installed in place of the user-script shim, or false
+// for none.
+async function withVictim(t, { csp, scripts, shim = SHIM, body }, fn) {
   if (!requireBrowser(browser, t)) return;
   const victim = await startVictim({ csp, scripts });
   const page = await browser.browser.newPage();
   try {
     await page.evaluateOnNewDocument(bridgeStub, FETCH_HANDLER, body || '');
-    if (shim) await page.evaluateOnNewDocument(SHIM);
+    if (shim) await page.evaluateOnNewDocument(shim);
     await page.goto(victim.url, { waitUntil: 'load' });
     await fn(page, victim);
   } finally {
@@ -128,15 +130,157 @@ test('with the shim, the same injection is handed to the privileged handler',
           bridged: window.__calls.filter((c) => c.name === h).map((c) => c.args[0]),
           inDom: window.__attack.inDom,
           pwned: window.__pwned,
+          violations: window.__cspViolations.length,
         }), INLINE_HANDLER);
 
         assert.deepEqual(r.bridged, [EXFIL],
           'the injected source crossed into the privileged bridge');
-        assert.equal(r.inDom, false,
-          'the element is swallowed by the shim, never appended');
+        assert.equal(r.inDom, true,
+          'the element is appended where the page put it (US-DR-008)');
         assert.equal(r.pwned, undefined,
-          'the stub bridge does not evaluate; the real one does');
+          'the engine did not run it natively; the stub bridge does not evaluate, the real one does');
+        assert.equal(r.violations, 0,
+          'its type names no script language, so CSP is never asked about it');
       });
+  });
+
+// US-DR-008: Bing's sj_appHTML drains a scratch div into a fragment with
+// `for (h = createDocumentFragment(); u.length;) h.appendChild(u[0])`. A shim
+// that took the script without inserting it left `u[0]` in place, so the loop
+// never ended and sent the source across the bridge on every turn.
+// The script goes into the scratch div by replaceChild, as sj_appHTML puts it
+// there, which the shim does not wrap.
+function drain(exfil) {
+  var scratch = document.createElement('div');
+  scratch.innerHTML = '<br><p>result</p><i></i>';
+  var s = document.createElement('script');
+  s.text = exfil;
+  scratch.replaceChild(s, scratch.lastChild);
+  scratch.removeChild(scratch.firstChild);
+  var u = scratch.childNodes;
+  var fragment = document.createDocumentFragment();
+  var turns = 0;
+  while (u.length && turns < 1000) {
+    fragment.appendChild(u[0]);
+    turns++;
+  }
+  document.body.appendChild(fragment);
+  window.__drain = { turns: turns, left: u.length };
+}
+
+test('US-DR-008: a page draining a script into a fragment finishes, and the script runs once',
+  async (t) => {
+    await withVictim(t, { scripts: { 'drain.js': scriptOf(drain, EXFIL) } },
+      async (page) => {
+        const r = await page.evaluate((h) => ({
+          drain: window.__drain,
+          bridged: window.__calls.filter((c) => c.name === h).map((c) => c.args[0]),
+          pwned: window.__pwned,
+          violations: window.__cspViolations.length,
+        }), INLINE_HANDLER);
+
+        assert.deepEqual(r.drain, { turns: 2, left: 0 },
+          'appendChild must move the node, or the page spins forever');
+        assert.deepEqual(r.bridged, [EXFIL], 'the source crosses the bridge once');
+        assert.equal(r.pwned, undefined,
+          'connecting the fragment does not run the bridged script natively as well');
+        assert.equal(r.violations, 0);
+
+        await page.evaluate(r.bridged[0]);
+        assert.equal(await page.evaluate(() => window.__pwned), true,
+          'the Dart handler\'s replay is its one execution');
+      });
+  });
+
+// The message TestFlight 0.4.1 (38) died decoding, rebuilt: one string over
+// 128K characters (so the Dart VM allocates it in old space), with escapes and
+// at least one character above U+00FF (a two-byte string), from a page opened
+// in a nested tab. A curly apostrophe or an en dash is enough, so any page
+// qualifies. The page drains a data script of that shape the way sj_appHTML
+// does; [cap] bounds the loop so a regression fails here instead of hanging
+// the suite.
+function drainDataScript(cap) {
+  var labels = ['North', 'South', 'East', 'West', 'Centre', 'O’Hara', 'Upper–Lower'];
+  var rows = [];
+  for (var i = 0; i < 4000; i++) {
+    rows.push({ id: 'Row ' + i, label: labels[i % labels.length], value: (i * 7919) % 1000 });
+  }
+  var source = 'window.__data = ' + JSON.stringify(rows) + ';';
+  var scratch = document.createElement('div');
+  scratch.innerHTML = '<br><table></table><i></i>';
+  var s = document.createElement('script');
+  s.text = source;
+  scratch.replaceChild(s, scratch.lastChild);
+  scratch.removeChild(scratch.firstChild);
+  var u = scratch.childNodes;
+  var fragment = document.createDocumentFragment();
+  var turns = 0;
+  while (u.length && turns < cap) {
+    fragment.appendChild(u[0]);
+    turns++;
+  }
+  document.body.appendChild(fragment);
+  window.__drain = { turns: turns, left: u.length };
+}
+
+const DRAIN_CAP = 40;
+
+// What crossed the bridge, measured as the plugin sends it: the arguments'
+// JSON, which is the string the app's jsonDecode reads.
+function bridgedShapes(handler) {
+  return window.__calls.filter(function (c) { return c.name === handler; }).map(function (c) {
+    var json = JSON.stringify(c.args);
+    var nonLatin1 = false;
+    for (var i = 0; i < json.length && !nonLatin1; i++) nonLatin1 = json.charCodeAt(i) > 0xff;
+    return { length: json.length, nonLatin1: nonLatin1, escapes: json.indexOf('\\') !== -1 };
+  });
+}
+
+test('US-DR-008: a script of the crash\'s size and shape crosses the bridge once',
+  async (t) => {
+    await withVictim(t, { scripts: { 'data.js': scriptOf(drainDataScript, DRAIN_CAP) } },
+      async (page) => {
+        const drained = await page.evaluate(() => window.__drain);
+        const shapes = await page.evaluate(bridgedShapes, INLINE_HANDLER);
+
+        assert.deepEqual(drained, { turns: 2, left: 0 });
+        assert.equal(shapes.length, 1);
+        assert.ok(shapes[0].length > 131072,
+          `the fixture must reach the crash's size, got ${shapes[0].length} characters`);
+        assert.ok(shapes[0].nonLatin1 && shapes[0].escapes,
+          'and its shape: non-Latin-1 text with escapes, a two-byte string built through a buffer');
+      });
+  });
+
+// The pre-US-DR-008 shim in miniature, planted to prove the fixture above
+// catches it: an inline classic script goes to the bridge and the DOM call
+// returns without inserting it.
+function swallowingShim(handler) {
+  var orig = Node.prototype.appendChild;
+  Node.prototype.appendChild = function (child) {
+    if (child instanceof HTMLScriptElement && !child.src && child.text) {
+      window.flutter_inappwebview.callHandler(handler, child.text);
+      return child;
+    }
+    return orig.call(this, child);
+  };
+}
+
+test('PLANTED: a shim that swallows the script spins the same page to its cap',
+  async (t) => {
+    await withVictim(t, {
+      shim: scriptOf(swallowingShim, INLINE_HANDLER),
+      scripts: { 'data.js': scriptOf(drainDataScript, DRAIN_CAP) },
+    }, async (page) => {
+      const drained = await page.evaluate(() => window.__drain);
+      const shapes = await page.evaluate(bridgedShapes, INLINE_HANDLER);
+
+      assert.deepEqual(drained, { turns: DRAIN_CAP, left: 1 },
+        'only the cap ends the loop: on a device nothing does');
+      assert.equal(shapes.length, DRAIN_CAP - 1,
+        'every turn after the table\'s sends the whole script again');
+      assert.ok(shapes.every((s) => s.length > 131072 && s.nonLatin1 && s.escapes));
+    });
   });
 
 test('replayed the way the Dart handler replays it, the payload executes',
@@ -156,7 +300,7 @@ test('replayed the way the Dart handler replays it, the payload executes',
         assert.equal(await page.evaluate(() => window.__pwned), true);
         const violations = await page.evaluate(() => window.__cspViolations.length);
         assert.equal(violations, 0,
-          'the bridged path never trips CSP — nothing was appended to block');
+          'the bridged path never trips CSP — what was appended is not a script to block');
       });
   });
 
