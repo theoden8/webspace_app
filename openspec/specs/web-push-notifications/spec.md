@@ -906,6 +906,11 @@ right click; the icon is registered by its object path, so it needs no bus
 name of its own, and a watcher that appears later, or returns after its shell
 restarts, is registered with as it appears. A desktop with no status area
 shows nothing, and the window still comes back the ways NOTIF-018 names.
+A Flatpak reaches the watcher only where its manifest, or the user's
+`flatpak override`, grants `--talk-name=org.kde.StatusNotifierWatcher`: the
+sandbox's bus proxy answers a call to a name it may not talk to as if nothing
+owned it, so where `/.flatpak-info` grants no talk the log names that
+permission rather than reading as a desktop with no status area.
 `DesktopTray` ([lib/controllers/desktop_tray.dart](../../../lib/controllers/desktop_tray.dart))
 owns when the icon shows; `TrayMenus`
 ([lib/services/tray_menu_engine.dart](../../../lib/services/tray_menu_engine.dart))

@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:dbus/dbus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/status_notifier_tray.dart';
 import 'package:webspace/services/tray_menu_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -200,6 +201,52 @@ void main() {
     final menu = menuOf(properties['Menu']!.asObjectPath());
 
     expect((await layout(menu)).map(labelOf), contains('my__site'));
+  });
+
+  test('NOTIF-019 a Flatpak that hides the watcher logs the permission it '
+      'needs, not a desktop without one', () async {
+    Future<List<String>> logged({required String? sandbox}) async {
+      LogService.instance.resetForTest();
+      final sandboxed = StatusNotifierTray(
+        handlers: (pressed: pressed.add, opening: () async {}),
+        connect: () => DBusClient(address),
+        pixmaps: () async => const [],
+        sandbox: () async => sandbox,
+      );
+      expect(await sandboxed.show(menuWith(const [])), isFalse);
+      await sandboxed.remove();
+      return [
+        for (final e in LogService.instance.entries)
+          if (e.message.startsWith('Tray:')) e.message,
+      ];
+    }
+
+    String info({String sockets = 'x11;wayland;', String policy = ''}) =>
+        '[Application]\nname=page.codeberg.theoden8.webspace_app\n\n'
+        '[Context]\nshared=network;ipc;\nsockets=$sockets\n\n'
+        '[Session Bus Policy]\norg.freedesktop.Notifications=talk\n$policy';
+    const hidden = 'Tray: the Flatpak sandbox hides '
+        'org.kde.StatusNotifierWatcher; its manifest needs '
+        '--talk-name=org.kde.StatusNotifierWatcher';
+    const none = 'Tray: no status notifier watcher yet';
+
+    expect(await logged(sandbox: info()), [hidden]);
+    expect(
+        await logged(
+            sandbox: info(policy: 'org.kde.StatusNotifierWatcher=see\n')),
+        [hidden],
+        reason: 'seeing a name is not talking to it');
+    expect(await logged(sandbox: info(policy: 'org.kde.Status*=talk\n')),
+        [hidden],
+        reason: 'a wildcard covers whole name elements');
+    expect(
+        await logged(
+            sandbox: info(policy: 'org.kde.StatusNotifierWatcher=talk\n')),
+        [none]);
+    expect(await logged(sandbox: info(policy: 'org.kde.*=own\n')), [none]);
+    expect(await logged(sandbox: info(sockets: 'wayland;session-bus;')),
+        [none]);
+    expect(await logged(sandbox: null), [none], reason: 'no sandbox');
   });
 
   test('without a session bus there is no tray, and nothing throws', () async {
