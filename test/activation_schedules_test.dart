@@ -529,6 +529,23 @@ const _deleteAlphabet = <SiteAction>[
 
 const _deleteLength = 2;
 
+/// A delete of site 1 against its tabs' flows, which write the tabs'
+/// variables the delete drops: from site 1 on screen, or on its second tab
+/// loaded behind.
+const _tabDeleteSetups = <String, List<SiteAction>>{
+  'site 1 on screen': [Tap(0)],
+  'site 1 on its second tab, behind': [Tap(0), OpenTab(0, tab: 1), Tap(2)],
+};
+
+const _tabDeleteAlphabet = <SiteAction>[
+  Delete(),
+  OpenTab(0, tab: 1),
+  NewTab(0),
+  CloseTab(0, tab: 0),
+  DuplicateTab(0),
+  Tap(0),
+];
+
 /// The race the delete's old order lost, at two preemptions: it
 /// deleted the container before the commit took the site off the list, so
 /// a tap landing meanwhile built the site again on it.
@@ -1092,6 +1109,24 @@ void main() {
         for (final script in _scripts(length, alphabet: _deleteAlphabet)) {
           await _expectEvery(
             world: () => ActivationWorld(_mixedContainers, deletes: true),
+            setup: setup,
+            script: script,
+            preemptions: _preemptions,
+          );
+        }
+      }
+    });
+  }
+
+  for (final MapEntry(key: setupName, value: setup)
+      in _tabDeleteSetups.entries) {
+    _scheduleTest('tabs and a delete, containers, $setupName: every schedule '
+        'holds', body: () async {
+      for (var length = 1; length <= _deleteLength; length++) {
+        for (final script in _scripts(length, alphabet: _tabDeleteAlphabet)) {
+          await _expectEvery(
+            world: () =>
+                ActivationWorld(_mixedContainers, deletes: true, tabbed: true),
             setup: setup,
             script: script,
             preemptions: _preemptions,

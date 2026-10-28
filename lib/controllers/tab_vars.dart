@@ -263,20 +263,15 @@ final class TabVars {
     ),
   );
 
-  /// What a duplicate reads of its source: the webview's back stack when
-  /// the site is loaded and the webview is the source's, else its file.
-  static Expr<TabId?, W> dupSource<W>(
+  /// What a duplicate reads of its loaded source's webview: its back
+  /// stack when the webview is the source's, else none.
+  static Expr<TabId?, W> dupShown<W>(
     Expr<WebViewModel, W> site, {
     required Expr<TabId, W> source,
-    required Expr<Iterable<WebViewModel>, W> loaded,
   }) => Expr.choose(
-    when: loaded.has(site),
-    then: Expr.choose(
-      when: built<W>().at(site).eq(source),
-      then: hist<W>().value.at(site),
-      otherwise: noTab(),
-    ),
-    otherwise: savedFor(site, tab: source),
+    when: built<W>().at(site).eq(source),
+    then: hist<W>().value.at(site),
+    otherwise: noTab(),
   );
 
   /// A tab switch's one turn, after the bytes it read for [tab] ([label]):

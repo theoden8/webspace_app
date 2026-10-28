@@ -193,6 +193,11 @@ enum FlowField {
   label('0', range: r'TabIds \cup {0}'),
   wrote('FALSE', range: r'BOOLEAN'),
 
+  /// Whether a duplicate reads its source from the webview, the site
+  /// loaded as the read started; else from the source's file, which the
+  /// store reads while the call is out.
+  dupView('FALSE', range: r'BOOLEAN'),
+
   /// What a capture read as it started: the webview's tab, the history it
   /// showed and the site whose key it writes under, held for the file
   /// write its reply makes (`Capture`).

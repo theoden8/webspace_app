@@ -109,6 +109,7 @@ abstract final class TabTable {
   static const _copyAs = Field<WebViewModel, TabFlow>(FlowField.copyAs);
   static const _label = Field<Uint8List?, TabFlow>(FlowField.label);
   static const _wrote = Field<bool, TabFlow>(FlowField.wrote);
+  static const _dupView = Field<bool, TabFlow>(FlowField.dupView);
 
   static final _yes = Expr.constant<bool, TabFlow>(true);
   static final _no = Expr.constant<bool, TabFlow>(false);
@@ -1001,11 +1002,24 @@ abstract final class TabTable {
       ),
       // The duplicate's source read: the webview's back stack when the
       // site is loaded and the webview is the source's, else its file.
+      // Which, and the webview's bytes, are decided as the read starts, so
+      // a delete that drops the site while it is out leaves them; the file
+      // is the store's to read while the call is out.
       TabPlace.tDupRead => Step(
         ActivationStep.dupReadReply,
         holds: null,
         call: _label.receivesOn(
           _files,
+          reads: [
+            _dupView.fromPlatform(_loaded.value.has(_site.value)),
+            _label.fromPlatform(
+              Expr.choose(
+                when: _loaded.value.has(_site.value),
+                then: TabVars.dupShown(_site.value, source: _tab.value),
+                otherwise: noTab(),
+              ),
+            ),
+          ],
           run: (c) async {
             final site = _site.of(c);
             final source = _tab.of(c);
@@ -1019,10 +1033,10 @@ abstract final class TabTable {
             }
             return c.api.loadState(site.stateKeyForTab(source));
           },
-          reply: TabVars.dupSource(
-            _site.value,
-            source: _tab.value,
-            loaded: _loaded.value,
+          reply: Expr.choose(
+            when: _dupView.value,
+            then: _label.value,
+            otherwise: TabVars.savedFor(_site.value, tab: _tab.value),
           ),
         ),
         site: _site.value,
