@@ -1014,6 +1014,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         letterboxEnabled: _letterboxEnabled,
         incognito: _incognito,
         blockScreenshots: _blockScreenshots,
+        javascriptEnabled: _javascriptEnabled,
       );
 
   /// Counterpart of [_buildPermissionsRow] for everything that decides what a
@@ -1066,6 +1067,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _letterboxEnabled = values.letterboxEnabled;
           _incognito = values.incognito;
           _blockScreenshots = values.blockScreenshots;
+          _javascriptEnabled = values.javascriptEnabled;
         }),
       ));
 
@@ -1098,12 +1100,6 @@ IconButton zoomStep(IconData icon,
       body: ListView(
         children: [
           SettingsSection(loc.siteSettingsSectionContent),
-          SettingTile(
-            title: loc.siteSettingsJavascriptEnabled,
-            hint: null,
-            control: Toggle(value: _javascriptEnabled,
-                onChanged: (value) => setState(() => _javascriptEnabled = value)),
-          ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [

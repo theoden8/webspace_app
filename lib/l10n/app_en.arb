@@ -2088,7 +2088,7 @@
   },
   "siteSettingsJavascriptEnabled": "JavaScript Enabled",
   "@siteSettingsJavascriptEnabled": {
-    "description": "Switch label toggling JavaScript for the site."
+    "description": "Switch label toggling JavaScript for the site, in the Security group of the site's privacy settings."
   },
   "siteSettingsUserAgent": "User-Agent",
   "@siteSettingsUserAgent": {
@@ -4366,7 +4366,7 @@
   },
   "privacyGroupSecurity": "Security",
   "@privacyGroupSecurity": {
-    "description": "Heading for the group in a site's privacy settings holding the switch that runs the site's pages in Lockdown Mode, a hardened mode of Apple's web engine."
+    "description": "Heading for the group in a site's privacy settings holding the switch that turns JavaScript on or off for the site and, on Apple devices, the switch that runs the site's pages in Lockdown Mode, a hardened mode of Apple's web engine."
   },
   "siteSettingsLockdownMode": "Lockdown Mode",
   "@siteSettingsLockdownMode": {
@@ -4390,7 +4390,7 @@
   },
   "siteSettingsSectionContent": "Content",
   "@siteSettingsSectionContent": {
-    "description": "Heading in site settings for the group covering what the page is served and how it renders: scripts, user agent, language, zoom."
+    "description": "Heading in site settings for the group covering what the page is served and how it renders: user agent, language, zoom, theme, user scripts."
   },
   "behaviourTitle": "Behaviour",
   "@behaviourTitle": {

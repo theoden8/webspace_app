@@ -1032,8 +1032,9 @@ prominent card; the umbrella as a second prominent card labeled "Tracking
 Protection" with subtitle "Anti-fingerprinting + force tracker blocking";
 a "Trackers and ads" group holding ClearURLs, DNS Blocklist, Content
 Blocker, LocalCDN (Android only) and Third-party cookies; and a
-"Fingerprinting" group holding the letterbox switch; and, where WebKit
-has a per-site Lockdown Mode, a "Security" group holding it (ETP-032).
+"Fingerprinting" group holding the letterbox switch; and a "Security"
+group holding the JavaScript switch and, where WebKit has a per-site
+Lockdown Mode, that switch below it (ETP-032).
 
 Subordinates SHALL render `onChanged: null` while the umbrella is on,
 with `value: true` for ETP-002's four and `value: false` for third-party
@@ -1052,6 +1053,10 @@ a block-list turning itself on costs the user nothing, whereas incognito
 discards their session on every restart. Grouping is by topic; forcing is
 reserved for settings whose worst case is a missing page element or a
 closed tracking channel.
+
+The JavaScript switch SHALL NOT be forced by the umbrella or by an
+archive: turning scripts off breaks most pages, so like incognito it
+stays the user's call.
 
 HTML caching SHALL NOT appear here. It decides whether a start takes the
 page from the engine's cache before the network, which is a behaviour of
@@ -1114,6 +1119,15 @@ Protection"
 **Given** the umbrella is on
 **Then** the Incognito mode switch is still tappable
 **And** its value reflects the per-site stored boolean
+
+#### Scenario: JavaScript is the site's own switch under Security
+
+**Given** the umbrella is on and the site is in an archive
+**When** the user opens the Privacy screen
+**Then** the JavaScript switch sits under the "Security" heading, above
+Lockdown Mode where that switch is shown
+**And** it is tappable and reports `javascriptEnabled` back with the rest
+of the values
 
 #### Scenario: Settings row summarises without opening
 
@@ -1384,8 +1398,9 @@ WebKit exposes none. The setting SHALL be written everywhere and ignored there
 shown only where `hostHasLockdownMode` holds, the host being iOS 16+ or macOS
 13+.
 
-The switch SHALL sit on the Privacy screen in its own "Security" group below
-Fingerprinting, as a `ScopedToggle` following Tracking Protection (BEHAV-007):
+The switch SHALL sit on the Privacy screen in the "Security" group below
+Fingerprinting, under the JavaScript switch, as a `ScopedToggle` following
+Tracking Protection (BEHAV-007):
 dimmed and captioned "Follows Tracking Protection" while the site follows, a
 tap giving the site the other value, and a long press moving between following
 and keeping the shown value. It is never locked. With the umbrella off, the
