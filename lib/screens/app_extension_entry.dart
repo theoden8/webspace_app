@@ -176,7 +176,7 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
                 hint: loc.extensionsEverySiteHint,
                 subtitle: loc.extensionsVersion(entry.version),
                 control: Toggle(
-                  entry.everySite,
+                  value: entry.everySite,
                   onChanged: (on) => unawaited(_setEverySite(entry, on: on)),
                 ),
               ),
