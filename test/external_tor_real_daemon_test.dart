@@ -47,11 +47,20 @@ String? _which(String name) {
   return null;
 }
 
+/// The ports handed out in this run. A port is free once its probe socket
+/// closes, so the OS may hand it out again; a torrc that names one twice
+/// (a SocksPort the same as the ControlPort) fails to bind its second
+/// listener, and tor exits. Another process can still take a port between
+/// its probe and tor's bind.
+final Set<int> _handedOut = {};
+
 Future<int> _freePort() async {
-  final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-  final port = server.port;
-  await server.close();
-  return port;
+  while (true) {
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = server.port;
+    await server.close();
+    if (_handedOut.add(port)) return port;
+  }
 }
 
 /// One tor process with a torrc of [lines] on top of the common ones.
