@@ -569,10 +569,16 @@ that posted nothing during the wake (`NotificationService.lastPostedAt`),
 the system SHALL read the unread count from the page title (the first
 parenthesised integer: `(3) WhatsApp`, `Inbox (12) - Gmail`, `(99+)`) and
 post one notification when it is higher than the baseline: the count
-recorded when the app last left the screen, or at the previous wake. The
-notification's title is the site's name and its body the page's own title,
-tagged so a later rise replaces it. No baseline posts nothing: the count
-may be unread the user already knew about. A notification the site posts
+recorded on the app's last step away from the foreground (`inactive`,
+`hidden` or `paused`, since a swipe from Android's Recents can end the
+process before `paused`), or at the previous wake. The notification's title
+is the site's name and its body the page's own title, tagged so a later rise
+replaces it. A title read from a running page with no count in it is a
+baseline of none, which is how a site shows that nothing is unread; only a
+title that could not be read leaves the baseline unknown, and no baseline
+posts nothing: the count may be unread the user already knew about. A wake's
+own read moves the baseline only when it shows a count, since a page the
+wake just loaded may not have set it yet. A notification the site posts
 while the app is in the background re-records its baseline a second later
 (the page may update its title after posting), so a wake does not announce
 again what the site already did.
@@ -594,6 +600,20 @@ exported. Engine tests: `test/background_wake_engine_test.dart`.
 **When** a wake reloads site A, it posts nothing itself, and its title now reads `(5) Chat`
 **Then** one notification titled with site A's name and bodied `(5) Chat` is posted
 **And** the next wake posts nothing more unless the count rises again
+
+#### Scenario: Nothing was unread when the app was left
+
+**Given** site A's title read `Chat`, with no count, when the app was left
+**When** a wake loads site A, it posts nothing itself, and its title now reads `(1) Chat`
+**Then** one notification bodied `(1) Chat` is posted for site A
+**And** a later wake whose page has not yet set its count, reading `Chat`, does not make the next `(1) Chat` post again
+
+#### Scenario: The app is swiped away from Recents
+
+**Given** site A is loaded and its title reads `Chat`
+**When** the user opens Android's Recents and swipes WebSpace away before `paused` arrives
+**Then** site A's baseline of none was already recorded and persisted on `inactive`
+**And** the next wake posts for site A's first message
 
 #### Scenario: The site posts for itself
 

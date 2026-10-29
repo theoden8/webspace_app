@@ -294,14 +294,15 @@ class BackgroundWakeEngine<S extends Object> {
 
   final Map<SiteId, int> _baselines = {};
 
-  /// Record what the user could see. Called when the app leaves the screen,
-  /// and after every wake so one rise posts once.
+  /// Record what the user could see on a running page: as the app leaves the
+  /// screen, and after the page posts from the background. A title with no
+  /// count is none unread, which is how a site shows it, so the first message
+  /// after it posts; only a title that could not be read is unknown.
   void noteBaseline(SiteId siteId, {required String? title}) {
-    final count = unreadCountFromTitle(title);
-    if (count == null) {
+    if (title == null) {
       _baselines.remove(siteId);
     } else {
-      _baselines[siteId] = count;
+      _baselines[siteId] = unreadCountFromTitle(title) ?? 0;
     }
   }
 
@@ -434,7 +435,10 @@ class BackgroundWakeEngine<S extends Object> {
         sitePosted: sitePosted,
         fallbackPosted: fallback,
       ));
-      noteBaseline(s.siteId, title: title);
+      // A page the wake just loaded may not show its count yet, so a title
+      // without one says nothing; one with one moves the baseline, so one
+      // rise posts once.
+      if (current != null) _baselines[s.siteId] = current;
     }
     w.report =
         WakeReport(sites: outcomes, elapsed: host.now().difference(w.started));

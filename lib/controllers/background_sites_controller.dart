@@ -244,10 +244,17 @@ class BackgroundSitesController {
     await _persistBaselines();
   }
 
+  /// Completed once [install] has read back what the last process kept.
+  final Completer<void> _baselinesRestored = Completer();
+
   /// NOTIF-014: the baselines the next process compares against. Incognito
-  /// sites keep theirs in memory only.
+  /// sites keep theirs in memory only. A write waits for the read: the page
+  /// hears the lifecycle before startup reaches [install], so a step away
+  /// from the screen can come first, and writing then would drop every
+  /// baseline this process has not taken yet.
   Future<void> _persistBaselines() async {
     if (isDemoMode) return;
+    await _baselinesRestored.future;
     await WakeBaselineStore.write(_wakeEngine.baselinesOf({
       for (final m in _sites.models)
         if (m.effectiveNotificationsEnabled && !m.effectiveIncognito) m.siteId,
@@ -255,14 +262,18 @@ class BackgroundSitesController {
   }
 
   /// The app is leaving the foreground: an iOS grace window for notification
-  /// webviews to flush their timers, and each loaded notification site's
-  /// unread count as the user can still see it, so a later wake posts only
-  /// for what arrived after (NOTIF-014).
+  /// webviews to flush their timers.
   void noteBackgrounded() {
     if (_sites.fore) _wakeEngine.background(_wakeHost);
     _stopForegroundPoll();
     if (!anyNotificationSites) return;
     unawaited(BackgroundTaskService.instance.beginGracePeriod());
+  }
+
+  /// Each loaded notification site's unread count as the user can still see
+  /// it, so a later wake posts only for what arrived after (NOTIF-014).
+  void noteBaselines() {
+    if (!anyNotificationSites) return;
     _wakeEngine.forget({for (final m in _sites.models) m.siteId});
     final reads = <Future<void>>[];
     for (final m in _sites.loaded) {
@@ -359,6 +370,7 @@ class BackgroundSitesController {
     // Before the handler below: a wake in a process the OS launched for it
     // compares against what the last process saw (NOTIF-014).
     _wakeEngine.restoreBaselines(await WakeBaselineStore.read());
+    _baselinesRestored.complete();
     // Android's WorkManager tick fires whenever the Flutter engine is
     // reachable, the foreground included, so the site the user is looking at
     // is never reloaded then; a true background wake checks every one. iOS

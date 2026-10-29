@@ -154,7 +154,50 @@ what it finds.**
    headless check, and Battery Saver held most wakes until the app was
    opened.
 
+12. **2026-10-29 — PR #842.** On Android, Back that leaves the app
+   (NAV-009) sends the task behind, as Home does, instead of finishing the
+   activity. *Why*: `SystemNavigator.pop()` reaches Flutter's
+   `PlatformPlugin`, which finishes an activity that does not answer
+   `popSystemNavigator()`, and finishing destroys the engine the activity
+   owns and every site's webview with it, so each return from Back was a
+   cold start with no notification site loaded. Gate:
+   `test/js/back_keeps_app_running.test.js`. *Why partial*: it covers the
+   one exit the app makes itself; swiping WebSpace away from Recents, the
+   usual way to close an app, still ends the process (the first open gap
+   below).
+
+13. **2026-10-29 — this change.** A title read from a running page with no
+   count in it is a baseline of none, and the baselines are taken on every
+   step away from the foreground, not on `paused` alone. *Why*: reported on
+   0.4.0 for an ordinary site. A site shows no count while nothing is
+   unread, and `noteBaseline` read that as no baseline at all, which posts
+   nothing; so the first message after the user had read everything and
+   left never posted, and only a second one did, measured from the first.
+   Scenario P records `(1) Push` before leaving, so it never met a count of
+   none. And a swipe from Recents can end the process before `paused`,
+   where the baseline was taken. A wake's own read without a count now
+   leaves the baseline as it was rather than erasing it: a page the wake
+   just loaded may not show its count yet, and reading that as none would
+   post the same message again on the next wake. Engine tests in
+   `test/background_wake_engine_test.dart`, gate
+   `test/js/wake_baseline_lifecycle.test.js`. *Why partial*: not yet run on
+   a device, and no emulator scenario starts from none or swipes the task
+   away; a heavy page's count may still not be in its title 3 s after a
+   headless load stops (the last gap below).
+
 ## Known open gaps
+
+- Swiping WebSpace away from Recents ends its process at once (Android kills
+  a removed task's process unless it runs a foreground service, which
+  NOTIF-015 rules out), and a page's pending timer or open connection ends
+  with it. The next periodic wake checks the site headless, but a page that
+  posts only from a timer the user started, as a "Show in 5s" test page
+  does, has nothing to post on load. iOS does the same for an app swiped
+  away in the app switcher, and runs no refresh task for it until it is
+  opened again; leaving for the home screen, the grace period (NOTIF-005-I)
+  covers a five-second timer, as Home does on Android. Some Android builds
+  force-stop an app swiped from Recents, which also cancels its periodic
+  work until it is opened.
 
 - Whether iOS connects the scene, and so starts an engine, in a launch it
   makes for a refresh task has not been observed. If it does not, the task
@@ -184,5 +227,4 @@ what it finds.**
   site's title never carries one, the other's carried "(1)" live and none
   headless, 3 s after its load stopped. Whether the headless page was not
   signed in or had not set its title yet is not in the log, which keeps no
-  title. A title with no count also erases the site's baseline, so the next
-  real rise posts nothing.
+  title.

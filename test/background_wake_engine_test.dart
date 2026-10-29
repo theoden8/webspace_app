@@ -296,6 +296,47 @@ void main() {
       expect(host.posts, hasLength(1));
     });
 
+    test('none unread when the app was left: the first message posts',
+        () async {
+      // A site shows no count while nothing is unread, which read as no
+      // baseline at all, so the first message after the user had read
+      // everything never posted.
+      final engine = BackgroundWakeEngine<SiteId>()
+        ..noteBaseline(SiteId('a'), title: 'Chat');
+      expect(engine.baseline(SiteId('a')), 0);
+      final host = _Host({'a': _Page(titleBefore: 'Chat', titleAfter: '(1) Chat')},
+          live: {});
+      expect((await engine.wake(host)).posted, 1);
+      expect(host.posts, ['Site a: (1) Chat']);
+    });
+
+    test('a wake that reads no count keeps the baseline', () async {
+      // A page the wake just loaded may not have set its count yet; taking
+      // that for none would post the same message again on the next wake.
+      final engine = BackgroundWakeEngine<SiteId>()
+        ..noteBaseline(SiteId('a'), title: 'Chat');
+      Future<List<String>> wakeTo(String title) async {
+        final host = _Host({'a': _Page(titleBefore: null, titleAfter: title)},
+            live: {});
+        await engine.wake(host);
+        return host.posts;
+      }
+
+      expect(await wakeTo('(1) Chat'), ['Site a: (1) Chat']);
+      expect(await wakeTo('Chat'), isEmpty);
+      expect(engine.baseline(SiteId('a')), 1);
+      expect(await wakeTo('(1) Chat'), isEmpty,
+          reason: 'one message, one post');
+      expect(await wakeTo('(2) Chat'), ['Site a: (2) Chat']);
+    });
+
+    test('a title that could not be read is unknown', () {
+      final engine = BackgroundWakeEngine<SiteId>()
+        ..noteBaseline(SiteId('a'), title: '(3) Chat')
+        ..noteBaseline(SiteId('a'), title: null);
+      expect(engine.baseline(SiteId('a')), isNull);
+    });
+
     test('no baseline after a cold launch: records one, posts nothing',
         () async {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');

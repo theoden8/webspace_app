@@ -75,8 +75,12 @@ class AppLifecycleController {
     // sits inside the debounce window is what a restart loses. The write is
     // gated on a dirty flag, so a transient `inactive` — a native <select>,
     // a permission prompt — with nothing new recorded costs nothing.
+    // The notification sites' unread baselines go on the same steps
+    // (NOTIF-014): a swipe from Android's Recents can end the process before
+    // `paused`.
     if (state != AppLifecycleState.resumed) {
       unawaited(BlockStatsService.instance.flush());
+      background.noteBaselines();
     }
     // Only `paused` is a real backgrounding. `inactive` fires for any
     // transient focus loss (a native <select>, the app-switcher peek, a

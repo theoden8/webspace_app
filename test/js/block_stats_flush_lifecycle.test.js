@@ -17,7 +17,7 @@ const src = read(rel);
 test('the flush is gated on leaving the foreground, not on one state', () => {
   assert.match(
     src,
-    /if \(state != AppLifecycleState\.resumed\) \{\s*unawaited\(BlockStatsService\.instance\.flush\(\)\);\s*\}/,
+    /if \(state != AppLifecycleState\.resumed\) \{[^}]*\bunawaited\(BlockStatsService\.instance\.flush\(\)\);[^}]*\}/,
     `${rel} must flush block stats on every non-resumed lifecycle state`);
 });
 
