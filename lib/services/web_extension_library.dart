@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -20,6 +21,7 @@ import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_backup_engine.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
+import 'package:webspace/services/web_extension_search_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/demo_mode.dart';
@@ -35,6 +37,41 @@ bool get webExtensionsOffered =>
     hostRunsWebExtensions &&
     ExperimentalFeaturesService.instance.isEnabled(
       ExperimentalFeature.webExtensions,
+    );
+
+/// Whether this build carries the search of addons.mozilla.org at all
+/// (WEBEXT-019): only one made with
+/// `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`, which no App Store build
+/// is. Without it the compiler leaves the search bar, its screen and its
+/// queries out of the binary.
+const bool extensionSearchBuilt = bool.fromEnvironment(
+  'WEBSPACE_EXTENSION_SEARCH',
+);
+
+/// Test seam: a debug build that carries the search without the define.
+/// A release build never reads it, so it cannot keep the search in one.
+@visibleForTesting
+bool? debugExtensionSearchBuilt;
+
+bool get _searchBuilt =>
+    extensionSearchBuilt ||
+    (kDebugMode && (debugExtensionSearchBuilt ?? false));
+
+/// Whether the Experimental group offers the Extension search switch: in a
+/// build that carries the search, on a host that runs extensions, installed
+/// from outside the App Store.
+bool get extensionSearchSwitchOffered =>
+    _searchBuilt &&
+    hostRunsWebExtensions &&
+    hostDistribution == AppDistribution.direct;
+
+/// Whether the search of addons.mozilla.org is offered (WEBEXT-019): where
+/// its switch is offered and on, and extensions are.
+bool get extensionSearchOffered =>
+    extensionSearchSwitchOffered &&
+    webExtensionsOffered &&
+    ExperimentalFeaturesService.instance.isEnabled(
+      ExperimentalFeature.extensionSearch,
     );
 
 /// What reading from an extension's source brought back: [value], or why
@@ -435,11 +472,63 @@ class WebExtensionLibrary {
         continue;
       }
       await _replaceEntry(checked);
+      if (checked.latest != null && installsWithoutAsking) {
+        await _installQuietly(checked.id);
+      }
     }
     return (
       updates: _installed.value.where((e) => e.entry.latest != null).length,
       unreachable: unreachable,
     );
+  }
+
+  /// Whether an update that asks for nothing new installs as soon as a
+  /// check finds it: only outside the App Store, where the user switched it
+  /// on (WEBEXT-019).
+  bool get installsWithoutAsking =>
+      hostDistribution == AppDistribution.direct &&
+      AppPref.webExtensionsAutoUpdate.value;
+
+  Future<void> _installQuietly(WebExtensionId id) async {
+    switch (await prepareUpdate(id)) {
+      case UpdateReady(:final package, asks: AsksNothingNew()):
+        try {
+          await install(id, package: package);
+        } on IOException catch (e) {
+          LogTag.webExtension.info('$id stays at its version: $e');
+        }
+      case UpdateReady(asks: AsksMore()) ||
+          UpdateUnreachable() ||
+          UpdateNoRelease() ||
+          UpdateNotAPackage():
+        LogTag.webExtension.debug('$id waits for the user to update');
+    }
+  }
+
+  /// A page of addons.mozilla.org's search for [text] (WEBEXT-019).
+  Future<SourceFetch<SearchRead>> search(
+    String text, {
+    required bool recommendedOnly,
+    required int page,
+  }) async {
+    assert(extensionSearchOffered, 'search runs only where it is offered');
+    final query = amoSearchQuery(
+      text,
+      recommendedOnly: recommendedOnly,
+      page: page,
+    );
+    switch (await _fetch(query, maxBytes: _releaseBytes)) {
+      case FetchRefused(:final reason) || FetchFailed(:final reason):
+        return SourceFailed(reason);
+      case Fetched(:final response):
+        try {
+          return SourceGot(
+            readAmoSearch(jsonDecode(utf8.decode(response.bodyBytes))),
+          );
+        } on FormatException {
+          return SourceGot(readAmoSearch(null));
+        }
+    }
   }
 
   /// [id]'s update downloaded and read, with what it asks for beyond the

@@ -55,6 +55,8 @@ Future<List<String>> hostListFilesUnder(String path) async => const [];
 
 Future<void> hostRenameDirectory(String path, {required String to}) async {}
 
+bool hostHasAppStoreReceipt() => false;
+
 /// No zlib on web. These exist so compression call sites compile; using one
 /// throws rather than silently returning the input, which would hand a caller
 /// compressed bytes labelled as plain.

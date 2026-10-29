@@ -24,6 +24,10 @@ enum ExperimentalFeature {
   /// off by default.
   webExtensions(AppPref.experimentalWebExtensions),
 
+  /// A search of addons.mozilla.org on the Extensions screen, in a build
+  /// from outside the App Store (WEBEXT-019). New, so off by default.
+  extensionSearch(AppPref.experimentalExtensionSearch),
+
   /// The menu bar icon on macOS while a close only hides the window
   /// (NOTIF-019); Linux's tray graduated. New, so off by default.
   desktopTray(AppPref.experimentalDesktopTray);

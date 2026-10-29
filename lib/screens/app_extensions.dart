@@ -4,8 +4,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/app_extension_entry.dart';
+import 'package:webspace/screens/extension_search.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -16,8 +18,10 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/byte_size.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_source.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/extension_link_dialog.dart';
+import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
 
@@ -52,9 +56,16 @@ class AppExtensionsScreen extends StatefulWidget {
 
 class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
   final _guard = ReentryGuard();
+  final _searchText = TextEditingController();
   bool _reading = false;
 
   WebExtensionLibrary get _library => WebExtensionLibrary.instance;
+
+  @override
+  void dispose() {
+    _searchText.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -94,6 +105,22 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
       final source = await showDialog<ExtensionSource>(
         context: context,
         builder: (_) => const ExtensionLinkDialog(),
+      );
+      if (source == null || !mounted) return;
+      await _addFrom(source);
+    });
+  }
+
+  /// Adds an extension the user picks in a search of addons.mozilla.org
+  /// for [query], as from its link (WEBEXT-019).
+  Future<void> _addFromSearch({required String query}) async {
+    if (query.trim().isEmpty) return;
+    await _guard.run(() async {
+      final source = await Navigator.push<ExtensionSource>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ExtensionSearchScreen(query: query.trim()),
+        ),
       );
       if (source == null || !mounted) return;
       await _addFrom(source);
@@ -256,6 +283,26 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
         listenable: Listenable.merge([_library.installed, _library.reports]),
         builder: (context, _) => ListView(
           children: [
+            if (extensionSearchOffered)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.lg,
+                  vertical: Spacing.sm,
+                ),
+                child: SearchBar(
+                  controller: _searchText,
+                  hintText: loc.extensionsSearch,
+                  leading: const Icon(Icons.search),
+                  trailing: [
+                    HintButton(
+                      title: loc.extensionsSearch,
+                      description: loc.extensionsSearchHint,
+                    ),
+                  ],
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (text) => unawaited(_addFromSearch(query: text)),
+                ),
+              ),
             SettingTile(
               leading: const Icon(Icons.file_open_outlined),
               title: loc.extensionsImport,
@@ -282,6 +329,13 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
               hint: loc.extensionsCheckDailyHint,
               control: const PrefToggle(AppPref.webExtensionsCheckUpdates),
             ),
+            if (hostDistribution == AppDistribution.direct)
+              SettingTile(
+                leading: const Icon(Icons.system_update_alt),
+                title: loc.extensionsAutoUpdate,
+                hint: loc.extensionsAutoUpdateHint,
+                control: const PrefToggle(AppPref.webExtensionsAutoUpdate),
+              ),
             if (_reading)
               Semantics(
                 label: loc.extensionsReading,

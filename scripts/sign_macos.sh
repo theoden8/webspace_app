@@ -57,6 +57,18 @@ esac
   exit 2
 }
 
+# The search of addons.mozilla.org is compiled in only on request
+# (WEBEXT-019), and App Review rejects it: a store build must not carry it.
+SNAPSHOT="$APP/Contents/Frameworks/App.framework/App"
+case "$MODE" in
+  mas) "$REPO_ROOT/scripts/check_extension_search.sh" absent "$SNAPSHOT" ;;
+  devid)
+    "$REPO_ROOT/scripts/check_extension_search.sh" present "$SNAPSHOT" ||
+      echo "Note: this Developer ID build has no extension search." >&2
+    ;;
+  adhoc) ;;
+esac
+
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
