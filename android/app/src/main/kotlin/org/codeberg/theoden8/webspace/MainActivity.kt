@@ -55,6 +55,17 @@ class MainActivity: FlutterActivity() {
         WorkerFlutterEngine.forThisDevice(FlutterShellArgs.fromIntent(intent))
 
     /**
+     * Back leaves the app by sending its task behind, as Android 12 does for
+     * a task's root on Back (NAV-009). The embedding's default finishes the
+     * activity, and the engine it owns goes with it: every loaded site, the
+     * notification sites the next wake would reload, and the page in
+     * progress, so the next open is a cold start. An instance that is not
+     * its task's root (one a share started in the sharing app's task) keeps
+     * the default and returns there.
+     */
+    override fun popSystemNavigator(): Boolean = moveTaskToBack(false)
+
+    /**
      * An engine the notification worker started holds the app's Dart state
      * too, and two of them in one process would each write the site list and
      * drive the one proxy override. It is stopped before this activity builds
