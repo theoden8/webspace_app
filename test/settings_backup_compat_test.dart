@@ -1018,7 +1018,8 @@ void main() {
       expect(hostile.proxySettings.type, ProxyType.DEFAULT);
       expect(hostile.captures.camera.source, isNull);
       expect(hostile.toJson()['screenShareMode'], isNull,
-          reason: 'there is no real screen-share mode to restore');
+          reason: 'a real screen share is consent given on the exporting '
+              'device, so an import asks again');
     });
   });
 

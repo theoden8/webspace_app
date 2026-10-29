@@ -8,6 +8,10 @@
          only runs while such a site is actively playing. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- SHARE-018: Android runs a screen share only inside a foreground
+         service of type mediaProjection. It runs from the user's yes to
+         Android's own capture prompt until the share ends. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- Optional, requested at runtime only when the user taps "Use current location"
          in the per-site location picker. Not used for any background/tracking. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -19,6 +23,11 @@
          media collection. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- MIC-015: Chromium opens a page's microphone as a communication
+         stream, which it refuses without this normal, install-time
+         permission; the page then sees NotReadableError, which call apps
+         report as the microphone being used by another app. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- passkey-support: lets the app tell Credential Manager which web origin
          a passkey request is for, as a browser does. Normal protection level,
          granted at install; each credential provider still decides whether to
@@ -82,6 +91,12 @@
             android:name=".MediaPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <!-- SHARE-018: holds a screen share a site on screen asked for. Not
+             exported; started only after Android's capture prompt. -->
+        <service
+            android:name=".ScreenShareService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -54,6 +54,7 @@ enum LogTag {
   proxyPwdStore('ProxyPwdStore'),
   proxyRelay('ProxyRelay'),
   resumeReload('ResumeReload'),
+  screenShare('ScreenShare'),
   searchList('SearchList'),
   settingsBackup('SettingsBackup'),
   shortcut('Shortcut'),

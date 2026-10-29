@@ -4,8 +4,10 @@
 // not stay resident. A `specialUse` keep-alive service was built for WebSpace
 // once and withdrawn, and the next one would look just as reasonable in a
 // diff, so these assertions make adding it a deliberate edit to this file.
-// The only foreground service allowed is background audio's media playback
-// (BGAUDIO-006).
+// The foreground services allowed are background audio's media playback
+// (BGAUDIO-006) and the screen share's media projection (SHARE-018), which
+// Android requires for a projection and which runs only while a share the
+// user started through Android's own prompt does.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,33 +21,57 @@ test('the manifests are found', () => {
   assert.ok(kotlin.length > 0);
 });
 
-test('no foreground-service permission but media playback', () => {
+const ALLOWED_TYPES = {
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK': 'BGAUDIO-006',
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION': 'SHARE-018',
+};
+
+test('no foreground-service permission but media playback and projection', () => {
   for (const m of manifests) {
     const perms = read(m).match(/android\.permission\.FOREGROUND_SERVICE_[A-Z_]+/g) ?? [];
     for (const p of perms) {
-      assert.equal(p, 'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+      assert.ok(p in ALLOWED_TYPES,
         `${m} declares ${p}; a foreground service may not keep notification sites running (NOTIF-015)`);
     }
   }
 });
 
-test('the only foreground service is media playback', () => {
+test('the foreground services are media playback and the screen share', () => {
   const services = manifests.flatMap((m) =>
     (read(m).match(/<service\b[\s\S]*?(?:\/>|<\/service>)/g) ?? [])
       .filter((s) => /foregroundServiceType=/.test(s))
       .map((s) => ({ m, s })));
-  assert.equal(services.length, 1,
-    `expected one foreground service, found: ${services.map((x) => x.m).join(', ')}`);
-  assert.match(services[0].s, /android:name="\.MediaPlaybackService"/);
-  assert.match(services[0].s, /foregroundServiceType="mediaPlayback"/);
+  const named = services.map(({ s }) => [
+    s.match(/android:name="([^"]+)"/)?.[1],
+    s.match(/foregroundServiceType="([^"]+)"/)?.[1],
+  ]).sort();
+  assert.deepEqual(named, [
+    ['.MediaPlaybackService', 'mediaPlayback'],
+    ['.ScreenShareService', 'mediaProjection'],
+  ]);
 });
 
-test('only MediaPlaybackService enters the foreground', () => {
+test('only the two services enter the foreground', () => {
   const callers = kotlin
     .filter((p) => /\bstartForeground(Service)?\(/.test(read(p)));
-  assert.deepEqual(callers,
-    ['android/app/src/main/kotlin/org/codeberg/theoden8/webspace/MediaPlaybackService.kt'],
-    'startForeground outside MediaPlaybackService would keep the process out of the freezer (NOTIF-015)');
+  const root = 'android/app/src/main/kotlin/org/codeberg/theoden8/webspace';
+  assert.deepEqual(callers, [
+    `${root}/MediaPlaybackService.kt`,
+    `${root}/ScreenSharePlugin.kt`,
+    `${root}/ScreenShareService.kt`,
+  ], 'startForeground elsewhere would keep the process out of the freezer (NOTIF-015)');
+});
+
+test('the screen share service starts only from Android\'s capture prompt', () => {
+  // ScreenSharePlugin starts it from onActivityResult alone, after the user's
+  // yes: a share is never a way to keep a page resident.
+  const src = read('android/app/src/main/kotlin/org/codeberg/theoden8/webspace/ScreenSharePlugin.kt');
+  const starts = [...src.matchAll(/startForegroundService\(/g)];
+  assert.equal(starts.length, 1);
+  const enclosing = [...src.slice(0, starts[0].index).matchAll(/\bfun (\w+)\(/g)].pop();
+  assert.equal(enclosing?.[1], 'onActivityResult',
+    'startForegroundService must be called from onActivityResult');
+  assert.match(src, /resultCode != Activity\.RESULT_OK \|\| data == null/);
 });
 
 test('iOS holds no background mode that would keep a page alive', () => {

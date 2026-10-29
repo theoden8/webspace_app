@@ -13,11 +13,16 @@ enum AppleOsFloor {
   lockdownMode(ios: (major: 16, minor: 0), macOS: (major: 13, minor: 0)),
 
   /// `WKWebExtension` and its controller (WEBEXT-001).
-  webExtensions(ios: (major: 18, minor: 4), macOS: (major: 15, minor: 4));
+  webExtensions(ios: (major: 18, minor: 4), macOS: (major: 15, minor: 4)),
+
+  /// `SCContentSharingPicker`, the system picker a real screen share starts
+  /// from (SHARE-018). macOS only.
+  screenSharePicker(ios: null, macOS: (major: 14, minor: 0));
 
   const AppleOsFloor({required this.ios, required this.macOS});
 
-  final AppleOsVersion ios;
+  /// Null for a feature with no iOS form at all.
+  final AppleOsVersion? ios;
   final AppleOsVersion macOS;
 }
 
@@ -37,6 +42,7 @@ bool appleOsMeetsFloor(
   final major = int.tryParse(match.group(1)!) ?? 0;
   final minor = int.tryParse(match.group(2) ?? '0') ?? 0;
   final need = isIOS ? floor.ios : floor.macOS;
+  if (need == null) return false;
   return major > need.major || (major == need.major && minor >= need.minor);
 }
 
@@ -62,3 +68,18 @@ bool get hostRunsWebExtensions =>
 
 @visibleForTesting
 bool? debugHostRunsWebExtensions;
+
+/// Whether this host can share its real screen with a page (SHARE-018):
+/// Android through `MediaProjection`, Linux through the desktop portal's
+/// ScreenCast, macOS 14 and later through the system's content picker. Not
+/// iOS, where sharing more than the app itself takes a broadcast extension.
+bool get hostSharesScreen =>
+    debugHostSharesScreen ??
+    (hostIsAndroid ||
+        hostIsLinux ||
+        (hostIsMacOS &&
+            appleOsMeetsFloor(hostOperatingSystemVersion,
+                isIOS: false, floor: AppleOsFloor.screenSharePicker)));
+
+@visibleForTesting
+bool? debugHostSharesScreen;

@@ -35,6 +35,14 @@ public class FlutterMethodChannel: NSObject {
   public func setMethodCallHandler(
     _ handler: ((FlutterMethodCall, @escaping FlutterResult) -> Void)?
   ) {}
+  // - (void)invokeMethod:(NSString*)method arguments:(id _Nullable)arguments;
+  public func invokeMethod(_ method: String, arguments: Any?) {}
+}
+
+// FlutterCodecs.h:
+// + (instancetype)typedDataWithBytes:(NSData*)data;
+public class FlutterStandardTypedData: NSObject {
+  public init(bytes data: Data) {}
 }
 
 public protocol FlutterStreamHandler: AnyObject {

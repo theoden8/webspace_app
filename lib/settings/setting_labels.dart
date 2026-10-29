@@ -52,6 +52,7 @@ extension CaptureModeLabel on CaptureMode {
     MicrophoneAccessMode.virtual => loc.siteSettingsMicrophoneAccessVirtual,
     MicrophoneAccessMode.block => loc.siteSettingsMicrophoneAccessBlock,
     ScreenShareMode.ask => loc.siteSettingsScreenShareAsk,
+    ScreenShareMode.real => loc.siteSettingsScreenShareAllow,
     ScreenShareMode.virtual => loc.siteSettingsScreenShareVirtual,
     ScreenShareMode.block => loc.siteSettingsScreenShareBlock,
   };
@@ -69,8 +70,11 @@ typedef CaptureText = ({
   String useFile,
   String tooLarge,
   String unreadable,
-  // Why the Allowed row is greyed, for a kind with no real mode.
-  String? neverReal,
+  // Why the Allowed row is greyed where the real mode is not offered.
+  String? realUnavailable,
+  // What the user is told before setting the real mode from settings, for a
+  // kind whose real grant shows more than the site itself.
+  String? allowWarning,
 });
 
 extension CaptureKindText on CaptureKind {
@@ -85,7 +89,8 @@ extension CaptureKindText on CaptureKind {
       useFile: loc.homeCameraUseFileAction,
       tooLarge: loc.homeCameraSourceTooLarge,
       unreadable: loc.homeCameraSourceError,
-      neverReal: null,
+      realUnavailable: null,
+      allowWarning: null,
     ),
     CaptureKind.microphone => (
       title: loc.siteSettingsMicrophoneAccess,
@@ -97,19 +102,23 @@ extension CaptureKindText on CaptureKind {
       useFile: loc.homeMicrophoneUseFileAction,
       tooLarge: loc.homeMicrophoneSourceTooLarge,
       unreadable: loc.homeMicrophoneSourceError,
-      neverReal: null,
+      realUnavailable: null,
+      allowWarning: null,
     ),
     CaptureKind.screenShare => (
       title: loc.siteSettingsScreenShare,
-      hint: loc.siteSettingsScreenShareHint,
+      hint: loc.siteSettingsScreenShareRealHint,
       noSource: loc.siteSettingsScreenShareNoSource,
       chooseSource: loc.siteSettingsScreenShareChooseSource,
       promptTitle: loc.homeScreenShareTitle,
-      promptBody: loc.homeScreenShareBody,
+      promptBody: realOffered
+          ? loc.homeScreenShareAllowBody
+          : loc.homeScreenShareFileOnlyBody,
       useFile: loc.homeScreenShareUseFileAction,
       tooLarge: loc.homeScreenShareSourceTooLarge,
       unreadable: loc.homeScreenShareSourceError,
-      neverReal: loc.permissionScreenShareNeverReal,
+      realUnavailable: loc.permissionScreenShareUnavailable,
+      allowWarning: loc.siteSettingsScreenShareAllowWarning,
     ),
   };
 }

@@ -10,6 +10,7 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_permission_state.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
@@ -167,9 +168,10 @@ class _Option {
   final String label;
   final VoidCallback onSelect;
 
-  /// A state this capability structurally cannot reach. Shown greyed rather
-  /// than omitted: for screen sharing, the absent "Allowed" row *is* the
-  /// guarantee, and hiding it would hide the reassurance.
+  /// A state this capability cannot reach on this device. Shown greyed rather
+  /// than omitted, with why: screen sharing's Always allow exists only where
+  /// the host can share the screen, and a row that vanished elsewhere would
+  /// read as a bug.
   final bool enabled;
   final String? unavailableReason;
 }
@@ -282,6 +284,19 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
 
   Future<void> _selectCapture(CaptureKind kind,
       {required CaptureMode mode}) async {
+    final loc = AppLocalizations.of(context);
+    final text = kind.text(loc);
+    final warning = text.allowWarning;
+    if (mode == kind.real && warning != null) {
+      final allowed = await confirm(
+        context,
+        title: text.promptTitle,
+        body: warning,
+        confirmLabel: loc.homeAllowAction,
+        destructive: true,
+      );
+      if (!allowed || !mounted) return;
+    }
     final source = kind.grantOf(_values.captures).source;
     _setGrant(kind, grant: (mode: mode, source: source));
     if (mode == kind.virtual && source == null) await _pickSource(kind);
@@ -315,18 +330,21 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           ? (stored.source?.fileName ?? text.noSource)
           : null,
       options: _optionsOf(
-        kind.modes,
+        [
+          for (final mode in kind.modes)
+            if (mode != kind.real || kind.realOffered) mode,
+        ],
         state: (mode) => mode.state,
         label: (mode) => mode.label(loc),
         select: (mode) => _selectCapture(kind, mode: mode),
         unavailable: [
-          if (kind.real == null)
+          if (!kind.realOffered)
             _Option(
               state: SitePermissionState.allowed,
-              label: loc.permissionStateAllowed,
+              label: kind.real.label(loc),
               onSelect: () {},
               enabled: false,
-              unavailableReason: text.neverReal,
+              unavailableReason: text.realUnavailable,
             ),
         ],
       ),

@@ -80,6 +80,7 @@ abstract final class HeadlessSiteChecks {
         PageHandlers.registerPageHandlers(
           controller,
           config: config,
+          grants: null,
           userScriptService: page.userScriptService,
           page: (
             sourceUrl: () => loadStartUrl,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
@@ -71,6 +72,79 @@ void main() {
     expect(find.text('Simulated'), findsOneWidget);
     expect(find.text('Allowed'), findsWidgets);
     expect(find.text('Ask'), findsWidgets);
+  });
+
+  group('the screen sharing sheet (SHARE-002)', () {
+    tearDown(() => debugHostSharesScreen = null);
+
+    Future<void> openSheet(WidgetTester tester,
+        {ValueChanged<SitePermissionValues>? onChanged}) async {
+      await _pump(tester, values: _values(), onChanged: onChanged);
+      await tester.tap(find.text('Screen sharing'));
+      await tester.pumpAndSettle();
+    }
+
+    RadioListTile<SitePermissionState> tileOf(WidgetTester tester,
+            {required String label}) =>
+        tester.widget<RadioListTile<SitePermissionState>>(find.ancestor(
+          of: find.text(label).last,
+          matching: find.byType(RadioListTile<SitePermissionState>),
+        ));
+
+    testWidgets('where the real screen is not offered, Always allow is greyed '
+        'and says why', (tester) async {
+      debugHostSharesScreen = false;
+      await openSheet(tester);
+      expect(tileOf(tester, label: 'Always allow').onChanged, isNull,
+          reason: 'the greyed row names the mode it stands for');
+      expect(find.textContaining('on Android, on Linux and on macOS 14'),
+          findsOneWidget);
+    });
+
+    testWidgets('the hint names each option as the sheet labels it',
+        (tester) async {
+      debugHostSharesScreen = true;
+      await openSheet(tester);
+      final hint = find.textContaining('Controls whether this site may capture');
+      final text = tester.widget<Text>(hint).data!;
+      for (final label in [
+        'Ask',
+        'Always allow',
+        'Simulated screen',
+        'Always block',
+      ]) {
+        expect(tileOf(tester, label: label), isNotNull);
+        expect(text, contains('\n$label'), reason: 'the hint calls it $label');
+      }
+    });
+
+    testWidgets('on Android, Always allow warns what a share shows, and '
+        'Cancel keeps Ask (SHARE-019)',
+        (tester) async {
+      debugHostSharesScreen = true;
+      final changes = <SitePermissionValues>[];
+      await openSheet(tester, onChanged: changes.add);
+      expect(tileOf(tester, label: 'Always allow').onChanged, isNotNull);
+      await tester.tap(find.text('Always allow').last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('other apps and notifications'),
+          findsOneWidget, reason: 'the warning names what the site will see');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(changes, isEmpty);
+    });
+
+    testWidgets('on Android, confirming the warning stores the real grant',
+        (tester) async {
+      debugHostSharesScreen = true;
+      final changes = <SitePermissionValues>[];
+      await openSheet(tester, onChanged: changes.add);
+      await tester.tap(find.text('Always allow').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Allow').last);
+      await tester.pumpAndSettle();
+      expect(changes.last.captures.screenShare.mode, ScreenShareMode.real);
+    });
   });
 
   testWidgets('location off reads as Blocked, never as a pass-through',

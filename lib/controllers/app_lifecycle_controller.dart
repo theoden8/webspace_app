@@ -15,6 +15,7 @@ import 'package:webspace/diag_seed.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
+import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -103,6 +104,8 @@ class AppLifecycleController {
       notificationsEnabled: (i) => _sites.models[i].effectiveNotificationsEnabled,
       backgroundAudioEnabled: (i) =>
           _sites.models[i].effectiveBackgroundAudioEnabled,
+      sharingScreen: (i) =>
+          ScreenShare.instance.sharing(_sites.models[i].siteId),
       cookieFlushSupported: CookieManager.flushSupported,
     );
     // Non-sensitive decision line: whether the background froze JS or a
@@ -239,6 +242,8 @@ class AppLifecycleController {
       notificationsEnabled: (i) => _sites.models[i].effectiveNotificationsEnabled,
       backgroundAudioEnabled: (i) =>
           _sites.models[i].effectiveBackgroundAudioEnabled,
+      sharingScreen: (i) =>
+          ScreenShare.instance.sharing(_sites.models[i].siteId),
     );
     if (resumeIdx != null) {
       await _sites.models[resumeIdx].resumeFromAppLifecycle();

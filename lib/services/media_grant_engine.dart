@@ -26,7 +26,15 @@ abstract interface class MediaPrompter {
 
   /// The Allow/Block popup for Widevine/EME (`PROTECTED_MEDIA_ID`).
   Future<bool> protectedContent(String origin);
+
+  /// The words of the notification Android shows while [origin] shares the
+  /// screen.
+  ShareNotice shareNotice(String origin);
 }
+
+/// The notification a running screen share keeps up: its title, its text,
+/// and the label of its stop button.
+typedef ShareNotice = ({String title, String text, String stop});
 
 /// The model a [PersistedGrantStore] writes through to.
 abstract interface class MediaGrantRecord {

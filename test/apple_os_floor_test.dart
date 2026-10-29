@@ -55,4 +55,16 @@ void main() {
       expect(meets('Version 26.1 (Build 25B78)', isIOS: false), isTrue);
     });
   });
+
+  group('appleOsMeetsFloor for the screen share picker (SHARE-018)', () {
+    bool meets(String version, {required bool isIOS}) => appleOsMeetsFloor(
+        version, isIOS: isIOS, floor: AppleOsFloor.screenSharePicker);
+
+    test('macOS 14 is the floor, and no iOS version meets one', () {
+      expect(meets('Version 13.6.1 (Build 22G313)', isIOS: false), isFalse);
+      expect(meets('Version 14.0 (Build 23A344)', isIOS: false), isTrue);
+      expect(meets('Version 26.1 (Build 25B78)', isIOS: false), isTrue);
+      expect(meets('Version 26.0 (Build 23A340)', isIOS: true), isFalse);
+    });
+  });
 }

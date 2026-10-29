@@ -29,6 +29,9 @@ void main() {
       'shimGroup': 'screen_share',
       'deviceLabel': 'Screen',
       'requestHandler': 'webScreenShareRequest',
+      'startHandler': 'webScreenShareStart',
+      'frameHandler': 'webScreenShareFrame',
+      'stopHandler': 'webScreenShareStop',
     });
     expect(js, isNot(contains('// @include')));
     expect(js, contains('__wsStopRealCapture'));

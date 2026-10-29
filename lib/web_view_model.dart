@@ -15,6 +15,7 @@ import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
+import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
@@ -1248,8 +1249,14 @@ bool dispatch(NavigationDecision decision,
         isAndroid: hostIsAndroid,
         isFileImport: isFileImportUrl(currentUrl),
       );
-      final posture = id.sitePosture(
+      final identityPosture = id.sitePosture(
           globalUserScripts: globalUserScripts, isolation: hooks.host.isolation());
+      // LIR-034: a foreign tab loads another domain's pages as a nested
+      // screen of the opener's does, so a `real` grant the user gave the
+      // opener goes back to asking there, and an answer given there is not
+      // saved onto the opener (CAM-005, MIC-005, SHARE-014).
+      final posture =
+          runsForeignTab ? identityPosture.forNested() : identityPosture;
       final storeBinding = WebViewFactory.storeBinding(posture);
       // A first load the route refuses restores nothing either: the queued
       // back stack is still taken, and dropped, since replaying it would
@@ -1286,12 +1293,18 @@ bool dispatch(NavigationDecision decision,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
           onLinkLongPress: (url) => unawaited(hooks.linkMenu(this, url: url)),
-          grants: PersistedGrantStore(
-            id,
-            prompter: hooks.host.media,
-            isSiteActive: isActive,
-            save: hooks.host.save,
-          ),
+          grants: runsForeignTab
+              ? InMemoryGrantStore(
+                  posture.media,
+                  prompter: hooks.host.media,
+                  isSiteActive: isActive,
+                )
+              : PersistedGrantStore(
+                  id,
+                  prompter: hooks.host.media,
+                  isSiteActive: isActive,
+                  save: hooks.host.save,
+                ),
           pullToRefreshGate: pullToRefreshGate,
           onUnproxiedNavigationBlocked: (blocked) {
             blockedNavigation = blocked;
@@ -1629,7 +1642,9 @@ bool dispatch(NavigationDecision decision,
   }
 
   /// End any device capture this site is running: camera (CAM-012) and
-  /// microphone (MIC-012), through one hook over the shims' shared registry.
+  /// microphone (MIC-012), through one hook over the shims' shared registry,
+  /// and a share of the screen (SHARE-017), which Android runs for the app
+  /// rather than the page, so it ends here whatever the page does.
   ///
   /// Called when the site stops being the one on screen. The simulated camera
   /// and microphone keep streaming: they are local files the user picked, so
@@ -1644,6 +1659,7 @@ bool dispatch(NavigationDecision decision,
   ///     notification and background-audio sites. Those sites may keep running
   ///     JS and audio in the background. The camera is not covered by either.
   Future<void> stopRealCapture() async {
+    await ScreenShare.instance.endSite(siteId);
     await controller?.evaluateJavascript(
       "if (typeof globalThis.__wsStopRealCapture === 'function') "
       'globalThis.__wsStopRealCapture();',
@@ -1737,7 +1753,7 @@ bool dispatch(NavigationDecision decision,
   /// The webview and its controller go, and with them what they held: the
   /// route, once [quiet] has stopped what the page loads (at once with
   /// nothing to stop), the tab the webview was built for, the resume
-  /// reload, and the site's media session.
+  /// reload, the site's media session and its screen share.
   void _letGoOfWebView({
     required Future<void> Function()? quiet,
     required Commit commit,
@@ -1751,6 +1767,7 @@ bool dispatch(NavigationDecision decision,
     // webview. Without this the OS transport controls outlive it and their
     // buttons reach nothing — a no-op unless this site owns them.
     unawaited(MediaSessionService.instance.stopForSite(siteId));
+    unawaited(ScreenShare.instance.endSite(siteId));
   }
 
   /// Drop the in-memory cache (decoded image cache + HTTP response cache)

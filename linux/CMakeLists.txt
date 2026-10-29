@@ -61,6 +61,10 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # System-level dependencies.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
+# Screen sharing (SHARE-018): the desktop portal's ScreenCast over GDBus, and
+# the PipeWire stream it hands over.
+pkg_check_modules(SCREEN_SHARE REQUIRED IMPORTED_TARGET
+  libpipewire-0.3 gio-unix-2.0)
 
 add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
@@ -71,6 +75,7 @@ add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 add_executable(${BINARY_NAME}
   "main.cc"
   "my_application.cc"
+  "screen_share.cc"
   "window_capture.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
@@ -82,6 +87,7 @@ apply_standard_settings(${BINARY_NAME})
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
+target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::SCREEN_SHARE)
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

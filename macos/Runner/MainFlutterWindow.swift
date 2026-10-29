@@ -39,6 +39,7 @@ class MainFlutterWindow: NSWindow {
     contentRuleListPlugin = ContentRuleListPlugin(
       messenger: flutterViewController.engine.binaryMessenger)
     HostBrowserPlugin.attach(to: flutterViewController.engine.binaryMessenger)
+    ScreenSharePlugin.attach(to: flutterViewController.engine.binaryMessenger)
     attachDesktopWindowChannel(to: flutterViewController.engine.binaryMessenger)
     attachTrayChannel(to: flutterViewController.engine.binaryMessenger)
     #if DEBUG

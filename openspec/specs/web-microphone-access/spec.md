@@ -659,7 +659,12 @@ rather than configuration:
   request code) with a factory per capability, and one
   `CapturePermissionService` behind the two named entry points. Each capability
   SHALL keep its own request code, so a prompt for one never resolves the
-  waiters queued on the other.
+  waiters queued on the other. Beside it, `MODIFY_AUDIO_SETTINGS`, a normal
+  install-time permission with no prompt: Chromium opens a page's microphone
+  as a communication stream, and on a phone `AudioManagerAndroid` refuses to
+  select the communication device without it, so the grant succeeds and the
+  page's `getUserMedia` still rejects with `NotReadableError`, which call apps
+  word as the microphone being used by another app.
 - iOS: `NSMicrophoneUsageDescription`. Responding GRANT suppresses only
   WebKit's per-site prompt; WebKit itself triggers the app-level TCC prompt
   when capture starts.
@@ -713,8 +718,8 @@ alone by this change.
 
 **Given** the OS capability declaration test
 **When** it runs against the manifests
-**Then** `RECORD_AUDIO`, `NSMicrophoneUsageDescription` and
-`com.apple.security.device.audio-input` are asserted present
+**Then** `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `NSMicrophoneUsageDescription`
+and `com.apple.security.device.audio-input` are asserted present
 **And** the location absences are asserted exactly as before
 
 ### Requirement: MIC-016 — A device grant does not travel to a subframe

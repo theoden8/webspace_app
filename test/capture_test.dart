@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
+import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/shim_frames.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -41,12 +42,15 @@ void main() {
       }
     });
 
-    test('screen sharing has no real mode and reaches the top frame only '
-        '(SHARE-001 / SHARE-005)', () {
-      expect(CaptureKind.screenShare.real, isNull);
-      expect(CaptureKind.screenShare.modes.map((m) => m.state),
-          isNot(contains(SitePermissionState.allowed)));
+    test('screen sharing reaches the top frame only (SHARE-005)', () {
       expect(CaptureKind.screenShare.frames, ShimFrames.top);
+    });
+
+    test('the real screen is offered where the host shares one, the devices '
+        'everywhere (SHARE-001)', () {
+      expect(CaptureKind.camera.realOffered, isTrue);
+      expect(CaptureKind.microphone.realOffered, isTrue);
+      expect(CaptureKind.screenShare.realOffered, hostSharesScreen);
     });
 
     test('the camera and microphone keep reaching cross-origin frames', () {
@@ -61,7 +65,7 @@ void main() {
         expect(kind.ask.state, SitePermissionState.ask);
         expect(kind.virtual.state, SitePermissionState.simulated);
         expect(kind.block.state, SitePermissionState.blocked);
-        expect(kind.real?.state, kind.real == null ? null : SitePermissionState.allowed);
+        expect(kind.real.state, SitePermissionState.allowed);
       }
     });
   });
@@ -84,7 +88,7 @@ void main() {
 
     test('a name the build does not know reads as ask, never as a grant', () {
       // A crafted backup, or a downgrade from a build with more modes.
-      for (final smuggled in ['real', 'allow', 'monitor', 'screen']) {
+      for (final smuggled in ['allow', 'allowed', 'monitor', 'screen']) {
         expect(_modeFrom(CaptureKind.screenShare,
             json: _json(CaptureKind.screenShare, mode: smuggled)),
             ScreenShareMode.ask, reason: smuggled);
