@@ -191,6 +191,11 @@ moves it) and in CI between runs, so a run proves only what no earlier run prove
 remembered failure is replayed as a proof is, without a retry, so a module that fails is
 proved again ignoring the cache before it counts as failed.
 
+A fingerprint is looked up only once its obligation is prepared, which is most of a run, so
+a module whose inputs match a run that proved it is not handed to tlapm at all: its output
+is kept under `memo/` beside the fingerprints and read back, marked `(remembered)`
+(formal/README.md, "Remembered runs").
+
 The modules share nothing, and tlapm prepares each obligation on one thread, which is
 most of a run, so `TLAPM_JOBS` of them (default one a core) prove side by side,
 the printed tables' proofs first as the longest; the report keeps the list's order.
