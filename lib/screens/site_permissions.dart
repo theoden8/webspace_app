@@ -169,8 +169,9 @@ class _Option {
   final VoidCallback onSelect;
 
   /// A state this capability cannot reach on this device. Shown greyed rather
-  /// than omitted, with why: screen sharing's Allowed exists only on
-  /// Android, and a row that vanished elsewhere would read as a bug.
+  /// than omitted, with why: screen sharing's Always allow exists only where
+  /// the host can share the screen, and a row that vanished elsewhere would
+  /// read as a bug.
   final bool enabled;
   final String? unavailableReason;
 }
@@ -340,7 +341,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           if (!kind.realOffered)
             _Option(
               state: SitePermissionState.allowed,
-              label: loc.permissionStateAllowed,
+              label: kind.real.label(loc),
               onSelect: () {},
               enabled: false,
               unavailableReason: text.realUnavailable,

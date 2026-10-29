@@ -91,14 +91,31 @@ void main() {
           matching: find.byType(RadioListTile<SitePermissionState>),
         ));
 
-    testWidgets('where the real screen is not offered, Allowed is greyed and '
-        'says why', (tester) async {
+    testWidgets('where the real screen is not offered, Always allow is greyed '
+        'and says why', (tester) async {
       debugHostSharesScreen = false;
       await openSheet(tester);
-      expect(tileOf(tester, label: 'Allowed').onChanged, isNull);
+      expect(tileOf(tester, label: 'Always allow').onChanged, isNull,
+          reason: 'the greyed row names the mode it stands for');
       expect(find.textContaining('on Android, on Linux and on macOS 14'),
           findsOneWidget);
-      expect(find.text('Always allow'), findsNothing);
+    });
+
+    testWidgets('the hint names each option as the sheet labels it',
+        (tester) async {
+      debugHostSharesScreen = true;
+      await openSheet(tester);
+      final hint = find.textContaining('Controls whether this site may capture');
+      final text = tester.widget<Text>(hint).data!;
+      for (final label in [
+        'Ask',
+        'Always allow',
+        'Simulated screen',
+        'Always block',
+      ]) {
+        expect(tileOf(tester, label: label), isNotNull);
+        expect(text, contains('\n$label'), reason: 'the hint calls it $label');
+      }
     });
 
     testWidgets('on Android, Always allow warns what a share shows, and '
