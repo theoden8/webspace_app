@@ -630,25 +630,3 @@ test('DNS-018: the bloom consumer no longer seeds its cache from the response', 
   assert.ok(!WEBVIEW.includes('var persisted = map.cache;'),
     'the interceptor JS must not read a host list off getBlockBloom');
 });
-
-// --- outbound reach -------------------------------------------------------
-
-test('LEAK-002: the media-session artwork fetch goes through the outbound seam', () => {
-  const svc = read('lib/services/media_session_service.dart');
-  assert.ok(svc.includes('outboundHttp.clientFor(') && svc.includes('proxy.resolved'),
-    'the artwork URL is page-supplied, so its fetch must honor the site proxy');
-  assert.ok(svc.includes('OutboundClientBlocked'),
-    'a proxy that cannot be honored must drop the artwork, never fall back');
-
-  assert.ok(!read('lib/platform/host_platform_io.dart').includes('hostFetchBounded'),
-    'the native half of hostFetchBounded was an io.HttpClient with no proxy '
-    + 'at all; it must stay deleted');
-  // The web half survives as a stub that returns null without a request, so
-  // it is exempt as a definition — but nothing may call the name.
-  const callers = dartFiles('lib')
-    .filter((f) => !f.startsWith('lib/platform/host_platform_'))
-    .filter((f) => read(f).includes('hostFetchBounded('));
-  assert.deepEqual(callers, [],
-    'hostFetchBounded is a direct (unproxied) client; every Dart outbound '
-    + 'call goes through outboundHttp.clientFor');
-});

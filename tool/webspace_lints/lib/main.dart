@@ -4,6 +4,7 @@ import 'package:analysis_server_plugin/registry.dart';
 import 'src/catch_all.dart';
 import 'src/held_in_turn.dart';
 import 'src/positional_parameters.dart';
+import 'src/raw_http_client.dart';
 
 final plugin = WebspaceLints();
 
@@ -16,6 +17,7 @@ class WebspaceLints extends Plugin {
     registry
       ..registerWarningRule(CatchAll())
       ..registerWarningRule(PositionalParameters())
-      ..registerWarningRule(HeldInTurn());
+      ..registerWarningRule(HeldInTurn())
+      ..registerWarningRule(RawHttpClient());
   }
 }

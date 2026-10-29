@@ -115,6 +115,12 @@ The seam is testable: tests replace the global `outboundHttp` factory with
 a recording fake (see `test/outbound_http_test.dart` and
 `test/outbound_http_call_sites_test.dart`).
 
+The `raw_http_client` rule of `tool/webspace_lints` reports, as an analyzer
+error, a package:http or dart:io client made in `lib/` outside an
+`OutboundHttpFactory`, and package:http's one-shot calls there. A
+connection that goes direct on purpose carries an ignore listed with its
+reason in `test/js/lint_ignores.test.js`.
+
 #### Scenario: Per-site favicon fetch passes per-site proxy
 
 **Given** site "Acme" has proxy `HTTP 10.0.0.1:8080`

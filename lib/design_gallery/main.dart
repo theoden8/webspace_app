@@ -17,7 +17,7 @@ import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
+import 'package:webspace/design_gallery/roboto.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -148,28 +148,9 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'browser-chrome', label: 'Browser chrome', builder: (c) => const _BrowserChromeCard()),
 ];
 
-/// CanvasKit pulls Roboto from fonts.gstatic.com; where that is unreachable it
-/// draws no text at all. Serve it from web/fonts (see sync_fonts.js) instead.
-Future<void> _loadRoboto() async {
-  const faces = ['Roboto_400Regular', 'Roboto_500Medium', 'Roboto_700Bold'];
-  final loader = FontLoader('Roboto');
-  var loaded = 0;
-  for (final face in faces) {
-    try {
-      final res = await http.get(Uri.parse('fonts/$face.ttf'));
-      if (res.statusCode != 200) continue;
-      loader.addFont(Future.value(ByteData.sublistView(res.bodyBytes)));
-      loaded++;
-    } on http.ClientException {
-      // The face is missing from this build; the rest still load.
-    }
-  }
-  if (loaded > 0) await loader.load();
-}
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _loadRoboto();
+  await loadRoboto();
   _seedSavedProxies();
   GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
   _seedAppPrefs();

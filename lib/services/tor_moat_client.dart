@@ -117,7 +117,7 @@ class MoatClient {
     http.Client? client,
     this.baseUrl = kMoatBaseUrl,
     this.timeout = const Duration(seconds: 30),
-  }) : _client = client ?? http.Client();
+  }) : _client = client ?? http.Client(); // ignore: webspace_lints/raw_http_client
 
   final http.Client _client;
   final String baseUrl;

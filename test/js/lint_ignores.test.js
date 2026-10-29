@@ -47,6 +47,16 @@ const LEFT = {
       + 'this line is the only record a refresh failed. Lifted when each wake '
       + 'step owns its failures.',
   },
+  raw_http_client: {
+    'lib/design_gallery/roboto.dart':
+      'the design builds fetch their own bundled Roboto by a URL relative to '
+      + 'the page, which names no third party, and a web build has no proxy '
+      + 'to apply. Lifted when the faces load from the asset bundle.',
+    'lib/services/tor_moat_client.dart':
+      'moat asks for bridges because Tor is unreachable, so no circuit can '
+      + 'carry it; the file header says why it goes direct and what the UI '
+      + 'tells the user (TOR-016). Lifted by a domain-fronted transport.',
+  },
 };
 
 const IGNORE = /\/\/\s*(ignore|ignore_for_file):([^\n]*)/g;
