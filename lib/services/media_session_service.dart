@@ -176,7 +176,7 @@ class MediaSessionService {
     SiteId siteId, {
     required MediaSessionReport page,
     required Future<void> Function(String js) runJs,
-    required OutboundProxy? proxy,
+    required OutboundProxy proxy,
   }) async {
     if (!_enabled) return;
     final MediaSessionReport(
@@ -346,7 +346,7 @@ class MediaSessionService {
   /// re-check after it can be driven deterministically.
   @visibleForTesting
   static Future<Uint8List?> Function(String url,
-      {required OutboundProxy? proxy})? debugArtworkFetchOverride;
+      {required OutboundProxy proxy})? debugArtworkFetchOverride;
 
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and
   /// timed out. Decoding/scaling happens natively. Null on anything unexpected.
@@ -357,7 +357,7 @@ class MediaSessionService {
   /// refuses loopback / private / link-local literals so a page cannot use it
   /// to probe the LAN or cloud metadata.
   Future<Uint8List?> _fetchArtwork(String url,
-      {required OutboundProxy? proxy}) async {
+      {required OutboundProxy proxy}) async {
     final override = debugArtworkFetchOverride;
     if (override != null) return override(url, proxy: proxy);
     // dart:io refuses anything but http(s) with a host with an ArgumentError.
@@ -366,7 +366,7 @@ class MediaSessionService {
     final uri = Uri.parse(url);
     if (isPrivateOrLoopbackHost(host)) return null;
     final effective = resolveEffectiveProxy(
-      proxy?.settings ?? UserProxySettings(type: ProxyType.DEFAULT),
+      proxy.settings,
       siteId: null,
     );
     // The artwork URL comes from the page's own media-session metadata, so a

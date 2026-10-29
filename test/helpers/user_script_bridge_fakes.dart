@@ -8,6 +8,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/page_phase.dart';
@@ -93,7 +94,7 @@ class FakeUserScriptController extends Fake
 UserScriptService serviceWith(
   List<UserScriptConfig> scripts, {
   Future<bool> Function(String url)? confirm,
-}) => UserScriptService(scripts: scripts, onConfirmScriptFetch: confirm);
+}) => UserScriptService(scripts: scripts, onConfirmScriptFetch: confirm, proxy: OutboundProxy.app);
 
 /// A script that asked for the privileged bridge. The authorization probes
 /// are about what the bridge admits once a user has granted it; whether it is

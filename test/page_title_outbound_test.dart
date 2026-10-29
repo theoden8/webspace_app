@@ -49,7 +49,7 @@ void main() {
     final factory = _titleFactory();
     outboundHttp = factory;
 
-    await getPageTitle('https://default-proxy.example/a');
+    await getPageTitle('https://default-proxy.example/a', proxy: OutboundProxy.app);
 
     expect(factory.queries, hasLength(1));
     expect(factory.queries.single.type, equals(ProxyType.SOCKS5));
@@ -77,7 +77,7 @@ void main() {
       'https://',
       'example.com',
     ]) {
-      expect(await getPageTitle(url), isNull, reason: url);
+      expect(await getPageTitle(url, proxy: OutboundProxy.app), isNull, reason: url);
     }
     expect(factory.queries, isEmpty);
   });
@@ -86,7 +86,7 @@ void main() {
     final factory = _titleFactory(block: true);
     outboundHttp = factory;
 
-    final title = await getPageTitle('https://blocked.example/a');
+    final title = await getPageTitle('https://blocked.example/a', proxy: OutboundProxy.app);
 
     expect(title, isNull);
     expect(factory.requests, isEmpty);

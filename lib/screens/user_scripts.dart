@@ -75,7 +75,7 @@ class UserScriptsScreen extends StatefulWidget {
   /// Proxy of the site whose scripts are being edited, used when the editor
   /// downloads a script's URL source. Null (App Settings mode, or a caller
   /// with no site context) resolves to the app-global outbound proxy.
-  final OutboundProxy? proxy;
+  final OutboundProxy proxy;
 
   const UserScriptsScreen({
     super.key,
@@ -90,7 +90,7 @@ class UserScriptsScreen extends StatefulWidget {
     this.onEnabledGlobalScriptIdsChanged,
     this.isGlobalLibrary = false,
     this.onWebViewReset,
-    this.proxy,
+    required this.proxy,
   });
 
   @override
@@ -412,9 +412,14 @@ class UserScriptEditScreen extends StatefulWidget {
 
   /// Proxy the URL-source download goes through. Null resolves to the
   /// app-global outbound proxy.
-  final OutboundProxy? proxy;
+  final OutboundProxy proxy;
 
-  const UserScriptEditScreen({super.key, this.script, this.onRun, this.proxy});
+  const UserScriptEditScreen({
+    super.key,
+    this.script,
+    this.onRun,
+    required this.proxy,
+  });
 
   @override
   State<UserScriptEditScreen> createState() => _UserScriptEditScreenState();

@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -40,7 +41,7 @@ void main() {
     final script = UserScriptConfig(name: 'Dark', source: 'document.body;');
 
     testWidgets('back leaves an untouched editor at once', (tester) async {
-      await open(tester, editor: UserScriptEditScreen(script: script));
+      await open(tester, editor: UserScriptEditScreen(script: script, proxy: OutboundProxy.app));
       await back(tester);
 
       expect(find.text('Discard changes?'), findsNothing);
@@ -50,7 +51,7 @@ void main() {
     testWidgets('an unsaved edit asks first, and Keep editing keeps it', (
       tester,
     ) async {
-      await open(tester, editor: const UserScriptEditScreen());
+      await open(tester, editor: UserScriptEditScreen(proxy: OutboundProxy.app));
       await tester.enterText(find.byType(TextField).first, 'Half-written');
       await tester.pump();
 
@@ -71,7 +72,7 @@ void main() {
     testWidgets('an edit to the injection time alone is guarded', (
       tester,
     ) async {
-      await open(tester, editor: UserScriptEditScreen(script: script));
+      await open(tester, editor: UserScriptEditScreen(script: script, proxy: OutboundProxy.app));
       await tester.tap(
         find.byType(DropdownButtonFormField<UserScriptInjectionTime>),
       );

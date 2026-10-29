@@ -20,7 +20,7 @@ final Map<String, String?> _pageTitleCache = {};
 /// model yet and resolves through the global proxy. A blocked client aborts
 /// the fetch — a direct GET would hand the URL's host the device IP, and the
 /// URL can come straight from an attacker-authored share intent.
-Future<String?> getPageTitle(String url, {OutboundProxy? proxy}) async {
+Future<String?> getPageTitle(String url, {required OutboundProxy proxy}) async {
   if (_pageTitleCache.containsKey(url)) {
     return _pageTitleCache[url];
   }
@@ -30,7 +30,7 @@ Future<String?> getPageTitle(String url, {OutboundProxy? proxy}) async {
 
   final clientResult = outboundHttp.clientFor(
     resolveEffectiveProxy(
-      proxy?.settings ?? UserProxySettings(type: ProxyType.DEFAULT),
+      proxy.settings,
       siteId: null,
     ),
   );

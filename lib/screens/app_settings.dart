@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_appearance.dart';
@@ -353,6 +354,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               onSave: (scripts) =>
                   widget.onGlobalUserScriptsChanged?.call(scripts),
               isGlobalLibrary: true,
+              proxy: OutboundProxy.app,
             )),
           ),
           if (webExtensionsOffered)

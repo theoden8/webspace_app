@@ -15,15 +15,10 @@ import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
 
-/// Resolve the proxy a favicon fetch should use. When the caller passes
-/// nothing (e.g. unattributed search-suggestion thumbnails), the app-global
-/// outbound proxy applies. When the caller passes a per-site setting, it is
-/// resolved through [resolveEffectiveProxy] so DEFAULT falls through to
-/// the global proxy.
-UserProxySettings _resolve(OutboundProxy? perSite) {
-  if (perSite == null) return GlobalOutboundProxy.current;
-  return resolveEffectiveProxy(perSite.settings, siteId: null);
-}
+/// The proxy a favicon fetch uses: [outbound] resolved through
+/// [resolveEffectiveProxy], so DEFAULT falls through to the global proxy.
+UserProxySettings _resolve(OutboundProxy outbound) =>
+    resolveEffectiveProxy(outbound.settings, siteId: null);
 
 /// Acquire an HTTP client honoring [proxy], or null when the proxy cannot
 /// be honored (e.g. malformed address). Callers MUST treat null as "abort
@@ -71,7 +66,7 @@ Future<void> Function(String url, {required String content})?
 Future<String?> getSvgContent(
   String svgUrl, {
   String? persistedContent,
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
   bool persist = true,
 }) async {
   if (_svgContentCache.containsKey(svgUrl)) {
@@ -111,7 +106,7 @@ Future<String?> getSvgContent(
 /// as every other favicon fetch) or the request fails. [proxy] is the
 /// per-site proxy of the site the icon belongs to; null means the app-global
 /// outbound proxy applies.
-Future<Uint8List?> fetchIconBytes(String iconUrl, {OutboundProxy? proxy}) async {
+Future<Uint8List?> fetchIconBytes(String iconUrl, {required OutboundProxy proxy}) async {
   final client = _proxiedClient(_resolve(proxy));
   if (client == null) return null;
   try {
@@ -154,7 +149,7 @@ Future<Uint8List?> fetchPageIconBytes(
   String iconUrl, {
   required String documentHost,
   required bool Function(Uri target) allowed,
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
 }) =>
     fetchPageLinkedBytes(
       iconUrl,
@@ -178,7 +173,7 @@ Future<Uint8List?> fetchPageLinkedBytes(
   required String documentHost,
   required bool Function(Uri target) allowed,
   required int maxBytes,
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
 }) async {
   final effective = _resolve(proxy);
   Future<bool> permitted(Uri target) async {
@@ -258,7 +253,7 @@ Future<Uint8List?> _readPageLinked(
 /// `href` in its markup wins) and the winner is re-rendered on every launch,
 /// so the render path must not reach the network on its own: null means
 /// "render the fallback", never "retry unproxied".
-Future<Uint8List?> getIconBytes(String iconUrl, {OutboundProxy? proxy}) async {
+Future<Uint8List?> getIconBytes(String iconUrl, {required OutboundProxy proxy}) async {
   final cached = _iconBytesCache[iconUrl];
   if (cached != null) return cached;
   final bytes = await fetchIconBytes(iconUrl, proxy: proxy);
@@ -566,7 +561,7 @@ int _compareFavicons(Favicon a,
 /// [IconUpdate], or nothing when none is found. Every request goes to a host
 /// the page names, through [proxy]; no third-party icon service is asked
 /// (ICON-014).
-Stream<IconUpdate> getFaviconUrlStream(String url, {OutboundProxy? proxy}) async* {
+Stream<IconUpdate> getFaviconUrlStream(String url, {required OutboundProxy proxy}) async* {
   final uri = Uri.tryParse(url);
   if (uri == null || uri.host.isEmpty) {
     return;
@@ -595,7 +590,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {OutboundProxy? proxy}) async
 }
 
 Future<_IconCandidate?> _tryFaviconPackage(String url,
-    {required OutboundProxy? site}) async {
+    {required OutboundProxy site}) async {
   final proxy = _resolve(site);
   // Internal schemes (chrome://, about:, file:, data:, blob:) have no
   // favicon reachable over the network — sending them through any proxy

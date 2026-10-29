@@ -2,10 +2,10 @@
 
 Status: **open, narrowed.** `resolveEffectiveProxy` and
 `ProxyManager.setProxySettings` take a required `siteId`, so no call site can
-leave the tag out without saying so, and every API that opens a connection on
-a site's behalf takes an `OutboundProxy`, which only stamping the tag makes. A
-call that passes `siteId: null` with the site's stored settings still falls
-back to the app-global tag.
+leave the tag out without saying so, and every API that opens a connection
+takes an `OutboundProxy`, either a site's, which only stamping its tag makes,
+or `OutboundProxy.app`. A call that passes `siteId: null` with the site's
+stored settings still falls back to the app-global tag.
 
 **Spec:** [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md)
 TOR-003, TOR-025; [proxy](../../openspec/specs/proxy/spec.md) PROXY-011, PROXY-013
@@ -71,20 +71,18 @@ Every path that resolves a site's stored settings has to remember the id.
    `getSvgContent`, `fetchIconBytes`, `getIconBytes`, `FaviconFinder.getAll`,
    the icon widgets), titles, user scripts, downloads, media artwork, icon
    export, and the posture the webview is built from
-   (`SitePosture.container.proxy`). `outbound_proxy_tag.test.js` is deleted.
-   *Why:* attempt 3's gate matched one spelling; a stored setting held in a
-   local variable or passed through a conditional reached a fetch unseen.
-   Planted as `proxy: model.proxySettings` and through `final p =
-   model.proxySettings`, both are compile errors. *Why partial:* the APIs keep
-   their nullable parameter, whose null means the app's route, so a caller
-   that has a site at hand and passes nothing sends the site's request down
-   the app-global circuit; and `resolveEffectiveProxy(stored, siteId: null)`
-   still compiles.
+   (`SitePosture.container.proxy`). The parameter is required, and traffic
+   that belongs to no site says so with `OutboundProxy.app` (a preview before
+   a site exists, a suggestion's icon, the global scripts), so a caller with a
+   site at hand cannot pass nothing and land on the app's route.
+   `outbound_proxy_tag.test.js` is deleted. *Why:* attempt 3's gate matched
+   one spelling; a stored setting held in a local variable or passed through
+   a conditional reached a fetch unseen, and a fetch given no proxy at all
+   went on the app's route. Planted as `proxy: model.proxySettings` and
+   through `final p = model.proxySettings`, both are compile errors. *Why
+   partial:* `resolveEffectiveProxy(stored, siteId: null)` still compiles.
 
 ## Known open gaps
 
-- An outbound API's `proxy` is nullable, and null means the app's route. A
-  required parameter with an `OutboundProxy.app` for traffic that belongs to
-  no site would make each caller say which it is.
 - `resolveEffectiveProxy` and `setProxySettings` take stored settings and a
   nullable `siteId`; `siteId: null` with a site's stored settings compiles.

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'helpers/fake_webview_controller.dart';
@@ -106,7 +107,7 @@ void main() {
           artworkUrl: '',
         ),
         runJs: (_) async {},
-        proxy: null,
+        proxy: OutboundProxy.app,
       );
       expect(MediaSessionService.instance.isActive, isTrue);
 

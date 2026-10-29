@@ -21,7 +21,7 @@ Widget faviconNetworkImage({
   required double size,
   required WidgetBuilder placeholder,
   required WidgetBuilder error,
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
 }) =>
     _FaviconBytesImage(
       url: url,
@@ -44,7 +44,7 @@ class _FaviconBytesImage extends StatefulWidget {
   final double size;
   final WidgetBuilder placeholder;
   final WidgetBuilder error;
-  final OutboundProxy? proxy;
+  final OutboundProxy proxy;
 
   @override
   State<_FaviconBytesImage> createState() => _FaviconBytesImageState();

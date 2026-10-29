@@ -20,7 +20,7 @@ Widget faviconNetworkImage({
   required double size,
   required WidgetBuilder placeholder,
   required WidgetBuilder error,
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
 }) =>
     _ImgElementView(url: url, size: size);
 

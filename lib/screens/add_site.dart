@@ -129,7 +129,7 @@ class UnifiedFaviconImage extends StatefulWidget {
   /// search-suggestion thumbnails with no specific site context), the
   /// app-global outbound proxy applies. When set, [resolveEffectiveProxy]
   /// chooses per-site if explicit, or global if the per-site type is DEFAULT.
-  final OutboundProxy? proxy;
+  final OutboundProxy proxy;
   /// User-chosen icon bytes (`WebViewModel.customIconPng`). When set, they
   /// render directly and no favicon is fetched for this widget.
   final Uint8List? customIcon;
@@ -153,7 +153,7 @@ class UnifiedFaviconImage extends StatefulWidget {
     super.key,
     required this.url,
     required this.size,
-    this.proxy,
+    required this.proxy,
     this.customIcon,
     this.persist = true,
     this.frame,
@@ -799,6 +799,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                       child: UnifiedFaviconImage(
                                         url: _previewUrl!,
                                         size: 24,
+                                        proxy: OutboundProxy.app,
                                       ),
                                     ),
                                   )
@@ -909,6 +910,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                       child: UnifiedFaviconImage(
                                         url: 'https://${suggestion.domain}',
                                         size: iconSize,
+                                        proxy: OutboundProxy.app,
                                       ),
                                     ),
                                   ),

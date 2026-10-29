@@ -56,7 +56,7 @@ abstract class DevToolsHost {
   /// The user-chosen icon, which the drawer shows over any other.
   Uint8List? get customIcon;
   /// Per-site proxy the favicon must be fetched through, or null for global.
-  OutboundProxy? get proxy;
+  OutboundProxy get proxy;
   WebViewController? get controller;
   List<ConsoleLogEntry> get consoleLogs;
   set onConsoleLogChanged(VoidCallback? cb);
@@ -83,7 +83,7 @@ class WebViewModelDevToolsHost implements DevToolsHost {
   @override
   Uint8List? get customIcon => model.customIconPng;
   @override
-  OutboundProxy? get proxy => model.outboundProxy;
+  OutboundProxy get proxy => model.outboundProxy;
   @override
   WebViewController? get controller => model.controller;
   @override
@@ -135,7 +135,7 @@ class NestedDevToolsHost implements DevToolsHost {
   @override
   Uint8List? get customIcon => null;
   @override
-  OutboundProxy? get proxy => null;
+  OutboundProxy get proxy => OutboundProxy.app;
 
   static const _maxConsoleLogs = 500;
 

@@ -164,7 +164,7 @@ void main() {
 
     test('so is a redirect to one', () async {
       final server = await _redirectingTo('http://$_onion/file.zip');
-      final engine = DownloadEngine();
+      final engine = DownloadEngine(proxy: OutboundProxy.app);
       await expectLater(
         engine.fetch(url: 'http://127.0.0.1:${server.port}/start'),
         _downloadRefusedAsOnion,
@@ -173,7 +173,7 @@ void main() {
 
     test('a client the caller routes is the caller\'s to judge', () async {
       final engine = DownloadEngine(
-          client: MockClient((_) async => http.Response('bytes', 200)));
+          client: MockClient((_) async => http.Response('bytes', 200)), proxy: OutboundProxy.app);
       final result = await engine.fetch(url: 'http://$_onion/file.zip');
       expect(result.bytes, isNotEmpty);
     });

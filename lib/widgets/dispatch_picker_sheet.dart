@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/link_routing_service.dart';
@@ -191,6 +192,7 @@ class _DispatchPickerSheetState extends State<DispatchPickerSheet> {
             child: UnifiedFaviconImage(
               url: strippedHome ?? widget.url.toString(),
               size: 32,
+              proxy: OutboundProxy.app,
             ),
           ),
           title: Text(loc.homeDispatchCreateNewSite(widget.url.host)),

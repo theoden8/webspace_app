@@ -48,7 +48,7 @@ void main() {
   });
 
   test('ICON-014: every request goes to the site', () async {
-    final updates = await getFaviconUrlStream(_site).toList();
+    final updates = await getFaviconUrlStream(_site, proxy: OutboundProxy.app).toList();
     expect(hosts(), {'example.com'});
     final found = Uri.parse(updates.single.url);
     expect((found.host, found.path), ('example.com', '/icon.png'));
@@ -71,13 +71,13 @@ void main() {
       }
       return http.Response('<html><head>$page</head></html>', 200);
     });
-    final declared = await getFaviconUrlStream(_site).single;
+    final declared = await getFaviconUrlStream(_site, proxy: OutboundProxy.app).single;
     expect(Uri.parse(declared.url).path, '/large.png');
     expect(declared.quality, 96);
 
     page = '';
     clearFaviconCache();
-    final fallback = await getFaviconUrlStream(_site).single;
+    final fallback = await getFaviconUrlStream(_site, proxy: OutboundProxy.app).single;
     expect(Uri.parse(fallback.url).path, '/favicon.ico');
   });
 
@@ -85,7 +85,7 @@ void main() {
       () async {
     HostBrowser.defaultUserAgentForTest = _browser;
     addTearDown(() => HostBrowser.defaultUserAgentForTest = null);
-    await getFaviconUrlStream(_site).drain<void>();
+    await getFaviconUrlStream(_site, proxy: OutboundProxy.app).drain<void>();
     expect(factory.requests, isNotEmpty);
     expect({for (final r in factory.requests) r.headers['user-agent']},
         {_browser});
@@ -112,12 +112,12 @@ void main() {
         _ => http.Response('', 404),
       };
     });
-    final found = await getFaviconUrlStream('https://walled.test/').single;
+    final found = await getFaviconUrlStream('https://walled.test/', proxy: OutboundProxy.app).single;
     expect(Uri.parse(found.url).host, 'www.walled.test');
   });
 
   test('ICON-014: gmail.com is asked about only as itself', () async {
-    await getFaviconUrlStream('https://gmail.com/').drain<void>();
+    await getFaviconUrlStream('https://gmail.com/', proxy: OutboundProxy.app).drain<void>();
     expect(hosts(), {'gmail.com'});
   });
 
@@ -125,7 +125,7 @@ void main() {
       () async {
     const onion =
         'exampleabcdefghijklmnopqrstuvwxyz234567abcdefghijklmnop.onion';
-    await getFaviconUrlStream('https://$onion/').drain<void>();
+    await getFaviconUrlStream('https://$onion/', proxy: OutboundProxy.app).drain<void>();
     expect(hosts(), {onion},
         reason: 'any other host would learn which onion service is opened');
   });
@@ -151,15 +151,15 @@ void main() {
   });
 
   test('a repeat request is answered from the cache (ICON-008)', () async {
-    final first = await getFaviconUrlStream(_site).last;
+    final first = await getFaviconUrlStream(_site, proxy: OutboundProxy.app).last;
     factory.requests.clear();
-    final again = await getFaviconUrlStream(_site).toList();
+    final again = await getFaviconUrlStream(_site, proxy: OutboundProxy.app).toList();
     expect(again.single.url, first.url);
     expect(again.single.isFinal, isTrue);
     expect(factory.requested, isEmpty, reason: 'no request goes out');
 
     invalidateFaviconFor(_site);
-    await getFaviconUrlStream(_site).drain<void>();
+    await getFaviconUrlStream(_site, proxy: OutboundProxy.app).drain<void>();
     expect(factory.requested, isNotEmpty,
         reason: 'an invalidated entry is fetched again');
   });

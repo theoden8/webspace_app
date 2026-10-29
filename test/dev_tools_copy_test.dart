@@ -30,7 +30,7 @@ class _StubHost implements DevToolsHost {
   @override
   Uint8List? get customIcon => null;
   @override
-  OutboundProxy? get proxy => null;
+  OutboundProxy get proxy => OutboundProxy.app;
   @override
   WebViewController? get controller => null;
   @override

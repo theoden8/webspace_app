@@ -96,7 +96,7 @@ void main() {
       final fake = _socks5Blocked();
       outboundHttp = fake;
 
-      await getSvgContent('https://example.com/icon.svg');
+      await getSvgContent('https://example.com/icon.svg', proxy: OutboundProxy.app);
 
       expect(fake.lastQuery!.address, '127.0.0.1:9999');
     });
@@ -135,7 +135,7 @@ void main() {
 
       final schemes = ['chrome://flags', 'about:blank', 'file:///tmp/x.html'];
       for (final url in schemes) {
-        final updates = await getFaviconUrlStream(url).toList();
+        final updates = await getFaviconUrlStream(url, proxy: OutboundProxy.app).toList();
         expect(updates, isEmpty, reason: 'no IconUpdate for $url');
       }
       expect(fake.queries, isEmpty,

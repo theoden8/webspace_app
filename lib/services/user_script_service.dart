@@ -137,10 +137,10 @@ Future<bool> _resolvedTargetAllowed(
 /// localizes into its own failure message.
 Future<({String? source, String? error})> fetchUserScriptSource(
   String url, {
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
 }) async {
   final effective = resolveEffectiveProxy(
-    proxy?.settings ?? UserProxySettings(type: ProxyType.DEFAULT),
+    proxy.settings,
     siteId: null,
   );
   Future<bool> allowed(String candidate) async =>
@@ -225,7 +225,7 @@ class UserScriptService {
   factory UserScriptService({
     required List<UserScriptConfig> scripts,
     Future<bool> Function(String url)? onConfirmScriptFetch,
-    OutboundProxy? proxy,
+    required OutboundProxy proxy,
   }) {
     final hasScripts = scripts.any((s) => s.enabled && s.fullSource.isNotEmpty);
     final hasPrivilegedBridge = scripts.any(
@@ -255,7 +255,7 @@ class UserScriptService {
       hasPrivilegedBridge: hasPrivilegedBridge,
       scripts: scripts,
       onConfirmScriptFetch: onConfirmScriptFetch,
-      proxy: proxy?.settings ?? UserProxySettings(type: ProxyType.DEFAULT),
+      proxy: proxy.settings,
     );
   }
 

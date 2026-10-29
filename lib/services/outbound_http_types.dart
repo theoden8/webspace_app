@@ -40,6 +40,13 @@ extension type OutboundProxy._(UserProxySettings settings) {
           )
         : stored,
   );
+
+  /// Traffic that belongs to no site (a preview before a site exists, a
+  /// suggestion's icon, the global scripts): the app-wide outbound proxy,
+  /// resolved at the call, with a Tor proxy on the app-global tag
+  /// (PROXY-011).
+  static OutboundProxy get app =>
+      OutboundProxy._(UserProxySettings(type: ProxyType.DEFAULT));
 }
 
 /// Resolve the effective proxy for a per-site outbound call.

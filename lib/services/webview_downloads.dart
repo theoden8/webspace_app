@@ -20,7 +20,7 @@ abstract final class WebViewDownloads {
     inapp.InAppWebViewController controller, {
     required inapp.DownloadStartRequest req,
     String? referer,
-    OutboundProxy? proxy,
+    required OutboundProxy proxy,
   }) async {
     final urlStr = req.url.toString();
     final scheme = req.url.scheme.toLowerCase();
@@ -66,7 +66,7 @@ abstract final class WebViewDownloads {
     inapp.InAppWebViewController controller, {
     required inapp.DownloadStartRequest req,
     String? referer,
-    OutboundProxy? proxy,
+    required OutboundProxy proxy,
   }) async {
     final initialFilename = DownloadEngine.deriveFilename(
       suggested: req.suggestedFilename,

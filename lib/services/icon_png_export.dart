@@ -24,7 +24,7 @@ Future<Uint8List?> displayedSiteIconAsPng(
   String siteUrl, {
   Uint8List? customIcon,
   String? resolvedIconUrl,
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
   SiteIconStore? siteIcons,
 }) async =>
     knownSiteIcon(siteUrl, customIcon: customIcon, siteIcons: siteIcons) ??
@@ -53,7 +53,7 @@ Uint8List? knownSiteIcon(
 Future<Uint8List?> exportIconAsPng(
   String siteUrl, {
   String? resolvedIconUrl,
-  OutboundProxy? proxy,
+  required OutboundProxy proxy,
   int size = 256,
 }) async {
   final iconUrl =
@@ -78,7 +78,7 @@ Future<Uint8List?> exportIconAsPng(
 }
 
 Future<String?> _resolveIconUrl(String siteUrl,
-    {required OutboundProxy? proxy}) async {
+    {required OutboundProxy proxy}) async {
   String? best;
   await for (final update in getFaviconUrlStream(siteUrl, proxy: proxy)) {
     best = update.url;
