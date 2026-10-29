@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/download_engine.dart';
 
 void main() {
@@ -137,7 +138,7 @@ void main() {
             headers: {'content-type': 'text/plain'});
       });
 
-      final engine = DownloadEngine(client: client);
+      final engine = DownloadEngine(client: client, proxy: OutboundProxy.app);
       await engine.fetch(
         url: 'https://example.com/f.txt',
         cookieHeader: 'sid=xyz; theme=dark',
@@ -154,7 +155,7 @@ void main() {
         capturedHeaders = request.headers;
         return http.Response('ok', 200);
       });
-      await DownloadEngine(client: client).fetch(
+      await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
         url: 'https://example.com/file',
         referer: 'https://example.com/page',
       );
@@ -168,7 +169,7 @@ void main() {
         capturedHeaders = request.headers;
         return http.Response('ok', 200);
       });
-      await DownloadEngine(client: client).fetch(
+      await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
         url: 'https://example.com/file',
         referer: 'data:text/html,hello',
       );
@@ -181,7 +182,7 @@ void main() {
         capturedHeaders = request.headers;
         return http.Response('x', 200);
       });
-      await DownloadEngine(client: client)
+      await DownloadEngine(client: client, proxy: OutboundProxy.app)
           .fetch(url: 'https://example.com/f');
       expect(capturedHeaders, isNotNull);
       expect(capturedHeaders!.containsKey('cookie'), isFalse);
@@ -195,7 +196,7 @@ void main() {
             headers: {'content-type': 'application/pdf; charset=binary'},
           ));
 
-      final result = await DownloadEngine(client: client).fetch(
+      final result = await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
         url: 'https://example.com/doc.pdf',
       );
 
@@ -208,7 +209,7 @@ void main() {
       final client = MockClient(
           (request) async => http.Response('not found', 404));
       expect(
-        () => DownloadEngine(client: client)
+        () => DownloadEngine(client: client, proxy: OutboundProxy.app)
             .fetch(url: 'https://example.com/missing'),
         throwsA(isA<DownloadException>().having(
             (e) => e.message, 'message', contains('404'))),
@@ -219,7 +220,7 @@ void main() {
       final client = MockClient((request) async =>
           throw http.ClientException('Connection refused', request.url));
       expect(
-        () => DownloadEngine(client: client)
+        () => DownloadEngine(client: client, proxy: OutboundProxy.app)
             .fetch(url: 'https://example.com/x'),
         throwsA(isA<DownloadException>().having(
             (e) => e.message, 'message', contains('Network error'))),
@@ -233,7 +234,7 @@ void main() {
         return http.Response('', 200);
       });
       expect(
-        () => DownloadEngine(client: client).fetch(url: 'blob:abc'),
+        () => DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(url: 'blob:abc'),
         throwsA(isA<DownloadException>().having(
             (e) => e.message, 'message', contains('Unsupported scheme'))),
       );
@@ -244,7 +245,7 @@ void main() {
 
     test('suggestedFilename wins over URL-derived name', () async {
       final client = MockClient((_) async => http.Response('ok', 200));
-      final result = await DownloadEngine(client: client).fetch(
+      final result = await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
         url: 'https://example.com/opaque?x=1',
         suggestedFilename: 'invoice.pdf',
       );
@@ -268,7 +269,7 @@ void main() {
       });
 
       final events = <(int, int?)>[];
-      final result = await DownloadEngine(client: client).fetch(
+      final result = await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
         url: 'https://example.com/big.bin',
         onProgress: (done, {required bytesTotal}) =>
             events.add((done, bytesTotal)),
@@ -297,7 +298,7 @@ void main() {
             },
           ));
       final result =
-          await DownloadEngine(client: client).fetch(url: 'https://x/f.txt');
+          await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(url: 'https://x/f.txt');
       expect(utf8.decode(result.bytes), 'hello gzipped world');
     });
 
@@ -313,7 +314,7 @@ void main() {
             },
           ));
       final result =
-          await DownloadEngine(client: client).fetch(url: 'https://x/f.txt');
+          await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(url: 'https://x/f.txt');
       expect(utf8.decode(result.bytes), 'hello deflated');
     });
 
@@ -325,7 +326,7 @@ void main() {
             headers: {'content-type': 'application/octet-stream'},
           ));
       final result =
-          await DownloadEngine(client: client).fetch(url: 'https://x/f');
+          await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(url: 'https://x/f');
       expect(result.bytes, body);
     });
 
@@ -340,7 +341,7 @@ void main() {
         );
       });
       await expectLater(
-        DownloadEngine(client: client, maxBytes: 1024)
+        DownloadEngine(client: client, maxBytes: 1024, proxy: OutboundProxy.app)
             .fetch(url: 'https://x/big.bin'),
         throwsA(isA<DownloadException>().having(
             (e) => e.message, 'message', contains('size limit'))),
@@ -361,7 +362,7 @@ void main() {
         return http.StreamedResponse(chunks(), 200);
       });
       await expectLater(
-        DownloadEngine(client: client, maxBytes: 1024)
+        DownloadEngine(client: client, maxBytes: 1024, proxy: OutboundProxy.app)
             .fetch(url: 'https://x/stream'),
         throwsA(isA<DownloadException>().having(
             (e) => e.message, 'message', contains('size limit'))),
@@ -383,7 +384,7 @@ void main() {
             },
           ));
       await expectLater(
-        DownloadEngine(client: client, maxBytes: 64 * 1024)
+        DownloadEngine(client: client, maxBytes: 64 * 1024, proxy: OutboundProxy.app)
             .fetch(url: 'https://x/bomb'),
         throwsA(isA<DownloadException>().having(
             (e) => e.message, 'message', contains('size limit'))),
@@ -400,7 +401,7 @@ void main() {
       });
 
       final events = <(int, int?)>[];
-      final result = await DownloadEngine(client: client).fetch(
+      final result = await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
         url: 'https://example.com/unknown',
         onProgress: (done, {required bytesTotal}) =>
             events.add((done, bytesTotal)),

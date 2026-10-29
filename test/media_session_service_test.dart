@@ -55,7 +55,9 @@ void main() {
         artworkUrl: artworkUrl,
       ),
       runJs: (source) async => js?.add(source),
-      proxy: proxy,
+      proxy: proxy == null
+          ? OutboundProxy.app
+          : OutboundProxy.ofSite(proxy, site: siteId),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -167,7 +168,7 @@ class SiteEditingController {
       if (model.name.isEmpty) {
         final pageTitle = await getPageTitle(
           model.initUrl,
-          proxy: model.outboundProxySettings,
+          proxy: model.outboundProxy,
         );
         if (!_host.mounted) return;
         if (pageTitle != null && pageTitle.isNotEmpty) {
@@ -186,7 +187,7 @@ class SiteEditingController {
       // Try to fetch page title if custom name not provided (skip for local files)
       String? pageTitle;
       if (customName.isEmpty && htmlContent == null) {
-        pageTitle = await getPageTitle(url);
+        pageTitle = await getPageTitle(url, proxy: OutboundProxy.app);
         if (!_host.mounted) return;
       }
 

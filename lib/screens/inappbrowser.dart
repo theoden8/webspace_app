@@ -237,7 +237,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     // gate in WebViewModel.getWebView.
     if (waitsForTor(
       widget.posture.container.proxy,
-      siteId: widget.posture.siteId,
       torUp: TorService.instance.status.isUp,
     )) {
       _torStatusSub = TorService.instance.statusStream.listen((s) {
@@ -411,7 +410,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _keys.dispose();
     _surface.dispose();
     unawaited(_torStatusSub?.cancel());
-    if (widget.posture.container.proxy.type == ProxyType.TOR) {
+    if (widget.posture.container.proxy.settings.type == ProxyType.TOR) {
       TorService.instance.release(TorNestedHolder(widget.posture.siteId));
     }
     surfaceRouteObserver.unsubscribe(this);
@@ -437,7 +436,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         pageUrl: _currentUrl,
         containerId: p.container.containerId,
         incognito: p.container.incognito,
-        proxy: PlatformInfo.isProxySupported ? p.container.proxy : null,
+        proxy: PlatformInfo.isProxySupported ? p.container.proxy.settings : null,
         siteId: p.siteId,
       ),
     ));

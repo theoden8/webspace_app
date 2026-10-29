@@ -45,7 +45,7 @@ void main() {
         '</head></html>');
     outboundHttp = site;
 
-    final favicons = await FaviconFinder.getAll('https://example.com/');
+    final favicons = await FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app);
 
     expect(favicons, isEmpty);
     expect([for (final u in site.requested) u.host], everyElement(isNotEmpty));
@@ -62,7 +62,7 @@ void main() {
     );
     outboundHttp = site;
 
-    final favicons = await FaviconFinder.getAll('https://example.com/');
+    final favicons = await FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app);
 
     expect(favicons, isEmpty);
     expect(site.requested.map((u) => u.path), contains('/short.ico'));
@@ -88,7 +88,7 @@ void main() {
     });
     outboundHttp = site;
 
-    final favicons = await FaviconFinder.getAll('https://gmail.test/');
+    final favicons = await FaviconFinder.getAll('https://gmail.test/', proxy: OutboundProxy.app);
 
     expect(favicons.map((f) => f.url),
         ['https://mail.gmail.test/favicon.ico']);
@@ -113,7 +113,7 @@ void main() {
     });
     outboundHttp = site;
 
-    final favicons = await FaviconFinder.getAll('https://example.com/');
+    final favicons = await FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app);
 
     expect(favicons.map((f) => Uri.parse(f.url).host), ['www.example.com']);
   });
@@ -123,7 +123,7 @@ void main() {
         responder: (req) => _redirect('https://loop.test${req.url.path}x'));
     outboundHttp = site;
 
-    expect(await FaviconFinder.getAll('https://loop.test/'), isEmpty);
+    expect(await FaviconFinder.getAll('https://loop.test/', proxy: OutboundProxy.app), isEmpty);
     expect(site.requested.length, 6);
   });
 
@@ -131,7 +131,7 @@ void main() {
     final site = _site('');
     outboundHttp = site;
 
-    expect(await FaviconFinder.getAll('https:///page'), isEmpty);
+    expect(await FaviconFinder.getAll('https:///page', proxy: OutboundProxy.app), isEmpty);
     expect(site.queries, isEmpty);
   });
 }

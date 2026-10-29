@@ -51,7 +51,6 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/services/surface_nudge_scope.dart';
 import 'package:webspace/services/webview_config.dart';
@@ -273,8 +272,7 @@ class WebViewFactory {
     // What this site claims, resolved once: a per-site DEFAULT falls through
     // to the app-global outbound proxy, so a site the user has not customized
     // still inherits a global Tor / corporate proxy (PROXY-011).
-    final claimedProxy =
-        resolveEffectiveProxy(posture.container.proxy, siteId: siteId);
+    final claimedProxy = posture.container.proxy.resolved;
     final effectiveProxy = bindsProxyPerSite ? claimedProxy : null;
     // Router mode wins over the site's own rule: under it every store points
     // at the relay and the per-site choice is made there. Not gated on the

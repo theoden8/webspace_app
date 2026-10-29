@@ -1,5 +1,5 @@
 import 'package:webspace/services/outbound_http_types.dart'
-    show resolveEffectiveProxy;
+    show OutboundProxy, resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -27,8 +27,7 @@ class ProxyConflictEngine {
   /// set to [p]: its effective proxy, the same one PROXY-008 compares, so
   /// a DEFAULT site and one set to the proxy it inherits agree, and two
   /// sites naming different saved proxies do not.
-  static ProxyRouteKey fingerprint(UserProxySettings p) =>
-      resolveEffectiveProxy(p, siteId: null).routeKey;
+  static ProxyRouteKey fingerprint(OutboundProxy p) => p.resolved.routeKey;
 
   /// The route [siteId]'s traffic takes when set to [p], its Tor tag
   /// included (PROXY-011): what the process-wide rule is set to for it and
@@ -53,8 +52,8 @@ class ProxyConflictEngine {
   /// credential, so two background-poll sites with different proxies no
   /// longer contend for a single slot.
   static bool canEnable({
-    required UserProxySettings targetProxy,
-    required Iterable<UserProxySettings> otherEnabledProxies,
+    required OutboundProxy targetProxy,
+    required Iterable<OutboundProxy> otherEnabledProxies,
     bool routesPerSite = false,
   }) =>
       firstConflict(
@@ -69,9 +68,9 @@ class ProxyConflictEngine {
   /// explanation that names who blocks the toggle ("Cannot enable: Site A
   /// polls with a different proxy"). Null when [canEnable] would be true.
   static T? firstConflict<T>({
-    required UserProxySettings targetProxy,
+    required OutboundProxy targetProxy,
     required Iterable<T> others,
-    required UserProxySettings Function(T other) proxyOf,
+    required OutboundProxy Function(T other) proxyOf,
     bool routesPerSite = false,
   }) {
     if (routesPerSite) return null;

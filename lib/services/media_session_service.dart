@@ -11,7 +11,6 @@ import 'package:webspace/services/log_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/url_host.dart';
-import 'package:webspace/settings/proxy.dart';
 
 /// One `wsMediaSession` report: what a frame of the page says it is playing.
 /// [frame] is the frame's token; the shim mints one per frame so a sibling
@@ -176,7 +175,7 @@ class MediaSessionService {
     SiteId siteId, {
     required MediaSessionReport page,
     required Future<void> Function(String js) runJs,
-    required UserProxySettings? proxy,
+    required OutboundProxy proxy,
   }) async {
     if (!_enabled) return;
     final MediaSessionReport(
@@ -346,7 +345,7 @@ class MediaSessionService {
   /// re-check after it can be driven deterministically.
   @visibleForTesting
   static Future<Uint8List?> Function(String url,
-      {required UserProxySettings? proxy})? debugArtworkFetchOverride;
+      {required OutboundProxy proxy})? debugArtworkFetchOverride;
 
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and
   /// timed out. Decoding/scaling happens natively. Null on anything unexpected.
@@ -357,7 +356,7 @@ class MediaSessionService {
   /// refuses loopback / private / link-local literals so a page cannot use it
   /// to probe the LAN or cloud metadata.
   Future<Uint8List?> _fetchArtwork(String url,
-      {required UserProxySettings? proxy}) async {
+      {required OutboundProxy proxy}) async {
     final override = debugArtworkFetchOverride;
     if (override != null) return override(url, proxy: proxy);
     // dart:io refuses anything but http(s) with a host with an ArgumentError.
@@ -365,10 +364,7 @@ class MediaSessionService {
     if (host == null) return null;
     final uri = Uri.parse(url);
     if (isPrivateOrLoopbackHost(host)) return null;
-    final effective = resolveEffectiveProxy(
-      proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
-      siteId: null,
-    );
+    final effective = proxy.resolved;
     // The artwork URL comes from the page's own media-session metadata, so a
     // name pointing into the LAN turns this into a blind request the site
     // chose. Nothing comes back to the page here, but a GET still lands.

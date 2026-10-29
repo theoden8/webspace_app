@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:http/testing.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/download_engine.dart';
 
 /// A download that redirects used to ride dart:io's automatic follow, which
@@ -23,7 +24,7 @@ void main() {
       }
       return http.Response('zip', 200);
     });
-    await DownloadEngine(client: client).fetch(
+    await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
       url: 'https://app.example/redirect?to=x',
       cookieHeader: 'session=secret',
       referer: 'https://app.example/page',
@@ -46,7 +47,7 @@ void main() {
       if (req.url.path == '/old') return redirect('/new', status: 301);
       return http.Response('zip', 200);
     });
-    await DownloadEngine(client: client).fetch(
+    await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
       url: 'https://app.example/old',
       cookieHeader: 'session=secret',
       referer: 'https://app.example/page',
@@ -66,7 +67,7 @@ void main() {
       }
       return http.Response('zip', 200);
     });
-    await DownloadEngine(client: client).fetch(
+    await DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
       url: 'https://app.example/dl',
       cookieHeader: 'session=secret',
       cookieHeaderFor: (uri) async {
@@ -84,7 +85,7 @@ void main() {
       fail('the http hop must never be requested');
     });
     expect(
-      () => DownloadEngine(client: client).fetch(
+      () => DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(
         url: 'https://app.example/dl',
         cookieHeader: 'session=secret',
       ),
@@ -99,7 +100,7 @@ void main() {
       return redirect('https://app.example/again$n');
     });
     await expectLater(
-      DownloadEngine(client: client).fetch(url: 'https://app.example/dl'),
+      DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(url: 'https://app.example/dl'),
       throwsA(isA<DownloadException>()),
     );
     expect(n, DownloadEngine.maxRedirects + 1);
@@ -121,7 +122,7 @@ void main() {
       addTearDown(client.close);
       final url = Uri.http('127.0.0.1:${server.port}', '/dl', {'to': location});
       await expectLater(
-        DownloadEngine(client: client).fetch(url: '$url'),
+        DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(url: '$url'),
         throwsA(isA<DownloadException>()),
         reason: 'Location: $location',
       );
@@ -131,7 +132,7 @@ void main() {
   test('a redirect without a location is an HTTP error', () async {
     final client = MockClient((req) async => http.Response('', 302));
     expect(
-      () => DownloadEngine(client: client).fetch(url: 'https://app.example/dl'),
+      () => DownloadEngine(client: client, proxy: OutboundProxy.app).fetch(url: 'https://app.example/dl'),
       throwsA(isA<DownloadException>()),
     );
   });

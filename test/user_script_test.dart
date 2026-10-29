@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
@@ -626,6 +627,7 @@ void main() {
               bypassSitePolicy: true,
             ),
           ],
+          proxy: OutboundProxy.app,
         );
         final shim = service.shimScript;
         expect(shim, isNotNull);
@@ -647,6 +649,7 @@ void main() {
               bypassSitePolicy: true,
             ),
           ],
+          proxy: OutboundProxy.app,
         );
         final shim = service.shimScript!;
         expect(shim, contains('function interceptInline'));
@@ -664,6 +667,7 @@ void main() {
             bypassSitePolicy: true,
           ),
         ],
+        proxy: OutboundProxy.app,
       );
       expect(service.shimScript, isNull);
       expect(service.hasScripts, isFalse);
@@ -672,6 +676,7 @@ void main() {
     test('shim is omitted when no script asked for the bridge (US-DR-005)', () {
       final service = UserScriptService(
         scripts: [UserScriptConfig(name: 't', source: 'noop;', enabled: true)],
+        proxy: OutboundProxy.app,
       );
       expect(service.hasScripts, isTrue, reason: 'the script still runs');
       expect(
@@ -695,6 +700,7 @@ void main() {
               bypassSitePolicy: true,
             ),
           ],
+          proxy: OutboundProxy.app,
         );
         final shim = service.shimScript!;
         expect(

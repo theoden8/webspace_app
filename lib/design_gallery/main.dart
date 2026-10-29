@@ -10,6 +10,7 @@
 // Workflow and constraints: tool/design_gallery/CLAUDE.md
 
 import 'package:flutter/material.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/container_names.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -679,6 +680,7 @@ class _UserScriptsCardState extends State<_UserScriptsCard> {
       userScripts: _scripts,
       isGlobalLibrary: true,
       onSave: (scripts) => setState(() => _scripts = scripts),
+      proxy: OutboundProxy.app,
     );
   }
 }

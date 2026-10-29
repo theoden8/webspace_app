@@ -185,7 +185,7 @@ void main() {
       outboundHttp = factory;
 
       final result =
-          await fetchUserScriptSource('https://cdn.jsdelivr.net/npm/x/x.js');
+          await fetchUserScriptSource('https://cdn.jsdelivr.net/npm/x/x.js', proxy: OutboundProxy.app);
 
       expect(result.source, isNull);
       expect(factory.requested.length, 1);

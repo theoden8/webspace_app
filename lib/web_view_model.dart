@@ -720,7 +720,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
       container: (
         containerId: boundContainerId(isolation),
         incognito: effectiveIncognito,
-        proxy: outboundProxySettings,
+        proxy: outboundProxy,
         thirdPartyCookies: effectiveThirdPartyCookiesEnabled,
         httpAuthMemory: effectiveHttpAuthMemory,
         passkeys: effectivePasskeysEnabled,
@@ -955,28 +955,10 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     }
   }
 
-  /// This site's proxy as outbound seams should see it.
-  ///
-  /// Identical to [proxySettings] for every type but [ProxyType.TOR], where
-  /// it returns a copy carrying [siteId] as the SOCKS5 stream-isolation tag.
-  /// A *copy*, deliberately: stamping the tag into the stored object would
-  /// overwrite the user's manual proxy username, and PROXY-010 requires the
-  /// manual credentials survive a trip through TOR so switching back
-  /// restores them.
-  ///
-  /// Pass this — not [proxySettings] — to anything that opens a connection
-  /// on the site's behalf (favicons, downloads, user scripts, the webview),
-  /// or that traffic lands on the app-global circuit instead of the site's
-  /// and becomes correlatable with it.
-  UserProxySettings get outboundProxySettings {
-    if (proxySettings.type != ProxyType.TOR) return proxySettings;
-    return UserProxySettings(
-      type: ProxyType.TOR,
-      address: proxySettings.address,
-      username: siteId,
-      torExitCountry: proxySettings.torExitCountry,
-    );
-  }
+  /// This site's proxy as a connection opened on its behalf sends it
+  /// ([OutboundProxy.ofSite]).
+  OutboundProxy get outboundProxy =>
+      OutboundProxy.ofSite(proxySettings, site: siteId);
 
   /// Reroll the per-site anti-fingerprinting seed. Called when the user
   /// clears this site's data so the post-wipe page sees a fresh fingerprint
@@ -1199,8 +1181,7 @@ bool dispatch(NavigationDecision decision,
     final effectiveProxy =
         resolveEffectiveProxy(id.proxySettings, siteId: id.siteId);
     if (waitsForTor(
-      id.proxySettings,
-      siteId: id.siteId,
+      id.outboundProxy,
       torUp: TorService.instance.status.isUp,
     )) {
       return null;

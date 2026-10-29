@@ -4,7 +4,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 import 'package:webspace/services/reentry_guard.dart';
-import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
@@ -74,7 +74,7 @@ class UserScriptsScreen extends StatefulWidget {
   /// Proxy of the site whose scripts are being edited, used when the editor
   /// downloads a script's URL source. Null (App Settings mode, or a caller
   /// with no site context) resolves to the app-global outbound proxy.
-  final UserProxySettings? proxy;
+  final OutboundProxy proxy;
 
   const UserScriptsScreen({
     super.key,
@@ -89,7 +89,7 @@ class UserScriptsScreen extends StatefulWidget {
     this.onEnabledGlobalScriptIdsChanged,
     this.isGlobalLibrary = false,
     this.onWebViewReset,
-    this.proxy,
+    required this.proxy,
   });
 
   @override
@@ -411,9 +411,14 @@ class UserScriptEditScreen extends StatefulWidget {
 
   /// Proxy the URL-source download goes through. Null resolves to the
   /// app-global outbound proxy.
-  final UserProxySettings? proxy;
+  final OutboundProxy proxy;
 
-  const UserScriptEditScreen({super.key, this.script, this.onRun, this.proxy});
+  const UserScriptEditScreen({
+    super.key,
+    this.script,
+    this.onRun,
+    required this.proxy,
+  });
 
   @override
   State<UserScriptEditScreen> createState() => _UserScriptEditScreenState();

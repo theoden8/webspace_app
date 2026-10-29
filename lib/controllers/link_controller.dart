@@ -823,7 +823,7 @@ class LinkController {
       domainClaims: a.initialClaims.isEmpty ? null : a.initialClaims,
       stateSetterF: _host.rebuild,
     );
-    final pageTitle = await getPageTitle(a.fullUrl);
+    final pageTitle = await getPageTitle(a.fullUrl, proxy: model.outboundProxy);
     if (!_host.mounted) return;
     if (pageTitle != null && pageTitle.isNotEmpty) {
       model.name = pageTitle;

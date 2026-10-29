@@ -5,6 +5,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
@@ -15,6 +16,7 @@ void main() {
         scripts: [
           UserScriptConfig(name: 'off', source: 'noop;', enabled: false),
         ],
+        proxy: OutboundProxy.app,
       );
       expect(svc.hasScripts, isFalse);
       expect(svc.buildInitialUserScripts(), isEmpty);
@@ -33,6 +35,7 @@ void main() {
               bypassSitePolicy: true,
             ),
           ],
+          proxy: OutboundProxy.app,
         );
         final scripts = svc.buildInitialUserScripts();
         expect(scripts.length, 2);
@@ -67,6 +70,7 @@ void main() {
             injectionTime: UserScriptInjectionTime.atDocumentStart,
           ),
         ],
+        proxy: OutboundProxy.app,
       );
       final scripts = svc.buildInitialUserScripts();
       expect(scripts.length, 1);
@@ -81,6 +85,7 @@ void main() {
           UserScriptConfig(name: 'b', source: 'DROP_B();', enabled: false),
           UserScriptConfig(name: 'c', source: ''),
         ],
+        proxy: OutboundProxy.app,
       );
       final userScripts = svc
           .buildInitialUserScripts()
@@ -100,6 +105,7 @@ void main() {
             injectionTime: UserScriptInjectionTime.atDocumentEnd,
           ),
         ],
+        proxy: OutboundProxy.app,
       );
       final user = svc.buildInitialUserScripts().firstWhere(
         (s) => s.groupName == 'user_scripts',
@@ -112,6 +118,7 @@ void main() {
         scripts: [
           UserScriptConfig(name: 't', source: 'INIT();', urlSource: 'LIB();'),
         ],
+        proxy: OutboundProxy.app,
       );
       final user = svc.buildInitialUserScripts().firstWhere(
         (s) => s.groupName == 'user_scripts',
@@ -125,6 +132,7 @@ void main() {
     test('guard sanitizes non-alphanumeric characters in the script id', () {
       final svc = UserScriptService(
         scripts: [UserScriptConfig(id: UserScriptId('a-b.c'), name: 't', source: 'X();')],
+        proxy: OutboundProxy.app,
       );
       final user = svc.buildInitialUserScripts().firstWhere(
         (s) => s.groupName == 'user_scripts',

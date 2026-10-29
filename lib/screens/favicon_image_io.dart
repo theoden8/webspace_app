@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/services/icon_service.dart' show getIconBytes;
-import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 
 /// Native favicon rendering: bytes through the app's proxy-aware outbound
 /// client, then decoded from memory.
@@ -20,7 +20,7 @@ Widget faviconNetworkImage({
   required double size,
   required WidgetBuilder placeholder,
   required WidgetBuilder error,
-  UserProxySettings? proxy,
+  required OutboundProxy proxy,
 }) =>
     _FaviconBytesImage(
       url: url,
@@ -43,7 +43,7 @@ class _FaviconBytesImage extends StatefulWidget {
   final double size;
   final WidgetBuilder placeholder;
   final WidgetBuilder error;
-  final UserProxySettings? proxy;
+  final OutboundProxy proxy;
 
   @override
   State<_FaviconBytesImage> createState() => _FaviconBytesImageState();

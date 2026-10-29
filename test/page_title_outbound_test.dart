@@ -6,6 +6,7 @@ import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'helpers/fake_outbound.dart';
 
 FakeOutbound _titleFactory({bool block = false}) => FakeOutbound(
@@ -32,7 +33,7 @@ void main() {
 
     final title = await getPageTitle(
       'https://per-site.example/a',
-      proxy: UserProxySettings(type: ProxyType.HTTP, address: '127.0.0.1:8080'),
+      proxy: OutboundProxy.ofSite(UserProxySettings(type: ProxyType.HTTP, address: '127.0.0.1:8080'), site: SiteId('test-site')),
     );
 
     expect(title, equals('Fetched Title'));
@@ -48,7 +49,7 @@ void main() {
     final factory = _titleFactory();
     outboundHttp = factory;
 
-    await getPageTitle('https://default-proxy.example/a');
+    await getPageTitle('https://default-proxy.example/a', proxy: OutboundProxy.app);
 
     expect(factory.queries, hasLength(1));
     expect(factory.queries.single.type, equals(ProxyType.SOCKS5));
@@ -76,7 +77,7 @@ void main() {
       'https://',
       'example.com',
     ]) {
-      expect(await getPageTitle(url), isNull, reason: url);
+      expect(await getPageTitle(url, proxy: OutboundProxy.app), isNull, reason: url);
     }
     expect(factory.queries, isEmpty);
   });
@@ -85,7 +86,7 @@ void main() {
     final factory = _titleFactory(block: true);
     outboundHttp = factory;
 
-    final title = await getPageTitle('https://blocked.example/a');
+    final title = await getPageTitle('https://blocked.example/a', proxy: OutboundProxy.app);
 
     expect(title, isNull);
     expect(factory.requests, isEmpty);

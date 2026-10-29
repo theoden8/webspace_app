@@ -3,7 +3,7 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
-import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 
 /// Web favicon rendering, via a real `<img>` element.
 ///
@@ -19,7 +19,7 @@ Widget faviconNetworkImage({
   required double size,
   required WidgetBuilder placeholder,
   required WidgetBuilder error,
-  UserProxySettings? proxy,
+  required OutboundProxy proxy,
 }) =>
     _ImgElementView(url: url, size: size);
 

@@ -68,10 +68,7 @@ void main() {
 
     test('app-global traffic with no site resolves to the reserved tag', () {
       GlobalOutboundProxy.setInMemory(_tor());
-      final resolved = resolveEffectiveProxy(
-        UserProxySettings(type: ProxyType.DEFAULT),
-        siteId: null,
-      );
+      final resolved = OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved;
       expect(resolved.username, kTorAppGlobalTag);
     });
 
@@ -94,10 +91,10 @@ void main() {
     });
   });
 
-  group('WebViewModel.outboundProxySettings', () {
+  group('WebViewModel.outboundProxy', () {
     test('a TOR site carries its siteId as the tag', () {
       final m = WebViewModel(initUrl: 'https://example.com', proxySettings: _tor());
-      expect(m.outboundProxySettings.username, m.siteId);
+      expect(m.outboundProxy.settings.username, m.siteId);
     });
 
     test('the stored manual config survives selecting TOR (PROXY-020)', () {
@@ -112,7 +109,7 @@ void main() {
       );
 
       // The tagged copy is what goes on the wire...
-      expect(m.outboundProxySettings.username, m.siteId);
+      expect(m.outboundProxy.settings.username, m.siteId);
       // ...while the stored object keeps what the user typed, so switching
       // back to SOCKS5 restores it (PROXY-010).
       expect(m.proxySettings.username, 'manual-user');
@@ -126,7 +123,7 @@ void main() {
         proxySettings: UserProxySettings(
             type: ProxyType.SOCKS5, address: '192.0.2.1:1080'),
       );
-      expect(identical(m.outboundProxySettings, m.proxySettings), isTrue);
+      expect(identical(m.outboundProxy.settings, m.proxySettings), isTrue);
     });
   });
 

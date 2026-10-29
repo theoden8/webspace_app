@@ -24,7 +24,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
 
   @override
   OutboundClient clientFor(UserProxySettings settings) {
-    final resolved = resolveEffectiveProxy(settings, siteId: null);
+    final resolved = OutboundProxy.ofApp(settings).resolved;
     if (resolved.type == ProxyType.DEFAULT) {
       return OutboundClientReady(http.Client());
     }

@@ -9,7 +9,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/file_dialog.dart';
-import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/log_service.dart';
 
 /// Downloads a site webview starts: http(s) through the site's proxy, data:
@@ -19,7 +19,7 @@ abstract final class WebViewDownloads {
     inapp.InAppWebViewController controller, {
     required inapp.DownloadStartRequest req,
     String? referer,
-    UserProxySettings? proxy,
+    required OutboundProxy proxy,
   }) async {
     final urlStr = req.url.toString();
     final scheme = req.url.scheme.toLowerCase();
@@ -65,7 +65,7 @@ abstract final class WebViewDownloads {
     inapp.InAppWebViewController controller, {
     required inapp.DownloadStartRequest req,
     String? referer,
-    UserProxySettings? proxy,
+    required OutboundProxy proxy,
   }) async {
     final initialFilename = DownloadEngine.deriveFilename(
       suggested: req.suggestedFilename,

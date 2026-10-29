@@ -198,7 +198,7 @@ class ShortcutController implements HomeShortcutsHost {
         model.initUrl,
         customIcon: model.customIconPng,
         resolvedIconUrl: FaviconUrlCache.get(model.initUrl),
-        proxy: model.outboundProxySettings,
+        proxy: model.outboundProxy,
       );
       if (!_host.mounted) return;
       final pinned = await ShortcutService.pinShortcut(
@@ -388,7 +388,7 @@ class ShortcutController implements HomeShortcutsHost {
             case MissingShortcutChoice.create:
               final model =
                   WebViewModel(initUrl: url, stateSetterF: _host.rebuild);
-              final title = await getPageTitle(url);
+              final title = await getPageTitle(url, proxy: model.outboundProxy);
               if (!_host.mounted) return;
               if (title != null && title.isNotEmpty) {
                 model.name = title;

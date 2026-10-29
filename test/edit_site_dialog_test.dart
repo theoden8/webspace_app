@@ -144,7 +144,7 @@ void main() {
     addTearDown(clearFaviconCache);
     final plain = WebViewModel(initUrl: 'https://example.com', name: 'Example');
     await tester.runAsync(
-        () => getFaviconUrlStream(plain.initUrl).drain<void>());
+        () => getFaviconUrlStream(plain.initUrl, proxy: OutboundProxy.app).drain<void>());
     final dropped = <String>[];
     final sub = faviconInvalidations.listen(dropped.add);
     addTearDown(sub.cancel);

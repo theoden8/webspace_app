@@ -52,7 +52,7 @@ void main() {
         icon: SiteIcon(pageIcon, width: 64, height: 64), persist: true);
 
     final saved = await displayedSiteIconAsPng(_site,
-        resolvedIconUrl: _fetched, siteIcons: store);
+        resolvedIconUrl: _fetched, siteIcons: store, proxy: OutboundProxy.app);
 
     expect(saved, pageIcon);
     expect(factory.requested, isEmpty);
@@ -64,7 +64,7 @@ void main() {
         icon: SiteIcon(_png(64), width: 64, height: 64), persist: true);
 
     final saved = await displayedSiteIconAsPng(_site,
-        customIcon: custom, resolvedIconUrl: _fetched, siteIcons: store);
+        customIcon: custom, resolvedIconUrl: _fetched, siteIcons: store, proxy: OutboundProxy.app);
 
     expect(saved, custom);
     expect(factory.requested, isEmpty);
@@ -72,7 +72,7 @@ void main() {
 
   test('without either, the fetched favicon is exported', () async {
     final saved = await displayedSiteIconAsPng(_site,
-        resolvedIconUrl: _fetched, siteIcons: store);
+        resolvedIconUrl: _fetched, siteIcons: store, proxy: OutboundProxy.app);
 
     expect(saved, isNotNull);
     expect(pngDimensions(saved!), (width: 16, height: 16));

@@ -14,7 +14,7 @@ import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
-import '../services/outbound_http.dart' show resolveEffectiveProxy;
+import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
 import '../services/reentry_guard.dart';
 import '../services/top_sites_engine.dart' show siteAddress;
@@ -114,10 +114,7 @@ class FaviconUrlCache {
 /// (LEAK-016).
 bool addSitePreviewMayResolveLocally(String host) =>
     !Host(host).isOnion &&
-    resolveEffectiveProxy(
-          UserProxySettings(type: ProxyType.DEFAULT),
-          siteId: null,
-        ).type ==
+    OutboundProxy.app.resolved.type ==
         ProxyType.DEFAULT;
 
 // A site's icon: the page icon the site's own webview produced (ICON-009/013)
@@ -129,7 +126,7 @@ class UnifiedFaviconImage extends StatefulWidget {
   /// search-suggestion thumbnails with no specific site context), the
   /// app-global outbound proxy applies. When set, [resolveEffectiveProxy]
   /// chooses per-site if explicit, or global if the per-site type is DEFAULT.
-  final UserProxySettings? proxy;
+  final OutboundProxy proxy;
   /// User-chosen icon bytes (`WebViewModel.customIconPng`). When set, they
   /// render directly and no favicon is fetched for this widget.
   final Uint8List? customIcon;
@@ -153,7 +150,7 @@ class UnifiedFaviconImage extends StatefulWidget {
     super.key,
     required this.url,
     required this.size,
-    this.proxy,
+    required this.proxy,
     this.customIcon,
     this.persist = true,
     this.frame,
@@ -167,7 +164,7 @@ class UnifiedFaviconImage extends StatefulWidget {
     required this.size,
     this.frame,
   }) : url = site.initUrl,
-       proxy = site.outboundProxySettings,
+       proxy = site.outboundProxy,
        customIcon = site.customIconPng,
        persist = !site.isArchiveTier;
 
@@ -796,6 +793,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                       child: UnifiedFaviconImage(
                                         url: _previewUrl!,
                                         size: 24,
+                                        proxy: OutboundProxy.app,
                                       ),
                                     ),
                                   )
@@ -906,6 +904,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                       child: UnifiedFaviconImage(
                                         url: 'https://${suggestion.domain}',
                                         size: iconSize,
+                                        proxy: OutboundProxy.app,
                                       ),
                                     ),
                                   ),

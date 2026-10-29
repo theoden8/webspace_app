@@ -7,7 +7,6 @@ import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/url_host.dart';
-import 'package:webspace/settings/proxy.dart';
 
 final Map<String, String?> _pageTitleCache = {};
 
@@ -20,7 +19,7 @@ final Map<String, String?> _pageTitleCache = {};
 /// model yet and resolves through the global proxy. A blocked client aborts
 /// the fetch — a direct GET would hand the URL's host the device IP, and the
 /// URL can come straight from an attacker-authored share intent.
-Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
+Future<String?> getPageTitle(String url, {required OutboundProxy proxy}) async {
   if (_pageTitleCache.containsKey(url)) {
     return _pageTitleCache[url];
   }
@@ -29,10 +28,7 @@ Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
   if (Host.ofWebUrl(url) == null) return null;
 
   final clientResult = outboundHttp.clientFor(
-    resolveEffectiveProxy(
-      proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
-      siteId: null,
-    ),
+    proxy.resolved,
   );
   if (clientResult is! OutboundClientReady) {
     LogTag.title.warning(

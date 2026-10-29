@@ -4,7 +4,7 @@ import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
-    show resolveEffectiveProxy;
+    show OutboundProxy, resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -210,7 +210,10 @@ Widget _connection(
   required UserProxySettings configured,
   required SiteId? siteId,
 }) {
-  final route = resolveEffectiveProxy(configured, siteId: siteId);
+  final route = switch (siteId) {
+    final site? => resolveEffectiveProxy(configured, siteId: site),
+    null => OutboundProxy.ofApp(configured).resolved,
+  };
   final uses = configured.type == ProxyType.DEFAULT
       ? GlobalOutboundProxy.current
       : configured;

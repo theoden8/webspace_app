@@ -8,7 +8,7 @@ import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/untrusted_image.dart';
-import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 
 bool _isSvgUrl(String url) {
   final lower = url.toLowerCase();
@@ -23,7 +23,7 @@ Future<Uint8List?> displayedSiteIconAsPng(
   String siteUrl, {
   Uint8List? customIcon,
   String? resolvedIconUrl,
-  UserProxySettings? proxy,
+  required OutboundProxy proxy,
   SiteIconStore? siteIcons,
 }) async =>
     knownSiteIcon(siteUrl, customIcon: customIcon, siteIcons: siteIcons) ??
@@ -52,7 +52,7 @@ Uint8List? knownSiteIcon(
 Future<Uint8List?> exportIconAsPng(
   String siteUrl, {
   String? resolvedIconUrl,
-  UserProxySettings? proxy,
+  required OutboundProxy proxy,
   int size = 256,
 }) async {
   final iconUrl =
@@ -77,7 +77,7 @@ Future<Uint8List?> exportIconAsPng(
 }
 
 Future<String?> _resolveIconUrl(String siteUrl,
-    {required UserProxySettings? proxy}) async {
+    {required OutboundProxy proxy}) async {
   String? best;
   await for (final update in getFaviconUrlStream(siteUrl, proxy: proxy)) {
     best = update.url;

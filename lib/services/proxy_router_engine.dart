@@ -26,6 +26,14 @@ extension type const RouterIdentity._(String raw) implements String {
 
   /// The site this identity is, or null for the shared profile.
   SiteId? get site => this == shared ? null : SiteId(raw);
+
+  /// [stored] as this identity sends it: a site's own, its Tor tag stamped
+  /// in; the shared profile's, held by the app for every site without a
+  /// container profile.
+  OutboundProxy outbound(UserProxySettings stored) => switch (site) {
+    final site? => OutboundProxy.ofSite(stored, site: site),
+    null => OutboundProxy.ofApp(stored),
+  };
 }
 
 /// Pure-Dart policy for the Android per-site proxy router (PROXY-013).
@@ -163,7 +171,7 @@ class ProxyRouterEngine {
       if (token == null) continue;
       routes[credentialFor(identity: identity, token: token)] = ProxyRoute(
         identity: identity,
-        upstream: resolveEffectiveProxy(entry.value, siteId: identity.site),
+        upstream: identity.outbound(entry.value).resolved,
       );
     }
     return routes;
@@ -177,7 +185,7 @@ class ProxyRouterEngine {
   static bool anyProxied(
           Map<RouterIdentity, UserProxySettings> perSiteProxies) =>
       perSiteProxies.entries.any((e) =>
-          resolveEffectiveProxy(e.value, siteId: e.key.site).type !=
+          e.key.outbound(e.value).resolved.type !=
           ProxyType.DEFAULT);
 
   /// The route table for [sites], keyed by routing identity.
