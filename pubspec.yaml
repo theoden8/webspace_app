@@ -59,6 +59,8 @@ dependencies:
   # (file_dialog_io.dart); already locked through it.
   dbus: ^0.7.12
   flutter_secure_storage: ^10.0.0
+  # Held at 4.x: 3.x reads the Linux entry 4.x moved (dependency_overrides).
+  flutter_secure_storage_linux: ^4.0.0-beta.1
   package_info_plus: ^9.0.1
   flutter_cache_manager: ^3.3.0
   path_provider: ^2.1.0
@@ -121,6 +123,14 @@ dev_dependencies:
 #
 # Spec: openspec/specs/per-site-containers/spec.md
 dependency_overrides:
+  # Before 4.0.0-beta.1 the Linux plugin named its libsecret schema through a
+  # pointer into a string it then reassigned, so its entry's xdg:schema is a
+  # digit (the label's capacity) instead of "<app id>/FlutterSecureStorage";
+  # 4.0.0-beta.1 names it and carries the old entry forward on the first read
+  # (PLATFORM-009). flutter_secure_storage before 11.1.1 allows only 3.x; drop
+  # this once the main package takes a stable 4.x. The direct dependency keeps
+  # 3.x out, which would read the old entry as it was before the move.
+  flutter_secure_storage_linux: 4.0.0-beta.1
   flutter_inappwebview:
     git:
       url: https://github.com/theoden8/flutter_inappwebview

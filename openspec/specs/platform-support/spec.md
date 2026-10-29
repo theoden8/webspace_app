@@ -204,6 +204,17 @@ that ID, or under the executable's name where an earlier release fell back to
 it (PLATFORM-010), and flutter_secure_storage_linux names its keyring entry
 after the ID, so an install keeps both across an upgrade.
 
+The entry's libsecret schema is `<app id>/FlutterSecureStorage`. Before
+4.0.0-beta.1 the plugin named it through a pointer into a string it then
+reassigned, so the entry's `xdg:schema` is the label's capacity as a digit:
+`3` under the native ID, `8` under the flatpak's. 4.0.0-beta.1 names it, and a
+read that finds nothing under the right name copies the old entry forward,
+found by its account, leaving it in place. `pubspec.yaml` holds the plugin at
+4.x, since 3.x would read the old entry as it was before the move. Known limit
+of 4.0.0-beta.1: the copy runs whenever nothing is stored under the right name,
+so on the Secret Service an entry emptied after the move (every key deleted)
+reads the old entry's keys again.
+
 #### Scenario: Build the flatpak
 
 **Given** the flatpak manifest with `id: page.codeberg.theoden8.webspace_app`

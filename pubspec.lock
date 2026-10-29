@@ -471,13 +471,13 @@ packages:
     source: hosted
     version: "0.2.0"
   flutter_secure_storage_linux:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_secure_storage_linux
-      sha256: "2b5c76dce569ab752d55a1cee6a2242bcc11fdba927078fb88c503f150767cda"
+      sha256: f908c47e619f679e22dcafd618e97c83f22ccef466ccf885f4761d48a0c354a5
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.0"
+    version: "4.0.0-beta.1"
   flutter_secure_storage_platform_interface:
     dependency: transitive
     description:
