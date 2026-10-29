@@ -15,6 +15,7 @@ final class EngineImageFailure implements Exception {
 Future<T> engineImage<T>(Future<T> Function() call) async {
   try {
     return await call();
+    // ignore: webspace_lints/catch_all
   } on Exception catch (e, stack) {
     // sky_engine/lib/ui/painting.dart:2416-2427, 8531, 9213-9251.
     Error.throwWithStackTrace(EngineImageFailure('$e'), stack);

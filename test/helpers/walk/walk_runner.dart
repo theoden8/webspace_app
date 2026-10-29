@@ -70,6 +70,7 @@ Future<WalkOutcome> runActions<A>({
     final WalkWorld<A> w;
     try {
       w = world();
+      // ignore: webspace_lints/catch_all
     } on Error catch (e, s) {
       outcome.complete(broke(0, error: e, stack: s));
       return;
@@ -91,9 +92,11 @@ Future<WalkOutcome> runActions<A>({
         // Known to throw: TestFailure (an Exception) from a world's
         // invariant, AssertionError from an owner's assert, and the Errors
         // a bug raises. Each is reported, never swallowed.
+        // ignore: webspace_lints/catch_all
       } on Exception catch (e, s) {
         outcome.complete(broke(i, error: e, stack: s));
         return;
+        // ignore: webspace_lints/catch_all
       } on Error catch (e, s) {
         outcome.complete(broke(i, error: e, stack: s));
         return;
