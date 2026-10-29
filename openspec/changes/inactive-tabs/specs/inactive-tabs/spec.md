@@ -316,9 +316,9 @@ indented by depth, with a collapse chevron on nodes that have children, each
 tab's load state shown per TAB-011, and close and close-subtree actions. Collapsing a
 tab SHALL hide its whole subtree and SHALL say how many tabs that is. A close
 or close-subtree SHALL leave the sheet up, its rows redrawn once the close has
-landed; opening a tab, "New tab" and web search SHALL dismiss it. A tap made
-in the sheet while one of its closes is landing SHALL take effect after that
-close, rather than be dropped as busy.
+landed; opening a tab, "New tab" and web search SHALL dismiss it. A close
+asked from the sheet while a tab change is running SHALL wait for it to end
+and then run, rather than be dropped as busy.
 
 Where more than one site is shown, the sheet SHALL also offer an "All sites"
 scope listing every site's tree under its own heading. That scope is the

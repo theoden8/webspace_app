@@ -609,7 +609,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
           reason: 'the way back is read afresh with the rows');
     });
 
-    testWidgets('a tap after a close waits for it to land, in the order made',
+    testWidgets('a close tapped while another lands reaches the host too',
         (tester) async {
       final site = siteWithRoots('GitHub', urls: [
         'https://github.com/',
@@ -618,15 +618,13 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       ]);
       final sites = [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
       final first = Completer<void>();
-      final events = <String>[];
+      final asked = <String>[];
       await showSheetOverPage(
         tester,
         sites: sites,
-        onOpenTab: (_, {required tabId}) => events.add('open $tabId'),
         onCloseTab: (_, {required tabId}) async {
-          events.add('close $tabId');
-          if (events.length == 1) await first.future;
-          events.add('closed $tabId');
+          asked.add(tabId);
+          if (asked.length == 1) await first.future;
           return (sites: sites, wayBack: null);
         },
       );
@@ -634,22 +632,12 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       await tester.pump();
       await tester.tap(closeButtonOf('https://github.com/issues'));
       await tester.pump();
-      await tester.tap(find.text('https://github.com/'));
-      await tester.pumpAndSettle();
-      expect(find.byType(TabsSheet), findsNothing,
-          reason: 'opening a tab still leaves the list');
-      expect(events, ['close tab1'],
-          reason: 'a busy tab handler would drop what follows the close');
-
+      expect(asked, ['tab1', 'tab2'],
+          reason: 'the host orders the closes (TabsController.closeFromSheet); '
+              'the sheet drops none');
       first.complete();
       await tester.pumpAndSettle();
-      expect(events, [
-        'close tab1',
-        'closed tab1',
-        'close tab2',
-        'closed tab2',
-        'open $kPrimaryTabId',
-      ]);
+      expect(find.byType(TabsSheet), findsOneWidget);
     });
 
     testWidgets('the all-sites scope appears only with more than one site',

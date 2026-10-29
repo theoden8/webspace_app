@@ -329,13 +329,16 @@ final class NewTab extends SiteAction {
 }
 
 /// The site at [slot] closes its tab at [tab] (`closeTab`), the tab taken
-/// modulo the site's tab count, left running.
+/// modulo the site's tab count, left running; [fromSheet] asks it as the
+/// Tabs sheet does, which waits for a free gate (`closeFromSheet`, TAB-008).
 final class CloseTab extends SiteAction {
-  const CloseTab(this.slot, {required this.tab});
+  const CloseTab(this.slot, {required this.tab, this.fromSheet = false});
   final int slot;
   final int tab;
+  final bool fromSheet;
   @override
-  String toString() => 'CloseTab($slot, tab: $tab)';
+  String toString() =>
+      'CloseTab($slot, tab: $tab${fromSheet ? ', fromSheet: true' : ''})';
 }
 
 /// The site at [slot] copies its active tab (`duplicateTab`), left running.
@@ -2015,11 +2018,14 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           _offScreenTabInput(at(slot));
           _track(tabs.newTab(at(slot)));
         }
-      case CloseTab(:final slot, :final tab):
+      case CloseTab(:final slot, :final tab, :final fromSheet):
         if (n > 0) {
           final m = at(slot);
           _offScreenTabInput(m);
-          _track(tabs.closeTab(m, tabId: tabAt(m, tab: tab)));
+          final tabId = tabAt(m, tab: tab);
+          _track(fromSheet
+              ? tabs.closeFromSheet(m, tabId: tabId, subtree: false)
+              : tabs.closeTab(m, tabId: tabId));
         }
       case DuplicateTab(:final slot):
         if (n > 0) {

@@ -33,7 +33,6 @@ import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_list_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
-import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/site_address.dart';
@@ -154,11 +153,6 @@ class _TabsSheetState extends State<TabsSheet> {
   late TabsSheetListing _listing = (sites: widget.sites, wayBack: widget.wayBack);
 
   List<TabsSheetSite> get _sites => _listing.sites;
-
-  /// The taps that reach the host, in the order they were made. A close
-  /// holds its turn until it has landed, so a tap after it reaches tab
-  /// handlers that are free rather than being dropped as busy.
-  final SerialQueue _taps = SerialQueue('tabsSheet');
 
   late final SiteId? _currentId = widget.currentIndex >= 0 &&
           widget.currentIndex < widget.sites.length
@@ -530,21 +524,19 @@ class _TabsSheetState extends State<TabsSheet> {
     if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
   }
 
-  /// Closes the sheet, then hands [action] to the host once the closes
-  /// asked before it have landed.
+  /// Closes the sheet, then hands [action] to the host.
   VoidCallback _closing(VoidCallback action) => () {
         Navigator.of(context).pop();
-        _taps.enqueue(() async => action());
+        action();
       };
 
   /// [close] of [tabId] in [site], with the sheet left up: its rows redraw
-  /// from the listing the host hands back.
-  void _close(TabsSheetClose close,
-          {required WebViewModel site, required TabId tabId}) =>
-      _taps.enqueue(() async {
-        final listing = await close(site, tabId: tabId);
-        if (mounted) setState(() => _listing = listing);
-      });
+  /// from the listing the host hands back once the close has landed.
+  Future<void> _close(TabsSheetClose close,
+      {required WebViewModel site, required TabId tabId}) async {
+    final listing = await close(site, tabId: tabId);
+    if (mounted) setState(() => _listing = listing);
+  }
 
   void _dropSite(SiteId siteId, {required SiteId ontoSiteId}) {
     _stopAutoScroll();
@@ -621,7 +613,8 @@ class _TabsSheetState extends State<TabsSheet> {
           iconSize: IconSizes.action,
           tooltip: tooltip,
           icon: Icon(icon),
-          onPressed: () => _close(onClose, site: site.model, tabId: tab.id),
+          onPressed: () =>
+              unawaited(_close(onClose, site: site.model, tabId: tab.id)),
         );
     final rowBody = InkWell(
       onTap: _closing(() => widget.onOpenTab(site.model, tabId: tab.id)),

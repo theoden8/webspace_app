@@ -644,6 +644,15 @@ const _tabRegressions =
         setup: [Tap(0), OpenTab(0, tab: 1)],
         script: [CloseTab(0, tab: 1), Tap(1)],
       ),
+      // TAB-008: the sheet stays up, so a second close can land while the
+      // first holds the gate, its commit included; it waits, never dropped.
+      'a close from the Tabs sheet waits out the one before it': (
+        setup: [Tap(0)],
+        script: [
+          CloseTab(0, tab: 1, fromSheet: true),
+          CloseTab(0, tab: 0, fromSheet: true),
+        ],
+      ),
     };
 
 const _alphabet = <SiteAction>[

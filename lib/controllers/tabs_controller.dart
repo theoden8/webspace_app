@@ -156,11 +156,20 @@ class TabsController {
         (final library?, _) => (sites: sheetSitesIn(library), wayBack: null),
       };
 
-  /// [closeTab] asked from the Tabs sheet, which stays up: completes with
-  /// what it lists once the close has landed.
+  /// [closeTab] asked from the Tabs sheet, which stays up for the next one,
+  /// so a close tapped while another lands must not be dropped as busy: it
+  /// waits for a free gate and asks in the turn it finds one, as an
+  /// owner-run move does. Completes with what the sheet lists once the close
+  /// has landed.
   Future<TabsSheetListing> closeFromSheet(WebViewModel model,
       {required TabId tabId, required bool subtree, WebspaceId? scope}) async {
-    await closeTab(model, tabId: tabId, subtree: subtree);
+    while (_gate.busy) {
+      await _gate.idle();
+    }
+    if (_host.mounted && _sites.models.contains(model)) {
+      assert(!_gate.busy, 'a close from the Tabs sheet asks on a free gate');
+      await closeTab(model, tabId: tabId, subtree: subtree);
+    }
     return sheetListing(scope: scope);
   }
 
