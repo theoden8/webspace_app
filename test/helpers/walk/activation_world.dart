@@ -259,6 +259,16 @@ final class Fails extends SiteAction {
   String toString() => 'Fails(Fault.${fault.name})';
 }
 
+/// The renderer under the webview of the site at [slot] dies, and the
+/// webview goes with it (`handleRendererGone`, BUG-002); the next frame
+/// builds it again.
+final class RendererGone extends SiteAction {
+  const RendererGone(this.slot);
+  final int slot;
+  @override
+  String toString() => 'RendererGone($slot)';
+}
+
 /// A site from the page's host pool, appended (`SiteAdded`).
 final class Add extends SiteAction {
   const Add(this.host);
@@ -1100,6 +1110,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Fails() ||
     Add() ||
     Move() ||
+    RendererGone() ||
     Touch() ||
     StayPut() => true,
   };
@@ -1653,6 +1664,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Move() ||
     ArchiveSite() ||
     Add() ||
+    RendererGone() ||
     Reply() ||
     Settle() ||
     Login() ||
@@ -1980,6 +1992,15 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           _editRows(SitesMoved(from % n, to: to % n));
           ActivationSteps.mark(ActivationStep.move);
         }
+      case RendererGone(:final slot):
+        assert(_boxed || rehosts, 'a renderer dies under a webview, which only '
+            'a world that follows them builds');
+        if (n > 0 && at(slot).controller != null) {
+          _recording = null;
+          _unmodeled.add(currentFlow());
+          _letGoInPlace = true;
+          at(slot).handleRendererGone(didCrash: true);
+        }
       case OpenTab(:final slot, :final tab):
         if (n > 0) {
           final m = at(slot);
@@ -2159,6 +2180,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           Preload() ||
           Add() ||
           Move() ||
+          RendererGone() ||
           OpenTab() ||
           NewTab() ||
           CloseTab() ||

@@ -403,6 +403,28 @@ const _tabAlphabet = <SiteAction>[
   Pressure(),
 ];
 
+/// A renderer dying under site 1's webview (BUG-002), against the flows
+/// that read that webview as they wait: a tab switch's capture, a
+/// duplicate's read, an activation's quiesce and resume. Site 1 on screen,
+/// or on its second tab loaded behind. It runs in the delete world, which
+/// builds the webviews a renderer dies under; its alphabet deletes nothing.
+const _rendererSetups = <String, List<SiteAction>>{
+  'site 1 on screen': [Tap(0)],
+  'site 1 on its second tab, behind': [Tap(0), OpenTab(0, tab: 1), Tap(2)],
+};
+
+const _rendererAlphabet = <SiteAction>[
+  RendererGone(0),
+  OpenTab(0, tab: 1),
+  DuplicateTab(0),
+  Tap(0),
+  Tap(2),
+  GoHome(),
+  Pressure(),
+];
+
+const _rendererLength = 2;
+
 /// Webspaces (WEBSPACE-013): `All`, then one of the two sites on a base
 /// domain and one of the site apart, chosen on the list, from the list with
 /// one site signed in, or with a second loaded behind it.
@@ -1046,6 +1068,25 @@ void main() {
         }
       });
     }
+  }
+
+  for (final MapEntry(key: setupName, value: setup)
+      in _rendererSetups.entries) {
+    _scheduleTest(
+        'a renderer gone (BUG-002), containers, $setupName: every schedule '
+        'holds', body: () async {
+      for (var length = 1; length <= _rendererLength; length++) {
+        for (final script in _scripts(length, alphabet: _rendererAlphabet)) {
+          await _expectEvery(
+            world: () =>
+                ActivationWorld(_mixedContainers, deletes: true, tabbed: true),
+            setup: setup,
+            script: script,
+            preemptions: _preemptions,
+          );
+        }
+      }
+    });
   }
 
   for (final page in [_mixed, _mixedContainers]) {
