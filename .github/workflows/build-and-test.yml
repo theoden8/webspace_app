@@ -271,8 +271,15 @@ jobs:
         run: fvm dart tool/gen_l10n.dart
       # Errors only: the lints analysis_options.yaml raises to `error` fail
       # here, and the warnings and infos the code already carries do not.
+      # `dart analyze`, since `flutter analyze` drops what an analyzer plugin
+      # reports (tool/webspace_lints).
       - name: Analyze (errors only)
-        run: fvm flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: fvm dart analyze --no-fatal-warnings
+      - name: Test the analyzer plugin
+        working-directory: tool/webspace_lints
+        run: |
+          fvm dart pub get --enforce-lockfile
+          fvm dart test
       - name: Test verification helpers and logging
         run: >-
           fvm flutter test --reporter expanded

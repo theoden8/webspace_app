@@ -1,0 +1,19 @@
+include: package:lints/recommended.yaml
+
+analyzer:
+  errors:
+    avoid_catches_without_on_clauses: error
+    discarded_futures: error
+    unawaited_futures: error
+
+linter:
+  rules:
+    avoid_catches_without_on_clauses: true
+    discarded_futures: true
+    unawaited_futures: true
+    # test_reflective_loader finds a test by its `test_` prefix.
+    non_constant_identifier_names: false
+
+plugins:
+  webspace_lints:
+    path: .
