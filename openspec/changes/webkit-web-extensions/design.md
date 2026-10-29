@@ -34,8 +34,8 @@
 
 **Non-Goals:**
 
-- A browsable collection of extensions in an App Store build (WEBEXT-019),
-  installs the user did not ask for there, and signature verification.
+- A browsable collection of extensions, installs the user did not ask for,
+  and signature verification.
 - Android and Linux (no extension runtime in Android System WebView; WPE's is
   unfinished upstream).
 - Extension keyboard commands, context menus, `devtools_page`, side panels.

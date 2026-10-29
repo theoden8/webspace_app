@@ -12,7 +12,6 @@ import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/popup_webview.dart';
-import 'package:webspace/services/web_extension_library.dart' show extensionSearchSwitchOffered;
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
@@ -48,10 +47,6 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.webExtensions, Icons.extension_outlined,
             loc.appSettingsExperimentalWebExtensions,
             loc.appSettingsExperimentalWebExtensionsHint),
-      if (extensionSearchSwitchOffered)
-        (ExperimentalFeature.extensionSearch, Icons.search,
-            loc.appSettingsExperimentalExtensionSearch,
-            loc.appSettingsExperimentalExtensionSearchHint),
       if (DesktopWindow.offered && DesktopTray.experimental)
         (ExperimentalFeature.desktopTray, Icons.web_asset_outlined,
             loc.appSettingsExperimentalDesktopTray,

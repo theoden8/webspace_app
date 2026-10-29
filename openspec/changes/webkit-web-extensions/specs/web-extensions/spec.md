@@ -30,7 +30,7 @@ Web extensions SHALL be reachable only on iOS 18.4+ and macOS 15.4+, and there o
 
 ### Requirement: WEBEXT-002 - The user adds an extension from a file or a link; the app downloads only what the user asked for
 
-App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`, read as WEBEXT-013 says, or from a link as WEBEXT-017 says. The app SHALL download a package only when the user adds or updates an extension, or where WEBEXT-019's switch lets an update install without asking; checking for an update (WEBEXT-018) downloads none. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for, and say when the package carried a signature the app did not check.
+App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`, read as WEBEXT-013 says, or from a link as WEBEXT-017 says. The app SHALL download a package only when the user adds or updates an extension; checking for an update (WEBEXT-018) downloads none. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for, and say when the package carried a signature the app did not check.
 
 #### Scenario: A Chrome package
 
@@ -401,32 +401,3 @@ For each extension with a source the app SHALL check the source's latest release
 - **GIVEN** an update whose manifest adds the `cookies` permission
 - **WHEN** the user installs it
 - **THEN** the app shows that it adds `cookies`, and installs nothing until the user accepts
-
-### Requirement: WEBEXT-019 - Search, and installs without asking, only outside the App Store
-
-A build installed outside the App Store (macOS without a Mac App Store receipt) SHALL offer, as a search bar at the top of App Settings > Extensions and only while its own Experimental switch (Extension search, off by default) is on, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build (iOS, and macOS with a receipt) SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own. The search SHALL be compiled only into a build made with `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`: a build made without it, as every App Store build is, SHALL carry none of the search's code and offer neither its bar nor its switch, wherever it was installed from, and signing a build for the Mac App Store SHALL refuse one that carries it.
-
-#### Scenario: A build from the App Store
-
-- **GIVEN** the app installed from the App Store
-- **WHEN** the user opens App Settings > Extensions
-- **THEN** there is no search and no switch to install updates without asking
-
-#### Scenario: A build made without the search
-
-- **GIVEN** a build made without `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`, installed from outside the App Store
-- **WHEN** the user opens App Settings > Developer > Experimental and App Settings > Extensions
-- **THEN** there is no Extension search switch and no search bar, and the build's binary holds none of the search's code
-
-#### Scenario: Search behind its switch
-
-- **GIVEN** a build installed outside the App Store, with Extension search off in App Settings > Developer > Experimental, as it is by default
-- **WHEN** the user opens App Settings > Extensions
-- **THEN** there is no search, and the switch to install updates without asking is still there
-
-#### Scenario: A search result WebKit runs only in part
-
-- **GIVEN** a build installed outside the App Store, and a search result whose manifest asks for `webRequestBlocking`
-- **WHEN** the results show
-- **THEN** that result is labelled as running in part, and is still offered
-

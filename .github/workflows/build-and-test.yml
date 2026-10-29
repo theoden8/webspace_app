@@ -1000,8 +1000,6 @@ jobs:
         run: |
           fvm flutter build ipa --release --no-codesign
           bash scripts/verify_adblock_shipped.sh ios
-          bash scripts/check_extension_search.sh absent \
-            build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
           # --no-codesign builds the archive and then skips the export
           # ("Codesigning disabled with --no-codesign, skipping IPA"), so
           # build/ios/ipa never existed: the upload below found nothing on
@@ -1025,8 +1023,6 @@ jobs:
         run: |
           fvm flutter build macos --release
           bash scripts/verify_adblock_shipped.sh macos
-          bash scripts/check_extension_search.sh absent \
-            build/macos/Build/Products/Release/webspace.app/Contents/Frameworks/App.framework/App
           bash scripts/sign_macos.sh adhoc
 
       # Reclaim disk before the macOS integration loop. The macos-latest

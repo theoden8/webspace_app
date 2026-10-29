@@ -59,8 +59,8 @@ const EXEMPT = {
     'tor\'s GeoIP table from the Tor Project URLs fixed in kTorGeoIpUrls, '
     + 'through Tor.',
   'lib/services/web_extension_library.dart':
-    'Release and search queries go to addons.mozilla.org and api.github.com, '
-    + 'built from a link the user pasted or typed (WEBEXT-017, WEBEXT-019); '
+    'Release queries go to addons.mozilla.org and api.github.com, built '
+    + 'from a link the user pasted (WEBEXT-017); '
     + 'a package is downloaded from the https URL those APIs answer with. No '
     + 'loaded page chooses any of them.',
   'lib/services/outbound_http.dart':
