@@ -50,7 +50,6 @@ DEVTOOLS-008	no check: no test opens DevToolsScreen with NestedDevToolsHost or c
 # dns-blocklist
 DNS-006	no check: no test drives the App Settings DNS row (DnsBlocklistDataset with its slider): nothing checks that moving the slider does not download, that the slider is disabled while a download runs, or that it opens at the downloaded level (partly: test/level_slider_test.dart, "every stop is labelled and the current one stands out")
 DNS-007	no check: DnsBlocklistDataset.status ("<level> - <count> domains" / "Not configured") is untested; the "Updated:" line is checked only on DatasetTile with a fake dataset (partly: test/dataset_tile_test.dart, "names what is on disk and when it was fetched")
-DNS-013	no check: no widget test renders StatsBanner: its visibility with and without queries or a blocklist, its expanded list of blocked domains, and the showStatsBanner pref hiding it are all unchecked
 DNS-015	no check: no test renders the per-site settings DNS stats chips, or checks that they are absent when nothing was recorded
 # downloads
 DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri

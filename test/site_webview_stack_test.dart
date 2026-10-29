@@ -8,6 +8,7 @@ import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/widgets/site_webview_stack.dart';
+import 'package:webspace/widgets/stats_banner.dart';
 
 import 'helpers/capture_fakes.dart';
 import 'helpers/isolations.dart';
@@ -49,14 +50,15 @@ void main() {
   });
   tearDown(ConnectivityService.reset);
 
-  Widget stack(List<WebViewModel> models, {required SiteHooks hooks}) =>
+  Widget stack(List<WebViewModel> models,
+          {required SiteHooks hooks, bool showStatsBanner = false}) =>
       MaterialApp(
         home: SiteWebViewStack(
           models: models,
           loaded: {for (final (i, _) in models.indexed) i},
           current: models.length - 1,
           hooks: hooks,
-          showStatsBanner: false,
+          showStatsBanner: showStatsBanner,
         ),
       );
 
@@ -96,5 +98,16 @@ void main() {
     await tester.pumpWidget(stack([b, a], hooks: hooks));
     expect(webViewStateOf(tester, site: a), same(ofA));
     expect(webViewStateOf(tester, site: b), same(ofB));
+  });
+
+  testWidgets('the banner setting decides whether a site shows one (DNS-013)',
+      (tester) async {
+    final hooks = _hooks();
+    final a = WebViewModel(initUrl: 'https://a.example/');
+    await tester.pumpWidget(stack([a], hooks: hooks, showStatsBanner: true));
+    expect(find.byType(StatsBanner), findsOneWidget);
+
+    await tester.pumpWidget(stack([a], hooks: hooks));
+    expect(find.byType(StatsBanner), findsNothing);
   });
 }
