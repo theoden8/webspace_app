@@ -14,6 +14,7 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   errors:
     avoid_catches_without_on_clauses: error
+    invalid_use_of_visible_for_testing_member: error
     discarded_futures: error
     unawaited_futures: error
 

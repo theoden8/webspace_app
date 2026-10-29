@@ -12,6 +12,7 @@ import 'package:webspace/services/redirect_domain_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -236,8 +237,7 @@ class SiteEditingController {
     if (url != model.initUrl) {
       model.initUrl = url;
       model.currentUrl = url;
-      model.webview = null; // Force recreation with new URL
-      model.controller = null;
+      model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
       _host.rebuild();
     }
 
