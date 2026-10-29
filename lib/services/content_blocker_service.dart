@@ -736,8 +736,8 @@ class ContentBlockerService {
   /// file is gone (the OS or the user cleared the cache, PLATFORM-010) reads
   /// as not downloaded, so the screens offer the download instead of
   /// counting rules the engine never read.
+  @Held(#_edits)
   Future<void> _forgetPurgedDownloads() async {
-    assert(_edits.isHeld, 'the lists read outside an edit turn');
     final purged = <FilterListId>[];
     var forgot = false;
     for (final list in _lists) {
@@ -777,6 +777,7 @@ class ContentBlockerService {
   /// Where Android's engine goes, set by [initialize].
   late NativeIntercept _native;
 
+  @Held(#_edits)
   Future<void> _initializeHeld() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1085,8 +1086,8 @@ class ContentBlockerService {
 
   Future<void> _rebuildEngine() => _rebuilds.run(_rebuildEngineInner);
 
+  @Held(#_rebuilds)
   Future<void> _rebuildEngineInner() async {
-    assert(_rebuilds.isHeld, 'the engine or its cache touched outside a rebuild turn');
     // The engine in use stays until its replacement is built, so a page
     // built or a request judged meanwhile meets the old engine, never none
     // (CB-001). The inputs are taken once, so the cache key and the rules
@@ -1283,6 +1284,7 @@ class ContentBlockerService {
 
   /// Loads the engine and prefilter a build with inputs [key] cached. False
   /// on any miss, which leaves the build to the text path.
+  @Held(#_rebuilds)
   Future<bool> _loadCachedEngine(String key,
       {required _EngineInputs inputs}) async {
     final sw = Stopwatch()..start();
@@ -1388,6 +1390,7 @@ class ContentBlockerService {
   /// Adds each of [_defaultLists] this install was not offered yet, and
   /// records it as offered. An [upgrade] from before the record was offered
   /// the first [_offeredBeforeRecord].
+  @Held(#_edits)
   Future<void> _offerNewDefaults(SharedPreferences prefs,
       {required bool upgrade}) async {
     final recorded = prefs.getStringList(_offeredKey);
@@ -1408,8 +1411,8 @@ class ContentBlockerService {
         _offeredKey, {...offered, for (final d in _defaultLists) d.id}.toList());
   }
 
+  @Held(#_edits)
   Future<void> _saveLists() async {
-    assert(_edits.isHeld, 'the filter lists saved outside an edit turn');
     final prefs = await SharedPreferences.getInstance();
     final json = jsonEncode(_lists.map((l) => l.toJson()).toList());
     await prefs.setString(_listsKey, json);
@@ -1468,9 +1471,9 @@ class ContentBlockerService {
     return null;
   }
 
+  @Held(#_rebuilds)
   Future<void> _writeEngineCache(String key,
       {required Uint8List blob, required AbpNetworkPrefilter prefilter}) async {
-    assert(_rebuilds.isHeld, 'the engine cache written outside a rebuild turn');
     try {
       await _store.delete(_engineCacheMetaName);
       await _store.writeBytes(_engineCacheName, bytes: blob);
@@ -1488,8 +1491,8 @@ class ContentBlockerService {
     }
   }
 
+  @Held(#_rebuilds)
   Future<void> _clearEngineCache() async {
-    assert(_rebuilds.isHeld, 'the engine or its cache touched outside a rebuild turn');
     try {
       await _store.delete(_engineCacheMetaName);
       await _store.delete(_engineCacheName);

@@ -661,8 +661,8 @@ class DnsBlockService {
   Future<bool> downloadList(int level) =>
       _mutations.run(() => _downloadListInner(level));
 
+  @Held(#_mutations)
   Future<bool> _downloadListInner(int level) async {
-    assert(_mutations.isHeld, 'a DNS level mutation outside its turn');
     if (level < 0 || level > kDnsMaxLevel) return false;
 
     if (level != 0) return _download(level, appWide: true);
@@ -691,8 +691,8 @@ class DnsBlockService {
 
   /// [flow] run from its input at [from] to its end, with
   /// `"dns" \in Kinds` held meanwhile.
+  @Held(#_mutations)
   Future<DnsFlow> _runFlow(DnsFlow flow, {required DnsPlace from}) async {
-    assert(_mutations.isHeld, 'a DNS level mutation outside its turn');
     final c = StepContext(flow);
     final next = DnsTable.table.runInput(c, from: from);
     _flowing = true;
@@ -706,6 +706,7 @@ class DnsBlockService {
 
   /// One download as the table runs it: [level]'s list fetched and folded
   /// in, made the app-wide level when [appWide], then recorded.
+  @Held(#_mutations)
   Future<bool> _download(int level, {required bool appWide}) async {
     final flow = await _runFlow(
       DnsFlow._(this, level: level, appWide: appWide),
@@ -735,8 +736,8 @@ class DnsBlockService {
   Future<bool> downloadLevel(int level) =>
       _mutations.run(() => _downloadLevelInner(level));
 
+  @Held(#_mutations)
   Future<bool> _downloadLevelInner(int level) async {
-    assert(_mutations.isHeld, 'a DNS level mutation outside its turn');
     if (level < 1 || level > kDnsMaxLevel) return false;
     return _download(level, appWide: false);
   }
@@ -757,8 +758,8 @@ class DnsBlockService {
   int _folds = 0;
   final Map<int, int> _foldedAt = {};
 
+  @Held(#_mutations)
   Future<void> _pruneLevelsInner(Set<int> keep, {required int since}) async {
-    assert(_mutations.isHeld, 'a DNS level mutation outside its turn');
     final drop = _levelSets.levels
         .where((l) =>
             !keep.contains(l) &&
@@ -871,8 +872,8 @@ class DnsBlockService {
   Future<void> applyImportedLevel(int level) =>
       _mutations.run(() => _applyImportedLevelInner(level));
 
+  @Held(#_mutations)
   Future<void> _applyImportedLevelInner(int level) async {
-    assert(_mutations.isHeld, 'a DNS level mutation outside its turn');
     if (level < 0 || level > kDnsMaxLevel) return;
     if (level == _level) return;
     try {

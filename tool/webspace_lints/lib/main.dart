@@ -1,6 +1,7 @@
 import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
+import 'src/held_in_turn.dart';
 import 'src/positional_parameters.dart';
 
 final plugin = WebspaceLints();
@@ -11,6 +12,8 @@ class WebspaceLints extends Plugin {
 
   @override
   void register(PluginRegistry registry) {
-    registry.registerWarningRule(PositionalParameters());
+    registry
+      ..registerWarningRule(PositionalParameters())
+      ..registerWarningRule(HeldInTurn());
   }
 }
