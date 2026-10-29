@@ -304,7 +304,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 
 The app SHALL expose exactly one global setting for what the system back gesture does once the webview has no page left to go back to. It SHALL default to off, which is NAV-001's no-op. It SHALL be offered on Android, Linux and Windows only: on iOS and macOS the setting SHALL be absent from App Settings and the behaviour SHALL stay pinned to NAV-001, whatever the persisted `backOpensMenu` value says.
 
-When the setting is on, the back gesture at the start of a site's history SHALL open the drawer, and a further back gesture on a drawer *that gesture opened* SHALL close it and leave the app. A drawer the user opened any other way (AppBar menu button, webspace tap) SHALL only close, never leave the app — and leaving the app SHALL happen on Android only, where finishing the activity is the platform's own back-at-root behaviour.
+When the setting is on, the back gesture at the start of a site's history SHALL open the drawer, and a further back gesture on a drawer *that gesture opened* SHALL close it and leave the app. A drawer the user opened any other way (AppBar menu button, webspace tap) SHALL only close, never leave the app — and leaving the app SHALL happen on Android only, where it SHALL send the app's task to the back, as Android 12 itself does for a task's root on Back. It SHALL NOT finish the activity: the engine goes with it, so every loaded site, the notification sites a wake would reload, and the page in progress are gone, and the next open is a cold start. Gate: `test/js/back_keeps_app_running.test.js`.
 
 The setting SHALL be persisted as the `backOpensMenu` app pref and ride settings export/import; a backup carrying it on SHALL restore on Apple without turning the behaviour on. It SHALL have no effect while the kiosk shell is locked (KIOSK-002), which owns the drawer's absence. Its hint SHALL describe the app-exit escalation only on the platform where it happens.
 
@@ -344,7 +344,8 @@ With Alternative design enabled, the menu action SHALL return directly to the pr
 **And** the drawer was opened by the back gesture on Android
 **When** the user triggers the system back gesture again
 **Then** the drawer closes
-**And** the app is left via `SystemNavigator.pop()`
+**And** the app is left via `SystemNavigator.pop()`, which sends its task to the back
+**And** reopening it shows the same sites, still loaded, with no restart
 
 #### Scenario: Setting on — back never quits from a deliberately opened menu
 
