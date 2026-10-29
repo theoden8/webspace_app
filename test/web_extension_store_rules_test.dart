@@ -50,6 +50,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     AppPref.loadAll(await SharedPreferences.getInstance());
     debugHostRunsWebExtensions = true;
+    debugExtensionSearchBuilt = true;
     DeveloperModeService.instance.debugSet(on: true);
     ExperimentalFeaturesService.instance.debugSet(
       ExperimentalFeature.webExtensions,
@@ -71,6 +72,7 @@ void main() {
   tearDown(() {
     debugHostRunsWebExtensions = null;
     debugHostDistribution = null;
+    debugExtensionSearchBuilt = null;
     DeveloperModeService.instance.debugSet(on: false);
     for (final feature in [
       ExperimentalFeature.webExtensions,
@@ -114,6 +116,27 @@ void main() {
       expect(find.byType(SearchBar), findsNothing);
       expect(find.text('Install updates without asking'), findsNothing);
       expect(find.text('Add from a link'), findsOneWidget);
+    });
+
+    testWidgets('a build made without the search flag carries neither the bar '
+        'nor its switch, wherever it was installed from', (tester) async {
+      debugExtensionSearchBuilt = false;
+      debugHostDistribution = AppDistribution.direct;
+      searchSwitch(on: true);
+      await pumpLocalized(
+        tester,
+        home: AppExtensionsScreen(pick: () async => null),
+      );
+      expect(find.byType(SearchBar), findsNothing);
+      expect(find.text('Install updates without asking'), findsOneWidget);
+      await pumpLocalized(tester, home: const AppDeveloperScreen());
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Web extensions'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Extension search'), findsNothing);
     });
 
     testWidgets('outside it, the search waits for its Experimental switch', (

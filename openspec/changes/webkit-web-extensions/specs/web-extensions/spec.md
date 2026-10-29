@@ -404,13 +404,19 @@ For each extension with a source the app SHALL check the source's latest release
 
 ### Requirement: WEBEXT-019 - Search, and installs without asking, only outside the App Store
 
-A build installed outside the App Store (macOS without a Mac App Store receipt) SHALL offer, as a search bar at the top of App Settings > Extensions and only while its own Experimental switch (Extension search, off by default) is on, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build (iOS, and macOS with a receipt) SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own.
+A build installed outside the App Store (macOS without a Mac App Store receipt) SHALL offer, as a search bar at the top of App Settings > Extensions and only while its own Experimental switch (Extension search, off by default) is on, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build (iOS, and macOS with a receipt) SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own. The search SHALL be compiled only into a build made with `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`: a build made without it, as every App Store build is, SHALL carry none of the search's code and offer neither its bar nor its switch, wherever it was installed from, and signing a build for the Mac App Store SHALL refuse one that carries it.
 
 #### Scenario: A build from the App Store
 
 - **GIVEN** the app installed from the App Store
 - **WHEN** the user opens App Settings > Extensions
 - **THEN** there is no search and no switch to install updates without asking
+
+#### Scenario: A build made without the search
+
+- **GIVEN** a build made without `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`, installed from outside the App Store
+- **WHEN** the user opens App Settings > Developer > Experimental and App Settings > Extensions
+- **THEN** there is no Extension search switch and no search bar, and the build's binary holds none of the search's code
 
 #### Scenario: Search behind its switch
 

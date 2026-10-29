@@ -39,12 +39,37 @@ bool get webExtensionsOffered =>
       ExperimentalFeature.webExtensions,
     );
 
+/// Whether this build carries the search of addons.mozilla.org at all
+/// (WEBEXT-019): only one made with
+/// `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`, which no App Store build
+/// is. Without it the compiler leaves the search bar, its screen and its
+/// queries out of the binary.
+const bool extensionSearchBuilt = bool.fromEnvironment(
+  'WEBSPACE_EXTENSION_SEARCH',
+);
+
+/// Test seam: a debug build that carries the search without the define.
+/// A release build never reads it, so it cannot keep the search in one.
+@visibleForTesting
+bool? debugExtensionSearchBuilt;
+
+bool get _searchBuilt =>
+    extensionSearchBuilt ||
+    (kDebugMode && (debugExtensionSearchBuilt ?? false));
+
+/// Whether the Experimental group offers the Extension search switch: in a
+/// build that carries the search, on a host that runs extensions, installed
+/// from outside the App Store.
+bool get extensionSearchSwitchOffered =>
+    _searchBuilt &&
+    hostRunsWebExtensions &&
+    hostDistribution == AppDistribution.direct;
+
 /// Whether the search of addons.mozilla.org is offered (WEBEXT-019): where
-/// extensions are, in a build from outside the App Store, with its own
-/// Experimental switch on.
+/// its switch is offered and on, and extensions are.
 bool get extensionSearchOffered =>
+    extensionSearchSwitchOffered &&
     webExtensionsOffered &&
-    hostDistribution == AppDistribution.direct &&
     ExperimentalFeaturesService.instance.isEnabled(
       ExperimentalFeature.extensionSearch,
     );

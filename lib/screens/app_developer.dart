@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/controllers/desktop_tray.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
@@ -13,6 +12,7 @@ import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/popup_webview.dart';
+import 'package:webspace/services/web_extension_library.dart' show extensionSearchSwitchOffered;
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
@@ -48,7 +48,7 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.webExtensions, Icons.extension_outlined,
             loc.appSettingsExperimentalWebExtensions,
             loc.appSettingsExperimentalWebExtensionsHint),
-      if (hostRunsWebExtensions && hostDistribution == AppDistribution.direct)
+      if (extensionSearchSwitchOffered)
         (ExperimentalFeature.extensionSearch, Icons.search,
             loc.appSettingsExperimentalExtensionSearch,
             loc.appSettingsExperimentalExtensionSearchHint),
