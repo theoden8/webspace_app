@@ -92,8 +92,8 @@ test('sites wait for a circuit after a reopen, and say so', () => {
   assert.match(blockAfter(engine, 'void _publishUp('),
     /if \(_circuitOwed != null\)/,
     'a reopen\'s listener is not published until the circuit is in');
-  assert.match(blockAfter(engine, 'Future<bool> _reopenIfDead('),
-    /_circuitOwed = Object\(\);/);
+  assert.match(blockAfter(engine, 'Future<void> _reopenNow('),
+    /_circuitOwed = _OwedCircuit\(\);/);
 });
 
 test('DisableNetwork finds no conflux leg to relaunch', () => {
