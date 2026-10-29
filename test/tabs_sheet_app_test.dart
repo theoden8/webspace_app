@@ -235,6 +235,29 @@ void main() {
         reason: 'the way back was taken');
   });
 
+  testWidgets('a tab closed from the list leaves the list up (TAB-008)',
+      (tester) async {
+    final hosted = await onDuckDuckGoWithItsList(tester);
+    await tester.tap(find.text('https://duckduckgo.com/?q=webspace'));
+    await settleRealApp(tester);
+    await attachWebViews(tester);
+    await openTabsSheet(tester);
+    expect(find.text('duckduckgo.com · where you were'), findsOneWidget);
+
+    final row = find.ancestor(
+        of: find.text('https://duckduckgo.com/?q=webspace'),
+        matching: find.byType(InkWell));
+    await tester.tap(
+        find.descendant(of: row.first, matching: find.byTooltip('Close tab')));
+    await settleRealApp(tester);
+    expect(appSite('GitHub').tabs.map((t) => t.id), isNot(contains(hosted.id)));
+    expect(find.byType(TabsSheet), findsOneWidget,
+        reason: 'closing a tab keeps the list on screen');
+    expect(find.text('GitHub · 1 tab'), findsOneWidget);
+    expect(find.textContaining('where you were'), findsNothing,
+        reason: 'the tab the jump landed on is closed, so Back leads nowhere');
+  });
+
   testWidgets('Back at the start of the tab it opened goes back, closing '
       'nothing (TAB-019)', (tester) async {
     final hosted = await onDuckDuckGoWithItsList(

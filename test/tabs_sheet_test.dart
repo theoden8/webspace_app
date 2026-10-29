@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,8 +34,8 @@ Future<void> pumpSheet(
   void Function(WebViewModel site, {required TabId tabId})? onOpenTab,
   void Function(WebViewModel site)? onNewTab,
   VoidCallback? onWebSearch,
-  void Function(WebViewModel site, {required TabId tabId})? onCloseTab,
-  void Function(WebViewModel site, {required TabId tabId})? onCloseSubtree,
+  TabsSheetClose? onCloseTab,
+  TabsSheetClose? onCloseSubtree,
   bool Function(WebViewModel site,
       {required TabId tabId, required TabDrop drop})? onMoveTab,
   List<TabsSheetSite>? Function(String siteId,
@@ -53,8 +55,9 @@ Future<void> pumpSheet(
       onOpenTab: onOpenTab ?? (_, {required tabId}) {},
       onNewTab: onNewTab ?? (_) {},
       onWebSearch: onWebSearch,
-      onCloseTab: onCloseTab ?? (_, {required tabId}) {},
-      onCloseSubtree: onCloseSubtree ?? (_, {required tabId}) {},
+      onCloseTab: onCloseTab ?? (_, {required tabId}) async => (sites: sites, wayBack: wayBack),
+      onCloseSubtree:
+          onCloseSubtree ?? (_, {required tabId}) async => (sites: sites, wayBack: wayBack),
       onMoveTab: onMoveTab,
       onMoveSite: onMoveSite,
       wayBack: wayBack,
@@ -77,6 +80,48 @@ bool isHighlighted(String text) => find
     .ancestor(of: find.text(text).first, matching: find.byType(Ink))
     .evaluate()
     .isNotEmpty;
+
+/// The sheet as the app presents it, a modal over a page, so a test sees
+/// whether a tap leaves it.
+Future<void> showSheetOverPage(
+  WidgetTester tester, {
+  required List<TabsSheetSite> sites,
+  required TabsSheetClose onCloseTab,
+  void Function(WebViewModel site, {required TabId tabId})? onOpenTab,
+  TabReturn? wayBack,
+}) async {
+  setViewSize(tester, size: const Size(400, 900));
+  await pumpLocalized(tester, home: Builder(
+    builder: (context) => Scaffold(
+      body: Center(
+        child: TextButton(
+          onPressed: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => TabsSheet(
+              sites: sites,
+              currentIndex: 0,
+              onOpenTab: onOpenTab ?? (_, {required tabId}) {},
+              onNewTab: (_) {},
+              onCloseTab: onCloseTab,
+              onCloseSubtree: onCloseTab,
+              wayBack: wayBack,
+            ),
+          ),
+          child: const Text('open sheet'),
+        ),
+      ),
+    ),
+  ));
+  await tester.tap(find.text('open sheet'));
+  await tester.pumpAndSettle();
+}
+
+/// The Close tab button on the row showing [text].
+Finder closeButtonOf(String text) => find.descendant(
+      of: find.ancestor(of: find.text(text), matching: find.byType(InkWell)).first,
+      matching: find.byTooltip('Close tab'),
+    );
 
 /// A site with [urls] as root tabs, the first one active.
 WebViewModel siteWithRoots(String name, {required List<String> urls}) {
@@ -484,12 +529,14 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         'https://github.com/',
         'https://github.com/pulls',
       ]);
+      final sites = [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
       await pumpSheet(
         tester,
-        sites: [
-          TabsSheetSite(model: site, isCurrent: true, isLoaded: true)
-        ],
-        onCloseTab: (_, {required tabId}) => closed = tabId,
+        sites: sites,
+        onCloseTab: (_, {required tabId}) async {
+          closed = tabId;
+          return (sites: sites, wayBack: null);
+        },
       );
       await tester.tap(find.byIcon(Icons.close).last);
       await tester.pump();
@@ -503,18 +550,106 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         'https://github.com/',
         'https://github.com/pulls',
       ]);
+      final sites = [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
       await pumpSheet(
         tester,
-        sites: [
-          TabsSheetSite(model: site, isCurrent: true, isLoaded: true)
-        ],
-        onCloseSubtree: (_, {required tabId}) => closed = tabId,
+        sites: sites,
+        onCloseSubtree: (_, {required tabId}) async {
+          closed = tabId;
+          return (sites: sites, wayBack: null);
+        },
       );
       // Only the parent row has the control: the leaf has nothing under it.
       expect(find.byIcon(Icons.layers_clear_outlined), findsOneWidget);
       await tester.tap(find.byIcon(Icons.layers_clear_outlined));
       await tester.pump();
       expect(closed, site.tabs.first.id);
+    });
+
+    testWidgets('a close leaves the sheet up and redraws it once it has landed',
+        (tester) async {
+      final site = siteWithRoots('GitHub', urls: [
+        'https://github.com/',
+        'https://github.com/pulls',
+        'https://github.com/issues',
+      ]);
+      final wiki = WebViewModel(
+          siteId: SiteId('wiki'), initUrl: 'https://wikipedia.org/', name: 'Wikipedia');
+      final sites = [
+        TabsSheetSite(model: site, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: wiki, isCurrent: false, isLoaded: false),
+      ];
+      final landed = Completer<void>();
+      await showSheetOverPage(
+        tester,
+        sites: sites,
+        wayBack: TabReturn(fromSiteId: wiki.siteId, fromTabId: kPrimaryTabId,
+            toSiteId: site.siteId, toTabId: site.activeTabId),
+        onCloseTab: (_, {required tabId}) async {
+          await landed.future;
+          site.setTabs([for (final t in site.tabs) if (t.id != tabId) t]);
+          return (sites: sites, wayBack: null);
+        },
+      );
+      expect(find.text('wikipedia.org · where you were'), findsOneWidget);
+      await tester.tap(closeButtonOf('https://github.com/pulls'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TabsSheet), findsOneWidget,
+          reason: 'closing a tab keeps the list on screen');
+      expect(find.text('https://github.com/pulls'), findsOneWidget,
+          reason: 'the row goes when the close has landed, not before');
+
+      landed.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(TabsSheet), findsOneWidget);
+      expect(find.text('https://github.com/pulls'), findsNothing);
+      expect(find.text('https://github.com/issues'), findsOneWidget);
+      expect(find.text('GitHub · 2 tabs'), findsOneWidget);
+      expect(find.text('In Wikipedia'), findsNothing,
+          reason: 'the way back is read afresh with the rows');
+    });
+
+    testWidgets('a tap after a close waits for it to land, in the order made',
+        (tester) async {
+      final site = siteWithRoots('GitHub', urls: [
+        'https://github.com/',
+        'https://github.com/pulls',
+        'https://github.com/issues',
+      ]);
+      final sites = [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
+      final first = Completer<void>();
+      final events = <String>[];
+      await showSheetOverPage(
+        tester,
+        sites: sites,
+        onOpenTab: (_, {required tabId}) => events.add('open $tabId'),
+        onCloseTab: (_, {required tabId}) async {
+          events.add('close $tabId');
+          if (events.length == 1) await first.future;
+          events.add('closed $tabId');
+          return (sites: sites, wayBack: null);
+        },
+      );
+      await tester.tap(closeButtonOf('https://github.com/pulls'));
+      await tester.pump();
+      await tester.tap(closeButtonOf('https://github.com/issues'));
+      await tester.pump();
+      await tester.tap(find.text('https://github.com/'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TabsSheet), findsNothing,
+          reason: 'opening a tab still leaves the list');
+      expect(events, ['close tab1'],
+          reason: 'a busy tab handler would drop what follows the close');
+
+      first.complete();
+      await tester.pumpAndSettle();
+      expect(events, [
+        'close tab1',
+        'closed tab1',
+        'close tab2',
+        'closed tab2',
+        'open $kPrimaryTabId',
+      ]);
     });
 
     testWidgets('the all-sites scope appears only with more than one site',
@@ -992,8 +1127,10 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
                   currentIndex: 0,
                   onOpenTab: (_, {required tabId}) => opened.add(tabId),
                   onNewTab: (_) {},
-                  onCloseTab: (_, {required tabId}) {},
-                  onCloseSubtree: (_, {required tabId}) {},
+                  onCloseTab: (_, {required tabId}) async =>
+                      (sites: sites(), wayBack: null),
+                  onCloseSubtree: (_, {required tabId}) async =>
+                      (sites: sites(), wayBack: null),
                 ),
               ),
               child: const Text('open sheet'),

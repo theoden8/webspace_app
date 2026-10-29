@@ -25,7 +25,8 @@ import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/widgets/tabs_sheet.dart' show TabsSheetSite;
+import 'package:webspace/widgets/tabs_sheet.dart'
+    show TabsSheetListing, TabsSheetSite;
 
 part 'tab_flow.dart';
 part 'tab_table.dart';
@@ -146,6 +147,22 @@ class TabsController {
           siteCount: _sites.models.length,
         ),
       );
+
+  /// What the Tabs sheet lists: [sheetSites] and the way back from the site
+  /// on screen, or with [scope] the library's tab tree, with no way back.
+  TabsSheetListing sheetListing({WebspaceId? scope}) => switch ((scope, _sites.shown)) {
+        (null, final shown?) => (sites: sheetSites(), wayBack: wayBackFrom(shown)),
+        (null, null) => (sites: sheetSites(), wayBack: null),
+        (final library?, _) => (sites: sheetSitesIn(library), wayBack: null),
+      };
+
+  /// [closeTab] asked from the Tabs sheet, which stays up: completes with
+  /// what it lists once the close has landed.
+  Future<TabsSheetListing> closeFromSheet(WebViewModel model,
+      {required TabId tabId, required bool subtree, WebspaceId? scope}) async {
+    await closeTab(model, tabId: tabId, subtree: subtree);
+    return sheetListing(scope: scope);
+  }
 
   List<TabsSheetSite> _sheetSitesOver(List<int> view) {
     final shown = view.toSet();

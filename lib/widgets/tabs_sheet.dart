@@ -13,11 +13,12 @@
 /// branch through that tab (TAB-017), so a tab in another tree and the way
 /// back to the one before are both a tap away (TAB-019).
 ///
-/// The widget owns no state beyond which subtrees are collapsed and where a
-/// drag would land: the tab list
+/// The widget owns no state beyond which subtrees are collapsed, where a drag
+/// would land and the listing the host last handed back: the tab list
 /// lives on the `WebViewModel`s and every mutation goes back to the host
 /// through the callbacks, which is what keeps the capture/dispose/rebuild walk
-/// in one place.
+/// in one place. Opening a tab, New tab and Web search leave the sheet; a
+/// close keeps it up and redraws its rows once the close has landed.
 library;
 
 import 'dart:async';
@@ -32,6 +33,7 @@ import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_list_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/site_address.dart';
@@ -61,6 +63,15 @@ class TabsSheetSite {
   /// that run as the site on screen are (TAB-017).
   final bool inView;
 }
+
+/// What the sheet lists that a change made from it can move: the sites, and
+/// the way back from the tab on screen (TAB-019).
+typedef TabsSheetListing = ({List<TabsSheetSite> sites, TabReturn? wayBack});
+
+/// A close asked from the sheet. Completes once it has landed, with the
+/// listing read afresh.
+typedef TabsSheetClose = Future<TabsSheetListing> Function(WebViewModel site,
+    {required TabId tabId});
 
 class TabsSheet extends StatefulWidget {
   const TabsSheet({
@@ -96,9 +107,8 @@ class TabsSheet extends StatefulWidget {
 
   /// Opens web search for the site on screen (LIR-029); null hides it.
   final VoidCallback? onWebSearch;
-  final void Function(WebViewModel site, {required TabId tabId}) onCloseTab;
-  final void Function(WebViewModel site, {required TabId tabId})
-      onCloseSubtree;
+  final TabsSheetClose onCloseTab;
+  final TabsSheetClose onCloseSubtree;
 
   /// A tab dragged onto a row or past the last row (TAB-015). Returns whether
   /// the move was made. Null leaves the rows where they are.
@@ -138,9 +148,17 @@ class _DraggedSite {
 class _TabsSheetState extends State<TabsSheet> {
   bool _allSites = false;
 
-  /// [TabsSheet.sites] until a site moves; a move can renumber every site,
-  /// so the host hands back the whole list.
-  late List<TabsSheetSite> _sites = widget.sites;
+  /// [TabsSheet.sites] and [TabsSheet.wayBack] until a change made here
+  /// lands: a move can renumber every site and a close can move the tab on
+  /// screen, so the host hands back the whole listing.
+  late TabsSheetListing _listing = (sites: widget.sites, wayBack: widget.wayBack);
+
+  List<TabsSheetSite> get _sites => _listing.sites;
+
+  /// The taps that reach the host, in the order they were made. A close
+  /// holds its turn until it has landed, so a tap after it reaches tab
+  /// handlers that are free rather than being dropped as busy.
+  final SerialQueue _taps = SerialQueue('tabsSheet');
 
   late final SiteId? _currentId = widget.currentIndex >= 0 &&
           widget.currentIndex < widget.sites.length
@@ -390,7 +408,7 @@ class _TabsSheetState extends State<TabsSheet> {
   /// and they are not dragged from here.
   List<Widget> _otherTrees(TabsSheetSite site,
       {required AppLocalizations loc, required ThemeData theme}) {
-    final back = widget.wayBack;
+    final back = _listing.wayBack;
     final listed = TabListEngine.otherTrees(
       containers:
           TabListEngine.branchContainers(_treeOf(site),
@@ -512,18 +530,28 @@ class _TabsSheetState extends State<TabsSheet> {
     if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
   }
 
-  /// Closes the sheet, then hands [action] to the host.
+  /// Closes the sheet, then hands [action] to the host once the closes
+  /// asked before it have landed.
   VoidCallback _closing(VoidCallback action) => () {
         Navigator.of(context).pop();
-        action();
+        _taps.enqueue(() async => action());
       };
+
+  /// [close] of [tabId] in [site], with the sheet left up: its rows redraw
+  /// from the listing the host hands back.
+  void _close(TabsSheetClose close,
+          {required WebViewModel site, required TabId tabId}) =>
+      _taps.enqueue(() async {
+        final listing = await close(site, tabId: tabId);
+        if (mounted) setState(() => _listing = listing);
+      });
 
   void _dropSite(SiteId siteId, {required SiteId ontoSiteId}) {
     _stopAutoScroll();
     final moved = widget.onMoveSite?.call(siteId, ontoSiteId: ontoSiteId);
     setState(() {
       _dropKey = _dropZone = null;
-      if (moved != null) _sites = moved;
+      if (moved != null) _listing = (sites: moved, wayBack: _listing.wayBack);
     });
   }
 
@@ -577,7 +605,7 @@ class _TabsSheetState extends State<TabsSheet> {
         ? domain
         : '${loc.tabsRunsAs(identity.getDisplayName())} · $domain';
     final secondLine =
-        widget.wayBack?.leadsBackTo(site.model.siteId, tabId: tab.id) ?? false
+        _listing.wayBack?.leadsBackTo(site.model.siteId, tabId: tab.id) ?? false
             ? '$runsAs · ${loc.tabsWhereYouWere}'
             : runsAs;
     final isActive = tab.id == site.model.activeTabId;
@@ -586,15 +614,14 @@ class _TabsSheetState extends State<TabsSheet> {
     final collapseKey = _keyOf(site, tabId: tab.id);
     final collapsed = _collapsed.contains(collapseKey);
     final shape = BorderRadius.circular(Radii.lg);
-    Widget close(String tooltip, {required IconData icon,
-            required void Function(WebViewModel site, {required TabId tabId})
-                onClose}) =>
+    Widget close(String tooltip,
+            {required IconData icon, required TabsSheetClose onClose}) =>
         IconButton(
           visualDensity: VisualDensity.compact,
           iconSize: IconSizes.action,
           tooltip: tooltip,
           icon: Icon(icon),
-          onPressed: _closing(() => onClose(site.model, tabId: tab.id)),
+          onPressed: () => _close(onClose, site: site.model, tabId: tab.id),
         );
     final rowBody = InkWell(
       onTap: _closing(() => widget.onOpenTab(site.model, tabId: tab.id)),
