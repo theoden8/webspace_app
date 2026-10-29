@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Rakningarvörn slembar einnig lestur af striga, hljóði, letri og vélbúnaði fyrir þetta vefsvæði.",
   "privacySummaryProtectionOn": "Rakningarvörn kveikt",
   "privacySummaryNothingOn": "Engin vörn virk",
+  "privacySummaryJavascriptOff": "JavaScript óvirkt",
   "siteSettingsForcedOffByTrackingProtection": "Þvingað af af rakningarvörn",
   "settingFollowAppHint": "Dofið fylgir það sjálfgefinni stillingu forritsins. Haltu inni til að halda gildinu sem það sýnir fyrir þennan vef, eða til að fylgja sjálfgefinni stillingu forritsins aftur.",
   "settingKeepForSite": "Halda fyrir þennan vef",

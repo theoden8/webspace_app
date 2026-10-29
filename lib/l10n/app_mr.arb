@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ट्रॅकिंग संरक्षण या साइटसाठी कॅनव्हास, ऑडिओ, फॉन्ट आणि हार्डवेअर वाचनेही यादृच्छिक करते.",
   "privacySummaryProtectionOn": "ट्रॅकिंग संरक्षण चालू",
   "privacySummaryNothingOn": "कोणतेही संरक्षण सक्षम नाही",
+  "privacySummaryJavascriptOff": "JavaScript बंद",
   "siteSettingsForcedOffByTrackingProtection": "ट्रॅकिंग संरक्षणाद्वारे सक्तीने बंद",
   "settingFollowAppHint": "फिकट असताना ते अ‍ॅपच्या डीफॉल्टचे अनुसरण करते. दाखवलेले मूल्य या साइटसाठी ठेवण्यासाठी, किंवा पुन्हा अ‍ॅपच्या डीफॉल्टचे अनुसरण करण्यासाठी दाबून धरा.",
   "settingKeepForSite": "या साइटसाठी ठेवा",

@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ٹریکنگ تحفظ اس سائٹ کے لیے کینوس، آڈیو، فونٹ اور ہارڈویئر ریڈنگز کو بھی بے ترتیب کر دیتا ہے۔",
   "privacySummaryProtectionOn": "ٹریکنگ تحفظ آن ہے",
   "privacySummaryNothingOn": "کوئی تحفظ فعال نہیں",
+  "privacySummaryJavascriptOff": "JavaScript بند",
   "siteSettingsForcedOffByTrackingProtection": "ٹریکنگ تحفظ کی وجہ سے زبردستی آف",
   "settingFollowAppHint": "مدھم ہونے پر یہ ایپ کی طے شدہ ترتیب کی پیروی کرتا ہے۔ دکھائی گئی قدر اس سائٹ کے لیے رکھنے، یا دوبارہ ایپ کی طے شدہ ترتیب کی پیروی کرنے کے لیے دیر تک دبائیں۔",
   "settingKeepForSite": "اس سائٹ کے لیے رکھیں",

@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ट्रैकिंग सुरक्षा इस साइट के लिए कैनवास, ऑडियो, फ़ॉन्ट और हार्डवेयर रीडिंग को भी यादृच्छिक बनाती है।",
   "privacySummaryProtectionOn": "ट्रैकिंग सुरक्षा चालू",
   "privacySummaryNothingOn": "कोई सुरक्षा सक्षम नहीं",
+  "privacySummaryJavascriptOff": "JavaScript बंद",
   "siteSettingsForcedOffByTrackingProtection": "ट्रैकिंग सुरक्षा द्वारा बलपूर्वक बंद",
   "settingFollowAppHint": "धुंधला होने पर यह ऐप की डिफ़ॉल्ट सेटिंग का पालन करता है। दिखाया गया मान इस साइट के लिए रखने, या फिर से ऐप की डिफ़ॉल्ट सेटिंग का पालन करने के लिए दबाकर रखें।",
   "settingKeepForSite": "इस साइट के लिए रखें",

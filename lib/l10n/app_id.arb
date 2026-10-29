@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Perlindungan Pelacakan juga mengacak pembacaan kanvas, audio, fon, dan perangkat keras untuk situs ini.",
   "privacySummaryProtectionOn": "Perlindungan Pelacakan aktif",
   "privacySummaryNothingOn": "Tidak ada perlindungan yang aktif",
+  "privacySummaryJavascriptOff": "JavaScript nonaktif",
   "siteSettingsForcedOffByTrackingProtection": "Dipaksa nonaktif oleh Perlindungan Pelacakan",
   "settingFollowAppHint": "Saat redup, ini mengikuti setelan bawaan aplikasi. Tekan lama untuk menyimpan nilai yang ditampilkan untuk situs ini, atau untuk kembali mengikuti setelan bawaan aplikasi.",
   "settingKeepForSite": "Simpan untuk situs ini",

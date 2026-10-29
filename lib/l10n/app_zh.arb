@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "追蹤保護也會為此網站隨機化畫布、音訊、字型與硬體讀數。",
   "privacySummaryProtectionOn": "追蹤保護已開啟",
   "privacySummaryNothingOn": "未啟用任何保護",
+  "privacySummaryJavascriptOff": "JavaScript 已關閉",
   "siteSettingsForcedOffByTrackingProtection": "已被追蹤保護強制關閉",
   "settingFollowAppHint": "變暗時會跟隨應用程式預設。長按可將目前顯示的值保留給此網站，或重新跟隨應用程式預設。",
   "settingKeepForSite": "為此網站保留",

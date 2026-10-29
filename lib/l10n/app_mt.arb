@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Il-Protezzjoni mit-Traċċar tirrandomizza wkoll il-qari tal-canvas, l-awdjo, il-fonts u l-ħardwer għal dan is-sit.",
   "privacySummaryProtectionOn": "Protezzjoni mit-Traċċar mixgħula",
   "privacySummaryNothingOn": "L-ebda protezzjoni mhi attivata",
+  "privacySummaryJavascriptOff": "JavaScript diżattivat",
   "siteSettingsForcedOffByTrackingProtection": "Imġiegħel mitfi mill-Protezzjoni mit-Traċċar",
   "settingFollowAppHint": "Meta jkun imċajpar, isegwi s-setting prestabbilit tal-app. Agħfas fit-tul biex iżżomm il-valur li juri għal dan is-sit, jew biex terġa' ssegwi s-setting prestabbilit tal-app.",
   "settingKeepForSite": "Żomm għal dan is-sit",

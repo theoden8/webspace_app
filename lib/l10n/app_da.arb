@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Sporingsbeskyttelse randomiserer også canvas-, lyd-, skrifttype- og hardwareaflæsninger for dette websted.",
   "privacySummaryProtectionOn": "Sporingsbeskyttelse til",
   "privacySummaryNothingOn": "Ingen beskyttelse aktiveret",
+  "privacySummaryJavascriptOff": "JavaScript slået fra",
   "siteSettingsForcedOffByTrackingProtection": "Tvunget fra af sporingsbeskyttelse",
   "settingFollowAppHint": "Nedtonet følger den appens standard. Tryk og hold for at beholde den viste værdi for dette websted eller for at følge appens standard igen.",
   "settingKeepForSite": "Behold for dette websted",

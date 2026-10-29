@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Spårningsskydd slumpar även avläsningar av canvas, ljud, teckensnitt och maskinvara för den här webbplatsen.",
   "privacySummaryProtectionOn": "Spårningsskydd på",
   "privacySummaryNothingOn": "Inget skydd aktiverat",
+  "privacySummaryJavascriptOff": "JavaScript av",
   "siteSettingsForcedOffByTrackingProtection": "Tvingad av av Spårningsskydd",
   "settingFollowAppHint": "Nedtonad följer den appens standard. Tryck länge för att behålla värdet den visar för den här webbplatsen, eller för att följa appens standard igen.",
   "settingKeepForSite": "Behåll för den här webbplatsen",

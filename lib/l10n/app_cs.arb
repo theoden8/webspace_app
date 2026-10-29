@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Ochrana proti sledování také náhodně mění hodnoty canvasu, zvuku, písem a hardwaru pro tento web.",
   "privacySummaryProtectionOn": "Ochrana proti sledování zapnuta",
   "privacySummaryNothingOn": "Žádná ochrana není zapnuta",
+  "privacySummaryJavascriptOff": "JavaScript vypnut",
   "siteSettingsForcedOffByTrackingProtection": "Vypnuto ochranou proti sledování",
   "settingFollowAppHint": "Ztlumený přepínač se řídí výchozím nastavením aplikace. Dlouhým stisknutím ponecháte zobrazenou hodnotu pro tento web, nebo se znovu budete řídit výchozím nastavením aplikace.",
   "settingKeepForSite": "Ponechat pro tento web",

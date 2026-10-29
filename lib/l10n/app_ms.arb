@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Perlindungan Penjejakan turut merawakkan bacaan kanvas, audio, fon dan perkakasan untuk tapak ini.",
   "privacySummaryProtectionOn": "Perlindungan Penjejakan hidup",
   "privacySummaryNothingOn": "Tiada perlindungan didayakan",
+  "privacySummaryJavascriptOff": "JavaScript dinyahdayakan",
   "siteSettingsForcedOffByTrackingProtection": "Dipaksa mati oleh Perlindungan Penjejakan",
   "settingFollowAppHint": "Apabila malap, ia mengikut tetapan lalai aplikasi. Tekan lama untuk mengekalkan nilai yang dipaparkan bagi tapak ini, atau untuk mengikut tetapan lalai aplikasi semula.",
   "settingKeepForSite": "Kekalkan untuk tapak ini",

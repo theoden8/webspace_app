@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ట్రాకింగ్ రక్షణ ఈ సైట్ కోసం కాన్వాస్, ఆడియో, ఫాంట్ మరియు హార్డ్‌వేర్ రీడింగ్‌లను కూడా యాదృచ్ఛికం చేస్తుంది.",
   "privacySummaryProtectionOn": "ట్రాకింగ్ రక్షణ ఆన్",
   "privacySummaryNothingOn": "ఏ రక్షణా ప్రారంభించబడలేదు",
+  "privacySummaryJavascriptOff": "JavaScript నిలిపివేయబడింది",
   "siteSettingsForcedOffByTrackingProtection": "ట్రాకింగ్ రక్షణ ద్వారా బలవంతంగా ఆఫ్ చేయబడింది",
   "settingFollowAppHint": "మసకగా ఉన్నప్పుడు ఇది యాప్ డిఫాల్ట్‌ను అనుసరిస్తుంది. చూపిస్తున్న విలువను ఈ సైట్ కోసం ఉంచడానికి, లేదా మళ్లీ యాప్ డిఫాల్ట్‌ను అనుసరించడానికి ఎక్కువసేపు నొక్కండి.",
   "settingKeepForSite": "ఈ సైట్ కోసం ఉంచు",

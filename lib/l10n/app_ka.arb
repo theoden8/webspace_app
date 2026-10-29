@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "თვალთვალისგან დაცვა ასევე შემთხვევითობით ცვლის ტილოს, ხმის, შრიფტებისა და აპარატურის მაჩვენებლებს ამ საიტისთვის.",
   "privacySummaryProtectionOn": "თვალთვალისგან დაცვა ჩართულია",
   "privacySummaryNothingOn": "დაცვა ჩართული არ არის",
+  "privacySummaryJavascriptOff": "JavaScript გამორთულია",
   "siteSettingsForcedOffByTrackingProtection": "იძულებით გამორთულია თვალთვალისგან დაცვის გამო",
   "settingFollowAppHint": "მკრთალ მდგომარეობაში ის აპის ნაგულისხმევ პარამეტრს მიჰყვება. ხანგრძლივად დააჭირეთ, რომ ნაჩვენები მნიშვნელობა ამ საიტისთვის შეინარჩუნოთ, ან ისევ აპის ნაგულისხმევს მიჰყვეს.",
   "settingKeepForSite": "შენარჩუნება ამ საიტისთვის",

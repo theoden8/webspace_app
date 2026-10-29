@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "የክትትል ጥበቃ ለዚህ ጣቢያ የሸራ፣ የድምጽ፣ የቅርጸ-ቁምፊ እና የሃርድዌር ንባቦችንም በዘፈቀደ ይለውጣል።",
   "privacySummaryProtectionOn": "የክትትል ጥበቃ በርቷል",
   "privacySummaryNothingOn": "ምንም ጥበቃ አልነቃም",
+  "privacySummaryJavascriptOff": "JavaScript ጠፍቷል",
   "siteSettingsForcedOffByTrackingProtection": "በክትትል ጥበቃ ተገድዶ ጠፍቷል",
   "settingFollowAppHint": "ሲደበዝዝ የመተግበሪያውን ነባሪ ይከተላል። የሚያሳየውን እሴት ለዚህ ጣቢያ ለማቆየት፣ ወይም የመተግበሪያውን ነባሪ እንደገና ለመከተል በረጅሙ ይጫኑ።",
   "settingKeepForSite": "ለዚህ ጣቢያ አቆይ",

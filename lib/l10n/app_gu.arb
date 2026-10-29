@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ટ્રેકિંગ સંરક્ષણ આ સાઇટ માટે કેનવાસ, ઑડિયો, ફોન્ટ અને હાર્ડવેર વાચનોને પણ અવ્યવસ્થિત કરે છે.",
   "privacySummaryProtectionOn": "ટ્રેકિંગ સંરક્ષણ ચાલુ",
   "privacySummaryNothingOn": "કોઈ સંરક્ષણ સક્ષમ નથી",
+  "privacySummaryJavascriptOff": "JavaScript બંધ",
   "siteSettingsForcedOffByTrackingProtection": "ટ્રેકિંગ સંરક્ષણ દ્વારા ફરજિયાત બંધ",
   "settingFollowAppHint": "ઝાંખું હોય ત્યારે તે ઍપના ડિફૉલ્ટને અનુસરે છે. બતાવેલું મૂલ્ય આ સાઇટ માટે રાખવા, અથવા ફરીથી ઍપના ડિફૉલ્ટને અનુસરવા માટે લાંબું દબાવો.",
   "settingKeepForSite": "આ સાઇટ માટે રાખો",

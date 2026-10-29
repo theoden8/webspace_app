@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "추적 방지는 이 사이트에 대해 캔버스, 오디오, 글꼴, 하드웨어 판독값도 무작위화합니다.",
   "privacySummaryProtectionOn": "추적 방지 켜짐",
   "privacySummaryNothingOn": "활성화된 보호 없음",
+  "privacySummaryJavascriptOff": "JavaScript 꺼짐",
   "siteSettingsForcedOffByTrackingProtection": "추적 방지에 의해 강제로 꺼짐",
   "settingFollowAppHint": "흐리게 표시되면 앱 기본값을 따릅니다. 길게 누르면 표시된 값을 이 사이트용으로 유지하거나 다시 앱 기본값을 따릅니다.",
   "settingKeepForSite": "이 사이트용으로 유지",

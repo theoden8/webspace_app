@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "La Protezione dal tracciamento randomizza anche le letture di canvas, audio, caratteri e hardware per questo sito.",
   "privacySummaryProtectionOn": "Protezione dal tracciamento attiva",
   "privacySummaryNothingOn": "Nessuna protezione attiva",
+  "privacySummaryJavascriptOff": "JavaScript disattivato",
   "siteSettingsForcedOffByTrackingProtection": "Disattivato dalla Protezione dal tracciamento",
   "settingFollowAppHint": "Attenuato, segue l'impostazione predefinita dell'app. Tieni premuto per mantenere il valore mostrato per questo sito o per tornare a seguire l'impostazione predefinita dell'app.",
   "settingKeepForSite": "Mantieni per questo sito",

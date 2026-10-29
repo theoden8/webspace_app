@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ट्र्याकिङ सुरक्षाले यस साइटका लागि क्यानभास, अडियो, फन्ट र हार्डवेयर पढाइहरू पनि अनियमित बनाउँछ।",
   "privacySummaryProtectionOn": "ट्र्याकिङ सुरक्षा चालु",
   "privacySummaryNothingOn": "कुनै सुरक्षा सक्षम छैन",
+  "privacySummaryJavascriptOff": "JavaScript बन्द",
   "siteSettingsForcedOffByTrackingProtection": "ट्र्याकिङ सुरक्षाले बाध्यकारी रूपमा बन्द गरेको",
   "settingFollowAppHint": "धमिलो हुँदा यसले एपको पूर्वनिर्धारित सेटिङ पछ्याउँछ। देखाइएको मान यो साइटका लागि राख्न, वा फेरि एपको पूर्वनिर्धारित पछ्याउन लामो समय थिच्नुहोस्।",
   "settingKeepForSite": "यो साइटका लागि राख्नुहोस्",

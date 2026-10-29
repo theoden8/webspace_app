@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Zaščita pred sledenjem za to stran naključno spreminja tudi odčitke platna, zvoka, pisav in strojne opreme.",
   "privacySummaryProtectionOn": "Zaščita pred sledenjem vklopljena",
   "privacySummaryNothingOn": "Nobena zaščita ni vklopljena",
+  "privacySummaryJavascriptOff": "JavaScript izklopljen",
   "siteSettingsForcedOffByTrackingProtection": "Prisilno izklopljeno zaradi zaščite pred sledenjem",
   "settingFollowAppHint": "Zatemnjeno sledi privzeti nastavitvi aplikacije. Z dolgim pritiskom obdržite prikazano vrednost za to spletno mesto ali znova sledite privzeti nastavitvi aplikacije.",
   "settingKeepForSite": "Obdrži za to spletno mesto",

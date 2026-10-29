@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ট্র্যাকিং সুরক্ষা এই সাইটের জন্য ক্যানভাস, অডিও, ফন্ট ও হার্ডওয়্যার রিডিংও এলোমেলো করে দেয়।",
   "privacySummaryProtectionOn": "ট্র্যাকিং সুরক্ষা চালু",
   "privacySummaryNothingOn": "কোনো সুরক্ষা সক্ষম নয়",
+  "privacySummaryJavascriptOff": "JavaScript বন্ধ",
   "siteSettingsForcedOffByTrackingProtection": "ট্র্যাকিং সুরক্ষা দ্বারা বন্ধ করা হয়েছে",
   "settingFollowAppHint": "ম্লান থাকলে এটি অ্যাপের ডিফল্ট অনুসরণ করে। দেখানো মানটি এই সাইটের জন্য রাখতে, অথবা আবার অ্যাপের ডিফল্ট অনুসরণ করতে চেপে ধরে রাখুন।",
   "settingKeepForSite": "এই সাইটের জন্য রাখুন",

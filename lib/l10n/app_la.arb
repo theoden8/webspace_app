@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Tutela contra investigationem etiam lectiones telae, soni, litterarum formarum et ferramentorum huic loco fortuito variat.",
   "privacySummaryProtectionOn": "Tutela contra investigationem activa",
   "privacySummaryNothingOn": "Nulla tutela activa",
+  "privacySummaryJavascriptOff": "JavaScript prohibita",
   "siteSettingsForcedOffByTrackingProtection": "Coacte exstinctum a Tutela contra investigationem",
   "settingFollowAppHint": "Obscuratum, optionem praedefinitam applicationis sequitur. Diu preme ut valorem quem ostendit huic situi serves, aut ut optionem praedefinitam applicationis iterum sequatur.",
   "settingKeepForSite": "Serva huic situi",

@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "تعمل الحماية من التتبّع أيضًا على عشوَنة قراءات اللوحة والصوت والخطوط والعتاد لهذا الموقع.",
   "privacySummaryProtectionOn": "الحماية من التتبّع مفعّلة",
   "privacySummaryNothingOn": "لا حماية مفعّلة",
+  "privacySummaryJavascriptOff": "JavaScript معطّل",
   "siteSettingsForcedOffByTrackingProtection": "معطّل قسرًا بسبب الحماية من التتبّع",
   "settingFollowAppHint": "عندما يكون باهتًا فإنه يتبع الإعداد الافتراضي للتطبيق. اضغط مطولًا للاحتفاظ بالقيمة المعروضة لهذا الموقع، أو للعودة إلى اتباع الإعداد الافتراضي للتطبيق.",
   "settingKeepForSite": "الاحتفاظ لهذا الموقع",

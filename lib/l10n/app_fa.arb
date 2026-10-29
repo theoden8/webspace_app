@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "محافظت در برابر ردیابی همچنین خوانش‌های بوم، صدا، قلم و سخت‌افزار را برای این سایت تصادفی می‌کند.",
   "privacySummaryProtectionOn": "محافظت در برابر ردیابی روشن",
   "privacySummaryNothingOn": "هیچ محافظتی فعال نیست",
+  "privacySummaryJavascriptOff": "JavaScript خاموش",
   "siteSettingsForcedOffByTrackingProtection": "به‌اجبار توسط محافظت در برابر ردیابی خاموش شده",
   "settingFollowAppHint": "وقتی کم‌رنگ است، از پیش‌فرض برنامه پیروی می‌کند. فشار دهید و نگه دارید تا مقدار نمایش‌داده‌شده برای این سایت حفظ شود یا دوباره از پیش‌فرض برنامه پیروی کند.",
   "settingKeepForSite": "حفظ برای این سایت",

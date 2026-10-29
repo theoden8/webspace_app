@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "การป้องกันการติดตามยังสุ่มค่าการอ่านของ canvas เสียง ฟอนต์ และฮาร์ดแวร์สำหรับไซต์นี้ด้วย",
   "privacySummaryProtectionOn": "การป้องกันการติดตามเปิดอยู่",
   "privacySummaryNothingOn": "ไม่ได้เปิดการป้องกันใด",
+  "privacySummaryJavascriptOff": "ปิด JavaScript",
   "siteSettingsForcedOffByTrackingProtection": "ถูกบังคับปิดโดยการป้องกันการติดตาม",
   "settingFollowAppHint": "เมื่อเป็นสีจาง จะใช้ตามค่าเริ่มต้นของแอป กดค้างเพื่อเก็บค่าที่แสดงไว้สำหรับไซต์นี้ หรือเพื่อกลับไปใช้ตามค่าเริ่มต้นของแอป",
   "settingKeepForSite": "เก็บไว้สำหรับไซต์นี้",
