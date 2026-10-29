@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Volgbeskerming laat ook doek-, klank-, lettertipe- en hardewarelesings vir hierdie werf lukraak wissel.",
   "privacySummaryProtectionOn": "Volgbeskerming aan",
   "privacySummaryNothingOn": "Geen beskerming geaktiveer nie",
+  "privacySummaryJavascriptOff": "JavaScript gedeaktiveer",
   "siteSettingsForcedOffByTrackingProtection": "Geforseer af deur Volgbeskerming",
   "settingFollowAppHint": "Gedemp volg dit die toepassing se verstek. Druk lank om die waarde wat dit wys vir hierdie werf te hou, of om weer die toepassing se verstek te volg.",
   "settingKeepForSite": "Hou vir hierdie werf",

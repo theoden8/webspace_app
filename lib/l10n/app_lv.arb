@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Izsekošanas aizsardzība šai vietnei nejaušina arī audekla, audio, fontu un aparatūras rādījumus.",
   "privacySummaryProtectionOn": "Izsekošanas aizsardzība ieslēgta",
   "privacySummaryNothingOn": "Nav ieslēgta neviena aizsardzība",
+  "privacySummaryJavascriptOff": "JavaScript izslēgts",
   "siteSettingsForcedOffByTrackingProtection": "Piespiedu kārtā izslēgts ar Izsekošanas aizsardzību",
   "settingFollowAppHint": "Kad tas ir aptumšots, tas seko lietotnes noklusējumam. Turiet nospiestu, lai paturētu parādīto vērtību šai vietnei vai atkal sekotu lietotnes noklusējumam.",
   "settingKeepForSite": "Paturēt šai vietnei",

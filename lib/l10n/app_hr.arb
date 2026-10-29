@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Zaštita od praćenja također nasumično mijenja očitanja platna, zvuka, fontova i hardvera za ovu stranicu.",
   "privacySummaryProtectionOn": "Zaštita od praćenja uključena",
   "privacySummaryNothingOn": "Nijedna zaštita nije uključena",
+  "privacySummaryJavascriptOff": "JavaScript isključen",
   "siteSettingsForcedOffByTrackingProtection": "Prisilno isključeno zaštitom od praćenja",
   "settingFollowAppHint": "Kad je zatamnjen, prati zadanu postavku aplikacije. Dugo pritisnite da zadržite prikazanu vrijednost za ovo web-mjesto ili da ponovno pratite zadanu postavku aplikacije.",
   "settingKeepForSite": "Zadrži za ovo web-mjesto",

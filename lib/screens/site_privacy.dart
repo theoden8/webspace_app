@@ -45,6 +45,7 @@ class SitePrivacyValues {
     required this.letterboxEnabled,
     required this.incognito,
     this.blockScreenshots = false,
+    required this.javascriptEnabled,
   });
 
   /// Not edited here: an archive-tier site runs with the archive's posture
@@ -65,6 +66,7 @@ class SitePrivacyValues {
   final bool letterboxEnabled;
   final bool incognito;
   final bool blockScreenshots;
+  final bool javascriptEnabled;
 
   SitePrivacyValues copyWith({
     bool? trackingProtectionEnabled,
@@ -80,6 +82,7 @@ class SitePrivacyValues {
     bool? letterboxEnabled,
     bool? incognito,
     bool? blockScreenshots,
+    bool? javascriptEnabled,
   }) =>
       SitePrivacyValues(
         archived: archived,
@@ -98,6 +101,7 @@ class SitePrivacyValues {
         letterboxEnabled: letterboxEnabled ?? this.letterboxEnabled,
         incognito: incognito ?? this.incognito,
         blockScreenshots: blockScreenshots ?? this.blockScreenshots,
+        javascriptEnabled: javascriptEnabled ?? this.javascriptEnabled,
       );
 
   bool _forced(TrackingProtectionForce force, {required bool stored}) => force
@@ -135,7 +139,8 @@ class SitePrivacyValues {
 }
 
 /// Per-site privacy screen: the tracking-protection umbrella, the settings it
-/// forces, and the storage posture that decides what survives a session.
+/// forces, the storage posture that decides what survives a session, and
+/// whether the site's pages run JavaScript at all.
 class SitePrivacyScreen extends StatefulWidget {
   const SitePrivacyScreen({
     super.key,
@@ -537,8 +542,15 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
           // not happening.
           if (_values.trackingProtectionEnabled)
             SettingsNote(loc.privacyFingerprintingNote),
-          if (hostHasLockdownMode) ...[
-            SettingsSection(loc.privacyGroupSecurity),
+          SettingsSection(loc.privacyGroupSecurity),
+          SettingTile(
+            title: loc.siteSettingsJavascriptEnabled,
+            hint: null,
+            control: Toggle(value: _values.javascriptEnabled,
+                onChanged: (value) =>
+                    _update(_values.copyWith(javascriptEnabled: value))),
+          ),
+          if (hostHasLockdownMode)
             SettingTile(
               title: loc.siteSettingsLockdownMode,
               hint: loc.siteSettingsLockdownModeHint,
@@ -550,7 +562,6 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
                     _update(_values.copyWith(lockdownMode: choice)),
               ),
             ),
-          ],
           if (ScreenCaptureGuard.isSupported) ...[
             SettingsSection(loc.privacyGroupScreenCapture),
             SettingTile(

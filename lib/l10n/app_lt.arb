@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Sekimo apsauga taip pat atsitiktinai keičia drobės, garso, šriftų ir aparatinės įrangos rodmenis šiai svetainei.",
   "privacySummaryProtectionOn": "Sekimo apsauga įjungta",
   "privacySummaryNothingOn": "Neįjungta jokia apsauga",
+  "privacySummaryJavascriptOff": "JavaScript išjungtas",
   "siteSettingsForcedOffByTrackingProtection": "Priverstinai išjungta dėl sekimo apsaugos",
   "settingFollowAppHint": "Pritemdytas jis atitinka numatytąją programėlės nuostatą. Palaikykite nuspaudę, kad rodomą reikšmę išsaugotumėte šiai svetainei arba vėl vadovautumėtės numatytąja programėlės nuostata.",
   "settingKeepForSite": "Išsaugoti šiai svetainei",

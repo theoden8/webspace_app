@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "A nyomkövetés elleni védelem ehhez az oldalhoz a vászon-, hang-, betűtípus- és hardverleolvasásokat is véletlenszerűsíti.",
   "privacySummaryProtectionOn": "Nyomkövetés elleni védelem bekapcsolva",
   "privacySummaryNothingOn": "Nincs bekapcsolt védelem",
+  "privacySummaryJavascriptOff": "JavaScript kikapcsolva",
   "siteSettingsForcedOffByTrackingProtection": "A nyomkövetés elleni védelem miatt kikapcsolva",
   "settingFollowAppHint": "Halványan az alkalmazás alapértelmezését követi. Nyomja meg hosszan, hogy a látható értéket megtartsa ennél a webhelynél, vagy hogy ismét az alkalmazás alapértelmezését kövesse.",
   "settingKeepForSite": "Megtartás ennél a webhelynél",

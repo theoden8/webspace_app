@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Protecția împotriva urmăririi randomizează pentru acest site și citirile de canvas, audio, fonturi și hardware.",
   "privacySummaryProtectionOn": "Protecție împotriva urmăririi activă",
   "privacySummaryNothingOn": "Nicio protecție activată",
+  "privacySummaryJavascriptOff": "JavaScript dezactivat",
   "siteSettingsForcedOffByTrackingProtection": "Forțat dezactivat de Protecția împotriva urmăririi",
   "settingFollowAppHint": "Estompat, urmează setarea implicită a aplicației. Apasă lung pentru a păstra valoarea afișată pentru acest site sau pentru a urma din nou setarea implicită a aplicației.",
   "settingKeepForSite": "Păstrează pentru acest site",

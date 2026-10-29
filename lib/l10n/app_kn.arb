@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆ ಈ ಸೈಟ್‌ಗಾಗಿ ಕ್ಯಾನ್ವಾಸ್, ಆಡಿಯೊ, ಫಾಂಟ್ ಮತ್ತು ಹಾರ್ಡ್‌ವೇರ್ ಓದುವಿಕೆಗಳನ್ನೂ ಯಾದೃಚ್ಛಿಕಗೊಳಿಸುತ್ತದೆ.",
   "privacySummaryProtectionOn": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆ ಆನ್",
   "privacySummaryNothingOn": "ಯಾವುದೇ ರಕ್ಷಣೆ ಸಕ್ರಿಯವಾಗಿಲ್ಲ",
+  "privacySummaryJavascriptOff": "JavaScript ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ",
   "siteSettingsForcedOffByTrackingProtection": "ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯಿಂದ ಬಲವಂತವಾಗಿ ಆಫ್",
   "settingFollowAppHint": "ಮಸುಕಾಗಿದ್ದಾಗ ಇದು ಆ್ಯಪ್‌ನ ಡೀಫಾಲ್ಟ್ ಅನ್ನು ಅನುಸರಿಸುತ್ತದೆ. ತೋರಿಸುವ ಮೌಲ್ಯವನ್ನು ಈ ಸೈಟ್‌ಗಾಗಿ ಇರಿಸಲು, ಅಥವಾ ಮತ್ತೆ ಆ್ಯಪ್‌ನ ಡೀಫಾಲ್ಟ್ ಅನ್ನು ಅನುಸರಿಸಲು ದೀರ್ಘವಾಗಿ ಒತ್ತಿರಿ.",
   "settingKeepForSite": "ಈ ಸೈಟ್‌ಗಾಗಿ ಇರಿಸಿ",

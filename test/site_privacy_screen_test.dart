@@ -23,6 +23,7 @@ SitePrivacyValues _values({
   bool letterbox = false,
   bool incognito = false,
   bool blockScreenshots = false,
+  bool javascript = true,
 }) =>
     SitePrivacyValues(
       archived: archived,
@@ -37,6 +38,7 @@ SitePrivacyValues _values({
       letterboxEnabled: letterbox,
       incognito: incognito,
       blockScreenshots: blockScreenshots,
+      javascriptEnabled: javascript,
     );
 
 Future<void> _pump(
@@ -86,6 +88,7 @@ void main() {
         lockdownMode: const FollowApp(),
         letterboxEnabled: false,
         incognito: false,
+        javascriptEnabled: true,
       );
       expect(v.effectiveClearUrl, isTrue);
       expect(v.effectiveDnsBlock, isTrue);
@@ -105,6 +108,7 @@ void main() {
         lockdownMode: const FollowApp(),
         letterboxEnabled: false,
         incognito: false,
+        javascriptEnabled: true,
       );
       expect(stored.effectiveThirdPartyCookies, isTrue);
       expect(
@@ -150,7 +154,8 @@ void main() {
       debugHostHasLockdownMode = false;
       await _pump(tester, values: _values(lockdownMode: const Own(true)));
       expect(find.text('Lockdown Mode'), findsNothing);
-      expect(find.text('Security'), findsNothing);
+      expect(find.text('Security'), findsOneWidget,
+          reason: 'the JavaScript switch keeps the group');
     });
 
     testWidgets('under the umbrella it shows on, dimmed and not locked',
@@ -222,6 +227,42 @@ void main() {
       expect(tile.value, isTrue);
       expect(tile.onChanged, isNull);
       expect(find.text('On for the whole app in App Settings'), findsOneWidget);
+    });
+  });
+
+  group('JavaScript sits under Security (ETP-017)', () {
+    tearDown(() => debugHostHasLockdownMode = null);
+
+    double top(WidgetTester tester, {required String of}) =>
+        tester.getTopLeft(find.text(of)).dy;
+
+    testWidgets('below the group heading, above Lockdown Mode',
+        (tester) async {
+      debugHostHasLockdownMode = true;
+      await _pump(tester, values: _values());
+      expect(top(tester, of: 'Security'),
+          lessThan(top(tester, of: 'JavaScript Enabled')));
+      expect(top(tester, of: 'JavaScript Enabled'),
+          lessThan(top(tester, of: 'Lockdown Mode')));
+    });
+
+    testWidgets('neither the umbrella nor an archive decides it',
+        (tester) async {
+      await _pump(tester,
+          values: _values(trackingProtection: true, archived: true));
+      final tile = _switchTitled(tester, title: 'JavaScript Enabled');
+      expect(tile.value, isTrue);
+      expect(tile.onChanged, isNotNull);
+    });
+
+    testWidgets('switching it off reports the whole value back',
+        (tester) async {
+      SitePrivacyValues? seen;
+      await _pump(tester,
+          values: _values(incognito: true), onChanged: (v) => seen = v);
+      _switchTitled(tester, title: 'JavaScript Enabled').onChanged!(false);
+      expect(seen!.javascriptEnabled, isFalse);
+      expect(seen!.incognito, isTrue);
     });
   });
 

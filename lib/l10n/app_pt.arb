@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "A proteção contra rastreio também torna aleatórias as leituras de canvas, áudio, tipos de letra e hardware para este site.",
   "privacySummaryProtectionOn": "Proteção contra rastreio ativada",
   "privacySummaryNothingOn": "Nenhuma proteção ativada",
+  "privacySummaryJavascriptOff": "JavaScript desativado",
   "siteSettingsForcedOffByTrackingProtection": "Desativado pela proteção contra rastreio",
   "settingFollowAppHint": "Esbatido, segue a predefinição da aplicação. Prima continuamente para manter o valor apresentado para este site ou para voltar a seguir a predefinição da aplicação.",
   "settingKeepForSite": "Manter para este site",

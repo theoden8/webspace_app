@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Mae Amddiffyn rhag Tracio hefyd yn hapoli darlleniadau cynfas, sain, ffontiau a chaledwedd ar gyfer y wefan hon.",
   "privacySummaryProtectionOn": "Amddiffyn rhag Tracio ymlaen",
   "privacySummaryNothingOn": "Dim amddiffyniad wedi'i alluogi",
+  "privacySummaryJavascriptOff": "JavaScript wedi'i analluogi",
   "siteSettingsForcedOffByTrackingProtection": "Wedi'i orfodi i ffwrdd gan Amddiffyn rhag Tracio",
   "settingFollowAppHint": "Pan fydd wedi'i bylu, mae'n dilyn rhagosodiad yr ap. Pwyswch yn hir i gadw'r gwerth mae'n ei ddangos ar gyfer y wefan hon, neu i ddilyn rhagosodiad yr ap eto.",
   "settingKeepForSite": "Cadw ar gyfer y wefan hon",

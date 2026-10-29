@@ -1014,6 +1014,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         letterboxEnabled: _letterboxEnabled,
         incognito: _incognito,
         blockScreenshots: _blockScreenshots,
+        javascriptEnabled: _javascriptEnabled,
       );
 
   /// Counterpart of [_buildPermissionsRow] for everything that decides what a
@@ -1029,19 +1030,24 @@ class _SettingsScreenState extends State<SettingsScreen>
       title: loc.privacyTitle,
       summary: summariseSettings(
         loc,
-        on: v.trackingProtectionEnabled
-            ? [loc.privacySummaryProtectionOn]
-            : [
-                if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
-                if (v.effectiveDnsBlock) loc.siteSettingsDnsBlocklist,
-                if (v.effectiveContentBlock) loc.siteSettingsContentBlocker,
-                if (hostIsAndroid && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
-                if (v.effectiveIncognito) loc.siteSettingsIncognito,
-                if (hostHasLockdownMode && v.effectiveLockdownMode)
-                  loc.siteSettingsLockdownMode,
-                if (ScreenCaptureGuard.isSupported && v.effectiveBlockScreenshots)
-                  loc.siteSettingsBlockScreenshots,
-              ],
+        on: [
+          // Leads, so the overflow never hides it: it breaks more pages than
+          // anything else here, and the umbrella's line does not stand for it.
+          if (!v.javascriptEnabled) loc.privacySummaryJavascriptOff,
+          if (v.trackingProtectionEnabled)
+            loc.privacySummaryProtectionOn
+          else ...[
+            if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
+            if (v.effectiveDnsBlock) loc.siteSettingsDnsBlocklist,
+            if (v.effectiveContentBlock) loc.siteSettingsContentBlocker,
+            if (hostIsAndroid && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
+            if (v.effectiveIncognito) loc.siteSettingsIncognito,
+            if (hostHasLockdownMode && v.effectiveLockdownMode)
+              loc.siteSettingsLockdownMode,
+            if (ScreenCaptureGuard.isSupported && v.effectiveBlockScreenshots)
+              loc.siteSettingsBlockScreenshots,
+          ],
+        ],
         none: loc.privacySummaryNothingOn,
       ),
       onTap: _openPrivacy,
@@ -1066,6 +1072,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _letterboxEnabled = values.letterboxEnabled;
           _incognito = values.incognito;
           _blockScreenshots = values.blockScreenshots;
+          _javascriptEnabled = values.javascriptEnabled;
         }),
       ));
 
@@ -1098,12 +1105,6 @@ IconButton zoomStep(IconData icon,
       body: ListView(
         children: [
           SettingsSection(loc.siteSettingsSectionContent),
-          SettingTile(
-            title: loc.siteSettingsJavascriptEnabled,
-            hint: null,
-            control: Toggle(value: _javascriptEnabled,
-                onChanged: (value) => setState(() => _javascriptEnabled = value)),
-          ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [

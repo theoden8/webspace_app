@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Ulinzi wa Ufuatiliaji pia hubadilisha kwa nasibu visomo vya turubai, sauti, fonti na maunzi kwa tovuti hii.",
   "privacySummaryProtectionOn": "Ulinzi wa Ufuatiliaji umewashwa",
   "privacySummaryNothingOn": "Hakuna ulinzi uliowashwa",
+  "privacySummaryJavascriptOff": "JavaScript imezimwa",
   "siteSettingsForcedOffByTrackingProtection": "Imelazimishwa kuzimwa na Ulinzi wa Ufuatiliaji",
   "settingFollowAppHint": "Ikiwa imefifia, hufuata chaguomsingi la programu. Bonyeza kwa muda mrefu ili kubakiza thamani inayoonyeshwa kwa tovuti hii, au kufuata chaguomsingi la programu tena.",
   "settingKeepForSite": "Bakiza kwa tovuti hii",

@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Randamaíonn an Chosaint ar Rianú léamha canbháis, fuaime, cló agus crua-earraí don suíomh seo freisin.",
   "privacySummaryProtectionOn": "Cosaint ar Rianú ar siúl",
   "privacySummaryNothingOn": "Níl aon chosaint cumasaithe",
+  "privacySummaryJavascriptOff": "JavaScript díchumasaithe",
   "siteSettingsForcedOffByTrackingProtection": "Múchta go héigeantach ag an gCosaint ar Rianú",
   "settingFollowAppHint": "Nuair atá sé breacdhorcha, leanann sé réamhshocrú na haipe. Brúigh go fada chun an luach a thaispeánann sé a choinneáil don suíomh seo, nó chun réamhshocrú na haipe a leanúint arís.",
   "settingKeepForSite": "Coinnigh don suíomh seo",

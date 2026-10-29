@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Հետևման պաշտպանությունը նաև պատահականացնում է կտավի, ձայնի, տառատեսակների և սարքավորումների ցուցումները այս կայքի համար։",
   "privacySummaryProtectionOn": "Հետևման պաշտպանությունը միացված է",
   "privacySummaryNothingOn": "Ոչ մի պաշտպանություն միացված չէ",
+  "privacySummaryJavascriptOff": "JavaScript-ը անջատված է",
   "siteSettingsForcedOffByTrackingProtection": "Անջատված է Հետևման պաշտպանության կողմից",
   "settingFollowAppHint": "Խամրած վիճակում այն հետևում է հավելվածի լռելյայն կարգավորմանը։ Երկար սեղմեք՝ ցուցադրված արժեքն այս կայքի համար պահելու կամ կրկին հավելվածի լռելյայնին հետևելու համար։",
   "settingKeepForSite": "Պահել այս կայքի համար",

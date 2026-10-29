@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Jälgimiskaitse juhuslikustab selle saidi puhul ka lõuendi, heli, fontide ja riistvara näidud.",
   "privacySummaryProtectionOn": "Jälgimiskaitse sees",
   "privacySummaryNothingOn": "Ühtegi kaitset pole sisse lülitatud",
+  "privacySummaryJavascriptOff": "JavaScript keelatud",
   "siteSettingsForcedOffByTrackingProtection": "Jälgimiskaitse sundis välja",
   "settingFollowAppHint": "Tuhmina järgib see rakenduse vaikeseadet. Vajuta pikalt, et jätta kuvatud väärtus selle saidi omaks või järgida taas rakenduse vaikeseadet.",
   "settingKeepForSite": "Jäta selle saidi jaoks",

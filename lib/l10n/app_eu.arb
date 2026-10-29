@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Jarraipenaren aurkako babesak canvas, audio, letra-tipo eta hardware irakurketak ere ausazkotzen ditu gune honetarako.",
   "privacySummaryProtectionOn": "Jarraipenaren aurkako babesa piztuta",
   "privacySummaryNothingOn": "Ez dago babesik gaituta",
+  "privacySummaryJavascriptOff": "JavaScript desgaituta",
   "siteSettingsForcedOffByTrackingProtection": "Jarraipenaren aurkako babesak behartuta itzalita",
   "settingFollowAppHint": "Itzalita dagoenean, aplikazioaren ezarpen lehenetsiari jarraitzen dio. Luze sakatu erakusten duen balioa gune honetarako gordetzeko, edo aplikazioaren ezarpen lehenetsiari berriro jarraitzeko.",
   "settingKeepForSite": "Gorde gune honetarako",

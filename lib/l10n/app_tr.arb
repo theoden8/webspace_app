@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "İzleme Koruması bu site için tuval, ses, yazı tipi ve donanım okumalarını da rastgeleleştirir.",
   "privacySummaryProtectionOn": "İzleme Koruması açık",
   "privacySummaryNothingOn": "Etkin koruma yok",
+  "privacySummaryJavascriptOff": "JavaScript kapalı",
   "siteSettingsForcedOffByTrackingProtection": "İzleme Koruması tarafından kapalı zorlandı",
   "settingFollowAppHint": "Soluk olduğunda uygulama varsayılanını izler. Gösterdiği değeri bu site için tutmak ya da yeniden uygulama varsayılanını izlemek için uzun basın.",
   "settingKeepForSite": "Bu site için tut",

@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Защитата от проследяване също така разбърква показанията на canvas, звука, шрифтовете и хардуера за този сайт.",
   "privacySummaryProtectionOn": "Защитата от проследяване е включена",
   "privacySummaryNothingOn": "Няма включена защита",
+  "privacySummaryJavascriptOff": "JavaScript изключен",
   "siteSettingsForcedOffByTrackingProtection": "Принудително изключено от Защита от проследяване",
   "settingFollowAppHint": "Когато е затъмнен, следва настройката по подразбиране на приложението. Натиснете продължително, за да запазите показаната стойност за този сайт или отново да следвате настройката на приложението.",
   "settingKeepForSite": "Запази за този сайт",

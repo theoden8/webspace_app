@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ការការពារការតាមដានក៏ធ្វើឱ្យតម្លៃ canvas សំឡេង ពុម្ពអក្សរ និងផ្នែករឹងចៃដន្យសម្រាប់គេហទំព័រនេះផងដែរ។",
   "privacySummaryProtectionOn": "ការការពារការតាមដានបានបើក",
   "privacySummaryNothingOn": "មិនមានការការពារណាមួយបានបើកទេ",
+  "privacySummaryJavascriptOff": "JavaScript បានបិទ",
   "siteSettingsForcedOffByTrackingProtection": "បង្ខំបិទដោយការការពារការតាមដាន",
   "settingFollowAppHint": "ពេលស្រអាប់ វាធ្វើតាមលំនាំដើមរបស់កម្មវិធី។ ចុចឱ្យជាប់ ដើម្បីរក្សាតម្លៃដែលវាបង្ហាញសម្រាប់គេហទំព័រនេះ ឬដើម្បីធ្វើតាមលំនាំដើមរបស់កម្មវិធីម្ដងទៀត។",
   "settingKeepForSite": "រក្សាទុកសម្រាប់គេហទំព័រនេះ",

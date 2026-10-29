@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "A Protección contra o seguimento tamén aleatoriza as lecturas de canvas, audio, tipos de letra e hardware para este sitio.",
   "privacySummaryProtectionOn": "Protección contra o seguimento activada",
   "privacySummaryNothingOn": "Ningunha protección activada",
+  "privacySummaryJavascriptOff": "JavaScript desactivado",
   "siteSettingsForcedOffByTrackingProtection": "Desactivado pola Protección contra o seguimento",
   "settingFollowAppHint": "Atenuado, segue o valor predeterminado da aplicación. Mantén premido para conservar o valor que mostra para este sitio ou para volver seguir o valor predeterminado da aplicación.",
   "settingKeepForSite": "Conservar para este sitio",

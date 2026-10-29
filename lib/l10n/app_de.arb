@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Der Tracking-Schutz randomisiert für diese Website außerdem Canvas-, Audio-, Schriftart- und Hardware-Auslesungen.",
   "privacySummaryProtectionOn": "Tracking-Schutz aktiv",
   "privacySummaryNothingOn": "Kein Schutz aktiviert",
+  "privacySummaryJavascriptOff": "JavaScript deaktiviert",
   "siteSettingsForcedOffByTrackingProtection": "Durch Tracking-Schutz erzwungen deaktiviert",
   "settingFollowAppHint": "Abgeblendet folgt er dem App-Standard. Lange drücken, um den angezeigten Wert für diese Website zu behalten oder wieder dem App-Standard zu folgen.",
   "settingKeepForSite": "Für diese Website behalten",

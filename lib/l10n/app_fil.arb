@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Ini-randomize din ng Tracking Protection ang mga pagbasa sa canvas, audio, font at hardware para sa site na ito.",
   "privacySummaryProtectionOn": "Naka-on ang Tracking Protection",
   "privacySummaryNothingOn": "Walang proteksyong naka-enable",
+  "privacySummaryJavascriptOff": "Naka-off ang JavaScript",
   "siteSettingsForcedOffByTrackingProtection": "Pinilit na i-off ng Tracking Protection",
   "settingFollowAppHint": "Kapag malabo, sinusunod nito ang default ng app. Pindutin nang matagal para panatilihin ang ipinapakitang value para sa site na ito, o para sundin muli ang default ng app.",
   "settingKeepForSite": "Panatilihin para sa site na ito",

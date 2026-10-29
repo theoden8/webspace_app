@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Seurannan suojaus satunnaistaa tälle sivustolle myös canvas-, ääni-, fontti- ja laitteistolukemat.",
   "privacySummaryProtectionOn": "Seurannan suojaus päällä",
   "privacySummaryNothingOn": "Suojauksia ei ole käytössä",
+  "privacySummaryJavascriptOff": "JavaScript pois käytöstä",
   "siteSettingsForcedOffByTrackingProtection": "Seurannan suojaus pakottaa pois",
   "settingFollowAppHint": "Himmennettynä se noudattaa sovelluksen oletusta. Paina pitkään pitääksesi näkyvän arvon tämän sivuston omana tai noudattaaksesi taas sovelluksen oletusta.",
   "settingKeepForSite": "Pidä tällä sivustolla",

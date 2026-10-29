@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Хяналтаас хамгаалалт нь энэ сайтын хувьд зураас, дуу, фонт, техник хангамжийн заалтуудыг мөн санамсаргүй болгодог.",
   "privacySummaryProtectionOn": "Хяналтаас хамгаалалт асаалттай",
   "privacySummaryNothingOn": "Ямар ч хамгаалалт идэвхгүй",
+  "privacySummaryJavascriptOff": "JavaScript унтраалттай",
   "siteSettingsForcedOffByTrackingProtection": "Хяналтаас хамгаалалтаар албадан унтраасан",
   "settingFollowAppHint": "Бүдгэрсэн үедээ аппын анхдагч тохиргоог дагана. Харуулж буй утгыг энэ сайтад хадгалах, эсвэл дахин аппын анхдагчийг дагахын тулд удаан дарна уу.",
   "settingKeepForSite": "Энэ сайтад хадгалах",

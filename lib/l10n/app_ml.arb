@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "ട്രാക്കിംഗ് സംരക്ഷണം ഈ സൈറ്റിനായി കാൻവാസ്, ഓഡിയോ, ഫോണ്ട്, ഹാർഡ്‌വെയർ റീഡിംഗുകളും ക്രമരഹിതമാക്കുന്നു.",
   "privacySummaryProtectionOn": "ട്രാക്കിംഗ് സംരക്ഷണം ഓൺ",
   "privacySummaryNothingOn": "ഒരു സംരക്ഷണവും പ്രവർത്തനക്ഷമമല്ല",
+  "privacySummaryJavascriptOff": "JavaScript ഓഫ്",
   "siteSettingsForcedOffByTrackingProtection": "ട്രാക്കിംഗ് സംരക്ഷണം വഴി നിർബന്ധമായും ഓഫ്",
   "settingFollowAppHint": "മങ്ങിയിരിക്കുമ്പോൾ ഇത് ആപ്പിന്റെ സ്ഥിരസ്ഥിതി പിന്തുടരുന്നു. കാണിക്കുന്ന മൂല്യം ഈ സൈറ്റിനായി നിലനിർത്താനോ വീണ്ടും ആപ്പിന്റെ സ്ഥിരസ്ഥിതി പിന്തുടരാനോ ദീർഘനേരം അമർത്തുക.",
   "settingKeepForSite": "ഈ സൈറ്റിനായി നിലനിർത്തുക",

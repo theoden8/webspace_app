@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Trackingbescherming maakt voor deze site ook canvas-, audio-, lettertype- en hardware-uitlezingen willekeurig.",
   "privacySummaryProtectionOn": "Trackingbescherming aan",
   "privacySummaryNothingOn": "Geen bescherming ingeschakeld",
+  "privacySummaryJavascriptOff": "JavaScript uit",
   "siteSettingsForcedOffByTrackingProtection": "Geforceerd uit door trackingbescherming",
   "settingFollowAppHint": "Gedimd volgt hij de standaard van de app. Houd ingedrukt om de getoonde waarde voor deze site te bewaren, of om weer de standaard van de app te volgen.",
   "settingKeepForSite": "Bewaren voor deze site",

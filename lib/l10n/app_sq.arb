@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Mbrojtja nga gjurmimi gjithashtu rastëson leximet e kanavacës, audios, shkronjave dhe harduerit për këtë sajt.",
   "privacySummaryProtectionOn": "Mbrojtja nga gjurmimi aktive",
   "privacySummaryNothingOn": "Asnjë mbrojtje e aktivizuar",
+  "privacySummaryJavascriptOff": "JavaScript-i i çaktivizuar",
   "siteSettingsForcedOffByTrackingProtection": "I detyruar joaktiv nga Mbrojtja nga gjurmimi",
   "settingFollowAppHint": "Kur është i zbehur, ndjek parazgjedhjen e aplikacionit. Mbajeni shtypur për ta mbajtur vlerën që shfaq për këtë sajt, ose për të ndjekur sërish parazgjedhjen e aplikacionit.",
   "settingKeepForSite": "Mbaje për këtë sajt",

@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Захист від стеження також рандомізує показники полотна, звуку, шрифтів і обладнання для цього сайту.",
   "privacySummaryProtectionOn": "Захист від стеження увімкнено",
   "privacySummaryNothingOn": "Жодного захисту не увімкнено",
+  "privacySummaryJavascriptOff": "JavaScript вимкнено",
   "siteSettingsForcedOffByTrackingProtection": "Примусово вимкнено захистом від стеження",
   "settingFollowAppHint": "Приглушений перемикач дотримується типового налаштування застосунку. Натисніть і утримуйте, щоб зберегти показане значення для цього сайту або знову дотримуватися типового налаштування застосунку.",
   "settingKeepForSite": "Зберегти для цього сайту",

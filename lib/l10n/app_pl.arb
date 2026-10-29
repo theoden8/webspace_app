@@ -873,6 +873,7 @@
   "privacyFingerprintingNote": "Ochrona przed śledzeniem losuje dla tej witryny również odczyty płótna, dźwięku, czcionek i sprzętu.",
   "privacySummaryProtectionOn": "Ochrona przed śledzeniem włączona",
   "privacySummaryNothingOn": "Żadna ochrona nie jest włączona",
+  "privacySummaryJavascriptOff": "JavaScript wyłączony",
   "siteSettingsForcedOffByTrackingProtection": "Wyłączone przez Ochronę przed śledzeniem",
   "settingFollowAppHint": "Przyciemniony przełącznik działa zgodnie z ustawieniem domyślnym aplikacji. Przytrzymaj, aby zachować pokazaną wartość dla tej witryny albo ponownie stosować ustawienie domyślne aplikacji.",
   "settingKeepForSite": "Zachowaj dla tej witryny",
