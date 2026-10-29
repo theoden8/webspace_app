@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Уеб разширения",
   "appSettingsExperimentalWebExtensionsHint": "Изпълнява разширения за браузър, които импортирате от файл (.crx за Chrome, .xpi за Firefox или .zip), на избраните от вас сайтове. WebKit изпълнява от всяко това, което поддържа. Разширението не работи на нито един сайт, докато не го включите в настройките на този сайт, и там достига само до този сайт.",
+  "appSettingsExperimentalExtensionSearch": "Търсене на разширения",
+  "appSettingsExperimentalExtensionSearchHint": "Добавя търсене в addons.mozilla.org в екрана „Разширения“, като всеки резултат е отбелязан според това колко добре се очаква WebKit да го изпълнява. Предлага се само в компилации извън App Store и само докато „Уеб разширения“ е включено.",
   "appSettingsExperimentalDesktopTray": "Икона в системния трей",
   "appSettingsExperimentalDesktopTrayHint": "Докато „Продължава да работи след затваряне“ е включено, показва иконата на WebSpace в лентата с менюта. Менюто ѝ показва прозореца, отваря сайт с включени известия или излиза от приложението.",
   "appSettingsExtensions": "Разширения",

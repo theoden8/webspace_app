@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Web 拡張機能",
   "appSettingsExperimentalWebExtensionsHint": "ファイルからインポートしたブラウザ拡張機能（Chrome の .crx、Firefox の .xpi、または .zip）を、選んだサイトで実行します。WebKit は各拡張機能のうち対応している部分を実行します。拡張機能は、そのサイトの設定でオンにするまでどのサイトでも実行されず、オンにしたサイトにだけアクセスできます。",
+  "appSettingsExperimentalExtensionSearch": "拡張機能の検索",
+  "appSettingsExperimentalExtensionSearchHint": "「拡張機能」画面に addons.mozilla.org の検索を追加し、各結果に WebKit でどの程度動作する見込みかを表示します。App Store 以外から入手したビルドでのみ、かつ「Web 拡張機能」がオンの間だけ利用できます。",
   "appSettingsExperimentalDesktopTray": "システムトレイのアイコン",
   "appSettingsExperimentalDesktopTrayHint": "「閉じても実行を続ける」がオンの間、メニューバーに WebSpace のアイコンを表示します。そのメニューから、ウィンドウを表示したり、通知をオンにしたサイトを開いたり、アプリを終了したりできます。",
   "appSettingsExtensions": "拡張機能",

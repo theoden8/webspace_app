@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Verkkolaajennukset",
   "appSettingsExperimentalWebExtensionsHint": "Suorittaa tiedostosta tuomiasi selainlaajennuksia (Chromen .crx, Firefoxin .xpi tai .zip) valitsemillasi sivustoilla. WebKit suorittaa kustakin sen, mitä se tukee. Laajennus ei toimi millään sivustolla ennen kuin otat sen käyttöön sivuston asetuksissa, ja siellä se ulottuu vain kyseiseen sivustoon.",
+  "appSettingsExperimentalExtensionSearch": "Laajennushaku",
+  "appSettingsExperimentalExtensionSearchHint": "Lisää \"Laajennukset\"-näkymään haun addons.mozilla.orgista, ja jokaisessa tuloksessa kerrotaan, miten hyvin WebKitin odotetaan suorittavan sen. Tarjolla vain App Storen ulkopuolelta tulevissa versioissa ja vain, kun \"Verkkolaajennukset\" on päällä.",
   "appSettingsExperimentalDesktopTray": "Ilmoitusalueen kuvake",
   "appSettingsExperimentalDesktopTrayHint": "Kun \"Pidä käynnissä suljettaessa\" on päällä, näyttää WebSpacen kuvakkeen valikkorivillä. Sen valikosta voi näyttää ikkunan, avata sivuston, jonka ilmoitukset ovat päällä, tai lopettaa sovelluksen.",
   "appSettingsExtensions": "Laajennukset",

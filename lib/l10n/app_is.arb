@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Vefviðbætur",
   "appSettingsExperimentalWebExtensionsHint": "Keyrðu vafraviðbætur sem þú flytur inn úr skrá (.crx frá Chrome, .xpi frá Firefox eða .zip) á vefsvæðunum sem þú velur. WebKit keyrir það sem það styður í hverri þeirra. Viðbót keyrir á engu vefsvæði fyrr en þú kveikir á henni í stillingum þess vefsvæðis, og þar nær hún aðeins til þess vefsvæðis.",
+  "appSettingsExperimentalExtensionSearch": "Leit að viðbótum",
+  "appSettingsExperimentalExtensionSearchHint": "Bætir leit á addons.mozilla.org við skjáinn „Viðbætur“ og hver niðurstaða er merkt eftir því hversu vel WebKit er talið keyra hana. Aðeins í boði í útgáfum utan App Store og aðeins á meðan kveikt er á „Vefviðbætur“.",
   "appSettingsExperimentalDesktopTray": "Tákn í kerfisbakka",
   "appSettingsExperimentalDesktopTrayHint": "Á meðan kveikt er á „Halda áfram að keyra eftir lokun“ birtist tákn WebSpace í valmyndastikunni. Valmynd þess birtir gluggann, opnar vefsvæði með kveikt á tilkynningum eða hættir í forritinu.",
   "appSettingsExtensions": "Viðbætur",

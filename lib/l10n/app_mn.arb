@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Вэб өргөтгөлүүд",
   "appSettingsExperimentalWebExtensionsHint": "Файлаас импортлосон хөтчийн өргөтгөлүүдийг (Chrome-ын .crx, Firefox-ын .xpi эсвэл .zip) өөрийн сонгосон сайтууд дээр ажиллуулна. WebKit өргөтгөл бүрээс дэмждэг хэсгийг нь ажиллуулна. Өргөтгөлийг тухайн сайтын тохиргоонд асаах хүртэл аль ч сайт дээр ажиллахгүй бөгөөд тэнд зөвхөн тэр сайтад хандана.",
+  "appSettingsExperimentalExtensionSearch": "Өргөтгөлийн хайлт",
+  "appSettingsExperimentalExtensionSearchHint": "\"Өргөтгөлүүд\" дэлгэцэнд addons.mozilla.org-оос хайх боломж нэмж, үр дүн бүрт WebKit үүнийг хэр сайн ажиллуулах төлөвтэйг тэмдэглэнэ. Зөвхөн App Store-оос гадуурх хувилбаруудад, мөн \"Вэб өргөтгөлүүд\" асаалттай үед л санал болгоно.",
   "appSettingsExperimentalDesktopTray": "Системийн тавиурын дүрс тэмдэг",
   "appSettingsExperimentalDesktopTrayHint": "\"Хаасны дараа ажилласаар байх\" асаалттай үед WebSpace-ийн дүрс тэмдгийг цэсний мөрөнд харуулна. Түүний цэсээр цонхыг харуулах, мэдэгдэл нь асаалттай сайт нээх эсвэл програмаас гарах боломжтой.",
   "appSettingsExtensions": "Өргөтгөлүүд",

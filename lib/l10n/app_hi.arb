@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "वेब एक्सटेंशन",
   "appSettingsExperimentalWebExtensionsHint": "फ़ाइल से आयात किए गए ब्राउज़र एक्सटेंशन (Chrome का .crx, Firefox का .xpi या .zip) आपकी चुनी हुई साइटों पर चलाता है। WebKit हर एक्सटेंशन का उतना हिस्सा चलाता है जितना वह सपोर्ट करता है। कोई एक्सटेंशन तब तक किसी साइट पर नहीं चलता जब तक आप उसे उस साइट की सेटिंग में चालू न करें, और वहाँ वह केवल उसी साइट तक पहुँचता है।",
+  "appSettingsExperimentalExtensionSearch": "एक्सटेंशन खोज",
+  "appSettingsExperimentalExtensionSearchHint": "\"एक्सटेंशन\" स्क्रीन में addons.mozilla.org पर खोज जोड़ता है, और हर परिणाम पर लिखा होता है कि WebKit के इसे कितनी अच्छी तरह चलाने की उम्मीद है। केवल App Store के बाहर के बिल्ड में उपलब्ध, और केवल तब जब \"वेब एक्सटेंशन\" चालू हो।",
   "appSettingsExperimentalDesktopTray": "सिस्टम ट्रे आइकन",
   "appSettingsExperimentalDesktopTrayHint": "जब \"बंद करने पर भी चलता रहे\" चालू हो, तब मेनू बार में WebSpace का आइकन दिखाता है। इसका मेनू विंडो दिखाता है, ऐसी साइट खोलता है जिसकी सूचनाएँ चालू हैं, या ऐप से बाहर निकलता है।",
   "appSettingsExtensions": "एक्सटेंशन",

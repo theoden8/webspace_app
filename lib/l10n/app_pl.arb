@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Rozszerzenia przeglądarki",
   "appSettingsExperimentalWebExtensionsHint": "Uruchamiaj na wybranych witrynach rozszerzenia przeglądarki zaimportowane z pliku (Chrome .crx, Firefox .xpi lub .zip). WebKit uruchamia z każdego z nich to, co obsługuje. Rozszerzenie nie działa na żadnej witrynie, dopóki nie włączysz go w ustawieniach tej witryny, a tam ma dostęp tylko do niej.",
+  "appSettingsExperimentalExtensionSearch": "Wyszukiwanie rozszerzeń",
+  "appSettingsExperimentalExtensionSearchHint": "Dodaje do ekranu „Rozszerzenia” wyszukiwanie w addons.mozilla.org, a przy każdym wyniku widać, jak dobrze WebKit powinien je uruchamiać. Dostępne tylko w wersjach spoza App Store i tylko wtedy, gdy włączona jest opcja „Rozszerzenia przeglądarki”.",
   "appSettingsExperimentalDesktopTray": "Ikona w zasobniku systemowym",
   "appSettingsExperimentalDesktopTrayHint": "Gdy „Działaj dalej po zamknięciu” jest włączone, pokazuje ikonę WebSpace na pasku menu. Jej menu wyświetla okno, otwiera witrynę z włączonymi powiadomieniami lub kończy działanie aplikacji.",
   "appSettingsExtensions": "Rozszerzenia",

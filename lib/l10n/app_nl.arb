@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Webextensies",
   "appSettingsExperimentalWebExtensionsHint": "Voer browserextensies die je uit een bestand importeert (een .crx van Chrome, een .xpi van Firefox of een .zip) uit op de sites die je kiest. WebKit voert van elke extensie uit wat het ondersteunt. Een extensie draait op geen enkele site tot je haar aanzet in de instellingen van die site, en daar bereikt ze alleen die site.",
+  "appSettingsExperimentalExtensionSearch": "Zoeken naar extensies",
+  "appSettingsExperimentalExtensionSearchHint": "Voegt aan het scherm \"Extensies\" een zoekfunctie voor addons.mozilla.org toe, met bij elk resultaat hoe goed WebKit het naar verwachting uitvoert. Alleen beschikbaar in builds van buiten de App Store, en alleen zolang \"Webextensies\" aan staat.",
   "appSettingsExperimentalDesktopTray": "Symbool in systeemvak",
   "appSettingsExperimentalDesktopTrayHint": "Zolang \"Blijven draaien na sluiten\" aan staat, toont dit het symbool van WebSpace in de menubalk. Het menu ervan toont het venster, opent een site met meldingen aan of stopt de app.",
   "appSettingsExtensions": "Extensies",

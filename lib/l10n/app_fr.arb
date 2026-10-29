@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensions web",
   "appSettingsExperimentalWebExtensionsHint": "Exécute sur les sites de votre choix les extensions de navigateur que vous importez depuis un fichier (un .crx de Chrome, un .xpi de Firefox ou un .zip). WebKit exécute ce qu'il prend en charge de chacune. Une extension ne s'exécute sur aucun site tant que vous ne l'activez pas dans les paramètres de ce site, et là, elle n'atteint que ce site.",
+  "appSettingsExperimentalExtensionSearch": "Recherche d'extensions",
+  "appSettingsExperimentalExtensionSearchHint": "Ajoute à l'écran « Extensions » une recherche sur addons.mozilla.org, chaque résultat indiquant dans quelle mesure WebKit devrait l'exécuter. Proposé uniquement dans les versions distribuées hors de l'App Store, et seulement lorsque « Extensions web » est activé.",
   "appSettingsExperimentalDesktopTray": "Icône dans la barre d'état système",
   "appSettingsExperimentalDesktopTrayHint": "Tant que « Continuer à fonctionner après fermeture » est activé, affiche l'icône de WebSpace dans la barre des menus. Son menu affiche la fenêtre, ouvre un site dont les notifications sont activées ou quitte l'application.",
   "appSettingsExtensions": "Extensions",

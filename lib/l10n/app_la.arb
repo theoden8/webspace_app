@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensiones interretiales",
   "appSettingsExperimentalWebExtensionsHint": "Extensiones navigatri ex plica importatas (.crx Chrome, .xpi Firefox vel .zip) in situbus quos eligis exsequere. WebKit ex quaque id exsequitur quod sustinet. Extensio in nullo situ currit donec eam in institutionibus illius situs accendas, et ibi solum illum situm attingit.",
+  "appSettingsExperimentalExtensionSearch": "Quaestio extensionum",
+  "appSettingsExperimentalExtensionSearchHint": "Quaestionem in addons.mozilla.org scrinio \"Extensiones\" addit, singulis eventibus notatis quam bene WebKit eam exsecuturus esse putetur. Tantum in versionibus extra App Store praebetur, et tantum dum \"Extensiones interretiales\" activum est.",
   "appSettingsExperimentalDesktopTray": "Icon alveoli systematis",
   "appSettingsExperimentalDesktopTrayHint": "Dum \"Post clausuram operari pergere\" activum est, iconem WebSpace in tabula menu ostendit. Menu eius fenestram ostendit, locum cuius renuntiationes activae sunt aperit, vel ex applicatione exit.",
   "appSettingsExtensions": "Extensiones",

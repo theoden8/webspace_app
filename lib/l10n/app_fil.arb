@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Mga web extension",
   "appSettingsExperimentalWebExtensionsHint": "Pinapatakbo ang mga browser extension na ini-import mo mula sa isang file (isang .crx ng Chrome, isang .xpi ng Firefox o isang .zip) sa mga site na pipiliin mo. Pinapatakbo ng WebKit ang kaya nitong suportahan sa bawat isa. Hindi tatakbo ang isang extension sa anumang site hangga't hindi mo ito ino-on sa mga setting ng site na iyon, at doon ay sa site lang na iyon ito umaabot.",
+  "appSettingsExperimentalExtensionSearch": "Paghahanap ng extension",
+  "appSettingsExperimentalExtensionSearchHint": "Nagdaragdag ng paghahanap sa addons.mozilla.org sa screen na \"Mga Extension\", at may label ang bawat resulta kung gaano kahusay itong inaasahang patakbuhin ng WebKit. Inaalok lang sa mga build na mula sa labas ng App Store, at habang naka-on lang ang \"Mga web extension\".",
   "appSettingsExperimentalDesktopTray": "Icon sa system tray",
   "appSettingsExperimentalDesktopTrayHint": "Habang naka-on ang \"Patuloy na tumakbo kapag isinara\", ipinapakita ang icon ng WebSpace sa menu bar. Ipinapakita ng menu nito ang window, nagbubukas ito ng site na naka-on ang notification, o lumalabas sa app.",
   "appSettingsExtensions": "Mga Extension",

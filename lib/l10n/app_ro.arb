@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensii web",
   "appSettingsExperimentalWebExtensionsHint": "Rulează pe site-urile pe care le alegi extensii de browser importate dintr-un fișier (un .crx pentru Chrome, un .xpi pentru Firefox sau un .zip). WebKit rulează din fiecare ce suportă. O extensie nu rulează pe niciun site până nu o activezi în setările acelui site, iar acolo ajunge doar la acel site.",
+  "appSettingsExperimentalExtensionSearch": "Căutare extensii",
+  "appSettingsExperimentalExtensionSearchHint": "Adaugă pe ecranul \"Extensii\" o căutare pe addons.mozilla.org, fiecare rezultat fiind marcat după cât de bine se așteaptă ca WebKit să o ruleze. Disponibil doar în versiunile distribuite în afara App Store și doar cât timp \"Extensii web\" este activat.",
   "appSettingsExperimentalDesktopTray": "Pictogramă în zona de notificare",
   "appSettingsExperimentalDesktopTrayHint": "Cât timp \"Continuă să ruleze după închidere\" este activat, afișează pictograma WebSpace în bara de meniu. Meniul ei afișează fereastra, deschide un site cu notificările activate sau iese din aplicație.",
   "appSettingsExtensions": "Extensii",

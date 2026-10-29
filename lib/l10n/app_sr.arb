@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Веб проширења",
   "appSettingsExperimentalWebExtensionsHint": "Покреће проширења прегледача која увезете из фајла (Chrome .crx, Firefox .xpi или .zip) на сајтовима које изаберете. WebKit покреће оно што подржава од сваког. Проширење не ради ни на једном сајту док га не укључите у подешавањима тог сајта, и тамо досеже само тај сајт.",
+  "appSettingsExperimentalExtensionSearch": "Претрага проширења",
+  "appSettingsExperimentalExtensionSearchHint": "Додаје претрагу сајта addons.mozilla.org на екран „Проширења“, а сваки резултат је означен према томе колико би га добро WebKit требало да покреће. Нуди се само у верзијама апликације ван App Store-а и само док је „Веб проширења“ укључено.",
   "appSettingsExperimentalDesktopTray": "Иконица у системској траци",
   "appSettingsExperimentalDesktopTrayHint": "Док је „Настави рад након затварања“ укључено, приказује иконицу апликације WebSpace на траци менија. Њен мени приказује прозор, отвара сајт са укљученим обавештењима или излази из апликације.",
   "appSettingsExtensions": "Проширења",

@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Estyniadau gwe",
   "appSettingsExperimentalWebExtensionsHint": "Rhedeg estyniadau porwr rydych chi'n eu mewnforio o ffeil (.crx Chrome, .xpi Firefox neu .zip) ar y gwefannau a ddewiswch. Mae WebKit yn rhedeg yr hyn y mae'n ei gefnogi o bob un. Nid yw estyniad yn rhedeg ar unrhyw wefan nes i chi ei droi ymlaen yng ngosodiadau'r wefan honno, ac yno dim ond y wefan honno y mae'n ei chyrraedd.",
+  "appSettingsExperimentalExtensionSearch": "Chwiliad estyniadau",
+  "appSettingsExperimentalExtensionSearchHint": "Yn ychwanegu chwiliad o addons.mozilla.org at y sgrin \"Estyniadau\", gyda label ar bob canlyniad yn dangos pa mor dda y disgwylir i WebKit ei redeg. Ar gael dim ond mewn fersiynau o'r ap o'r tu allan i'r App Store, a dim ond tra bo \"Estyniadau gwe\" ymlaen.",
   "appSettingsExperimentalDesktopTray": "Eicon yr hambwrdd system",
   "appSettingsExperimentalDesktopTrayHint": "Tra bo \"Dal i redeg ar ôl cau\" ymlaen, mae'n dangos eicon WebSpace yn y bar dewislen. Mae ei ddewislen yn dangos y ffenestr, yn agor safle â hysbysiadau ymlaen, neu'n gadael y rhaglen.",
   "appSettingsExtensions": "Estyniadau",

@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Веброзширення",
   "appSettingsExperimentalWebExtensionsHint": "Запускає розширення браузера, які ви імпортуєте з файлу (Chrome .crx, Firefox .xpi або .zip), на вибраних вами сайтах. WebKit запускає з кожного те, що підтримує. Розширення не працює на жодному сайті, доки ви не ввімкнете його в налаштуваннях цього сайту, і там воно має доступ лише до цього сайту.",
+  "appSettingsExperimentalExtensionSearch": "Пошук розширень",
+  "appSettingsExperimentalExtensionSearchHint": "Додає на екран «Розширення» пошук на addons.mozilla.org, і кожен результат показує, наскільки добре WebKit, імовірно, його запускатиме. Пропонується лише у збірках поза App Store і лише поки ввімкнено «Веброзширення».",
   "appSettingsExperimentalDesktopTray": "Піктограма в системному лотку",
   "appSettingsExperimentalDesktopTrayHint": "Поки ввімкнено «Працювати й після закриття», показує піктограму WebSpace на смузі меню. Її меню показує вікно, відкриває сайт з увімкненими сповіщеннями або виходить із застосунку.",
   "appSettingsExtensions": "Розширення",

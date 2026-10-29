@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Spletne razširitve",
   "appSettingsExperimentalWebExtensionsHint": "Na spletnih mestih, ki jih izberete, izvaja razširitve brskalnika, ki jih uvozite iz datoteke (Chrome .crx, Firefox .xpi ali .zip). WebKit izvede tisto, kar pri vsaki podpira. Razširitev se ne izvaja na nobenem spletnem mestu, dokler je ne vklopite v nastavitvah tega mesta, in tam doseže samo to mesto.",
+  "appSettingsExperimentalExtensionSearch": "Iskanje razširitev",
+  "appSettingsExperimentalExtensionSearchHint": "Na zaslon \"Razširitve\" doda iskanje v addons.mozilla.org, pri vsakem rezultatu pa piše, kako dobro naj bi ga WebKit izvajal. Na voljo samo v različicah zunaj App Store in samo, ko je vklopljeno \"Spletne razširitve\".",
   "appSettingsExperimentalDesktopTray": "Ikona v sistemski vrstici",
   "appSettingsExperimentalDesktopTrayHint": "Ko je vklopljeno \"Deluj tudi po zaprtju\", prikaže ikono WebSpace v menijski vrstici. Njen meni prikaže okno, odpre spletno mesto z vklopljenimi obvestili ali konča aplikacijo.",
   "appSettingsExtensions": "Razširitve",

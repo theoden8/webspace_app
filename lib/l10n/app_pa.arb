@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "ਵੈੱਬ ਐਕਸਟੈਂਸ਼ਨਾਂ",
   "appSettingsExperimentalWebExtensionsHint": "ਫ਼ਾਈਲ ਤੋਂ ਇੰਪੋਰਟ ਕੀਤੀਆਂ ਬ੍ਰਾਊਜ਼ਰ ਐਕਸਟੈਂਸ਼ਨਾਂ (Chrome .crx, Firefox .xpi ਜਾਂ .zip) ਆਪਣੀਆਂ ਚੁਣੀਆਂ ਸਾਈਟਾਂ 'ਤੇ ਚਲਾਓ। WebKit ਹਰੇਕ ਦਾ ਉਹ ਹਿੱਸਾ ਚਲਾਉਂਦਾ ਹੈ ਜਿਸਦਾ ਇਹ ਸਮਰਥਨ ਕਰਦਾ ਹੈ। ਕੋਈ ਐਕਸਟੈਂਸ਼ਨ ਕਿਸੇ ਵੀ ਸਾਈਟ 'ਤੇ ਉਦੋਂ ਤੱਕ ਨਹੀਂ ਚੱਲਦੀ ਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਉਸ ਸਾਈਟ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਸਨੂੰ ਚਾਲੂ ਨਹੀਂ ਕਰਦੇ, ਅਤੇ ਉੱਥੇ ਇਹ ਸਿਰਫ਼ ਉਸੇ ਸਾਈਟ ਤੱਕ ਪਹੁੰਚਦੀ ਹੈ।",
+  "appSettingsExperimentalExtensionSearch": "ਐਕਸਟੈਂਸ਼ਨ ਖੋਜ",
+  "appSettingsExperimentalExtensionSearchHint": "\"ਐਕਸਟੈਂਸ਼ਨਾਂ\" ਸਕ੍ਰੀਨ ਵਿੱਚ addons.mozilla.org 'ਤੇ ਖੋਜ ਜੋੜਦਾ ਹੈ, ਅਤੇ ਹਰ ਨਤੀਜੇ 'ਤੇ ਲਿਖਿਆ ਹੁੰਦਾ ਹੈ ਕਿ WebKit ਵੱਲੋਂ ਇਸਨੂੰ ਕਿੰਨੀ ਚੰਗੀ ਤਰ੍ਹਾਂ ਚਲਾਉਣ ਦੀ ਉਮੀਦ ਹੈ। ਸਿਰਫ਼ App Store ਤੋਂ ਬਾਹਰ ਦੇ ਬਿਲਡਾਂ ਵਿੱਚ ਉਪਲਬਧ, ਅਤੇ ਸਿਰਫ਼ ਉਦੋਂ ਜਦੋਂ \"ਵੈੱਬ ਐਕਸਟੈਂਸ਼ਨਾਂ\" ਚਾਲੂ ਹੋਵੇ।",
   "appSettingsExperimentalDesktopTray": "ਸਿਸਟਮ ਟ੍ਰੇ ਆਈਕਨ",
   "appSettingsExperimentalDesktopTrayHint": "ਜਦੋਂ \"ਬੰਦ ਕਰਨ 'ਤੇ ਵੀ ਚੱਲਦੀ ਰਹੇ\" ਚਾਲੂ ਹੋਵੇ, ਤਾਂ ਮੀਨੂ ਬਾਰ ਵਿੱਚ WebSpace ਦਾ ਆਈਕਨ ਦਿਖਾਉਂਦਾ ਹੈ। ਇਸ ਦਾ ਮੀਨੂ ਵਿੰਡੋ ਦਿਖਾਉਂਦਾ ਹੈ, ਕੋਈ ਅਜਿਹੀ ਸਾਈਟ ਖੋਲ੍ਹਦਾ ਹੈ ਜਿਸ ਦੀਆਂ ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਹਨ, ਜਾਂ ਐਪ ਤੋਂ ਬਾਹਰ ਨਿਕਲਦਾ ਹੈ।",
   "appSettingsExtensions": "ਐਕਸਟੈਂਸ਼ਨਾਂ",

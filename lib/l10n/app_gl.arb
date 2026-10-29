@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Extensións web",
   "appSettingsExperimentalWebExtensionsHint": "Executa nos sitios que escollas as extensións de navegador que importes desde un ficheiro (un .crx de Chrome, un .xpi de Firefox ou un .zip). WebKit executa o que admite de cada unha. Unha extensión non se executa en ningún sitio ata que a actives nos axustes dese sitio, e alí só chega a ese sitio.",
+  "appSettingsExperimentalExtensionSearch": "Busca de extensións",
+  "appSettingsExperimentalExtensionSearchHint": "Engade unha busca en addons.mozilla.org á pantalla \"Extensións\", con cada resultado etiquetado segundo ata que punto se espera que WebKit a execute. Só se ofrece en compilacións de fóra da App Store e só mentres \"Extensións web\" está activado.",
   "appSettingsExperimentalDesktopTray": "Icona na bandexa do sistema",
   "appSettingsExperimentalDesktopTrayHint": "Mentres \"Seguir en execución ao pechar\" está activado, mostra a icona de WebSpace na barra de menús. O seu menú mostra a xanela, abre un sitio coas notificacións activadas ou sae da aplicación.",
   "appSettingsExtensions": "Extensións",

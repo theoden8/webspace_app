@@ -1161,6 +1161,8 @@
   },
   "appSettingsExperimentalWebExtensions": "Webová rozšíření",
   "appSettingsExperimentalWebExtensionsHint": "Spouští rozšíření prohlížeče importovaná ze souboru (.crx z Chromu, .xpi z Firefoxu nebo .zip) na webech, které zvolíte. WebKit z každého spustí to, co podporuje. Rozšíření neběží na žádném webu, dokud ho nezapnete v nastavení daného webu, a tam dosáhne jen na tento web.",
+  "appSettingsExperimentalExtensionSearch": "Hledání rozšíření",
+  "appSettingsExperimentalExtensionSearchHint": "Přidá na obrazovku „Rozšíření“ hledání na addons.mozilla.org a u každého výsledku uvede, jak dobře ho WebKit pravděpodobně spouští. Nabízí se jen v sestaveních mimo App Store a jen když je zapnuto „Webová rozšíření“.",
   "appSettingsExperimentalDesktopTray": "Ikona v oznamovací oblasti",
   "appSettingsExperimentalDesktopTrayHint": "Když je zapnuto „Běžet i po zavření“, zobrazí ikonu WebSpace na řádku nabídek. Její nabídka zobrazí okno, otevře web se zapnutými oznámeními nebo aplikaci ukončí.",
   "appSettingsExtensions": "Rozšíření",
