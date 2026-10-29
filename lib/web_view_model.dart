@@ -1575,11 +1575,11 @@ bool dispatch(NavigationDecision decision,
   void handleRendererGone({required bool didCrash}) {
     LogTag.webView.debug(
         'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
-    webview = null;
-    controller = null;
-    ProcessRoute.instance.release(routeClaim.occupant);
-    tabBinding.unbind(commit: const Commit.unmodeled(Unmodeled.rendererGone));
-    resumeReload.reset();
+    // A dead renderer loads nothing more, so nothing is left to quiet.
+    _letGoOfWebView(
+      quiet: null,
+      commit: const Commit.unmodeled(Unmodeled.rendererGone),
+    );
     stateSetterF?.call();
   }
 
@@ -1717,11 +1717,20 @@ bool dispatch(NavigationDecision decision,
     LogTag.webView.debug(
         'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
         sensitive: true);
-    final gone = controller;
+    _letGoOfWebView(quiet: controller?.quiet, commit: commit);
+  }
+
+  /// The webview and its controller go, and with them what they held: the
+  /// route, once [quiet] has stopped what the page loads (at once with
+  /// nothing to stop), the tab the webview was built for, the resume
+  /// reload, and the site's media session.
+  void _letGoOfWebView({
+    required Future<void> Function()? quiet,
+    required Commit commit,
+  }) {
     webview = null;
     controller = null;
-    unawaited(ProcessRoute.instance
-        .leave(routeClaim.occupant, quiet: gone?.quiet));
+    unawaited(ProcessRoute.instance.leave(routeClaim.occupant, quiet: quiet));
     tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the

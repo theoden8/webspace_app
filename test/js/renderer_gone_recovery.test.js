@@ -7,7 +7,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read } = require('./helpers/source');
+const { read, methodBody } = require('./helpers/source');
 
 test('both platform renderer-death events route to onRendererGone', () => {
   const src = read('lib/services/webview.dart');
@@ -28,10 +28,17 @@ test('onRendererGone is wired to the destroy-and-rebuild recovery', () => {
     /onRendererGone:\s*handleRendererGone,/,
     'the config callback must invoke handleRendererGone',
   );
-  // handleRendererGone must DISPOSE the dead instance (the fix), not just log.
-  const def = src.slice(src.indexOf('void handleRendererGone'));
-  assert.match(def, /webview\s*=\s*null/, 'must drop the dead cached widget');
-  assert.match(def, /controller\s*=\s*null/, 'must drop the dead controller');
+  // handleRendererGone must DISPOSE the dead instance (the fix), not just
+  // log, through the one teardown disposeWebView takes too, so what a
+  // webview holds goes with it on either path (BGAUDIO-010's controls).
+  const file = 'lib/web_view_model.dart';
+  for (const path of ['handleRendererGone', 'disposeWebView']) {
+    assert.match(methodBody(path, { file }), /\b_letGoOfWebView\(/,
+      `${path} must let go of the webview through _letGoOfWebView`);
+  }
+  const teardown = methodBody('_letGoOfWebView', { file });
+  assert.match(teardown, /webview\s*=\s*null/, 'must drop the dead cached widget');
+  assert.match(teardown, /controller\s*=\s*null/, 'must drop the dead controller');
 });
 
 test('the proactive probe runs on >=2 activation paths (PAUSE-014)', () => {
