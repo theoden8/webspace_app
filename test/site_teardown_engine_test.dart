@@ -18,6 +18,7 @@ void main() {
     test('runs the steps in the caller order', () async {
       final order = <String>[];
       final result = await SiteTeardownEngine.quiesceOutgoing(
+        budget: SiteTeardownEngine.defaultBudget,
         superseded: () => false,
         steps: [
           _step('capture', order: order),
@@ -35,6 +36,7 @@ void main() {
         () async {
       final order = <String>[];
       final result = await SiteTeardownEngine.quiesceOutgoing(
+        budget: SiteTeardownEngine.defaultBudget,
         superseded: () => false,
         steps: [
           SiteTeardownStep('capture', run: () async => false),
@@ -68,6 +70,7 @@ void main() {
       final order = <String>[];
       var version = 1;
       final result = await SiteTeardownEngine.quiesceOutgoing(
+        budget: SiteTeardownEngine.defaultBudget,
         superseded: () => version != 1,
         steps: [
           SiteTeardownStep('capture', run: () async {
