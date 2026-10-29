@@ -748,7 +748,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             hint: null,
             subtitle: loc.permissionsBackgroundAudioNotAGrant,
             lock: _values.archived ? const ArchiveLock() : null,
-            control: Toggle(_values.effectiveBackgroundAudio, onChanged: (value) async {
+            control: Toggle(value: _values.effectiveBackgroundAudio, onChanged: (value) async {
               _update(_values.copyWith(backgroundAudioEnabled: value));
               // Android shows a media notification with transport controls for
               // background audio; on Android 13+ that needs POST_NOTIFICATIONS.

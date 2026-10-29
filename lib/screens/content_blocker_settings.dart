@@ -401,7 +401,7 @@ class _ContentBlockerSettingsScreenState
             lock: service.rustEngineSupportedOnPlatform
                 ? null
                 : Lock.because(loc.appSettingsUboRedirectStubsUnavailable),
-            control: Toggle(service.useUboResources,
+            control: Toggle(value: service.useUboResources,
                 onChanged: (value) => _refreshAfter(service.setUseUboResources(enabled: value))),
           ),
           const SizedBox(height: 24),

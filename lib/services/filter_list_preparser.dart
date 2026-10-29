@@ -103,7 +103,7 @@ class _IfFrame {
   bool known;
   bool discard;
   int pos;
-  _IfFrame(this.known, {required this.discard, required this.pos});
+  _IfFrame({required this.known, required this.discard, required this.pos});
 }
 
 /// Offsets that alternately start a kept and a discarded span, beginning
@@ -138,7 +138,7 @@ List<int> _splitter(String content, {required Set<String> env}) {
     switch (m[1]) {
       case 'if':
         final result = evaluatePreparserExpr(m[2]!.trim(), env: env);
-        begif(_IfFrame(result != null, discard: result == false, pos: m.start));
+        begif(_IfFrame(known: result != null, discard: result == false, pos: m.start));
       case 'else':
         if (stack.isEmpty) break;
         final f = stack.last;

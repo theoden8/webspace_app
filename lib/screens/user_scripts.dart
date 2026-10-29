@@ -606,7 +606,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
             contentPadding: EdgeInsets.zero,
             title: loc.userScriptsBypassSitePolicyLabel,
             hint: loc.userScriptsBypassSitePolicyHint,
-            control: Toggle(_bypassSitePolicy,
+            control: Toggle(value: _bypassSitePolicy,
                 onChanged: (v) => setState(() => _bypassSitePolicy = v)),
           ),
           const SizedBox(height: 16),

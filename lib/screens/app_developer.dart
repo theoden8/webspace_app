@@ -112,7 +112,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
             title: loc.appSettingsDeveloperMode,
             hint: loc.appSettingsDeveloperModeHint,
             lock: _turningOff ? const Lock.because(null) : null,
-            control: Toggle(!_turningOff, onChanged: (value) {
+            control: Toggle(value: !_turningOff, onChanged: (value) {
               if (!value) unawaited(_turnOff());
             }),
           ),
@@ -146,7 +146,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
               title: title,
               hint: hint,
               control: Toggle(
-                ExperimentalFeaturesService.instance.switchOn(feature),
+                value: ExperimentalFeaturesService.instance.switchOn(feature),
                 onChanged: (value) => ExperimentalFeaturesService.instance
                     .setSwitch(feature, on: value),
               ),

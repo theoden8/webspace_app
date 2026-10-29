@@ -210,7 +210,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         lock: widget.containersActive
             ? null
             : Lock.because(loc.siteSettingsRouteOutboundLinksNeedsContainers),
-        control: Toggle(_values.routeOutboundLinks,
+        control: Toggle(value: _values.routeOutboundLinks,
             onChanged: (value) =>
                 _update(_values.copyWith(routeOutboundLinks: value))),
       );
@@ -288,7 +288,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         title: loc.siteSettingsSignInPopups,
         hint: loc.siteSettingsSignInPopupsHint,
         control: ScopedToggle(
-          PopupKind.signInOpens(choice: _values.signInPopups),
+          value: PopupKind.signInOpens(choice: _values.signInPopups),
           choice: _values.signInPopups,
           source: FollowSource.app,
           onChoice: (choice) =>
@@ -448,13 +448,13 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             lock: widget.incognito
                 ? Lock.because(loc.siteSettingsAlwaysOpenHomeForced)
                 : null,
-            control: Toggle(_values.effectiveAlwaysOpenHome(incognito: widget.incognito),
+            control: Toggle(value: _values.effectiveAlwaysOpenHome(incognito: widget.incognito),
                 onChanged: (value) => _update(_values.copyWith(alwaysOpenHome: value))),
           ),
           SettingTile(
             title: loc.siteSettingsKioskMode,
             hint: loc.siteSettingsKioskModeHint,
-            control: Toggle(_values.kioskMode,
+            control: Toggle(value: _values.kioskMode,
                 onChanged: (value) => _update(_values.copyWith(kioskMode: value))),
           ),
           SettingTile(
@@ -462,7 +462,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             hintTitle: loc.siteSettingsFullscreenHintTitle,
             hint: loc.siteSettingsFullscreenHint,
             subtitle: loc.siteSettingsFullscreenSubtitle,
-            control: Toggle(_values.fullscreenMode,
+            control: Toggle(value: _values.fullscreenMode,
                 onChanged: (value) => _update(_values.copyWith(fullscreenMode: value))),
           ),
           // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
@@ -472,7 +472,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             title: loc.siteSettingsTabs,
             hint: loc.siteSettingsTabsHint,
             control: ScopedToggle(
-              _values.effectiveTabsEnabled,
+              value: _values.effectiveTabsEnabled,
               choice: _values.tabsEnabled,
               source: FollowSource.app,
               onChoice: _setTabs,
@@ -485,7 +485,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
               hintTitle: loc.siteSettingsHtmlCachingHintTitle,
               hint: loc.siteSettingsHtmlCachingHint,
               lock: _values.archived ? const ArchiveLock() : null,
-              control: Toggle(_values.effectiveHtmlCaching,
+              control: Toggle(value: _values.effectiveHtmlCaching,
                   onChanged: (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
             ),
           SettingsSection(loc.linkHandlingScreenTitle),

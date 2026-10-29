@@ -237,7 +237,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
           ? dnsBlockLevelNames[_effectiveDnsLevel]
           : loc.siteSettingsNotConfigured,
       lock: _umbrella(TrackingProtectionForce.dnsBlock),
-      control: Toggle(_values.effectiveDnsBlock, onChanged: (value) {
+      control: Toggle(value: _values.effectiveDnsBlock, onChanged: (value) {
         if (value && !ready) _warnNotConfigured(loc.siteSettingsDnsBlocklist);
         _update(_values.copyWith(dnsBlockEnabled: value));
       }),
@@ -255,7 +255,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
               ContentBlockerService.instance.totalRuleCount)
           : loc.siteSettingsNotConfigured,
       lock: _umbrella(TrackingProtectionForce.contentBlock),
-      control: Toggle(_values.effectiveContentBlock, onChanged: (value) {
+      control: Toggle(value: _values.effectiveContentBlock, onChanged: (value) {
         if (value && !ready) _warnNotConfigured(loc.siteSettingsContentBlocker);
         _update(_values.copyWith(contentBlockEnabled: value));
       }),
@@ -423,7 +423,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
           : _values.archived
               ? const ArchiveLock()
               : _umbrella(TrackingProtectionForce.localCdn),
-      control: Toggle(_values.effectiveLocalCdn && hasCache,
+      control: Toggle(value: _values.effectiveLocalCdn && hasCache,
           onChanged: (value) =>
               _update(_values.copyWith(localCdnEnabled: value))),
     );
@@ -487,7 +487,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
             hint: loc.siteSettingsClearUrlsHint,
             subtitle: loc.siteSettingsClearUrlsSubtitle,
             lock: _umbrella(TrackingProtectionForce.clearUrls),
-            control: Toggle(_values.effectiveClearUrl,
+            control: Toggle(value: _values.effectiveClearUrl,
                 onChanged: (value) => _update(_values.copyWith(clearUrlEnabled: value))),
           ),
           _dnsBlocklist(loc),
@@ -505,7 +505,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
             subtitle: loc.siteSettingsThirdPartyCookiesSubtitle,
             lock: _umbrella(TrackingProtectionForce.thirdPartyCookies),
             control: Toggle(
-                _values.effectiveThirdPartyCookies,
+                value: _values.effectiveThirdPartyCookies,
                 onChanged: (value) =>
                     _update(_values.copyWith(thirdPartyCookiesEnabled: value))),
           ),
@@ -514,7 +514,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
             hint: loc.siteSettingsHttpsUpgradeHint,
             lock: _umbrella(TrackingProtectionForce.httpsUpgrade),
             control: ScopedToggle(
-              _values.effectiveHttpsUpgrade,
+              value: _values.effectiveHttpsUpgrade,
               choice: _values.httpsUpgrade,
               source: FollowSource.app,
               onChoice: (choice) =>
@@ -529,7 +529,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
                 ? null
                 : Lock.because(loc.siteSettingsNeedsTrackingProtection),
             control: Toggle(
-                _values.letterboxEnabled && _values.trackingProtectionEnabled,
+                value: _values.letterboxEnabled && _values.trackingProtectionEnabled,
                 onChanged: (value) => _update(_values.copyWith(letterboxEnabled: value))),
           ),
           // Only while the umbrella is on: with it off nothing is being
@@ -543,7 +543,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
               title: loc.siteSettingsLockdownMode,
               hint: loc.siteSettingsLockdownModeHint,
               control: ScopedToggle(
-                _values.effectiveLockdownMode,
+                value: _values.effectiveLockdownMode,
                 choice: _values.lockdownMode,
                 source: FollowSource.trackingProtection,
                 onChoice: (choice) =>
@@ -559,7 +559,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
               lock: AppPref.blockScreenshots.value
                   ? Lock.because(loc.siteSettingsBlockScreenshotsAppWide)
                   : null,
-              control: Toggle(_values.effectiveBlockScreenshots,
+              control: Toggle(value: _values.effectiveBlockScreenshots,
                   onChanged: (value) => _update(_values.copyWith(blockScreenshots: value))),
             ),
           ],
