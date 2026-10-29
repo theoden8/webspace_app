@@ -5735,15 +5735,11 @@
   },
   "extensionsSearch": "Search addons.mozilla.org",
   "@extensionsSearch": {
-    "description": "Row on the Extensions screen that opens a search of addons.mozilla.org, Mozilla's catalogue of Firefox extensions. Keep the site name as it is."
-  },
-  "extensionsSearchSubtitle": "Each result says how well WebKit runs it",
-  "@extensionsSearchSubtitle": {
-    "description": "Subtitle of the Search addons.mozilla.org row: what its results show."
+    "description": "Placeholder text of the search bar at the top of the Extensions screen, which searches addons.mozilla.org, Mozilla's catalogue of Firefox extensions. Keep the site name as it is."
   },
   "extensionsSearchHint": "Lists Firefox extensions from addons.mozilla.org, none hidden. Each says whether WebKit runs it: Runs when WebKit supports everything it asks for, Runs in part when it asks for something WebKit lacks, Unknown when the listing does not say. Adding one works as adding from its link. Offered only in builds from outside the App Store.",
   "@extensionsSearchHint": {
-    "description": "Explanation behind the hint button of the Search addons.mozilla.org row. Runs, Runs in part and Unknown are the labels extensionsFitWorks, extensionsFitPartly and extensionsFitUnknown; use the same words."
+    "description": "Explanation behind the hint button inside the Extensions screen's search bar. Runs, Runs in part and Unknown are the labels extensionsFitWorks, extensionsFitPartly and extensionsFitUnknown; use the same words."
   },
   "extensionsSearchField": "Search extensions",
   "@extensionsSearchField": {

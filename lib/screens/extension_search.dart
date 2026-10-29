@@ -10,12 +10,16 @@ import 'package:webspace/settings/web_extension_source.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
-/// A search of addons.mozilla.org (WEBEXT-019), offered only outside the
-/// App Store: each result labelled by how well WebKit is expected to run
-/// it, none hidden. Picking one pops its source, which the Extensions
-/// screen adds as it adds from a link.
+/// A search of addons.mozilla.org (WEBEXT-019) for what was typed in the
+/// Extensions screen's search bar, offered only outside the App Store: each
+/// result labelled by how well WebKit is expected to run it, none hidden.
+/// Picking one pops its source, which the Extensions screen adds as it adds
+/// from a link.
 class ExtensionSearchScreen extends StatefulWidget {
-  const ExtensionSearchScreen({super.key});
+  const ExtensionSearchScreen({super.key, required this.query});
+
+  /// What the search starts with; the field above the results refines it.
+  final String query;
 
   @override
   State<ExtensionSearchScreen> createState() => _ExtensionSearchScreenState();
@@ -30,6 +34,15 @@ class _ExtensionSearchScreenState extends State<ExtensionSearchScreen> {
   int _page = 0;
   bool _more = false;
   String? _failure;
+
+  @override
+  void initState() {
+    super.initState();
+    _query.text = widget.query;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_search(next: false));
+    });
+  }
 
   @override
   void dispose() {
@@ -79,7 +92,6 @@ class _ExtensionSearchScreenState extends State<ExtensionSearchScreen> {
       appBar: AppBar(
         title: TextField(
           controller: _query,
-          autofocus: true,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: loc.extensionsSearchField,

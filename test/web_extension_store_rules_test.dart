@@ -111,7 +111,7 @@ void main() {
         tester,
         home: AppExtensionsScreen(pick: () async => null),
       );
-      expect(find.text('Search addons.mozilla.org'), findsNothing);
+      expect(find.byType(SearchBar), findsNothing);
       expect(find.text('Install updates without asking'), findsNothing);
       expect(find.text('Add from a link'), findsOneWidget);
     });
@@ -124,7 +124,7 @@ void main() {
         tester,
         home: AppExtensionsScreen(pick: () async => null),
       );
-      expect(find.text('Search addons.mozilla.org'), findsNothing);
+      expect(find.byType(SearchBar), findsNothing);
       expect(find.text('Install updates without asking'), findsOneWidget);
     });
 
@@ -146,8 +146,8 @@ void main() {
       });
     }
 
-    testWidgets('a build from outside it searches, labels each result and '
-        'hides none, and adds the one picked', (tester) async {
+    testWidgets('a build from outside it searches from the bar, labels each '
+        'result and hides none, and adds the one picked', (tester) async {
       debugHostDistribution = AppDistribution.direct;
       searchSwitch(on: true);
       fetch.replies['https://addons.mozilla.org/api/v5/addons/addon/'
@@ -159,11 +159,20 @@ void main() {
         home: AppExtensionsScreen(pick: () async => null),
       );
       expect(find.text('Install updates without asking'), findsOneWidget);
-      await tester.tap(find.text('Search addons.mozilla.org'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'adblock');
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(SearchBar),
+          matching: find.byType(TextField),
+        ),
+        'adblock',
+      );
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller?.text,
+        'adblock',
+        reason: 'the results screen keeps the query to refine',
+      );
       expect(find.text('uBlock Origin'), findsOneWidget);
       expect(find.text('Runs in part'), findsWidgets);
       expect(find.text('Runs'), findsWidgets);

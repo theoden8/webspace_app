@@ -16,6 +16,7 @@ const scanRoots = ['lib/main.dart', 'lib/screens', 'lib/widgets'];
 const ALLOWED = {
   'lib/widgets/hint_button.dart': 'the widget',
   'lib/widgets/setting_tile.dart': 'HintedTitle itself',
+  'lib/screens/app_extensions.dart': 'a trailing action inside the search bar',
   'lib/screens/saved_proxies.dart': 'an AppBar action',
   'lib/screens/tor_bridge_settings.dart': 'an AppBar action',
   'lib/widgets/proxy_test_tile.dart': 'beside the Test button, in a Wrap',

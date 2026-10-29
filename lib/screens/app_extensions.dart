@@ -18,8 +18,10 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/byte_size.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_source.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/extension_link_dialog.dart';
+import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
 
@@ -54,9 +56,16 @@ class AppExtensionsScreen extends StatefulWidget {
 
 class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
   final _guard = ReentryGuard();
+  final _searchText = TextEditingController();
   bool _reading = false;
 
   WebExtensionLibrary get _library => WebExtensionLibrary.instance;
+
+  @override
+  void dispose() {
+    _searchText.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -102,13 +111,16 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
     });
   }
 
-  /// Adds an extension the user picks in a search of addons.mozilla.org,
-  /// as from its link (WEBEXT-019).
-  Future<void> _addFromSearch() async {
+  /// Adds an extension the user picks in a search of addons.mozilla.org
+  /// for [query], as from its link (WEBEXT-019).
+  Future<void> _addFromSearch({required String query}) async {
+    if (query.trim().isEmpty) return;
     await _guard.run(() async {
       final source = await Navigator.push<ExtensionSource>(
         context,
-        MaterialPageRoute(builder: (_) => const ExtensionSearchScreen()),
+        MaterialPageRoute(
+          builder: (_) => ExtensionSearchScreen(query: query.trim()),
+        ),
       );
       if (source == null || !mounted) return;
       await _addFrom(source);
@@ -271,6 +283,26 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
         listenable: Listenable.merge([_library.installed, _library.reports]),
         builder: (context, _) => ListView(
           children: [
+            if (extensionSearchOffered)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.lg,
+                  vertical: Spacing.sm,
+                ),
+                child: SearchBar(
+                  controller: _searchText,
+                  hintText: loc.extensionsSearch,
+                  leading: const Icon(Icons.search),
+                  trailing: [
+                    HintButton(
+                      title: loc.extensionsSearch,
+                      description: loc.extensionsSearchHint,
+                    ),
+                  ],
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (text) => unawaited(_addFromSearch(query: text)),
+                ),
+              ),
             SettingTile(
               leading: const Icon(Icons.file_open_outlined),
               title: loc.extensionsImport,
@@ -291,14 +323,6 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
                 onTap: () => unawaited(_addFromLink()),
               ),
             ),
-            if (extensionSearchOffered)
-              SettingTile(
-                leading: const Icon(Icons.search),
-                title: loc.extensionsSearch,
-                hint: loc.extensionsSearchHint,
-                subtitle: loc.extensionsSearchSubtitle,
-                control: Opens(() => unawaited(_addFromSearch())),
-              ),
             SettingTile(
               leading: const Icon(Icons.update),
               title: loc.extensionsCheckDaily,
