@@ -1,11 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:dbus/dbus.dart';
 
 import 'package:webspace/platform/host_platform.dart'
-    show IOException, hostIsLinux;
+    show IOException, hostIsLinux, hostReadFileBytes;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tray_icon.dart';
 import 'package:webspace/services/tray_menu_engine.dart';
@@ -25,23 +26,28 @@ final _menuPath = DBusObjectPath('/MenuBar');
 /// StatusNotifierWatcher (NOTIF-019). Plasma, Xfce, Cinnamon and Ubuntu's
 /// GNOME host one; stock GNOME needs the AppIndicator extension. A watcher
 /// that appears later, or comes back after its shell restarts, is registered
-/// with as it appears.
+/// with as it appears. A Flatpak reaches the watcher only where its manifest
+/// lets it talk to the name; otherwise the sandbox answers as a desktop
+/// hosting none would, so the log names the permission instead.
 class StatusNotifierTray implements TrayIcon {
   StatusNotifierTray({
     required TrayHandlers handlers,
     DBusClient Function()? connect,
     Future<List<SniPixmap>> Function()? pixmaps,
+    Future<String?> Function()? sandbox,
   })  : assert(
             hostIsLinux,
             'package:dbus authenticates only on Linux; elsewhere a connection '
             'never opens'),
         _handlers = handlers,
         _connect = connect ?? DBusClient.session,
-        _pixmaps = pixmaps ?? _appPixmaps;
+        _pixmaps = pixmaps ?? _appPixmaps,
+        _sandbox = sandbox ?? _flatpakInfo;
 
   final TrayHandlers _handlers;
   final DBusClient Function() _connect;
   final Future<List<SniPixmap>> Function() _pixmaps;
+  final Future<String?> Function() _sandbox;
 
   /// The connection the icon lives on, or its opening. Closing it is what
   /// takes the icon away: a desktop drops an item whose owner left the bus.
@@ -71,6 +77,7 @@ class StatusNotifierTray implements TrayIcon {
       _connect(),
       handlers: _handlers,
       pixmaps: await _pixmaps(),
+      watcherHidden: _sandboxHides(await _sandbox(), name: _watcher),
     );
     try {
       await session.start();
@@ -88,12 +95,14 @@ class _Session {
     this.bus, {
     required TrayHandlers handlers,
     required List<SniPixmap> pixmaps,
+    required this.watcherHidden,
   })  : item = _Item(handlers: handlers, pixmaps: pixmaps),
         menu = _Menu(handlers: handlers);
 
   final DBusClient bus;
   final _Item item;
   final _Menu menu;
+  final bool watcherHidden;
   StreamSubscription<DBusNameOwnerChangedEvent>? _watchers;
 
   /// Whether a watcher holds the icon now.
@@ -124,7 +133,12 @@ class _Session {
       LogTag.lifecycle.debug('Tray: registered with the status notifier watcher');
     } on DBusServiceUnknownException {
       registered = false;
-      LogTag.lifecycle.debug('Tray: no status notifier watcher yet');
+      if (watcherHidden) {
+        LogTag.lifecycle.warning('Tray: the Flatpak sandbox hides $_watcher; '
+            'its manifest needs --talk-name=$_watcher');
+      } else {
+        LogTag.lifecycle.debug('Tray: no status notifier watcher yet');
+      }
     } on DBusMethodResponseException catch (e) {
       registered = false;
       LogTag.lifecycle.warning('Tray: the watcher refused the icon: ${e.errorName}');
@@ -358,6 +372,42 @@ class _Menu extends DBusObject {
         return DBusMethodErrorResponse.unknownMethod();
     }
   }
+}
+
+/// What a Flatpak's sandbox grants, which it mounts at the root; elsewhere
+/// there is none.
+Future<String?> _flatpakInfo() async {
+  try {
+    return utf8.decode(await hostReadFileBytes('/.flatpak-info'),
+        allowMalformed: true);
+  } on IOException {
+    return null;
+  }
+}
+
+/// Whether the sandbox [info] describes keeps [name] from the app: its bus
+/// proxy answers a call to a name it may not talk to as if nothing owned it,
+/// and never reports the name appearing. Talking needs the whole bus
+/// (`--socket=session-bus`), or talk or own on the name or a `.*` above it.
+bool _sandboxHides(String? info, {required String name}) {
+  if (info == null) return false;
+  var section = '';
+  for (final line in const LineSplitter().convert(info)) {
+    if (line.startsWith('[') && line.endsWith(']')) {
+      section = line.substring(1, line.length - 1);
+    }
+    switch ((section, line.split('='))) {
+      case ('Context', ['sockets', final sockets])
+          when sockets.split(';').contains('session-bus'):
+        return false;
+      case ('Session Bus Policy', [final granted, 'talk' || 'own'])
+          when granted == name ||
+              granted.endsWith('.*') &&
+                  '$name.'.startsWith(granted.substring(0, granted.length - 1)):
+        return false;
+    }
+  }
+  return true;
 }
 
 DBusArray _pixmapArray(List<SniPixmap> pixmaps) =>
