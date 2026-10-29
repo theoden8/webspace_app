@@ -101,7 +101,7 @@ Future<ProxyTestResult> testProxyConnection(
 }
 
 Future<ProxyTestResult> _probe(
-  UserProxySettings effective, {
+  ProxyRoute effective, {
   required Uri target,
   required Duration timeout,
 }) async {

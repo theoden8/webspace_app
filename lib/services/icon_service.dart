@@ -11,19 +11,13 @@ import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
-import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
-
-/// The proxy a favicon fetch uses: [outbound] resolved through
-/// [resolveEffectiveProxy], so DEFAULT falls through to the global proxy.
-UserProxySettings _resolve(OutboundProxy outbound) =>
-    outbound.resolved;
 
 /// Acquire an HTTP client honoring [proxy], or null when the proxy cannot
 /// be honored (e.g. malformed address). Callers MUST treat null as "abort
 /// the request" — falling back to the default `http` client would leak the
 /// device IP and defeat the proxy the user configured.
-http.Client? _proxiedClient(UserProxySettings proxy) {
+http.Client? _proxiedClient(ProxyRoute proxy) {
   final result = outboundHttp.clientFor(proxy);
   if (result is OutboundClientReady) {
     return SiteUserAgentClient(result.client,
@@ -75,7 +69,7 @@ Future<String?> getSvgContent(
     _svgContentCache[svgUrl] = persistedContent;
     return persistedContent;
   }
-  final client = _proxiedClient(_resolve(proxy));
+  final client = _proxiedClient(proxy.resolved);
   if (client == null) return null;
   try {
     final response = await client.get(Uri.parse(svgUrl)).timeout(
@@ -106,7 +100,7 @@ Future<String?> getSvgContent(
 /// per-site proxy of the site the icon belongs to; null means the app-global
 /// outbound proxy applies.
 Future<Uint8List?> fetchIconBytes(String iconUrl, {required OutboundProxy proxy}) async {
-  final client = _proxiedClient(_resolve(proxy));
+  final client = _proxiedClient(proxy.resolved);
   if (client == null) return null;
   try {
     final response = await client.get(Uri.parse(iconUrl)).timeout(
@@ -174,7 +168,7 @@ Future<Uint8List?> fetchPageLinkedBytes(
   required int maxBytes,
   required OutboundProxy proxy,
 }) async {
-  final effective = _resolve(proxy);
+  final effective = proxy.resolved;
   Future<bool> permitted(Uri target) async {
     if (target.scheme != 'http' && target.scheme != 'https') return false;
     final host = target.host.toLowerCase();
@@ -339,7 +333,7 @@ class _IconCandidate {
 }
 
 Future<bool> _verifyIconUrl(String iconUrl,
-    {required UserProxySettings proxy}) async {
+    {required ProxyRoute proxy}) async {
   if (_verifiedUrls.contains(iconUrl)) {
     return true;
   }
@@ -473,7 +467,7 @@ Future<bool> svgRendersBlank(String rawSvg) async {
 // Whether an SVG should be preferred as a high-quality icon: it must carry
 // real color AND actually render. A colored-but-blank SVG (or a theme-toggle
 // SVG flutter_svg masks) is demoted so raster fallbacks win.
-Future<bool> _isSvgColored(String svgUrl, {required UserProxySettings proxy}) async {
+Future<bool> _isSvgColored(String svgUrl, {required ProxyRoute proxy}) async {
   final client = _proxiedClient(proxy);
   if (client == null) return false;
   try {
@@ -590,7 +584,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {required OutboundProxy proxy
 
 Future<_IconCandidate?> _tryFaviconPackage(String url,
     {required OutboundProxy site}) async {
-  final proxy = _resolve(site);
+  final proxy = site.resolved;
   // Internal schemes (chrome://, about:, file:, data:, blob:) have no
   // favicon reachable over the network — sending them through any proxy
   // (let alone SOCKS5) yields a confusing connection error from the

@@ -695,7 +695,7 @@ void main() {
     // Read while up: a pending pin withholds SOCKS settings, and a tag keeps
     // its credentials for the whole launch.
     final via = TorService.instance.socksFor(siteId: SiteId('exit-pin'))!;
-    final route = outboundHttp.clientFor(via);
+    final route = outboundHttp.clientFor(OutboundProxy.ofApp(via).resolved);
     if (route is! OutboundClientReady) fail('no route through Tor: $route');
     // One client throughout, the way a webview keeps one pool.
     final client = route.client;
@@ -1045,7 +1045,7 @@ void main() {
     // judging its directory unusable after it was cleared, and the next
     // scenario's page timed out behind it.
     final route =
-        outboundHttp.clientFor(TorService.instance.socksFor(siteId: SiteId('after-nowhere'))!);
+        outboundHttp.clientFor(OutboundProxy.ofApp(TorService.instance.socksFor(siteId: SiteId('after-nowhere'))!).resolved);
     if (route is! OutboundClientReady) fail('no route through Tor: $route');
     final since = Stopwatch()..start();
     Future<http.Response> ask() =>

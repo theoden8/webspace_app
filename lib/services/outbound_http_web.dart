@@ -23,12 +23,11 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   const DefaultOutboundHttpFactory();
 
   @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    final resolved = OutboundProxy.ofApp(settings).resolved;
-    if (resolved.type == ProxyType.DEFAULT) {
+  OutboundClient clientFor(ProxyRoute route) {
+    if (route.type == ProxyType.DEFAULT) {
       return OutboundClientReady(http.Client());
     }
     return OutboundClientBlocked(
-        'a browser cannot honour a ${resolved.type.name} proxy');
+        'a browser cannot honour a ${route.type.name} proxy');
   }
 }

@@ -30,9 +30,9 @@ class FakeOutbound implements OutboundHttpFactory {
   set block(bool value) => blockWhen = (_) => value;
 
   @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    queries.add(settings);
-    if (blockWhen(settings)) return OutboundClientBlocked(blockReason);
+  OutboundClient clientFor(ProxyRoute route) {
+    queries.add(route);
+    if (blockWhen(route)) return OutboundClientBlocked(blockReason);
     return OutboundClientReady(client?.call() ??
         MockClient((req) async {
           requests.add(req);

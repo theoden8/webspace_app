@@ -13,7 +13,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/current_location_service.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/widgets/toast.dart';
 
@@ -126,7 +125,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   /// a reason in [_tileBlockedReason]) when the proxy can't be honored.
   bool _ensureTileClient() {
     if (_tileHttpClient != null) return true;
-    final result = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    final result = outboundHttp.clientFor(OutboundProxy.app.resolved);
     if (result is OutboundClientReady) {
       _tileHttpClient = result.client;
       return true;

@@ -9,7 +9,6 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/socks_connect.dart';
 import 'package:webspace/services/url_host.dart';
 
@@ -29,23 +28,9 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   const DefaultOutboundHttpFactory();
 
   @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    // Callers that hand over the app-wide proxy as stored, without going
-    // through `resolveEffectiveProxy`, still reach what it names in the
-    // proxy library. A resolved route names nothing, so this runs once.
-    if (settings.type == ProxyType.SAVED ||
-        settings.type == ProxyType.GATEWAY ||
-        settings.credentialsId != null) {
-      final route = resolveLibraryProxy(settings);
-      if (route.type == ProxyType.SAVED) {
-        return const OutboundClientBlocked(
-          'The saved proxy, gateway or credentials this setting names no '
-          'longer exist or do not fit together. Outbound request blocked to '
-          'avoid leaking the device IP via a direct fallback.',
-        );
-      }
-      return clientFor(route);
-    }
+  OutboundClient clientFor(ProxyRoute route) => _clientFor(route);
+
+  OutboundClient _clientFor(UserProxySettings settings) {
     switch (settings.type) {
       case ProxyType.DEFAULT:
         return OutboundClientReady(IOClient(_directHttpClient()));
@@ -81,7 +66,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
         // would put the request on the device IP, which is the exact thing
         // the user turned Tor on to prevent (TOR-008).
         return switch (expandTorProxy(settings)) {
-          TorRouteUp(:final socks) => clientFor(socks),
+          TorRouteUp(:final socks) => _clientFor(socks),
           TorRouteBlocked(:final reason) => OutboundClientBlocked(
               '$reason Outbound request blocked to avoid leaking the device '
               'IP via a direct fallback.',
@@ -90,8 +75,12 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
 
       case ProxyType.SAVED:
       case ProxyType.GATEWAY:
-        // Resolved above; unreachable.
-        return const OutboundClientBlocked('Unresolved proxy library route.');
+        // What a route still names of the proxy library did not resolve.
+        return const OutboundClientBlocked(
+          'The saved proxy, gateway or credentials this setting names no '
+          'longer exist or do not fit together. Outbound request blocked to '
+          'avoid leaking the device IP via a direct fallback.',
+        );
 
       case ProxyType.SOCKS5:
         final addr = settings.address;

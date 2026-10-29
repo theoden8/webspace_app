@@ -70,7 +70,8 @@ class IoTorGeoIpStore implements TorGeoIpStore {
     for (var pass = 0; pass < kTorGeoIpPasses; pass++) {
       for (final url in kTorGeoIpUrls) {
         final http.Client client;
-        switch (outboundHttp.clientFor(_freshCircuit(via))) {
+        final route = OutboundProxy.ofApp(_freshCircuit(via)).resolved;
+        switch (outboundHttp.clientFor(route)) {
           case OutboundClientBlocked(:final reason):
             LogTag.torGeoIp.warning('Download blocked: $reason');
             return null;

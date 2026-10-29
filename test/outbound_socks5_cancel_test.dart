@@ -83,10 +83,10 @@ Future<List<Object>> _closeWhileConnecting(_StallingSocks5 proxy) async {
   final uncaught = <Object>[];
   await runZonedGuarded(() async {
     final result = const DefaultOutboundHttpFactory().clientFor(
-      UserProxySettings(
+      OutboundProxy.ofApp(UserProxySettings(
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:${proxy.port}',
-      ),
+      )).resolved,
     );
     final client = (result as OutboundClientReady).client;
     final request = client
@@ -157,7 +157,7 @@ void main() {
       }, onDone: () => upstream?.destroy());
     });
     final client = (const DefaultOutboundHttpFactory().clientFor(
-      UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:${relay.port}'),
+      OutboundProxy.ofApp(UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:${relay.port}')).resolved,
     ) as OutboundClientReady)
         .client;
     try {
