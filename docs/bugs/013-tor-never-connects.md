@@ -521,6 +521,84 @@ whose planted mistakes (no transport restart, no circuit wait) each fail three o
 tests. A bridge edit made after launch is still not in force until the app restarts
 (gap 3), and a reopen restarts the transport tor was launched with, not the edited one.
 
+### Attempt 15 — The wait gave up, and nothing asked tor again
+**Date:** 2026-10-29 · **Commit:** (this one) · **Files:** `lib/services/tor_engine.dart`,
+`test/tor_engine_test.dart`, `test/js/tor_suspension.test.js`, spec TOR-024
+
+**What happened.** A device log over six hours: an iPhone with eight obfs4 bridges, Tor
+as the app-wide proxy, ten sites. Every return the app stayed awake for came back `up`
+within 1-4 s, until this one, after the phone had slept for 70 minutes:
+
+```
+[01:07:16] [Tor/info] Pluggable transport obfs4 started again on port 56683.
+[01:07:16] [Tor/info] Reopened. SOCKS listener on 127.0.0.1:56684.
+[01:07:17] [TorLog/info] Your system clock just jumped 4170 seconds forward; ...
+[01:07:17] [TorLog/info] Bridge 'relaynix' has both an IPv4 and an IPv6 address. ...  (x5)
+[01:07:17] [TorLog/warning] The connection to the SOCKS5 proxy server at
+    127.0.0.1:56668 just failed.  (x8)
+[01:07:17] [TorLog/info] Socks listener listening on port 56684.
+[01:07:17] [TorLog/info] Bridge 'relaynix' has both an IPv4 and an IPv6 address. ...  (x5)
+[01:08:17] [Tor/error] State: error(bootstrapTimeout: Tor reopened its connections after
+    the app was in the background, but has not built a circuit through them. at=100%)
+```
+
+and nothing after it.
+
+**Reading it** (tor 0.4.9.11, the pod's version):
+- A `TorLog` line's time is when the app's one-second tail read it, so lines tor wrote
+  while the app was suspended arrive in one batch at the next thaw.
+- `Bridge '...' has both an IPv4 and an IPv6 address` is logged by
+  `launch_direct_bridge_descriptor_fetch` (bridges.c), so each batch of five is one round
+  of bridge descriptor fetches; the three IPv4-only bridges log nothing, and eight
+  refusals are all eight bridges.
+- Every thaw in the log starts the same way. tor's `second_elapsed_callback` runs as soon
+  as it thaws and fetches through the transport port in its configuration, which the
+  suspension killed (56668 was started by the wake at 23:57:46). Each refusal reaches
+  `entry_guard_chan_failed` -> `entry_guards_note_guard_failure`, which marks that
+  bridge's guard down; `get_retry_schedule` tries it again ten minutes after its last
+  attempt if it is primary, an hour if not. The dials come before the reopen and race
+  nothing: tor's overdue timer runs before it reads a command the app has not sent yet.
+- The reopen's SETCONF rebuilds the bridge list (`options_act` -> `mark_bridge_list`,
+  `bridge_add_from_config`, `sweep_bridge_list`), each with a fresh `fetch_status`, so a
+  round goes out at once through the new port. A fetch that succeeds marks its guard up
+  again; that is "new bridge descriptor ... (fresh)" followed by `up` at every other
+  reopen in the log.
+- At 01:07:17 that round went out and nothing answered or failed for the minute the
+  engine waited. Why it hung the log does not say: the network 70 minutes into sleep, or
+  the transport.
+- The engine then published the failure and stopped asking. `_circuitBuilt` returned,
+  `revive()` on a later return probed a listener that answered and did nothing more, and
+  Retry waited again on the same transport and the same hung fetches (attempt 14 chose
+  that). The sites were held until a Retry, whatever tor did after.
+
+Also in the log, and not fixed here: eight background wakes from 21:47 to 23:57 each
+found the listener dead, reopened it, skipped all five notification sites at once ("it
+routes through Tor and Tor is not up") and ended. iOS suspended the app within a second,
+before tor dialled anything through the transport the wake had just started, so each
+thaw began with the same refusals (gaps 6 and 7).
+
+**What it did.**
+- The failure is a report, as the bootstrap deadline's is (TOR-013). After the wait the
+  engine asks every 5 s (`_watchCircuit`, one GETINFO per turn of the pin queue, so no
+  pin waits behind it) and publishes `up`, after any pin asked for meanwhile, once tor
+  has a circuit.
+- A reopen whose wait ran out is done again on Retry and on the next return or wake,
+  though its listener answers (`_reopenNow`): a fresh transport, `DisableNetwork 1`
+  closing the hung fetches, and a SETCONF that puts every bridge's fetch due at once.
+  This reverses attempt 14's Retry, for the reason above.
+- Planted and kept as the tests' proof: no watch fails two tests, a Retry that only
+  waits fails one, a resume that only probes fails one.
+
+**Why it is partial.**
+- It recovers from what the thaw does; it does not stop it. tor's network is on while the
+  app is frozen, so every thaw still dials the dead transport and marks every bridge
+  down, and the first minute after a return still depends on a fetch through the new
+  transport answering (gap 6).
+- The log does not say why the 01:07:17 fetches hung, and neither does this fix. The next
+  instance needs tor's own view (`info` level, or `GETINFO entry-guards` at the failure).
+- A background wake still reopens tor and then skips every Tor site (gap 7).
+- Nothing executes the Swift half, as before (gaps 1 and 5).
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS.** The macOS half of this gap is closed by
@@ -563,3 +641,17 @@ tests. A bridge edit made after launch is still not in force until the app resta
    bridgeless tor, so attempt 14's transport restart and its `SETCONF` have only
    ever been type-checked. Running the probe through a built-in bridge would put
    them under the one tier that executes the plugin.
+6. **tor's network is on while the app is frozen.** So it thaws dialling the
+   transport port the suspension killed, and marks every bridge's guard down for
+   ten minutes or more before the reopen reaches it (attempt 15).
+   `DisableNetwork 1` before the suspension would leave nothing to dial until the
+   reopen turns the network on through a live transport. iOS does not announce
+   the moment: it is the grace
+   task's expiry, a wake's completion, or a background with neither and no audio
+   playing, and a site playing audio over Tor needs the network through all of it.
+7. **A background wake does not wait for the reopen it starts.** `revive()` returns
+   once the listener is reopened, before its circuit, so `wakeCandidateFor` finds
+   Tor not `up` and skips every site that routes through it. With Tor as the
+   app-wide proxy no wake checks anything. The wake's budget (`settleDeadline` plus
+   `postGrace`, inside iOS's 30 s) leaves a few seconds for a bounded wait, which
+   covers a reopen that recovers as the log's foreground ones did.

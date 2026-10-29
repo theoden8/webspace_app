@@ -1075,10 +1075,13 @@ void main() {
         });
       });
 
-      test('no circuit within the wait is a failure, and Retry waits again '
-          'without reopening', () {
+      test('no circuit within the wait is a failure, and Retry reopens the '
+          'transport and listeners afresh (BUG-013 attempt 15)', () {
+        // tor's thaw dials through the dead transport mark every bridge
+        // guard down; only a descriptor fetch through the new one lifts
+        // that, and fetches that hang stay hung however long the app waits.
         fakeAsync((async) {
-          final e = buildUpIn(async, port: 41337, socksProbe: probe);
+          final e = upWithBridges(async);
           runtime.circuit = false;
 
           dead.add(41337);
@@ -1088,12 +1091,105 @@ void main() {
               .having((s) => s.kind, 'kind', TorFailureKind.bootstrapTimeout));
           expect(e.socksFor(TorTag.fromWire('site-a')), isNull);
 
-          runtime.circuit = true;
+          runtime.restartPort = 47200;
           unawaited(e.restart());
           async.flushMicrotasks();
+          expect(runtime.reopenCalls, 2,
+              reason: 'the listener answers; what Retry can change is the '
+                  'transport and the fetches tor has in flight');
+          expect(runtime.restartedTransports, ['obfs4', 'obfs4']);
+          expect(runtime.reopenBridgeOptions.last,
+              contains(('ClientTransportPlugin', 'obfs4 socks5 127.0.0.1:47200')));
+          expect(e.status, isA<TorBootstrapping>()
+              .having((s) => s.tag, 'tag', kTorReopenTag),
+              reason: 'reconnecting again, with a wait of its own');
+
+          runtime.circuit = true;
+          async.elapse(kTorCircuitPoll);
+          expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
+              '127.0.0.1:45000');
+        });
+      });
+
+      test('a circuit tor builds after the wait lifts the hold by itself '
+          '(BUG-013 attempt 15)', () {
+        // A device log: the wait ran out a minute after the resume, nothing
+        // asked tor again, and every Tor site stayed on the failure until
+        // the user found Retry, whatever tor had done since.
+        fakeAsync((async) {
+          final e = buildUpIn(async, port: 41337, socksProbe: probe);
+          runtime.circuit = false;
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.elapse(kTorReopenCircuitWait + const Duration(minutes: 3));
+          expect(e.status, isA<TorErrored>());
+          final asks = runtime.circuitAsks;
+
+          async.elapse(kTorCircuitRecheck * 2);
+          expect(runtime.circuitAsks, greaterThan(asks),
+              reason: 'tor is still asked after the failure is shown');
+          expect(e.status, isA<TorErrored>());
+
+          runtime.circuit = true;
+          async.elapse(kTorCircuitRecheck);
+          expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
+              '127.0.0.1:45000');
           expect(runtime.reopenCalls, 1,
-              reason: 'the reopened listener still answers; only the circuit '
-                  'was missing');
+              reason: 'tor got there on its own; nothing was reopened');
+
+          final settled = runtime.circuitAsks;
+          async.elapse(kTorCircuitRecheck * 3);
+          expect(runtime.circuitAsks, settled,
+              reason: 'the watch ends with the circuit');
+        });
+      });
+
+      test('a resume after a failed wait reopens, though the listener answers '
+          '(BUG-013 attempt 15)', () {
+        fakeAsync((async) {
+          final e = buildUpIn(async, port: 41337, socksProbe: probe);
+          runtime.circuit = false;
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.elapse(kTorReopenCircuitWait + const Duration(seconds: 5));
+          expect(e.status, isA<TorErrored>());
+
+          unawaited(e.revive());
+          async.flushMicrotasks();
+          expect(runtime.reopenCalls, 2);
+          expect(e.status, isA<TorBootstrapping>()
+              .having((s) => s.tag, 'tag', kTorReopenTag));
+
+          final asks = runtime.circuitAsks;
+          async.elapse(kTorCircuitRecheck * 2);
+          expect(runtime.circuitAsks - asks, greaterThan(2),
+              reason: 'the fresh wait asks every second; the failed one\'s '
+                  'watch ended with it');
+        });
+      });
+
+      test('a pin asked for while the circuit has failed lands once tor has '
+          'one, and never waits behind the watch', () {
+        fakeAsync((async) {
+          final e = buildUpIn(async, port: 41337, socksProbe: probe);
+          runtime.circuit = false;
+
+          dead.add(41337);
+          unawaited(e.revive());
+          async.elapse(kTorReopenCircuitWait + const Duration(seconds: 5));
+          unawaited(e.setExitCountry('{de}'));
+          async.elapse(kTorCircuitRecheck * 2);
+          expect(runtime.appliedExitNodes, isEmpty,
+              reason: 'the circuit first, then the pin');
+          expect(e.status, isA<TorErrored>()
+              .having((s) => s.kind, 'kind', TorFailureKind.bootstrapTimeout),
+              reason: 'the circuit is what the sites wait on, and says so');
+
+          runtime.circuit = true;
+          async.elapse(kTorCircuitRecheck);
+          expect(runtime.appliedExitNodes, ['{de}']);
           expect(e.socksFor(TorTag.fromWire('site-a'))!.address,
               '127.0.0.1:45000');
         });

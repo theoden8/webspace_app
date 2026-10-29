@@ -1482,9 +1482,22 @@ next foreground found "The previous Tor is still running".
   until tor reports `status/circuit-established`, and SHALL report a
   failure with Retry when it has none within a bounded wait. A listener
   published with no circuit behind it is a page that loads forever with
-  nothing on screen to say why.
+  nothing on screen to say why. The failure is a report, as TOR-013's is:
+  the engine SHALL go on asking after it, and SHALL publish `up` once tor
+  has a circuit, with no Retry.
 - A reopen that fails SHALL be reported as a failure, never as the dead
   listener being `up`, and Retry SHALL try the reopen again.
+- A reopen whose wait for a circuit ran out SHALL be done again, transport
+  and listeners, on Retry and on the next return or wake, though its
+  listener answers. tor thaws with the app, and its first act is to dial
+  its bridges through the transport port the suspension killed, before the
+  reopen reaches it. Each refusal marks that bridge's guard down for ten
+  minutes or more (`entry_guards_note_guard_failure`,
+  `get_retry_schedule`); only a bridge descriptor fetch through the new
+  transport lifts it sooner, and fetches that hang stay hung however long
+  the app waits. A reopen closes them, and its SETCONF rebuilds tor's
+  bridge list with every fetch due at once (`options_act` ->
+  `bridge_add_from_config`).
 - An exit-country pin in force SHALL stay in force across a reopen: it is
   the same tor, and nothing re-applies it.
 - tor SHALL run with conflux off for the life of the runtime:
@@ -1531,8 +1544,9 @@ next foreground found "The previous Tor is still running".
   `ClientTransportPlugin` names that port
 - **AND** the site waits behind "Reconnecting" until tor has a circuit, then
   loads through the new listener
-- **AND** tor never logs that the connection to the transport's old port
-  failed
+- **AND** once the reopen's SETCONF is in force, tor dials no bridge through
+  the transport's old port (the dials it made on thawing, before the reopen
+  reached it, are the ones its log names)
 
 #### Scenario: No circuit after a reopen is a failure, not a spinning page
 
@@ -1540,8 +1554,16 @@ next foreground found "The previous Tor is still running".
 - **WHEN** tor builds no circuit within the wait
 - **THEN** the site shows the failure with Retry instead of a page that
   never finishes loading
-- **AND** Retry waits for the circuit again without reopening a listener
-  that answers
+- **AND** Retry starts the transport and reopens the listeners again, though
+  the listener answers, and waits for a circuit afresh
+- **AND** so does the next return to the foreground
+
+#### Scenario: tor builds its circuit after the failure is shown
+
+- **GIVEN** a reopen's wait for a circuit ran out and the site shows the
+  failure
+- **WHEN** tor then builds a circuit on its own
+- **THEN** the site loads through the reopened listener, with no Retry
 
 #### Scenario: A listener that still answers is left alone
 

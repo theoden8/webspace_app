@@ -107,6 +107,11 @@ const Duration kTorReopenTimeout = Duration(seconds: 30);
 const Duration kTorReopenCircuitWait = Duration(seconds: 60);
 const Duration kTorCircuitPoll = Duration(seconds: 1);
 
+/// How often tor is asked for a circuit once [kTorReopenCircuitWait] has
+/// passed and the failure is on screen. tor keeps trying on its own
+/// schedule, which after a thaw can be minutes (BUG-013 attempt 15).
+const Duration kTorCircuitRecheck = Duration(seconds: 5);
+
 /// How late the bootstrap deadline may fire before the engine reads it as
 /// the app having been suspended through it rather than tor being slow. A
 /// busy isolate delays a timer by moments; a suspension by minutes.
@@ -336,6 +341,12 @@ abstract class TorRuntime {
   Stream<TorStatus> get events;
 }
 
+/// The circuit a reopen owes the sites before its listener is theirs.
+final class _OwedCircuit {
+  /// Published once the wait for it ran out. tor is still asked after.
+  TorErrored? failure;
+}
+
 /// Owns "is tor supposed to be running, and what should a caller dial".
 ///
 /// Deliberately ignorant of *why* a client wants Tor: callers hold a
@@ -409,9 +420,9 @@ class TorEngine {
 
   /// Set by each reopen: it closed every relay connection, so the listener
   /// it publishes has no circuit behind it yet, and the sites wait until tor
-  /// reports one. A fresh token per reopen, so a wait begun for an earlier
+  /// reports one. A fresh one per reopen, so a wait begun for an earlier
   /// one cannot settle a later one.
-  Object? _circuitOwed;
+  _OwedCircuit? _circuitOwed;
 
   /// The bridges tor dials: those the start that launched it sent, or null
   /// for none. tor launches once per process (BUG-013), so lines a later
@@ -581,6 +592,10 @@ class TorEngine {
       _checkNextUp = true;
       return;
     }
+    if (_circuitOwed?.failure != null) {
+      await _reopenNow(up);
+      return;
+    }
     await _reopenIfDead(up);
   }
 
@@ -592,22 +607,37 @@ class TorEngine {
     if (probe == null) return true;
     if (await probe(up.host, port: up.port)) return true;
     if (_disposed || !identical(_runtimeUp, up)) return false;
-    // Held like a pin change: the listener the sites are bound to is gone,
-    // and the one coming is on another port, with no circuit behind it yet.
+    await _reopenNow(up);
+    return false;
+  }
+
+  /// Reopen [up]'s listeners and the transport behind them, held like a pin
+  /// change: the listener the sites are bound to is going, and the one
+  /// coming is on another port, with no circuit behind it yet.
+  ///
+  /// Also what a reopen whose circuit never came gets on Retry and on the
+  /// next resume, though its listener answers (BUG-013 attempt 15). tor's
+  /// first act on thawing is to dial its bridges through the transport port
+  /// the suspension killed, and each refusal marks that bridge's guard down
+  /// for ten minutes or more (`get_retry_schedule`). Only a bridge
+  /// descriptor fetch through the new transport lifts it sooner, and when
+  /// those fetches hang, waiting again changes nothing. A reopen closes
+  /// them, starts a fresh transport, and its SETCONF rebuilds the bridge
+  /// list with every fetch due at once (`bridge_add_from_config`).
+  Future<void> _reopenNow(TorUp up) async {
     _emit(_reopenHold);
-    _circuitOwed = Object();
+    _circuitOwed = _OwedCircuit();
     try {
       await _reopen().timeout(kTorReopenTimeout);
     } on TimeoutException {
-      if (_disposed || !identical(_runtimeUp, up)) return false;
+      if (_disposed || !identical(_runtimeUp, up)) return;
       _emit(TorErrored(
           'Tor did not reopen its SOCKS listener after the app was suspended.'));
     } on TorRuntimeFailure catch (e) {
-      if (_disposed || !identical(_runtimeUp, up)) return false;
+      if (_disposed || !identical(_runtimeUp, up)) return;
       _emit(TorErrored('Tor could not reopen its SOCKS listener after the app '
           'was suspended: $e'));
     }
-    return false;
   }
 
   static const TorStatus _reopenHold =
@@ -643,9 +673,14 @@ class TorEngine {
   /// pin change reads `ip-to-country/ipv4-available`, which also answers 1.
   Future<bool> _circuitBuilt(TorUp up) async {
     assert(_pins.isHeld, 'the circuit is asked in the pin queue');
-    final owed = _circuitOwed;
+    final owed = _circuitOwed!;
     bool superseded() =>
         _disposed || !identical(_runtimeUp, up) || !identical(_circuitOwed, owed);
+    final failed = owed.failure;
+    if (failed != null) {
+      if (!identical(_status, failed)) _emit(failed);
+      return false;
+    }
     if (!identical(_status, _reopenHold)) _emit(_reopenHold);
     var expired = false;
     final deadline = Timer(kTorReopenCircuitWait, () => expired = true);
@@ -665,9 +700,33 @@ class TorEngine {
     }
     const message = 'Tor reopened its connections after the app was in the '
         'background, but has not built a circuit through them.';
-    _emit(TorErrored(message,
-        failure: classifyTorFailure(message, atPercent: 100, timedOut: true)));
+    final failure = TorErrored(message,
+        failure: classifyTorFailure(message, atPercent: 100, timedOut: true));
+    owed.failure = failure;
+    _emit(failure);
+    unawaited(_watchCircuit(up, owed: owed));
     return false;
+  }
+
+  /// Ask for [owed]'s circuit every [kTorCircuitRecheck] once its wait ran
+  /// out, and publish `up` when tor has one. The failure is a report, as
+  /// the bootstrap deadline's is (TOR-013): tor goes on trying, and a hold
+  /// only Retry lifted outlived what it waited for. One ask per turn of
+  /// [_pins], so no pin waits behind the watch; it ends with its reopen.
+  Future<void> _watchCircuit(TorUp up, {required _OwedCircuit owed}) async {
+    bool superseded() =>
+        _disposed || !identical(_runtimeUp, up) || !identical(_circuitOwed, owed);
+    while (true) {
+      await Future<void>.delayed(kTorCircuitRecheck);
+      if (superseded()) return;
+      final built =
+          await _pins.run(() async => !superseded() && await _askCircuit());
+      if (superseded()) return;
+      if (!built) continue;
+      _circuitOwed = null;
+      await _settleUp();
+      return;
+    }
   }
 
   Future<bool> _askCircuit() async {
@@ -769,7 +828,11 @@ class TorEngine {
     // good.
     final up = _runtimeUp;
     if (up != null) {
-      if (await _reopenIfDead(up)) await _settleUp();
+      if (_circuitOwed?.failure != null) {
+        await _reopenNow(up);
+      } else if (await _reopenIfDead(up)) {
+        await _settleUp();
+      }
       return;
     }
     _cancelBootstrapTimeout();
