@@ -4311,6 +4311,10 @@
   "@privacySummaryNothingOn": {
     "description": "Summary on the privacy row in site settings when the site has no privacy protection turned on at all."
   },
+  "privacySummaryJavascriptOff": "JavaScript off",
+  "@privacySummaryJavascriptOff": {
+    "description": "Entry in the summary on the privacy row in site settings, listed among the protections that are on, when the site's pages are not allowed to run JavaScript. Keep the name JavaScript as is."
+  },
   "siteSettingsForcedOffByTrackingProtection": "Forced off by Tracking Protection",
   "@siteSettingsForcedOffByTrackingProtection": {
     "description": "Subtitle on a setting that Tracking Protection turns off and locks while it is on. The inverse of the 'Forced on by Tracking Protection' subtitle."

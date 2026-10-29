@@ -1079,7 +1079,10 @@ controls above are what they scroll past on the way to something else.
 The Privacy row SHALL summarise the current posture without being opened:
 "Tracking Protection on" while the umbrella is on, otherwise the names of
 the enabled protections (at most two, then a "{count} more" overflow), or
-"No protection enabled" when none is.
+"No protection enabled" when none is. "JavaScript off" SHALL lead the
+summary while the site runs no scripts: the umbrella does not decide it,
+and it breaks more pages than anything else on the screen, so the overflow
+never hides it.
 
 #### Scenario: Incognito leads, umbrella follows
 
@@ -1135,6 +1138,9 @@ of the values
 **Then** the Privacy row in site settings reads "ClearURLs"
 **And** with the umbrella on it reads "Tracking Protection on"
 **And** with nothing enabled it reads "No protection enabled"
+**And** with JavaScript off and nothing else enabled it reads "JavaScript off"
+**And** with JavaScript off under the umbrella it reads "JavaScript off ·
+Tracking Protection on"
 
 ---
 

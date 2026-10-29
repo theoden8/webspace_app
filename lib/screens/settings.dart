@@ -1030,19 +1030,24 @@ class _SettingsScreenState extends State<SettingsScreen>
       title: loc.privacyTitle,
       summary: summariseSettings(
         loc,
-        on: v.trackingProtectionEnabled
-            ? [loc.privacySummaryProtectionOn]
-            : [
-                if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
-                if (v.effectiveDnsBlock) loc.siteSettingsDnsBlocklist,
-                if (v.effectiveContentBlock) loc.siteSettingsContentBlocker,
-                if (hostIsAndroid && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
-                if (v.effectiveIncognito) loc.siteSettingsIncognito,
-                if (hostHasLockdownMode && v.effectiveLockdownMode)
-                  loc.siteSettingsLockdownMode,
-                if (ScreenCaptureGuard.isSupported && v.effectiveBlockScreenshots)
-                  loc.siteSettingsBlockScreenshots,
-              ],
+        on: [
+          // Leads, so the overflow never hides it: it breaks more pages than
+          // anything else here, and the umbrella's line does not stand for it.
+          if (!v.javascriptEnabled) loc.privacySummaryJavascriptOff,
+          if (v.trackingProtectionEnabled)
+            loc.privacySummaryProtectionOn
+          else ...[
+            if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
+            if (v.effectiveDnsBlock) loc.siteSettingsDnsBlocklist,
+            if (v.effectiveContentBlock) loc.siteSettingsContentBlocker,
+            if (hostIsAndroid && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
+            if (v.effectiveIncognito) loc.siteSettingsIncognito,
+            if (hostHasLockdownMode && v.effectiveLockdownMode)
+              loc.siteSettingsLockdownMode,
+            if (ScreenCaptureGuard.isSupported && v.effectiveBlockScreenshots)
+              loc.siteSettingsBlockScreenshots,
+          ],
+        ],
         none: loc.privacySummaryNothingOn,
       ),
       onTap: _openPrivacy,
