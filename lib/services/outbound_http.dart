@@ -30,8 +30,11 @@ class _DoNotTrackOutboundHttpFactory implements OutboundHttpFactory {
   const _DoNotTrackOutboundHttpFactory(this.inner);
 
   @override
-  OutboundClient clientFor(ProxyRoute route) {
-    final result = inner.clientFor(route);
+  OutboundClient clientFor(
+    ProxyRoute route, {
+    BodyEncoding encoding = BodyEncoding.decoded,
+  }) {
+    final result = inner.clientFor(route, encoding: encoding);
     if (result is OutboundClientReady) {
       return OutboundClientReady(DoNotTrackClient(result.client));
     }

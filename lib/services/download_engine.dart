@@ -49,49 +49,33 @@ class DownloadEngine {
   /// Redirect hops followed before the download is refused.
   static const int maxRedirects = 5;
 
-  final http.Client _client;
-  final OutboundClient? _outboundResult;
+  /// The client the download runs on, from the outbound seam on [proxy]'s
+  /// route with the body as sent: dart:io's decoding strips the
+  /// Content-Length, which would leave the progress ring indeterminate
+  /// even where the server knows the size, so [fetch] decodes. Blocked
+  /// where the route cannot be honoured, and [fetch] refuses before
+  /// anything is sent.
+  final OutboundClient _transport;
   final int _maxBytes;
 
-  /// [_client] is [hostDirectDownloadClient], which no proxy carries.
+  /// The route is direct, so no onion service is reachable on it.
   final bool _direct;
 
   DownloadEngine({
     http.Client? client,
     required OutboundProxy proxy,
     int maxBytes = defaultMaxBytes,
-  })  : _client = client ?? _defaultClient(proxy),
-        _maxBytes = maxBytes,
-        _direct = client == null &&
-            proxy.resolved.type ==
-                ProxyType.DEFAULT,
-        _outboundResult = client == null
-            ? outboundHttp.clientFor(proxy.resolved)
-            : null;
+  }) : this._(route: proxy.resolved, client: client, maxBytes: maxBytes);
 
-  /// Default HTTP client with gzip auto-decompression DISABLED so the
-  /// server's Content-Length survives to the caller. When
-  /// `autoUncompress: true` (the dart:io default), the client adds
-  /// `Accept-Encoding: gzip` and then strips Content-Length from the
-  /// response headers after decompression — leaving the progress ring
-  /// indeterminate even for servers that know how big the download is.
-  ///
-  /// When [proxy] is non-null and non-DEFAULT (or when the caller-provided
-  /// `proxy` resolves through the global to non-DEFAULT), the client routes
-  /// through that proxy via [outboundHttp]. If the proxy address is
-  /// malformed, a stub client is returned that will fail any subsequent
-  /// request — see [_blockedClient] / [fetch].
-  static http.Client _defaultClient(OutboundProxy proxy) {
-    final resolved = proxy.resolved;
-    if (resolved.type != ProxyType.DEFAULT) {
-      final result = outboundHttp.clientFor(resolved);
-      if (result is OutboundClientReady) return result.client;
-      if (result is OutboundClientBlocked) {
-        return _BlockedHttpClient(result.reason);
-      }
-    }
-    return hostDirectDownloadClient();
-  }
+  DownloadEngine._({
+    required ProxyRoute route,
+    required http.Client? client,
+    required int maxBytes,
+  })  : _transport = client != null
+            ? OutboundClientReady(client)
+            : outboundHttp.clientFor(route, encoding: BodyEncoding.asSent),
+        _direct = client == null && route.type == ProxyType.DEFAULT,
+        _maxBytes = maxBytes;
 
   /// RFC 6265 `Cookie:` header value from an ordered list of name/value
   /// pairs. Returns null if no pairs were supplied.
@@ -167,13 +151,12 @@ class DownloadEngine {
     String? mimeTypeHint,
     void Function(int bytesDone, {required int? bytesTotal})? onProgress,
   }) async {
-    final outboundResult = _outboundResult;
-    if (outboundResult is OutboundClientBlocked) {
-      throw DownloadException(outboundResult.reason);
-    }
-    final client = _client;
-    if (client is _BlockedHttpClient) {
-      throw DownloadException(client.reason);
+    final http.Client client;
+    switch (_transport) {
+      case OutboundClientBlocked(:final reason):
+        throw DownloadException(reason);
+      case OutboundClientReady(client: final ready):
+        client = ready;
     }
     final uri = _fetchable(Uri.tryParse(url), raw: url);
 
@@ -208,7 +191,7 @@ class DownloadEngine {
         request.headers['referer'] = hopReferer;
       }
       try {
-        response = await _client.send(request);
+        response = await client.send(request);
       } on http.ClientException catch (e) {
         throw DownloadException('Network error: $e');
       } on IOException catch (e) {
@@ -276,11 +259,9 @@ class DownloadEngine {
       offset += c.length;
     }
 
-    // If the server compressed the response despite our not asking for
-    // it (autoUncompress: false means we don't send Accept-Encoding),
-    // decompress now. Progress tracking above is in wire bytes, which
-    // matches Content-Length; the final DownloadResult exposes the
-    // decoded body so the save-to-disk path writes usable files.
+    // The client left a compressed body as sent (BodyEncoding.asSent), so
+    // progress above counted wire bytes against Content-Length; decode now
+    // so the save-to-disk path writes usable files.
     final encoding =
         response.headers['content-encoding']?.trim().toLowerCase();
     final Uint8List bytes;
@@ -458,18 +439,3 @@ class DownloadEngine {
   }
 }
 
-/// Byte sink that forwards each inflated chunk to [onData] so the caller
-/// can tally the running output and abort a decompression bomb early.
-/// Sentinel client returned by [DownloadEngine._defaultClient] when the
-/// configured proxy cannot be honored from Dart-side. Any request through
-/// it raises [DownloadException] before touching the network so we never
-/// leak the device IP via a direct fallback.
-class _BlockedHttpClient extends http.BaseClient {
-  final String reason;
-  _BlockedHttpClient(this.reason);
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    throw DownloadException(reason);
-  }
-}

@@ -247,7 +247,21 @@ final class SocksHandshakeFailure implements IOException {
 /// Tests replace [outboundHttp] with a fake to assert what proxy each call
 /// site requested without performing real I/O.
 abstract class OutboundHttpFactory {
-  OutboundClient clientFor(ProxyRoute route);
+  OutboundClient clientFor(
+    ProxyRoute route, {
+    BodyEncoding encoding = BodyEncoding.decoded,
+  });
+}
+
+/// What a client does with a body the server compressed.
+enum BodyEncoding {
+  /// Decoded as it arrives, as a fetch wants it.
+  decoded,
+
+  /// As the server sent it, so the Content-Length still counts the bytes
+  /// that arrive and the caller decodes them: a download, whose progress
+  /// is the wire bytes against that length. A browser decodes regardless.
+  asSent,
 }
 
 /// Parse `host:port`. Returns null on invalid input. Used by the dart:io

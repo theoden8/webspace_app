@@ -23,7 +23,10 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   const DefaultOutboundHttpFactory();
 
   @override
-  OutboundClient clientFor(ProxyRoute route) {
+  OutboundClient clientFor(
+    ProxyRoute route, {
+    BodyEncoding encoding = BodyEncoding.decoded,
+  }) {
     if (route.type == ProxyType.DEFAULT) {
       return OutboundClientReady(http.Client());
     }

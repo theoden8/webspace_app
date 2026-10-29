@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:typed_data';
 
-import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 
 export 'dart:io' show IOException;
 
@@ -43,11 +41,6 @@ Future<bool> hostCanResolve(String host,
     return false;
   }
 }
-
-/// Direct (unproxied) client for downloads, with gzip auto-decompression
-/// disabled so the server's Content-Length survives to the caller.
-http.Client hostDirectDownloadClient() =>
-    IOClient(io.HttpClient()..autoUncompress = false);
 
 /// Read an absolute path chosen by the OS file picker.
 Future<Uint8List> hostReadFileBytes(String path) => io.File(path).readAsBytes();
