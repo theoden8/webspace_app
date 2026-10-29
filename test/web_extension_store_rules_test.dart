@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
+import 'package:webspace/screens/app_developer.dart';
 import 'package:webspace/screens/app_extensions.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -71,11 +72,16 @@ void main() {
     debugHostRunsWebExtensions = null;
     debugHostDistribution = null;
     DeveloperModeService.instance.debugSet(on: false);
-    ExperimentalFeaturesService.instance.debugSet(
+    for (final feature in [
       ExperimentalFeature.webExtensions,
-      on: false,
-    );
+      ExperimentalFeature.extensionSearch,
+    ]) {
+      ExperimentalFeaturesService.instance.debugSet(feature, on: false);
+    }
   });
+
+  void searchSwitch({required bool on}) => ExperimentalFeaturesService.instance
+      .debugSet(ExperimentalFeature.extensionSearch, on: on);
 
   /// AdNauseam added from its listing at [version], as the add flow does.
   Future<void> addAt({required String version}) async {
@@ -100,6 +106,7 @@ void main() {
       'Store only', () {
     testWidgets('a build from the App Store offers neither', (tester) async {
       debugHostDistribution = AppDistribution.appStore;
+      searchSwitch(on: true);
       await pumpLocalized(
         tester,
         home: AppExtensionsScreen(pick: () async => null),
@@ -109,9 +116,40 @@ void main() {
       expect(find.text('Add from a link'), findsOneWidget);
     });
 
+    testWidgets('outside it, the search waits for its Experimental switch', (
+      tester,
+    ) async {
+      debugHostDistribution = AppDistribution.direct;
+      await pumpLocalized(
+        tester,
+        home: AppExtensionsScreen(pick: () async => null),
+      );
+      expect(find.text('Search addons.mozilla.org'), findsNothing);
+      expect(find.text('Install updates without asking'), findsOneWidget);
+    });
+
+    for (final (distribution, offered) in [
+      (AppDistribution.direct, findsOneWidget),
+      (AppDistribution.appStore, findsNothing),
+    ]) {
+      testWidgets('the Experimental group offers the switch outside the App '
+          'Store only: ${distribution.name}', (tester) async {
+        debugHostDistribution = distribution;
+        await pumpLocalized(tester, home: const AppDeveloperScreen());
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('Web extensions'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('Extension search'), offered);
+      });
+    }
+
     testWidgets('a build from outside it searches, labels each result and '
         'hides none, and adds the one picked', (tester) async {
       debugHostDistribution = AppDistribution.direct;
+      searchSwitch(on: true);
       fetch.replies['https://addons.mozilla.org/api/v5/addons/addon/'
           'ublock-origin/'] = amoAddonReply(
         fileUrl: _amoFile,

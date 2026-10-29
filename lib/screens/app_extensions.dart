@@ -291,7 +291,7 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
                 onTap: () => unawaited(_addFromLink()),
               ),
             ),
-            if (hostDistribution == AppDistribution.direct)
+            if (extensionSearchOffered)
               SettingTile(
                 leading: const Icon(Icons.search),
                 title: loc.extensionsSearch,

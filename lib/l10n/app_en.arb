@@ -5555,6 +5555,14 @@
   "@appSettingsExperimentalWebExtensionsHint": {
     "description": "Explanation behind the hint button of the Web extensions experiment switch. .crx, .xpi and .zip are file types; WebKit is the browser engine; keep those names as they are."
   },
+  "appSettingsExperimentalExtensionSearch": "Extension search",
+  "@appSettingsExperimentalExtensionSearch": {
+    "description": "Title of the switch in App Settings > Developer > Experimental that adds a search of addons.mozilla.org (Firefox's add-on site) to the Extensions screen."
+  },
+  "appSettingsExperimentalExtensionSearchHint": "Adds a search of addons.mozilla.org to the Extensions screen, each result labelled by how well WebKit is expected to run it. Offered only in builds from outside the App Store, and only while Web extensions is on.",
+  "@appSettingsExperimentalExtensionSearchHint": {
+    "description": "Explanation behind the hint button of the Extension search experiment switch. addons.mozilla.org is a website, WebKit is the browser engine and Web extensions is the name of another switch; keep those names as they are."
+  },
   "appSettingsExperimentalDesktopTray": "Tray icon",
   "@appSettingsExperimentalDesktopTray": {
     "description": "Title of the switch in App Settings > Developer > Experimental (macOS only) that shows the app's icon in the macOS menu bar while the app keeps running with its window closed."

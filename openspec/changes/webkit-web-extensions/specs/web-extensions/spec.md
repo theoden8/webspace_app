@@ -404,13 +404,19 @@ For each extension with a source the app SHALL check the source's latest release
 
 ### Requirement: WEBEXT-019 - Search, and installs without asking, only outside the App Store
 
-A build installed outside the App Store (macOS without a Mac App Store receipt) SHALL offer, in App Settings > Extensions, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build (iOS, and macOS with a receipt) SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own.
+A build installed outside the App Store (macOS without a Mac App Store receipt) SHALL offer, in App Settings > Extensions and only while its own Experimental switch (Extension search, off by default) is on, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build (iOS, and macOS with a receipt) SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own.
 
 #### Scenario: A build from the App Store
 
 - **GIVEN** the app installed from the App Store
 - **WHEN** the user opens App Settings > Extensions
 - **THEN** there is no search and no switch to install updates without asking
+
+#### Scenario: Search behind its switch
+
+- **GIVEN** a build installed outside the App Store, with Extension search off in App Settings > Developer > Experimental, as it is by default
+- **WHEN** the user opens App Settings > Extensions
+- **THEN** there is no search, and the switch to install updates without asking is still there
 
 #### Scenario: A search result WebKit runs only in part
 

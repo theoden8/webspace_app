@@ -78,6 +78,8 @@ enum AppPref<T extends Object> {
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),
   experimentalSignInPopups('experimentalSignInPopups', fallback: false),
   experimentalWebExtensions('experimentalWebExtensions', fallback: false),
+  // WEBEXT-019: the search of addons.mozilla.org, outside the App Store only.
+  experimentalExtensionSearch('experimentalExtensionSearch', fallback: false),
   // WEBEXT-018: the daily check of each extension's source. Off: no request
   // reaches a source the user did not ask to check.
   webExtensionsCheckUpdates('webExtensionsCheckUpdates', fallback: false),

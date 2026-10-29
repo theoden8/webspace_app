@@ -39,6 +39,16 @@ bool get webExtensionsOffered =>
       ExperimentalFeature.webExtensions,
     );
 
+/// Whether the search of addons.mozilla.org is offered (WEBEXT-019): where
+/// extensions are, in a build from outside the App Store, with its own
+/// Experimental switch on.
+bool get extensionSearchOffered =>
+    webExtensionsOffered &&
+    hostDistribution == AppDistribution.direct &&
+    ExperimentalFeaturesService.instance.isEnabled(
+      ExperimentalFeature.extensionSearch,
+    );
+
 /// What reading from an extension's source brought back: [value], or why
 /// nothing could be read (WEBEXT-017).
 sealed class SourceFetch<T> {
@@ -476,6 +486,7 @@ class WebExtensionLibrary {
     required bool recommendedOnly,
     required int page,
   }) async {
+    assert(extensionSearchOffered, 'search runs only where it is offered');
     final query = amoSearchQuery(
       text,
       recommendedOnly: recommendedOnly,
