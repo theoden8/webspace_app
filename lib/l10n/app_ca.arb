@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Aquesta actualització demana més que la versió instal·lada. Tots els llocs que l'executen també ho obtenen, sempre només a les pàgines d'aquell lloc:",
   "extensionsUpdated": "S'ha actualitzat {name} a {version}",
   "extensionsSearch": "Cerca a addons.mozilla.org",
-  "extensionsSearchSubtitle": "Cada resultat indica fins a quin punt WebKit l'executa",
   "extensionsSearchHint": "Mostra extensions de Firefox d'addons.mozilla.org, sense amagar-ne cap. Cadascuna indica si WebKit l'executa: «Funciona» quan WebKit admet tot el que demana, «Funciona en part» quan demana alguna cosa que WebKit no té, «Desconegut» quan la fitxa no ho diu. Afegir-ne una funciona com afegir-la des del seu enllaç. Només s'ofereix en compilacions de fora de l'App Store.",
   "extensionsSearchField": "Cerca extensions",
   "extensionsSearchRecommended": "Només recomanades",

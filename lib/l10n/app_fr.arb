@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Cette mise à jour demande plus que la version installée. Chaque site qui l'exécute le lui donne aussi, toujours uniquement sur les pages de ce site :",
   "extensionsUpdated": "{name} mise à jour vers {version}",
   "extensionsSearch": "Rechercher sur addons.mozilla.org",
-  "extensionsSearchSubtitle": "Chaque résultat indique dans quelle mesure WebKit l'exécute",
   "extensionsSearchHint": "Liste les extensions Firefox d'addons.mozilla.org, sans en masquer aucune. Chacune indique si WebKit l'exécute : « Fonctionne » quand WebKit prend en charge tout ce qu'elle demande, « Fonctionne en partie » quand elle demande quelque chose que WebKit n'a pas, « Inconnu » quand la fiche ne le précise pas. En ajouter une revient à l'ajouter depuis son lien. Proposé uniquement dans les versions distribuées hors de l'App Store.",
   "extensionsSearchField": "Rechercher des extensions",
   "extensionsSearchRecommended": "Recommandées uniquement",

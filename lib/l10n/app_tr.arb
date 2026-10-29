@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Bu güncelleme yüklü sürümden fazlasını istiyor. Onu çalıştıran her site bunu da ona verir, yine yalnızca o sitenin sayfalarında:",
   "extensionsUpdated": "{name}, {version} sürümüne güncellendi",
   "extensionsSearch": "addons.mozilla.org'da ara",
-  "extensionsSearchSubtitle": "Her sonuç, WebKit'in onu ne kadar iyi çalıştırdığını gösterir",
   "extensionsSearchHint": "addons.mozilla.org'daki Firefox uzantılarını hiçbirini gizlemeden listeler. Her biri WebKit'in onu çalıştırıp çalıştırmadığını belirtir: “Çalışıyor”, WebKit istediği her şeyi desteklediğinde; “Kısmen çalışıyor”, WebKit'te olmayan bir şey istediğinde; “Bilinmiyor”, kayıtta bu belirtilmediğinde. Birini eklemek, onu bağlantısından eklemekle aynı şekilde çalışır. Yalnızca App Store dışından gelen derlemelerde sunulur.",
   "extensionsSearchField": "Uzantı ara",
   "extensionsSearchRecommended": "Yalnızca önerilenler",

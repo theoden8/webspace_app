@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Mae'r diweddariad hwn yn gofyn am fwy na'r fersiwn sydd wedi'i gosod. Mae pob gwefan sy'n ei redeg yn cael hyn hefyd, yn dal dim ond ar dudalennau'r wefan honno:",
   "extensionsUpdated": "Diweddarwyd {name} i {version}",
   "extensionsSearch": "Chwilio addons.mozilla.org",
-  "extensionsSearchSubtitle": "Mae pob canlyniad yn dweud pa mor dda mae WebKit yn ei redeg",
   "extensionsSearchHint": "Yn rhestru estyniadau Firefox o addons.mozilla.org, heb guddio'r un. Mae pob un yn dweud a yw WebKit yn ei redeg: ‘Yn rhedeg’ pan fydd WebKit yn cefnogi popeth mae'n gofyn amdano, ‘Yn rhedeg yn rhannol’ pan fydd yn gofyn am rywbeth nad oes gan WebKit, ‘Anhysbys’ pan nad yw'r rhestriad yn dweud. Mae ychwanegu un yn gweithio fel ei ychwanegu o'i ddolen. Ar gael dim ond mewn fersiynau o'r ap o'r tu allan i'r App Store.",
   "extensionsSearchField": "Chwilio estyniadau",
   "extensionsSearchRecommended": "Rhai a argymhellir yn unig",

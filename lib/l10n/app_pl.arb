@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Ta aktualizacja prosi o więcej niż zainstalowana wersja. Otrzyma to również na każdej witrynie, która je uruchamia, nadal tylko na stronach tej witryny:",
   "extensionsUpdated": "Zaktualizowano {name} do {version}",
   "extensionsSearch": "Szukaj w addons.mozilla.org",
-  "extensionsSearchSubtitle": "Każdy wynik pokazuje, jak dobrze WebKit je uruchamia",
   "extensionsSearchHint": "Wyświetla rozszerzenia do przeglądarki Firefox z addons.mozilla.org, nie ukrywając żadnego. Przy każdym widać, czy WebKit je uruchamia: „Działa”, gdy WebKit obsługuje wszystko, o co prosi, „Działa częściowo”, gdy prosi o coś, czego WebKit nie ma, „Nieznane”, gdy opis tego nie podaje. Dodanie działa tak samo jak dodanie z jego linku. Dostępne tylko w wersjach spoza App Store.",
   "extensionsSearchField": "Szukaj rozszerzeń",
   "extensionsSearchRecommended": "Tylko polecane",

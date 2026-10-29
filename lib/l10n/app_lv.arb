@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Šis atjauninājums pieprasa vairāk nekā instalētā versija. Tas to saņems arī katrā vietnē, kas to palaiž, joprojām tikai šīs vietnes lapās:",
   "extensionsUpdated": "{name} atjaunināts uz {version}",
   "extensionsSearch": "Meklēt addons.mozilla.org",
-  "extensionsSearchSubtitle": "Katrs rezultāts norāda, cik labi WebKit to palaiž",
   "extensionsSearchHint": "Parāda Firefox paplašinājumus no addons.mozilla.org, nevienu neslēpjot. Pie katra norādīts, vai WebKit to palaiž: “Darbojas”, ja WebKit atbalsta visu, ko tas pieprasa, “Darbojas daļēji”, ja tas pieprasa kaut ko, kā WebKit nav, “Nezināms”, ja aprakstā tas nav norādīts. Pievienošana notiek tāpat kā pievienošana no tā saites. Pieejams tikai versijās, kas nav no App Store.",
   "extensionsSearchField": "Meklēt paplašinājumus",
   "extensionsSearchRecommended": "Tikai ieteiktie",

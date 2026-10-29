@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "See uuendus küsib rohkem kui paigaldatud versioon. Iga sait, mis seda käitab, annab talle ka selle, endiselt ainult selle saidi lehtedel:",
   "extensionsUpdated": "{name} uuendati versioonile {version}",
   "extensionsSearch": "Otsi saidilt addons.mozilla.org",
-  "extensionsSearchSubtitle": "Iga tulemus ütleb, kui hästi WebKit seda käitab",
   "extensionsSearchHint": "Loetleb saidi addons.mozilla.org Firefoxi laiendused, ühtegi peitmata. Iga juures on öeldud, kas WebKit seda käitab: „Töötab”, kui WebKit toetab kõike, mida see küsib, „Töötab osaliselt”, kui see küsib midagi, mis WebKitil puudub, „Teadmata”, kui kirjeldus seda ei ütle. Ühe lisamine toimib nagu lisamine selle lingi kaudu. Pakutakse ainult väljaspool App Store'i levitatavates versioonides.",
   "extensionsSearchField": "Otsi laiendusi",
   "extensionsSearchRecommended": "Ainult soovitatud",

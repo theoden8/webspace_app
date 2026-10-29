@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Šis atnaujinimas prašo daugiau nei įdiegta versija. Tai jis gaus ir kiekvienoje svetainėje, kuri jį vykdo, vis tiek tik tos svetainės puslapiuose:",
   "extensionsUpdated": "{name} atnaujintas į {version}",
   "extensionsSearch": "Ieškoti addons.mozilla.org",
-  "extensionsSearchSubtitle": "Kiekvienas rezultatas nurodo, kaip gerai jį vykdo WebKit",
   "extensionsSearchHint": "Rodo Firefox plėtinius iš addons.mozilla.org, nė vieno neslepiant. Prie kiekvieno nurodyta, ar WebKit jį vykdo: „Veikia“, kai WebKit palaiko viską, ko jis prašo, „Veikia iš dalies“, kai jis prašo kažko, ko WebKit neturi, „Nežinoma“, kai aprašyme to nenurodyta. Pridėjimas veikia taip pat kaip pridėjimas iš jo nuorodos. Siūloma tik ne iš App Store gautose versijose.",
   "extensionsSearchField": "Ieškoti plėtinių",
   "extensionsSearchRecommended": "Tik rekomenduojami",

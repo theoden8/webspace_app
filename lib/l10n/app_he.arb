@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "העדכון הזה מבקש יותר מהגרסה המותקנת. כל אתר שמריץ אותו נותן לו גם את זה, עדיין רק בדפים של אותו אתר:",
   "extensionsUpdated": "{name} עודכן לגרסה {version}",
   "extensionsSearch": "חיפוש ב-addons.mozilla.org",
-  "extensionsSearchSubtitle": "כל תוצאה מציינת עד כמה WebKit מריץ אותה",
   "extensionsSearchHint": "מציג תוספים ל-Firefox מ-addons.mozilla.org, בלי להסתיר אף אחד. ליד כל אחד מצוין אם WebKit מריץ אותו: \"פועל\" כש-WebKit תומך בכל מה שהוא מבקש, \"פועל חלקית\" כשהוא מבקש משהו שאין ב-WebKit, \"לא ידוע\" כשהרישום לא מציין זאת. הוספה של אחד מהם פועלת כמו הוספה מהקישור שלו. מוצע רק בגרסאות שאינן מ-App Store.",
   "extensionsSearchField": "חיפוש תוספים",
   "extensionsSearchRecommended": "מומלצים בלבד",

@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "এই আপডেটটি ইনস্টল করা সংস্করণের চেয়ে বেশি কিছু চায়। যে সাইট এটি চালায়, সেই প্রতিটি সাইটেও এটি তা পাবে, তবু শুধু সেই সাইটের নিজের পৃষ্ঠাগুলিতে:",
   "extensionsUpdated": "{name} {version}-এ আপডেট হয়েছে",
   "extensionsSearch": "addons.mozilla.org-এ খুঁজুন",
-  "extensionsSearchSubtitle": "প্রতিটি ফলাফল জানায় WebKit এটি কতটা ভালো চালায়",
   "extensionsSearchHint": "addons.mozilla.org থেকে Firefox এক্সটেনশনের তালিকা দেখায়, কোনোটি লুকানো নয়। প্রতিটি জানায় WebKit এটি চালায় কি না: \"চলে\" যখন এটি যা চায় তার সবই WebKit সমর্থন করে, \"আংশিক চলে\" যখন এটি এমন কিছু চায় যা WebKit-এ নেই, \"অজানা\" যখন তালিকায় তা বলা নেই। একটি যোগ করা তার লিঙ্ক থেকে যোগ করার মতোই কাজ করে। শুধু App Store-এর বাইরের বিল্ডে দেওয়া হয়।",
   "extensionsSearchField": "এক্সটেনশন খুঁজুন",
   "extensionsSearchRecommended": "শুধু প্রস্তাবিত",

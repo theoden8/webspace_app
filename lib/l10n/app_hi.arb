@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "यह अपडेट इंस्टॉल किए गए संस्करण से ज़्यादा माँगता है। इसे चलाने वाली हर साइट पर इसे यह भी मिलता है, फिर भी केवल उसी साइट के पेजों पर:",
   "extensionsUpdated": "{name} को {version} पर अपडेट किया गया",
   "extensionsSearch": "addons.mozilla.org पर खोजें",
-  "extensionsSearchSubtitle": "हर परिणाम बताता है कि WebKit इसे कितनी अच्छी तरह चलाता है",
   "extensionsSearchHint": "addons.mozilla.org से Firefox एक्सटेंशन की सूची दिखाता है, कोई भी छिपाए बिना। हर एक बताता है कि WebKit उसे चलाता है या नहीं: “चलता है” जब WebKit उसकी माँगी हुई हर चीज़ का समर्थन करता है, “आंशिक रूप से चलता है” जब वह कुछ ऐसा माँगता है जो WebKit में नहीं है, “अज्ञात” जब सूची में यह नहीं बताया गया हो। किसी एक को जोड़ना उसके लिंक से जोड़ने जैसा ही है। केवल App Store के बाहर के बिल्ड में उपलब्ध।",
   "extensionsSearchField": "एक्सटेंशन खोजें",
   "extensionsSearchRecommended": "केवल अनुशंसित",

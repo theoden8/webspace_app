@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Deze update vraagt om meer dan de geïnstalleerde versie. Elke site die haar uitvoert, geeft haar dit ook, nog steeds alleen op de pagina's van die site:",
   "extensionsUpdated": "{name} bijgewerkt naar {version}",
   "extensionsSearch": "Zoeken op addons.mozilla.org",
-  "extensionsSearchSubtitle": "Elk resultaat toont hoe goed WebKit het uitvoert",
   "extensionsSearchHint": "Toont Firefox-extensies van addons.mozilla.org, zonder er een te verbergen. Bij elke staat of WebKit haar uitvoert: \"Werkt\" als WebKit alles ondersteunt waar ze om vraagt, \"Werkt deels\" als ze iets vraagt wat WebKit mist, \"Onbekend\" als de vermelding het niet zegt. Er een toevoegen werkt zoals toevoegen via haar link. Alleen beschikbaar in builds van buiten de App Store.",
   "extensionsSearchField": "Extensies zoeken",
   "extensionsSearchRecommended": "Alleen aanbevolen",

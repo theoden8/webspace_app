@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Iarrann an nuashonrú seo níos mó ná an leagan suiteáilte. Faigheann sí é seo freisin ar gach suíomh a ritheann í, fós ar leathanaigh an tsuímh sin amháin:",
   "extensionsUpdated": "Nuashonraíodh {name} go {version}",
   "extensionsSearch": "Cuardaigh addons.mozilla.org",
-  "extensionsSearchSubtitle": "Insíonn gach toradh cé chomh maith is a ritheann WebKit í",
   "extensionsSearchHint": "Liostaíonn sé eisínteachtaí Firefox ó addons.mozilla.org, gan aon cheann a cheilt. Insíonn gach ceann acu an ritheann WebKit í: “Ritheann” nuair a thacaíonn WebKit le gach rud a iarrann sí, “Ritheann go páirteach” nuair a iarrann sí rud nach bhfuil ag WebKit, “Anaithnid” nuair nach ndeir an liostú é. Oibríonn ceann a chur leis mar a chur leis óna nasc. Ar fáil i leaganacha ón taobh amuigh den App Store amháin.",
   "extensionsSearchField": "Cuardaigh eisínteachtaí",
   "extensionsSearchRecommended": "Cinn mholta amháin",

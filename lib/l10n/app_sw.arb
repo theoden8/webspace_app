@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Sasisho hili linaomba zaidi ya toleo lililosakinishwa. Kila tovuti inayokiendesha inakipa hili pia, bado kwenye kurasa za tovuti hiyo pekee:",
   "extensionsUpdated": "{name} kimesasishwa hadi {version}",
   "extensionsSearch": "Tafuta kwenye addons.mozilla.org",
-  "extensionsSearchSubtitle": "Kila tokeo linaonyesha jinsi WebKit inavyokiendesha vizuri",
   "extensionsSearchHint": "Huorodhesha viendelezi vya Firefox kutoka addons.mozilla.org, bila kuficha hata kimoja. Kila kimoja kinaonyesha kama WebKit inakiendesha: “Kinafanya kazi” WebKit inapoauni kila kitu kinachoomba, “Kinafanya kazi kwa sehemu” kinapoomba kitu ambacho WebKit haina, “Haijulikani” orodha isiposema. Kuongeza kimoja ni sawa na kukiongeza kutoka kwenye kiungo chake. Inapatikana tu katika matoleo ya nje ya App Store.",
   "extensionsSearchField": "Tafuta viendelezi",
   "extensionsSearchRecommended": "Vinavyopendekezwa pekee",

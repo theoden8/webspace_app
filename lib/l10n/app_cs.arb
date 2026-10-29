@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Tato aktualizace žádá o víc než nainstalovaná verze. Dostane to i na každém webu, který ho spouští, stále jen na stránkách tohoto webu:",
   "extensionsUpdated": "{name} aktualizováno na {version}",
   "extensionsSearch": "Hledat na addons.mozilla.org",
-  "extensionsSearchSubtitle": "U každého výsledku je uvedeno, jak dobře ho WebKit spouští",
   "extensionsSearchHint": "Zobrazí rozšíření pro Firefox z addons.mozilla.org, žádné neskrývá. U každého je uvedeno, zda ho WebKit spouští: „Funguje“, když WebKit podporuje vše, o co žádá, „Funguje částečně“, když žádá o něco, co WebKit nemá, „Neznámé“, když to záznam neuvádí. Přidání funguje stejně jako přidání z jeho odkazu. Nabízí se jen v sestaveních mimo App Store.",
   "extensionsSearchField": "Hledat rozšíření",
   "extensionsSearchRecommended": "Jen doporučená",

@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Pembaruan ini meminta lebih banyak daripada versi yang terpasang. Setiap situs yang menjalankannya juga memberinya ini, tetap hanya di halaman situs itu sendiri:",
   "extensionsUpdated": "{name} diperbarui ke {version}",
   "extensionsSearch": "Cari di addons.mozilla.org",
-  "extensionsSearchSubtitle": "Setiap hasil menunjukkan seberapa baik WebKit menjalankannya",
   "extensionsSearchHint": "Menampilkan ekstensi Firefox dari addons.mozilla.org, tanpa ada yang disembunyikan. Masing-masing menyebutkan apakah WebKit menjalankannya: “Berjalan” jika WebKit mendukung semua yang dimintanya, “Berjalan sebagian” jika ekstensi meminta sesuatu yang tidak dimiliki WebKit, “Tidak diketahui” jika daftarnya tidak menyebutkannya. Menambahkannya sama seperti menambahkan dari tautannya. Hanya tersedia di build dari luar App Store.",
   "extensionsSearchField": "Cari ekstensi",
   "extensionsSearchRecommended": "Hanya yang direkomendasikan",

@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Această actualizare cere mai mult decât versiunea instalată. Fiecare site care o rulează îi dă și asta, tot doar pe paginile acelui site:",
   "extensionsUpdated": "{name} a fost actualizată la {version}",
   "extensionsSearch": "Caută pe addons.mozilla.org",
-  "extensionsSearchSubtitle": "Fiecare rezultat arată cât de bine o rulează WebKit",
   "extensionsSearchHint": "Listează extensii pentru Firefox de pe addons.mozilla.org, fără să ascundă vreuna. Fiecare arată dacă WebKit o rulează: „Funcționează” când WebKit acceptă tot ce cere, „Funcționează parțial” când cere ceva ce îi lipsește lui WebKit, „Necunoscut” când fișa nu spune. Adăugarea uneia funcționează ca adăugarea din linkul ei. Disponibil doar în versiunile distribuite în afara App Store.",
   "extensionsSearchField": "Caută extensii",
   "extensionsSearchRecommended": "Doar recomandate",

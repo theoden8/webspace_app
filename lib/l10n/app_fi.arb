@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Tämä päivitys pyytää enemmän kuin asennettu versio. Se saa tämän myös jokaisella sivustolla, joka suorittaa sitä, yhä vain sen sivuston omilla sivuilla:",
   "extensionsUpdated": "{name} päivitetty versioon {version}",
   "extensionsSearch": "Hae addons.mozilla.orgista",
-  "extensionsSearchSubtitle": "Jokainen tulos kertoo, miten hyvin WebKit suorittaa sen",
   "extensionsSearchHint": "Näyttää Firefox-laajennukset addons.mozilla.orgista, yhtäkään piilottamatta. Jokaisen kohdalla kerrotaan, suorittaako WebKit sen: ”Toimii”, kun WebKit tukee kaikkea, mitä se pyytää, ”Toimii osittain”, kun se pyytää jotain, mitä WebKitistä puuttuu, ”Tuntematon”, kun kuvaus ei kerro sitä. Lisääminen toimii kuten lisääminen sen linkistä. Tarjolla vain App Storen ulkopuolelta tulevissa versioissa.",
   "extensionsSearchField": "Hae laajennuksia",
   "extensionsSearchRecommended": "Vain suositellut",

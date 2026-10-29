@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "この更新は、インストール済みのバージョンより多くを要求します。この拡張機能を実行する各サイトでもこれが与えられますが、引き続きそのサイトのページに限られます:",
   "extensionsUpdated": "{name} を {version} に更新しました",
   "extensionsSearch": "addons.mozilla.org を検索",
-  "extensionsSearchSubtitle": "各結果に WebKit での動作状況が表示されます",
   "extensionsSearchHint": "addons.mozilla.org の Firefox 拡張機能を、何も隠さずに一覧表示します。それぞれに WebKit で動作するかが表示されます。「動作」は要求するものすべてに WebKit が対応している場合、「一部動作」は WebKit にないものを要求している場合、「不明」は掲載情報に記載がない場合です。追加はリンクから追加する場合と同じように行われます。App Store 以外から入手したビルドでのみ利用できます。",
   "extensionsSearchField": "拡張機能を検索",
   "extensionsSearchRecommended": "おすすめのみ",

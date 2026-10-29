@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Haec renovatio plus petit quam versio installata. Omnis situs qui eam exsequitur hoc quoque ei dat, semper solum in paginis illius situs:",
   "extensionsUpdated": "{name} ad {version} renovata",
   "extensionsSearch": "In addons.mozilla.org quaerere",
-  "extensionsSearchSubtitle": "Quisque eventus dicit quam bene WebKit eam exsequatur",
   "extensionsSearchHint": "Extensiones Firefox ex addons.mozilla.org enumerat, nulla celata. Quaeque dicit utrum WebKit eam exsequatur: «Currit» cum WebKit omnia quae petit sustinet, «Ex parte currit» cum aliquid petit quo WebKit caret, «Ignotum» cum index id non dicit. Unam addere idem est atque eam ex nexu suo addere. Tantum in versionibus extra App Store praebetur.",
   "extensionsSearchField": "Extensiones quaerere",
   "extensionsSearchRecommended": "Commendatae tantum",

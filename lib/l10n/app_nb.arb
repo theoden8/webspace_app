@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Denne oppdateringen ber om mer enn den installerte versjonen. Hvert nettsted som kjører den, gir den også dette, fortsatt bare på det nettstedets egne sider:",
   "extensionsUpdated": "{name} oppdatert til {version}",
   "extensionsSearch": "Søk på addons.mozilla.org",
-  "extensionsSearchSubtitle": "Hvert resultat viser hvor godt WebKit kjører det",
   "extensionsSearchHint": "Viser Firefox-utvidelser fra addons.mozilla.org, uten å skjule noen. Hver viser om WebKit kjører den: «Kjører» når WebKit støtter alt den ber om, «Kjører delvis» når den ber om noe WebKit mangler, «Ukjent» når oppføringen ikke sier det. Å legge til en fungerer som å legge den til fra lenken. Tilbys bare i utgaver utenfor App Store.",
   "extensionsSearchField": "Søk etter utvidelser",
   "extensionsSearchRecommended": "Bare anbefalte",

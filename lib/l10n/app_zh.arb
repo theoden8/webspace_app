@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "此更新要求的項目比已安裝的版本更多。執行它的每個網站也會讓它取得這些項目，但仍只限於該網站自己的網頁：",
   "extensionsUpdated": "已將 {name} 更新至 {version}",
   "extensionsSearch": "搜尋 addons.mozilla.org",
-  "extensionsSearchSubtitle": "每個結果都會標示 WebKit 執行它的程度",
   "extensionsSearchHint": "列出 addons.mozilla.org 上的 Firefox 擴充功能，不隱藏任何一項。每一項都會標示 WebKit 是否能執行它：「可執行」表示 WebKit 支援它要求的所有項目，「部分可執行」表示它要求了 WebKit 缺少的項目，「未知」表示清單資訊未說明。新增其中一項的方式與從其連結新增相同。僅在非 App Store 取得的版本中提供。",
   "extensionsSearchField": "搜尋擴充功能",
   "extensionsSearchRecommended": "僅限推薦",

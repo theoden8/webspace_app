@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "يطلب هذا التحديث أكثر مما يطلبه الإصدار المثبّت. ستحصل عليه في كل موقع يشغّلها أيضًا، ويظل مقتصرًا على صفحات ذلك الموقع:",
   "extensionsUpdated": "حُدّثت {name} إلى {version}",
   "extensionsSearch": "البحث في addons.mozilla.org",
-  "extensionsSearchSubtitle": "تبيّن كل نتيجة مدى جودة تشغيل WebKit لها",
   "extensionsSearchHint": "يعرض إضافات Firefox من addons.mozilla.org دون إخفاء أي منها. تبيّن كل منها ما إذا كان WebKit يشغّلها: «تعمل» عندما يدعم WebKit كل ما تطلبه، و«تعمل جزئيًا» عندما تطلب شيئًا يفتقر إليه WebKit، و«غير معروف» عندما لا تذكر القائمة ذلك. إضافة إحداها تتم كإضافتها من رابطها. متاح فقط في الإصدارات المبنية خارج App Store.",
   "extensionsSearchField": "البحث عن إضافات",
   "extensionsSearchRecommended": "الموصى بها فقط",

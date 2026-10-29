@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Eguneratze honek instalatutako bertsioak baino gehiago eskatzen du. Exekutatzen duen gune bakoitzean ere hau jasotzen du, betiere gune horren orrietan soilik:",
   "extensionsUpdated": "{name} {version} bertsiora eguneratu da",
   "extensionsSearch": "Bilatu addons.mozilla.org-en",
-  "extensionsSearchSubtitle": "Emaitza bakoitzak WebKit-ek zein ondo exekutatzen duen adierazten du",
   "extensionsSearchHint": "Firefoxen luzapenak zerrendatzen ditu addons.mozilla.org-etik, bat ere ezkutatu gabe. Bakoitzak WebKit-ek exekutatzen duen ala ez adierazten du: «Funtzionatzen du» WebKit-ek eskatzen duen guztia onartzen duenean, «Partzialki funtzionatzen du» WebKit-ek ez duen zerbait eskatzen duenean, «Ezezaguna» fitxak ez duenean esaten. Bat gehitzea bere estekatik gehitzea bezala da. App Storetik kanpoko konpilazioetan soilik eskaintzen da.",
   "extensionsSearchField": "Bilatu luzapenak",
   "extensionsSearchRecommended": "Gomendatuak soilik",

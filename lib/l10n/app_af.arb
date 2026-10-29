@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Hierdie bywerking vra vir meer as die geïnstalleerde weergawe. Elke werf wat dit laat loop, kry dit ook, steeds net op daardie werf se eie bladsye:",
   "extensionsUpdated": "{name} bygewerk na {version}",
   "extensionsSearch": "Deursoek addons.mozilla.org",
-  "extensionsSearchSubtitle": "Elke resultaat sê hoe goed WebKit dit laat loop",
   "extensionsSearchHint": "Lys Firefox-uitbreidings van addons.mozilla.org, met niks versteek nie. Elkeen sê of WebKit dit laat loop: \"Loop\" wanneer WebKit alles ondersteun waarvoor dit vra, \"Loop gedeeltelik\" wanneer dit vra vir iets wat WebKit nie het nie, \"Onbekend\" wanneer die inskrywing dit nie sê nie. Om een by te voeg werk soos om dit vanaf sy skakel by te voeg. Slegs aangebied in weergawes van buite die App Store.",
   "extensionsSearchField": "Soek uitbreidings",
   "extensionsSearchRecommended": "Slegs aanbevole",

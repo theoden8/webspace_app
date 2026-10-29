@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Þessi uppfærsla biður um meira en uppsetta útgáfan. Hún fær þetta líka á hverju vefsvæði sem keyrir hana, áfram aðeins á síðum þess vefsvæðis:",
   "extensionsUpdated": "{name} uppfærð í {version}",
   "extensionsSearch": "Leita á addons.mozilla.org",
-  "extensionsSearchSubtitle": "Hver niðurstaða segir hversu vel WebKit keyrir hana",
   "extensionsSearchHint": "Sýnir Firefox-viðbætur frá addons.mozilla.org, enga falda. Við hverja kemur fram hvort WebKit keyrir hana: „Keyrir“ þegar WebKit styður allt sem hún biður um, „Keyrir að hluta“ þegar hún biður um eitthvað sem WebKit vantar, „Óþekkt“ þegar skráningin segir það ekki. Að bæta einni við virkar eins og að bæta henni við af tengli hennar. Aðeins í boði í útgáfum utan App Store.",
   "extensionsSearchField": "Leita að viðbótum",
   "extensionsSearchRecommended": "Aðeins ráðlagðar",

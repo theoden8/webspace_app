@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Ez a frissítés többet kér, mint a telepített verzió. Ezt minden olyan webhelyen megkapja, amely futtatja, továbbra is csak az adott webhely oldalain:",
   "extensionsUpdated": "{name} frissítve erre: {version}",
   "extensionsSearch": "Keresés az addons.mozilla.org-on",
-  "extensionsSearchSubtitle": "Minden találatnál látszik, mennyire jól futtatja a WebKit",
   "extensionsSearchHint": "Felsorolja az addons.mozilla.org Firefox-bővítményeit, egyet sem rejtve el. Mindegyiknél látszik, hogy a WebKit futtatja-e: „Fut”, ha a WebKit mindent támogat, amit kér, „Részben fut”, ha olyat kér, ami a WebKitből hiányzik, „Ismeretlen”, ha a leírás nem mondja meg. Egy bővítmény hozzáadása úgy működik, mint a hivatkozásából való hozzáadás. Csak az App Store-on kívülről származó változatokban érhető el.",
   "extensionsSearchField": "Bővítmények keresése",
   "extensionsSearchRecommended": "Csak ajánlottak",

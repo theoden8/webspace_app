@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Ta posodobitev zahteva več kot nameščena različica. To dobi tudi na vsakem spletnem mestu, ki jo izvaja, še vedno samo na straneh tega mesta:",
   "extensionsUpdated": "Posodobljeno: {name} na {version}",
   "extensionsSearch": "Iskanje v addons.mozilla.org",
-  "extensionsSearchSubtitle": "Pri vsakem rezultatu piše, kako dobro WebKit izvaja razširitev",
   "extensionsSearchHint": "Prikaže razširitve za Firefox z addons.mozilla.org, ne da bi katero skril. Pri vsaki piše, ali jo WebKit izvaja: „Deluje“, ko WebKit podpira vse, kar zahteva, „Deluje delno“, ko zahteva nekaj, česar WebKit nima, „Neznano“, ko opis tega ne pove. Dodajanje deluje enako kot dodajanje z njene povezave. Na voljo samo v različicah zunaj App Store.",
   "extensionsSearchField": "Iskanje razširitev",
   "extensionsSearchRecommended": "Samo priporočene",

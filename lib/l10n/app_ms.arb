@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Kemas kini ini meminta lebih daripada versi yang dipasang. Setiap tapak yang menjalankannya juga memberinya ini, masih hanya pada halaman tapak itu sendiri:",
   "extensionsUpdated": "{name} dikemas kini ke {version}",
   "extensionsSearch": "Cari di addons.mozilla.org",
-  "extensionsSearchSubtitle": "Setiap hasil menyatakan sejauh mana WebKit menjalankannya",
   "extensionsSearchHint": "Menyenaraikan sambungan Firefox daripada addons.mozilla.org, tiada yang disembunyikan. Setiap satu menyatakan sama ada WebKit menjalankannya: “Berjalan” apabila WebKit menyokong semua yang dimintanya, “Berjalan sebahagian” apabila ia meminta sesuatu yang tiada pada WebKit, “Tidak diketahui” apabila senarainya tidak menyatakannya. Menambah satu berfungsi seperti menambahnya daripada pautannya. Hanya ditawarkan dalam binaan dari luar App Store.",
   "extensionsSearchField": "Cari sambungan",
   "extensionsSearchRecommended": "Disyorkan sahaja",

@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Mas marami ang hinihingi ng update na ito kaysa sa naka-install na bersyon. Makukuha rin ito sa bawat site na nagpapatakbo nito, sa mga pahina lang ng site na iyon:",
   "extensionsUpdated": "Na-update ang {name} sa {version}",
   "extensionsSearch": "Maghanap sa addons.mozilla.org",
-  "extensionsSearchSubtitle": "Sinasabi ng bawat resulta kung gaano kahusay itong pinapatakbo ng WebKit",
   "extensionsSearchHint": "Inililista ang mga extension ng Firefox mula sa addons.mozilla.org, walang nakatago. Sinasabi ng bawat isa kung pinapatakbo ito ng WebKit: “Gumagana” kapag sinusuportahan ng WebKit ang lahat ng hinihingi nito, “Bahagyang gumagana” kapag may hinihingi itong wala sa WebKit, “Hindi alam” kapag hindi ito sinasabi ng listing. Ang pagdaragdag ng isa ay gaya ng pagdaragdag mula sa link nito. Inaalok lang sa mga build na mula sa labas ng App Store.",
   "extensionsSearchField": "Maghanap ng mga extension",
   "extensionsSearchRecommended": "Mga inirerekomenda lang",

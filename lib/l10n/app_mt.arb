@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Dan l-aġġornament jitlob aktar mill-verżjoni installata. Kull sit li jħaddimha jagħtiha dan ukoll, xorta biss fuq il-paġni ta' dak is-sit:",
   "extensionsUpdated": "{name} ġiet aġġornata għal {version}",
   "extensionsSearch": "Fittex f'addons.mozilla.org",
-  "extensionsSearchSubtitle": "Kull riżultat jgħid kemm iħaddimha tajjeb WebKit",
   "extensionsSearchHint": "Telenka estensjonijiet ta' Firefox minn addons.mozilla.org, mingħajr ma taħbi l-ebda waħda. Kull waħda tgħid jekk WebKit iħaddimhiex: “Taħdem” meta WebKit jappoġġa dak kollu li titlob, “Taħdem parzjalment” meta titlob xi ħaġa li WebKit m'għandux, “Mhux magħruf” meta l-elenkar ma jgħidx. Iż-żieda ta' waħda taħdem bħaż-żieda mil-link tagħha. Disponibbli biss f'verżjonijiet minn barra l-App Store.",
   "extensionsSearchField": "Fittex estensjonijiet",
   "extensionsSearchRecommended": "Rakkomandati biss",

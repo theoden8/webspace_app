@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "یہ اپ ڈیٹ انسٹال شدہ ورژن سے زیادہ مانگتی ہے۔ اسے چلانے والی ہر سائٹ پر اسے یہ بھی ملتا ہے، پھر بھی صرف اسی سائٹ کے اپنے صفحات پر:",
   "extensionsUpdated": "{name} کو {version} پر اپ ڈیٹ کر دیا گیا",
   "extensionsSearch": "addons.mozilla.org پر تلاش کریں",
-  "extensionsSearchSubtitle": "ہر نتیجہ بتاتا ہے کہ WebKit اسے کتنی اچھی طرح چلاتا ہے",
   "extensionsSearchHint": "addons.mozilla.org سے Firefox ایکسٹینشنز کی فہرست دکھاتا ہے، کسی کو چھپائے بغیر۔ ہر ایک بتاتی ہے کہ آیا WebKit اسے چلاتا ہے: “چلتی ہے” جب WebKit وہ سب کچھ سپورٹ کرتا ہے جو یہ مانگتی ہے، “جزوی طور پر چلتی ہے” جب یہ کچھ ایسا مانگتی ہے جو WebKit میں نہیں ہے، “نامعلوم” جب فہرست میں یہ نہیں بتایا گیا۔ کسی ایک کو شامل کرنا اس کے لنک سے شامل کرنے جیسا ہی ہے۔ صرف App Store کے باہر کے بلڈز میں دستیاب۔",
   "extensionsSearchField": "ایکسٹینشنز تلاش کریں",
   "extensionsSearchRecommended": "صرف تجویز کردہ",

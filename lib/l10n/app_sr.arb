@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Ово ажурирање тражи више од инсталиране верзије. То добија и на сваком сајту који га покреће, и даље само на страницама тог сајта:",
   "extensionsUpdated": "Ажурирано: {name} на {version}",
   "extensionsSearch": "Претражи addons.mozilla.org",
-  "extensionsSearchSubtitle": "Сваки резултат показује колико га добро WebKit покреће",
   "extensionsSearchHint": "Приказује проширења за Firefox са addons.mozilla.org, ниједно скривено. Уз свако пише да ли га WebKit покреће: „Ради“ када WebKit подржава све што тражи, „Делимично ради“ када тражи нешто што WebKit нема, „Непознато“ када опис то не наводи. Додавање ради као додавање преко његове везе. Нуди се само у верзијама апликације ван App Store-а.",
   "extensionsSearchField": "Претражи проширења",
   "extensionsSearchRecommended": "Само препоручена",

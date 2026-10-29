@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Diese Aktualisierung fordert mehr an als die installierte Version. Auf jeder Website, die die Erweiterung ausführt, erhält sie das ebenfalls, weiterhin nur für die Seiten dieser Website:",
   "extensionsUpdated": "{name} auf {version} aktualisiert",
   "extensionsSearch": "addons.mozilla.org durchsuchen",
-  "extensionsSearchSubtitle": "Jedes Ergebnis zeigt, wie gut WebKit es ausführt",
   "extensionsSearchHint": "Listet Firefox-Erweiterungen von addons.mozilla.org auf, ohne eine auszublenden. Bei jeder steht, ob WebKit sie ausführt: „Läuft“, wenn WebKit alles unterstützt, was sie anfordert, „Läuft teilweise“, wenn sie etwas anfordert, das WebKit fehlt, „Unbekannt“, wenn der Eintrag es nicht angibt. Das Hinzufügen funktioniert wie über ihren Link. Nur in Builds außerhalb des App Store verfügbar.",
   "extensionsSearchField": "Erweiterungen suchen",
   "extensionsSearchRecommended": "Nur empfohlene",

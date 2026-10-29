@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Ky përditësim kërkon më shumë se versioni i instaluar. Çdo sajt që e ekzekuton ia jep edhe këtë, përsëri vetëm në faqet e atij sajti:",
   "extensionsUpdated": "{name} u përditësua në {version}",
   "extensionsSearch": "Kërko në addons.mozilla.org",
-  "extensionsSearchSubtitle": "Çdo rezultat tregon sa mirë e ekzekuton WebKit",
   "extensionsSearchHint": "Liston shtesa të Firefox nga addons.mozilla.org, pa fshehur asnjë. Secila tregon nëse WebKit e ekzekuton: „Funksionon“ kur WebKit mbështet gjithçka që kërkon, „Funksionon pjesërisht“ kur kërkon diçka që i mungon WebKit, „E panjohur“ kur përshkrimi nuk e thotë. Shtimi i njërës funksionon si shtimi nga lidhja e saj. Ofrohet vetëm në versione jashtë App Store.",
   "extensionsSearchField": "Kërko shtesa",
   "extensionsSearchRecommended": "Vetëm të rekomanduarat",

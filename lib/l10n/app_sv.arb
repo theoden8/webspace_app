@@ -1193,7 +1193,6 @@
   "extensionsUpdateAsksBody": "Den här uppdateringen begär mer än den installerade versionen. Varje webbplats som kör det ger det även detta, fortfarande bara på den webbplatsens sidor:",
   "extensionsUpdated": "{name} har uppdaterats till {version}",
   "extensionsSearch": "Sök på addons.mozilla.org",
-  "extensionsSearchSubtitle": "Varje resultat visar hur väl WebKit kör det",
   "extensionsSearchHint": "Listar Firefox-tillägg från addons.mozilla.org, utan att dölja något. Vid varje anges om WebKit kör det: ”Fungerar” när WebKit stöder allt det begär, ”Fungerar delvis” när det begär något som WebKit saknar, ”Okänt” när beskrivningen inte säger det. Att lägga till ett fungerar som att lägga till det från dess länk. Erbjuds bara i versioner utanför App Store.",
   "extensionsSearchField": "Sök efter tillägg",
   "extensionsSearchRecommended": "Endast rekommenderade",
