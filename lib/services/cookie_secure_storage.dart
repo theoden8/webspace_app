@@ -59,8 +59,8 @@ class CookieSecureStorage {
   }
 
   /// [loadCookies] for a mutator already in the store's turn.
+  @Held(#_writes)
   Future<Map<String, List<Cookie>>> _loadCookiesHeld() async {
-    assert(_writes.isHeld, 'the cookie store read for a write outside its turn');
     final result = await _read();
     if (result.isNotEmpty) return result;
     final legacy = await _loadLegacyFromSharedPreferences();
@@ -69,6 +69,7 @@ class CookieSecureStorage {
     return legacy;
   }
 
+  @Held(#_writes)
   Future<void> _migrateHeld(Map<String, List<Cookie>> legacy) async {
     await _saveCookiesHeld(legacy);
     await _markMigrationComplete();
@@ -114,8 +115,8 @@ class CookieSecureStorage {
     return _writes.run(() => _saveCookiesHeld(build()));
   }
 
+  @Held(#_writes)
   Future<void> _saveCookiesHeld(Map<String, List<Cookie>> cookiesByUrl) async {
-    assert(_writes.isHeld, 'the cookie store written outside its turn');
     if (isDemoMode) return;
 
     final Map<String, List<Cookie>> secure = {};

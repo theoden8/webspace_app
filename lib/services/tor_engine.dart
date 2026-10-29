@@ -671,8 +671,8 @@ class TorEngine {
   /// Runs in [_pins], as a pin change does: an answer to one GETINFO can
   /// land in another's reply slot on the shared control connection, and a
   /// pin change reads `ip-to-country/ipv4-available`, which also answers 1.
+  @Held(#_pins)
   Future<bool> _circuitBuilt(TorUp up) async {
-    assert(_pins.isHeld, 'the circuit is asked in the pin queue');
     final owed = _circuitOwed!;
     bool superseded() =>
         _disposed || !identical(_runtimeUp, up) || !identical(_circuitOwed, owed);
@@ -902,6 +902,7 @@ class TorEngine {
   /// reopen owes, then the exit pin asked for.
   Future<void> _settleUp() => _pins.run(_settle);
 
+  @Held(#_pins)
   Future<void> _settle() async {
     final up = _runtimeUp;
     if (up == null || _disposed) return;

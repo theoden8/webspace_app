@@ -122,8 +122,8 @@ class ArchiveController {
   Future<ArchiveHandle> create(String passphrase) =>
       _ops.run(() => _createHeld(passphrase));
 
+  @Held(#_ops)
   Future<ArchiveHandle?> _openHeld(String passphrase) async {
-    assert(_ops.isHeld, 'an archive opened outside its turn');
     final handle = await _archive.tryOpen(passphrase);
     if (handle == null) return null;
     if (_slices.containsKey(handle)) return handle;
@@ -131,8 +131,8 @@ class ArchiveController {
     return handle;
   }
 
+  @Held(#_ops)
   Future<ArchiveHandle> _createHeld(String passphrase) async {
-    assert(_ops.isHeld, 'an archive created outside its turn');
     final handle = await _archive.create(passphrase);
     await _materialise(handle);
     return handle;
@@ -200,8 +200,8 @@ class ArchiveController {
   Future<bool> close(ArchiveHandle handle) =>
       _ops.run(() => _closeHeld(handle));
 
+  @Held(#_ops)
   Future<bool> _closeHeld(ArchiveHandle handle) async {
-    assert(_ops.isHeld, 'an archive closed outside its turn');
     final slice = _slices[handle];
     if (slice == null) return true;
     final flow = CloseFlow._(this, handle: handle, slice: slice);
@@ -280,9 +280,9 @@ class ArchiveController {
     }
   }
 
+  @Held(#_ops)
   Future<void> _moveInHeld(WebViewModel model,
       {required ArchiveHandle into}) async {
-    assert(_ops.isHeld, 'a site moved into an archive outside its turn');
     final target = into;
     // A turn since the prompt: the site may have moved or gone meanwhile.
     if (!_host.mounted || model.isArchiveTier || !_sites.models.contains(model)) {
@@ -341,6 +341,8 @@ class ArchiveController {
   /// settled so it names no app-tier site, and before the app tier drops it.
   Future<void> recordIn(WebViewModel site,
       {required ArchiveHandle into}) async {
+    // Reached from _moveInHeld through SiteSetCommit's host, a hop no
+    // static turn follows, so the turn is asserted here (rung 2).
     assert(_ops.isHeld, 'an archived copy written outside the move\'s turn');
     into.state.sites.add(site.toArchiveJson());
     // Which app-tier collections the site came from: the runtime lists keep
@@ -363,8 +365,8 @@ class ArchiveController {
         await _moveOutHeld(model);
       });
 
+  @Held(#_ops)
   Future<void> _moveOutHeld(WebViewModel model) async {
-    assert(_ops.isHeld, 'a site moved out of an archive outside its turn');
     if (!model.isArchiveTier) return;
     final handle = archiveOf(model);
     if (handle == null) return;

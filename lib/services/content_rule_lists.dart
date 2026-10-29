@@ -120,13 +120,13 @@ class ContentRuleLists {
     }
   }
 
+  @Held(#_compiles)
   Future<void> _compile({
     required RuleSetKey key,
     required List<RuleListId> stale,
     required Future<String> Function() rulesText,
     required int generation,
   }) async {
-    assert(_compiles.isHeld, 'a rule set compiled outside its turn');
     if (generation != _generation) return;
     final sw = Stopwatch()..start();
     final lists = await convert(await rulesText());

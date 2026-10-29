@@ -473,6 +473,7 @@ class LocalCdnService {
     });
   }
 
+  @Held(#_edits)
   Future<void> _loadCacheIndex() async {
     final prefs = await SharedPreferences.getInstance();
     final indexJson = prefs.getString('localcdn_cache_index');
@@ -503,8 +504,8 @@ class LocalCdnService {
   /// Save cache index to SharedPreferences and notify listeners. Every
   /// mutation to [_cache] should go through this so the native interceptor
   /// bridge can keep its copy in sync.
+  @Held(#_edits)
   Future<void> _saveCacheIndex() async {
-    assert(_edits.isHeld, 'the LocalCDN index written outside an edit turn');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('localcdn_cache_index', jsonEncode(_cache));
     _notifyCacheChanged();

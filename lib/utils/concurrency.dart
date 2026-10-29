@@ -111,9 +111,9 @@ abstract final class LockOrder {
 /// instance field only that instance.
 ///
 /// It is not re-entrant: a task that waits on its own queue never ends
-/// ([LockOrder]). Work a task needs done inside its own turn is a function the
-/// task calls, which asserts [isHeld]; [enqueue] puts work behind the running
-/// task without waiting for it.
+/// ([LockOrder]). Work a task needs done inside its own turn is a member the
+/// task calls, marked [Held]; [enqueue] puts work behind the running task
+/// without waiting for it.
 final class SerialQueue {
   SerialQueue(this.name);
 
@@ -148,6 +148,17 @@ final class SerialQueue {
           if (identical(_tail, mine)) _tail = null;
         });
   }
+}
+
+/// Marks a member that runs only inside the turn of [queue], a [SerialQueue]
+/// of its class or library: `webspace_lints`' `held_in_turn` rule accepts a
+/// call to it only in a closure handed to that queue's [SerialQueue.run] or
+/// [SerialQueue.enqueue], or in another member held in it, on the same object,
+/// with its future awaited or returned.
+final class Held {
+  const Held(this.queue);
+
+  final Symbol queue;
 }
 
 /// Shares one in-flight call per key among concurrent callers.
