@@ -376,12 +376,18 @@ App Settings > Extensions SHALL add an extension from a link to its addons.mozil
 
 ### Requirement: WEBEXT-018 - Updates are checked; one installs when the user asks
 
-For each extension with a source the app SHALL check the source's latest release at most once a day, without downloading it, and mark the entry when that release's version is newer than the installed one, comparing versions part by part as browsers do. Installing an update SHALL replace the extension's files and keep its id, so every site that runs it keeps it, with its data. An update whose manifest asks for a permission or a host the installed version did not SHALL show what it adds and install only once the user accepts.
+For each extension with a source the app SHALL check the source's latest release when the user asks, and at most once a day only where the user switched daily checks on. Daily checks SHALL be off by default: until the user switches them on or asks for a check, the app SHALL send an extension's source no request it did not add the extension with. A check SHALL download no package, and SHALL mark the entry when that release's version is newer than the installed one, comparing versions part by part as browsers do. Installing an update SHALL replace the extension's files and keep its id, so every site that runs it keeps it, with its data. An update whose manifest asks for a permission or a host the installed version did not SHALL show what it adds and install only once the user accepts.
+
+#### Scenario: Daily checks off
+
+- **GIVEN** an extension added from a link, and daily checks off, as they are by default
+- **WHEN** the app launches and the user opens App Settings > Extensions
+- **THEN** no request reaches the extension's source
 
 #### Scenario: A newer release
 
 - **GIVEN** an extension at version 1.9 whose source's latest release is 1.10
-- **WHEN** the check runs
+- **WHEN** the user asks for a check, or the daily check runs with daily checks on
 - **THEN** its entry says 1.10 is available
 
 #### Scenario: An update keeps the sites
@@ -398,7 +404,7 @@ For each extension with a source the app SHALL check the source's latest release
 
 ### Requirement: WEBEXT-019 - Search, and installs without asking, only outside the App Store
 
-A build installed outside the App Store (macOS without a Mac App Store receipt) SHALL offer, in App Settings > Extensions, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new without asking. An App Store build (iOS, and macOS with a receipt) SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own.
+A build installed outside the App Store (macOS without a Mac App Store receipt) SHALL offer, in App Settings > Extensions, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build (iOS, and macOS with a receipt) SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own.
 
 #### Scenario: A build from the App Store
 

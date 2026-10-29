@@ -87,6 +87,26 @@ final class UpdateNotAPackage extends UpdatePrepared {
   final PackageRefusal why;
 }
 
+/// Why the sources are read (WEBEXT-018): the user asked, or the daily
+/// check, which reads nothing until the user switches it on.
+enum CheckReason {
+  asked,
+  daily;
+
+  /// Whether a check for this reason reads [entry]'s source at [now].
+  bool reads(WebExtensionEntry entry, {required DateTime now}) =>
+      switch (this) {
+        asked => true,
+        daily =>
+          AppPref.webExtensionsCheckUpdates.value &&
+              checkDue(lastChecked: entry.checkedAt, now: now),
+      };
+}
+
+/// What a check found: how many entries have a newer version, and how many
+/// sources could not be read.
+typedef UpdatesFound = ({int updates, int unreachable});
+
 /// [readExtensionPackage], run where it does not hold up the frame.
 typedef ReadPackage = Future<PackageRead> Function(Uint8List bytes);
 
@@ -263,7 +283,7 @@ class WebExtensionLibrary {
     _publish(entries);
     unawaited(_inspect(_installed.value));
     if (webExtensionsOffered) {
-      unawaited(checkUpdates(now: DateTime.now()));
+      unawaited(checkUpdates(now: DateTime.now(), because: CheckReason.daily));
     }
   }
 
@@ -378,10 +398,7 @@ class WebExtensionLibrary {
 
   /// [candidate] downloaded and read as WEBEXT-013 says.
   Future<SourceFetch<PackageRead>> download(PackageCandidate candidate) async {
-    switch (await _fetch(
-      candidate.url,
-      maxBytes: PackageLimits.packageBytes,
-    )) {
+    switch (await _fetch(candidate.url, maxBytes: PackageLimits.packageBytes)) {
       case FetchRefused(:final reason) || FetchFailed(:final reason):
         return SourceFailed(reason);
       case Fetched(:final response):
@@ -389,15 +406,17 @@ class WebExtensionLibrary {
     }
   }
 
-  /// Reads the source of each extension added from a link whose last read
-  /// is a day old or more, and marks those with a newer release
-  /// (WEBEXT-018). A source that cannot be reached is read again next time.
-  Future<void> checkUpdates({required DateTime now}) async {
+  /// Reads the source of each extension added from a link that a check
+  /// [because] reads, and marks those with a newer release (WEBEXT-018). A
+  /// source that cannot be reached is read again next time.
+  Future<UpdatesFound> checkUpdates({
+    required DateTime now,
+    required CheckReason because,
+  }) async {
+    var unreachable = 0;
     for (final (:entry, folder: _) in _installed.value) {
       final source = entry.source;
-      if (source == null || !checkDue(lastChecked: entry.checkedAt, now: now)) {
-        continue;
-      }
+      if (source == null || !because.reads(entry, now: now)) continue;
       final SourceFetch<ReleaseRead> read = await latest(source);
       final checked = switch (read) {
         SourceFailed() => null,
@@ -413,12 +432,19 @@ class WebExtensionLibrary {
           CheckFailed() => entry.withCheck(at: now, latest: entry.latest),
         },
       };
-      if (checked == null) continue;
+      if (checked == null) {
+        unreachable++;
+        continue;
+      }
       await _replaceEntry(checked);
       if (checked.latest != null && installsWithoutAsking) {
         await _installQuietly(checked.id);
       }
     }
+    return (
+      updates: _installed.value.where((e) => e.entry.latest != null).length,
+      unreachable: unreachable,
+    );
   }
 
   /// Whether an update that asks for nothing new installs as soon as a

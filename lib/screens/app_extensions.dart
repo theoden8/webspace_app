@@ -61,7 +61,32 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_library.checkUpdates(now: DateTime.now()));
+    unawaited(
+      _library.checkUpdates(now: DateTime.now(), because: CheckReason.daily),
+    );
+  }
+
+  /// Reads every extension's source now, as the user asked (WEBEXT-018).
+  Future<void> _checkNow() async {
+    await _guard.run(() async {
+      final loc = AppLocalizations.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      setState(() => _reading = true);
+      try {
+        final (:updates, :unreachable) = await _library.checkUpdates(
+          now: DateTime.now(),
+          because: CheckReason.asked,
+        );
+        messenger.toast(
+          [
+            loc.extensionsUpdatesFound(updates),
+            if (unreachable > 0) loc.extensionsSourcesUnreachable(unreachable),
+          ].join('\n'),
+        );
+      } finally {
+        if (mounted) setState(() => _reading = false);
+      }
+    });
   }
 
   /// Adds an extension from a link to its listing or repository
@@ -266,7 +291,7 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
                 onTap: () => unawaited(_addFromLink()),
               ),
             ),
-            if (hostDistribution == AppDistribution.direct) ...[
+            if (hostDistribution == AppDistribution.direct)
               SettingTile(
                 leading: const Icon(Icons.search),
                 title: loc.extensionsSearch,
@@ -274,13 +299,19 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
                 subtitle: loc.extensionsSearchSubtitle,
                 control: Opens(() => unawaited(_addFromSearch())),
               ),
+            SettingTile(
+              leading: const Icon(Icons.update),
+              title: loc.extensionsCheckDaily,
+              hint: loc.extensionsCheckDailyHint,
+              control: const PrefToggle(AppPref.webExtensionsCheckUpdates),
+            ),
+            if (hostDistribution == AppDistribution.direct)
               SettingTile(
                 leading: const Icon(Icons.system_update_alt),
                 title: loc.extensionsAutoUpdate,
                 hint: loc.extensionsAutoUpdateHint,
                 control: const PrefToggle(AppPref.webExtensionsAutoUpdate),
               ),
-            ],
             if (_reading)
               Semantics(
                 label: loc.extensionsReading,
@@ -288,6 +319,16 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
               ),
             if (_library.installed.value.isNotEmpty)
               SettingsSection(loc.extensionsLibrary),
+            if (_library.installed.value.any((e) => e.entry.source != null))
+              SettingTile(
+                leading: const Icon(Icons.refresh),
+                title: loc.extensionsCheckNow,
+                hint: null,
+                control: Trailing(
+                  const Icon(Icons.refresh),
+                  onTap: _reading ? null : () => unawaited(_checkNow()),
+                ),
+              ),
             for (final (:entry, folder: _) in _library.installed.value)
               _entryTile(entry, loc: loc),
           ],

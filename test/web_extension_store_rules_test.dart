@@ -148,7 +148,10 @@ void main() {
       await AppPref.webExtensionsAutoUpdate.set(true);
       await addAt(version: '3.9');
       fetch.files[_amoFile] = _packageBytes(version: '3.24.2');
-      await _library.checkUpdates(now: DateTime.utc(2026, 10, 28));
+      await _library.checkUpdates(
+        now: DateTime.utc(2026, 10, 28),
+        because: CheckReason.asked,
+      );
       final entry = _library.installed.value.single.entry;
       expect(entry.version, '3.24.2');
       expect(entry.latest, isNull);
@@ -162,7 +165,10 @@ void main() {
         version: '3.24.2',
         permissions: ['storage', 'cookies'],
       );
-      await _library.checkUpdates(now: DateTime.utc(2026, 10, 28));
+      await _library.checkUpdates(
+        now: DateTime.utc(2026, 10, 28),
+        because: CheckReason.asked,
+      );
       final entry = _library.installed.value.single.entry;
       expect(entry.version, '3.9');
       expect(entry.latest, '3.24.2');
@@ -174,7 +180,10 @@ void main() {
       await AppPref.webExtensionsAutoUpdate.set(true);
       await addAt(version: '3.9');
       fetch.files[_amoFile] = _packageBytes(version: '3.24.2');
-      await _library.checkUpdates(now: DateTime.utc(2026, 10, 28));
+      await _library.checkUpdates(
+        now: DateTime.utc(2026, 10, 28),
+        because: CheckReason.asked,
+      );
       final entry = _library.installed.value.single.entry;
       expect(entry.version, '3.9');
       expect(entry.latest, '3.24.2');

@@ -244,6 +244,7 @@
     "experimentalFolderLibrary": true,
     "experimentalSignInPopups": true,
     "experimentalWebExtensions": true,
+    "webExtensionsCheckUpdates": true,
     "webExtensionsAutoUpdate": true,
     "experimentalDesktopTray": true,
     "experimentalSiteTabs": true,

@@ -13,6 +13,7 @@ import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_source.dart';
 import 'package:webspace/web_view_model.dart';
@@ -60,6 +61,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    AppPref.loadAll(await SharedPreferences.getInstance());
     debugHostRunsWebExtensions = true;
     DeveloperModeService.instance.debugSet(on: true);
     ExperimentalFeaturesService.instance.debugSet(
@@ -152,8 +154,9 @@ void main() {
         'remembers the kind picked', (tester) async {
       fetch.replies[_gitHubQuery] = extReleaseReply();
       fetch.files['https://github.com/example-dev/ext/releases/download/'
-              'v2.1.0/ext-2.1.0.crx'] =
-          _packageBytes(version: '2.1.0');
+          'v2.1.0/ext-2.1.0.crx'] = _packageBytes(
+        version: '2.1.0',
+      );
       await pumpLocalized(
         tester,
         home: AppExtensionsScreen(pick: () async => null),
@@ -187,14 +190,35 @@ void main() {
     });
   });
 
-  group('WEBEXT-018 updates are checked once a day; one installs when asked',
-      () {
-    test('a newer release marks the entry, and a check the same day reads '
-        'nothing', () async {
+  group('WEBEXT-018 updates are checked when the user asks, and daily only '
+      'once switched on; one installs when asked', () {
+    test('with daily checks off, a launch sends a source nothing', () async {
+      await addFromListing(version: '3.9');
+      fetch.asked.clear();
+      await relaunch();
+      await pumpEventQueue();
+      await _library.checkUpdates(
+        now: DateTime.utc(2026, 10, 28),
+        because: CheckReason.daily,
+      );
+      expect(fetch.asked, isEmpty);
+      expect(_library.installed.value.single.entry.checkedAt, isNull);
+
+      await AppPref.webExtensionsCheckUpdates.set(true);
+      await relaunch();
+      await pumpEventQueue();
+      expect(fetch.asked.map((u) => '$u'), [
+        _amoQuery,
+      ], reason: 'switched on, a launch checks');
+    });
+
+    test('switched on, a newer release marks the entry, and a check the same '
+        'day reads nothing', () async {
+      await AppPref.webExtensionsCheckUpdates.set(true);
       final entry = await addFromListing(version: '3.9');
       fetch.asked.clear();
       final morning = DateTime.utc(2026, 10, 28, 9);
-      await _library.checkUpdates(now: morning);
+      await _library.checkUpdates(now: morning, because: CheckReason.daily);
       expect(fetch.asked.map((u) => '$u'), [_amoQuery]);
       final checked = _library.installed.value.single.entry;
       expect(checked.latest, '3.24.2');
@@ -202,22 +226,68 @@ void main() {
       expect(checked.id, entry.id);
 
       fetch.asked.clear();
-      await _library.checkUpdates(now: morning.add(const Duration(hours: 5)));
+      await _library.checkUpdates(
+        now: morning.add(const Duration(hours: 5)),
+        because: CheckReason.daily,
+      );
       expect(fetch.asked, isEmpty);
+    });
+
+    test('a check the user asks for reads every source, due or not, and '
+        'counts what it found', () async {
+      await addFromListing(version: '3.9');
+      fetch.asked.clear();
+      final now = DateTime.utc(2026, 10, 28, 9);
+      expect(
+        await _library.checkUpdates(now: now, because: CheckReason.asked),
+        (updates: 1, unreachable: 0),
+      );
+      expect(
+        await _library.checkUpdates(now: now, because: CheckReason.asked),
+        (updates: 1, unreachable: 0),
+      );
+      expect(fetch.asked.map((u) => '$u'), [_amoQuery, _amoQuery]);
     });
 
     test('a source that cannot be reached is read again next time', () async {
       await addFromListing(version: '3.9');
       fetch.failing = 'timed out';
-      await _library.checkUpdates(now: DateTime.utc(2026, 10, 28));
+      expect(
+        await _library.checkUpdates(
+          now: DateTime.utc(2026, 10, 28),
+          because: CheckReason.asked,
+        ),
+        (updates: 0, unreachable: 1),
+      );
       expect(_library.installed.value.single.entry.checkedAt, isNull);
+    });
+
+    testWidgets('the screen checks when asked and says what it found', (
+      tester,
+    ) async {
+      await addFromListing(version: '3.9');
+      fetch.asked.clear();
+      await pumpLocalized(
+        tester,
+        home: AppExtensionsScreen(pick: () async => null),
+      );
+      await tester.pumpAndSettle();
+      expect(fetch.asked, isEmpty, reason: 'opening it sends nothing');
+      await tester.tap(find.text('Check for updates'));
+      await tester.pumpAndSettle();
+      expect(fetch.asked.map((u) => '$u'), [_amoQuery]);
+      expect(find.text('1 update available'), findsOneWidget);
+      expect(find.text('Version 3.9 · 3.24.2 available'), findsOneWidget);
     });
 
     test('an update keeps its id, its default and its sites, and loads '
         'again as a new revision', () async {
       final entry = await addFromListing(version: '3.9');
       await _library.setEverySite(entry.id, on: true);
-      await _library.checkUpdates(now: DateTime.utc(2026, 10, 28));
+      await _library.checkUpdates(
+        now: DateTime.utc(2026, 10, 28),
+        because: CheckReason.asked,
+      );
       final site = WebViewModel(initUrl: 'https://mail.example.com/');
       final before = (site.extensionPlan as AttachExtensions).loads.single;
       expect(before.revision, '3.9');
@@ -268,15 +338,20 @@ void main() {
     testWidgets('the entry screen shows the source and the update, and an '
         'update asking for more waits for the user', (tester) async {
       final entry = await addFromListing(version: '3.9');
-      await _library.checkUpdates(now: DateTime.utc(2026, 10, 28));
+      await _library.checkUpdates(
+        now: DateTime.utc(2026, 10, 28),
+        because: CheckReason.asked,
+      );
       fetch.files[_amoFile] = _packageBytes(
         version: '3.24.2',
         permissions: ['storage', 'cookies'],
       );
       await pumpLocalized(tester, home: ExtensionEntryScreen(id: entry.id));
       await tester.pumpAndSettle();
-      expect(find.textContaining('addons.mozilla.org/firefox/addon/adnauseam'),
-          findsOneWidget);
+      expect(
+        find.textContaining('addons.mozilla.org/firefox/addon/adnauseam'),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Update to 3.24.2'));
       await tester.pumpAndSettle();
       expect(find.text('Update AdNauseam?'), findsOneWidget);

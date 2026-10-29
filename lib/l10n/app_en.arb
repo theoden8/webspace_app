@@ -5787,11 +5787,41 @@
   },
   "extensionsAutoUpdate": "Install updates without asking",
   "@extensionsAutoUpdate": {
-    "description": "Switch on the Extensions screen: install an extension's update as soon as the daily check finds it."
+    "description": "Switch on the Extensions screen: install an extension's update as soon as a check finds it."
   },
-  "extensionsAutoUpdateHint": "Installs an extension's update as soon as the daily check finds it. An update that asks for more than the installed version still waits for you. Offered only in builds from outside the App Store.",
+  "extensionsAutoUpdateHint": "Installs an extension's update as soon as a check finds it. An update that asks for more than the installed version still waits for you. Offered only in builds from outside the App Store.",
   "@extensionsAutoUpdateHint": {
     "description": "Explanation behind the hint button of the Install updates without asking switch."
+  },
+  "extensionsCheckDaily": "Check for updates daily",
+  "@extensionsCheckDaily": {
+    "description": "Switch on the Extensions screen: once a day, ask the website each extension was added from whether it has a newer version. Off by default."
+  },
+  "extensionsCheckDailyHint": "Once a day, asks addons.mozilla.org or GitHub whether each extension added from a link has a newer version. It downloads nothing. While this is off, the app sends them nothing until you check.",
+  "@extensionsCheckDailyHint": {
+    "description": "Explanation behind the hint button of the Check for updates daily switch."
+  },
+  "extensionsCheckNow": "Check for updates",
+  "@extensionsCheckNow": {
+    "description": "Row on the Extensions screen that asks, now, whether each extension added from a link has a newer version."
+  },
+  "extensionsUpdatesFound": "{count, plural, =0{No updates} =1{1 update available} other{{count} updates available}}",
+  "@extensionsUpdatesFound": {
+    "description": "Message after checking extensions for updates: how many extensions have a newer version.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extensionsSourcesUnreachable": "{count, plural, =1{1 source could not be reached} other{{count} sources could not be reached}}",
+  "@extensionsSourcesUnreachable": {
+    "description": "Second line of the message after checking extensions for updates: how many of the websites the extensions came from did not answer.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "extensionsLibrary": "Imported",
   "@extensionsLibrary": {

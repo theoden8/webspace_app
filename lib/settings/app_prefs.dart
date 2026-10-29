@@ -78,6 +78,9 @@ enum AppPref<T extends Object> {
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),
   experimentalSignInPopups('experimentalSignInPopups', fallback: false),
   experimentalWebExtensions('experimentalWebExtensions', fallback: false),
+  // WEBEXT-018: the daily check of each extension's source. Off: no request
+  // reaches a source the user did not ask to check.
+  webExtensionsCheckUpdates('webExtensionsCheckUpdates', fallback: false),
   // WEBEXT-019: offered only in a build from outside the App Store.
   webExtensionsAutoUpdate('webExtensionsAutoUpdate', fallback: false),
   experimentalDesktopTray('experimentalDesktopTray', fallback: false),
