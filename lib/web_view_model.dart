@@ -1753,7 +1753,7 @@ bool dispatch(NavigationDecision decision,
   /// The webview and its controller go, and with them what they held: the
   /// route, once [quiet] has stopped what the page loads (at once with
   /// nothing to stop), the tab the webview was built for, the resume
-  /// reload, and the site's media session.
+  /// reload, the site's media session and its screen share.
   void _letGoOfWebView({
     required Future<void> Function()? quiet,
     required Commit commit,
