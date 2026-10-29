@@ -48,7 +48,7 @@ final Map<String, Widget Function()> _subjects = {
   'setting-toggle (inherited)': () => SettingTile(
         title: 'Tabs',
         hint: 'Each site opens links in tabs of its own.',
-        control: ScopedToggle(true,
+        control: ScopedToggle(value: true,
             choice: const FollowApp(),
             source: FollowSource.app,
             onChoice: (_) {}),
@@ -56,7 +56,7 @@ final Map<String, Widget Function()> _subjects = {
   'setting-toggle (override)': () => SettingTile(
         title: 'Tabs',
         hint: 'Each site opens links in tabs of its own.',
-        control: ScopedToggle(true,
+        control: ScopedToggle(value: true,
             choice: const Own(true),
             source: FollowSource.app,
             onChoice: (_) {}),

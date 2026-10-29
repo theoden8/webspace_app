@@ -93,7 +93,7 @@ sealed class SettingControl {
 }
 
 final class Toggle extends SettingControl {
-  const Toggle(this.value, {required this.onChanged});
+  const Toggle({required this.value, required this.onChanged});
 
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -105,7 +105,8 @@ final class Toggle extends SettingControl {
 /// long press moves between following and keeping the shown value as the
 /// site's own, so it never flips the switch.
 final class ScopedToggle extends SettingControl {
-  const ScopedToggle(this.value, {
+  const ScopedToggle({
+    required this.value,
     required this.choice,
     required this.source,
     required this.onChoice,

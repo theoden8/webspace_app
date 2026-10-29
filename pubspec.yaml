@@ -109,8 +109,8 @@ dev_dependencies:
   # test/cookie_channel_test.dart registers the macOS one on a macOS host,
   # where the jar is read whole the Apple way.
   flutter_inappwebview_macos: any
-  # test/named_arguments_test.dart parses every Dart source to hold CLAUDE.md
-  # rule 2 (named arguments past the first).
+  # The source gates (test/declare_to_use_test.dart, port_reads_test.dart,
+  # rows_across_awaits_test.dart) parse Dart sources with it.
   analyzer: ^10.0.1
 
 # Per-site container isolation requires APIs not present in upstream

@@ -14,19 +14,19 @@ import 'package:webspace/settings/scoped.dart';
 /// the user's own choice rather than resetting it.
 enum TrackingProtectionForce {
   /// ETP-002: the four list-based blockers.
-  clearUrls(true),
-  dnsBlock(true),
-  contentBlock(true),
-  localCdn(true),
+  clearUrls(forcedTo: true),
+  dnsBlock(forcedTo: true),
+  contentBlock(forcedTo: true),
+  localCdn(forcedTo: true),
 
   /// ETP-030: turning the umbrella off to make a site work must not be what
   /// moves a login page to cleartext, so off leaves the stored value.
-  httpsUpgrade(true),
+  httpsUpgrade(forcedTo: true),
 
   /// ETP-024: the oldest cross-site tracking channel, forced off.
-  thirdPartyCookies(false);
+  thirdPartyCookies(forcedTo: false);
 
-  const TrackingProtectionForce(this.forcedTo);
+  const TrackingProtectionForce({required this.forcedTo});
 
   final bool forcedTo;
 

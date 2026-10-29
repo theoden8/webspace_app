@@ -1101,7 +1101,7 @@ IconButton zoomStep(IconData icon,
           SettingTile(
             title: loc.siteSettingsJavascriptEnabled,
             hint: null,
-            control: Toggle(_javascriptEnabled,
+            control: Toggle(value: _javascriptEnabled,
                 onChanged: (value) => setState(() => _javascriptEnabled = value)),
           ),
           Row(

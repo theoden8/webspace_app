@@ -57,7 +57,7 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
           leading: const Icon(Icons.security_outlined),
           title: loc.externalTor,
           hint: loc.externalTorHint,
-          control: Toggle(_switch, onChanged: _setSwitch),
+          control: Toggle(value: _switch, onChanged: _setSwitch),
         ),
         if (_switch)
           SettingTile(

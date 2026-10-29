@@ -1,0 +1,19 @@
+name: webspace_lints
+description: The analyzer rules CLAUDE.md's ladder puts above a source gate.
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+# analysis_server_plugin pins the analyzer it was built against, and the
+# analyzer moves in lockstep with the SDK: a Flutter bump that moves the SDK
+# past this analyzer moves both pins.
+dependencies:
+  analysis_server_plugin: 0.3.24
+  analyzer: 14.5.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  analyzer_testing: 0.4.3
+  test: ^1.33.0
+  test_reflective_loader: ^0.6.0

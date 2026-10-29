@@ -263,7 +263,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                   title: loc.torBridgesEnable,
                   hint: null,
                   lock: _busy ? const Lock.because(null) : null,
-                  control: Toggle(_config.enabled,
+                  control: Toggle(value: _config.enabled,
                       onChanged: (v) => _commit(_config.copyWith(enabled: v))),
                 ),
                 // Everything below the switch configures bridges, and with

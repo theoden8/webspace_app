@@ -120,7 +120,7 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                   hint: null,
                   subtitle: loc.extensionsVersion(entry.version),
                   control: Toggle(
-                    lock == null &&
+                    value: lock == null &&
                         widget.site.enabledWebExtensions.contains(entry.id),
                     onChanged: (on) => unawaited(_set(entry, on: on)),
                   ),
