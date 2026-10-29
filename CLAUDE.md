@@ -181,10 +181,13 @@ Health, monthly: `node tool/architecture_health.js` prints files per fix commit,
   to swallow. A parser of web content that rejects input with errors names them
   once, at its owner (`loadUntrustedSvg`). `avoid_catches_without_on_clauses` is an
   error in `analysis_options.yaml` and CI's `validate` job fails on analyzer errors,
-  so a bare `catch` does not land; which type a clause names no lint reads, so
-  [test/js/typed_catches.test.js](test/js/typed_catches.test.js) fails on a generic
-  `on` or `test:`, a stream `onError` that drops its error, and a `catchError`
-  without `test:` (rung 5).
+  so a bare `catch` does not land; which type a clause names is read by
+  `webspace_lints`' `catch_all` rule, which fails on a generic `on`, `test:` or
+  `onError<E>`, an error handler that never reads its error, a `catchError` or
+  `handleError` without `test:`, and a plain `Exception(...)`. A catch-all kept
+  on purpose is an `// ignore: webspace_lints/catch_all` listed with its reason
+  in [test/js/lint_ignores.test.js](test/js/lint_ignores.test.js), which holds
+  every ignore of the plugin's rules to a list that only shrinks.
 - **A future nobody awaits says so:** `unawaited(f())`. `unawaited_futures` and
   `discarded_futures` are errors too, so a dropped `await` (a test's missing
   `await tester.pump()` among them) fails the analyzer.

@@ -587,8 +587,10 @@ Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
       // Known to throw: TestFailure (an Exception) from the world's
       // invariants, AssertionError from an owner's assert, and the Errors a
       // bug raises. Each fails the schedule, unless it ended before them.
+      // ignore: webspace_lints/catch_all
     } on Exception catch (e) {
       finish(ended ?? _Broke(_reason(e)));
+      // ignore: webspace_lints/catch_all
     } on Error catch (e) {
       finish(ended ?? _Broke(_reason(e)));
     }

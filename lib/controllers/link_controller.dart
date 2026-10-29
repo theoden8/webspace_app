@@ -195,6 +195,7 @@ class LinkController {
           return;
         }
         await dispatchInbound(InboundUrl(parsed));
+        // ignore: webspace_lints/catch_all
       } on Exception catch (e, st) {
         LogTag.linkIntent.error(
             'share intent handler threw: $e\n$st', sensitive: true);

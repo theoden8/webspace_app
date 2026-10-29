@@ -74,6 +74,7 @@ class BackgroundTaskService {
                 message:
                     'background refresh handled in ${watch.elapsedMilliseconds}ms');
             success = true;
+            // ignore: webspace_lints/catch_all
           } on Exception catch (e, st) {
             // The message can quote a page URL; only its type is kept on disk.
             BackgroundLog.instance.record(

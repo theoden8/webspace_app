@@ -67,6 +67,7 @@ Future<T> _typed<T>(Future<T> handshake) async {
   } on TypeError catch (e) {
     // An address type it does not know fails its `!` (socks_client.dart:219).
     throw SocksHandshakeFailure('$e');
+    // ignore: webspace_lints/catch_all
   } on Exception catch (e) {
     // socks5_proxy 2.1.1 refuses a handshake with a plain Exception
     // (lib/src/client/socks_client.dart:139-208), which no narrower type names.

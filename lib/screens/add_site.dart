@@ -334,9 +334,6 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
           unawaited(FaviconUrlCache.set(widget.url, faviconUrl: url));
         }
       },
-      onError: (e) {
-        if (mounted) setState(() => _isLoading = false);
-      },
     );
   }
 
