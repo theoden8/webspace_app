@@ -214,14 +214,28 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
 
   String name;
   List<Cookie> cookies;
-  Widget? webview;
+
+  /// The site's webview, built by [getWebView] and let go of only through
+  /// [_letGoOfWebView], so what it holds goes with it; a test sets one.
+  Widget? get webview => _webview;
+  @visibleForTesting
+  set webview(Widget? built) => _webview = built;
+  Widget? _webview;
+
   /// The last main-frame navigation this site's webview refused to make
   /// because the app could not establish that it would go through the site's
   /// proxy (LEAK-010), or because it named an onion service and the site has
   /// none (LEAK-016). Drives the interstitial over the page; deliberately not
   /// persisted, since it describes one navigation and not the site.
   BlockedNavigation? blockedNavigation;
-  WebViewController? controller;
+
+  /// The controller of [webview], set as it is created and dropped with it;
+  /// a test sets a fake.
+  WebViewController? get controller => _controller;
+  @visibleForTesting
+  set controller(WebViewController? created) => _controller = created;
+  WebViewController? _controller;
+
   UserProxySettings proxySettings;
   bool javascriptEnabled;
   String userAgent;
@@ -1253,7 +1267,7 @@ bool dispatch(NavigationDecision decision,
       );
       _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
       final iconSiteUrl = id.initUrl;
-      webview = WebViewFactory.createWebView(
+      _webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
           posture: posture,
@@ -1478,7 +1492,7 @@ bool dispatch(NavigationDecision decision,
           LogTag.webView.debug(
               'onControllerCreated for "$name" (siteId: $siteId)',
               sensitive: true);
-          controller = ctrl;
+          _controller = ctrl;
           unawaited(setController());
           unawaited(pendingArchiveCookies.pushInto(ctrl));
           // Apply any state queued by the activation flow when this
@@ -1575,11 +1589,11 @@ bool dispatch(NavigationDecision decision,
   void handleRendererGone({required bool didCrash}) {
     LogTag.webView.debug(
         'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
-    webview = null;
-    controller = null;
-    ProcessRoute.instance.release(routeClaim.occupant);
-    tabBinding.unbind(commit: const Commit.unmodeled(Unmodeled.rendererGone));
-    resumeReload.reset();
+    // A dead renderer loads nothing more, so nothing is left to quiet.
+    _letGoOfWebView(
+      quiet: null,
+      commit: const Commit.unmodeled(Unmodeled.rendererGone),
+    );
     stateSetterF?.call();
   }
 
@@ -1717,11 +1731,20 @@ bool dispatch(NavigationDecision decision,
     LogTag.webView.debug(
         'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
         sensitive: true);
-    final gone = controller;
-    webview = null;
-    controller = null;
-    unawaited(ProcessRoute.instance
-        .leave(routeClaim.occupant, quiet: gone?.quiet));
+    _letGoOfWebView(quiet: controller?.quiet, commit: commit);
+  }
+
+  /// The webview and its controller go, and with them what they held: the
+  /// route, once [quiet] has stopped what the page loads (at once with
+  /// nothing to stop), the tab the webview was built for, the resume
+  /// reload, and the site's media session.
+  void _letGoOfWebView({
+    required Future<void> Function()? quiet,
+    required Commit commit,
+  }) {
+    _webview = null;
+    _controller = null;
+    unawaited(ProcessRoute.instance.leave(routeClaim.occupant, quiet: quiet));
     tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the

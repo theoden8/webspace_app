@@ -12,11 +12,13 @@ import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart' show SiteEdit;
 import 'package:webspace/controllers/site_set_commit.dart';
 
+import 'helpers/fake_webview_controller.dart';
 import 'helpers/model_fixture.dart';
 
 /// The page as the editing flows see it: mounted, and recording each
@@ -301,8 +303,13 @@ void main() {
         reason: 'a new name leaves the page loaded');
   });
 
+  /// The webview goes as any other does, with the tab it was built for: an
+  /// edit that only cleared the widget left the tab bound, the route held
+  /// and the page's media controls up, with no webview behind them.
   test('an edited URL rebuilds the webview at it (EDIT-004)', () async {
     site.webview = SizedBox.fromSize();
+    site.controller = FakeWebViewController();
+    site.tabBinding.bind(site.activeTabId, commit: const Commit.fixture());
     await controller(_Prompts((
       name: 'Example',
       url: 'https://newsite.com/',
@@ -312,6 +319,9 @@ void main() {
     expect(site.initUrl, 'https://newsite.com/');
     expect(site.currentUrl, 'https://newsite.com/');
     expect(site.webview, isNull, reason: 'the next build loads the new URL');
+    expect(site.controller, isNull);
+    expect(site.tabBinding.built, isNull,
+        reason: 'no webview is built for a tab until the next build');
     expect(host.commits.single, isA<SitesEdited>());
   });
 

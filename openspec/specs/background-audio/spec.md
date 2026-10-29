@@ -566,9 +566,11 @@ and gave a transport tap no route into the page. Consequences of owning it:
 - `isNotificationActive` is answered from `MPNowPlayingInfoCenter.default()
   .nowPlayingInfo != nil` (an OS read, not a local flag), keeping
   BGAUDIO-007's `notificationPosted()` meaningful on iOS.
-- `disposeWebView()` SHALL call `stopForSite`: the player the session spoke
-  for is gone with the webview, and stale controls whose buttons reach
-  nothing are exactly the symptom this requirement exists to remove.
+- A webview that goes SHALL call `stopForSite`, disposed (`disposeWebView`)
+  or with its renderer dead (`handleRendererGone`), through the one teardown
+  both take: the player the session spoke for is gone with the webview, and
+  stale controls whose buttons reach nothing are exactly the symptom this
+  requirement exists to remove.
 
 #### Scenario: Playback survives the app leaving the foreground
 
@@ -604,6 +606,15 @@ failures are reported
 **When** that site's webview is disposed
 **Then** `stopForSite` clears `nowPlayingInfo` and removes the remote command
 targets
+
+#### Scenario: A dead renderer clears the controls
+
+**Given** the media controls are up for a site playing in its webview
+**When** the renderer under that webview dies
+**Then** the webview goes through the same teardown as a disposed one, and
+`stopForSite` takes the controls down with it
+(regression test: `test/webview_renderer_gone_test.dart`, "the media controls
+its page put up (BGAUDIO-010)")
 
 #### Scenario: The bridge is armed on iOS
 

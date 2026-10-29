@@ -779,8 +779,8 @@ enum Unmodeled {
   siteSet,
 
   /// A loaded site's webview let go of so the frame builds it afresh: a
-  /// changed posture, proxy, user script or Tor binding, a data clear, a
-  /// reset.
+  /// changed posture, proxy, user script, Tor binding or address, a data
+  /// clear, a reset.
   rebuild,
 
   /// A site moved into an archive or back out, on the other tier's
