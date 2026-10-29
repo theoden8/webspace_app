@@ -228,11 +228,14 @@ String _end(WalkOutcome o) => switch (o) {
   WalkBroke(:final step, :final reason) => 'broken at $step ($reason)',
 };
 
-/// No limit while exploring with `WALK_SEEDS`, the default otherwise.
-Timeout? get walkTimeout =>
+/// No limit while exploring with `WALK_SEEDS`; otherwise two minutes. A
+/// crowd walk takes about 17 s alone, and a walk past the default 30 s on a
+/// busy machine keeps running into the next test, which then reports the
+/// two runs of its own seed as different.
+Timeout get walkTimeout =>
     (int.tryParse(Platform.environment['WALK_SEEDS'] ?? '') ?? 0) > 0
     ? Timeout.none
-    : null;
+    : const Timeout(Duration(minutes: 2));
 
 /// The seeds a walk test runs. CI runs [fixed], so a red run is always the
 /// change's. `WALK_SEED=n` runs that one seed alone, to reproduce a failure;

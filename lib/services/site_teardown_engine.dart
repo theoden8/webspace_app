@@ -67,7 +67,7 @@ class SiteTeardownEngine {
   static Future<SiteTeardownResult> quiesceOutgoing({
     required List<SiteTeardownStep> steps,
     required bool Function() superseded,
-    Duration budget = defaultBudget,
+    required Duration budget,
   }) async {
     final ran = <String>[];
     final failed = <String>[];

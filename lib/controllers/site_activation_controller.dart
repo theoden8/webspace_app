@@ -34,15 +34,20 @@ class SiteActivationController {
     required ResidencyHost residency,
     required WebViewStateStorage navStates,
     required SurfaceRepaintController surface,
+    Duration teardownBudget = SiteTeardownEngine.defaultBudget,
   }) : _host = host,
        _residency = residency,
        _navStates = navStates,
-       _surface = surface;
+       _surface = surface,
+       _teardownBudget = teardownBudget;
 
   final SiteRuntime _sites;
   final ActivationHost _host;
   final ResidencyHost _residency;
   final WebViewStateStorage _navStates;
+
+  /// How long a teardown waits on the site it leaves (NAV-010).
+  final Duration _teardownBudget;
 
   /// What this controller's flows reach of it ([ActivationFlow.reach]).
   late final ActivationReach _reach = (
@@ -368,6 +373,7 @@ class SiteActivationController {
     final result = await SiteTeardownEngine.quiesceOutgoing(
       superseded: () => version != _sites.activationVersion,
       steps: steps,
+      budget: _teardownBudget,
     );
     if (result.isClean) return;
     LogService.instance.log(

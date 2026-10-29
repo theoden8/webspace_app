@@ -586,6 +586,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       residency: _WalkResidency(this),
       navStates: navStates,
       surface: _WalkSurface(host, world: this),
+      // Longer than any walk: a reply waits on the walk's action, not the
+      // clock, so the machine's load cannot choose a stall a seed does not.
+      teardownBudget: const Duration(days: 1),
     );
     tabs = TabsController(
       sites,
