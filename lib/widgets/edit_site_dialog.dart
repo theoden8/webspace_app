@@ -110,7 +110,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
         // name field, applied on Save like any other edit.
         await FaviconUrlCache.invalidate(site.initUrl);
         final title = await getPageTitle(site.initUrl,
-            proxy: site.outboundProxySettings);
+            proxy: site.outboundProxy);
         if (!mounted || title == null || title.isEmpty) return;
         _name.text = title;
         ScaffoldMessenger.of(context).toast(
@@ -177,7 +177,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
                     : UnifiedFaviconImage(
                         url: site.initUrl,
                         size: 32,
-                        proxy: site.outboundProxySettings,
+                        proxy: site.outboundProxy,
                         persist: !site.isArchiveTier,
                       ),
               ),

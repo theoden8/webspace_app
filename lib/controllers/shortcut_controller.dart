@@ -198,7 +198,7 @@ class ShortcutController implements HomeShortcutsHost {
         model.initUrl,
         customIcon: model.customIconPng,
         resolvedIconUrl: FaviconUrlCache.get(model.initUrl),
-        proxy: model.outboundProxySettings,
+        proxy: model.outboundProxy,
       );
       if (!_host.mounted) return;
       final pinned = await ShortcutService.pinShortcut(

@@ -82,7 +82,7 @@ class FaviconFinder {
   static Future<List<Favicon>> getAll(
     String url, {
     List<String>? suffixes,
-    UserProxySettings? proxy,
+    OutboundProxy? proxy,
   }) async {
     var favicons = <Favicon>[];
     var iconUrls = <String>[];
@@ -90,7 +90,7 @@ class FaviconFinder {
 
     final effectiveProxy = proxy == null
         ? GlobalOutboundProxy.current
-        : resolveEffectiveProxy(proxy, siteId: null);
+        : resolveEffectiveProxy(proxy.settings, siteId: null);
     final clientResult = outboundHttp.clientFor(effectiveProxy);
     if (clientResult is! OutboundClientReady) {
       return favicons; // proxy could not be honored — fail closed

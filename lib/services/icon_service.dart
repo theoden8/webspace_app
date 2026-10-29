@@ -20,9 +20,9 @@ import '../third_party/favicon/favicon.dart';
 /// outbound proxy applies. When the caller passes a per-site setting, it is
 /// resolved through [resolveEffectiveProxy] so DEFAULT falls through to
 /// the global proxy.
-UserProxySettings _resolve(UserProxySettings? perSite) {
+UserProxySettings _resolve(OutboundProxy? perSite) {
   if (perSite == null) return GlobalOutboundProxy.current;
-  return resolveEffectiveProxy(perSite, siteId: null);
+  return resolveEffectiveProxy(perSite.settings, siteId: null);
 }
 
 /// Acquire an HTTP client honoring [proxy], or null when the proxy cannot
@@ -71,7 +71,7 @@ Future<void> Function(String url, {required String content})?
 Future<String?> getSvgContent(
   String svgUrl, {
   String? persistedContent,
-  UserProxySettings? proxy,
+  OutboundProxy? proxy,
   bool persist = true,
 }) async {
   if (_svgContentCache.containsKey(svgUrl)) {
@@ -111,7 +111,7 @@ Future<String?> getSvgContent(
 /// as every other favicon fetch) or the request fails. [proxy] is the
 /// per-site proxy of the site the icon belongs to; null means the app-global
 /// outbound proxy applies.
-Future<Uint8List?> fetchIconBytes(String iconUrl, {UserProxySettings? proxy}) async {
+Future<Uint8List?> fetchIconBytes(String iconUrl, {OutboundProxy? proxy}) async {
   final client = _proxiedClient(_resolve(proxy));
   if (client == null) return null;
   try {
@@ -154,7 +154,7 @@ Future<Uint8List?> fetchPageIconBytes(
   String iconUrl, {
   required String documentHost,
   required bool Function(Uri target) allowed,
-  UserProxySettings? proxy,
+  OutboundProxy? proxy,
 }) =>
     fetchPageLinkedBytes(
       iconUrl,
@@ -178,7 +178,7 @@ Future<Uint8List?> fetchPageLinkedBytes(
   required String documentHost,
   required bool Function(Uri target) allowed,
   required int maxBytes,
-  UserProxySettings? proxy,
+  OutboundProxy? proxy,
 }) async {
   final effective = _resolve(proxy);
   Future<bool> permitted(Uri target) async {
@@ -258,7 +258,7 @@ Future<Uint8List?> _readPageLinked(
 /// `href` in its markup wins) and the winner is re-rendered on every launch,
 /// so the render path must not reach the network on its own: null means
 /// "render the fallback", never "retry unproxied".
-Future<Uint8List?> getIconBytes(String iconUrl, {UserProxySettings? proxy}) async {
+Future<Uint8List?> getIconBytes(String iconUrl, {OutboundProxy? proxy}) async {
   final cached = _iconBytesCache[iconUrl];
   if (cached != null) return cached;
   final bytes = await fetchIconBytes(iconUrl, proxy: proxy);
@@ -566,7 +566,7 @@ int _compareFavicons(Favicon a,
 /// [IconUpdate], or nothing when none is found. Every request goes to a host
 /// the page names, through [proxy]; no third-party icon service is asked
 /// (ICON-014).
-Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) async* {
+Stream<IconUpdate> getFaviconUrlStream(String url, {OutboundProxy? proxy}) async* {
   final uri = Uri.tryParse(url);
   if (uri == null || uri.host.isEmpty) {
     return;
@@ -582,7 +582,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
     return;
   }
 
-  final found = await _tryFaviconPackage(url, proxy: _resolve(proxy));
+  final found = await _tryFaviconPackage(url, site: proxy);
   _faviconCache[url] = found?.url;
   _faviconQualityCache[url] = found?.quality ?? 0;
   if (found != null) {
@@ -595,7 +595,8 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
 }
 
 Future<_IconCandidate?> _tryFaviconPackage(String url,
-    {required UserProxySettings proxy}) async {
+    {required OutboundProxy? site}) async {
+  final proxy = _resolve(site);
   // Internal schemes (chrome://, about:, file:, data:, blob:) have no
   // favicon reachable over the network — sending them through any proxy
   // (let alone SOCKS5) yields a confusing connection error from the
@@ -609,7 +610,7 @@ Future<_IconCandidate?> _tryFaviconPackage(String url,
   // a site shows the placeholder rather than raising a CORS error per site.
   if (!hostCanReadCrossOriginResponses) return null;
   try {
-    final favicons = await FaviconFinder.getAll(url, proxy: proxy).timeout(Duration(seconds: 15));
+    final favicons = await FaviconFinder.getAll(url, proxy: site).timeout(Duration(seconds: 15));
     if (favicons.isEmpty) return null;
 
     LogTag.icon.debug(

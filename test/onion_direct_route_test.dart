@@ -22,6 +22,7 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import '../integration_test/self_signed_cert.dart';
 
@@ -154,7 +155,7 @@ void main() {
     test('a direct download of an onion URL is refused before it starts',
         () async {
       final engine =
-          DownloadEngine(proxy: UserProxySettings(type: ProxyType.DEFAULT));
+          DownloadEngine(proxy: OutboundProxy.ofSite(UserProxySettings(type: ProxyType.DEFAULT), site: SiteId('test-site')));
       await expectLater(
         engine.fetch(url: 'http://$_onion/file.zip'),
         _downloadRefusedAsOnion,

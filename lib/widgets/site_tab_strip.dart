@@ -202,7 +202,7 @@ class SiteTabStrip extends StatelessWidget {
           UnifiedFaviconImage(
             url: site.initUrl,
             size: 16,
-            proxy: site.outboundProxySettings,
+            proxy: site.outboundProxy,
             customIcon: site.customIconPng,
             persist: !site.isArchiveTier,
           ),

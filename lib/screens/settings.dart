@@ -1225,7 +1225,7 @@ IconButton zoomStep(IconData icon,
                     enabledGlobalScriptIds: widget.webViewModel.enabledGlobalScriptIds,
                     onEnabledGlobalScriptIdsChanged: (ids) =>
                         widget.webViewModel.enabledGlobalScriptIds = ids,
-                    proxy: widget.webViewModel.outboundProxySettings,
+                    proxy: widget.webViewModel.outboundProxy,
                     onWebViewReset: widget.onScriptsChanged,
                     // Re-reads the controller each call: changing the
                     // script list disposes and recreates the webview, so

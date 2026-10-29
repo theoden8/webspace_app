@@ -167,7 +167,7 @@ class SiteEditingController {
       if (model.name.isEmpty) {
         final pageTitle = await getPageTitle(
           model.initUrl,
-          proxy: model.outboundProxySettings,
+          proxy: model.outboundProxy,
         );
         if (!_host.mounted) return;
         if (pageTitle != null && pageTitle.isNotEmpty) {

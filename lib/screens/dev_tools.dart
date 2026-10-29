@@ -22,6 +22,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/file_dialog.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/background_log_view.dart';
@@ -55,7 +56,7 @@ abstract class DevToolsHost {
   /// The user-chosen icon, which the drawer shows over any other.
   Uint8List? get customIcon;
   /// Per-site proxy the favicon must be fetched through, or null for global.
-  UserProxySettings? get proxy;
+  OutboundProxy? get proxy;
   WebViewController? get controller;
   List<ConsoleLogEntry> get consoleLogs;
   set onConsoleLogChanged(VoidCallback? cb);
@@ -82,7 +83,7 @@ class WebViewModelDevToolsHost implements DevToolsHost {
   @override
   Uint8List? get customIcon => model.customIconPng;
   @override
-  UserProxySettings? get proxy => model.outboundProxySettings;
+  OutboundProxy? get proxy => model.outboundProxy;
   @override
   WebViewController? get controller => model.controller;
   @override
@@ -134,7 +135,7 @@ class NestedDevToolsHost implements DevToolsHost {
   @override
   Uint8List? get customIcon => null;
   @override
-  UserProxySettings? get proxy => null;
+  OutboundProxy? get proxy => null;
 
   static const _maxConsoleLogs = 500;
 

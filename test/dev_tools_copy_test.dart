@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/block_decision.dart';
@@ -29,7 +30,7 @@ class _StubHost implements DevToolsHost {
   @override
   Uint8List? get customIcon => null;
   @override
-  UserProxySettings? get proxy => null;
+  OutboundProxy? get proxy => null;
   @override
   WebViewController? get controller => null;
   @override

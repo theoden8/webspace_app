@@ -58,16 +58,16 @@ class DownloadEngine {
 
   DownloadEngine({
     http.Client? client,
-    UserProxySettings? proxy,
+    OutboundProxy? proxy,
     int maxBytes = defaultMaxBytes,
   })  : _client = client ?? _defaultClient(proxy),
         _maxBytes = maxBytes,
         _direct = client == null &&
             (proxy == null ||
-                resolveEffectiveProxy(proxy, siteId: null).type ==
+                resolveEffectiveProxy(proxy.settings, siteId: null).type ==
                     ProxyType.DEFAULT),
         _outboundResult = client == null && proxy != null
-            ? outboundHttp.clientFor(resolveEffectiveProxy(proxy, siteId: null))
+            ? outboundHttp.clientFor(resolveEffectiveProxy(proxy.settings, siteId: null))
             : null;
 
   /// Default HTTP client with gzip auto-decompression DISABLED so the
@@ -82,9 +82,9 @@ class DownloadEngine {
   /// through that proxy via [outboundHttp]. If the proxy address is
   /// malformed, a stub client is returned that will fail any subsequent
   /// request — see [_blockedClient] / [fetch].
-  static http.Client _defaultClient(UserProxySettings? proxy) {
+  static http.Client _defaultClient(OutboundProxy? proxy) {
     if (proxy != null) {
-      final resolved = resolveEffectiveProxy(proxy, siteId: null);
+      final resolved = resolveEffectiveProxy(proxy.settings, siteId: null);
       if (resolved.type != ProxyType.DEFAULT) {
         final result = outboundHttp.clientFor(resolved);
         if (result is OutboundClientReady) return result.client;

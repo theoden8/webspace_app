@@ -20,6 +20,7 @@ import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'helpers/fake_outbound.dart';
 import 'helpers/fake_path_provider.dart';
 
@@ -62,7 +63,7 @@ void main() {
       // getSvgContent is the simplest entry point that hits the factory
       // directly (one client, one fetch). The body doesn't matter — we
       // just need to confirm the proxy that was requested.
-      await getSvgContent('https://example.com/icon.svg', proxy: perSite);
+      await getSvgContent('https://example.com/icon.svg', proxy: OutboundProxy.ofSite(perSite, site: SiteId('test-site')));
 
       expect(fake.queries, isNotEmpty,
           reason: 'icon_service should query the outbound factory at least once');
@@ -80,7 +81,7 @@ void main() {
       outboundHttp = fake;
 
       final perSiteDefault = UserProxySettings(type: ProxyType.DEFAULT);
-      await getSvgContent('https://example.com/icon.svg', proxy: perSiteDefault);
+      await getSvgContent('https://example.com/icon.svg', proxy: OutboundProxy.ofSite(perSiteDefault, site: SiteId('test-site')));
 
       expect(fake.lastQuery!.type, ProxyType.HTTP);
       expect(fake.lastQuery!.address, '192.168.1.10:3128',
@@ -114,7 +115,7 @@ void main() {
       // Use a unique URL so the in-memory cache doesn't short-circuit us.
       final result = await getSvgContent(
         'https://example.com/blocked-by-fake-icon.svg',
-        proxy: perSite,
+        proxy: OutboundProxy.ofSite(perSite, site: SiteId('test-site')),
       );
       expect(result, isNull,
           reason: 'Blocked client must not be replaced by a direct fallback');
@@ -218,7 +219,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
         size: 16,
         placeholder: (_) => const SizedBox.shrink(),
         error: (_) => const Icon(Icons.language),
-        proxy: proxy,
+        proxy: OutboundProxy.ofSite(proxy, site: SiteId('test-site')),
       ),
     );
 
@@ -316,7 +317,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
 
       final result = await fetchUserScriptSource(
         'https://cdn.jsdelivr.net/npm/x/x.js',
-        proxy: UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.2:8080'),
+        proxy: OutboundProxy.ofSite(UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.2:8080'), site: SiteId('test-site')),
       );
 
       expect(result.source, 'LIB();');
@@ -330,7 +331,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
       final result = await fetchUserScriptSource(
         'https://cdn.jsdelivr.net/npm/x/x.js',
         proxy:
-            UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:9050'),
+            OutboundProxy.ofSite(UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:9050'), site: SiteId('test-site')),
       );
 
       expect(result.source, isNull);
@@ -376,10 +377,10 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
       outboundHttp = fake;
 
       final engine = DownloadEngine(
-        proxy: UserProxySettings(
+        proxy: OutboundProxy.ofSite(UserProxySettings(
           type: ProxyType.SOCKS5,
           address: '127.0.0.1:9050',
-        ),
+        ), site: SiteId('test-site')),
       );
 
       expect(
@@ -402,7 +403,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
       // explicitly non-DEFAULT site settings, so we don't break tests that
       // construct DownloadEngine() with no proxy arg at all.
       final engine = DownloadEngine(
-        proxy: UserProxySettings(type: ProxyType.DEFAULT),
+        proxy: OutboundProxy.ofSite(UserProxySettings(type: ProxyType.DEFAULT), site: SiteId('test-site')),
       );
       expect(engine, isNotNull);
       // No assertion on the factory — DEFAULT short-circuits.

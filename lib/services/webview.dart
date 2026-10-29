@@ -274,7 +274,7 @@ class WebViewFactory {
     // to the app-global outbound proxy, so a site the user has not customized
     // still inherits a global Tor / corporate proxy (PROXY-011).
     final claimedProxy =
-        resolveEffectiveProxy(posture.container.proxy, siteId: siteId);
+        resolveEffectiveProxy(posture.container.proxy.settings, siteId: siteId);
     final effectiveProxy = bindsProxyPerSite ? claimedProxy : null;
     // Router mode wins over the site's own rule: under it every store points
     // at the relay and the per-site choice is made there. Not gated on the

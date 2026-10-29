@@ -14,6 +14,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'helpers/user_script_bridge_fakes.dart';
 import 'helpers/fake_outbound.dart';
@@ -183,7 +184,7 @@ void main() {
         fetchPageIconBytes(
           url,
           documentHost: documentHost,
-          proxy: direct,
+          proxy: OutboundProxy.ofSite(direct, site: SiteId('test-site')),
           allowed: allowed ?? (_) => true,
         );
 

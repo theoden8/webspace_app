@@ -21,6 +21,7 @@ import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/user_script.dart';
 
 import 'helpers/user_script_bridge_fakes.dart';
@@ -288,10 +289,10 @@ void main() {
       final ctrl = FakeUserScriptController();
       UserScriptService(
         scripts: oneScript,
-        proxy: UserProxySettings(
+        proxy: OutboundProxy.ofSite(UserProxySettings(
           type: ProxyType.SOCKS5,
           address: '127.0.0.1:9050',
-        ),
+        ), site: SiteId('test-site')),
       ).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
 
       final res = await ctrl.handler(kFetchHandlerPrefix)([

@@ -10,6 +10,7 @@ library;
 
 import 'package:meta/meta.dart';
 import 'package:webspace/services/container_names.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -28,8 +29,7 @@ typedef SiteContainer = ({
   // (`containerIdFor`).
   ContainerName? containerId,
   bool incognito,
-  // Outbound form: a Tor proxy carries the siteId as its isolation tag.
-  UserProxySettings proxy,
+  OutboundProxy proxy,
   bool thirdPartyCookies,
   HttpAuthMemory httpAuthMemory,
   bool passkeys,

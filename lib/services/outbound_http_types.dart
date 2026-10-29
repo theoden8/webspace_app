@@ -16,6 +16,32 @@ import 'package:webspace/services/proxy_library.dart';
 export 'package:webspace/services/tor_engine.dart'
     show TorRoute, TorRouteUp, TorRouteBlocked;
 
+/// The proxy a connection opened on a site's behalf goes through (a favicon,
+/// a download, a user script, the webview): the site's settings with its Tor
+/// isolation tag stamped in (BUG-030). [OutboundProxy.ofSite] is the only way
+/// to make one, so a site's stored settings never reach such a connection
+/// untagged and land on the app-global circuit, where they could be linked to
+/// the site.
+extension type OutboundProxy._(UserProxySettings settings) {
+  /// [stored] as [site] sends it: for every type but [ProxyType.TOR] the
+  /// settings themselves; for Tor a copy carrying [site] as the SOCKS5
+  /// stream-isolation tag. A copy, so the user's manual username survives a
+  /// trip through Tor and switching back restores it (PROXY-010).
+  factory OutboundProxy.ofSite(
+    UserProxySettings stored, {
+    required SiteId site,
+  }) => OutboundProxy._(
+    stored.type == ProxyType.TOR
+        ? UserProxySettings(
+            type: ProxyType.TOR,
+            address: stored.address,
+            username: site,
+            torExitCountry: stored.torExitCountry,
+          )
+        : stored,
+  );
+}
+
 /// Resolve the effective proxy for a per-site outbound call.
 ///
 /// When the per-site [ProxyType] is [ProxyType.DEFAULT], the call falls
@@ -40,7 +66,7 @@ export 'package:webspace/services/tor_engine.dart'
 /// opting into per-site isolation, and conflating them would hand every
 /// uncustomized site a circuit of its own (PROXY-011). Null names no site:
 /// app-global traffic, or settings that already carry their tag
-/// (`WebViewModel.outboundProxySettings`).
+/// ([OutboundProxy]).
 UserProxySettings resolveEffectiveProxy(
   UserProxySettings perSite, {
   required SiteId? siteId,

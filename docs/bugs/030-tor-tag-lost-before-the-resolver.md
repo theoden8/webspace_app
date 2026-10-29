@@ -2,8 +2,10 @@
 
 Status: **open, narrowed.** `resolveEffectiveProxy` and
 `ProxyManager.setProxySettings` take a required `siteId`, so no call site can
-leave the tag out without saying so. A call that passes `siteId: null` with
-the site's stored settings still falls back to the app-global tag.
+leave the tag out without saying so, and every API that opens a connection on
+a site's behalf takes an `OutboundProxy`, which only stamping the tag makes. A
+call that passes `siteId: null` with the site's stored settings still falls
+back to the app-global tag.
 
 **Spec:** [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md)
 TOR-003, TOR-025; [proxy](../../openspec/specs/proxy/spec.md) PROXY-011, PROXY-013
@@ -20,7 +22,8 @@ Nothing fails.
 
 A Tor site's isolation is the SOCKS username, and the resolver gets the tag
 one of two ways: from a `siteId` argument, or from a copy of the settings
-with the tag stamped in (`WebViewModel.outboundProxySettings`). Stored
+with the tag stamped in (`WebViewModel.outboundProxy`, before attempt 4
+`outboundProxySettings`). Stored
 settings plus no `siteId` resolves to `kTorAppGlobalTag` without a word.
 Every path that resolves a site's stored settings has to remember the id.
 
@@ -60,10 +63,28 @@ Every path that resolves a site's stored settings has to remember the id.
    spelling; a stored setting reaching an outbound API by another route
    (a local variable, a positional argument) still compiles.
 
+4. **2026-10-29, branch `claude/outbound-proxy-type`.** *What:* the outbound
+   form is its own type, `OutboundProxy` (`lib/services/outbound_http_types.dart`),
+   made only by `OutboundProxy.ofSite(stored, site:)`, which stamps the tag;
+   `WebViewModel.outboundProxy` returns one, and every API that opens a
+   connection on a site's behalf takes it: favicons (`getFaviconUrlStream`,
+   `getSvgContent`, `fetchIconBytes`, `getIconBytes`, `FaviconFinder.getAll`,
+   the icon widgets), titles, user scripts, downloads, media artwork, icon
+   export, and the posture the webview is built from
+   (`SitePosture.container.proxy`). `outbound_proxy_tag.test.js` is deleted.
+   *Why:* attempt 3's gate matched one spelling; a stored setting held in a
+   local variable or passed through a conditional reached a fetch unseen.
+   Planted as `proxy: model.proxySettings` and through `final p =
+   model.proxySettings`, both are compile errors. *Why partial:* the APIs keep
+   their nullable parameter, whose null means the app's route, so a caller
+   that has a site at hand and passes nothing sends the site's request down
+   the app-global circuit; and `resolveEffectiveProxy(stored, siteId: null)`
+   still compiles.
+
 ## Known open gaps
 
-- Stored and outbound settings are one type. A distinct type for settings
-  that carry their tag, returned only by `outboundProxySettings` and taken by
-  every outbound API (favicons, titles, user scripts, downloads, media
-  artwork, icon export), would make the fallback unreachable for a site and
-  retire `outbound_proxy_tag.test.js`.
+- An outbound API's `proxy` is nullable, and null means the app's route. A
+  required parameter with an `OutboundProxy.app` for traffic that belongs to
+  no site would make each caller say which it is.
+- `resolveEffectiveProxy` and `setProxySettings` take stored settings and a
+  nullable `siteId`; `siteId: null` with a site's stored settings compiles.

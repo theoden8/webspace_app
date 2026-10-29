@@ -14,7 +14,7 @@ import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
-import '../services/outbound_http.dart' show resolveEffectiveProxy;
+import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
 import '../services/reentry_guard.dart';
 import '../services/top_sites_engine.dart' show siteAddress;
@@ -129,7 +129,7 @@ class UnifiedFaviconImage extends StatefulWidget {
   /// search-suggestion thumbnails with no specific site context), the
   /// app-global outbound proxy applies. When set, [resolveEffectiveProxy]
   /// chooses per-site if explicit, or global if the per-site type is DEFAULT.
-  final UserProxySettings? proxy;
+  final OutboundProxy? proxy;
   /// User-chosen icon bytes (`WebViewModel.customIconPng`). When set, they
   /// render directly and no favicon is fetched for this widget.
   final Uint8List? customIcon;
@@ -167,7 +167,7 @@ class UnifiedFaviconImage extends StatefulWidget {
     required this.size,
     this.frame,
   }) : url = site.initUrl,
-       proxy = site.outboundProxySettings,
+       proxy = site.outboundProxy,
        customIcon = site.customIconPng,
        persist = !site.isArchiveTier;
 
