@@ -23,7 +23,6 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/background_log_view.dart';
 import 'package:webspace/widgets/dev_tools_parts.dart';

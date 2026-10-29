@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/services/icon_service.dart' show getIconBytes;
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/settings/proxy.dart';
 
 /// Native favicon rendering: bytes through the app's proxy-aware outbound
 /// client, then decoded from memory.

@@ -63,10 +63,10 @@ class DownloadEngine {
   })  : _client = client ?? _defaultClient(proxy),
         _maxBytes = maxBytes,
         _direct = client == null &&
-            resolveEffectiveProxy(proxy.settings, siteId: null).type ==
+            proxy.resolved.type ==
                 ProxyType.DEFAULT,
         _outboundResult = client == null
-            ? outboundHttp.clientFor(resolveEffectiveProxy(proxy.settings, siteId: null))
+            ? outboundHttp.clientFor(proxy.resolved)
             : null;
 
   /// Default HTTP client with gzip auto-decompression DISABLED so the
@@ -82,7 +82,7 @@ class DownloadEngine {
   /// malformed, a stub client is returned that will fail any subsequent
   /// request — see [_blockedClient] / [fetch].
   static http.Client _defaultClient(OutboundProxy proxy) {
-    final resolved = resolveEffectiveProxy(proxy.settings, siteId: null);
+    final resolved = proxy.resolved;
     if (resolved.type != ProxyType.DEFAULT) {
       final result = outboundHttp.clientFor(resolved);
       if (result is OutboundClientReady) return result.client;

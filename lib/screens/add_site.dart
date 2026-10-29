@@ -114,10 +114,7 @@ class FaviconUrlCache {
 /// (LEAK-016).
 bool addSitePreviewMayResolveLocally(String host) =>
     !Host(host).isOnion &&
-    resolveEffectiveProxy(
-          UserProxySettings(type: ProxyType.DEFAULT),
-          siteId: null,
-        ).type ==
+    OutboundProxy.app.resolved.type ==
         ProxyType.DEFAULT;
 
 // A site's icon: the page icon the site's own webview produced (ICON-009/013)

@@ -5,7 +5,6 @@ import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';

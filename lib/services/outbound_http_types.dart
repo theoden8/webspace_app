@@ -16,12 +16,12 @@ import 'package:webspace/services/proxy_library.dart';
 export 'package:webspace/services/tor_engine.dart'
     show TorRoute, TorRouteUp, TorRouteBlocked;
 
-/// The proxy a connection opened on a site's behalf goes through (a favicon,
-/// a download, a user script, the webview): the site's settings with its Tor
-/// isolation tag stamped in (BUG-030). [OutboundProxy.ofSite] is the only way
-/// to make one, so a site's stored settings never reach such a connection
-/// untagged and land on the app-global circuit, where they could be linked to
-/// the site.
+/// The proxy a connection goes through, with whose traffic it is decided
+/// (BUG-030): a site's, its settings with its Tor isolation tag stamped in
+/// ([OutboundProxy.ofSite]), or the app's ([OutboundProxy.app],
+/// [OutboundProxy.ofApp]). A site's stored settings reach a connection, or
+/// [resolved], only through one of them, so they never go untagged onto the
+/// app-global circuit, where they could be linked to the site.
 extension type OutboundProxy._(UserProxySettings settings) {
   /// [stored] as [site] sends it: for every type but [ProxyType.TOR] the
   /// settings themselves; for Tor a copy carrying [site] as the SOCKS5
@@ -41,63 +41,66 @@ extension type OutboundProxy._(UserProxySettings settings) {
         : stored,
   );
 
+  /// Settings the app holds for itself rather than for a site: the global
+  /// proxy, a proxy library entry under test. A Tor proxy keeps the tag its
+  /// username carries, else takes the app-global one.
+  factory OutboundProxy.ofApp(UserProxySettings settings) =>
+      OutboundProxy._(settings);
+
   /// Traffic that belongs to no site (a preview before a site exists, a
   /// suggestion's icon, the global scripts): the app-wide outbound proxy,
   /// resolved at the call, with a Tor proxy on the app-global tag
   /// (PROXY-011).
   static OutboundProxy get app =>
       OutboundProxy._(UserProxySettings(type: ProxyType.DEFAULT));
+
+  /// The route this traffic takes.
+  ///
+  /// DEFAULT falls through to the **global** outbound proxy
+  /// ([GlobalOutboundProxy.current]): "I configured a global proxy (e.g.
+  /// Tor); a site I haven't customized should also go through it." Any other
+  /// type wins over the global.
+  ///
+  /// What a setting takes from the proxy library (a saved proxy, a saved
+  /// gateway, saved credentials), on the site or on the global, is resolved
+  /// here (PROXY-030). A reference that resolves to nothing comes back SAVED
+  /// with no address and fails closed downstream; it never falls through to
+  /// the global, which is a route the user did not pick for that site.
+  ///
+  /// Applied at every outbound seam, Dart-side HTTP *and* the native webview
+  /// proxy, so a site set to DEFAULT doesn't silently bypass the global proxy
+  /// in either direction. A Tor proxy rides the tag it carries: a site's own
+  /// for one it set itself, so each site rides its own circuit, and the
+  /// app-global tag for one inherited through DEFAULT, since inheriting the
+  /// app's default proxy is not the same request as opting into per-site
+  /// isolation, and conflating them would hand every uncustomized site a
+  /// circuit of its own (PROXY-011).
+  UserProxySettings get resolved {
+    if (settings.type == ProxyType.DEFAULT) {
+      final global = resolveLibraryProxy(GlobalOutboundProxy.current);
+      return global.type == ProxyType.TOR
+          ? _torTagged(global, tag: TorTag.app)
+          : global;
+    }
+    if (settings.type == ProxyType.TOR) {
+      return _torTagged(settings, tag: null);
+    }
+    return resolveLibraryProxy(settings);
+  }
 }
 
-/// Resolve the effective proxy for a per-site outbound call.
-///
-/// When the per-site [ProxyType] is [ProxyType.DEFAULT], the call falls
-/// through to the **global** outbound proxy ([GlobalOutboundProxy.current]).
-/// This matches user intent: "I configured a global proxy (e.g. Tor); a
-/// site I haven't customized should also go through it." When the per-site
-/// type is anything else, the site's own settings win.
-///
-/// What a setting takes from the proxy library (a saved proxy, a saved
-/// gateway, saved credentials), on the site or on the global, is resolved
-/// here (PROXY-030). A reference that resolves to nothing comes back SAVED
-/// with no address and fails closed downstream; it never falls through to
-/// the global, which is a route the user did not pick for that site.
-///
-/// Apply this at every per-site outbound seam — Dart-side HTTP *and* the
-/// native webview proxy — so a site set to DEFAULT doesn't silently bypass
-/// the global proxy in either direction.
-/// [siteId] only affects [ProxyType.TOR]: it becomes the SOCKS5
-/// stream-isolation tag, so each site rides its own circuit. A site left on
-/// DEFAULT that inherits a global TOR gets the app-global tag instead of its
-/// own — inheriting the app's default proxy is not the same request as
-/// opting into per-site isolation, and conflating them would hand every
-/// uncustomized site a circuit of its own (PROXY-011). Null names no site:
-/// app-global traffic, or settings that already carry their tag
-/// ([OutboundProxy]).
+/// The route [siteId]'s traffic takes when its stored setting is [perSite]
+/// ([OutboundProxy.resolved]).
 UserProxySettings resolveEffectiveProxy(
   UserProxySettings perSite, {
-  required SiteId? siteId,
-}) {
-  if (perSite.type == ProxyType.DEFAULT) {
-    final global = resolveLibraryProxy(GlobalOutboundProxy.current);
-    return global.type == ProxyType.TOR
-        ? _torTagged(global, tag: TorTag.app)
-        : global;
-  }
-  if (perSite.type == ProxyType.TOR) {
-    return _torTagged(perSite,
-        tag: siteId == null ? null : TorTag.ofSite(siteId));
-  }
-  return resolveLibraryProxy(perSite);
-}
+  required SiteId siteId,
+}) => OutboundProxy.ofSite(perSite, site: siteId).resolved;
 
 /// Stamp the isolation tag into `username`, where the SOCKS5 expansion later
 /// reads it. Carrying the tag on the settings object keeps `clientFor` a
 /// one-argument function all the way down.
-/// Precedence: an explicit [tag] from the call site, else a tag the
-/// settings object already carries (WebViewModel stamps its `siteId` there
-/// so the ~15 places that pass `model.proxySettings` straight through don't
-/// each have to thread an id), else app-global.
+/// Precedence: an explicit [tag], else a tag the settings object already
+/// carries ([OutboundProxy.ofSite] stamps a site's there), else app-global.
 UserProxySettings _torTagged(UserProxySettings s, {required TorTag? tag}) {
   final existing = s.username;
   final stamped = tag ??
@@ -250,9 +253,5 @@ abstract class OutboundHttpFactory {
 /// TOR-008: whether a site's webview must wait for the Tor runtime. Resolves
 /// DEFAULT through the global proxy (PROXY-011), so a site that inherits a
 /// global Tor is gated exactly like one that opted into Tor itself.
-bool waitsForTor(
-  UserProxySettings perSite, {
-  SiteId? siteId,
-  required bool torUp,
-}) =>
-    !torUp && resolveEffectiveProxy(perSite, siteId: siteId).type == ProxyType.TOR;
+bool waitsForTor(OutboundProxy proxy, {required bool torUp}) =>
+    !torUp && proxy.resolved.type == ProxyType.TOR;

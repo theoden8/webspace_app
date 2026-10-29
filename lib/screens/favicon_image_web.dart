@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/settings/proxy.dart';
 
 /// Web favicon rendering, via a real `<img>` element.
 ///

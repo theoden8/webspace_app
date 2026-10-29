@@ -7,7 +7,6 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'helpers/localized.dart';

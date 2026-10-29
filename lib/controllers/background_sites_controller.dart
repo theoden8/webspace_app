@@ -110,9 +110,9 @@ class BackgroundSitesController {
     ];
     // Outbound settings, so two Tor sites differ by their isolation tags.
     final blocker = ProxyConflictEngine.firstConflict(
-      targetProxy: target.outboundProxy.settings,
+      targetProxy: target.outboundProxy,
       others: others,
-      proxyOf: (m) => m.outboundProxy.settings,
+      proxyOf: (m) => m.outboundProxy,
       routesPerSite: ProxyRouterService.instance.routesPerSite,
     );
     if (blocker == null) return null;

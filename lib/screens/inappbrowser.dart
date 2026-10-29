@@ -236,8 +236,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     // lifetime, so a later Up transition would leak — the nested twin of the
     // gate in WebViewModel.getWebView.
     if (waitsForTor(
-      widget.posture.container.proxy.settings,
-      siteId: widget.posture.siteId,
+      widget.posture.container.proxy,
       torUp: TorService.instance.status.isUp,
     )) {
       _torStatusSub = TorService.instance.statusStream.listen((s) {

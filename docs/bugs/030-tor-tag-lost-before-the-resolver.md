@@ -1,11 +1,11 @@
 # BUG-030 — A Tor site's isolation tag is lost before its proxy is resolved
 
-Status: **open, narrowed.** `resolveEffectiveProxy` and
-`ProxyManager.setProxySettings` take a required `siteId`, so no call site can
-leave the tag out without saying so, and every API that opens a connection
-takes an `OutboundProxy`, either a site's, which only stamping its tag makes,
-or `OutboundProxy.app`. A call that passes `siteId: null` with the site's
-stored settings still falls back to the app-global tag.
+Status: **open, narrowed.** A proxy is resolved only as an `OutboundProxy`,
+and an `OutboundProxy` is a site's, which only stamping its tag makes, or the
+app's, by name (`OutboundProxy.app`, `OutboundProxy.ofApp`).
+`resolveEffectiveProxy` and `ProxyManager.setProxySettings` take a non-null
+`SiteId`, and every API that opens a connection takes an `OutboundProxy`. A
+site's stored settings handed to `OutboundProxy.ofApp` still compile.
 
 **Spec:** [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md)
 TOR-003, TOR-025; [proxy](../../openspec/specs/proxy/spec.md) PROXY-011, PROXY-013
@@ -82,7 +82,21 @@ Every path that resolves a site's stored settings has to remember the id.
    through `final p = model.proxySettings`, both are compile errors. *Why
    partial:* `resolveEffectiveProxy(stored, siteId: null)` still compiles.
 
+5. **2026-10-29, branch `claude/proxy-resolve-owned`.** *What:* resolution is
+   `OutboundProxy.resolved`; `resolveEffectiveProxy(stored, siteId:)` takes a
+   non-null `SiteId` and is `OutboundProxy.ofSite(stored, site:).resolved`,
+   which `TorTag.ofSite` and the stamped username make the same rule. What
+   resolved with `siteId: null` names its owner: the outbound APIs resolve
+   the `OutboundProxy` they take; the router's shared profile, the proxy
+   library's health probe, the global form's test, the web factory and a site
+   info sheet with no site take `OutboundProxy.ofApp`; `waitsForTor`,
+   `testProxyConnection` and the conflict engine take an `OutboundProxy`.
+   *Why:* `siteId: null` was a legal answer the type could not tell from a
+   forgotten one. *Why partial:* `OutboundProxy.ofApp` takes any settings, so
+   a site's stored settings handed to it still lose their tag; it is now a
+   call that says "app", not an omitted argument.
+
 ## Known open gaps
 
-- `resolveEffectiveProxy` and `setProxySettings` take stored settings and a
-  nullable `siteId`; `siteId: null` with a site's stored settings compiles.
+- `OutboundProxy.ofApp(model.proxySettings)` compiles. A `webspace_lints`
+  rule refusing `ofApp` of a `WebViewModel`'s settings would hold it.

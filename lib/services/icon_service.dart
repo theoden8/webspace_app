@@ -11,14 +11,13 @@ import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
-import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
 
 /// The proxy a favicon fetch uses: [outbound] resolved through
 /// [resolveEffectiveProxy], so DEFAULT falls through to the global proxy.
 UserProxySettings _resolve(OutboundProxy outbound) =>
-    resolveEffectiveProxy(outbound.settings, siteId: null);
+    outbound.resolved;
 
 /// Acquire an HTTP client honoring [proxy], or null when the proxy cannot
 /// be honored (e.g. malformed address). Callers MUST treat null as "abort

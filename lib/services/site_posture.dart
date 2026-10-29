@@ -19,7 +19,6 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/http_auth_memory.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 

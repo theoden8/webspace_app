@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/concurrency.dart';
@@ -51,7 +52,7 @@ class ProxyHealthService extends ChangeNotifier {
   // No Tor hold: an indicator coming on screen is not the user asking for
   // Tor to start.
   static Future<ProxyTestResult> _defaultProbe(UserProxySettings settings) =>
-      testProxyConnection(settings,
+      testProxyConnection(OutboundProxy.ofApp(settings),
           target: kDefaultProxyTestTarget, holdTor: null);
 
   /// Whether [settings] names a route the indicator can probe: a concrete

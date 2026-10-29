@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -46,9 +47,11 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
         setState(() => _result = null);
         final settings = widget.settings();
         final result = await testProxyConnection(
-          settings,
+          switch (widget.siteId) {
+            final site? => OutboundProxy.ofSite(settings, site: site),
+            null => OutboundProxy.ofApp(settings),
+          },
           target: widget.target,
-          siteId: widget.siteId,
           holdTor: ({required within, required probe}) =>
               TorService.instance.whileHeld(TorTestHolder(this),
                   within: within, use: probe),

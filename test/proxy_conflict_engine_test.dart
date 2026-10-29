@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/settings/proxy_ids.dart';
+import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -24,28 +25,28 @@ void main() {
       final a = _default();
       final b = UserProxySettings(
           type: ProxyType.DEFAULT, address: 'leftover:1080');
-      expect(ProxyConflictEngine.fingerprint(a),
-          ProxyConflictEngine.fingerprint(b));
+      expect(ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(a)),
+          ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(b)));
     });
 
     test('different proxy types differ', () {
       expect(
-        ProxyConflictEngine.fingerprint(_socks('localhost:9050')),
-        isNot(ProxyConflictEngine.fingerprint(_http('localhost:9050'))),
+        ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(_socks('localhost:9050'))),
+        isNot(ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(_http('localhost:9050')))),
       );
     });
 
     test('same type + same address but different credentials differ', () {
       expect(
-        ProxyConflictEngine.fingerprint(_socks('a:1', user: 'u1')),
-        isNot(ProxyConflictEngine.fingerprint(_socks('a:1', user: 'u2'))),
+        ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(_socks('a:1', user: 'u1'))),
+        isNot(ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(_socks('a:1', user: 'u2')))),
       );
     });
 
     test('two custom proxies with identical tuples are equal', () {
       expect(
-        ProxyConflictEngine.fingerprint(_socks('a:1', user: 'u', pwd: 'p')),
-        ProxyConflictEngine.fingerprint(_socks('a:1', user: 'u', pwd: 'p')),
+        ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(_socks('a:1', user: 'u', pwd: 'p'))),
+        ProxyConflictEngine.fingerprint(OutboundProxy.ofApp(_socks('a:1', user: 'u', pwd: 'p'))),
       );
     });
   });
@@ -54,16 +55,16 @@ void main() {
     test('NOTIF-005-A: no other enabled sites — always true', () {
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: _socks('a:1'),
-          otherEnabledProxies: const [],
+          targetProxy: OutboundProxy.ofApp(_socks('a:1')),
+          otherEnabledProxies: const <OutboundProxy>[],
         ),
         isTrue,
       );
       expect(
         ProxyConflictEngine.firstConflict(
-          targetProxy: _socks('a:1'),
-          others: const [],
-          proxyOf: (p) => p,
+          targetProxy: OutboundProxy.ofApp(_socks('a:1')),
+          others: const <UserProxySettings>[],
+          proxyOf: OutboundProxy.ofApp,
         ),
         isNull,
       );
@@ -73,8 +74,8 @@ void main() {
       // Site A and Site B both DEFAULT; user enables Site C (DEFAULT).
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: _default(),
-          otherEnabledProxies: [_default(), _default()],
+          targetProxy: OutboundProxy.ofApp(_default()),
+          otherEnabledProxies: ([_default(), _default()]).map(OutboundProxy.ofApp),
         ),
         isTrue,
       );
@@ -84,8 +85,8 @@ void main() {
         () {
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: _socks('localhost:9050'),
-          otherEnabledProxies: [_socks('localhost:9050')],
+          targetProxy: OutboundProxy.ofApp(_socks('localhost:9050')),
+          otherEnabledProxies: ([_socks('localhost:9050')]).map(OutboundProxy.ofApp),
         ),
         isTrue,
       );
@@ -94,16 +95,16 @@ void main() {
     test('NOTIF-005-A scenario: SOCKS5 conflicts with HTTP', () {
       final blocker = _socks('localhost:9050');
       final allowed = ProxyConflictEngine.canEnable(
-        targetProxy: _http('proxy:8080'),
-        otherEnabledProxies: [blocker],
-      );
+          targetProxy: OutboundProxy.ofApp(_http('proxy:8080')),
+          otherEnabledProxies: ([blocker]).map(OutboundProxy.ofApp),
+        );
       expect(allowed, isFalse);
 
       final conflict = ProxyConflictEngine.firstConflict(
-        targetProxy: _http('proxy:8080'),
-        others: [blocker],
-        proxyOf: (p) => p,
-      );
+          targetProxy: OutboundProxy.ofApp(_http('proxy:8080')),
+          others: [blocker],
+          proxyOf: OutboundProxy.ofApp,
+        );
       expect(conflict, isNotNull);
       expect(conflict!.type, ProxyType.SOCKS5);
     });
@@ -113,8 +114,8 @@ void main() {
       // (DEFAULT). Effective ProxyController state would flip — block.
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: _default(),
-          otherEnabledProxies: [_socks('localhost:9050')],
+          targetProxy: OutboundProxy.ofApp(_default()),
+          otherEnabledProxies: ([_socks('localhost:9050')]).map(OutboundProxy.ofApp),
         ),
         isFalse,
       );
@@ -124,8 +125,8 @@ void main() {
         ' blocked', () {
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: _socks('a:1', user: 'alice'),
-          otherEnabledProxies: [_socks('a:1', user: 'bob')],
+          targetProxy: OutboundProxy.ofApp(_socks('a:1', user: 'alice')),
+          otherEnabledProxies: ([_socks('a:1', user: 'bob')]).map(OutboundProxy.ofApp),
         ),
         isFalse,
       );
@@ -134,11 +135,11 @@ void main() {
     test('Multiple already-enabled sites, target matches all — allowed', () {
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: _socks('a:1', user: 'u', pwd: 'p'),
-          otherEnabledProxies: [
+          targetProxy: OutboundProxy.ofApp(_socks('a:1', user: 'u', pwd: 'p')),
+          otherEnabledProxies: ([
             _socks('a:1', user: 'u', pwd: 'p'),
             _socks('a:1', user: 'u', pwd: 'p'),
-          ],
+          ]).map(OutboundProxy.ofApp),
         ),
         isTrue,
       );
@@ -149,10 +150,10 @@ void main() {
       final first = _socks('a:1');
       final second = _http('b:2');
       final conflict = ProxyConflictEngine.firstConflict(
-        targetProxy: _default(),
-        others: [first, second],
-        proxyOf: (p) => p,
-      );
+          targetProxy: OutboundProxy.ofApp(_default()),
+          others: [first, second],
+          proxyOf: OutboundProxy.ofApp,
+        );
       expect(identical(conflict, first), isTrue);
     });
   });
@@ -174,25 +175,25 @@ void main() {
 
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: target,
-          otherEnabledProxies: others,
+          targetProxy: OutboundProxy.ofApp(target),
+          otherEnabledProxies: (others).map(OutboundProxy.ofApp),
         ),
         isFalse,
         reason: 'without the router this is the PROXY-008 conflict',
       );
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: target,
-          otherEnabledProxies: others,
+          targetProxy: OutboundProxy.ofApp(target),
+          otherEnabledProxies: (others).map(OutboundProxy.ofApp),
           routesPerSite: true,
         ),
         isTrue,
       );
       expect(
         ProxyConflictEngine.firstConflict(
-          targetProxy: target,
+          targetProxy: OutboundProxy.ofApp(target),
           others: others,
-          proxyOf: (p) => p,
+          proxyOf: OutboundProxy.ofApp,
           routesPerSite: true,
         ),
         isNull,
@@ -213,8 +214,8 @@ void main() {
       GlobalOutboundProxy.setInMemory(_http('10.0.0.1:3128'));
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: _default(),
-          otherEnabledProxies: [_http('10.0.0.1:3128')],
+          targetProxy: OutboundProxy.ofApp(_default()),
+          otherEnabledProxies: ([_http('10.0.0.1:3128')]).map(OutboundProxy.ofApp),
         ),
         isTrue,
       );
@@ -229,15 +230,15 @@ void main() {
           UserProxySettings(type: ProxyType.SAVED, savedProxyId: id);
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: saved(SavedProxyId('p1')),
-          otherEnabledProxies: [saved(SavedProxyId('p2'))],
+          targetProxy: OutboundProxy.ofApp(saved(SavedProxyId('p1'))),
+          otherEnabledProxies: ([saved(SavedProxyId('p2'))]).map(OutboundProxy.ofApp),
         ),
         isFalse,
       );
       expect(
         ProxyConflictEngine.canEnable(
-          targetProxy: saved(SavedProxyId('p1')),
-          otherEnabledProxies: [_socks('a:1')],
+          targetProxy: OutboundProxy.ofApp(saved(SavedProxyId('p1'))),
+          otherEnabledProxies: ([_socks('a:1')]).map(OutboundProxy.ofApp),
         ),
         isTrue,
       );

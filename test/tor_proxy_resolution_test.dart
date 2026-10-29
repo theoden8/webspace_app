@@ -68,10 +68,7 @@ void main() {
 
     test('app-global traffic with no site resolves to the reserved tag', () {
       GlobalOutboundProxy.setInMemory(_tor());
-      final resolved = resolveEffectiveProxy(
-        UserProxySettings(type: ProxyType.DEFAULT),
-        siteId: null,
-      );
+      final resolved = OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved;
       expect(resolved.username, kTorAppGlobalTag);
     });
 

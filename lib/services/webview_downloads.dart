@@ -10,7 +10,6 @@ import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/log_service.dart';
 
 /// Downloads a site webview starts: http(s) through the site's proxy, data:

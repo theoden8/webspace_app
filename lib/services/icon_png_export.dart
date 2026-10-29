@@ -9,7 +9,6 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/untrusted_image.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/settings/proxy.dart';
 
 bool _isSvgUrl(String url) {
   final lower = url.toLowerCase();

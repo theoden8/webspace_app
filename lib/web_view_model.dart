@@ -1181,8 +1181,7 @@ bool dispatch(NavigationDecision decision,
     final effectiveProxy =
         resolveEffectiveProxy(id.proxySettings, siteId: id.siteId);
     if (waitsForTor(
-      id.proxySettings,
-      siteId: id.siteId,
+      id.outboundProxy,
       torUp: TorService.instance.status.isUp,
     )) {
       return null;

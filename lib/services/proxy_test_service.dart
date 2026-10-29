@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:webspace/settings/site_ids.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -82,20 +81,19 @@ typedef TorTestHold = Future<ProxyTestResult> Function({
   required Future<ProxyTestResult> Function() probe,
 });
 
-/// Ask [settings] to carry one request to [target] and report what happened.
+/// Ask [proxy] to carry one request to [target] and report what happened.
 ///
-/// [siteId] is the Tor stream-isolation tag, so a per-site test rides the
-/// same circuit the site itself would (PROXY-011). A route that resolves to
-/// Tor runs inside [holdTor], so the form's own Tor choice has a runtime
-/// even before it is saved; null tests whatever state Tor is in.
+/// A site's proxy carries its Tor stream-isolation tag, so a per-site test
+/// rides the same circuit the site itself would (PROXY-011). A route that
+/// resolves to Tor runs inside [holdTor], so the form's own Tor choice has a
+/// runtime even before it is saved; null tests whatever state Tor is in.
 Future<ProxyTestResult> testProxyConnection(
-  UserProxySettings settings, {
+  OutboundProxy proxy, {
   required Uri target,
   required TorTestHold? holdTor,
-  SiteId? siteId,
   Duration timeout = const Duration(seconds: 15),
 }) {
-  final effective = resolveEffectiveProxy(settings, siteId: siteId);
+  final effective = proxy.resolved;
   Future<ProxyTestResult> probe() =>
       _probe(effective, target: target, timeout: timeout);
   if (effective.type != ProxyType.TOR || holdTor == null) return probe();

@@ -635,7 +635,7 @@ test('DNS-018: the bloom consumer no longer seeds its cache from the response', 
 
 test('LEAK-002: the media-session artwork fetch goes through the outbound seam', () => {
   const svc = read('lib/services/media_session_service.dart');
-  assert.ok(svc.includes('outboundHttp.clientFor(') && svc.includes('resolveEffectiveProxy('),
+  assert.ok(svc.includes('outboundHttp.clientFor(') && svc.includes('proxy.resolved'),
     'the artwork URL is page-supplied, so its fetch must honor the site proxy');
   assert.ok(svc.includes('OutboundClientBlocked'),
     'a proxy that cannot be honored must drop the artwork, never fall back');

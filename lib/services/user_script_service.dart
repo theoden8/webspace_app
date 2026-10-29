@@ -139,10 +139,7 @@ Future<({String? source, String? error})> fetchUserScriptSource(
   String url, {
   required OutboundProxy proxy,
 }) async {
-  final effective = resolveEffectiveProxy(
-    proxy.settings,
-    siteId: null,
-  );
+  final effective = proxy.resolved;
   Future<bool> allowed(String candidate) async =>
       classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
       await _resolvedTargetAllowed(candidate, effective: effective);
@@ -203,7 +200,7 @@ class UserScriptService {
   /// Per-site proxy of the site this service belongs to. Resolved through
   /// the per-site → global precedence ladder when the JS handlers fetch
   /// external script/resource URLs.
-  final UserProxySettings _proxy;
+  final OutboundProxy _proxy;
 
   UserScriptService._({
     required this.shimScript,
@@ -214,7 +211,7 @@ class UserScriptService {
     required this.hasPrivilegedBridge,
     required List<UserScriptConfig> scripts,
     required Future<bool> Function(String url)? onConfirmScriptFetch,
-    required UserProxySettings proxy,
+    required OutboundProxy proxy,
   }) : _scriptHandlerName = scriptHandlerName,
        _fetchHandlerName = fetchHandlerName,
        _inlineScriptHandlerName = inlineScriptHandlerName,
@@ -255,7 +252,7 @@ class UserScriptService {
       hasPrivilegedBridge: hasPrivilegedBridge,
       scripts: scripts,
       onConfirmScriptFetch: onConfirmScriptFetch,
-      proxy: proxy.settings,
+      proxy: proxy,
     );
   }
 
@@ -329,7 +326,7 @@ class UserScriptService {
     // shows a URL, and `http://cdn.evil.example/lib.js` reads as a CDN
     // whatever it resolves to.
     if (!await _resolvedTargetAllowed(
-        url, effective: resolveEffectiveProxy(_proxy, siteId: null))) {
+        url, effective: _proxy.resolved)) {
       return false;
     }
     if (status == ScriptFetchUrlStatus.requiresConfirmation) {
@@ -373,7 +370,7 @@ class UserScriptService {
             'Fetching external script: $url', sensitive: true);
         final http.Client client;
         switch (outboundHttp.clientFor(
-          resolveEffectiveProxy(_proxy, siteId: null),
+          _proxy.resolved,
         )) {
           case OutboundClientBlocked(:final reason):
             LogTag.userScript.debug('Blocked external script fetch: $reason');
@@ -441,7 +438,7 @@ class UserScriptService {
       callback: (args) async {
         if (args.isEmpty || args[0] is! String) return {'status': 400};
         final url = args[0] as String;
-        final effective = resolveEffectiveProxy(_proxy, siteId: null);
+        final effective = _proxy.resolved;
         Future<bool> reachable(String candidate) async =>
             classifyScriptFetchUrl(candidate) !=
                 ScriptFetchUrlStatus.blocked &&

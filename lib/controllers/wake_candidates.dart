@@ -32,8 +32,7 @@ WakeCandidate wakeCandidateFor(
     blocked = WakeSkip.localPage;
   } else if (m.effectiveIncognito) {
     blocked = WakeSkip.incognito;
-  } else if (waitsForTor(m.proxySettings,
-      siteId: m.siteId, torUp: env.torUp)) {
+  } else if (waitsForTor(m.outboundProxy, torUp: env.torUp)) {
     blocked = WakeSkip.torDown;
   } else if (!proxyBindable) {
     blocked = WakeSkip.proxyUnavailable;

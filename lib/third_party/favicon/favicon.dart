@@ -29,10 +29,8 @@ import 'package:http/http.dart' as http;
 
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/untrusted_image.dart';
 import 'package:webspace/services/url_host.dart';
-import 'package:webspace/settings/proxy.dart';
 
 // Signatures from https://en.wikipedia.org/wiki/List_of_file_signatures
 const ICO_SIG = [0, 0, 1, 0];
@@ -88,7 +86,7 @@ class FaviconFinder {
     var iconUrls = <String>[];
     if (Host.ofWebUrl(url) == null) return favicons;
 
-    final effectiveProxy = resolveEffectiveProxy(proxy.settings, siteId: null);
+    final effectiveProxy = proxy.resolved;
     final clientResult = outboundHttp.clientFor(effectiveProxy);
     if (clientResult is! OutboundClientReady) {
       return favicons; // proxy could not be honored — fail closed
