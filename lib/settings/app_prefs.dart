@@ -78,9 +78,13 @@ enum AppPref<T extends Object> {
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),
   experimentalSignInPopups('experimentalSignInPopups', fallback: false),
   experimentalWebExtensions('experimentalWebExtensions', fallback: false),
+  // WEBEXT-019: the search of addons.mozilla.org, outside the App Store only.
+  experimentalExtensionSearch('experimentalExtensionSearch', fallback: false),
   // WEBEXT-018: the daily check of each extension's source. Off: no request
   // reaches a source the user did not ask to check.
   webExtensionsCheckUpdates('webExtensionsCheckUpdates', fallback: false),
+  // WEBEXT-019: offered only in a build from outside the App Store.
+  webExtensionsAutoUpdate('webExtensionsAutoUpdate', fallback: false),
   experimentalDesktopTray('experimentalDesktopTray', fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
