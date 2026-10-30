@@ -11,7 +11,7 @@ import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/webspace_chips.dart';
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, iconReloads, reloadAllIcons;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
@@ -182,6 +182,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   StreamSubscription<String>? _invalidationSub;
   StreamSubscription<String?>? _siteIconSub;
   StreamSubscription<void>? _reloadSub;
+  StreamSubscription<String>? _foundSub;
 
   /// Whether the icon's image, or its SVG body, failed to come, so the globe
   /// stands in for it.
@@ -209,6 +210,14 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       if (_currentIconUrl == null && _iconStream != null) return;
       setState(_resetAndLoad);
     });
+    // A search of this widget's own still in flight brings its own answer.
+    _foundSub = faviconsFound.listen((siteUrl) {
+      if (siteUrl != widget.url || !mounted || widget.customIcon != null) {
+        return;
+      }
+      if (_isLoading || _currentIconUrl != null) return;
+      setState(_resetAndLoad);
+    });
     _siteIconSub = SiteIconStore.instance.changes.listen((siteUrl) {
       if (!mounted || (siteUrl != null && siteUrl != widget.url)) return;
       if (widget.customIcon != null) return;
@@ -232,6 +241,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     unawaited(_invalidationSub?.cancel());
     unawaited(_siteIconSub?.cancel());
     unawaited(_reloadSub?.cancel());
+    unawaited(_foundSub?.cancel());
     super.dispose();
   }
 

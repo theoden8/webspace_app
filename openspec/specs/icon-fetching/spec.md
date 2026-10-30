@@ -569,6 +569,32 @@ WebView it does not: `onPageStarted` is posted to the looper, while
 **When** the start arrives, before `onLoadStop`
 **Then** the links are claimed once and the fetched icon becomes the site's
 
+---
+
+### Requirement: ICON-017 - One Icon Wherever the Site Shows
+
+A site's fetched icon SHALL be the same wherever the site shows. An icon drawn
+while its site's search found nothing (offline, a proxy or Tor not yet up, a
+timeout) SHALL take the icon a later search for the same site finds, without
+waiting to be drawn afresh: a folder's preview on the library home is drawn at
+launch and stays mounted, while the folder's own tiles search again each time
+it opens. A search that ends with nothing SHALL NOT replace an icon another
+search found while it ran.
+
+#### Scenario: A preview drawn offline takes the icon found later
+
+**Given** a site's icon is drawn in a folder's preview while the device is
+offline, and shows the globe
+**When** the folder is opened online and the site's tile finds its icon
+**Then** the preview shows that icon too
+
+#### Scenario: A stalled search keeps the found icon
+
+**Given** two searches for one site's icon run at once
+**When** one finds the icon and the other then ends with nothing
+**Then** both answer with the found icon, and a later request is answered from
+the cache
+
 ## Files
 
 ### Created
