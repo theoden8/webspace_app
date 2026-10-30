@@ -12,13 +12,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/controllers/page_orphan_sweep.dart';
+import 'package:webspace/controllers/site_runtime.dart';
+import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/screens/add_site.dart'
     show FaviconUrlCache, UnifiedFaviconImage;
+import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/icon_image_store.dart';
 import 'package:webspace/services/icon_service.dart';
+import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/services/webview_state_storage.dart';
+import 'package:webspace/web_view_model.dart';
 
 import 'helpers/fake_outbound.dart';
+import 'helpers/isolations.dart';
+import 'helpers/mock_secure_storage.dart';
+import 'helpers/model_fixture.dart';
 
 final Uint8List _png =
     Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
@@ -119,6 +132,78 @@ void main() {
     await getFaviconUrlStream(_plain, proxy: OutboundProxy.app).drain<void>();
     expect(factory.requests, isNotEmpty,
         reason: 'the edit dialog\'s refresh asks again');
+  });
+
+  group('images on disk', () {
+    late MemoryFileStore files;
+    late IconImageStore previous;
+
+    setUp(() {
+      files = MemoryFileStore();
+      previous = IconImageStore.instance;
+      IconImageStore.instance = IconImageStore(store: files)..initialize();
+    });
+
+    tearDown(() => IconImageStore.instance = previous);
+
+    test(
+        'ICON-008: an image is kept on disk only for a site whose state may '
+        'outlive the session, and read from there next launch', () async {
+      await getIconBytes('https://archived.test/icon.png',
+          proxy: OutboundProxy.app, persist: false);
+      await pumpEventQueue();
+      expect(await files.list(), isEmpty,
+          reason: 'an archive-tier site leaves nothing on disk (ARCH-006)');
+
+      const kept = 'https://kept.test/icon.png';
+      final fetched =
+          await getIconBytes(kept, proxy: OutboundProxy.app, persist: true);
+      await pumpEventQueue();
+      expect(await files.list(), hasLength(1));
+
+      clearFaviconCache();
+      factory
+        ..requests.clear()
+        ..responder = (_) => throw http.ClientException('offline');
+      expect(
+          await getIconBytes(kept, proxy: OutboundProxy.app, persist: true),
+          fetched);
+      expect(factory.requests, isEmpty, reason: 'the next launch reads it');
+    });
+
+    test(
+        'ICON-008: the sweep keeps the images whose URL a live site keeps, '
+        'and no other', () async {
+      final alpha = WebViewModel(initUrl: 'https://alpha.test/', name: 'A');
+      final beta = WebViewModel(initUrl: 'https://beta.test/', name: 'B');
+      await FaviconUrlCache.initialize();
+      for (final site in [alpha, beta]) {
+        await FaviconUrlCache.set(site.initUrl,
+            faviconUrl: '${site.initUrl}icon.png');
+        await IconImageStore.instance
+            .write('${site.initUrl}icon.png', bytes: _png);
+      }
+      await IconImageStore.instance
+          .write('https://gone.test/icon.png', bytes: _png);
+
+      final sweep = PageOrphanSweep(
+        SiteRuntime()
+          ..isolation = fakeContainers()
+          ..applied(SitesLoaded([alpha, beta])),
+        cookieStore:
+            CookieSecureStorage(secureStorage: MockFlutterSecureStorage()),
+        proxyPasswords: ProxyPasswordSecureStorage(
+            secureStorage: MockFlutterSecureStorage()),
+        navStates: InMemoryWebViewStateStorage(),
+      );
+      await sweep.removeOrphans(OrphanStore.iconImages,
+          liveSiteIds: {alpha.siteId});
+
+      expect(await IconImageStore.instance.read('https://alpha.test/icon.png'),
+          isNotNull);
+      expect(await files.list(), hasLength(1),
+          reason: 'a site no longer live and an icon no site keeps go');
+    });
   });
 
   for (final (how, unreach) in <(String, void Function())>[

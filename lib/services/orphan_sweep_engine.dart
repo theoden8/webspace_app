@@ -25,7 +25,11 @@ enum OrphanStore {
   blockStatsSites(OrphanScope.session),
 
   /// Page icons on disk, keyed by home URL (ICON-009).
-  siteIcons(OrphanScope.session);
+  siteIcons(OrphanScope.session),
+
+  /// Fetched icon images on disk, kept while a site keeps the icon's URL,
+  /// which an incognito site does (ICON-008).
+  iconImages(OrphanScope.configuration);
 
   const OrphanStore(this.scope);
 

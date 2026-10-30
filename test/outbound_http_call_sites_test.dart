@@ -220,6 +220,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
         placeholder: (_) => const SizedBox.shrink(),
         error: (_) => const Icon(Icons.language),
         proxy: OutboundProxy.ofSite(proxy, site: SiteId('test-site')),
+        persist: false,
       ),
     );
 

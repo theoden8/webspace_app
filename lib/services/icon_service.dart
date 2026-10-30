@@ -8,6 +8,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/engine_image.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/host_user_agent.dart';
+import 'package:webspace/services/icon_image_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -249,18 +250,23 @@ Future<Uint8List?> _readPageLinked(
 /// so an icon drawn again shows them from its first frame.
 Uint8List? cachedIconBytes(String iconUrl) => _iconBytesCache[iconUrl];
 
-/// Bytes for [iconUrl], cached in memory, fetched through the proxy-aware
-/// client on a miss. The favicon host is chosen by the page (any absolute
+/// Bytes for [iconUrl], cached in memory, read from [IconImageStore] or
+/// fetched through the proxy-aware client on a miss, and kept there when
+/// [persist] (ICON-008). The favicon host is chosen by the page (any absolute
 /// `href` in its markup wins) and the winner is re-rendered on every launch,
 /// so the render path must not reach the network on its own: null means
 /// "render the fallback", never "retry unproxied".
-Future<Uint8List?> getIconBytes(String iconUrl, {required OutboundProxy proxy}) async {
+Future<Uint8List?> getIconBytes(String iconUrl,
+    {required OutboundProxy proxy, required bool persist}) async {
   final cached = _iconBytesCache[iconUrl];
   if (cached != null) return cached;
+  final kept = await IconImageStore.instance.read(iconUrl);
+  if (kept != null) return _iconBytesCache[iconUrl] = kept;
   final bytes = await fetchIconBytes(iconUrl, proxy: proxy);
   // Another fetch may have brought them while this one ran.
   if (bytes == null) return _iconBytesCache[iconUrl];
   _iconBytesCache[iconUrl] = bytes;
+  if (persist) unawaited(IconImageStore.instance.write(iconUrl, bytes: bytes));
   _imageController.add(iconUrl);
   return bytes;
 }

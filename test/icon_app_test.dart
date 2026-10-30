@@ -1,5 +1,5 @@
-// A site's icon in the shipped app. A launch draws what a past launch found
-// without searching for it again (ICON-008). A folder preview on the library
+// A site's icon in the shipped app. A launch draws what a past launch found,
+// its URL and its image, without asking the network again (ICON-008). A folder preview on the library
 // home that missed its icon at launch takes it once the icon may come, as Tor
 // comes up or the app comes back to the front, with no folder opened to fetch
 // it (ICON-017).
@@ -15,6 +15,7 @@ import 'package:image/image.dart' as img;
 import 'package:webspace/app.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/icon_image_store.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -72,6 +73,8 @@ void main() {
     ConnectivityService.onlineOverride = Future.value(true);
     clearFaviconCache();
     FaviconUrlCache.resetForTest();
+    // Its directory is resolved once, and each test has its own.
+    IconImageStore.instance = IconImageStore();
     net = FakeOutbound(responder: _offline);
     outboundHttp = net;
   });
@@ -83,8 +86,8 @@ void main() {
   });
 
   testWidgets(
-      'ICON-008: a launch draws the icons a past launch found without '
-      'searching the sites again', (tester) async {
+      'ICON-008: a launch draws the icons a past launch found, offline and '
+      'without a request', (tester) async {
     net.responder = _online;
     await _pumpHome(tester,
         site: WebViewModel(initUrl: 'https://alpha.example.test', name: 'Alpha'));
@@ -95,7 +98,9 @@ void main() {
     await settleRealApp(tester);
     clearFaviconCache();
     FaviconUrlCache.resetForTest();
-    net.requests.clear();
+    net
+      ..requests.clear()
+      ..responder = _offline;
     // A device draws frames while the launch waits on the platform, after the
     // sites are on the page: the home's previews mount then.
     final launchDetails = Completer<void>();
@@ -120,10 +125,8 @@ void main() {
     launchDetails.complete();
     await settleRealApp(tester);
     expect(_preview('Work'), findsOneWidget);
-    expect([
-      for (final u in net.requested)
-        if (u.path.isEmpty || u.path == '/') u,
-    ], isEmpty, reason: 'the icon URL a past launch found is read, not searched');
+    expect(net.requested, isEmpty,
+        reason: 'the URL and the image a past launch found are read from disk');
   });
 
   testWidgets(

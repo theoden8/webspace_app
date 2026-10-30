@@ -165,7 +165,11 @@ session, what the app holds of a site's icon SHALL NOT be asked for again:
   known to have none, from its first frame and without a request.
 - **A launch** SHALL read the icon URLs a past launch kept before any icon
   draws, so an icon drawn while the launch is still waiting on the platform
-  does not search its site again.
+  does not search its site again, and SHALL draw the images a past launch
+  fetched from disk (`IconImageStore`), asking the network for none. Only a
+  site whose state may outlive the session keeps its image there (never an
+  archive-tier site, ARCH-006); an image whose URL no live site keeps is swept
+  as an orphan.
 - **A site that answered with its page and named no icon** SHALL NOT be
   searched again until its icon is refreshed (the edit dialog's refresh, a
   TLS pin, Reset icon cache).
@@ -185,8 +189,8 @@ session, what the app holds of a site's icon SHALL NOT be asked for again:
 **Given** a past launch found a site's icon URL
 **When** the app launches and draws the library home before the launch has
 finished
-**Then** the site's preview reads the kept URL and the site's page is not
-fetched
+**Then** the site's preview reads the kept URL and the image from disk
+**And** no request is made, online or not
 
 #### Scenario: A site with no icon is not searched again
 
@@ -548,8 +552,9 @@ shows a smaller one, or the scrape's, or the placeholder.
 
 While developer mode is on, App settings SHALL offer **Reset icon cache**,
 with its explanation behind a `HintButton`. It SHALL drop every icon the app
-keeps: the resolved URLs and SVGs in `FaviconUrlCache`, the icons sites
-reported in `SiteIconStore` (memory and disk), and the icon service's memory.
+keeps: the resolved URLs and SVGs in `FaviconUrlCache`, the fetched images in
+`IconImageStore`, the icons sites reported in `SiteIconStore` (memory and
+disk), and the icon service's memory.
 Every icon on screen is then fetched again (`reloadAllIcons`), and a site's
 own icon returns once the site loads again.
 
@@ -672,6 +677,7 @@ the cache
 - `lib/services/icon_service.dart` - Icon fetching service
 - `lib/services/site_icon_engine.dart` - Which page icon is the site's, and which declared links to fetch (ICON-009/010/013)
 - `lib/services/site_icon_store.dart` - Memory + disk store for it
+- `lib/services/icon_image_store.dart` - Disk store of fetched icon images, by icon URL (ICON-008)
 - `lib/services/icon_link_watcher_shim.dart` - Reports icon-link edits after load (ICON-011), and the load event and announced links (ICON-013)
 - `lib/services/site_icon_fetcher.dart` - Fetches and decodes the declared links (ICON-013), and `pageIconSource`, which of that and the webview's icon a site takes (ICON-014)
 - `android/.../SiteIconPlugin.kt` - Turns on WebView favicon downloads

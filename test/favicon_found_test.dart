@@ -230,7 +230,8 @@ void main() {
     (
       'image',
       '/icon.png',
-      (String url) => getIconBytes(url, proxy: OutboundProxy.app),
+      (String url) =>
+          getIconBytes(url, proxy: OutboundProxy.app, persist: false),
     ),
     (
       'SVG',

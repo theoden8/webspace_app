@@ -75,6 +75,7 @@ void main() {
         OrphanStore.proxyPasswords,
         OrphanStore.httpAuthCredentials,
         OrphanStore.htmlImports,
+        OrphanStore.iconImages,
       ]) {
         expect(targets.liveSets[store], active, reason: store.name);
       }

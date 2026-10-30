@@ -15,6 +15,7 @@ import '../services/icon_service.dart' show cachedSvgContent, getFaviconUrlStrea
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
+import '../services/icon_image_store.dart';
 import '../services/site_icon_store.dart';
 import '../services/reentry_guard.dart';
 import '../services/top_sites_engine.dart' show siteAddress;
@@ -91,6 +92,7 @@ class FaviconUrlCache {
     await _prefs?.remove('$_prefix$siteUrl');
     if (oldUrl != null) {
       await _prefs?.remove('$_svgPrefix$oldUrl');
+      await IconImageStore.instance.remove(oldUrl);
     }
     if (!keepSiteIcon) await SiteIconStore.instance.remove(siteUrl);
     invalidateFaviconFor(siteUrl);
@@ -110,6 +112,7 @@ class FaviconUrlCache {
       }
     }
     await SiteIconStore.instance.clear();
+    await IconImageStore.instance.clear();
     reloadAllIcons();
   }
 }
@@ -448,6 +451,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
           url: iconUrl,
           size: widget.size,
           proxy: widget.proxy,
+          persist: widget.persist,
           placeholder: spinner,
           error: failed,
         ),

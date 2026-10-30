@@ -4,12 +4,14 @@ import 'package:flutter/services.dart'
 import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
+import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
+import 'package:webspace/services/icon_image_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
@@ -54,6 +56,11 @@ class PageOrphanSweep implements OrphanSweepTargets {
             for (final m in _sites.models)
               if (liveSiteIds.contains(m.siteId) && !m.effectiveIncognito)
                 m.initUrl,
+          }),
+        OrphanStore.iconImages => IconImageStore.instance.removeOrphans({
+            for (final m in _sites.models)
+              if (liveSiteIds.contains(m.siteId))
+                ?FaviconUrlCache.get(m.initUrl),
           }),
       };
 
