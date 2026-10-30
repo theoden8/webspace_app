@@ -127,6 +127,8 @@ modules:
     build-commands:
       - WEBSPACE_APPLICATION_ID="$FLATPAK_ID" flutter build linux --release --no-pub
       - bash scripts/verify_adblock_shipped.sh linux
+      # The Tor Project publishes no Tor Expert Bundle for arm64 Linux.
+      - if [ "$FLATPAK_ARCH" = x86_64 ]; then bash scripts/verify_tor_shipped.sh "$BUNDLE"; fi
       # The plugin copies WPE into the bundle; the copy in /app is the one
       # it was built against.
       - rm -f "$BUNDLE"/lib/libWPEWebKit-*.so* "$BUNDLE"/lib/libwpe-*.so*
