@@ -760,7 +760,8 @@ enum Environment {
 
   /// A loaded site's webview let go of so the frame builds it afresh
   /// (`LetGo(s)`): a changed posture, proxy, user script, Tor binding or
-  /// address, a data clear, a reset, a renderer gone (BUG-002).
+  /// address, a data clear, a reset, a renderer gone (BUG-002), a move
+  /// into an archive or out, onto the other tier's container.
   letGo,
 }
 
@@ -782,11 +783,6 @@ enum Unmodeled {
   /// an archive's close land in their drop's step, and a move is the
   /// environment's.
   siteSet,
-
-  /// A site moved into an archive or back out, on the other tier's
-  /// container.
-  archiveMove,
-
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it
