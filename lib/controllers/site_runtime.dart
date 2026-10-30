@@ -27,10 +27,12 @@ class SiteRuntime {
   /// Sites with a built webview, least recently used first: activation
   /// re-adds its target at the end. Written by a table's step through
   /// [vars], and by [apply] and [retired] with a [Commit].
+  @Modeled(ModelVar.loaded)
   Iterable<WebViewModel> get loaded => _loaded;
   final Set<WebViewModel> _loaded = {};
 
   /// The site on screen, or null on the webspace list.
+  @Modeled(ModelVar.current)
   WebViewModel? get shown => _shown;
   WebViewModel? _shown;
 
@@ -93,12 +95,14 @@ class SiteRuntime {
   }
 
   /// The row of [shown], or null on the webspace list.
+  @Modeled(ModelVar.current)
   int? get current => switch (_shown) {
     final s? => models.indexOf(s),
     null => null,
   };
 
   /// The rows of [loaded], in its order.
+  @Modeled(ModelVar.loaded)
   Set<int> get loadedRows => {for (final m in loaded) models.indexOf(m)};
 
   /// Whether the site at [row] has a built webview.
@@ -108,6 +112,7 @@ class SiteRuntime {
   /// Bumped by every activation and by every change that shifts positions,
   /// so an activation suspended across an await bails instead of resuming
   /// against another site.
+  @Modeled(ModelVar.version)
   int get activationVersion => _version;
   int _version = 0;
 
@@ -116,6 +121,7 @@ class SiteRuntime {
   /// alone may clear it. Two activations of one site overlap on a double
   /// tap, and the superseded one must not unmark the other's. The target is
   /// the site itself, not its row, so a move cannot point it at another.
+  @Modeled(ModelVar.marker)
   ActivationMarker<WebViewModel>? get activating => _activating;
   void _mark(ActivationMarker<WebViewModel>? value) {
     _activating = value;

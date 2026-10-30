@@ -95,11 +95,13 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// single webview; the rest are parked and hold no renderer. See
   /// [lib/services/site_tab.dart] and TAB-001/TAB-002. The model's `tabs`,
   /// written only through [tabsCell].
+  @Modeled(ModelVar.tabs)
   List<SiteTab> get tabs => _tabs;
   late List<SiteTab> _tabs;
 
   /// The tab the site's webview is showing. Always names a member of
   /// [tabs]. The model's `active`, written only through [activeTabCell].
+  @Modeled(ModelVar.active)
   TabId get activeTabId => _activeTabId;
   late TabId _activeTabId;
 
