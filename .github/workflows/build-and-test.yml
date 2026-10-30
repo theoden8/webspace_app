@@ -648,34 +648,11 @@ jobs:
             adb shell settings put global hide_error_dialogs 1
             bash scripts/run_android_tv_tests.sh
 
-      - name: Android desktop emulator
-        uses: ./.github/actions/android-emulator
-        with:
-          api-level: '37.1'
-          target: android-desktop
-          profile: desktop_small
-          channel: beta
-          avd-name: desktop
-          enable-hw-keyboard: 'true'
-
+      # Its own boot, not the emulator runner's: the runner presses a key
+      # the moment the image says it booted, before this image's input
+      # service is up.
       - name: Run Android desktop scenarios
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 37.1
-          target: android-desktop
-          arch: x86_64
-          profile: desktop_small
-          channel: beta
-          avd-name: desktop
-          enable-hw-keyboard: true
-          disk-size: 4096M
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          script: |
-            adb wait-for-device
-            adb shell settings put global hide_error_dialogs 1
-            bash scripts/run_android_desktop_tests.sh
+        run: bash scripts/android_desktop_emulator.sh bash scripts/run_android_desktop_tests.sh
 
   build-linux:
     name: Build Linux

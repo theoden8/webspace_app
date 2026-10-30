@@ -1092,7 +1092,8 @@ Linux and macOS loops leave it out.
 
 The `android-tv` job SHALL, after the TV's scenarios, boot an Android desktop emulator
 image (`android-desktop`, API 37.1 from the beta channel, `desktop_small`, a hardware
-keyboard) and run
+keyboard), booted by [`scripts/android_desktop_emulator.sh`](../../../scripts/android_desktop_emulator.sh),
+which waits for the image's input service before anything presses a key, and run
 [`integration_test/android_desktop_test.dart`](../../../integration_test/android_desktop_test.dart)
 through [`scripts/run_android_desktop_tests.sh`](../../../scripts/run_android_desktop_tests.sh),
 which sets `WS_DESKTOP_TIER`. The test SHALL type a keyboard's keys into the activity as
