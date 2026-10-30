@@ -14,11 +14,22 @@ import '../fixture_server.dart';
 /// requests get a canned 200, `CONNECT` gets a 200 then the socket is
 /// dropped. The destination never has to exist: what is under test is
 /// which upstream a site's traffic reached, not whether the page rendered.
+///
+/// The app's own requests for a site (its icon, its title) go to the site's
+/// proxy from Dart, whatever its WebView does, so a request reaching an
+/// upstream says nothing about the WebView. [navigations] does: Chromium
+/// sends `Upgrade-Insecure-Requests: 1` with every navigation, and the
+/// app's Dart clients never send it.
 class RecordingUpstream {
   final ServerSocket _server;
   final String label;
   final List<String> requestLines = [];
   final List<String> credentials = [];
+
+  /// The request lines of the WebView navigations that reached this
+  /// upstream, told from the app's own requests by the header only a
+  /// navigation carries.
+  final List<String> navigations = [];
 
   /// Each request line with when it arrived, for a failure's timeline.
   final List<(DateTime, String)> timeline = [];
@@ -41,8 +52,12 @@ class RecordingUpstream {
               requestLines.add(lines.first);
               timeline.add((DateTime.now(), lines.first));
               for (final line in lines.skip(1)) {
-                if (line.toLowerCase().startsWith('proxy-authorization:')) {
+                final header = line.toLowerCase();
+                if (header.startsWith('proxy-authorization:')) {
                   credentials.add(line.substring(line.indexOf(':') + 1).trim());
+                }
+                if (header.startsWith('upgrade-insecure-requests:')) {
+                  navigations.add(lines.first);
                 }
               }
               socket.write(
@@ -63,7 +78,6 @@ class RecordingUpstream {
   }
 
   int get port => _server.port;
-  bool get wasReached => requestLines.isNotEmpty;
 
   /// Whether every request that reached this upstream was for [host].
   bool onlyFor(String host) => requestLines.every((l) => l.contains(host));

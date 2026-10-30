@@ -47,18 +47,15 @@ UserProxySettings _default() => UserProxySettings(type: ProxyType.DEFAULT);
 /// The topologies a host produces, built the way the app builds them.
 final _perSession = ProxyTopology.of(
   binding: ProxyBinding.perSite,
-  routesPerSite: false,
   sharesDefaultSession: (_) => false,
 );
 final _processGlobal = ProxyTopology.of(
   binding: ProxyBinding.processWide,
-  routesPerSite: false,
   sharesDefaultSession: (_) => false,
 );
 ProxyTopology _routed(bool Function(WebViewModel model) sharesDefaultSession) =>
     ProxyTopology.of(
-      binding: ProxyBinding.processWide,
-      routesPerSite: true,
+      binding: ProxyBinding.routed,
       sharesDefaultSession: sharesDefaultSession,
     );
 
@@ -658,18 +655,19 @@ void main() {
   });
 
   group('ProxyTopology.of (PROXY-008, PROXY-013)', () {
-    ProxyTopology of({required ProxyBinding binding, bool router = false}) =>
-        ProxyTopology.of(
+    ProxyTopology of({required ProxyBinding binding}) => ProxyTopology.of(
           binding: binding,
-          routesPerSite: router,
           sharesDefaultSession: (_) => false,
         );
 
-    test('one rule for the process is process-global until the router runs '
-        '(Android, Linux on the shared jar)', () {
+    test('one rule carrying a site\'s own proxy is process-global for the '
+        'run (Android without per-site profiles, PROXY-008)', () {
       expect(of(binding: ProxyBinding.processWide), isA<ProcessGlobalProxy>());
-      expect(of(binding: ProxyBinding.processWide, router: true),
-          isA<RoutedProxy>());
+    });
+
+    test('one rule naming the relay is routed for the run, from before its '
+        'checks pass (Android with per-site profiles, PROXY-013)', () {
+      expect(of(binding: ProxyBinding.routed), isA<RoutedProxy>());
     });
 
     test('a proxy each store binds is per session (iOS, macOS, Linux under '

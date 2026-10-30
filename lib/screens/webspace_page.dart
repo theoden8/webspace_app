@@ -85,7 +85,6 @@ import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
@@ -371,12 +370,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
-  /// A site's proxy changed in its settings. Its live webview takes the new
-  /// rule at once, so the loaded sites it now contends with go first, as
-  /// they would for its activation (PROXY-008).
+  /// A site's proxy changed in its settings: it reaches the relay's routes,
+  /// or starts the router, before the webview is built again (PROXY-013), and
+  /// under one rule the loaded sites it now contends with go first (PROXY-008).
   Future<void> _beforeProxyChange(WebViewModel model) async {
+    await _network.refreshRoutes(active: model);
     final slot = _sites.models.indexOf(model);
-    if (slot < 0 || model.controller == null) return;
+    if (slot < 0 || !mounted || model.controller == null) return;
     await _activation.applyResidency(
       _activation.residencyPlan(SlotIdentityChanged(slot)),
       isStale: () => !mounted,
@@ -980,7 +980,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         builder: (context) => AppSettingsScreen(
           currentSettings: _shell.theme,
           externalTorRunsHere: externalTorRunsHere,
-          proxyRouterRunsHere: ProxyRouterService.canRunHere(useContainers: _sites.useContainers),
           containersRunHere: _sites.useContainers,
           siteNames: _siteNames(),
           torSites: _network.torSites(),
@@ -1013,7 +1012,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             unawaited(_shell.saveGlobalUserScripts());
             _resets.resetAll();
           },
-          onOutboundProxyChanged: _resets.resetAll,
+          onOutboundProxyChanged: () { unawaited(_network.refreshRoutes()); _resets.resetAll(); },
           siteProxies: () => [
             for (final m in _sites.models) m.proxySettings,
           ],

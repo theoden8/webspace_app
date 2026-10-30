@@ -2967,11 +2967,11 @@ final class _WalkResidency implements ResidencyHost {
 
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
-    binding:
-        world.proxies != null && world.proxies?.scope != WalkScope.session
-        ? ProxyBinding.processWide
-        : ProxyBinding.perSite,
-    routesPerSite: world.proxies?.scope == WalkScope.router,
+    binding: switch (world.proxies?.scope) {
+      null || WalkScope.session => ProxyBinding.perSite,
+      WalkScope.global => ProxyBinding.processWide,
+      WalkScope.router => ProxyBinding.routed,
+    },
     sharesDefaultSession: world._inDefaultSession,
   );
 

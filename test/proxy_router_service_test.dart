@@ -7,87 +7,24 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/router_attribution.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/http_auth_challenge.dart';
 import 'package:webspace/services/http_auth_engine.dart';
-import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/fake_auth_caches.dart';
+import 'helpers/fake_proxy_relay.dart';
 import 'helpers/memory_http_auth_store.dart';
 
 /// Lifecycle contract of the per-site proxy router (PROXY-013): what gets
 /// installed in the relay, what happens when the relay refuses, and which
 /// challenges the service will answer.
 ///
-/// Drives the real service through a fake relay that models the wire
-/// contract rather than stubbing it away — an unknown credential is a
-/// route the relay does not have, which is what makes the revocation and
-/// fail-closed assertions mean anything.
-class FakeRelay implements ProxyRelayApi {
-  Map<String, Map<String, Object?>> installed = {};
-  String? startedRealm;
-  int startCalls = 0;
-  int stopCalls = 0;
-
-  /// When false, `startRouter` reports a bind failure.
-  bool canBind = true;
-
-  @override
-  String? get lastError => canBind ? null : 'FAKE_BIND_FAILED: no';
-
-  /// When false, `setRoutes` rejects the table.
-  bool acceptsRoutes = true;
-
-  /// The address the fake reports binding. A random 127/8 one, as the
-  /// real relay picks, so nothing can quietly assume 127.0.0.1.
-  static const String boundHost = '127.63.9.212';
-
-  @override
-  Future<({String host, int port})?> startRouter(String realm) async {
-    startCalls++;
-    if (!canBind) return null;
-    startedRealm = realm;
-    return (host: boundHost, port: 43210);
-  }
-
-  @override
-  Future<bool> setRoutes(Map<String, Map<String, Object?>> routes) async {
-    if (!acceptsRoutes) return false;
-    installed = routes;
-    return true;
-  }
-
-  /// nonce -> siteId, as the relay would have observed it.
-  Map<String, String> probes = {};
-  int clearProbeCalls = 0;
-
-  @override
-  Future<Map<String, String>> probeResults() async => probes;
-
-  @override
-  Future<void> clearProbeResults() async {
-    clearProbeCalls++;
-    probes = {};
-  }
-
-  @override
-  Future<void> stop() async {
-    stopCalls++;
-    installed = {};
-    startedRealm = null;
-    probes = {};
-  }
-
-  /// The upstream the relay would pick for [credential], or null when the
-  /// connection would be answered 502.
-  Map<String, Object?>? resolve(String credential) => installed[credential];
-}
-
+/// Drives the real service through [FakeRelay].
 void main() {
   // ProxyRelay's singleton installs a method-call handler at
   // construction, so the service's default field needs a binding.
@@ -110,7 +47,6 @@ void main() {
   tearDown(() {
     service.resetForTest();
     DeveloperModeService.instance.debugSet(on: false);
-    AppPref.proxyRouter.debugValue = AppPref.proxyRouter.fallback;
   });
 
   group('activation', () {
@@ -135,55 +71,98 @@ void main() {
       // after the probe, it resolves its own hostname directly, never
       // reaches the relay, and attribution fails on every device --
       // router mode then can never activate anywhere.
-      final order = <String>[];
+      final override = FakeOverride();
       final port = await service.activate(
         perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
-        bindOverride: (h, {required port}) async {
-          order.add('bind');
-          return true;
-        },
+        override: override,
         probe: (identity, {required url}) async {
-          order.add('probe');
+          override.steps.add('probe');
           relay.probes[FakeAuthCaches.nonceOf(url)] = identity;
         },
       );
 
-      expect(order, ['bind', 'probe']);
+      expect(override.steps, ['bind ${FakeRelay.boundHost}:43210', 'probe']);
       expect(port, isNotNull);
       expect(service.isActive, isTrue);
     });
 
-    test('a failed override bind leaves the service inactive', () async {
-      final port = await service.activate(
-        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
-        bindOverride: (h, {required port}) async => false,
-      );
-
+    /// Every way a start fails before its checks leaves the router down for
+    /// the run (PROXY-013): no fallback to one rule, the relay stopped, and
+    /// a proxied site told the relay is down so it does not load.
+    void expectDownForTheRun(int? port) {
       expect(port, isNull);
       expect(service.isActive, isFalse);
-    });
-
-    test('a bind failure leaves the service inactive', () async {
-      relay.canBind = false;
-      final port = await service.activate(
-        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
-      );
-
-      // Null means "fall back to the PROXY-008 unload", never "clear the
-      // override" — an inactive router must not look active.
-      expect(port, isNull);
-      expect(service.isActive, isFalse);
+      expect(service.failed, isTrue,
+          reason: 'a failed start is not tried again this run');
+      expect(service.relayDown, isTrue);
       expect(service.credentialFor(RouterIdentity.ofSite(SiteId('a'))), isNull);
-    });
+    }
 
-    test('a rejected route table leaves the service inactive', () async {
-      relay.acceptsRoutes = false;
+    test('a failed override bind stands the router down for the run',
+        () async {
+      final override = FakeOverride(binds: false);
       final port = await service.activate(
         perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        override: override,
       );
 
-      expect(port, isNull);
-      expect(service.isActive, isFalse);
+      expectDownForTheRun(port);
+      expect(override.steps, ['bind ${FakeRelay.boundHost}:43210'],
+          reason: 'a rule that did not apply has nothing to take off');
+      expect(relay.stopCalls, 1);
+    });
+
+    test('a bind failure stands the router down for the run', () async {
+      relay.canBind = false;
+      final override = FakeOverride();
+      final port = await service.activate(
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        override: override,
+      );
+
+      expectDownForTheRun(port);
+      expect(override.steps, isEmpty,
+          reason: 'the rule is never pointed at a relay that did not bind');
+    });
+
+    test('a rejected route table stands the router down for the run',
+        () async {
+      relay.acceptsRoutes = false;
+      final override = FakeOverride();
+      final port = await service.activate(
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        override: override,
+      );
+
+      expectDownForTheRun(port);
+      expect(override.steps, isEmpty);
+      expect(relay.stopCalls, 1,
+          reason: 'the relay is not left listening with no routes');
+    });
+
+    test('a start in flight is visible from its first step (PROXY-013)',
+        () async {
+      // A proxied site built while the router starts waits for it instead
+      // of showing the block, so the start must be seen before its first
+      // await returns.
+      expect(service.relayDown, isTrue, reason: 'no router yet');
+      final bind = Completer<void>();
+      relay.bindsAfter = bind.future;
+      final start = service.activate(
+        perSiteProxies: {RouterIdentity.ofSite(SiteId('a')): proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+      );
+      expect(service.isStarting, isTrue);
+      expect(service.relayDown, isFalse);
+      var settled = false;
+      unawaited(service.settled.then((_) => settled = true));
+      await pumpEventQueue();
+      expect(settled, isFalse, reason: 'settled waits for the start');
+
+      bind.complete();
+      expect(await start, 43210);
+      expect(await service.settled, isTrue);
+      expect(service.isStarting, isFalse);
+      expect(service.relayDown, isFalse);
     });
 
     test('the realm handed to the relay is the one the service answers on',
@@ -226,7 +205,7 @@ void main() {
     test('refuses every challenge again after a stand-down', () async {
       await service.activate(
         perSiteProxies: const {},
-        bindOverride: (h, {required port}) async => false,
+        override: FakeOverride(binds: false),
       );
 
       expect(service.isActive, isFalse);
@@ -394,108 +373,85 @@ void main() {
       expect(service.realm, isNot(first));
     });
 
-    test('router mode is gated on Android AND containers AND its switch '
+    test('router mode runs wherever the binding routes, with no switch '
         '(PROXY-013)', () {
-      // Three independent gates, and this is where the negative contract
-      // lives now that the integration tier runs Android-only. Off Android
-      // the engine cannot deliver a per-WebView proxy challenge at all; on
-      // Android without MULTI_PROFILE every site shares one auth cache; and
-      // the Proxy router switch in App settings > Network is the user's way
-      // back. Any one of them failing must leave the app on PROXY-008.
-      // Developer mode is none of them.
+      // Android with per-site profiles routes for the whole run; without
+      // them every site shares one auth cache and the binding keeps one
+      // rule for a site's own proxy (PROXY-008). Developer mode is not a
+      // gate, and nothing else is.
       //
       // Asserted on the decision rather than on `isSupported`, because
-      // this suite runs off Android: there `hostIsAndroid` answers false
-      // first and every further assertion passes without meaning it. That
-      // `isSupported` reads the switch is test/js/proxy_router_gate.test.js.
+      // this suite runs off Android: there the binding is the host's own
+      // and every further assertion passes without meaning it. That
+      // `isSupported` reads the binding is test/js/proxy_router_gate.test.js.
       for (final useContainers in [true, false]) {
-        for (final switchOn in [true, false]) {
-          final why = 'containers=$useContainers switch=$switchOn';
+        expect(
+          ProxyRouterService.isSupportedWhen(
+            binding: ProxyBinding.routed,
+            useContainers: useContainers,
+          ),
+          isTrue,
+          reason: 'routed, containers=$useContainers',
+        );
+        for (final binding in [ProxyBinding.processWide, ProxyBinding.perSite]) {
           expect(
             ProxyRouterService.isSupportedWhen(
-              isAndroid: true,
+              binding: binding,
               useContainers: useContainers,
-              switchOn: switchOn,
-            ),
-            useContainers && switchOn,
-            reason: why,
-          );
-          // Apple does not run the relay. Each container store binds its
-          // real upstream directly, which BUG-014 measured delivering
-          // distinct upstreams and distinct credentials per store, so the
-          // relay would be a hop that buys nothing. The implementation stays
-          // reachable for parity testing and nothing else, so the Apple
-          // branch is off unless a test opts in.
-          expect(
-            ProxyRouterService.isSupportedWhen(
-              isAndroid: false,
-              isApple: true,
-              useContainers: useContainers,
-              switchOn: switchOn,
             ),
             isFalse,
-            reason: 'apple must not run the relay by default: $why',
+            reason: '$binding, containers=$useContainers: omitting isApple '
+                'must not widen the gate',
           );
-          // Opted in, it is the Android decision again, so the parity path
-          // is still exercisable and the other two conditions still gate it.
+        }
+        // Apple does not run the relay. Each container store binds its real
+        // upstream directly, which BUG-014 measured delivering distinct
+        // upstreams and distinct credentials per store, so the relay would
+        // be a hop that buys nothing. The implementation stays reachable for
+        // parity testing and nothing else, so the Apple branch is off unless
+        // a test opts in.
+        expect(
+          ProxyRouterService.isSupportedWhen(
+            binding: ProxyBinding.perSite,
+            isApple: true,
+            useContainers: useContainers,
+          ),
+          isFalse,
+          reason: 'apple must not run the relay by default: '
+              'containers=$useContainers',
+        );
+        expect(
+          ProxyRouterService.isSupportedWhen(
+            binding: ProxyBinding.perSite,
+            isApple: true,
+            appleRelayEnabled: true,
+            useContainers: useContainers,
+          ),
+          useContainers,
+          reason: 'apple parity path: containers=$useContainers',
+        );
+      }
+
+      // And the wiring: the composed call agrees with the decision on
+      // whatever host this runs on, developer mode on or off.
+      for (final binding in ProxyBinding.values) {
+        final decided = ProxyRouterService.isSupportedWhen(
+          binding: binding,
+          isApple: hostIsIOS || hostIsMacOS,
+          appleRelayEnabled: ProxyRouterService.appleRelayEnabled,
+          useContainers: true,
+        );
+        for (final developerMode in [true, false]) {
+          DeveloperModeService.instance.debugSet(on: developerMode);
           expect(
-            ProxyRouterService.isSupportedWhen(
-              isAndroid: false,
-              isApple: true,
-              appleRelayEnabled: true,
-              useContainers: useContainers,
-              switchOn: switchOn,
-            ),
-            useContainers && switchOn,
-            reason: 'apple parity path: $why',
-          );
-          expect(
-            ProxyRouterService.isSupportedWhen(
-              isAndroid: false,
-              useContainers: useContainers,
-              switchOn: switchOn,
-            ),
-            isFalse,
-            reason: 'router mode must not engage on a platform that is '
-                'neither Android nor Apple, and omitting isApple must not '
-                'widen the gate',
+            ProxyRouterService.isSupported(
+                binding: binding, useContainers: true),
+            decided,
+            reason: 'developer mode is not a gate ($binding, '
+                'on=$developerMode)',
           );
         }
       }
-
-      // And the wiring: the composed calls must agree with the decision on
-      // whatever host this runs on. Written against the decision rather
-      // than against a platform, because the earlier form asserted "off
-      // Android, unsupported" and that was only ever true while the gate
-      // was Android-only -- it passed on Linux and failed on the macOS
-      // runner the moment Apple joined (PROXY-026).
-      expect(AppPref.proxyRouter.value, isTrue,
-          reason: 'the router runs by default where the WebView can');
-      expect(ProxyRouterService.isSupported(useContainers: false), isFalse,
-          reason: 'containers are ANDed in, so no containers is no router '
-              'on every platform');
-      final onThisHost = ProxyRouterService.isSupportedWhen(
-        isAndroid: hostIsAndroid,
-        isApple: hostIsIOS || hostIsMacOS,
-        appleRelayEnabled: ProxyRouterService.appleRelayEnabled,
-        useContainers: true,
-        switchOn: true,
-      );
-      for (final developerMode in [true, false]) {
-        DeveloperModeService.instance.debugSet(on: developerMode);
-        expect(ProxyRouterService.isSupported(useContainers: true), onThisHost,
-            reason: 'developer mode is not a gate (on=$developerMode)');
-      }
-      expect(ProxyRouterService.canRunHere(useContainers: true), onThisHost,
-          reason: 'the switch is listed exactly where the router could run '
-              'with it on');
-
-      AppPref.proxyRouter.debugValue = false;
-      expect(ProxyRouterService.isSupported(useContainers: true), isFalse,
-          reason: 'the switch off keeps PROXY-008');
-      expect(ProxyRouterService.canRunHere(useContainers: true), onThisHost,
-          reason: 'the row stays listed with its switch off, or it could '
-              'never be turned back on');
       expect(ProxyRouterService.appleRelayEnabled, isFalse,
           reason: 'the Apple relay ships off; a test that flips it must put '
               'it back, or every later assertion here is about a path the '
@@ -580,20 +536,20 @@ void main() {
 
       expect(port, isNull);
       expect(service.isActive, isFalse,
-          reason: 'a device that cannot attribute must fall back to PROXY-008');
+          reason: 'a device that cannot attribute must not run router mode');
       expect(service.credentialFor(RouterIdentity.ofSite(SiteId('a'))), isNull);
       expect(relay.stopCalls, greaterThan(0),
           reason: 'the relay must not be left listening after a failed check');
     });
 
     /// The grid takes taps while the launch's checks run, and the relay
-    /// already owns the rule. Placed as routed then, two sites on different
-    /// proxies stayed loaded, and a check that failed stood the relay down
-    /// with both on one rule; the launch's own activation, which a tap
-    /// skips, was the only cleanup. The residency plan reads
-    /// [ProxyRouterService.routesPerSite], so a tap in that window unloads
-    /// the other route as under PROXY-008.
-    test('sites route apart only once the launch checks pass (BUG-037)',
+    /// already owns the rule. A check that failed once stood the relay down
+    /// with sites it had let load left on one rule (BUG-037). Now no site
+    /// is answered before the proof holds, and a proof that fails stands
+    /// the router down for the run with the rule taken off the relay, so a
+    /// site with no proxy goes direct and a proxied one does not load
+    /// (PROXY-013).
+    test('no site is answered before the launch checks pass (BUG-037)',
         () async {
       final gate = Completer<void>();
       final device = honestDevice()..gates[a] = gate;
@@ -607,32 +563,44 @@ void main() {
       await pumpEventQueue();
       expect(service.isActive, isTrue,
           reason: 'the relay owns the rule while it checks');
-      expect(service.routesPerSite, isFalse,
-          reason: 'a site opened now is placed as under PROXY-008');
+      expect(service.relayDown, isFalse);
+      var answered = false;
+      unawaited(relayChallenge(b).then((_) => answered = true));
+      await pumpEventQueue();
+      expect(answered, isFalse, reason: 'the challenge waits for the proof');
 
       gate.complete();
       expect(await launch, 43210);
-      expect(service.routesPerSite, isTrue);
+      await pumpEventQueue();
+      expect(answered, isTrue);
     });
 
-    test('a launch whose checks fail never routes sites apart (BUG-037)',
-        () async {
+    test('a launch whose checks fail stands down for the run and takes the '
+        'rule off the relay (BUG-037, PROXY-013)', () async {
       final gate = Completer<void>();
       final device = sharedAuthCacheDevice()..gates[a] = gate;
+      final override = FakeOverride();
       final launch = service.activate(
         perSiteProxies: {
           for (final id in [a, b])
             id: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
         },
+        override: override,
         probe: device.probe,
       );
       await pumpEventQueue();
-      expect(service.routesPerSite, isFalse);
+      final challenge = relayChallenge(b);
 
       gate.complete();
       expect(await launch, isNull);
+      expect(await challenge, isNull,
+          reason: 'a challenge that waited is never answered');
       expect(service.isActive, isFalse);
-      expect(service.routesPerSite, isFalse);
+      expect(service.failed, isTrue);
+      expect(service.relayDown, isTrue);
+      expect(override.steps, ['bind ${FakeRelay.boundHost}:43210', 'clear'],
+          reason: 'a site with no proxy goes direct again, never through a '
+              'stopped relay, and none falls back to one rule');
     });
 
     test('refuses when any site fails to report at all', () async {

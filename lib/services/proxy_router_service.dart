@@ -7,30 +7,41 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/local_proxy_relay_api_web.dart'
     if (dart.library.io) 'package:webspace/services/local_proxy_relay_api.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/router_attribution.dart';
-import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 
-/// Points the process-wide WebView proxy at the relay on [host]:[port].
-///
-/// Runs after the routes are installed and BEFORE the attribution probe:
-/// the probe travels that same process-wide proxy, so with the override
-/// not yet applied it resolves its own hostname directly, never reaches
-/// the relay, and reads as a failed attribution on every device.
-typedef ProxyRouterOverrideBinder = Future<bool> Function(
-    String host, {required int port});
+/// The process-wide WebView proxy rule as router mode drives it (Android).
+abstract interface class ProxyRouterOverride {
+  /// Point the rule at the relay on [host]:[port]; false when it did not
+  /// apply.
+  ///
+  /// Runs after the routes are installed and BEFORE the attribution probe:
+  /// the probe travels that same process-wide proxy, so with the override
+  /// not yet applied it resolves its own hostname directly, never reaches
+  /// the relay, and reads as a failed attribution on every device.
+  Future<bool> bind(String host, {required int port});
+
+  /// Take the rule off the relay, so a site with no proxy goes direct again
+  /// once a start has failed.
+  Future<void> clear();
+}
 
 /// Owns the per-site proxy router (PROXY-013): the relay lifecycle, the
 /// per-site credentials, and the one question the WebView layer asks it at
 /// runtime ("is this auth challenge yours, and what do I answer?").
 ///
-/// Router mode replaces the serialisation Android needed under PROXY-008.
-/// `ProxyController` still carries one process-wide rule, but that rule
-/// now points at the relay for the whole app, and the relay fans traffic
-/// out per site. Sites with different proxies can therefore stay loaded
-/// at the same time.
+/// Router mode is how Android keeps a per-site proxy wherever the WebView
+/// gives each site a profile ([ProxyBinding.routed]). `ProxyController`
+/// still carries one process-wide rule, but that rule points at the relay
+/// for the whole app, and the relay fans traffic out per site. Sites with
+/// different proxies can therefore stay loaded at the same time. It starts
+/// with the first proxy a run needs, at the launch or later, and never gives
+/// way to the PROXY-008 serialisation: a start that fails leaves every
+/// proxied site unloaded for the run, and a profile whose check fails is
+/// answered `502`.
 ///
 /// **Apple takes the same router with a different delivery** (PROXY-026).
 /// There is no process-wide rule to point: each container store carries its
@@ -50,7 +61,8 @@ typedef ProxyRouterOverrideBinder = Future<bool> Function(
 /// the only thing keeping site A's credential off site B's connections.
 /// Without `MULTI_PROFILE` every site shares one session and one cached
 /// credential, which would route sites through each other's proxies. On
-/// that path the app keeps the PROXY-008 unload instead.
+/// that path the binding is process-wide and the app keeps the PROXY-008
+/// unload instead.
 class ProxyRouterService {
   static final ProxyRouterService instance = ProxyRouterService._();
   ProxyRouterService._();
@@ -89,27 +101,50 @@ class ProxyRouterService {
     _host = null;
     _port = null;
     _proven = false;
+    _starting = null;
+    _failed = false;
   }
 
   /// [resetForTest], and the relay stopped.
   @visibleForTesting
   Future<void> stopForTest() async {
     _proven = false;
-    await _standDown();
+    await _standDown(override: null);
+    _starting = null;
+    _failed = false;
   }
 
   /// True once the relay is bound and holding a route table: it owns the
   /// process-wide rule and answers the challenges its credentials meet.
   bool get isActive => _state != null && _port != null && _host != null;
 
-  /// Whether sites may run on different routes beside each other: the
-  /// launch's checks have proved this device delivers per-site routing
-  /// (PROXY-015), and router mode does not stand down for the rest of the
-  /// run. Until then the relay is up but a site the user opens is placed
-  /// as under PROXY-008, since a check that fails stands the relay down
-  /// with every site it let load left on one rule (BUG-037).
-  bool get routesPerSite => isActive && _proven;
+  /// Whether the launch's checks proved this device delivers per-site
+  /// routing (PROXY-015). Router mode never stands down after: that would
+  /// move sites already loaded onto another route (BUG-037).
   bool _proven = false;
+
+  /// The start in flight, from its first step to its last.
+  Future<int?>? _starting;
+
+  /// Whether a start is in flight: a proxied site built now waits for it
+  /// rather than failing closed.
+  bool get isStarting => _starting != null;
+
+  /// Whether a start failed this run. The router does not try again until
+  /// the next launch, and every proxied site fails closed (PROXY-013).
+  bool get failed => _failed;
+  bool _failed = false;
+
+  /// Whether a proxied site can reach its upstream now: false while no
+  /// router runs and none is starting, so it must not load (PROXY-013).
+  bool get relayDown => !isActive && !isStarting;
+
+  /// Whether the relay routes, once any start in flight has ended.
+  Future<bool> get settled async {
+    final starting = _starting;
+    if (starting != null) await starting;
+    return isActive;
+  }
 
   /// Loopback address the relay bound, or null. A random one in 127/8,
   /// so it is not interchangeable with `127.0.0.1`.
@@ -148,27 +183,21 @@ class ProxyRouterService {
   @visibleForTesting
   static bool appleRelayEnabled = false;
 
-  /// Whether router mode runs: this platform and engine can run it, and the
-  /// Proxy router switch in App settings > Network is on (PROXY-013).
+  /// Whether router mode runs here: wherever the binding routes
+  /// (PROXY-013), with developer mode on or off and no switch to turn it
+  /// off.
   ///
-  /// [useContainers] is the app's cached `ContainerNative.isSupported()`.
-  /// Offered with developer mode on or off. Read once at activation, so a
-  /// flip of the switch takes effect at next launch.
-  static bool isSupported({required bool useContainers}) => isSupportedWhen(
-        isAndroid: hostIsAndroid,
+  /// [binding] is `ProxyManager.binding`. [useContainers] is the app's
+  /// cached `ContainerNative.isSupported()`, which only the Apple parity
+  /// path reads: the routed binding already implies container mode.
+  static bool isSupported({
+    required ProxyBinding binding,
+    required bool useContainers,
+  }) =>
+      isSupportedWhen(
+        binding: binding,
         isApple: hostIsIOS || hostIsMacOS,
         useContainers: useContainers,
-        switchOn: AppPref.proxyRouter.value,
-        appleRelayEnabled: appleRelayEnabled,
-      );
-
-  /// Whether router mode could run here with its switch on: the Network
-  /// screen lists the switch only where this is true.
-  static bool canRunHere({required bool useContainers}) => isSupportedWhen(
-        isAndroid: hostIsAndroid,
-        isApple: hostIsIOS || hostIsMacOS,
-        useContainers: useContainers,
-        switchOn: true,
         appleRelayEnabled: appleRelayEnabled,
       );
 
@@ -176,20 +205,17 @@ class ProxyRouterService {
   /// contract is assertable on any host — where the platform test alone
   /// would answer false and make any further assertion vacuous.
   ///
-  /// [isApple] defaults false so the Android contract this started as is
-  /// still written the same way, and a caller that has not thought about
-  /// Apple cannot widen the gate by omission.
-  /// [appleRelayEnabled] defaults false for the same reason [isApple] does:
-  /// the Apple relay is off, and a caller that has not thought about it
-  /// cannot widen the gate by omission. See [ProxyRouterService.appleRelayEnabled].
+  /// [isApple] and [appleRelayEnabled] default false, so a caller that has
+  /// not thought about the Apple relay cannot widen the gate by omission.
+  /// See [ProxyRouterService.appleRelayEnabled].
   static bool isSupportedWhen({
-    required bool isAndroid,
+    required ProxyBinding binding,
     required bool useContainers,
-    required bool switchOn,
     bool isApple = false,
     bool appleRelayEnabled = false,
   }) =>
-      (isAndroid || (isApple && appleRelayEnabled)) && useContainers && switchOn;
+      binding == ProxyBinding.routed ||
+      (isApple && appleRelayEnabled && useContainers);
 
   /// The credential a site presents to the relay, or null when router
   /// mode is not running (in which case the WebView must not answer any
@@ -222,28 +248,50 @@ class ProxyRouterService {
   }
 
   /// Bind the relay and install the route table for [perSiteProxies].
-  /// [launch] orders the checks around the launch (PROXY-015); without one
-  /// the queued checks start as the proof holds.
+  /// [launch] orders the checks around the launch (PROXY-015); without one,
+  /// as for a start the first proxy of a run makes later, the queued checks
+  /// start as the proof holds.
   ///
   /// Callers gate on [isSupported] first; this method does not re-check
   /// the platform, which is what lets it be driven by a fake relay in
   /// tests. Returns the loopback port on success, or null if router mode
-  /// could not be established. A null return is NOT permission to clear
-  /// the proxy override: the caller must fall back to the PROXY-008 path,
-  /// which still honours the user's per-site choice.
+  /// could not be established. A null return stands the router down for the
+  /// run, takes [override] off the relay again if it was pointed there, and
+  /// leaves every proxied site failing closed: there is no fallback to the
+  /// PROXY-008 serialisation where the binding routes (PROXY-013).
   Future<int?> activate({
     required Map<RouterIdentity, UserProxySettings> perSiteProxies,
-    ProxyRouterOverrideBinder? bindOverride,
+    ProxyRouterOverride? override,
     ProxyAttributionProbe? probe,
     RouterLaunch? launch,
+  }) async {
+    assert(!isActive && !isStarting && !_failed,
+        'one start per run, and none once one has failed (PROXY-013)');
+    final starting = _start(
+      perSiteProxies: perSiteProxies,
+      override: override,
+      probe: probe,
+      launch: launch,
+    );
+    _starting = starting;
+    try {
+      return await starting;
+    } finally {
+      _starting = null;
+    }
+  }
+
+  Future<int?> _start({
+    required Map<RouterIdentity, UserProxySettings> perSiteProxies,
+    required ProxyRouterOverride? override,
+    required ProxyAttributionProbe? probe,
+    required RouterLaunch? launch,
   }) async {
     final state = _state ?? ProxyRouterState();
     final endpoint = await _relay.startRouter(state.realm);
     if (endpoint == null) {
-      LogTag.proxy.error(
-          'Router relay failed to bind (${_relay.lastError ?? 'no reason reported'}); '
-          'falling back to serialised per-site proxy');
-      return null;
+      return _fail('the relay did not bind '
+          '(${_relay.lastError ?? 'no reason reported'})', override: null);
     }
     final port = endpoint.port;
     _state = state;
@@ -255,26 +303,15 @@ class ProxyRouterService {
     };
     _attribution = attribution;
     if (attribution != null) await _relay.clearProbeResults();
-    final installed = await _installRoutes(perSiteProxies);
-    if (!installed) {
-      LogTag.proxy.error(
-          'Relay rejected the route table; not activating router mode');
-      attribution?.end();
-      _attribution = null;
-      _host = null;
-      _port = null;
-      return null;
+    if (!await _installRoutes(perSiteProxies)) {
+      return _fail('the relay rejected the route table', override: null);
     }
     // Before the probe, not after: the probe's own traffic has to reach
     // the relay, and it only does once the process-wide proxy points
     // there. Binding afterwards makes every probe fail to resolve and
     // router mode unreachable on every device.
-    if (bindOverride != null &&
-        !await bindOverride(endpoint.host, port: port)) {
-      LogTag.proxy
-          .error('Proxy override did not apply; not activating router mode');
-      await _standDown();
-      return null;
+    if (override != null && !await override.bind(endpoint.host, port: port)) {
+      return _fail('the proxy override did not apply', override: null);
     }
     // PROXY-015. Everything above proves the app WANTS per-site routing;
     // only the proof shows this device DELIVERS it. The launch waits for two
@@ -291,15 +328,24 @@ class ProxyRouterService {
           for (final identity in perSiteProxies.keys)
             if (_routed.contains(identity)) identity,
         ], first: first)) {
-      LogTag.proxy.error('Attribution not proven; not activating router mode');
-      await _standDown();
-      return null;
+      return _fail('attribution was not proven', override: override);
     }
     _proven = true;
 
     LogTag.proxy.info('Router mode active on ${endpoint.host}:$port for '
         '${perSiteProxies.length} site(s)', sensitive: true);
     return port;
+  }
+
+  /// Stand a start down for the rest of the run, [override] taken off the
+  /// relay when it was pointed there. No site has been answered yet: every
+  /// challenge waits for the proof ([attributed]).
+  Future<int?> _fail(String why, {required ProxyRouterOverride? override}) async {
+    LogTag.proxy.error('Router mode not started: $why; proxied sites fail '
+        'closed for this run (PROXY-013)');
+    _failed = true;
+    await _standDown(override: override);
+    return null;
   }
 
   /// Whether a webview may present [identity]'s credential yet: this run
@@ -400,11 +446,11 @@ class ProxyRouterService {
     return ok;
   }
 
-  /// Tear the relay down and forget every credential: only the launch's
-  /// [activate] does, before its checks pass.
-  Future<void> _standDown() async {
+  /// Tear the relay down, take [override] off it, and forget every
+  /// credential: only a start that failed does, before its checks pass.
+  Future<void> _standDown({required ProxyRouterOverride? override}) async {
     assert(!_proven,
-        'router mode never stands down once its launch checks pass (BUG-037)');
+        'router mode never stands down once its checks pass (BUG-037)');
     _attribution?.end();
     _attribution = null;
     _table = const {};
@@ -412,6 +458,7 @@ class ProxyRouterService {
     _state = null;
     _host = null;
     _port = null;
+    await override?.clear();
     await _relay.stop();
   }
 }

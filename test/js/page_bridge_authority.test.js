@@ -383,7 +383,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
     'a headless check takes its native settings from the site posture, '
     + 'through the builder the site webview uses');
   for (const check of [
-    'if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);',
+    'if (binding.proxyUnavailable || binding.relayDown) {\n      return (null, WakeSkip.proxyUnavailable);',
     'return (null, WakeSkip.onionNeedsProxy);',
     'PageHandlers.registerPageHandlers(',
     'onCreateWindow: (_, _) async => false,',

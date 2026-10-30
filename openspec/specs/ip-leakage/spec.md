@@ -854,7 +854,8 @@ own: the site has no proxy, onion addresses open only through Tor or a
 proxy, and setting the site's proxy is the way to open one. It offers the
 same two actions, going back and this site's proxy settings, and no other.
 
-Known gaps, tracked rather than hidden: outside router mode, a sub-resource,
+Known gaps, tracked rather than hidden: on Android without per-site
+profiles, a sub-resource,
 a server redirect and a back or forward navigation on Android are not asked
 of the Dart gates, so they rest on the WebView. WebKit content rule lists
 could refuse onion hosts at the network layer on Apple and Linux; none is

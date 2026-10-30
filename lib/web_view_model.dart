@@ -1100,16 +1100,22 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// trigger a rebuild (typically via `setState`) so the IndexedStack
   /// actually re-creates the slot.
   ///
+  /// Where the relay routes (Android with per-site profiles) the webview is
+  /// rebuilt too: its first load waits for the router, and a site the relay
+  /// cannot route shows the block instead of carrying on direct
+  /// (PROXY-013).
+  ///
   /// Elsewhere only a live webview takes the new rule now; one built later
   /// takes it then, so a site with none never moves the process-wide rule
   /// under the sites that run (PROXY-008).
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
-    if (ProxyManager.binding == ProxyBinding.perSite) {
-      disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
-      return;
+    switch (ProxyManager.binding) {
+      case ProxyBinding.perSite || ProxyBinding.routed:
+        disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      case ProxyBinding.processWide:
+        if (controller != null) await _applyProxySettings();
     }
-    if (controller != null) await _applyProxySettings();
   }
 
   /// The slot's webview, built on first call; null while the site waits for
@@ -1255,7 +1261,7 @@ bool dispatch(NavigationDecision decision,
           ? storeBinding.containerId
           : null;
       final bool deferForProxy = deferInitialLoadForProxy(
-        proxyIsGlobal: ProxyManager.binding == ProxyBinding.processWide,
+        binding: ProxyManager.binding,
         effectiveNonDefault: effectiveProxy.type != ProxyType.DEFAULT,
         overrideActive: ProxyManager.overrideActive,
         releasesContainerProxy: storeBinding.releasesContainerProxy,

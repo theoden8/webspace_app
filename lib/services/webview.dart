@@ -79,6 +79,7 @@ typedef StoreBinding = ({
   inapp.ProxySettings? proxy,
   bool proxyUnavailable,
   bool proxyConfigured,
+  bool relayDown,
   bool releasesContainerProxy,
 });
 
@@ -313,6 +314,7 @@ class WebViewFactory {
       proxy: inappProxy,
       proxyUnavailable: proxyUnavailable,
       proxyConfigured: claimedProxy.type != ProxyType.DEFAULT,
+      relayDown: relayDownFor(claimedProxy),
       releasesContainerProxy: releasesContainerProxy,
     );
   }
@@ -326,6 +328,7 @@ class WebViewFactory {
       switch (ProxyCoverageEngine.coverageFor(
         binding: ProxyManager.binding,
         proxyConfigured: binding.proxyConfigured,
+        relayDown: binding.relayDown,
         destination: Host.inUrl(url),
         isMountNavigation: true,
       )) {
@@ -580,11 +583,13 @@ class WebViewFactory {
     // reuses this Widget (the renderer-gone `KeyedSubtree` bump) builds a
     // fresh WKWebView, which gets a fresh mounting navigation, and a gate
     // still holding the old view's spent slot would refuse it.
-    var coverageGate = ProxyCoverageGate(
-      binding: ProxyManager.binding,
-      proxyConfigured: binding.proxyConfigured,
-      mountUrl: config.initialUrl,
-    );
+    ProxyCoverageGate freshGate() => ProxyCoverageGate(
+          binding: ProxyManager.binding,
+          proxyConfigured: binding.proxyConfigured,
+          relayDown: binding.relayDown,
+          mountUrl: config.initialUrl,
+        );
+    var coverageGate = freshGate();
 
     void reportBlocked(BlockedNavigation blocked) {
       LogTag.proxy.warning(
@@ -864,11 +869,7 @@ class WebViewFactory {
       onWebViewCreated: (controller) async {
         if (!phases.on(PageEvent.viewCreated, view: controller.platform)) return;
         LaunchTimeline.reached(LaunchMark.webViewBuilt);
-        coverageGate = ProxyCoverageGate(
-          binding: ProxyManager.binding,
-          proxyConfigured: binding.proxyConfigured,
-          mountUrl: config.initialUrl,
-        );
+        coverageGate = freshGate();
         if (firstLoadRefused != null) {
           reportBlocked((url: config.initialUrl, why: firstLoadRefused));
         }

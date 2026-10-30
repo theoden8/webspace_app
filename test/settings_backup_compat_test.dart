@@ -153,6 +153,8 @@ const Map<String, String> _retiredKeys = {
       'per-destination split is no longer a setting',
   'experimentalProxyLibrary': 'PROXY-030: saved proxies graduated out of '
       'the Experimental group; there is no switch to restore',
+  'experimentalProxyRouter': 'PROXY-013: the proxy router runs wherever the '
+      'binding routes; there is no switch to restore',
   'experimentalSiteTabs': 'TAB-012: site tabs graduated out of the '
       'Experimental group; there is no switch to restore',
   'experimentalSiteIconsOnly': 'ICON-014: site icons only graduated out of '

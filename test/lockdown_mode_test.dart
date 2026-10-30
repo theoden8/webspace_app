@@ -23,6 +23,7 @@ bool? _native(WebViewModel m) => WebViewFactory.siteSettings(
         proxy: null,
         proxyUnavailable: false,
         proxyConfigured: false,
+        relayDown: false,
         releasesContainerProxy: false,
       ),
       posture: _posture(m),

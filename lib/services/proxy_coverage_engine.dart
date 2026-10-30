@@ -31,8 +31,9 @@ sealed class Uncovered extends ProxyCoverage {
       };
 }
 
-/// The app cannot establish that the request would be proxied. This is not
-/// "the proxy is down" and not "the request failed": nothing was sent.
+/// The app cannot establish that the request would be proxied, as where the
+/// relay a routed proxy needs is not running (PROXY-013). This is not "the
+/// proxy is down" and not "the request failed": nothing was sent.
 final class Unprovable extends Uncovered {
   const Unprovable();
 }
@@ -78,13 +79,22 @@ class ProxyCoverageEngine {
   /// proxy the user chose may carry an onion service: Tor resolves it, and a
   /// proxy is handed the name rather than an address, so only a site with no
   /// proxy at all is refused one.
+  ///
+  /// [relayDown] is no router running and none starting. Where the binding
+  /// routes, that is the only way a configured proxy is reached, so its
+  /// absence is [Unprovable] (PROXY-013).
   static ProxyCoverage coverageFor({
     required ProxyBinding binding,
     required bool proxyConfigured,
+    required bool relayDown,
     required Host? destination,
     required bool isMountNavigation,
   }) {
-    if (proxyConfigured) return const Established();
+    if (proxyConfigured) {
+      return binding == ProxyBinding.routed && relayDown
+          ? const Unprovable()
+          : const Established();
+    }
     if (destination != null && destination.isOnion) {
       return const OnionNeedsProxy();
     }
@@ -102,11 +112,16 @@ class ProxyCoverageGate {
   ProxyCoverageGate({
     required this.binding,
     required this.proxyConfigured,
+    required this.relayDown,
     required this.mountUrl,
   });
 
   final ProxyBinding binding;
   final bool proxyConfigured;
+
+  /// No router ran or was starting as the WebView was built
+  /// ([ProxyCoverageEngine.coverageFor]).
+  final bool relayDown;
 
   /// The URL the WebView was constructed with. Matching on it rather than
   /// counting navigations is the fail-closed reading: a platform that does
@@ -120,6 +135,7 @@ class ProxyCoverageGate {
   ProxyCoverage evaluateFrame(String url) => ProxyCoverageEngine.coverageFor(
         binding: binding,
         proxyConfigured: proxyConfigured,
+        relayDown: relayDown,
         destination: Host.inUrl(url),
         isMountNavigation: false,
       );
@@ -131,6 +147,7 @@ class ProxyCoverageGate {
     return ProxyCoverageEngine.coverageFor(
       binding: binding,
       proxyConfigured: proxyConfigured,
+      relayDown: relayDown,
       destination: Host.inUrl(url),
       isMountNavigation: isMountNavigation,
     );

@@ -41,9 +41,10 @@ class NestedOpenBinding implements NestedScreenHost {
   // Where one rule covers the process, the proxy is that override, and the
   // nested screen is for a site that is not being activated, so its proxy is
   // put in force here or it would load through whatever the active site left
-  // behind, bound to this site's container (LEAK-003). Under router mode the
-  // rule points at the relay, and where each store binds its own proxy there
-  // is no rule: both no-op.
+  // behind, bound to this site's container (LEAK-003). Where the rule names
+  // the relay it waits for a start in flight and refuses a proxied site the
+  // relay cannot carry (PROXY-013), and where each store binds its own proxy
+  // there is no rule: a no-op.
   @override
   Future<void> applyProxyOf(WebViewModel target) =>
       ProxyManager().setProxySettings(

@@ -110,12 +110,12 @@ test('the attribution probe travels the relay too', () => {
   );
 });
 
-test('the process-wide binder is not required off Android', () => {
+test('the process-wide override is not passed off Android', () => {
   assert.match(
     network,
-    /bindOverride: bindsProcessWide \? ProxyManager\(\)\.applyRouterOverride : null/,
-    `${networkRel}: applyRouterOverride answers false off Android, and a `
-      + 'binder that answers false stands router mode down. Apple binds per '
-      + 'store instead, so it must be passed no binder at all',
+    /override: hostIsAndroid \? const ProcessRouterOverride\(\) : null/,
+    `${networkRel}: applyRouterOverride answers false off Android, and an `
+      + 'override that does not bind stands router mode down. Apple binds per '
+      + 'store instead, so it must be passed no override at all',
   );
 });

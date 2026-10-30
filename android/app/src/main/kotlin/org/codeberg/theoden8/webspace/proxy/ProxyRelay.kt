@@ -1,5 +1,6 @@
 package org.codeberg.theoden8.webspace.proxy
 
+import org.codeberg.theoden8.webspace.Guarded
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -139,6 +140,13 @@ class ProxyRelay(
     /** One site's upstream, as reached through its credential. */
     data class Route(val siteId: String, val upstream: UpstreamConfig)
 
+    /**
+     * What a connection was let through on: the credential it presented and
+     * the route that credential had then. Null credential for the
+     * single-upstream relay, whose one route no table moves.
+     */
+    data class Lease(val credential: String?, val route: Route)
+
     @Volatile
     private var serverSocket: ServerSocket? = null
     @Volatile
@@ -169,7 +177,37 @@ class ProxyRelay(
         Thread(r, "proxy-relay-worker").apply { isDaemon = true }
     }
 
-    private val splicer = Splicer { log(it) }
+    private val splicer = Splicer(log = { log(it) }, stale = ::stale)
+
+    /**
+     * Tunnels pumped on a worker rather than spliced: those through a TLS
+     * upstream, whose bytes must pass its TLS layer (BUG-007).
+     */
+    private val pumped = Guarded(mutableSetOf<Pumped>())
+
+    /** A pumped tunnel and the sockets that end it. */
+    private class Pumped(val lease: Lease, val client: Socket, val upstream: Socket)
+
+    /**
+     * Whether a connection let through on [lease] may carry nothing more:
+     * its credential routes elsewhere now, or nowhere (PROXY-028). A
+     * request on it after the change would leave through the old route.
+     */
+    private fun stale(lease: Lease): Boolean =
+        lease.credential != null && routes[lease.credential] != lease.route
+
+    /** Close every spliced and pumped connection whose lease went [stale]. */
+    private fun closeStale() {
+        splicer.sweep()
+        val gone = pumped.with { filter { stale(it.lease) } }
+        if (gone.isEmpty()) return
+        // The WebView's side first, which ends the tunnel for it at once. A
+        // TLS socket's close can wait for a write in flight, so the
+        // upstream's runs on a worker rather than under this monitor.
+        gone.forEach { runCatching { it.client.close() } }
+        pool.execute { gone.forEach { runCatching { it.upstream.close() } } }
+        log("closed ${gone.size} pumped tunnel(s) whose route changed")
+    }
 
     val port: Int
         get() = boundPort
@@ -272,6 +310,7 @@ class ProxyRelay(
     fun setRoutes(newRoutes: Map<String, Route>) {
         routes = java.util.Collections.unmodifiableMap(LinkedHashMap(newRoutes))
         log("routes updated (${routes.size} site(s): ${routes.values.map { it.siteId }})")
+        closeStale()
     }
 
     @Synchronized
@@ -303,6 +342,7 @@ class ProxyRelay(
         config = null
         routerRealm = null
         routes = emptyMap()
+        closeStale()
         probes = emptyMap()
         boundPort = -1
         boundHost = LOOPBACK
@@ -432,9 +472,9 @@ class ProxyRelay(
     /** What an open upstream connection reaches: a proxy carries any host, a tunnel one origin. */
     private data class Reach(val upstream: UpstreamConfig, val origin: String?)
 
-    /** A request the relay let through: its route, its target, and how to reach it. */
+    /** A request the relay let through: its lease, its target, and how to reach it. */
     private class Admitted(
-        val route: Route,
+        val lease: Lease,
         val method: String,
         val target: String,
         val requestLine: String,
@@ -487,7 +527,8 @@ class ProxyRelay(
             writeStatus(cout, 400, "Bad Request")
             return null
         }
-        val route = resolveUpstream(headers, cout) ?: return null
+        val lease = resolveUpstream(headers, cout) ?: return null
+        val route = lease.route
         val cfg = route.upstream
         val method = parts[0].uppercase()
         val target = parts[1]
@@ -535,7 +576,7 @@ class ProxyRelay(
         }
 
         return Admitted(
-            route = route,
+            lease = lease,
             method = method,
             target = target,
             requestLine = requestLine,
@@ -582,7 +623,7 @@ class ProxyRelay(
         var adopted = false
         try {
             if (!establishedEarly) writeEstablished(cout)
-            adopted = splice(client, cin, upstream, upstreamIn = upstream.getInputStream(), upstreamFirst = EMPTY)
+            adopted = splice(client, cin, upstream, upstreamIn = upstream.getInputStream(), upstreamFirst = EMPTY, lease = request.lease)
         } finally {
             if (!adopted) runCatching { upstream.close() }
         }
@@ -653,7 +694,7 @@ class ProxyRelay(
                 while (status in 100..199) {
                     writeHead(cout, head!!)
                     if (status == 101) {
-                        adopted = splice(client, cin, conn.socket, upstreamIn = conn.input, upstreamFirst = conn.input.drainBuffered())
+                        adopted = splice(client, cin, conn.socket, upstreamIn = conn.input, upstreamFirst = conn.input.drainBuffered(), lease = request.lease)
                         if (adopted) upstream = null
                         return adopted
                     }
@@ -733,6 +774,7 @@ class ProxyRelay(
         upstream: Socket,
         upstreamIn: InputStream,
         upstreamFirst: ByteArray,
+        lease: Lease,
     ): Boolean {
         val a = client.channel
         // A TLS socket layered on a channel's socket reports that channel as
@@ -740,16 +782,25 @@ class ProxyRelay(
         // inside the session to the proxy would go out in the clear.
         val b = if (upstream is SSLSocket) null else upstream.channel
         if (a != null && b != null) {
-            splicer.adopt(a, b, aFirst = cin.drainBuffered(), bFirst = upstreamFirst)
+            splicer.adopt(a, b, aFirst = cin.drainBuffered(), bFirst = upstreamFirst, lease = lease)
             return true
         }
-        client.soTimeout = 0
-        upstream.soTimeout = 0
-        if (upstreamFirst.isNotEmpty()) {
-            client.getOutputStream().write(upstreamFirst)
-            client.getOutputStream().flush()
+        val tunnel = Pumped(lease, client, upstream)
+        pumped.with { add(tunnel) }
+        try {
+            // Registered first, then checked: a table that moved before it was
+            // listed is seen here, one that moves after closes it.
+            if (stale(lease)) return false
+            client.soTimeout = 0
+            upstream.soTimeout = 0
+            if (upstreamFirst.isNotEmpty()) {
+                client.getOutputStream().write(upstreamFirst)
+                client.getOutputStream().flush()
+            }
+            pump(client, cin, upstream, upstreamIn)
+        } finally {
+            pumped.with { remove(tunnel) }
         }
-        pump(client, cin, upstream, upstreamIn)
         return false
     }
 
@@ -1069,9 +1120,9 @@ class ProxyRelay(
      * challenge, so a caller that is guessing cannot be walked around the
      * loop indefinitely.
      */
-    private fun resolveUpstream(headers: List<String>, cout: OutputStream): Route? {
+    private fun resolveUpstream(headers: List<String>, cout: OutputStream): Lease? {
         val realm = routerRealm
-            ?: return config?.let { Route(LEGACY_SITE_ID, it) }
+            ?: return config?.let { Lease(credential = null, route = Route(LEGACY_SITE_ID, it)) }
                 ?: run { writeStatus(cout, 502, "Bad Gateway"); null }
         val credential = proxyAuthCredential(headers)
         if (credential == null) {
@@ -1084,7 +1135,7 @@ class ProxyRelay(
             writeStatus(cout, 502, "Bad Gateway")
             return null
         }
-        return route
+        return Lease(credential, route)
     }
 
     /**

@@ -96,7 +96,6 @@ final class FakeResidency implements ResidencyHost {
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
       binding: ProxyBinding.perSite,
-      routesPerSite: false,
       sharesDefaultSession: (_) => false);
 
   @override

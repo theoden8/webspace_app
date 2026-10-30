@@ -133,7 +133,9 @@ abstract final class PopupWebView {
     final binding = WebViewFactory.bindingFor(parent);
     // Same fail-closed rule as the site webview: a proxy the site expects but
     // the platform cannot honor must not become a direct connection.
-    if (binding.proxyUnavailable) return const SizedBox.shrink();
+    if (binding.proxyUnavailable || binding.relayDown) {
+      return const SizedBox.shrink();
+    }
     ProxyManager.noteStoreProxy(binding.containerId, proxy: binding.proxy);
     final page = PageScripts.buildPageScripts(parent);
     final httpAuth = httpAuthSessionFor(parent);

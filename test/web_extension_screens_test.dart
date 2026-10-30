@@ -51,7 +51,6 @@ Widget _appSettings() => localizedApp(
     currentSettings: AppThemeSettings(),
     containersRunHere: true,
     externalTorRunsHere: false,
-    proxyRouterRunsHere: false,
     torSites: const {},
     onSettingsChanged: (_) {},
     onExportSettings: () {},

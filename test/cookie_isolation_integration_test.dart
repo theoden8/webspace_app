@@ -73,7 +73,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
 
   @override
   ProxyTopology get proxyTopology => ProxyTopology.of(
-      binding: ProxyBinding.perSite, routesPerSite: false,
+      binding: ProxyBinding.perSite,
       sharesDefaultSession: (_) => false);
 
   @override

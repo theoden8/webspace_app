@@ -169,7 +169,7 @@ what it finds.**
   WKWebView loading off screen in that process is not.
 - Incognito sites are never checked headless (their session does not outlive
   their webview), so they notify only while loaded.
-- On Android outside router mode, sites with different proxies cannot all be
+- On Android without per-site profiles, sites with different proxies cannot all be
   checked in one wake; the ones not on the wake's route are skipped.
 - A site that shows no unread count in its title and does not post on load
   is reloaded by a wake but has nothing to post.

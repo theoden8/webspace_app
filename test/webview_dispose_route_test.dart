@@ -13,7 +13,7 @@ ProxyRouteKey _route(String address) =>
 /// A webview the app lets go of keeps loading until the plugin destroys it,
 /// after it has loaded `about:blank`. On the emulator an icon fetched in that
 /// window left through the next site's proxy once the process-wide rule had
-/// moved (`integration_test/proxy_router_fallback_test.dart`, PROXY-008), so
+/// moved (`integration_test/proxy_one_rule_test.dart`, PROXY-008), so
 /// the site's claim on the rule ends only once the webview loads nothing
 /// more and has stopped what it had started (BUG-037).
 void main() {

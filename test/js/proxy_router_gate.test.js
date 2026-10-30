@@ -1,19 +1,19 @@
-// Router mode's gate is the platform, the engine and its own switch
-// (PROXY-013): on Android it runs wherever the WebView reports MULTI_PROFILE
-// and the Proxy router switch in App settings > Network is on, with
-// developer mode on or off. It shipped behind the Proxy router experiment
-// (DEVTOOLS-011) while its premise was proven on one WebView build only;
-// that gate is lifted and the switch is the user's way back to PROXY-008.
+// Router mode's gate is the binding (PROXY-013): on Android it runs wherever
+// the WebView reports MULTI_PROFILE, for the whole run, with developer mode
+// on or off and no switch. It shipped behind the Proxy router experiment
+// (DEVTOOLS-011), then behind a switch that kept PROXY-008 as the way back;
+// both are gone, and PROXY-008 is the binding of devices without per-site
+// profiles only.
 //
 // The Dart suite asserts the decision (`isSupportedWhen`) but cannot
-// assert the wiring: it runs off Android, where `hostIsAndroid` answers
-// false first and every further assertion passes without meaning it. So
-// what feeds the decision is pinned here, structurally (rung 5: no type
-// says which value a call site passes; a host-platform seam would lift it).
+// assert the wiring: it runs off Android, where the binding is the host's
+// own and every further assertion passes without meaning it. So what feeds
+// the decision is pinned here, structurally (rung 5: no type says which
+// value a call site passes; a host-platform seam would lift it).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read, dartFiles } = require('./helpers/source');
+const { read } = require('./helpers/source');
 
 const rel = 'lib/services/proxy_router_service.dart';
 const src = read(rel);
@@ -27,68 +27,66 @@ function declaration(source, name) {
   return source.slice(at, end + 1);
 }
 
-const switchRead = /switchOn:\s*AppPref\.proxyRouter\.value/;
+test('the decision is the routed binding, and nothing narrows it', () => {
+  const body = declaration(src, 'isSupportedWhen');
+  assert.match(body, /binding == ProxyBinding\.routed \|\|/,
+    'wherever the binding routes, router mode runs');
+  assert.doesNotMatch(body, /switchOn|AppPref/,
+    'no switch takes router mode away where the binding routes');
+});
 
-test('the live gate reads its switch', () => {
-  assert.match(
-    declaration(src, 'isSupported'),
-    switchRead,
-    'isSupported must read the Proxy router switch; without it the switch '
-      + 'shows a value the app ignores',
-  );
+test('the live gate reads the binding the restore decided', () => {
+  const network = read('lib/controllers/site_network_controller.dart');
+  assert.match(network,
+    /ProxyRouterService\.isSupported\(\s*binding: ProxyManager\.binding,/,
+    'the controller must ask with the latched binding, not a platform test');
 });
 
 test('the live gate reads neither developer mode nor an experiment', () => {
   assert.doesNotMatch(
     src,
-    /ExperimentalFeature|DeveloperMode/,
-    'router mode is offered with developer mode on or off (PROXY-013)',
+    /ExperimentalFeature|DeveloperMode|AppPref/,
+    'router mode is offered with developer mode on or off, and no pref '
+      + 'gates it (PROXY-013)',
   );
 });
 
-test('the decision requires the switch', () => {
-  const body = declaration(src, 'isSupportedWhen');
-  assert.match(body, /required bool switchOn/, 'a caller must say what the switch reads');
-  assert.match(body, /&&\s*switchOn/, 'the switch must narrow the gate');
-  assert.doesNotMatch(body, /switchOn\s*\|\|/, 'the switch must narrow the gate, never widen it');
-});
-
-test('the guard is not vacuous', () => {
-  // The ungated shape: platform and engine only. Prove this file rejects it.
-  const ungated = `
-    static bool isSupported({required bool useContainers}) =>
-        isSupportedWhen(isAndroid: hostIsAndroid, useContainers: useContainers);`;
-  assert.doesNotMatch(ungated, switchRead);
-});
-
-test('only the settings row may ask with the switch assumed on', () => {
-  // canRunHere answers "could this device run it", so the Network screen
-  // lists the switch. Anything that activates the relay must go through
-  // isSupported instead.
-  assert.match(declaration(src, 'canRunHere'), /switchOn: true/);
-  const callers = dartFiles()
-    .filter((f) => read(f).includes('ProxyRouterService.canRunHere('));
-  assert.deepStrictEqual(callers, ['lib/screens/webspace_page.dart']);
-  const page = read('lib/screens/webspace_page.dart');
-  const uses = [...page.matchAll(/ProxyRouterService\.canRunHere\(/g)];
-  assert.strictEqual(uses.length, 1);
-  assert.match(page.slice(uses[0].index - 40, uses[0].index),
-    /proxyRouterRunsHere:\s*$/,
-    'canRunHere only decides whether App settings lists the switch');
+test('the restore decides the binding from the isolation it probed', () => {
+  const startup = read('lib/controllers/startup_controller.dart');
+  const decided = startup.indexOf('final isolation = _sites.isolation = decided;');
+  const binds = startup.indexOf('ProxyManager.decideBinding(isolation);');
+  assert.notStrictEqual(decided, -1);
+  assert.notStrictEqual(binds, -1,
+    'the restore must decide the binding, or Android never routes');
+  assert.ok(binds > decided, 'after the isolation is decided');
 });
 
 test('the router starts only where a site is proxied', () => {
   // The route table is the one owner of what each site's traffic resolves
-  // to, so the controller asks the engine over it before binding anything
+  // to, so the controller asks the engine over it before binding anything,
+  // at the launch and at the first proxy of a run that started without one
   // (PROXY-013). Rung 5: SiteNetworkController has no boundary test; one
   // with a fake ProxyRouterService would lift this, and needs the service
   // behind an interface first.
   const network = read('lib/controllers/site_network_controller.dart');
-  const asks = network.indexOf('ProxyRouterEngine.anyProxied(');
-  const binds = network.indexOf('ProxyRouterService.instance.activate(');
-  assert.notStrictEqual(asks, -1, 'activateRouter must ask whether any route resolves to a proxy');
-  assert.notStrictEqual(binds, -1, 'activateRouter must still bring the router up');
-  assert.ok(asks < binds, 'the question comes before the relay is bound');
+  const body = (signature) => {
+    const at = network.indexOf(signature);
+    assert.notStrictEqual(at, -1, `${signature} should still exist`);
+    return network.slice(at, network.indexOf('\n  }\n', at));
+  };
+  for (const signature of [
+    'Future<void> activateRouter(',
+    'Future<void> refreshRoutes(',
+  ]) {
+    const fn = body(signature);
+    const asks = fn.indexOf('ProxyRouterEngine.anyProxied(');
+    const starts = fn.indexOf('_startRouter(');
+    assert.notStrictEqual(asks, -1, `${signature} must ask whether any route resolves to a proxy`);
+    assert.notStrictEqual(starts, -1, `${signature} must bring the router up`);
+    assert.ok(asks < starts, `${signature}: the question comes before the relay is bound`);
+  }
+  assert.match(body('Future<void> refreshRoutes('), /router\.failed\) return;/,
+    'a start that failed is not tried again this run');
 });
 
 test('the Apple relay branch is off unless a caller opts in', () => {

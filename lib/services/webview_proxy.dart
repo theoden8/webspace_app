@@ -112,8 +112,15 @@ inapp.ProxySettings? routerRelayProxyFor({
   ));
 }
 
+/// Whether a site claiming [claimed] must not load: the binding routes its
+/// proxy through the relay, and no router runs or is starting (PROXY-013).
+bool relayDownFor(UserProxySettings claimed) =>
+    claimed.type != ProxyType.DEFAULT &&
+    ProxyManager.binding == ProxyBinding.routed &&
+    ProxyRouterService.instance.relayDown;
+
 /// The relay rule a store carries to present [identity] (PROXY-026), or
-/// null where the proxy is not bound per store or router mode is off.
+/// null where the proxy is not bound per store or router mode is not running.
 inapp.ProxySettings? routerRelayProxyOf(RouterIdentity identity) {
   // Only where the proxy is bound per store (PROXY-027). Under the
   // process-wide binding the router already rides that one rule -- Android's
@@ -262,20 +269,40 @@ class ProxyManager {
   /// Where this process enforces a per-site proxy (PROXY-027).
   ///
   /// Latched on first read, so a WebView built under one binding cannot be
-  /// driven by the other for the rest of the run.
-  static ProxyBinding get binding => _binding ??= _pinnedForTest ??
+  /// driven by another for the rest of the run. The restore decides it
+  /// ([decideBinding]) before any site's webview is built; a read before
+  /// that takes the host's answer with no per-site profiles.
+  static ProxyBinding get binding =>
+      _binding ??= _bindingWith(containers: false);
+
+  /// Decides [binding] once the restore knows how sites are kept apart: on
+  /// Android, per-site profiles are what let the relay tell sites apart
+  /// (PROXY-013), and without them the one rule names a site's own proxy
+  /// (PROXY-008).
+  static void decideBinding(Isolation isolation) {
+    final decided = _bindingWith(containers: isolation is Containers);
+    assert(
+      _binding == null || _binding == decided,
+      'the proxy binding was read as $_binding before the restore decided '
+      '$decided (PROXY-013)',
+    );
+    _binding = decided;
+  }
+
+  static ProxyBinding _bindingWith({required bool containers}) =>
+      _pinnedForTest ??
       ProxyBindingEngine.bindingWhen(
         isIOS: hostIsIOS,
         isMacOS: hostIsMacOS,
         isLinux: hostIsLinux,
+        androidContainers: hostIsAndroid && containers,
       );
 
   static ProxyBinding? _pinnedForTest;
 
-  /// [binding] whatever the host says, or the host's own again with null:
-  /// for a test that runs the other binding's paths, as the process-wide
-  /// ones an Android host takes on the Linux or macOS host CI runs Dart
-  /// tests on.
+  /// [binding] whatever the host and the restore say, or theirs again with
+  /// null: for a test that runs another binding's paths, as the Android
+  /// ones on the Linux or macOS host CI runs Dart tests on.
   @visibleForTesting
   static void pinBindingForTest(ProxyBinding? binding) {
     _pinnedForTest = binding;
@@ -336,28 +363,36 @@ class ProxyManager {
       return;
     }
 
-    // Under the per-store binding the proxy travels through the fork's
-    // `inapp.InAppWebViewSettings.proxySettings` field at WebView
-    // construction, so there is nothing to flip here, and a process-wide
-    // override written on Linux would move every session that holds none.
-    // Runtime updates of the per-site proxy require the WebView to be
-    // rebuilt by the caller (see [WebViewModel.updateProxySettings]).
-    if (binding == ProxyBinding.perSite) {
-      LogTag.proxy.debug(
-          'setProxySettings: the store binds the proxy at WebView construction; no-op here',
-          sensitive: true);
-      return;
-    }
-
-    // Router mode owns the process-wide rule: it already points at the
-    // loopback router for every site, and flipping it per activation is
-    // exactly the serialisation PROXY-013 removes. Per-site routing is
-    // refreshed through `ProxyRouterService`, not here.
-    if (ProxyRouterService.instance.isActive) {
-      LogTag.proxy.debug(
-          'setProxySettings: router mode active; process-wide rule unchanged',
-          sensitive: true);
-      return;
+    switch (binding) {
+      case ProxyBinding.perSite:
+        // The proxy travels through the fork's
+        // `inapp.InAppWebViewSettings.proxySettings` field at WebView
+        // construction, so there is nothing to flip here, and a process-wide
+        // override written on Linux would move every session that holds
+        // none. Runtime updates of the per-site proxy require the WebView to
+        // be rebuilt by the caller (see [WebViewModel.updateProxySettings]).
+        LogTag.proxy.debug(
+            'setProxySettings: the store binds the proxy at WebView construction; no-op here',
+            sensitive: true);
+        return;
+      case ProxyBinding.routed:
+        // Router mode owns the process-wide rule: it points at the loopback
+        // relay for every site, and flipping it per activation is exactly
+        // the serialisation PROXY-013 removes. Per-site routing is refreshed
+        // through `ProxyRouterService`. A proxied site waits for a start in
+        // flight and must not load without the relay (PROXY-013).
+        final proxied =
+            resolveEffectiveProxy(settings, siteId: siteId).type !=
+                ProxyType.DEFAULT;
+        if (proxied && !await ProxyRouterService.instance.settled) {
+          LogTag.proxy.error(
+              'Router mode is not running; refusing to load a proxied site '
+              'without it', sensitive: true);
+          throw const ProxyRefused('the proxy router is not running');
+        }
+        return;
+      case ProxyBinding.processWide:
+        break;
     }
 
     final controller = inapp.ProxyController.instance();
@@ -528,6 +563,36 @@ class ProxyManager {
       return false;
     }
   }
+
+  /// Take the process-wide rule off a relay whose start failed, so a site
+  /// with no proxy goes direct (PROXY-013). A rule that will not clear is
+  /// logged: every site then fails on the stopped relay, which leaks
+  /// nothing.
+  Future<void> clearRouterOverride() async {
+    if (!hostIsAndroid || !PlatformInfo.isProxySupported) return;
+    try {
+      await inapp.ProxyController.instance().clearProxyOverride();
+      LogTag.proxy.info('Cleared the router override');
+    } on PlatformException catch (e) {
+      LogTag.proxy.error('Router override failed to clear: $e',
+          sensitive: true);
+    } on MissingPluginException catch (e) {
+      LogTag.proxy.error('Router override failed to clear: $e',
+          sensitive: true);
+    }
+  }
+}
+
+/// Android's process-wide rule as router mode drives it (PROXY-013).
+final class ProcessRouterOverride implements ProxyRouterOverride {
+  const ProcessRouterOverride();
+
+  @override
+  Future<bool> bind(String host, {required int port}) =>
+      ProxyManager().applyRouterOverride(host, port: port);
+
+  @override
+  Future<void> clear() => ProxyManager().clearRouterOverride();
 }
 
 /// Returns true on:

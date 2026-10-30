@@ -46,11 +46,11 @@ class ProxyConflictEngine {
   /// the caller owns the filter on `notificationsEnabled` AND `index !=
   /// targetIndex`.
   ///
-  /// [routesPerSite] lifts the constraint entirely: under router mode
-  /// (PROXY-013) the process-wide rule points at the loopback router for
-  /// good and each site reaches its own upstream through its own
-  /// credential, so two background-poll sites with different proxies no
-  /// longer contend for a single slot.
+  /// [routesPerSite] lifts the constraint entirely: wherever the binding is
+  /// not one rule for a site's own proxy, each site reaches its own upstream
+  /// (the relay's routes, PROXY-013, or a store of its own, PROXY-027), so
+  /// two background-poll sites with different proxies do not contend for a
+  /// single slot.
   static bool canEnable({
     required OutboundProxy targetProxy,
     required Iterable<OutboundProxy> otherEnabledProxies,
