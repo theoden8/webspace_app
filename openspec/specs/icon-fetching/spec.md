@@ -573,13 +573,21 @@ WebView it does not: `onPageStarted` is posted to the looper, while
 
 ### Requirement: ICON-017 - One Icon Wherever the Site Shows
 
-A site's fetched icon SHALL be the same wherever the site shows. An icon drawn
-while its site's search found nothing (offline, a proxy or Tor not yet up, a
-timeout) SHALL take the icon a later search for the same site finds, without
-waiting to be drawn afresh: a folder's preview on the library home is drawn at
-launch and stays mounted, while the folder's own tiles search again each time
-it opens. A search that ends with nothing SHALL NOT replace an icon another
-search found while it ran.
+A site's fetched icon SHALL be the same wherever the site shows. A folder's
+preview on the library home is drawn at launch and stays mounted, while the
+folder's own tiles are drawn afresh each time it opens, so any step that came
+back with nothing at launch (offline, a proxy or Tor not yet up, a timeout)
+SHALL be made good, without the preview being drawn afresh, when another
+widget's same step later succeeds:
+
+- **The search.** An icon whose site's search found nothing SHALL take the icon
+  a later search for the same site finds.
+- **The image.** An icon whose URL is known (found earlier, or kept from a
+  past launch) but whose image or SVG body failed to come SHALL take it once a
+  later fetch of that URL brings it.
+
+A search or fetch that ends with nothing SHALL NOT replace what another
+brought while it ran.
 
 #### Scenario: A preview drawn offline takes the icon found later
 
@@ -588,12 +596,21 @@ offline, and shows the globe
 **When** the folder is opened online and the site's tile finds its icon
 **Then** the preview shows that icon too
 
+#### Scenario: A preview whose image did not come at launch takes it later
+
+**Given** a site's icon URL is kept from a past launch
+**And** its folder's preview was drawn before the network was up, so its
+image (or SVG) did not come and the preview shows the globe
+**When** the folder is opened online and the site's tile fetches the image
+**Then** the preview shows the image too
+
 #### Scenario: A stalled search keeps the found icon
 
 **Given** two searches for one site's icon run at once
 **When** one finds the icon and the other then ends with nothing
 **Then** both answer with the found icon, and a later request is answered from
 the cache
+**And** two fetches of one icon's image or SVG behave the same way
 
 ## Files
 

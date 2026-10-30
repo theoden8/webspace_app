@@ -11,7 +11,7 @@ import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/webspace_chips.dart';
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, IconUpdate, iconReloads, reloadAllIcons;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, iconImagesFetched, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
@@ -183,11 +183,15 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   StreamSubscription<String?>? _siteIconSub;
   StreamSubscription<void>? _reloadSub;
   StreamSubscription<String>? _foundSub;
+  StreamSubscription<String>? _imageSub;
 
   /// Whether the icon's image, or its SVG body, failed to come, so the globe
   /// stands in for it.
   bool _imageFailed = false;
   bool _svgFailed = false;
+
+  /// Counts the image's fetches, so one that failed is made afresh.
+  int _imageFetch = 0;
 
   bool _isSvgUrl(String url) =>
       url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
@@ -218,6 +222,19 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       if (_isLoading || _currentIconUrl != null) return;
       setState(_resetAndLoad);
     });
+    // The image of an icon this widget already knows, which its own fetch
+    // failed to bring.
+    _imageSub = iconImagesFetched.listen((iconUrl) {
+      if (!mounted || iconUrl != _currentIconUrl) return;
+      if (_isSvgUrl(iconUrl)) {
+        if (_svgContent == null) unawaited(_fetchSvgContent(iconUrl));
+      } else if (_imageFailed) {
+        setState(() {
+          _imageFailed = false;
+          _imageFetch++;
+        });
+      }
+    });
     _siteIconSub = SiteIconStore.instance.changes.listen((siteUrl) {
       if (!mounted || (siteUrl != null && siteUrl != widget.url)) return;
       if (widget.customIcon != null) return;
@@ -242,6 +259,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     unawaited(_siteIconSub?.cancel());
     unawaited(_reloadSub?.cancel());
     unawaited(_foundSub?.cancel());
+    unawaited(_imageSub?.cancel());
     super.dispose();
   }
 
@@ -405,12 +423,15 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       return _isLoading ? spinner(context) : fallback(context);
     }
     if (!_isSvgUrl(iconUrl)) {
-      return faviconNetworkImage(
-        url: iconUrl,
-        size: widget.size,
-        proxy: widget.proxy,
-        placeholder: spinner,
-        error: failed,
+      return KeyedSubtree(
+        key: ValueKey(_imageFetch),
+        child: faviconNetworkImage(
+          url: iconUrl,
+          size: widget.size,
+          proxy: widget.proxy,
+          placeholder: spinner,
+          error: failed,
+        ),
       );
     }
     final svg = _svgContent;

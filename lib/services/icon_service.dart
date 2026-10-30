@@ -78,6 +78,7 @@ Future<String?> getSvgContent(
     if (response.statusCode == 200) {
       _svgContentCache[svgUrl] = response.body;
       if (persist) unawaited(onSvgContentCached?.call(svgUrl, content: response.body));
+      _imageController.add(svgUrl);
       return response.body;
     }
   } on http.ClientException catch (e) {
@@ -91,7 +92,8 @@ Future<String?> getSvgContent(
   } finally {
     client.close();
   }
-  return null;
+  // Another fetch may have brought it while this one ran.
+  return _svgContentCache[svgUrl];
 }
 
 /// Fetch the raw bytes of an icon at [iconUrl] through the proxy-aware
@@ -250,7 +252,10 @@ Future<Uint8List?> getIconBytes(String iconUrl, {required OutboundProxy proxy}) 
   final cached = _iconBytesCache[iconUrl];
   if (cached != null) return cached;
   final bytes = await fetchIconBytes(iconUrl, proxy: proxy);
-  if (bytes != null) _iconBytesCache[iconUrl] = bytes;
+  // Another fetch may have brought them while this one ran.
+  if (bytes == null) return _iconBytesCache[iconUrl];
+  _iconBytesCache[iconUrl] = bytes;
+  _imageController.add(iconUrl);
   return bytes;
 }
 
@@ -321,6 +326,14 @@ final StreamController<String> _foundController =
 /// whose own search found none takes it: a folder's preview drawn at launch,
 /// offline, learns of the icon its site's tile found later.
 Stream<String> get faviconsFound => _foundController.stream;
+
+final StreamController<String> _imageController =
+    StreamController<String>.broadcast();
+
+/// Fires an icon's URL when its image, or its SVG body, arrives, so an icon
+/// whose own fetch of it failed takes it: a folder's preview drawn at launch
+/// with the icon's URL known, before the network or its proxy was up.
+Stream<String> get iconImagesFetched => _imageController.stream;
 
 /// Fires when every icon cache was cleared, so every icon on screen is
 /// fetched again.
