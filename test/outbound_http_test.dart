@@ -58,7 +58,7 @@ void main() {
 
     test('DEFAULT type returns a Ready client', () {
       final result = factory.clientFor(
-        UserProxySettings(type: ProxyType.DEFAULT),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved,
       );
       expect(result, isA<OutboundClientReady>());
       (result as OutboundClientReady).client.close();
@@ -66,7 +66,7 @@ void main() {
 
     test('HTTP with valid address returns a Ready client', () {
       final result = factory.clientFor(
-        UserProxySettings(type: ProxyType.HTTP, address: '127.0.0.1:8080'),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.HTTP, address: '127.0.0.1:8080')).resolved,
       );
       expect(result, isA<OutboundClientReady>());
       (result as OutboundClientReady).client.close();
@@ -74,24 +74,24 @@ void main() {
 
     test('HTTP with empty address returns Blocked (no direct fallback)', () {
       final result = factory.clientFor(
-        UserProxySettings(type: ProxyType.HTTP, address: ''),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.HTTP, address: '')).resolved,
       );
       expect(result, isA<OutboundClientBlocked>());
     });
 
     test('HTTPS with malformed address returns Blocked (no direct fallback)', () {
       final result = factory.clientFor(
-        UserProxySettings(type: ProxyType.HTTPS, address: 'no-port'),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.HTTPS, address: 'no-port')).resolved,
       );
       expect(result, isA<OutboundClientBlocked>());
     });
 
     test('SOCKS5 with valid address returns a Ready client (tunnels via socks5_proxy)', () {
       final result = factory.clientFor(
-        UserProxySettings(
+        OutboundProxy.ofApp(UserProxySettings(
           type: ProxyType.SOCKS5,
           address: '127.0.0.1:9050',
-        ),
+        )).resolved,
       );
       expect(result, isA<OutboundClientReady>());
       (result as OutboundClientReady).client.close();
@@ -99,7 +99,7 @@ void main() {
 
     test('SOCKS5 with malformed address returns Blocked (no direct fallback)', () {
       final result = factory.clientFor(
-        UserProxySettings(type: ProxyType.SOCKS5, address: 'no-port'),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.SOCKS5, address: 'no-port')).resolved,
       );
       expect(result, isA<OutboundClientBlocked>());
       expect((result as OutboundClientBlocked).reason, contains('SOCKS5'));
@@ -107,7 +107,7 @@ void main() {
 
     test('SOCKS5 with empty address returns Blocked (no direct fallback)', () {
       final result = factory.clientFor(
-        UserProxySettings(type: ProxyType.SOCKS5, address: ''),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.SOCKS5, address: '')).resolved,
       );
       expect(result, isA<OutboundClientBlocked>());
       expect((result as OutboundClientBlocked).reason, contains('SOCKS5'));
@@ -214,9 +214,9 @@ void main() {
       outboundHttp = fake;
       addTearDown(resetOutboundHttp);
 
-      outboundHttp.clientFor(UserProxySettings(type: ProxyType.DEFAULT));
+      outboundHttp.clientFor(OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved);
       outboundHttp.clientFor(
-        UserProxySettings(type: ProxyType.HTTP, address: 'p:1'),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.HTTP, address: 'p:1')).resolved,
       );
 
       expect(fake.queries, hasLength(2));
@@ -236,7 +236,7 @@ void main() {
       addTearDown(resetOutboundHttp);
 
       final result = outboundHttp.clientFor(
-        UserProxySettings(type: ProxyType.DEFAULT),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved,
       );
       expect(result, isA<OutboundClientReady>());
       final client = (result as OutboundClientReady).client;
@@ -255,7 +255,7 @@ void main() {
       addTearDown(resetOutboundHttp);
 
       final result = outboundHttp.clientFor(
-        UserProxySettings(type: ProxyType.DEFAULT),
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved,
       );
       final client = (result as OutboundClientReady).client;
       addTearDown(client.close);

@@ -153,7 +153,7 @@ void main() {
       expect(resolved.problem, problem);
       expect(resolved.route.type, ProxyType.SAVED);
       expect(OutboundProxy.ofApp(s).resolved.address, isNull);
-      expect(const DefaultOutboundHttpFactory().clientFor(s),
+      expect(const DefaultOutboundHttpFactory().clientFor(OutboundProxy.ofApp(s).resolved),
           isA<OutboundClientBlocked>());
       expect(
         userProxyToInappProxy(OutboundProxy.ofApp(s).resolved),

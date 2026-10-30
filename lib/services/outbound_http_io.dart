@@ -9,7 +9,6 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/socks_connect.dart';
 import 'package:webspace/services/url_host.dart';
 
@@ -29,26 +28,20 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   const DefaultOutboundHttpFactory();
 
   @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    // Callers that hand over the app-wide proxy as stored, without going
-    // through `resolveEffectiveProxy`, still reach what it names in the
-    // proxy library. A resolved route names nothing, so this runs once.
-    if (settings.type == ProxyType.SAVED ||
-        settings.type == ProxyType.GATEWAY ||
-        settings.credentialsId != null) {
-      final route = resolveLibraryProxy(settings);
-      if (route.type == ProxyType.SAVED) {
-        return const OutboundClientBlocked(
-          'The saved proxy, gateway or credentials this setting names no '
-          'longer exist or do not fit together. Outbound request blocked to '
-          'avoid leaking the device IP via a direct fallback.',
-        );
-      }
-      return clientFor(route);
-    }
+  OutboundClient clientFor(
+    ProxyRoute route, {
+    BodyEncoding encoding = BodyEncoding.decoded,
+  }) =>
+      _clientFor(route, encoding: encoding);
+
+  OutboundClient _clientFor(
+    UserProxySettings settings, {
+    required BodyEncoding encoding,
+  }) {
     switch (settings.type) {
       case ProxyType.DEFAULT:
-        return OutboundClientReady(IOClient(_directHttpClient()));
+        return OutboundClientReady(
+            IOClient(_directHttpClient(encoding: encoding)));
 
       case ProxyType.HTTP:
       case ProxyType.HTTPS:
@@ -71,6 +64,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           addr: addr,
           hostPort: hostPort,
           tls: settings.type == ProxyType.HTTPS,
+          encoding: encoding,
         );
 
       case ProxyType.TOR:
@@ -81,7 +75,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
         // would put the request on the device IP, which is the exact thing
         // the user turned Tor on to prevent (TOR-008).
         return switch (expandTorProxy(settings)) {
-          TorRouteUp(:final socks) => clientFor(socks),
+          TorRouteUp(:final socks) => _clientFor(socks, encoding: encoding),
           TorRouteBlocked(:final reason) => OutboundClientBlocked(
               '$reason Outbound request blocked to avoid leaking the device '
               'IP via a direct fallback.',
@@ -90,8 +84,12 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
 
       case ProxyType.SAVED:
       case ProxyType.GATEWAY:
-        // Resolved above; unreachable.
-        return const OutboundClientBlocked('Unresolved proxy library route.');
+        // What a route still names of the proxy library did not resolve.
+        return const OutboundClientBlocked(
+          'The saved proxy, gateway or credentials this setting names no '
+          'longer exist or do not fit together. Outbound request blocked to '
+          'avoid leaking the device IP via a direct fallback.',
+        );
 
       case ProxyType.SOCKS5:
         final addr = settings.address;
@@ -114,6 +112,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           port: hostPort.$2,
           username: settings.hasCredentials ? settings.username : null,
           password: settings.hasCredentials ? settings.password : null,
+          encoding: encoding,
         );
     }
   }
@@ -125,8 +124,12 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   /// works for Dart-side fetches (favicon probes, downloads, …) — the
   /// alternative was a `HandshakeException: CERTIFICATE_VERIFY_FAILED`
   /// the moment any non-webview code touched the same site.
-  static HttpClient _newHttpClient() {
-    final client = HttpClient();
+  static HttpClient _newHttpClient({required BodyEncoding encoding}) {
+    final client = HttpClient()
+      ..autoUncompress = switch (encoding) {
+        BodyEncoding.decoded => true,
+        BodyEncoding.asSent => false,
+      };
     client.badCertificateCallback = (cert, host, port) =>
         _isTrustedBadCert(cert, host: host, port: port);
     return client;
@@ -137,8 +140,8 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   /// name to the device's resolver (LEAK-016). Asked per connection, so a
   /// redirect to one is refused too. Otherwise it connects as dart:io would
   /// without a factory.
-  static HttpClient _directHttpClient() {
-    final client = _newHttpClient();
+  static HttpClient _directHttpClient({required BodyEncoding encoding}) {
+    final client = _newHttpClient(encoding: encoding);
     client.connectionFactory = (uri, proxyHost, proxyPort) {
       final host = Host(uri.host);
       if (host.isOnion) return Future.error(OnionNeedsProxyFailure(host));
@@ -168,8 +171,9 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     required String addr,
     required (String, int) hostPort,
     required bool tls,
+    required BodyEncoding encoding,
   }) {
-    final inner = _newHttpClient();
+    final inner = _newHttpClient(encoding: encoding);
     inner.findProxy = (uri) {
       final host = uri.host.toLowerCase();
       if (_isLocalhost(host)) return 'DIRECT';
@@ -224,8 +228,9 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     required int port,
     String? username,
     String? password,
+    required BodyEncoding encoding,
   }) {
-    final inner = _newHttpClient();
+    final inner = _newHttpClient(encoding: encoding);
     final SocksProxy via =
         (host: host, port: port, username: username, password: password);
     inner.connectionFactory = (uri, proxyHost, proxyPort) async {

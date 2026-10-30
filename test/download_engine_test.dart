@@ -5,8 +5,12 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/download_engine.dart';
+
+import 'helpers/fake_outbound.dart';
 
 void main() {
   group('DownloadEngine.buildCookieHeader', () {
@@ -512,6 +516,35 @@ void main() {
       final result =
           DownloadEngine.fromBase64(base64Data: ok, maxBytes: 1024);
       expect(utf8.decode(result.bytes), 'small');
+    });
+  });
+
+  group('DownloadEngine on the outbound seam', () {
+    tearDown(resetOutboundHttp);
+
+    test('DL-006: asks the seam once, for the body as sent, on a proxied route',
+        () async {
+      final outbound = FakeOutbound(responder: (_) => http.Response('x', 200));
+      outboundHttp = outbound;
+      await DownloadEngine(
+        proxy: OutboundProxy.ofSite(
+          UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
+          site: SiteId('s'),
+        ),
+      ).fetch(url: 'https://x/f.bin');
+      expect(outbound.queries.map((q) => (q.type, q.address)),
+          [(ProxyType.HTTP, '10.0.0.1:8080')]);
+      expect(outbound.encodings, [BodyEncoding.asSent]);
+    });
+
+    test('a route the seam refuses fails before anything is sent', () async {
+      final outbound = FakeOutbound()..block = true;
+      outboundHttp = outbound;
+      await expectLater(
+        DownloadEngine(proxy: OutboundProxy.app).fetch(url: 'https://x/f.bin'),
+        throwsA(isA<DownloadException>()),
+      );
+      expect(outbound.requested, isEmpty);
     });
   });
 }

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:http/http.dart' as http;
 
 /// dart:io's family of I/O failures, so a catch names it on both targets;
 /// nothing throws it on web.
@@ -32,9 +31,6 @@ Future<bool> hostCanResolve(String host,
         {Duration timeout = const Duration(seconds: 3)}) async =>
     true;
 
-/// Downloads do not run in the design gallery; the browser client exists only
-/// so the download engine's pure logic stays reachable from a web compile.
-http.Client hostDirectDownloadClient() => http.Client();
 
 /// The web file picker hands bytes back directly; there is no path to read.
 Future<Uint8List> hostReadFileBytes(String path) =>

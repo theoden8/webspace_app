@@ -11,8 +11,6 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http_types.dart';
-import 'package:webspace/services/global_outbound_proxy.dart';
-import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/outbound_http_web.dart'
     if (dart.library.io) 'package:webspace/services/outbound_http_io.dart';
 
@@ -32,8 +30,11 @@ class _DoNotTrackOutboundHttpFactory implements OutboundHttpFactory {
   const _DoNotTrackOutboundHttpFactory(this.inner);
 
   @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    final result = inner.clientFor(settings);
+  OutboundClient clientFor(
+    ProxyRoute route, {
+    BodyEncoding encoding = BodyEncoding.decoded,
+  }) {
+    final result = inner.clientFor(route, encoding: encoding);
     if (result is OutboundClientReady) {
       return OutboundClientReady(DoNotTrackClient(result.client));
     }
@@ -98,7 +99,7 @@ Future<AppProxyFetch> fetchViaAppProxy(
     return _fetchFailed(tag, url: url, reason: 'not an http(s) URL');
   }
   final http.Client client;
-  switch (outboundHttp.clientFor(GlobalOutboundProxy.current)) {
+  switch (outboundHttp.clientFor(OutboundProxy.app.resolved)) {
     case OutboundClientBlocked(:final reason):
       tag.warning('Skipped download: $reason');
       return FetchRefused(reason);

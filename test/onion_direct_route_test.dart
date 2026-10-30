@@ -37,7 +37,7 @@ final _downloadRefusedAsOnion = throwsA(isA<DownloadException>().having(
     (e) => e.message, 'message', contains('only through Tor or a proxy')));
 
 http.Client _direct() => (const DefaultOutboundHttpFactory()
-        .clientFor(UserProxySettings(type: ProxyType.DEFAULT))
+        .clientFor(OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved)
     as OutboundClientReady)
     .client;
 

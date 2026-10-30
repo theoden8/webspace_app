@@ -366,7 +366,8 @@ class ProxyManager {
     // outbound proxy. This keeps webview traffic and Dart-side traffic
     // honoring the same proxy precedence: explicit per-site override wins,
     // otherwise the global applies, otherwise system/direct.
-    var effective = resolveEffectiveProxy(settings, siteId: siteId);
+    UserProxySettings effective =
+        resolveEffectiveProxy(settings, siteId: siteId);
     final route = effective.routeKey;
     final viaTor = effective.type == ProxyType.TOR;
     final fellThrough = settings.type == ProxyType.DEFAULT &&

@@ -203,7 +203,7 @@ Future<({String? ip, String detail, bool dropped})> _exitAddress(
     SiteId reason) async {
   final via = TorService.instance.socksFor(siteId: reason);
   if (via == null) return (ip: null, detail: 'no SOCKS route', dropped: false);
-  final route = outboundHttp.clientFor(via);
+  final route = outboundHttp.clientFor(OutboundProxy.ofApp(via).resolved);
   if (route is! OutboundClientReady) {
     return (ip: null, detail: 'no client: $route', dropped: false);
   }

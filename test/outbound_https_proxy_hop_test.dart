@@ -116,12 +116,12 @@ void main() {
   test('an HTTPS-type proxy never receives plaintext (LEAK-008)', () async {
     final sink = await _plainSink();
     addTearDown(() => sink.server.close());
-    final client = factory.clientFor(UserProxySettings(
+    final client = factory.clientFor(OutboundProxy.ofApp(UserProxySettings(
       type: ProxyType.HTTPS,
       address: '127.0.0.1:${sink.server.port}',
       username: 'user',
       password: 'hunter2',
-    )) as OutboundClientReady;
+    )).resolved) as OutboundClientReady;
     await expectLater(
       client.client.get(Uri.parse('https://origin.test:1/secret')),
       throwsA(anything),
@@ -140,10 +140,10 @@ void main() {
       () async {
     final sink = await _plainSink();
     addTearDown(() => sink.server.close());
-    final client = factory.clientFor(UserProxySettings(
+    final client = factory.clientFor(OutboundProxy.ofApp(UserProxySettings(
       type: ProxyType.HTTP,
       address: '127.0.0.1:${sink.server.port}',
-    )) as OutboundClientReady;
+    )).resolved) as OutboundClientReady;
     await expectLater(
       client.client.get(Uri.parse('https://origin.test:1/secret')),
       throwsA(anything),
@@ -176,12 +176,12 @@ void main() {
         host: 'origin.test', port: origin.port, fingerprint: fingerprint);
     addTearDown(() => trusted.clear());
 
-    final client = factory.clientFor(UserProxySettings(
+    final client = factory.clientFor(OutboundProxy.ofApp(UserProxySettings(
       type: ProxyType.HTTPS,
       address: '127.0.0.1:${proxy.port}',
       username: 'user',
       password: 'hunter2',
-    )) as OutboundClientReady;
+    )).resolved) as OutboundClientReady;
     final res = await client.client
         .get(Uri.parse('https://origin.test:${origin.port}/file.bin'))
         .timeout(const Duration(seconds: 10));

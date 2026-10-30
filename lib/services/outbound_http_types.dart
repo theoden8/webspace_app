@@ -75,23 +75,30 @@ extension type OutboundProxy._(UserProxySettings settings) {
   /// app's default proxy is not the same request as opting into per-site
   /// isolation, and conflating them would hand every uncustomized site a
   /// circuit of its own (PROXY-011).
-  UserProxySettings get resolved {
+  ProxyRoute get resolved {
     if (settings.type == ProxyType.DEFAULT) {
       final global = resolveLibraryProxy(GlobalOutboundProxy.current);
-      return global.type == ProxyType.TOR
+      return ProxyRoute._(global.type == ProxyType.TOR
           ? _torTagged(global, tag: TorTag.app)
-          : global;
+          : global);
     }
     if (settings.type == ProxyType.TOR) {
-      return _torTagged(settings, tag: null);
+      return ProxyRoute._(_torTagged(settings, tag: null));
     }
-    return resolveLibraryProxy(settings);
+    return ProxyRoute._(resolveLibraryProxy(settings));
   }
 }
 
+/// Settings a connection can be opened on: DEFAULT fallen through to the
+/// global proxy, what they take from the proxy library filled in, a Tor
+/// proxy's isolation tag stamped. Only [OutboundProxy.resolved] makes one, so
+/// [OutboundHttpFactory.clientFor] never opens a client on stored settings.
+extension type ProxyRoute._(UserProxySettings settings)
+    implements UserProxySettings {}
+
 /// The route [siteId]'s traffic takes when its stored setting is [perSite]
 /// ([OutboundProxy.resolved]).
-UserProxySettings resolveEffectiveProxy(
+ProxyRoute resolveEffectiveProxy(
   UserProxySettings perSite, {
   required SiteId siteId,
 }) => OutboundProxy.ofSite(perSite, site: siteId).resolved;
@@ -234,13 +241,27 @@ final class SocksHandshakeFailure implements IOException {
 }
 
 /// Contract for producing an [http.Client] that routes through a given
-/// [UserProxySettings]. This is the seam that lets every Dart-side outbound
-/// call honor a per-site or app-global proxy.
+/// [ProxyRoute]. This is the seam that lets every Dart-side outbound call
+/// honor a per-site or app-global proxy.
 ///
 /// Tests replace [outboundHttp] with a fake to assert what proxy each call
 /// site requested without performing real I/O.
 abstract class OutboundHttpFactory {
-  OutboundClient clientFor(UserProxySettings settings);
+  OutboundClient clientFor(
+    ProxyRoute route, {
+    BodyEncoding encoding = BodyEncoding.decoded,
+  });
+}
+
+/// What a client does with a body the server compressed.
+enum BodyEncoding {
+  /// Decoded as it arrives, as a fetch wants it.
+  decoded,
+
+  /// As the server sent it, so the Content-Length still counts the bytes
+  /// that arrive and the caller decodes them: a download, whose progress
+  /// is the wire bytes against that length. A browser decodes regardless.
+  asSent,
 }
 
 /// Parse `host:port`. Returns null on invalid input. Used by the dart:io

@@ -23,6 +23,7 @@ class FakeOutbound implements OutboundHttpFactory {
   final String blockReason;
 
   final List<UserProxySettings> queries = [];
+  final List<BodyEncoding> encodings = [];
   final List<http.Request> requests = [];
 
   UserProxySettings? get lastQuery => queries.isEmpty ? null : queries.last;
@@ -30,9 +31,13 @@ class FakeOutbound implements OutboundHttpFactory {
   set block(bool value) => blockWhen = (_) => value;
 
   @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    queries.add(settings);
-    if (blockWhen(settings)) return OutboundClientBlocked(blockReason);
+  OutboundClient clientFor(
+    ProxyRoute route, {
+    BodyEncoding encoding = BodyEncoding.decoded,
+  }) {
+    queries.add(route);
+    encodings.add(encoding);
+    if (blockWhen(route)) return OutboundClientBlocked(blockReason);
     return OutboundClientReady(client?.call() ??
         MockClient((req) async {
           requests.add(req);
