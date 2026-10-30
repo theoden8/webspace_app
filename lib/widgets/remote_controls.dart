@@ -7,7 +7,11 @@ import 'package:webspace/theme/design_tokens.dart';
 /// The app's chrome where a TV remote drives the device (NAV-016), around
 /// the navigator so dialogs, sheets and menus have it too: Up and Down leave
 /// a one-line text field, whose caret would otherwise keep every arrow, and
-/// an outline marks whatever has focus. Built only where a remote drives it.
+/// an outline marks whatever has focus. It runs in Flutter's directional
+/// navigation, which Flutter never picks itself: a slider then leaves Up and
+/// Down to moving focus instead of taking them as a change of its value, and
+/// a disabled control still takes focus, so the D-pad can rest on it. Built
+/// only where a remote drives it.
 class RemoteControls extends StatelessWidget {
   const RemoteControls({super.key, required this.child});
 
@@ -17,21 +21,26 @@ class RemoteControls extends StatelessWidget {
   static const ringKey = ValueKey('remote-focus-ring');
 
   @override
-  Widget build(BuildContext context) => Shortcuts(
-    shortcuts: const {
-      SingleActivator(LogicalKeyboardKey.arrowUp): _LeaveField(
-        TraversalDirection.up,
-      ),
-      SingleActivator(LogicalKeyboardKey.arrowDown): _LeaveField(
-        TraversalDirection.down,
-      ),
-    },
-    child: Actions(
-      actions: {_LeaveField: _LeaveFieldAction()},
-      child: Stack(
-        fit: StackFit.passthrough,
-        alignment: Alignment.topLeft,
-        children: [child, const _FocusRing()],
+  Widget build(BuildContext context) => MediaQuery(
+    data: MediaQuery.of(context).copyWith(
+      navigationMode: NavigationMode.directional,
+    ),
+    child: Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.arrowUp): _LeaveField(
+          TraversalDirection.up,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowDown): _LeaveField(
+          TraversalDirection.down,
+        ),
+      },
+      child: Actions(
+        actions: {_LeaveField: _LeaveFieldAction()},
+        child: Stack(
+          fit: StackFit.passthrough,
+          alignment: Alignment.topLeft,
+          children: [child, const _FocusRing()],
+        ),
       ),
     ),
   );

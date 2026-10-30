@@ -63,6 +63,50 @@ void main() {
     expect(field.hasPrimaryFocus, isTrue);
   });
 
+  group('a slider (NAV-016)', () {
+    late FocusNode slider;
+    setUp(() => slider = FocusNode(debugLabel: 'slider'));
+    tearDown(() => slider.dispose());
+
+    Widget settings({required ValueChanged<double> onChanged}) => Column(
+          children: [
+            Slider(focusNode: slider, value: 0.5, onChanged: onChanged),
+            TextButton(focusNode: below, onPressed: () {}, child: const Text('go')),
+          ],
+        );
+
+    testWidgets('takes Down as a change of its value on every other device',
+        (tester) async {
+      final values = <double>[];
+      await tester.pumpWidget(_app(settings(onChanged: values.add), remote: false));
+      slider.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+
+      expect(values, isNotEmpty);
+      expect(slider.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('leaves Down to the remote\'s focus moves, and keeps Left and '
+        'Right for its value', (tester) async {
+      final values = <double>[];
+      await tester.pumpWidget(_app(settings(onChanged: values.add)));
+      slider.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      expect(values, hasLength(1));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(values, hasLength(1), reason: 'Down is not a change of value');
+      expect(below.hasPrimaryFocus, isTrue);
+    });
+  });
+
   testWidgets('Left and Right stay with the caret', (tester) async {
     await tester.pumpWidget(_app(form()));
     field.requestFocus();

@@ -744,6 +744,9 @@ since a remote has no long press, no Menu key and nothing to drag with:
 
 - Up and Down SHALL leave a one-line text field (the library's search, the URL bar);
   Left and Right stay with its caret, and a field of several lines keeps all four.
+- Up and Down SHALL leave a slider (a settings row's zoom, say); Left and Right change its
+  value. The app runs in Flutter's directional navigation there, which Flutter never picks
+  itself, so a disabled control also takes focus and the D-pad can rest on it.
 - An outline SHALL mark whatever has focus, drawn inside the control. A site page (its
   engine outlines the focused link), a launcher icon and a tab strip chip outline
   themselves, so no second outline is drawn over them.
