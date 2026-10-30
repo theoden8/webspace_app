@@ -4,6 +4,8 @@ import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/file_store_io.dart';
 
 export 'package:webspace/services/file_store_io.dart' show createFileStore;
+export 'package:webspace/services/managed_tor_io.dart'
+    show createManagedTorRuntime, managedTorNotices;
 export 'package:webspace/services/tor_control_io.dart'
     show createTorControlConnect, createTorCookieRead;
 export 'package:webspace/services/tor_geoip_io.dart' show createTorGeoIpStore;

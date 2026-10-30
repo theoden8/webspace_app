@@ -3,6 +3,8 @@
 // Tor graduated out of the Experimental group (TOR-007), and so did Tor
 // (external) (TOR-025), whose switch is on the Network screen: developer mode
 // holds neither, so turning it off costs a Tor site nothing and asks nothing.
+// Linux's built-in Tor, a tor the app starts itself, is the one Tor row the
+// group has, and only on Linux (TOR-027).
 // The status card under the proxy block reports a runtime something uses, so
 // it stays out of the list until something does (TOR-004).
 
@@ -15,6 +17,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/platform/host_platform.dart' show hostIsLinux;
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/app_theme.dart';
@@ -151,6 +154,29 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isTrue);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(AppPref.experimentalFolderLibrary.key), isTrue);
+  });
+
+  testWidgets('TOR-027 Developer offers Built-in Tor on Linux only, off by '
+      'default (DEVTOOLS-011)', (tester) async {
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await openCategory(tester, title: 'Developer');
+    await tester.scrollUntilVisible(find.text('Reset icon cache'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    final title = find.text('Built-in Tor');
+    if (!hostIsLinux) {
+      expect(title, findsNothing);
+      return;
+    }
+    final row = find.ancestor(of: title, matching: find.byType(SwitchListTile));
+    expect(tester.widget<SwitchListTile>(row).value, isFalse);
+    await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(AppPref.experimentalLinuxTor.key), isTrue);
+    expect(TorService.instance.builtInOffered, isFalse,
+        reason: 'read at launch: the running TorService keeps its answer');
   });
 
   group('Tor in App settings (TOR-004, TOR-007)', () {
@@ -362,8 +388,9 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       expect(header, findsOneWidget,
           reason: 'site tabs run on every platform, so the group always has '
               'a row');
-      expect(find.text('Built-in Tor'), findsNothing,
-          reason: 'Tor is not experimental');
+      expect(find.text('Built-in Tor'), hostIsLinux ? findsOneWidget : findsNothing,
+          reason: "Apple's built-in Tor graduated (TOR-007); Linux's is the "
+              'Built-in Tor experiment (TOR-027)');
       expect(find.text('Link routing between sites'), findsNothing,
           reason: 'link routing is no longer experimental');
     });

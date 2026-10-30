@@ -90,9 +90,18 @@ test('the event subscription stays as narrow as it needs to be', () => {
 
 test('tor\'s own output is filed as sensitive', () => {
   // A notice-level line can name a bridge. Sensitive entries stay in the
-  // memory-only ring and are shown only behind the Dev Tools toggle.
-  assert.match(dart, /fromTor \? LogSensitivity\.sensitive : LogSensitivity\.normal/,
-    `${dartRel} must file tor's own lines as sensitive`);
+  // memory-only ring and are shown only behind the Dev Tools toggle. One
+  // owner decides it, and both runtimes' lines go through it: the Apple
+  // plugin's channel and the Linux child process's output (TOR-027).
+  const logRel = 'lib/services/tor_log.dart';
+  assert.match(read(logRel), /fromTor \? LogSensitivity\.sensitive : LogSensitivity\.normal/,
+    `${logRel} must file tor's own lines as sensitive`);
+  for (const rel of [dartRel, 'lib/services/managed_tor_runtime.dart']) {
+    const src = code(read(rel));
+    assert.match(src, /logTorLine\(/, `${rel} must log tor's lines through logTorLine`);
+    assert.ok(!/LogTag\.torLog\b/.test(src),
+      `${rel} must not file tor's lines itself; ${logRel} decides their tag`);
+  }
 });
 
 test('one tor per process, and a start waits for the last one to leave', () => {

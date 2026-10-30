@@ -156,7 +156,11 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       title: loc.torUnavailableTitle,
       below: [
         const SizedBox(height: Spacing.sm),
-        muted(loc.torUnavailableBody),
+        // A platform that offers a built-in Tor and still has none is a
+        // Linux machine with no tor to start (TOR-027).
+        muted(TorService.instance.builtInOffered
+            ? loc.torMissingBody
+            : loc.torUnavailableBody),
       ],
     );
 

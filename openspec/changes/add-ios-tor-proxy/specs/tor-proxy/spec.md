@@ -277,9 +277,10 @@ not forced to migrate.
 
 ### Requirement: TOR-007 - Platform gate
 
-The embedded runtime SHALL operate on iOS and macOS, and nowhere else.
-Android, Linux and macOS can instead name a tor already running on the
-device (TOR-025). `TorService.isAvailable` SHALL be the platform check, or
+The embedded runtime SHALL operate on iOS and macOS, and on Linux the
+built-in Tor is a tor the app starts (TOR-027), offered while its experiment
+is on and where the build bundles one or the machine has one; nowhere else. Android, Linux and macOS
+can instead name a tor already running on the device (TOR-025). `TorService.isAvailable` SHALL be the platform check, or
 the external tor being chosen, and nothing more, and SHALL be
 the single reader both the per-site and app-global proxy-type dropdowns
 consult; with it false the `TOR` option SHALL be absent from both.
@@ -287,7 +288,9 @@ Existing per-site SOCKS5 configuration (manual `host:port`, with or without
 credentials) SHALL remain available on every platform that supports proxies
 today, so Android users can still point at Orbot's SOCKS5 endpoint manually.
 
-**No developer mode, no experimental switch.** Tor was reachable only with
+**No developer mode, no experimental switch,** on Apple: Linux's built-in
+Tor is the Experimental group's Built-in Tor switch (TOR-027). Tor was
+reachable only with
 developer mode on and the Experimental group's Built-in Tor switch on
 (DEVTOOLS-011). It graduated: the switch, its pref (`experimentalTor`, never
 in a release), `TorGate.switchedOff` and the TOR-023 confirmations went with
@@ -1248,6 +1251,11 @@ NOT call `connect()` on a controller that reports itself connected.
 
 ### Requirement: TOR-020 - One tor per process; a stop asks it to exit
 
+On Linux tor is a child process, not a thread of the app's, and TOR-027
+says which of this carries over: a stop that asks tor to exit, a run that
+cannot be talked to retired, a start while tor runs a no-op. The one launch
+per process does not.
+
 Tor is a process singleton: `TORThread` asserts a single instance, and two
 `tor_run_main`s in one address space contend for the data-directory lock,
 which tor resolves by exiting the process it is linked into — taking the
@@ -1348,7 +1356,8 @@ conversation with tor, and both shipped. The system SHALL therefore
 carry an integration scenario that runs against the real plugin.
 
 It runs on macOS, because iOS has no integration tier here and macOS
-reuses the same harness natively (INTEG-009). The plugin source is
+reuses the same harness natively (INTEG-009). Linux's runtime is Dart, and
+its tier is TOR-027's, against a real tor process. The plugin source is
 shared (`ios/Runner/TorControllerPlugin.swift`, compiled by both Apple
 targets) rather than copied, so what the tier exercises is what iOS
 ships.
@@ -1888,3 +1897,123 @@ a Mac.
 - **WHEN** Tor comes up
 - **THEN** sites load over SOCKS, the control port row reads "Needs a
   password", and no exit-country picker or New circuits is offered
+
+---
+
+### Requirement: TOR-027 - The built-in Tor on Linux is a tor the app starts
+
+On Linux the built-in Tor SHALL be a tor the app starts as a child process
+and drives over its control socket, offered only while the Experimental
+group's Built-in Tor switch is on (DEVTOOLS-011), off by default (`ManagedTorRuntime`,
+[managed_tor_runtime.dart](../../../../../lib/services/managed_tor_runtime.dart)),
+offering what the Apple runtime offers: per-site SOCKS isolation (TOR-003),
+bootstrap phases and tor's log (TOR-018), New circuits (TOR-005), exit
+countries with a GeoIP table downloaded on the device (TOR-014,
+LICENSE-002), bridges through a pluggable transport (TOR-016), and reopened
+listeners (TOR-024). The runtime decides nothing the engine decides; it
+implements `TorRuntime` as the method channel does, so `TorEngine` and
+everything above it are the same on every platform.
+
+**Read at launch.** `TorService` decides once, as it is built
+(`builtInTorOffered`), whether this platform offers a built-in Tor, and on
+Linux builds the child-process runtime only then; the switch takes effect
+the next time the app starts, as Texture page rendering's does. With it off a
+Linux build is what it was before: Tor only through Tor (external)
+(TOR-025), no `TOR` in the proxy pickers otherwise, nothing that starts a
+tor, and the unavailable copy of every other platform without one.
+
+**Where tor comes from.** The Linux build SHALL bundle tor, the libevent and
+OpenSSL it links, the lyrebird pluggable transport and their licence notices
+from the Tor Project's Tor Expert Bundle at a pinned release and SHA-256
+([linux/tor_bundle.cmake](../../../../../linux/tor_bundle.cmake)), at
+`lib/tor/` beside the executable, so every package made from the bundle
+directory (a tarball, an AppImage, a flatpak or snap built from it) carries
+it. It SHALL install none of the bundle's GeoIP data. A build with no network
+names the archive in `WEBSPACE_TOR_BUNDLE`, whose checksum SHALL match the
+pin or fail the build; `none` builds without. Where the build bundles none
+(`none`, or arm64, for which the Tor Project publishes no bundle), the app
+SHALL run the first `tor` on `PATH` or in the sbin directories a distribution
+installs it to, so a flatpak or snap module that ships tor, or the
+distribution's package, serves; and where there is none, Tor is not offered
+(TOR-007). The licences page SHALL carry the bundled notices, read from where
+the build installed them.
+
+**How it runs.** Everything on tor's command line, nothing from a torrc the
+machine keeps (`/etc/tor/torrc` belongs to the tor service): an empty file
+as both torrc and defaults-torrc, `SocksPort auto IsolateSOCKSAuth`,
+`ClientOnly`, `SafeLogging 1`, `ConfluxEnabled 0`, cookie authentication on a
+control socket in a directory only the user can list (created 0700, which
+tor requires and Dart's own temporary directories are not), its
+DataDirectory in the app's cache directory (PLATFORM-010).
+`__OwningControllerProcess` and `TAKEOWNERSHIP` SHALL make tor exit with the
+app however it ends, so no tor outlives the process that started it. A
+pluggable transport SHALL run under the managed-transport protocol
+(`pt-spec.txt`), its SOCKS port answered to the engine as IPtProxy's is on
+Apple; the programs tried for each transport are named by an exhaustive
+switch, and a transport no program here runs answers 0 (TOR-016).
+
+**One launch is not the ceiling.** A child process leaves nothing behind in
+the app, so unlike TOR-020's Apple runtime a start after tor exited SHALL
+launch another, waiting for the previous one to be gone first (they share a
+DataDirectory, which tor locks). A start while tor runs SHALL launch nothing.
+A run that cannot be talked to (its control socket never answered, it
+refused authentication, it named no SOCKS listener) SHALL be stopped, so a
+Retry gets one that can. A stop SHALL ask tor to `SIGNAL HALT` over its own
+channel, then SIGTERM, then SIGKILL, each after a bounded wait.
+
+**A failure says what tor said.** tor writes its log to standard output, so
+the window before its control port opens, the one a failure most needs
+explained (TOR-018), is in the app log too, and a tor that exits SHALL fail
+quoting its last warnings.
+
+**The tier.** `managed_tor_real_test.dart` SHALL drive the runtime against a
+real tor, with nothing leaving the machine (its only bridge is a dead
+loopback port): the control-port handshake, a bootstrap phase, tor's log, a
+stop and a start after it, a configuration tor rejects, an exit pin and a
+reopen on the real control port, a pluggable transport naming its listener,
+and the control socket's privacy. CI SHALL run it twice: in the job that runs
+the Dart tests, against the distribution's tor and obfs4proxy, and in the
+Linux build, against the tor the build bundled, found beside the executable
+as the app finds it, after `scripts/verify_tor_shipped.sh` checked the bundle
+carries tor and no GeoIP table. Reaching `up` needs the Tor network, so it is
+asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
+
+#### Scenario: A Linux build offers Tor
+
+- **GIVEN** the Linux bundle, on a machine with no tor installed, with
+  developer mode and the Built-in Tor experiment on, after a restart
+- **WHEN** the user opens a site's Network settings
+- **THEN** `TOR` is offered in the proxy-type dropdown
+- **AND** choosing it starts the bundled tor, which comes up on a loopback
+  SOCKS port the per-site credentials isolate
+
+#### Scenario: The experiment off
+
+- **GIVEN** a Linux build with the Built-in Tor experiment off
+- **WHEN** the app starts
+- **THEN** no tor is started and `TOR` is offered only while Tor (external)
+  is on
+- **AND** a site set to `TOR` reads the unavailable copy it read before
+  TOR-027
+
+#### Scenario: A build without the bundled tor
+
+- **GIVEN** a Linux build made with `WEBSPACE_TOR_BUNDLE=none`, with the
+  experiment on
+- **WHEN** the machine has a `tor` on `PATH` or in `/usr/sbin`
+- **THEN** that tor is the built-in Tor
+- **WHEN** it has none
+- **THEN** `TOR` is not offered, as on Android
+
+#### Scenario: A tor that rejects its configuration
+
+- **GIVEN** a bridge line tor refuses
+- **WHEN** Tor starts
+- **THEN** it fails naming tor's own warning rather than timing out
+- **AND** a Retry after the line is fixed starts a fresh tor
+
+#### Scenario: The app is killed
+
+- **GIVEN** Tor is up
+- **WHEN** the app's process ends without a stop
+- **THEN** tor exits too, and the next launch's tor takes the DataDirectory

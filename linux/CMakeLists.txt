@@ -201,6 +201,20 @@ elseif(EXISTS "${WEBSPACE_ADBLOCK_SO}")
     COMPONENT Runtime)
 endif()
 
+# The built-in Tor (TOR-027), at lib/tor/ beside the executable.
+include("${CMAKE_CURRENT_SOURCE_DIR}/tor_bundle.cmake")
+if(FLUTTER_TARGET_PLATFORM MATCHES "arm64$" OR
+   (NOT FLUTTER_TARGET_PLATFORM AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64"))
+  set(WEBSPACE_TOR_ARCH "arm64")
+else()
+  set(WEBSPACE_TOR_ARCH "x64")
+endif()
+# The archive is kept in the project's build directory, which the debug and
+# release trees share.
+webspace_bundle_tor("${WEBSPACE_TOR_ARCH}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../build/tor_bundle"
+  "${INSTALL_BUNDLE_LIB_DIR}/tor")
+
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")

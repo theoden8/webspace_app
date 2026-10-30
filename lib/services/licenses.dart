@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:webspace/services/adblock_engine.dart';
+import 'package:webspace/services/host_storage.dart' show managedTorNotices;
 
 /// LicenseEntry that emits one [LicenseParagraph] per source line,
 /// so structural single line breaks (license titles, numbered
@@ -41,7 +42,8 @@ class _PerLineLicenseEntry extends LicenseEntry {
 }
 
 /// Registers the licences of everything the app bundles that is not a Dart
-/// package: the artwork and data files, and the Rust crates in adblock-rust.
+/// package: the artwork and data files, the Rust crates in adblock-rust, and
+/// the Linux build's tor.
 void registerLicenses() {
   // The pubspec asset glob pulls each `.txt` under `assets/licenses/` in.
   const customLicenses = <(List<String>, String)>[
@@ -76,6 +78,15 @@ void registerLicenses() {
       yield _PerLineLicenseEntry(packages, text: text);
     });
   }
+
+  // The Linux build's tor, its libraries and its pluggable transports, from
+  // the notices the Tor Expert Bundle carries (TOR-027). Read where the
+  // build installed them; absent from every other build.
+  LicenseRegistry.addLicense(() async* {
+    for (final (package, text) in await managedTorNotices()) {
+      yield _PerLineLicenseEntry([package], text: text);
+    }
+  });
 
   // Transitive Rust dependency attribution. Loaded from the
   // adblock_rust shared library's static metadata blob (see

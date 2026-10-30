@@ -4,7 +4,8 @@
 // forbids: Tor.framework's `Tor/GeoIP` subspec bundles the IPFire Location
 // Database, CC BY-SA 4.0, into the app. Copyleft data is fetched on the
 // device instead (lib/services/tor_geoip.dart), so this fails CI if a Podfile
-// asks for the bundle, the plugin reads it, or a table gets committed.
+// asks for the bundle, the plugin reads it, the Linux build installs the
+// Tor Expert Bundle's (TOR-027), or a table gets committed.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -33,6 +34,18 @@ test('the plugin never reads a bundled table', () => {
   for (const bad of [/\bgeoIpBundle\b/, /Bundle\.geoIp\b/, /\.geoipFile\s*=/, /\.geoip6File\s*=/]) {
     assert.ok(!bad.test(src),
       `${rel} matches ${bad}: the table comes from Dart's download, never the bundle`);
+  }
+});
+
+test("the Linux build installs nothing of the Tor Expert Bundle's data", () => {
+  const rel = 'linux/tor_bundle.cmake';
+  const installs = read(rel).match(/install\([^)]*\)/g) || [];
+  assert.ok(installs.length > 0, `${rel} installs the bundle's tor`);
+  for (const block of installs) {
+    assert.ok(!/geoip|\/data\//i.test(block),
+      `${rel} installs GeoIP data from the bundle:\n${block}`);
+    assert.ok(!/\bDIRECTORY\b|\bGLOB/.test(block),
+      `${rel} must name each file it installs, so no table comes along:\n${block}`);
   }
 });
 

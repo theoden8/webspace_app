@@ -1,6 +1,8 @@
 import 'package:webspace/services/external_tor_runtime.dart'
     show ExternalTorIdentify;
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/managed_tor_runtime.dart'
+    show ManagedTorRuntime;
 import 'package:webspace/services/tor_control_link.dart'
     show TorControlConnect, TorCookieRead;
 import 'package:webspace/services/tor_engine.dart' show TorSocksProbe;
@@ -16,6 +18,10 @@ TorSocksProbe? createTorSocksProbe() => null;
 ExternalTorIdentify? createExternalTorIdentify() => null;
 TorControlConnect? createTorControlConnect() => null;
 TorCookieRead? createTorCookieRead() => null;
+
+/// No tor process to start on web.
+ManagedTorRuntime? createManagedTorRuntime() => null;
+Future<List<(String, String)>> managedTorNotices() async => const [];
 
 /// No cache directory on web: downloaded caches simply stay empty, which
 /// leaves the depending services in their no-data state.

@@ -53,6 +53,10 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.desktopTray, Icons.web_asset_outlined,
             loc.appSettingsExperimentalDesktopTray,
             loc.appSettingsExperimentalDesktopTrayHint),
+      if (hostIsLinux)
+        (ExperimentalFeature.linuxTor, Icons.security_outlined,
+            loc.appSettingsExperimentalLinuxTor,
+            loc.appSettingsExperimentalLinuxTorHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.
