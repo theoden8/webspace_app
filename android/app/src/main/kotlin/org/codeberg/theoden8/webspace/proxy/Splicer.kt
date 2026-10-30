@@ -18,14 +18,22 @@ import java.nio.channels.SocketChannel
  * idle relay keeps none. Each direction ends on its own: one side's end of
  * stream shuts the other side's output once what it sent has been written,
  * and the pair closes when both directions have ended or either side fails.
+ *
+ * Each pair carries the lease it was let through on, and a pair whose lease
+ * went [stale] is closed: at registration, and at each [sweep] the relay asks
+ * for when its route table moves (PROXY-028).
  */
-internal class Splicer(private val log: (String) -> Unit) {
+internal class Splicer(
+    private val log: (String) -> Unit,
+    private val stale: (ProxyRelay.Lease) -> Boolean,
+) {
 
     private class Handoff(
         val a: SocketChannel,
         val b: SocketChannel,
         val aFirst: ByteArray,
         val bFirst: ByteArray,
+        val lease: ProxyRelay.Lease,
     )
 
     /** Handed over by workers, drained by the splice thread (BUG-007). */
@@ -33,6 +41,7 @@ internal class Splicer(private val log: (String) -> Unit) {
         val pending = ArrayDeque<Handoff>()
         var running = false
         var selector: Selector? = null
+        var sweep = false
     }
 
     private val inbox = Guarded(Inbox())
@@ -47,9 +56,10 @@ internal class Splicer(private val log: (String) -> Unit) {
         b: SocketChannel,
         aFirst: ByteArray = EMPTY,
         bFirst: ByteArray = EMPTY,
+        lease: ProxyRelay.Lease,
     ) {
         val start = inbox.with {
-            pending.addLast(Handoff(a, b, aFirst, bFirst))
+            pending.addLast(Handoff(a, b, aFirst, bFirst, lease))
             if (!running) {
                 running = true
                 true
@@ -64,6 +74,20 @@ internal class Splicer(private val log: (String) -> Unit) {
         if (start) Thread({ run() }, "proxy-relay-splice").apply { isDaemon = true }.start()
     }
 
+    /**
+     * Close every pair whose lease went stale, on the splice thread, which
+     * alone touches them. A pair still waiting to register is checked as it
+     * registers.
+     */
+    fun sweep() {
+        inbox.with {
+            if (running) {
+                sweep = true
+                selector?.wakeup()
+            }
+        }
+    }
+
     private class Flow(val from: SocketChannel, val to: SocketChannel, first: ByteArray) {
         val buf: ByteBuffer = ByteBuffer.allocate(maxOf(BUFFER, first.size)).put(first)
         var ended = false
@@ -73,7 +97,13 @@ internal class Splicer(private val log: (String) -> Unit) {
         val holds: Boolean get() = buf.position() > 0
     }
 
-    private class Pair(val a: SocketChannel, val b: SocketChannel, aFirst: ByteArray, bFirst: ByteArray) {
+    private class Pair(
+        val a: SocketChannel,
+        val b: SocketChannel,
+        aFirst: ByteArray,
+        bFirst: ByteArray,
+        val lease: ProxyRelay.Lease,
+    ) {
         val ab = Flow(from = a, to = b, first = aFirst)
         val ba = Flow(from = b, to = a, first = bFirst)
         lateinit var keyA: SelectionKey
@@ -94,9 +124,15 @@ internal class Splicer(private val log: (String) -> Unit) {
                     pending.clear()
                     p
                 }
+                val sweeping = inbox.with {
+                    val asked = sweep
+                    sweep = false
+                    asked
+                }
                 for (h in batch) {
                     if (register(open, h)) live++
                 }
+                if (sweeping) live -= closeStale(open)
                 if (live == 0) {
                     clean = inbox.with {
                         if (pending.isEmpty()) {
@@ -140,12 +176,28 @@ internal class Splicer(private val log: (String) -> Unit) {
         }
     }
 
-    /** Register [h]; false when it failed and is already closed. */
+    /** Close the registered pairs whose lease went stale; how many it closed. */
+    private fun closeStale(selector: Selector): Int {
+        val gone = selector.keys()
+            .filter { it.isValid }
+            .mapNotNull { it.attachment() as? Pair }
+            .distinct()
+            .filter { stale(it.lease) }
+        gone.forEach { close(it) }
+        if (gone.isNotEmpty()) log("closed ${gone.size} tunnel(s) whose route changed")
+        return gone.size
+    }
+
+    /** Register [h]; false when it failed, or its lease went stale, and is already closed. */
     private fun register(selector: Selector, h: Handoff): Boolean {
+        if (stale(h.lease)) {
+            closeQuietly(h.a, h.b)
+            return false
+        }
         return try {
             h.a.configureBlocking(false)
             h.b.configureBlocking(false)
-            val pair = Pair(h.a, h.b, h.aFirst, h.bFirst)
+            val pair = Pair(h.a, h.b, h.aFirst, h.bFirst, h.lease)
             pair.keyA = h.a.register(selector, 0, pair)
             pair.keyB = h.b.register(selector, 0, pair)
             step(pair)

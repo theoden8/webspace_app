@@ -254,6 +254,24 @@ silently. Only something that observes the *effect* can catch it.
    `WebKitNetworkSession` the same way and is not handled; whether its
    pooled connections outlive a `webkit_network_session_set_proxy_settings`
    is unmeasured. Android's override is process-wide and was not examined.
+   **Android router fix 2026-10-30** (#862): the same leak, through the
+   router's relay. Every profile's rule names the relay's one address for
+   the whole run, so a profile keeps its pooled tunnels to it across a
+   route edit, and the relay had already spliced each tunnel to the old
+   upstream: a `setRoutes` reached only connections opened after it. The
+   relay now holds each spliced or pumped connection to the credential and
+   route it was let through on, and closes it once the table no longer
+   gives that credential that route, at each `setRoutes` and at `stop`
+   (PROXY-028). Gated by `ProxyRelayConnectionsTest` and `SplicerTest`
+   over real sockets, each check caught by a planted mistake. **Partial:**
+   no emulator arm asks the same host again after an edit, so that
+   Chromium opens a fresh tunnel rather than failing the request is
+   standard proxy behaviour, not measured here; a tunnel admitted on the
+   old route and handed to a worker in the instant the table moves is
+   closed by its own check after registering, which no test schedules; and
+   the single-upstream relay that carries an authenticated proxy without
+   per-site profiles (PROXY-008) is not held this way, since its restart
+   binds a new listener and the rule names that one.
 
 ## What the platform actually does
 

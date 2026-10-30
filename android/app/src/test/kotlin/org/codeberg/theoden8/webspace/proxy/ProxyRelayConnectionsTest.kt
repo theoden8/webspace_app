@@ -1,11 +1,16 @@
 package org.codeberg.theoden8.webspace.proxy
 
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.Response
+import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.clientContext
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.fakeServer
+import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.fakeTlsServer
+import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.generateKeyStore
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.readFully
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.readLine
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.readPreamble
 import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.readResponse
+import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.serverContext
+import org.codeberg.theoden8.webspace.proxy.RelayTestSupport.withDefaultSslContext
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -29,7 +34,8 @@ import java.util.concurrent.atomic.AtomicReference
  * (PROXY-013). A tunnel belongs to the one splice thread rather than to
  * workers of its own, and plain-http requests share one connection each
  * way, every request still admitted on its own credential, so reuse never
- * carries a request past the checks the first one met.
+ * carries a request past the checks the first one met. A connection lasts
+ * no longer than the route it was let through on (PROXY-028).
  */
 class ProxyRelayConnectionsTest {
 
@@ -86,6 +92,14 @@ class ProxyRelayConnectionsTest {
                     "Proxy-Authorization: Basic $credential\r\n\r\n$payload"
             )
             return readPreamble(input).requestLine
+        }
+
+        /** Send [text] and read it back, as an echoing origin answers. */
+        fun echo(text: String) {
+            send(text)
+            val back = ByteArray(text.length)
+            readFully(input, back)
+            assertEquals(text, back.toString(Charsets.ISO_8859_1))
         }
 
         /** True when the relay closed this connection without another byte. */
@@ -652,6 +666,137 @@ class ProxyRelayConnectionsTest {
                 assertTrue(status, status.contains("400"))
             }
             assertEquals(0, origin.seen.size)
+        } finally {
+            relay.stop(); origin.close()
+        }
+    }
+
+    // --- A route that moves (PROXY-028) ---
+
+    @Test(timeout = 20_000)
+    fun aTunnelLastsNoLongerThanItsRoute() {
+        val origin = echoOrigin()
+        val moved = credential("ws-a", "token-a")
+        val removed = credential("ws-b", "token-b")
+        val kept = credential("ws-c", "token-c")
+        val (relay, port) = router(
+            mapOf(
+                moved to ProxyRelay.Route("a", direct),
+                removed to ProxyRelay.Route("b", direct),
+                kept to ProxyRelay.Route("c", direct),
+            )
+        )
+        val clients = listOf(moved, removed, kept).map { cred ->
+            Client(relay, port).also { c ->
+                assertTrue(c.connect("127.0.0.1:${origin.localPort}", cred).contains("200"))
+                c.echo("before")
+            }
+        }
+        try {
+            val (a, b, c) = clients
+            // The table as a proxy edit sends it: the kept route parsed anew.
+            relay.setRoutes(
+                mapOf(
+                    moved to ProxyRelay.Route("a", httpUpstream(1, "user", "pass")),
+                    kept to ProxyRelay.Route("c", direct),
+                )
+            )
+            assertTrue("a tunnel whose credential routes elsewhere must close", a.closedUnanswered())
+            assertTrue("a tunnel whose credential routes nowhere must close", b.closedUnanswered())
+            c.echo("after")
+            Thread.sleep(100)
+            c.echo("still")
+        } finally {
+            clients.forEach { it.close() }
+            relay.stop(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun stoppingTheRelayClosesItsTunnels() {
+        val origin = echoOrigin()
+        val cred = credential("ws-a", "token-a")
+        val (relay, port) = router(mapOf(cred to ProxyRelay.Route("a", direct)))
+        try {
+            Client(relay, port).use { c ->
+                assertTrue(c.connect("127.0.0.1:${origin.localPort}", cred).contains("200"))
+                c.echo("before")
+                relay.stop()
+                assertTrue("a tunnel must not outlive the relay", c.closedUnanswered())
+            }
+        } finally {
+            relay.stop(); origin.close()
+        }
+    }
+
+    @Test(timeout = 30_000)
+    fun aTunnelThroughATlsUpstreamLastsNoLongerThanItsRoute() {
+        // Pumped on a worker rather than spliced, since its bytes pass the
+        // upstream's TLS layer. The proxy echoes, and keeps its side open
+        // after the relay's half-close, so only the relay's close of the
+        // upstream frees the worker.
+        val pki = generateKeyStore("CN=localhost", "dns:localhost")
+        val released = CountDownLatch(1)
+        val proxy = fakeTlsServer(serverContext(pki)) { sock ->
+            val input = sock.getInputStream()
+            readPreamble(input)
+            sock.getOutputStream().write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray())
+            sock.getOutputStream().flush()
+            val buf = ByteArray(1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                sock.getOutputStream().write(buf, 0, n)
+                sock.getOutputStream().flush()
+            }
+            released.await(20, TimeUnit.SECONDS)
+        }
+        val tls = ProxyRelay.UpstreamConfig(ProxyRelay.UpstreamType.HTTPS, "localhost", proxy.localPort, "user", "pass")
+        val cred = credential("ws-a", "token-a")
+        withDefaultSslContext(clientContext(pki)) {
+            val (relay, port) = router(mapOf(cred to ProxyRelay.Route("a", tls)))
+            val before = busyWorkers()
+            try {
+                Client(relay, port).use { c ->
+                    assertTrue(c.connect("example.com:443", cred).contains("200"))
+                    c.echo("before")
+                    relay.setRoutes(mapOf(cred to ProxyRelay.Route("a", direct)))
+                    assertTrue("a pumped tunnel must close with its route", c.closedUnanswered())
+                }
+                val held = eventually(read = { busyWorkers() - before }) { it.isEmpty() }
+                assertTrue("the worker pumping it must be freed; ${held.size} still held", held.isEmpty())
+            } finally {
+                released.countDown()
+                relay.stop(); proxy.close()
+            }
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun anUpgradedConnectionLastsNoLongerThanItsRoute() {
+        val origin = fakeServer { sock ->
+            val input = BufferedInputStream(sock.getInputStream())
+            readPreamble(input)
+            sock.getOutputStream().write(
+                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                    .toByteArray()
+            )
+            sock.getOutputStream().flush()
+            input.copyTo(sock.getOutputStream())
+        }
+        val cred = credential("ws-a", "token-a")
+        val (relay, port) = router(mapOf(cred to ProxyRelay.Route("a", direct)))
+        try {
+            Client(relay, port).use { c ->
+                c.send(
+                    "GET http://127.0.0.1:${origin.localPort}/ws HTTP/1.1\r\nHost: 127.0.0.1\r\n" +
+                        "Proxy-Authorization: Basic $cred\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                )
+                assertTrue(readPreamble(c.input).requestLine.contains("101"))
+                c.echo("before")
+                relay.setRoutes(emptyMap())
+                assertTrue("an upgraded connection must close with its route", c.closedUnanswered())
+            }
         } finally {
             relay.stop(); origin.close()
         }

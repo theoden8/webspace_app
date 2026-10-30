@@ -1590,7 +1590,8 @@ tears one down
 
 ### Requirement: PROXY-028 - A proxy change is in force for everything after it
 
-On iOS and macOS, once a site's effective proxy changes, no request the site
+On iOS and macOS, and on Android where the proxy router carries the site
+(PROXY-013), once a site's effective proxy changes, no request the site
 makes afterwards SHALL travel a connection opened on its previous route,
 including requests to a host it had already reached.
 
@@ -1605,6 +1606,20 @@ A proxy the store already has is set as is: rebuilding then would cancel
 the loads of the WebViews already on it. Cookies and storage are not
 touched.
 
+On Android the relay is the one proxy every profile's connections go to for
+the whole run, so a profile's pooled tunnels to it outlive a route edit, and
+the relay would carry them on to the old upstream. The relay SHALL therefore
+hold every connection it carries past its handshake (a `CONNECT` tunnel, an
+upgrade after `101`, spliced or pumped through a TLS upstream) to the
+credential it was let through on and the route that credential had then, and
+SHALL close it once the table no longer gives that credential that route:
+when a table is installed, and when the relay stops. A table that gives a
+credential the route it had, parsed anew, leaves its connections open. A
+plain-http request needs no such hold, since each one is admitted on its own
+credential (PROXY-013). `ProxyRelayConnectionsTest` and `SplicerTest` drive
+the relay over real sockets; that Chromium then opens a new tunnel for the
+site's next request is not measured on a device.
+
 #### Scenario: A site moved from direct to Tor leaves through Tor
 
 **Given** a site loaded a page directly
@@ -1617,6 +1632,19 @@ touched.
 **When** its proxy becomes B and it requests H again
 **Then** the request reaches H through B
 **And** proxy A carries nothing for the site after the change
+
+#### Scenario: A route edit on Android closes the relay's tunnels on the old route
+
+**Given** the proxy router carries sites A and B, each holding a tunnel
+**When** site A's proxy changes, or is removed, and the relay is given the new table
+**Then** the relay closes site A's tunnel
+**And** site B's tunnel, whose route did not change, stays open
+
+#### Scenario: Stopping the relay closes its tunnels
+
+**Given** the proxy router carries a site holding a tunnel
+**When** the relay stops
+**Then** the tunnel closes
 
 ### Requirement: PROXY-029 - A site moved off its proxy stops using it
 
