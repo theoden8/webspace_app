@@ -394,7 +394,7 @@ List<ComposedAction> composedActions(Tables t) => [
       rows: const {},
       kinds: const {},
       fields: const {},
-      ways: [(kind: null, needs: e.needs)],
+      ways: [(kind: null, needs: e.needs, from: const {})],
       armed: const {},
     ),
 ];
@@ -432,12 +432,17 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
             ways: f.input
                 ? [
                     for (final k in {for (final a in f.arms) a.kind})
-                      (kind: k, needs: f.needs),
+                      (kind: k, needs: f.needs, from: const {}),
                   ]
                 : [
                     for (final MapEntry(key: k, value: ways)
                         in (flows[f.place] ?? const {}).entries)
-                      for (final n in ways) (kind: k, needs: {...n, ...f.needs}),
+                      for (final w in ways)
+                        (
+                          kind: k,
+                          needs: {...w.needs, ...f.needs},
+                          from: w.from,
+                        ),
                   ],
             armed: {
               for (final v in f.writes)
@@ -686,9 +691,14 @@ Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) => {
   for (final MapEntry(key: place, value: byKind) in waysAt(all).entries)
     place: {
       for (final MapEntry(key: kind, value: ways) in byKind.entries)
-        kind: ways.reduce((a, b) => a.intersection(b)),
+        kind: ways.map((w) => w.needs).reduce((a, b) => a.intersection(b)),
     },
 };
+
+/// One way a flow reaches a place: what the model's constants must be that
+/// way, and the kinds of flow that spawned it on the way there, whose
+/// starters a world must let in for it to run.
+typedef FlowWay = ({Set<Need> needs, Set<FlowKind> from});
 
 /// Each way to each place, for each kind of flow whose row can hold there:
 /// what the model's constants must be that way, read off every table's
@@ -696,18 +706,20 @@ Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) => {
 /// row that holds no kind and needs nothing yet; an arm that sets a kind
 /// gives it, one taken only for some kinds lets only those through, every
 /// other carries the kind it found, and each adds what its step and its
-/// branch need; one that ends the flow leaves nothing. A way that needs
-/// all another of its kind does, and more, is dropped: a world giving it
-/// gives the other.
-Map<String, Map<FlowKind, List<Set<Need>>>> waysAt(List<Footprint> all) {
-  final at = <String, Map<FlowKind, List<Set<Need>>>>{};
+/// branch need, and a flow an arm spawns notes the kind that spawned it;
+/// one that ends the flow leaves nothing. A way that needs all another of
+/// its kind does, and more, is dropped: a world giving it gives the other.
+Map<String, Map<FlowKind, List<FlowWay>>> waysAt(List<Footprint> all) {
+  final at = <String, Map<FlowKind, List<FlowWay>>>{};
   var moved = true;
-  void reach(String place, {required FlowKind kind, required Set<Need> need}) {
+  bool covers(FlowWay a, {required FlowWay over}) =>
+      over.needs.containsAll(a.needs) && over.from.containsAll(a.from);
+  void reach(String place, {required FlowKind kind, required FlowWay way}) {
     final ways = at.putIfAbsent(place, () => {}).putIfAbsent(kind, () => []);
-    if (ways.any(need.containsAll)) return;
+    if (ways.any((w) => covers(w, over: way))) return;
     ways
-      ..removeWhere((w) => w.containsAll(need))
-      ..add(need);
+      ..removeWhere((w) => covers(way, over: w))
+      ..add(way);
     moved = true;
   }
 
@@ -724,9 +736,9 @@ Map<String, Map<FlowKind, List<Set<Need>>>> waysAt(List<Footprint> all) {
           guard: _,
         )
         in all) {
-      final Map<FlowKind?, List<Set<Need>>> here = input
+      final Map<FlowKind?, List<FlowWay>> here = input
           ? {
-              null: [const {}],
+              null: [(needs: const {}, from: const {})],
             }
           : {
               for (final MapEntry(:key, :value) in (at[place] ?? {}).entries)
@@ -743,7 +755,16 @@ Map<String, Map<FlowKind, List<Set<Need>>>> waysAt(List<Footprint> all) {
                 reach(
                   p,
                   kind: r.kind,
-                  need: {...got, ...needs, ...a.needs, ...r.needs, ...there},
+                  way: (
+                    needs: {
+                      ...got.needs,
+                      ...needs,
+                      ...a.needs,
+                      ...r.needs,
+                      ...there,
+                    },
+                    from: {...got.from, ?k},
+                  ),
                 );
               }
             }
@@ -753,7 +774,10 @@ Map<String, Map<FlowKind, List<Set<Need>>>> waysAt(List<Footprint> all) {
               reach(
                 p,
                 kind: out,
-                need: {...got, ...needs, ...a.needs, ...there},
+                way: (
+                  needs: {...got.needs, ...needs, ...a.needs, ...there},
+                  from: got.from,
+                ),
               );
             }
           }
