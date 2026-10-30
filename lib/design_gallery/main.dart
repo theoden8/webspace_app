@@ -231,9 +231,11 @@ void _seedSavedProxies() {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     return switch (s.address) {
       'us.gw.example:1080' || 'de.gw.example:1080' =>
-        const ProxyTestResult(ProxyTestOutcome.reachable, statusCode: 200),
+        const ProxyTestResult(ProxyTestOutcome.reachable,
+            response: (status: 200, host: 'example.com')),
       'proxy.corp.example:3128' =>
-        const ProxyTestResult(ProxyTestOutcome.authRejected, statusCode: 407),
+        const ProxyTestResult(ProxyTestOutcome.authRejected,
+            response: (status: 407, host: 'example.com')),
       _ => const ProxyTestResult(ProxyTestOutcome.unreachable,
           detail: 'Connection refused'),
     };
@@ -888,7 +890,7 @@ Widget _proxyAuth(BuildContext _) => Column(
             type: ProxyType.SOCKS5,
             address: '127.0.0.1:1080',
           ),
-          target: Uri.parse('https://codeberg.org/'),
+          target: SiteOrigin(Uri.parse('https://codeberg.org/')),
         ),
       ],
     );
@@ -970,7 +972,7 @@ class _SiteNetworkCardState extends State<_SiteNetworkCard> {
                     type: ProxyType.SOCKS5,
                     address: address.text,
                   ),
-                  target: Uri.parse('https://nas.example.com/'),
+                  target: SiteOrigin(Uri.parse('https://nas.example.com/')),
                 ),
               )
             : const SizedBox.shrink(),

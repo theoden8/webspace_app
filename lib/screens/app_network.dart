@@ -350,7 +350,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
             if (_outboundProxy.type != ProxyType.DEFAULT)
               ProxyTestTile(
                 settings: _formProxy,
-                target: kDefaultProxyTestTarget,
+                target: const NoSite(),
               ),
             // Directly under the proxy block it reports on: the dropdown is
             // where TOR gets selected, and this is where the user finds out

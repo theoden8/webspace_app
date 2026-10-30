@@ -4997,6 +4997,24 @@
   "@proxyTestOk": {
     "description": "Result shown when the test request came back through the proxy successfully."
   },
+  "proxyTestTorExit": "Tor works, through exit {address}",
+  "@proxyTestTorExit": {
+    "description": "Result of a connection test through Tor when the Tor Project's check answered that the request left the Tor network from an exit relay. {address} is that exit relay's IP address. Keep 'Tor' as it is.",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "proxyTestNotTorExit": "Answered, but not through Tor: {address}",
+  "@proxyTestNotTorExit": {
+    "description": "Result of a connection test through Tor when a reply came back, but the Tor Project's check answered that the request did not come from a Tor exit relay, so this route does not go through Tor. {address} is the IP address the check saw the request come from. Keep 'Tor' as it is.",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
   "proxyTestAuthRejected": "The proxy rejected these credentials",
   "@proxyTestAuthRejected": {
     "description": "Result shown when the proxy answered but refused the username and password."

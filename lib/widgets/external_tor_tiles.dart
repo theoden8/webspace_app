@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show splitProxyAddress;
-import 'package:webspace/services/proxy_test_service.dart'
-    show kDefaultProxyTestTarget;
+import 'package:webspace/services/proxy_test_service.dart' show NoSite;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
@@ -85,7 +84,7 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
           ProxyTestTile(
             key: ValueKey(_address),
             settings: () => UserProxySettings(type: ProxyType.TOR),
-            target: kDefaultProxyTestTarget,
+            target: const NoSite(),
           ),
       ],
     );
