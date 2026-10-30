@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show splitProxyAddress;
+import 'package:webspace/services/proxy_test_service.dart'
+    show kDefaultProxyTestTarget;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/external_tor_control_tiles.dart';
+import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
 /// The Tor (external) switch of App Settings' Network screen and, while it
-/// is on, the SOCKS address of the tor it names (TOR-025) and its control
-/// port (TOR-026).
+/// is on, the SOCKS address of the tor it names (TOR-025), its control port
+/// (TOR-026) and a connection test through it.
 class ExternalTorTiles extends StatefulWidget {
   const ExternalTorTiles({super.key, this.onTorChanged});
 
@@ -70,6 +74,14 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
           ),
         if (_switch && externalTorControlRunsHere)
           const ExternalTorControlTiles(),
+        // The app-global Tor route, so nothing has to be set to Tor first.
+        // Keyed by the address: an answer about the last one is stale.
+        if (_switch)
+          ProxyTestTile(
+            key: ValueKey(_address),
+            settings: () => UserProxySettings(type: ProxyType.TOR),
+            target: kDefaultProxyTestTarget,
+          ),
       ],
     );
   }
