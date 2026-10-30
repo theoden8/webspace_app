@@ -71,6 +71,11 @@ Future<void> hostDeleteDirectory(String path) async {
   if (await dir.exists()) await dir.delete(recursive: true);
 }
 
+/// Moves the directory at [path] to [to], which must not exist.
+Future<void> hostRenameDirectory(String path, {required String to}) async {
+  await io.Directory(path).rename(to);
+}
+
 /// The names of the directories directly under [path]; none when it is
 /// absent.
 Future<List<String>> hostListDirectoryNames(String path) async {
@@ -83,6 +88,21 @@ Future<List<String>> hostListDirectoryNames(String path) async {
     }
   }
   return names;
+}
+
+/// The path, relative to [path] and joined by `/`, of every file under it;
+/// none when it is absent.
+Future<List<String>> hostListFilesUnder(String path) async {
+  final dir = io.Directory(path);
+  if (!await dir.exists()) return const [];
+  final root = dir.absolute.uri.pathSegments.where((s) => s.isNotEmpty).length;
+  final paths = <String>[];
+  await for (final entry in dir.list(recursive: true, followLinks: false)) {
+    if (entry is io.File) {
+      paths.add(entry.absolute.uri.pathSegments.skip(root).join('/'));
+    }
+  }
+  return paths;
 }
 
 /// The platform's gzip / zlib decoders, as plain converters so callers keep

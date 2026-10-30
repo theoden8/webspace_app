@@ -9,6 +9,7 @@ import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/settings/web_extension.dart';
 
 import 'helpers/extension_packages.dart';
+import 'helpers/fake_extension_engine.dart';
 import 'helpers/fake_extension_folders.dart';
 
 ExtensionPackage _package({String name = 'Sample'}) =>
@@ -26,7 +27,7 @@ final _library = WebExtensionLibrary.instance;
 /// The library as the next launch reads it from [disk].
 Future<List<InstalledExtension>> _relaunch(FakeExtensionFolders disk) async {
   _library.debugReset();
-  await _library.initialize(folders: disk);
+  await _library.initialize(folders: disk, engine: FakeExtensionEngine());
   return _library.installed.value;
 }
 

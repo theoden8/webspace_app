@@ -838,11 +838,23 @@ void main() {
     test('an imported site switches on no extension (WEBEXT-011)', () {
       final siteJson = WebViewModel(
         initUrl: 'https://a.com',
-        enabledWebExtensions: {WebExtensionId('we-ublock')},
+        webExtensionChoices: {WebExtensionId('we-ublock'): true},
       ).toJson();
-      expect(siteJson['enabledWebExtensions'], ['we-ublock'],
+      expect(siteJson['webExtensionChoices'], {'we-ublock': true},
           reason: 'the file keeps the choice; the import drops it');
-      expect(importSanitized(siteJson).single.enabledWebExtensions, isEmpty);
+      expect(importSanitized(siteJson).single.webExtensionChoices, isEmpty);
+    });
+
+    test('a site saved with the set switched on reads it as its own choices '
+        '(WEBEXT-004)', () {
+      final site = WebViewModel.fromJson({
+        'siteId': 'site-a',
+        'initUrl': 'https://a.com',
+        'enabledWebExtensions': ['we-ublock', 'Not An Id', 7],
+      }, stateSetterF: null);
+      expect(site.webExtensionChoices, {WebExtensionId('we-ublock'): true});
+      expect(site.toJson().containsKey('enabledWebExtensions'), isFalse);
+      expect(site.toJson()['webExtensionChoices'], {'we-ublock': true});
     });
 
     test('a backup carries no extension library (WEBEXT-011)', () {

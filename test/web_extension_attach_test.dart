@@ -9,6 +9,7 @@ final _ublock = WebExtensionEntry(
   version: '1.62.0',
   permissions: const {'storage', 'nativeMessaging'},
   hosts: const {'<all_urls>'},
+  everySite: false,
 );
 final _reader = WebExtensionEntry(
   id: WebExtensionId('we-reader'),
@@ -16,6 +17,7 @@ final _reader = WebExtensionEntry(
   version: '4.9',
   permissions: const {'storage'},
   hosts: const {'<all_urls>'},
+  everySite: false,
 );
 
 ExtensionAttachInputs _inputs({
@@ -23,16 +25,20 @@ ExtensionAttachInputs _inputs({
   bool archived = false,
   bool kiosk = false,
   bool incognito = false,
-  Set<WebExtensionId>? enabled,
+  Map<WebExtensionId, bool>? choices,
+  bool readerEverySite = false,
 }) => (
   offered: offered,
   archived: archived,
   kiosk: kiosk,
   incognito: incognito,
-  enabled: enabled ?? {_ublock.id},
+  choices: choices ?? {_ublock.id: true},
   library: [
     (entry: _ublock, folder: '/lib/we-ublock'),
-    (entry: _reader, folder: '/lib/we-reader'),
+    (
+      entry: _reader.withEverySite(on: readerEverySite),
+      folder: '/lib/we-reader',
+    ),
   ],
   claims: [DomainClaim.baseDomain('example.com')],
 );
@@ -50,14 +56,14 @@ final _rows = <(String, ExtensionAttachInputs, String)>[
   ('an ordinary site', _inputs(), 'persistent:we-ublock'),
   (
     'two switched on',
-    _inputs(enabled: {_ublock.id, _reader.id}),
+    _inputs(choices: {_ublock.id: true, _reader.id: true}),
     'persistent:we-ublock,we-reader',
   ),
   ('an incognito site', _inputs(incognito: true), 'ephemeral:we-ublock'),
-  ('none switched on', _inputs(enabled: {}), 'none:noneEnabled'),
+  ('none switched on', _inputs(choices: {}), 'none:noneEnabled'),
   (
     'an id no longer in the library',
-    _inputs(enabled: {WebExtensionId('we-gone')}),
+    _inputs(choices: {WebExtensionId('we-gone'): true}),
     'none:noneEnabled',
   ),
   ('not offered here', _inputs(offered: false), 'none:notOffered'),
@@ -87,7 +93,7 @@ ExtensionAttach _archiveIgnored(ExtensionAttachInputs i) =>
       archived: false,
       kiosk: i.kiosk,
       incognito: i.incognito,
-      enabled: i.enabled,
+      choices: i.choices,
       library: i.library,
       claims: i.claims,
     ));
@@ -109,7 +115,7 @@ ExtensionAttach _ignoresEnabled(ExtensionAttachInputs i) =>
       archived: i.archived,
       kiosk: i.kiosk,
       incognito: i.incognito,
-      enabled: {for (final e in i.library) e.entry.id},
+      choices: {for (final e in i.library) e.entry.id: true},
       library: i.library,
       claims: i.claims,
     ));
@@ -128,7 +134,9 @@ void main() {
 
     test('each extension loads from its own folder', () {
       final attach =
-          planExtensionAttach(_inputs(enabled: {_ublock.id, _reader.id}))
+          planExtensionAttach(
+                _inputs(choices: {_ublock.id: true, _reader.id: true}),
+              )
               as AttachExtensions;
       expect([for (final l in attach.loads) l.folder], [
         '/lib/we-ublock',
@@ -148,6 +156,85 @@ void main() {
 
     test('extensions loaded whether switched on or not misses a row', () {
       expect(_misses(_ignoresEnabled), isNotEmpty);
+    });
+  });
+
+  group('WEBEXT-004 a site follows each extension\'s default until it sets its '
+      'own', () {
+    /// Each row: the site's own choices and Dark Reader's default, and what
+    /// the site's webviews attach.
+    final rows = <(String, ExtensionAttachInputs, String)>[
+      (
+        'on for every site, followed',
+        _inputs(readerEverySite: true),
+        'persistent:we-ublock,we-reader',
+      ),
+      (
+        'on for every site, off for this one',
+        _inputs(
+          readerEverySite: true,
+          choices: {_ublock.id: true, _reader.id: false},
+        ),
+        'persistent:we-ublock',
+      ),
+      (
+        'off for every site, on for this one',
+        _inputs(choices: {_ublock.id: true, _reader.id: true}),
+        'persistent:we-ublock,we-reader',
+      ),
+      (
+        'on for every site, on a kiosk',
+        _inputs(readerEverySite: true, kiosk: true),
+        'none:kiosk',
+      ),
+      ('nothing chosen, nothing on', _inputs(choices: {}), 'none:noneEnabled'),
+    ];
+    List<String> misses(ExtensionAttach Function(ExtensionAttachInputs) plan) =>
+        [
+          for (final (label, inputs, want) in rows)
+            if (_label(plan(inputs)) != want) label,
+        ];
+
+    test('every row attaches what the choices and defaults call for', () {
+      expect(misses(planExtensionAttach), isEmpty);
+    });
+
+    test('a default the planner ignores misses a row', () {
+      ExtensionAttach ignoresDefault(ExtensionAttachInputs i) =>
+          planExtensionAttach((
+            offered: i.offered,
+            archived: i.archived,
+            kiosk: i.kiosk,
+            incognito: i.incognito,
+            choices: i.choices,
+            library: [
+              for (final (:entry, :folder) in i.library)
+                (entry: entry.withEverySite(on: false), folder: folder),
+            ],
+            claims: i.claims,
+          ));
+      expect(misses(ignoresDefault), contains('on for every site, followed'));
+    });
+
+    test('a default that wins over the site\'s own choice misses a row', () {
+      ExtensionAttach defaultWins(ExtensionAttachInputs i) =>
+          planExtensionAttach((
+            offered: i.offered,
+            archived: i.archived,
+            kiosk: i.kiosk,
+            incognito: i.incognito,
+            choices: {
+              for (final (:entry, folder: _) in i.library)
+                if (entry.everySite || (i.choices[entry.id] ?? false))
+                  entry.id: true,
+            },
+            library: i.library,
+            claims: i.claims,
+          ));
+      expect(
+        misses(defaultWins),
+        contains('on for every site, off for this one'),
+      );
     });
   });
 }

@@ -52,6 +52,7 @@ import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
@@ -116,7 +117,9 @@ class SettingsScreen extends StatefulWidget {
   /// site's webview so the next render recreates it with the updated
   /// [initialUserScripts] and extensions.
   final VoidCallback? onScriptsChanged;
-  final bool useContainers;
+  /// How the app keeps sites' cookies apart, which decides the container
+  /// the site binds.
+  final Isolation isolation;
 
   /// Android-only: name of another site whose `notificationsEnabled` is
   /// already on with a conflicting proxy fingerprint, or `null` if there
@@ -145,7 +148,7 @@ class SettingsScreen extends StatefulWidget {
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onScriptsChanged,
-    required this.useContainers,
+    required this.isolation,
     this.notificationsBlockedBySite,
     this.otherSites = const [],
     this.routingTargets = const [],
@@ -508,6 +511,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           MaterialPageRoute(
             builder: (_) => SiteExtensionsScreen(
               site: widget.webViewModel,
+              isolation: widget.isolation,
               onChanged: () => widget.onScriptsChanged?.call(),
             ),
           ),
@@ -726,7 +730,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     final held = heldBadges((
       location: _effectiveLocationMode,
       captures: v.effectiveCaptures,
-      notifications: widget.useContainers && v.effectiveNotifications,
+      notifications: widget.isolation is Containers && v.effectiveNotifications,
       protectedContent: hostIsAndroid &&
           v.effectiveProtectedContent(
                   trackingProtection: _trackingProtectionEnabled) ==
@@ -789,7 +793,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         host: widget.webViewModel.currentUrl,
         trackingProtectionEnabled: _trackingProtectionEnabled,
         notificationsBlockedBySite: widget.notificationsBlockedBySite,
-        showNotifications: widget.useContainers,
+        showNotifications: widget.isolation is Containers,
         values: _permissionValues,
         timezonePreview: _timezonePreview,
         coordinatesPreview: _coordinatesPreview,
@@ -873,7 +877,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         host: widget.webViewModel.currentUrl,
         incognito: _privacyValues.effectiveIncognito,
         values: _behaviourValues,
-        containersActive: widget.useContainers,
+        containersActive: widget.isolation is Containers,
         routingTargets: widget.routingTargets,
         initUrl: widget.webViewModel.initUrl,
         discoveredSearchAddress: widget.webViewModel.discoveredSearchAddress,
@@ -1260,7 +1264,7 @@ IconButton zoomStep(IconData icon,
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Builder(builder: (context) {
-                final (label, dialogBody, snack) = widget.useContainers
+                final (label, dialogBody, snack) = widget.isolation is Containers
                     ? (loc.siteSettingsClearSiteData, loc.siteSettingsClearSiteDataBody,
                         loc.siteSettingsClearSiteDataDone)
                     : (loc.siteSettingsClearCookies, loc.siteSettingsClearCookiesBody,

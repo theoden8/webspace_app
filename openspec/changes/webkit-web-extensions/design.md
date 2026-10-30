@@ -34,7 +34,8 @@
 
 **Non-Goals:**
 
-- A store, an update check, signature verification or downloading packages.
+- A browsable collection of extensions, installs the user did not ask for,
+  and signature verification.
 - Android and Linux (no extension runtime in Android System WebView; WPE's is
   unfinished upstream).
 - Extension keyboard commands, context menus, `devtools_page`, side panels.

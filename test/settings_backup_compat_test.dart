@@ -109,7 +109,7 @@ Object? _expectedImported(String key, {required Object? value}) =>
       'backgroundAudioEnabled' => null,
       'protectedContentAllowed' => value == true ? null : value,
       'enabledGlobalScriptIds' => null,
-      'enabledWebExtensions' => null,
+      'webExtensionChoices' => null,
       'disabledFilterLists' => ([...value as List]..sort()),
       _ => value,
     };
@@ -138,6 +138,9 @@ const Map<String, String> _renamedKeys = {
   // The per-site bool gained a third value (issue #629): `true` is the
   // browser mode.
   'externalLinksInBrowser': 'externalLinkMode',
+  // The per-site set of switched-on extensions (never in a release) became
+  // the site's own choices, each read as on (WEBEXT-004).
+  'enabledWebExtensions': 'webExtensionChoices',
 };
 
 /// A key a release wrote that HEAD deliberately stops reading, and why losing
@@ -289,7 +292,7 @@ void _expectSanitised(SettingsImportPlan plan, {required String reason}) {
         reason: '$reason: siteId ${site.siteId} shared by two sites');
     expect(site.proxySettings.password, isNull, reason: reason);
     expect(site.enabledGlobalScriptIds, isEmpty, reason: reason);
-    expect(site.enabledWebExtensions, isEmpty, reason: reason);
+    expect(site.webExtensionChoices, isEmpty, reason: reason);
     expect(site.userScripts.where((s) => s.enabled), isEmpty, reason: reason);
     for (final kind in CaptureKind.values) {
       expect(kind.grantOf(site.captures).mode.state,

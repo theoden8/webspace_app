@@ -7,6 +7,8 @@ import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/isolations.dart';
+
 Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
   tester.view.physicalSize = const Size(1000, 4000);
   tester.view.devicePixelRatio = 1.0;
@@ -18,7 +20,7 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
     home: SettingsScreen(
         webViewModel: model,
         appTheme: WebViewTheme.system,
-        useContainers: false),
+        isolation: fakeSharedJar()),
   ));
   await tester.pumpAndSettle();
 }

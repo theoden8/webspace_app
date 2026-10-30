@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/download_manager.dart';
+import 'package:webspace/settings/byte_size.dart';
 
 /// AppBar action that surfaces active downloads. Renders nothing when the
 /// queue is empty. While any task is downloading, shows a spinning progress
@@ -28,7 +29,7 @@ class DownloadButton extends StatelessWidget {
         final tooltip = () {
           if (active.isEmpty) return loc.downloadButtonRecentTooltip(tasks.length);
           final doneBytes = active.fold<int>(0, (a, t) => a + t.bytesDone);
-          final doneStr = _DownloadTile._formatBytes(doneBytes);
+          final doneStr = formatByteSize(doneBytes);
           if (aggregate.value != null) {
             final pct = (aggregate.value! * 100).toStringAsFixed(0);
             return loc.downloadButtonActiveProgressTooltip(active.length, pct, doneStr);
@@ -210,20 +211,12 @@ class _DownloadTile extends StatelessWidget {
 
   static String _progressSubtitle(AppLocalizations loc,
       {required DownloadTask t}) {
-    final done = _formatBytes(t.bytesDone);
+    final done = formatByteSize(t.bytesDone);
     final total = t.bytesTotal;
     if (total == null || total <= 0) {
       return loc.downloadButtonBytesReceived(done);
     }
-    return '$done / ${_formatBytes(total)}';
+    return '$done / ${formatByteSize(total)}';
   }
 
-  static String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
-  }
 }

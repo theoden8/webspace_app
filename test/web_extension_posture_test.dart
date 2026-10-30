@@ -13,6 +13,7 @@ import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/extension_packages.dart';
+import 'helpers/fake_extension_engine.dart';
 import 'helpers/fake_extension_folders.dart';
 import 'helpers/isolations.dart';
 
@@ -34,7 +35,10 @@ void main() {
       on: true,
     );
     WebExtensionLibrary.instance.debugReset();
-    await WebExtensionLibrary.instance.initialize(folders: disk);
+    await WebExtensionLibrary.instance.initialize(
+      folders: disk,
+      engine: FakeExtensionEngine(),
+    );
     final package = switch (readExtensionPackage(sampleZip(manifest: {
       'permissions': ['storage', 'nativeMessaging'],
       'host_permissions': ['<all_urls>'],
@@ -57,7 +61,7 @@ void main() {
   WebViewModel site({bool incognito = false}) => WebViewModel(
     initUrl: 'https://mail.example.com/',
     incognito: incognito,
-    enabledWebExtensions: {id},
+    webExtensionChoices: {id: true},
   );
 
   group('WEBEXT-016 a site\'s extensions reach every webview it builds', () {

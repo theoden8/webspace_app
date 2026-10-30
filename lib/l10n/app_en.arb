@@ -3489,6 +3489,15 @@
   "@homeImportBlocklistRedownloadHint": {
     "description": "Hint appended to the import-success snackbar when blocklists need re-downloading"
   },
+  "homeImportExtensionsMissingHint": "{count, plural, =1{1 extension the backup names is not on this device: import it in App Settings, under Extensions.} other{{count} extensions the backup names are not on this device: import them in App Settings, under Extensions.}}",
+  "@homeImportExtensionsMissingHint": {
+    "description": "Sentence added to the snackbar after a settings import when the backup named browser extensions this device does not have and could not add.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeSettingsImportedSuccess": "Settings imported successfully",
   "@homeSettingsImportedSuccess": {
     "description": "Snackbar shown after a successful settings import with no follow-up hints"
@@ -4334,6 +4343,14 @@
   "settingFollowTrackingProtectionHint": "Dimmed, it follows Tracking Protection. Long press to keep the value it shows for this site, or to follow Tracking Protection again.",
   "@settingFollowTrackingProtectionHint": {
     "description": "Hint paragraph under a per-site switch that follows the site's Tracking Protection: while the switch is dimmed it is on exactly when Tracking Protection is; a long press either keeps the shown value as the site's own or, for a site that set its own, goes back to following Tracking Protection."
+  },
+  "settingFollowsExtensionDefault": "Follows its setting for every site",
+  "@settingFollowsExtensionDefault": {
+    "description": "Subtitle under a dimmed switch in a site's Extensions screen: the site has no choice of its own for this browser extension and runs it exactly when the extension is on for every site. Also the spoken name of the long-press action that makes the switch follow that setting again."
+  },
+  "settingFollowExtensionDefaultHint": "Dimmed, it follows the extension's setting for every site. Long press to keep the value it shows for this site, or to follow that setting again.",
+  "@settingFollowExtensionDefaultHint": {
+    "description": "Hint paragraph under a switch in a site's Extensions screen that can follow the browser extension's setting for every site: while dimmed it follows that setting; a long press either keeps the shown value as the site's own or, for a site that set its own, goes back to following it."
   },
   "settingFollowsApp": "App default ({value})",
   "@settingFollowsApp": {
@@ -5575,6 +5592,169 @@
   "@extensionsImportHint": {
     "description": "Explanation behind the hint button of the 'Import from a file' row on the Extensions screen."
   },
+  "extensionsAddFromLink": "Add from a link",
+  "@extensionsAddFromLink": {
+    "description": "Row on the Extensions screen, and title of its dialog: adds a browser extension from a link to its page on addons.mozilla.org or its GitHub repository."
+  },
+  "extensionsAddFromLinkSubtitle": "addons.mozilla.org or GitHub",
+  "@extensionsAddFromLinkSubtitle": {
+    "description": "Subtitle of the Add from a link row: the two kinds of link it takes. Keep both names as they are."
+  },
+  "extensionsAddFromLinkHint": "Paste the link to an extension's page on addons.mozilla.org, or to a GitHub repository that publishes it in its releases. The app reads the latest release and shows what the extension asks for before adding it, and checks the same place for updates once a day.",
+  "@extensionsAddFromLinkHint": {
+    "description": "Explanation behind the hint button of the Add from a link row on the Extensions screen."
+  },
+  "extensionsLinkField": "Link",
+  "@extensionsLinkField": {
+    "description": "Label of the text field in the Add from a link dialog, where the user pastes a link to a browser extension."
+  },
+  "extensionsLinkExample": "https://addons.mozilla.org/… or https://github.com/…",
+  "@extensionsLinkExample": {
+    "description": "Placeholder in the Add from a link field showing the two kinds of link it takes. Keep the addresses as they are."
+  },
+  "extensionsLinkNotRead": "Not a link the app reads: paste an addons.mozilla.org page or a GitHub repository.",
+  "@extensionsLinkNotRead": {
+    "description": "Error under the Add from a link field when the pasted text is not a link to an addons.mozilla.org page or a GitHub repository."
+  },
+  "extensionsReading": "Reading the extension's source",
+  "@extensionsReading": {
+    "description": "Spoken name of the progress bar on the Extensions screen while the app reads a link's latest release and downloads its package."
+  },
+  "extensionsLinkUnreachable": "Could not reach the source: {reason}",
+  "@extensionsLinkUnreachable": {
+    "description": "Snackbar when the app could not read a browser extension's source or download its package. {reason} is the network's or proxy's message, in English; leave it as is.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsLinkNoRelease": "Nothing to add: {reason}",
+  "@extensionsLinkNoRelease": {
+    "description": "Snackbar when a browser extension's source answered but has no package to add. {reason} is one of the extensionsRelease... sentences.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsReleaseNotJson": "the source did not answer as expected",
+  "@extensionsReleaseNotJson": {
+    "description": "Reason a browser extension's source has nothing to add: its answer could not be read. Fills {reason} in 'Nothing to add: {reason}', so starts lower case where the language allows."
+  },
+  "extensionsReleaseNoVersion": "its latest release names no version",
+  "@extensionsReleaseNoVersion": {
+    "description": "Reason a browser extension's source has nothing to add: its latest release has no version number. Fills {reason} in 'Nothing to add: {reason}'."
+  },
+  "extensionsReleaseNoPackage": "its latest release has no .crx, .zip or .xpi package",
+  "@extensionsReleaseNoPackage": {
+    "description": "Reason a browser extension's source has nothing to add: its latest release offers no extension package. Fills {reason} in 'Nothing to add: {reason}'."
+  },
+  "extensionsPickPackage": "Version {version}: which file?",
+  "@extensionsPickPackage": {
+    "description": "Title of the dialog listing the package files of a browser extension's latest release, when it offers several (for Chrome, for Firefox). {version} is the release's version.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsSource": "Source",
+  "@extensionsSource": {
+    "description": "Row on a browser extension's screen naming the link it was added from, where its updates are read."
+  },
+  "extensionsSourceChecked": "{source}, checked {date}",
+  "@extensionsSourceChecked": {
+    "description": "Subtitle of the Source row on a browser extension's screen: the link it was added from, and the date its updates were last checked.",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsVersionUpdate": "Version {version} · {latest} available",
+  "@extensionsVersionUpdate": {
+    "description": "Subtitle of a browser extension in the library when a newer version was found at its source. {version} is the installed version, {latest} the newer one.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsUpdateTo": "Update to {version}",
+  "@extensionsUpdateTo": {
+    "description": "Row on a browser extension's screen when its source has a newer version; tapping it downloads and installs that version.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsUpdate": "Update",
+  "@extensionsUpdate": {
+    "description": "Confirm button of the dialog that installs a browser extension's update which asks for more than the installed version."
+  },
+  "extensionsUpdateAsksTitle": "Update {name}?",
+  "@extensionsUpdateAsksTitle": {
+    "description": "Title of the dialog before an update of a browser extension that asks for more than the installed version. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsUpdateAsksBody": "This update asks for more than the installed version. Every site that runs it gets this too, still only on its own pages:",
+  "@extensionsUpdateAsksBody": {
+    "description": "First paragraph of the dialog before an extension update that asks for more, above the new permissions and pages it asks for."
+  },
+  "extensionsUpdated": "{name} updated to {version}",
+  "@extensionsUpdated": {
+    "description": "Snackbar after a browser extension's update was installed. {name} is its name and {version} the new version.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsCheckDaily": "Check for updates daily",
+  "@extensionsCheckDaily": {
+    "description": "Switch on the Extensions screen: once a day, ask the website each extension was added from whether it has a newer version. Off by default."
+  },
+  "extensionsCheckDailyHint": "Once a day, asks addons.mozilla.org or GitHub whether each extension added from a link has a newer version. It downloads nothing. While this is off, the app sends them nothing until you check.",
+  "@extensionsCheckDailyHint": {
+    "description": "Explanation behind the hint button of the Check for updates daily switch."
+  },
+  "extensionsCheckNow": "Check for updates",
+  "@extensionsCheckNow": {
+    "description": "Row on the Extensions screen that asks, now, whether each extension added from a link has a newer version."
+  },
+  "extensionsUpdatesFound": "{count, plural, =0{No updates} =1{1 update available} other{{count} updates available}}",
+  "@extensionsUpdatesFound": {
+    "description": "Message after checking extensions for updates: how many extensions have a newer version.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extensionsSourcesUnreachable": "{count, plural, =1{1 source could not be reached} other{{count} sources could not be reached}}",
+  "@extensionsSourcesUnreachable": {
+    "description": "Second line of the message after checking extensions for updates: how many of the websites the extensions came from did not answer.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "extensionsLibrary": "Imported",
   "@extensionsLibrary": {
     "description": "Section header on the Extensions screen above the list of browser extensions imported on this device."
@@ -5587,6 +5767,65 @@
         "type": "String"
       }
     }
+  },
+  "extensionsVersionProblems": "{count, plural, =1{Version {version} · 1 problem reported} other{Version {version} · {count} problems reported}}",
+  "@extensionsVersionProblems": {
+    "description": "Subtitle of an imported browser extension when WebKit, the browser engine, reported problems reading it: its version number as its author wrote it, and how many problems. The problems themselves are listed behind the row's hint button.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsProblemsHint": "WebKit reported these reading the extension. It still runs on the sites you switch it on for, but what they name may not work.\n\n{problems}",
+  "@extensionsProblemsHint": {
+    "description": "Explanation behind the hint button of an imported browser extension that WebKit, the browser engine, reported problems with. {problems} is WebKit's own messages, one per paragraph, in the system's language; leave it as is.",
+    "placeholders": {
+      "problems": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsVersionEverySite": "Version {version} · on for every site",
+  "@extensionsVersionEverySite": {
+    "description": "Subtitle of an imported browser extension that every site runs unless the site sets its own choice: its version number as its author wrote it, and that it is on for every site.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsEverySite": "On for every site",
+  "@extensionsEverySite": {
+    "description": "Switch on an imported browser extension's own screen: whether every site runs the extension unless the site switched it on or off for itself."
+  },
+  "extensionsEverySiteHint": "Every site you have not switched it on or off for runs it, and on each it reaches only that site's pages. A site's own choice wins.",
+  "@extensionsEverySiteHint": {
+    "description": "Explanation behind the hint button of the On for every site switch of an imported browser extension."
+  },
+  "extensionsEverySiteConsentTitle": "Run {name} on every site?",
+  "@extensionsEverySiteConsentTitle": {
+    "description": "Title of the dialog before a browser extension is switched on for every site. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsEverySiteConsentBody": "Every site that has no choice of its own runs it from its next load. On each, it reaches only that site's pages.",
+  "@extensionsEverySiteConsentBody": {
+    "description": "Last paragraph of the dialog before a browser extension is switched on for every site, after the lines saying what it asks for."
+  },
+  "extensionsAsksSection": "What it asks for",
+  "@extensionsAsksSection": {
+    "description": "Section header on an imported browser extension's screen, above the permissions and pages it asked for."
+  },
+  "extensionsProblemsSection": "Reported by WebKit",
+  "@extensionsProblemsSection": {
+    "description": "Section header on an imported browser extension's screen, above the problems WebKit, the browser engine, reported reading it. Keep the name WebKit."
   },
   "extensionsRefused": "Not imported: {reason}",
   "@extensionsRefused": {
@@ -5708,7 +5947,7 @@
       }
     }
   },
-  "extensionsRemoveBody": "Its files are deleted and it stops running on every site.",
+  "extensionsRemoveBody": "It stops running on every site, and its files and what it stored on each site are deleted.",
   "@extensionsRemoveBody": {
     "description": "Body of the dialog confirming the removal of an imported browser extension."
   },
@@ -5720,6 +5959,70 @@
         "type": "String"
       }
     }
+  },
+  "backupExtensionsTitle": "Extensions in the backup",
+  "@backupExtensionsTitle": {
+    "description": "Title of the dialog, shown while exporting settings, that asks how the backup carries the browser extensions imported on this device."
+  },
+  "backupExtensionsBody": "{count, plural, =1{How should the backup carry the imported extension?} other{How should the backup carry the {count} imported extensions?}}",
+  "@backupExtensionsBody": {
+    "description": "Body of the dialog that asks how a settings backup carries the browser extensions imported on this device. {count} is how many there are.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupExtensionsLeaveOut": "Leave them out",
+  "@backupExtensionsLeaveOut": {
+    "description": "Choice in the dialog that asks how a settings backup carries browser extensions: the backup carries none."
+  },
+  "backupExtensionsLeaveOutDetail": "Adds nothing. After an import, sites run no extension until you switch them on.",
+  "@backupExtensionsLeaveOutDetail": {
+    "description": "Line under the Leave them out choice when a settings backup is exported: what that choice means."
+  },
+  "backupExtensionsReferences": "As references",
+  "@backupExtensionsReferences": {
+    "description": "Choice in the dialog that asks how a settings backup carries browser extensions: the backup names each extension without its files."
+  },
+  "backupExtensionsReferencesDetail": "Adds {size}. Names each one, so an import relinks those the device already has, and the sites that ran them run them again.",
+  "@backupExtensionsReferencesDetail": {
+    "description": "Line under the As references choice when a settings backup is exported. {size} is how much it adds to the backup file, like 640 B.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "backupExtensionsFiles": "With their files",
+  "@backupExtensionsFiles": {
+    "description": "Choice in the dialog that asks how a settings backup carries browser extensions: the backup carries each extension's files."
+  },
+  "backupExtensionsFilesDetail": "Adds {size}. Carries each one, so an import can add it, and the sites that ran it run it again.",
+  "@backupExtensionsFilesDetail": {
+    "description": "Line under the With their files choice when a settings backup is exported. {size} is how much it adds to the backup file, like 1.5 MB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "backupExtensionsUnreadable": "The backup was not saved: an extension's files could not be read.",
+  "@backupExtensionsUnreadable": {
+    "description": "Snackbar when a settings export stopped because the files of an imported browser extension could not be read from the device."
+  },
+  "backupExtensionsAddTitle": "{count, plural, =1{Add 1 extension from the backup?} other{Add {count} extensions from the backup?}}",
+  "@backupExtensionsAddTitle": {
+    "description": "Title of the dialog during a settings import that asks whether to add the browser extensions the backup carries and this device lacks. {count} is how many.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupExtensionsAddBody": "This device does not have them. Each starts off for every site, and the sites that ran it in the backup run it again.",
+  "@backupExtensionsAddBody": {
+    "description": "Body of the dialog during a settings import that asks whether to add the browser extensions the backup carries, above each one's name, version and what it asks for."
   },
   "siteSettingsExtensionsHint": "Browser extensions imported in App Settings that run on this site's pages. Each one reaches only this site, and a change applies when the site next loads.",
   "@siteSettingsExtensionsHint": {
@@ -5784,5 +6087,22 @@
   "siteExtensionsSwitchOn": "Switch on",
   "@siteExtensionsSwitchOn": {
     "description": "Confirm button of the dialog that switches a browser extension on for a site."
+  },
+  "siteExtensionsSettings": "Settings",
+  "@siteExtensionsSettings": {
+    "description": "Button under a browser extension in a site's Extensions screen: opens the extension's own settings page, over the site, with what it stored for this site."
+  },
+  "siteExtensionsOpen": "Open",
+  "@siteExtensionsOpen": {
+    "description": "Button under a browser extension in a site's Extensions screen: does what pressing the extension's toolbar button does in a browser, usually opening its popup over the site."
+  },
+  "siteExtensionsPageFailed": "{name} could not open here",
+  "@siteExtensionsPageFailed": {
+    "description": "Snackbar after a browser extension's settings page or popup could not be shown over the site. {name} is the extension's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

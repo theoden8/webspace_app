@@ -11,7 +11,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/services/container_names.dart';
+import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -33,6 +34,7 @@ import 'package:webspace/screens/saved_proxies.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
@@ -1023,7 +1025,14 @@ Widget _siteSettings(BuildContext _) {
     name: 'Codeberg',
   );
   return SettingsScreen(
-      webViewModel: model, appTheme: WebViewTheme.system, useContainers: true);
+    webViewModel: model,
+    appTheme: WebViewTheme.system,
+    isolation: Containers(
+      engine: ContainerIsolationEngine(
+        containerNative: ContainerNative.instance,
+      ),
+    ),
+  );
 }
 
 /// The real LocationPickerScreen, opened on a seeded coordinate. The map tiles

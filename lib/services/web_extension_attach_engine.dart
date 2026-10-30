@@ -4,6 +4,7 @@
 /// screens and its popups get the same answer.
 library;
 
+import 'package:webspace/services/container_names.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/web_extension_grants_engine.dart';
 import 'package:webspace/settings/web_extension.dart';
@@ -29,7 +30,8 @@ enum NoExtensionsReason {
   /// The site runs as a kiosk.
   kiosk,
 
-  /// The site switched none on.
+  /// The site runs none: it switched none on, and follows no extension's
+  /// default that is on.
   noneEnabled,
 }
 
@@ -44,10 +46,12 @@ final class AttachExtensions extends ExtensionAttach {
   final List<ExtensionLoad> loads;
 }
 
-/// One extension a site loads, from where, and what it may reach there.
+/// One extension a site loads, from where, which version of its files
+/// (an update loads them again), and what it may reach there.
 typedef ExtensionLoad = ({
   WebExtensionId id,
   String folder,
+  String revision,
   ExtensionGrants grants,
 });
 
@@ -57,7 +61,9 @@ typedef ExtensionAttachInputs = ({
   bool archived,
   bool kiosk,
   bool incognito,
-  Set<WebExtensionId> enabled,
+  // The site's own choices; an extension it has none for follows the
+  // entry's default (WEBEXT-004).
+  Map<WebExtensionId, bool> choices,
   List<InstalledExtension> library,
   List<DomainClaim> claims,
 });
@@ -68,13 +74,35 @@ ExtensionAttach planExtensionAttach(ExtensionAttachInputs inputs) {
   if (inputs.kiosk) return const NoExtensions(NoExtensionsReason.kiosk);
   final loads = [
     for (final (:entry, :folder) in inputs.library)
-      if (inputs.enabled.contains(entry.id))
+      if (inputs.choices[entry.id] ?? entry.everySite)
         (
           id: entry.id,
           folder: folder,
+          revision: entry.version,
           grants: planExtensionGrants(entry, claims: inputs.claims),
         ),
   ];
   if (loads.isEmpty) return const NoExtensions(NoExtensionsReason.noneEnabled);
   return AttachExtensions(persistent: !inputs.incognito, loads: loads);
+}
+
+/// Where a site's extensions keep what they store, and so where their pages
+/// open (WEBEXT-008): what the site loads, in the container its webviews
+/// bind.
+typedef ExtensionHome = ({AttachExtensions plan, ContainerName container});
+
+/// [plan]'s home in [container], or null where its extensions keep nothing:
+/// a site that loads none, an incognito site, a site with no container.
+ExtensionHome? extensionHomeOf(
+  ExtensionAttach plan, {
+  required ContainerName? container,
+}) {
+  if (container == null) return null;
+  return switch (plan) {
+    final AttachExtensions attach when attach.persistent => (
+      plan: attach,
+      container: container,
+    ),
+    AttachExtensions() || NoExtensions() => null,
+  };
 }

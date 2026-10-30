@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
+import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/web_extension_library.dart';
+import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/shortcut_label.dart';
 
 /// What a site's overflow menu offers, in menu order.
@@ -30,7 +37,35 @@ typedef SiteMenuState = ({
   bool tabsOn,
   bool fullscreen,
   bool offersShortcut,
+  List<SiteMenuExtension> extensions,
 });
+
+/// An extension's action the site's menu offers, under the extension's name
+/// (WEBEXT-008).
+typedef SiteMenuExtension = ({String name, VoidCallback open});
+
+/// The actions of the extensions [site] runs, each opening over it.
+List<SiteMenuExtension> siteMenuExtensions(
+  WebViewModel? site, {
+  required Isolation isolation,
+}) {
+  final home = site?.extensionHome(isolation);
+  if (home == null) return const [];
+  final library = WebExtensionLibrary.instance;
+  return [
+    for (final entry in library.offering(ExtensionPage.action, home: home))
+      (
+        name: entry.name,
+        open: () => unawaited(
+          library
+              .open(ExtensionPage.action, extension: entry.id, home: home)
+              .then((shown) {
+                if (!shown) LogTag.webExtension.info('${entry.id} not shown');
+              }),
+        ),
+      ),
+  ];
+}
 
 /// The buttons of a webview menu's top row. Each closes the menu, then acts.
 typedef SiteMenuNav = ({
@@ -105,6 +140,18 @@ class SiteMenuButton extends StatelessWidget {
               ],
             ),
           ),
+      if (s.extensions.isNotEmpty) PopupMenuDivider(),
+      for (final extension in s.extensions)
+        PopupMenuItem(
+          onTap: extension.open,
+          child: Row(
+            children: [
+              Icon(Icons.extension_outlined),
+              SizedBox(width: 8),
+              Flexible(child: Text(extension.name)),
+            ],
+          ),
+        ),
     ];
   }
 

@@ -12,14 +12,18 @@ import 'package:webspace/screens/site_extensions.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/web_extension_library.dart';
+import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/site_menu.dart';
 
 import 'helpers/extension_packages.dart';
+import 'helpers/fake_extension_engine.dart';
 import 'helpers/fake_extension_folders.dart';
+import 'helpers/isolations.dart';
 import 'helpers/localized.dart';
 
 final _manifest = {
@@ -33,7 +37,7 @@ Future<PackageRead> _readHere(Uint8List bytes) async =>
     readExtensionPackage(bytes);
 
 AppExtensionsScreen _library({required Uint8List? picked}) =>
-    AppExtensionsScreen(pick: () async => picked, read: _readHere);
+    AppExtensionsScreen(pick: () async => picked);
 
 Future<WebExtensionEntry> _imported() async => WebExtensionLibrary.instance.add(
   switch (readExtensionPackage(sampleZip(manifest: _manifest))) {
@@ -80,6 +84,7 @@ String _dialogText(WidgetTester tester) => [
 
 void main() {
   late FakeExtensionFolders disk;
+  late FakeExtensionEngine engine;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -93,7 +98,12 @@ void main() {
     );
     disk = FakeExtensionFolders();
     WebExtensionLibrary.instance.debugReset();
-    await WebExtensionLibrary.instance.initialize(folders: disk);
+    engine = FakeExtensionEngine();
+    await WebExtensionLibrary.instance.initialize(
+      folders: disk,
+      engine: engine,
+      read: _readHere,
+    );
     debugHostRunsWebExtensions = true;
     DeveloperModeService.instance.debugSet(on: true);
   });
@@ -225,7 +235,9 @@ void main() {
       final entry = await _imported();
       await pumpLocalized(tester, home: _library(picked: null));
       expect(find.text('Sample'), findsOneWidget);
-      await tester.tap(find.byTooltip('Remove'));
+      await tester.tap(find.text('Sample'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ListTile, 'Remove'));
       await tester.pumpAndSettle();
       expect(find.text('Remove Sample?'), findsOneWidget);
       await tester.tap(find.widgetWithText(TextButton, 'Remove'));
@@ -249,7 +261,11 @@ void main() {
       var changes = 0;
       await pumpLocalized(
         tester,
-        home: SiteExtensionsScreen(site: site, onChanged: () => changes++),
+        home: SiteExtensionsScreen(
+          site: site,
+          isolation: fakeContainers(),
+          onChanged: () => changes++,
+        ),
       );
 
       await tester.tap(find.byType(Switch));
@@ -262,7 +278,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(
-        site.enabledWebExtensions,
+        site.webExtensionChoices,
         isEmpty,
         reason: 'nothing is switched on before the user says so',
       );
@@ -272,7 +288,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Switch on'));
       await tester.pumpAndSettle();
-      expect(site.enabledWebExtensions, {entry.id});
+      expect(site.webExtensionChoices, {entry.id: true});
       expect(changes, 1);
       expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
 
@@ -283,8 +299,92 @@ void main() {
         findsNothing,
         reason: 'switching off asks nothing',
       );
-      expect(site.enabledWebExtensions, isEmpty);
+      expect(
+        site.webExtensionChoices,
+        {entry.id: false},
+        reason: 'switched off, the site keeps its own choice',
+      );
       expect(changes, 2);
+    });
+  });
+
+  group('WEBEXT-004 an extension on for every site, unless a site says '
+      'otherwise', () {
+    setUp(() {
+      ExperimentalFeaturesService.instance.debugSet(
+        ExperimentalFeature.webExtensions,
+        on: true,
+      );
+    });
+
+    testWidgets('switching the default on asks once, then every site that '
+        'follows it runs it', (tester) async {
+      final entry = await _imported();
+      await pumpLocalized(tester, home: _library(picked: null));
+      await tester.tap(find.text('Sample'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(find.text('Run Sample on every site?'), findsOneWidget);
+      expect(_dialogText(tester), contains('reaches only that site'));
+      await tester.tap(find.text('Switch on'));
+      await tester.pumpAndSettle();
+
+      final saved = WebExtensionLibrary.instance.installed.value.single.entry;
+      expect(saved.everySite, isTrue);
+      final following = WebViewModel(initUrl: 'https://mail.example.com/');
+      final declining = WebViewModel(
+        initUrl: 'https://docs.example.org/',
+        webExtensionChoices: {entry.id: false},
+      );
+      expect(siteExtensionsOn(following.extensionPlan), 1);
+      expect(siteExtensionsOn(declining.extensionPlan), 0);
+
+      await WebExtensionLibrary.instance.initialize(
+        folders: disk,
+        engine: engine,
+      );
+      expect(
+        WebExtensionLibrary.instance.installed.value.single.entry.everySite,
+        isTrue,
+        reason: 'the default is kept',
+      );
+    });
+
+    testWidgets('a site follows the default dimmed; a long press keeps it '
+        'as its own, and a tap switches it off without asking', (
+      tester,
+    ) async {
+      final entry = await _imported();
+      await WebExtensionLibrary.instance.setEverySite(entry.id, on: true);
+      final site = WebViewModel(initUrl: 'https://mail.example.com/');
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: site,
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      expect(find.text('Follows its setting for every site'), findsOneWidget);
+
+      await tester.longPress(find.text('Sample'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing,
+          reason: 'keeping the value it already runs asks nothing');
+      expect(site.webExtensionChoices, {entry.id: true});
+
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(site.webExtensionChoices, {entry.id: false});
+
+      await tester.longPress(find.text('Sample'));
+      await tester.pumpAndSettle();
+      expect(find.text('Run Sample on this site?'), findsOneWidget,
+          reason: 'following again turns it on here, which asks');
     });
   });
 
@@ -299,7 +399,7 @@ void main() {
           SettingsScreen(
             webViewModel: site,
             appTheme: WebViewTheme.system,
-            useContainers: true,
+            isolation: fakeContainers(),
           ),
         ),
       );
@@ -327,7 +427,7 @@ void main() {
         tester,
         site: WebViewModel(
           initUrl: 'https://mail.example.com/',
-          enabledWebExtensions: {entry.id},
+          webExtensionChoices: {entry.id: true},
         ),
       );
       expect(rowSubtitle(tester), '1 on');
@@ -339,7 +439,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
         isArchiveTier: true,
       );
       await openSettings(tester, site: site);
@@ -353,7 +453,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
         kioskMode: true,
       );
       await openSettings(tester, site: site);
@@ -367,7 +467,7 @@ void main() {
       final entry = await _imported();
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
-        enabledWebExtensions: {entry.id},
+        webExtensionChoices: {entry.id: true},
       );
       setViewSize(tester, size: const Size(1000, 4000));
       await tester.pumpWidget(
@@ -375,13 +475,196 @@ void main() {
           SettingsScreen(
             webViewModel: site,
             appTheme: WebViewTheme.system,
-            useContainers: true,
+            isolation: fakeContainers(),
           ),
         ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Extensions'), findsNothing);
-      expect(site.enabledWebExtensions, {entry.id});
+      expect(site.webExtensionChoices, {entry.id: true});
+    });
+  });
+
+  group('WEBEXT-003 an entry lists what WebKit reported', () {
+    testWidgets('its problems are counted, and listed behind its hint', (
+      tester,
+    ) async {
+      engine.anyFolder = (
+        problems: [
+          'Unsupported manifest entry: sidebar_action',
+          'Unsupported permission: webRequestBlocking',
+        ],
+        hasOptionsPage: false,
+        hasAction: false,
+      );
+      await _imported();
+      await pumpLocalized(tester, home: _library(picked: null));
+      expect(find.text('Version 1.0 · 2 problems reported'), findsOneWidget);
+      await tester.tap(find.byTooltip('Sample'));
+      await tester.pumpAndSettle();
+      final hint = _dialogText(tester);
+      expect(hint, contains('Unsupported manifest entry: sidebar_action'));
+      expect(hint, contains('Unsupported permission: webRequestBlocking'));
+    });
+
+    testWidgets('an extension read cleanly shows its version alone', (
+      tester,
+    ) async {
+      engine.anyFolder = (
+        problems: const <String>[],
+        hasOptionsPage: false,
+        hasAction: false,
+      );
+      await _imported();
+      await pumpLocalized(tester, home: _library(picked: null));
+      expect(find.text('Version 1.0'), findsOneWidget);
+      expect(find.byTooltip('Sample'), findsNothing);
+    });
+  });
+
+  group('an extension\'s own UI opens within its site', () {
+    setUp(() {
+      ExperimentalFeaturesService.instance.debugSet(
+        ExperimentalFeature.webExtensions,
+        on: true,
+      );
+      engine.anyFolder = (
+        problems: const <String>[],
+        hasOptionsPage: true,
+        hasAction: true,
+      );
+    });
+
+    testWidgets('the site\'s Extensions screen opens its settings and its '
+        'action over the site', (tester) async {
+      final entry = await _imported();
+      final site = WebViewModel(
+        initUrl: 'https://mail.example.com/',
+        webExtensionChoices: {entry.id: true},
+      );
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: site,
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(
+        [for (final s in engine.shown) (s.page, s.extension, s.home.container)],
+        [
+          for (final page in [ExtensionPage.options, ExtensionPage.action])
+            (page, entry.id, site.boundContainerId(fakeContainers())),
+        ],
+      );
+    });
+
+    testWidgets('a page that cannot open says so', (tester) async {
+      final entry = await _imported();
+      engine.reports[WebExtensionLibrary.instance.installed.value.single
+          .folder] = (
+        problems: const <String>[],
+        hasOptionsPage: false,
+        hasAction: true,
+      );
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: WebViewModel(
+            initUrl: 'https://mail.example.com/',
+            webExtensionChoices: {entry.id: true},
+          ),
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      expect(engine.shown, isEmpty);
+      expect(find.text('Sample could not open here'), findsOneWidget);
+    });
+
+    testWidgets('an extension the site does not run offers no page', (
+      tester,
+    ) async {
+      await _imported();
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: WebViewModel(initUrl: 'https://mail.example.com/'),
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      expect(find.text('Settings'), findsNothing);
+      expect(find.text('Open'), findsNothing);
+    });
+
+    testWidgets('the site\'s menu lists the extension, which opens its '
+        'action', (tester) async {
+      final entry = await _imported();
+      final site = WebViewModel(
+        initUrl: 'https://mail.example.com/',
+        webExtensionChoices: {entry.id: true},
+      );
+      await pumpLocalized(
+        tester,
+        home: Scaffold(
+          appBar: AppBar(
+            actions: [
+              SiteMenuButton(
+                placement: SiteMenuPlacement.appBar,
+                state: () => (
+                  loading: false,
+                  tabsOn: false,
+                  fullscreen: false,
+                  offersShortcut: false,
+                  extensions: siteMenuExtensions(
+                    site,
+                    isolation: fakeContainers(),
+                  ),
+                ),
+                nav: (
+                  back: () {},
+                  home: null,
+                  share: () {},
+                  reload: () {},
+                  stop: () {},
+                  backInNewTab: null,
+                  duplicateTab: null,
+                ),
+                onSelected: (_) => fail('an extension is no menu action'),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.tap(find.byType(SiteMenuButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sample'));
+      await tester.pumpAndSettle();
+      expect(engine.shown.single.page, ExtensionPage.action);
+      expect(engine.shown.single.extension, entry.id);
+    });
+
+    testWidgets('a site whose extensions keep nothing lists none in its menu',
+        (tester) async {
+      final entry = await _imported();
+      expect(
+        siteMenuExtensions(
+          WebViewModel(
+            initUrl: 'https://mail.example.com/',
+            webExtensionChoices: {entry.id: true},
+            incognito: true,
+          ),
+          isolation: fakeContainers(),
+        ),
+        isEmpty,
+      );
     });
   });
 }

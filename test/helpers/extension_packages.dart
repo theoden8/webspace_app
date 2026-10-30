@@ -127,9 +127,14 @@ String manifestJson({Map<String, Object?> extra = const {}}) => jsonEncode({
 });
 
 /// An archive holding a manifest and a content script.
-Uint8List sampleZip({Map<String, Object?> manifest = const {}}) => zipOf([
+Uint8List sampleZip({
+  Map<String, Object?> manifest = const {},
+  Map<String, Uint8List> extra = const {},
+}) => zipOf([
   ZipEntryBytes('manifest.json', text: manifestJson(extra: manifest)),
   ZipEntryBytes('content.js', text: 'document.title += "!";'),
+  for (final MapEntry(:key, :value) in extra.entries)
+    ZipEntryBytes(key, content: value),
 ]);
 
 Uint8List _u16(int v) =>

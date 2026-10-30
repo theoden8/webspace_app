@@ -28,9 +28,9 @@ Web extensions SHALL be reachable only on iOS 18.4+ and macOS 15.4+, and there o
 - **WHEN** the user opens App Settings
 - **THEN** there is no Web extensions switch and no Extensions row
 
-### Requirement: WEBEXT-002 - The user imports an extension from a file; the app fetches none
+### Requirement: WEBEXT-002 - The user adds an extension from a file or a link; the app downloads only what the user asked for
 
-App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`, read as WEBEXT-013 says. The app SHALL download no extension and update none on its own. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for, and say when the package carried a signature the app did not check.
+App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`, read as WEBEXT-013 says, or from a link as WEBEXT-017 says. The app SHALL download a package only when the user adds or updates an extension; checking for an update (WEBEXT-018) downloads none. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for, and say when the package carried a signature the app did not check.
 
 #### Scenario: A Chrome package
 
@@ -62,9 +62,9 @@ An extension written for Chrome SHALL be loaded as is, with no rewriting, throug
 - **THEN** the entry lists what WebKit reported
 - **AND** the extension is still offered to sites
 
-### Requirement: WEBEXT-004 - An extension runs on a site only after the user switches it on there
+### Requirement: WEBEXT-004 - An extension runs on a site only after the user switches it on there or for every site
 
-Every extension SHALL be off on every site until the user switches it on in that site's Settings > Extensions. Switching one on SHALL first show what it asks for and that its access is limited to this site's domains. The change SHALL apply from the next webview built for the site.
+Each extension SHALL have a default for every site, off when it is added. A site SHALL follow that default until it sets its own choice in its Settings > Extensions, where a following switch is shown dimmed and a long press makes the shown value the site's own (BEHAV-007). Switching the default on SHALL first show what the extension asks for and that on each site it reaches only that site's domains; switching it on for one site SHALL first show what it gets there. An archive-tier or kiosk site runs none whatever either says (WEBEXT-009). A change SHALL apply from the next webview built for the site.
 
 #### Scenario: A new extension runs nowhere
 
@@ -77,6 +77,18 @@ Every extension SHALL be off on every site until the user switches it on in that
 - **GIVEN** a site and an imported extension
 - **WHEN** the user switches it on in the site's Extensions screen and confirms
 - **THEN** the extension runs on that site from its next webview, and on no other site
+
+#### Scenario: On for every site, off for one
+
+- **GIVEN** an extension whose default the user switched on and confirmed, and a site that switched it off for itself
+- **WHEN** sites load
+- **THEN** it runs on every site that follows the default, and not on that site
+
+#### Scenario: A site's choice from an earlier version
+
+- **GIVEN** a site saved by a version that kept only a set of switched-on extensions
+- **WHEN** it is read
+- **THEN** each extension in that set is the site's own choice, on, and every other follows its default
 
 ### Requirement: WEBEXT-005 - An extension sees only the site it runs on
 
@@ -183,19 +195,31 @@ A nested screen or popup a site opens SHALL run the site's extensions with the s
 - **THEN** the nested screen has the site's extensions attached
 - **AND** none of them has access to `https://other.example/`
 
-### Requirement: WEBEXT-011 - Backups and QR shares carry no extensions
+### Requirement: WEBEXT-011 - A backup carries extensions only as the user chooses; a QR share carries none
 
-A settings backup SHALL NOT carry the extension library: no extension's files, manifest or name. A site's QR share SHALL NOT carry which extensions the site switched on. An imported backup SHALL switch on no extension on any site, since the ids it holds name another device's library.
+Exporting settings SHALL ask how to carry the extension library, naming the size each choice adds: leave them out (the default); as references, each extension's name, version, source (WEBEXT-017) and a fingerprint of its files; or with their files, each extension's package. Importing references SHALL relink each to an extension in this device's library with the same fingerprint, and offer to add the rest again from their sources. Importing files SHALL add each extension whose fingerprint the library lacks, after showing the WEBEXT-002 summary of all of them at once. A site SHALL keep its choices only for the extensions the import linked or added, and an extension's default for every site SHALL come back off. A site's QR share SHALL NOT carry which extensions the site switched on.
 
 #### Scenario: Exporting
 
 - **GIVEN** an extension in the library, switched on for a site
-- **WHEN** the user exports settings
+- **WHEN** the user exports settings and keeps the default choice
 - **THEN** the backup holds none of the extension's files, manifest or name
 
-#### Scenario: Importing
+#### Scenario: Each choice names its size
 
-- **GIVEN** a backup in which a site switched an extension on
+- **GIVEN** a library of two extensions whose packages are 1.2 MB and 300 KB
+- **WHEN** the user exports settings
+- **THEN** the choices say that references add under a kilobyte and files add about 2 MB, the packages as the backup's text holds them
+
+#### Scenario: Files restored on another device
+
+- **GIVEN** a backup exported with files, in which a site switched one of its extensions on
+- **WHEN** it is imported on a device whose library is empty and the user accepts the summary
+- **THEN** the extension is in the library, the site runs it, and its default for every site is off
+
+#### Scenario: Importing without extensions
+
+- **GIVEN** a backup exported leaving extensions out, in which a site switched an extension on
 - **WHEN** the user imports it
 - **THEN** the site runs no extension until the user switches one on there
 
@@ -328,3 +352,52 @@ A site's webviews SHALL attach the extensions the site switched on that are stil
 - **WHEN** its webviews' extensions are planned
 - **THEN** none attaches
 
+### Requirement: WEBEXT-017 - An extension added from a link keeps its source
+
+App Settings > Extensions SHALL add an extension from a link to its addons.mozilla.org listing or to its GitHub repository or one of its releases. The app SHALL read the source's latest release and download its package: on addons.mozilla.org the current version's file; on GitHub an asset ending in `.crx`, `.zip` or `.xpi`, the user picking one where there are several, `.crx` offered first. It SHALL then show the WEBEXT-002 summary before adding. The entry SHALL keep its source, and for GitHub what the picked asset's name looks like without its version, so an update picks the same kind of file. Any other link, or a release with no package, SHALL be refused saying why.
+
+#### Scenario: A listing on addons.mozilla.org
+
+- **GIVEN** the link `https://addons.mozilla.org/en-US/firefox/addon/adnauseam/`
+- **WHEN** the user adds from it
+- **THEN** the current version's `.xpi` is downloaded and summed up, and the entry names addons.mozilla.org as its source
+
+#### Scenario: A GitHub release with a Chrome and a Firefox package
+
+- **GIVEN** a repository whose latest release has `ext-2.1.0.crx` and `ext-2.1.0.xpi`
+- **WHEN** the user adds from the repository's link
+- **THEN** the `.crx` is offered first, and the entry remembers it picked a `.crx` named like `ext-*.crx`
+
+#### Scenario: A link to anything else
+
+- **GIVEN** a link to a page that is neither a listing nor a repository
+- **WHEN** the user adds from it
+- **THEN** nothing is downloaded and the user is told the link is not one the app reads
+
+### Requirement: WEBEXT-018 - Updates are checked; one installs when the user asks
+
+For each extension with a source the app SHALL check the source's latest release when the user asks, and at most once a day only where the user switched daily checks on. Daily checks SHALL be off by default: until the user switches them on or asks for a check, the app SHALL send an extension's source no request it did not add the extension with. A check SHALL download no package, and SHALL mark the entry when that release's version is newer than the installed one, comparing versions part by part as browsers do. Installing an update SHALL replace the extension's files and keep its id, so every site that runs it keeps it, with its data. An update whose manifest asks for a permission or a host the installed version did not SHALL show what it adds and install only once the user accepts.
+
+#### Scenario: Daily checks off
+
+- **GIVEN** an extension added from a link, and daily checks off, as they are by default
+- **WHEN** the app launches and the user opens App Settings > Extensions
+- **THEN** no request reaches the extension's source
+
+#### Scenario: A newer release
+
+- **GIVEN** an extension at version 1.9 whose source's latest release is 1.10
+- **WHEN** the user asks for a check, or the daily check runs with daily checks on
+- **THEN** its entry says 1.10 is available
+
+#### Scenario: An update keeps the sites
+
+- **GIVEN** an extension switched on for two sites, with data on both
+- **WHEN** the user installs its update
+- **THEN** both sites run the new version and keep their data
+
+#### Scenario: An update that asks for more
+
+- **GIVEN** an update whose manifest adds the `cookies` permission
+- **WHEN** the user installs it
+- **THEN** the app shows that it adds `cookies`, and installs nothing until the user accepts

@@ -62,8 +62,10 @@ enum SiteField {
   captures('captures', qr: QrShare.withheld),
   userScripts('userScripts', qr: QrShare.withheld),
   enabledGlobalScriptIds('enabledGlobalScriptIds', qr: QrShare.withheld),
-  // Ids from this device's extension library (WEBEXT-011).
-  enabledWebExtensions('enabledWebExtensions', qr: QrShare.withheld),
+  // Ids from this device's extension library (WEBEXT-011). Builds before
+  // the per-extension default saved the set switched on (WEBEXT-004).
+  webExtensionChoices('webExtensionChoices',
+      qr: QrShare.withheld, legacyKeys: ['enabledWebExtensions']),
   blockedCookies('blockedCookies', qr: QrShare.withheld),
   locationMode('locationMode', qr: QrShare.carried),
   spoofLatitude('spoofLatitude', qr: QrShare.carried),

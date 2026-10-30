@@ -12,6 +12,7 @@ WebExtensionEntry _entry({
   version: '1',
   permissions: permissions,
   hosts: hosts,
+  everySite: false,
 );
 
 final _base = DomainClaim.baseDomain('example.com');
