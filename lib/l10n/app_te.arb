@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "ఆన్ చేయి",
   "siteExtensionsSettings": "సెట్టింగ్‌లు",
   "siteExtensionsOpen": "తెరువు",
-  "siteExtensionsPageFailed": "{name} ను ఇక్కడ తెరవడం సాధ్యం కాలేదు"
+  "siteExtensionsPageFailed": "{name} ను ఇక్కడ తెరవడం సాధ్యం కాలేదు",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Zapnúť",
   "siteExtensionsSettings": "Nastavenia",
   "siteExtensionsOpen": "Otvoriť",
-  "siteExtensionsPageFailed": "{name} sa tu nepodarilo otvoriť"
+  "siteExtensionsPageFailed": "{name} sa tu nepodarilo otvoriť",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

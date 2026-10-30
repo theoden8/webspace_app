@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "ഓണാക്കുക",
   "siteExtensionsSettings": "ക്രമീകരണങ്ങൾ",
   "siteExtensionsOpen": "തുറക്കുക",
-  "siteExtensionsPageFailed": "{name} ഇവിടെ തുറക്കാനായില്ല"
+  "siteExtensionsPageFailed": "{name} ഇവിടെ തുറക്കാനായില്ല",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "ਚਾਲੂ ਕਰੋ",
   "siteExtensionsSettings": "ਸੈਟਿੰਗਾਂ",
   "siteExtensionsOpen": "ਖੋਲ੍ਹੋ",
-  "siteExtensionsPageFailed": "{name} ਇੱਥੇ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ"
+  "siteExtensionsPageFailed": "{name} ਇੱਥੇ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

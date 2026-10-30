@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Vklopi",
   "siteExtensionsSettings": "Nastavitve",
   "siteExtensionsOpen": "Odpri",
-  "siteExtensionsPageFailed": "{name} tukaj ni bilo mogoče odpreti"
+  "siteExtensionsPageFailed": "{name} tukaj ni bilo mogoče odpreti",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

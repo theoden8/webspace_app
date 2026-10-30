@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Troi ymlaen",
   "siteExtensionsSettings": "Gosodiadau",
   "siteExtensionsOpen": "Agor",
-  "siteExtensionsPageFailed": "Nid oedd modd agor {name} yma"
+  "siteExtensionsPageFailed": "Nid oedd modd agor {name} yma",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

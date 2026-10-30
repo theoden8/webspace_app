@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "הפעלה",
   "siteExtensionsSettings": "הגדרות",
   "siteExtensionsOpen": "פתח",
-  "siteExtensionsPageFailed": "לא ניתן לפתוח את {name} כאן"
+  "siteExtensionsPageFailed": "לא ניתן לפתוח את {name} כאן",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "இயக்கு",
   "siteExtensionsSettings": "அமைப்புகள்",
   "siteExtensionsOpen": "திற",
-  "siteExtensionsPageFailed": "{name} ஐ இங்கே திறக்க முடியவில்லை"
+  "siteExtensionsPageFailed": "{name} ஐ இங்கே திறக்க முடியவில்லை",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

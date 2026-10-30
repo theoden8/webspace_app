@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Ixgħel",
   "siteExtensionsSettings": "Settings",
   "siteExtensionsOpen": "Iftaħ",
-  "siteExtensionsPageFailed": "{name} ma setgħetx tinfetaħ hawn"
+  "siteExtensionsPageFailed": "{name} ma setgħetx tinfetaħ hawn",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

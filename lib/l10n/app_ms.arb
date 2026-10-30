@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Hidupkan",
   "siteExtensionsSettings": "Tetapan",
   "siteExtensionsOpen": "Buka",
-  "siteExtensionsPageFailed": "{name} tidak dapat dibuka di sini"
+  "siteExtensionsPageFailed": "{name} tidak dapat dibuka di sini",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

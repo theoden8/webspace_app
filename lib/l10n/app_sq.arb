@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Aktivizo",
   "siteExtensionsSettings": "Cilësimet",
   "siteExtensionsOpen": "Hap",
-  "siteExtensionsPageFailed": "{name} nuk mund të hapej këtu"
+  "siteExtensionsPageFailed": "{name} nuk mund të hapej këtu",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

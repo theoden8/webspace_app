@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Inschakelen",
   "siteExtensionsSettings": "Instellingen",
   "siteExtensionsOpen": "Openen",
-  "siteExtensionsPageFailed": "{name} kon hier niet worden geopend"
+  "siteExtensionsPageFailed": "{name} kon hier niet worden geopend",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

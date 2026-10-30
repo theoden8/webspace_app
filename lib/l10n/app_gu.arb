@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "ચાલુ કરો",
   "siteExtensionsSettings": "સેટિંગ્સ",
   "siteExtensionsOpen": "ખોલો",
-  "siteExtensionsPageFailed": "{name} અહીં ખોલી શકાયું નહીં"
+  "siteExtensionsPageFailed": "{name} અહીં ખોલી શકાયું નહીં",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

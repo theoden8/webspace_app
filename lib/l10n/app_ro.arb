@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Activează",
   "siteExtensionsSettings": "Setări",
   "siteExtensionsOpen": "Deschide",
-  "siteExtensionsPageFailed": "{name} nu a putut fi deschisă aici"
+  "siteExtensionsPageFailed": "{name} nu a putut fi deschisă aici",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

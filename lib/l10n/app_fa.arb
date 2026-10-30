@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "روشن کردن",
   "siteExtensionsSettings": "تنظیمات",
   "siteExtensionsOpen": "باز کردن",
-  "siteExtensionsPageFailed": "{name} اینجا باز نشد"
+  "siteExtensionsPageFailed": "{name} اینجا باز نشد",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

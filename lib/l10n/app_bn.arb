@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "চালু করুন",
   "siteExtensionsSettings": "সেটিংস",
   "siteExtensionsOpen": "খুলুন",
-  "siteExtensionsPageFailed": "{name} এখানে খোলা যায়নি"
+  "siteExtensionsPageFailed": "{name} এখানে খোলা যায়নি",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

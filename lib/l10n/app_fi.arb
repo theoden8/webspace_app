@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Ota käyttöön",
   "siteExtensionsSettings": "Asetukset",
   "siteExtensionsOpen": "Avaa",
-  "siteExtensionsPageFailed": "{name} ei auennut tässä"
+  "siteExtensionsPageFailed": "{name} ei auennut tässä",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Skakel aan",
   "siteExtensionsSettings": "Instellings",
   "siteExtensionsOpen": "Maak oop",
-  "siteExtensionsPageFailed": "{name} kon nie hier oopmaak nie"
+  "siteExtensionsPageFailed": "{name} kon nie hier oopmaak nie",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

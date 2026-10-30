@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Aç",
   "siteExtensionsSettings": "Ayarlar",
   "siteExtensionsOpen": "Aç",
-  "siteExtensionsPageFailed": "{name} burada açılamadı"
+  "siteExtensionsPageFailed": "{name} burada açılamadı",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

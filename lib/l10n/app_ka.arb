@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "ჩართვა",
   "siteExtensionsSettings": "პარამეტრები",
   "siteExtensionsOpen": "გახსნა",
-  "siteExtensionsPageFailed": "{name} აქ ვერ გაიხსნა"
+  "siteExtensionsPageFailed": "{name} აქ ვერ გაიხსნა",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

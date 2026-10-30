@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Увімкнути",
   "siteExtensionsSettings": "Налаштування",
   "siteExtensionsOpen": "Відкрити",
-  "siteExtensionsPageFailed": "Не вдалося відкрити {name} тут"
+  "siteExtensionsPageFailed": "Не вдалося відкрити {name} тут",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

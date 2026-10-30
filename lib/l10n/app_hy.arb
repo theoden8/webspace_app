@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Միացնել",
   "siteExtensionsSettings": "Կարգավորումներ",
   "siteExtensionsOpen": "Բացել",
-  "siteExtensionsPageFailed": "{name}-ը չհաջողվեց բացել այստեղ"
+  "siteExtensionsPageFailed": "{name}-ը չհաջողվեց բացել այստեղ",
+  "termAndMeaning": "{term}՝ {meaning}",
+  "twoSentences": "{first} {second}"
 }

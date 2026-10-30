@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Bekapcsolás",
   "siteExtensionsSettings": "Beállítások",
   "siteExtensionsOpen": "Megnyitás",
-  "siteExtensionsPageFailed": "{name} megnyitása itt nem sikerült"
+  "siteExtensionsPageFailed": "{name} megnyitása itt nem sikerült",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

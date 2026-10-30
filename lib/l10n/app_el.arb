@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Ενεργοποίηση",
   "siteExtensionsSettings": "Ρυθμίσεις",
   "siteExtensionsOpen": "Άνοιγμα",
-  "siteExtensionsPageFailed": "Δεν ήταν δυνατό να ανοίξει εδώ: {name}"
+  "siteExtensionsPageFailed": "Δεν ήταν δυνατό να ανοίξει εδώ: {name}",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

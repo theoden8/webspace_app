@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "آن کریں",
   "siteExtensionsSettings": "سیٹنگز",
   "siteExtensionsOpen": "کھولیں",
-  "siteExtensionsPageFailed": "{name} یہاں نہیں کھل سکی"
+  "siteExtensionsPageFailed": "{name} یہاں نہیں کھل سکی",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

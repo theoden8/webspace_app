@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Асаах",
   "siteExtensionsSettings": "Тохиргоо",
   "siteExtensionsOpen": "Нээх",
-  "siteExtensionsPageFailed": "{name}-г энд нээж чадсангүй"
+  "siteExtensionsPageFailed": "{name}-г энд нээж чадсангүй",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

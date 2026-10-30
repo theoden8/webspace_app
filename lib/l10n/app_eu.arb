@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Aktibatu",
   "siteExtensionsSettings": "Ezarpenak",
   "siteExtensionsOpen": "Ireki",
-  "siteExtensionsPageFailed": "Ezin izan da {name} hemen ireki"
+  "siteExtensionsPageFailed": "Ezin izan da {name} hemen ireki",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

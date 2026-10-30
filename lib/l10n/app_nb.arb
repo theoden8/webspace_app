@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Slå på",
   "siteExtensionsSettings": "Innstillinger",
   "siteExtensionsOpen": "Åpne",
-  "siteExtensionsPageFailed": "{name} kunne ikke åpnes her"
+  "siteExtensionsPageFailed": "{name} kunne ikke åpnes her",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }
