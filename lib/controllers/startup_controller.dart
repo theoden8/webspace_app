@@ -188,6 +188,8 @@ class StartupController implements DeferredStartupHost {
   Future<Reached<PrefsLoaded>> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     AppPref.loadAll(prefs);
+    // Before any icon draws: one that finds no kept URL searches the site.
+    await FaviconUrlCache.initialize();
     _shell.loadTheme(prefs);
     _shortcuts.load(prefs);
     _host.themeChanged();
@@ -411,9 +413,6 @@ class StartupController implements DeferredStartupHost {
         needsResave: loaded.needsResave,
       ),
       ImageCacheService.clearCacheOnUpgrade(),
-      // Consulted progressively by the tab strip and add-site UI; a miss
-      // only fetches afresh.
-      FaviconUrlCache.initialize(),
       // Migrates sites saved before the tz was baked into `spoofTimezone`,
       // and refreshes after a dataset update. The dataset parses on a
       // background isolate.

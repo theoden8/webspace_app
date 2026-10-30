@@ -1,16 +1,22 @@
-// A site's icon in the shipped app (ICON-017): a folder preview on the
-// library home that missed its icon at launch takes it once the icon may
-// come, as Tor comes up or the app comes back to the front, with no folder
-// opened to fetch it.
+// A site's icon in the shipped app. A launch draws what a past launch found
+// without searching for it again (ICON-008). A folder preview on the library
+// home that missed its icon at launch takes it once the icon may come, as Tor
+// comes up or the app comes back to the front, with no folder opened to fetch
+// it (ICON-017).
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:webspace/app.dart';
+import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/icon_service.dart';
+import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -65,6 +71,7 @@ void main() {
   setUp(() {
     ConnectivityService.onlineOverride = Future.value(true);
     clearFaviconCache();
+    FaviconUrlCache.resetForTest();
     net = FakeOutbound(responder: _offline);
     outboundHttp = net;
   });
@@ -73,6 +80,50 @@ void main() {
     ConnectivityService.reset();
     resetOutboundHttp();
     clearFaviconCache();
+  });
+
+  testWidgets(
+      'ICON-008: a launch draws the icons a past launch found without '
+      'searching the sites again', (tester) async {
+    net.responder = _online;
+    await _pumpHome(tester,
+        site: WebViewModel(initUrl: 'https://alpha.example.test', name: 'Alpha'));
+    expect(_preview('Work'), findsOneWidget);
+
+    // The next launch is a new process: nothing it held in memory survives.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await settleRealApp(tester);
+    clearFaviconCache();
+    FaviconUrlCache.resetForTest();
+    net.requests.clear();
+    // A device draws frames while the launch waits on the platform, after the
+    // sites are on the page: the home's previews mount then.
+    final launchDetails = Completer<void>();
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'),
+      (call) async {
+        if (call.method == 'getNotificationAppLaunchDetails') {
+          await launchDetails.future;
+          return {'notificationLaunchedApp': false};
+        }
+        return call.method == 'initialize' ? true : null;
+      },
+    );
+    await tester.pumpWidget(const WebSpaceApp(launch: ProcessLaunch.user));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.byType(WebspaceGroupTile), findsWidgets,
+        reason: 'the home is drawn while the launch waits');
+    launchDetails.complete();
+    await settleRealApp(tester);
+    expect(_preview('Work'), findsOneWidget);
+    expect([
+      for (final u in net.requested)
+        if (u.path.isEmpty || u.path == '/') u,
+    ], isEmpty, reason: 'the icon URL a past launch found is read, not searched');
   });
 
   testWidgets(

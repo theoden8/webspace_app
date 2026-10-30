@@ -48,6 +48,14 @@ class FaviconUrlCache {
         (url, {required content}) => setSvg(url, svgContent: content);
   }
 
+  /// Forget the prefs and what this session marked missing, as a new process
+  /// starts without them.
+  @visibleForTesting
+  static void resetForTest() {
+    _prefs = null;
+    _missing.clear();
+  }
+
   static String? get(String siteUrl) =>
       _prefs?.getString('$_prefix$siteUrl');
 

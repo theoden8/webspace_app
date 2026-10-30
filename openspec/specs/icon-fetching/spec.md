@@ -163,6 +163,9 @@ session, what the app holds of a site's icon SHALL NOT be asked for again:
 - **An icon drawn again** (an open folder draws its tiles again on every page
   and every layout) SHALL show the held image or SVG, or the globe of a site
   known to have none, from its first frame and without a request.
+- **A launch** SHALL read the icon URLs a past launch kept before any icon
+  draws, so an icon drawn while the launch is still waiting on the platform
+  does not search its site again.
 - **A site that answered with its page and named no icon** SHALL NOT be
   searched again until its icon is refreshed (the edit dialog's refresh, a
   TLS pin, Reset icon cache).
@@ -176,6 +179,14 @@ session, what the app holds of a site's icon SHALL NOT be asked for again:
 **When** it is drawn again, as a folder's page is swiped back to
 **Then** its first frame shows the icon, not a spinner
 **And** no request is made
+
+#### Scenario: A launch reads the icon URLs kept before
+
+**Given** a past launch found a site's icon URL
+**When** the app launches and draws the library home before the launch has
+finished
+**Then** the site's preview reads the kept URL and the site's page is not
+fetched
 
 #### Scenario: A site with no icon is not searched again
 
