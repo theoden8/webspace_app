@@ -153,27 +153,13 @@ final class TorControlLink {
     }
 
     try {
-      final info = TorProtocolInfo.fromReply(
-          await _bounded(channel.send('PROTOCOLINFO 1')));
-      if (info == null) {
-        return refuse(TorControlRefusal.notTor,
-            detail: 'It did not answer PROTOCOLINFO as tor.');
-      }
-      final cookieFile = info.cookieFile;
-      final cookie = info.wantsCookie && cookieFile != null
-          ? await readCookie(cookieFile)
-          : null;
-      final plan = planTorAuth(info: info, password: password, cookie: cookie);
-      final authenticated = await _authenticate(channel, plan: plan);
-      if (authenticated != null) {
-        return refuse(authenticated, detail: switch (authenticated) {
-          TorControlRefusal.cookieUnreadable =>
-            'tor wants its cookie, and ${cookieFile ?? 'its cookie file'} '
-                'cannot be read.',
-          TorControlRefusal.needsPassword =>
-            'tor wants a password, and none is saved.',
-          _ => 'tor refused the authentication.',
-        });
+      final TorProtocolInfo info;
+      switch (await authenticateTorControl(channel,
+          password: password, readCookie: readCookie)) {
+        case TorControlAuthRefused(:final refusal, :final detail):
+          return refuse(refusal, detail: detail);
+        case TorControlAuthenticated(info: final read):
+          info = read;
       }
 
       final read = await _readConfig(channel);
@@ -207,39 +193,6 @@ final class TorControlLink {
     } on FormatException catch (e) {
       return refuse(TorControlRefusal.notTor, detail: e.message);
     }
-  }
-
-  /// Null once authenticated, else why not.
-  static Future<TorControlRefusal?> _authenticate(TorControlChannel channel,
-      {required TorAuthPlan plan}) async {
-    final String command;
-    switch (plan) {
-      case TorAuthImpossible(:final refusal):
-        return refusal;
-      case TorAuthNull():
-        command = 'AUTHENTICATE';
-      case TorAuthPassword(:final password):
-        command = 'AUTHENTICATE ${torQuoted(password)}';
-      case TorAuthSafeCookie(:final cookie):
-        final rng = Random.secure();
-        final clientNonce = List<int>.generate(32, (_) => rng.nextInt(256));
-        final challenge = TorSafeCookieExchange.challengeOf(await _bounded(
-            channel.send('AUTHCHALLENGE SAFECOOKIE ${hexOf(clientNonce)}')));
-        if (challenge == null) return TorControlRefusal.refused;
-        final exchange = TorSafeCookieExchange(
-          cookie: cookie,
-          clientNonce: clientNonce,
-          serverNonce: challenge.nonce,
-        );
-        // A listener that cannot produce this did not read the cookie: it
-        // is not that tor, and gets no proof of the app reading it either.
-        if (!sameBytes(exchange.serverHash, other: challenge.hash)) {
-          return TorControlRefusal.refused;
-        }
-        command = 'AUTHENTICATE ${hexOf(exchange.clientHash)}';
-    }
-    final reply = await _bounded(channel.send(command));
-    return reply.isOk ? null : TorControlRefusal.refused;
   }
 
   /// The SocksPort and logging answers the posture is judged on, and the
@@ -382,7 +335,7 @@ final class TorControlLink {
     if (exitNodes == _pinned) return;
     if (exitNodes == null) {
       await _withPinned(null, send: _restore);
-      await _closeExitCircuits();
+      await torCloseExitCircuits(_channel);
       return;
     }
     final geoip = torKeyValues(_expectOk(
@@ -395,7 +348,7 @@ final class TorControlLink {
           'the tor-geoipdb package.');
     }
     final countries = torPinnedCountries(exitNodes);
-    if (countries != null && await _hasNoExitIn(countries)) {
+    if (countries != null && await torHasNoExitIn(_channel, countries: countries)) {
       final names = (countries.toList()..sort())
           .map((c) => c.toUpperCase())
           .join(', ');
@@ -411,7 +364,7 @@ final class TorControlLink {
               'StrictNodes=1 ConfluxEnabled=0')),
           command: 'SETCONF');
     });
-    await _closeExitCircuits();
+    await torCloseExitCircuits(_channel);
   }
 
   /// Runs [send] with [_pinned] already at [pin], so the CONF_CHANGED it
@@ -464,46 +417,6 @@ final class TorControlLink {
     }
   }
 
-  /// Whether the consensus has exits and none of them is in [countries] by
-  /// tor's own GeoIP. False when it cannot tell, as the built-in tor does:
-  /// the pin is then applied and a country with no exit fails visibly.
-  Future<bool> _hasNoExitIn(Set<String> countries) async {
-    // Megabytes of consensus; still loopback, and well inside the pin's
-    // own deadline.
-    final ns = torKeyValues(_expectOk(
-        await _bounded(_channel.send('GETINFO ns/all'),
-            within: const Duration(seconds: 15)),
-        command: 'GETINFO'));
-    final exits = torExitAddresses(ns['ns/all']?.firstOrNull ?? '');
-    if (exits.isEmpty) return false;
-    const batch = 64;
-    for (var i = 0; i < exits.length; i += batch) {
-      final keys = [
-        for (final ip in exits.skip(i).take(batch)) 'ip-to-country/$ip',
-      ];
-      final answers = torKeyValues(_expectOk(
-          await _bounded(_channel.send('GETINFO ${keys.join(' ')}')),
-          command: 'GETINFO'));
-      for (final values in answers.values) {
-        if (countries.contains(values.firstOrNull?.toLowerCase())) return false;
-      }
-    }
-    return true;
-  }
-
-  /// Ends the streams opened before an exit change: tor stops attaching
-  /// new streams to old circuits on its own, and keeps the open ones.
-  Future<void> _closeExitCircuits() async {
-    final status = torKeyValues(_expectOk(
-        await _bounded(_channel.send('GETINFO circuit-status')),
-        command: 'GETINFO'));
-    for (final id
-        in torExitCircuitIds(status['circuit-status']?.firstOrNull ?? '')) {
-      // 552 for a circuit that closed in the meantime.
-      await _bounded(_channel.send('CLOSECIRCUIT $id'));
-    }
-  }
-
   /// Puts back any pin the app left in force, then closes the channel.
   Future<void> close() async {
     if (_closed) return;
@@ -520,15 +433,144 @@ final class TorControlLink {
     await _changes.close();
   }
 
-  static Future<TorControlReply> _bounded(Future<TorControlReply> reply,
-          {Duration within = kTorControlCommandTimeout}) =>
-      reply.timeout(within);
+}
 
-  static TorControlReply _expectOk(TorControlReply reply,
-      {required String command}) {
-    if (!reply.isOk) throw TorControlRejected(reply, command: command);
-    return reply;
+/// What authenticating a control channel came to.
+sealed class TorControlAuth {
+  const TorControlAuth();
+}
+
+final class TorControlAuthenticated extends TorControlAuth {
+  const TorControlAuthenticated(this.info);
+
+  final TorProtocolInfo info;
+}
+
+final class TorControlAuthRefused extends TorControlAuth {
+  const TorControlAuthRefused(this.refusal, {required this.detail});
+
+  final TorControlRefusal refusal;
+  final String detail;
+}
+
+/// PROTOCOLINFO, then the one AUTHENTICATE [planTorAuth] picks. Throws
+/// what [channel] does: [TorControlClosed], a [TimeoutException], a
+/// [FormatException] for a reply that is not tor's.
+Future<TorControlAuth> authenticateTorControl(
+  TorControlChannel channel, {
+  required String? password,
+  required TorCookieRead readCookie,
+}) async {
+  final info = TorProtocolInfo.fromReply(
+      await _bounded(channel.send('PROTOCOLINFO 1')));
+  if (info == null) {
+    return const TorControlAuthRefused(TorControlRefusal.notTor,
+        detail: 'It did not answer PROTOCOLINFO as tor.');
   }
+  final cookieFile = info.cookieFile;
+  final cookie = info.wantsCookie && cookieFile != null
+      ? await readCookie(cookieFile)
+      : null;
+  final plan = planTorAuth(info: info, password: password, cookie: cookie);
+  final refusal = await _authenticate(channel, plan: plan);
+  if (refusal == null) return TorControlAuthenticated(info);
+  return TorControlAuthRefused(refusal, detail: switch (refusal) {
+    TorControlRefusal.cookieUnreadable =>
+      'tor wants its cookie, and ${cookieFile ?? 'its cookie file'} '
+          'cannot be read.',
+    TorControlRefusal.needsPassword => 'tor wants a password, and none is saved.',
+    _ => 'tor refused the authentication.',
+  });
+}
+
+/// Null once authenticated, else why not.
+Future<TorControlRefusal?> _authenticate(TorControlChannel channel,
+    {required TorAuthPlan plan}) async {
+  final String command;
+  switch (plan) {
+    case TorAuthImpossible(:final refusal):
+      return refusal;
+    case TorAuthNull():
+      command = 'AUTHENTICATE';
+    case TorAuthPassword(:final password):
+      command = 'AUTHENTICATE ${torQuoted(password)}';
+    case TorAuthSafeCookie(:final cookie):
+      final rng = Random.secure();
+      final clientNonce = List<int>.generate(32, (_) => rng.nextInt(256));
+      final challenge = TorSafeCookieExchange.challengeOf(await _bounded(
+          channel.send('AUTHCHALLENGE SAFECOOKIE ${hexOf(clientNonce)}')));
+      if (challenge == null) return TorControlRefusal.refused;
+      final exchange = TorSafeCookieExchange(
+        cookie: cookie,
+        clientNonce: clientNonce,
+        serverNonce: challenge.nonce,
+      );
+      // A listener that cannot produce this did not read the cookie: it
+      // is not that tor, and gets no proof of the app reading it either.
+      if (!sameBytes(exchange.serverHash, other: challenge.hash)) {
+        return TorControlRefusal.refused;
+      }
+      command = 'AUTHENTICATE ${hexOf(exchange.clientHash)}';
+  }
+  final reply = await _bounded(channel.send(command));
+  return reply.isOk ? null : TorControlRefusal.refused;
+}
+
+extension TorControlCommands on TorControlChannel {
+  /// [line]'s reply, which must be 250, within [within]. Throws
+  /// [TorControlRejected] for any other status, naming the verb only: an
+  /// AUTHENTICATE line carries the secret.
+  Future<TorControlReply> command(String line,
+      {Duration within = kTorControlCommandTimeout}) async {
+    final verb = line.split(' ').first;
+    return _expectOk(await _bounded(send(line), within: within), command: verb);
+  }
+}
+
+/// Whether the consensus has exits and none of them is in [countries] by
+/// tor's own GeoIP. False when it cannot tell, as the built-in tor on Apple
+/// does: the pin is then applied and a country with no exit fails visibly.
+Future<bool> torHasNoExitIn(TorControlChannel channel,
+    {required Set<String> countries}) async {
+  // Megabytes of consensus; still loopback, and well inside the pin's
+  // own deadline.
+  final ns = torKeyValues(await channel.command('GETINFO ns/all',
+      within: const Duration(seconds: 15)));
+  final exits = torExitAddresses(ns['ns/all']?.firstOrNull ?? '');
+  if (exits.isEmpty) return false;
+  const batch = 64;
+  for (var i = 0; i < exits.length; i += batch) {
+    final keys = [
+      for (final ip in exits.skip(i).take(batch)) 'ip-to-country/$ip',
+    ];
+    final answers =
+        torKeyValues(await channel.command('GETINFO ${keys.join(' ')}'));
+    for (final values in answers.values) {
+      if (countries.contains(values.firstOrNull?.toLowerCase())) return false;
+    }
+  }
+  return true;
+}
+
+/// Ends the streams opened before an exit change: tor stops attaching
+/// new streams to old circuits on its own, and keeps the open ones.
+Future<void> torCloseExitCircuits(TorControlChannel channel) async {
+  final status =
+      torKeyValues(await channel.command('GETINFO circuit-status'));
+  for (final id
+      in torExitCircuitIds(status['circuit-status']?.firstOrNull ?? '')) {
+    // 552 for a circuit that closed in the meantime.
+    await _bounded(channel.send('CLOSECIRCUIT $id'));
+  }
+}
+
+Future<TorControlReply> _bounded(Future<TorControlReply> reply,
+        {Duration within = kTorControlCommandTimeout}) =>
+    reply.timeout(within);
+
+TorControlReply _expectOk(TorControlReply reply, {required String command}) {
+  if (!reply.isOk) throw TorControlRejected(reply, command: command);
+  return reply;
 }
 
 /// Circuit purposes that carry streams out through an exit.

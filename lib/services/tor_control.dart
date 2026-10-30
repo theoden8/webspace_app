@@ -433,3 +433,28 @@ bool sameBytes(List<int> a, {required List<int> other}) {
   }
   return diff == 0;
 }
+
+/// Where a bootstrap is, read from a `status/bootstrap-phase` value or a
+/// `STATUS_CLIENT` BOOTSTRAP event: `NOTICE BOOTSTRAP PROGRESS=45
+/// TAG=loading_descriptors SUMMARY="Loading relay descriptors"`. Null for
+/// anything else.
+({int percent, String? tag, String? summary})? torBootstrapPhase(
+    String line) {
+  final words = line.split(' ');
+  if (!words.contains('BOOTSTRAP')) return null;
+  final progress = RegExp(r'(?:^| )PROGRESS=(\d+)').firstMatch(line);
+  final percent = int.tryParse(progress?.group(1) ?? '');
+  if (percent == null) return null;
+  final tag = RegExp(r'(?:^| )TAG=(\S+)').firstMatch(line)?.group(1);
+  return (percent: percent, tag: tag, summary: _summaryOf(line));
+}
+
+String? _summaryOf(String line) {
+  final at = line.indexOf(' SUMMARY="');
+  if (at < 0) return null;
+  try {
+    return _unquote(line, start: at + ' SUMMARY='.length).$1;
+  } on FormatException {
+    return null;
+  }
+}

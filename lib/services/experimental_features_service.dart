@@ -25,7 +25,11 @@ enum ExperimentalFeature {
 
   /// The menu bar icon on macOS while a close only hides the window
   /// (NOTIF-019); Linux's tray graduated. New, so off by default.
-  desktopTray(AppPref.experimentalDesktopTray);
+  desktopTray(AppPref.experimentalDesktopTray),
+
+  /// The built-in Tor on Linux, a tor the app starts itself (TOR-027). Read
+  /// once at launch. New, so off by default.
+  linuxTor(AppPref.experimentalLinuxTor);
 
   const ExperimentalFeature(this.pref);
 

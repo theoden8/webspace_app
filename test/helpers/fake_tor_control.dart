@@ -52,6 +52,21 @@ class FakeTorControl {
   /// Circuits tor reports, as `circuit-status` lines.
   List<String> circuits = const [];
 
+  /// What `status/bootstrap-phase` answers, as tor words it.
+  String bootstrapPhase = 'NOTICE BOOTSTRAP PROGRESS=0 TAG=starting '
+      'SUMMARY="Starting"';
+
+  /// What `status/circuit-established` answers.
+  bool circuitEstablished = false;
+
+  /// Whether a controller has taken ownership (TAKEOWNERSHIP), and whether
+  /// tor has been told to exit (SIGNAL HALT or SHUTDOWN).
+  bool owned = false;
+  bool halted = false;
+
+  /// Called when tor is told to exit, as the process exiting would be seen.
+  void Function()? onHalt;
+
   final commands = <String>[];
   final closedCircuits = <String>[];
   int newnyms = 0;
@@ -60,6 +75,7 @@ class FakeTorControl {
   void Function()? _hangUp;
   bool _authenticated = false;
   bool _confChanged = false;
+  bool _statusEvents = false;
   List<int>? _clientNonce;
   List<int>? _serverNonce;
 
@@ -88,6 +104,22 @@ class FakeTorControl {
 
   /// tor exits, or restarts.
   void hangUp() => _hangUp?.call();
+
+  /// tor reaches [percent] of its bootstrap: `status/bootstrap-phase` says
+  /// so, and a controller subscribed to STATUS_CLIENT hears it.
+  void bootstrap(int percent, {required String tag, String summary = ''}) {
+    bootstrapPhase = 'NOTICE BOOTSTRAP PROGRESS=$percent TAG=$tag '
+        'SUMMARY=${torQuoted(summary)}';
+    if (_statusEvents) _push?.call(['650 STATUS_CLIENT $bootstrapPhase']);
+  }
+
+  /// tor has built its first circuit.
+  void establishCircuit() {
+    circuitEstablished = true;
+    if (_statusEvents) {
+      _push?.call(['650 STATUS_CLIENT NOTICE CIRCUIT_ESTABLISHED']);
+    }
+  }
 
   List<String> answer(String line) {
     commands.add(line);
@@ -159,9 +191,20 @@ class FakeTorControl {
         return ['250 OK'];
       case 'SETEVENTS':
         _confChanged = args.split(' ').contains('CONF_CHANGED');
+        _statusEvents = args.split(' ').contains('STATUS_CLIENT');
+        return ['250 OK'];
+      case 'TAKEOWNERSHIP':
+        owned = true;
         return ['250 OK'];
       case 'SIGNAL':
         if (args == 'NEWNYM') newnyms++;
+        if (args == 'HALT' || args == 'SHUTDOWN') {
+          halted = true;
+          scheduleMicrotask(() {
+            onHalt?.call();
+            _hangUp?.call();
+          });
+        }
         return ['250 OK'];
       case 'CLOSECIRCUIT':
         closedCircuits.add(args);
@@ -203,6 +246,10 @@ class FakeTorControl {
     for (final key in keys) {
       if (key == 'net/listeners/socks') {
         lines.add('250-$key=${socksListeners.map(torQuoted).join(' ')}');
+      } else if (key == 'status/bootstrap-phase') {
+        lines.add('250-$key=$bootstrapPhase');
+      } else if (key == 'status/circuit-established') {
+        lines.add('250-$key=${circuitEstablished ? 1 : 0}');
       } else if (key == 'ip-to-country/ipv4-available') {
         lines.add('250-$key=${geoip ? 1 : 0}');
       } else if (key.startsWith('ip-to-country/')) {

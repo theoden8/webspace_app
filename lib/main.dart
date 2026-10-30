@@ -177,7 +177,8 @@ void main([List<String> args = const []]) async {
         '${WidgetsBinding.instance.lifecycleState?.name ?? 'state not reported yet'})',
   );
   // Before anything touches TorService.instance, which picks its tor from
-  // this on first use and on every runtimeChoiceChanged (TOR-025).
+  // this on first use and on every runtimeChoiceChanged (TOR-025), and on
+  // first use reads the Built-in Tor experiment loaded above (TOR-027).
   TorService.wantsExternal = () => ExternalTorSettings.chosen;
   // A process runs one composition mode, so the Experimental switch applies
   // from the next launch (PAUSE-032).

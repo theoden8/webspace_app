@@ -81,6 +81,8 @@ enum AppPref<T extends Object> {
   // WEBEXT-019: offered only in a build from outside the App Store.
   webExtensionsAutoUpdate('webExtensionsAutoUpdate', fallback: false),
   experimentalDesktopTray('experimentalDesktopTray', fallback: false),
+  // TOR-027: the built-in Tor on Linux, read once at launch.
+  experimentalLinuxTor('experimentalLinuxTor', fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
   externalTor('experimentalExternalTor', fallback: false),

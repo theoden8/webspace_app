@@ -425,12 +425,14 @@ jobs:
 
       - name: Install tor for the real-tor tier
         # test/external_tor_real_daemon_test.dart drives the external tor's
-        # control port against real tor processes (TOR-026), and WS_REAL_TOR
-        # below makes a missing tor fail it rather than skip it. The package
-        # starts the system service, which nothing here uses.
+        # control port against real tor processes (TOR-026), and
+        # test/managed_tor_real_test.dart starts one as the Linux built-in
+        # Tor does, with a pluggable transport (TOR-027). WS_REAL_TOR below
+        # makes a missing tor or transport fail them rather than skip. The
+        # package starts the system service, which nothing here uses.
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq tor tor-geoipdb
+          sudo apt-get install -y -qq tor tor-geoipdb obfs4proxy
           sudo systemctl disable --now tor || true
 
       # Not the schedule search: the formal job runs it, sharded, on this

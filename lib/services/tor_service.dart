@@ -18,17 +18,20 @@ import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, Wi
 import 'package:webspace/services/host_storage.dart'
     show
         createExternalTorIdentify,
+        createManagedTorRuntime,
         createTorControlConnect,
         createTorCookieRead,
         createTorGeoIpStore,
         createTorSocksProbe;
 
 import 'package:webspace/services/external_tor_control_password_storage.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_holders.dart';
+import 'package:webspace/services/tor_log.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -66,6 +69,20 @@ bool get _hasNativeTor =>
     !kIsWeb &&
     (defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS);
+
+/// Whether [platform] offers a built-in Tor: the Apple plugin's, or on Linux
+/// a tor the app starts, while the Built-in Tor experiment [linuxExperiment]
+/// is on (TOR-027, DEVTOOLS-011).
+bool builtInTorOffered(
+        {required TargetPlatform platform, required bool linuxExperiment}) =>
+    switch (platform) {
+      TargetPlatform.iOS || TargetPlatform.macOS => true,
+      TargetPlatform.linux => linuxExperiment,
+      TargetPlatform.android ||
+      TargetPlatform.fuchsia ||
+      TargetPlatform.windows =>
+        false,
+    };
 
 /// Method-channel implementation of [TorRuntime].
 ///
@@ -244,21 +261,6 @@ class MethodChannelTorRuntime implements TorRuntime {
   }
 }
 
-/// One line of tor's own log, or one of the plugin's lifecycle notes.
-class TorLogLine {
-  const TorLogLine({
-    required this.fromTor,
-    required this.level,
-    required this.message,
-  });
-
-  /// Whether tor wrote this. The plugin's own notes cover the window tor
-  /// cannot describe — before its control port answers, and after it goes.
-  final bool fromTor;
-  final LogLevel level;
-  final String message;
-}
-
 /// Pipes the native Tor log channel into [LogService] (TOR-018).
 ///
 /// Deliberately not part of [TorRuntime]: nothing here is a decision, so
@@ -276,19 +278,7 @@ class TorLogBridge {
     _sub = _channel.receiveBroadcastStream().listen(
       (raw) {
         final line = decodeLogLine(raw);
-        if (line == null) return;
-        LogService.instance.log(
-          line.fromTor ? LogTag.torLog : LogTag.tor,
-          message: line.message,
-          level: line.level,
-          // tor's own output is sensitive and the plugin's notes are not.
-          // A notice-level line can name the bridges this device dials
-          // (TOR-017) and the relays it picked, so it belongs in the
-          // memory-only ring that Dev Tools only shows on request; the
-          // plugin's notes carry nothing but its own state machine.
-          sensitivity:
-              line.fromTor ? LogSensitivity.sensitive : LogSensitivity.normal,
-        );
+        if (line != null) logTorLine(line);
       },
       // An error on the channel must not tear the subscription down: this
       // is the surface that explains a failing bootstrap, and losing it
@@ -336,6 +326,7 @@ class TorService {
     TorEngine? embedded,
     TorEngine? external,
     ExternalTorRuntime? externalRuntime,
+    this.builtInOffered = false,
   })  : assert(embedded != null || external != null),
         _embedded = embedded,
         _externalEngine = external,
@@ -360,6 +351,14 @@ class TorService {
   static bool _never() => false;
 
   static TorService _production() {
+    // Once, at launch: the Linux experiment's switch takes effect the next
+    // time the app starts, as Texture page rendering's does.
+    final offered = !kIsWeb &&
+        builtInTorOffered(
+          platform: defaultTargetPlatform,
+          linuxExperiment: ExperimentalFeaturesService.instance
+              .isEnabled(ExperimentalFeature.linuxTor),
+        );
     final externalRuntime = externalTorRunsHere
         ? ExternalTorRuntime(
             address: () => ExternalTorSettings.address,
@@ -370,7 +369,7 @@ class TorService {
         : null;
     final service = TorService._(
       embedded: TorEngine(
-        runtime: MethodChannelTorRuntime(),
+        runtime: _builtInRuntime(offered: offered),
         sessionSecret: newSessionSecret(),
         // The engine reads bridges itself rather than waiting for a startup
         // call to push them: nothing on a cold start opens the bridge
@@ -392,12 +391,21 @@ class TorService {
               socksProbe: createTorSocksProbe(),
             ),
       externalRuntime: externalRuntime,
+      builtInOffered: offered,
     );
     // Here rather than in a screen, so every way back into the foreground
     // reaches it, whatever is on screen (TOR-024).
     WidgetsBinding.instance.addObserver(_TorResumeWatch(service));
     return service;
   }
+
+  /// The built-in Tor: Tor.framework behind the Apple plugin's channels, or
+  /// on Linux a tor the app starts as a child process (TOR-027). Linux with
+  /// the experiment off, or with no tor to start, gets the channel runtime,
+  /// which is not available there, so Tor is not offered (TOR-007).
+  static TorRuntime _builtInRuntime({required bool offered}) =>
+      (offered && !_hasNativeTor ? createManagedTorRuntime() : null) ??
+      MethodChannelTorRuntime();
 
   /// How the external runtime reaches its tor's control port, where one
   /// can be named (TOR-026).
@@ -419,10 +427,10 @@ class TorService {
   /// [external] when the engine's runtime is an [ExternalTorRuntime].
   @visibleForTesting
   static void overrideEngine(TorEngine engine,
-      {ExternalTorRuntime? external}) {
+      {ExternalTorRuntime? external, bool builtInOffered = false}) {
     _instance?._cancelSubs();
     _instance = external == null
-        ? TorService._(embedded: engine)
+        ? TorService._(embedded: engine, builtInOffered: builtInOffered)
         : TorService._(external: engine, externalRuntime: external);
   }
 
@@ -453,6 +461,11 @@ class TorService {
     await service._externalEngine?.dispose();
     await service._statuses.close();
   }
+
+  /// Whether this platform offers a built-in Tor, as decided at launch
+  /// ([builtInTorOffered]). Offered and not [isAvailable] is a Linux machine
+  /// with no tor to start.
+  final bool builtInOffered;
 
   final TorEngine? _embedded;
   final TorEngine? _externalEngine;

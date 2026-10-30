@@ -1612,7 +1612,7 @@
   "@externalTor": {
     "description": "Title of the switch in App settings > Network, under the Tor heading, that sends sites set to Tor through a Tor program already running on the device (for example the Orbot app, or the tor service on Linux) instead of one inside this app. While it is on, also the name of the Tor choice in proxy pickers and in the summaries that name a site's route, to tell it from the Tor built into the app. Tor is a product name; keep it."
   },
-  "externalTorHint": "Sends sites set to Tor through a tor already running on this device, such as Orbot, InviZible, Arti or the tor service; on macOS it replaces the built-in Tor. Each site gives that tor its own SOCKS username and password, so a tor with IsolateSOCKSAuth, which is on unless its SocksPort says NoIsolateSOCKSAuth, keeps each site on circuits of its own. Bridges are set in that tor, and so are exit countries and new circuits unless the app has its control port (Linux and macOS).",
+  "externalTorHint": "Sends sites set to Tor through a tor already running on this device, such as Orbot, InviZible, Arti or the tor service; on Linux and macOS it replaces the built-in Tor. Each site gives that tor its own SOCKS username and password, so a tor with IsolateSOCKSAuth, which is on unless its SocksPort says NoIsolateSOCKSAuth, keeps each site on circuits of its own. Bridges are set in that tor, and so are exit countries and new circuits unless the app has its control port (Linux and macOS).",
   "@externalTorHint": {
     "description": "Explanation behind the hint button of the Tor (external) switch in App settings > Network. Orbot and InviZible are Android apps and Arti is Tor's Rust implementation; Tor, SOCKS, SocksPort, IsolateSOCKSAuth and NoIsolateSOCKSAuth are names from Tor's configuration and must stay as written. A circuit is Tor's path through the network; a control port is how another program asks Tor for its configuration and gives it commands."
   },
@@ -4716,6 +4716,10 @@
   "@torUnavailableBody": {
     "description": "Explains why a site set to use Tor shows nothing on a platform without a Tor client, and what the user can do about it."
   },
+  "torMissingBody": "This build carries no Tor client, and none is installed on this computer: install tor to use Tor here. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Change its proxy in the site's settings to open it here.",
+  "@torMissingBody": {
+    "description": "Shown in place of a site that is set to use Tor, on a Linux computer where this build of the app carries no Tor client of its own and no tor program is installed. Says how to get Tor (install the tor program, as the operating system's package is called) and what else the user can do. Tor is a product name; tor, in lower case, is the name of the program to install; keep both."
+  },
   "torFailOfflineTitle": "No network",
   "@torFailOfflineTitle": {
     "description": "Tor failure heading: nothing on the network answered."
@@ -5580,6 +5584,14 @@
   "appSettingsExperimentalDesktopTrayHint": "While Keep running when closed is on, show WebSpace's icon in the menu bar. Its menu shows the window, opens a site with notifications on, or quits.",
   "@appSettingsExperimentalDesktopTrayHint": {
     "description": "Explanation behind the hint button of the Tray icon experiment switch, offered on macOS only, so the menu bar is the macOS menu bar. Keep running when closed is the name of another setting; WebSpace is the app's name; keep those as written."
+  },
+  "appSettingsExperimentalLinuxTor": "Built-in Tor",
+  "@appSettingsExperimentalLinuxTor": {
+    "description": "Title of an Experimental switch in App settings > Developer, on Linux only, that lets sites use a Tor client the app starts itself, rather than only a Tor program already running on the computer. Tor is a product name; keep it."
+  },
+  "appSettingsExperimentalLinuxTorHint": "Offers Tor as a site's proxy through a tor the app starts itself: the one this build carries, or else the tor installed on this computer. Each site gets circuits of its own. Takes effect the next time the app starts.",
+  "@appSettingsExperimentalLinuxTorHint": {
+    "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental, on Linux. tor, in lower case, is the name of the program the app starts; Tor is the product name; keep both. A circuit is Tor's path through the network."
   },
   "appSettingsExtensions": "Extensions",
   "@appSettingsExtensions": {

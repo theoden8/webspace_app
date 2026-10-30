@@ -247,6 +247,7 @@
     "webExtensionsCheckUpdates": true,
     "webExtensionsAutoUpdate": true,
     "experimentalDesktopTray": true,
+    "experimentalLinuxTor": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,
     "experimentalExternalTor": true,
