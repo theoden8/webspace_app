@@ -454,9 +454,9 @@ bool svgHasRealColor(String lowerSvg) {
 
 /// [svg], a page's, compiled to a picture, or null when the compiler rejects
 /// it. It rejects bad input with errors as well as exceptions (an element it
-/// does not support is an [UnsupportedError], a `<use>` inside the element
-/// it names recurses until the stack overflows), so what a hostile icon can
-/// make it throw is named here, once.
+/// does not support is an [UnsupportedError], references past its expansion
+/// cap a [StateError], nesting deep enough a stack overflow), so what a
+/// hostile icon can make it throw is named here, once.
 Future<PictureInfo?> loadUntrustedSvg(String svg) async {
   try {
     return await vg.loadPicture(SvgStringLoader(svg), null);
