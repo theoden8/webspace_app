@@ -65,7 +65,7 @@ enum EnvAction {
   letGo(
     next: r'\E s \in Sites : LetGo(s)',
     coverage: 'LetGo',
-    reads: {ModelVar.built, ModelVar.loaded},
+    reads: {ModelVar.built, ModelVar.hist, ModelVar.loaded},
     writes: {ModelVar.built, ModelVar.hist},
     needs: {
       (of: ModelConst.tabbed, set: true),
