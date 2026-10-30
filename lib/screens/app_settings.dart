@@ -145,7 +145,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late AppThemeSettings _settings = widget.currentSettings;
 
   /// `version+build` from the platform package, null until it resolves.
-  String? _appVersion;
+  Localized? _appVersion;
   /// Running tap count on the version row; the developer-options gesture.
   int _versionTaps = 0;
   bool get _developerMode => DeveloperModeService.instance.enabled;
@@ -157,7 +157,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   void initState() {
     super.initState();
     unawaited(PackageInfo.fromPlatform().then((info) {
-      if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+      final version = '${info.version}+${info.buildNumber}';
+      if (mounted) setState(() => _appVersion = Localized.verbatim(version));
     }));
   }
 
@@ -174,7 +175,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       enabled: _developerMode,
     );
     setState(() => _versionTaps = step.taps);
-    String? message;
+    Localized? message;
     switch (step.outcome) {
       case DeveloperUnlockOutcome.silent:
         return;
@@ -251,14 +252,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     }
   }
 
-  String _appearanceSummary(AppLocalizations loc) => [
+  Localized _appearanceSummary(AppLocalizations loc) => Localized.joined([
         _settings.themeMode.webViewTheme.label(loc),
         if (AppPref.appLocaleOverride.value case final tag
             when tag.isNotEmpty)
-          languageLabelForTag(tag),
-      ].join(' · ');
+          Localized.verbatim(languageLabelForTag(tag)),
+      ], by: Joined.list);
 
-  String _behaviourSummary(AppLocalizations loc) => summariseSettings(
+  Localized _behaviourSummary(AppLocalizations loc) => summariseSettings(
         loc,
         on: [
           if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
@@ -349,7 +350,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ? loc.appSettingsNoGlobalScripts
                 : loc.appSettingsScriptsDefined(widget.globalUserScripts.length),
             onTap: () => _open(UserScriptsScreen(
-              title: 'Global User Scripts',
+              title: loc.appSettingsUserScripts,
               userScripts: widget.globalUserScripts,
               onSave: (scripts) =>
                   widget.onGlobalUserScriptsChanged?.call(scripts),

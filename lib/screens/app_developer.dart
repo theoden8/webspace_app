@@ -30,7 +30,8 @@ Future<void> openAppLogs(BuildContext context,
 
 /// The experiments this device offers, in the order the Experimental group
 /// lists them.
-List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
+List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
+    _experiments(
         AppLocalizations loc) =>
     [
       (ExperimentalFeature.folderLibrary, Icons.apps_rounded,
@@ -54,7 +55,7 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
     ];
 
 /// The names of the experiments switched on, for the App Settings row.
-List<String> experimentsOn(AppLocalizations loc) =>
+List<Localized> experimentsOn(AppLocalizations loc) =>
     [
       for (final (feature, _, title, _) in _experiments(loc))
         if (ExperimentalFeaturesService.instance.switchOn(feature)) title,

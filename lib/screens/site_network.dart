@@ -250,10 +250,12 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     // An unlisted pin keeps its bare code rather than reading as unpinned: it
     // is still a valid `{cc}` that tor honours, and showing "Any" for a site
     // that is in fact pinned would be the mis-report TOR-014 forbids.
-    final subtitle = known?.label ??
-        (pinned == null || pinned.trim().isEmpty
-            ? loc.siteSettingsTorExitCountryAny
-            : pinned.toUpperCase());
+    final subtitle = switch ((known, pinned)) {
+      (final known?, _) => Localized.verbatim(known.label),
+      (null, final pinned?) when pinned.trim().isNotEmpty =>
+        Localized.verbatim(pinned.toUpperCase()),
+      _ => loc.siteSettingsTorExitCountryAny,
+    };
     return SettingTile(
       title: loc.siteSettingsTorExitCountry,
       hint: loc.siteSettingsTorExitCountryHint,

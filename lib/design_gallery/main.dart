@@ -659,7 +659,7 @@ class _UserScriptsCardState extends State<_UserScriptsCard> {
   @override
   Widget build(BuildContext context) {
     return UserScriptsScreen(
-      title: 'User scripts',
+      title: AppLocalizations.of(context).appSettingsUserScripts,
       userScripts: _scripts,
       isGlobalLibrary: true,
       onSave: (scripts) => setState(() => _scripts = scripts),

@@ -239,7 +239,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
       hint: loc.siteSettingsDnsBlocklistHint,
       missingData: _values.effectiveDnsBlock && !ready,
       subtitle: ready
-          ? dnsBlockLevelNames[_effectiveDnsLevel]
+          ? Localized.verbatim(dnsBlockLevelNames[_effectiveDnsLevel])
           : loc.siteSettingsNotConfigured,
       lock: _umbrella(TrackingProtectionForce.dnsBlock),
       control: Toggle(value: _values.effectiveDnsBlock, onChanged: (value) {
@@ -294,7 +294,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
         : switch (chosen) {
             FollowApp() => loc.siteSettingsDnsLevelFollowsApp(
                 dnsBlockLevelNames[DnsBlockService.instance.level]),
-            Own(:final value) => dnsBlockLevelNames[value],
+            Own(:final value) => Localized.verbatim(dnsBlockLevelNames[value]),
           };
     return Column(
       children: [

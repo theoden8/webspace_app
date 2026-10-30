@@ -12,7 +12,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 
 extension ExternalLinkModeLabel on ExternalLinkMode {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     ExternalLinkMode.inApp => loc.siteSettingsExternalLinksInApp,
     ExternalLinkMode.browser => loc.siteSettingsExternalLinksBrowser,
     ExternalLinkMode.block => loc.siteSettingsExternalLinksBlock,
@@ -20,7 +20,7 @@ extension ExternalLinkModeLabel on ExternalLinkMode {
 
   /// How a site summary names the mode; null for the default, which a
   /// summary leaves out.
-  String? summary(AppLocalizations loc) => switch (this) {
+  Localized? summary(AppLocalizations loc) => switch (this) {
     ExternalLinkMode.inApp => null,
     ExternalLinkMode.browser => loc.siteSettingsExternalLinksInBrowser,
     ExternalLinkMode.block => loc.siteSettingsExternalLinksBlockedSummary,
@@ -28,13 +28,13 @@ extension ExternalLinkModeLabel on ExternalLinkMode {
 }
 
 extension WebRtcPolicyLabel on WebRtcPolicy {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     WebRtcPolicy.defaultPolicy => loc.siteSettingsWebRtcDefault,
     WebRtcPolicy.relayOnly => loc.siteSettingsWebRtcRelayOnly,
     WebRtcPolicy.disabled => loc.siteSettingsWebRtcDisabled,
   };
 
-  String? summary(AppLocalizations loc) => switch (this) {
+  Localized? summary(AppLocalizations loc) => switch (this) {
     WebRtcPolicy.defaultPolicy => null,
     WebRtcPolicy.relayOnly ||
     WebRtcPolicy.disabled => loc.networkSummaryWebRtc(label(loc)),
@@ -42,7 +42,7 @@ extension WebRtcPolicyLabel on WebRtcPolicy {
 }
 
 extension CaptureModeLabel on CaptureMode {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     CameraAccessMode.ask => loc.siteSettingsCameraAccessAsk,
     CameraAccessMode.real => loc.siteSettingsCameraAccessAllow,
     CameraAccessMode.virtual => loc.siteSettingsCameraAccessVirtual,
@@ -61,20 +61,20 @@ extension CaptureModeLabel on CaptureMode {
 /// A capture kind's copy: its settings row, its first-request popup, and what
 /// the picker says about a file it cannot use.
 typedef CaptureText = ({
-  String title,
-  String hint,
-  String noSource,
-  String chooseSource,
-  String promptTitle,
-  String Function(String origin) promptBody,
-  String useFile,
-  String tooLarge,
-  String unreadable,
+  Localized title,
+  Localized hint,
+  Localized noSource,
+  Localized chooseSource,
+  Localized promptTitle,
+  Localized Function(String origin) promptBody,
+  Localized useFile,
+  Localized tooLarge,
+  Localized unreadable,
   // Why the Allowed row is greyed where the real mode is not offered.
-  String? realUnavailable,
+  Localized? realUnavailable,
   // What the user is told before setting the real mode from settings, for a
   // kind whose real grant shows more than the site itself.
-  String? allowWarning,
+  Localized? allowWarning,
 });
 
 extension CaptureKindText on CaptureKind {
@@ -124,7 +124,7 @@ extension CaptureKindText on CaptureKind {
 }
 
 extension LocationModeLabel on LocationMode {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     LocationMode.live => loc.siteSettingsLocationLive,
     LocationMode.spoof => loc.siteSettingsLocationStatic,
     LocationMode.off => loc.siteSettingsLocationOff,
@@ -132,7 +132,7 @@ extension LocationModeLabel on LocationMode {
 }
 
 extension LocationGranularityLabel on LocationGranularity {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     LocationGranularity.gps => loc.siteSettingsLocationProviderGps,
     LocationGranularity.approximate => loc.siteSettingsLocationApproximate,
     LocationGranularity.gsm => loc.siteSettingsLocationProviderGsm,
@@ -147,7 +147,7 @@ extension LocationGranularityLabel on LocationGranularity {
 }
 
 extension SitePermissionStateLabel on SitePermissionState {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     SitePermissionState.ask => loc.permissionStateAsk,
     SitePermissionState.allowed => loc.permissionStateAllowed,
     SitePermissionState.simulated => loc.permissionStateSimulated,
@@ -156,7 +156,7 @@ extension SitePermissionStateLabel on SitePermissionState {
 }
 
 extension WebViewThemeLabel on WebViewTheme {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     WebViewTheme.light => loc.appSettingsThemeLight,
     WebViewTheme.dark => loc.appSettingsThemeDark,
     WebViewTheme.system => loc.appSettingsThemeSystem,
@@ -165,7 +165,7 @@ extension WebViewThemeLabel on WebViewTheme {
 
 extension ScopedThemeLabel on Scoped<WebViewTheme> {
   /// [appValue] is the app's theme, which following it gives the site.
-  String label(AppLocalizations loc, {required WebViewTheme appValue}) =>
+  Localized label(AppLocalizations loc, {required WebViewTheme appValue}) =>
       switch (this) {
         FollowApp() => loc.settingFollowsApp(appValue.label(loc)),
         Own(:final value) => value.label(loc),
@@ -173,7 +173,7 @@ extension ScopedThemeLabel on Scoped<WebViewTheme> {
 }
 
 extension UserScriptInjectionTimeLabel on UserScriptInjectionTime {
-  String label(AppLocalizations loc) => switch (this) {
+  Localized label(AppLocalizations loc) => switch (this) {
     UserScriptInjectionTime.atDocumentStart => loc.userScriptsAtDocumentStart,
     UserScriptInjectionTime.atDocumentEnd => loc.userScriptsAtDocumentEnd,
   };

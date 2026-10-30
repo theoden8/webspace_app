@@ -10,12 +10,12 @@ import 'package:webspace/l10n/gen/localizations.dart';
 /// body that is more than one paragraph of text.
 Future<bool> confirm(
   BuildContext context, {
-  required String title,
-  String? body,
+  required Localized title,
+  Localized? body,
   Widget? content,
-  required String confirmLabel,
+  required Localized confirmLabel,
   required bool destructive,
-  String? cancelLabel,
+  Localized? cancelLabel,
 }) async {
   final loc = AppLocalizations.of(context);
   final confirmed = await choose<bool>(
@@ -37,10 +37,10 @@ Future<bool> confirm(
 /// drawn in the theme's error colour.
 Future<T?> choose<T>(
   BuildContext context, {
-  required String title,
-  String? body,
+  required Localized title,
+  Localized? body,
   Widget? content,
-  required List<(T?, String)> options,
+  required List<(T?, Localized)> options,
   T? destructive,
 }) {
   assert(body == null || content == null, 'body is content as plain text');

@@ -15,15 +15,15 @@ class _Dataset extends ChangeNotifier implements DownloadableDataset {
   bool ready = false;
   @override
   DateTime? lastUpdated;
-  String? line = 'Not downloaded';
-  Completer<String>? running;
+  Localized? line = const Localized.verbatim('Not downloaded');
+  Completer<Localized>? running;
   int downloads = 0;
 
   @override
-  String? status(AppLocalizations loc) => line;
+  Localized? status(AppLocalizations loc) => line;
 
   @override
-  Future<String> download(AppLocalizations loc) {
+  Future<Localized> download(AppLocalizations loc) {
     downloads++;
     running = Completer();
     return running!.future;
@@ -34,7 +34,7 @@ class _ClearableDataset extends _Dataset implements ClearableDataset {
   int clears = 0;
 
   @override
-  Future<String?> clear(AppLocalizations loc) async {
+  Future<Localized?> clear(AppLocalizations loc) async {
     clears++;
     ready = false;
     notifyListeners();
@@ -53,8 +53,8 @@ Widget _host(
         DatasetTile<DownloadableDataset>(
           create: () => dataset,
           icon: Icons.public,
-          title: 'Polygons',
-          hint: 'What the polygons are for.',
+          title: const Localized.verbatim('Polygons'),
+          hint: const Localized.verbatim('What the polygons are for.'),
           below: below,
         ),
       ],
@@ -66,7 +66,7 @@ void main() {
   testWidgets('names what is on disk and when it was fetched', (tester) async {
     final dataset = _Dataset()
       ..ready = true
-      ..line = '2 zones'
+      ..line = const Localized.verbatim('2 zones')
       ..lastUpdated = DateTime(2026, 8, 20, 10, 44, 3);
     await tester.pumpWidget(_host(dataset));
 
@@ -102,7 +102,7 @@ void main() {
     await tester.tap(find.byType(ListTile));
     expect(dataset.downloads, 1);
 
-    dataset.running!.complete('Loaded');
+    dataset.running!.complete(const Localized.verbatim('Loaded'));
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('Loaded'), findsOneWidget);
@@ -161,7 +161,7 @@ void main() {
         addTearDown(tester.view.reset);
         final dataset = _Dataset()
           ..ready = true
-          ..line = 'Firefox 152'
+          ..line = const Localized.verbatim('Firefox 152')
           ..lastUpdated = DateTime(2026, 8, 20, 10, 44, 3);
         await tester.pumpWidget(
           MediaQuery(

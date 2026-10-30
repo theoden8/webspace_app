@@ -241,7 +241,7 @@ String _docComment(_Message message) => [
 
 String _member(_Message message) {
   if (message.placeholders.isEmpty) {
-    return "  String get ${message.key} => _messages.text('${message.key}');";
+    return "  Localized get ${message.key} => _messages.text('${message.key}');";
   }
   final parameters = message.placeholders
       .map((p) => '${p.type} ${p.name}')
@@ -249,7 +249,7 @@ String _member(_Message message) {
   final args = message.placeholders
       .map((p) => "'${p.name}': ${p.name}")
       .join(', ');
-  return "  String ${message.key}($parameters) =>\n"
+  return "  Localized ${message.key}($parameters) =>\n"
       "      _messages.format('${message.key}', args: {$args});";
 }
 
@@ -262,6 +262,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:webspace/l10n/runtime/arb_messages.dart';
+
+export 'package:webspace/l10n/runtime/arb_messages.dart' show Joined, Localized;
 
 class AppLocalizations {
   AppLocalizations._(this._messages);

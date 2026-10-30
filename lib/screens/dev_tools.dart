@@ -279,7 +279,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   /// A toast from a handler that may outlive the screen.
-  void _toast(String Function(AppLocalizations loc) message) {
+  void _toast(Localized Function(AppLocalizations loc) message) {
     if (mounted) {
       ScaffoldMessenger.of(context).toast(message(AppLocalizations.of(context)));
     }

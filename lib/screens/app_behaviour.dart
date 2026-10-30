@@ -118,13 +118,13 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       AppPref.tabStripInFullscreen.value ||
       AppPref.tabBarButton.value;
 
-  String? get _webSearchDefaultName {
+  Localized? get _webSearchDefaultName {
     final site = widget.webSearchSites
         .where((s) => s.siteId == AppPref.webSearchDefaultSite.value)
         .firstOrNull;
     if (site == null) return null;
-    return searchSiteSummaryName(site.name, siteId: site.siteId,
-        names: widget.webSearchSites.map((s) => s.name));
+    return Localized.verbatim(searchSiteSummaryName(site.name,
+        siteId: site.siteId, names: widget.webSearchSites.map((s) => s.name)));
   }
 
   /// LIR-029: which web search site Web search starts with. Only sites outside
@@ -150,9 +150,12 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final backOpensMenuHint = hostIsAndroid
-        ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
+        ? Localized.joined([
+            loc.appSettingsBackOpensMenuHint,
+            loc.appSettingsBackOpensMenuHintExit,
+          ], by: Joined.sentences)
         : loc.appSettingsBackOpensMenuHint;
-    final keepRunningHint = [
+    final keepRunningHint = Localized.joined([
       loc.appSettingsKeepRunningWhenClosedHint,
       hostIsMacOS
           ? loc.appSettingsKeepRunningWhenClosedHintMac
@@ -160,7 +163,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       if (DesktopTray.offered) loc.appSettingsKeepRunningWhenClosedHintTray,
       if (DesktopTray.offered && hostIsLinux)
         loc.appSettingsKeepRunningWhenClosedHintTrayLinux,
-    ].join(' ');
+    ], by: Joined.sentences);
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
@@ -306,8 +309,13 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             create: TopSitesDataset.new,
             icon: Icons.public,
             title: loc.topSitesTitle,
-            hint: '${loc.topSitesHint}\n\n'
-                '${loc.topSitesKeepFilters}: ${loc.topSitesKeepFiltersHint}',
+            hint: Localized.joined([
+              loc.topSitesHint,
+              Localized.joined(
+                [loc.topSitesKeepFilters, loc.topSitesKeepFiltersHint],
+                by: Joined.term,
+              ),
+            ], by: Joined.paragraphs),
             below: (topSites, {required download}) => SwitchListTile(
               // Placed as the Firefox version row's switch is, under the
               // title column.

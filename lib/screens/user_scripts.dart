@@ -29,7 +29,7 @@ import 'package:webspace/widgets/toast.dart';
 /// Edits apply to the model immediately via callbacks. The parent Settings
 /// screen handles webview reload when "Save Settings" is tapped.
 class UserScriptsScreen extends StatefulWidget {
-  final String title;
+  final Localized title;
   final List<UserScriptConfig> userScripts;
   final void Function(List<UserScriptConfig>) onSave;
 
@@ -78,7 +78,7 @@ class UserScriptsScreen extends StatefulWidget {
 
   const UserScriptsScreen({
     super.key,
-    this.title = 'User Scripts',
+    required this.title,
     required this.userScripts,
     required this.onSave,
     this.onRun,

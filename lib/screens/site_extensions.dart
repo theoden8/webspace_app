@@ -32,7 +32,7 @@ final class _KioskLock extends Lock {
   const _KioskLock() : super.because(null);
 
   @override
-  String reason(AppLocalizations loc) => loc.siteExtensionsKioskLocked;
+  Localized reason(AppLocalizations loc) => loc.siteExtensionsKioskLocked;
 }
 
 /// How many extensions a site's webviews load, by its plan.
@@ -122,14 +122,14 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
     return confirm(
       context,
       title: loc.siteExtensionsConsentTitle(entry.name),
-      body: [
+      body: Localized.joined([
         patterns.isEmpty
             ? loc.siteExtensionsConsentReachesNothing
             : loc.siteExtensionsConsentReaches(patterns.join(', ')),
         permissions.isEmpty
             ? loc.siteExtensionsConsentNoPermissions
             : loc.siteExtensionsConsentPermissions(permissions.join(', ')),
-      ].join('\n\n'),
+      ], by: Joined.paragraphs),
       confirmLabel: loc.siteExtensionsSwitchOn,
       destructive: false,
     );
@@ -160,7 +160,7 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
               for (final (:entry, folder: _) in installed) ...[
                 SettingTile(
                   leading: const Icon(Icons.extension_outlined),
-                  title: entry.name,
+                  title: Localized.verbatim(entry.name),
                   hint: null,
                   control: ScopedToggle(
                     value: lock == null && _runs(entry),

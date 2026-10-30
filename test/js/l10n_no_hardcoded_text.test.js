@@ -3,6 +3,12 @@
 // UI file must never pass a raw string literal into a user-facing display
 // sink; every readable string goes through AppLocalizations.
 //
+// Our own widgets' display parameters take a `Localized`, which a literal
+// is not, so the compiler holds them (rung 1). This gate is left with
+// Flutter's own sinks, which take any String (rung 5: no type of ours
+// reaches them), and with `Localized.verbatim`, the escape for data, which a
+// literal would turn back into a way in for English.
+//
 // Every Dart file under the scanned roots is enforced, so a new screen is
 // covered without an edit here. `exempt` names files not yet routed through
 // AppLocalizations; it only shrinks.
@@ -20,6 +26,7 @@ const scanned = ['lib/main.dart', 'lib/app.dart', ...dartFiles('lib/screens'), .
 const sinkPatterns = [
   /\b(?:Text|SelectableText|Tooltip)\(\s*(?:const\s+)?['"]/g,
   /\b(?:tooltip|hintText|labelText|helperText|errorText|counterText|prefixText|suffixText|semanticLabel)\s*:\s*['"]/g,
+  /\bLocalized\.verbatim\(\s*r?['"]/g,
 ];
 
 function findHardcodedDisplayText(rel, source) {

@@ -22,8 +22,8 @@ class HintedTitle extends StatelessWidget {
     this.warn = false,
   });
 
-  final String title;
-  final String? hint;
+  final Localized title;
+  final Localized? hint;
 
   /// The dialog's title, when it should name more than the row does.
   final String? hintTitle;
@@ -62,9 +62,9 @@ class HintedTitle extends StatelessWidget {
 class Lock {
   const Lock.because(this._text);
 
-  final String? _text;
+  final Localized? _text;
 
-  String? reason(AppLocalizations loc) => _text;
+  Localized? reason(AppLocalizations loc) => _text;
 }
 
 /// Tracking Protection holds the setting at [forcedTo]. Forcing on needs no
@@ -75,7 +75,7 @@ final class TrackingProtectionLock extends Lock {
   final bool forcedTo;
 
   @override
-  String? reason(AppLocalizations loc) =>
+  Localized? reason(AppLocalizations loc) =>
       forcedTo ? null : loc.siteSettingsForcedOffByTrackingProtection;
 }
 
@@ -84,7 +84,7 @@ final class ArchiveLock extends Lock {
   const ArchiveLock() : super.because(null);
 
   @override
-  String reason(AppLocalizations loc) => loc.settingLockedByArchive;
+  Localized reason(AppLocalizations loc) => loc.settingLockedByArchive;
 }
 
 /// What sits at the trailing end of a row and what tapping it does.
@@ -134,7 +134,7 @@ extension on FollowSource {
         FollowSource.extensionDefault => loc.settingFollowsExtensionDefault,
       };
 
-  String longPressHint(AppLocalizations loc) => switch (this) {
+  Localized longPressHint(AppLocalizations loc) => switch (this) {
         FollowSource.app => loc.settingFollowAppHint,
         FollowSource.trackingProtection =>
           loc.settingFollowTrackingProtectionHint,
@@ -166,8 +166,8 @@ class PrefSlider extends StatefulWidget {
   });
 
   final AppPref<int> pref;
-  final String title;
-  final String? hint;
+  final Localized title;
+  final Localized? hint;
   final int min;
   final int max;
   final int step;
@@ -254,11 +254,11 @@ class SettingTile extends StatelessWidget {
     this.contentPadding,
   });
 
-  final String title;
-  final String? hint;
+  final Localized title;
+  final Localized? hint;
   final String? hintTitle;
   final Widget? leading;
-  final String? subtitle;
+  final Localized? subtitle;
   final SettingControl? control;
   final Lock? lock;
   final bool missingData;
@@ -282,7 +282,10 @@ class SettingTile extends StatelessWidget {
       title,
       hint: scoped == null
           ? hint
-          : [?hint, scoped.source.longPressHint(loc)].join('\n\n'),
+          : Localized.joined(
+              [?hint, scoped.source.longPressHint(loc)],
+              by: Joined.paragraphs,
+            ),
       hintTitle: hintTitle,
       warn: missingData,
     );
@@ -379,10 +382,10 @@ class ChoiceTile<T extends Object> extends StatelessWidget {
     this.lock,
   });
 
-  final String title;
-  final String? hint;
+  final Localized title;
+  final Localized? hint;
   final String? hintTitle;
-  final String? subtitle;
+  final Localized? subtitle;
   final List<T> values;
   final String Function(T value) label;
   final T value;
@@ -442,19 +445,18 @@ class ChoiceTile<T extends Object> extends StatelessWidget {
 /// The names of what is on, the first two and a count of the rest; [none]
 /// when nothing is. The subtitle rule of every [SummaryNavRow] that lists
 /// what its screen has on (BEHAV-002).
-String summariseSettings(
+Localized summariseSettings(
   AppLocalizations loc, {
-  required List<String> on,
-  required String none,
+  required List<Localized> on,
+  required Localized none,
 }) {
   if (on.isEmpty) return none;
   const shown = 2;
-  const separator = ' · ';
   final overflow = on.length - shown;
-  return [
+  return Localized.joined([
     ...on.take(shown),
     if (overflow > 0) loc.permissionsSummaryMore(overflow),
-  ].join(separator);
+  ], by: Joined.list);
 }
 
 /// A row that opens a screen of related settings. Its subtitle says what is
@@ -470,8 +472,8 @@ class SummaryNavRow extends StatelessWidget {
   });
 
   final Widget leading;
-  final String title;
-  final String? summary;
+  final Localized title;
+  final Localized? summary;
   final VoidCallback onTap;
 
   /// Shown before the chevron.
@@ -502,8 +504,8 @@ class SummaryNavRow extends StatelessWidget {
 class SettingsSection extends StatelessWidget {
   const SettingsSection(this.title, {super.key, this.hint, this.trailing});
 
-  final String title;
-  final String? hint;
+  final Localized title;
+  final Localized? hint;
   final Widget? trailing;
 
   @override
@@ -541,8 +543,9 @@ class SettingsNote extends StatelessWidget {
   const SettingsNote(this.text, {super.key, this.padding = defaultPadding});
 
   /// The site a per-site screen edits, right under its app bar.
-  const SettingsNote.host(this.text, {super.key})
-    : padding = const EdgeInsets.fromLTRB(
+  SettingsNote.host(String host, {super.key})
+    : text = Localized.verbatim(host),
+      padding = const EdgeInsets.fromLTRB(
         Spacing.lg,
         0,
         Spacing.lg,
@@ -556,7 +559,7 @@ class SettingsNote extends StatelessWidget {
     Spacing.sm,
   );
 
-  final String text;
+  final Localized text;
   final EdgeInsets padding;
 
   @override

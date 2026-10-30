@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show compute;
 
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/media_metadata_strip.dart';
@@ -13,7 +14,7 @@ import 'package:webspace/settings/setting_labels.dart';
 enum VirtualMediaPickError { type, read, tooLarge }
 
 extension CapturePickErrorText on CaptureText {
-  String pickError(VirtualMediaPickError error) => switch (error) {
+  Localized pickError(VirtualMediaPickError error) => switch (error) {
     VirtualMediaPickError.tooLarge => tooLarge,
     VirtualMediaPickError.type || VirtualMediaPickError.read => unreadable,
   };

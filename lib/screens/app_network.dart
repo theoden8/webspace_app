@@ -28,7 +28,7 @@ import 'package:webspace/widgets/tor_status_card.dart';
 
 /// The App Settings summary of the app-wide route: where traffic goes, and
 /// how many saved proxies the library holds.
-String appNetworkSummary(AppLocalizations loc) {
+Localized appNetworkSummary(AppLocalizations loc) {
   final current = GlobalOutboundProxy.current;
   final route = switch (current.type) {
     ProxyType.DEFAULT => null,
@@ -39,13 +39,13 @@ String appNetworkSummary(AppLocalizations loc) {
     ProxyType.HTTP ||
     ProxyType.HTTPS ||
     ProxyType.SOCKS5 =>
-      routeLabel(current),
+      Localized.verbatim(routeLabel(current)),
   };
   final saved = ProxyLibrary.data.length;
-  return [
+  return Localized.joined([
     route ?? loc.networkSummaryDefault,
     if (saved > 0) loc.savedProxiesCount(saved),
-  ].join(' · ');
+  ], by: Joined.list);
 }
 
 /// How every site's traffic leaves the app: the app-wide proxy, the proxy
@@ -142,7 +142,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     super.dispose();
   }
 
-  String? _validateOutboundProxyAddress(String value) {
+  Localized? _validateOutboundProxyAddress(String value) {
     final loc = AppLocalizations.of(context);
     if (!_outboundProxy.type.typesAddress) return null;
     return switch (ProxyAddressParse.of(value)) {

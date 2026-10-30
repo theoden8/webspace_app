@@ -52,14 +52,17 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
     return confirm(
       context,
       title: loc.extensionsEverySiteConsentTitle(entry.name),
-      body: [..._asks(entry, loc: loc), loc.extensionsEverySiteConsentBody]
-          .join('\n\n'),
+      body: Localized.joined(
+        [..._asks(entry, loc: loc), loc.extensionsEverySiteConsentBody],
+        by: Joined.paragraphs,
+      ),
       confirmLabel: loc.siteExtensionsSwitchOn,
       destructive: false,
     );
   }
 
-  List<String> _asks(WebExtensionEntry entry, {required AppLocalizations loc}) {
+  List<Localized> _asks(WebExtensionEntry entry,
+      {required AppLocalizations loc}) {
     final permissions = entry.permissions.toList()..sort();
     final hosts = entry.hosts.toList()..sort();
     return [
@@ -125,13 +128,13 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
     return confirm(
       context,
       title: loc.extensionsUpdateAsksTitle(entry.name),
-      body: [
+      body: Localized.joined([
         loc.extensionsUpdateAsksBody,
         if (permissions.isNotEmpty)
           loc.extensionsAsks((permissions.toList()..sort()).join(', ')),
         if (hosts.isNotEmpty)
           loc.extensionsReaches((hosts.toList()..sort()).join(', ')),
-      ].join('\n\n'),
+      ], by: Joined.paragraphs),
       confirmLabel: loc.extensionsUpdate,
       destructive: false,
     );
@@ -192,7 +195,7 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
                         context,
                       ).formatMediumDate(at.toLocal()),
                     ),
-                    null => source.label,
+                    null => Localized.verbatim(source.label),
                   },
                 ),
               if (entry.latest case final latest?)
