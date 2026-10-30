@@ -721,7 +721,9 @@ Test: [test/webview_controller_lifetime_test.dart](../../../test/webview_control
 ### Requirement: NAV-016 - A TV Remote Reaches The Page And The App Bar
 
 Where a remote's D-pad drives the device rather than a touchscreen (Android TV, or an
-Android device without a touchscreen, probed once at startup by `RemoteInput`), a site's
+Android device with neither a touchscreen nor a pointer standing in for one,
+`android.hardware.faketouch`, as a desktop's mouse does; probed once at startup by
+`RemoteInput`), a site's
 page SHALL take the D-pad the way a TV browser does, and the app's chrome SHALL stay
 reachable from it:
 
