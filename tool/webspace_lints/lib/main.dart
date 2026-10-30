@@ -3,6 +3,7 @@ import 'package:analysis_server_plugin/registry.dart';
 
 import 'src/catch_all.dart';
 import 'src/held_in_turn.dart';
+import 'src/layer_import.dart';
 import 'src/positional_parameters.dart';
 import 'src/raw_http_client.dart';
 
@@ -18,6 +19,7 @@ class WebspaceLints extends Plugin {
       ..registerWarningRule(CatchAll())
       ..registerWarningRule(PositionalParameters())
       ..registerWarningRule(HeldInTurn())
-      ..registerWarningRule(RawHttpClient());
+      ..registerWarningRule(RawHttpClient())
+      ..registerWarningRule(LayerImport());
   }
 }

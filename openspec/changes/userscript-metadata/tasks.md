@@ -2,7 +2,7 @@
 
 ## 1. Header parser
 
-- [ ] 1.1 Add `lib/services/userscript_header.dart` with `parseUserscriptHeader(fullSource)` returning the `UserscriptHeader` record and the sealed `HeaderProblem` (design D1, D4); pure Dart, no Flutter import; verify `node test/js/layers.test.js` passes
+- [ ] 1.1 Add `lib/services/userscript_header.dart` with `parseUserscriptHeader(fullSource)` returning the `UserscriptHeader` record and the sealed `HeaderProblem` (design D1, D4); pure Dart, no Flutter import; verify `fvm dart analyze` reports no `layer_import`
 - [ ] 1.2 Add `test/userscript_header_test.dart`: the table of headers to records and the US-008 scenarios, with test names citing US-008; verify `fvm flutter test test/userscript_header_test.dart` passes
 - [ ] 1.3 Add the seeded robustness test (random and mutated headers never throw, two parses agree) in the same file, with a fixed seed it prints on failure; verify it passes
 - [ ] 1.4 Add the planted mutant "header taken from the user's code before the library" as a kept list the table must fail; verify the test fails when the mutant list is run against the table and passes on the real parser

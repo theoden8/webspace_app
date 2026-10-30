@@ -11,6 +11,7 @@ import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/settings/proxy.dart';
+// ignore: webspace_lints/layer_import
 import 'package:webspace/web_view_model.dart';
 
 /// Default cap on concurrently loaded webviews. Keeps memory bounded when

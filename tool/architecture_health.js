@@ -5,13 +5,12 @@
 //   node tool/architecture_health.js [--since=2026-04-01]
 const { execFileSync } = require('node:child_process');
 const { read, files, code, enclosed } = require('../test/js/helpers/source');
-const { upward } = require('../test/js/helpers/layers');
 
 const since = (process.argv.find((a) => a.startsWith('--since=')) || '--since=6.months').slice(8);
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 });
 
 const lib = files('lib', /\.dart$/).filter((f) => !f.startsWith('lib/l10n/'));
-let lines = 0, comments = 0, asserts = 0, swallowed = 0, stringIds = 0, jsonPairs = 0;
+let lines = 0, comments = 0, asserts = 0, swallowed = 0, stringIds = 0, jsonPairs = 0, upward = 0;
 // Awaits the model checker does not see: outside a step table's body, in
 // the layers that decide (the I/O leaves under services count too, so the
 // number only says which way the code moves).
@@ -35,6 +34,9 @@ for (const f of lib) {
   comments += rows.filter((l) => /^\s*(\/\/|\/\*|\*)/.test(l)).length;
   asserts += (src.match(/\bassert\(/g) || []).length;
   swallowed += (src.match(/catch\s*\(\s*_/g) || []).length;
+  // The analyzer's layer_import holds every other import, so an upward one
+  // is an ignore of it.
+  upward += (raw.match(/\/\/\s*ignore:[^\n]*\bwebspace_lints\/layer_import\b/g) || []).length;
   stringIds += (src.match(/\bString\??\s+\w*(?:Id|ID)\b/g) || []).length
     + (src.match(/(?:Set|List|Iterable)<String>\??\s+\w*Ids\b/g) || []).length;
   for (const cls of src.split(/\n(?=(?:abstract |final |sealed |base )*class )/)) {
@@ -74,7 +76,7 @@ console.log([
   `comment share ${((100 * comments) / lines).toFixed(1)}% ↓`,
   `String ids ${stringIds} → 0`,
   `hand-kept toJson/fromJson classes ${jsonPairs} → 0`,
-  `layer violations ${upward().length} → 0`,
+  `layer violations ${upward} → 0`,
   `steps the model checker holds ${modelSteps} ↑`,
   `awaits outside a step table: controllers ${unmodelled.controllers}, screens ${unmodelled.screens}, services ${unmodelled.services} ↓`,
 ].join('\n'));
