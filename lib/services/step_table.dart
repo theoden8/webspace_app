@@ -757,6 +757,11 @@ enum Environment {
 
   /// A row moved to another place in the list (`Move(from, to)`).
   move,
+
+  /// A loaded site's webview let go of so the frame builds it afresh
+  /// (`LetGo(s)`): a changed posture, proxy, user script, Tor binding or
+  /// address, a data clear, a reset, a renderer gone (BUG-002).
+  letGo,
 }
 
 /// The writes of the model's state that no step of a table takes yet.
@@ -778,18 +783,10 @@ enum Unmodeled {
   /// environment's.
   siteSet,
 
-  /// A loaded site's webview let go of so the frame builds it afresh: a
-  /// changed posture, proxy, user script, Tor binding or address, a data
-  /// clear, a reset.
-  rebuild,
-
   /// A site moved into an archive or back out, on the other tier's
   /// container.
   archiveMove,
 
-  /// The renderer under a site's webview died, and the webview goes with it
-  /// (BUG-002).
-  rendererGone,
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it

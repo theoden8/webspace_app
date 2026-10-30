@@ -238,7 +238,7 @@ class SiteEditingController {
     if (url != model.initUrl) {
       model.initUrl = url;
       model.currentUrl = url;
-      model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      model.disposeWebView(commit: const Commit.environment(Environment.letGo));
       _host.rebuild();
     }
 

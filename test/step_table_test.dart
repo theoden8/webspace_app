@@ -699,12 +699,12 @@ void _definitions() {
 
     test('an unmodeled write of what the step reads is a meet', () async {
       expect(
-        await during(() => const Commit.unmodeled(Unmodeled.rebuild)
+        await during(() => const Commit.unmodeled(Unmodeled.siteSet)
             .wrote(ModelVar.loaded)),
         {
           (
             step: ActivationStep.applied,
-            by: Unmodeled.rebuild,
+            by: Unmodeled.siteSet,
             variable: ModelVar.loaded,
           ),
         },
@@ -721,7 +721,7 @@ void _definitions() {
     test('an unmodeled write of what the step does not read is none',
         () async {
       expect(
-        await during(() => const Commit.unmodeled(Unmodeled.rebuild)
+        await during(() => const Commit.unmodeled(Unmodeled.siteSet)
             .wrote(ModelVar.queued)),
         isEmpty,
       );

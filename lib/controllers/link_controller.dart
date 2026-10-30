@@ -778,7 +778,7 @@ class LinkController {
         await _host.unloadSite(model, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
       } else {
-        model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+        model.disposeWebView(commit: const Commit.environment(Environment.letGo));
       }
       model.currentUrl = model.initUrl;
     }

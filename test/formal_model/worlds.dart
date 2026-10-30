@@ -61,6 +61,26 @@ enum EnvAction {
     reads: {ModelVar.boxes, ModelVar.loaded, ModelVar.views},
     writes: {ModelVar.boxes, ModelVar.views},
     needs: {(of: ModelConst.boxed, set: true)},
+  ),
+  letGo(
+    next: r'\E s \in Sites : LetGo(s)',
+    coverage: 'LetGo',
+    reads: {ModelVar.built, ModelVar.loaded},
+    writes: {ModelVar.built, ModelVar.hist},
+    needs: {(of: ModelConst.tabbed, set: true)},
+  ),
+  reframe(
+    next: r'\E s \in Sites : Reframe(s)',
+    coverage: 'Reframe',
+    reads: {
+      ModelVar.active,
+      ModelVar.built,
+      ModelVar.hist,
+      ModelVar.loaded,
+      ModelVar.queued,
+    },
+    writes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
+    needs: {(of: ModelConst.tabbed, set: true)},
   );
 
   const EnvAction({

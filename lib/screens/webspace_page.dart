@@ -750,11 +750,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       case Containers(:final engine):
         await engine.clearForSite(model.containerKey);
         setState(() {
-          model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+          model.disposeWebView(commit: const Commit.environment(Environment.letGo));
           // LIR-023: a slot running as this site binds the cleared container.
           for (final other in _sites.models) {
             if (other.activeTab.hostSiteId == model.siteId) {
-              other.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+              other.disposeWebView(commit: const Commit.environment(Environment.letGo));
             }
           }
           // Until the new webview's first load reports its own.

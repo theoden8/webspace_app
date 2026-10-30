@@ -256,6 +256,36 @@ Frame(s) ==
     /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabVars,
                     blocking, gone >>
 
+\* A loaded site's webview let go of, so the frame builds it afresh: a
+\* setting's rebuild, a reset, a renderer gone (BUG-002). Its history goes
+\* with it, and the site stays loaded; its view keeps its container and
+\* its DNS level, which the rebuilt one is told again.
+LetGo(s) ==
+    /\ Calm
+    /\ s \in loaded
+    /\ s \in Tabbed
+    /\ built[s] # 0
+    /\ built' = [built EXCEPT ![s] = 0]
+    /\ hist' = [hist EXCEPT ![s] = 0]
+    /\ Did("LetGo", 0, "", s)
+    /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabs, active,
+                    queued, file, minted, host, link, blocking, archived >>
+
+\* The frame builds a let-go site's webview again, for its active tab and
+\* from the back stack queued for it, as a commit's frame does
+\* (WebViewModel.getWebView).
+Reframe(s) ==
+    /\ Calm
+    /\ s \in loaded
+    /\ s \in Tabbed
+    /\ built[s] = 0
+    /\ built' = Bound(s, loaded)
+    /\ hist' = Shown(s, loaded)
+    /\ queued' = Taken(s, loaded)
+    /\ Did("Reframe", 0, "", s)
+    /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabs, active,
+                    file, minted, host, link, blocking, archived >>
+
 -----------------------------------------------------------------------------
 
 \* Every flow finished and the launch clear run: a behavior may end there,
@@ -282,6 +312,8 @@ Next ==
     \/ \E f \in Flows : FlowStep(f)
     \/ \E s \in Sites : ViewBuilt(s) \/ ViewGone(s)
     \/ \E s \in Sites : Frame(s)
+    \/ \E s \in Sites : LetGo(s)
+    \/ \E s \in Sites : Reframe(s)
     \/ ClearJar
     \/ Done
 
@@ -444,7 +476,10 @@ Inv_TabFilesListed == Idle => \A s \in Tabbed : \A t \in TabIds \ tabs[s] :
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
 Inv_TabActive == Idle => \A s \in Tabbed :
     /\ active[s] \in tabs[s]
-    /\ (s \in loaded => built[s] = active[s])
+    /\ (s \in loaded =>
+          \/ built[s] = active[s]
+          \* let go of, its frame still to come: no webview, no history
+          \/ built[s] = 0 /\ hist[s] = 0)
 
 \* Witnesses (expect violated): the interleavings the invariants constrain
 \* are reachable.
