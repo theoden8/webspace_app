@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/settings_import_engine.dart'
+import 'package:webspace/settings_import_engine.dart'
     show planSettingsImport;
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;

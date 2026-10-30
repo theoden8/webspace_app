@@ -57,13 +57,6 @@ const LEFT = {
       'the unload engine plans and runs over the WebViewModels the page holds: '
       + 'their proxy, their tabs\' hosts and binding, and the webview cache an '
       + 'unload clears. Lifted by a narrow site type, as for the jar.',
-    'lib/services/settings_import_engine.dart': {
-      sites: 2,
-      why: 'the import plan builds its sites with WebViewModel.fromJson and '
-        + 'prunes the routes and search sites they name to the ones restored '
-        + '(pruneSearchReferences, LIR-017, LIR-031). Lifted by a plan of '
-        + 'parsed site records the model layer turns into models.',
-    },
   },
   raw_http_client: {
     'lib/design_gallery/roboto.dart':

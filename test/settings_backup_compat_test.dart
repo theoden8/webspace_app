@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/settings_backup.dart';
-import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
@@ -215,7 +215,7 @@ final Set<String> _keysRead = {
     'lib/web_view_model.dart',
     'lib/webspace_model.dart',
     'lib/services/settings_backup.dart',
-    'lib/services/settings_import_engine.dart',
+    'lib/settings_import_engine.dart',
     'lib/services/domain_claim.dart',
     'lib/services/outbound_preference.dart',
     'lib/services/site_tab.dart',

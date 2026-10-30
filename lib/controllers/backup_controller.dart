@@ -17,7 +17,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/settings_backup.dart';
-import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart' show UboTrustedSite, hostTrustedBy;

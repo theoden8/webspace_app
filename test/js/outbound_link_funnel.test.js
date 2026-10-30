@@ -127,7 +127,7 @@ test('a nested open runs through the activation table, over the source only when
 // test/site_runtime_test.dart; where the commit prunes is
 // test/js/site_set_commit.test.js. An import prunes earlier, in its plan.
 test('an import prunes inside its plan (LIR-017, BACKUP-013)', () => {
-  const importRel = 'lib/services/settings_import_engine.dart';
+  const importRel = 'lib/settings_import_engine.dart';
   const plan = blockAfter(
     read(importRel),
     'SettingsImportPlan planSettingsImport(', '}) {', importRel);

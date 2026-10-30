@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/settings_backup.dart';
-import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/web_extension_backup_engine.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/settings/byte_size.dart';

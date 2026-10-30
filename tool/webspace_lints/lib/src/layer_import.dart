@@ -33,8 +33,9 @@ enum Layer {
       ...,
     ] ||
     ['main.dart' || 'app.dart'] => ui,
-    // The model's parts are named after it.
-    ['demo_data.dart' || 'diag_seed.dart'] => model,
+    // The model's parts are named after it; these three build models.
+    ['demo_data.dart' || 'diag_seed.dart' || 'settings_import_engine.dart'] =>
+      model,
     [final file] when file.startsWith('web_view_model') => model,
     ['services' || 'third_party', _, ...] => service,
     // A Webspace is a persisted value (id, name, siteIds).

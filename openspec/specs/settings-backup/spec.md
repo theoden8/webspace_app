@@ -442,7 +442,7 @@ valid cookies, and every other field as written
 
 ### Requirement: BACKUP-013 - An Import Is Decided Before It Is Applied
 
-`planSettingsImport` ([lib/services/settings_import_engine.dart](../../../lib/services/settings_import_engine.dart))
+`planSettingsImport` ([lib/settings_import_engine.dart](../../../lib/settings_import_engine.dart))
 SHALL parse and check the whole backup before `BackupController.import` touches
 live state, and `BackupController.import` SHALL read only the resulting plan after
 it clears the site list. A backup that cannot be applied whole is refused

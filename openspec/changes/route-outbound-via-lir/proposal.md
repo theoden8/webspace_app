@@ -48,7 +48,7 @@ It is opt-in per source. Nesting today is silent and back-reversible; a picker o
   - `lib/services/link_intent_dispatch_engine.dart`: `routeOutbound` (the gates), `dispatchOutbound`, `pickOutbound`, `DispatchNestedFallback`, `DispatchOpenExternal`, `sourceIsParent`, picker `source` / `fallback`.
   - `lib/services/nested_open_engine.dart`: the proxy sequence and the return to the source around a nested open, shared with the inbound open.
   - `_WebSpacePageState`: the hook, `_executeOutboundDispatch`, the proxy return path, the picker's outbound mode, the prune at startup, delete and archive moves.
-  - `lib/services/settings_import_engine.dart`: the prune on import, inside the plan.
+  - `lib/settings_import_engine.dart`: the prune on import, inside the plan.
   - `lib/widgets/dispatch_picker_sheet.dart`: the LIR-010 sheet, moved out of `main.dart` so its outbound mode can be widget-tested.
   - `lib/screens/site_behaviour.dart`, `lib/screens/settings.dart`, `lib/screens/link_handling_settings.dart`: the switch, the preferences row and `OutboundPreferencesScreen`.
   - `lib/services/site_settings_qr_codec.dart`: classification of the two keys.

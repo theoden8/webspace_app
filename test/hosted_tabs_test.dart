@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/settings_backup.dart';
-import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';

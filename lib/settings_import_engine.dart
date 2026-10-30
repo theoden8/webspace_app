@@ -23,9 +23,7 @@ import 'package:webspace/services/proxy_library.dart'
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
-// ignore: webspace_lints/layer_import
 import 'package:webspace/web_view_model.dart';
-// ignore: webspace_lints/layer_import
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/settings/site_ids.dart';
