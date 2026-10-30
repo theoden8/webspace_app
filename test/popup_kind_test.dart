@@ -16,6 +16,18 @@ void main() {
       ('https://appleid.apple.com/auth/authorize', true),
       ('https://login.microsoftonline.com/common/oauth2/v2.0/authorize', true),
       ('https://github.com/login/oauth/authorize', true),
+      // Google sets its session on the account's country domain on the way
+      // back to the site, as its sign-in allowlist names those hosts.
+      ('https://accounts.google.de/accounts/SetSID', true),
+      ('https://accounts.google.co.jp/accounts/SetSID', true),
+      ('https://accounts.google.com.br/accounts/SetSID', true),
+      ('https://www.google.com/accounts/SetSID', true),
+      ('https://www.google.com/search?q=accounts', false),
+      ('https://www.google.de/accounts/SetSID', false),
+      ('https://accounts.google.example/', false),
+      ('https://accounts.google.co.uk.evil.example/', false),
+      ('https://evil.accounts.google.de/', false),
+      ('http://accounts.google.de/accounts/SetSID', false),
       ('http://accounts.google.com/o/oauth2/v2/auth', false),
       ('https://accounts.google.com.evil.example/', false),
       ('https://notgithub.com/login', false),

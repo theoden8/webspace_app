@@ -58,7 +58,14 @@ user's tap SHALL open as a real popup when its URL is an https page on an
 identity provider's sign-in host
 (`PopupKind.isSignInUrl`: `accounts.google.com`, `accounts.youtube.com`,
 `appleid.apple.com`, `login.microsoftonline.com`, `login.live.com`,
-`github.com`, each with its subdomains). It is not a nested screen and not a
+`github.com`, each with its subdomains; Google's sign-in host on each domain
+Google serves on, `accounts.google.de` or `accounts.google.co.jp`, as
+`www.google.com/supported_domains` lists them; and `www.google.com/accounts/`).
+Google's sign-in sets its session on the account's country domain by
+redirecting through it on the way back to the site, and its Workspace host
+name allowlist names both kinds of host for sign-in. A refused top document
+is logged (App logs, PopupWindow), so a sign-in that stalls names the host
+it was refused. It is not a nested screen and not a
 system-browser hand-off: those leave the page no handle on the window, and a
 provider in popup mode answers the page only through `window.opener`.
 
@@ -94,6 +101,13 @@ provider in popup mode answers the page only through `window.opener`.
 - **WHEN** the page opens `https://accounts.google.com/o/oauth2/v2/auth?display=popup`
 - **THEN** a Sign in popup shows it, bound to the site's container
 - **AND** the page receives what the popup posts back
+
+#### Scenario: A sign-in through the account's country domain
+
+- **GIVEN** the user signs in to Google in a Sign in popup, for an account whose session Google sets on `google.de`
+- **WHEN** the sign-in redirects through `https://accounts.google.de/accounts/SetSID`
+- **THEN** the popup follows it and the flow returns to the site
+- **AND** a host outside the list, `https://www.google.de/`, is refused and logged
 
 #### Scenario: A site turns them off
 

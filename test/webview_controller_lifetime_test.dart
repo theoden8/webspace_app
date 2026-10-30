@@ -652,6 +652,10 @@ void main() {
       );
       for (final (kind, url, expected) in [
         (PopupKind.signIn, signIn, inapp.NavigationActionPolicy.ALLOW),
+        (PopupKind.signIn, 'https://accounts.google.de/accounts/SetSID',
+            inapp.NavigationActionPolicy.ALLOW),
+        (null, 'https://accounts.google.de/accounts/SetSID',
+            inapp.NavigationActionPolicy.CANCEL),
         (PopupKind.signIn, 'https://example.com/auth/done',
             inapp.NavigationActionPolicy.ALLOW),
         (PopupKind.signIn, 'https://ads.example/',
