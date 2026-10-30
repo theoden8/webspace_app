@@ -9,7 +9,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
-import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';

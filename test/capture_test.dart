@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/platform/apple_os_floor.dart';

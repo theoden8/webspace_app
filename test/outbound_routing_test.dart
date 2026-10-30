@@ -5,7 +5,7 @@ import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/settings_backup.dart';
-import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/web_view_model.dart';
 
 class _Site implements DispatchableSite {
