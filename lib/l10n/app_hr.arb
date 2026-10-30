@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Natrag",
   "unproxiedBlockProxySettings": "Postavke proxyja",
   "proxyTestOk": "Proxy radi",
+  "proxyTestTorExit": "Tor radi, preko izlaza {address}",
+  "proxyTestNotTorExit": "Stigao je odgovor, ali ne preko Tora: {address}",
   "proxyTestAuthRejected": "Proxy je odbio ove vjerodajnice",
   "proxyTestUnreachable": "Nije moguće doseći proxy",
   "tabsTooltip": "Kartice",

@@ -556,7 +556,7 @@ class _SavedProxyEditScreenState
         ),
         ProxyTestTile(
           settings: () => resolveLibrary(_settings(), library: widget.library).route,
-          target: kDefaultProxyTestTarget,
+          target: const NoSite(),
         ),
       ];
 }

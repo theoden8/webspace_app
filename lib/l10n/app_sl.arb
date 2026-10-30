@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Nazaj",
   "unproxiedBlockProxySettings": "Nastavitve posredniškega strežnika",
   "proxyTestOk": "Posredniški strežnik deluje",
+  "proxyTestTorExit": "Tor deluje, prek izhoda {address}",
+  "proxyTestNotTorExit": "Odgovor je prišel, vendar ne prek Tora: {address}",
   "proxyTestAuthRejected": "Posredniški strežnik je zavrnil te poverilnice",
   "proxyTestUnreachable": "Posredniškega strežnika ni bilo mogoče doseči",
   "tabsTooltip": "Zavihki",

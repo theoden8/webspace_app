@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Lura",
   "unproxiedBlockProxySettings": "Settings tal-proxy",
   "proxyTestOk": "Il-proxy jaħdem",
+  "proxyTestTorExit": "Tor jaħdem, permezz tal-ħruġ {address}",
+  "proxyTestNotTorExit": "Wasltet tweġiba, iżda mhux permezz ta' Tor: {address}",
   "proxyTestAuthRejected": "Il-proxy ċaħad dawn il-kredenzjali",
   "proxyTestUnreachable": "Ma setax jintlaħaq il-proxy",
   "tabsTooltip": "It-tabs",

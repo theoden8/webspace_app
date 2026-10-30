@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Gaan terug",
   "unproxiedBlockProxySettings": "Instaanbediener-instellings",
   "proxyTestOk": "Die instaanbediener werk",
+  "proxyTestTorExit": "Tor werk, deur uitgang {address}",
+  "proxyTestNotTorExit": "Geantwoord, maar nie deur Tor nie: {address}",
   "proxyTestAuthRejected": "Die instaanbediener het hierdie geloofsbriewe verwerp",
   "proxyTestUnreachable": "Kon nie die instaanbediener bereik nie",
   "tabsTooltip": "Oortjies",

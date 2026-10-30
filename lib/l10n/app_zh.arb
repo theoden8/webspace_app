@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "返回",
   "unproxiedBlockProxySettings": "代理伺服器設定",
   "proxyTestOk": "代理伺服器可正常運作",
+  "proxyTestTorExit": "Tor 可正常運作，出口為 {address}",
+  "proxyTestNotTorExit": "已收到回應，但並未經由 Tor：{address}",
   "proxyTestAuthRejected": "代理伺服器拒絕了這組憑證",
   "proxyTestUnreachable": "無法連線到代理伺服器",
   "tabsTooltip": "分頁",

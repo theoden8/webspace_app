@@ -26,7 +26,7 @@ class ProxyTestTile extends StatefulWidget {
   final UserProxySettings Function() settings;
 
   /// Where the probe request goes. See [proxyTestTarget].
-  final Uri target;
+  final ProxyTestTarget target;
 
   /// Tor stream-isolation tag, so a per-site test rides the site's circuit.
   final SiteId? siteId;
@@ -77,6 +77,16 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
             color: SecurityIndicator.secure,
             message: loc.proxyTestOk,
           ),
+        ProxyTestOutcome.torExit => (
+            icon: Icons.verified_user_outlined,
+            color: SecurityIndicator.secure,
+            message: loc.proxyTestTorExit(result.seenFrom!),
+          ),
+        ProxyTestOutcome.notTorExit => (
+            icon: Icons.gpp_bad_outlined,
+            color: scheme.error,
+            message: loc.proxyTestNotTorExit(result.seenFrom!),
+          ),
         ProxyTestOutcome.authRejected => (
             icon: Icons.lock_outline,
             color: scheme.error,
@@ -94,12 +104,10 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
 
   /// The data half of the answer: which host was reached and with what
   /// status, or the error that came back instead.
-  String? _detailOf(ProxyTestResult result) {
-    if (result.statusCode != null) {
-      return 'HTTP ${result.statusCode} - ${widget.target.host}';
-    }
-    return result.detail;
-  }
+  String? _detailOf(ProxyTestResult result) => switch (result.response) {
+        (:final status, :final host) => 'HTTP $status - $host',
+        null => result.detail,
+      };
 
   @override
   Widget build(BuildContext context) {

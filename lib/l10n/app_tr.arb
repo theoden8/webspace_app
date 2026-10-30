@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Geri dön",
   "unproxiedBlockProxySettings": "Vekil sunucu ayarları",
   "proxyTestOk": "Vekil sunucu çalışıyor",
+  "proxyTestTorExit": "Tor çalışıyor, {address} çıkışı üzerinden",
+  "proxyTestNotTorExit": "Yanıt geldi, ancak Tor üzerinden değil: {address}",
   "proxyTestAuthRejected": "Vekil sunucu bu kimlik bilgilerini reddetti",
   "proxyTestUnreachable": "Vekil sunucuya ulaşılamadı",
   "tabsTooltip": "Sekmeler",

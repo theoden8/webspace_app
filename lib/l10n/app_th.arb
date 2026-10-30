@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "ย้อนกลับ",
   "unproxiedBlockProxySettings": "การตั้งค่าพร็อกซี",
   "proxyTestOk": "พร็อกซีใช้งานได้",
+  "proxyTestTorExit": "Tor ใช้งานได้ ผ่านทางออก {address}",
+  "proxyTestNotTorExit": "มีการตอบกลับ แต่ไม่ได้ผ่าน Tor: {address}",
   "proxyTestAuthRejected": "พร็อกซีปฏิเสธข้อมูลรับรองนี้",
   "proxyTestUnreachable": "ไม่สามารถติดต่อพร็อกซีได้",
   "tabsTooltip": "แท็บ",

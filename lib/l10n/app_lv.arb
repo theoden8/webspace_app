@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Atpakaļ",
   "unproxiedBlockProxySettings": "Starpniekservera iestatījumi",
   "proxyTestOk": "Starpniekserveris darbojas",
+  "proxyTestTorExit": "Tor darbojas, caur izeju {address}",
+  "proxyTestNotTorExit": "Atbilde saņemta, bet ne caur Tor: {address}",
   "proxyTestAuthRejected": "Starpniekserveris noraidīja šos pieteikšanās datus",
   "proxyTestUnreachable": "Neizdevās sasniegt starpniekserveri",
   "tabsTooltip": "Cilnes",

@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Späť",
   "unproxiedBlockProxySettings": "Nastavenia proxy",
   "proxyTestOk": "Proxy funguje",
+  "proxyTestTorExit": "Tor funguje, cez výstup {address}",
+  "proxyTestNotTorExit": "Odpoveď prišla, ale nie cez Tor: {address}",
   "proxyTestAuthRejected": "Proxy odmietla tieto prihlasovacie údaje",
   "proxyTestUnreachable": "Proxy sa nepodarilo kontaktovať",
   "tabsTooltip": "Karty",

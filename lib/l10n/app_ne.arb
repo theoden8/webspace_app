@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "पछाडि जानुहोस्",
   "unproxiedBlockProxySettings": "प्रोक्सी सेटिङहरू",
   "proxyTestOk": "प्रोक्सी काम गरिरहेको छ",
+  "proxyTestTorExit": "Tor काम गरिरहेको छ, निस्कने {address} बाट",
+  "proxyTestNotTorExit": "जवाफ आयो, तर Tor बाट होइन: {address}",
   "proxyTestAuthRejected": "प्रोक्सीले यी प्रमाणहरू अस्वीकार गर्‍यो",
   "proxyTestUnreachable": "प्रोक्सीमा पुग्न सकिएन",
   "tabsTooltip": "ट्याबहरू",

@@ -31,6 +31,8 @@ import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/tor_control.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http_types.dart'
+    show torProxyResolver;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/widgets/external_tor_control_tiles.dart';
@@ -626,7 +628,7 @@ void main() {
         await external(t, tor: FakeTorControl());
         window(t, height: 420);
         await t.pumpWidget(host(
-            ListView(children: const [ExternalTorTiles()]),
+            ListView(children: const [ExternalTorTiles(offersTest: true)]),
             size: const Size(430, 420)));
         await settle(t);
 
@@ -707,6 +709,58 @@ void main() {
         await t.tap(find.text('Save'));
         await settle(t);
         expect(saved, (endpoint: '127.0.0.1:9051', password: 'hunter2'));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  });
+
+  group('external tor connection test', () {
+    tearDown(() {
+      AppPref.externalTor.debugValue = AppPref.externalTor.fallback;
+      torProxyResolver = null;
+    });
+
+    testWidgets('the Tor section tests the address it names (TOR-025)',
+        (t) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final runtime = ExternalTorRuntime(
+          address: () => '127.0.0.1:9050',
+          identify: (_, {required port}) async => ExternalTorAnswer.unreachable,
+        );
+        TorService.overrideEngine(
+          TorEngine(runtime: runtime, sessionSecret: 'secret'),
+          external: runtime,
+        );
+        torProxyResolver =
+            (tag) => TorService.instance.routeFor(siteId: tag.site);
+        window(t, height: 520);
+
+        await t.pumpWidget(host(
+            ListView(children: const [ExternalTorTiles(offersTest: true)]),
+            size: const Size(430, 520)));
+        await settle(t);
+        expect(find.text('Test connection'), findsNothing,
+            reason: 'with the switch off Tor is not the external tor');
+        await t.pumpWidget(const SizedBox.shrink());
+
+        AppPref.externalTor.debugValue = true;
+        await t.pumpWidget(host(
+            ListView(children: const [ExternalTorTiles(offersTest: true)]),
+            size: const Size(430, 520)));
+        await settle(t);
+        expect(TorService.instance.status, isA<TorStopped>(),
+            reason: 'nothing uses Tor before the test');
+
+        await t.tap(find.text('Test connection'));
+        await settle(t);
+        expect(find.text('Could not reach the proxy'), findsOneWidget);
+        expect(find.textContaining('Nothing answers at 127.0.0.1:9050.'),
+            findsOneWidget);
+        expect(TorService.instance.holders, isEmpty,
+            reason: 'the test lets go of the tor it held');
+        await shoot(t, name: 'external_test_unreachable');
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }

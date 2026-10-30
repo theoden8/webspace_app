@@ -3,17 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show splitProxyAddress;
+import 'package:webspace/services/proxy_test_service.dart' show NoSite;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/external_tor_control_tiles.dart';
+import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
 /// The Tor (external) switch of App Settings' Network screen and, while it
-/// is on, the SOCKS address of the tor it names (TOR-025) and its control
-/// port (TOR-026).
+/// is on, the SOCKS address of the tor it names (TOR-025), its control port
+/// (TOR-026) and a connection test through it.
 class ExternalTorTiles extends StatefulWidget {
-  const ExternalTorTiles({super.key, this.onTorChanged});
+  const ExternalTorTiles(
+      {super.key, required this.offersTest, this.onTorChanged});
+
+  /// Whether the section has its own connection test: not where a proxy
+  /// form on the same screen already tests the app-global Tor route.
+  final bool offersTest;
 
   /// After the switch moved Tor to the other runtime, for a screen that
   /// names the Tor route elsewhere.
@@ -70,6 +78,14 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
           ),
         if (_switch && externalTorControlRunsHere)
           const ExternalTorControlTiles(),
+        // The app-global Tor route, so nothing has to be set to Tor first.
+        // Keyed by the address: an answer about the last one is stale.
+        if (_switch && widget.offersTest)
+          ProxyTestTile(
+            key: ValueKey(_address),
+            settings: () => UserProxySettings(type: ProxyType.TOR),
+            target: const NoSite(),
+          ),
       ],
     );
   }

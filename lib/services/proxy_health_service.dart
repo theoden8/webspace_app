@@ -53,7 +53,7 @@ class ProxyHealthService extends ChangeNotifier {
   // Tor to start.
   static Future<ProxyTestResult> _defaultProbe(UserProxySettings settings) =>
       testProxyConnection(OutboundProxy.ofApp(settings),
-          target: kDefaultProxyTestTarget, holdTor: null);
+          target: const NoSite(), holdTor: null);
 
   /// Whether [settings] names a route the indicator can probe: a concrete
   /// proxy, or Tor. DEFAULT is the absence of one, and an unresolved SAVED
@@ -102,8 +102,11 @@ class ProxyHealthService extends ChangeNotifier {
     logProxyTest(settings, result: result);
     return ProxyHealth(
       switch (result.outcome) {
-        ProxyTestOutcome.reachable => ProxyHealthState.reachable,
+        ProxyTestOutcome.reachable ||
+        ProxyTestOutcome.torExit =>
+          ProxyHealthState.reachable,
         ProxyTestOutcome.authRejected => ProxyHealthState.authRejected,
+        ProxyTestOutcome.notTorExit ||
         ProxyTestOutcome.unreachable ||
         ProxyTestOutcome.timedOut ||
         ProxyTestOutcome.blocked =>

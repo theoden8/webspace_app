@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "వెనక్కి",
   "unproxiedBlockProxySettings": "ప్రాక్సీ అమరికలు",
   "proxyTestOk": "ప్రాక్సీ పనిచేస్తోంది",
+  "proxyTestTorExit": "Tor పనిచేస్తోంది, నిష్క్రమణ {address} ద్వారా",
+  "proxyTestNotTorExit": "సమాధానం వచ్చింది, కానీ Tor ద్వారా కాదు: {address}",
   "proxyTestAuthRejected": "ప్రాక్సీ ఈ ఆధారాలను తిరస్కరించింది",
   "proxyTestUnreachable": "ప్రాక్సీని చేరుకోలేకపోయాం",
   "tabsTooltip": "ట్యాబ్‌లు",

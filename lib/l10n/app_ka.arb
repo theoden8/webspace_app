@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "უკან",
   "unproxiedBlockProxySettings": "პროქსის პარამეტრები",
   "proxyTestOk": "პროქსი მუშაობს",
+  "proxyTestTorExit": "Tor მუშაობს, გასასვლელით {address}",
+  "proxyTestNotTorExit": "პასუხი მოვიდა, მაგრამ არა Tor-ით: {address}",
   "proxyTestAuthRejected": "პროქსიმ უარყო ეს მონაცემები",
   "proxyTestUnreachable": "პროქსისთან დაკავშირება ვერ მოხერხდა",
   "tabsTooltip": "ჩანართები",

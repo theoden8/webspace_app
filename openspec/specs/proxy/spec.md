@@ -548,6 +548,17 @@ loopback literal falls back to the fixed target: PROXY-007 exempts those
 from the proxy, so testing against one would report success without a
 byte having crossed it.
 
+With no site to ask for, a route that resolves to Tor SHALL ask the Tor
+Project's check, `https://check.torproject.org/api/ip`, in place of
+example.com, and report what it answers: that the request left from a Tor
+exit, with that exit's address, or that it did not, with the address it
+came from. example.com was chosen so no third party learns which proxy the
+user is setting up; through Tor the check learns only that a Tor client
+asked. A reply the verdict cannot be read from (another status, a body
+that is not `{"IsTor": bool, "IP": string}`, more than 4 KiB) reports the
+route reachable, without a verdict. A site's own test keeps the site's
+origin: whether the site answers over Tor is its question.
+
 #### Scenario: A password with no username survives a save
 
 **Given** a site's proxy is SOCKS5 with a password stored and no username
@@ -594,6 +605,17 @@ proxy
 **And** the result is the request's outcome, or names the address that did
 not answer
 **And** the test's hold on Tor ends with the test
+
+#### Scenario: The app-wide Tor test asks whether it is Tor
+
+**Given** the app-wide proxy is Tor, and Tor is up
+**When** the user taps Test connection
+**Then** the request goes to `https://check.torproject.org/api/ip` through
+Tor on the app-global circuit
+**And** the result reads "Tor works, through exit" and the exit's address
+when the check answers `IsTor: true`
+**And** reads as not through Tor, with the address seen, when it answers
+`IsTor: false`
 
 ---
 

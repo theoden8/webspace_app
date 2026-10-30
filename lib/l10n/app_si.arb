@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "ආපසු යන්න",
   "unproxiedBlockProxySettings": "ප්‍රොක්සි සැකසුම්",
   "proxyTestOk": "ප්‍රොක්සිය ක්‍රියා කරයි",
+  "proxyTestTorExit": "Tor ක්‍රියා කරයි, {address} පිටවීම හරහා",
+  "proxyTestNotTorExit": "පිළිතුරක් ලැබුණි, නමුත් Tor හරහා නොවේ: {address}",
   "proxyTestAuthRejected": "ප්‍රොක්සිය මෙම අක්තපත්‍ර ප්‍රතික්ෂේප කළා",
   "proxyTestUnreachable": "ප්‍රොක්සියට සම්බන්ධ විය නොහැකි විය",
   "tabsTooltip": "ටැබ්",

@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Yn ôl",
   "unproxiedBlockProxySettings": "Gosodiadau'r dirprwy",
   "proxyTestOk": "Mae'r dirprwy'n gweithio",
+  "proxyTestTorExit": "Mae Tor yn gweithio, drwy'r allanfa {address}",
+  "proxyTestNotTorExit": "Daeth ateb, ond nid drwy Tor: {address}",
   "proxyTestAuthRejected": "Gwrthododd y dirprwy y manylion hyn",
   "proxyTestUnreachable": "Methwyd cyrraedd y dirprwy",
   "tabsTooltip": "Tabiau",

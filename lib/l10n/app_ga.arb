@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Ar ais",
   "unproxiedBlockProxySettings": "Socruithe an tseachfhreastalaí",
   "proxyTestOk": "Tá an seachfhreastalaí ag obair",
+  "proxyTestTorExit": "Tá Tor ag obair, trí imeacht {address}",
+  "proxyTestNotTorExit": "Tháinig freagra, ach ní trí Tor: {address}",
   "proxyTestAuthRejected": "Dhiúltaigh an seachfhreastalaí na dintiúir seo",
   "proxyTestUnreachable": "Níorbh fhéidir teagmháil a dhéanamh leis an seachfhreastalaí",
   "tabsTooltip": "Cluaisíní",

@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Tilbage",
   "unproxiedBlockProxySettings": "Proxyindstillinger",
   "proxyTestOk": "Proxyen virker",
+  "proxyTestTorExit": "Tor virker, gennem udgang {address}",
+  "proxyTestNotTorExit": "Der kom svar, men ikke gennem Tor: {address}",
   "proxyTestAuthRejected": "Proxyen afviste disse oplysninger",
   "proxyTestUnreachable": "Kunne ikke nå proxyen",
   "tabsTooltip": "Faneblade",

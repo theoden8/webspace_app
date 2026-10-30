@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Tagasi",
   "unproxiedBlockProxySettings": "Puhverserveri seaded",
   "proxyTestOk": "Puhverserver töötab",
+  "proxyTestTorExit": "Tor töötab, väljumissõlme {address} kaudu",
+  "proxyTestNotTorExit": "Vastus tuli, kuid mitte Tori kaudu: {address}",
   "proxyTestAuthRejected": "Puhverserver lükkas need andmed tagasi",
   "proxyTestUnreachable": "Puhverserverini ei õnnestunud jõuda",
   "tabsTooltip": "Kaardid",

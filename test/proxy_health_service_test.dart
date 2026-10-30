@@ -18,14 +18,20 @@ void main() {
       () async {
     const cases = {
       ProxyTestOutcome.reachable: ProxyHealthState.reachable,
+      ProxyTestOutcome.torExit: ProxyHealthState.reachable,
+      ProxyTestOutcome.notTorExit: ProxyHealthState.unreachable,
       ProxyTestOutcome.authRejected: ProxyHealthState.authRejected,
       ProxyTestOutcome.unreachable: ProxyHealthState.unreachable,
       ProxyTestOutcome.timedOut: ProxyHealthState.unreachable,
       ProxyTestOutcome.blocked: ProxyHealthState.unreachable,
     };
+    expect(cases.keys, unorderedEquals(ProxyTestOutcome.values));
     for (final entry in cases.entries) {
+      final verdict = entry.key == ProxyTestOutcome.torExit ||
+          entry.key == ProxyTestOutcome.notTorExit;
       final service = ProxyHealthService(
-          probe: (_) async => ProxyTestResult(entry.key));
+          probe: (_) async => ProxyTestResult(entry.key,
+              seenFrom: verdict ? '185.220.101.4' : null));
       final health = await service.check(_socks());
       expect(health.state, entry.value, reason: '${entry.key}');
     }

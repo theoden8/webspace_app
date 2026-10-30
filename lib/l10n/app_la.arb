@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Redire",
   "unproxiedBlockProxySettings": "Optiones procuratoris",
   "proxyTestOk": "Procurator operatur",
+  "proxyTestTorExit": "Tor operatur, per exitum {address}",
+  "proxyTestNotTorExit": "Responsum venit, sed non per Tor: {address}",
   "proxyTestAuthRejected": "Procurator has credentiales reiecit",
   "proxyTestUnreachable": "Procurator adiri non potuit",
   "tabsTooltip": "Schedae",

@@ -1654,6 +1654,13 @@ turned on while developer mode was on stays on with developer mode off.
 - **The address can change under a running Tor.** Saving a new address
   SHALL ask again and publish the new endpoint, which rebinds every
   Tor-bound site, or the failure. While nothing uses Tor nothing is asked.
+- **Tested where it is named.** While the switch is on, the Tor section
+  SHALL offer the connection test (PROXY-019) on the app-global Tor route,
+  so the saved address can be checked before a site or the app-wide proxy
+  is set to Tor. It holds the tor for the test as any Tor test does, so a
+  tor that was not answering is asked again, and an answer about an
+  address since changed is not shown. While the app-wide proxy is Tor its
+  form's test is the same test, so the section SHALL NOT offer a second.
 - **Resume.** The TOR-024 greeting on return applies. A listener that no
   longer answers is asked again rather than reopened, and a tor that stopped
   while the app was away is `externalUnreachable`.
@@ -1690,6 +1697,15 @@ turned on while developer mode was on stays on with developer mode off.
 - **THEN** the interstitial says the external tor is not answering and
   offers Retry
 - **AND** the site is not loaded over the device IP
+
+#### Scenario: Testing the address before any site uses it
+
+- **GIVEN** Linux with Tor (external) on, nothing set to `TOR`, and no tor
+  listening at `127.0.0.1:9050`
+- **WHEN** the user presses Test connection under the Tor section
+- **THEN** it reports the proxy not reached, naming the address that did
+  not answer
+- **AND** nothing holds Tor once the test is over
 
 #### Scenario: Orbot started after the app asked
 

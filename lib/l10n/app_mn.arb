@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Буцах",
   "unproxiedBlockProxySettings": "Проксигийн тохиргоо",
   "proxyTestOk": "Прокси ажиллаж байна",
+  "proxyTestTorExit": "Tor ажиллаж байна, {address} гарцаар",
+  "proxyTestNotTorExit": "Хариу ирсэн ч Tor-оор биш: {address}",
   "proxyTestAuthRejected": "Прокси эдгээр нэвтрэх мэдээллийг татгалзлаа",
   "proxyTestUnreachable": "Проксид холбогдож чадсангүй",
   "tabsTooltip": "Табууд",

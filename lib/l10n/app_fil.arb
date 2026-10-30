@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Bumalik",
   "unproxiedBlockProxySettings": "Mga setting ng proxy",
   "proxyTestOk": "Gumagana ang proxy",
+  "proxyTestTorExit": "Gumagana ang Tor, sa labasang {address}",
+  "proxyTestNotTorExit": "May sagot, pero hindi dumaan sa Tor: {address}",
   "proxyTestAuthRejected": "Tinanggihan ng proxy ang mga kredensyal na ito",
   "proxyTestUnreachable": "Hindi maabot ang proxy",
   "tabsTooltip": "Mga tab",
