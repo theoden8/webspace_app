@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Kveikja á",
   "siteExtensionsSettings": "Stillingar",
   "siteExtensionsOpen": "Opna",
-  "siteExtensionsPageFailed": "Ekki tókst að opna {name} hér"
+  "siteExtensionsPageFailed": "Ekki tókst að opna {name} hér",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

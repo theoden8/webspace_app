@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "चालू करा",
   "siteExtensionsSettings": "सेटिंग्ज",
   "siteExtensionsOpen": "उघडा",
-  "siteExtensionsPageFailed": "{name} येथे उघडता आले नाही"
+  "siteExtensionsPageFailed": "{name} येथे उघडता आले नाही",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

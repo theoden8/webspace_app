@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Zapnout",
   "siteExtensionsSettings": "Nastavení",
   "siteExtensionsOpen": "Otevřít",
-  "siteExtensionsPageFailed": "{name} se zde nepodařilo otevřít"
+  "siteExtensionsPageFailed": "{name} se zde nepodařilo otevřít",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

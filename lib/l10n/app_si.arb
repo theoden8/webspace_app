@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "සක්‍රිය කරන්න",
   "siteExtensionsSettings": "සැකසුම්",
   "siteExtensionsOpen": "විවෘත කරන්න",
-  "siteExtensionsPageFailed": "{name} මෙහි විවෘත කළ නොහැකි විය"
+  "siteExtensionsPageFailed": "{name} මෙහි විවෘත කළ නොහැකි විය",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

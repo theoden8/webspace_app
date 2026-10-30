@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Activar",
   "siteExtensionsSettings": "Axustes",
   "siteExtensionsOpen": "Abrir",
-  "siteExtensionsPageFailed": "Non se puido abrir {name} aquí"
+  "siteExtensionsPageFailed": "Non se puido abrir {name} aquí",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

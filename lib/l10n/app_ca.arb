@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Activa",
   "siteExtensionsSettings": "Configuració",
   "siteExtensionsOpen": "Obre",
-  "siteExtensionsPageFailed": "No s'ha pogut obrir {name} aquí"
+  "siteExtensionsPageFailed": "No s'ha pogut obrir {name} aquí",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

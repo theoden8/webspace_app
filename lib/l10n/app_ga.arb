@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Cuir ar siúl",
   "siteExtensionsSettings": "Socruithe",
   "siteExtensionsOpen": "Oscail",
-  "siteExtensionsPageFailed": "Níorbh fhéidir {name} a oscailt anseo"
+  "siteExtensionsPageFailed": "Níorbh fhéidir {name} a oscailt anseo",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

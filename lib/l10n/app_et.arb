@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Lülita sisse",
   "siteExtensionsSettings": "Seaded",
   "siteExtensionsOpen": "Ava",
-  "siteExtensionsPageFailed": "{name} avamine siin ebaõnnestus"
+  "siteExtensionsPageFailed": "{name} avamine siin ebaõnnestus",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

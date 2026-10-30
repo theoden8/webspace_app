@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Washa",
   "siteExtensionsSettings": "Mipangilio",
   "siteExtensionsOpen": "Fungua",
-  "siteExtensionsPageFailed": "{name} hakikuweza kufunguka hapa"
+  "siteExtensionsPageFailed": "{name} hakikuweza kufunguka hapa",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

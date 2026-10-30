@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "चालू करें",
   "siteExtensionsSettings": "सेटिंग",
   "siteExtensionsOpen": "खोलें",
-  "siteExtensionsPageFailed": "{name} यहाँ नहीं खुल सका"
+  "siteExtensionsPageFailed": "{name} यहाँ नहीं खुल सका",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

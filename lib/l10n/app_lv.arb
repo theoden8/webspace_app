@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Ieslēgt",
   "siteExtensionsSettings": "Iestatījumi",
   "siteExtensionsOpen": "Atvērt",
-  "siteExtensionsPageFailed": "{name} šeit neizdevās atvērt"
+  "siteExtensionsPageFailed": "{name} šeit neizdevās atvērt",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

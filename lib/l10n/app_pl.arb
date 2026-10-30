@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Włącz",
   "siteExtensionsSettings": "Ustawienia",
   "siteExtensionsOpen": "Otwórz",
-  "siteExtensionsPageFailed": "Nie udało się tu otworzyć {name}"
+  "siteExtensionsPageFailed": "Nie udało się tu otworzyć {name}",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

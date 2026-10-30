@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Вклучи",
   "siteExtensionsSettings": "Поставки",
   "siteExtensionsOpen": "Отвори",
-  "siteExtensionsPageFailed": "{name} не можеше да се отвори тука"
+  "siteExtensionsPageFailed": "{name} не можеше да се отвори тука",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

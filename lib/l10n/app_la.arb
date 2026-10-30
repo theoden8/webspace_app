@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Accendere",
   "siteExtensionsSettings": "Institutiones",
   "siteExtensionsOpen": "Aperire",
-  "siteExtensionsPageFailed": "{name} hic aperiri non potuit"
+  "siteExtensionsPageFailed": "{name} hic aperiri non potuit",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

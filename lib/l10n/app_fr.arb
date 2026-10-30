@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Activer",
   "siteExtensionsSettings": "Paramètres",
   "siteExtensionsOpen": "Ouvrir",
-  "siteExtensionsPageFailed": "Impossible d'ouvrir {name} ici"
+  "siteExtensionsPageFailed": "Impossible d'ouvrir {name} ici",
+  "termAndMeaning": "{term} : {meaning}",
+  "twoSentences": "{first} {second}"
 }

@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Įjungti",
   "siteExtensionsSettings": "Nustatymai",
   "siteExtensionsOpen": "Atidaryti",
-  "siteExtensionsPageFailed": "Nepavyko čia atidaryti {name}"
+  "siteExtensionsPageFailed": "Nepavyko čia atidaryti {name}",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

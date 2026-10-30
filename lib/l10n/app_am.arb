@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "አብራ",
   "siteExtensionsSettings": "ቅንብሮች",
   "siteExtensionsOpen": "ክፈት",
-  "siteExtensionsPageFailed": "{name} እዚህ ሊከፈት አልቻለም"
+  "siteExtensionsPageFailed": "{name} እዚህ ሊከፈት አልቻለም",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

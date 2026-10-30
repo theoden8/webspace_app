@@ -30,15 +30,7 @@ enum Joined {
   paragraphs('\n\n'),
   lines('\n'),
   /// Names in a row, as a summary lists what is on.
-  list(' · '),
-
-  /// A term and its value or explanation ('Camera: Allowed'). English's
-  /// colon in every locale: debt, lifted by a message per locale.
-  term(': '),
-
-  /// Whole sentences in one paragraph. English's space in every locale,
-  /// where Chinese and Japanese write none: debt, as [term].
-  sentences(' ');
+  list(' · ');
 
   const Joined(this.separator);
 

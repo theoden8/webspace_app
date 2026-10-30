@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "تفعيل",
   "siteExtensionsSettings": "الإعدادات",
   "siteExtensionsOpen": "فتح",
-  "siteExtensionsPageFailed": "تعذّر فتح {name} هنا"
+  "siteExtensionsPageFailed": "تعذّر فتح {name} هنا",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

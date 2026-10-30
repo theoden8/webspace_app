@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "បើក",
   "siteExtensionsSettings": "ការកំណត់",
   "siteExtensionsOpen": "បើក",
-  "siteExtensionsPageFailed": "មិនអាចបើក {name} នៅទីនេះបានទេ"
+  "siteExtensionsPageFailed": "មិនអាចបើក {name} នៅទីនេះបានទេ",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

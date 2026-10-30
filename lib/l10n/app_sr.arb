@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "Укључи",
   "siteExtensionsSettings": "Подешавања",
   "siteExtensionsOpen": "Отвори",
-  "siteExtensionsPageFailed": "{name} није могуће отворити овде"
+  "siteExtensionsPageFailed": "{name} није могуће отворити овде",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }

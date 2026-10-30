@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "オンにする",
   "siteExtensionsSettings": "設定",
   "siteExtensionsOpen": "開く",
-  "siteExtensionsPageFailed": "{name} をここで開けませんでした"
+  "siteExtensionsPageFailed": "{name} をここで開けませんでした",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first}{second}"
 }

@@ -1252,5 +1252,7 @@
   "siteExtensionsSwitchOn": "เปิด",
   "siteExtensionsSettings": "การตั้งค่า",
   "siteExtensionsOpen": "เปิด",
-  "siteExtensionsPageFailed": "ไม่สามารถเปิด {name} ที่นี่ได้"
+  "siteExtensionsPageFailed": "ไม่สามารถเปิด {name} ที่นี่ได้",
+  "termAndMeaning": "{term}: {meaning}",
+  "twoSentences": "{first} {second}"
 }
