@@ -1,11 +1,12 @@
 # BUG-041 — A site's icon stays a globe where it stays drawn
 
 Status: **open.** Each step of an icon's fetch now hands its success to every
-icon of the site on screen, but an icon whose step failed recovers only when
-another icon's same step succeeds.
+icon of the site on screen, and an icon whose step failed asks again when Tor
+comes up or the app comes back to the front; the network coming back while
+the app stays in front is not one of those moments.
 
 **Spec:** [icon-fetching](../../openspec/specs/icon-fetching/spec.md) ICON-017
-**Tests:** `test/favicon_found_test.dart`
+**Tests:** `test/favicon_found_test.dart`, `test/icon_app_test.dart`
 
 ## Symptom
 
@@ -35,16 +36,23 @@ every widget drawing it, not only the ones mounted after it.
    *Why partial:* it covered the search only. After the first launch a site's
    icon URL is kept on disk but its image is not, so a preview knows the URL,
    skips the search, and fails at the image instead, which no event reached.
-2. **2026-10-30.** `getIconBytes` and `getSvgContent` announce an icon URL
+2. **2026-10-30 (#869).** `getIconBytes` and `getSvgContent` announce an icon URL
    whose image or SVG body arrived (`iconImagesFetched`), and an icon whose own
    fetch of that URL failed draws it afresh from the cache; a fetch that ends
    with nothing returns what another fetch brought while it ran. *Why:* the
    reported preview had the URL and lacked only the image. *Why partial:* see
    below.
 
+3. **2026-10-30 (#869).** An icon whose search or image came back with
+   nothing asks again when Tor comes up (`SiteNetworkController`) and when the
+   app comes back to the front (`AppLifecycleController`), through
+   `retryFailedIcons`. *Why:* a preview of a folder never opened had nothing
+   to learn from, and the usual cause at launch is Tor still bootstrapping or
+   the network not yet up. *Why partial:* see below.
+
 ## Known open gaps
 
-- An icon whose step failed waits for another widget's same step. A preview of
-  a folder that is never opened stays a globe until the next launch: nothing
-  retries on its own when the network or a proxy comes up.
+- The app has no event for the network coming back, so an icon that failed
+  offline, while the app stays in front and its site is not on Tor, waits for
+  the app to leave and come back.
 - An image that arrives but does not decode is not fetched again.

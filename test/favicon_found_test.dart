@@ -152,6 +152,40 @@ void main() {
         reason: 'the preview takes the SVG the tile fetched');
   });
 
+  for (final (step, kept) in [
+    ('whose site was not reached', null),
+    ('whose image did not come', 'https://again.test/icon.png'),
+  ]) {
+    testWidgets('ICON-017: an icon $step asks again when retried',
+        (tester) async {
+      const site = 'https://again.test/';
+      await FaviconUrlCache.initialize();
+      if (kept != null) await FaviconUrlCache.set(site, faviconUrl: kept);
+      factory.responder = (_) => throw http.ClientException('offline');
+      await _pumpPreview(tester, site: site);
+      expect(_inPreview(find.byType(Image)), findsNothing);
+
+      factory.responder = _online;
+      await _settle(tester);
+      expect(_inPreview(find.byType(Image)), findsNothing,
+          reason: 'nothing asks again on its own');
+      retryFailedIcons();
+      await _settle(tester);
+      expect(_inPreview(find.byType(Image)), findsOneWidget);
+    });
+  }
+
+  testWidgets('ICON-017: a retry asks nothing of a site that names no icon',
+      (tester) async {
+    factory.responder = _iconless;
+    await _pumpPreview(tester, site: 'https://none.test/');
+    factory.requests.clear();
+    retryFailedIcons();
+    await _settle(tester);
+    expect(factory.requests, isEmpty);
+    expect(_inPreview(find.byIcon(Icons.language)), findsOneWidget);
+  });
+
   for (final (ends, ending) in [
     ('fails', _offline),
     ('hears the site names no icon', _iconless),

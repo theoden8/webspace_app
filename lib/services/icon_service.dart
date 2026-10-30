@@ -338,6 +338,17 @@ final StreamController<String> _imageController =
 /// with the icon's URL known, before the network or its proxy was up.
 Stream<String> get iconImagesFetched => _imageController.stream;
 
+final StreamController<void> _retryController =
+    StreamController<void>.broadcast();
+
+/// Fires when an icon that did not come may come now, so each icon whose
+/// site was not reached, or whose image did not come, asks again (ICON-017).
+Stream<void> get iconRetries => _retryController.stream;
+
+/// Has every icon that did not come ask again: Tor came up, or the app came
+/// back to the front.
+void retryFailedIcons() => _retryController.add(null);
+
 /// Fires when every icon cache was cleared, so every icon on screen is
 /// fetched again.
 Stream<void> get iconReloads => _reloadController.stream;

@@ -11,7 +11,7 @@ import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/webspace_chips.dart';
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show cachedSvgContent, getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, iconImagesFetched, IconUpdate, iconReloads, reloadAllIcons;
+import '../services/icon_service.dart' show cachedSvgContent, getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, iconImagesFetched, iconRetries, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
@@ -184,6 +184,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   StreamSubscription<void>? _reloadSub;
   StreamSubscription<String>? _foundSub;
   StreamSubscription<String>? _imageSub;
+  StreamSubscription<void>? _retrySub;
 
   /// Whether the icon's image, or its SVG body, failed to come, so the globe
   /// stands in for it.
@@ -214,27 +215,13 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       if (_currentIconUrl == null && _iconStream != null) return;
       setState(_resetAndLoad);
     });
-    // A search of this widget's own still in flight brings its own answer.
     _foundSub = faviconsFound.listen((siteUrl) {
-      if (siteUrl != widget.url || !mounted || widget.customIcon != null) {
-        return;
-      }
-      if (_isLoading || _currentIconUrl != null) return;
-      setState(_resetAndLoad);
+      if (siteUrl == widget.url) _askAgain();
     });
-    // The image of an icon this widget already knows, which its own fetch
-    // failed to bring.
     _imageSub = iconImagesFetched.listen((iconUrl) {
-      if (!mounted || iconUrl != _currentIconUrl) return;
-      if (_isSvgUrl(iconUrl)) {
-        if (_svgContent == null) unawaited(_fetchSvgContent(iconUrl));
-      } else if (_imageFailed) {
-        setState(() {
-          _imageFailed = false;
-          _imageFetch++;
-        });
-      }
+      if (iconUrl == _currentIconUrl) _askAgain();
     });
+    _retrySub = iconRetries.listen((_) => _askAgain());
     _siteIconSub = SiteIconStore.instance.changes.listen((siteUrl) {
       if (!mounted || (siteUrl != null && siteUrl != widget.url)) return;
       if (widget.customIcon != null) return;
@@ -260,6 +247,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     unawaited(_reloadSub?.cancel());
     unawaited(_foundSub?.cancel());
     unawaited(_imageSub?.cancel());
+    unawaited(_retrySub?.cancel());
     super.dispose();
   }
 
@@ -275,6 +263,24 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     } else if (_currentIconUrl != null && FaviconUrlCache.get(widget.url) == null) {
       // Cache was invalidated (e.g. by refresh) — re-fetch
       _resetAndLoad();
+    }
+  }
+
+  /// Asks again for the step of the icon that did not come: the search, when
+  /// it ended with nothing, else the image or SVG body of the URL it found. A
+  /// search or a fetch still running brings its own answer.
+  void _askAgain() {
+    if (!mounted || widget.customIcon != null) return;
+    final iconUrl = _currentIconUrl;
+    if (iconUrl == null) {
+      if (!_isLoading) setState(_resetAndLoad);
+    } else if (_isSvgUrl(iconUrl)) {
+      if (_svgContent == null) unawaited(_fetchSvgContent(iconUrl));
+    } else if (_imageFailed) {
+      setState(() {
+        _imageFailed = false;
+        _imageFetch++;
+      });
     }
   }
 

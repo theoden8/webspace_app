@@ -620,6 +620,11 @@ widget's same step later succeeds:
 A search or fetch that ends with nothing SHALL NOT replace what another
 brought while it ran.
 
+An icon whose search or image came back with nothing SHALL also ask again on
+its own when it may come now, with no other widget fetching it: when Tor
+comes up, and when the app comes back to the front. A site that answered that
+it names no icon is not asked (ICON-008).
+
 #### Scenario: A preview drawn offline takes the icon found later
 
 **Given** a site's icon is drawn in a folder's preview while the device is
@@ -634,6 +639,13 @@ offline, and shows the globe
 image (or SVG) did not come and the preview shows the globe
 **When** the folder is opened online and the site's tile fetches the image
 **Then** the preview shows the image too
+
+#### Scenario: A preview no folder helps asks again
+
+**Given** a folder's preview missed its site's icon at launch, and the folder
+is never opened
+**When** the app comes back to the front, or, for a site on Tor, Tor comes up
+**Then** the preview asks again and shows the icon
 
 #### Scenario: A stalled search keeps the found icon
 

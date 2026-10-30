@@ -7,6 +7,7 @@ import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/icon_service.dart' show retryFailedIcons;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_router_probe.dart';
@@ -86,6 +87,7 @@ class SiteNetworkController {
     if (!_host.mounted) return;
     if (!torBindingChanged(_lastTorStatus, next: s)) return;
     _lastTorStatus = s;
+    if (s.isUp) retryFailedIcons();
     var anyTorSite = false;
     for (final m in _sites.models) {
       if (resolveEffectiveProxy(m.proxySettings, siteId: m.siteId).type !=

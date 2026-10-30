@@ -11,6 +11,7 @@ import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/icon_service.dart' show retryFailedIcons;
 import 'package:webspace/diag_seed.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -184,6 +185,7 @@ class AppLifecycleController {
     surface.openResumeWindow();
     unawaited(_onResumed());
     background.noteResumed();
+    retryFailedIcons();
   }
 
   void _setBackgroundPlayback({required bool background}) {
