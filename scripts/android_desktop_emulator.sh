@@ -28,26 +28,42 @@ printf 'hw.keyboard=yes\ndisk.dataPartition.size=4096M\n' \
 trap 'adb -s "$serial" emu kill >/dev/null 2>&1 || true' EXIT
 
 adb -s "$serial" wait-for-device
-up=
-for _ in $(seq 1 240); do
+
+ready() {
+  local booted input settings
   booted=$(adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null || true)
   input=$(adb -s "$serial" shell service check input 2>/dev/null || true)
-  if [ "${booted//$'\r'/}" = 1 ] && grep -q ': found' <<<"$input"; then
-    up=1
-    break
-  fi
+  settings=$(adb -s "$serial" shell service check settings 2>/dev/null || true)
+  [ "${booted//$'\r'/}" = 1 ] && grep -q ': found' <<<"$input" &&
+    grep -q ': found' <<<"$settings"
+}
+
+# The settings service has been seen to go away just after the image
+# reported booted (a broken pipe to it), so the image has to stay ready for
+# a while before it is asked anything.
+steady=0
+for _ in $(seq 1 300); do
+  if ready; then steady=$((steady + 1)); else steady=0; fi
+  [ "$steady" -ge 10 ] && break
   sleep 2
 done
-if [ -z "$up" ]; then
-  echo "ERROR: the desktop emulator did not come up" >&2
+if [ "$steady" -lt 10 ]; then
+  echo "ERROR: the desktop emulator did not settle" >&2
   tail -40 "$log" >&2
   exit 1
 fi
 
+retry() {
+  for _ in $(seq 1 15); do
+    "$@" && return 0
+    sleep 2
+  done
+  "$@"
+}
 for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
-  adb -s "$serial" shell settings put global "$scale" 0.0
+  retry adb -s "$serial" shell settings put global "$scale" 0.0
 done
-adb -s "$serial" shell settings put global hide_error_dialogs 1
-adb -s "$serial" shell settings put secure show_ime_with_hard_keyboard 0
+retry adb -s "$serial" shell settings put global hide_error_dialogs 1
+retry adb -s "$serial" shell settings put secure show_ime_with_hard_keyboard 0
 
 "$@"

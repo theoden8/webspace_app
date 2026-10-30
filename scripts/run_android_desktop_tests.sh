@@ -12,7 +12,7 @@ adb_() { adb -s "$device_id" "$@"; }
 
 # The image boots to its lock screen, which holds the focus: no key the test
 # types would reach the app.
-adb_ shell input keyevent KEYCODE_WAKEUP
+adb_ shell input keyevent KEYCODE_WAKEUP || true
 adb_ shell wm dismiss-keyguard || true
 adb_ shell input keyevent 82 || true
 adb_ shell svc power stayon true || true
