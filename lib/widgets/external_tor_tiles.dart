@@ -17,7 +17,12 @@ import 'package:webspace/widgets/setting_tile.dart';
 /// is on, the SOCKS address of the tor it names (TOR-025), its control port
 /// (TOR-026) and a connection test through it.
 class ExternalTorTiles extends StatefulWidget {
-  const ExternalTorTiles({super.key, this.onTorChanged});
+  const ExternalTorTiles(
+      {super.key, required this.offersTest, this.onTorChanged});
+
+  /// Whether the section has its own connection test: not where a proxy
+  /// form on the same screen already tests the app-global Tor route.
+  final bool offersTest;
 
   /// After the switch moved Tor to the other runtime, for a screen that
   /// names the Tor route elsewhere.
@@ -76,7 +81,7 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
           const ExternalTorControlTiles(),
         // The app-global Tor route, so nothing has to be set to Tor first.
         // Keyed by the address: an answer about the last one is stale.
-        if (_switch)
+        if (_switch && widget.offersTest)
           ProxyTestTile(
             key: ValueKey(_address),
             settings: () => UserProxySettings(type: ProxyType.TOR),

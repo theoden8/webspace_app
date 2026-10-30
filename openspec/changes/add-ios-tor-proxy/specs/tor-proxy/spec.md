@@ -1659,7 +1659,8 @@ turned on while developer mode was on stays on with developer mode off.
   so the saved address can be checked before a site or the app-wide proxy
   is set to Tor. It holds the tor for the test as any Tor test does, so a
   tor that was not answering is asked again, and an answer about an
-  address since changed is not shown.
+  address since changed is not shown. While the app-wide proxy is Tor its
+  form's test is the same test, so the section SHALL NOT offer a second.
 - **Resume.** The TOR-024 greeting on return applies. A listener that no
   longer answers is asked again rather than reopened, and a tor that stopped
   while the app was away is `externalUnreachable`.

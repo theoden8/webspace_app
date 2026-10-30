@@ -368,9 +368,13 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
             if (widget.externalTorRunsHere) ...[
               SettingsSection(loc.torStatusTitle),
               // The dropdowns above name and offer Tor by the tor it picks.
-              ExternalTorTiles(onTorChanged: () {
-                if (mounted) setState(() {});
-              }),
+              // An app-wide Tor proxy is tested by its own form above.
+              ExternalTorTiles(
+                offersTest: _outboundProxy.type != ProxyType.TOR,
+                onTorChanged: () {
+                  if (mounted) setState(() {});
+                },
+              ),
             ],
             // Trusted certificates — only Android and Linux can create
             // pins via the in-app prompt. On iOS/macOS the prompt is

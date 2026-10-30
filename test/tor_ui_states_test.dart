@@ -628,7 +628,7 @@ void main() {
         await external(t, tor: FakeTorControl());
         window(t, height: 420);
         await t.pumpWidget(host(
-            ListView(children: const [ExternalTorTiles()]),
+            ListView(children: const [ExternalTorTiles(offersTest: true)]),
             size: const Size(430, 420)));
         await settle(t);
 
@@ -737,7 +737,8 @@ void main() {
             (tag) => TorService.instance.routeFor(siteId: tag.site);
         window(t, height: 520);
 
-        await t.pumpWidget(host(ListView(children: const [ExternalTorTiles()]),
+        await t.pumpWidget(host(
+            ListView(children: const [ExternalTorTiles(offersTest: true)]),
             size: const Size(430, 520)));
         await settle(t);
         expect(find.text('Test connection'), findsNothing,
@@ -745,7 +746,8 @@ void main() {
         await t.pumpWidget(const SizedBox.shrink());
 
         AppPref.externalTor.debugValue = true;
-        await t.pumpWidget(host(ListView(children: const [ExternalTorTiles()]),
+        await t.pumpWidget(host(
+            ListView(children: const [ExternalTorTiles(offersTest: true)]),
             size: const Size(430, 520)));
         await settle(t);
         expect(TorService.instance.status, isA<TorStopped>(),

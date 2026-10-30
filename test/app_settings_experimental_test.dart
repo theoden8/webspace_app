@@ -27,6 +27,7 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/site_icon_engine.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -310,6 +311,29 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Network');
       expect(find.text('Tor (external)', skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('one connection test, whichever row asks for the tor',
+        (tester) async {
+      // Tall enough that the list builds every row at once.
+      tester.view.physicalSize = const Size(1080, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      addTearDown(GlobalOutboundProxy.resetForTest);
+      AppPref.externalTor.debugValue = true;
+      await TorService.instance.runtimeChoiceChanged();
+
+      for (final type in const [ProxyType.DEFAULT, ProxyType.TOR]) {
+        GlobalOutboundProxy.setInMemory(UserProxySettings(type: type));
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(host(externalTorRunsHere: true));
+        await tester.pumpAndSettle();
+        await openCategory(tester, title: 'Network');
+        expect(find.text('Tor SOCKS address'), findsOneWidget);
+        expect(find.text('Test connection'), findsOneWidget,
+            reason: 'app-wide $type: the Tor section and an app-wide Tor '
+                'form test the same route');
+      }
     });
   });
 
