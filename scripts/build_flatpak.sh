@@ -39,10 +39,13 @@ cp "$root"/linux/flatpak/* "$work"/
 # The committed manifest builds master; point it at $commit instead. The
 # Rust toolchain is rust-toolchain.toml's: flatpak-flutter provides the
 # version a rustup-<version> module names, and RUSTUP_TOOLCHAIN overrides the
-# file, whose Android targets rustup would otherwise try to download.
-"$tool/.venv/bin/python" - "$work/flatpak-flutter.yml" "$commit" "$root/rust-toolchain.toml" <<'PY'
-import sys, tomllib, yaml
-path, commit, toolchain = sys.argv[1:]
+# file, whose Android targets rustup would otherwise try to download. The
+# Tor Expert Bundle is the release linux/tor_bundle.cmake pins (TOR-027),
+# fetched here as a source and named by WEBSPACE_TOR_BUNDLE, since the build
+# has no network to download it.
+"$tool/.venv/bin/python" - "$work/flatpak-flutter.yml" "$commit" "$root/rust-toolchain.toml" "$root/linux/tor_bundle.cmake" <<'PY'
+import re, sys, tomllib, yaml
+path, commit, toolchain, tor_cmake = sys.argv[1:]
 with open(toolchain, 'rb') as f:
     rust = tomllib.load(f)['toolchain']['channel']
 with open(path) as f:
@@ -54,6 +57,19 @@ del source['branch']
 source['commit'] = commit
 app.setdefault('modules', []).append(f'generated/modules/rustup-{rust}.json')
 app['build-options']['env']['RUSTUP_TOOLCHAIN'] = rust
+with open(tor_cmake) as f:
+    pins = dict(re.findall(r'set\(\s*(TOR_EXPERT_BUNDLE_\w+)\s+"([^"]+)"\s*\)', f.read()))
+version = pins['TOR_EXPERT_BUNDLE_VERSION']
+archive = f'tor-expert-bundle-linux-x86_64-{version}.tar.gz'
+app['sources'].append({
+    'type': 'file',
+    'url': f'https://dist.torproject.org/torbrowser/{version}/{archive}',
+    'sha256': pins['TOR_EXPERT_BUNDLE_SHA256'],
+    'dest': 'flatpak-sources',
+    'only-arches': ['x86_64'],
+})
+app['build-options']['arch']['x86_64']['env']['WEBSPACE_TOR_BUNDLE'] = \
+    f'/run/build/{module}/flatpak-sources/{archive}'
 with open(path, 'w') as f:
     yaml.safe_dump(manifest, f, sort_keys=False)
 PY
