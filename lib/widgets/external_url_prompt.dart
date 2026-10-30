@@ -259,33 +259,27 @@ Future<bool> _launchExternally(String url, {required String label}) async {
     LogTag.externalUrl.debug(
         '$label: external launch result=$launched url=$url', sensitive: true);
     if (!launched) {
-      _toastFailure((loc) => loc.externalUrlPromptNoAppAvailable(url),
-          fallback: 'No app available to open: $url');
+      _toastFailure((loc) => loc.externalUrlPromptNoAppAvailable(url));
     }
     return launched;
   } on PlatformException catch (e) {
     LogTag.externalUrl.debug(
         '$label: external launch threw — $e', sensitive: true);
-    _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url),
-        fallback: 'Could not open: $url');
+    _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url));
     return false;
   } on MissingPluginException catch (e) {
     LogTag.externalUrl.debug(
         '$label: external launch threw — $e', sensitive: true);
-    _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url),
-        fallback: 'Could not open: $url');
+    _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url));
     return false;
   }
 }
 
-/// On the root messenger, which outlives the page that asked; [fallback]
-/// when no localizations are reachable from it.
-void _toastFailure(
-    String Function(AppLocalizations loc) message, {required String fallback}) {
-  final messengerContext = rootScaffoldMessengerKey.currentContext;
-  rootScaffoldMessengerKey.currentState?.toast(messengerContext == null
-      ? fallback
-      : message(AppLocalizations.of(messengerContext)));
+/// On the root messenger, which outlives the page that asked.
+void _toastFailure(Localized Function(AppLocalizations loc) message) {
+  final messenger = rootScaffoldMessengerKey.currentState;
+  if (messenger == null) return;
+  messenger.toast(message(AppLocalizations.of(messenger.context)));
 }
 
 Future<void> _launchInApp(

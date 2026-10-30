@@ -64,7 +64,7 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
             leading: const Icon(Icons.lan_outlined),
             title: loc.externalTorAddress,
             hint: loc.externalTorAddressHint,
-            subtitle: _address,
+            subtitle: Localized.verbatim(_address),
             control: Trailing(const Icon(Icons.edit_outlined),
                 onTap: _editAddress),
           ),

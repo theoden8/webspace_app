@@ -15,14 +15,14 @@ extension on AppBackupAction {
         AppBackupAction.closeAllArchives => Icons.lock_outline,
       };
 
-  String title(AppLocalizations loc) => switch (this) {
+  Localized title(AppLocalizations loc) => switch (this) {
         AppBackupAction.export => loc.appSettingsExportSettings,
         AppBackupAction.import => loc.appSettingsImportSettings,
         AppBackupAction.restoreArchive => loc.appSettingsRestoreArchive,
         AppBackupAction.closeAllArchives => loc.appSettingsCloseAllArchives,
       };
 
-  String subtitle(AppLocalizations loc) => switch (this) {
+  Localized subtitle(AppLocalizations loc) => switch (this) {
         AppBackupAction.export => loc.appSettingsExportSettingsSubtitle,
         AppBackupAction.import => loc.appSettingsImportSettingsSubtitle,
         AppBackupAction.restoreArchive =>

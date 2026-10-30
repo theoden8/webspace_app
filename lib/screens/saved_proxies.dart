@@ -396,10 +396,10 @@ abstract class _EditorState<W extends _LibraryEditor<E>, E,
       context,
       title: loc.savedProxyDeleteTitle(
           name.isEmpty ? (initialName ?? '') : name),
-      body: [
+      body: Localized.joined([
         loc.savedProxyDeleteBody(widget.usageCount),
         if (widget.usedByAppWide) loc.savedProxyDeleteAppWide,
-      ].join('\n\n'),
+      ], by: Joined.paragraphs),
       confirmLabel: loc.commonDelete,
       destructive: true,
     );

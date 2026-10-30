@@ -16,10 +16,10 @@ abstract interface class DownloadableDataset implements Listenable {
   DateTime? get lastUpdated;
 
   /// The row's first line: what the data holds, or that there is none.
-  String? status(AppLocalizations loc);
+  Localized? status(AppLocalizations loc);
 
   /// Fetches or refreshes the data. The result is the SnackBar's text.
-  Future<String> download(AppLocalizations loc);
+  Future<Localized> download(AppLocalizations loc);
 
   void dispose();
 }
@@ -27,7 +27,7 @@ abstract interface class DownloadableDataset implements Listenable {
 /// A dataset the row can also delete.
 abstract interface class ClearableDataset implements DownloadableDataset {
   /// The SnackBar's text, or null for none.
-  Future<String?> clear(AppLocalizations loc);
+  Future<Localized?> clear(AppLocalizations loc);
 }
 
 /// `2025-01-31 14:05:09`, in local time.
@@ -53,8 +53,8 @@ class DatasetTile<D extends DownloadableDataset> extends StatefulWidget {
   /// Called once; the tile disposes what it returns.
   final D Function() create;
   final IconData icon;
-  final String title;
-  final String hint;
+  final Localized title;
+  final Localized hint;
 
   /// Controls under the row. `download` is null while one is running.
   final Widget Function(D dataset, {required VoidCallback? download})? below;
@@ -79,7 +79,8 @@ class _DatasetTileState<D extends DownloadableDataset>
     super.dispose();
   }
 
-  Future<void> _run(Future<String?> Function(AppLocalizations) action) async {
+  Future<void> _run(
+      Future<Localized?> Function(AppLocalizations) action) async {
     if (_busy) return;
     final loc = AppLocalizations.of(context);
     final messenger =

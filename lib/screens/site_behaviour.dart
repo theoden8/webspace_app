@@ -204,8 +204,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
   Widget _routeOutboundLinks(AppLocalizations loc) => SettingTile(
         title: loc.siteSettingsRouteOutboundLinks,
         hint: _values.effectiveTabsEnabled
-            ? '${loc.siteSettingsRouteOutboundLinksHint}\n\n'
-                '${loc.siteSettingsRouteOutboundLinksTabsHint}'
+            ? Localized.joined([
+                loc.siteSettingsRouteOutboundLinksHint,
+                loc.siteSettingsRouteOutboundLinksTabsHint,
+              ], by: Joined.paragraphs)
             : loc.siteSettingsRouteOutboundLinksHint,
         lock: widget.containersActive
             ? null
@@ -339,7 +341,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
     return SettingTile(
       title: loc.webSearchTemplateLabel,
       hint: loc.webSearchAddressHint,
-      subtitle: effective ?? loc.siteSettingsNotConfigured,
+      subtitle: switch (effective) {
+        final address? => Localized.verbatim(address),
+        null => loc.siteSettingsNotConfigured,
+      },
       control: Opens(() => _editSearchAddress(effective)),
     );
   }
@@ -373,7 +378,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
     return SettingTile(
       title: loc.webSearchFromSiteTitle,
       hint: loc.webSearchFromSiteHint,
-      subtitle: name ?? loc.webSearchUseAppDefault,
+      subtitle: switch (name) {
+        final name? => Localized.verbatim(name),
+        null => loc.webSearchUseAppDefault,
+      },
       control: Opens(() async {
         final picked = await showDialog<SearchSitePick>(
           context: context,
@@ -404,7 +412,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
       for (final id in _values.searchSites) ?_nameOf(id),
     ];
     // Data, not copy: site names joined with punctuation (L10N-002).
-    final summary = names.join(', ');
+    final summary = Localized.verbatim(names.join(', '));
     return SettingTile(
       title: loc.webSearchOfferedTitle,
       hint: loc.webSearchOfferedHint,

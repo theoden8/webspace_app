@@ -20,7 +20,7 @@ import 'package:webspace/widgets/settings_rows.dart';
 
 /// The names of the app-wide protections that are on, for the App Settings
 /// row. Same shape as the Privacy row in site settings.
-List<String> appPrivacyOn(AppLocalizations loc) => [
+List<Localized> appPrivacyOn(AppLocalizations loc) => [
       if (AppPref.httpsUpgradeEnabled.value) loc.siteSettingsHttpsUpgrade,
       if (DnsBlockService.instance.level > 0) loc.appSettingsDnsBlocklist,
       if (ContentBlockerService.instance.lists.any((l) => l.enabled))
@@ -82,7 +82,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
     final loc = AppLocalizations.of(context);
     final enabledLists = [
       for (final list in ContentBlockerService.instance.lists)
-        if (list.enabled) list.name,
+        if (list.enabled) Localized.verbatim(list.name),
     ];
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsPrivacy)),
@@ -150,9 +150,13 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
             create: FirefoxVersionDataset.new,
             icon: Icons.travel_explore,
             title: loc.appSettingsFirefoxVersion,
-            hint: '${loc.appSettingsFirefoxVersionHint}\n\n'
-                '${loc.appSettingsFirefoxAutoUpdate}: '
-                '${loc.appSettingsFirefoxAutoUpdateHint}',
+            hint: Localized.joined([
+              loc.appSettingsFirefoxVersionHint,
+              Localized.joined([
+                loc.appSettingsFirefoxAutoUpdate,
+                loc.appSettingsFirefoxAutoUpdateHint,
+              ], by: Joined.term),
+            ], by: Joined.paragraphs),
             below: (firefox, {required download}) => SwitchListTile(
               // start: the title column. end: 24 puts the switch track flush
               // with the refresh icon above it, which sits inset in its

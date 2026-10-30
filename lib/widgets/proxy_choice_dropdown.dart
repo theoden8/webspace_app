@@ -58,7 +58,7 @@ String _nameOr(String name, {required String fallback}) =>
     name.trim().isEmpty ? fallback : name.trim();
 
 /// Why a route taken from the library does not resolve, as the user reads it.
-String libraryProblemLabel(AppLocalizations loc,
+Localized libraryProblemLabel(AppLocalizations loc,
         {required LibraryProblem problem}) =>
     switch (problem) {
       LibraryProblem.none ||
@@ -71,7 +71,7 @@ String libraryProblemLabel(AppLocalizations loc,
 
 /// What a saved proxy or gateway route goes by: its entry's label, or why it
 /// does not resolve (PROXY-030).
-String libraryRouteLabel(AppLocalizations loc,
+Localized libraryRouteLabel(AppLocalizations loc,
     {required UserProxySettings route}) {
   assert(route.type == ProxyType.SAVED || route.type == ProxyType.GATEWAY,
       'only a library route names an entry');
@@ -79,18 +79,18 @@ String libraryRouteLabel(AppLocalizations loc,
   if (problem != LibraryProblem.none) {
     return libraryProblemLabel(loc, problem: problem);
   }
-  return route.type == ProxyType.SAVED
+  return Localized.verbatim(route.type == ProxyType.SAVED
       ? savedProxyLabel(ProxyLibrary.proxy(route.savedProxyId)!)
-      : gatewayLabel(ProxyLibrary.gateway(route.gatewayId)!);
+      : gatewayLabel(ProxyLibrary.gateway(route.gatewayId)!));
 }
 
 /// What a TOR route is called: TOR, or "Tor (external)" where this launch
 /// rides an external tor (TOR-025), so no picker or summary passes one off as
 /// the other. [external] defaults to the running service.
-String torRouteLabel(AppLocalizations loc, {bool? external}) =>
+Localized torRouteLabel(AppLocalizations loc, {bool? external}) =>
     (external ?? TorService.instance.isExternal)
         ? loc.externalTor
-        : ProxyType.TOR.name;
+        : Localized.verbatim(ProxyType.TOR.name);
 
 /// A route as data (L10N-002): the type name and the address.
 String routeLabel(UserProxySettings route) =>

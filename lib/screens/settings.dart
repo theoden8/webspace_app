@@ -522,7 +522,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  String _userScriptsSubtitle() {
+  Localized _userScriptsSubtitle() {
     final loc = AppLocalizations.of(context);
     final siteCount = widget.webViewModel.userScripts.where((s) => s.enabled).length;
     final enabledIds = widget.webViewModel.enabledGlobalScriptIds;
@@ -748,8 +748,10 @@ class _SettingsScreenState extends State<SettingsScreen>
         loc,
         on: [
           for (final b in held)
-            '${sitePermissionBadgeTitle(loc, badge: b)}: '
-                '${sitePermissionBadgeState(b).label(loc)}',
+            Localized.joined([
+              sitePermissionBadgeTitle(loc, badge: b),
+              sitePermissionBadgeState(b).label(loc),
+            ], by: Joined.term),
         ],
         none: loc.permissionsSummaryNothingGranted,
       ),
@@ -947,7 +949,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
     // A proxy type, an address and a country are data, not translatable copy
     // (L10N-002).
-    final on = <String>[
+    final on = <Localized>[
       if (inheritsAppProxy) loc.networkSummaryAppProxy,
       // A saved proxy or gateway goes by its name; one that no longer
       // resolves says why, since the site is blocked until it is fixed
@@ -958,11 +960,11 @@ class _SettingsScreenState extends State<SettingsScreen>
       else if (proxied)
         v.proxyType == ProxyType.TOR
             ? torRouteLabel(loc)
-            : address.isEmpty
+            : Localized.verbatim(address.isEmpty
                 ? v.proxyType.name
-                : '${v.proxyType.name} $address',
+                : '${v.proxyType.name} $address'),
       if (proxied && v.proxyType == ProxyType.TOR && exitCountry != null)
-        exitCountry,
+        Localized.verbatim(exitCountry),
       ?webRtc.summary(loc),
     ];
     return SummaryNavRow(
@@ -1221,7 +1223,7 @@ IconButton zoomStep(IconData icon,
                 context,
                 MaterialPageRoute(
                   builder: (_) => UserScriptsScreen(
-                    title: 'User Scripts',
+                    title: loc.siteSettingsUserScripts,
                     userScripts: widget.webViewModel.userScripts,
                     onSave: (scripts) =>
                         widget.webViewModel.userScripts = scripts,

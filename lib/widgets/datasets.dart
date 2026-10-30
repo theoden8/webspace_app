@@ -82,18 +82,18 @@ class TimezoneDataset extends _LoadedDataset implements ClearableDataset {
   DateTime? get lastUpdated => _cached ? _updated : null;
 
   @override
-  String? status(AppLocalizations loc) => _cached
+  Localized? status(AppLocalizations loc) => _cached
       ? loc.appSettingsZonesCount(compactCount(_zones!))
       : loc.appSettingsNotDownloaded;
 
   @override
-  Future<String> download(AppLocalizations loc) async =>
+  Future<Localized> download(AppLocalizations loc) async =>
       await _service.download()
       ? loc.appSettingsTimezonesLoaded(_service.zoneCount)
       : loc.appSettingsTimezonesDownloadFailed;
 
   @override
-  Future<String?> clear(AppLocalizations loc) async {
+  Future<Localized?> clear(AppLocalizations loc) async {
     await _service.clear();
     return null;
   }
@@ -122,11 +122,11 @@ class ClearUrlsDataset extends _LoadedDataset {
   DateTime? get lastUpdated => _updated;
 
   @override
-  String? status(AppLocalizations loc) =>
+  Localized? status(AppLocalizations loc) =>
       ready ? null : loc.appSettingsNotDownloaded;
 
   @override
-  Future<String> download(AppLocalizations loc) async {
+  Future<Localized> download(AppLocalizations loc) async {
     if (!await _service.downloadRules()) {
       return loc.appSettingsClearUrlsDownloadFailed;
     }
@@ -166,7 +166,7 @@ class DnsBlocklistDataset extends _LoadedDataset {
   DateTime? get lastUpdated => _updated;
 
   @override
-  String? status(AppLocalizations loc) => _level > 0
+  Localized? status(AppLocalizations loc) => _level > 0
       ? loc.appSettingsDnsBlockLevelDomains(
           dnsBlockLevelNames[_level],
           compactCount(_service.domainCount),
@@ -174,7 +174,7 @@ class DnsBlocklistDataset extends _LoadedDataset {
       : loc.appSettingsNotConfigured;
 
   @override
-  Future<String> download(AppLocalizations loc) async {
+  Future<Localized> download(AppLocalizations loc) async {
     final level = _picked;
     if (!await _service.downloadList(level)) {
       return loc.appSettingsDnsBlocklistDownloadFailed;
@@ -215,7 +215,7 @@ class LocalCdnDataset extends _LoadedDataset implements ClearableDataset {
   DateTime? get lastUpdated => _updated;
 
   @override
-  String? status(AppLocalizations loc) {
+  Localized? status(AppLocalizations loc) {
     final progress = _progress;
     if (progress != null) return loc.appSettingsDownloadingProgress(progress);
     return ready
@@ -224,7 +224,7 @@ class LocalCdnDataset extends _LoadedDataset implements ClearableDataset {
   }
 
   @override
-  Future<String> download(AppLocalizations loc) async {
+  Future<Localized> download(AppLocalizations loc) async {
     final downloaded = await _service.downloadPopularResources(
       onProgress: (completed, {required total}) {
         _progress = '$completed/$total';
@@ -237,7 +237,7 @@ class LocalCdnDataset extends _LoadedDataset implements ClearableDataset {
   }
 
   @override
-  Future<String?> clear(AppLocalizations loc) async {
+  Future<Localized?> clear(AppLocalizations loc) async {
     await _service.clearCache();
     await _reload();
     return loc.appSettingsLocalCdnCacheCleared;
@@ -259,18 +259,18 @@ class SiteSearchListDataset extends ChangeNotifier implements ClearableDataset {
   DateTime? get lastUpdated => ready ? _service.lastUpdated : null;
 
   @override
-  String? status(AppLocalizations loc) => ready
+  Localized? status(AppLocalizations loc) => ready
       ? loc.webSearchSiteListCount(compactCount(_service.siteCount))
       : loc.appSettingsNotDownloaded;
 
   @override
-  Future<String> download(AppLocalizations loc) async =>
+  Future<Localized> download(AppLocalizations loc) async =>
       await _service.download()
       ? loc.webSearchSiteListLoaded(compactCount(_service.siteCount))
       : loc.webSearchSiteListFailed;
 
   @override
-  Future<String?> clear(AppLocalizations loc) async {
+  Future<Localized?> clear(AppLocalizations loc) async {
     await _service.clear();
     return null;
   }
@@ -308,18 +308,18 @@ class TopSitesDataset extends ChangeNotifier implements ClearableDataset {
   DateTime? get lastUpdated => ready ? _service.lastUpdated : null;
 
   @override
-  String? status(AppLocalizations loc) => ready
+  Localized? status(AppLocalizations loc) => ready
       ? loc.topSitesCount(compactCount(_service.siteCount))
       : loc.appSettingsNotDownloaded;
 
   @override
-  Future<String> download(AppLocalizations loc) async =>
+  Future<Localized> download(AppLocalizations loc) async =>
       await _service.download()
       ? loc.topSitesLoaded(compactCount(_service.siteCount))
       : loc.topSitesFailed;
 
   @override
-  Future<String?> clear(AppLocalizations loc) async {
+  Future<Localized?> clear(AppLocalizations loc) async {
     await _service.clear();
     return null;
   }
@@ -358,11 +358,11 @@ class FirefoxVersionDataset extends _LoadedDataset {
   DateTime? get lastUpdated => _service.lastChecked;
 
   @override
-  String? status(AppLocalizations loc) =>
+  Localized? status(AppLocalizations loc) =>
       loc.appSettingsFirefoxVersionCurrent(_service.majorVersion);
 
   @override
-  Future<String> download(AppLocalizations loc) async {
+  Future<Localized> download(AppLocalizations loc) async {
     final result = await _service.refresh();
     _notify();
     final version = _service.majorVersion;

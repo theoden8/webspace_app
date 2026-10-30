@@ -80,10 +80,10 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
         _ => null,
       };
 
-  String _bridges(AppLocalizations loc) {
+  Localized _bridges(AppLocalizations loc) {
     final config = TorService.instance.bridges;
     if (!config.enabled || !config.isUsable) return loc.torStateBridgesOff;
-    return config.transport.wireName;
+    return Localized.verbatim(config.transport.wireName);
   }
 
   @override
@@ -135,7 +135,7 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
               leading: const Icon(Icons.lan_outlined),
               title: loc.externalTor,
               hint: loc.externalTorHint,
-              subtitle: externalAddress,
+              subtitle: Localized.verbatim(externalAddress),
             ),
             if (externalTorControlRunsHere) const ExternalTorControlTiles(),
           ],

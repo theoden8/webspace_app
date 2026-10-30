@@ -167,7 +167,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       CurrentLocationStatus.serviceDisabled => loc.locationPickerServiceDisabled,
       CurrentLocationStatus.timeout => loc.locationPickerTimeout,
       CurrentLocationStatus.unsupported => loc.locationPickerUnsupported,
-      CurrentLocationStatus.error => res.message ?? loc.locationPickerError,
+      CurrentLocationStatus.error => switch (res.message) {
+          final message? => Localized.verbatim(message),
+          null => loc.locationPickerError,
+        },
     };
     if (failure != null) {
       ScaffoldMessenger.of(context).toast(failure);

@@ -76,10 +76,10 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
           because: CheckReason.asked,
         );
         messenger.toast(
-          [
+          Localized.joined([
             loc.extensionsUpdatesFound(updates),
             if (unreachable > 0) loc.extensionsSourcesUnreachable(unreachable),
-          ].join('\n'),
+          ], by: Joined.lines),
         );
       } finally {
         if (mounted) setState(() => _reading = false);
@@ -226,11 +226,11 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
     return confirm(
       context,
       title: loc.extensionsAddTitle(manifest.name),
-      body: [
+      body: Localized.joined([
         loc.extensionsVersion(manifest.version),
         if (manifest.description case final description?
             when description.isNotEmpty)
-          description,
+          Localized.verbatim(description),
         permissions.isEmpty
             ? loc.extensionsAsksNothing
             : loc.extensionsAsks(permissions.join(', ')),
@@ -241,7 +241,7 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
         if (manifest.background == ExtensionBackground.persistentPage)
           loc.extensionsAlwaysLoaded,
         if (package.signatureUnchecked) loc.extensionsSignatureUnchecked,
-      ].join('\n\n'),
+      ], by: Joined.paragraphs),
       confirmLabel: loc.commonAdd,
       destructive: false,
     );
@@ -315,7 +315,7 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
         _library.reports.value[entry.id]?.problems ?? const <String>[];
     return SettingTile(
       leading: const Icon(Icons.extension_outlined),
-      title: entry.name,
+      title: Localized.verbatim(entry.name),
       hint: problems.isEmpty
           ? null
           : loc.extensionsProblemsHint(problems.join('\n\n')),

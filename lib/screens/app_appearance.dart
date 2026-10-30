@@ -38,8 +38,10 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
   }
 
   /// A language override's name; the empty tag follows the system.
-  String _languageName(AppLocalizations loc, {required String tag}) =>
-      tag.isEmpty ? loc.appSettingsLanguageSystem : languageLabelForTag(tag);
+  Localized _languageName(AppLocalizations loc, {required String tag}) =>
+      tag.isEmpty
+          ? loc.appSettingsLanguageSystem
+          : Localized.verbatim(languageLabelForTag(tag));
 
   Future<void> _pickAppLanguage() async {
     final loc = AppLocalizations.of(context);

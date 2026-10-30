@@ -56,11 +56,11 @@ class _ExternalTorControlTilesState extends State<ExternalTorControlTiles> {
     await TorService.instance.externalAddressChanged();
   }
 
-  String _summary(AppLocalizations loc,
+  Localized _summary(AppLocalizations loc,
       {required ExternalTorControlState state}) {
     if (_endpoint.isEmpty) return loc.externalTorControlNotSet;
     return switch (state) {
-      TorControlIdle() || TorControlAsking() => _endpoint,
+      TorControlIdle() || TorControlAsking() => Localized.verbatim(_endpoint),
       TorControlAttached() => loc.externalTorControlConnected,
       TorControlNotAttached(:final refusal) => switch (refusal) {
           TorControlRefusal.unreachable => loc.externalTorControlUnreachable,

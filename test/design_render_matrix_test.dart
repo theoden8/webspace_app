@@ -26,6 +26,8 @@ import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
+
 import 'helpers/localized.dart';
 
 /// Narrow is a small phone in portrait; wide is a tablet pane. Both are real
@@ -46,16 +48,16 @@ final Map<String, Widget Function()> _subjects = {
           'https://example.org/a/very/long/path/that/keeps/going/and/going?query=1&more=2',
       onUrlSubmitted: _ignore),
   'setting-toggle (inherited)': () => SettingTile(
-        title: 'Tabs',
-        hint: 'Each site opens links in tabs of its own.',
+        title: const Localized.verbatim('Tabs'),
+        hint: const Localized.verbatim('Each site opens links in tabs of its own.'),
         control: ScopedToggle(value: true,
             choice: const FollowApp(),
             source: FollowSource.app,
             onChoice: (_) {}),
       ),
   'setting-toggle (override)': () => SettingTile(
-        title: 'Tabs',
-        hint: 'Each site opens links in tabs of its own.',
+        title: const Localized.verbatim('Tabs'),
+        hint: const Localized.verbatim('Each site opens links in tabs of its own.'),
         control: ScopedToggle(value: true,
             choice: const Own(true),
             source: FollowSource.app,

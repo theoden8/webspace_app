@@ -137,7 +137,7 @@ SitePermissionState sitePermissionBadgeState(SitePermissionBadge badge) =>
     };
 
 /// The setting a badge mirrors, as its settings row titles it.
-String sitePermissionBadgeTitle(AppLocalizations loc,
+Localized sitePermissionBadgeTitle(AppLocalizations loc,
         {required SitePermissionBadge badge}) =>
     switch (badge) {
       CaptureBadge(:final kind) => kind.text(loc).title,

@@ -107,7 +107,7 @@ class LogLines<T> extends StatelessWidget {
 Future<void> copyLogs(
   BuildContext context, {
   required List<LogEntry> entries,
-  required String Function(int sensitive) consent,
+  required Localized Function(int sensitive) consent,
   required String Function({required bool includeSensitive}) format,
 }) async {
   final loc = AppLocalizations.of(context);
