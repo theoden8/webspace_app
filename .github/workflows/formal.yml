@@ -49,9 +49,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # A warm run's memo leaves its shards only their start-up to do
-        # (12 to 15 s each), so only a cold run splits.
-        shard: ${{ fromJSON(inputs.cold && '[0, 1, 2, 3]' || '[0]') }}
+        # Warm or cold alike: a change to the model misses the memo for every
+        # world that reads it, and one runner then checks them all in turn
+        # (four hours for one invariant). A shard with nothing to run is done
+        # in its start-up.
+        shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-formal
@@ -59,27 +61,33 @@ jobs:
         with:
           name: formal-model
           path: build/formal/model
+      # One memo for every shard, kept by the memo job: a check's shard is
+      # its place in the list modulo four, which a new check moves.
       - id: formal-cache
         uses: actions/cache/restore@v4
         if: ${{ !inputs.cold }}
         with:
           path: ~/.cache/webspace-formal
-          key: formal-v2-${{ runner.os }}-${{ strategy.job-total }}-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: formal-v3-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            formal-v2-${{ runner.os }}-${{ strategy.job-total }}-${{ strategy.job-index }}-
-            formal-${{ runner.os }}-
+            formal-v3-${{ runner.os }}-
+            formal-v2-${{ runner.os }}-1-0-
       - name: Restore from master's newest artifact when the cache is gone
         if: ${{ !inputs.cold && steps.formal-cache.outputs.cache-matched-key == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        # First master's memos from when warm runs took four shards, until
-        # they expire: an entry is keyed by what its check reads, so a merged
+        # First master's memo from when one runner checked a warm run, until
+        # it expires: an entry is keyed by what its check reads, so a merged
         # one can only add hits.
         run: |-
-          for i in 0 1 2 3; do
-            scripts/restore_formal_artifact.sh "formal-memo-$i-of-4" "$HOME/.cache/webspace-formal"
+          for name in formal-memo-0-of-1 formal-memo; do
+            scripts/restore_formal_artifact.sh "$name" "$HOME/.cache/webspace-formal"
           done
-          scripts/restore_formal_artifact.sh "formal-memo-${{ strategy.job-index }}-of-${{ strategy.job-total }}" "$HOME/.cache/webspace-formal"
+      - name: Note the memo before the checks
+        run: |
+          mkdir -p "$HOME/.cache/webspace-formal/memo"
+          ls "$HOME/.cache/webspace-formal/memo" | LC_ALL=C sort >"$RUNNER_TEMP/memo-before"
+          touch "$RUNNER_TEMP/memo-marker"
       - id: formal-verify
         run: |
           if [ "${{ inputs.cold }}" = true ]; then rm -rf "$HOME/.cache/webspace-formal"; fi
@@ -88,20 +96,26 @@ jobs:
         env:
           FORMAL_SHARD: ${{ strategy.job-index }}/${{ strategy.job-total }}
           FORMAL_RERUN: ${{ inputs.cold && '1' || '' }}
-      - uses: actions/cache/save@v4
+      # What this shard added to the memo and the entries it used, which the
+      # memo job keeps, so a shard that failed or timed out keeps what it ran.
+      - name: Collect what the checks added to the memo
+        if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
+        run: |
+          cd "$HOME/.cache/webspace-formal"
+          out="$RUNNER_TEMP/memo-new"
+          mkdir -p "$out" memo times
+          ls memo | LC_ALL=C sort | LC_ALL=C comm -13 "$RUNNER_TEMP/memo-before" - | sed 's|^|memo/|' >"$out/added"
+          find times -type f -newer "$RUNNER_TEMP/memo-marker" >>"$out/added"
+          find memo -type f -newer "$RUNNER_TEMP/memo-marker" >"$out/used"
+          tar -cf "$out/added.tar" -T "$out/added"
+      - uses: actions/upload-artifact@v4
         if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
         with:
-          path: ~/.cache/webspace-formal
-          key: formal-v2-${{ runner.os }}-${{ strategy.job-total }}-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
-        with:
-          name: formal-memo-${{ strategy.job-index }}-of-${{ strategy.job-total }}
-          path: ~/.cache/webspace-formal
-          include-hidden-files: true
-          retention-days: 14
+          name: formal-memo-new-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/memo-new
+          retention-days: 1
           overwrite: true
-          if-no-files-found: ignore
+          if-no-files-found: error
       # A shard that failed or timed out still uploads what it ran; a re-run
       # of it replaces that upload, or the finish job reads both.
       - uses: actions/upload-artifact@v4
@@ -111,6 +125,60 @@ jobs:
           path: build/formal/model-shards/local
           if-no-files-found: error
           overwrite: true
+  memo:
+    name: Keep the TLC memo
+    needs: models
+    if: ${{ always() && needs.models.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: formal-cache
+        uses: actions/cache/restore@v4
+        if: ${{ !inputs.cold }}
+        with:
+          path: ~/.cache/webspace-formal
+          key: formal-v3-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            formal-v3-${{ runner.os }}-
+            formal-v2-${{ runner.os }}-1-0-
+      - name: Restore from master's newest artifact when the cache is gone
+        if: ${{ !inputs.cold && steps.formal-cache.outputs.cache-matched-key == '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |-
+          for name in formal-memo-0-of-1 formal-memo; do
+            scripts/restore_formal_artifact.sh "$name" "$HOME/.cache/webspace-formal"
+          done
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: formal-memo-new-*
+          path: ${{ runner.temp }}/memo-new
+      # Every shard's additions, and a touch for each entry a shard used, so
+      # an entry checks still read is not dropped as a fortnight old.
+      - id: formal-merge
+        run: |
+          memo="$HOME/.cache/webspace-formal"
+          if [ "${{ inputs.cold }}" = true ]; then rm -rf "$memo"; fi
+          mkdir -p "$memo"
+          shopt -s nullglob
+          for shard in "$RUNNER_TEMP"/memo-new/*/; do
+            tar -xf "$shard/added.tar" -C "$memo"
+            (cd "$memo" && xargs -r touch -c <"$shard/used")
+          done
+      - uses: actions/cache/save@v4
+        if: ${{ always() && steps.formal-merge.outcome != '' && steps.formal-merge.outcome != 'skipped' }}
+        with:
+          path: ~/.cache/webspace-formal
+          key: formal-v3-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.formal-merge.outcome != '' && steps.formal-merge.outcome != 'skipped' }}
+        with:
+          name: formal-memo
+          path: ~/.cache/webspace-formal
+          include-hidden-files: true
+          retention-days: 14
+          overwrite: true
+          if-no-files-found: ignore
   steps:
     name: Replay every step
     needs: [prepare, schedules]
