@@ -107,6 +107,83 @@ void main() {
     });
   });
 
+  group('the on-screen keyboard (NAV-016)', () {
+    /// The input type the platform was last told the field takes: none while
+    /// the keyboard is held back.
+    String? inputType(WidgetTester tester) =>
+        switch (tester.testTextInput.setClientArgs?['inputType']) {
+          {'name': final String name} => name,
+          _ => null,
+        };
+    bool keyboardUp(WidgetTester tester) =>
+        tester.testTextInput.isVisible &&
+        inputType(tester) != 'TextInputType.none';
+
+    testWidgets('comes up as focus lands on a field on every other device',
+        (tester) async {
+      await tester.pumpWidget(_app(form(), remote: false));
+      below.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+
+      expect(field.hasPrimaryFocus, isTrue);
+      expect(keyboardUp(tester), isTrue);
+    });
+
+    testWidgets('waits for OK in a field the D-pad lands on, and is held back '
+        'again once focus leaves it', (tester) async {
+      await tester.pumpWidget(_app(form()));
+      below.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+      expect(keyboardUp(tester), isFalse);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pump();
+      expect(keyboardUp(tester), isTrue);
+      expect(field.hasPrimaryFocus, isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(below.hasPrimaryFocus, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+      expect(keyboardUp(tester), isFalse,
+          reason: 'OK opened it for one visit to the field');
+    });
+
+    testWidgets('waits for OK in a field that takes focus by itself',
+        (tester) async {
+      await tester.pumpWidget(_app(TextField(focusNode: field, autofocus: true)));
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+      expect(keyboardUp(tester), isFalse);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(keyboardUp(tester), isTrue);
+    });
+
+    testWidgets('OK on any other control goes on to it', (tester) async {
+      var pressed = 0;
+      await tester.pumpWidget(_app(TextButton(
+        focusNode: below,
+        onPressed: () => pressed++,
+        child: const Text('go'),
+      )));
+      below.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pump();
+      expect(pressed, 1);
+    });
+  });
+
   testWidgets('Left and Right stay with the caret', (tester) async {
     await tester.pumpWidget(_app(form()));
     field.requestFocus();

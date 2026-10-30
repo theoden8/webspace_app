@@ -744,6 +744,9 @@ since a remote has no long press, no Menu key and nothing to drag with:
 
 - Up and Down SHALL leave a one-line text field (the library's search, the URL bar);
   Left and Right stay with its caret, and a field of several lines keeps all four.
+- The on-screen keyboard SHALL stay down as focus lands on a text field, by the D-pad or
+  by the field taking focus itself (a dialog's), so the D-pad passes over a field as over
+  any control; OK in the field SHALL bring it up, for that field until focus leaves it.
 - The library and the sites are kept mounted one over the other; the one not on screen
   SHALL take no focus, so an arrow never goes on to a hidden page or onto an icon behind
   a site.
