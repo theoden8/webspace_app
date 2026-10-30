@@ -3,18 +3,30 @@ description: >-
   KVM, the SDK's platform tools and a booted-once AVD snapshot for
   reactivecircus/android-emulator-runner, shared by the emulator scenarios and
   the Android screenshots. A run step that boots it passes the same api-level,
-  target, arch, profile and disk-size, or the snapshot is not reused. The
-  inputs default to the phone AVD; the Android TV tier names its own.
+  target, arch, profile, channel, avd-name and disk-size, or the snapshot is
+  not reused. The inputs default to the phone AVD; the Android TV and desktop
+  tiers name their own.
 inputs:
   api-level:
     description: The AVD's API level.
     default: '35'
   target:
-    description: The system image, `default` (AOSP) or `android-tv`.
+    description: The system image, `default` (AOSP), `android-tv` or `android-desktop`.
     default: default
   profile:
     description: The AVD's device profile.
     default: pixel_5
+  channel:
+    description: The SDK channel the system image is published on.
+    default: stable
+  avd-name:
+    description: >-
+      The AVD's name. A job that boots two images names each, so both
+      snapshots live side by side.
+    default: test
+  enable-hw-keyboard:
+    description: Whether the AVD has a hardware keyboard.
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -41,7 +53,7 @@ runs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-api${{ inputs.api-level }}-x86_64-${{ inputs.target == 'default' && 'aosp' || inputs.target }}-${{ inputs.profile }}-v1
+        key: avd-api${{ inputs.api-level }}-x86_64-${{ inputs.target == 'default' && 'aosp' || inputs.target }}-${{ inputs.profile }}${{ inputs.avd-name != 'test' && format('-{0}', inputs.avd-name) || '' }}-v1
 
     - name: Pre-warm AVD snapshot
       if: steps.avd-cache.outputs.cache-hit != 'true'
@@ -51,6 +63,9 @@ runs:
         target: ${{ inputs.target }}
         arch: x86_64
         profile: ${{ inputs.profile }}
+        channel: ${{ inputs.channel }}
+        avd-name: ${{ inputs.avd-name }}
+        enable-hw-keyboard: ${{ inputs.enable-hw-keyboard }}
         disk-size: 4096M
         force-avd-creation: false
         emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim

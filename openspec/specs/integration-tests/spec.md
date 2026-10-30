@@ -1088,6 +1088,37 @@ Linux and macOS loops leave it out.
 - **AND** Up pressed until the frame has no use for it moves focus back to the app bar,
   though every key went to the frame's document and none to the page's
 
+### Requirement: INTEG-018 — Android desktop window and keyboard scenarios
+
+The `android-tv` job SHALL, after the TV's scenarios, boot an Android desktop emulator
+image (`android-desktop`, API 37.1 from the beta channel, `desktop_small`, a hardware
+keyboard) and run
+[`integration_test/android_desktop_test.dart`](../../../integration_test/android_desktop_test.dart)
+through [`scripts/run_android_desktop_tests.sh`](../../../scripts/run_android_desktop_tests.sh),
+which sets `WS_DESKTOP_TIER`. The test SHALL type a keyboard's keys into the activity as
+Android delivers them (`KeyboardInputPlugin`'s `debugTypeKey`, debuggable builds only), so
+each key takes the real path through `FlutterView` to the System WebView, and SHALL read
+the window's layout from `WindowCaptionPlugin`'s `debugLayout`, debuggable builds only.
+Off that tier the file SHALL skip, and the Linux and macOS loops leave it out.
+
+#### Scenario: What only a desktop window answers
+
+- **GIVEN** the Android desktop emulator
+- **WHEN** the tier runs
+- **THEN** `RemoteInput` reports no remote, `KeyboardInput` a keyboard, and a page takes
+  a keyboard's keys (NAV-019)
+- **AND** the app's content starts at the window's top, under a transparent header, with a
+  top padding of the header's height once, and the header's buttons light over the dark
+  theme and dark over the light one
+
+#### Scenario: The keyboard through the real key path
+
+- **GIVEN** the Android desktop emulator
+- **WHEN** Ctrl-T and Ctrl-Q are typed
+- **THEN** the shortcuts are asked for New tab and for nothing, and the menus write Ctrl+T
+- **AND** Tab from a button gives a page's webview native focus, Left moves the caret of
+  its field and Tab moves to its next field, the button never taking focus back
+
 ### Requirement: INTEG-014 — Offline and degraded-network scenarios
 
 `integration_test/offline_connection_test.dart` SHALL drive the offline,
@@ -1276,6 +1307,10 @@ macOS runner exercises the failure assertions for real.
   — INTEG-017: a TV remote's D-pad on the Android TV emulator, run by
   [`scripts/run_android_tv_tests.sh`](../../../scripts/run_android_tv_tests.sh) in the
   `android-tv` job
+- [`integration_test/android_desktop_test.dart`](../../../integration_test/android_desktop_test.dart)
+  — INTEG-018: an Android desktop window and its keyboard on the Android desktop emulator,
+  run by [`scripts/run_android_desktop_tests.sh`](../../../scripts/run_android_desktop_tests.sh)
+  in the `android-tv` job after the TV's
 - [`scripts/run_android_lifecycle_tests.sh`](../../../scripts/run_android_lifecycle_tests.sh)
   — INTEG-011: adb-driven lifecycle tier (warm start, bfcache back,
   activity recreation, white control); INTEG-012: background-refresh

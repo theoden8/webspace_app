@@ -865,8 +865,10 @@ Where a remote drives the device, NAV-016 applies instead: its D-pad keeps its e
 Test: [test/page_focus_test.dart](../../../test/page_focus_test.dart) (the page's keys),
 [test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.dart) (Control,
 no Ctrl-Q, the keys written), [test/window_caption_test.dart](../../../test/window_caption_test.dart)
-(the header's buttons). The header's transparency and the padding Flutter gives it are
-the platform's, which no emulator tier reaches yet.
+(the header's buttons),
+[integration_test/android_desktop_test.dart](../../../integration_test/android_desktop_test.dart)
+(the Android desktop emulator, INTEG-018: the header laid out once, the keys through
+the real key path).
 
 ## Race Condition Guards
 

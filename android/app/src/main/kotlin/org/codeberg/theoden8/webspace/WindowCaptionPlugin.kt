@@ -1,7 +1,10 @@
 package org.codeberg.theoden8.webspace
 
 import android.app.Activity
+import android.content.pm.ApplicationInfo
 import android.os.Build
+import android.view.View
+import android.view.WindowInsets
 import android.view.WindowInsetsController
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -37,9 +40,40 @@ class WindowCaptionPlugin(private val activity: Activity, flutterEngine: Flutter
                         result.success(null)
                     }
                 }
+                "debugLayout" -> {
+                    // The Android desktop tier (INTEG-018) reads where the
+                    // content sits under the header. Debuggable builds only.
+                    val debuggable =
+                        (activity.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    if (!debuggable) {
+                        result.error("UNAVAILABLE", "debuggable builds only", null)
+                    } else {
+                        result.success(layout())
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
+    }
+
+    /**
+     * The header's height and where the content starts, in the window's
+     * pixels, and the appearance the window was given. Laid out below an
+     * opaque header the content starts at the header's height; under a
+     * transparent one at 0.
+     */
+    private fun layout(): Map<String, Int> {
+        val at = IntArray(2)
+        activity.findViewById<View>(android.R.id.content).getLocationInWindow(at)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return mapOf("captionTop" to 0, "contentTop" to at[1], "appearance" to 0)
+        }
+        val insets = activity.window.decorView.rootWindowInsets
+        return mapOf(
+            "captionTop" to (insets?.getInsets(WindowInsets.Type.captionBar())?.top ?: 0),
+            "contentTop" to at[1],
+            "appearance" to (controller()?.systemBarsAppearance ?: 0),
+        )
     }
 
     /** Dark buttons over a light app, light ones over a dark app. */
