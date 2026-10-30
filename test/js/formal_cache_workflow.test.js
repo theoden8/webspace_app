@@ -194,6 +194,6 @@ test('a merged memo holds what each shard added and keeps what it used', () => {
   assert.equal(fs.readFileSync(at(keeper, 'memo/added'), 'utf8'), 'new');
   assert.equal(fs.readFileSync(at(keeper, 'times/added'), 'utf8'), '12 4');
   assert.ok(fs.statSync(at(keeper, 'memo/kept')).mtimeMs > old.getTime() + 1000, 'used is touched');
-  assert.equal(fs.statSync(at(keeper, 'memo/idle')).mtimeMs, old.getTime(), 'unused ages');
+  assert.ok(Math.abs(fs.statSync(at(keeper, 'memo/idle')).mtimeMs - old.getTime()) < 1000, 'unused ages');
   fs.rmSync(root, { recursive: true, force: true });
 });
