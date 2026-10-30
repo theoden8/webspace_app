@@ -391,7 +391,7 @@ class SiteNetworkController {
               ProxyType.DEFAULT) {
         continue;
       }
-      m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      m.disposeWebView(commit: const Commit.environment(Environment.letGo));
       rebuilt = true;
     }
     if (rebuilt) _host.rebuild();
