@@ -15,8 +15,7 @@ in site settings.
 The screen SHALL present, in order: an "Opening and display" group holding
 Always open Home, Kiosk mode, Full screen mode and HTML caching; then a "Link
 handling" group holding the External links choice (BEHAV-004), Sign-in popups
-where the platform offers them (nested-url-blocking NESTED-014) and the site's
-domain-claim editor. There is no Block auto-redirects switch: every site
+(nested-url-blocking NESTED-014) and the site's domain-claim editor. There is no Block auto-redirects switch: every site
 blocks gesture-less cross-domain navigations (nested-url-blocking NESTED-004). The claims editor renders last
 in that group because the External links hint tells the reader to add domains
 there, and a reader following that sentence should not have to leave the
@@ -168,8 +167,8 @@ Kiosk mode still on
 App Settings → Behaviour SHALL group its app defaults under "Opening and
 navigation": Tabs (on initially),
 External links (Open in the app initially), Route links to my sites (off
-initially, shown under in-app links) and, where the platform offers them
-(nested-url-blocking NESTED-014), Sign-in popups (on initially). New sites SHALL follow these live
+initially, shown under in-app links) and Sign-in popups (on initially,
+nested-url-blocking NESTED-014). New sites SHALL follow these live
 defaults. The External links picker SHALL offer App default and explicit
 choices. Routing SHALL be a plain on/off switch with no separate inheritance
 state or reset gesture; it inherits only through External links → App default.

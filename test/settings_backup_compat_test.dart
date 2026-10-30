@@ -161,6 +161,8 @@ const Map<String, String> _retiredKeys = {
       'the Experimental group; there is no switch to restore',
   'experimentalContentRuleLists': 'CB-020: WebKit content blocking graduated '
       'out of the Experimental group; there is no switch to restore',
+  'experimentalSignInPopups': 'NESTED-014: sign-in popups graduated out of '
+      'the Experimental group; the app and each site have their own switch',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

@@ -3,9 +3,7 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/services/webview_config.dart';
@@ -34,26 +32,10 @@ enum PopupKind {
   /// popups switch is on (NESTED-014).
   signIn;
 
-  /// Whether this host opens sign-in windows only with the Sign-in popups
-  /// experiment on (DEVTOOLS-011): Android. Everywhere else they graduated.
-  static bool get signInExperimental =>
-      debugSignInExperimental ?? hostIsAndroid;
-
-  /// Lets a test run either rule whatever its host.
-  @visibleForTesting
-  static bool? debugSignInExperimental;
-
-  /// Whether this host opens sign-in windows as popups at all, so the app's
-  /// and each site's Sign-in popups switches apply.
-  static bool get signInOffered =>
-      !signInExperimental ||
-      ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.signInPopups);
-
   /// Whether a site webview built now opens sign-in windows as popups, by the
   /// site's [choice] or, while it follows the app, the app's.
   static bool signInOpens({required Scoped<bool> choice}) =>
-      signInOffered && choice.resolve(AppPref.signInPopups.value);
+      choice.resolve(AppPref.signInPopups.value);
 
   /// Identity providers' sign-in hosts, each with its subdomains.
   static const _signInHosts = [

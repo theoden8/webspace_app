@@ -9,7 +9,6 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/desktop_window.dart';
-import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/setting_labels.dart';
@@ -236,12 +235,11 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
                 control: const PrefToggle(AppPref.routeOutboundLinks),
               ),
             ),
-          if (PopupKind.signInOffered)
-            SettingTile(
-              title: loc.siteSettingsSignInPopups,
-              hint: loc.siteSettingsSignInPopupsHint,
-              control: const PrefToggle(AppPref.signInPopups),
-            ),
+          SettingTile(
+            title: loc.siteSettingsSignInPopups,
+            hint: loc.siteSettingsSignInPopupsHint,
+            control: const PrefToggle(AppPref.signInPopups),
+          ),
           SettingTile(
             title: loc.appSettingsFullscreenOnShortcut,
             hint: loc.appSettingsFullscreenOnShortcutHint,

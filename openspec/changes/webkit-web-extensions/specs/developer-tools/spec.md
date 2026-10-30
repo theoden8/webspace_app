@@ -20,7 +20,6 @@ The features are:
 | Webspace icon groups (`webspaces` WEBSPACE-002) | Alternative design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
-| Android: a sign-in window the user's tap opened, shown as a real popup (`nested-url-blocking` NESTED-014) | Sign-in popups | off | `PopupKind.signInOffered`, read when a site's webview is built and when a Behaviour screen is built |
 | iOS 18.4+ and macOS 15.4+: browser extensions the user imports, switched on per site (`web-extensions` WEBEXT-001) | Web extensions | off | `WebViewModel.sitePosture`, read when a site's webview is built, and the App Settings and site Settings screens, read when they are built |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
@@ -39,7 +38,7 @@ Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were
 
 WebKit content rule lists on iOS and macOS (`content-blocker` CB-020) were in the group under the WebKit content blocking switch; they graduated there, and attach whenever a site's content blocker runs. The switch stays for Linux, where the lists are still an experiment, and is offered only there.
 
-Sign-in popups on iOS, macOS and Linux (`nested-url-blocking` NESTED-014) were in the group under the Sign-in popups switch; they graduated there, and follow the app's and each site's Sign-in popups switches in Behaviour with developer mode on or off. The switch stays for Android, where they are still an experiment, and is offered only there.
+Sign-in popups (`nested-url-blocking` NESTED-014) were in the group under the Sign-in popups switch; they graduated on iOS, macOS and Linux first and then on Android, and follow the app's and each site's Sign-in popups switches in Behaviour with developer mode on or off. The switch's pref (`experimentalSignInPopups`) is no longer read.
 
 #### Scenario: The group appears with developer mode
 
@@ -52,7 +51,7 @@ Sign-in popups on iOS, macOS and Linux (`nested-url-blocking` NESTED-014) were i
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Alternative design, Texture page rendering and Sign-in popups, off
+- **THEN** the Experimental group lists Alternative design and Texture page rendering, off
 
 #### Scenario: A platform without the router
 
