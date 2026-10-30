@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Spustiť {name} na každom webe?",
   "extensionsEverySiteConsentBody": "Každý web bez vlastnej voľby ho spustí od svojho ďalšieho načítania. Na každom má prístup len k stránkam tohto webu.",
   "extensionsAsksSection": "O čo žiada",
+  "extensionsNotLoadedHere": "Na tomto zariadení nefunguje",
   "extensionsProblemsSection": "Nahlásil WebKit",
   "extensionsRefused": "Neimportované: {reason}",
   "extensionsRefusedNotAPackage": "súbor nie je balík .crx, .xpi ani .zip",

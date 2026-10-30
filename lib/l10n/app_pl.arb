@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Uruchomić {name} na każdej witrynie?",
   "extensionsEverySiteConsentBody": "Każda witryna bez własnego wyboru uruchamia je od swojego następnego wczytania. Na każdej ma dostęp tylko do stron tej witryny.",
   "extensionsAsksSection": "O co prosi",
+  "extensionsNotLoadedHere": "Nie działa na tym urządzeniu",
   "extensionsProblemsSection": "Zgłoszone przez WebKit",
   "extensionsRefused": "Nie zaimportowano: {reason}",
   "extensionsRefusedNotAPackage": "plik nie jest pakietem .crx, .xpi ani .zip",

@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Tħaddem {name} fuq kull sit?",
   "extensionsEverySiteConsentBody": "Kull sit li m'għandux għażla tiegħu jħaddimha mit-tagħbija li jmiss. Fuq kull wieħed, tilħaq biss il-paġni ta' dak is-sit.",
   "extensionsAsksSection": "X'titlob",
+  "extensionsNotLoadedHere": "Ma jaħdimx fuq dan it-tagħmir",
   "extensionsProblemsSection": "Irrappurtat minn WebKit",
   "extensionsRefused": "Mhux importata: {reason}",
   "extensionsRefusedNotAPackage": "il-fajl mhuwiex pakkett .crx, .xpi jew .zip",

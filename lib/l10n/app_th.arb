@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "เรียกใช้ {name} บนทุกเว็บไซต์ไหม",
   "extensionsEverySiteConsentBody": "ทุกเว็บไซต์ที่ไม่มีตัวเลือกของตัวเองจะเรียกใช้ส่วนขยายนี้ตั้งแต่การโหลดครั้งถัดไป ในแต่ละเว็บไซต์ ส่วนขยายจะเข้าถึงได้เฉพาะหน้าของเว็บไซต์นั้น",
   "extensionsAsksSection": "สิ่งที่ขอ",
+  "extensionsNotLoadedHere": "ใช้งานบนอุปกรณ์นี้ไม่ได้",
   "extensionsProblemsSection": "รายงานโดย WebKit",
   "extensionsRefused": "ไม่ได้นำเข้า: {reason}",
   "extensionsRefusedNotAPackage": "ไฟล์ไม่ใช่แพ็กเกจ .crx, .xpi หรือ .zip",

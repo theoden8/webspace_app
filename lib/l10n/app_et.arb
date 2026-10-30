@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Kas käitada {name} kõigil saitidel?",
   "extensionsEverySiteConsentBody": "Iga sait, millel pole oma valikut, käitab seda alates järgmisest laadimisest. Igal neist pääseb see ligi ainult selle saidi lehtedele.",
   "extensionsAsksSection": "Mida see küsib",
+  "extensionsNotLoadedHere": "Ei tööta selles seadmes",
   "extensionsProblemsSection": "WebKit teatas",
   "extensionsRefused": "Ei imporditud: {reason}",
   "extensionsRefusedNotAPackage": "fail ei ole .crx-, .xpi- ega .zip-pakett",

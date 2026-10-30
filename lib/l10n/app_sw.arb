@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Endesha {name} kwenye kila tovuti?",
   "extensionsEverySiteConsentBody": "Kila tovuti isiyo na chaguo lake yenyewe huendesha kiendelezi hiki kuanzia upakiaji wake unaofuata. Kwenye kila moja, kinafikia kurasa za tovuti hiyo pekee.",
   "extensionsAsksSection": "Kinachoomba",
+  "extensionsNotLoadedHere": "Haifanyi kazi kwenye kifaa hiki",
   "extensionsProblemsSection": "Vilivyoripotiwa na WebKit",
   "extensionsRefused": "Haijaletwa: {reason}",
   "extensionsRefusedNotAPackage": "faili si kifurushi cha .crx, .xpi au .zip",

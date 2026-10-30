@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Покренути {name} на сваком сајту?",
   "extensionsEverySiteConsentBody": "Сваки сајт без сопственог избора покреће га од свог следећег учитавања. На сваком досеже само странице тог сајта.",
   "extensionsAsksSection": "Шта тражи",
+  "extensionsNotLoadedHere": "Не ради на овом уређају",
   "extensionsProblemsSection": "Пријавио WebKit",
   "extensionsRefused": "Није увезено: {reason}",
   "extensionsRefusedNotAPackage": "фајл није пакет .crx, .xpi или .zip",

@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} をすべてのサイトで実行しますか？",
   "extensionsEverySiteConsentBody": "独自の選択がないすべてのサイトで、次回の読み込みから実行されます。各サイトでは、そのサイトのページにのみアクセスします。",
   "extensionsAsksSection": "要求する内容",
+  "extensionsNotLoadedHere": "このデバイスでは動作しません",
   "extensionsProblemsSection": "WebKit からの報告",
   "extensionsRefused": "インポートされませんでした: {reason}",
   "extensionsRefusedNotAPackage": "ファイルが .crx、.xpi、.zip パッケージではありません",

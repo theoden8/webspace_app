@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "გაეშვას {name} ყველა საიტზე?",
   "extensionsEverySiteConsentBody": "ყველა საიტი, რომელსაც საკუთარი არჩევანი არ აქვს, მას შემდეგი ჩატვირთვიდან უშვებს. თითოეულზე ის მხოლოდ ამ საიტის გვერდებს სწვდება.",
   "extensionsAsksSection": "რას ითხოვს",
+  "extensionsNotLoadedHere": "ამ მოწყობილობაზე არ მუშაობს",
   "extensionsProblemsSection": "WebKit-მა შეატყობინა",
   "extensionsRefused": "არ დაიმპორტდა: {reason}",
   "extensionsRefusedNotAPackage": "ფაილი არ არის .crx, .xpi ან .zip პაკეტი",

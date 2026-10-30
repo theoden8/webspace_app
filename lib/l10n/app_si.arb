@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} සෑම අඩවියකම ධාවනය කරන්නද?",
   "extensionsEverySiteConsentBody": "තමන්ගේම තේරීමක් නැති සෑම අඩවියක්ම එහි ඊළඟ පූරණයේ සිට එය ධාවනය කරයි. සෑම එකකම, එය ළඟා වන්නේ එම අඩවියේ පිටුවලට පමණි.",
   "extensionsAsksSection": "එය ඉල්ලන දේ",
+  "extensionsNotLoadedHere": "මෙම උපාංගයේ ක්‍රියා නොකරයි",
   "extensionsProblemsSection": "WebKit වාර්තා කළ දේ",
   "extensionsRefused": "ආයාත නොකෙරිණි: {reason}",
   "extensionsRefusedNotAPackage": "ගොනුව .crx, .xpi හෝ .zip පැකේජයක් නොවේ",

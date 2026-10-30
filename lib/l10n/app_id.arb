@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Jalankan {name} di setiap situs?",
   "extensionsEverySiteConsentBody": "Setiap situs yang tidak punya pilihan sendiri menjalankannya mulai pemuatan berikutnya. Di setiap situs, ekstensi hanya menjangkau halaman situs itu.",
   "extensionsAsksSection": "Yang diminta",
+  "extensionsNotLoadedHere": "Tidak berjalan di perangkat ini",
   "extensionsProblemsSection": "Dilaporkan oleh WebKit",
   "extensionsRefused": "Tidak diimpor: {reason}",
   "extensionsRefusedNotAPackage": "berkas bukan paket .crx, .xpi, atau .zip",

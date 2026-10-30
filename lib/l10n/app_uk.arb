@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Запустити {name} на кожному сайті?",
   "extensionsEverySiteConsentBody": "Кожен сайт без власного вибору запускає його з наступного завантаження. На кожному воно має доступ лише до сторінок цього сайту.",
   "extensionsAsksSection": "Що воно запитує",
+  "extensionsNotLoadedHere": "Не працює на цьому пристрої",
   "extensionsProblemsSection": "Повідомлено WebKit",
   "extensionsRefused": "Не імпортовано: {reason}",
   "extensionsRefusedNotAPackage": "файл не є пакетом .crx, .xpi або .zip",

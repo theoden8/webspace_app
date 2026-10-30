@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Suoritetaanko {name} kaikilla sivustoilla?",
   "extensionsEverySiteConsentBody": "Jokainen sivusto, jolla ei ole omaa valintaa, suorittaa sitä seuraavasta latauksestaan alkaen. Jokaisella se ulottuu vain sen sivuston sivuihin.",
   "extensionsAsksSection": "Mitä se pyytää",
+  "extensionsNotLoadedHere": "Ei toimi tällä laitteella",
   "extensionsProblemsSection": "WebKit raportoi",
   "extensionsRefused": "Ei tuotu: {reason}",
   "extensionsRefusedNotAPackage": "tiedosto ei ole .crx-, .xpi- tai .zip-paketti",

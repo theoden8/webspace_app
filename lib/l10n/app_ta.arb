@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "ஒவ்வொரு தளத்திலும் {name} ஐ இயக்கவா?",
   "extensionsEverySiteConsentBody": "சொந்தத் தேர்வு இல்லாத ஒவ்வொரு தளமும் அடுத்த ஏற்றத்திலிருந்து இதை இயக்கும். ஒவ்வொன்றிலும் அந்தத் தளத்தின் பக்கங்களை மட்டுமே இது அணுகும்.",
   "extensionsAsksSection": "இது கேட்பவை",
+  "extensionsNotLoadedHere": "இந்தச் சாதனத்தில் இயங்காது",
   "extensionsProblemsSection": "WebKit புகாரளித்தவை",
   "extensionsRefused": "இறக்குமதி செய்யப்படவில்லை: {reason}",
   "extensionsRefusedNotAPackage": "கோப்பு .crx, .xpi அல்லது .zip தொகுப்பு அல்ல",

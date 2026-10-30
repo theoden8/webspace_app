@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Patakbuhin ang {name} sa bawat site?",
   "extensionsEverySiteConsentBody": "Pinapatakbo ito ng bawat site na walang sariling pili mula sa susunod nitong pag-load. Sa bawat isa, mga pahina lang ng site na iyon ang naaabot nito.",
   "extensionsAsksSection": "Ang hinihingi nito",
+  "extensionsNotLoadedHere": "Hindi gumagana sa device na ito",
   "extensionsProblemsSection": "Iniulat ng WebKit",
   "extensionsRefused": "Hindi na-import: {reason}",
   "extensionsRefusedNotAPackage": "hindi package na .crx, .xpi o .zip ang file",

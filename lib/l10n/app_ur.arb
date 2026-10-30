@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} ہر سائٹ پر چلائیں؟",
   "extensionsEverySiteConsentBody": "جس بھی سائٹ کی اپنی کوئی پسند نہیں، وہ اپنے اگلے لوڈ سے اسے چلاتی ہے۔ ہر سائٹ پر یہ صرف اسی سائٹ کے صفحات تک پہنچتی ہے۔",
   "extensionsAsksSection": "یہ کیا مانگتی ہے",
+  "extensionsNotLoadedHere": "اس آلے پر نہیں چلتا",
   "extensionsProblemsSection": "WebKit کی رپورٹ",
   "extensionsRefused": "درآمد نہیں ہوئی: {reason}",
   "extensionsRefusedNotAPackage": "فائل .crx، .xpi یا .zip پیکیج نہیں ہے",

@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} ਨੂੰ ਹਰ ਸਾਈਟ 'ਤੇ ਚਲਾਈਏ?",
   "extensionsEverySiteConsentBody": "ਜਿਸ ਵੀ ਸਾਈਟ ਦੀ ਆਪਣੀ ਕੋਈ ਚੋਣ ਨਹੀਂ, ਉਹ ਆਪਣੇ ਅਗਲੇ ਲੋਡ ਤੋਂ ਇਸਨੂੰ ਚਲਾਉਂਦੀ ਹੈ। ਹਰ ਸਾਈਟ 'ਤੇ ਇਹ ਸਿਰਫ਼ ਉਸੇ ਸਾਈਟ ਦੇ ਪੰਨਿਆਂ ਤੱਕ ਪਹੁੰਚਦੀ ਹੈ।",
   "extensionsAsksSection": "ਇਹ ਕੀ ਮੰਗਦੀ ਹੈ",
+  "extensionsNotLoadedHere": "ਇਸ ਡਿਵਾਈਸ 'ਤੇ ਨਹੀਂ ਚੱਲਦਾ",
   "extensionsProblemsSection": "WebKit ਵੱਲੋਂ ਦੱਸਿਆ ਗਿਆ",
   "extensionsRefused": "ਇੰਪੋਰਟ ਨਹੀਂ ਹੋਈ: {reason}",
   "extensionsRefusedNotAPackage": "ਫ਼ਾਈਲ .crx, .xpi ਜਾਂ .zip ਪੈਕੇਜ ਨਹੀਂ ਹੈ",

@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Rulezi {name} pe toate site-urile?",
   "extensionsEverySiteConsentBody": "Fiecare site fără o alegere proprie o rulează de la următoarea încărcare. Pe fiecare, ajunge doar la paginile acelui site.",
   "extensionsAsksSection": "Ce cere",
+  "extensionsNotLoadedHere": "Nu rulează pe acest dispozitiv",
   "extensionsProblemsSection": "Raportat de WebKit",
   "extensionsRefused": "Neimportată: {reason}",
   "extensionsRefusedNotAPackage": "fișierul nu este un pachet .crx, .xpi sau .zip",

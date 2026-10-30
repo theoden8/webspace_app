@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} በሁሉም ጣቢያዎች ላይ ይሂድ?",
   "extensionsEverySiteConsentBody": "የራሱ ምርጫ የሌለው እያንዳንዱ ጣቢያ ከሚቀጥለው ጭነቱ ጀምሮ ያስኬደዋል። በእያንዳንዱ ላይ የሚደርሰው የዚያን ጣቢያ ገጾች ብቻ ነው።",
   "extensionsAsksSection": "የሚጠይቀው ነገር",
+  "extensionsNotLoadedHere": "በዚህ መሣሪያ ላይ አይሠራም",
   "extensionsProblemsSection": "WebKit የዘገበው",
   "extensionsRefused": "አልመጣም: {reason}",
   "extensionsRefusedNotAPackage": "ፋይሉ .crx፣ .xpi ወይም .zip ጥቅል አይደለም",

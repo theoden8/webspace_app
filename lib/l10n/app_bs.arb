@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Pokrenuti {name} na svakoj stranici?",
   "extensionsEverySiteConsentBody": "Svaka stranica koja nema vlastiti izbor pokreće ga od svog sljedećeg učitavanja. Na svakoj doseže samo njene vlastite stranice.",
   "extensionsAsksSection": "Šta traži",
+  "extensionsNotLoadedHere": "Ne radi na ovom uređaju",
   "extensionsProblemsSection": "Prijavio WebKit",
   "extensionsRefused": "Nije uvezeno: {reason}",
   "extensionsRefusedNotAPackage": "datoteka nije paket .crx, .xpi ili .zip",

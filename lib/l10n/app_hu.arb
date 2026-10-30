@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} futtatása minden webhelyen?",
   "extensionsEverySiteConsentBody": "Minden webhely, amelynek nincs saját választása, a következő betöltésétől futtatja. Mindegyiken csak az adott webhely oldalait éri el.",
   "extensionsAsksSection": "Amit kér",
+  "extensionsNotLoadedHere": "Ezen az eszközön nem fut",
   "extensionsProblemsSection": "A WebKit jelezte",
   "extensionsRefused": "Nincs importálva: {reason}",
   "extensionsRefusedNotAPackage": "a fájl nem .crx, .xpi vagy .zip csomag",

@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name}-г бүх сайт дээр ажиллуулах уу?",
   "extensionsEverySiteConsentBody": "Өөрийн сонголтгүй сайт бүр дараагийн ачааллаасаа эхлэн үүнийг ажиллуулна. Сайт бүр дээр зөвхөн тухайн сайтын хуудсуудад хандана.",
   "extensionsAsksSection": "Юу хүсэж байгаа",
+  "extensionsNotLoadedHere": "Энэ төхөөрөмж дээр ажиллахгүй",
   "extensionsProblemsSection": "WebKit-ийн мэдээлсэн",
   "extensionsRefused": "Импортлогдсонгүй: {reason}",
   "extensionsRefusedNotAPackage": "файл нь .crx, .xpi эсвэл .zip багц биш байна",

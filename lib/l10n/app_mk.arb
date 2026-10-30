@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Да се изврши {name} на секој сајт?",
   "extensionsEverySiteConsentBody": "Секој сајт без сопствен избор ја извршува од своето следно вчитување. На секој пристапува само до страниците на тој сајт.",
   "extensionsAsksSection": "Што бара",
+  "extensionsNotLoadedHere": "Не работи на овој уред",
   "extensionsProblemsSection": "Пријавено од WebKit",
   "extensionsRefused": "Не е увезено: {reason}",
   "extensionsRefusedNotAPackage": "датотеката не е пакет .crx, .xpi или .zip",

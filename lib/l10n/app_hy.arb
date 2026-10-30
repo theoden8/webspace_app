@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Գործարկե՞լ {name}-ն բոլոր կայքերում",
   "extensionsEverySiteConsentBody": "Յուրաքանչյուր կայք, որն իր սեփական ընտրությունը չունի, գործարկում է այն իր հաջորդ բեռնումից սկսած։ Յուրաքանչյուրում այն հասնում է միայն այդ կայքի էջերին։",
   "extensionsAsksSection": "Ինչ է այն պահանջում",
+  "extensionsNotLoadedHere": "Այս սարքում չի աշխատում",
   "extensionsProblemsSection": "WebKit-ի հաղորդածը",
   "extensionsRefused": "Չի ներմուծվել՝ {reason}",
   "extensionsRefusedNotAPackage": "ֆայլը .crx, .xpi կամ .zip փաթեթ չէ",

@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} روی همهٔ سایت‌ها اجرا شود؟",
   "extensionsEverySiteConsentBody": "هر سایتی که انتخاب خودش را ندارد، از بارگذاری بعدی‌اش آن را اجرا می‌کند. در هر کدام، فقط به صفحه‌های همان سایت دسترسی دارد.",
   "extensionsAsksSection": "آنچه می‌خواهد",
+  "extensionsNotLoadedHere": "روی این دستگاه اجرا نمی‌شود",
   "extensionsProblemsSection": "گزارش‌شده توسط WebKit",
   "extensionsRefused": "وارد نشد: {reason}",
   "extensionsRefusedNotAPackage": "فایل یک بستهٔ .crx، .xpi یا .zip نیست",

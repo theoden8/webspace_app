@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Voleu executar {name} a tots els llocs?",
   "extensionsEverySiteConsentBody": "Cada lloc que no té una elecció pròpia l'executa a partir de la propera càrrega. A cadascun, només arriba a les pàgines d'aquell lloc.",
   "extensionsAsksSection": "Què demana",
+  "extensionsNotLoadedHere": "No funciona en aquest dispositiu",
   "extensionsProblemsSection": "Notificat per WebKit",
   "extensionsRefused": "No s'ha importat: {reason}",
   "extensionsRefusedNotAPackage": "el fitxer no és un paquet .crx, .xpi o .zip",

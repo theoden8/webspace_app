@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "要在所有網站上執行 {name} 嗎？",
   "extensionsEverySiteConsentBody": "沒有自己選擇的每個網站，都會從下次載入起執行它。在每個網站上，它只能存取該網站的網頁。",
   "extensionsAsksSection": "要求的項目",
+  "extensionsNotLoadedHere": "無法在此裝置上執行",
   "extensionsProblemsSection": "WebKit 的回報",
   "extensionsRefused": "未匯入：{reason}",
   "extensionsRefusedNotAPackage": "檔案不是 .crx、.xpi 或 .zip 套件",

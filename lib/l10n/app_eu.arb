@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} gune guztietan exekutatu?",
   "extensionsEverySiteConsentBody": "Aukera propiorik ez duen gune orok hurrengo kargatik aurrera exekutatzen du. Bakoitzean, gune horren orrietara soilik iristen da.",
   "extensionsAsksSection": "Zer eskatzen duen",
+  "extensionsNotLoadedHere": "Ez dabil gailu honetan",
   "extensionsProblemsSection": "WebKitek jakinarazitakoak",
   "extensionsRefused": "Ez da inportatu: {reason}",
   "extensionsRefusedNotAPackage": "fitxategia ez da .crx, .xpi edo .zip pakete bat",

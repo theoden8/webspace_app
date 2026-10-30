@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} auf jeder Website ausführen?",
   "extensionsEverySiteConsentBody": "Jede Website ohne eigene Wahl führt sie ab ihrem nächsten Laden aus. Auf jeder erreicht sie nur die Seiten dieser Website.",
   "extensionsAsksSection": "Was sie anfordert",
+  "extensionsNotLoadedHere": "Läuft auf diesem Gerät nicht",
   "extensionsProblemsSection": "Von WebKit gemeldet",
   "extensionsRefused": "Nicht importiert: {reason}",
   "extensionsRefusedNotAPackage": "die Datei ist kein .crx-, .xpi- oder .zip-Paket",

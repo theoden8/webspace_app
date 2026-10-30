@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Keyra {name} á öllum vefsvæðum?",
   "extensionsEverySiteConsentBody": "Hvert vefsvæði sem hefur ekkert eigið val keyrir hana frá næstu hleðslu. Á hverju þeirra nær hún aðeins til síðna þess vefsvæðis.",
   "extensionsAsksSection": "Það sem hún biður um",
+  "extensionsNotLoadedHere": "Keyrir ekki á þessu tæki",
   "extensionsProblemsSection": "Tilkynnt af WebKit",
   "extensionsRefused": "Ekki flutt inn: {reason}",
   "extensionsRefusedNotAPackage": "skráin er ekki .crx-, .xpi- eða .zip-pakki",

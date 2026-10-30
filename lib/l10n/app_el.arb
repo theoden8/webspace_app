@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Εκτέλεση {name} σε κάθε ιστότοπο;",
   "extensionsEverySiteConsentBody": "Κάθε ιστότοπος χωρίς δική του επιλογή την εκτελεί από την επόμενη φόρτωσή του. Σε καθέναν, φτάνει μόνο στις σελίδες αυτού του ιστότοπου.",
   "extensionsAsksSection": "Τι ζητά",
+  "extensionsNotLoadedHere": "Δεν εκτελείται σε αυτή τη συσκευή",
   "extensionsProblemsSection": "Αναφέρθηκαν από το WebKit",
   "extensionsRefused": "Δεν εισήχθη: {reason}",
   "extensionsRefusedNotAPackage": "το αρχείο δεν είναι πακέτο .crx, .xpi ή .zip",

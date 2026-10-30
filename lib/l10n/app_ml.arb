@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "എല്ലാ സൈറ്റുകളിലും {name} പ്രവർത്തിപ്പിക്കണോ?",
   "extensionsEverySiteConsentBody": "സ്വന്തമായി തിരഞ്ഞെടുപ്പില്ലാത്ത ഓരോ സൈറ്റും അടുത്ത ലോഡ് മുതൽ ഇത് പ്രവർത്തിപ്പിക്കുന്നു. ഓരോന്നിലും ആ സൈറ്റിന്റെ പേജുകളിൽ മാത്രമേ ഇത് എത്തൂ.",
   "extensionsAsksSection": "ഇത് ആവശ്യപ്പെടുന്നത്",
+  "extensionsNotLoadedHere": "ഈ ഉപകരണത്തിൽ പ്രവർത്തിക്കില്ല",
   "extensionsProblemsSection": "WebKit റിപ്പോർട്ട് ചെയ്തവ",
   "extensionsRefused": "ഇറക്കുമതി ചെയ്തില്ല: {reason}",
   "extensionsRefusedNotAPackage": "ഫയൽ ഒരു .crx, .xpi അല്ലെങ്കിൽ .zip പാക്കേജ് അല്ല",

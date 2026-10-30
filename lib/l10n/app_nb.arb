@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Kjøre {name} på alle nettsteder?",
   "extensionsEverySiteConsentBody": "Hvert nettsted uten et eget valg kjører den fra neste innlasting. På hvert når den bare sidene til det nettstedet.",
   "extensionsAsksSection": "Hva den ber om",
+  "extensionsNotLoadedHere": "Kjører ikke på denne enheten",
   "extensionsProblemsSection": "Rapportert av WebKit",
   "extensionsRefused": "Ikke importert: {reason}",
   "extensionsRefusedNotAPackage": "filen er ikke en .crx-, .xpi- eller .zip-pakke",

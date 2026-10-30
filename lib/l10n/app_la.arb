@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} in omnibus sitibus exsequi?",
   "extensionsEverySiteConsentBody": "Omnis situs sine electione sua eam a proxima sua oneratione exsequitur. In quoque solum paginas illius situs attingit.",
   "extensionsAsksSection": "Quae petit",
+  "extensionsNotLoadedHere": "In hoc instrumento non currit",
   "extensionsProblemsSection": "A WebKit nuntiata",
   "extensionsRefused": "Non importata: {reason}",
   "extensionsRefusedNotAPackage": "plica non est fasciculus .crx, .xpi vel .zip",

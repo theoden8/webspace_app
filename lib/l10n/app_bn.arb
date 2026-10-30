@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "প্রতিটি সাইটে {name} চালাবেন?",
   "extensionsEverySiteConsentBody": "যে সাইটের নিজের কোনো পছন্দ নেই, সেই প্রতিটি সাইট পরের বার লোড হওয়া থেকে এটি চালায়। প্রতিটিতে এটি শুধু সেই সাইটের পৃষ্ঠাগুলিতে পৌঁছায়।",
   "extensionsAsksSection": "এটি যা চায়",
+  "extensionsNotLoadedHere": "এই ডিভাইসে চলে না",
   "extensionsProblemsSection": "WebKit যা জানিয়েছে",
   "extensionsRefused": "ইম্পোর্ট হয়নি: {reason}",
   "extensionsRefusedNotAPackage": "ফাইলটি .crx, .xpi বা .zip প্যাকেজ নয়",
