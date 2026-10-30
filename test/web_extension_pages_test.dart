@@ -28,6 +28,7 @@ const ExtensionReport _clean = (
   problems: [],
   hasOptionsPage: true,
   hasAction: true,
+  loadsHere: true,
 );
 
 final _library = WebExtensionLibrary.instance;
@@ -81,6 +82,7 @@ void main() {
         problems: ['Unsupported manifest entry: sidebar_action'],
         hasOptionsPage: false,
         hasAction: true,
+        loadsHere: true,
       );
       final entry = await _library.add(_package(name: 'Sample'));
       expect(
@@ -104,10 +106,48 @@ void main() {
     });
   });
 
+  group('WEBEXT-003 an extension WebKit does not load here runs nowhere', () {
+    /// On iPhone and iPad WebKit refuses an extension whose background
+    /// stays loaded, though it reads it. A site that switched one on
+    /// attached it anyway and offered its pages, which never opened.
+    test('no site attaches it and none of its pages is offered', () async {
+      engine.anyFolder = (
+        problems: ['Invalid `persistent` manifest entry.'],
+        hasOptionsPage: true,
+        hasAction: true,
+        loadsHere: false,
+      );
+      final refused = await _library.add(_package(name: 'Refused'));
+      engine.anyFolder = _clean;
+      final runs = await _library.add(_package(name: 'Runs'));
+      expect(_library.loadsHere(refused.id), isFalse);
+
+      final home = site(
+        'https://mail.example.com/',
+        on: {refused.id, runs.id},
+      ).extensionHome(fakeContainers())!;
+      expect([for (final load in home.plan.loads) load.id], [runs.id]);
+      for (final page in ExtensionPage.values) {
+        expect([
+          for (final e in _library.offering(page, home: home)) e.name,
+        ], ['Runs']);
+      }
+      expect(
+        site('https://mail.example.com/', on: {refused.id}).extensionPlan,
+        isA<NoExtensions>(),
+      );
+    });
+  });
+
   group('an extension\'s pages open within its site', () {
     test('a site offers the pages WebKit reports of what it runs', () async {
       final both = await _library.add(_package(name: 'Both'));
-      engine.anyFolder = (problems: [], hasOptionsPage: true, hasAction: false);
+      engine.anyFolder = (
+        problems: [],
+        hasOptionsPage: true,
+        hasAction: false,
+        loadsHere: true,
+      );
       final options = await _library.add(_package(name: 'Options'));
       final off = await _library.add(_package(name: 'Off'));
       final home = site(

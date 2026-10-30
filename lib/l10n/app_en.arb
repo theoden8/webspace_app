@@ -5917,6 +5917,10 @@
   "@extensionsAsksSection": {
     "description": "Section header on an imported browser extension's screen, above the permissions and pages it asked for."
   },
+  "extensionsNotLoadedHere": "Doesn't run on this device",
+  "@extensionsNotLoadedHere": {
+    "description": "Status of an imported browser extension that WebKit, the browser engine, refuses to load on this phone or computer, so it runs on no site and none of its pages open. Shown under its name in the list, and as the reason its switches are greyed out. WebKit's own reason is listed under 'Reported by WebKit'."
+  },
   "extensionsProblemsSection": "Reported by WebKit",
   "@extensionsProblemsSection": {
     "description": "Section header on an imported browser extension's screen, above the problems WebKit, the browser engine, reported reading it. Keep the name WebKit."

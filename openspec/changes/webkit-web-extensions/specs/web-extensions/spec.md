@@ -59,7 +59,7 @@ App Settings > Extensions SHALL import an extension from a file the user picks: 
 
 ### Requirement: WEBEXT-003 - Chrome-format extensions run as far as WebKit supports their APIs
 
-An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry.
+An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry. An extension WebKit does not load on this device at all (on iPhone and iPad, one whose background page stays loaded) SHALL say so on its entry and as the reason its switches are off, and SHALL run on no site and offer none of its pages.
 
 #### Scenario: An extension using an API WebKit lacks
 
@@ -67,6 +67,13 @@ An extension written for Chrome SHALL be loaded as is, with no rewriting, throug
 - **WHEN** the user opens its library entry
 - **THEN** the entry lists what WebKit reported
 - **AND** the extension is still offered to sites
+
+#### Scenario: An extension WebKit does not load here
+
+- **GIVEN** on an iPhone, an imported Manifest V2 extension whose background page has no `"persistent": false`
+- **WHEN** the user opens its entry, or the Extensions screen of a site that switched it on
+- **THEN** each says it doesn't run on this device, with its switch off and locked
+- **AND** no site attaches it, and none of its pages is offered
 
 ### Requirement: WEBEXT-004 - An extension runs on a site only after the user switches it on there or for every site
 

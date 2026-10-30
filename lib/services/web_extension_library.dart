@@ -406,6 +406,16 @@ class WebExtensionLibrary {
     LogTag.webExtension.debug('removed $id');
   }
 
+  /// Whether WebKit loads [id] on this device, as it reported reading it;
+  /// one not read yet is taken to load (WEBEXT-003).
+  bool loadsHere(WebExtensionId id) => _reports.value[id]?.loadsHere ?? true;
+
+  /// The extensions a site may attach: those WebKit loads on this device.
+  List<InstalledExtension> get loadable => [
+    for (final installed in _installed.value)
+      if (loadsHere(installed.entry.id)) installed,
+  ];
+
   /// The extensions [home] runs that have [page], by what WebKit reported,
   /// in import order (WEBEXT-008).
   List<WebExtensionEntry> offering(
