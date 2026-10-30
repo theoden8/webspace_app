@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "واپس",
   "unproxiedBlockProxySettings": "پراکسی کی ترتیبات",
   "proxyTestOk": "پراکسی کام کر رہی ہے",
+  "proxyTestTorExit": "Tor کام کر رہا ہے، اخراج {address} کے ذریعے",
+  "proxyTestNotTorExit": "جواب آیا، لیکن Tor کے ذریعے نہیں: {address}",
   "proxyTestAuthRejected": "پراکسی نے یہ اسناد مسترد کر دیں",
   "proxyTestUnreachable": "پراکسی تک رسائی نہیں ہو سکی",
   "tabsTooltip": "ٹیبس",

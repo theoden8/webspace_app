@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Înapoi",
   "unproxiedBlockProxySettings": "Setările proxyului",
   "proxyTestOk": "Proxy-ul funcționează",
+  "proxyTestTorExit": "Tor funcționează, prin ieșirea {address}",
+  "proxyTestNotTorExit": "A venit un răspuns, dar nu prin Tor: {address}",
   "proxyTestAuthRejected": "Proxy-ul a respins aceste date de autentificare",
   "proxyTestUnreachable": "Nu s-a putut contacta proxy-ul",
   "tabsTooltip": "File",

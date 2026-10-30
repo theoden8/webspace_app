@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Terug",
   "unproxiedBlockProxySettings": "Proxy-instellingen",
   "proxyTestOk": "De proxy werkt",
+  "proxyTestTorExit": "Tor werkt, via uitgang {address}",
+  "proxyTestNotTorExit": "Antwoord ontvangen, maar niet via Tor: {address}",
   "proxyTestAuthRejected": "De proxy heeft deze gegevens geweigerd",
   "proxyTestUnreachable": "Kon de proxy niet bereiken",
   "tabsTooltip": "Tabbladen",

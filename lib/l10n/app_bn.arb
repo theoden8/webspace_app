@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "ফিরে যান",
   "unproxiedBlockProxySettings": "প্রক্সি সেটিংস",
   "proxyTestOk": "প্রক্সিটি কাজ করছে",
+  "proxyTestTorExit": "Tor কাজ করছে, প্রস্থান {address} দিয়ে",
+  "proxyTestNotTorExit": "উত্তর এসেছে, কিন্তু Tor দিয়ে নয়: {address}",
   "proxyTestAuthRejected": "প্রক্সি এই পরিচয়পত্র প্রত্যাখ্যান করেছে",
   "proxyTestUnreachable": "প্রক্সিতে পৌঁছানো যায়নি",
   "tabsTooltip": "ট্যাব",

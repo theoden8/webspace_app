@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Rudi nyuma",
   "unproxiedBlockProxySettings": "Mipangilio ya seva mbadala",
   "proxyTestOk": "Proksi inafanya kazi",
+  "proxyTestTorExit": "Tor inafanya kazi, kupitia njia ya kutokea {address}",
+  "proxyTestNotTorExit": "Jibu limekuja, lakini si kupitia Tor: {address}",
   "proxyTestAuthRejected": "Proksi imekataa vitambulisho hivi",
   "proxyTestUnreachable": "Imeshindwa kuifikia proksi",
   "tabsTooltip": "Vichupo",

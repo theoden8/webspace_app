@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "ਵਾਪਸ ਜਾਓ",
   "unproxiedBlockProxySettings": "ਪ੍ਰਾਕਸੀ ਸੈਟਿੰਗਾਂ",
   "proxyTestOk": "ਪਰਾਕਸੀ ਕੰਮ ਕਰ ਰਹੀ ਹੈ",
+  "proxyTestTorExit": "Tor ਕੰਮ ਕਰ ਰਿਹਾ ਹੈ, ਨਿਕਾਸ {address} ਰਾਹੀਂ",
+  "proxyTestNotTorExit": "ਜਵਾਬ ਆਇਆ, ਪਰ Tor ਰਾਹੀਂ ਨਹੀਂ: {address}",
   "proxyTestAuthRejected": "ਪਰਾਕਸੀ ਨੇ ਇਹ ਪ੍ਰਮਾਣ-ਪੱਤਰ ਰੱਦ ਕਰ ਦਿੱਤੇ",
   "proxyTestUnreachable": "ਪਰਾਕਸੀ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਹੋ ਸਕੀ",
   "tabsTooltip": "ਟੈਬਾਂ",

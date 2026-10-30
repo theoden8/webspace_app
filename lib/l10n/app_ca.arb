@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Enrere",
   "unproxiedBlockProxySettings": "Configuració del servidor intermediari",
   "proxyTestOk": "El servidor intermediari funciona",
+  "proxyTestTorExit": "Tor funciona, a través de la sortida {address}",
+  "proxyTestNotTorExit": "Hi ha resposta, però no a través de Tor: {address}",
   "proxyTestAuthRejected": "El servidor intermediari ha rebutjat aquestes credencials",
   "proxyTestUnreachable": "No s'ha pogut arribar al servidor intermediari",
   "tabsTooltip": "Pestanyes",

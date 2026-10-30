@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "بازگشت",
   "unproxiedBlockProxySettings": "تنظیمات پیشکار",
   "proxyTestOk": "پروکسی کار می‌کند",
+  "proxyTestTorExit": "Tor کار می‌کند، از طریق خروجی {address}",
+  "proxyTestNotTorExit": "پاسخ آمد، اما نه از طریق Tor: {address}",
   "proxyTestAuthRejected": "پروکسی این اطلاعات ورود را رد کرد",
   "proxyTestUnreachable": "دسترسی به پروکسی ممکن نشد",
   "tabsTooltip": "زبانه‌ها",

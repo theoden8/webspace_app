@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "뒤로 가기",
   "unproxiedBlockProxySettings": "프록시 설정",
   "proxyTestOk": "프록시가 작동합니다",
+  "proxyTestTorExit": "Tor가 작동합니다. 출구: {address}",
+  "proxyTestNotTorExit": "응답은 왔지만 Tor를 거치지 않았습니다: {address}",
   "proxyTestAuthRejected": "프록시가 이 자격 증명을 거부했습니다",
   "proxyTestUnreachable": "프록시에 연결할 수 없습니다",
   "tabsTooltip": "탭",

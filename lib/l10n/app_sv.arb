@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Tillbaka",
   "unproxiedBlockProxySettings": "Proxyinställningar",
   "proxyTestOk": "Proxyn fungerar",
+  "proxyTestTorExit": "Tor fungerar, via utgång {address}",
+  "proxyTestNotTorExit": "Svar kom, men inte via Tor: {address}",
   "proxyTestAuthRejected": "Proxyn avvisade dessa uppgifter",
   "proxyTestUnreachable": "Det gick inte att nå proxyn",
   "tabsTooltip": "Flikar",

@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "பின் செல்",
   "unproxiedBlockProxySettings": "பதிலிணைய அமைப்புகள்",
   "proxyTestOk": "ப்ராக்சி வேலை செய்கிறது",
+  "proxyTestTorExit": "Tor வேலை செய்கிறது, வெளியேறும் {address} வழியாக",
+  "proxyTestNotTorExit": "பதில் வந்தது, ஆனால் Tor வழியாக அல்ல: {address}",
   "proxyTestAuthRejected": "ப்ராக்சி இந்தச் சான்றுகளை நிராகரித்தது",
   "proxyTestUnreachable": "ப்ராக்சியை அடைய முடியவில்லை",
   "tabsTooltip": "தாவல்கள்",

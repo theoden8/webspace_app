@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Հետ",
   "unproxiedBlockProxySettings": "Պրոքսու կարգավորումներ",
   "proxyTestOk": "Պրոքսին աշխատում է",
+  "proxyTestTorExit": "Tor-ն աշխատում է, {address} ելքի միջոցով",
+  "proxyTestNotTorExit": "Պատասխան եկավ, բայց ոչ Tor-ի միջոցով՝ {address}",
   "proxyTestAuthRejected": "Պրոքսին մերժել է այս տվյալները",
   "proxyTestUnreachable": "Չհաջողվեց հասնել պրոքսիին",
   "tabsTooltip": "Ներդիրներ",

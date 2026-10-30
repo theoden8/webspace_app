@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Volver",
   "unproxiedBlockProxySettings": "Ajustes del proxy",
   "proxyTestOk": "El proxy funciona",
+  "proxyTestTorExit": "Tor funciona, a través de la salida {address}",
+  "proxyTestNotTorExit": "Hubo respuesta, pero no a través de Tor: {address}",
   "proxyTestAuthRejected": "El proxy rechazó estas credenciales",
   "proxyTestUnreachable": "No se pudo contactar con el proxy",
   "tabsTooltip": "Pestañas",

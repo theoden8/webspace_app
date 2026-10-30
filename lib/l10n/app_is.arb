@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Til baka",
   "unproxiedBlockProxySettings": "Stillingar milliþjóns",
   "proxyTestOk": "Milliþjónninn virkar",
+  "proxyTestTorExit": "Tor virkar, um útgang {address}",
+  "proxyTestNotTorExit": "Svar barst, en ekki um Tor: {address}",
   "proxyTestAuthRejected": "Milliþjónninn hafnaði þessum auðkennum",
   "proxyTestUnreachable": "Náði ekki sambandi við milliþjóninn",
   "tabsTooltip": "Flipar",

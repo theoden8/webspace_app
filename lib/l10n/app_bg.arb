@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Назад",
   "unproxiedBlockProxySettings": "Настройки на проксито",
   "proxyTestOk": "Проксито работи",
+  "proxyTestTorExit": "Tor работи, през изход {address}",
+  "proxyTestNotTorExit": "Има отговор, но не през Tor: {address}",
   "proxyTestAuthRejected": "Проксито отхвърли тези данни за достъп",
   "proxyTestUnreachable": "Проксито е недостъпно",
   "tabsTooltip": "Раздели",

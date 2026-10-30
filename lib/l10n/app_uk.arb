@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Назад",
   "unproxiedBlockProxySettings": "Налаштування проксі",
   "proxyTestOk": "Проксі працює",
+  "proxyTestTorExit": "Tor працює, через вихід {address}",
+  "proxyTestNotTorExit": "Відповідь надійшла, але не через Tor: {address}",
   "proxyTestAuthRejected": "Проксі відхилило ці облікові дані",
   "proxyTestUnreachable": "Не вдалося зв'язатися з проксі",
   "tabsTooltip": "Вкладки",

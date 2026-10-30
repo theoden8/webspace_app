@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "ተመለስ",
   "unproxiedBlockProxySettings": "የወኪል ቅንብሮች",
   "proxyTestOk": "ወኪሉ ይሠራል",
+  "proxyTestTorExit": "Tor ይሠራል፣ በመውጫ {address} በኩል",
+  "proxyTestNotTorExit": "ምላሽ ተሰጥቷል፣ ግን በTor በኩል አይደለም፦ {address}",
   "proxyTestAuthRejected": "ወኪሉ እነዚህን የመግቢያ መረጃዎች ውድቅ አድርጓል",
   "proxyTestUnreachable": "ወኪሉን ማግኘት አልተቻለም",
   "tabsTooltip": "ትሮች",

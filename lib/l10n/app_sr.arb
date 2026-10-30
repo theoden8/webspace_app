@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Назад",
   "unproxiedBlockProxySettings": "Подешавања проксија",
   "proxyTestOk": "Прокси ради",
+  "proxyTestTorExit": "Tor ради, преко излаза {address}",
+  "proxyTestNotTorExit": "Стигао је одговор, али не преко Tor-а: {address}",
   "proxyTestAuthRejected": "Прокси је одбио ове податке за пријаву",
   "proxyTestUnreachable": "Није могуће доћи до проксија",
   "tabsTooltip": "Картице",

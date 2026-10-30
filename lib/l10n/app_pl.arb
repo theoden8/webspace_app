@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Wstecz",
   "unproxiedBlockProxySettings": "Ustawienia proxy",
   "proxyTestOk": "Serwer proxy działa",
+  "proxyTestTorExit": "Tor działa, przez węzeł wyjściowy {address}",
+  "proxyTestNotTorExit": "Przyszła odpowiedź, ale nie przez Tor: {address}",
   "proxyTestAuthRejected": "Serwer proxy odrzucił te dane logowania",
   "proxyTestUnreachable": "Nie udało się połączyć z serwerem proxy",
   "tabsTooltip": "Karty",

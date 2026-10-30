@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Kembali",
   "unproxiedBlockProxySettings": "Tetapan proksi",
   "proxyTestOk": "Proksi berfungsi",
+  "proxyTestTorExit": "Tor berfungsi, melalui laluan keluar {address}",
+  "proxyTestNotTorExit": "Ada jawapan, tetapi bukan melalui Tor: {address}",
   "proxyTestAuthRejected": "Proksi menolak kelayakan ini",
   "proxyTestUnreachable": "Tidak dapat menghubungi proksi",
   "tabsTooltip": "Tab",

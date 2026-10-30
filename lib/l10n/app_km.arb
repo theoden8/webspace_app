@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "ត្រឡប់ក្រោយ",
   "unproxiedBlockProxySettings": "ការកំណត់ប្រូកស៊ី",
   "proxyTestOk": "ប្រូកស៊ីដំណើរការ",
+  "proxyTestTorExit": "Tor ដំណើរការ តាមរយៈច្រកចេញ {address}",
+  "proxyTestNotTorExit": "មានការឆ្លើយតប ប៉ុន្តែមិនមែនតាម Tor ទេ៖ {address}",
   "proxyTestAuthRejected": "ប្រូកស៊ីបានបដិសេធព័ត៌មានសម្គាល់ខ្លួននេះ",
   "proxyTestUnreachable": "មិនអាចទាក់ទងប្រូកស៊ីបានទេ",
   "tabsTooltip": "ផ្ទាំង",

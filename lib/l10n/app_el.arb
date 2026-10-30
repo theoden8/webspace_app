@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Πίσω",
   "unproxiedBlockProxySettings": "Ρυθμίσεις διαμεσολαβητή",
   "proxyTestOk": "Ο διαμεσολαβητής λειτουργεί",
+  "proxyTestTorExit": "Το Tor λειτουργεί, μέσω εξόδου {address}",
+  "proxyTestNotTorExit": "Ήρθε απάντηση, αλλά όχι μέσω Tor: {address}",
   "proxyTestAuthRejected": "Ο διαμεσολαβητής απέρριψε αυτά τα διαπιστευτήρια",
   "proxyTestUnreachable": "Δεν ήταν δυνατή η σύνδεση με τον διαμεσολαβητή",
   "tabsTooltip": "Καρτέλες",

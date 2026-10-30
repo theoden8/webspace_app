@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "戻る",
   "unproxiedBlockProxySettings": "プロキシ設定",
   "proxyTestOk": "プロキシは動作しています",
+  "proxyTestTorExit": "Tor は動作しています（出口：{address}）",
+  "proxyTestNotTorExit": "応答はありましたが、Tor 経由ではありません：{address}",
   "proxyTestAuthRejected": "プロキシがこの認証情報を拒否しました",
   "proxyTestUnreachable": "プロキシに到達できませんでした",
   "tabsTooltip": "タブ",

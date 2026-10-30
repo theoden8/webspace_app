@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Kthehu",
   "unproxiedBlockProxySettings": "Cilësimet e ndërmjetësit",
   "proxyTestOk": "Proxy-i funksionon",
+  "proxyTestTorExit": "Tor funksionon, përmes daljes {address}",
+  "proxyTestNotTorExit": "Erdhi një përgjigje, por jo përmes Tor: {address}",
   "proxyTestAuthRejected": "Proxy-i i refuzoi këto kredenciale",
   "proxyTestUnreachable": "Nuk u arrit të lidhej me proxy-n",
   "tabsTooltip": "Skedat",

@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Retour",
   "unproxiedBlockProxySettings": "Paramètres du proxy",
   "proxyTestOk": "Le proxy fonctionne",
+  "proxyTestTorExit": "Tor fonctionne, via la sortie {address}",
+  "proxyTestNotTorExit": "Réponse reçue, mais pas via Tor : {address}",
   "proxyTestAuthRejected": "Le proxy a refusé ces identifiants",
   "proxyTestUnreachable": "Impossible de joindre le proxy",
   "tabsTooltip": "Onglets",

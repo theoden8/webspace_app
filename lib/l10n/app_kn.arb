@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "ಹಿಂದಕ್ಕೆ",
   "unproxiedBlockProxySettings": "ಪ್ರಾಕ್ಸಿ ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
   "proxyTestOk": "ಪ್ರಾಕ್ಸಿ ಕೆಲಸ ಮಾಡುತ್ತಿದೆ",
+  "proxyTestTorExit": "Tor ಕೆಲಸ ಮಾಡುತ್ತಿದೆ, ನಿರ್ಗಮನ {address} ಮೂಲಕ",
+  "proxyTestNotTorExit": "ಉತ್ತರ ಬಂದಿದೆ, ಆದರೆ Tor ಮೂಲಕ ಅಲ್ಲ: {address}",
   "proxyTestAuthRejected": "ಪ್ರಾಕ್ಸಿ ಈ ರುಜುವಾತುಗಳನ್ನು ತಿರಸ್ಕರಿಸಿದೆ",
   "proxyTestUnreachable": "ಪ್ರಾಕ್ಸಿಯನ್ನು ತಲುಪಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
   "tabsTooltip": "ಟ್ಯಾಬ್‌ಗಳು",

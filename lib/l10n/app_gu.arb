@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "પાછા જાઓ",
   "unproxiedBlockProxySettings": "પ્રોક્સી સેટિંગ્સ",
   "proxyTestOk": "પ્રોક્સી કામ કરે છે",
+  "proxyTestTorExit": "Tor કામ કરે છે, બહાર નીકળવાના {address} દ્વારા",
+  "proxyTestNotTorExit": "જવાબ મળ્યો, પણ Tor દ્વારા નહીં: {address}",
   "proxyTestAuthRejected": "પ્રોક્સીએ આ ઓળખપત્રો નકાર્યાં",
   "proxyTestUnreachable": "પ્રોક્સી સુધી પહોંચી શકાયું નહીં",
   "tabsTooltip": "ટૅબ્સ",

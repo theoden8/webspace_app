@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "رجوع",
   "unproxiedBlockProxySettings": "إعدادات الوكيل",
   "proxyTestOk": "الوكيل يعمل",
+  "proxyTestTorExit": "Tor يعمل، عبر عقدة الخروج {address}",
+  "proxyTestNotTorExit": "وصل رد، لكن ليس عبر Tor: {address}",
   "proxyTestAuthRejected": "رفض الوكيل بيانات الاعتماد هذه",
   "proxyTestUnreachable": "تعذّر الوصول إلى الوكيل",
   "tabsTooltip": "الألسنة",

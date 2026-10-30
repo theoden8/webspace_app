@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Vissza",
   "unproxiedBlockProxySettings": "Proxybeállítások",
   "proxyTestOk": "A proxy működik",
+  "proxyTestTorExit": "A Tor működik, a(z) {address} kilépési ponton át",
+  "proxyTestNotTorExit": "Jött válasz, de nem a Toron át: {address}",
   "proxyTestAuthRejected": "A proxy elutasította ezeket az adatokat",
   "proxyTestUnreachable": "A proxy nem érhető el",
   "tabsTooltip": "Lapok",

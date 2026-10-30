@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "חזרה",
   "unproxiedBlockProxySettings": "הגדרות שרת מתווך",
   "proxyTestOk": "שרת המתווך פועל",
+  "proxyTestTorExit": "Tor פועל, דרך נקודת היציאה {address}",
+  "proxyTestNotTorExit": "התקבלה תשובה, אך לא דרך Tor: {address}",
   "proxyTestAuthRejected": "שרת המתווך דחה את פרטי הכניסה האלה",
   "proxyTestUnreachable": "לא ניתן היה להגיע לשרת המתווך",
   "tabsTooltip": "כרטיסיות",

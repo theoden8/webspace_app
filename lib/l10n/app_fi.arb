@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Takaisin",
   "unproxiedBlockProxySettings": "Välityspalvelimen asetukset",
   "proxyTestOk": "Välityspalvelin toimii",
+  "proxyTestTorExit": "Tor toimii, poistumissolmun {address} kautta",
+  "proxyTestNotTorExit": "Vastaus tuli, mutta ei Torin kautta: {address}",
   "proxyTestAuthRejected": "Välityspalvelin hylkäsi nämä tunnukset",
   "proxyTestUnreachable": "Välityspalvelinta ei tavoitettu",
   "tabsTooltip": "Välilehdet",

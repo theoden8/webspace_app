@@ -1034,6 +1034,8 @@
   "unproxiedBlockBack": "Atgal",
   "unproxiedBlockProxySettings": "Tarpinio serverio nustatymai",
   "proxyTestOk": "Įgaliotasis serveris veikia",
+  "proxyTestTorExit": "Tor veikia, per išėjimą {address}",
+  "proxyTestNotTorExit": "Atsakymas gautas, bet ne per Tor: {address}",
   "proxyTestAuthRejected": "Įgaliotasis serveris atmetė šiuos prisijungimo duomenis",
   "proxyTestUnreachable": "Nepavyko pasiekti įgaliotojo serverio",
   "tabsTooltip": "Kortelės",
