@@ -90,7 +90,7 @@ void main() {
 
     final favicons = await FaviconFinder.getAll('https://gmail.test/', proxy: OutboundProxy.app);
 
-    expect(favicons.map((f) => f.url),
+    expect(favicons!.map((f) => f.url),
         ['https://mail.gmail.test/favicon.ico']);
     expect(site.requested.map((u) => '${u.host}${u.path}'),
         isNot(contains('accounts.other.test/favicon.ico')));
@@ -115,7 +115,7 @@ void main() {
 
     final favicons = await FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app);
 
-    expect(favicons.map((f) => Uri.parse(f.url).host), ['www.example.com']);
+    expect(favicons!.map((f) => Uri.parse(f.url).host), ['www.example.com']);
   });
 
   test('a redirect loop asks for nothing past the limit', () async {

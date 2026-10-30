@@ -74,10 +74,12 @@ class FaviconFinder {
   /// [proxy] is the per-site proxy of the site whose favicon is being
   /// fetched, resolved through the per-site → global precedence ladder.
   /// When null, the app-global outbound proxy applies. When the resolved
-  /// proxy cannot be honored from Dart-side (e.g. SOCKS5), every network
-  /// step is short-circuited and an empty list is returned — falling back
-  /// to a direct connection would defeat the proxy and leak the IP.
-  static Future<List<Favicon>> getAll(
+  /// proxy cannot be honored from Dart-side (e.g. SOCKS5, or Tor not yet
+  /// up), every network step is short-circuited and null is returned, since
+  /// the site was not asked — falling back to a direct connection would
+  /// defeat the proxy and leak the IP. Null too when the page came back with
+  /// an error and no icon was found: the site did not say it has none.
+  static Future<List<Favicon>?> getAll(
     String url, {
     List<String>? suffixes,
     required OutboundProxy proxy,
@@ -89,7 +91,7 @@ class FaviconFinder {
     final effectiveProxy = proxy.resolved;
     final clientResult = outboundHttp.clientFor(effectiveProxy);
     if (clientResult is! OutboundClientReady) {
-      return favicons; // proxy could not be honored — fail closed
+      return null; // proxy could not be honored — fail closed
     }
     final client = SiteUserAgentClient(clientResult.client,
         userAgent: HostBrowser.sentUserAgent);
@@ -166,6 +168,7 @@ class FaviconFinder {
       }
     }
 
+    if (favicons.isEmpty && !page.ok) return null;
     return favicons..sort();
     } finally {
       client.close();
@@ -179,7 +182,8 @@ class FaviconFinder {
   /// gmail.com answers with a 301 to mail.google.com, whose favicon is
   /// Gmail's, and that redirects on to a sign-in page on a third host whose
   /// favicon is not.
-  static Future<({Uri url, String body, List<Uri> faviconOrigins})?> _fetchPage(
+  static Future<({Uri url, String body, bool ok, List<Uri> faviconOrigins})?>
+      _fetchPage(
       Uri first,
       {required http.Client client}) async {
     final origins = [_origin(first)];
@@ -190,7 +194,12 @@ class FaviconFinder {
       final location = response.headers['location'];
       if (!_redirectStatuses.contains(response.statusCode) ||
           location == null) {
-        return (url: target, body: response.body, faviconOrigins: origins);
+        return (
+          url: target,
+          body: response.body,
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          faviconOrigins: origins,
+        );
       }
       final next = target.resolve(location);
       if (hop >= _maxRedirects || Host.ofWebUrl(next.toString()) == null) {

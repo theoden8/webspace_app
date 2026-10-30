@@ -157,7 +157,38 @@ would otherwise do.
 
 ### Requirement: ICON-008 - Icon Caching
 
-Fetched icons SHALL be cached to avoid redundant network requests.
+Fetched icons SHALL be cached to avoid redundant network requests. Within a
+session, what the app holds of a site's icon SHALL NOT be asked for again:
+
+- **An icon drawn again** (an open folder draws its tiles again on every page
+  and every layout) SHALL show the held image or SVG, or the globe of a site
+  known to have none, from its first frame and without a request.
+- **A site that answered with its page and named no icon** SHALL NOT be
+  searched again until its icon is refreshed (the edit dialog's refresh, a
+  TLS pin, Reset icon cache).
+- **A site that was not reached** (the network failed, its page came back
+  with an error, its proxy was not up) SHALL be searched again, so ICON-017
+  can make good what it missed.
+
+#### Scenario: An icon drawn again shows at once
+
+**Given** a site's icon was drawn this session
+**When** it is drawn again, as a folder's page is swiped back to
+**Then** its first frame shows the icon, not a spinner
+**And** no request is made
+
+#### Scenario: A site with no icon is not searched again
+
+**Given** a site's home page loaded and named no icon, and it has no
+`/favicon.ico`
+**When** its icon is drawn again this session
+**Then** the globe shows at once and no request is made
+
+#### Scenario: A site not reached is searched again
+
+**Given** a site's icon search failed because the device was offline
+**When** its icon is drawn again once online
+**Then** the site is searched again and its icon found
 
 #### Scenario: Return cached icon
 

@@ -11,7 +11,7 @@ import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/webspace_chips.dart';
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, iconImagesFetched, IconUpdate, iconReloads, reloadAllIcons;
+import '../services/icon_service.dart' show cachedSvgContent, getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, iconImagesFetched, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
@@ -305,7 +305,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       _currentQuality = 100;
       _isLoading = false;
       if (_isSvgUrl(cachedUrl)) {
-        unawaited(_fetchSvgContent(cachedUrl));
+        _svgContent =
+            cachedSvgContent(cachedUrl) ?? FaviconUrlCache.getSvg(cachedUrl);
+        if (_svgContent == null) unawaited(_fetchSvgContent(cachedUrl));
       } else {
         setState(() {});
       }
@@ -420,7 +422,10 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
     final iconUrl = _currentIconUrl;
     if (iconUrl == null) {
-      return _isLoading ? spinner(context) : fallback(context);
+      // A site known to have no icon shows the globe while it is asked again.
+      return _isLoading && !FaviconUrlCache.isMissing(widget.url)
+          ? spinner(context)
+          : fallback(context);
     }
     if (!_isSvgUrl(iconUrl)) {
       return KeyedSubtree(

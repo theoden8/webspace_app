@@ -37,9 +37,8 @@ class IconUpdate {
   IconUpdate(this.url, {required this.quality,this.isFinal = false});
 }
 
-// Cache for favicon URLs (stores best quality found)
-final Map<String, String?> _faviconCache = {};
-final Map<String, int> _faviconQualityCache = {};
+/// How this session's last search for each site's icon ended.
+final Map<String, _Search> _searches = {};
 
 final Map<String, String> _svgContentCache = {};
 
@@ -51,6 +50,9 @@ final Map<String, Uint8List> _iconBytesCache = {};
 /// Callback to persist SVG content. Set by the UI layer (FaviconUrlCache).
 Future<void> Function(String url, {required String content})?
     onSvgContentCached;
+
+/// The SVG body this session already holds for [svgUrl], read without waiting.
+String? cachedSvgContent(String svgUrl) => _svgContentCache[svgUrl];
 
 /// Get cached SVG content for a URL, or fetch and cache it.
 ///
@@ -243,6 +245,10 @@ Future<Uint8List?> _readPageLinked(
   }
 }
 
+/// The bytes this session already holds for [iconUrl], read without waiting,
+/// so an icon drawn again shows them from its first frame.
+Uint8List? cachedIconBytes(String iconUrl) => _iconBytesCache[iconUrl];
+
 /// Bytes for [iconUrl], cached in memory, fetched through the proxy-aware
 /// client on a miss. The favicon host is chosen by the page (any absolute
 /// `href` in its markup wins) and the winner is re-rendered on every launch,
@@ -264,10 +270,7 @@ Future<Uint8List?> getIconBytes(String iconUrl, {required OutboundProxy proxy}) 
 /// existed, so re-entrant calls (widget listener → FaviconUrlCache
 /// → here) terminate instead of looping forever.
 void invalidateFaviconFor(String siteUrl) {
-  final hadEntry = _faviconCache.containsKey(siteUrl) ||
-      _faviconQualityCache.containsKey(siteUrl);
-  _faviconCache.remove(siteUrl);
-  _faviconQualityCache.remove(siteUrl);
+  final hadEntry = _searches.remove(siteUrl) != null;
   if (hadEntry) {
     _invalidationController.add(siteUrl);
   }
@@ -293,7 +296,7 @@ void wireFaviconTrustInvalidation() {
   _trustListenerWired = true;
   TrustedHostsService.instance.trustChanges.listen((entry) {
     final host = entry.host.toLowerCase();
-    final keys = _faviconCache.keys.toList();
+    final keys = _searches.keys.toList();
     final hits = <String>[];
     for (final key in keys) {
       final uri = Uri.tryParse(key);
@@ -346,12 +349,20 @@ void reloadAllIcons() {
   _reloadController.add(null);
 }
 
-class _IconCandidate {
-  final String url;
-  final int quality;
+sealed class _Search {}
 
-  _IconCandidate(this.url, {required this.quality});
+final class _Found extends _Search {
+  _Found(this.iconUrl, {required this.quality});
+  final String iconUrl;
+  final int quality;
 }
+
+/// The site answered and names no icon, so this session asks it no more.
+final class _NoIcon extends _Search {}
+
+/// The site was not reached (offline, its proxy not up, a timeout), so the
+/// next search asks it again.
+final class _Unreached extends _Search {}
 
 Future<bool> _verifyIconUrl(String iconUrl,
     {required ProxyRoute proxy}) async {
@@ -581,37 +592,44 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {required OutboundProxy proxy
     return;
   }
 
-  final cachedUrl = _faviconCache[url];
-  if (cachedUrl != null) {
-    final cachedQuality = _faviconQualityCache[url] ?? 100;
-    LogTag.icon.debug(
-        'Stream: Using cached icon for $url (quality: $cachedQuality)',
-        sensitive: true);
-    yield IconUpdate(cachedUrl, quality: cachedQuality, isFinal: true);
-    return;
+  switch (_searches[url]) {
+    case _Found(:final iconUrl, :final quality):
+      LogTag.icon.debug(
+          'Stream: Using cached icon for $url (quality: $quality)',
+          sensitive: true);
+      yield IconUpdate(iconUrl, quality: quality, isFinal: true);
+      return;
+    case _NoIcon():
+      return;
+    case _Unreached() || null:
+      break;
   }
 
-  final found = await _tryFaviconPackage(url, site: proxy);
-  final known = _faviconCache[url];
-  if (found == null && known != null) {
-    // Another search found it while this one ran, and nothing replaces it.
-    yield IconUpdate(known,
-        quality: _faviconQualityCache[url] ?? 100, isFinal: true);
-    return;
-  }
-  _faviconCache[url] = found?.url;
-  _faviconQualityCache[url] = found?.quality ?? 0;
-  if (found != null) {
-    _foundController.add(url);
-    yield IconUpdate(found.url, quality: found.quality, isFinal: true);
+  final search = await _tryFaviconPackage(url, site: proxy);
+  final answer = _settle(url, search: search);
+  if (answer is _Found) {
+    if (identical(answer, search)) _foundController.add(url);
+    yield IconUpdate(answer.iconUrl, quality: answer.quality, isFinal: true);
   }
 
-  LogTag.icon.debug(
-      'Stream: Completed for $url, quality: ${found?.quality ?? 0}',
+  LogTag.icon.debug('Stream: Completed for $url: ${search.runtimeType}',
       sensitive: true);
 }
 
-Future<_IconCandidate?> _tryFaviconPackage(String url,
+/// What this session holds of [siteUrl]'s icon once [search] ends. A search
+/// never takes back what another learned while it ran (the icon, or that the
+/// site names none) unless it found the icon itself.
+_Search _settle(String siteUrl, {required _Search search}) {
+  final known = _searches[siteUrl];
+  final keep = switch (search) {
+    _Found() => false,
+    _NoIcon() => known is _Found,
+    _Unreached() => known is _Found || known is _NoIcon,
+  };
+  return _searches[siteUrl] = keep ? known! : search;
+}
+
+Future<_Search> _tryFaviconPackage(String url,
     {required OutboundProxy site}) async {
   final proxy = site.resolved;
   // Internal schemes (chrome://, about:, file:, data:, blob:) have no
@@ -620,15 +638,16 @@ Future<_IconCandidate?> _tryFaviconPackage(String url,
   // remote side. Skip the fetch entirely.
   final uri = Uri.tryParse(url);
   if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-    return null;
+    return _NoIcon();
   }
   // Scraping the page for <link rel=icon> means reading a cross-origin
   // response, which a browser refuses however the request is made, so on web
   // a site shows the placeholder rather than raising a CORS error per site.
-  if (!hostCanReadCrossOriginResponses) return null;
+  if (!hostCanReadCrossOriginResponses) return _NoIcon();
   try {
     final favicons = await FaviconFinder.getAll(url, proxy: site).timeout(Duration(seconds: 15));
-    if (favicons.isEmpty) return null;
+    if (favicons == null) return _Unreached();
+    if (favicons.isEmpty) return _NoIcon();
 
     LogTag.icon.debug(
         'Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}',
@@ -658,7 +677,7 @@ Future<_IconCandidate?> _tryFaviconPackage(String url,
       LogTag.icon.debug(
           'Found favicon via package for $url (quality: $quality) ${best.url}',
           sensitive: true);
-      return _IconCandidate(best.url, quality: quality);
+      return _Found(best.url, quality: quality);
     }
   } on http.ClientException catch (e) {
     LogTag.icon.error('FaviconFinder failed for $url: $e', sensitive: true);
@@ -669,12 +688,11 @@ Future<_IconCandidate?> _tryFaviconPackage(String url,
   } on TimeoutException catch (e) {
     LogTag.icon.error('FaviconFinder failed for $url: $e', sensitive: true);
   }
-  return null;
+  return _Unreached();
 }
 
 void clearFaviconCache() {
-  _faviconCache.clear();
-  _faviconQualityCache.clear();
+  _searches.clear();
   _verifiedUrls.clear();
   _svgContentCache.clear();
   _iconBytesCache.clear();

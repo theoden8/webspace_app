@@ -38,6 +38,11 @@ http.Response _online(http.Request req) => switch (req.url.path) {
 
 http.Response _offline(http.Request req) => http.Response('', 404);
 
+http.Response _iconless(http.Request req) => req.url.path == '/'
+    ? http.Response('<html><head></head></html>', 200,
+        headers: {'content-type': 'text/html'})
+    : http.Response('', 404);
+
 final _drawn = find.byWidgetPredicate(
     (w) => w.runtimeType.toString() == '_FaviconBytesImage');
 
@@ -147,40 +152,45 @@ void main() {
         reason: 'the preview takes the SVG the tile fetched');
   });
 
-  test(
-      'ICON-017: a search that fails while another finds the icon answers '
-      'with the found one', () async {
-    const site = 'https://overlap.test/';
-    final release = Completer<void>();
-    var pages = 0;
-    var online = true;
-    factory.responder = (req) async {
-      if (req.url.path == '/' && ++pages == 1) await release.future;
-      return online ? _online(req) : _offline(req);
-    };
-    final announced = <String>[];
-    final sub = faviconsFound.listen(announced.add);
-    addTearDown(sub.cancel);
+  for (final (ends, ending) in [
+    ('fails', _offline),
+    ('hears the site names no icon', _iconless),
+  ]) {
+    test(
+        'ICON-017: a search that $ends while another finds the icon answers '
+        'with the found one', () async {
+      const site = 'https://overlap.test/';
+      final release = Completer<void>();
+      var pages = 0;
+      var online = true;
+      factory.responder = (req) async {
+        if (req.url.path == '/' && ++pages == 1) await release.future;
+        return online ? _online(req) : ending(req);
+      };
+      final announced = <String>[];
+      final sub = faviconsFound.listen(announced.add);
+      addTearDown(sub.cancel);
 
-    final stalled = getFaviconUrlStream(site, proxy: OutboundProxy.app).toList();
-    await pumpEventQueue();
-    final found =
-        await getFaviconUrlStream(site, proxy: OutboundProxy.app).single;
-    expect(Uri.parse(found.url).path, '/icon.png');
+      final stalled = getFaviconUrlStream(site, proxy: OutboundProxy.app).toList();
+      await pumpEventQueue();
+      final found =
+          await getFaviconUrlStream(site, proxy: OutboundProxy.app).single;
+      expect(Uri.parse(found.url).path, '/icon.png');
 
-    online = false;
-    release.complete();
-    final late = await stalled;
-    expect([for (final u in late) u.url], [found.url],
-        reason: 'the stalled search found nothing, and keeps the found icon');
+      online = false;
+      release.complete();
+      final late = await stalled;
+      expect([for (final u in late) u.url], [found.url],
+          reason: 'the stalled search learned less, and keeps the found icon');
 
-    factory.requests.clear();
-    final again = await getFaviconUrlStream(site, proxy: OutboundProxy.app).single;
-    expect(again.url, found.url);
-    expect(factory.requested, isEmpty, reason: 'answered from the cache');
-    await pumpEventQueue();
-    expect(announced, [site], reason: 'announced once, by the search that found it');
-  });
+      factory.requests.clear();
+      final again = await getFaviconUrlStream(site, proxy: OutboundProxy.app).single;
+      expect(again.url, found.url);
+      expect(factory.requested, isEmpty, reason: 'answered from the cache');
+      await pumpEventQueue();
+      expect(announced, [site], reason: 'announced once, by the search that found it');
+    });
+  }
 
   for (final (kind, path, fetch) in [
     (
