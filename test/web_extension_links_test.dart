@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/app_extension_entry.dart';
 import 'package:webspace/screens/app_extensions.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
@@ -23,6 +28,7 @@ import 'helpers/extension_sources.dart';
 import 'helpers/fake_extension_engine.dart';
 import 'helpers/fake_extension_fetch.dart';
 import 'helpers/fake_extension_folders.dart';
+import 'helpers/fake_outbound.dart';
 import 'helpers/localized.dart';
 
 const _amoQuery = 'https://addons.mozilla.org/api/v5/addons/addon/adnauseam/';
@@ -108,6 +114,63 @@ void main() {
       final kept = _library.installed.value.single.entry;
       expect(kept.source, isA<AmoSource>());
       expect(kept.source!.label, 'addons.mozilla.org/firefox/addon/adnauseam');
+    });
+
+    /// A package through Tor comes slowly. The library gave up 90 s into a
+    /// download whether or not it was still arriving, so an extension that
+    /// took longer over the route never added; it now gives up only once
+    /// nothing has arrived for a minute.
+    test('a package that arrives slowly is read whole (WEBEXT-017)', () async {
+      _library.debugReset();
+      await _library.initialize(
+        folders: disk,
+        engine: FakeExtensionEngine(),
+        read: (bytes) async => readExtensionPackage(bytes),
+      );
+      addTearDown(resetOutboundHttp);
+      final package = _packageBytes(version: '3.24.2');
+      final part = (package.length / 10).ceil();
+      Stream<List<int>> slowly() async* {
+        for (var at = 0; at < package.length; at += part) {
+          await Future<void>.delayed(const Duration(seconds: 20));
+          yield package.sublist(at, (at + part).clamp(0, package.length));
+        }
+      }
+
+      fakeAsync((async) {
+        outboundHttp = FakeOutbound(
+          client: () => MockClient.streaming(
+            (request, _) async => switch ('${request.url}') {
+              _amoQuery => http.StreamedResponse(
+                Stream.value(utf8.encode(jsonEncode(amoAddonReply()))),
+                200,
+              ),
+              _amoFile => http.StreamedResponse(slowly(), 200),
+              _ => http.StreamedResponse(const Stream.empty(), 404),
+            },
+          ),
+        );
+        SourceFetch<ReleaseRead>? release;
+        SourceFetch<PackageRead>? read;
+        unawaited(
+          _library.latest(_source).then((found) async {
+            release = found;
+            if (found case SourceGot(value: final ReleaseFound found)) {
+              read = await _library.download(found.candidates.first);
+            }
+          }),
+        );
+        async.elapse(const Duration(minutes: 5));
+        expect(release, isA<SourceGot<ReleaseRead>>());
+        expect(
+          read,
+          isA<SourceGot<PackageRead>>().having(
+            (got) => got.value,
+            'value',
+            isA<ExtensionPackage>(),
+          ),
+        );
+      });
     });
 
     test('a source that cannot be reached adds nothing and says why', () async {

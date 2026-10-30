@@ -156,7 +156,7 @@ Future<AppProxyFetch> _fetchViaAppProxy(Uri url, {required int maxBytes}) =>
     fetchViaAppProxy(
       url,
       tag: LogTag.webExtension,
-      timeout: const Duration(seconds: 90),
+      timeout: const IdleTimeout(Duration(seconds: 60)),
       maxBytes: maxBytes,
       headers: const {'Accept': 'application/json, */*'},
     );

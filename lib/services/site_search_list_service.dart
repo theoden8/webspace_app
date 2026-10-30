@@ -90,7 +90,7 @@ class SiteSearchListService {
   /// leaves the stored list as it was.
   Future<bool> download({Duration timeout = const Duration(minutes: 2)}) async {
     final fetched = await fetchViaAppProxy(Uri.parse(kSiteSearchListUrl),
-        tag: LogTag.searchList, timeout: timeout, maxBytes: _maxDownloadBytes);
+        tag: LogTag.searchList, timeout: TotalTimeout(timeout), maxBytes: _maxDownloadBytes);
     final response = switch (fetched) {
       Fetched(:final response) => response,
       FetchRefused() || FetchFailed() => null,

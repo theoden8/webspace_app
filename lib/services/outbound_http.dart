@@ -80,16 +80,34 @@ final class FetchFailed extends AppProxyFetch {
   final String reason;
 }
 
+/// What gives up on a fetch that has not finished.
+sealed class FetchTimeout {
+  const FetchTimeout(this.limit);
+  final Duration limit;
+}
+
+/// The whole exchange, body included, within [limit].
+final class TotalTimeout extends FetchTimeout {
+  const TotalTimeout(super.limit);
+}
+
+/// [limit] without a byte: waiting for the answer, then between parts of
+/// the body. A download takes what its route needs while it moves, so a
+/// package through Tor arrives however slowly it comes.
+final class IdleTimeout extends FetchTimeout {
+  const IdleTimeout(super.limit);
+}
+
 /// GET [url] through the app-wide outbound proxy, for the downloaded data
-/// the services keep (blocklists, rules, datasets). [timeout] bounds the
-/// whole exchange, body included; a body longer than [maxBytes] is
-/// abandoned as it arrives. With [firstBytes] only the body's start is
-/// wanted: the request asks for that range, and the read stops once that
-/// much has arrived, also from a server that sends the whole body.
+/// the services keep (blocklists, rules, datasets), giving up as [timeout]
+/// says; a body longer than [maxBytes] is abandoned as it arrives. With
+/// [firstBytes] only the body's start is wanted: the request asks for that
+/// range, and the read stops once that much has arrived, also from a server
+/// that sends the whole body.
 Future<AppProxyFetch> fetchViaAppProxy(
   Uri url, {
   required LogTag tag,
-  Duration timeout = const Duration(seconds: 15),
+  FetchTimeout timeout = const TotalTimeout(Duration(seconds: 15)),
   int? maxBytes,
   int? firstBytes,
   Map<String, String> headers = const {},
@@ -114,18 +132,29 @@ Future<AppProxyFetch> fetchViaAppProxy(
     if (firstBytes != null) {
       request.headers['Range'] = 'bytes=0-${firstBytes - 1}';
     }
-    return await _fetch(client,
-            request: request,
-            tag: tag,
-            maxBytes: maxBytes,
-            firstBytes: firstBytes)
-        .timeout(timeout);
+    final exchange = _fetch(client,
+        request: request,
+        tag: tag,
+        maxBytes: maxBytes,
+        firstBytes: firstBytes,
+        idle: switch (timeout) {
+          IdleTimeout(:final limit) => limit,
+          TotalTimeout() => null,
+        });
+    return await switch (timeout) {
+      TotalTimeout(:final limit) => exchange.timeout(limit),
+      IdleTimeout() => exchange,
+    };
   } on http.ClientException catch (e) {
     return _fetchFailed(tag, url: url, reason: '$e');
   } on IOException catch (e) {
     return _fetchFailed(tag, url: url, reason: '$e');
-  } on TimeoutException catch (e) {
-    return _fetchFailed(tag, url: url, reason: '$e');
+  } on TimeoutException {
+    final seconds = timeout.limit.inSeconds;
+    return _fetchFailed(tag, url: url, reason: switch (timeout) {
+      TotalTimeout() => 'not done within $seconds s',
+      IdleTimeout() => 'nothing arrived for $seconds s',
+    });
   } on FormatException catch (e) {
     return _fetchFailed(tag, url: url, reason: '$e');
   } finally {
@@ -139,9 +168,11 @@ Future<AppProxyFetch> _fetch(
   required LogTag tag,
   required int? maxBytes,
   required int? firstBytes,
+  required Duration? idle,
 }) async {
   final url = request.url;
-  final streamed = await client.send(request);
+  final sent = client.send(request);
+  final streamed = await (idle == null ? sent : sent.timeout(idle));
   final answered = streamed.statusCode == 200 ||
       (firstBytes != null && streamed.statusCode == 206);
   if (!answered) {
@@ -149,12 +180,21 @@ Future<AppProxyFetch> _fetch(
     return _fetchFailed(tag, url: url, reason: 'HTTP ${streamed.statusCode}');
   }
   final body = BytesBuilder(copy: false);
-  await for (final chunk in streamed.stream) {
-    body.add(chunk);
-    if (firstBytes != null && body.length >= firstBytes) break;
-    if (maxBytes != null && body.length > maxBytes) {
-      return _fetchFailed(tag, url: url, reason: 'larger than $maxBytes bytes');
+  final parts = StreamIterator(streamed.stream);
+  try {
+    while (await (idle == null
+        ? parts.moveNext()
+        : parts.moveNext().timeout(idle))) {
+      body.add(parts.current);
+      if (firstBytes != null && body.length >= firstBytes) break;
+      if (maxBytes != null && body.length > maxBytes) {
+        return _fetchFailed(tag, url: url,
+            reason: 'larger than $maxBytes bytes');
+      }
     }
+  } finally {
+    // A body that stalled may never let a cancel finish.
+    unawaited(parts.cancel());
   }
   return Fetched(http.Response.bytes(
     body.takeBytes(),

@@ -127,7 +127,7 @@ class TopSitesService {
       final filters = await _filters(timeout: timeout);
       if (filters == null) return false;
       final fetched = await fetchViaAppProxy(Uri.parse(kTopSitesUrl),
-          tag: LogTag.topSites, timeout: timeout, firstBytes: _rangeBytes);
+          tag: LogTag.topSites, timeout: TotalTimeout(timeout), firstBytes: _rangeBytes);
       final response = switch (fetched) {
         Fetched(:final response) => response,
         FetchRefused() || FetchFailed() => null,

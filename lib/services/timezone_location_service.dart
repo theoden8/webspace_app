@@ -193,7 +193,7 @@ class TimezoneLocationService {
     final fetched = await fetchViaAppProxy(
       uri,
       tag: LogTag.tz,
-      timeout: timeout,
+      timeout: TotalTimeout(timeout),
       headers: const {
         'User-Agent': 'Webspace (+https://github.com/theoden8/webspace_app)'
       },
