@@ -85,10 +85,13 @@ void main() {
     }
 
     final seen = '(A=${upstreamA.requestLines}, B=${upstreamB.requestLines})';
-    expect(upstreamA.wasReached, isTrue,
-        reason: 'site A must reach its own proxy $seen');
-    expect(upstreamB.wasReached, isTrue,
-        reason: 'site B must reach its own proxy once A gives way $seen');
+    // The WebView's own navigations: the app's icon fetches reach each
+    // site's proxy from Dart without it.
+    expect(upstreamA.navigations, isNotEmpty,
+        reason: 'site A\'s webview must reach its own proxy $seen');
+    expect(upstreamB.navigations, isNotEmpty,
+        reason: 'site B\'s webview must reach its own proxy once A gives way '
+            '$seen');
     expect(upstreamA.onlyFor('a.example.test'), isTrue,
         reason: 'upstream A saw another site $seen');
     expect(upstreamB.onlyFor('b.example.test'), isTrue,

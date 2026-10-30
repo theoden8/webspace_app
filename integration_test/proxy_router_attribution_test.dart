@@ -18,8 +18,9 @@
 //     was cached first, the relay routes both to that one upstream, and
 //     the other upstream is never contacted at all.
 //
-// So "the second upstream saw traffic" is the assertion, and it is the
-// literal statement of the assumption. If this test fails, router mode
+// So "the second upstream saw a navigation" is the assertion, and it is the
+// literal statement of the assumption. A navigation, not any request: the
+// app's icon fetches reach each site's proxy from Dart, past the relay. If this test fails, router mode
 // must be withdrawn rather than patched: the failure mode in production
 // is one site silently exiting through another site's proxy.
 //
@@ -125,15 +126,17 @@ void main() {
     // The assumption, stated literally. A shared auth cache routes both
     // sites through whichever credential was cached first, leaving the
     // other upstream at zero.
+    // The WebViews' own navigations: the app's icon fetches reach each
+    // site's proxy from Dart, past the relay, so they prove nothing here.
     expect(
-      upstreamA.wasReached,
-      isTrue,
+      upstreamA.navigations,
+      isNotEmpty,
       reason: 'site A never reached its own upstream '
           '(A=${upstreamA.requestLines}, B=${upstreamB.requestLines})',
     );
     expect(
-      upstreamB.wasReached,
-      isTrue,
+      upstreamB.navigations,
+      isNotEmpty,
       reason: 'PROXY-013 GATE FAILED: only one upstream was ever reached, so '
           'both containers presented the same proxy credential. Chromium is '
           'sharing an HttpAuthCache across profiles and router mode must be '

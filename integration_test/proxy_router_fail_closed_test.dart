@@ -6,7 +6,9 @@
 // for the run and take the process-wide rule off the relay: there is no
 // fallback to one rule where the WebView gives each site a profile. Each
 // proxied site shows the block and reaches no upstream, and a site with no
-// proxy still loads, directly. The unit tier proves the decision against
+// proxy still loads, directly. Only the WebView's navigations count: the
+// app's own icon fetches go to each site's proxy from Dart either way. The
+// unit tier proves the decision against
 // fakes; this proves it on a real WebView, where a rule left pointing at a
 // stopped relay would fail the direct site too.
 //
@@ -166,23 +168,28 @@ void main() {
     }
     LogTag.test.info('opening Direct C');
     await openSiteFromDrawer(tester, name: 'Direct C');
-    if (upstreamA.wasReached || upstreamB.wasReached || !originC.wasReached) {
+    if (upstreamA.navigations.isNotEmpty ||
+        upstreamB.navigations.isNotEmpty ||
+        originC.navigations.isEmpty) {
       // ignore: avoid_print
       print(timeline(a: upstreamA, b: upstreamB));
     }
 
+    // The app's icon fetches still reach each site's own proxy from Dart,
+    // which is where they belong; what must reach nothing is the WebView.
     expect(
-      [...upstreamA.requestLines, ...upstreamB.requestLines],
+      originC.navigations,
+      isNotEmpty,
+      reason: 'a site with no proxy goes direct: a rule left on the stopped '
+          'relay would fail it. Without this, nothing below says the proxied '
+          'sites made no navigation (C=${originC.requestLines})',
+    );
+    expect(
+      [...upstreamA.navigations, ...upstreamB.navigations],
       isEmpty,
       reason: 'a proxied site must reach nothing once the router is down: '
           'there is no one rule to fall back to '
-          '(A=${upstreamA.requestLines}, B=${upstreamB.requestLines})',
-    );
-    expect(
-      originC.wasReached,
-      isTrue,
-      reason: 'a site with no proxy goes direct: a rule left on the stopped '
-          'relay would fail it',
+          '(A=${upstreamA.navigations}, B=${upstreamB.navigations})',
     );
     expect(
       [...upstreamA.credentials, ...upstreamB.credentials],
