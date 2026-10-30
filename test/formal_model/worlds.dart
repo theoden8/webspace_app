@@ -67,7 +67,10 @@ enum EnvAction {
     coverage: 'LetGo',
     reads: {ModelVar.built, ModelVar.loaded},
     writes: {ModelVar.built, ModelVar.hist},
-    needs: {(of: ModelConst.tabbed, set: true)},
+    needs: {
+      (of: ModelConst.tabbed, set: true),
+      (of: ModelConst.rebuilt, set: true),
+    },
   ),
   reframe(
     next: r'\E s \in Sites : Reframe(s)',
@@ -80,7 +83,10 @@ enum EnvAction {
       ModelVar.queued,
     },
     writes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
-    needs: {(of: ModelConst.tabbed, set: true)},
+    needs: {
+      (of: ModelConst.tabbed, set: true),
+      (of: ModelConst.rebuilt, set: true),
+    },
   );
 
   const EnvAction({
@@ -215,6 +221,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.archiveOne ||
   Env.deleteOne ||
   Env.resetOne ||
+  Env.rebuildOne ||
   Env.incognitoOne ||
   Env.jarRefuses ||
   Env.proxyRefuses ||
@@ -245,6 +252,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
     Env.archiveOne,
   ModelConst.deletable => Env.deleteOne,
   ModelConst.resettable => Env.resetOne,
+  ModelConst.rebuilt => Env.rebuildOne,
   ModelConst.incognito => Env.incognitoOne,
   ModelConst.jarRefuses => Env.jarRefuses,
   ModelConst.proxyRefused => Env.proxyRefuses,

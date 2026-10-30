@@ -1635,6 +1635,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.archive => set([for (final m in _archived) _siteNumber(m)]),
       ModelConst.deletable => set(deletes ? const [1] : const <int>[]),
       ModelConst.resettable => set(every),
+      // A renderer dies only where the world builds webviews.
+      ModelConst.rebuilt => set(_boxed || rehosts ? every : const <int>[]),
       ModelConst.boxed || ModelConst.noNavState => null,
       // An archive's sites are incognito too (`Incognito == Archive`).
       ModelConst.incognito => page.incognito.isEmpty

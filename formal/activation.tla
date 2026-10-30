@@ -262,6 +262,7 @@ Frame(s) ==
 \* its DNS level, which the rebuilt one is told again.
 LetGo(s) ==
     /\ Calm
+    /\ s \in Rebuilt
     /\ s \in loaded
     /\ s \in Tabbed
     /\ built[s] # 0
@@ -276,6 +277,7 @@ LetGo(s) ==
 \* (WebViewModel.getWebView).
 Reframe(s) ==
     /\ Calm
+    /\ s \in Rebuilt
     /\ s \in loaded
     /\ s \in Tabbed
     /\ built[s] = 0
@@ -451,6 +453,8 @@ Inv_Retired ==
 ArchiveOne == {3}
 \* The delete config's: site 1, on screen at the start.
 DeleteOne == {1}
+\* The rebuild config's: site 1, on screen at the start.
+RebuildOne == {1}
 \* The reset config's: site 3, loaded and signed in at the start, off screen.
 ResetOne == {3}
 \* The incognito config's: site 3, loaded and signed in at the start.
