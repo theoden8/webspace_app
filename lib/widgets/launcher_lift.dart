@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart' show kSecondaryButton, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webspace/services/remote_focus.dart';
+import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';

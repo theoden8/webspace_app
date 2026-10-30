@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/keyboard_input.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/remote_input.dart';
@@ -18,42 +20,89 @@ const _dpad = [
   LogicalKeyboardKey.enter,
 ];
 
-/// A site page driven by a TV remote's D-pad (NAV-016). Flutter takes every
-/// key before the webview and spends the arrows on moving its own focus, so
-/// without this the D-pad never reaches the page. While the page has focus
-/// the D-pad goes on to the webview; focus entering it gives the native view
-/// focus, which a Flutter focus move alone does not; and an arrow the page
-/// had no use for ([PageJs.remoteEdge], in whichever of its frames had
-/// focus) moves focus out of it, toward the app bar or the tab strip.
-final class RemoteFocus {
-  @visibleForTesting
-  RemoteFocus();
+/// What drives a site page on Android while it has focus. Flutter takes
+/// every key before the webview and spends some of them on moving its own
+/// focus, the arrows and Tab, so without a [PageFocus] the page never sees
+/// those.
+enum PageKeys {
+  /// A TV remote's D-pad (NAV-016): the D-pad goes on to the webview, and an
+  /// arrow the page had no use for moves focus out of it.
+  remote,
 
-  /// The focus of a site page where a remote drives the device, its page
-  /// script added [into] the page's scripts; null on any other device.
-  static RemoteFocus? install({required List<inapp.UserScript> into}) {
-    if (!RemoteInput.driven) return null;
-    into.add(pageShim(
-      'remote_edge',
-      js: PageJs.remoteEdge.withConfig({'handler': kRemoteEdgeHandler}),
-      frames: ShimFrames.all,
-    ));
-    return RemoteFocus();
+  /// A keyboard (NAV-019): every key the shortcuts left goes on to the
+  /// webview, as Linux's keeps every key it is given.
+  keyboard;
+
+  /// The host's: a remote's where one drives the device, else a keyboard's,
+  /// which may be attached at any time; none off Android.
+  static PageKeys? get host {
+    if (!hostIsAndroid) return null;
+    return RemoteInput.driven ? remote : keyboard;
+  }
+
+  bool keeps(LogicalKeyboardKey key) => switch (this) {
+        remote => _dpad.contains(key),
+        keyboard => true,
+      };
+
+  /// Whether focus entering the page gives the webview native focus, which
+  /// a Flutter focus move alone does not. Without a keyboard focus enters
+  /// the page only by a touch, which focuses the view itself.
+  bool get focusesView => switch (this) {
+        remote => true,
+        keyboard => KeyboardInput.attached.value,
+      };
+}
+
+/// A site page on Android as [keys] drive it: while it has focus they go on
+/// to the webview; focus entering it gives the native view focus; and, for a
+/// remote, an arrow the page had no use for ([PageJs.remoteEdge], in
+/// whichever of its frames had focus) moves focus out of it, toward the app
+/// bar or the tab strip.
+final class PageFocus {
+  @visibleForTesting
+  PageFocus({required this.keys});
+
+  final PageKeys keys;
+
+  /// The focus of a site page as [keys] drive it, a remote's page script
+  /// added [into] the page's scripts; null where nothing does.
+  static PageFocus? install({
+    required PageKeys? keys,
+    required List<inapp.UserScript> into,
+  }) {
+    if (keys == null) return null;
+    switch (keys) {
+      case PageKeys.remote:
+        into.add(pageShim(
+          'remote_edge',
+          js: PageJs.remoteEdge.withConfig({'handler': kRemoteEdgeHandler}),
+          frames: ShimFrames.all,
+        ));
+      case PageKeys.keyboard:
+        break;
+    }
+    return PageFocus(keys: keys);
   }
 
   Future<void> Function()? _focusView;
   bool _hasFocus = false;
   LogicalKeyboardKey? _unanswered;
 
-  /// Answers the page script, and focuses [view] whenever focus enters it.
+  /// Answers a remote's page script, and focuses [view] as focus enters.
   void attach(inapp.InAppWebViewController view) {
-    view.addJavaScriptHandler(
-      handlerName: kRemoteEdgeHandler,
-      callback: (inapp.JavaScriptHandlerFunctionData data) {
-        if (data.isMainFrame) leave(edgeOf(data.args));
-        return null;
-      },
-    );
+    switch (keys) {
+      case PageKeys.remote:
+        view.addJavaScriptHandler(
+          handlerName: kRemoteEdgeHandler,
+          callback: (inapp.JavaScriptHandlerFunctionData data) {
+            if (data.isMainFrame) leave(edgeOf(data.args));
+            return null;
+          },
+        );
+      case PageKeys.keyboard:
+        break;
+    }
     bind(focusView: () async {
       try {
         await view.requestFocus();
@@ -68,7 +117,7 @@ final class RemoteFocus {
   @visibleForTesting
   void bind({required Future<void> Function() focusView}) {
     _focusView = focusView;
-    if (_hasFocus) unawaited(focusView());
+    if (_hasFocus && keys.focusesView) unawaited(focusView());
   }
 
   /// The direction the page script names in [args], or null.
@@ -101,12 +150,10 @@ final class RemoteFocus {
           skipTraversal: true,
           onFocusChange: (hasFocus) {
             _hasFocus = hasFocus;
-            if (hasFocus) unawaited(_focusView?.call());
+            if (hasFocus && keys.focusesView) unawaited(_focusView?.call());
           },
           onKeyEvent: (node, event) {
-            if (!_dpad.contains(event.logicalKey)) {
-              return KeyEventResult.ignored;
-            }
+            if (!keys.keeps(event.logicalKey)) return KeyEventResult.ignored;
             if (event is KeyDownEvent) _unanswered = event.logicalKey;
             return KeyEventResult.skipRemainingHandlers;
           },

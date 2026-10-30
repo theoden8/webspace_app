@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/remote_focus.dart';
+import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/widgets/remote_controls.dart';
 
 /// [home] in an app wrapped as `app.dart` wraps it where a remote drives the

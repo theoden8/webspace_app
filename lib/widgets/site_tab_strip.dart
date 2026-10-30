@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
-import 'package:webspace/services/remote_focus.dart';
+import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/tab_strip_edge.dart';
 import 'package:webspace/theme/design_tokens.dart';

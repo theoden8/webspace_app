@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:webspace/services/remote_focus.dart';
+import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
 /// The app's chrome where a TV remote drives the device (NAV-016), around
