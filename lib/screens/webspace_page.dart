@@ -816,7 +816,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// so a tab picked there opens its site on that tab.
   Future<void> _presentTabsSheet({WebspaceId? scope}) async {
     final shown = scope == null ? _sites.shown : null;
-    final sites = scope == null ? _tabs.sheetSites() : _tabs.sheetSitesIn(scope);
+    final (:sites, :wayBack) = _tabs.sheetListing(scope: scope);
     final at = sites.indexWhere((s) => identical(s.model, shown));
     if (scope == null ? at < 0 : sites.isEmpty) return;
     final loc = AppLocalizations.of(context);
@@ -841,12 +841,12 @@ class _WebSpacePageState extends State<WebSpacePage>
         onNewTab: (site) => unawaited(_tabs.newTab(site)),
         onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),
         onCloseTab: (site, {required tabId}) =>
-            unawaited(_tabs.closeTab(site, tabId: tabId)),
+            _tabs.closeFromSheet(site, tabId: tabId, subtree: false, scope: scope),
         onCloseSubtree: (site, {required tabId}) =>
-            unawaited(_tabs.closeTab(site, tabId: tabId, subtree: true)),
+            _tabs.closeFromSheet(site, tabId: tabId, subtree: true, scope: scope),
         onMoveTab: _tabs.moveTab,
         onMoveSite: shown != null && _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
-        wayBack: shown == null ? null : _tabs.wayBackFrom(shown),
+        wayBack: wayBack,
       ),
     );
   }

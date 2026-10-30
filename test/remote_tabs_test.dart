@@ -157,16 +157,23 @@ void main() {
       'https://a.test/3',
     ]);
     final events = <String>[];
+    final sites = [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
     await _pumpTv(
       tester,
       body: TabsSheet(
-        sites: [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)],
+        sites: sites,
         currentIndex: 0,
         onOpenTab: (s, {required tabId}) => events.add('open $tabId'),
         onNewTab: (s) => events.add('new'),
         onWebSearch: () => events.add('search'),
-        onCloseTab: (s, {required tabId}) => events.add('close $tabId'),
-        onCloseSubtree: (s, {required tabId}) => events.add('subtree $tabId'),
+        onCloseTab: (s, {required tabId}) async {
+          events.add('close $tabId');
+          return (sites: sites, wayBack: null);
+        },
+        onCloseSubtree: (s, {required tabId}) async {
+          events.add('subtree $tabId');
+          return (sites: sites, wayBack: null);
+        },
       ),
     );
 

@@ -1423,17 +1423,21 @@ abstract final class _TabsDemo {
 Widget _tabsSheetOver(String title, {required int current,
    List<TabsSheetSite>? sites, TabReturn? wayBack}) {
   _TabsDemo.bindLookup();
+  final listing = (
+    sites: sites ?? _TabsDemo.sites(current: _TabsDemo.all[current]),
+    wayBack: wayBack,
+  );
   return _SheetOver(
     title: title,
     sheet: TabsSheet(
-      sites: sites ?? _TabsDemo.sites(current: _TabsDemo.all[current]),
+      sites: listing.sites,
       currentIndex: current,
       onOpenTab: (_, {required tabId}) {},
       onNewTab: (_) {},
       onWebSearch: () {},
-      onCloseTab: (_, {required tabId}) {},
-      onCloseSubtree: (_, {required tabId}) {},
-      wayBack: wayBack,
+      onCloseTab: (_, {required tabId}) async => listing,
+      onCloseSubtree: (_, {required tabId}) async => listing,
+      wayBack: listing.wayBack,
     ),
   );
 }

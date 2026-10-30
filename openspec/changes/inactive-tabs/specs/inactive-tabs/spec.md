@@ -314,7 +314,11 @@ tab count and by tapping the active site's chip in the strip, SHALL offer "New
 tab", and SHALL list tabs as a tree in creation order,
 indented by depth, with a collapse chevron on nodes that have children, each
 tab's load state shown per TAB-011, and close and close-subtree actions. Collapsing a
-tab SHALL hide its whole subtree and SHALL say how many tabs that is.
+tab SHALL hide its whole subtree and SHALL say how many tabs that is. A close
+or close-subtree SHALL leave the sheet up, its rows redrawn once the close has
+landed; opening a tab, "New tab" and web search SHALL dismiss it. A close
+asked from the sheet while a tab change is running SHALL wait for it to end
+and then run, rather than be dropped as busy.
 
 Where more than one site is shown, the sheet SHALL also offer an "All sites"
 scope listing every site's tree under its own heading. That scope is the
@@ -336,6 +340,14 @@ kiosk shell (KIOSK-002) SHALL hide all of these.
 - **THEN** both descendants are hidden, not just the direct child
 - **AND** A's row says two tabs are hidden
 - **AND** the tabs themselves are unchanged
+
+#### Scenario: Closing tabs from the sheet
+
+- **GIVEN** GitHub has three tabs and its Tabs sheet is open
+- **WHEN** the user closes one tab, then another before the first close has landed
+- **THEN** the sheet stays open and both tabs leave its list, in that order
+- **AND** GitHub's title in the sheet says one tab
+- **AND** a tap on the remaining tab then dismisses the sheet and shows it
 
 #### Scenario: One loaded tab per loaded site
 
