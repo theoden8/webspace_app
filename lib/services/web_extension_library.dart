@@ -281,8 +281,9 @@ class WebExtensionLibrary {
   bool get available => _folders != null;
 
   /// Reads the library and removes any folder no entry names: one left by
-  /// an import cut short, a removal cut short, or demo mode. Then has WebKit
-  /// read each extension, without holding up the launch.
+  /// an import cut short, a removal cut short, or demo mode. A library not
+  /// read whole may name any folder, so then none is removed. Then has
+  /// WebKit read each extension, without holding up the launch.
   Future<void> initialize({
     @visibleForTesting ExtensionFolders? folders,
     @visibleForTesting ExtensionEngine? engine,
@@ -294,21 +295,35 @@ class WebExtensionLibrary {
     if (fetch != null) _fetch = fetch;
     if (read != null) _read = read;
     final prefs = await SharedPreferences.getInstance();
+    final saved = readPrefStrings(prefs, key: _prefsKey);
     final entries = [
-      for (final raw
-          in readPrefAs<List<String>>(prefs, key: _prefsKey) ?? const [])
-        ?_decode(raw),
+      for (final raw in saved ?? const <String>[]) ?_decode(raw),
     ];
+    final readWhole = saved == null
+        ? !prefs.containsKey(_prefsKey)
+        : entries.length == saved.length;
     try {
       final found =
           folders ??
           _HostExtensionFolders(
             await hostEntryPath(_directory, kind: StoreKind.data),
           );
-      final named = {for (final e in entries) e.id as String};
-      for (final name in await found.names()) {
-        final id = WebExtensionId.parse(name);
-        if (id != null && !named.contains(id)) await found.delete(id);
+      final present = await found.names();
+      if (readWhole) {
+        final named = {for (final e in entries) e.id as String};
+        for (final name in present) {
+          final id = WebExtensionId.parse(name);
+          if (id != null && !named.contains(id)) await found.delete(id);
+        }
+      } else {
+        LogTag.webExtension.warning(
+          'library not read whole; kept ${present.length} folders',
+        );
+      }
+      for (final e in entries) {
+        if (!present.contains(e.id)) {
+          LogTag.webExtension.warning('${e.id}: its folder is gone');
+        }
       }
       _folders = found;
     } on IOException catch (e) {

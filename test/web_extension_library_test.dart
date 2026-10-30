@@ -89,6 +89,37 @@ void main() {
     expect(disk.folders.keys, unorderedEquals([kept.id, 'Not An Id']));
   });
 
+  /// A launch reads the library as the platform loaded it from disk, a
+  /// `List<Object?>` that only `getStringList` casts. Read as a
+  /// `List<String>` it was absent, and the launch deleted every folder as
+  /// one no entry named: each cold start, an app update among them, lost
+  /// every extension (WEBEXT-002).
+  test('an extension outlives a cold start (WEBEXT-002)', () async {
+    final kept = await _library.add(_package());
+    final prefs = await SharedPreferences.getInstance();
+    SharedPreferences.setMockInitialValues({
+      'webExtensionLibrary': <Object?>[
+        ...prefs.getStringList('webExtensionLibrary')!,
+      ],
+    });
+    expect([for (final i in await _relaunch(disk)) i.entry.id], [kept.id]);
+    expect(disk.folders.keys, [kept.id]);
+  });
+
+  test('a library that cannot be read whole deletes no folder (WEBEXT-002)',
+      () async {
+    final kept = await _library.add(_package());
+    SharedPreferences.setMockInitialValues({'webExtensionLibrary': 'garbled'});
+    expect(await _relaunch(disk), isEmpty);
+    expect(disk.folders.keys, [kept.id]);
+
+    SharedPreferences.setMockInitialValues({
+      'webExtensionLibrary': ['{not json'],
+    });
+    expect(await _relaunch(disk), isEmpty);
+    expect(disk.folders.keys, [kept.id]);
+  });
+
   test('a saved entry that does not parse is skipped, the rest load',
       () async {
     final kept = await _library.add(_package());

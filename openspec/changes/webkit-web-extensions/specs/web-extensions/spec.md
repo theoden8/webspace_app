@@ -30,7 +30,7 @@ Web extensions SHALL be reachable only on iOS 18.4+ and macOS 15.4+, and there o
 
 ### Requirement: WEBEXT-002 - The user adds an extension from a file or a link; the app downloads only what the user asked for
 
-App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`, read as WEBEXT-013 says, or from a link as WEBEXT-017 says. The app SHALL download a package only when the user adds or updates an extension, or where WEBEXT-019's switch lets an update install without asking; checking for an update (WEBEXT-018) downloads none. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for, and say when the package carried a signature the app did not check.
+App Settings > Extensions SHALL import an extension from a file the user picks: an unpacked folder (macOS), a `.zip`, a `.crx` or an `.xpi`, read as WEBEXT-013 says, or from a link as WEBEXT-017 says. The app SHALL download a package only when the user adds or updates an extension, or where WEBEXT-019's switch lets an update install without asking; checking for an update (WEBEXT-018) downloads none. Before adding, it SHALL show the extension's name, version, permissions and the sites it asks for, and say when the package carried a signature the app did not check. An added extension SHALL stay until the user removes it: a launch SHALL delete only the files no library entry names, and none when it cannot read the library whole.
 
 #### Scenario: A Chrome package
 
@@ -50,6 +50,12 @@ App Settings > Extensions SHALL import an extension from a file the user picks: 
 - **GIVEN** an extension in the library that two sites switched on
 - **WHEN** the user removes it
 - **THEN** its files and its data on both sites are deleted, and it runs on neither
+
+#### Scenario: An app update
+
+- **GIVEN** an extension in the library
+- **WHEN** the app is updated and launched again
+- **THEN** the extension and its files are still in the library
 
 ### Requirement: WEBEXT-003 - Chrome-format extensions run as far as WebKit supports their APIs
 
