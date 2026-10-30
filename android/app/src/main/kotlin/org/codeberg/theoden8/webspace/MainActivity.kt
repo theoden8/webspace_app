@@ -29,6 +29,7 @@ class MainActivity: FlutterActivity() {
     private var screenSharePlugin: ScreenSharePlugin? = null
     private var passkeyPlugin: PasskeyPlugin? = null
     private var remoteInputPlugin: RemoteInputPlugin? = null
+    private var windowCaptionPlugin: WindowCaptionPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
 
@@ -88,6 +89,7 @@ class MainActivity: FlutterActivity() {
         screenSharePlugin = ScreenSharePlugin(this, flutterEngine)
         passkeyPlugin = PasskeyPlugin(this, flutterEngine)
         remoteInputPlugin = RemoteInputPlugin(this, flutterEngine)
+        windowCaptionPlugin = WindowCaptionPlugin(this, flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
