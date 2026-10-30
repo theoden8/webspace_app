@@ -5,11 +5,15 @@ import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/egress_relay.dart';
+import 'package:webspace/services/egress_route_engine.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/location.dart'
     show WebRtcPolicy, resolveWebRtcPolicy;
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/settings/setting_labels.dart';
@@ -34,6 +38,7 @@ class SiteNetworkValues {
     this.savedProxyId,
     this.gatewayId,
     this.credentialsId,
+    this.leavesBy = const SystemRouting(),
     required this.webRtcPolicy,
   });
 
@@ -48,6 +53,9 @@ class SiteNetworkValues {
 
   /// Country the Tor exit is pinned to, or null for any.
   final String? torExitCountry;
+
+  /// The interface the site's traffic leaves by (NETIF-001).
+  final InterfaceChoice leavesBy;
   final WebRtcPolicy webRtcPolicy;
 
   /// `torExitCountry` is nullable *and* meaningful when null ("any country"),
@@ -60,6 +68,7 @@ class SiteNetworkValues {
     Object? savedProxyId = _keep,
     Object? gatewayId = _keep,
     Object? credentialsId = _keep,
+    InterfaceChoice? leavesBy,
     WebRtcPolicy? webRtcPolicy,
   }) {
     T? or<T>(Object? next, {required T? kept}) =>
@@ -70,6 +79,7 @@ class SiteNetworkValues {
       savedProxyId: or(savedProxyId, kept: this.savedProxyId),
       gatewayId: or(gatewayId, kept: this.gatewayId),
       credentialsId: or(credentialsId, kept: this.credentialsId),
+      leavesBy: leavesBy ?? this.leavesBy,
       webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
     );
   }
@@ -153,6 +163,10 @@ class SiteNetworkScreen extends StatefulWidget {
 class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
   late SiteNetworkValues _values = widget.values;
 
+  /// The interfaces present as the screen opened, while the experiment is
+  /// reachable (NETIF-010); null until the platform answers.
+  List<NetworkLink>? _links;
+
   List<TextEditingController> get _controllers => [
         widget.proxyAddressController,
         widget.proxyUsernameController,
@@ -167,6 +181,12 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     for (final c in _controllers) {
       c.addListener(_fieldsChanged);
     }
+    if (EgressRelay.instance.state is! EgressOff) unawaited(_loadLinks());
+  }
+
+  Future<void> _loadLinks() async {
+    final links = await EgressRelay.instance.links();
+    if (mounted) setState(() => _links = links);
   }
 
   @override
@@ -342,8 +362,9 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
   }
 
   Widget _webRtc(AppLocalizations loc) {
-    final proxied =
-        _values.proxyType != ProxyType.DEFAULT || widget.appProxySet;
+    final proxied = _values.proxyType != ProxyType.DEFAULT ||
+        widget.appProxySet ||
+        appliesInterface(_values.leavesBy, relay: EgressRelay.instance.state);
     final noDirect = widget.trackingProtectionEnabled && proxied;
     final shown = resolveWebRtcPolicy(
       stored: _values.webRtcPolicy,
@@ -365,6 +386,69 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     );
   }
 
+  /// The proxy this form would store, as the relay would dial it.
+  ProxyType get _upstreamType => switch (_values.proxyType) {
+        ProxyType.DEFAULT =>
+          resolveLibraryProxy(GlobalOutboundProxy.current).type,
+        ProxyType.SAVED || ProxyType.GATEWAY => _route().route.type,
+        final type => type,
+      };
+
+  /// The interface the site leaves by (NETIF-010). A route the relay cannot
+  /// carry locks the row while nothing is chosen, and otherwise leaves only
+  /// System routing to pick, so a site it blocks can always be let go.
+  Widget _networkInterface(AppLocalizations loc) {
+    final chosen = _values.leavesBy;
+    final links = _links ?? const <NetworkLink>[];
+    final present = {for (final l in links) l.name: l};
+    final values = <InterfaceChoice>[
+      const SystemRouting(),
+      for (final l in links) NamedInterface(l.name),
+      if (chosen case NamedInterface(:final name)
+          when !present.containsKey(name))
+        chosen,
+      if (chosen is UnreadableInterface) chosen,
+    ];
+    final cannotRide = switch (UpstreamCarriage.of(_upstreamType)) {
+      UpstreamCarriage.tor => loc.networkInterfaceTorLock,
+      UpstreamCarriage.tlsProxy => loc.networkInterfaceHttpsLock,
+      UpstreamCarriage.direct ||
+      UpstreamCarriage.socks5 ||
+      UpstreamCarriage.http ||
+      UpstreamCarriage.unresolved => null,
+    };
+    // Whether a choice is up is the subtitle's to say, so the menu, which
+    // truncates, names the interface alone.
+    String label(InterfaceChoice c) => switch (c) {
+          SystemRouting() => loc.networkInterfaceSystem,
+          NamedInterface(:final name) => name,
+          UnreadableInterface() => '?',
+        };
+    final state = switch (chosen) {
+      NamedInterface(:final name) => switch (present[name]) {
+          (name: _, :final up, :final addresses)
+              when up && addresses.isNotEmpty =>
+            Localized.verbatim(addresses.join(', ')),
+          _ => loc.networkInterfaceNotConnected(name),
+        },
+      UnreadableInterface() => loc.networkInterfaceNotConnected('?'),
+      SystemRouting() => null,
+    };
+    return ChoiceTile<InterfaceChoice>(
+      title: loc.networkInterfaceTitle,
+      hint: loc.networkInterfaceHint,
+      subtitle: chosen is SystemRouting ? null : (cannotRide ?? state),
+      values: values,
+      label: label,
+      value: chosen,
+      offered: (c) => cannotRide == null || c is SystemRouting,
+      lock: cannotRide != null && chosen is SystemRouting
+          ? Lock.because(cannotRide)
+          : null,
+      onChanged: (c) => _update(_values.copyWith(leavesBy: c)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -375,6 +459,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           SettingsNote.host(widget.host),
           if (widget.proxySupported) ..._proxyGroup(loc),
           SettingsSection(loc.networkGroupConnection),
+          if (EgressRelay.instance.state is! EgressOff) _networkInterface(loc),
           _webRtc(loc),
           if (widget.showSavedSignIns) SavedSignInsTile(siteId: widget.siteId),
           const SizedBox(height: 24),

@@ -25,26 +25,26 @@ provider, or the user's own) can carry one site and not another.
 
 ## What Changes
 
-- **A new `network-interface` capability** (NETIF-001 to NETIF-011): a per-site
+- **A new `network-interface` capability** (NETIF-001 to NETIF-014): a per-site
   choice of the interface the site's traffic leaves by, `System routing` by
-  default.
+  default, behind an Experimental switch (NETIF-013).
 - **Fail closed.** A site bound to an interface that is absent, down or has no
   address of the needed family gets a refused connection and a page that says
   why, never the default route (NETIF-002).
-- **A native egress relay per platform.** The site's store proxy names a
-  loopback relay, and the relay dials out with the platform's interface
-  primitive: `SO_BINDTODEVICE` on Linux, Network.framework's
-  `requiredInterface` on iOS and macOS, `Network.bindSocket` on Android
-  (NETIF-003, NETIF-004). Only sites bound to an interface go through it;
-  every other site keeps the binding it has now.
+- **A native egress relay per platform.** A bound site's route is SOCKS5 to
+  a loopback relay whose credential carries the whole route, and the relay
+  dials out with the platform's interface primitive: `SO_BINDTODEVICE` on
+  Linux, Network.framework's `requiredInterface` on iOS and macOS,
+  `Network.bindSocket` on Android (NETIF-003, NETIF-004). Only sites bound to
+  an interface go through it; every other site keeps the binding it has now.
 - **The interface carries what the site already has.** A proxy is dialled over
   the interface (NETIF-005). DNS for a direct dial is resolved through the
   interface (NETIF-007). WebRTC follows the proxied-site floor (NETIF-008).
 - **Every connection made for the site takes it**: nested screens, popups, a
   wake's headless check, and the app's own fetches for the site (NETIF-009).
-- **The join that carries it is `OutboundProxy`**, which already reaches every
-  outbound API and the webview's proxy. It gains the interface, so no new
-  parameter is threaded anywhere (design D2).
+- **It rides the site's proxy settings**, as the Tor exit country does, and
+  `OutboundProxy.resolved` applies it last, so every seam that takes the
+  proxy takes it and no new parameter is threaded anywhere (design D2).
 
 ## The decision this change makes, and why
 
@@ -85,25 +85,26 @@ namespace).
 
 ## Impact
 
-- New: `openspec/specs/network-interface/spec.md` (on archive).
-- `lib/settings/site_field.dart`, `lib/web_view_model_json.dart`: one
-  `SiteField` (backups carry it; a QR share does not).
-- `lib/services/outbound_http_types.dart`: `OutboundProxy` and `ProxyRoute`
-  carry the interface. This is a join in the CLAUDE.md map, so it is flagged
-  for review.
-- `lib/services/proxy_relay.dart`: the route wire shape gains `interface`;
-  `ProxyRelayApi` is unchanged.
-- Native relays: `linux/egress_relay.cc` (new),
-  `macos/Runner/EgressRelay.swift` and its iOS twin (new), and
-  `android/.../proxy/ProxyRelay.kt` (dial through `Network`).
-- `lib/screens/site_network.dart`: a "Network interface" row (NET-001's
-  "Connection" group).
-- `lib/services/proxy_conflict_engine.dart`: two sites whose interfaces differ
-  are two routes (PROXY-008), so a process-wide rule cannot carry both.
-- `lib/settings/location.dart` `resolveWebRtcPolicy`: "proxied" becomes
-  "routed".
-- `openspec/specs/ip-leakage/spec.md` LEAK-007 (coverage matrix) and
-  `openspec/specs/proxy/spec.md` PROXY-026 (the store-relay exception), on
-  archive.
-- `lib/l10n/app_*.arb`: the row, its hint, the blocked page and the import
-  notice, translations in their own commit.
+Phase 1 (Linux), as built:
+
+- New: `lib/settings/network_interface.dart` (the choice),
+  `lib/services/egress_route_engine.dart` (the route rule, pure),
+  `lib/services/egress_relay.dart` (the channel), `linux/egress_relay.cc`
+  and `linux/egress_relay_core.cc` (the relay), `test/linux/egress_relay/`
+  (its native check, in CI's Linux job), `test/network_interface_test.dart`,
+  `test/fixtures/egress_credentials.tsv`.
+- `lib/settings/proxy.dart`: `UserProxySettings.leavesBy`, written as
+  `networkInterface` only when set, so existing JSON is unchanged.
+- `lib/services/outbound_http_types.dart`: `OutboundProxy.resolved` applies
+  the interface last. Its join is unchanged.
+- `lib/screens/site_network.dart`, `lib/screens/settings.dart`,
+  `lib/services/proxy_form_engine.dart`: the row, and the form carrying the
+  choice through a save.
+- `lib/settings/app_prefs.dart`, `lib/services/experimental_features_service.dart`,
+  `lib/screens/app_developer.dart`: the Experimental switch.
+- `lib/services/site_settings_qr_codec.dart`: a QR share neither carries nor
+  takes the choice.
+- `lib/l10n/app_*.arb`: eight strings, the translations in their own commit.
+- On archive: `openspec/specs/ip-leakage/spec.md` LEAK-007 (coverage matrix)
+  and `openspec/specs/proxy/spec.md` PROXY-026 (a bound site's store names the
+  relay).

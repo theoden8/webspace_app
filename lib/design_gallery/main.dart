@@ -11,8 +11,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
+import 'package:webspace/services/egress_relay.dart';
+import 'package:webspace/services/egress_route_engine.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -113,6 +116,8 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: _siteBehaviour),
   GalleryCard(id: 'site-network', label: 'Site network screen', fullBleed: true, builder: (c) => const _SiteNetworkCard()),
   GalleryCard(id: 'site-network-saved', label: 'Site network screen, saved proxy', fullBleed: true, builder: (c) => const _SiteNetworkSavedCard()),
+  GalleryCard(id: 'site-network-interface', label: 'Site network screen, bound to an interface', fullBleed: true, builder: (c) => const _SiteNetworkInterfaceCard(chosen: 'wg0')),
+  GalleryCard(id: 'site-network-interface-gone', label: 'Site network screen, its interface gone', fullBleed: true, builder: (c) => const _SiteNetworkInterfaceCard(chosen: 'tun9')),
   GalleryCard(id: 'saved-proxies', label: 'Saved proxies screen', fullBleed: true, builder: _savedProxies),
   GalleryCard(id: 'saved-proxy-edit', label: 'Saved proxy form', fullBleed: true, builder: _savedProxyEdit),
   GalleryCard(id: 'saved-credentials-edit', label: 'Saved credentials form', fullBleed: true, builder: _savedCredentialsEdit),
@@ -155,6 +160,7 @@ Future<void> main() async {
   await loadRoboto();
   _seedSavedProxies();
   GlobalOutboundProxy.setInMemory(UserProxySettings(type: ProxyType.DEFAULT));
+  _egressIdle();
   _seedAppPrefs();
   // The web build draws no webview; the mode any settings builder reads.
   WebViewFactory.hybridComposition = true;
@@ -328,6 +334,81 @@ class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
         ),
         onChanged: (_) {},
         proxySupported: true,
+        proxyAddressController: address,
+        proxyUsernameController: username,
+        proxyPasswordController: password,
+        showSavedSignIns: false,
+      );
+}
+
+/// A host that binds interfaces, with the experiment off: the Developer
+/// screen lists the switch, and a Network screen shows no row.
+void _egressIdle() =>
+    EgressRelay.instance.setInMemory(state: const EgressOff());
+
+/// The per-site Network screen for a site bound to [chosen] while the
+/// Network interface per site experiment is on (NETIF-010): two tunnels and
+/// Wi-Fi are present, and a choice that is not among them reads as not
+/// connected.
+class _SiteNetworkInterfaceCard extends StatefulWidget {
+  const _SiteNetworkInterfaceCard({required this.chosen});
+
+  final String chosen;
+
+  @override
+  State<_SiteNetworkInterfaceCard> createState() =>
+      _SiteNetworkInterfaceCardState();
+}
+
+class _SiteNetworkInterfaceCardState extends State<_SiteNetworkInterfaceCard> {
+  final model =
+      WebViewModel(initUrl: 'https://news.example.com/', name: 'News');
+  final address = TextEditingController();
+  final username = TextEditingController();
+  final password = TextEditingController();
+  late SiteNetworkValues values = SiteNetworkValues(
+    proxyType: ProxyType.DEFAULT,
+    leavesBy: NamedInterface(InterfaceName.parse(widget.chosen)!),
+    webRtcPolicy: WebRtcPolicy.defaultPolicy,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    EgressRelay.instance.setInMemory(
+      state: const EgressUp(host: '127.0.0.1', port: 1, secret: 'gallery'),
+      links: [
+        for (final (name, address) in const [
+          ('wg0', '10.64.0.2'),
+          ('tun-fr', '10.8.0.6'),
+          ('wlp2s0', '192.168.1.23'),
+        ])
+          (
+            name: InterfaceName.parse(name)!,
+            up: true,
+            addresses: [address],
+          ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _egressIdle();
+    address.dispose();
+    username.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SiteNetworkScreen(
+        host: 'news.example.com',
+        siteId: model.siteId,
+        values: values,
+        onChanged: (v) => setState(() => values = v),
+        proxySupported: true,
+        trackingProtectionEnabled: true,
         proxyAddressController: address,
         proxyUsernameController: username,
         proxyPasswordController: password,

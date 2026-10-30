@@ -127,18 +127,8 @@ NAV-008	no check: InAppWebViewScreen's onPopInvokedWithResult policy (Android ca
 NESTED-011	no check: needs the fork's iOS/macOS onCreateWindow decline path to skip loading the request in the parent; no test reads the fork source or runs WKWebView (iOS/macOS-only plugin behaviour that no tier runs)
 NESTED-012	process: the requirement is that the spec states the provenance loss (Sec-Fetch-Site: none, no Referer) as accepted behaviour; it is documentation, with nothing to run
 # network-interface
-NETIF-001	no check: the per-site-network-interface change is a proposal; InterfaceChoice and its SiteField are not written yet (tasks 2.1, 2.2)
-NETIF-002	no check: no egress relay exists yet to refuse a dial; the Linux namespace boundary test is task 3.4
-NETIF-003	no check: no relay binds a socket yet; the planted source-address bind is task 3.4
-NETIF-004	no check: no store names an egress relay yet and EgressRouted does not exist (task 3.5)
-NETIF-005	no check: no relay dials a proxy over an interface yet (tasks 3.1, 3.4)
-NETIF-006	no check: the Network screen has no interface row to lock for a Tor site yet (task 3.8); the app-wide Tor choice is phase 4
-NETIF-007	no check: no relay resolves hostnames yet; resolved and bound-socket DNS are task 3.2
-NETIF-008	no check: resolveWebRtcPolicy still reads proxied, not routed (task 2.4)
-NETIF-009	no check: OutboundProxy carries no interface yet (tasks 2.3, 3.6)
-NETIF-010	no check: the Network screen has no interface row yet (task 3.8)
-NETIF-011	no check: ProxyConflictEngine compares proxies only; Android's relay binds no Network (tasks 2.5, 5.1)
-NETIF-012	no check: no SiteField carries the choice yet, so neither the QR exclusion nor the import notice can be tested (tasks 2.2, 3.9)
+NETIF-009	no check: OutboundProxy carries the interface to every seam by construction (the posture, every outbound API's proxy:), but no test builds a nested screen, a popup, a headless check or an icon fetch for a bound site and reads the route it took
+NETIF-014	no check: not built yet; an import that names an interface this device lacks lands without a notice, and the site loads nothing until the user picks again (tasks 3.9)
 # passkey-support
 PASSKEY-014	no check: no gate asserts the committed iOS/macOS entitlements omit the browser passkey entitlement (os_capability_declarations and macos_store_declarations check other keys)
 # per-site-containers

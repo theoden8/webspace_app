@@ -108,6 +108,7 @@ function checkFiles() {
       ...optional('android/app/src/androidTest', /\.kt$/),
       ...optional('ios/RunnerTests', /\.swift$/),
       ...optional('macos/RunnerTests', /\.swift$/),
+      ...optional('test/linux', /\.(cc|c|sh)$/),
     ],
     tool: ciTools(),
   };

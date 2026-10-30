@@ -8,6 +8,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -57,6 +58,10 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.linuxTor, Icons.security_outlined,
             loc.appSettingsExperimentalLinuxTor,
             loc.appSettingsExperimentalLinuxTorHint),
+      if (EgressRelay.instance.offered)
+        (ExperimentalFeature.networkInterface, Icons.alt_route,
+            loc.appSettingsExperimentalNetworkInterface,
+            loc.appSettingsExperimentalNetworkInterfaceHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

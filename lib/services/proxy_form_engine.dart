@@ -65,6 +65,7 @@ UserProxySettings applyProxyForm({
     username: credentialsShown ? _orNull(fields.username) : stored.username,
     password: credentialsShown ? _orNull(fields.password) : stored.password,
     torExitCountry: stored.torExitCountry,
+    leavesBy: stored.leavesBy,
     savedProxyId:
         type == ProxyType.SAVED ? fields.savedProxyId : stored.savedProxyId,
     gatewayId: gateway ? fields.gatewayId : stored.gatewayId,

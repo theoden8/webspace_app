@@ -4,210 +4,201 @@
 
 ### Requirement: NETIF-001 - A site names the interface its traffic leaves by
 
-A site SHALL carry an `InterfaceChoice`: `SystemRouting` (the default, and what
-every existing site reads as), a `NamedInterface` on Linux, macOS and iOS, or
-an `AndroidNetwork` naming a transport (VPN, Wi-Fi, cellular, Ethernet) on
-Android. The choice SHALL be resolved once, into the site's `OutboundProxy`
-(`OutboundProxy.ofSite(stored, site:, leavesBy:)`), and read from there by
-every consumer. No consumer SHALL read the stored field.
+A site's proxy settings SHALL carry an `InterfaceChoice`
+(`lib/settings/network_interface.dart`) under the key `networkInterface`, as
+they carry the Tor exit country, so every seam that takes the site's proxy
+takes it too: the webview's store, a nested screen, a popup, a wake's
+headless check and the app's own fetches for the site. The cases are
+`SystemRouting` (the default, written as no key, so every existing site
+reads and writes exactly as before), a `NamedInterface` holding an
+`InterfaceName`, and `UnreadableInterface` for a stored value this build
+cannot read. Android's transport choice is a case of its own when its phase
+lands.
 
-A stored choice whose case this platform does not offer SHALL read as
-unavailable, which refuses under NETIF-002. It SHALL NOT read as
-`SystemRouting`.
+The choice SHALL be applied in one place, `OutboundProxy.resolved`, through
+`egressRoute` (`lib/services/egress_route_engine.dart`). No consumer SHALL
+read the stored field to decide a route.
+
+A stored choice this build cannot read SHALL refuse under NETIF-002 and
+SHALL be written back as it came. It SHALL NOT read as `SystemRouting`.
 
 #### Scenario: An existing site follows the system's routing
 
 **Given** a site saved before this change
-**When** it is loaded
+**When** it is loaded and saved again
 **Then** its choice is `SystemRouting`
-**And** its webview's proxy is exactly what it was before
+**And** its proxy settings JSON carries no `networkInterface` key
 
-#### Scenario: A choice from another platform is not dropped
+#### Scenario: A choice from a newer build is not dropped
 
-**Given** a backup made on Linux in which site "Acme" names `wg0`
-**When** it is imported on Android
-**Then** "Acme"'s choice is unavailable on this device
-**And** "Acme" loads nothing until the user picks a network or System routing
+**Given** a backup whose site "Acme" carries `{"transport": "vpn"}` as its
+interface
+**When** it is imported by this build with the experiment on
+**Then** "Acme" has no route
+**And** saving "Acme" writes the same value back
 
 ---
 
 ### Requirement: NETIF-002 - A bound site refuses rather than falls back
 
-While a site names an interface, no connection made for the site SHALL leave
-by any other interface. If the interface is absent, down, or holds no address
-of the destination's family, the connection SHALL be refused. It SHALL NOT be
-dialled by the system's routing table.
+While a site names an interface and the experiment is reachable, no
+connection made for the site SHALL leave by any other interface. If no relay
+runs, the route SHALL go nowhere (`ProxyType.SAVED` with no address, which
+every seam refuses). If the interface is absent, down, or holds no address of
+the destination's family when a connection is dialled, the relay SHALL refuse
+it (SOCKS5 reply 3, network unreachable). It SHALL NOT be dialled by the
+system's routing table.
 
-A refused main-frame load SHALL show a page naming the interface and that it
-is not connected, in the shape of a blocked Tor site (PROXY-016). It SHALL NOT
-show an empty page or the engine's generic network error.
+#### Scenario: The tunnel is down
 
-#### Scenario: The tunnel is down at load
+**Given** site "Acme" names `ws-ega`
+**And** `ws-ega` is down
+**When** "Acme" connects to `198.51.100.7`
+**Then** the relay answers network unreachable
+**And** the kernel asks no link for `198.51.100.7`
 
-**Given** site "Acme" names `wg0`
-**And** `wg0` does not exist
-**When** "Acme" is opened
-**Then** no connection for "Acme" leaves by any interface
-**And** the page says that `wg0` is not connected
+#### Scenario: No relay runs
 
-#### Scenario: The tunnel drops while the page is open
-
-**Given** site "Acme" names `wg0` and has loaded over it
-**When** `wg0` goes down and the page fetches again
-**Then** the fetch is refused
-**And** no SYN for it leaves by the default route
-
-#### Scenario: An IPv4-only tunnel and an IPv6 destination
-
-**Given** site "Acme" names `wg0`, which holds only an IPv4 address
-**When** a host of "Acme" resolves only to IPv6 addresses
-**Then** the connection is refused
-**And** it is not dialled over another interface that has IPv6
+**Given** the experiment is on and the relay did not start
+**When** a site that names `wg0` resolves its route
+**Then** the route goes nowhere
 
 ---
 
 ### Requirement: NETIF-003 - The binding is the platform's interface primitive, never a source address
 
 The relay SHALL bind each outbound socket to the interface before it connects,
-with the platform's interface primitive:
-
-| Platform | Primitive |
-|---|---|
-| Linux | `SO_BINDTODEVICE` |
-| macOS, iOS | Network.framework `requiredInterface`, or `IP_BOUND_IF` / `IPV6_BOUND_IF` |
-| Android | `Network.bindSocket` |
-
-Binding only the source address SHALL NOT be used. On Linux's weak host model
-a packet carrying the tunnel's address as its source still leaves by the
-default route.
+with the platform's interface primitive: `SO_BINDTODEVICE` on Linux
+(`linux/egress_relay_core.cc`), Network.framework's `requiredInterface` (or
+`IP_BOUND_IF`) on macOS and iOS, `Network.bindSocket` on Android. Binding only
+the source address SHALL NOT be used: on Linux's weak host model a packet
+carrying the tunnel's address as its source still leaves by the route its
+destination selects.
 
 The choice SHALL be offered only where the primitive works. On Linux the app
-SHALL probe once per run by binding a socket to the loopback device; a
-refusal (`EPERM`, a kernel before 5.7 without `CAP_NET_RAW`) SHALL leave the
-row absent.
+SHALL probe once per run by binding a socket to the loopback device; a refusal
+(`EPERM`, a kernel before 5.7 without `CAP_NET_RAW`) SHALL leave the
+Experimental switch and the row absent.
 
-#### Scenario: The default route points elsewhere
+#### Scenario: Another link carries the route
 
-**Given** a Linux host whose default route leaves by `eth0`
-**And** site "Acme" names `veth-a`, which no route names
-**When** "Acme" connects to a host reachable over `veth-a`
-**Then** the connection leaves by `veth-a`
-**And** `eth0` carries no packet for it
+**Given** links `ws-ega` and `ws-egb`, and a route to `198.51.100.0/24` by
+`ws-egb` only
+**And** site "Acme" names `ws-ega`
+**When** "Acme" connects to `198.51.100.7`
+**Then** the kernel asks `ws-ega` for `198.51.100.7`, and not `ws-egb`
 
 #### Scenario: A source-address bind is the planted mistake
 
-**Given** the relay's Linux dial binds the source address instead of the device
+**Given** the relay binds the socket to `ws-ega`'s address instead of the
+device
 **When** the scenario above runs
-**Then** the boundary test fails, because `eth0` carries the SYN
-
-#### Scenario: An old kernel
-
-**Given** a Linux kernel that refuses `SO_BINDTODEVICE` to an unprivileged process
-**When** the per-site Network screen opens
-**Then** no "Network interface" row is shown
+**Then** `test/linux/egress_relay/check.sh` fails, because `ws-egb` is asked
 
 ---
 
-### Requirement: NETIF-004 - Only bound sites ride the egress relay, which checks the interface at each dial
+### Requirement: NETIF-004 - A bound site rides the relay, and its credential carries the route
 
 A site whose choice is `SystemRouting` SHALL keep the binding it has without
 this change: its own store proxy on Linux and Apple (PROXY-026), and the
-process rule or router on Android. A site that names an interface SHALL have
-its store's proxy name the egress relay, with its per-run relay credential
-(PROXY-023, PROXY-024). This is the one case where an Apple store names a
-loopback relay, since no store setting names an interface.
+process rule or the router on Android. A site that names an interface SHALL
+resolve to SOCKS5 at the relay, a loopback listener on a random address in
+127/8 (PROXY-024).
 
-The relay SHALL check the interface at each dial, not when the route was
-installed. A bound site's webview SHALL be built only once the relay holds the
-site's route; the build SHALL take the install's witness (`EgressRouted`),
-which only the install makes.
+The credential SHALL carry the whole route, so the relay keeps no table and no
+route can be asked for before it is installed: the username names the
+interface and any upstream (`ws-egress-1?if=<link>[&t=&h=&p=&u=]`, each value
+percent-encoded), the password is the relay's per-run secret followed by the
+upstream's password. A credential RFC 1929 cannot carry (255 bytes of each)
+SHALL be no route. A caller that presents no credential, or a wrong secret,
+SHALL be refused (LEAK-009). `test/fixtures/egress_credentials.tsv` holds the
+Dart writer and the relay's reader to the same vectors.
 
 #### Scenario: An unbound neighbour is untouched
 
-**Given** two sites on macOS, "Acme" naming `utun4` and "Bolt" on System routing
-**When** both are loaded
-**Then** "Acme"'s store names the egress relay
-**And** "Bolt"'s store names "Bolt"'s own proxy, or none, as before
+**Given** two sites, "Acme" naming `wg0` and "Bolt" on System routing
+**When** both resolve their routes
+**Then** "Acme" resolves to SOCKS5 at the relay
+**And** "Bolt" resolves to exactly what it did before
 
-#### Scenario: A caller the relay cannot attribute
+#### Scenario: A wrong secret
 
-**Given** the egress relay is running
-**When** a connection presents no credential, or one the relay does not hold
-**Then** it is refused (LEAK-009)
+**Given** the relay is running
+**When** a caller presents a credential with another secret
+**Then** the relay refuses it at authentication
 
 ---
 
 ### Requirement: NETIF-005 - A proxy is dialled over the interface
 
-When a bound site's traffic also resolves to a proxy (its own, a library
-entry, or the global proxy through DEFAULT under LEAK-001), the relay SHALL
-dial that proxy over the interface. The proxy then carries the request. The
-upstream's credential SHALL stay in the relay's route table and SHALL NOT be
-serialised (PWD-005).
+When a bound site's traffic also resolves to a SOCKS5 or HTTP proxy (its own,
+a library entry, or the global proxy through DEFAULT under LEAK-001), the
+relay SHALL dial that proxy over the interface and hand it the destination's
+name unresolved. An HTTPS proxy, whose TLS the relay does not run yet, SHALL
+have no route over an interface.
 
 #### Scenario: VPN, then proxy
 
-**Given** site "Acme" names `wg0` and has SOCKS5 proxy `10.64.0.1:1080`
-**When** "Acme" loads `https://example.com/`
+**Given** site "Acme" names `wg0` and has SOCKS5 proxy `10.64.0.1:1080` with
+user `alice`
+**When** "Acme" loads `https://site.test/`
 **Then** the relay connects to `10.64.0.1:1080` over `wg0`
-**And** sends `example.com` to the proxy unresolved
+**And** asks it for `site.test:443` as a name, signed in as `alice`
 
 ---
 
 ### Requirement: NETIF-006 - Tor and the interface
 
-A site whose proxy resolves to TOR SHALL NOT take an interface: its first hop
-is the Tor client on loopback. Its row SHALL be locked, with the reason in the
-subtitle (`Lock.because`).
+A site whose route resolves to Tor SHALL NOT take an interface: its first hop
+is the Tor client on loopback, which no interface can bind. Its route SHALL go
+nowhere while both are set. The row SHALL be locked, with the reason, while
+the site names no interface; while it names one, the row SHALL offer only
+System routing, so the user can always let the site go.
 
 The built-in Tor client (iOS, macOS) MAY dial the network over an interface
-chosen app-wide, by an `HTTPSProxy` naming the egress relay's route for that
-interface. This SHALL be one App settings choice, since one client serves
-every site. The app SHALL NOT configure an external Tor daemon (TOR-025).
+chosen app-wide, by an `HTTPSProxy` naming the relay's route for that
+interface. The app SHALL NOT configure an external Tor daemon (TOR-025).
 
 #### Scenario: A Tor site's row
 
-**Given** site "Acme" has proxy type TOR
+**Given** site "Acme" has proxy type TOR and System routing
 **When** its Network screen opens
-**Then** the "Network interface" row is disabled
-**And** its subtitle says Tor chooses its own route
+**Then** the Network interface row is disabled
+**And** its subtitle says Tor makes its own connections
 
 ---
 
-### Requirement: NETIF-007 - DNS for a direct dial goes through the interface or not at all
+### Requirement: NETIF-007 - Names go through the interface or not at all
 
-When the relay dials a bound site's origin directly, it SHALL resolve the
-hostname through the interface:
+When the relay dials a bound site's destination itself, it SHALL resolve the
+name through the interface: on Linux, systemd-resolved's `ResolveHostname`
+with the interface's index, which asks only that link's servers. Where that is
+unavailable, the connection SHALL be refused; the system resolver SHALL NOT be
+asked. An onion name SHALL be refused without asking any resolver (LEAK-016).
 
-| Platform | Resolution |
-|---|---|
-| Linux | systemd-resolved `ResolveHostname` with the interface's index, or a DNS server the user names, queried over a socket bound to the interface |
-| Android | `Network.getAllByName` on the chosen network |
-| macOS, iOS | only once a device measurement shows the resolver's queries leave by the required interface; until then a direct dial is refused and only a proxy upstream is allowed |
+#### Scenario: The link's own servers
 
-Where none is available, the connection SHALL be refused. The system resolver
-SHALL NOT be asked for a bound site's host.
+**Given** a resolver that answers `echo.test` only when asked on the
+loopback link
+**When** a site bound to `lo` connects to `echo.test`
+**Then** the relay reaches it
 
-#### Scenario: No per-link resolver
+#### Scenario: No resolver
 
-**Given** a Linux host with no systemd-resolved on the bus
-**And** site "Acme" names `wg0` with no DNS server named
-**When** "Acme" loads `https://example.com/`
-**Then** the connection is refused
-**And** no query for `example.com` leaves by any interface
+**Given** no systemd-resolved on the system bus
+**When** a bound site connects to `echo.test`
+**Then** the relay answers host unreachable
 
 ---
 
 ### Requirement: NETIF-008 - A bound site counts as routed for the WebRTC floor
 
-A site that names an interface SHALL count as routed wherever a proxied site
-does: Tracking Protection raises its stored `defaultPolicy` WebRTC policy to
-`relayOnly` (ETP-031), and LEAK-005's hint is shown. "Routed" SHALL be read off
-the resolved route, which names a proxy or an interface, in
-`resolveWebRtcPolicy`. It SHALL NOT be restated per screen.
+A site whose interface is applied SHALL count as routed wherever a proxied
+site does: Tracking Protection raises its stored Default WebRTC policy to
+Relay only (ETP-031). Its resolved route names the relay, so the rule that
+reads the route reads it unchanged; a screen asks `appliesInterface`.
 
-The hint SHALL say that WebRTC media does not take the interface: UDP never
-reaches a CONNECT relay, so a TURN server sees the default route.
+The row's hint SHALL say that WebRTC calls do not take the interface.
 
 #### Scenario: The floor applies with no proxy
 
@@ -220,9 +211,9 @@ reaches a CONNECT relay, so a TURN server sees the default route.
 
 ### Requirement: NETIF-009 - Every connection made for the site takes the interface
 
-Every webview that runs as the site SHALL take the site's interface through its
-`SitePosture` (NESTED-010): its own webview, a nested screen, a popup, and a
-wake's headless check (NOTIF-016). So SHALL every connection the app opens on
+Every webview that runs as the site SHALL take the site's interface through
+its `SitePosture` (NESTED-010): its own webview, a nested screen, a popup, and
+a wake's headless check (NOTIF-016). So SHALL every connection the app opens on
 the site's behalf (an icon, a title, a user script, a download), through the
 `OutboundProxy` its outbound API already requires (LEAK-002, BUG-030).
 
@@ -230,79 +221,91 @@ the site's behalf (an icon, a title, a user script, a download), through the
 
 **Given** site "Acme" names `wg0`
 **When** a link opens a nested screen for "Acme"
-**Then** the nested webview's store names the egress relay with "Acme"'s credential
-
-#### Scenario: An icon fetch
-
-**Given** site "Acme" names `wg0`
-**When** the app fetches "Acme"'s icon
-**Then** the fetch goes through the egress relay
-**And** it is refused while `wg0` is down
+**Then** the nested webview's store names the relay with "Acme"'s credential
 
 ---
 
 ### Requirement: NETIF-010 - The row lists what is present and keeps what is stored
 
-The per-site Network screen SHALL hold a "Network interface" row in its
-"Connection" group (NET-001). It SHALL offer System routing, then each
-interface present now with its addresses and, where the platform reports one,
-its kind. A stored interface that is absent now SHALL be listed as not
-connected, and SHALL stay selected. The subtitle SHALL state the choice and
-whether it is up. The explanation (refusal, DNS, WebRTC) SHALL go in the hint
-(settings-hints).
+While the experiment is reachable, the per-site Network screen SHALL hold a
+"Network interface" row in its "Connection" group (NET-001). It SHALL offer
+System routing, then each interface present now except loopback. A stored
+interface that is absent now SHALL be listed as not connected and SHALL stay
+chosen. The subtitle SHALL state the chosen interface's addresses, or that it
+is not connected; the explanation SHALL go in the hint (settings-hints).
 
-The row SHALL be absent where the platform cannot bind (NETIF-003), and on
-Android where no relay runs.
+#### Scenario: The saved tunnel is gone
 
-#### Scenario: The saved tunnel is down
-
-**Given** site "Acme" names `wg0`
-**And** `wg0` is not present
+**Given** site "Acme" names `tun9`
+**And** `tun9` is not present
 **When** the Network screen opens
-**Then** the row reads `wg0` and says it is not connected
-**And** saving the screen keeps `wg0`
+**Then** the row reads `tun9, not connected`
 
 ---
 
 ### Requirement: NETIF-011 - A process-wide rule carries one egress
 
 Where one rule covers the process (PROXY-008, `ProcessRoute`), two sites whose
-interfaces differ SHALL be two routes, as two proxies are.
-`ProxyConflictEngine` SHALL compare the resolved route, proxy and interface
-together.
+interfaces differ SHALL be two routes, as two proxies are. Their resolved
+routes name the relay with different credentials, so `ProxyConflictEngine`'s
+comparison of route keys tells them apart unchanged.
 
 On Android, while a VPN is up, a site that names another network SHALL be
 refused when the platform refuses `bindSocket` (a VPN that neither allows
-bypass nor excludes the app). The picker SHALL mark those networks as held by
-the VPN.
+bypass nor excludes the app).
 
-#### Scenario: Two sites on two networks
+#### Scenario: Two sites on two interfaces
 
-**Given** Android outside router mode
-**And** site "Acme" names VPN and site "Bolt" names Wi-Fi
-**When** "Bolt" is activated while "Acme" is loaded
-**Then** "Acme" is unloaded before the rule changes (PROXY-008)
-
-#### Scenario: A VPN that allows no bypass
-
-**Given** an Android VPN that does not allow bypass
-**And** site "Acme" names Wi-Fi
-**When** "Acme" loads
-**Then** the connection is refused
-**And** nothing for it leaves by the VPN either
+**Given** site "Acme" names `wg0` and site "Bolt" names `tun0`
+**When** both resolve their routes
+**Then** their route keys differ, and each differs from an unbound site's
 
 ---
 
 ### Requirement: NETIF-012 - A backup carries the choice; a QR share does not
 
-The choice SHALL be a `SiteField` that a backup carries and a QR share does
-not, since an interface name means nothing on another device. An import that
-names an interface absent on this device SHALL say so after it lands, in the
-shape of an imported proxy without its password.
+A backup SHALL carry the choice inside the site's proxy settings. A QR share
+SHALL NOT, since an interface name means nothing on another device: the
+encoder strips it from the proxy settings, and the decoder drops it from a
+payload that carries one anyway.
 
 #### Scenario: Shared by QR
 
 **Given** site "Acme" names `wg0`
 **When** its settings are shared as a QR code
-**Then** the QR payload carries no interface
-**And** the receiving device's copy follows the system's routing
+**Then** the payload's proxy settings carry no interface
+
+---
+
+### Requirement: NETIF-013 - Experimental
+
+The feature SHALL be reachable only while developer mode and the Network
+interface per site switch in the Experimental group are both on (DEVTOOLS-011),
+and only where the platform binds an interface (NETIF-003). The switch SHALL
+default off. While it is off, a stored interface SHALL be kept and SHALL NOT
+be applied, and the Network screen SHALL show no row. The relay SHALL start
+when the feature becomes reachable and run until the app exits, so a site
+built on it keeps its route.
+
+#### Scenario: The switch is off
+
+**Given** site "Acme" names `wg0`
+**And** the Network interface per site switch is off
+**When** "Acme" resolves its route
+**Then** the route is the one its proxy settings name without the interface
+**And** the Network screen shows no Network interface row
+
+---
+
+### Requirement: NETIF-014 - An import says which interfaces this device lacks
+
+An import whose sites name an interface absent on this device SHALL say so
+after it lands, in the shape of an imported proxy without its password, so
+the user learns why those sites load nothing.
+
+#### Scenario: Restored on another machine
+
+**Given** a backup in which site "Acme" names `wg0`
+**And** this device has no `wg0`
+**When** the backup is imported
+**Then** a notice names the sites whose interface is missing

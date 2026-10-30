@@ -46,10 +46,14 @@ class SiteSettingsQrCodec {
     for (final k in includedKeys) {
       if (fullJson.containsKey(k)) out[k] = fullJson[k];
     }
-    final proxy = out['proxySettings'];
-    if (proxy is Map) {
-      final settings =
-          UserProxySettings.fromJson(Map<String, dynamic>.from(proxy));
+    if (out['proxySettings'] case final Map stored) {
+      // An interface name means nothing on another device (NETIF-012).
+      final proxy = out['proxySettings'] = <String, dynamic>{
+        for (final e in stored.entries)
+          if (e.key case final String key when key != 'networkInterface')
+            key: e.value,
+      };
+      final settings = UserProxySettings.fromJson(proxy);
       if (settings.type == ProxyType.SAVED ||
           settings.type == ProxyType.GATEWAY ||
           settings.credentialsId != null) {
@@ -138,8 +142,13 @@ class SiteSettingsQrCodec {
         final stripped = <String, dynamic>{
           for (final e in proxy.entries)
             if (e.key is String &&
-                !const {'password', 'savedProxyId', 'gatewayId', 'credentialsId'}
-                    .contains(e.key))
+                !const {
+                  'password',
+                  'savedProxyId',
+                  'gatewayId',
+                  'credentialsId',
+                  'networkInterface',
+                }.contains(e.key))
               e.key as String: e.value,
         };
         // `UserProxySettings.fromJson` coerces a numeric-string `type`, so

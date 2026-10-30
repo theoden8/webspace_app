@@ -15,7 +15,10 @@ import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/egress_relay.dart';
+import 'package:webspace/services/egress_route_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -253,6 +256,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         savedProxyId: _proxySettings.savedProxyId,
         gatewayId: _proxySettings.gatewayId,
         credentialsId: _proxySettings.credentialsId,
+        leavesBy: _proxySettings.leavesBy,
         proxyAddress: _proxyAddressController.text,
         proxyUsername: _proxyUsernameController.text,
         proxyPassword: _proxyPasswordController.text,
@@ -416,6 +420,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       savedProxyId: p?.savedProxyId,
       gatewayId: p?.gatewayId,
       credentialsId: p?.credentialsId,
+      leavesBy: p?.leavesBy ?? const SystemRouting(),
     );
     // effectiveUserAgent so a preset site's field shows the string the
     // webview actually sends (current version), not the stored snapshot.
@@ -916,6 +921,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         savedProxyId: _proxySettings.savedProxyId,
         gatewayId: _proxySettings.gatewayId,
         credentialsId: _proxySettings.credentialsId,
+        leavesBy: _proxySettings.leavesBy,
         webRtcPolicy: _webRtcPolicy,
       );
 
@@ -936,10 +942,12 @@ class _SettingsScreenState extends State<SettingsScreen>
         appProxySet;
     // Named as the site will run it, so a Default that Tracking Protection
     // raises to Relay only reads as Relay only (ETP-031).
+    final bound = appliesInterface(v.leavesBy,
+        relay: EgressRelay.instance.state);
     final webRtc = resolveWebRtcPolicy(
       stored: v.webRtcPolicy,
       trackingProtectionEnabled: _trackingProtectionEnabled,
-      proxied: v.proxyType != ProxyType.DEFAULT || appProxySet,
+      proxied: v.proxyType != ProxyType.DEFAULT || appProxySet || bound,
     );
     final address = _proxyAddressController.text.trim();
     final pin = v.torExitCountry?.trim() ?? '';
@@ -965,6 +973,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                 : '${v.proxyType.name} $address'),
       if (proxied && v.proxyType == ProxyType.TOR && exitCountry != null)
         Localized.verbatim(exitCountry),
+      // An interface name is data, as an address is (L10N-002).
+      if (bound)
+        if (v.leavesBy case NamedInterface(:final name))
+          Localized.verbatim(name),
       ?webRtc.summary(loc),
     ];
     return SummaryNavRow(
@@ -1001,6 +1013,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _proxySettings.savedProxyId = values.savedProxyId;
           _proxySettings.gatewayId = values.gatewayId;
           _proxySettings.credentialsId = values.credentialsId;
+          _proxySettings.leavesBy = values.leavesBy;
           _webRtcPolicy = values.webRtcPolicy;
         }),
       ));
