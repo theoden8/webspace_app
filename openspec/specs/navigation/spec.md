@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, pull-to-refresh on phones, keyboard shortcuts on desktop and a remote's D-pad on a TV. Handles platform differences between iOS and Android, and guards async state against race conditions.
+Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, pull-to-refresh on phones, keyboard shortcuts on desktop and on Android with a keyboard, a remote's D-pad on a TV, and the header of an Android desktop window. Handles platform differences between iOS and Android, and guards async state against race conditions.
 
 **Formal model:** the back/forward navigation actions are composed into the cross-spec kernel [formal/kernel.tla](../../../formal/kernel.tla) (with `webview-pause-lifecycle` and `lazy-webview-loading`); the `Back`/`Forward` transitions must route through the repaint chokepoint or the kernel's `RepaintLiveness` fails (the `bypass` demonstrator).
 
@@ -559,9 +559,9 @@ does not use.
 
 ### Requirement: NAV-014 - Desktop Keyboard Shortcuts
 
-On macOS, Linux and Windows the page SHALL answer a desktop browser's keys for the
-site on screen, each with the action the app already offers for it, with Command on
-macOS where the others take Control:
+On macOS, Linux and Windows, and on Android (NAV-019), the page SHALL answer a desktop
+browser's keys for the site on screen, each with the action the app already offers for
+it, with Command on macOS where the others take Control:
 
 | Keys | Action |
 |---|---|
@@ -574,10 +574,10 @@ macOS where the others take Control:
 | Alt-Right; Cmd-] or Cmd-Right on macOS | one step forward, where the page has one |
 | Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the tab strip, round at either end |
 | Ctrl/Cmd-1 to 8, Ctrl/Cmd-9 | the site at that place along the tab strip, the last one |
-| Ctrl-Q off macOS | leave the app, from any screen, a window a close only hides included (NOTIF-018); on macOS Command-Q is the app menu's |
+| Ctrl-Q on Linux and Windows | leave the app, from any screen, a window a close only hides included (NOTIF-018); on macOS Command-Q is the app menu's, and an Android app does not quit itself |
 
 A key SHALL reach the shortcuts before the focused widget: Linux's webview keeps
-every key it is given. On macOS a page has the first chance at a key, as WKWebView
+every key it is given, and so does a page on Android (NAV-019). On macOS a page has the first chance at a key, as WKWebView
 gives it, and the shortcuts take what the page leaves. A key the page has no answer
 for at that moment (no site on screen, a site without tabs, no site at that place)
 SHALL go on to the focused widget, and so SHALL every other key: Ctrl/Cmd-A selects
@@ -597,7 +597,8 @@ back arrow does. New tab and the site keys are the page's and do nothing there.
 Both menus SHALL write the key beside each item one runs, as the platform's menus
 write keys: "⌘T" on macOS, "Ctrl+T" elsewhere, with the platform localizations'
 names for the keys. The buttons of their top row that a key runs, Back and Refresh,
-SHALL name it on a second line of their tooltips. No key is written off the desktop.
+SHALL name it on a second line of their tooltips. On Android a key is written only while
+a hardware keyboard is attached, and on iOS none is.
 
 #### Scenario: A new tab and its close
 
@@ -760,8 +761,9 @@ and nothing there moved focus or scrolled since the key, and only the top docume
 call the bridge. The app SHALL move focus out at most once per D-pad press, and only for
 the arrow pressed, so a frame that reports an arrow nobody pressed moves nothing.
 
-On every other device the page's webview SHALL be built exactly as before: no wrapper, no
-page script. Popups opened by a page are not covered.
+On an Android device no remote drives, the page takes a keyboard's keys instead (NAV-019),
+with no page script. On every other platform the page's webview SHALL be built exactly as
+before: no wrapper, no page script. Popups opened by a page are not covered.
 
 #### Scenario: Scrolling and following links with the D-pad
 
@@ -797,7 +799,7 @@ page script. Popups opened by a page are not covered.
 - **WHEN** the user moves along the strip and presses OK on a site
 - **THEN** that site opens; OK on the site on screen opens its tabs
 
-Test: [test/remote_focus_test.dart](../../../test/remote_focus_test.dart),
+Test: [test/page_focus_test.dart](../../../test/page_focus_test.dart),
 [test/js/remote_edge.test.js](../../../test/js/remote_edge.test.js),
 [test/browser/remote_edge_frames.test.js](../../../test/browser/remote_edge_frames.test.js)
 (cross-origin frames in Chromium, spatial navigation on),
@@ -806,6 +808,63 @@ Test: [test/remote_focus_test.dart](../../../test/remote_focus_test.dart),
 [test/remote_tabs_test.dart](../../../test/remote_tabs_test.dart),
 [integration_test/remote_tv_test.dart](../../../integration_test/remote_tv_test.dart)
 (the Android TV emulator, INTEG-017)
+
+---
+
+### Requirement: NAV-019 - An Android Desktop Window And A Keyboard
+
+Where Android runs the app in a window of its desktop windowing (Android 15 and later) or
+with a hardware keyboard attached (a tablet's, a laptop's), the app SHALL answer as it does
+on a desktop wherever the desktop's answer applies, as NAV-016 answers a TV's remote:
+
+- The header Android draws over a desktop window SHALL be transparent, so the app's own bar
+  runs under its buttons and the content is set below the header once. An opaque header
+  is set below twice: Android lays the app out below it, and Flutter, which reads the
+  header from the window's insets, pads the top for it again.
+- The header's buttons SHALL be drawn dark over a light app and light over a dark one,
+  following the app's theme, the app's own choice of it included.
+- The keys of NAV-014 SHALL answer with Control, as Chrome on Android takes them, save
+  Ctrl-Q, which goes on to the page: an Android app does not quit itself.
+- The menus SHALL write each key beside its item while a hardware keyboard is attached,
+  followed as one is attached or folded away, and none while none is.
+- While a site's page has focus, every key the shortcuts left SHALL reach the webview.
+  Flutter takes every key before a platform view and spends the arrows and Tab on moving
+  its own focus, so without this a page's field could not move its caret and a page could
+  not be scrolled or tabbed through. Tab and the arrows stay in the page, as Linux's
+  webview keeps them; a click or Ctrl-L leaves it.
+- Focus arriving on the page from the keyboard (Tab from the app bar) SHALL give the
+  webview native focus while a keyboard is attached. Without one, focus arrives only by a
+  touch, which gives it on its own.
+
+Where a remote drives the device, NAV-016 applies instead: its D-pad keeps its edge moves.
+
+#### Scenario: The header of a desktop window
+
+- **GIVEN** the app in a window of Android's desktop windowing, in the dark theme
+- **WHEN** App Settings opens
+- **THEN** its app bar runs under the window's buttons, with no empty band between them
+- **AND** the buttons are light; in the light theme they are dark
+
+#### Scenario: A new tab from the keyboard
+
+- **GIVEN** an Android device with a keyboard attached and a site with tabs on screen
+- **WHEN** the user presses Ctrl-T
+- **THEN** the site has a new tab, on screen
+- **AND** the site menu writes Ctrl+T beside New tab, and writes nothing once the keyboard
+  is detached
+
+#### Scenario: Typing in a page
+
+- **GIVEN** an Android device with a keyboard and a page's text field focused
+- **WHEN** the user presses Left, then Tab
+- **THEN** the caret moves left, then the page's next field has focus
+- **AND** the app bar never takes focus
+
+Test: [test/page_focus_test.dart](../../../test/page_focus_test.dart) (the page's keys),
+[test/keyboard_shortcut_test.dart](../../../test/keyboard_shortcut_test.dart) (Control,
+no Ctrl-Q, the keys written), [test/window_caption_test.dart](../../../test/window_caption_test.dart)
+(the header's buttons). The header's transparency and the padding Flutter gives it are
+the platform's, which no emulator tier reaches yet.
 
 ## Race Condition Guards
 
