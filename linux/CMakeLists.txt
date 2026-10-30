@@ -74,6 +74,8 @@ add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME}
   "main.cc"
+  "egress_relay.cc"
+  "egress_relay_core.cc"
   "my_application.cc"
   "screen_share.cc"
   "window_capture.cc"
@@ -88,6 +90,9 @@ apply_standard_settings(${BINARY_NAME})
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::SCREEN_SHARE)
+# The egress relay (NETIF-003) serves each connection on a thread of its own.
+find_package(Threads REQUIRED)
+target_link_libraries(${BINARY_NAME} PRIVATE Threads::Threads)
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

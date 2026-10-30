@@ -7,6 +7,7 @@
 
 #include <string.h>
 
+#include "egress_relay.h"
 #include "flutter/generated_plugin_registrant.h"
 #include "screen_share.h"
 #include "window_capture.h"
@@ -166,6 +167,7 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
   screen_share_attach(view);
+  egress_relay_attach(view);
 #ifndef NDEBUG
   window_capture_attach(view, window);
 #endif
