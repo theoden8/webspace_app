@@ -17,39 +17,19 @@
 // lib/theme/accent_theme.dart; edit those and hot reload.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/app.dart';
+import 'package:webspace/design_gallery/roboto.dart';
 import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/webview.dart';
 
-/// CanvasKit pulls Roboto from fonts.gstatic.com; where that is unreachable it
-/// draws no text at all. Serve it from web/fonts (see sync_fonts.js) instead.
-Future<void> _loadRoboto() async {
-  const faces = ['Roboto_400Regular', 'Roboto_500Medium', 'Roboto_700Bold'];
-  final loader = FontLoader('Roboto');
-  var loaded = 0;
-  for (final face in faces) {
-    try {
-      final res = await http.get(Uri.parse('fonts/$face.ttf'));
-      if (res.statusCode != 200) continue;
-      loader.addFont(Future.value(ByteData.sublistView(res.bodyBytes)));
-      loaded++;
-    } on http.ClientException {
-      // The face is missing from this build; the rest still load.
-    }
-  }
-  if (loaded > 0) await loader.load();
-}
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _loadRoboto();
+  await loadRoboto();
 
   final prefs = await SharedPreferences.getInstance();
   final seeded = (prefs.getStringList('webViewModels') ?? const []).isNotEmpty;
