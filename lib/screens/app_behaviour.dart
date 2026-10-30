@@ -150,12 +150,12 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final backOpensMenuHint = hostIsAndroid
-        ? Localized.joined([
+        ? loc.twoSentences(
             loc.appSettingsBackOpensMenuHint,
             loc.appSettingsBackOpensMenuHintExit,
-          ], by: Joined.sentences)
+          )
         : loc.appSettingsBackOpensMenuHint;
-    final keepRunningHint = Localized.joined([
+    final keepRunningHint = [
       loc.appSettingsKeepRunningWhenClosedHint,
       hostIsMacOS
           ? loc.appSettingsKeepRunningWhenClosedHintMac
@@ -163,7 +163,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       if (DesktopTray.offered) loc.appSettingsKeepRunningWhenClosedHintTray,
       if (DesktopTray.offered && hostIsLinux)
         loc.appSettingsKeepRunningWhenClosedHintTrayLinux,
-    ], by: Joined.sentences);
+    ].reduce(loc.twoSentences);
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
@@ -311,9 +311,9 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             title: loc.topSitesTitle,
             hint: Localized.joined([
               loc.topSitesHint,
-              Localized.joined(
-                [loc.topSitesKeepFilters, loc.topSitesKeepFiltersHint],
-                by: Joined.term,
+              loc.termAndMeaning(
+                loc.topSitesKeepFilters,
+                loc.topSitesKeepFiltersHint,
               ),
             ], by: Joined.paragraphs),
             below: (topSites, {required download}) => SwitchListTile(

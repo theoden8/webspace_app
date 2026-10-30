@@ -6104,5 +6104,33 @@
         "type": "String"
       }
     }
+  },
+  "termAndMeaning": "{term}: {meaning}",
+  "@termAndMeaning": {
+    "description": "A label followed by what it is set to or what it means, in one line: a permission and its state in a summary ('Camera: Allowed'), or a setting's name and its explanation inside a longer hint. Keep the punctuation your language puts between a label and its explanation (French writes a space before the colon, Chinese a full-width colon).",
+    "placeholders": {
+      "term": {
+        "type": "String",
+        "example": "Camera"
+      },
+      "meaning": {
+        "type": "String",
+        "example": "Allowed"
+      }
+    }
+  },
+  "twoSentences": "{first} {second}",
+  "@twoSentences": {
+    "description": "Two whole sentences shown one after the other in the same paragraph of a hint, each already translated and ending with its own punctuation. Keep what your language puts between sentences (a space in English; nothing in Chinese or Japanese).",
+    "placeholders": {
+      "first": {
+        "type": "String",
+        "example": "Closing the window keeps the app running."
+      },
+      "second": {
+        "type": "String",
+        "example": "Quit it from the menu bar."
+      }
+    }
   }
 }

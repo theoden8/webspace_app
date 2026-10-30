@@ -748,10 +748,10 @@ class _SettingsScreenState extends State<SettingsScreen>
         loc,
         on: [
           for (final b in held)
-            Localized.joined([
+            loc.termAndMeaning(
               sitePermissionBadgeTitle(loc, badge: b),
               sitePermissionBadgeState(b).label(loc),
-            ], by: Joined.term),
+            ),
         ],
         none: loc.permissionsSummaryNothingGranted,
       ),

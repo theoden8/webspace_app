@@ -152,10 +152,10 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
             title: loc.appSettingsFirefoxVersion,
             hint: Localized.joined([
               loc.appSettingsFirefoxVersionHint,
-              Localized.joined([
+              loc.termAndMeaning(
                 loc.appSettingsFirefoxAutoUpdate,
                 loc.appSettingsFirefoxAutoUpdateHint,
-              ], by: Joined.term),
+              ),
             ], by: Joined.paragraphs),
             below: (firefox, {required download}) => SwitchListTile(
               // start: the title column. end: 24 puts the switch track flush
