@@ -294,6 +294,23 @@ void main() {
       }
     });
 
+    test('a reply that never ends is a reachable route, without a verdict',
+        () async {
+      outboundHttp = FakeOutbound(
+          client: () => _ScriptedClient((_) async => http.StreamedResponse(
+              StreamController<List<int>>().stream, 200)));
+
+      final result = await testProxyConnection(
+        OutboundProxy.ofApp(UserProxySettings(type: ProxyType.TOR)),
+        target: const NoSite(),
+        holdTor: null,
+        timeout: const Duration(milliseconds: 20),
+      );
+
+      expect(result.outcome, ProxyTestOutcome.reachable);
+      expect(result.response?.status, 200);
+    });
+
     test('any other route asks example.com, and a site test its own origin',
         () async {
       final factory = answering('{"IsTor":true,"IP":"185.220.101.4"}');

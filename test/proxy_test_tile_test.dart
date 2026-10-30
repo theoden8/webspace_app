@@ -7,17 +7,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'helpers/fake_outbound.dart';
 import 'helpers/localized.dart';
 
-Widget _host(UserProxySettings Function() settings) => localizedApp(Scaffold(
-  body: ProxyTestTile(
-    settings: settings,
-    target: Uri.parse('https://example.org/'),
-  ),
-));
+Widget _host(UserProxySettings Function() settings,
+        {ProxyTestTarget? target}) =>
+    localizedApp(Scaffold(
+      body: ProxyTestTile(
+        settings: settings,
+        target: target ?? SiteOrigin(Uri.parse('https://example.org/')),
+      ),
+    ));
 
 UserProxySettings _socks5({String? username, String? password}) =>
     UserProxySettings(
@@ -40,6 +43,39 @@ void main() {
 
     expect(find.text('The proxy works'), findsOneWidget);
     expect(find.text('HTTP 200 - example.org'), findsOneWidget);
+  });
+
+  testWidgets('a Tor route the Tor check confirms names its exit',
+      (tester) async {
+    outboundHttp = FakeOutbound(
+        responder: (_) =>
+            http.Response('{"IsTor":true,"IP":"185.220.101.4"}', 200));
+
+    await tester.pumpWidget(_host(
+        () => UserProxySettings(type: ProxyType.TOR),
+        target: const NoSite()));
+    await tester.tap(find.text('Test connection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tor works, through exit 185.220.101.4'), findsOneWidget);
+    expect(find.text('HTTP 200 - check.torproject.org'), findsOneWidget);
+  });
+
+  testWidgets('a Tor route that did not leave from a Tor exit says so',
+      (tester) async {
+    outboundHttp = FakeOutbound(
+        responder: (_) =>
+            http.Response('{"IsTor":false,"IP":"203.0.113.9"}', 200));
+
+    await tester.pumpWidget(_host(
+        () => UserProxySettings(type: ProxyType.TOR),
+        target: const NoSite()));
+    await tester.tap(find.text('Test connection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Answered, but not through Tor: 203.0.113.9'),
+        findsOneWidget);
+    expect(find.text('The proxy works'), findsNothing);
   });
 
   testWidgets('a rejected credential is named as such, not as unreachable',

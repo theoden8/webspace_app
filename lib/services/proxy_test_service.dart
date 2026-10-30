@@ -206,20 +206,24 @@ Future<ProxyTestResult> _probe(
 }
 
 /// The Tor check's reply, at most a few KiB of it, or null when it sends
-/// more or stops sending in time.
+/// more or does not finish in time.
 Future<String?> _smallBody(Stream<List<int>> body,
     {required Duration timeout}) async {
-  const limit = 4096;
-  final bytes = <int>[];
-  try {
-    await for (final chunk in body.timeout(timeout)) {
+  Future<String?> read() async {
+    const limit = 4096;
+    final bytes = <int>[];
+    await for (final chunk in body) {
       bytes.addAll(chunk);
       if (bytes.length > limit) return null;
     }
+    return utf8.decode(bytes, allowMalformed: true);
+  }
+
+  try {
+    return await read().timeout(timeout);
   } on TimeoutException {
     return null;
   }
-  return utf8.decode(bytes, allowMalformed: true);
 }
 
 /// What the Tor check answered, read from `{"IsTor": bool, "IP": string}`,

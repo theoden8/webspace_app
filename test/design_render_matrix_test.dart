@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
+import 'package:webspace/services/proxy_test_service.dart' show SiteOrigin;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -112,7 +113,7 @@ final Map<String, Widget Function()> _subjects = {
   'proxy-test': () => ProxyTestTile(
         settings: () =>
             UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:1080'),
-        target: Uri.parse('https://example.org/'),
+        target: SiteOrigin(Uri.parse('https://example.org/')),
       ),
 };
 
