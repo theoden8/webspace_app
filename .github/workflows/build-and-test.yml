@@ -726,6 +726,19 @@ jobs:
           fvm flutter build linux --release
           bash scripts/verify_adblock_shipped.sh linux
 
+      # The built-in Tor (TOR-027): the bundle carries the Tor Expert
+      # Bundle's tor, libraries and lyrebird and no GeoIP table
+      # (LICENSE-002), and the real-tor tier runs that tor, found beside the
+      # executable as the app finds it, not one this job installed. Its only
+      # bridge is a dead loopback port, so nothing leaves the runner.
+      - name: Bundled tor runs
+        env:
+          WS_REAL_TOR: '1'
+          WS_TOR_BESIDE: build/linux/x64/release/bundle/webspace_app
+        run: |
+          bash scripts/verify_tor_shipped.sh build/linux/x64/release/bundle
+          fvm flutter test test/managed_tor_real_test.dart
+
       # The build above only compiles the runner's screen sharing
       # (SHARE-018); this runs it against a real PipeWire stream and a
       # stand-in for the desktop portal, and fails unless it also catches
