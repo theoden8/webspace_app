@@ -17,3 +17,6 @@ linter:
 plugins:
   webspace_lints:
     path: .
+    diagnostics:
+      # Its layer map is the app's (CLAUDE.md rule 4); this package has none.
+      layer_import: false
