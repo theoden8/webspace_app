@@ -72,13 +72,13 @@ class _Rows extends RecursiveAstVisitor<void> {
       _ => null,
     };
     for (final p in params?.parameters ?? const <FormalParameter>[]) {
-      final simple = switch (p) {
-        DefaultFormalParameter(:final parameter) => parameter,
-        _ => p,
-      };
-      final name = simple.name?.lexeme;
-      if (simple is! SimpleFormalParameter || name == null) continue;
-      final type = simple.type?.toSource();
+      final name = p.name?.lexeme;
+      if (p is! RegularFormalParameter ||
+          p.functionTypedSuffix != null ||
+          name == null) {
+        continue;
+      }
+      final type = p.type?.toSource();
       if ((type == 'int' || type == 'int?') && _rowName.hasMatch(name)) {
         readPast(name, from: body.offset);
       }

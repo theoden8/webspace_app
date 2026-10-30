@@ -75,17 +75,17 @@ dependencies:
   pointycastle: ^3.9.1
   share_plus: ^12.0.0
   qr_flutter: ^4.1.0
-  flutter_zxing: ^2.2.1
-  flutter_local_notifications: ^21.0.0
+  flutter_zxing: ^3.1.0
+  flutter_local_notifications: ^22.3.3
   flutter_map: ^8.0.0
-  latlong2: ^0.9.1
+  latlong2: ^0.10.1
   # Used to unzip the downloaded timezone-boundary-builder GeoJSON release.
   # Already a transitive dependency of other packages; promoted to direct
   # so it has a stable version constraint we control.
   archive: ^4.0.0
   # Parses the OpenSearch descriptions sites declare (LIR-035). Already a
   # transitive dependency; promoted to direct for the same reason as archive.
-  xml: ^6.6.1
+  xml: ^7.0.1
 
 dev_dependencies:
   flutter_test:
@@ -111,7 +111,7 @@ dev_dependencies:
   flutter_inappwebview_macos: any
   # The source gates (test/declare_to_use_test.dart, port_reads_test.dart,
   # rows_across_awaits_test.dart) parse Dart sources with it.
-  analyzer: ^10.0.1
+  analyzer: ^13.0.0
 
 # Per-site container isolation requires APIs not present in upstream
 # flutter_inappwebview. We maintain a fork that adds a first-class

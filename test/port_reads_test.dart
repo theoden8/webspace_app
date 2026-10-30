@@ -123,11 +123,11 @@ final class _Storage extends RecursiveAstVisitor<void> {
     final args = node.argumentList.arguments;
     Expression? named(String n) => [
       for (final a in args)
-        if (a is NamedExpression && a.name.label.name == n) a.expression,
+        if (a is NamedArgument && a.name.lexeme == n) a.argumentExpression,
     ].firstOrNull;
     final positional = [
       for (final a in args)
-        if (a is! NamedExpression) a,
+        if (a is! NamedArgument) a.argumentExpression,
     ];
     switch ((type, ctor)) {
       case ('Shared', null) || ('SharedAt', null):
@@ -152,8 +152,8 @@ final class _Storage extends RecursiveAstVisitor<void> {
       final args = node.argumentList.arguments;
       final variable = [
         for (final a in args)
-          if (a is NamedExpression && a.name.label.name == 'variable')
-            ?_modelVar(a.expression),
+          if (a is NamedArgument && a.name.lexeme == 'variable')
+            ?_modelVar(a.argumentExpression),
       ].firstOrNull;
       if (variable != null) {
         _fieldsIn(args.firstOrNull, variable: variable);
@@ -171,8 +171,10 @@ final class _Storage extends RecursiveAstVisitor<void> {
         if (_base(declaredFragment.element) case final f?) {
           byField[f] = variable;
         }
-      case NamedExpression(:final element?):
-        if (element case FieldFormalParameterElement(:final field?)) {
+      case NamedArgument(:final correspondingParameter?):
+        if (correspondingParameter case FieldFormalParameterElement(
+          :final field?,
+        )) {
           byField[_base(field)!] = variable;
         }
     }
@@ -250,7 +252,7 @@ final class _Ports extends RecursiveAstVisitor<void> {
       };
       Expression? named(String n) => [
         for (final a in args)
-          if (a is NamedExpression && a.name.label.name == n) a.expression,
+          if (a is NamedArgument && a.name.lexeme == n) a.argumentExpression,
       ].firstOrNull;
       final at = '${path.substring(Directory.current.path.length + 1)} $name';
       final reads = switch (named('reads')) {
