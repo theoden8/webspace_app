@@ -40,30 +40,32 @@ typedef CaptureOf<S, W> = ({
 });
 
 /// The steps' names, as `ActivationStep` has them.
-typedef CaptureNames = ({
-  ActivationStep read,
-  ActivationStep save,
-  ActivationStep unsave,
-});
+typedef CaptureNames = ({ActivationStep read, ActivationStep save});
 
-/// Where the save and the unsave wait, and where the steps go on to.
-typedef CapturePlaces<P, W> = ({P save, P unsave, Expr<P, W> after});
+/// Where the save waits, and where the steps go on to.
+typedef CapturePlaces<P, W> = ({P save, Expr<P, W> after});
+
+/// The step that takes a saved file back, and where it waits.
+typedef CaptureUnsave<P> = ({ActivationStep name, P place});
 
 /// The steps of a capture of a site's back stack in a flow over [W]
 /// (TAB-003): the read waits on the webview, keyed by the tab read as the
 /// capture began (`Call.reads`), and goes on without a write (`skip`) when
 /// the site keeps no back stack or that tab closed or moved meanwhile; the
 /// save waits on the file write, and when that tab closed or moved while it
-/// was out (`gone`), the unsave waits on the file's removal, so no file
-/// outlives the key it was written under (BUG-036). The read's own [first]
-/// branches come before the drop. The model decides the drop for the sites
+/// was out (`gone`), the [unsave] waits on the file's removal, so no file
+/// outlives the key it was written under (BUG-036). A flow with none keeps
+/// every other tab handler out while it captures (`Inv_OneTabFlow`), so its
+/// tab cannot move and the save asserts it still holds. The read's own
+/// [first] branches come before the drop. The model decides the drop for the sites
 /// it follows (`Tabbed`) and writes no file for the others; the code follows
 /// every site.
-({Step<W, P> read, Step<W, P> save, Step<W, P> unsave})
+({Step<W, P> read, Step<W, P> save, Step<W, P>? unsave})
 captureSteps<S, W extends Capturing, P extends Enum>({
   required CaptureNames names,
   required CapturePlaces<P, W> places,
   required CaptureOf<S, W> of,
+  required CaptureUnsave<P>? unsave,
   List<Branch<W, P>> first = const [],
 }) {
   final tab = capTab<W>();
@@ -137,25 +139,41 @@ captureSteps<S, W extends Capturing, P extends Enum>({
       ),
       site: of.marks,
       branches: [
-        Branch(
-          StepOutcome.gone,
-          when: tabbedOf<S, W>().has(of.site) & ~holds,
-          then: [],
-          next: to(places.unsave),
-        ),
+        if (unsave != null)
+          Branch(
+            StepOutcome.gone,
+            when: tabbedOf<S, W>().has(of.site) & ~holds,
+            then: [],
+            next: to(unsave.place),
+          ),
       ],
-      otherwise: Otherwise(StepOutcome.none, then: [], next: places.after),
-    ),
-    unsave: Step(
-      names.unsave,
-      holds: null,
-      call: Call.on(
-        inFlight,
-        run: (c) => c.api.capture!.unsave(),
-        writes: [uncaptured<S, W>(of.site)],
+      otherwise: Otherwise(
+        StepOutcome.none,
+        then: [
+          if (unsave == null)
+            Note((c) {
+              assert(
+                holds.run(c),
+                'a tab moved while the capture keyed by it saved (TAB-003)',
+              );
+            }, reads: holds.reads),
+        ],
+        next: places.after,
       ),
-      site: of.marks,
-      otherwise: Otherwise(StepOutcome.none, then: [], next: places.after),
     ),
+    unsave: switch (unsave) {
+      (:final name, place: _) => Step(
+        name,
+        holds: null,
+        call: Call.on(
+          inFlight,
+          run: (c) => c.api.capture!.unsave(),
+          writes: [uncaptured<S, W>(of.site)],
+        ),
+        site: of.marks,
+        otherwise: Otherwise(StepOutcome.none, then: [], next: places.after),
+      ),
+      null => null,
+    },
   );
 }

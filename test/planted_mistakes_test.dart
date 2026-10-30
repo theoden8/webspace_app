@@ -348,6 +348,12 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(0), CloseTab(0, tab: 0)],
     breaks: "webview shows another tab's history",
   ),
+  Mutant.tabgateopen => _By(
+    world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
+    setup: const [Tap(0)],
+    script: const [OpenTab(0, tab: 1), CloseTab(0, tab: 0)],
+    breaks: 'a tab handler took the gate another held',
+  ),
   Mutant.navtagatreply => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0), OpenTab(0, tab: 1), Tap(1)],

@@ -43,6 +43,14 @@ final class TabHandlingGate {
     }
   }
 
+  /// [run] for a handler whose input has just found the gate free, in the
+  /// same turn (the tab tables' `busy` arm): turned away here it would be a
+  /// second answer to that question, so a held gate is an assert.
+  Future<void> hold(Future<void> Function() body) async {
+    assert(!busy, 'a tab handler took the gate another held (TAB-003)');
+    await run(body);
+  }
+
   void _released() {
     final waiting = _idle;
     _idle = null;

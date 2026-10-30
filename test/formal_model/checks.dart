@@ -94,12 +94,31 @@ enum Inv {
   tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
   tabActive(atRest: true, reads: {ModelVar.active, ModelVar.built, ModelVar.loaded, ModelVar.tabs}),
+
+  /// One tab handler at a time (`TabHandlingGate`): an input that would
+  /// start a tab flow while one is in flight ends at once, so a switch's
+  /// capture never meets a close or a reroute of the tab it keys by
+  /// (TAB-003).
+  oneTabFlow(
+    reads: {ModelVar.fl},
+    inductive: true,
+    byArm: true,
+    facts: {'NoFlowKind'},
+    unfolds: {'IndInv', 'FlowsOK', 'TabBusy', 'Kinds'},
+  ),
   retired(
     atRest: true,
     reads: {ModelVar.boxes, ModelVar.current, ModelVar.gone, ModelVar.loaded, ModelVar.views},
   );
 
-  const Inv({required this.reads, this.atRest = false, this.inductive = false});
+  const Inv({
+    required this.reads,
+    this.atRest = false,
+    this.inductive = false,
+    this.byArm = false,
+    this.facts = const {},
+    this.unfolds = const {},
+  });
 
   /// The model's variables its definition reads, through the operators it
   /// calls, null for every one: `footprint.py` holds it to the text. An
@@ -115,6 +134,17 @@ enum Inv {
   /// (`activation_invariants_proof`) and not only checked by TLC.
   final bool inductive;
 
+  /// Whether its proof takes each step an arm at a time, in modules of its
+  /// own, as the tables' proof does: a step's whole action over every row
+  /// outgrows the backends once the invariant reads the rows.
+  final bool byArm;
+
+  /// The lemmas each case of its proof cites, and the definitions it
+  /// unfolds beyond the step's own: a guard it is kept by, the records'
+  /// shape (a lemma, where unfolding the record would slow every case).
+  final Set<String> facts;
+  final Set<String> unfolds;
+
   String get tla => this == typeOK ? 'TypeOK' : 'Inv_${_upper(name)}';
 }
 
@@ -127,6 +157,7 @@ const _core = [
 ];
 const _jar = [Inv.oneSitePerBase, Inv.noSessionLoss, Inv.noForeignSession];
 const _tabs = [
+  Inv.oneTabFlow,
   Inv.tabShown,
   Inv.tabFiles,
   Inv.tabFilesHosted,
@@ -1230,6 +1261,14 @@ enum Mutant {
         "an activation's back stack queued for the tab active at its read's "
         'reply, after a landing moved it: the build shows the tab the read '
         'began on (TAB-003, caught)',
+  ),
+  tabgateopen(
+    world: ActivationWorld.tabs,
+    slice: (allowed: {'Tap', 'OpenTab', 'CloseTab'}),
+    by: Inv.oneTabFlow,
+    doc:
+        'a close that does not wait for the tab gate, starting beside a '
+        'switch in flight (TAB-003, caught)',
   );
 
   const Mutant({

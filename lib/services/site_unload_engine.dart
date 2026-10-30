@@ -667,12 +667,11 @@ class SiteUnloadEngine {
     names: (
       read: ActivationStep.unloadNavReply,
       save: ActivationStep.unloadNavSave,
-      unsave: ActivationStep.unloadNavUnsave,
     ),
-    places: (
-      save: UnloadPlace.uNavSave,
-      unsave: UnloadPlace.uNavUnsave,
-      after: to(UnloadPlace.uCaptured),
+    places: (save: UnloadPlace.uNavSave, after: to(UnloadPlace.uCaptured)),
+    unsave: (
+      name: ActivationStep.unloadNavUnsave,
+      place: UnloadPlace.uNavUnsave,
     ),
     of: (
       site: _victim.value,
@@ -750,7 +749,7 @@ class SiteUnloadEngine {
       // The victim's back stack captured, in the capture's steps.
       UnloadPlace.uNav => _capture.read,
       UnloadPlace.uNavSave => _capture.save,
-      UnloadPlace.uNavUnsave => _capture.unsave,
+      UnloadPlace.uNavUnsave => _capture.unsave!,
       // The container path disposes here, the jar path waits for the jar's
       // turn.
       UnloadPlace.uCaptured => Step(

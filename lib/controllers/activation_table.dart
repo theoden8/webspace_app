@@ -889,12 +889,14 @@ abstract final class ActivationTable {
         names: (
           read: ActivationStep.homeCapture,
           save: ActivationStep.homeCaptureSave,
-          unsave: ActivationStep.homeCaptureUnsave,
         ),
         places: (
           save: ActivationPlace.hCapSave,
-          unsave: ActivationPlace.hCapUnsave,
           after: to(ActivationPlace.hQuiesce),
+        ),
+        unsave: (
+          name: ActivationStep.homeCaptureUnsave,
+          place: ActivationPlace.hCapUnsave,
         ),
         of: (
           site: _site.value,
@@ -1641,7 +1643,7 @@ abstract final class ActivationTable {
       // webview stays loaded, so a near-immediate return keeps its tab.
       ActivationPlace.hCap => _homeCapture.read,
       ActivationPlace.hCapSave => _homeCapture.save,
-      ActivationPlace.hCapUnsave => _homeCapture.unsave,
+      ActivationPlace.hCapUnsave => _homeCapture.unsave!,
       // Then the page it left is stopped and paused.
       ActivationPlace.hQuiesce => Step(
         ActivationStep.homeQuiesceReply,

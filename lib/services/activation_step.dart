@@ -434,14 +434,12 @@ enum ActivationStep {
     outcomes: {StepOutcome.go, StepOutcome.gone, StepOutcome.skip},
     calls: {PlatformCall.webViewSaveState},
   ),
+  /// Its back stack saved: the tab gate keeps every other tab handler out
+  /// meanwhile (`Inv_OneTabFlow`), so the tab is still where it was keyed.
   tabCaptureSave(
-    outcomes: {StepOutcome.none, StepOutcome.gone},
+    outcomes: {StepOutcome.none},
     calls: {PlatformCall.navStateSave},
   ),
-
-  /// The tab left's saved back stack removed again: it closed or moved
-  /// while the save was out.
-  tabCaptureUnsave(calls: {PlatformCall.navStateRemove}),
 
   /// The target tab's saved back stack read.
   tabNavReply(

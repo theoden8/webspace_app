@@ -780,7 +780,6 @@ abstract final class TabTable {
       ),
       TabPlace.tCap ||
       TabPlace.tCapSave ||
-      TabPlace.tCapUnsave ||
       TabPlace.tNav ||
       TabPlace.tRebind ||
       TabPlace.tClosed ||
@@ -802,18 +801,15 @@ abstract final class TabTable {
 
   /// The outgoing tab's back stack captured under the webview's tab, in
   /// the capture's steps; a target tab that left the list meanwhile ends
-  /// the switch first.
+  /// the switch first. The switch holds the tab gate, so no close or
+  /// reroute moves the tab while the save is out: no unsave.
   static final _capture = captureSteps<WebViewModel, TabFlow, TabPlace>(
     names: (
       read: ActivationStep.tabCaptureReply,
       save: ActivationStep.tabCaptureSave,
-      unsave: ActivationStep.tabCaptureUnsave,
     ),
-    places: (
-      save: TabPlace.tCapSave,
-      unsave: TabPlace.tCapUnsave,
-      after: to(TabPlace.tNav),
-    ),
+    places: (save: TabPlace.tCapSave, after: to(TabPlace.tNav)),
+    unsave: null,
     of: (
       site: _site.value,
       built: (s) => s.tabBinding.built,
@@ -851,7 +847,6 @@ abstract final class TabTable {
       // (Capture); a target closed meanwhile ends the switch.
       TabPlace.tCap => _capture.read,
       TabPlace.tCapSave => _capture.save,
-      TabPlace.tCapUnsave => _capture.unsave,
       // The target's saved back stack read; then list, pointer and webview
       // move in one turn (tRebind), unless the slot's identity changes
       // under a process-global proxy (LIR-024), which moves the pointer

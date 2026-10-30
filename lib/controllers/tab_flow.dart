@@ -16,7 +16,6 @@ enum TabPlace {
   parkChild,
   tCap,
   tCapSave,
-  tCapUnsave,
   tNav,
   tRebind,
   tClosed,

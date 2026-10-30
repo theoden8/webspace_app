@@ -465,6 +465,15 @@ Tables mutated(Mutant m) => switch (m) {
   Mutant.takeany => _with(ops: _withDef(tables.ops, def: _takesAny())),
   // An activation queues the back stack it read for the tab active at the
   // read's reply, not the one it began on: a landing between moves it.
+  // A close that does not wait for the tab gate: it starts while a switch
+  // holds it, so two tab handlers run at once.
+  Mutant.tabgateopen => _with(
+    tabInputs: _without(
+      tables.tabInputs,
+      step: ActivationStep.closeTab,
+      outcome: StepOutcome.busy,
+    ),
+  ),
   Mutant.navtagatreply => _with(
     activation: _withArms(
       tables.activation,

@@ -3,8 +3,6 @@ Login	-	a sign-in is a setup step, before the script the trace records
 NextClear	skip	a clear's site leaves the loaded set or the resident tier only if another flow unloads or clears it while the plan's unloads run, which no schedule within two preemptions does
 GrantUnload	spared	an incognito victim is spared at its turn only if a tap opens it between the plan and the turn, which neither incognito script does
 TabCaptureReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
-TabCaptureSave	gone	a tab leaves its site's list or its key only by a close or a reroute, which the tab gate serialises with the switch (a reroute waits for the gate to let go, TabHandlingGate.deferUntilIdle); a delete takes its site off the list and leaves the site's own tabs as they are
-TabCaptureUnsave	-	follows TabCaptureSave gone, which no schedule reaches
 TabNavReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
 TabRemoveReply	more	no schedule closes a subtree; a tab's close removes one file
 DupReadReply	skip	the site on screen is loaded and its webview is its active tab's, so the duplicate's read is never empty
