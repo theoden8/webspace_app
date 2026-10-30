@@ -4,6 +4,7 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
@@ -29,6 +30,7 @@ class MainActivity: FlutterActivity() {
     private var screenSharePlugin: ScreenSharePlugin? = null
     private var passkeyPlugin: PasskeyPlugin? = null
     private var remoteInputPlugin: RemoteInputPlugin? = null
+    private var keyboardInputPlugin: KeyboardInputPlugin? = null
     private var windowCaptionPlugin: WindowCaptionPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
@@ -89,6 +91,7 @@ class MainActivity: FlutterActivity() {
         screenSharePlugin = ScreenSharePlugin(this, flutterEngine)
         passkeyPlugin = PasskeyPlugin(this, flutterEngine)
         remoteInputPlugin = RemoteInputPlugin(this, flutterEngine)
+        keyboardInputPlugin = KeyboardInputPlugin(this, flutterEngine)
         windowCaptionPlugin = WindowCaptionPlugin(this, flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
@@ -443,6 +446,11 @@ class MainActivity: FlutterActivity() {
         } else {
             Regex("""https?://\S+""").find(text)?.value
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        keyboardInputPlugin?.onConfigurationChanged(newConfig)
     }
 
     /**

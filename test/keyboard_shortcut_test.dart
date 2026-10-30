@@ -10,6 +10,7 @@ import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
 import 'package:webspace/services/desktop_window.dart';
+import 'package:webspace/services/keyboard_input.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
@@ -60,7 +61,7 @@ void main() {
   /// What [key] asks for with [holding] down.
   Future<KeyboardShortcut?> press(
     LogicalKeyboardKey key, {
-    required bool mac,
+    required KeyConvention on,
     List<LogicalKeyboardKey> holding = const [],
     bool editingText = false,
   }) async {
@@ -75,7 +76,7 @@ void main() {
         timeStamp: Duration.zero,
       ),
       keyboard: HardwareKeyboard.instance,
-      mac: mac,
+      on: on,
       editingText: editingText,
     );
     for (final modifier in holding.reversed) {
@@ -123,9 +124,14 @@ void main() {
       find.descendant(of: find.byType(AppBar), matching: find.text(name));
 
   group('the keys (NAV-014)', () {
-    for (final mac in [false, true]) {
+    for (final convention in KeyConvention.values) {
+      final mac = convention == KeyConvention.mac;
       final primary = mac ? command : control;
-      final on = mac ? 'on a Mac' : 'elsewhere';
+      final on = switch (convention) {
+        KeyConvention.mac => 'on a Mac',
+        KeyConvention.pc => 'on Linux and Windows',
+        KeyConvention.android => 'on Android',
+      };
 
       testWidgets('$on, the browser keys ask for the page\'s actions', (
         tester,
@@ -133,7 +139,7 @@ void main() {
         Future<KeyboardShortcut?> chord(
           LogicalKeyboardKey key, {
           List<LogicalKeyboardKey> holding = const [],
-        }) => press(key, mac: mac, holding: holding);
+        }) => press(key, on: convention, holding: holding);
 
         expect(
           await chord(LogicalKeyboardKey.keyT, holding: [primary]),
@@ -179,24 +185,24 @@ void main() {
         final back = mac
             ? await press(
                 LogicalKeyboardKey.bracketLeft,
-                mac: mac,
+                on: convention,
                 holding: [command],
               )
             : await press(
                 LogicalKeyboardKey.arrowLeft,
-                mac: mac,
+                on: convention,
                 holding: [alt],
               );
         expect(back, isA<GoBack>());
         expect(
-          await press(LogicalKeyboardKey.arrowLeft, mac: mac, holding: [alt]),
+          await press(LogicalKeyboardKey.arrowLeft, on: convention, holding: [alt]),
           mac ? isNull : isA<GoBack>(),
           reason: 'Option-Left moves the caret a word on a Mac',
         );
         expect(
           await press(
             LogicalKeyboardKey.arrowLeft,
-            mac: mac,
+            on: convention,
             holding: [primary],
           ),
           mac ? isA<GoBack>() : isNull,
@@ -211,23 +217,23 @@ void main() {
         final forward = mac
             ? await press(
                 LogicalKeyboardKey.bracketRight,
-                mac: mac,
+                on: convention,
                 holding: [command],
               )
             : await press(
                 LogicalKeyboardKey.arrowRight,
-                mac: mac,
+                on: convention,
                 holding: [alt],
               );
         expect(forward, isA<GoForward>());
         expect(
-          await press(LogicalKeyboardKey.arrowRight, mac: mac, holding: [alt]),
+          await press(LogicalKeyboardKey.arrowRight, on: convention, holding: [alt]),
           mac ? isNull : isA<GoForward>(),
         );
         expect(
           await press(
             LogicalKeyboardKey.arrowRight,
-            mac: mac,
+            on: convention,
             holding: [primary],
           ),
           mac ? isA<GoForward>() : isNull,
@@ -240,7 +246,7 @@ void main() {
         Future<KeyboardShortcut?> editing(
           LogicalKeyboardKey key, {
           required List<LogicalKeyboardKey> holding,
-        }) => press(key, mac: mac, holding: holding, editingText: true);
+        }) => press(key, on: convention, holding: holding, editingText: true);
 
         expect(
           await editing(LogicalKeyboardKey.arrowLeft, holding: [primary]),
@@ -270,14 +276,14 @@ void main() {
         tester,
       ) async {
         expect(
-          await press(LogicalKeyboardKey.keyA, mac: mac, holding: [primary]),
+          await press(LogicalKeyboardKey.keyA, on: convention, holding: [primary]),
           isNull,
           reason: 'the focused page or field selects all of its own',
         );
         expect(
           await press(
             LogicalKeyboardKey.keyT,
-            mac: mac,
+            on: convention,
             holding: [mac ? control : command],
           ),
           isNull,
@@ -285,17 +291,17 @@ void main() {
         expect(
           await press(
             LogicalKeyboardKey.keyT,
-            mac: mac,
+            on: convention,
             holding: [primary, shift],
           ),
           isNull,
         );
-        expect(await press(LogicalKeyboardKey.keyT, mac: mac), isNull);
+        expect(await press(LogicalKeyboardKey.keyT, on: convention), isNull);
       });
 
       test('$on, no two shortcuts share a key', () {
         final keys = [
-          for (final (key, _) in KeyboardShortcut.keys(mac: mac))
+          for (final (key, _) in KeyboardShortcut.keys(on: convention))
             (key.trigger, key.control, key.shift, key.alt, key.meta),
         ];
         expect(keys.toSet(), hasLength(keys.length));
@@ -340,25 +346,35 @@ void main() {
         KeyboardShortcut.of(
           repeat,
           keyboard: HardwareKeyboard.instance,
-          mac: false,
+          on: KeyConvention.pc,
           editingText: false,
         ),
         isNull,
       );
     });
 
-    test('off a Mac, Ctrl-Q leaves the app; on one, Command-Q is the menu\'s '
-        '(NOTIF-018)', () async {
-      expect(await press(LogicalKeyboardKey.keyQ, mac: false, holding: [control]),
+    test('on Linux and Windows, Ctrl-Q leaves the app; on a Mac, Command-Q is '
+        'the menu\'s (NOTIF-018), and an Android app does not quit itself '
+        '(NAV-019)', () async {
+      expect(
+          await press(LogicalKeyboardKey.keyQ,
+              on: KeyConvention.pc, holding: [control]),
           isA<QuitApp>());
-      expect(await press(LogicalKeyboardKey.keyQ, mac: true, holding: [command]),
+      expect(
+          await press(LogicalKeyboardKey.keyQ,
+              on: KeyConvention.mac, holding: [command]),
           isNull,
           reason: 'AppKit runs the menu\'s Quit before any view sees the key');
+      expect(
+          await press(LogicalKeyboardKey.keyQ,
+              on: KeyConvention.android, holding: [control]),
+          isNull,
+          reason: 'the key goes on to the page');
     });
 
     test('a locked kiosk keeps reload, back and forward only (KIOSK-002)', () {
       final kept = {
-        for (final (_, shortcut) in KeyboardShortcut.keys(mac: false))
+        for (final (_, shortcut) in KeyboardShortcut.keys(on: KeyConvention.pc))
           if (shortcut.keptInKiosk) shortcut.runtimeType,
       };
       expect(kept, {ReloadPage, GoBack, GoForward});
@@ -728,25 +744,39 @@ void main() {
 
   group('the menus name the keys (NAV-014)', () {
     const names = DefaultMaterialLocalizations();
-    String label<T extends KeyboardShortcut>({required bool mac}) =>
+    String label<T extends KeyboardShortcut>({required KeyConvention on}) =>
         describeKey(
-          KeyboardShortcut.keyFor<T>(mac: mac)!,
+          KeyboardShortcut.keyFor<T>(on: on)!,
           names: names,
-          mac: mac,
+          on: on,
         );
+    const pc = KeyConvention.pc;
+    const mac = KeyConvention.mac;
 
     test('as the platform\'s menus write them', () {
-      expect(label<OpenNewTab>(mac: false), 'Ctrl+T');
-      expect(label<OpenNewTab>(mac: true), '⌘T');
-      expect(label<GoBack>(mac: false), 'Alt+←');
-      expect(label<GoBack>(mac: true), '⌘[');
-      expect(label<PreviousSite>(mac: false), 'Ctrl+Shift+Tab');
-      expect(label<PreviousSite>(mac: true), '⌃⇧⇥');
+      expect(label<OpenNewTab>(on: pc), 'Ctrl+T');
+      expect(label<OpenNewTab>(on: mac), '⌘T');
+      expect(label<OpenNewTab>(on: KeyConvention.android), 'Ctrl+T');
+      expect(label<GoBack>(on: pc), 'Alt+←');
+      expect(label<GoBack>(on: mac), '⌘[');
+      expect(label<PreviousSite>(on: pc), 'Ctrl+Shift+Tab');
+      expect(label<PreviousSite>(on: mac), '⌃⇧⇥');
       expect(
-        label<ReloadPage>(mac: false),
+        label<ReloadPage>(on: pc),
         'Ctrl+R',
         reason: 'the first of its keys, before F5',
       );
+    });
+
+    test('Android writes them only while a keyboard is attached (NAV-019)',
+        () {
+      addTearDown(() => KeyboardInput.attached.value = false);
+      KeyboardInput.attached.value = false;
+      expect(KeyConvention.android.writesKeys, isFalse);
+      expect(KeyConvention.pc.writesKeys, isTrue);
+      expect(KeyConvention.mac.writesKeys, isTrue);
+      KeyboardInput.attached.value = true;
+      expect(KeyConvention.android.writesKeys, isTrue);
     });
 
     testWidgets('the site menu shows New tab and Find in page with theirs', (
