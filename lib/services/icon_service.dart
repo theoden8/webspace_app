@@ -314,6 +314,14 @@ final Set<String> _verifiedUrls = {};
 final StreamController<void> _reloadController =
     StreamController<void>.broadcast();
 
+final StreamController<String> _foundController =
+    StreamController<String>.broadcast();
+
+/// Fires a site's URL when a search finds its icon, so an icon of the site
+/// whose own search found none takes it: a folder's preview drawn at launch,
+/// offline, learns of the icon its site's tile found later.
+Stream<String> get faviconsFound => _foundController.stream;
+
 /// Fires when every icon cache was cleared, so every icon on screen is
 /// fetched again.
 Stream<void> get iconReloads => _reloadController.stream;
@@ -571,9 +579,17 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {required OutboundProxy proxy
   }
 
   final found = await _tryFaviconPackage(url, site: proxy);
+  final known = _faviconCache[url];
+  if (found == null && known != null) {
+    // Another search found it while this one ran, and nothing replaces it.
+    yield IconUpdate(known,
+        quality: _faviconQualityCache[url] ?? 100, isFinal: true);
+    return;
+  }
   _faviconCache[url] = found?.url;
   _faviconQualityCache[url] = found?.quality ?? 0;
   if (found != null) {
+    _foundController.add(url);
     yield IconUpdate(found.url, quality: found.quality, isFinal: true);
   }
 
