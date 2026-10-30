@@ -26,8 +26,8 @@ enum AppPref<T extends Object> {
   tabsEnabled('tabsEnabled', fallback: true),
   externalLinkMode('externalLinkMode', fallback: 'inApp'),
   routeOutboundLinks('routeOutboundLinks', fallback: false),
-  // NESTED-014: a sign-in window a tap opened shows as a real popup, where
-  // the host offers it (`PopupKind.signInOffered`); a site may keep its own.
+  // NESTED-014: a sign-in window a tap opened shows as a real popup; a site
+  // may keep its own choice.
   signInPopups('signInPopups', fallback: true),
   showTabStrip('showTabStrip', fallback: false),
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
@@ -72,7 +72,6 @@ enum AppPref<T extends Object> {
   // off.
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
   experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),
-  experimentalSignInPopups('experimentalSignInPopups', fallback: false),
   experimentalWebExtensions('experimentalWebExtensions', fallback: false),
   // WEBEXT-019: the search of addons.mozilla.org, outside the App Store only.
   experimentalExtensionSearch('experimentalExtensionSearch', fallback: false),

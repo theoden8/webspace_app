@@ -8,7 +8,6 @@ import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/outbound_preference.dart';
-import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -472,11 +471,7 @@ void main() {
         find.descendant(of: tile(), matching: find.byType(Switch));
     bool shown(WidgetTester tester) => tester.widget<Switch>(toggle()).value;
 
-    setUp(() => PopupKind.debugSignInExperimental = false);
-    tearDown(() {
-      PopupKind.debugSignInExperimental = null;
-      AppPref.signInPopups.debugValue = true;
-    });
+    tearDown(() => AppPref.signInPopups.debugValue = true);
 
     testWidgets('a site follows the app dimmed until it makes its own choice',
         (tester) async {
@@ -508,12 +503,6 @@ void main() {
       final row = tester.getTopLeft(find.text('Sign-in popups')).dy;
       expect(row, greaterThan(tester.getTopLeft(find.text('External links')).dy));
       expect(row, lessThan(tester.getTopLeft(find.text('claims-slot')).dy));
-    });
-
-    testWidgets('absent where the host does not offer them', (tester) async {
-      PopupKind.debugSignInExperimental = true;
-      await _pump(tester, values: _values());
-      expect(find.text('Sign-in popups'), findsNothing);
     });
   });
 

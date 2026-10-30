@@ -285,7 +285,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
   }
 
   /// A sign-in window the user's tap opened shows as a real popup
-  /// (NESTED-014); absent where this host does not offer it.
+  /// (NESTED-014).
   Widget _signInPopups(AppLocalizations loc) => SettingTile(
         title: loc.siteSettingsSignInPopups,
         hint: loc.siteSettingsSignInPopupsHint,
@@ -498,7 +498,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             ),
           SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),
-          if (PopupKind.signInOffered) _signInPopups(loc),
+          _signInPopups(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
           SettingsSection(loc.webSearchGroup),
           _searchAddressRow(loc),

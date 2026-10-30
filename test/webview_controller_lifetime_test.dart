@@ -12,9 +12,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/cookie_manager.dart';
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_import_document.dart';
@@ -541,21 +539,16 @@ void main() {
   group('sign-in popups (NESTED-014)', () {
     const signIn = 'https://accounts.google.com/o/oauth2/v2/auth?display=popup';
 
-    // Android's rule, where the experiment offers them; a test of the rule
-    // everywhere else calls [graduated].
-    setUp(() => PopupKind.debugSignInExperimental = true);
-    tearDown(() => PopupKind.debugSignInExperimental = null);
-
-    void switchOn() {
-      DeveloperModeService.instance.debugSet(on: true);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.signInPopups, on: true);
-      addTearDown(() {
-        DeveloperModeService.instance.debugSet(on: false);
-        ExperimentalFeaturesService.instance
-            .debugSet(ExperimentalFeature.signInPopups, on: false);
-      });
+    /// The app's Sign-in popups switch off, for a site that follows it.
+    void switchOff() {
+      AppPref.signInPopups.debugValue = false;
+      addTearDown(() => AppPref.signInPopups.debugValue = true);
     }
+
+    bool? opensWindowsItself(WidgetTester tester) => tester
+        .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+        .platform.params.initialSettings
+        ?.javaScriptCanOpenWindowsAutomatically;
 
     /// The popups the site webview asked the host for after a window
     /// request for [url], and whether it took the window.
@@ -582,26 +575,17 @@ void main() {
     testWidgets('NESTED-014: the engine opens a window on its own only with '
         'the switch off', (tester) async {
       await tester.pumpWidget(_webView());
-      expect(
-          tester
-              .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
-              .platform.params.initialSettings
-              ?.javaScriptCanOpenWindowsAutomatically,
-          isTrue);
-      switchOn();
-      await tester.pumpWidget(_webView(key: UniqueKey()));
-      expect(
-          tester
-              .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
-              .platform.params.initialSettings
-              ?.javaScriptCanOpenWindowsAutomatically,
-          isFalse,
+      expect(opensWindowsItself(tester), isFalse,
           reason: 'with the switch on, only a window a tap opened reaches '
               'onCreateWindow');
+      switchOff();
+      await tester.pumpWidget(_webView(key: UniqueKey()));
+      expect(opensWindowsItself(tester), isTrue);
     });
 
     testWidgets('NESTED-001: with the switch off, only a captcha opens a '
         'window (NESTED-014)', (tester) async {
+      switchOff();
       final declined = await requestWindow(tester, url: signIn);
       expect(declined.took, isFalse);
       expect(declined.shown, isEmpty);
@@ -613,7 +597,6 @@ void main() {
 
     testWidgets('NESTED-014: a sign-in window opens as a sign-in popup',
         (tester) async {
-      switchOn();
       final (:took, :shown) = await requestWindow(tester, url: signIn);
       expect(took, isTrue);
       expect(shown, [PopupKind.signIn]);
@@ -621,33 +604,13 @@ void main() {
 
     testWidgets('NESTED-014: a window with no URL opens as a sign-in popup',
         (tester) async {
-      switchOn();
       final (:took, :shown) = await requestWindow(tester, url: null);
       expect(took, isTrue);
       expect(shown, [PopupKind.signIn]);
     });
 
-    /// The rule everywhere but Android: no experiment stands between a site
-    /// and its switches.
-    void graduated() => PopupKind.debugSignInExperimental = false;
-
-    bool? opensWindowsItself(WidgetTester tester) => tester
-        .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
-        .platform.params.initialSettings
-        ?.javaScriptCanOpenWindowsAutomatically;
-
-    testWidgets('NESTED-014: where they graduated a sign-in window opens as a '
-        'sign-in popup with developer mode off', (tester) async {
-      graduated();
-      final (:took, :shown) = await requestWindow(tester, url: signIn);
-      expect(took, isTrue);
-      expect(shown, [PopupKind.signIn]);
-      expect(opensWindowsItself(tester), isFalse);
-    });
-
     testWidgets('NESTED-014: a site that turns them off declines a sign-in '
         'window', (tester) async {
-      graduated();
       _site.signInPopups = false;
       addTearDown(() => _site.signInPopups = null);
       final (:took, :shown) = await requestWindow(tester, url: signIn);
@@ -660,9 +623,7 @@ void main() {
 
     testWidgets("NESTED-014: a site that follows the app takes the app's "
         'switch', (tester) async {
-      graduated();
-      AppPref.signInPopups.debugValue = false;
-      addTearDown(() => AppPref.signInPopups.debugValue = true);
+      switchOff();
       final declined = await requestWindow(tester, url: signIn);
       expect(declined.took, isFalse);
       expect(declined.shown, isEmpty);
@@ -675,7 +636,6 @@ void main() {
 
     testWidgets('NESTED-014: any other window is still declined',
         (tester) async {
-      switchOn();
       final (:took, :shown) =
           await requestWindow(tester, url: 'https://ads.example/landing');
       expect(took, isFalse);
@@ -692,6 +652,10 @@ void main() {
       );
       for (final (kind, url, expected) in [
         (PopupKind.signIn, signIn, inapp.NavigationActionPolicy.ALLOW),
+        (PopupKind.signIn, 'https://accounts.google.de/accounts/SetSID',
+            inapp.NavigationActionPolicy.ALLOW),
+        (null, 'https://accounts.google.de/accounts/SetSID',
+            inapp.NavigationActionPolicy.CANCEL),
         (PopupKind.signIn, 'https://example.com/auth/done',
             inapp.NavigationActionPolicy.ALLOW),
         (PopupKind.signIn, 'https://ads.example/',

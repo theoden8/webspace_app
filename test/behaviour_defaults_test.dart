@@ -189,12 +189,8 @@ void main() {
     expect(prefs.getBool('routeOutboundLinks'), isTrue);
   });
 
-  group('Sign-in popups where they graduated (NESTED-014)', () {
-    setUp(() => PopupKind.debugSignInExperimental = false);
-    tearDown(() {
-      PopupKind.debugSignInExperimental = null;
-      AppPref.signInPopups.debugValue = true;
-    });
+  group('Sign-in popups (NESTED-014)', () {
+    tearDown(() => AppPref.signInPopups.debugValue = true);
 
     testWidgets('the app default is on and its switch updates following sites',
         (tester) async {

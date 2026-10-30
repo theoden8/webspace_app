@@ -3,9 +3,8 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/services/webview_config.dart';
@@ -34,26 +33,10 @@ enum PopupKind {
   /// popups switch is on (NESTED-014).
   signIn;
 
-  /// Whether this host opens sign-in windows only with the Sign-in popups
-  /// experiment on (DEVTOOLS-011): Android. Everywhere else they graduated.
-  static bool get signInExperimental =>
-      debugSignInExperimental ?? hostIsAndroid;
-
-  /// Lets a test run either rule whatever its host.
-  @visibleForTesting
-  static bool? debugSignInExperimental;
-
-  /// Whether this host opens sign-in windows as popups at all, so the app's
-  /// and each site's Sign-in popups switches apply.
-  static bool get signInOffered =>
-      !signInExperimental ||
-      ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.signInPopups);
-
   /// Whether a site webview built now opens sign-in windows as popups, by the
   /// site's [choice] or, while it follows the app, the app's.
   static bool signInOpens({required Scoped<bool> choice}) =>
-      signInOffered && choice.resolve(AppPref.signInPopups.value);
+      choice.resolve(AppPref.signInPopups.value);
 
   /// Identity providers' sign-in hosts, each with its subdomains.
   static const _signInHosts = [
@@ -69,8 +52,9 @@ enum PopupKind {
   static bool isSignInUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null || uri.scheme != 'https') return false;
-    return _signInHosts
-        .any((h) => uri.host == h || uri.host.endsWith('.$h'));
+    final host = uri.host;
+    return _signInHosts.any((h) => host == h || host.endsWith('.$h')) ||
+        _googleSignIn(host: host, path: uri.path);
   }
 
   /// The popup a window request for [url] by the site at [siteUrl] opens, or
@@ -100,6 +84,43 @@ enum PopupKind {
 /// The webview that asked for a popup window: its config, and its
 /// controller, which the popup goes quiet with (PROXY-008).
 typedef PopupParent = ({WebViewConfig config, PlatformWebViewController? opener});
+
+/// Google's sign-in sets its session on the Google domain of the account's
+/// country by redirecting through `accounts.google.<domain>`, and names
+/// `www.google.com/accounts/` a sign-in URL too (its Workspace host name
+/// allowlist). A popup that refused either would stall once the user had
+/// signed in.
+bool _googleSignIn({required String host, required String path}) =>
+    (host.startsWith(_googleAccounts) &&
+        _googleDomains.contains(host.substring(_googleAccounts.length))) ||
+    (host == 'www.google.com' && path.startsWith('/accounts/'));
+
+const _googleAccounts = 'accounts.google.';
+
+/// The domains Google serves on, after `google.`, as it lists them at
+/// https://www.google.com/supported_domains.
+const _googleDomains = {
+  'com', 'ad', 'ae', 'com.af', 'com.ag', 'al', 'am', 'co.ao', 'com.ar',
+  'as', 'at', 'com.au', 'az', 'ba', 'com.bd', 'be', 'bf', 'bg', 'com.bh',
+  'bi', 'bj', 'com.bn', 'com.bo', 'com.br', 'bs', 'bt', 'co.bw', 'by',
+  'com.bz', 'ca', 'cd', 'cf', 'cg', 'ch', 'ci', 'co.ck', 'cl', 'cm', 'cn',
+  'com.co', 'co.cr', 'com.cu', 'cv', 'com.cy', 'cz', 'de', 'dj', 'dk', 'dm',
+  'com.do', 'dz', 'com.ec', 'ee', 'com.eg', 'es', 'com.et', 'fi', 'com.fj',
+  'fm', 'fr', 'ga', 'ge', 'gg', 'com.gh', 'com.gi', 'gl', 'gm', 'gr',
+  'com.gt', 'gy', 'com.hk', 'hn', 'hr', 'ht', 'hu', 'co.id', 'ie', 'co.il',
+  'im', 'co.in', 'iq', 'is', 'it', 'je', 'com.jm', 'jo', 'co.jp', 'co.ke',
+  'com.kh', 'ki', 'kg', 'co.kr', 'com.kw', 'kz', 'la', 'com.lb', 'li', 'lk',
+  'co.ls', 'lt', 'lu', 'lv', 'com.ly', 'co.ma', 'md', 'me', 'mg', 'mk',
+  'ml', 'com.mm', 'mn', 'com.mt', 'mu', 'mv', 'mw', 'com.mx', 'com.my',
+  'co.mz', 'com.na', 'com.ng', 'com.ni', 'ne', 'nl', 'no', 'com.np', 'nr',
+  'nu', 'co.nz', 'com.om', 'com.pa', 'com.pe', 'com.pg', 'com.ph', 'com.pk',
+  'pl', 'pn', 'com.pr', 'ps', 'pt', 'com.py', 'com.qa', 'ro', 'ru', 'rw',
+  'com.sa', 'com.sb', 'sc', 'se', 'com.sg', 'sh', 'si', 'sk', 'com.sl',
+  'sn', 'so', 'sm', 'sr', 'st', 'com.sv', 'td', 'tg', 'co.th', 'com.tj',
+  'tl', 'tm', 'tn', 'to', 'com.tr', 'tt', 'com.tw', 'co.tz', 'com.ua',
+  'co.ug', 'co.uk', 'com.uy', 'co.uz', 'com.vc', 'co.ve', 'co.vi', 'com.vn',
+  'vu', 'ws', 'rs', 'co.za', 'co.zm', 'co.zw', 'cat',
+};
 
 /// The webview a site's `window.open` gets, built from its parent's posture.
 abstract final class PopupWebView {
@@ -224,8 +245,10 @@ abstract final class PopupWebView {
       shouldOverrideUrlLoading: (_, navigationAction) async {
         final policy = WebViewFactory.onSiteNavigationPolicy(parent,
             navigationAction: navigationAction, popup: kind);
-        if (policy == inapp.NavigationActionPolicy.CANCEL && !started) {
-          onCloseWindow?.call();
+        if (policy == inapp.NavigationActionPolicy.CANCEL) {
+          final url = navigationAction.request.url;
+          LogTag.popupWindow.debug('Refused $url in a $kind', sensitive: true);
+          if (!started) onCloseWindow?.call();
         }
         return policy;
       },

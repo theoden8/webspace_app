@@ -21,7 +21,7 @@ When opening certain websites, unwanted nested webviews are created for:
 
 On desktop browsers, third-party auth (Google Sign-In) uses popups via `window.open()`. In a mobile webview, `window.open()` is dismissed, so scripts fall back to redirect-based flows, triggering top-level navigations to `accounts.google.com` etc.
 
-Not every script falls back. Google's sign-in button in popup mode (`display=popup`, `redirect_uri=gis_transform`) waits for the window it opened to post the result back to its opener, and has no redirect flow: with the window dismissed, the tap does nothing (issue #686). NESTED-014 opens it, behind an experiment.
+Not every script falls back. Google's sign-in button in popup mode (`display=popup`, `redirect_uri=gis_transform`) waits for the window it opened to post the result back to its opener, and has no redirect flow: with the window dismissed, the tap does nothing (issue #686). NESTED-014 opens it.
 
 ### Observed Cases
 
@@ -58,17 +58,21 @@ user's tap SHALL open as a real popup when its URL is an https page on an
 identity provider's sign-in host
 (`PopupKind.isSignInUrl`: `accounts.google.com`, `accounts.youtube.com`,
 `appleid.apple.com`, `login.microsoftonline.com`, `login.live.com`,
-`github.com`, each with its subdomains). It is not a nested screen and not a
+`github.com`, each with its subdomains; Google's sign-in host on each domain
+Google serves on, `accounts.google.de` or `accounts.google.co.jp`, as
+`www.google.com/supported_domains` lists them; and `www.google.com/accounts/`).
+Google's sign-in sets its session on the account's country domain by
+redirecting through it on the way back to the site, and its Workspace host
+name allowlist names both kinds of host for sign-in. A refused top document
+is logged (App logs, PopupWindow), so a sign-in that stalls names the host
+it was refused. It is not a nested screen and not a
 system-browser hand-off: those leave the page no handle on the window, and a
 provider in popup mode answers the page only through `window.opener`.
 
-- **Where it is on.** iOS, macOS and Linux offer it with developer mode on
-  or off; Android only with the Sign-in popups experiment on
-  (`developer-tools` DEVTOOLS-011), whose switch is offered only there
-  (`PopupKind.signInExperimental`). Where it is offered, App settings >
-  Behaviour has a Sign-in popups switch, on by default, and each site's
-  Behaviour screen one that follows it until the site makes its own choice
-  (`site-behaviour` BEHAV-007). A site's choice is a field of its posture
+- **Where it is on.** On every platform, with developer mode on or off, App
+  settings > Behaviour has a Sign-in popups switch, on by default, and each
+  site's Behaviour screen one that follows it until the site makes its own
+  choice (`site-behaviour` BEHAV-007). A site's choice is a field of its posture
   (`SitePage.signInPopups`, resolved by `PopupKind.signInOpens`), so a nested
   screen and a popup take it with the rest. Where it is off, NESTED-001
   applies unchanged.
@@ -93,21 +97,21 @@ provider in popup mode answers the page only through `window.opener`.
 
 #### Scenario: Continue with Google
 
-- **GIVEN** an iOS, macOS or Linux build with developer mode off, a site that follows the app's Sign-in popups switch, and the user taps "Continue with Google" on it
+- **GIVEN** a build with developer mode off, a site that follows the app's Sign-in popups switch, and the user taps "Continue with Google" on it
 - **WHEN** the page opens `https://accounts.google.com/o/oauth2/v2/auth?display=popup`
 - **THEN** a Sign in popup shows it, bound to the site's container
 - **AND** the page receives what the popup posts back
 
-#### Scenario: The experiment is off
+#### Scenario: A sign-in through the account's country domain
 
-- **GIVEN** an Android build with the experiment off
-- **WHEN** a page opens a window on `accounts.google.com`
-- **THEN** no popup opens, as NESTED-001 says
-- **AND** neither Behaviour screen shows a Sign-in popups switch
+- **GIVEN** the user signs in to Google in a Sign in popup, for an account whose session Google sets on `google.de`
+- **WHEN** the sign-in redirects through `https://accounts.google.de/accounts/SetSID`
+- **THEN** the popup follows it and the flow returns to the site
+- **AND** a host outside the list, `https://www.google.de/`, is refused and logged
 
 #### Scenario: A site turns them off
 
-- **GIVEN** an iOS, macOS or Linux build where the app's Sign-in popups switch is on
+- **GIVEN** the app's Sign-in popups switch is on
 - **WHEN** a site turns its own switch off and is loaded again
 - **THEN** a window it opens on `accounts.google.com` is declined, as NESTED-001 says
 - **AND** the engine opens a window a script asks for on its own, as before

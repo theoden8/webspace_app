@@ -1,7 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -19,6 +16,18 @@ void main() {
       ('https://appleid.apple.com/auth/authorize', true),
       ('https://login.microsoftonline.com/common/oauth2/v2.0/authorize', true),
       ('https://github.com/login/oauth/authorize', true),
+      // Google sets its session on the account's country domain on the way
+      // back to the site, as its sign-in allowlist names those hosts.
+      ('https://accounts.google.de/accounts/SetSID', true),
+      ('https://accounts.google.co.jp/accounts/SetSID', true),
+      ('https://accounts.google.com.br/accounts/SetSID', true),
+      ('https://www.google.com/accounts/SetSID', true),
+      ('https://www.google.com/search?q=accounts', false),
+      ('https://www.google.de/accounts/SetSID', false),
+      ('https://accounts.google.example/', false),
+      ('https://accounts.google.co.uk.evil.example/', false),
+      ('https://evil.accounts.google.de/', false),
+      ('http://accounts.google.de/accounts/SetSID', false),
       ('http://accounts.google.com/o/oauth2/v2/auth', false),
       ('https://accounts.google.com.evil.example/', false),
       ('https://notgithub.com/login', false),
@@ -51,42 +60,20 @@ void main() {
     }
   });
 
-  // iOS, macOS and Linux offer sign-in popups with developer mode off; on
-  // Android the experiment offers them. Where offered, the site's own switch decides, or
-  // the app's while the site follows it.
-  test('NESTED-014: a site opens sign-in popups where the host offers them '
-      "and its switch, or the app's, is on", () {
-    expect(PopupKind.signInExperimental, hostIsAndroid,
-        reason: 'they graduated everywhere but Android (DEVTOOLS-011)');
-    addTearDown(() {
-      PopupKind.debugSignInExperimental = null;
-      DeveloperModeService.instance.debugSet(on: false);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.signInPopups, on: false);
-      AppPref.signInPopups.debugValue = true;
-    });
+  // The site's own switch decides, or the app's while the site follows it.
+  test("NESTED-014: a site opens sign-in popups when its switch, or the "
+      "app's, is on", () {
+    addTearDown(() => AppPref.signInPopups.debugValue = true);
     const follow = FollowApp<bool>();
-    for (final (experimental, experimentOn, app, site, expected)
-        in <(bool, bool, bool, Scoped<bool>, bool)>[
-      (false, false, true, follow, true),
-      (false, false, false, follow, false),
-      (false, false, false, const Own(true), true),
-      (false, false, true, const Own(false), false),
-      (true, false, true, follow, false),
-      (true, false, true, const Own(true), false),
-      (true, true, true, follow, true),
-      (true, true, false, follow, false),
-      (true, true, true, const Own(false), false),
+    for (final (app, site, expected) in <(bool, Scoped<bool>, bool)>[
+      (true, follow, true),
+      (false, follow, false),
+      (false, const Own(true), true),
+      (true, const Own(false), false),
     ]) {
-      PopupKind.debugSignInExperimental = experimental;
-      DeveloperModeService.instance.debugSet(on: experimentOn);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.signInPopups, on: experimentOn);
       AppPref.signInPopups.debugValue = app;
-      expect(PopupKind.signInOffered, !experimental || experimentOn);
       expect(PopupKind.signInOpens(choice: site), expected,
-          reason: 'experimental=$experimental experimentOn=$experimentOn '
-              'app=$app site=$site');
+          reason: 'app=$app site=$site');
     }
   });
 

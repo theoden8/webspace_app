@@ -84,6 +84,14 @@ void main() {
             'Linux as on iOS and macOS (DEVTOOLS-011)');
   });
 
+  test('Sign-in popups graduated: they have no switch (NESTED-014)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalSignInPopups')),
+        reason: "the app's and each site's Sign-in popups switches decide, on "
+            'every platform (DEVTOOLS-011)');
+  });
+
   test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
       () {
     expect(
