@@ -94,7 +94,10 @@ enum Inv {
   tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
   tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
-  tabActive(atRest: true, reads: {ModelVar.active, ModelVar.built, ModelVar.loaded, ModelVar.tabs}),
+  tabActive(
+    atRest: true,
+    reads: {ModelVar.active, ModelVar.built, ModelVar.hist, ModelVar.loaded, ModelVar.tabs},
+  ),
 
   /// One tab handler at a time (`TabHandlingGate`): an input that would
   /// start a tab flow while one is in flight ends at once, so a switch's

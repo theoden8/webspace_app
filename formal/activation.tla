@@ -482,8 +482,10 @@ Inv_TabActive == Idle => \A s \in Tabbed :
     /\ active[s] \in tabs[s]
     /\ (s \in loaded =>
           \/ built[s] = active[s]
-          \* let go of, its frame still to come: no webview, no history
-          \/ built[s] = 0 /\ hist[s] = 0)
+          \* let go of, its frame still to come: no webview, no history;
+          \* only where a let-go can happen, so a frame that binds nothing
+          \* is still caught everywhere else
+          \/ s \in Rebuilt /\ built[s] = 0 /\ hist[s] = 0)
 
 \* Witnesses (expect violated): the interleavings the invariants constrain
 \* are reachable.
