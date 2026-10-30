@@ -263,7 +263,11 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           if (widget.homeShortcuts case final shortcuts?)
             ValueListenableBuilder<List<HomeShortcut>>(
               valueListenable: shortcuts.homeShortcuts,
-              builder: (context, pinned, _) => SettingTile(
+              // Nothing to manage until a tile is pinned, which a TV's
+              // launcher never takes (HS-004).
+              builder: (context, pinned, _) => pinned.isEmpty
+                  ? const SizedBox.shrink()
+                  : SettingTile(
                 leading: const Icon(Icons.app_shortcut),
                 title: loc.homeShortcutsTitle,
                 hint: loc.homeShortcutsHint,
