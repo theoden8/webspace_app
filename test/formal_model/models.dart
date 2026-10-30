@@ -394,7 +394,7 @@ List<ComposedAction> composedActions(Tables t) => [
       rows: const {},
       kinds: const {},
       fields: const {},
-      ways: {null: e.needs},
+      ways: [(kind: null, needs: e.needs)],
       armed: const {},
     ),
 ];
@@ -403,7 +403,7 @@ List<ComposedAction> composedActions(Tables t) => [
 /// it prints from: what a schedule search pairs the steps it ran by.
 List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
   final all = _footprintsOf(t);
-  final flows = flowsAt(all);
+  final flows = waysAt(all);
   return [
     for (final f in all)
       if (_resolved(f.reads, seen: const {}) case final r)
@@ -430,12 +430,15 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
                     ],
                   },
             ways: f.input
-                ? {for (final a in f.arms) a.kind: f.needs}
-                : {
-                    for (final MapEntry(key: k, value: n)
+                ? [
+                    for (final k in {for (final a in f.arms) a.kind})
+                      (kind: k, needs: f.needs),
+                  ]
+                : [
+                    for (final MapEntry(key: k, value: ways)
                         in (flows[f.place] ?? const {}).entries)
-                      k: {...n, ...f.needs},
-                  },
+                      for (final n in ways) (kind: k, needs: {...n, ...f.needs}),
+                  ],
             armed: {
               for (final v in f.writes)
                 if ([
@@ -677,23 +680,35 @@ String activationBaseOps() => [
 ].join('\n');
 
 /// What reaching each place takes, for each kind of flow whose row can
-/// hold there: the model's constants every way there needs, read off every
-/// table's arms by place name, as the model's `pc` names them. An input
-/// lands on a row that holds no kind and needs nothing yet; an arm that
-/// sets a kind gives it, one taken only for some kinds lets only those
-/// through, every other carries the kind it found, and each adds what its
-/// step and its branch need; one that ends the flow leaves nothing.
-Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) {
-  final at = <String, Map<FlowKind, Set<Need>>>{};
+/// hold there: the model's constants every way there needs, in common
+/// ([waysAt]'s ways, intersected).
+Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) => {
+  for (final MapEntry(key: place, value: byKind) in waysAt(all).entries)
+    place: {
+      for (final MapEntry(key: kind, value: ways) in byKind.entries)
+        kind: ways.reduce((a, b) => a.intersection(b)),
+    },
+};
+
+/// Each way to each place, for each kind of flow whose row can hold there:
+/// what the model's constants must be that way, read off every table's
+/// arms by place name, as the model's `pc` names them. An input lands on a
+/// row that holds no kind and needs nothing yet; an arm that sets a kind
+/// gives it, one taken only for some kinds lets only those through, every
+/// other carries the kind it found, and each adds what its step and its
+/// branch need; one that ends the flow leaves nothing. A way that needs
+/// all another of its kind does, and more, is dropped: a world giving it
+/// gives the other.
+Map<String, Map<FlowKind, List<Set<Need>>>> waysAt(List<Footprint> all) {
+  final at = <String, Map<FlowKind, List<Set<Need>>>>{};
   var moved = true;
   void reach(String place, {required FlowKind kind, required Set<Need> need}) {
-    final byKind = at.putIfAbsent(place, () => {});
-    final was = byKind[kind];
-    final now = was == null ? need : was.intersection(need);
-    if (was == null || now.length != was.length) {
-      byKind[kind] = now;
-      moved = true;
-    }
+    final ways = at.putIfAbsent(place, () => {}).putIfAbsent(kind, () => []);
+    if (ways.any(need.containsAll)) return;
+    ways
+      ..removeWhere((w) => w.containsAll(need))
+      ..add(need);
+    moved = true;
   }
 
   while (moved) {
@@ -709,27 +724,38 @@ Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) {
           guard: _,
         )
         in all) {
-      final Map<FlowKind?, Set<Need>> here = input
-          ? {null: const {}}
-          : {...?at[place]};
+      final Map<FlowKind?, List<Set<Need>>> here = input
+          ? {
+              null: [const {}],
+            }
+          : {
+              for (final MapEntry(:key, :value) in (at[place] ?? {}).entries)
+                key: [...value],
+            };
       for (final a in arms) {
-        for (final MapEntry(key: k, value: got) in here.entries) {
+        for (final MapEntry(key: k, value: ways) in here.entries) {
           if (k != null && !(a.only?.contains(k) ?? true)) continue;
-          // A flow the arm starts goes on from its input's places, whatever
-          // the arm does to its own.
-          for (final r in a.spawns) {
-            for (final MapEntry(key: p, value: there) in r.next.entries) {
+          for (final got in ways) {
+            // A flow the arm starts goes on from its input's places,
+            // whatever the arm does to its own.
+            for (final r in a.spawns) {
+              for (final MapEntry(key: p, value: there) in r.next.entries) {
+                reach(
+                  p,
+                  kind: r.kind,
+                  need: {...got, ...needs, ...a.needs, ...r.needs, ...there},
+                );
+              }
+            }
+            final out = a.kind ?? k;
+            if (a.ends || out == null) continue;
+            for (final MapEntry(key: p, value: there) in a.next.entries) {
               reach(
                 p,
-                kind: r.kind,
-                need: {...got, ...needs, ...a.needs, ...r.needs, ...there},
+                kind: out,
+                need: {...got, ...needs, ...a.needs, ...there},
               );
             }
-          }
-          final out = a.kind ?? k;
-          if (a.ends || out == null) continue;
-          for (final MapEntry(key: p, value: there) in a.next.entries) {
-            reach(p, kind: out, need: {...got, ...needs, ...a.needs, ...there});
           }
         }
       }

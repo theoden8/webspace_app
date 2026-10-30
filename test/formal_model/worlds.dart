@@ -113,7 +113,8 @@ enum EnvAction {
 /// writes of the shared state (other flows' rows apart, as [rows]), the
 /// kinds its row holds and the fields of it it writes (null: every one,
 /// as an end), each way a flow reaches it: the kind it runs in (null for
-/// none) and what the constants must be that way; and each variable only
+/// none) and what the constants must be that way, one entry a way, so a
+/// kind two ways reach is listed twice; and each variable only
 /// some of its arms write, with what all of those arms need ([armed]).
 typedef ComposedAction = ({
   String name,
@@ -122,7 +123,7 @@ typedef ComposedAction = ({
   Set<RowRead> rows,
   Set<FlowKind> kinds,
   Set<FlowField>? fields,
-  Map<FlowKind?, Set<Need>> ways,
+  List<({FlowKind? kind, Set<Need> needs})> ways,
   Map<ModelVar, Set<Need>> armed,
 });
 
@@ -332,8 +333,8 @@ WorldSpec _worldFor(
       WorldSpec? best;
       var hosted = false;
       final meets = _meets(a, other: b);
-      for (final MapEntry(key: ka, value: na) in a.ways.entries) {
-        for (final MapEntry(key: kb, value: nb) in b.ways.entries) {
+      for (final (kind: ka, needs: na) in a.ways) {
+        for (final (kind: kb, needs: nb) in b.ways) {
           for (final m in meets) {
             final needs = {...na, ...nb, ...m};
             if (_contradicts(needs)) continue;

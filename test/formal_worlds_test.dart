@@ -17,7 +17,10 @@ ComposedAction _act(
   rows: const {},
   kinds: const {},
   fields: const {},
-  ways: ways,
+  ways: [
+    for (final MapEntry(:key, :value) in ways.entries)
+      (kind: key, needs: value),
+  ],
   armed: armed,
 );
 
