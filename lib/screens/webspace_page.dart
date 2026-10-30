@@ -38,6 +38,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/page_layer.dart';
 import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
@@ -1424,7 +1425,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // notch with the app background. github #457
       left: !_fullscreen.active,
       right: !_fullscreen.active,
-      // Use Stack + Offstage so the IndexedStack (and its webview States)
+      // Use Stack + PageLayer so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing
       // navigation history and scroll position.
@@ -1439,8 +1440,8 @@ class _WebSpacePageState extends State<WebSpacePage>
             child: Stack(
               key: _siteArea,
               children: [
-                Offstage(
-                  offstage: _sites.shown != null,
+                PageLayer(
+                  shown: _sites.shown == null,
                   child: _folderLibraryEnabled ? WebspaceLibrary(
                     key: _libraryKey,
                     webspaces: _sites.webspaces,
@@ -1477,8 +1478,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                   ),
                 ),
                 if (_sites.loaded.isNotEmpty)
-                  Offstage(
-                    offstage: _sites.shown == null,
+                  PageLayer(
+                    shown: _sites.shown != null,
                     // The inset SurfaceRepaintController toggles to make the
                     // hybrid-composition SurfaceView recomposite (BUG-001);
                     // zero in steady state.

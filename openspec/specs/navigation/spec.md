@@ -744,6 +744,9 @@ since a remote has no long press, no Menu key and nothing to drag with:
 
 - Up and Down SHALL leave a one-line text field (the library's search, the URL bar);
   Left and Right stay with its caret, and a field of several lines keeps all four.
+- The library and the sites are kept mounted one over the other; the one not on screen
+  SHALL take no focus, so an arrow never goes on to a hidden page or onto an icon behind
+  a site.
 - Up and Down SHALL leave a slider (a settings row's zoom, say); Left and Right change its
   value. The app runs in Flutter's directional navigation there, which Flutter never picks
   itself, so a disabled control also takes focus and the D-pad can rest on it.
