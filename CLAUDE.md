@@ -565,6 +565,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | localcdn | cache CDN resources locally (Android) |
 | navigation | back gesture, drawer swipe, refresh, race guards; URL-bar site info sheet (site + container); desktop keyboard shortcuts |
 | nested-url-blocking | nested InAppBrowser; gesture-less cross-domain hops blocked on every site (no switch); per-site external link mode (in app / browser / block), routing to other sites only in app |
+| network-interface *(change)* | per-site interface a site's traffic leaves by (a VPN's tunnel), refused rather than rerouted when it is down; a native loopback relay binds each dial (`SO_BINDTODEVICE`, `requiredInterface`, `Network.bindSocket`), never a source address; proposal only, requirements (NETIF-*) at `openspec/changes/per-site-network-interface/` |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
 | passkey-support | every site outside an archive. Android: the shim hands `publicKey` requests to Dart, which asserts the calling frame's origin to Credential Manager (`CREDENTIAL_MANAGER_SET_ORIGIN`, a normal permission) with its own clientDataJSON hash; each provider decides whether to trust the app with an origin. Emulator gate: `scripts/run_android_passkey_tests.sh`. iOS/macOS: no bridge, WebKit's own WebAuthn, which needs Apple's browser passkey entitlement; an archive-tier site gets a block shim that hides it |
 | per-site-cookie-isolation | legacy engine (fallback) |
