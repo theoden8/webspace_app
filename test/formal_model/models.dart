@@ -221,10 +221,7 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
   (path: '$_tablesFacts.tla', text: activationTablesFacts()),
   ...activationTablesParts(tables),
   ...activationInvariantParts(tables),
-  (
-    path: 'activation_invariants_proof.tla',
-    text: activationInvariantsProof(tables),
-  ),
+  ...activationInvariantsProofs(tables),
   ...activationTypesProofs(
     tables: {
       for (final m in ModelTable.values)
@@ -1140,25 +1137,31 @@ List<String> _rowsInd(
   ];
 }
 
-/// For each invariant every step keeps as it stands ([Inv.inductive]): a
-/// case per step, each closed by the step's definition, and the theorem
-/// that it holds in every state beside `IndInv`, whose own preservation is
-/// `proofs/activation_turns.tla`'s.
-String activationInvariantsProof(Tables t) => [
-  '--------------------- MODULE activation_invariants_proof ---------------------',
-  '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
-  '(* Not committed; edit the declarations instead.                          *)',
-  'EXTENDS ${['activation_turns', for (final (path: p, text: _) in activationInvariantParts(t)) p.replaceAll('.tla', '')].join(', ')}',
-  '',
+/// For each invariant every step keeps as it stands ([Inv.inductive]), a
+/// module of its own: a case per step, each closed by the step's
+/// definition, and the theorem that it holds in every state beside
+/// `IndInv`, whose own preservation is `proofs/activation_turns.tla`'s. One
+/// module an invariant, since tlapm holds what it proves until its module
+/// ends: two in one outgrew the memory of a run.
+List<PrintedFile> activationInvariantsProofs(Tables t) => [
   for (final i in Inv.values)
-    if (i.inductive) ...[
-      _keeps(i, over: 'TableStep', steps: _flowSteps(t)),
-      _keeps(i, over: 'InputTableStep', steps: _inputSteps(t)),
-      _holds(i),
-    ],
-  '=============================================================================',
-  '',
-].join('\n');
+    if (i.inductive)
+      (
+        path: 'activation_invariants_${i.name}_proof.tla',
+        text: [
+          '---------------- MODULE activation_invariants_${i.name}_proof ----------------',
+          '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
+          '(* Not committed; edit the declarations instead.                          *)',
+          'EXTENDS ${['activation_turns', for (final (path: p, text: _) in _armParts(i, tables: t)) p.replaceAll('.tla', '')].join(', ')}',
+          '',
+          _keeps(i, over: 'TableStep', steps: _flowSteps(t)),
+          _keeps(i, over: 'InputTableStep', steps: _inputSteps(t)),
+          _holds(i),
+          '=============================================================================',
+          '',
+        ].join('\n'),
+      ),
+];
 
 /// The lemma that every step of [over] keeps [i], one case per step: by
 /// the step's own lemma where [Inv.byArm], else by its action.
@@ -1191,27 +1194,32 @@ String _uses(Inv i) =>
 /// The steps' lemmas for each invariant proved an arm at a time
 /// ([Inv.byArm]), [_partSize] steps a module as the tables' are: each
 /// step's action split into its alternatives, each closed by itself.
-List<PrintedFile> activationInvariantParts(Tables t) {
-  final arms = _alternatives(t);
-  final steps = [..._flowSteps(t), ..._inputSteps(t)];
+List<PrintedFile> activationInvariantParts(Tables t) => [
+  for (final i in Inv.values) ..._armParts(i, tables: t),
+];
+
+/// [activationInvariantParts]'s modules for [i], none unless it is proved
+/// an arm at a time.
+List<PrintedFile> _armParts(Inv i, {required Tables tables}) {
+  if (!i.inductive || !i.byArm) return const [];
+  final arms = _alternatives(tables);
+  final steps = [..._flowSteps(tables), ..._inputSteps(tables)];
   return [
-    for (final i in Inv.values)
-      if (i.inductive && i.byArm)
-        for (var n = 0; n < steps.length; n += _partSize)
-          (
-            path: 'activation_inv_${i.name}_${n ~/ _partSize + 1}_proof.tla',
-            text: [
-              '---------------------- MODULE activation_inv_${i.name}_${n ~/ _partSize + 1}_proof ----------------------',
-              '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
-              '(* Not committed; edit the declarations instead.                          *)',
-              'EXTENDS $_tablesFacts',
-              '',
-              for (final s in steps.skip(n).take(_partSize))
-                _armKeeps(i, step: s, arms: arms[s.name]!),
-              '=============================================================================',
-              '',
-            ].join('\n'),
-          ),
+    for (var n = 0; n < steps.length; n += _partSize)
+      (
+        path: 'activation_inv_${i.name}_${n ~/ _partSize + 1}_proof.tla',
+        text: [
+          '---------------------- MODULE activation_inv_${i.name}_${n ~/ _partSize + 1}_proof ----------------------',
+          '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
+          '(* Not committed; edit the declarations instead.                          *)',
+          'EXTENDS $_tablesFacts',
+          '',
+          for (final s in steps.skip(n).take(_partSize))
+            _armKeeps(i, step: s, arms: arms[s.name]!),
+          '=============================================================================',
+          '',
+        ].join('\n'),
+      ),
   ];
 }
 

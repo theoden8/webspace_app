@@ -96,7 +96,8 @@ min_obligations() {
     archive_identity.tla)      echo 25 ;;
     activation_turns.tla)      echo 43 ;;
     activation_tables_proof.tla) echo 341 ;;
-    activation_invariants_proof.tla) echo 317 ;;
+    activation_invariants_checksOffScreen_proof.tla) echo 347 ;;
+    activation_invariants_oneTabFlow_proof.tla) echo 446 ;;
     activation_types_proof.tla) echo 100 ;;
     activation_facts_vars_proof.tla) echo 68 ;;
     activation_facts_domains_proof.tla) echo 96 ;;

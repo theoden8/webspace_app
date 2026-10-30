@@ -18,7 +18,7 @@ function proofRun(t, {
   const tmp = path.join(dir, 'tmp');
   for (const folder of [bin, model, tmp]) fs.mkdirSync(folder);
   for (const name of [
-    'activation_tables', 'activation_tables_proof', 'activation_invariants_proof',
+    'activation_tables', 'activation_tables_proof', 'activation_invariants_checksOffScreen_proof',
     'activation_tables_3_proof', 'activation_tables_4_proof',
   ]) {
     fs.writeFileSync(path.join(model, `${name}.tla`), '');
