@@ -65,14 +65,19 @@ class WindowCaptionPlugin(private val activity: Activity, flutterEngine: Flutter
     private fun layout(): Map<String, Int> {
         val at = IntArray(2)
         activity.findViewById<View>(android.R.id.content).getLocationInWindow(at)
+        val multiWindow = if (activity.isInMultiWindowMode) 1 else 0
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            return mapOf("captionTop" to 0, "contentTop" to at[1], "appearance" to 0)
+            return mapOf(
+                "captionTop" to 0, "contentTop" to at[1], "appearance" to 0,
+                "multiWindow" to multiWindow,
+            )
         }
         val insets = activity.window.decorView.rootWindowInsets
         return mapOf(
             "captionTop" to (insets?.getInsets(WindowInsets.Type.captionBar())?.top ?: 0),
             "contentTop" to at[1],
             "appearance" to (controller()?.systemBarsAppearance ?: 0),
+            "multiWindow" to multiWindow,
         )
     }
 

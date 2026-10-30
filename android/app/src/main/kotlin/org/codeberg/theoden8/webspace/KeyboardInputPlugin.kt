@@ -49,7 +49,14 @@ class KeyboardInputPlugin(private val activity: Activity, flutterEngine: Flutter
                         result.error("UNAVAILABLE", "debuggable builds only, with a keyCode", null)
                     } else {
                         typeKey(keyCode, metaState)
-                        result.success(null)
+                        // What the key met, for the tier's log: a window
+                        // without focus, or no view focused in it, drops it.
+                        result.success(
+                            mapOf(
+                                "windowFocused" to activity.hasWindowFocus(),
+                                "viewFocused" to (activity.currentFocus != null),
+                            )
+                        )
                     }
                 }
                 else -> result.notImplemented()

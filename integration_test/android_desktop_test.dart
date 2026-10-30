@@ -129,8 +129,9 @@ void main() {
     int metaState = 0,
   }) async {
     await tester.runAsync(() async {
-      await _keyboard.invokeMethod<void>(
+      final met = await _keyboard.invokeMapMethod<String, bool>(
           'debugTypeKey', {'keyCode': keyCode, 'metaState': metaState});
+      log('typed $keyCode (meta $metaState): $met');
       await Future<void>.delayed(const Duration(milliseconds: 400));
     });
     await tester.pump();
@@ -174,7 +175,13 @@ void main() {
           home: Scaffold(appBar: AppBar(title: const Text('header'))),
         ));
         await tester.pumpAndSettle();
-        final window = await layout();
+        // The tier's script moves the task into a desktop window once it
+        // exists, a moment after the app starts.
+        var window = await layout();
+        for (var i = 0; i < 40 && (window['captionTop'] ?? 0) == 0; i++) {
+          window = await layout();
+        }
+        await tester.pumpAndSettle();
         final view = tester.view;
         log('$mode: $window, padding top ${view.padding.top}');
         final caption = window['captionTop'] ?? 0;
