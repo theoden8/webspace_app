@@ -36,6 +36,26 @@ void main() {
     expect(gate.busy, isFalse);
   });
 
+  /// A handler whose input found the gate free takes it in the same turn;
+  /// held by then, the input's answer was wrong, which is a bug to see
+  /// rather than a turn away to swallow (TAB-003).
+  test('hold takes a free gate and asserts on a held one', () async {
+    var ran = false;
+    await gate.hold(() async => ran = true);
+    expect(ran, isTrue);
+    final (first, release) = hold(gate);
+    await expectLater(
+      gate.hold(() async {}),
+      throwsA(isA<AssertionError>().having(
+        (e) => e.message,
+        'message',
+        contains('took the gate another held'),
+      )),
+    );
+    release.complete();
+    await first;
+  });
+
   test('a body that throws still releases the gate', () async {
     await expectLater(
         gate.run(() async => throw StateError('handler failed')),

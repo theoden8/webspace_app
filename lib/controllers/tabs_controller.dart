@@ -220,7 +220,7 @@ class TabsController {
           sensitive: true);
       return;
     }
-    await _gate.run(() => _runTabFlow(c, from: next));
+    await _gate.hold(() => _runTabFlow(c, from: next));
   }
 
   /// Move [model]'s webview from whatever tab it is on to [targetTabId]:
@@ -293,7 +293,7 @@ class TabsController {
       final c = StepContext(TabFlow(this, site: owner)..flips = flips);
       final next = TabTable.tabInputs.runInput(c, from: TabPlace.reroute);
       if (next == TabPlace.done) return;
-      await _gate.run(() => _runTabFlow(c, from: next));
+      await _gate.hold(() => _runTabFlow(c, from: next));
       return;
     }
     if (flips.isEmpty && !forgot) return;
@@ -498,7 +498,7 @@ class TabsController {
         toTabId: tabId,
         webspaceId: _sites.selectedWebspaceId,
       );
-      await _gate.run(() => _runTabFlow(c, from: next));
+      await _gate.hold(() => _runTabFlow(c, from: next));
       _returns = trail;
       return;
     }
@@ -626,7 +626,7 @@ class TabsController {
       landed: move?.tabs ?? model.tabs,
     ));
     final next = TabTable.tabInputs.runInput(c, from: TabPlace.ownerRun);
-    await _gate.run(() => _runTabFlow(c, from: next));
+    await _gate.hold(() => _runTabFlow(c, from: next));
   }
 
   /// LIR-023: close every hosted tab whose host is gone or may no longer
@@ -665,7 +665,7 @@ class TabsController {
       final c = StepContext(TabFlow(this, site: model, url: url));
       final next = TabTable.tabInputs.runInput(c, from: TabPlace.newTab);
       if (next == TabPlace.done) return;
-      await _gate.run(() => _runTabFlow(c, from: next));
+      await _gate.hold(() => _runTabFlow(c, from: next));
       return;
     }
     if (_gate.busy) {
@@ -735,7 +735,7 @@ class TabsController {
     LogTag.tabs.debug('Opened a child tab of "${owner.name}"'
         '${tab.hostSiteId == null ? '' : ' run as ${tab.hostSiteId}'}',
         sensitive: true);
-    await _gate.run(() => _runTabFlow(c, from: next));
+    await _gate.hold(() => _runTabFlow(c, from: next));
   }
 
   /// Copy the site's current tab, back stack included, into a new tab beside it
@@ -749,7 +749,7 @@ class TabsController {
       final c = StepContext(TabFlow(this, site: model));
       final next = TabTable.tabInputs.runInput(c, from: TabPlace.duplicateTab);
       if (next == TabPlace.done) return;
-      await _gate.run(() => _runTabFlow(c, from: next));
+      await _gate.hold(() => _runTabFlow(c, from: next));
       return;
     }
     if (_gate.busy) {
@@ -844,7 +844,7 @@ class TabsController {
     if (tab == null) return;
     final c = StepContext(TabFlow(this, site: model)..fresh = tab);
     final next = TabTable.tabInputs.runInput(c, from: TabPlace.parkChild);
-    await _gate.run(() => _runTabFlow(c, from: next));
+    await _gate.hold(() => _runTabFlow(c, from: next));
   }
 
   /// The parked child joined the list: the page redraws and offers it.
@@ -899,7 +899,7 @@ class TabsController {
       );
       final next = TabTable.tabInputs.runInput(c, from: TabPlace.closeTab);
       if (next == TabPlace.done) return;
-      await _gate.run(() => _runTabFlow(c, from: next));
+      await _gate.hold(() => _runTabFlow(c, from: next));
       return;
     }
     if (_gate.busy) {

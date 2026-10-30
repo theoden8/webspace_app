@@ -1,4 +1,3 @@
 # Table actions no checked world takes, with why none can: each is
 # checked by nothing until one does. Only shrinks.
 DupRemoveReply	the duplicate holds the tab gate across its awaits, so no tab input closes its source tab meanwhile, and closeIneligibleHostedTabs waits for the gate: DupInsert's gone branch is unreachable, a candidate for an assert
-TabCaptureUnsave	a tab switch holds the tab gate across its capture, so no close runs meanwhile and a reroute waits for the gate (TabHandlingGate.deferUntilIdle): no flow moves the tab while its save is out, so TabCaptureSave's gone branch is unreachable, a candidate for an assert in place of the switch's unsave

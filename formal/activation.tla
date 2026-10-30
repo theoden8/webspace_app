@@ -424,6 +424,12 @@ ResetOne == {3}
 \* The incognito config's: site 3, loaded and signed in at the start.
 IncognitoOne == {3}
 
+\* One tab handler at a time (TabHandlingGate): an input that would start a
+\* tab flow while one is in flight ends at once, so a switch's capture never
+\* meets a close or a reroute of the tab it keys by (TAB-003).
+Inv_OneTabFlow ==
+    \A g, h \in Flows : fl[g].kind = "tab" /\ fl[h].kind = "tab" => g = h
+
 Inv_TabFiles ==
     \A s \in Tabbed : \A t \in TabIds : \A h \in Sites : file[s][t][h] \in {0, t}
 \* TAB-003, LIR-024: at rest a listed tab keeps a file only under the key of

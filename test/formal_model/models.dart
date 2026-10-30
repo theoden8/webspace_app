@@ -220,6 +220,7 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
   (path: 'activation_tables_proof.tla', text: activationTablesProof(tables)),
   (path: '$_tablesFacts.tla', text: activationTablesFacts()),
   ...activationTablesParts(tables),
+  ...activationInvariantParts(tables),
   (
     path: 'activation_invariants_proof.tla',
     text: activationInvariantsProof(tables),
@@ -840,6 +841,10 @@ String activationTablesFacts() => [
   'LEMMA NoFlowPc == "${FlowField.pc.name}" \\in DOMAIN NoFlow /\\ NoFlow.pc = "done"',
   '  BY DEF NoFlow',
   '',
+  'LEMMA NoFlowKind ==',
+  '    "${FlowField.kind.name}" \\in DOMAIN NoFlow /\\ NoFlow.kind = ${FlowField.kind.none}',
+  '  BY DEF NoFlow',
+  '',
   '=============================================================================',
   '',
 ].join('\n');
@@ -1093,7 +1098,7 @@ String activationInvariantsProof(Tables t) => [
   '--------------------- MODULE activation_invariants_proof ---------------------',
   '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
   '(* Not committed; edit the declarations instead.                          *)',
-  'EXTENDS activation_turns',
+  'EXTENDS ${['activation_turns', for (final (path: p, text: _) in activationInvariantParts(t)) p.replaceAll('.tla', '')].join(', ')}',
   '',
   for (final i in Inv.values)
     if (i.inductive) ...[
@@ -1105,7 +1110,8 @@ String activationInvariantsProof(Tables t) => [
   '',
 ].join('\n');
 
-/// The lemma that every step of [over] keeps [i], one case per step.
+/// The lemma that every step of [over] keeps [i], one case per step: by
+/// the step's own lemma where [Inv.byArm], else by its action.
 String _keeps(
   Inv i, {
   required String over,
@@ -1114,14 +1120,69 @@ String _keeps(
   'LEMMA ${i.tla}_$over ==',
   '    ASSUME Good, IndInv, ${i.tla}, NEW f \\in Flows, $over(f)',
   "    PROVE  ${i.tla}'",
-  '  <1> USE DEF ${i.tla}, Flows',
+  if (!i.byArm) _uses(i),
   for (final (n, s) in steps.indexed) ...[
     '  <1>${n + 1}. CASE ${s.action}(f)',
-    '    BY <1>${n + 1} DEF ${[s.action, if (s.input) 'Input', ..._operators(s)].join(', ')}',
+    if (i.byArm)
+      '    BY <1>${n + 1}, ${i.tla}_${s.action}'
+    else
+      '    BY <1>${n + 1} DEF ${[s.action, if (s.input) 'Input', ..._operators(s)].join(', ')}',
   ],
   '  <1> QED',
   '    BY ${[for (var n = 1; n <= steps.length; n++) '<1>$n'].join(', ')}',
   '       DEF $over',
+  '',
+].join('\n');
+
+String _uses(Inv i) =>
+    '  <1> USE ${i.facts.isEmpty ? '' : '${i.facts.join(', ')} '}'
+    'DEF ${[i.tla, 'Flows', ...i.unfolds].join(', ')}';
+
+/// The steps' lemmas for each invariant proved an arm at a time
+/// ([Inv.byArm]), [_partSize] steps a module as the tables' are: each
+/// step's action split into its alternatives, each closed by itself.
+List<PrintedFile> activationInvariantParts(Tables t) {
+  final arms = _alternatives(t);
+  final steps = [..._flowSteps(t), ..._inputSteps(t)];
+  return [
+    for (final i in Inv.values)
+      if (i.inductive && i.byArm)
+        for (var n = 0; n < steps.length; n += _partSize)
+          (
+            path: 'activation_inv_${i.name}_${n ~/ _partSize + 1}_proof.tla',
+            text: [
+              '---------------------- MODULE activation_inv_${i.name}_${n ~/ _partSize + 1}_proof ----------------------',
+              '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
+              '(* Not committed; edit the declarations instead.                          *)',
+              'EXTENDS $_tablesFacts',
+              '',
+              for (final s in steps.skip(n).take(_partSize))
+                _armKeeps(i, step: s, arms: arms[s.name]!),
+              '=============================================================================',
+              '',
+            ].join('\n'),
+          ),
+  ];
+}
+
+/// The lemma that [step] keeps [i], an arm at a time.
+String _armKeeps(
+  Inv i, {
+  required Step<Object?, Enum> step,
+  required List<StepAlternative> arms,
+}) => [
+  'LEMMA ${i.tla}_${step.action} ==',
+  '    ASSUME Good, IndInv, ${i.tla}, NEW f \\in Flows, ${step.action}(f)',
+  "    PROVE  ${i.tla}'",
+  _uses(i),
+  '  <1>1. ${[for (final a in arms) '(${a.tla})'].join(' \\/ ')}',
+  '    BY DEF ${step.action}',
+  for (final (n, a) in arms.indexed) ...[
+    '  <1>${n + 2}. CASE ${a.tla}',
+    '    BY <1>${n + 2} DEF ${['Did', if (step.input) 'Input', ..._operators(step)].join(', ')}',
+  ],
+  '  <1> QED',
+  '    BY ${['<1>1', for (var n = 2; n < arms.length + 2; n++) '<1>$n'].join(', ')}',
   '',
 ].join('\n');
 
@@ -1142,7 +1203,8 @@ String _holds(Inv i) {
   return [
     'THEOREM ${i.tla}_Holds == ASSUME Good PROVE Spec => []${i.tla}',
     '  <1>1. Init => ${i.tla}',
-    '    BY DEF Init, WarmInit, ColdInit, ${i.tla}',
+    '    BY ${i.facts.isEmpty ? '' : '${i.facts.join(', ')} '}'
+        'DEF Init, WarmInit, ColdInit, ${i.tla}',
     "  <1>2. IndInv /\\ ${i.tla} /\\ [Next]_vars => ${i.tla}'",
     '    <2> SUFFICES ASSUME Good, IndInv, ${i.tla}, [Next]_vars',
     "                 PROVE  ${i.tla}'",
