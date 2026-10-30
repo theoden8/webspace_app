@@ -754,20 +754,20 @@ emulator Scenario P2.
 
 #### Scenario: A headless check never goes out through another site's proxy
 
-**Given** Android outside router mode, site A loaded with proxy P, and site B with notifications on, no webview and proxy Q
+**Given** Android without per-site profiles (PROXY-008), site A loaded with proxy P, and site B with notifications on, no webview and proxy Q
 **When** a background wake runs
 **Then** site B is skipped with the reason logged, and site A is reloaded under P
 
 #### Scenario: The site left on screen holds the route, notifications off
 
-**Given** Android outside router mode, site A loaded with proxy P and notifications off, and site B with notifications on, no webview and proxy Q
+**Given** Android without per-site profiles (PROXY-008), site A loaded with proxy P and notifications off, and site B with notifications on, no webview and proxy Q
 **When** a background wake runs
 **Then** site B is skipped with the reason logged, and the proxy override stays on P
 **And** a live Tor site with notifications off keeps its exit country the same way (TOR-014; BUG-037)
 
 #### Scenario: A check waits out an activation in flight
 
-**Given** Android outside router mode, a tap on site A with proxy P still in flight as the app leaves the screen, and site B with notifications on, no webview and proxy Q
+**Given** Android without per-site profiles (PROXY-008), a tap on site A with proxy P still in flight as the app leaves the screen, and site B with notifications on, no webview and proxy Q
 **When** a background wake runs before the tap commits
 **Then** site B is skipped as an activation in flight, and site A loads under P with no check beside it (BUG-037)
 

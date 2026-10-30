@@ -3,6 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -199,25 +200,33 @@ class WebViewConfig {
   });
 }
 
-/// Where one rule covers the process (Android), the proxy is a
-/// process-global override applied from Dart after the platform view exists
-/// (`WebViewModel.setController`). A site whose effective proxy
-/// is non-DEFAULT must therefore carry no initial load, or its first request
-/// leaves before the override lands; the same holds for a DEFAULT site while
-/// the override still names another site's proxy.
+/// Where one rule carries a site's own proxy (Android without per-site
+/// profiles), it is a process-global override applied from Dart after the
+/// platform view exists (`WebViewModel.setController`). A site whose
+/// effective proxy is non-DEFAULT must therefore carry no initial load, or
+/// its first request leaves before the override lands; the same holds for a
+/// DEFAULT site while the override still names another site's proxy.
 /// `setController` issues the first load once the override is in (LEAK-003).
+///
+/// Where the rule names the relay instead, a proxied site defers until the
+/// router is up, which a start in flight may not be yet; a DEFAULT site goes
+/// direct or through the relay alike (PROXY-013).
 ///
 /// Every platform that binds a proxy per container defers too when the
 /// container still carries a proxy its site no longer names: the clear goes
 /// out from `setController` as well (PROXY-029).
 bool deferInitialLoadForProxy({
-  required bool proxyIsGlobal,
+  required ProxyBinding binding,
   required bool effectiveNonDefault,
   required bool overrideActive,
   required bool releasesContainerProxy,
 }) =>
     releasesContainerProxy ||
-    (proxyIsGlobal && (effectiveNonDefault || overrideActive));
+    switch (binding) {
+      ProxyBinding.perSite => false,
+      ProxyBinding.routed => effectiveNonDefault,
+      ProxyBinding.processWide => effectiveNonDefault || overrideActive,
+    };
 
 /// Whether the root site webview must defer its initial load so the
 /// controller-created handler can apply `restoreState` to a pristine

@@ -9,8 +9,8 @@ import 'package:webspace/services/proxy_relay.dart';
 ///
 /// Router mode cannot run here anyway: the gate gives it to Android and
 /// Apple only. Refusing to bind is the fail-closed answer, and it is the
-/// same one the caller already handles, since a relay that cannot bind
-/// puts the app back on PROXY-008.
+/// same one the caller already handles: a relay that cannot bind stands the
+/// router down, and no proxied site loads (PROXY-013).
 class LocalProxyRelayApi implements ProxyRelayApi {
   LocalProxyRelayApi();
 

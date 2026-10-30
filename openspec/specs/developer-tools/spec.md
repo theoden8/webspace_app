@@ -552,7 +552,7 @@ Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the grou
 
 A site's icon taken only from the site (`icon-fetching` ICON-014), with no third-party icon service and, on Android, the declared links in place of WebView's icon, was in the group with a Site icons only switch that defaulted off. Its first half graduated: no platform asks a third-party icon service. Android keeps the icon its WebView reports (ICON-009), and the switch's pref (`experimentalSiteIconsOnly`, written by v0.3.3 to v0.3.5) is no longer read.
 
-Android's per-site proxy router (`proxy` PROXY-013) was in the group with a Proxy router switch that defaulted on, since developer mode alone had run it before the group existed; it graduated, and runs wherever the WebView reports `MULTI_PROFILE` and a site is proxied, with developer mode on or off. The switch moved to App settings' Network screen, keeps its stored value, and is offered with developer mode on or off.
+Android's per-site proxy router (`proxy` PROXY-013) was in the group with a Proxy router switch that defaulted on, since developer mode alone had run it before the group existed; it graduated, and runs wherever the WebView reports `MULTI_PROFILE` and a site is proxied, with developer mode on or off. The switch moved to App settings' Network screen for a while and is gone too: the router is how Android carries a proxy wherever it can run, and no setting turns it off.
 
 The proxy library and the connection indicator (`proxy` PROXY-030, PROXY-031) were in the group with a Saved proxies switch that defaulted off; they graduated, and are offered with developer mode on or off.
 

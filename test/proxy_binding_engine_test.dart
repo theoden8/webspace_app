@@ -1,27 +1,43 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 
-/// Where a per-site proxy is enforced, named once (PROXY-027).
+/// Where a per-site proxy is enforced, named once (PROXY-027, PROXY-013).
 ///
 /// Asserted on the pure decision rather than on the live getter, because
 /// this suite runs on Linux: there `hostIsMacOS` answers false first and
 /// every further assertion passes without meaning it.
 void main() {
-  test('Apple binds per store, Android process-wide', () {
-    expect(
-        ProxyBindingEngine.bindingWhen(
-            isIOS: true, isMacOS: false, isLinux: false),
-        ProxyBinding.perSite);
-    expect(
-        ProxyBindingEngine.bindingWhen(
-            isIOS: false, isMacOS: true, isLinux: false),
-        ProxyBinding.perSite);
-    expect(
-        ProxyBindingEngine.bindingWhen(
-            isIOS: false, isMacOS: false, isLinux: false),
-        ProxyBinding.processWide,
-        reason: 'Android has one ProxyController rule, which is not a '
-            'per-store binding');
+  ProxyBinding on({
+    bool isIOS = false,
+    bool isMacOS = false,
+    bool isLinux = false,
+    bool androidContainers = false,
+  }) =>
+      ProxyBindingEngine.bindingWhen(
+        isIOS: isIOS,
+        isMacOS: isMacOS,
+        isLinux: isLinux,
+        androidContainers: androidContainers,
+      );
+
+  test('Apple binds per store', () {
+    expect(on(isIOS: true), ProxyBinding.perSite);
+    expect(on(isMacOS: true), ProxyBinding.perSite);
+  });
+
+  test('Android with per-site profiles routes through the relay (PROXY-013)',
+      () {
+    // Each profile is a network session of its own, so the relay can tell
+    // sites apart by the credential each presents: router mode, for the
+    // whole run, with no switch and no fallback to the one rule.
+    expect(on(androidContainers: true), ProxyBinding.routed);
+  });
+
+  test('Android without them keeps one rule for a site\'s own proxy '
+      '(PROXY-008)', () {
+    // Every site shares one session and one cached proxy credential, so the
+    // relay could not tell them apart.
+    expect(on(), ProxyBinding.processWide);
   });
 
   test('Linux binds per session (PROXY-027)', () {
@@ -30,10 +46,7 @@ void main() {
     // leaves a session that holds a proxy alone when the process-wide
     // override moves; so nothing needs the one rule, and nothing contends.
     // No Linux build lacks those sessions: the fork needs WPE 2.40+.
-    expect(
-        ProxyBindingEngine.bindingWhen(
-            isIOS: false, isMacOS: false, isLinux: true),
-        ProxyBinding.perSite);
+    expect(on(isLinux: true), ProxyBinding.perSite);
   });
 
   test('the Apple decision is not gated on anything else', () {
@@ -44,22 +57,20 @@ void main() {
     // user their per-site proxy. A gate reintroduced here would fail this.
     for (final isIOS in [true, false]) {
       for (final isMacOS in [true, false]) {
-        expect(
-          ProxyBindingEngine.bindingWhen(
-              isIOS: isIOS, isMacOS: isMacOS, isLinux: false),
-          (isIOS || isMacOS) ? ProxyBinding.perSite : ProxyBinding.processWide,
-          reason: 'isIOS=$isIOS isMacOS=$isMacOS',
-        );
+        for (final androidContainers in [true, false]) {
+          expect(
+            on(isIOS: isIOS, isMacOS: isMacOS,
+                androidContainers: androidContainers),
+            (isIOS || isMacOS)
+                ? ProxyBinding.perSite
+                : (androidContainers
+                    ? ProxyBinding.routed
+                    : ProxyBinding.processWide),
+            reason: 'isIOS=$isIOS isMacOS=$isMacOS '
+                'androidContainers=$androidContainers',
+          );
+        }
       }
     }
-  });
-
-  test('there is no third value for router mode', () {
-    // Router mode (PROXY-013) changes what the rule NAMES -- the loopback
-    // relay rather than the site's upstream -- not where the rule lives, so
-    // it rides whichever binding is in force. A third enum value would
-    // conflate the two axes and make the binding depend on runtime state
-    // the call sites read separately.
-    expect(ProxyBinding.values, [ProxyBinding.perSite, ProxyBinding.processWide]);
   });
 }

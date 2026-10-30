@@ -18,8 +18,8 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/process_route.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
-import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/refresh_schedule_engine.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_unload_engine.dart';
@@ -98,8 +98,9 @@ class BackgroundSitesController {
   bool get anyNotificationSites =>
       _sites.models.any((m) => m.effectiveNotificationsEnabled);
 
-  /// NOTIF-005-A: Android's `ProxyController` is process-wide, so a site can
-  /// become a notification site only if every other one shares its proxy.
+  /// NOTIF-005-A: without per-site profiles Android's `ProxyController`
+  /// carries one site's proxy for the process, so a site can become a
+  /// notification site only if every other one shares its proxy.
   /// The first conflicting site's name, or null when [target] is free to.
   /// Null off Android, where `BGAppRefreshTask` shares no proxy.
   String? notificationsBlockedBy(WebViewModel target) {
@@ -113,7 +114,7 @@ class BackgroundSitesController {
       targetProxy: target.outboundProxy,
       others: others,
       proxyOf: (m) => m.outboundProxy,
-      routesPerSite: ProxyRouterService.instance.routesPerSite,
+      routesPerSite: ProxyManager.binding != ProxyBinding.processWide,
     );
     if (blocker == null) return null;
     return blocker.name.isNotEmpty
@@ -426,9 +427,9 @@ class _WakeHost implements BackgroundWakeHost<WebViewModel> {
   @override
   bool get nestedOpening => _host.nestedOpening;
 
-  /// Android outside router mode: one proxy override for the process.
+  /// Android without per-site profiles: one proxy override for the process.
   static bool get _proxyIsGlobal =>
-      hostIsAndroid && !ProxyRouterService.instance.routesPerSite;
+      ProxyManager.binding == ProxyBinding.processWide;
 
   @override
   List<WakeCandidate> wakeCandidates() {

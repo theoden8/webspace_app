@@ -847,15 +847,18 @@ jobs:
             # same Dart the macOS loop runs against WKWebView, and this
             # loop is within minutes of its step cap.
             [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
-            # PROXY-013 router is Android-only: the attribution test
-            # skips immediately here and the router test only asserts
-            # that router mode does NOT engage, which
+            # PROXY-013 router and PROXY-008's one rule are Android-only:
+            # the attribution, fail-closed and one-rule tests skip
+            # immediately here and the router test only asserts that
+            # router mode does NOT engage, which
             # test/proxy_router_service_test.dart already asserts in
-            # milliseconds. Both run for real in the emulator job. This
+            # milliseconds. All four run for real in the emulator job. This
             # loop sits near its 45m step cap, so an app build per file
             # that asserts nothing is not worth the budget.
             [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
             [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_router_fail_closed_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_one_rule_test.dart" ] && continue
             # NOT skipped: proxy_fail_closed_test.dart. This is the only
             # tier with a second host, so it is the only tier where that
             # arm can assert rather than skip.
@@ -1291,6 +1294,8 @@ jobs:
             # milliseconds; the emulator job runs them for real.
             [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
             [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_router_fail_closed_test.dart" ] && continue
+            [ "$(basename "$t")" = "proxy_one_rule_test.dart" ] && continue
             # Runs in a step of its own after this one, with a cap of its own.
             [ "$(basename "$t")" = "tor_test.dart" ] && continue
             # Already at the head of the list.

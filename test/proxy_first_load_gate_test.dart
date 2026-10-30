@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -35,10 +36,11 @@ void main() {
   });
 
   group('deferInitialLoadForProxy (LEAK-003 first request)', () {
-    test('global-override platforms defer a proxied site', () {
+    test('one rule for a site\'s own proxy defers a proxied site (PROXY-008)',
+        () {
       expect(
         deferInitialLoadForProxy(
-          proxyIsGlobal: true,
+          binding: ProxyBinding.processWide,
           effectiveNonDefault: true,
           overrideActive: false,
           releasesContainerProxy: false,
@@ -50,7 +52,7 @@ void main() {
     test('a DEFAULT site defers while another site\'s override is active', () {
       expect(
         deferInitialLoadForProxy(
-          proxyIsGlobal: true,
+          binding: ProxyBinding.processWide,
           effectiveNonDefault: false,
           overrideActive: true,
           releasesContainerProxy: false,
@@ -62,7 +64,7 @@ void main() {
     test('a DEFAULT site with no override loads immediately', () {
       expect(
         deferInitialLoadForProxy(
-          proxyIsGlobal: true,
+          binding: ProxyBinding.processWide,
           effectiveNonDefault: false,
           overrideActive: false,
           releasesContainerProxy: false,
@@ -71,10 +73,37 @@ void main() {
       );
     });
 
+    test('the relay defers a proxied site until the router is up, and only '
+        'it (PROXY-013)', () {
+      // A start in flight is not up yet; a DEFAULT site goes direct or
+      // through the relay alike, and the rule never names another site's
+      // proxy there.
+      for (final overrideActive in [true, false]) {
+        expect(
+          deferInitialLoadForProxy(
+            binding: ProxyBinding.routed,
+            effectiveNonDefault: true,
+            overrideActive: overrideActive,
+            releasesContainerProxy: false,
+          ),
+          isTrue,
+        );
+        expect(
+          deferInitialLoadForProxy(
+            binding: ProxyBinding.routed,
+            effectiveNonDefault: false,
+            overrideActive: overrideActive,
+            releasesContainerProxy: false,
+          ),
+          isFalse,
+        );
+      }
+    });
+
     test('per-session platforms (iOS/macOS) do not defer for an override', () {
       expect(
         deferInitialLoadForProxy(
-          proxyIsGlobal: false,
+          binding: ProxyBinding.perSite,
           effectiveNonDefault: true,
           overrideActive: true,
           releasesContainerProxy: false,
@@ -85,17 +114,17 @@ void main() {
 
     test('a container that keeps a proxy its site dropped defers (PROXY-029)',
         () {
-      for (final proxyIsGlobal in [true, false]) {
+      for (final binding in ProxyBinding.values) {
         expect(
           deferInitialLoadForProxy(
-            proxyIsGlobal: proxyIsGlobal,
+            binding: binding,
             effectiveNonDefault: false,
             overrideActive: false,
             releasesContainerProxy: true,
           ),
           isTrue,
           reason: 'the clear goes out from setController, so the first load '
-              'has to wait for it (proxyIsGlobal: $proxyIsGlobal)',
+              'has to wait for it ($binding)',
         );
       }
     });

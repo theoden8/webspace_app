@@ -271,12 +271,11 @@ class SiteNetworkController {
     ));
   }
 
-  /// How a proxy is scoped on this host right now (PROXY-008, PROXY-013).
+  /// How a proxy is scoped on this host for the run (PROXY-008, PROXY-013).
   /// A site without a container profile runs in the default one, so under
   /// the router it still shares a cached credential.
   ProxyTopology get topology => ProxyTopology.of(
         binding: ProxyManager.binding,
-        routesPerSite: ProxyRouterService.instance.routesPerSite,
         sharesDefaultSession: (m) => !ownsContainerProfile(m),
       );
 
@@ -318,36 +317,23 @@ class SiteNetworkController {
         ],
       );
 
-  /// Bring up the per-site proxy router (PROXY-013), its checks ordered
-  /// around [launch] (PROXY-015).
+  /// Bring up the per-site proxy router (PROXY-013) at the launch, its
+  /// checks ordered around [launch] (PROXY-015), when some site is proxied.
+  /// A run with none starts it with the first proxy ([refreshRoutes]).
   ///
-  /// Until its checks pass `ProxyRouterService.routesPerSite` is false, and
-  /// failure at any step keeps it so: every downstream branch stays on the
-  /// PROXY-008 serialisation, the pre-router behaviour, which is correct,
-  /// just slower on switch. Nothing here may clear the proxy override on
-  /// failure.
+  /// There is no fallback where the binding routes: a start that fails
+  /// leaves every proxied site failing closed for the run, and sites with
+  /// no proxy go direct.
   Future<void> activateRouter({required LaunchedSite launch}) async {
-    if (!ProxyRouterService.isSupported(useContainers: _sites.useContainers)) {
-      return;
-    }
+    _launchDecided = true;
+    if (!_routes) return;
     final routes = _routeTable();
     if (!ProxyRouterEngine.anyProxied(routes)) {
       LogTag.proxy.info('No site is proxied; router mode not started');
       return;
     }
-    // Apple has no process-wide rule to bind: each container store names the
-    // relay through its own `proxyConfigurations` when the WebView is built
-    // (PROXY-026), which is already true by the time the probe runs because
-    // `activate` publishes the endpoint before probing. Passing a binder
-    // that answers false off Android would stand router mode down on the one
-    // platform that does not need one.
-    final bindsProcessWide = hostIsAndroid;
-    await ProxyRouterService.instance.activate(
-      perSiteProxies: routes,
-      bindOverride: bindsProcessWide ? ProxyManager().applyRouterOverride : null,
-      // PROXY-015: never trust router mode without proving on THIS device
-      // that each container presents its own credential.
-      probe: attributionProbe,
+    await _startRouter(
+      routes,
       launch: RouterLaunch(
         presents: launch.site.then((site) => switch (site) {
               final site? => ProxyRouterEngine.identityFor(
@@ -359,9 +345,56 @@ class SiteNetworkController {
         settled: launch.settled,
       ),
     );
-    // A null return stands the router down but never clears the override:
-    // the `activate` that follows re-applies the site's PROXY-008
-    // proxy, and until it does a dead relay port fails closed.
+  }
+
+  /// Whether the launch has had its say on the router. Until it has, a route
+  /// refresh (the restore's own commit among them) leaves the start to it,
+  /// which checks the launched site first (PROXY-015).
+  bool _launchDecided = false;
+
+  /// Whether router mode carries this run's proxies.
+  bool get _routes => ProxyRouterService.isSupported(
+        binding: ProxyManager.binding,
+        useContainers: _sites.useContainers,
+      );
+
+  Future<void> _startRouter(
+    Map<RouterIdentity, UserProxySettings> routes, {
+    required RouterLaunch? launch,
+  }) async {
+    // Apple has no process-wide rule to bind: each container store names the
+    // relay through its own `proxyConfigurations` when the WebView is built
+    // (PROXY-026), which is already true by the time the probe runs because
+    // `activate` publishes the endpoint before probing. Passing an override
+    // that answers false off Android would stand router mode down on the one
+    // platform that does not need one.
+    await ProxyRouterService.instance.activate(
+      perSiteProxies: routes,
+      override: hostIsAndroid ? const ProcessRouterOverride() : null,
+      // PROXY-015: never trust router mode without proving on THIS device
+      // that each container presents its own credential.
+      probe: attributionProbe,
+      launch: launch,
+    );
+    _rebuildProxiedSites();
+  }
+
+  /// A start ended: a proxied site built while it ran waited for it, and one
+  /// built before it showed the block, so each is built again to load
+  /// through the relay or show the block for good (PROXY-013).
+  void _rebuildProxiedSites() {
+    if (!_host.mounted) return;
+    var rebuilt = false;
+    for (final m in _sites.models) {
+      if (m.webview == null ||
+          resolveEffectiveProxy(m.proxySettings, siteId: m.siteId).type ==
+              ProxyType.DEFAULT) {
+        continue;
+      }
+      m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      rebuilt = true;
+    }
+    if (rebuilt) _host.rebuild();
   }
 
   /// Re-install routes after sites, proxies, or the global proxy changed.
@@ -369,9 +402,20 @@ class SiteNetworkController {
   /// [active] is the site about to be activated, so the shared-profile
   /// identity is repointed before that site's first request rather than
   /// after it.
+  ///
+  /// The first proxy of a run that started without one starts the router
+  /// here, before any webview of a proxied site is built: that build then
+  /// waits for the start rather than showing the block (PROXY-013).
   Future<void> refreshRoutes({WebViewModel? active}) async {
-    if (!ProxyRouterService.instance.isActive) return;
-    await ProxyRouterService.instance.refreshRoutes(
-        perSiteProxies: _routeTable(active: active));
+    final router = ProxyRouterService.instance;
+    if (!router.isActive && !router.isStarting) {
+      if (!_launchDecided || !_routes || router.failed) return;
+      final routes = _routeTable(active: active);
+      if (!ProxyRouterEngine.anyProxied(routes)) return;
+      LogTag.proxy.info('A site is proxied; starting router mode');
+      await _startRouter(routes, launch: null);
+    }
+    if (!await router.settled) return;
+    await router.refreshRoutes(perSiteProxies: _routeTable(active: active));
   }
 }

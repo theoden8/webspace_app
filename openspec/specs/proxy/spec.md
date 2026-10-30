@@ -5,11 +5,14 @@
 The proxy feature allows users to configure HTTP, HTTPS, and SOCKS5 proxies
 for their web views on supported platforms. Three delivery paths coexist:
 
-- **Android** — process-wide override via `inapp.ProxyController` (a
-  WebView singleton). Per-site values live in the data model;
-  activating a site disposes any other loaded site whose effective
-  proxy differs before the global override flips, so per-site routing
-  is honored at the cost of cold-starting mismatched sites on switch.
+- **Android** — one process-wide override via `inapp.ProxyController` (a
+  WebView singleton). Where the WebView gives each site a profile
+  (`MULTI_PROFILE`), the override names a loopback relay that routes each
+  site to its own upstream, so sites with different proxies stay loaded
+  together (PROXY-013). Without profiles, activating a site disposes any
+  other loaded site whose effective proxy differs before the override
+  flips to its own proxy, so per-site routing is honored at the cost of
+  cold-starting mismatched sites on switch (PROXY-008).
   This mutual exclusion is model-checked in
   [formal/proxy.tla](../../../formal/proxy.tla) as `Inv_ProxyCoherent`
   (every loaded site shares the active proxy); the `mismatch`
@@ -25,8 +28,8 @@ for their web views on supported platforms. Three delivery paths coexist:
   (resolved via `dependency_overrides` in
   [`pubspec.yaml`](../../../pubspec.yaml)).
 
-The Android serialisation vs. iOS/macOS concurrency difference is
-observable to the user; see
+The serialisation on Android without per-site profiles is observable to the
+user; see
 [PROXY-008](#requirement-proxy-008---android--ios-concurrency-asymmetry).
 
 The integrity contract for which traffic actually flows through the
@@ -38,7 +41,8 @@ that adds a new outbound seam MUST be reflected there.
 ## Status
 
 - **Status**: Completed
-- **Platforms**: Android (per-site via serialised global override),
+- **Platforms**: Android (concurrent per-site through the relay with
+  `MULTI_PROFILE`, a serialised global override without it),
   iOS 17+ / macOS 14+ (concurrent per-site),
   Linux (concurrent per-site, per network session);
   Windows (system default — UI hidden).
@@ -234,11 +238,12 @@ CONNECT and SOCKS5 proxies).
 
 The system SHALL preserve per-site proxy semantics on every supported
 platform. The runtime mechanism differs: iOS 17+ / macOS 14+ MUST run
-distinct-proxy sites concurrently; Android MUST serialise them by
-disposing any loaded site whose effective proxy differs before the
-process-wide override flips, **unless PROXY-013 router mode is active**,
-in which case Android MUST NOT dispose them and MUST route each site
-concurrently through the relay.
+distinct-proxy sites concurrently; Android whose WebView reports
+`MULTI_PROFILE` MUST route each site concurrently through the relay
+(PROXY-013) and MUST NOT dispose them; Android whose WebView does not MUST
+serialise them by disposing any loaded site whose effective proxy differs
+before the process-wide override flips. The restore decides which of the
+two Android bindings a run takes, once (PROXY-027).
 
 Disposed means quiet, not only dropped. The Android plugin destroys a
 native webview only after it has loaded `about:blank`, and until then it can
@@ -253,8 +258,9 @@ page opened holds no place of its own: it runs on its opener's, so it SHALL
 stop loading and close when its opener is told to. Android blocks the
 webview's network loads and then stops it: Chromium applies the block to a
 request only as its interception starts, so one already past that point is
-cancelled by the stop, not the block (BUG-037). Only Android has the one rule: every other host
-binds a proxy per store (PROXY-027).
+cancelled by the stop, not the block (BUG-037). Only Android without
+per-site profiles has the one rule: every other host binds a proxy per store
+or routes it (PROXY-027).
 
 Every nested screen SHALL open through the activation's nested open, a
 typed address, a link menu's Open and a nested fallback as much as a routed
@@ -863,17 +869,23 @@ session every site would present the first site's credential. Where the
 gate fails, PROXY-008 applies unchanged. The gate is per device; whether a
 given site actually receives a profile is PROXY-018.
 
-Router mode SHALL be offered with developer mode on or off, and SHALL run
-only while the **Proxy router** switch in App settings > Network is on. The
-switch is on by default and is listed only where router mode could run;
-off, mismatched-proxy sites serialise under PROXY-008. It shipped as an
-Experimental switch behind developer mode (DEVTOOLS-011) while the premise
-the router rests on, read off Chromium's source and proven at runtime by
-the PROXY-015 probe, had been exercised on WebView builds that pass the
-probe only. It keeps the pref it shipped under (`experimentalProxyRouter`),
-so a user who turned it off there keeps it off. The switch and the
-`MULTI_PROFILE` gate are read once, at activation, so router mode is never
-torn out from under loaded sites; a flip applies at next launch.
+Where the gate holds, router mode SHALL be how Android carries every proxy,
+for the whole run: the restore decides the binding from the isolation it
+probed (`ProxyBinding.routed`, PROXY-027), and no setting turns it off.
+It SHALL run with developer mode on or off. It shipped as an Experimental
+switch behind developer mode (DEVTOOLS-011), and then as a **Proxy router**
+switch in App settings > Network that kept PROXY-008 as the way back; both
+are gone, and the pref they stored (`experimentalProxyRouter`) is no longer
+read.
+
+There SHALL be no fallback to PROXY-008 where the binding routes. A start
+that fails (the relay does not bind, rejects the route table, the rule does
+not apply, or the PROXY-015 proof does not hold) SHALL stand the router down
+for the run: the relay stopped, the rule taken off it if it was pointed
+there, and no other start tried until the next launch. A site with no proxy
+then goes direct; a proxied site SHALL NOT load, and shows the block
+(LEAK-010) instead. A proxied site built while a start is in flight SHALL
+wait for it rather than show the block.
 
 A DEFAULT site SHALL reach its origin the way the WebView reaches it with
 no override (PROXY-001): through the proxy Android reports for that
@@ -915,9 +927,12 @@ spliced like a tunnel.
 Router mode SHALL start only where some route resolves to a proxy: a
 site's own, the app-wide one a DEFAULT site inherits (PROXY-009), or Tor.
 With every route direct, the relay would carry every connection and the
-PROXY-015 probe would hold the launch for a result PROXY-008 already
-gives, so neither runs. Decided once, at activation, with the gates above:
-a proxy configured later applies under PROXY-008 until the next launch.
+PROXY-015 probe would hold the launch for nothing, so neither runs. The
+launch starts it where a route is proxied, its checks ordered around the
+launched site (PROXY-015); until the launch has decided, a route refresh
+leaves the start to it. A run that starts with no proxy starts the router
+with its first one: the refresh that installs the new route starts it,
+before the proxied site's webview is built again.
 
 Router mode costs a site with no proxy of its own two things it has with
 the router off, because the one rule sends its traffic to the relay too:
@@ -927,11 +942,10 @@ the router off, because the one rule sends its traffic to the relay too:
 | No HTTP/3 | The WebView's rule takes only an HTTP, HTTPS or SOCKS proxy (`ProxyConfig.addProxyRule`), and Chromium carries a site's traffic through those as TCP tunnels, never QUIC; it admits a QUIC proxy only to Chrome's own IP Protection chains. The tunnel is TLS end to end, so the relay cannot carry it onward as QUIC without terminating it, which it SHALL NOT do |
 | Fewer connections at once | Chromium caps the connections one network session holds through one proxy: 32 by default through WebView 148, 128 from WebView 149, against 256 for the whole session going direct. Each site's profile is a session of its own, so the cap is per site. An HTTP/2 site needs few; a busy HTTP/1.1 site may queue |
 
-A site with a proxy of its own pays both with the router off too. Neither
-can be avoided while the rule names the relay: its bypass list matches
+A site with a proxy of its own pays both under PROXY-008 too. Neither can
+be avoided while the rule names the relay: its bypass list matches
 destinations, not the site that asks, and a profile carries no proxy of its
-own. Turning the Proxy router switch off gives both back, and
-mismatched-proxy sites serialise again (PROXY-008).
+own. An install with no proxy pays neither, since the router does not start.
 
 #### Scenario: The default install engages router mode
 
@@ -943,25 +957,33 @@ mismatched-proxy sites serialise again (PROXY-008).
 the other (PROXY-015)
 **And** router mode activates once both are attributed, the other sites
 checked after the launch
-**And** the Proxy router switch is on the Network screen, on, and not in the
-Experimental group
+**And** App settings offers no switch that turns it off
 
-#### Scenario: The switch off keeps PROXY-008
+#### Scenario: A WebView without per-site profiles keeps PROXY-008
 
-**Given** an Android device whose WebView reports `MULTI_PROFILE`
-**And** the user turned the Proxy router switch off, here or in the
-Experimental group of an earlier release
-**When** the app starts
+**Given** an Android device whose WebView does not report `MULTI_PROFILE`
+**When** the app starts with two sites on different proxies
 **Then** router mode does not activate
-**And** mismatched-proxy sites serialise under PROXY-008
+**And** opening one unloads the other under PROXY-008
 
-#### Scenario: No proxy anywhere binds no relay
+#### Scenario: No proxy anywhere binds no relay, until the first one
 
 **Given** an Android device whose WebView reports `MULTI_PROFILE`
 **And** no site has a proxy, the app-wide proxy is unset and no site is on Tor
 **When** the app starts
 **Then** no relay is bound and no container is probed
-**And** a proxy set on a site afterwards applies under PROXY-008 until the next launch
+**When** a proxy is then set on a site
+**Then** the router starts before that site's webview is built again
+**And** no rule ever names that site's proxy
+
+#### Scenario: A start that fails leaves proxied sites blocked for the run
+
+**Given** an Android device whose WebView reports `MULTI_PROFILE`
+**And** the relay does not bind, or the PROXY-015 proof does not hold
+**When** the start fails
+**Then** the rule is taken off the relay, and a site with no proxy loads directly
+**And** a proxied site shows the block and reaches no upstream
+**And** no other start is tried until the next launch
 
 #### Scenario: Two same-domain sites with different proxies stay loaded
 
@@ -1360,8 +1382,9 @@ whose profiles share one cache passes them all. The launch SHALL therefore
 wait for a proof of two identities checked one after the other, the first
 of them the identity of the site the launch opens when the route table
 holds it, so the launched webview waits for no third check; a failed
-proof, a probe that fails to run, or a missing pair prevents activation
-and falls back to PROXY-008. The other identities, and any that appear
+proof, a probe that fails to run, or a missing pair prevents activation and
+stands the router down for the run (PROXY-013): no proxied site loads, and
+there is no PROXY-008 to fall back to. The other identities, and any that appear
 later in the run, SHALL be checked after the proof, a few at a time, each
 against profiles whose caches are already warm, so the launch waits about
 two probes however many sites there are. None of them SHALL start before
@@ -1377,12 +1400,12 @@ credentials are answered `502` for the rest of the run, so their sites
 fail closed. Router mode stays up for every other identity: standing it
 down mid-run would move loaded sites onto another route.
 
-Until the launch's proof passes, the app SHALL place the sites the user
-opens as under PROXY-008, though the relay already owns the rule: the grid
-takes taps while the proof runs, and a proof that fails stands the relay
-down with every site it let load left on one rule. Router mode routes sites
-apart only once the proof has passed, and it does not stand down after
-that (BUG-037).
+Until the proof passes, no challenge is answered: the grid takes taps
+while the proof runs, and a site opened then waits for it. A proof that
+fails takes the rule off the relay, so the requests that waited fail and a
+site with no proxy goes direct; no site has loaded through another route,
+which is what a stand-down after the proof would risk. Router mode does
+not stand down once its proof has passed (BUG-037).
 
 This exists because the failure it detects is otherwise invisible.
 Chromium caches a proxy credential per `HttpNetworkSession` and does not
@@ -1488,9 +1511,11 @@ PROXY-008
 ### Requirement: PROXY-027 - Where a proxy is enforced is named, not re-derived
 
 The app SHALL decide once per process whether a per-site proxy is carried
-by the site's own network store or by a single process-wide rule, and every
-path that binds a store, flips a process-wide override, or tears one down
-SHALL read that decision rather than test the platform again.
+by the site's own network store, by a single process-wide rule naming the
+relay (PROXY-013), or by a single process-wide rule naming the site's own
+proxy (PROXY-008), and every path that binds a store, flips a process-wide
+override, or tears one down SHALL read that decision rather than test the
+platform again.
 
 Linux binds per store too. WPE scopes a proxy to a `WebKitNetworkSession`,
 and every site's webviews run in a session of their own, the container's
@@ -1504,17 +1529,19 @@ proxy per site at the call site anyway, so sites that could have stayed
 loaded together were unloaded against each other, and an edited proxy
 never reached a container's pinned session until its webview was rebuilt.
 
-The decision SHALL be a pure function of the platform, evaluated through a
-seam that takes the platform as arguments, so the cases are assertable on a
-host that is not the one they describe. It SHALL be latched on first read:
-a WebView built under one binding must not be driven by the other for the
-rest of the run.
+The decision SHALL be a pure function of the platform and, on Android, of
+whether the restore found per-site profiles, evaluated through a seam that
+takes both as arguments, so the cases are assertable on a host that is not
+the one they describe. The restore SHALL decide it from the isolation it
+probed, before any site's webview is built, and it SHALL be latched: a
+WebView built under one binding must not be driven by another for the rest
+of the run.
 
-Router mode (PROXY-013) SHALL NOT be a third value. It changes what the
-rule *names* -- the loopback relay rather than the site's upstream -- and
-not where the rule lives, so it rides whichever binding is in force.
-Modelling it as a binding would conflate two axes and make the binding
-depend on runtime state.
+Router mode is the third value. It was once kept apart from the binding as
+runtime state, because it could stand down mid-launch to PROXY-008. It no
+longer does (PROXY-013), so whether the rule names the relay is as fixed for
+the run as where the rule lives, and every path that must tell the two
+Android rules apart reads one decision.
 
 The Apple decision SHALL NOT be gated on developer mode or any other
 opt-in. An earlier form of it was, on the belief that only one
@@ -1529,10 +1556,17 @@ every Apple user their per-site proxy.
 **Then** the binding is per store
 **And** it is per store whatever else is configured
 
-#### Scenario: Android
+#### Scenario: Android with per-site profiles
 
-**Given** the host is Android
-**Then** the binding is process-wide
+**Given** the host is Android and its WebView reports `MULTI_PROFILE`
+**Then** the binding routes through the relay
+**And** no process-wide rule ever names a site's proxy
+
+#### Scenario: Android without them
+
+**Given** the host is Android and its WebView does not report
+`MULTI_PROFILE`
+**Then** the binding is process-wide, naming the site's own proxy
 
 #### Scenario: Linux
 
@@ -1901,7 +1935,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
-| Android  | Full (per-site; concurrent under router mode, serialised without `MULTI_PROFILE`) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton, pointed at the loopback relay where the WebView reports `MULTI_PROFILE` (PROXY-013); elsewhere mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
+| Android  | Full (per-site; concurrent through the relay with `MULTI_PROFILE`, serialised without it) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton, pointed at the loopback relay where the WebView reports `MULTI_PROFILE` (PROXY-013); elsewhere mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
 | iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; removing a site's proxy clears it through `ProxyController(containerId:)` (PROXY-029); below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
 | macOS    | Full (per-site, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
 | Linux    | Full (concurrent per-site) | Shown unconditionally | The WebSpace fork's `flutter_inappwebview_linux` pins each container's `WebKitNetworkSession`, and binds each incognito webview's ephemeral one, to the proxy it is built with (`webkit_network_session_set_proxy_settings`); the process-wide override leaves a session that holds a proxy alone. Needs WPE 2.40+; older WPE is not supported |

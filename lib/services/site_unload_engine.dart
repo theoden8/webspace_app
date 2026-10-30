@@ -214,21 +214,18 @@ sealed class ProxyTopology {
     RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(model),
   };
 
-  /// Where the [binding] puts a proxy, until the router routes sites apart
-  /// (Android only, `ProxyRouterService.routesPerSite`);
-  /// [sharesDefaultSession] then names the sites that still share one
+  /// Where the [binding] puts a proxy for the whole run; under the router
+  /// [sharesDefaultSession] names the sites that still share one
   /// credential.
   factory ProxyTopology.of({
     required ProxyBinding binding,
-    required bool routesPerSite,
     required bool Function(WebViewModel model) sharesDefaultSession,
-  }) {
-    if (routesPerSite) return RoutedProxy._(sharesDefaultSession);
-    return switch (binding) {
-      ProxyBinding.perSite => const PerSessionProxy._(),
-      ProxyBinding.processWide => const ProcessGlobalProxy._(),
-    };
-  }
+  }) =>
+      switch (binding) {
+        ProxyBinding.perSite => const PerSessionProxy._(),
+        ProxyBinding.routed => RoutedProxy._(sharesDefaultSession),
+        ProxyBinding.processWide => const ProcessGlobalProxy._(),
+      };
 }
 
 /// iOS, macOS and Linux bind a proxy per session: nothing contends.
@@ -236,15 +233,15 @@ final class PerSessionProxy extends ProxyTopology {
   const PerSessionProxy._();
 }
 
-/// Android without the router: one process-global, last-write-wins override
-/// (`ProxyController`). Every loaded site contends.
+/// Android without per-site profiles: one process-global, last-write-wins
+/// override (`ProxyController`). Every loaded site contends (PROXY-008).
 final class ProcessGlobalProxy extends ProxyTopology {
   const ProcessGlobalProxy._();
 }
 
-/// Router mode (PROXY-013): the process-wide rule names the loopback relay
-/// and each site presents its own credential, bought by its container
-/// profile. A site with no profile runs in the default one, whose single
+/// Android with per-site profiles (PROXY-013): the process-wide rule names
+/// the loopback relay and each site presents its own credential, bought by
+/// its container profile. A site with no profile runs in the default one, whose single
 /// cached credential every other such site presents too, so exactly that
 /// group still contends.
 final class RoutedProxy extends ProxyTopology {

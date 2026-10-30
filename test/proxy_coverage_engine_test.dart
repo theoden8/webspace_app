@@ -21,6 +21,7 @@ void main() {
             ProxyCoverageEngine.coverageFor(
               binding: binding,
               proxyConfigured: false,
+              relayDown: false,
               destination: Host('example.com'),
               isMountNavigation: isMount,
             ),
@@ -37,6 +38,7 @@ void main() {
           ProxyCoverageEngine.coverageFor(
             binding: ProxyBinding.processWide,
             proxyConfigured: true,
+            relayDown: false,
             destination: Host('example.com'),
             isMountNavigation: isMount,
           ),
@@ -46,12 +48,76 @@ void main() {
       }
     });
 
+    test('the relay covers every navigation while it runs or starts '
+        '(PROXY-013)', () {
+      for (final isMount in [true, false]) {
+        expect(
+          ProxyCoverageEngine.coverageFor(
+            binding: ProxyBinding.routed,
+            proxyConfigured: true,
+            relayDown: false,
+            destination: Host('example.com'),
+            isMountNavigation: isMount,
+          ),
+          const Established(),
+          reason: 'isMount=$isMount',
+        );
+      }
+    });
+
+    test('a proxied site cannot be covered where the binding routes and no '
+        'relay runs (PROXY-013)', () {
+      // A start that failed leaves the router down for the run, and there
+      // is no one rule to fall back to: the site does not load.
+      for (final isMount in [true, false]) {
+        expect(
+          ProxyCoverageEngine.coverageFor(
+            binding: ProxyBinding.routed,
+            proxyConfigured: true,
+            relayDown: true,
+            destination: Host('example.com'),
+            isMountNavigation: isMount,
+          ),
+          const Unprovable(),
+          reason: 'isMount=$isMount',
+        );
+      }
+    });
+
+    test('a relay down changes nothing where it does not carry the proxy, '
+        'nor for a site with none', () {
+      for (final binding in [ProxyBinding.perSite, ProxyBinding.processWide]) {
+        expect(
+          ProxyCoverageEngine.coverageFor(
+            binding: binding,
+            proxyConfigured: true,
+            relayDown: true,
+            destination: Host('example.com'),
+            isMountNavigation: true,
+          ),
+          const Established(),
+          reason: 'binding=$binding',
+        );
+      }
+      expect(
+        ProxyCoverageEngine.coverageFor(
+          binding: ProxyBinding.routed,
+          proxyConfigured: false,
+          relayDown: true,
+          destination: Host('example.com'),
+          isMountNavigation: true,
+        ),
+        const NotClaimed(),
+      );
+    });
+
     test('a per-store proxy covers every navigation on that store', () {
       for (final mounting in [true, false]) {
         expect(
           ProxyCoverageEngine.coverageFor(
             binding: ProxyBinding.perSite,
             proxyConfigured: true,
+            relayDown: false,
             destination: Host('example.com'),
             isMountNavigation: mounting,
           ),
@@ -74,6 +140,7 @@ void main() {
               ProxyCoverageEngine.coverageFor(
                 binding: binding,
                 proxyConfigured: false,
+                relayDown: false,
                 destination: Host(host),
                 isMountNavigation: isMount,
               ),
@@ -93,6 +160,7 @@ void main() {
           ProxyCoverageEngine.coverageFor(
             binding: binding,
             proxyConfigured: true,
+            relayDown: false,
             destination: Host(_onion),
             isMountNavigation: true,
           ),
@@ -108,6 +176,7 @@ void main() {
           ProxyCoverageEngine.coverageFor(
             binding: ProxyBinding.processWide,
             proxyConfigured: false,
+            relayDown: false,
             destination: Host(host),
             isMountNavigation: false,
           ),
@@ -123,6 +192,7 @@ void main() {
         ProxyCoverageGate(
           binding: binding,
           proxyConfigured: true,
+          relayDown: false,
           mountUrl: mount,
         );
 
@@ -149,6 +219,7 @@ void main() {
         final g = ProxyCoverageGate(
           binding: binding,
           proxyConfigured: false,
+          relayDown: false,
           mountUrl: 'https://a/',
         );
         expect(g.evaluate('https://a/'), const NotClaimed());
@@ -162,6 +233,7 @@ void main() {
         final g = ProxyCoverageGate(
           binding: binding,
           proxyConfigured: false,
+          relayDown: false,
           mountUrl: 'http://$_onion/',
         );
         expect(g.evaluate('http://$_onion/'), const OnionNeedsProxy(),

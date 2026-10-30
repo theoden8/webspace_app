@@ -120,7 +120,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'app-settings-no-containers', label: 'App settings without per-site containers', fullBleed: true, builder: _appSettingsNoContainers),
   GalleryCard(id: 'app-appearance', label: 'App appearance screen', fullBleed: true, builder: _appAppearance),
   GalleryCard(id: 'app-behaviour', label: 'App behaviour screen', fullBleed: true, builder: _appBehaviour),
-  GalleryCard(id: 'app-network', label: 'App network screen', fullBleed: true, builder: (c) => const AppNetworkScreen(externalTorRunsHere: true, proxyRouterRunsHere: true)),
+  GalleryCard(id: 'app-network', label: 'App network screen', fullBleed: true, builder: (c) => const AppNetworkScreen(externalTorRunsHere: true)),
   GalleryCard(id: 'app-privacy', label: 'App privacy screen', fullBleed: true, builder: (c) => const AppPrivacyScreen()),
   GalleryCard(id: 'app-content-blocker', label: 'Content blocker screen', fullBleed: true, builder: (c) => const ContentBlockerSettingsScreen()),
   GalleryCard(id: 'app-backup', label: 'Backup and archives screen', fullBleed: true, builder: (c) => const AppBackupScreen(offerRestoreArchive: true, offerCloseAllArchives: true)),

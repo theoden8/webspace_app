@@ -16,7 +16,8 @@ session and two Tor exits), [test/site_unload_engine_test.dart](../../test/site_
 
 ## Symptom
 
-On Android outside router mode, a site's requests leave through another
+On Android without per-site profiles (and, before attempt 22, outside
+router mode), a site's requests leave through another
 site's proxy: the user configured proxy P1 for one site and P2 for a
 notification site, opened the first, and the notification site loaded at
 launch. Building its webview set P2 as the process-wide override, so the
@@ -396,6 +397,20 @@ the override under the sites already loaded.
    still holds the topology as a constant per world, and the order is
    checked by `proxy_router_service_test`'s two BUG-037 cases, each
    caught reading `routesPerSite` as `isActive`.
+22. **2026-10-30, branch `claude/clever-tesla-vuke6m`.** The router is now
+   the only way Android carries a proxy where the WebView reports
+   `MULTI_PROFILE`, so the topology no longer moves over a run: the restore
+   decides the binding (`ProxyBinding.routed`, PROXY-027) and residency
+   reads it, routed from the first tap. `routesPerSite` is gone. A start
+   that fails, its proof included, stands the router down for the run and
+   takes the rule off the relay; no challenge was answered before the
+   proof, so no site has loaded through a route the stand-down moves, and a
+   proxied site shows the block instead of falling back to PROXY-008.
+   *Why:* the user made router mode the only path on such devices, and a
+   topology fixed per run is what the model already held. *Partial:* the
+   one-rule path keeps every gap below on devices without per-site
+   profiles; the emulator runs it only through a pinned binding
+   (`integration_test/proxy_one_rule_test.dart`).
 
 ## Known open gaps
 
@@ -417,9 +432,6 @@ the override under the sites already loaded.
   external-scheme cancel in `webview.dart` and at the nested hop in
   `web_view_model.dart`); this pair is untested on a device.
 
-- After a launch whose router proof failed, the one route left loaded
-  runs on the stopped relay's port, failing closed, until the next
-  activation writes its rule.
 - The model holds which sites run, not the route the rule is set to: the
   order of two writes (a nested open's apply against a webview build, a
   webview build against the app's return closing a wake's checks) is

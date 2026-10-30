@@ -10,8 +10,9 @@ enum RouteUse { webview, nested, headless }
 /// One thing running on the rule, as a site and how it runs.
 typedef RouteOccupant = ({RouteUse use, SiteId site});
 
-/// The process-wide proxy rule where one covers every webview (Android
-/// outside router mode): the route in force and what runs on it (PROXY-008).
+/// The process-wide proxy rule where one carries a site's own proxy (Android
+/// without per-site profiles, `ProxyBinding.processWide`): the route in
+/// force and what runs on it (PROXY-008).
 /// Every write of the rule is a [claim], one at a time, so a write's relay
 /// and override calls are whole before the next begins.
 final class ProcessRoute {

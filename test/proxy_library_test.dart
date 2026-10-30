@@ -213,7 +213,7 @@ void main() {
         loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
         pageIndices: const {},
         topology: ProxyTopology.of(
-            binding: ProxyBinding.processWide, routesPerSite: false,
+            binding: ProxyBinding.processWide,
             sharesDefaultSession: (_) => false),
       );
     }

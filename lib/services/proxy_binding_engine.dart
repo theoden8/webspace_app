@@ -9,9 +9,15 @@ enum ProxyBinding {
   /// different proxies stay loaded at the same time.
   perSite,
 
-  /// One process-wide rule carries it. Sites whose effective proxies
-  /// differ cannot be loaded together; activation disposes the ones that
-  /// disagree before the rule flips (PROXY-008).
+  /// One process-wide rule names the loopback relay, which sends each site
+  /// to its own upstream by the credential its profile presents
+  /// (PROXY-013), so sites with different proxies stay loaded at the same
+  /// time. A proxied site that the relay cannot route does not load.
+  routed,
+
+  /// One process-wide rule carries the site's own proxy. Sites whose
+  /// effective proxies differ cannot be loaded together; activation
+  /// disposes the ones that disagree before the rule flips (PROXY-008).
   processWide,
 }
 
@@ -27,12 +33,11 @@ class ProxyBindingEngine {
   /// leaves it alone. Every Linux build has those sessions, since the fork's
   /// Linux plugin needs WPE 2.40+ to compile and lists Linux as a container
   /// platform; older WPE is not supported. Elsewhere the proxy is one
-  /// process-wide rule: Android's `ProxyController`.
-  ///
-  /// Router mode (PROXY-013) is not a third value. It changes what the
-  /// rule *names* -- the loopback relay rather than the site's upstream --
-  /// and not where the rule lives, so it rides whichever binding is in
-  /// force rather than replacing it.
+  /// process-wide rule: Android's `ProxyController`. Where the restore
+  /// found per-site profiles ([androidContainers]) that rule names the
+  /// relay for the whole run; without them every site shares one network
+  /// session and one cached proxy credential, so the relay could not tell
+  /// them apart and the rule names the site's own proxy.
   ///
   /// This is deliberately ungated. An earlier version of this decision put
   /// the Apple per-store path behind developer mode, because the belief
@@ -44,8 +49,10 @@ class ProxyBindingEngine {
     required bool isIOS,
     required bool isMacOS,
     required bool isLinux,
-  }) =>
-      isIOS || isMacOS || isLinux
-          ? ProxyBinding.perSite
-          : ProxyBinding.processWide;
+    required bool androidContainers,
+  }) {
+    if (isIOS || isMacOS || isLinux) return ProxyBinding.perSite;
+    if (androidContainers) return ProxyBinding.routed;
+    return ProxyBinding.processWide;
+  }
 }

@@ -27,8 +27,11 @@ pick_device "${1:-}"
 # rather than inferring it from a green tick.
 bash "$(dirname "$0")/print_android_webview_version.sh" "$device_id"
 
-# The fallback test crosses the PROXY-015 probe on purpose, so a real WebView
-# fails the check and the app must stand down to PROXY-008.
+# The fail-closed test crosses the PROXY-015 probe on purpose, so a real
+# WebView fails the check and the app must stand the router down for the run.
+# The one-rule test pins the binding a device without MULTI_PROFILE gets, so
+# PROXY-008 runs against a real WebView too.
 run_tier integration_test/proxy_router_test.dart \
   integration_test/proxy_router_attribution_test.dart \
-  integration_test/proxy_router_fallback_test.dart 30
+  integration_test/proxy_router_fail_closed_test.dart \
+  integration_test/proxy_one_rule_test.dart 30

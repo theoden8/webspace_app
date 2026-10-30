@@ -173,7 +173,7 @@ void main() {
 
   // On device the plugin keeps a disposed webview loading until it has
   // loaded about:blank, and an icon it fetched then left through the next
-  // site's proxy (proxy_router_fallback_test).
+  // site's proxy (proxy_one_rule_test).
   test('a webview that goes holds the rule until it loads nothing more '
       '(PROXY-008)', () async {
     final rule = ProcessRoute();

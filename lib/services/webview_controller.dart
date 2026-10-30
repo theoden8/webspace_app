@@ -35,8 +35,9 @@ HistoryEntry? backEntryIn(inapp.WebHistory? history, {required bool isLinux}) {
   return (url: url, title: title == null || title.isEmpty ? null : title);
 }
 
-/// Marks [settings] to load nothing more from the network where one proxy
-/// rule covers every webview (Android), and says whether it did; the
+/// Marks [settings] to load nothing more from the network where one rule
+/// carries a site's own proxy (Android without per-site profiles), and says
+/// whether it did; the
 /// webview's owner then sends them whole (BUG-022). The plugin destroys a
 /// native webview only after it has loaded `about:blank`, and what one the
 /// app let go of fetches meanwhile leaves through whatever proxy the rule

@@ -38,7 +38,9 @@ abstract final class HeadlessSiteChecks {
     final binding = WebViewFactory.bindingFor(config);
     // SEC-009: a proxy the site expects but the platform cannot bind must
     // not become a direct connection.
-    if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);
+    if (binding.proxyUnavailable || binding.relayDown) {
+      return (null, WakeSkip.proxyUnavailable);
+    }
     // LEAK-016: nor an onion service a direct one.
     if (WebViewFactory.refusesLoad(binding, url: config.initialUrl) !=
         null) {

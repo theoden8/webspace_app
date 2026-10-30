@@ -44,7 +44,6 @@ final Uint8List _png64 =
 void main() {
   Widget host({
     bool externalTorRunsHere = false,
-    bool proxyRouterRunsHere = false,
     Map<SiteId, TorSiteLabel> torSites = const {},
     List<PickableSearchSite> webSearchSites =
         const [],
@@ -56,7 +55,6 @@ void main() {
           currentSettings: AppThemeSettings(),
           containersRunHere: true,
           externalTorRunsHere: externalTorRunsHere,
-          proxyRouterRunsHere: proxyRouterRunsHere,
           torSites: torSites,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
@@ -98,7 +96,6 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       ExperimentalFeaturesService.instance.debugSet(f, on: f.pref.fallback);
     }
     AppPref.externalTor.debugValue = AppPref.externalTor.fallback;
-    AppPref.proxyRouter.debugValue = AppPref.proxyRouter.fallback;
     await TorService.reset();
   });
 
@@ -316,54 +313,14 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     });
   });
 
-  group('Proxy router on the Network screen (PROXY-013)', () {
-    Finder routerSwitch() => find.ancestor(
-        of: find.text('Proxy router'), matching: find.byType(SwitchListTile));
-
-    Future<void> scrollToSwitch(WidgetTester tester) async {
-      await openCategory(tester, title: 'Network');
-      await tester.scrollUntilVisible(find.text('Proxy router'), 400,
-          scrollable: find.byType(Scrollable).first);
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('is on by default and turns off with developer mode off',
-        (tester) async {
-      DeveloperModeService.instance.debugSet(on: false);
-      await tester.pumpWidget(host(proxyRouterRunsHere: true));
-      await tester.pumpAndSettle();
-      await scrollToSwitch(tester);
-      expect(tester.widget<SwitchListTile>(routerSwitch()).value, isTrue,
-          reason: 'the router runs by default where the WebView can');
-
-      await tester.tap(routerSwitch());
-      await tester.pumpAndSettle();
-      expect(AppPref.proxyRouter.value, isFalse);
-      expect(tester.widget<SwitchListTile>(routerSwitch()).value, isFalse);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('experimentalProxyRouter'), isFalse,
-          reason: 'stored under the key it shipped under as an '
-              'Experimental switch');
-    });
-
-    testWidgets('keeps a choice made under the Experimental switch',
-        (tester) async {
-      SharedPreferences.setMockInitialValues({'experimentalProxyRouter': false});
-      AppPref.loadAll(await SharedPreferences.getInstance());
-      await tester.pumpWidget(host(proxyRouterRunsHere: true));
-      await tester.pumpAndSettle();
-      await scrollToSwitch(tester);
-      expect(tester.widget<SwitchListTile>(routerSwitch()).value, isFalse,
-          reason: 'a user who turned it off in the Experimental group keeps '
-              'it off');
-    });
-
-    testWidgets('is not offered where the router cannot run', (tester) async {
-      await tester.pumpWidget(host());
-      await tester.pumpAndSettle();
-      await openCategory(tester, title: 'Network');
-      expect(find.text('Proxy router', skipOffstage: false), findsNothing);
-    });
+  testWidgets('the Network screen offers no Proxy router switch (PROXY-013)',
+      (tester) async {
+    // The router runs wherever the binding routes, for the whole run; the
+    // switch that once let a user keep PROXY-008 there is gone.
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await openCategory(tester, title: 'Network');
+    expect(find.text('Proxy router', skipOffstage: false), findsNothing);
   });
 
   group('Experimental group (DEVTOOLS-011)', () {

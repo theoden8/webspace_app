@@ -43,11 +43,6 @@ class AppSettingsScreen extends StatefulWidget {
   /// gallery, which runs on web, can show it.
   final bool externalTorRunsHere;
 
-  /// Whether this device could run the per-site proxy router, so the Network
-  /// screen lists its switch (PROXY-013). Passed in because the answer needs
-  /// the container engine the app resolved at startup.
-  final bool proxyRouterRunsHere;
-
   /// Whether the sites run in containers of their own; without them the
   /// screen says so above the categories that apply to every site.
   final bool containersRunHere;
@@ -113,7 +108,6 @@ class AppSettingsScreen extends StatefulWidget {
     super.key,
     required this.currentSettings,
     this.externalTorRunsHere = false,
-    this.proxyRouterRunsHere = false,
     required this.containersRunHere,
     this.siteNames = const {},
     this.torSites = const {},
@@ -327,7 +321,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               siteProxies: widget.siteProxies,
               onSavedProxiesChanged: widget.onSavedProxiesChanged,
               externalTorRunsHere: widget.externalTorRunsHere,
-              proxyRouterRunsHere: widget.proxyRouterRunsHere,
             )),
           ),
           SummaryNavRow(

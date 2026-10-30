@@ -55,8 +55,8 @@ for a password is therefore not supported, on any platform:
 | Where | What happens to its `407` |
 |---|---|
 | iOS, macOS | The challenge carries a `proxyType`, so the session returns no credential |
-| Android without the proxy router, Linux | It names the proxy's host, not the site's, so it is refused as a third-party host is |
-| Android under the proxy router | The relay connects to that proxy with no credential (PROXY-013). A tunnel it refuses is a `502`; a plain-http request's `407` reaches the webview naming the relay's host, which is refused as a third-party host is |
+| Android without per-site profiles, Linux | It names the proxy's host, not the site's, so it is refused as a third-party host is |
+| Android with per-site profiles | The relay connects to that proxy with no credential (PROXY-013). A tunnel it refuses is a `502`; a plain-http request's `407` reaches the webview naming the relay's host, which is refused as a third-party host is |
 
 A site whose traffic goes through such a proxy fails to load, and no dialog
 opens. Supporting it would make the system proxy's host the one host besides
