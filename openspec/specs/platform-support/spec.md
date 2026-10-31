@@ -330,6 +330,48 @@ as on a resume (LIR-004).
 
 ---
 
+### Requirement: PLATFORM-012 - The snap
+
+The snap SHALL be built from source by `snap/snapcraft.yaml` on core24, under
+strict confinement, on the GNOME extension's runtime, and SHALL run as
+`org.codeberg.theoden8.webspace`, the ID every native build keeps
+(PLATFORM-009): the Snap Store sets no naming rule that would move it, and its
+desktop entry and metainfo are the bundle's (PLATFORM-008).
+
+- **WebKit:** the snap builds libwpe and the WPE WebKit release CI's Linux
+  job tests the plugin against, for `/usr`. A release build of WebKit runs its helper
+  processes only from the directory it was configured with, so the snap's
+  layout binds that directory, the injected bundle's and the inspector
+  resources' to the snap's copies.
+- **One instance (PLATFORM-011):** a dbus slot gives the snap its application
+  ID on the session bus, the one name strict confinement lets it own.
+- **Permissions:** each plug names what needs it, and none grants the home
+  directory, other users' files or removable media. Files reach the app
+  through the desktop portals.
+- **Tor (TOR-027):** the build downloads the Tor Expert Bundle as any native
+  build does.
+
+CI builds the snap and runs it; nothing in CI logs in to the Snap Store.
+Registering the name, uploading and releasing are the maintainer's
+(`docs/releasing.md`).
+
+#### Scenario: Build the snap
+
+**Given** `snap/snapcraft.yaml`
+**When** `snapcraft pack` builds it
+**Then** the app registers as `org.codeberg.theoden8.webspace`
+**And** its desktop entry and metainfo are named by that ID
+
+#### Scenario: Open a site in the installed snap
+
+**Given** the snap installed, its runtimes connected, and one site saved
+**When** the app runs and a second launch hands it a `webspace://open` link to the site
+**Then** the second launch exits
+**And** the site's page is requested, with WebKit's web and network processes
+running from the snap
+
+---
+
 ## Platform Capabilities Matrix
 
 | Feature | iOS | Android | macOS | Linux |

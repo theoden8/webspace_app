@@ -1,0 +1,123 @@
+name: Snap
+
+# Builds the snap from snap/snapcraft.yaml on the runner itself (an
+# ubuntu-24.04 runner is the core24 host --destructive-mode needs), installs
+# it and runs it with one site (scripts/check_snap.sh, PLATFORM-012). Nothing
+# here logs in to the Snap Store or uploads: registering, uploading and
+# releasing are the maintainer's, by hand (docs/releasing.md). Kept out of
+# build-and-test.yml because a cold WPE WebKit build takes hours; ccache keeps
+# its objects between runs.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    # A release tag builds the snap its release carries. GitHub applies no
+    # path filter to a tag push.
+    tags:
+      - 'v*'
+    paths:
+      - .github/workflows/snap.yml
+      - snap/**
+      - scripts/check_snap.sh
+      - linux/**
+      - pubspec.lock
+      - rust/webspace_adblock/**
+  pull_request:
+    paths:
+      - .github/workflows/snap.yml
+      - snap/**
+      - scripts/check_snap.sh
+      - linux/**
+      - pubspec.lock
+      - rust/webspace_adblock/**
+
+# A run in progress is left to finish: it fills the cache the queued run then
+# builds from.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  snap:
+    name: Build snap
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # WebKit's build tree does not fit beside the preinstalled toolchains.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      # The ccache directory is the one the wpewebkit part names; snapcraft
+      # runs as root, the cache actions as the runner's user.
+      - name: Install snapcraft
+        run: |
+          sudo snap install snapcraft --classic
+          sudo mkdir -p /var/cache/webspace-snap-ccache
+          sudo chown "$USER" /var/cache/webspace-snap-ccache
+
+      - name: Restore ccache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /var/cache/webspace-snap-ccache
+          key: snap-ccache-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            snap-ccache-${{ hashFiles('snap/snapcraft.yaml') }}-
+            snap-ccache-
+
+      - name: Build
+        run: sudo snapcraft pack --destructive-mode
+
+      # Saved even when a later part fails, so the next run starts from the
+      # WPE objects this one compiled.
+      - name: Hand the ccache back to the runner
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        run: sudo chown -R "$USER" /var/cache/webspace-snap-ccache
+
+      - name: Save ccache
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /var/cache/webspace-snap-ccache
+          key: snap-ccache-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
+
+      # A snap installed from a file has no store declaration, so its content
+      # plugs do not connect to Canonical's runtimes by themselves.
+      - name: Install the snap
+        run: |
+          sudo snap install gnome-46-2404 mesa-2404 gtk-common-themes
+          sudo snap install --dangerous ./webspace_*_amd64.snap
+          for c in gnome-46-2404:gnome-46-2404 gpu-2404:mesa-2404 \
+                   gtk-3-themes:gtk-common-themes icon-themes:gtk-common-themes \
+                   sound-themes:gtk-common-themes; do
+            plug="${c%%:*}" provider="${c#*:}"
+            sudo snap connect "webspace:$plug" "$provider:$plug" || true
+          done
+          connections="$(snap connections webspace)"
+          echo "$connections"
+          unconnected="$(awk '$1 == "content" && $3 == "-"' <<<"$connections")"
+          if [ -n "$unconnected" ]; then
+            echo "::error::a content plug of the snap is not connected: $unconnected" >&2
+            exit 1
+          fi
+
+      - name: Run the snap with a site
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libglib2.0-bin
+          dbus-run-session -- bash scripts/check_snap.sh
+
+      - name: Upload snap
+        uses: actions/upload-artifact@v4
+        with:
+          name: webspace-snap
+          path: '*.snap'
+          if-no-files-found: error
