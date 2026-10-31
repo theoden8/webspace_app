@@ -27,10 +27,33 @@ void main() {
     });
   });
 
-  test('an SVG whose <use> names its own parent is rejected', () async {
-    const recursive = '<svg xmlns="http://www.w3.org/2000/svg" width="10" '
-        'height="10"><g id="a"><use href="#a"/></g></svg>';
-    expect(await loadUntrustedSvg(recursive), isNull);
+  group('loadUntrustedSvg', () {
+    test('a <use> that names its own parent compiles, the loop drawn empty',
+        () async {
+      const recursive = '<svg xmlns="http://www.w3.org/2000/svg" width="10" '
+          'height="10"><g id="a"><use href="#a"/></g></svg>';
+      expect(await loadUntrustedSvg(recursive), isNotNull);
+    });
+
+    test('nesting deep enough to overflow the stack is rejected', () async {
+      const depth = 100000;
+      final deep = '<svg xmlns="http://www.w3.org/2000/svg" width="10" '
+          'height="10">${'<g>' * depth}<rect width="1" height="1"/>'
+          '${'</g>' * depth}</svg>';
+      expect(await loadUntrustedSvg(deep), isNull);
+    });
+
+    test('references that expand past the compiler cap are rejected',
+        () async {
+      final svg = StringBuffer('<svg xmlns="http://www.w3.org/2000/svg" '
+          'width="10" height="10"><defs><rect id="l0" width="1" height="1"/>');
+      for (var level = 1; level < 12; level++) {
+        svg.write('<g id="l$level">'
+            '${'<use href="#l${level - 1}"/>' * 10}</g>');
+      }
+      svg.write('</defs><use href="#l11"/></svg>');
+      expect(await loadUntrustedSvg(svg.toString()), isNull);
+    });
   });
 
   group('svgHasRealColor (ICON-004)', () {
