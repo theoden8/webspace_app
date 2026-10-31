@@ -240,6 +240,20 @@ class EngineRulesText extends NativeEngineSource {
 final class NativeIntercept {
   const NativeIntercept._();
 
+  /// Whether each site's service workers load through the site's own
+  /// blockers (CB-022). Sent once, before any webview attaches.
+  Future<void> routeServiceWorkers({required bool throughBlockers}) async {
+    if (!WebInterceptNative.isSupported) return;
+    try {
+      await WebInterceptNative._channel.invokeMethod(
+          'setServiceWorkersThroughBlockers', {'on': throughBlockers});
+    } on PlatformException catch (e) {
+      LogTag.webIntercept.error('Failed to route service workers: $e');
+    } on MissingPluginException {
+      return;
+    }
+  }
+
   /// Push the DNS blocklist to the native interceptor, grouped by which
   /// levels name each domain, so the Android side can answer at each site's
   /// own level off one copy of the data.

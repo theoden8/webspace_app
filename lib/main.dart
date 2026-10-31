@@ -191,6 +191,12 @@ void main([List<String> args = const []]) async {
   // from the next launch (PAUSE-032).
   WebViewFactory.hybridComposition = !ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.textureRendering);
+  // Before the first webview attaches: what a site's container gives its
+  // service workers lasts the process, so this switch too applies from the
+  // next launch (CB-022).
+  await native.routeServiceWorkers(
+      throughBlockers: ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.serviceWorkers));
   // Opt-in weekly Firefox-version auto-refresh (DM-004), left running: a
   // download, so after the proxy, the saved proxies and the choice of tor it
   // may go through (LEAK-004). Preset UAs re-render from the cached version

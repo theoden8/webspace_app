@@ -86,6 +86,9 @@ enum AppPref<T extends Object> {
   // NETIF-013: a site's traffic bound to a network interface, where the
   // platform binds one.
   experimentalNetworkInterface('experimentalNetworkInterface', fallback: false),
+  // CB-022: a site's service workers through its blockers on Android, read
+  // once at launch.
+  experimentalServiceWorkers('experimentalServiceWorkers', fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
   externalTor('experimentalExternalTor', fallback: false),

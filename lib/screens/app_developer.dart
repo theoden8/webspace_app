@@ -62,6 +62,10 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.networkInterface, Icons.alt_route,
             loc.appSettingsExperimentalNetworkInterface,
             loc.appSettingsExperimentalNetworkInterfaceHint),
+      if (hostIsAndroid)
+        (ExperimentalFeature.serviceWorkers, Icons.sync_alt,
+            loc.appSettingsExperimentalServiceWorkers,
+            loc.appSettingsExperimentalServiceWorkersHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.
