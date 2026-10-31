@@ -170,6 +170,7 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
         if (entry == null) return const Scaffold();
         final problems =
             _library.reports.value[entry.id]?.problems ?? const <String>[];
+        final loadsHere = _library.loadsHere(entry.id);
         return Scaffold(
           appBar: AppBar(title: Text(entry.name)),
           body: ListView(
@@ -179,9 +180,12 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
                 hint: loc.extensionsEverySiteHint,
                 subtitle: loc.extensionsVersion(entry.version),
                 control: Toggle(
-                  value: entry.everySite,
+                  value: loadsHere && entry.everySite,
                   onChanged: (on) => unawaited(_setEverySite(entry, on: on)),
                 ),
+                lock: loadsHere
+                    ? null
+                    : Lock.because(loc.extensionsNotLoadedHere),
               ),
               if (entry.source case final source?)
                 SettingTile(

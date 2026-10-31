@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -99,6 +102,78 @@ void main() {
 
     test('a 206 to a request without it is a failure', () async {
       expect(await _fetch(_answering(http.Response('abcd', 206))),
+          isA<FetchFailed>());
+    });
+  });
+
+  group('timeout', () {
+    AppProxyFetch? fetched(
+      http.Client Function() client, {
+      required FetchTimeout timeout,
+      required Duration after,
+    }) {
+      AppProxyFetch? result;
+      fakeAsync((async) {
+        outboundHttp = FakeOutbound(client: client);
+        unawaited(fetchViaAppProxy(Uri.parse('https://a.example/x'),
+                tag: LogTag.test, timeout: timeout)
+            .then((r) => result = r));
+        async.elapse(after);
+      });
+      return result;
+    }
+
+    /// Ten parts twenty seconds apart, as a package comes through Tor.
+    http.Client slow() {
+      Stream<List<int>> parts() async* {
+        for (var i = 0; i < 10; i++) {
+          await Future<void>.delayed(const Duration(seconds: 20));
+          yield 'abcd'.codeUnits;
+        }
+      }
+
+      return MockClient.streaming(
+          (request, _) async => http.StreamedResponse(parts(), 200));
+    }
+
+    test('an idle limit takes a slow body whole; a total one gives up on it',
+        () {
+      expect(
+          fetched(slow,
+              timeout: const IdleTimeout(Duration(seconds: 60)),
+              after: const Duration(minutes: 5)),
+          isA<Fetched>().having((f) => f.response.body, 'body', 'abcd' * 10));
+      expect(
+          fetched(slow,
+              timeout: const TotalTimeout(Duration(seconds: 90)),
+              after: const Duration(minutes: 5)),
+          isA<FetchFailed>()
+              .having((f) => f.reason, 'reason', 'not done within 90 s'));
+    });
+
+    test('an idle limit gives up on a body that stops', () {
+      Stream<List<int>> stops() async* {
+        yield 'ab'.codeUnits;
+        await Completer<void>().future;
+      }
+
+      expect(
+          fetched(
+              () => MockClient.streaming(
+                  (request, _) async => http.StreamedResponse(stops(), 200)),
+              timeout: const IdleTimeout(Duration(seconds: 60)),
+              after: const Duration(seconds: 61)),
+          isA<FetchFailed>()
+              .having((f) => f.reason, 'reason', 'nothing arrived for 60 s'));
+    });
+
+    test('an idle limit gives up on a server that never answers', () {
+      expect(
+          fetched(
+              () => MockClient.streaming(
+                  (request, _) => Completer<http.StreamedResponse>().future),
+              timeout: const IdleTimeout(Duration(seconds: 60)),
+              after: const Duration(seconds: 61)),
           isA<FetchFailed>());
     });
   });

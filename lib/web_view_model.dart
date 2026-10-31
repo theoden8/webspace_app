@@ -696,7 +696,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         kiosk: kioskMode,
         incognito: effectiveIncognito,
         choices: webExtensionChoices,
-        library: WebExtensionLibrary.instance.installed.value,
+        library: WebExtensionLibrary.instance.loadable,
         claims: effectiveDomainClaims,
       ));
 

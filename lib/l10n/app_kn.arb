@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "ಪ್ರತಿ ಸೈಟ್‌ನಲ್ಲಿ {name} ಅನ್ನು ಚಲಾಯಿಸಬೇಕೆ?",
   "extensionsEverySiteConsentBody": "ಸ್ವಂತ ಆಯ್ಕೆ ಇಲ್ಲದ ಪ್ರತಿ ಸೈಟ್ ತನ್ನ ಮುಂದಿನ ಲೋಡ್‌ನಿಂದ ಇದನ್ನು ಚಲಾಯಿಸುತ್ತದೆ. ಪ್ರತಿಯೊಂದರಲ್ಲೂ ಇದು ಆ ಸೈಟ್‌ನ ಪುಟಗಳನ್ನು ಮಾತ್ರ ತಲುಪುತ್ತದೆ.",
   "extensionsAsksSection": "ಇದು ಏನನ್ನು ಕೇಳುತ್ತದೆ",
+  "extensionsNotLoadedHere": "ಈ ಸಾಧನದಲ್ಲಿ ಚಲಿಸುವುದಿಲ್ಲ",
   "extensionsProblemsSection": "WebKit ವರದಿ ಮಾಡಿದ್ದು",
   "extensionsRefused": "ಆಮದು ಮಾಡಲಾಗಿಲ್ಲ: {reason}",
   "extensionsRefusedNotAPackage": "ಫೈಲ್ .crx, .xpi ಅಥವಾ .zip ಪ್ಯಾಕೇಜ್ ಅಲ್ಲ",

@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Želite izvajati {name} na vseh spletnih mestih?",
   "extensionsEverySiteConsentBody": "Vsako spletno mesto brez lastne izbire jo izvaja od naslednjega nalaganja. Na vsakem doseže samo strani tega mesta.",
   "extensionsAsksSection": "Kaj zahteva",
+  "extensionsNotLoadedHere": "Na tej napravi ne deluje",
   "extensionsProblemsSection": "Sporočil WebKit",
   "extensionsRefused": "Ni uvoženo: {reason}",
   "extensionsRefusedNotAPackage": "datoteka ni paket .crx, .xpi ali .zip",

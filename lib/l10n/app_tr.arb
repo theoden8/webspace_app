@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} her sitede çalışsın mı?",
   "extensionsEverySiteConsentBody": "Kendi seçimi olmayan her site onu bir sonraki yüklemesinden itibaren çalıştırır. Her birinde yalnızca o sitenin sayfalarına erişir.",
   "extensionsAsksSection": "İstedikleri",
+  "extensionsNotLoadedHere": "Bu cihazda çalışmıyor",
   "extensionsProblemsSection": "WebKit'in bildirdikleri",
   "extensionsRefused": "İçe aktarılmadı: {reason}",
   "extensionsRefusedNotAPackage": "dosya bir .crx, .xpi veya .zip paketi değil",

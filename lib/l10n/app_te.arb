@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} ను ప్రతి సైట్‌లో నడపాలా?",
   "extensionsEverySiteConsentBody": "స్వంత ఎంపిక లేని ప్రతి సైట్ తన తదుపరి లోడ్ నుండి దీన్ని నడుపుతుంది. ప్రతి దానిలో ఇది ఆ సైట్ పేజీలను మాత్రమే చేరుకుంటుంది.",
   "extensionsAsksSection": "ఇది అడిగేవి",
+  "extensionsNotLoadedHere": "ఈ పరికరంలో పనిచేయదు",
   "extensionsProblemsSection": "WebKit నివేదించినవి",
   "extensionsRefused": "దిగుమతి కాలేదు: {reason}",
   "extensionsRefusedNotAPackage": "ఫైల్ .crx, .xpi లేదా .zip ప్యాకేజీ కాదు",

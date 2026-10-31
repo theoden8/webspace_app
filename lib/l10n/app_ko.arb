@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "모든 사이트에서 {name}을(를) 실행할까요?",
   "extensionsEverySiteConsentBody": "자체 선택이 없는 모든 사이트에서 다음 로드부터 실행됩니다. 각 사이트에서는 해당 사이트의 페이지에만 접근합니다.",
   "extensionsAsksSection": "요청하는 항목",
+  "extensionsNotLoadedHere": "이 기기에서는 실행되지 않음",
   "extensionsProblemsSection": "WebKit 보고 내용",
   "extensionsRefused": "가져오지 못함: {reason}",
   "extensionsRefusedNotAPackage": "파일이 .crx, .xpi 또는 .zip 패키지가 아닙니다",

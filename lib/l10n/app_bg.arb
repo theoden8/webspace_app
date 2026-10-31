@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Да се изпълнява ли {name} на всеки сайт?",
   "extensionsEverySiteConsentBody": "Всеки сайт без собствен избор го изпълнява от следващото си зареждане. На всеки достига само до страниците на този сайт.",
   "extensionsAsksSection": "Какво иска",
+  "extensionsNotLoadedHere": "Не работи на това устройство",
   "extensionsProblemsSection": "Съобщено от WebKit",
   "extensionsRefused": "Не е импортирано: {reason}",
   "extensionsRefusedNotAPackage": "файлът не е пакет .crx, .xpi или .zip",

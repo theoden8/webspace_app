@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "हरेक साइटमा {name} चलाउने?",
   "extensionsEverySiteConsentBody": "आफ्नै छनोट नभएको हरेक साइटले अर्को लोडदेखि यसलाई चलाउँछ। हरेकमा यो त्यही साइटका पृष्ठहरूसम्म मात्र पुग्छ।",
   "extensionsAsksSection": "यसले के माग्छ",
+  "extensionsNotLoadedHere": "यो यन्त्रमा चल्दैन",
   "extensionsProblemsSection": "WebKit ले रिपोर्ट गरेका",
   "extensionsRefused": "आयात गरिएन: {reason}",
   "extensionsRefusedNotAPackage": "फाइल .crx, .xpi वा .zip प्याकेज होइन",

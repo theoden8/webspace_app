@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Palaist {name} visās vietnēs?",
   "extensionsEverySiteConsentBody": "Katra vietne, kurai nav savas izvēles, to palaiž no nākamās ielādes. Katrā tas piekļūst tikai šīs vietnes lapām.",
   "extensionsAsksSection": "Ko tas pieprasa",
+  "extensionsNotLoadedHere": "Šajā ierīcē nedarbojas",
   "extensionsProblemsSection": "Ziņoja WebKit",
   "extensionsRefused": "Nav importēts: {reason}",
   "extensionsRefusedNotAPackage": "fails nav .crx, .xpi vai .zip pakotne",

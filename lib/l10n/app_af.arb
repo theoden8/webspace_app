@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Laat {name} op elke werf loop?",
   "extensionsEverySiteConsentBody": "Elke werf sonder 'n eie keuse laat dit loop vanaf sy volgende laai. Op elkeen bereik dit slegs daardie werf se bladsye.",
   "extensionsAsksSection": "Waarvoor dit vra",
+  "extensionsNotLoadedHere": "Werk nie op hierdie toestel nie",
   "extensionsProblemsSection": "Aangemeld deur WebKit",
   "extensionsRefused": "Nie ingevoer nie: {reason}",
   "extensionsRefusedNotAPackage": "die lêer is nie 'n .crx-, .xpi- of .zip-pakket nie",

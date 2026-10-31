@@ -59,7 +59,7 @@ App Settings > Extensions SHALL import an extension from a file the user picks: 
 
 ### Requirement: WEBEXT-003 - Chrome-format extensions run as far as WebKit supports their APIs
 
-An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry.
+An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry. An extension WebKit does not load on this device at all (on iPhone and iPad, one whose background page stays loaded) SHALL say so on its entry and as the reason its switches are off, and SHALL run on no site and offer none of its pages.
 
 #### Scenario: An extension using an API WebKit lacks
 
@@ -67,6 +67,13 @@ An extension written for Chrome SHALL be loaded as is, with no rewriting, throug
 - **WHEN** the user opens its library entry
 - **THEN** the entry lists what WebKit reported
 - **AND** the extension is still offered to sites
+
+#### Scenario: An extension WebKit does not load here
+
+- **GIVEN** on an iPhone, an imported Manifest V2 extension whose background page has no `"persistent": false`
+- **WHEN** the user opens its entry, or the Extensions screen of a site that switched it on
+- **THEN** each says it doesn't run on this device, with its switch off and locked
+- **AND** no site attaches it, and none of its pages is offered
 
 ### Requirement: WEBEXT-004 - An extension runs on a site only after the user switches it on there or for every site
 
@@ -360,7 +367,7 @@ A site's webviews SHALL attach the extensions the site switched on that are stil
 
 ### Requirement: WEBEXT-017 - An extension added from a link keeps its source
 
-App Settings > Extensions SHALL add an extension from a link to its addons.mozilla.org listing or to its GitHub repository or one of its releases. The app SHALL read the source's latest release and download its package: on addons.mozilla.org the current version's file; on GitHub an asset ending in `.crx`, `.zip` or `.xpi`, the user picking one where there are several, `.crx` offered first. It SHALL then show the WEBEXT-002 summary before adding. The entry SHALL keep its source, and for GitHub what the picked asset's name looks like without its version, so an update picks the same kind of file. Any other link, or a release with no package, SHALL be refused saying why.
+App Settings > Extensions SHALL add an extension from a link to its addons.mozilla.org listing or to its GitHub repository or one of its releases. The app SHALL read the source's latest release and download its package: on addons.mozilla.org the current version's file; on GitHub an asset ending in `.crx`, `.zip` or `.xpi`, the user picking one where there are several, `.crx` offered first. It SHALL then show the WEBEXT-002 summary before adding. The entry SHALL keep its source, and for GitHub what the picked asset's name looks like without its version, so an update picks the same kind of file. Any other link, or a release with no package, SHALL be refused saying why. A download SHALL go on while it arrives, however slowly the route brings it, and give up only once nothing has arrived for a minute.
 
 #### Scenario: A listing on addons.mozilla.org
 
@@ -379,6 +386,12 @@ App Settings > Extensions SHALL add an extension from a link to its addons.mozil
 - **GIVEN** a link to a page that is neither a listing nor a repository
 - **WHEN** the user adds from it
 - **THEN** nothing is downloaded and the user is told the link is not one the app reads
+
+#### Scenario: Through Tor
+
+- **GIVEN** the app-wide proxy is Tor, and a listing whose package takes three minutes to arrive over it
+- **WHEN** the user adds from the listing
+- **THEN** the package is downloaded whole and summed up
 
 ### Requirement: WEBEXT-018 - Updates are checked; one installs when the user asks
 

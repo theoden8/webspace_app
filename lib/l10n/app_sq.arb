@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Të ekzekutohet {name} në çdo sajt?",
   "extensionsEverySiteConsentBody": "Çdo sajt pa zgjedhje të vetën e ekzekuton që nga ngarkimi i tij i radhës. Në secilin, arrin vetëm faqet e atij sajti.",
   "extensionsAsksSection": "Çfarë kërkon",
+  "extensionsNotLoadedHere": "Nuk funksionon në këtë pajisje",
   "extensionsProblemsSection": "Raportuar nga WebKit",
   "extensionsRefused": "Nuk u importua: {reason}",
   "extensionsRefusedNotAPackage": "skedari nuk është paketë .crx, .xpi ose .zip",

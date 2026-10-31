@@ -232,7 +232,8 @@ Future<String?> fetchDomainList(
 }) async {
   for (final url in urls) {
     tag.debug('Trying mirror: $url');
-    switch (await fetchViaAppProxy(Uri.parse(url), tag: tag, timeout: timeout)) {
+    switch (await fetchViaAppProxy(Uri.parse(url),
+        tag: tag, timeout: TotalTimeout(timeout))) {
       case FetchRefused():
         return null;
       case FetchFailed():

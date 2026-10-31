@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Vykdyti {name} visose svetainėse?",
   "extensionsEverySiteConsentBody": "Kiekviena svetainė, neturinti savo pasirinkimo, jį vykdo nuo kito įkėlimo. Kiekvienoje jis pasiekia tik tos svetainės puslapius.",
   "extensionsAsksSection": "Ko jis prašo",
+  "extensionsNotLoadedHere": "Šiame įrenginyje neveikia",
   "extensionsProblemsSection": "Pranešė WebKit",
   "extensionsRefused": "Neimportuota: {reason}",
   "extensionsRefusedNotAPackage": "failas nėra .crx, .xpi arba .zip paketas",

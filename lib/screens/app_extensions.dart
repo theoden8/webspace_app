@@ -362,25 +362,29 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
   }
 
   /// [entry] as the library lists it, with what WebKit reported reading it
-  /// (WEBEXT-003), the count in its subtitle and each problem behind its
-  /// hint, and whether every site runs it; it opens the entry's screen.
+  /// (WEBEXT-003): that it does not load here, else the count in its
+  /// subtitle, each problem behind its hint; and whether every site runs it.
+  /// It opens the entry's screen.
   Widget _entryTile(WebExtensionEntry entry, {required AppLocalizations loc}) {
     final problems =
         _library.reports.value[entry.id]?.problems ?? const <String>[];
+    final loadsHere = _library.loadsHere(entry.id);
     return SettingTile(
       leading: const Icon(Icons.extension_outlined),
       title: Localized.verbatim(entry.name),
       hint: problems.isEmpty
           ? null
           : loc.extensionsProblemsHint(problems.join('\n\n')),
-      subtitle: problems.isNotEmpty
+      subtitle: !loadsHere
+          ? loc.extensionsNotLoadedHere
+          : problems.isNotEmpty
           ? loc.extensionsVersionProblems(problems.length, entry.version)
           : entry.latest != null
           ? loc.extensionsVersionUpdate(entry.version, entry.latest!)
           : entry.everySite
           ? loc.extensionsVersionEverySite(entry.version)
           : loc.extensionsVersion(entry.version),
-      missingData: problems.isNotEmpty,
+      missingData: !loadsHere || problems.isNotEmpty,
       control: Opens(
         () => unawaited(
           Navigator.push(

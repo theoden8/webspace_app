@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "ដំណើរការ {name} លើគេហទំព័រទាំងអស់?",
   "extensionsEverySiteConsentBody": "វាដំណើរការលើគេហទំព័រនីមួយៗដែលគ្មានជម្រើសផ្ទាល់ខ្លួន ចាប់ពីការផ្ទុកលើកក្រោយ។ នៅលើគេហទំព័រនីមួយៗ វាចូលដល់តែទំព័ររបស់គេហទំព័រនោះប៉ុណ្ណោះ។",
   "extensionsAsksSection": "អ្វីដែលវាស្នើសុំ",
+  "extensionsNotLoadedHere": "មិនដំណើរការលើឧបករណ៍នេះទេ",
   "extensionsProblemsSection": "រាយការណ៍ដោយ WebKit",
   "extensionsRefused": "មិនបាននាំចូល៖ {reason}",
   "extensionsRefusedNotAPackage": "ឯកសារមិនមែនជាកញ្ចប់ .crx, .xpi ឬ .zip ទេ",

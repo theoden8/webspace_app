@@ -3,9 +3,9 @@ import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/settings/web_extension.dart';
 
 /// [ExtensionEngine] as WebKit answers it: a report by folder ([reports],
-/// else [anyFolder]), a page shown only for an extension its home loads and
-/// whose report has the page, and each extension's stored data by container,
-/// which [forget] deletes everywhere.
+/// else [anyFolder]), a page shown only for an extension its home loads,
+/// whose report has the page and which WebKit loads here, and each
+/// extension's stored data by container, which [forget] deletes everywhere.
 class FakeExtensionEngine implements ExtensionEngine {
   final Map<String, ExtensionReport> reports = {};
   ExtensionReport? anyFolder;
@@ -33,6 +33,7 @@ class FakeExtensionEngine implements ExtensionEngine {
         if (load.id == extension) load,
     ].firstOrNull;
     final report = load == null ? null : reports[load.folder] ?? anyFolder;
+    if (report != null && !report.loadsHere) return false;
     final has = switch (page) {
       ExtensionPage.options => report?.hasOptionsPage ?? false,
       ExtensionPage.action => report?.hasAction ?? false,

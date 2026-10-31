@@ -495,6 +495,7 @@ void main() {
         ],
         hasOptionsPage: false,
         hasAction: false,
+        loadsHere: true,
       );
       await _imported();
       await pumpLocalized(tester, home: _library(picked: null));
@@ -513,11 +514,58 @@ void main() {
         problems: const <String>[],
         hasOptionsPage: false,
         hasAction: false,
+        loadsHere: true,
       );
       await _imported();
       await pumpLocalized(tester, home: _library(picked: null));
       expect(find.text('Version 1.0'), findsOneWidget);
       expect(find.byTooltip('Sample'), findsNothing);
+    });
+  });
+
+  group('WEBEXT-003 an extension WebKit does not load here says so', () {
+    setUp(() {
+      ExperimentalFeaturesService.instance.debugSet(
+        ExperimentalFeature.webExtensions,
+        on: true,
+      );
+      engine.anyFolder = (
+        problems: const ['Invalid `persistent` manifest entry.'],
+        hasOptionsPage: true,
+        hasAction: true,
+        loadsHere: false,
+      );
+    });
+
+    testWidgets('on its entry and on its every-site switch', (tester) async {
+      await _imported();
+      await pumpLocalized(tester, home: _library(picked: null));
+      expect(find.text("Doesn't run on this device"), findsOneWidget);
+
+      await tester.tap(find.text('Sample'));
+      await tester.pumpAndSettle();
+      expect(find.text("Doesn't run on this device"), findsOneWidget);
+      expect(tester.widget<Switch>(find.byType(Switch)).onChanged, isNull);
+    });
+
+    testWidgets('on a site\'s switch, which offers none of its pages', (
+      tester,
+    ) async {
+      final entry = await _imported();
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: WebViewModel(
+            initUrl: 'https://mail.example.com/',
+            webExtensionChoices: {entry.id: true},
+          ),
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      expect(find.text("Doesn't run on this device"), findsOneWidget);
+      expect(find.text('Settings'), findsNothing);
+      expect(find.text('Open'), findsNothing);
     });
   });
 
@@ -531,6 +579,7 @@ void main() {
         problems: const <String>[],
         hasOptionsPage: true,
         hasAction: true,
+        loadsHere: true,
       );
     });
 
@@ -569,6 +618,7 @@ void main() {
         problems: const <String>[],
         hasOptionsPage: false,
         hasAction: true,
+        loadsHere: true,
       );
       await pumpLocalized(
         tester,

@@ -888,7 +888,7 @@ class ContentBlockerService {
     final uri = Uri.tryParse(url);
     if (uri == null) return Future.value(const FetchFailed('not a URL'));
     return fetchViaAppProxy(uri,
-        tag: LogTag.contentBlocker, timeout: const Duration(seconds: 30));
+        tag: LogTag.contentBlocker, timeout: const TotalTimeout(Duration(seconds: 30)));
   }
 
   /// Download all enabled lists. Returns number of successful downloads.

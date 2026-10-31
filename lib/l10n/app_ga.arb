@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Rith {name} ar gach suíomh?",
   "extensionsEverySiteConsentBody": "Ritheann gach suíomh nach bhfuil a rogha féin aige í óna chéad lódáil eile. Ar gach ceann acu, ní shroicheann sí ach leathanaigh an tsuímh sin.",
   "extensionsAsksSection": "Cad a iarrann sí",
+  "extensionsNotLoadedHere": "Ní ritheann sé ar an ngléas seo",
   "extensionsProblemsSection": "Tuairiscithe ag WebKit",
   "extensionsRefused": "Níor iompórtáladh: {reason}",
   "extensionsRefusedNotAPackage": "ní pacáiste .crx, .xpi ná .zip é an comhad",

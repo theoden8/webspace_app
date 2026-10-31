@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "¿Ejecutar {name} en todos los sitios?",
   "extensionsEverySiteConsentBody": "Cada sitio que no tenga una elección propia la ejecuta a partir de su próxima carga. En cada uno, solo llega a las páginas de ese sitio.",
   "extensionsAsksSection": "Qué solicita",
+  "extensionsNotLoadedHere": "No funciona en este dispositivo",
   "extensionsProblemsSection": "Notificado por WebKit",
   "extensionsRefused": "No importada: {reason}",
   "extensionsRefusedNotAPackage": "el archivo no es un paquete .crx, .xpi o .zip",

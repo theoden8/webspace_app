@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Jalankan {name} pada setiap tapak?",
   "extensionsEverySiteConsentBody": "Setiap tapak yang tiada pilihan sendiri menjalankannya mulai pemuatan seterusnya. Pada setiap tapak, ia hanya mencapai halaman tapak itu.",
   "extensionsAsksSection": "Perkara yang diminta",
+  "extensionsNotLoadedHere": "Tidak berjalan pada peranti ini",
   "extensionsProblemsSection": "Dilaporkan oleh WebKit",
   "extensionsRefused": "Tidak diimport: {reason}",
   "extensionsRefusedNotAPackage": "fail itu bukan pakej .crx, .xpi atau .zip",

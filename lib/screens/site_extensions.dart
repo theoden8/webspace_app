@@ -153,6 +153,14 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
           };
           final options = offering(ExtensionPage.options);
           final actions = offering(ExtensionPage.action);
+          final locks = {
+            for (final (:entry, folder: _) in installed)
+              entry.id:
+                  lock ??
+                  (library.loadsHere(entry.id)
+                      ? null
+                      : Lock.because(loc.extensionsNotLoadedHere)),
+          };
           return ListView(
             children: [
               if (installed.isEmpty)
@@ -163,7 +171,7 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                   title: Localized.verbatim(entry.name),
                   hint: null,
                   control: ScopedToggle(
-                    value: lock == null && _runs(entry),
+                    value: locks[entry.id] == null && _runs(entry),
                     choice: Scoped.fromStored(
                       widget.site.webExtensionChoices[entry.id],
                     ),
@@ -171,7 +179,7 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                     onChoice: (choice) =>
                         unawaited(_choose(entry, choice: choice)),
                   ),
-                  lock: lock,
+                  lock: locks[entry.id],
                 ),
                 if (home != null &&
                     (options.contains(entry.id) || actions.contains(entry.id)))

@@ -37,11 +37,13 @@ enum ExtensionPage {
 }
 
 /// What WebKit reported reading an extension's files (WEBEXT-003): each
-/// problem in WebKit's words, and which pages it has to open.
+/// problem in WebKit's words, which pages it has to open, and whether
+/// WebKit loads it on this device at all.
 typedef ExtensionReport = ({
   List<String> problems,
   bool hasOptionsPage,
   bool hasAction,
+  bool loadsHere,
 });
 
 /// What the app asks WebKit of an extension outside a webview's build.
@@ -87,6 +89,7 @@ final class NativeExtensionEngine implements ExtensionEngine {
       problems: report.errors,
       hasOptionsPage: report.hasOptionsPage,
       hasAction: report.hasAction,
+      loadsHere: report.loadsHere,
     );
   }
 

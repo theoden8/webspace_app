@@ -64,6 +64,7 @@ typedef ExtensionAttachInputs = ({
   // The site's own choices; an extension it has none for follows the
   // entry's default (WEBEXT-004).
   Map<WebExtensionId, bool> choices,
+  // The extensions WebKit loads on this device (WEBEXT-003).
   List<InstalledExtension> library,
   List<DomainClaim> claims,
 });

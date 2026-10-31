@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "تشغيل {name} على كل المواقع؟",
   "extensionsEverySiteConsentBody": "كل موقع ليس له اختيار خاص يشغّلها بدءًا من تحميله التالي. وفي كل موقع لا تصل إلا إلى صفحات ذلك الموقع.",
   "extensionsAsksSection": "ما تطلبه",
+  "extensionsNotLoadedHere": "لا يعمل على هذا الجهاز",
   "extensionsProblemsSection": "ما أبلغ عنه WebKit",
   "extensionsRefused": "لم تُستورد: {reason}",
   "extensionsRefusedNotAPackage": "الملف ليس حزمة .crx أو .xpi أو .zip",

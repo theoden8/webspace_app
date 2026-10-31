@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "להריץ את {name} בכל האתרים?",
   "extensionsEverySiteConsentBody": "כל אתר שאין לו בחירה משלו מריץ אותו החל מהטעינה הבאה שלו. בכל אחד, הוא מגיע רק לדפים של אותו אתר.",
   "extensionsAsksSection": "מה הוא מבקש",
+  "extensionsNotLoadedHere": "לא פועל במכשיר הזה",
   "extensionsProblemsSection": "דווח על ידי WebKit",
   "extensionsRefused": "לא יובא: {reason}",
   "extensionsRefusedNotAPackage": "הקובץ אינו חבילת .crx, .xpi או .zip",

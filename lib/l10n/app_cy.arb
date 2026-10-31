@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "Rhedeg {name} ar bob gwefan?",
   "extensionsEverySiteConsentBody": "Mae pob gwefan heb ddewis ei hun yn ei redeg o'i llwyth nesaf. Ar bob un, dim ond tudalennau'r wefan honno y mae'n eu cyrraedd.",
   "extensionsAsksSection": "Beth mae'n gofyn amdano",
+  "extensionsNotLoadedHere": "Nid yw'n rhedeg ar y ddyfais hon",
   "extensionsProblemsSection": "Adroddwyd gan WebKit",
   "extensionsRefused": "Heb ei fewnforio: {reason}",
   "extensionsRefusedNotAPackage": "nid yw'r ffeil yn becyn .crx, .xpi neu .zip",

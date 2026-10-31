@@ -1224,6 +1224,7 @@
   "extensionsEverySiteConsentTitle": "{name} uitvoeren op elke site?",
   "extensionsEverySiteConsentBody": "Elke site zonder eigen keuze voert haar uit vanaf de volgende keer dat die laadt. Op elke site bereikt ze alleen de pagina's van die site.",
   "extensionsAsksSection": "Waar ze om vraagt",
+  "extensionsNotLoadedHere": "Werkt niet op dit apparaat",
   "extensionsProblemsSection": "Gemeld door WebKit",
   "extensionsRefused": "Niet geïmporteerd: {reason}",
   "extensionsRefusedNotAPackage": "het bestand is geen .crx-, .xpi- of .zip-pakket",
