@@ -69,7 +69,8 @@ Three coordinated pieces:
    post-failure, so unpinned certs go straight to the prompt.
 2. **`_handleSslLoadError` (lib/services/webview.dart)** — wired into
    `onReceivedError` and triggered on any `SERVER_CERTIFICATE_*` /
-   `FAILED_SSL_HANDSHAKE` / `SECURE_CONNECTION_FAILED` error code. Shows
+   `FAILED_SSL_HANDSHAKE` / `SECURE_CONNECTION_FAILED` error code, except a
+   failure on the way to the proxy (TLS-011). Shows
    the prompt, pins on approval, reloads the URL. Bails out if the host
    is already pinned (stale event from the original failed nav after we
    reloaded).
@@ -355,6 +356,23 @@ unaffected because the requested host then matches the cert identity.
 **When** the OS rejects the chain and fires the trust callback
 **Then** the requested host matches the loopback identity, so the sinkhole guard does not apply
 **And** the normal Android/Linux prompt is shown (TLS-002)
+
+### Requirement: TLS-011 - A proxy that opened no tunnel is not a certificate prompt
+
+The app SHALL NOT show the trust prompt for a load that failed on the way to
+its proxy. Android reports `ERR_TUNNEL_CONNECTION_FAILED` (the proxy answered
+but opened no tunnel) as `FAILED_SSL_HANDSHAKE`, but no certificate was ever
+presented. A prompt there asks the user to vouch for a certificate that does
+not exist, and pins nothing. The same holds for `ERR_PROXY_CONNECTION_FAILED`.
+Chromium's error name in the description tells these apart from a TLS
+failure at the site.
+
+#### Scenario: A failed tunnel through the router
+
+**Given** a site whose traffic goes through the proxy router
+**When** its main-frame load fails with `FAILED_SSL_HANDSHAKE` and the description `net::ERR_TUNNEL_CONNECTION_FAILED`
+**Then** no trust prompt is shown
+**And** the load is reported failed like any other
 
 ---
 

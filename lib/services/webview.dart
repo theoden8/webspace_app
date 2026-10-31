@@ -1744,7 +1744,7 @@ class WebViewFactory {
             reload: () => phases.live(view: controller.platform)
                 ? view?.loadUrl(reqUrl) : null));
         // The OS rejected the certificate: prompt; on approval pin and reload.
-        if (WebViewTls.isSslError(error.type)) {
+        if (WebViewTls.isSslError(error)) {
           LogTag.tls.debug(
               'onReceivedError ssl: type=${error.type} url=$reqUrl description="${error.description}"',
               sensitive: true);
