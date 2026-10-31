@@ -223,6 +223,47 @@ class ProxyRelay(
     @Synchronized
     fun isRunning(): Boolean = serverSocket?.isClosed == false
 
+    /** The listener and the thread accepting on it, read together. */
+    @Synchronized
+    private fun listener(): Pair<ServerSocket, Thread?>? =
+        serverSocket?.let { it to acceptThread }
+
+    /**
+     * Whether the listener still serves (PROXY-032): open, its accept loop
+     * alive, and a request to it answered with a status line in time. A
+     * listener nobody accepts on still completes the TCP handshake from its
+     * backlog, so only an answer proves a WebView's request would get one.
+     * The request line is malformed, so it is answered `400` before any route
+     * is read and reaches no upstream in either mode. Blocking: never call it
+     * on the main thread.
+     */
+    fun serving(): Boolean {
+        val (socket, thread) = listener() ?: return false
+        if (socket.isClosed || thread?.isAlive != true) return false
+        return try {
+            Socket().use { probe ->
+                probe.connect(InetSocketAddress(socket.inetAddress, socket.localPort), SERVING_TIMEOUT_MS)
+                probe.soTimeout = SERVING_TIMEOUT_MS
+                probe.getOutputStream().apply {
+                    write(SERVING_PROBE)
+                    flush()
+                }
+                val ins = probe.getInputStream()
+                val status = ByteArray(STATUS_PREFIX.size)
+                var off = 0
+                while (off < status.size) {
+                    val n = ins.read(status, off, status.size - off)
+                    if (n < 0) return false
+                    off += n
+                }
+                status.contentEquals(STATUS_PREFIX)
+            }
+        } catch (e: IOException) {
+            log("serving check got no answer (${e.javaClass.simpleName})")
+            false
+        }
+    }
+
     /**
      * Start (or reconfigure) the relay. Returns the loopback port the
      * caller should hand to `ProxyController`. Binds a fresh ephemeral
@@ -409,9 +450,18 @@ class ProxyRelay(
      * fails while the listener is bound (descriptors exhausted, say) is the
      * device's trouble for a moment; ending the loop on it would leave
      * `ProxyController` pointing every site at a port nobody answers, for
-     * the rest of the run. So it retries, backing off.
+     * the rest of the run. So it retries, backing off. Its end is logged,
+     * whatever closed the socket, so a relay that stops answering says when.
      */
     private fun acceptLoop(socket: ServerSocket) {
+        try {
+            serve(socket)
+        } finally {
+            log("listener ${socket.inetAddress?.hostAddress}:${socket.localPort} closed; accepting no more connections")
+        }
+    }
+
+    private fun serve(socket: ServerSocket) {
         var backoffMs = ACCEPT_RETRY_MIN_MS
         while (!socket.isClosed) {
             val client = try {
@@ -1196,6 +1246,13 @@ class ProxyRelay(
         private const val BACKLOG = 64
         private const val LOOPBACK = "127.0.0.1"
         private const val SELF_TEST_TIMEOUT_MS = 2_000
+
+        /** How long [serving] waits to connect, and then for the answer. */
+        private const val SERVING_TIMEOUT_MS = 2_000
+
+        /** One word, no target or version: [admit] answers it `400` before reading a route. */
+        private val SERVING_PROBE = "PING\r\n\r\n".toByteArray(Charsets.ISO_8859_1)
+        private val STATUS_PREFIX = "HTTP/1.1 ".toByteArray(Charsets.ISO_8859_1)
 
         /** Headroom over the connect timeout when joining the probe thread. */
         private const val SELF_TEST_JOIN_SLACK_MS = 500L

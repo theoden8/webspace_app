@@ -93,6 +93,11 @@ class LocalProxyRelayApi implements ProxyRelayApi {
   @override
   Future<void> clearProbeResults() async => _relay?.clearProbeResults();
 
+  /// The socket is this isolate's own, so whether it is open is whether it
+  /// answers: nothing outside the isolate can wedge its accept.
+  @override
+  Future<bool> serving() async => _relay?.isRunning ?? false;
+
   @override
   Future<void> stop() async {
     await _relay?.stop();

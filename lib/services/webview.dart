@@ -17,6 +17,7 @@ import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
+import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -1739,9 +1740,10 @@ class WebViewFactory {
         LogTag.webViewLifecycle.warning(
             'main-frame load error type=${error.type} ${ProxyManager.stateForLogs}');
         final reqUrl = request.url.toString();
-        // iOS/macOS post-failure TLS path: `_handleServerTrust` deferred
-        // to the OS and the OS rejected. Show the user prompt; on
-        // approval pin the cached cert and reload.
+        unawaited(ProxyRouterService.instance.loadFailed(error.description,
+            reload: () => phases.live(view: controller.platform)
+                ? view?.loadUrl(reqUrl) : null));
+        // The OS rejected the certificate: prompt; on approval pin and reload.
         if (WebViewTls.isSslError(error.type)) {
           LogTag.tls.debug(
               'onReceivedError ssl: type=${error.type} url=$reqUrl description="${error.description}"',

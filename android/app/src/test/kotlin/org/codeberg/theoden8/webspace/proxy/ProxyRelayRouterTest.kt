@@ -883,4 +883,72 @@ class ProxyRelayRouterTest {
         Thread.sleep(1_200)
         assertEquals("no accept is tried after stop()", settled, attempts.get())
     }
+
+    // --- Whether the listener still serves (PROXY-032) ---
+
+    @Test(timeout = 20_000)
+    fun aRunningRelayServesAndTheCheckReachesNoUpstream() {
+        // PROXY-032: the check is answered by the relay itself, in router mode
+        // and in front of one upstream, so asking it never opens a connection
+        // the user did not cause.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+        val upstream = CountingUpstream(origin.localPort)
+        val router = ProxyRelay()
+        val single = ProxyRelay()
+        try {
+            router.startRouter("5e7e0001")
+            router.setRoutes(mapOf(credential("ws-a", "token-a") to
+                ProxyRelay.Route("a", httpUpstream(upstream.port, null, null))))
+            single.start(httpUpstream(upstream.port, "user", "pass"))
+
+            assertTrue(router.serving())
+            assertTrue(single.serving())
+            assertEquals("no upstream was asked", 0, upstream.connections.get())
+        } finally {
+            router.stop(); single.stop(); upstream.close(); origin.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun aStoppedRelayDoesNotServe() {
+        val relay = ProxyRelay()
+        assertFalse("never started", relay.serving())
+        relay.startRouter("5e7e0002")
+        relay.stop()
+        assertFalse("stopped", relay.serving())
+    }
+
+    @Test(timeout = 20_000)
+    fun aListenerNobodyAcceptsOnDoesNotServe() {
+        // PROXY-032: a wedged accept loop still completes the handshake from
+        // the backlog, so a check that only connects would call it alive.
+        val release = CountDownLatch(1)
+        val relay = ProxyRelay(acceptOne = { server ->
+            release.await()
+            server.accept()
+        })
+        try {
+            relay.startRouter("5e7e0003")
+            assertTrue("the socket is open", relay.isRunning())
+            assertFalse("but nothing answers on it", relay.serving())
+        } finally {
+            release.countDown()
+            relay.stop()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun theAcceptLoopSaysWhenItEnds() {
+        // PROXY-032: whatever closes the listener, the log says so, so a relay
+        // that stops answering is never silent about it.
+        val events = ConcurrentLinkedQueue<String>()
+        val ended = CountDownLatch(1)
+        val relay = ProxyRelay(logger = { msg ->
+            events.add(msg)
+            if (msg.contains("accepting no more connections")) ended.countDown()
+        })
+        relay.startRouter("5e7e0004")
+        relay.stop()
+        assertTrue(ended.await(5, TimeUnit.SECONDS))
+    }
 }
