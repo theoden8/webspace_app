@@ -11,10 +11,11 @@ import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/webspace_chips.dart';
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, IconUpdate, iconReloads, reloadAllIcons;
+import '../services/icon_service.dart' show cachedSvgContent, getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, iconImagesFetched, iconRetries, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
+import '../services/icon_image_store.dart';
 import '../services/site_icon_store.dart';
 import '../services/reentry_guard.dart';
 import '../services/top_sites_engine.dart' show siteAddress;
@@ -46,6 +47,14 @@ class FaviconUrlCache {
     }
     onSvgContentCached =
         (url, {required content}) => setSvg(url, svgContent: content);
+  }
+
+  /// Forget the prefs and what this session marked missing, as a new process
+  /// starts without them.
+  @visibleForTesting
+  static void resetForTest() {
+    _prefs = null;
+    _missing.clear();
   }
 
   static String? get(String siteUrl) =>
@@ -83,6 +92,7 @@ class FaviconUrlCache {
     await _prefs?.remove('$_prefix$siteUrl');
     if (oldUrl != null) {
       await _prefs?.remove('$_svgPrefix$oldUrl');
+      await IconImageStore.instance.remove(oldUrl);
     }
     if (!keepSiteIcon) await SiteIconStore.instance.remove(siteUrl);
     invalidateFaviconFor(siteUrl);
@@ -102,6 +112,7 @@ class FaviconUrlCache {
       }
     }
     await SiteIconStore.instance.clear();
+    await IconImageStore.instance.clear();
     reloadAllIcons();
   }
 }
@@ -183,11 +194,16 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   StreamSubscription<String?>? _siteIconSub;
   StreamSubscription<void>? _reloadSub;
   StreamSubscription<String>? _foundSub;
+  StreamSubscription<String>? _imageSub;
+  StreamSubscription<void>? _retrySub;
 
   /// Whether the icon's image, or its SVG body, failed to come, so the globe
   /// stands in for it.
   bool _imageFailed = false;
   bool _svgFailed = false;
+
+  /// Counts the image's fetches, so one that failed is made afresh.
+  int _imageFetch = 0;
 
   bool _isSvgUrl(String url) =>
       url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
@@ -210,14 +226,13 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       if (_currentIconUrl == null && _iconStream != null) return;
       setState(_resetAndLoad);
     });
-    // A search of this widget's own still in flight brings its own answer.
     _foundSub = faviconsFound.listen((siteUrl) {
-      if (siteUrl != widget.url || !mounted || widget.customIcon != null) {
-        return;
-      }
-      if (_isLoading || _currentIconUrl != null) return;
-      setState(_resetAndLoad);
+      if (siteUrl == widget.url) _askAgain();
     });
+    _imageSub = iconImagesFetched.listen((iconUrl) {
+      if (iconUrl == _currentIconUrl) _askAgain();
+    });
+    _retrySub = iconRetries.listen((_) => _askAgain());
     _siteIconSub = SiteIconStore.instance.changes.listen((siteUrl) {
       if (!mounted || (siteUrl != null && siteUrl != widget.url)) return;
       if (widget.customIcon != null) return;
@@ -242,6 +257,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     unawaited(_siteIconSub?.cancel());
     unawaited(_reloadSub?.cancel());
     unawaited(_foundSub?.cancel());
+    unawaited(_imageSub?.cancel());
+    unawaited(_retrySub?.cancel());
     super.dispose();
   }
 
@@ -257,6 +274,24 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     } else if (_currentIconUrl != null && FaviconUrlCache.get(widget.url) == null) {
       // Cache was invalidated (e.g. by refresh) — re-fetch
       _resetAndLoad();
+    }
+  }
+
+  /// Asks again for the step of the icon that did not come: the search, when
+  /// it ended with nothing, else the image or SVG body of the URL it found. A
+  /// search or a fetch still running brings its own answer.
+  void _askAgain() {
+    if (!mounted || widget.customIcon != null) return;
+    final iconUrl = _currentIconUrl;
+    if (iconUrl == null) {
+      if (!_isLoading) setState(_resetAndLoad);
+    } else if (_isSvgUrl(iconUrl)) {
+      if (_svgContent == null) unawaited(_fetchSvgContent(iconUrl));
+    } else if (_imageFailed) {
+      setState(() {
+        _imageFailed = false;
+        _imageFetch++;
+      });
     }
   }
 
@@ -287,7 +322,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       _currentQuality = 100;
       _isLoading = false;
       if (_isSvgUrl(cachedUrl)) {
-        unawaited(_fetchSvgContent(cachedUrl));
+        _svgContent =
+            cachedSvgContent(cachedUrl) ?? FaviconUrlCache.getSvg(cachedUrl);
+        if (_svgContent == null) unawaited(_fetchSvgContent(cachedUrl));
       } else {
         setState(() {});
       }
@@ -402,15 +439,22 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
     final iconUrl = _currentIconUrl;
     if (iconUrl == null) {
-      return _isLoading ? spinner(context) : fallback(context);
+      // A site known to have no icon shows the globe while it is asked again.
+      return _isLoading && !FaviconUrlCache.isMissing(widget.url)
+          ? spinner(context)
+          : fallback(context);
     }
     if (!_isSvgUrl(iconUrl)) {
-      return faviconNetworkImage(
-        url: iconUrl,
-        size: widget.size,
-        proxy: widget.proxy,
-        placeholder: spinner,
-        error: failed,
+      return KeyedSubtree(
+        key: ValueKey(_imageFetch),
+        child: faviconNetworkImage(
+          url: iconUrl,
+          size: widget.size,
+          proxy: widget.proxy,
+          persist: widget.persist,
+          placeholder: spinner,
+          error: failed,
+        ),
       );
     }
     final svg = _svgContent;

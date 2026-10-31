@@ -31,6 +31,7 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/icon_image_store.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -545,6 +546,12 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await SiteIconStore.instance.offer(
           'https://a.test/', icon: SiteIcon(_png64, width: 64, height: 64),
           persist: true);
+      final images = MemoryFileStore();
+      final previousImages = IconImageStore.instance;
+      addTearDown(() => IconImageStore.instance = previousImages);
+      IconImageStore.instance = IconImageStore(store: images)..initialize();
+      await IconImageStore.instance
+          .write('https://a.test/icon.png', bytes: _png64);
 
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
@@ -563,6 +570,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
           reason: 'only icon entries go');
       expect(SiteIconStore.instance.get('https://a.test/'), isNull);
       expect(await files.list(), isEmpty);
+      expect(await images.list(), isEmpty, reason: 'nor a fetched image');
       expect(find.text('Icon cache cleared'), findsOneWidget);
     });
   });

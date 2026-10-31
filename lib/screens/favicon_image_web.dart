@@ -13,13 +13,15 @@ import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 /// response to the page. An `<img>` may *display* a cross-origin image even
 /// when script may not read it, which is the whole difference here.
 /// [proxy] is ignored: the browser owns the connection an `<img>` makes, and
-/// the app's Dart-side proxy seam cannot reach it.
+/// the app's Dart-side proxy seam cannot reach it. [persist] is ignored too:
+/// the browser keeps the image in its own cache.
 Widget faviconNetworkImage({
   required String url,
   required double size,
   required WidgetBuilder placeholder,
   required WidgetBuilder error,
   required OutboundProxy proxy,
+  required bool persist,
 }) =>
     _ImgElementView(url: url, size: size);
 

@@ -4,7 +4,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import 'package:webspace/services/icon_service.dart' show getIconBytes;
+import 'package:webspace/services/icon_service.dart'
+    show cachedIconBytes, getIconBytes;
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 
 /// Native favicon rendering: bytes through the app's proxy-aware outbound
@@ -21,6 +22,7 @@ Widget faviconNetworkImage({
   required WidgetBuilder placeholder,
   required WidgetBuilder error,
   required OutboundProxy proxy,
+  required bool persist,
 }) =>
     _FaviconBytesImage(
       url: url,
@@ -28,6 +30,7 @@ Widget faviconNetworkImage({
       placeholder: placeholder,
       error: error,
       proxy: proxy,
+      persist: persist,
     );
 
 class _FaviconBytesImage extends StatefulWidget {
@@ -37,6 +40,7 @@ class _FaviconBytesImage extends StatefulWidget {
     required this.placeholder,
     required this.error,
     required this.proxy,
+    required this.persist,
   });
 
   final String url;
@@ -44,6 +48,9 @@ class _FaviconBytesImage extends StatefulWidget {
   final WidgetBuilder placeholder;
   final WidgetBuilder error;
   final OutboundProxy proxy;
+
+  /// Whether the image may be kept on disk for the next launch.
+  final bool persist;
 
   @override
   State<_FaviconBytesImage> createState() => _FaviconBytesImageState();
@@ -56,21 +63,25 @@ class _FaviconBytesImageState extends State<_FaviconBytesImage> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    _take();
   }
 
   @override
   void didUpdateWidget(_FaviconBytesImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
-      _bytes = null;
-      _loading = true;
-      unawaited(_load());
-    }
+    if (oldWidget.url != widget.url) _take();
+  }
+
+  /// Bytes already held draw from this frame; others are fetched.
+  void _take() {
+    _bytes = cachedIconBytes(widget.url);
+    _loading = _bytes == null;
+    if (_loading) unawaited(_load());
   }
 
   Future<void> _load() async {
-    final bytes = await getIconBytes(widget.url, proxy: widget.proxy);
+    final bytes = await getIconBytes(widget.url,
+        proxy: widget.proxy, persist: widget.persist);
     if (!mounted) return;
     setState(() {
       _bytes = bytes;

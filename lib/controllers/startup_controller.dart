@@ -25,6 +25,7 @@ import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings_import_engine.dart' show promoteLegacySiteIndices;
+import 'package:webspace/services/icon_image_store.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
@@ -132,6 +133,7 @@ class StartupController implements DeferredStartupHost {
       final shell = _loadShell();
       final isolation = _bindIsolation();
       final loaded = _loadSites();
+      if (!isDemoMode) IconImageStore.instance.initialize();
       final icons = isDemoMode
           ? Future<void>.value()
           : SiteIconStore.instance.initialize();
@@ -188,6 +190,8 @@ class StartupController implements DeferredStartupHost {
   Future<Reached<PrefsLoaded>> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     AppPref.loadAll(prefs);
+    // Before any icon draws: one that finds no kept URL searches the site.
+    await FaviconUrlCache.initialize();
     _shell.loadTheme(prefs);
     _shortcuts.load(prefs);
     _host.themeChanged();
@@ -411,9 +415,6 @@ class StartupController implements DeferredStartupHost {
         needsResave: loaded.needsResave,
       ),
       ImageCacheService.clearCacheOnUpgrade(),
-      // Consulted progressively by the tab strip and add-site UI; a miss
-      // only fetches afresh.
-      FaviconUrlCache.initialize(),
       // Migrates sites saved before the tz was baked into `spoofTimezone`,
       // and refreshes after a dataset update. The dataset parses on a
       // background isolate.

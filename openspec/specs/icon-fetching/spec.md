@@ -157,7 +157,53 @@ would otherwise do.
 
 ### Requirement: ICON-008 - Icon Caching
 
-Fetched icons SHALL be cached to avoid redundant network requests.
+Fetched icons SHALL be cached to avoid redundant network requests. Within a
+session, what the app holds of a site's icon SHALL NOT be asked for again:
+
+- **An icon drawn again** (an open folder draws its tiles again on every page
+  and every layout) SHALL show the held image or SVG, or the globe of a site
+  known to have none, from its first frame and without a request.
+- **A launch** SHALL read the icon URLs a past launch kept before any icon
+  draws, so an icon drawn while the launch is still waiting on the platform
+  does not search its site again, and SHALL draw the images a past launch
+  fetched from disk (`IconImageStore`), asking the network for none. Only a
+  site whose state may outlive the session keeps its image there (never an
+  archive-tier site, ARCH-006); an image whose URL no live site keeps is swept
+  as an orphan.
+- **A site that answered with its page and named no icon** SHALL NOT be
+  searched again until its icon is refreshed (the edit dialog's refresh, a
+  TLS pin, Reset icon cache).
+- **A site that was not reached** (the network failed, its page came back
+  with an error, its proxy was not up) SHALL be searched again, so ICON-017
+  can make good what it missed.
+
+#### Scenario: An icon drawn again shows at once
+
+**Given** a site's icon was drawn this session
+**When** it is drawn again, as a folder's page is swiped back to
+**Then** its first frame shows the icon, not a spinner
+**And** no request is made
+
+#### Scenario: A launch reads the icon URLs kept before
+
+**Given** a past launch found a site's icon URL
+**When** the app launches and draws the library home before the launch has
+finished
+**Then** the site's preview reads the kept URL and the image from disk
+**And** no request is made, online or not
+
+#### Scenario: A site with no icon is not searched again
+
+**Given** a site's home page loaded and named no icon, and it has no
+`/favicon.ico`
+**When** its icon is drawn again this session
+**Then** the globe shows at once and no request is made
+
+#### Scenario: A site not reached is searched again
+
+**Given** a site's icon search failed because the device was offline
+**When** its icon is drawn again once online
+**Then** the site is searched again and its icon found
 
 #### Scenario: Return cached icon
 
@@ -506,8 +552,9 @@ shows a smaller one, or the scrape's, or the placeholder.
 
 While developer mode is on, App settings SHALL offer **Reset icon cache**,
 with its explanation behind a `HintButton`. It SHALL drop every icon the app
-keeps: the resolved URLs and SVGs in `FaviconUrlCache`, the icons sites
-reported in `SiteIconStore` (memory and disk), and the icon service's memory.
+keeps: the resolved URLs and SVGs in `FaviconUrlCache`, the fetched images in
+`IconImageStore`, the icons sites reported in `SiteIconStore` (memory and
+disk), and the icon service's memory.
 Every icon on screen is then fetched again (`reloadAllIcons`), and a site's
 own icon returns once the site loads again.
 
@@ -573,13 +620,26 @@ WebView it does not: `onPageStarted` is posted to the looper, while
 
 ### Requirement: ICON-017 - One Icon Wherever the Site Shows
 
-A site's fetched icon SHALL be the same wherever the site shows. An icon drawn
-while its site's search found nothing (offline, a proxy or Tor not yet up, a
-timeout) SHALL take the icon a later search for the same site finds, without
-waiting to be drawn afresh: a folder's preview on the library home is drawn at
-launch and stays mounted, while the folder's own tiles search again each time
-it opens. A search that ends with nothing SHALL NOT replace an icon another
-search found while it ran.
+A site's fetched icon SHALL be the same wherever the site shows. A folder's
+preview on the library home is drawn at launch and stays mounted, while the
+folder's own tiles are drawn afresh each time it opens, so any step that came
+back with nothing at launch (offline, a proxy or Tor not yet up, a timeout)
+SHALL be made good, without the preview being drawn afresh, when another
+widget's same step later succeeds:
+
+- **The search.** An icon whose site's search found nothing SHALL take the icon
+  a later search for the same site finds.
+- **The image.** An icon whose URL is known (found earlier, or kept from a
+  past launch) but whose image or SVG body failed to come SHALL take it once a
+  later fetch of that URL brings it.
+
+A search or fetch that ends with nothing SHALL NOT replace what another
+brought while it ran.
+
+An icon whose search or image came back with nothing SHALL also ask again on
+its own when it may come now, with no other widget fetching it: when Tor
+comes up, and when the app comes back to the front. A site that answered that
+it names no icon is not asked (ICON-008).
 
 #### Scenario: A preview drawn offline takes the icon found later
 
@@ -588,12 +648,28 @@ offline, and shows the globe
 **When** the folder is opened online and the site's tile finds its icon
 **Then** the preview shows that icon too
 
+#### Scenario: A preview whose image did not come at launch takes it later
+
+**Given** a site's icon URL is kept from a past launch
+**And** its folder's preview was drawn before the network was up, so its
+image (or SVG) did not come and the preview shows the globe
+**When** the folder is opened online and the site's tile fetches the image
+**Then** the preview shows the image too
+
+#### Scenario: A preview no folder helps asks again
+
+**Given** a folder's preview missed its site's icon at launch, and the folder
+is never opened
+**When** the app comes back to the front, or, for a site on Tor, Tor comes up
+**Then** the preview asks again and shows the icon
+
 #### Scenario: A stalled search keeps the found icon
 
 **Given** two searches for one site's icon run at once
 **When** one finds the icon and the other then ends with nothing
 **Then** both answer with the found icon, and a later request is answered from
 the cache
+**And** two fetches of one icon's image or SVG behave the same way
 
 ## Files
 
@@ -601,6 +677,7 @@ the cache
 - `lib/services/icon_service.dart` - Icon fetching service
 - `lib/services/site_icon_engine.dart` - Which page icon is the site's, and which declared links to fetch (ICON-009/010/013)
 - `lib/services/site_icon_store.dart` - Memory + disk store for it
+- `lib/services/icon_image_store.dart` - Disk store of fetched icon images, by icon URL (ICON-008)
 - `lib/services/icon_link_watcher_shim.dart` - Reports icon-link edits after load (ICON-011), and the load event and announced links (ICON-013)
 - `lib/services/site_icon_fetcher.dart` - Fetches and decodes the declared links (ICON-013), and `pageIconSource`, which of that and the webview's icon a site takes (ICON-014)
 - `android/.../SiteIconPlugin.kt` - Turns on WebView favicon downloads
