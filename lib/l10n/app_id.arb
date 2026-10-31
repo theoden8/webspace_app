@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Ekstensi ini tidak mendapat izin apa pun.",
   "siteExtensionsSwitchOn": "Aktifkan",
   "siteExtensionsSettings": "Pengaturan",
-  "siteExtensionsOpen": "Buka",
+  "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} tidak dapat dibuka di sini",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

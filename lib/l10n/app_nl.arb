@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Ze krijgt geen machtigingen.",
   "siteExtensionsSwitchOn": "Inschakelen",
   "siteExtensionsSettings": "Instellingen",
-  "siteExtensionsOpen": "Openen",
+  "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} kon hier niet worden geopend",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "તેને કોઈ પરવાનગી મળતી નથી.",
   "siteExtensionsSwitchOn": "ચાલુ કરો",
   "siteExtensionsSettings": "સેટિંગ્સ",
-  "siteExtensionsOpen": "ખોલો",
+  "siteExtensionsMenu": "મેનૂ",
   "siteExtensionsPageFailed": "{name} અહીં ખોલી શકાયું નહીં",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

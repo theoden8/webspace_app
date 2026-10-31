@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nu primește nicio permisiune.",
   "siteExtensionsSwitchOn": "Activează",
   "siteExtensionsSettings": "Setări",
-  "siteExtensionsOpen": "Deschide",
+  "siteExtensionsMenu": "Meniu",
   "siteExtensionsPageFailed": "{name} nu a putut fi deschisă aici",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

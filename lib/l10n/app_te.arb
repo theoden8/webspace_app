@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "దీనికి ఏ అనుమతులూ లభించవు.",
   "siteExtensionsSwitchOn": "ఆన్ చేయి",
   "siteExtensionsSettings": "సెట్టింగ్‌లు",
-  "siteExtensionsOpen": "తెరువు",
+  "siteExtensionsMenu": "మెనూ",
   "siteExtensionsPageFailed": "{name} ను ఇక్కడ తెరవడం సాధ్యం కాలేదు",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

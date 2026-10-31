@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nid yw'n cael unrhyw ganiatâd.",
   "siteExtensionsSwitchOn": "Troi ymlaen",
   "siteExtensionsSettings": "Gosodiadau",
-  "siteExtensionsOpen": "Agor",
+  "siteExtensionsMenu": "Dewislen",
   "siteExtensionsPageFailed": "Nid oedd modd agor {name} yma",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

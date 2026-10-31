@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "هیچ مجوزی نمی‌گیرد.",
   "siteExtensionsSwitchOn": "روشن کردن",
   "siteExtensionsSettings": "تنظیمات",
-  "siteExtensionsOpen": "باز کردن",
+  "siteExtensionsMenu": "منو",
   "siteExtensionsPageFailed": "{name} اینجا باز نشد",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

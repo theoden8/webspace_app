@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "यसले कुनै अनुमति पाउँदैन।",
   "siteExtensionsSwitchOn": "सक्रिय गर्नुहोस्",
   "siteExtensionsSettings": "सेटिङ",
-  "siteExtensionsOpen": "खोल्नुहोस्",
+  "siteExtensionsMenu": "मेनु",
   "siteExtensionsPageFailed": "{name} यहाँ खोल्न सकिएन",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

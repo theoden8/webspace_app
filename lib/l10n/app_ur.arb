@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "اسے کوئی اجازت نہیں ملتی۔",
   "siteExtensionsSwitchOn": "آن کریں",
   "siteExtensionsSettings": "سیٹنگز",
-  "siteExtensionsOpen": "کھولیں",
+  "siteExtensionsMenu": "مینو",
   "siteExtensionsPageFailed": "{name} یہاں نہیں کھل سکی",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

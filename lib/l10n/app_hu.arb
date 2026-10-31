@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nem kap engedélyt.",
   "siteExtensionsSwitchOn": "Bekapcsolás",
   "siteExtensionsSettings": "Beállítások",
-  "siteExtensionsOpen": "Megnyitás",
+  "siteExtensionsMenu": "Menü",
   "siteExtensionsPageFailed": "{name} megnyitása itt nem sikerült",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

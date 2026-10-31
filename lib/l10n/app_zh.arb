@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "不會取得任何權限。",
   "siteExtensionsSwitchOn": "開啟",
   "siteExtensionsSettings": "設定",
-  "siteExtensionsOpen": "開啟",
+  "siteExtensionsMenu": "選單",
   "siteExtensionsPageFailed": "無法在此開啟 {name}",
   "termAndMeaning": "{term}：{meaning}",
   "twoSentences": "{first}{second}"

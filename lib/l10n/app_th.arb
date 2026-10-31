@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "ไม่ได้รับสิทธิ์ใดๆ",
   "siteExtensionsSwitchOn": "เปิด",
   "siteExtensionsSettings": "การตั้งค่า",
-  "siteExtensionsOpen": "เปิด",
+  "siteExtensionsMenu": "เมนู",
   "siteExtensionsPageFailed": "ไม่สามารถเปิด {name} ที่นี่ได้",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

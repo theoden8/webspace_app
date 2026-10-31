@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nullas permissiones accipit.",
   "siteExtensionsSwitchOn": "Accendere",
   "siteExtensionsSettings": "Institutiones",
-  "siteExtensionsOpen": "Aperire",
+  "siteExtensionsMenu": "Index",
   "siteExtensionsPageFailed": "{name} hic aperiri non potuit",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

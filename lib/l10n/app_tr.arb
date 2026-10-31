@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Hiçbir izin almaz.",
   "siteExtensionsSwitchOn": "Aç",
   "siteExtensionsSettings": "Ayarlar",
-  "siteExtensionsOpen": "Aç",
+  "siteExtensionsMenu": "Menü",
   "siteExtensionsPageFailed": "{name} burada açılamadı",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

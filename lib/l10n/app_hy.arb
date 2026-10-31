@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Այն ոչ մի թույլտվություն չի ստանում։",
   "siteExtensionsSwitchOn": "Միացնել",
   "siteExtensionsSettings": "Կարգավորումներ",
-  "siteExtensionsOpen": "Բացել",
+  "siteExtensionsMenu": "Ընտրացանկ",
   "siteExtensionsPageFailed": "{name}-ը չհաջողվեց բացել այստեղ",
   "termAndMeaning": "{term}՝ {meaning}",
   "twoSentences": "{first} {second}"

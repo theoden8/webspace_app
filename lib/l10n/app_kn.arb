@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "ಇದು ಯಾವುದೇ ಅನುಮತಿಗಳನ್ನು ಪಡೆಯುವುದಿಲ್ಲ.",
   "siteExtensionsSwitchOn": "ಆನ್ ಮಾಡಿ",
   "siteExtensionsSettings": "ಸೆಟ್ಟಿಂಗ್ಸ್",
-  "siteExtensionsOpen": "ತೆರೆಯಿರಿ",
+  "siteExtensionsMenu": "ಮೆನು",
   "siteExtensionsPageFailed": "{name} ಅನ್ನು ಇಲ್ಲಿ ತೆರೆಯಲಾಗಲಿಲ್ಲ",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

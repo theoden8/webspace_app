@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "הוא לא מקבל הרשאות.",
   "siteExtensionsSwitchOn": "הפעלה",
   "siteExtensionsSettings": "הגדרות",
-  "siteExtensionsOpen": "פתח",
+  "siteExtensionsMenu": "תפריט",
   "siteExtensionsPageFailed": "לא ניתן לפתוח את {name} כאן",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Δεν λαμβάνει καμία άδεια.",
   "siteExtensionsSwitchOn": "Ενεργοποίηση",
   "siteExtensionsSettings": "Ρυθμίσεις",
-  "siteExtensionsOpen": "Άνοιγμα",
+  "siteExtensionsMenu": "Μενού",
   "siteExtensionsPageFailed": "Δεν ήταν δυνατό να ανοίξει εδώ: {name}",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

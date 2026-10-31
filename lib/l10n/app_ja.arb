@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "権限は付与されません。",
   "siteExtensionsSwitchOn": "オンにする",
   "siteExtensionsSettings": "設定",
-  "siteExtensionsOpen": "開く",
+  "siteExtensionsMenu": "メニュー",
   "siteExtensionsPageFailed": "{name} をここで開けませんでした",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first}{second}"

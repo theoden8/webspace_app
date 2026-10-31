@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "ਇਸਨੂੰ ਕੋਈ ਅਧਿਕਾਰ ਨਹੀਂ ਮਿਲਦਾ।",
   "siteExtensionsSwitchOn": "ਚਾਲੂ ਕਰੋ",
   "siteExtensionsSettings": "ਸੈਟਿੰਗਾਂ",
-  "siteExtensionsOpen": "ਖੋਲ੍ਹੋ",
+  "siteExtensionsMenu": "ਮੀਨੂ",
   "siteExtensionsPageFailed": "{name} ਇੱਥੇ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"
