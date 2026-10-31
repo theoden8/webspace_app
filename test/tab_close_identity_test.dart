@@ -130,4 +130,34 @@ void main() {
     expect(owner.tabs.map((t) => t.id), contains(hosted.id),
         reason: 'the move leaves the hosted tab in place');
   });
+
+  // The close's landing moved the active tab only when the tab asked for
+  // was the active one, so a subtree close that took the active tab as a
+  // descendant left it naming a closed tab. Limits: the model's tabs have
+  // no parent (a close takes one tab, HandPaired.closedTabIds), so no
+  // schedule replays a subtree close; and this slot has no webview, so the
+  // rebind arm a live one takes is held only by the same condition.
+  test('a subtree close that takes the active tab lands on a survivor '
+      '(TAB-008, TAB-003)', () async {
+    final site = WebViewModel(initUrl: 'https://example.com/');
+    final parent = site.activeTabId;
+    final child = SiteTab(url: 'https://example.com/child', parentId: parent);
+    final other = SiteTab(url: 'https://example.com/other');
+    site
+      ..setTabs([...site.tabs, child, other])
+      ..setActiveTab(child.id);
+    final sites = SiteRuntime()
+      ..isolation = fakeSharedJar()
+      ..applied(SitesLoaded([site]));
+    sites.seed(loaded: [site], shown: site);
+    final tabs = TabsController(sites, host: _Page(),
+        navStates: _NavStates(), residency: _ProcessGlobal());
+
+    await tabs.closeTab(site, tabId: parent, subtree: true);
+
+    expect(site.tabs.map((t) => t.id), [other.id]);
+    expect(site.activeTabId, other.id,
+        reason: 'the active tab closed with its parent, so the site must '
+            'land on a tab it still lists');
+  });
 }
