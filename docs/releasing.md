@@ -84,3 +84,30 @@ git push origin vX.Y.Z
 
 The fixture directory and the tag share a name, so `generate.sh vX.Y.Z`
 reproduces what the PR committed.
+
+## The snap
+
+The tag runs the Snap workflow, which builds the snap from
+`snap/snapcraft.yaml`, runs it once with a site (`scripts/check_snap.sh`) and
+keeps it as the `webspace-snap` artifact. Nothing in CI logs in to the Snap
+Store (PLATFORM-012): the store steps are yours.
+
+Once, register the name; the store reviews a new name before it is yours:
+
+```bash
+snapcraft login
+snapcraft register webspace
+```
+
+Each release, upload the workflow's artifact, or a snap built locally with
+`snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 24.04):
+
+```bash
+snapcraft upload --release=edge webspace_X.Y.Z_amd64.snap
+snapcraft release webspace <revision> stable   # once edge has been tried
+```
+
+The store reviews each upload, and one its automated checks flag waits for a
+person. The `password-manager-service` plug never connects by itself; a user
+without a Secret portal connects it with
+`snap connect webspace:password-manager-service`.
