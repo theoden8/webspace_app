@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Palaidiet no faila importētus pārlūkprogrammas paplašinājumus (Chrome .crx, Firefox .xpi vai .zip) izvēlētajās vietnēs. WebKit no katra palaiž to, ko atbalsta. Paplašinājums nedarbojas nevienā vietnē, kamēr to neieslēdzat attiecīgās vietnes iestatījumos, un tur tas piekļūst tikai šai vietnei.",
   "appSettingsExperimentalExtensionSearch": "Paplašinājumu meklēšana",
   "appSettingsExperimentalExtensionSearchHint": "Pievieno ekrānam \"Paplašinājumi\" meklēšanu addons.mozilla.org, un katram rezultātam norādīts, cik labi WebKit to, paredzams, palaidīs. Pieejams tikai versijās, kas nav no App Store, un tikai tad, kad ir ieslēgts \"Tīmekļa paplašinājumi\".",
-  "appSettingsExperimentalDesktopTray": "Sistēmas teknes ikona",
-  "appSettingsExperimentalDesktopTrayHint": "Kamēr ir ieslēgts \"Turpināt darboties pēc aizvēršanas\", WebSpace ikona tiek rādīta izvēļņu joslā. Tās izvēlne parāda logu, atver vietni ar ieslēgtiem paziņojumiem vai iziet no lietotnes.",
   "appSettingsExperimentalLinuxTor": "Iebūvētais Tor",
   "appSettingsExperimentalLinuxTorHint": "Piedāvā Tor kā vietnes starpniekserveri, izmantojot tor, ko lietotne palaiž pati: to, kas nāk līdzi šai versijai, vai citādi šajā datorā instalēto tor. Katra vietne saņem savas ķēdes. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
   "networkInterfaceTitle": "Tīkla saskarne",

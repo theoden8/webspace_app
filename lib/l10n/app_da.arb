@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Kør browserudvidelser, som du importerer fra en fil (en .crx fra Chrome, en .xpi fra Firefox eller en .zip), på de websteder, du vælger. WebKit kører det, den understøtter af hver enkelt. En udvidelse kører ikke på noget websted, før du slår den til i det pågældende websteds indstillinger, og der når den kun det websted.",
   "appSettingsExperimentalExtensionSearch": "Udvidelsessøgning",
   "appSettingsExperimentalExtensionSearchHint": "Tilføjer en søgning på addons.mozilla.org til skærmen \"Udvidelser\", hvor hvert resultat er mærket med, hvor godt WebKit forventes at køre det. Tilbydes kun i udgaver af appen, der ikke kommer fra App Store, og kun mens \"Webudvidelser\" er slået til.",
-  "appSettingsExperimentalDesktopTray": "Symbol i systembakken",
-  "appSettingsExperimentalDesktopTrayHint": "Når \"Kør videre efter lukning\" er slået til, vises symbolet for WebSpace i menulinjen. Dets menu viser vinduet, åbner et websted med notifikationer slået til eller afslutter appen.",
   "appSettingsExperimentalLinuxTor": "Indbygget Tor",
   "appSettingsExperimentalLinuxTorHint": "Tilbyder Tor som et websteds proxy gennem en tor, som appen selv starter: den, der følger med denne version, eller ellers den tor, der er installeret på denne computer. Hvert websted får sine egne kredsløb. Træder i kraft næste gang appen starter.",
   "networkInterfaceTitle": "Netværksgrænseflade",

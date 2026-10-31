@@ -163,6 +163,8 @@ const Map<String, String> _retiredKeys = {
       'out of the Experimental group; there is no switch to restore',
   'experimentalSignInPopups': 'NESTED-014: sign-in popups graduated out of '
       'the Experimental group; the app and each site have their own switch',
+  'experimentalDesktopTray': 'NOTIF-019: the tray icon graduated out of the '
+      'Experimental group; Keep running when closed alone shows it',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

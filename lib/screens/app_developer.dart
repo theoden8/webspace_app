@@ -2,14 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:webspace/controllers/desktop_tray.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/egress_relay.dart';
-import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/web_extension_library.dart' show extensionSearchSwitchOffered;
@@ -50,10 +48,6 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.extensionSearch, Icons.search,
             loc.appSettingsExperimentalExtensionSearch,
             loc.appSettingsExperimentalExtensionSearchHint),
-      if (DesktopWindow.offered && DesktopTray.experimental)
-        (ExperimentalFeature.desktopTray, Icons.web_asset_outlined,
-            loc.appSettingsExperimentalDesktopTray,
-            loc.appSettingsExperimentalDesktopTrayHint),
       if (hostIsLinux)
         (ExperimentalFeature.linuxTor, Icons.security_outlined,
             loc.appSettingsExperimentalLinuxTor,

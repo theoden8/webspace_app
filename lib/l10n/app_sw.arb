@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Endesha viendelezi vya kivinjari unavyoleta kutoka kwenye faili (.crx ya Chrome, .xpi ya Firefox au .zip) kwenye tovuti unazochagua. WebKit huendesha kile inachokiunga mkono katika kila kimoja. Kiendelezi hakiendeshwi kwenye tovuti yoyote hadi ukiwashe katika mipangilio ya tovuti hiyo, na huko kinafikia tovuti hiyo pekee.",
   "appSettingsExperimentalExtensionSearch": "Utafutaji wa viendelezi",
   "appSettingsExperimentalExtensionSearchHint": "Huongeza utafutaji wa addons.mozilla.org kwenye skrini ya \"Viendelezi\", na kila tokeo huonyesha jinsi WebKit inavyotarajiwa kukiendesha vizuri. Inapatikana tu katika matoleo ya nje ya App Store, na tu wakati \"Viendelezi vya wavuti\" imewashwa.",
-  "appSettingsExperimentalDesktopTray": "Aikoni ya trei ya mfumo",
-  "appSettingsExperimentalDesktopTrayHint": "Wakati \"Endelea kufanya kazi ikifungwa\" imewashwa, huonyesha aikoni ya WebSpace kwenye upau wa menyu. Menyu yake huonyesha dirisha, hufungua tovuti iliyowasha arifa, au huondoka kwenye programu.",
   "appSettingsExperimentalLinuxTor": "Tor iliyojengewa ndani",
   "appSettingsExperimentalLinuxTorHint": "Hutoa Tor kama seva mbadala ya tovuti kupitia tor ambayo programu yenyewe huanzisha: ile inayokuja na toleo hili, au vinginevyo tor iliyosakinishwa kwenye kompyuta hii. Kila tovuti hupata saketi zake yenyewe. Huanza kutumika wakati ujao programu itakapoanza.",
   "networkInterfaceTitle": "Kiolesura cha mtandao",

@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Pokreće proširenja preglednika koja uvezete iz datoteke (Chrome .crx, Firefox .xpi ili .zip) na stranicama koje odaberete. WebKit pokreće ono što podržava od svakog. Proširenje ne radi ni na jednoj stranici dok ga ne uključite u postavkama te stranice, a tamo doseže samo tu stranicu.",
   "appSettingsExperimentalExtensionSearch": "Pretraga proširenja",
   "appSettingsExperimentalExtensionSearchHint": "Dodaje pretragu stranice addons.mozilla.org na ekran \"Proširenja\", a svaki rezultat je označen prema tome koliko dobro bi ga WebKit trebao pokretati. Nudi se samo u verzijama aplikacije izvan App Storea i samo dok je \"Web proširenja\" uključeno.",
-  "appSettingsExperimentalDesktopTray": "Ikona u sistemskoj traci",
-  "appSettingsExperimentalDesktopTrayHint": "Dok je \"Nastavi raditi nakon zatvaranja\" uključeno, prikazuje ikonu aplikacije WebSpace na traci menija. Njen meni prikazuje prozor, otvara stranicu s uključenim obavještenjima ili izlazi iz aplikacije.",
   "appSettingsExperimentalLinuxTor": "Ugrađeni Tor",
   "appSettingsExperimentalLinuxTorHint": "Nudi Tor kao proxy stranice preko tora koji aplikacija sama pokreće: onog koji dolazi s ovom verzijom, ili inače tora instaliranog na ovom računaru. Svaka stranica dobija svoje krugove. Stupa na snagu pri sljedećem pokretanju aplikacije.",
   "networkInterfaceTitle": "Mrežni interfejs",

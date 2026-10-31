@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Fitxategi batetik inportatzen dituzun nabigatzaile-luzapenak (Chrome-ren .crx bat, Firefox-en .xpi bat edo .zip bat) aukeratzen dituzun guneetan exekutatzen ditu. WebKitek bakoitzetik onartzen duena exekutatzen du. Luzapen bat ez da ezein gunetan exekutatzen gune horren ezarpenetan aktibatu arte, eta han gune horretara soilik iristen da.",
   "appSettingsExperimentalExtensionSearch": "Luzapenen bilaketa",
   "appSettingsExperimentalExtensionSearchHint": "addons.mozilla.org-en bilaketa gehitzen dio \"Luzapenak\" pantailari, eta emaitza bakoitzak WebKit-ek zein ondo exekutatzea espero den adierazten du. App Storetik kanpoko konpilazioetan soilik eskaintzen da, eta \"Web-luzapenak\" aktibatuta dagoen bitartean soilik.",
-  "appSettingsExperimentalDesktopTray": "Sistema-erretiluko ikonoa",
-  "appSettingsExperimentalDesktopTrayHint": "\"Jarraitu martxan itxi ondoren\" aktibatuta dagoen bitartean, WebSpace-ren ikonoa erakusten du menu-barran. Bere menuak leihoa erakusten du, jakinarazpenak aktibatuta dituen gune bat irekitzen du edo aplikaziotik irteten da.",
   "appSettingsExperimentalLinuxTor": "Integratutako Tor",
   "appSettingsExperimentalLinuxTorHint": "Tor eskaintzen du gune baten proxy gisa, aplikazioak berak abiarazten duen tor baten bidez: bertsio honek dakarrena, edo bestela ordenagailu honetan instalatutako tor-a. Gune bakoitzak bere zirkuituak ditu. Aplikazioa hurrengo aldiz abiarazten denean hartuko du eragina.",
   "networkInterfaceTitle": "Sare-interfazea",

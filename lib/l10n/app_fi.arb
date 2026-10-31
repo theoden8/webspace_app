@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Suorittaa tiedostosta tuomiasi selainlaajennuksia (Chromen .crx, Firefoxin .xpi tai .zip) valitsemillasi sivustoilla. WebKit suorittaa kustakin sen, mitä se tukee. Laajennus ei toimi millään sivustolla ennen kuin otat sen käyttöön sivuston asetuksissa, ja siellä se ulottuu vain kyseiseen sivustoon.",
   "appSettingsExperimentalExtensionSearch": "Laajennushaku",
   "appSettingsExperimentalExtensionSearchHint": "Lisää \"Laajennukset\"-näkymään haun addons.mozilla.orgista, ja jokaisessa tuloksessa kerrotaan, miten hyvin WebKitin odotetaan suorittavan sen. Tarjolla vain App Storen ulkopuolelta tulevissa versioissa ja vain, kun \"Verkkolaajennukset\" on päällä.",
-  "appSettingsExperimentalDesktopTray": "Ilmoitusalueen kuvake",
-  "appSettingsExperimentalDesktopTrayHint": "Kun \"Pidä käynnissä suljettaessa\" on päällä, näyttää WebSpacen kuvakkeen valikkorivillä. Sen valikosta voi näyttää ikkunan, avata sivuston, jonka ilmoitukset ovat päällä, tai lopettaa sovelluksen.",
   "appSettingsExperimentalLinuxTor": "Sisäänrakennettu Tor",
   "appSettingsExperimentalLinuxTorHint": "Tarjoaa Torin sivuston välityspalvelimeksi tor-ohjelman kautta, jonka sovellus käynnistää itse: tämän version mukana tulevan, tai muuten tähän tietokoneeseen asennetun torin. Jokainen sivusto saa omat piirinsä. Tulee voimaan, kun sovellus seuraavan kerran käynnistyy.",
   "networkInterfaceTitle": "Verkkoliitäntä",

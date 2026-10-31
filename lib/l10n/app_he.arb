@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "מריץ תוספי דפדפן שמייבאים מקובץ (.crx של Chrome, .xpi של Firefox או .zip) באתרים שבוחרים. WebKit מריץ מכל תוסף את מה שהוא תומך בו. תוסף לא פועל באף אתר עד שמפעילים אותו בהגדרות של אותו אתר, ושם הוא מגיע רק לאתר הזה.",
   "appSettingsExperimentalExtensionSearch": "חיפוש תוספים",
   "appSettingsExperimentalExtensionSearchHint": "מוסיף למסך \"תוספים\" חיפוש ב-addons.mozilla.org, וכל תוצאה מסומנת לפי המידה שבה WebKit צפוי להריץ אותה. מוצע רק בגרסאות שאינן מ-App Store, ורק כל עוד \"תוספי אינטרנט\" מופעל.",
-  "appSettingsExperimentalDesktopTray": "סמל במגש המערכת",
-  "appSettingsExperimentalDesktopTrayHint": "כל עוד \"להמשיך לפעול אחרי סגירה\" מופעל, מוצג הסמל של WebSpace בשורת התפריטים. התפריט שלו מציג את החלון, פותח אתר שההתראות שלו מופעלות או יוצא מהאפליקציה.",
   "appSettingsExperimentalLinuxTor": "Tor מובנה",
   "appSettingsExperimentalLinuxTorHint": "מציע את Tor כשרת Proxy של אתר דרך tor שהאפליקציה מפעילה בעצמה: זה שמגיע עם הגרסה הזו, או אחרת ה-tor שמותקן במחשב הזה. כל אתר מקבל מעגלים משלו. נכנס לתוקף בהפעלה הבאה של האפליקציה.",
   "networkInterfaceTitle": "ממשק רשת",
