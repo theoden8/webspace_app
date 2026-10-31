@@ -663,6 +663,12 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
           Scoped.fromStored(externalLinkMode).resolve(ExternalLinkMode.appDefault),
           archived: isArchiveTier);
 
+  /// Whether the site's sign-ins open as popups, or as a tab of the site for
+  /// one that sends the page itself (NESTED-014, NESTED-016): its own choice,
+  /// or the app's while it follows the app.
+  bool get effectiveSignInPopups =>
+      PopupKind.signInOpens(choice: Scoped.fromStored(signInPopups));
+
   /// Outbound routing is an option of the in-app mode (LIR-014): in any
   /// other mode the switch is hidden and its stored value inert.
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
@@ -757,7 +763,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         theme: effectiveTheme,
         userScripts: combineUserScripts(globalUserScripts),
         externalLinks: effectiveExternalLinkMode,
-        signInPopups: PopupKind.signInOpens(choice: Scoped.fromStored(signInPopups)),
+        signInPopups: effectiveSignInPopups,
         notifications: effectiveNotificationsEnabled,
         extensions: extensionPlan,
       ),
@@ -1133,6 +1139,16 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         (hosted || runsForeignTab) &&
         onReturnToOwner != null &&
         getNormalizedDomain(url) == ownerDomain;
+    // NESTED-016: a sign-in tab returns from this site's domain or from the
+    // domain of the site it signs in to, a hosted tab's, and only from a
+    // navigation asked before it loads: one seen after has already spent the
+    // provider's one-time code.
+    final bool signInTab = runsSignInTab;
+    bool signInReturns(String url) =>
+        signInTab &&
+        onReturnToOwner != null &&
+        (getNormalizedDomain(url) == ownerDomain ||
+            getNormalizedDomain(url) == getNormalizedDomain(id.initUrl));
     bool isActive() => hooks.onScreen(this);
     final globalUserScripts = hooks.host.globalUserScripts();
     // Carries out a navigation decision, for a tap and a redirect alike:
@@ -1140,10 +1156,14 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     // may take a leaving link over first (LIR-014) and hears of a blocked one
     // (NESTED-009).
 bool dispatch(NavigationDecision decision,
-    {required String url, required bool hadGesture, required String via}) {
+    {required String url,
+    required bool hadGesture,
+    required String via,
+    bool signInReturn = false}) {
       LogTag.webView.debug('$via -> ${decision.name} $url', sensitive: true);
       if (NavigationDecisionEngine.stepFor(decision,
-              returnsToOwner: returnsToOwner(url)) ==
+              returnsToOwner: !signInTab && returnsToOwner(url),
+              signInReturn: signInReturn) ==
           NavigationStep.returnToOwner) {
         onReturnToOwner?.call(url);
         return false;
@@ -1207,8 +1227,10 @@ bool dispatch(NavigationDecision decision,
       // redirectHandled / previousSameDomainUrl / currentUrl; the engine
       // enforces the invariants (see its class-level doc).
       var urlChangedState = OnUrlChangedState.initial(currentUrl);
-      final navigationBoundary =
-          NavigationBoundary(homeUrl: navHome, initialUrl: currentUrl);
+      final navigationBoundary = NavigationBoundary(
+          homeUrl: navHome,
+          initialUrl: currentUrl,
+          signInHosts: signInTab ? PopupKind.isSignInUrl : null);
       if (tabBinding.queuedFor == builtTab) {
         navigationBoundary.useExistingDocument();
       }
@@ -1314,7 +1336,8 @@ bool dispatch(NavigationDecision decision,
             return dispatch(result.decision,
                 url: url,
                 hadGesture: result.hadGesture,
-                via: 'shouldOverrideUrlLoading');
+                via: 'shouldOverrideUrlLoading',
+                signInReturn: signInReturns(url));
           },
           onReloadIssued: () => onReloadIssued?.call(),
           onMainFrameLoad: resumeReload.noteLoad,
@@ -1370,7 +1393,10 @@ bool dispatch(NavigationDecision decision,
             // safety/go -> reddit). The parent shows the redirect target
             // until the next navigation; the nested webview still opens.
             final decision = handled.decision;
+            // A sign-in tab back in its site by a hop no one could ask about
+            // stays where it loaded: replaying it would spend the code again.
             if (decision != null &&
+                !signInReturns(url) &&
                 !dispatch(decision, url: url, hadGesture: handled.hadGesture,
                     via: 'onUrlChanged')) {
               return;

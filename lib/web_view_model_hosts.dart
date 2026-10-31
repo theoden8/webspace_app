@@ -1,3 +1,4 @@
+import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -38,6 +39,15 @@ extension WebViewModelHosts on WebViewModel {
   }
 
   bool get runsForeignTab => isForeignTab(activeTab);
+
+  /// Whether [tab] is a sign-in tab (NESTED-016): one a sign-in of the site it
+  /// runs as opened at an identity provider's authorization request.
+  bool isSignInTab(SiteTab tab) {
+    final home = tab.homeUrl;
+    return home != null && isForeignTab(tab) && PopupKind.isSignInRequest(home);
+  }
+
+  bool get runsSignInTab => isSignInTab(activeTab);
 
   /// Where the active tab's domain is anchored, and where Home (NAV-004) takes
   /// it: a foreign tab's home, else the home page of the site it runs as.

@@ -47,7 +47,7 @@ The system SHALL disable automatic nested window creation via `window.open()`.
 **Then** no nested webview is created
 **And** captcha challenges (Cloudflare, hCaptcha, reCAPTCHA) are still allowed
 
-Where a site's sign-in popups are on, a sign-in window is the other exception (NESTED-014).
+Where a site's sign-in popups are on, a sign-in window is the other exception (NESTED-014), and a sign-in the page sends its own tab to opens as a tab of the site (NESTED-016).
 
 ---
 
@@ -511,6 +511,58 @@ user-initiated inbound bind picker (link-intent-routing LIR-010).
 **Given** a claimed cross-domain link opened a nested webview while the site is in the `browser` or `block` mode
 **When** the user taps a link in that nested webview pointing to a different domain than the page shown
 **Then** that link opens in the system browser, or is blocked, as the mode says (NESTED-009 applies in nested screens too)
+
+---
+
+### Requirement: NESTED-016 - A Sign-In The Page Sends Itself To Opens As A Tab
+
+Where the site's sign-in popups are on (NESTED-014) and the site has tabs
+(not a kiosk site), a top-level navigation of the site's tab that the user's
+tap caused, to an identity provider's OAuth authorization request (a URL on a
+sign-in host, `PopupKind.isSignInUrl`, that names a `client_id`,
+`PopupKind.isSignInRequest`), SHALL open as a child tab under the tab it left,
+running as the site that tab runs as, in its container, so the provider
+answers the session the site started. It goes ahead of the site's external
+link mode (NESTED-009) and of routing to another of the user's sites (LIR-014,
+LIR-032), which would sign in where the site's session is not. This is the
+sign-in a page starts by sending itself to the provider; one that opens a
+window is NESTED-014's popup.
+
+In that sign-in tab, every identity provider's sign-in host SHALL load in
+place, as the provider redirects through them (`NavigationBoundary`). A
+navigation it asks about that lands in the domain of the site the tab signs
+in to, or of the site whose tab it is, SHALL close it back into the tab it
+was opened from: that tab is shown again, the sign-in tab closes, and that
+tab loads the URL, as a browser's sign-in window closes into the page that
+opened it. It needs no tap, since the provider sends it there by itself, but
+a site in the background returns nothing. A landing no callback could ask
+about (one the engine reports only once it loaded) stays in the sign-in tab:
+replaying it would spend the provider's one-time code again. With the tab it
+was opened from closed, the landing opens as a child tab (S6).
+
+A site without tabs, or with its sign-in popups off, opens the sign-in in a
+nested screen as before.
+
+#### Scenario: Continue with Google from ChatGPT
+
+**Given** a ChatGPT site with tabs, whose tab is on `auth.openai.com/log-in`
+**When** the user taps Continue with Google, and the page's form sends the tab to `accounts.google.com/o/oauth2/v2/auth?client_id=…`
+**Then** a child tab opens there, running in ChatGPT's container
+**And** Google's sign-in, its redirects through `accounts.youtube.com` and its country domain included, runs in that tab
+**When** Google sends it to `auth.openai.com/api/accounts/callback/google`
+**Then** the sign-in tab closes, and the tab the user started from loads the callback and goes on to ChatGPT, signed in
+
+#### Scenario: A link to the provider's own pages is not a sign-in
+
+**Given** a site with tabs
+**When** the user taps a link to `https://github.com/theoden8/webspace_app`
+**Then** it opens as any link to another domain does: no sign-in tab
+
+#### Scenario: A site without tabs
+
+**Given** a kiosk site, or one with Site tabs off
+**When** its page sends itself to a provider's authorization request
+**Then** the sign-in opens in a nested screen
 
 ## Implementation
 

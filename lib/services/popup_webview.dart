@@ -57,6 +57,15 @@ enum PopupKind {
         _googleSignIn(host: host, path: uri.path);
   }
 
+  /// An identity provider's OAuth authorization request (RFC 6749 4.1.1): a
+  /// sign-in host's URL that names a `client_id`. A site sends the user there
+  /// to sign in with that provider; a link to the provider's own pages names
+  /// none (NESTED-016).
+  static bool isSignInRequest(String url) =>
+      isSignInUrl(url) &&
+      (Uri.tryParse(url)?.query.split('&').any((p) => p.startsWith('client_id=')) ??
+          false);
+
   /// The popup a window request for [url] by the site at [siteUrl] opens, or
   /// null for none. With [signInPopups] (the site's [signInOpens]), the
   /// engine only asks for a window the user's tap opened (NESTED-014);

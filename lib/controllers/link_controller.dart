@@ -14,6 +14,7 @@ import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/navigation_decision_engine.dart'
     show NavigationDecision, NavigationDecisionEngine, NavigationFrame, NavigationStep;
 import 'package:webspace/services/outbound_preference.dart';
@@ -515,6 +516,25 @@ class LinkController {
   }) {
     if (!_host.mounted) return false;
     final source = owner.runningIdentity;
+    // NESTED-016: a sign-in the page sends itself to opens as a tab of the
+    // site under the tab it left, in the site's container. Ahead of the
+    // site's link mode, and of routing to another site's tab, which would sign
+    // in where the site's own session is not.
+    if (hadGesture &&
+        PopupKind.isSignInRequest(url) &&
+        source.effectiveSignInPopups &&
+        _tabs.enabledFor(owner) &&
+        !_host.kioskLocked) {
+      LogTag.linkIntent.debug('sign-in $url from ${source.siteId} as a tab',
+          sensitive: true);
+      unawaited(_tabs.openChildTab(owner,
+          url: url,
+          hostSiteId: source.siteId,
+          parentTabId: owner.activeTabId,
+          openerSiteId: source.siteId,
+          homeUrl: url));
+      return true;
+    }
     if (decision == NavigationDecision.blockOutbound) {
       if (hadGesture) showExternalLinkBlocked(url);
       return true;
@@ -905,7 +925,7 @@ class LinkController {
     if ((model.runsHostedTab || model.runsForeignTab) &&
         decision != NavigationDecision.allow &&
         getNormalizedDomain(url) == getNormalizedDomain(model.initUrl)) {
-      await _tabs.returnToOwner(model, url: url);
+      await returnToOwner(model, url: url);
       return;
     }
     switch (decision) {
@@ -983,7 +1003,7 @@ class LinkController {
       case NavigationStep.drop:
         return;
       case NavigationStep.returnToOwner:
-        await _tabs.returnToOwner(model, url: url);
+        await returnToOwner(model, url: url);
       case NavigationStep.route:
         if (routeOutbound(model, url: url, decision: decision, hadGesture: true)) return;
         if (decision == NavigationDecision.blockOpenNested) {
@@ -992,14 +1012,40 @@ class LinkController {
           await launchUrlInSystemBrowser(url);
         }
       case NavigationStep.loadHere:
-        await _tabs.runWhenIdle(() async {
-          final controller = _host.controllerOf(model);
-          if (controller == null) return;
-          await controller.loadUrl(url, language: identity.language);
-          if (!_host.mounted) return;
-          model.currentUrl = url;
-          await _host.commitSites(const SitesEdited());
-        });
+        await _loadInActiveTab(model, url: url);
     }
+  }
+
+  /// S6: a hop from a hosted or foreign tab back into the site it belongs to.
+  /// From a sign-in tab (NESTED-016) the tab it was opened from loads [url]
+  /// and the sign-in tab closes, as a sign-in window closes into the page
+  /// that opened it; from any other, [url] opens as a child tab.
+  Future<void> returnToOwner(WebViewModel model, {required String url}) async {
+    final signIn = model.activeTab;
+    final opener = signIn.parentId;
+    if (!model.isSignInTab(signIn) ||
+        opener == null ||
+        !model.tabs.any((t) => t.id == opener)) {
+      await _tabs.returnToOwner(model, url: url);
+      return;
+    }
+    LogTag.linkIntent.debug(
+        'sign-in tab ${signIn.id} of ${model.siteId} returns $url to $opener',
+        sensitive: true);
+    await _tabs.openTab(model, tabId: opener);
+    if (!_host.mounted || model.activeTabId != opener) return;
+    await _tabs.closeTab(model, tabId: signIn.id);
+    await _loadInActiveTab(model, url: url);
+  }
+
+  Future<void> _loadInActiveTab(WebViewModel model, {required String url}) async {
+    await _tabs.runWhenIdle(() async {
+      final controller = _host.controllerOf(model);
+      if (controller == null) return;
+      await controller.loadUrl(url, language: model.runningIdentity.language);
+      if (!_host.mounted) return;
+      model.currentUrl = url;
+      await _host.commitSites(const SitesEdited());
+    });
   }
 }

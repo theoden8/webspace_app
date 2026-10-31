@@ -1386,7 +1386,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       });
     };
     site.onReturnToOwner = site.effectiveTabsEnabled
-        ? (url) => unawaited(_tabs.returnToOwner(site, url: url))
+        ? (url) => unawaited(_links.returnToOwner(site, url: url))
         : null;
   }
 
