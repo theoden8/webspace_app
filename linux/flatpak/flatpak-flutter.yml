@@ -1,0 +1,170 @@
+# Input to flatpak-flutter, which writes the offline manifest
+# (page.codeberg.theoden8.webspace_app.yml) beside it. Build through
+# scripts/build_flatpak.sh; nothing here reaches the network at build time.
+id: page.codeberg.theoden8.webspace_app
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.llvm22
+command: webspace_app
+separate-locales: false
+build-options:
+  # meson and CMake pick lib64 here, which the SDK's pkg-config does not
+  # search; flatpak-builder passes this to both.
+  libdir: lib
+
+# Each entry names what needs it. Needing none: files through the FileChooser
+# portal (file_picker), links through OpenURI (url_launcher), a camera through
+# the Camera portal (WebKit's PipeWire capture), the app's own files under
+# ~/.var/app (PLATFORM-010), and its own id on the session bus (PLATFORM-011).
+finish-args:
+  # GTK's window under Wayland.
+  - --socket=wayland
+  # GTK's window under X11 where no Wayland compositor runs.
+  - --socket=fallback-x11
+  # X11 shared memory for the fallback window.
+  - --share=ipc
+  # Flutter's and WPE WebKit's GL rendering.
+  - --device=dri
+  # Every site, its proxy, and an external tor's SOCKS and control ports.
+  - --share=network
+  # WPE's GStreamer: a page's sound out, and its microphone in.
+  - --socket=pulseaudio
+  # flutter_local_notifications_linux calls it directly, not the notification portal.
+  - --talk-name=org.freedesktop.Notifications
+  # libsecret (flutter_secure_storage_linux) where no Secret portal answers.
+  - --talk-name=org.freedesktop.secrets
+  # The tray icon's RegisterStatusNotifierItem (NOTIF-019).
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Debian's tor control socket and cookie, the path the control port hint names (TOR-026).
+  - --filesystem=/run/tor:ro
+  # flatpak's default PS1 carries an emoji, and WebKit hands the whole
+  # environment to flatpak-spawn, which cannot convert it under a non-UTF-8
+  # locale and so never starts the web process.
+  - '--env=PS1=[$FLATPAK_ID \W]\$ '
+
+cleanup:
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - /share/cmake
+  - /share/pkgconfig
+  - /share/doc
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: libwpe
+    buildsystem: meson
+    config-opts:
+      - -Dbuild-docs=false
+    sources:
+      - type: archive
+        url: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz
+        sha256: c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420
+
+  # The release Debian sid ships, which CI's Linux job builds and tests the
+  # plugin against, with the same WPEPlatform backend.
+  - name: wpewebkit
+    buildsystem: cmake-ninja
+    builddir: true
+    build-options:
+      append-path: /usr/lib/sdk/llvm22/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
+      no-debuginfo: true
+      # Debug info makes WebKit's link outgrow a CI runner's memory and disk.
+      cflags: -g0
+      cxxflags: -g0
+      env:
+        CC: clang
+        CXX: clang++
+    config-opts:
+      - -DPORT=WPE
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DENABLE_DOCUMENTATION=OFF
+      - -DENABLE_INTROSPECTION=OFF
+      - -DENABLE_MINIBROWSER=OFF
+      - -DENABLE_WEBDRIVER=OFF
+      - -DENABLE_SPEECH_SYNTHESIS=OFF
+      # Inside a flatpak WebKit sandboxes its processes with flatpak-spawn,
+      # which does not depend on this option.
+      - -DENABLE_BUBBLEWRAP_SANDBOX=OFF
+      - -DENABLE_WPE_PLATFORM_DRM=OFF
+      - -DUSE_LIBBACKTRACE=OFF
+      - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
+      - -DUSE_SYSTEM_UNIFDEF=OFF
+    sources:
+      - type: archive
+        url: https://wpewebkit.org/releases/wpewebkit-2.54.2.tar.xz
+        sha256: f3284e19e47fcb5ac8c63c2e1c113dbd65b2423eb8a545f5b345707829004f56
+
+  - name: nlohmann-json
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DJSON_BuildTests=OFF
+    sources:
+      - type: archive
+        url: https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+        sha256: d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+
+  - name: webspace_app
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/llvm22/bin:/run/build/webspace_app/flutter/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
+      arch:
+        x86_64:
+          env:
+            BUNDLE: build/linux/x64/release/bundle
+            # The archive below, which linux/tor_bundle.cmake cannot download
+            # in a build with no network.
+            WEBSPACE_TOR_BUNDLE: /run/build/webspace_app/flatpak-sources/tor-expert-bundle-linux-x86_64-15.0.26.tar.gz
+        aarch64:
+          env:
+            BUNDLE: build/linux/arm64/release/bundle
+      env:
+        PUB_CACHE: /run/build/webspace_app/.pub-cache
+        WEBSPACE_UBO_SOURCE: /run/build/webspace_app/flatpak-sources/ubo
+        # rust-toolchain.toml's channel. Set here, it overrides that file,
+        # whose Android targets rustup would otherwise download.
+        RUSTUP_TOOLCHAIN: 1.94.1
+    build-commands:
+      - WEBSPACE_APPLICATION_ID="$FLATPAK_ID" flutter build linux --release --no-pub
+      - bash scripts/verify_adblock_shipped.sh linux
+      # The Tor Project publishes no Tor Expert Bundle for arm64 Linux.
+      - if [ "$FLATPAK_ARCH" = x86_64 ]; then bash scripts/verify_tor_shipped.sh "$BUNDLE"; fi
+      # The plugin copies WPE into the bundle; the copy in /app is the one
+      # it was built against.
+      - rm -f "$BUNDLE"/lib/libWPEWebKit-*.so* "$BUNDLE"/lib/libwpe-*.so*
+      - mkdir -p /app/webspace /app/bin /app/share
+      - cp -a "$BUNDLE"/share/. /app/share/
+      - rm -r "$BUNDLE"/share
+      - cp -a "$BUNDLE"/. /app/webspace/
+      - ln -s /app/webspace/webspace_app /app/bin/webspace_app
+    sources:
+      - type: git
+        url: https://github.com/theoden8/webspace_app.git
+        branch: master
+      - type: git
+        url: https://github.com/flutter/flutter.git
+        tag: 3.44.9
+        dest: flutter
+      # UBO_COMMIT in rust/webspace_adblock/build.rs.
+      - type: git
+        url: https://github.com/gorhill/uBlock.git
+        commit: a0de43aba933bc7bd79a32a2f2b6b87bf2ca5f18
+        disable-submodules: true
+        dest: flatpak-sources/ubo
+      # The Tor Expert Bundle linux/tor_bundle.cmake pins (TOR-027). The Tor
+      # Project publishes none for arm64 Linux.
+      - type: file
+        url: https://dist.torproject.org/torbrowser/15.0.26/tor-expert-bundle-linux-x86_64-15.0.26.tar.gz
+        sha256: 19cf18726eecb362e0f21d27afa9ea9efe5da928bfdfbb1ceb5fe54519e87f4a
+        dest: flatpak-sources
+        only-arches:
+          - x86_64
+    modules:
+      # flatpak-flutter generates the toolchain this names, rust-toolchain.toml's.
+      - generated/modules/rustup-1.94.1.json
