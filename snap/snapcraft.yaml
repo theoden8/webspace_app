@@ -230,6 +230,10 @@ parts:
       export PATH="$CARGO_HOME/bin:$PATH"
       rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
 
+      # The plugin links the stage's libWPEWebKit and libwpe; linking the
+      # executable resolves them through it, which -L does not reach.
+      export LDFLAGS="${LDFLAGS:+$LDFLAGS }-Wl,-rpath-link,$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
+
       # Under the application ID every native build runs as (PLATFORM-009).
       flutter build linux --release
       bash scripts/verify_adblock_shipped.sh linux
