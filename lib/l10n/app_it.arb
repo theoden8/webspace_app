@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Esegui sui siti che scegli le estensioni del browser importate da un file (un .crx di Chrome, un .xpi di Firefox o un .zip). WebKit esegue di ciascuna ciò che supporta. Un'estensione non funziona su nessun sito finché non la attivi nelle impostazioni di quel sito, e lì raggiunge solo quel sito.",
   "appSettingsExperimentalExtensionSearch": "Ricerca di estensioni",
   "appSettingsExperimentalExtensionSearchHint": "Aggiunge alla schermata \"Estensioni\" una ricerca su addons.mozilla.org, con ogni risultato etichettato in base a quanto bene WebKit dovrebbe eseguirla. Disponibile solo nelle build distribuite fuori dall'App Store e solo mentre \"Estensioni web\" è attivo.",
-  "appSettingsExperimentalDesktopTray": "Icona nell'area di notifica",
-  "appSettingsExperimentalDesktopTrayHint": "Mentre \"Continua a funzionare dopo la chiusura\" è attivo, mostra l'icona di WebSpace nella barra dei menu. Il suo menu mostra la finestra, apre un sito con le notifiche attive o esce dall'app.",
   "appSettingsExperimentalLinuxTor": "Tor integrato",
   "appSettingsExperimentalLinuxTorHint": "Offre Tor come proxy di un sito tramite un tor che l'app avvia da sé: quello incluso in questa versione o, in mancanza, il tor installato su questo computer. Ogni sito ottiene i propri circuiti. Ha effetto dal prossimo avvio dell'app.",
   "networkInterfaceTitle": "Interfaccia di rete",

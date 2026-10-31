@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Laat blaaieruitbreidings wat jy uit 'n lêer invoer ('n Chrome-.crx, 'n Firefox-.xpi of 'n .zip) loop op die werwe wat jy kies. WebKit voer uit wat dit van elkeen ondersteun. 'n Uitbreiding loop op geen werf nie totdat jy dit in daardie werf se instellings aanskakel, en daar bereik dit slegs daardie werf.",
   "appSettingsExperimentalExtensionSearch": "Uitbreidingsoektog",
   "appSettingsExperimentalExtensionSearchHint": "Voeg 'n soektog op addons.mozilla.org by die skerm \"Uitbreidings\" by, met elke resultaat gemerk volgens hoe goed WebKit dit na verwagting sal laat loop. Slegs aangebied in weergawes van buite die App Store, en net terwyl \"Webuitbreidings\" aan is.",
-  "appSettingsExperimentalDesktopTray": "Stelselbakikoon",
-  "appSettingsExperimentalDesktopTrayHint": "Terwyl \"Bly loop wanneer toegemaak\" aan is, wys dit WebSpace se ikoon in die kieslysbalk. Die kieslys daarvan wys die venster, maak 'n webwerf met kennisgewings aan oop of sluit die program af.",
   "appSettingsExperimentalLinuxTor": "Ingeboude Tor",
   "appSettingsExperimentalLinuxTorHint": "Bied Tor as 'n werf se instaanbediener aan deur 'n tor wat die toepassing self begin: die een wat hierdie weergawe saambring, of anders die tor wat op hierdie rekenaar geïnstalleer is. Elke werf kry sy eie stroombane. Tree in werking die volgende keer dat die toepassing begin.",
   "networkInterfaceTitle": "Netwerkkoppelvlak",

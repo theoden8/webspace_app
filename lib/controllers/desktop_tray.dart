@@ -8,7 +8,6 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/background_wake_engine.dart'
     show unreadCountFromTitle;
 import 'package:webspace/services/desktop_window.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/menu_bar_tray.dart';
 import 'package:webspace/services/status_notifier_tray.dart';
 import 'package:webspace/services/tray_icon.dart';
@@ -22,9 +21,7 @@ import 'package:webspace/widgets/root_messenger.dart';
 /// hides the window (NOTIF-019): it shows the window, opens a site with
 /// notifications on as a tap on its notification does, and quits. It is
 /// there exactly while [AppPref.keepRunningWhenClosed] is on, on a desktop
-/// whose runner can hide its window ([DesktopWindow.offered]), and, where
-/// the tray is still [experimental] (macOS), while its experiment is
-/// reachable.
+/// whose runner can hide its window ([DesktopWindow.offered]).
 class DesktopTray {
   DesktopTray(this._sites, {required void Function(SiteId site) open})
       : _open = open;
@@ -49,22 +46,8 @@ class DesktopTray {
       ? MenuBarTray(handlers: handlers)
       : StatusNotifierTray(handlers: handlers);
 
-  /// Whether this host shows the tray only with the Tray icon experiment on
-  /// (DEVTOOLS-011): macOS. On Linux it graduated.
-  static bool get experimental => debugExperimental ?? hostIsMacOS;
-
-  /// Lets a test run either rule whatever its host.
-  @visibleForTesting
-  static bool? debugExperimental;
-
-  /// Whether a close that only hides the window leaves an icon behind.
-  static bool get offered =>
-      !experimental ||
-      ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.desktopTray);
-
   static bool get _wanted =>
-      DesktopWindow.offered && AppPref.keepRunningWhenClosed.value && offered;
+      DesktopWindow.offered && AppPref.keepRunningWhenClosed.value;
 
   void start() {
     if (!DesktopWindow.offered) return;

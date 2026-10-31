@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Paleiskite iš failo importuotus naršyklės plėtinius (Chrome .crx, Firefox .xpi arba .zip) pasirinktose svetainėse. WebKit iš kiekvieno jų paleidžia tai, ką palaiko. Plėtinys neveikia jokioje svetainėje, kol jo neįjungsite tos svetainės nustatymuose, ir ten jis pasiekia tik tą svetainę.",
   "appSettingsExperimentalExtensionSearch": "Plėtinių paieška",
   "appSettingsExperimentalExtensionSearchHint": "Prideda addons.mozilla.org paiešką prie ekrano „Plėtiniai“, o prie kiekvieno rezultato nurodoma, kaip gerai jį turėtų vykdyti WebKit. Siūloma tik ne iš App Store gautose versijose ir tik kol įjungta „Žiniatinklio plėtiniai“.",
-  "appSettingsExperimentalDesktopTray": "Sistemos dėklo piktograma",
-  "appSettingsExperimentalDesktopTrayHint": "Kol įjungta „Veikti ir uždarius“, WebSpace piktograma rodoma meniu juostoje. Jos meniu parodo langą, atidaro svetainę su įjungtais pranešimais arba išeina iš programos.",
   "appSettingsExperimentalLinuxTor": "Įtaisytasis Tor",
   "appSettingsExperimentalLinuxTorHint": "Siūlo Tor kaip svetainės tarpinį serverį per tor, kurį programa paleidžia pati: tą, kuris pateikiamas su šia versija, o jei jo nėra, šiame kompiuteryje įdiegtą tor. Kiekviena svetainė gauna savo grandines. Įsigalioja kitą kartą paleidus programą.",
   "networkInterfaceTitle": "Tinklo sąsaja",

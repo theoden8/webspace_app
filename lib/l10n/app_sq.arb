@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Ekzekuton shtesa shfletuesi që i importon nga një skedar (Chrome .crx, Firefox .xpi ose .zip) në sajtet që zgjedh. WebKit ekzekuton atë që mbështet nga secila. Një shtesë nuk ekzekutohet në asnjë sajt derisa ta aktivizosh te cilësimet e atij sajti, dhe atje arrin vetëm atë sajt.",
   "appSettingsExperimentalExtensionSearch": "Kërkimi i shtesave",
   "appSettingsExperimentalExtensionSearchHint": "Shton në ekranin \"Shtesat\" një kërkim në addons.mozilla.org, ku çdo rezultat tregon sa mirë pritet ta ekzekutojë WebKit. Ofrohet vetëm në versione jashtë App Store dhe vetëm kur \"Shtesat e uebit\" është aktiv.",
-  "appSettingsExperimentalDesktopTray": "Ikona në tabakanë e sistemit",
-  "appSettingsExperimentalDesktopTrayHint": "Ndërsa \"Vazhdo të punojë pas mbylljes\" është aktiv, shfaq ikonën e WebSpace në shiritin e menysë. Menyja e saj shfaq dritaren, hap një sajt me njoftimet aktive ose del nga aplikacioni.",
   "appSettingsExperimentalLinuxTor": "Tor i integruar",
   "appSettingsExperimentalLinuxTorHint": "Ofron Tor si ndërmjetës të faqes përmes një tor-i që e nis vetë aplikacioni: atij që vjen me këtë version, ose përndryshe tor-it të instaluar në këtë kompjuter. Çdo faqe merr qarqet e veta. Hyn në fuqi herën tjetër që niset aplikacioni.",
   "networkInterfaceTitle": "Ndërfaqja e rrjetit",

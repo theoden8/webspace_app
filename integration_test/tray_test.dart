@@ -100,10 +100,6 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'webViewModels': [jsonEncode(chat.toJson())],
       'keepRunningWhenClosed': true,
-      // The Tray icon experiment, which developer mode gates (DEVTOOLS-011);
-      // macOS waits for it, Linux does not.
-      'developerMode': true,
-      'experimentalDesktopTray': true,
     });
   });
 

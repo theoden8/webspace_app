@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "फाइलमधून आयात केलेले ब्राउझर विस्तार (Chrome .crx, Firefox .xpi किंवा .zip) तुम्ही निवडलेल्या साइट्सवर चालवा. प्रत्येकातील जे समर्थित आहे ते WebKit चालवते. एखाद्या साइटच्या सेटिंग्जमध्ये तुम्ही चालू करेपर्यंत विस्तार कोणत्याही साइटवर चालत नाही, आणि तिथे तो फक्त त्या साइटपर्यंत पोहोचतो.",
   "appSettingsExperimentalExtensionSearch": "विस्तार शोध",
   "appSettingsExperimentalExtensionSearchHint": "\"विस्तार\" स्क्रीनमध्ये addons.mozilla.org वर शोध जोडते, आणि प्रत्येक निकालावर WebKit तो किती चांगल्या प्रकारे चालवेल अशी अपेक्षा आहे ते दाखवले जाते. फक्त App Store बाहेरील बिल्डमध्ये उपलब्ध, आणि फक्त \"वेब विस्तार\" सुरू असताना.",
-  "appSettingsExperimentalDesktopTray": "सिस्टम ट्रे आयकॉन",
-  "appSettingsExperimentalDesktopTrayHint": "\"बंद केल्यावरही सुरू राहू द्या\" सुरू असताना, मेनू बारमध्ये WebSpace चा आयकॉन दाखवते. त्याचा मेनू विंडो दाखवतो, सूचना सुरू असलेली साइट उघडतो किंवा अ‍ॅपमधून बाहेर पडतो.",
   "appSettingsExperimentalLinuxTor": "अंगभूत Tor",
   "appSettingsExperimentalLinuxTorHint": "अॅप स्वतः सुरू करत असलेल्या tor द्वारे साइटचा प्रॉक्सी म्हणून Tor देते: या बिल्डसोबत येणारा tor, नाहीतर या संगणकावर इन्स्टॉल केलेला tor. प्रत्येक साइटला स्वतःचे सर्किट मिळतात. अॅप पुढच्या वेळी सुरू झाल्यावर लागू होते.",
   "networkInterfaceTitle": "नेटवर्क इंटरफेस",

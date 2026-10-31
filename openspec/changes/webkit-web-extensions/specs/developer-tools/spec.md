@@ -40,6 +40,8 @@ WebKit content rule lists on iOS and macOS (`content-blocker` CB-020) were in th
 
 Sign-in popups (`nested-url-blocking` NESTED-014) were in the group under the Sign-in popups switch; they graduated on iOS, macOS and Linux first and then on Android, and follow the app's and each site's Sign-in popups switches in Behaviour with developer mode on or off. The switch's pref (`experimentalSignInPopups`) is no longer read.
 
+The tray icon while a close only hides the window (`web-push-notifications` NOTIF-019) was in the group under the Tray icon switch; it graduated on Linux first and then on macOS, and follows Keep running when closed alone, with developer mode on or off. The switch's pref (`experimentalDesktopTray`) is no longer read.
+
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS build with developer mode off

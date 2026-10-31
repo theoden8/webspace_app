@@ -2,23 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/controllers/desktop_tray.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/screens/app_developer.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/tray_icon.dart';
 import 'package:webspace/services/tray_menu_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 
-import 'helpers/localized.dart';
 import 'helpers/real_app.dart';
 
 /// NOTIF-019 in the real app: the tray is there exactly while a close only
-/// hides the window (on macOS, while its experiment is reachable too), it
-/// lists the sites with notifications on, and a press on one opens it as a
-/// tap on its notification does. The status area itself is
-/// a fake; the D-Bus side is held by status_notifier_tray_test.dart and the
+/// hides the window, with developer mode on or off, it lists the sites with
+/// notifications on, and a press on one opens it as a tap on its
+/// notification does. The status area itself is a fake; the D-Bus side is held by status_notifier_tray_test.dart and the
 /// runners' by integration_test/tray_test.dart.
 void main() {
   final chat = WebViewModel(initUrl: 'https://chat.example.test', name: 'Chat')
@@ -31,21 +26,13 @@ void main() {
     tray = _FakeTray();
     DesktopTray.debugIconOverride = (handlers) => tray..handlers = handlers;
   });
-  tearDown(() {
-    DesktopTray.debugIconOverride = null;
-    DesktopTray.debugExperimental = null;
-  });
+  tearDown(() => DesktopTray.debugIconOverride = null);
 
   Finder inAppBar(String text) =>
       find.descendant(of: find.byType(AppBar), matching: find.text(text));
 
-  /// Keep running when closed, and the Tray icon experiment reachable where
-  /// it is one.
-  const trayOn = {
-    'keepRunningWhenClosed': true,
-    'developerMode': true,
-    'experimentalDesktopTray': true,
-  };
+  /// Keep running when closed, which is all the tray needs.
+  const trayOn = {'keepRunningWhenClosed': true};
 
   testWidgets('NOTIF-019 the tray lists the notifying sites while a close '
       'only hides the window, and goes when that is turned off', (tester) async {
@@ -84,64 +71,23 @@ void main() {
 
   testWidgets('NOTIF-019 with the window closing as it always has there is '
       'no tray', (tester) async {
-    await pumpRealApp(tester, sites: [news, chat], prefs: {
-      'developerMode': true,
-      'experimentalDesktopTray': true,
-    });
+    await pumpRealApp(tester,
+        sites: [news, chat], prefs: {'developerMode': true});
 
     expect(tray.lines, isNull);
   }, skip: !DesktopWindow.offered);
 
-  testWidgets('NOTIF-019 on Linux the tray needs only Keep running when '
-      'closed', (tester) async {
-    DesktopTray.debugExperimental = false;
-    await pumpRealApp(tester,
-        sites: [news, chat], prefs: {'keepRunningWhenClosed': true});
+  testWidgets('NOTIF-019 the tray needs only Keep running when closed, not '
+      'developer mode', (tester) async {
+    await pumpRealApp(tester, sites: [news, chat], prefs: trayOn);
     expect(tray.lines, contains('Show WebSpace'));
 
-    await tester.runAsync(() => AppPref.keepRunningWhenClosed.set(false));
+    await tester.runAsync(() => AppPref.developerMode.set(true));
     await settleRealApp(tester);
-    expect(tray.lines, isNull);
-  }, skip: !DesktopWindow.offered);
-
-  testWidgets('NOTIF-019 on macOS the tray waits for its experiment, which '
-      'developer mode gates', (tester) async {
-    DesktopTray.debugExperimental = true;
-    await pumpRealApp(tester,
-        sites: [news, chat], prefs: {'keepRunningWhenClosed': true});
-    expect(tray.lines, isNull, reason: 'the experiment is off');
-
-    await tester.runAsync(() async {
-      await AppPref.developerMode.set(true);
-      await AppPref.experimentalDesktopTray.set(true);
-    });
-    await settleRealApp(tester);
-    expect(tray.lines, contains('Show WebSpace'));
-
     await tester.runAsync(() => AppPref.developerMode.set(false));
     await settleRealApp(tester);
-    expect(tray.lines, isNull,
-        reason: 'an experiment is reachable only in developer mode');
-  }, skip: !DesktopWindow.offered);
-
-  testWidgets('NOTIF-019 the Experimental group offers the tray only where '
-      'it waits for its experiment', (tester) async {
-    late AppLocalizations loc;
-    await pumpLocalized(tester, home: Builder(builder: (context) {
-      loc = AppLocalizations.of(context);
-      return const SizedBox();
-    }));
-    ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.desktopTray, on: true);
-    addTearDown(() => ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.desktopTray, on: false));
-
-    DesktopTray.debugExperimental = true;
-    expect(experimentsOn(loc), contains(loc.appSettingsExperimentalDesktopTray));
-
-    DesktopTray.debugExperimental = false;
-    expect(experimentsOn(loc),
-        isNot(contains(loc.appSettingsExperimentalDesktopTray)));
+    expect(tray.lines, contains('Show WebSpace'),
+        reason: 'the tray is no experiment, so developer mode leaves it');
   }, skip: !DesktopWindow.offered);
 
   testWidgets('NOTIF-019 a site pressed in the tray opens in the window it '
