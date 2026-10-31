@@ -218,6 +218,17 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [CloseTab(0, tab: 0)],
     breaks: 'outlived its tab',
   ),
+  Mutant.subtreekeepsslot => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), ChildTab(0)],
+    script: const [CloseTab(0, tab: 0, fromSheet: true, subtree: true)],
+    breaks: 'while its active tab is',
+  ),
   Mutant.torkeepsslot => _By(
     world: (d) => ActivationWorld(
       _mixedContainers,

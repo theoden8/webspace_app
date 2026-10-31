@@ -133,10 +133,9 @@ void main() {
 
   // The close's landing moved the active tab only when the tab asked for
   // was the active one, so a subtree close that took the active tab as a
-  // descendant left it naming a closed tab. Limits: the model's tabs have
-  // no parent (a close takes one tab, HandPaired.closedTabIds), so no
-  // schedule replays a subtree close; and this slot has no webview, so the
-  // rebind arm a live one takes is held only by the same condition.
+  // descendant left it naming a closed tab. The schedules replay the same
+  // close on a live slot, and Mutant.subtreekeepsslot plants the rebind's
+  // half of the mistake.
   test('a subtree close that takes the active tab lands on a survivor '
       '(TAB-008, TAB-003)', () async {
     final site = WebViewModel(initUrl: 'https://example.com/');

@@ -380,4 +380,33 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
 
   String choicesTla(Expr<int, Object?> size) =>
       '{C \\in SUBSET ${tlaOperand(tla)} : Cardinality(C) = ${tlaOperand(size.tla)}}';
+
+  /// `{C \in SUBSET S : m \in C /\ (C # S \/ whole)}`: the sets drawn from
+  /// this one that hold [member], all of it only where [whole] holds. The
+  /// model may take any; the code takes [taken], asserted to be one of them.
+  Expr<List<List<E>>, W> choicesHolding({
+    required Expr<E, W> member,
+    required Expr<bool, W> whole,
+    required List<E> Function(StepView<W> c) taken,
+  }) {
+    final s = tlaOperand(tla);
+    final tlaText =
+        '{C \\in SUBSET $s : ${tlaOperand(member.tla)} \\in C '
+        '/\\ (C # $s \\/ ${tlaOperand(whole.tla)})}';
+    return Expr._(
+      run: (c) {
+        final pick = taken(c);
+        assert(() {
+          final all = run(c).toSet();
+          return pick.toSet().length == pick.length &&
+              all.containsAll(pick) &&
+              pick.contains(member.run(c)) &&
+              (pick.length < all.length || whole.run(c));
+        }(), 'the code took $pick, which $tlaText does not offer');
+        return [pick];
+      },
+      tla: tlaText,
+      reads: reads + member.reads + whole.reads,
+    );
+  }
 }
