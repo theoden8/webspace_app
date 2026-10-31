@@ -16,7 +16,7 @@ set -euo pipefail
 
 : "${DBUS_SESSION_BUS_ADDRESS:?run under dbus-run-session}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
-id="$(sed -n 's/^  set(APPLICATION_ID "\([a-z.]*\)")$/\1/p' "$root/linux/CMakeLists.txt")"
+id="$(sed -n 's/^  set(APPLICATION_ID "\([[:alnum:]_.]*\)")$/\1/p' "$root/linux/CMakeLists.txt")"
 [ -n "$id" ] || { echo "::error::no default APPLICATION_ID in linux/CMakeLists.txt" >&2; exit 1; }
 
 work="$(mktemp -d)"

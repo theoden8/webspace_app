@@ -6,7 +6,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read } = require('./helpers/source');
+const { execFileSync } = require('node:child_process');
+const { REPO, read } = require('./helpers/source');
 
 const MANIFEST = 'snap/snapcraft.yaml';
 const manifest = read(MANIFEST);
@@ -38,6 +39,17 @@ test('the snap runs the app under the native application ID (PLATFORM-009)', () 
     assert.match(manifest, new RegExp(`^ {4}${key}: ${path.replaceAll('.', '\\.')}$`, 'm'),
       `${MANIFEST}: the app's ${key} is not ${path}`);
   }
+});
+
+// scripts/check_snap.sh reads the id with sed, and a pattern that misses it
+// fails only in CI's snap job, hours into the build.
+test('check_snap.sh reads the application ID this gate reads', () => {
+  const script = 'scripts/check_snap.sh';
+  const expr = read(script)
+    .match(/^id="\$\(sed -n '([^']+)' "\$root\/linux\/CMakeLists\.txt"\)"$/m)?.[1];
+  assert.ok(expr, `${script}: the sed reading APPLICATION_ID not found`);
+  const id = execFileSync('sed', ['-n', expr, 'linux/CMakeLists.txt'], { cwd: REPO, encoding: 'utf8' });
+  assert.equal(id.trim(), nativeId, `${script} reads ${JSON.stringify(id.trim())}, not ${nativeId}`);
 });
 
 // GApplication owns the application ID on the session bus, and strict
