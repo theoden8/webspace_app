@@ -109,11 +109,21 @@ jobs:
             exit 1
           fi
 
+      # In the runner user's own session, as a desktop user runs it: lingering
+      # starts the user's systemd and its bus, which snap run needs
+      # (scripts/check_snap.sh says why).
       - name: Run the snap with a site
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb libglib2.0-bin
-          dbus-run-session -- bash scripts/check_snap.sh
+          sudo apt-get install -y --no-install-recommends xvfb libglib2.0-bin dbus-user-session
+          sudo loginctl enable-linger "$USER"
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          for _ in $(seq 30); do
+            [ -S "$XDG_RUNTIME_DIR/bus" ] && break
+            sleep 1
+          done
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          bash scripts/check_snap.sh
 
       - name: Upload snap
         uses: actions/upload-artifact@v4

@@ -7,14 +7,20 @@
 # opens the site, whose page is requested, with WebKit's web and network
 # processes started from the snap's copies through the layout.
 #
-#   dbus-run-session -- scripts/check_snap.sh
+#   scripts/check_snap.sh
 #
-# Needs the snap installed with its content plugs connected, Xvfb, python3,
-# gdbus and a session bus. Prints the AppArmor denials the run caused either
-# way.
+# Runs in a user session whose bus has the user's systemd on it: snap run puts
+# the app in a systemd scope, the cgroup a core24 snap's device rules attach
+# to, and snap-confine refuses to start it anywhere else. A bare
+# dbus-run-session bus has no systemd. Needs the snap installed with its
+# content plugs connected, Xvfb, python3 and gdbus. Prints the AppArmor
+# denials the run caused either way.
 set -euo pipefail
 
-: "${DBUS_SESSION_BUS_ADDRESS:?run under dbus-run-session}"
+: "${DBUS_SESSION_BUS_ADDRESS:?run in a user session}"
+gdbus call --session --dest org.freedesktop.systemd1 --object-path /org/freedesktop/systemd1 \
+  --method org.freedesktop.DBus.Peer.Ping > /dev/null \
+  || { echo "::error::no systemd on the session bus, so snap run cannot start the app" >&2; exit 1; }
 root="$(cd "$(dirname "$0")/.." && pwd)"
 id="$(sed -n 's/^  set(APPLICATION_ID "\([[:alnum:]_.]*\)")$/\1/p' "$root/linux/CMakeLists.txt")"
 [ -n "$id" ] || { echo "::error::no default APPLICATION_ID in linux/CMakeLists.txt" >&2; exit 1; }
