@@ -198,7 +198,7 @@ test('TOR-001: nothing hardcodes Tor\'s default SOCKS port', () => {
 // fixed subset without TOR (the gateway form offers kGatewayTypes), and so is
 // a picker that offers gateways only (the saved proxy form). Whether a type
 // has an address to validate and fields to show is ProxyTypeForm's exhaustive
-// switch, so what is left here is that a screen asks whether Tor runs.
+// switch, so what is left here is that a screen asks whether Tor is offered.
 test('TOR-007: every ProxyType dropdown handles TOR', () => {
   const screens = [];
   for (const dir of ['lib/screens', 'lib/widgets']) {
@@ -229,10 +229,11 @@ test('TOR-007: every ProxyType dropdown handles TOR', () => {
   for (const rel of screens) {
     const src = read(rel);
     assert.match(
-      src, /TorService\.instance\.isAvailable/,
-      `${rel} renders a ProxyType dropdown but never consults ` +
-      'TorService.isAvailable, so it offers TOR on platforms with no Tor ' +
-      'runtime (TOR-007).',
+      src, /torAvailable: TorService\.instance\.offered/,
+      `${rel} renders a ProxyType dropdown but does not take ` +
+      'TorService.offered, so it offers TOR on platforms with no Tor ' +
+      'runtime, or hides it where the Built-in Tor experiment offers it ' +
+      '(TOR-007, TOR-027).',
     );
   }
 });

@@ -530,7 +530,7 @@ void main() {
         (t) async {
       TorService.overrideEngine(
         TorEngine(runtime: FakeTorRuntime(isAvailable: false), sessionSecret: 's'),
-        builtInOffered: true,
+        builtInOffered: () => true,
       );
       await t.pumpWidget(
           host(const TorBootstrapPlaceholder(), size: const Size(430, 430)));

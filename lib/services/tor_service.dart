@@ -32,8 +32,10 @@ import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_log.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 export 'package:webspace/services/tor_holders.dart';
 export 'package:webspace/services/tor_engine.dart'
@@ -326,16 +328,20 @@ class TorService {
     TorEngine? embedded,
     TorEngine? external,
     ExternalTorRuntime? externalRuntime,
-    this.builtInOffered = false,
+    required this._builtInOffered,
   })  : assert(embedded != null || external != null),
         _embedded = embedded,
         _externalEngine = external,
         _externalRuntime = externalRuntime {
     _externalActive = _resolveExternal();
+    _builtInAsked = _builtInLive;
+    // The Built-in Tor experiment moves with its switch, with developer mode
+    // and with an import, each a pref (TOR-027).
+    AppPref.anyChange.addListener(_prefsMoved);
     _logs.start();
     for (final engine in [embedded, external].nonNulls) {
       _engineSubs.add(engine.statusStream.listen((s) {
-        if (identical(engine, _engine)) _forward(s);
+        if (identical(engine, _engine) && isAvailable) _forward(s);
       }));
     }
   }
@@ -351,14 +357,6 @@ class TorService {
   static bool _never() => false;
 
   static TorService _production() {
-    // Once, at launch: the Linux experiment's switch takes effect the next
-    // time the app starts, as Texture page rendering's does.
-    final offered = !kIsWeb &&
-        builtInTorOffered(
-          platform: defaultTargetPlatform,
-          linuxExperiment: ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.linuxTor),
-        );
     final externalRuntime = externalTorRunsHere
         ? ExternalTorRuntime(
             address: () => ExternalTorSettings.address,
@@ -369,7 +367,7 @@ class TorService {
         : null;
     final service = TorService._(
       embedded: TorEngine(
-        runtime: _builtInRuntime(offered: offered),
+        runtime: _builtInRuntime(),
         sessionSecret: newSessionSecret(),
         // The engine reads bridges itself rather than waiting for a startup
         // call to push them: nothing on a cold start opens the bridge
@@ -391,7 +389,8 @@ class TorService {
               socksProbe: createTorSocksProbe(),
             ),
       externalRuntime: externalRuntime,
-      builtInOffered: offered,
+      builtInOffered: () =>
+          !kIsWeb && builtInOfferedNow(platform: defaultTargetPlatform),
     );
     // Here rather than in a screen, so every way back into the foreground
     // reaches it, whatever is on screen (TOR-024).
@@ -399,12 +398,24 @@ class TorService {
     return service;
   }
 
+  /// Whether [platform] offers its built-in Tor with the Experimental
+  /// switches as they are now (TOR-027).
+  static bool builtInOfferedNow({required TargetPlatform platform}) =>
+      builtInTorOffered(
+        platform: platform,
+        linuxExperiment: ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.linuxTor),
+      );
+
   /// The built-in Tor: Tor.framework behind the Apple plugin's channels, or
-  /// on Linux a tor the app starts as a child process (TOR-027). Linux with
-  /// the experiment off, or with no tor to start, gets the channel runtime,
-  /// which is not available there, so Tor is not offered (TOR-007).
-  static TorRuntime _builtInRuntime({required bool offered}) =>
-      (offered && !_hasNativeTor ? createManagedTorRuntime() : null) ??
+  /// on Linux a tor the app starts as a child process (TOR-027), built
+  /// whatever the experiment says, since nothing starts it until a site is
+  /// held, and that waits for the experiment. Linux with no tor to start
+  /// gets the channel runtime, which is not available there.
+  static TorRuntime _builtInRuntime() =>
+      (defaultTargetPlatform == TargetPlatform.linux
+          ? createManagedTorRuntime()
+          : null) ??
       MethodChannelTorRuntime();
 
   /// How the external runtime reaches its tor's control port, where one
@@ -425,13 +436,21 @@ class TorService {
 
   /// Swap in an engine backed by a fake runtime. Tests only. Pass
   /// [external] when the engine's runtime is an [ExternalTorRuntime].
+  /// The built-in Tor is offered where its runtime is, as on Apple and
+  /// Android; pass [builtInOffered] to play Linux, which offers it by its
+  /// experiment whether or not a tor is here.
   @visibleForTesting
   static void overrideEngine(TorEngine engine,
-      {ExternalTorRuntime? external, bool builtInOffered = false}) {
+      {ExternalTorRuntime? external, bool Function()? builtInOffered}) {
     _instance?._cancelSubs();
     _instance = external == null
-        ? TorService._(embedded: engine, builtInOffered: builtInOffered)
-        : TorService._(external: engine, externalRuntime: external);
+        ? TorService._(
+            embedded: engine,
+            builtInOffered: builtInOffered ?? () => engine.isAvailable)
+        : TorService._(
+            external: engine,
+            externalRuntime: external,
+            builtInOffered: builtInOffered ?? _never);
   }
 
   /// Both engines, with [wantsExternal] choosing between them. Tests only.
@@ -446,6 +465,7 @@ class TorService {
       embedded: embedded,
       external: external,
       externalRuntime: externalRuntime,
+      builtInOffered: () => embedded.isAvailable,
     );
   }
 
@@ -460,12 +480,29 @@ class TorService {
     await service._embedded?.dispose();
     await service._externalEngine?.dispose();
     await service._statuses.close();
+    await service._availability.close();
   }
 
-  /// Whether this platform offers a built-in Tor, as decided at launch
-  /// ([builtInTorOffered]). Offered and not [isAvailable] is a Linux machine
-  /// with no tor to start.
-  final bool builtInOffered;
+  /// Whether this platform offers a built-in Tor now ([builtInTorOffered]):
+  /// read live, so the Linux experiment takes effect as it moves. Offered
+  /// and not [isAvailable] is a Linux machine with no tor to start.
+  bool get builtInOffered => _builtInOffered();
+  final bool Function() _builtInOffered;
+
+  /// Whether the built-in engine may carry traffic: offered, and with a
+  /// runtime here.
+  bool get _builtInLive =>
+      builtInOffered && (_embedded?.isAvailable ?? false);
+
+  /// [_builtInLive] as the last move of the experiment queued it.
+  late bool _builtInAsked;
+
+  /// What [syncHolders] last asked for, kept while Tor is not available so
+  /// it is held as soon as it is.
+  Set<TorHolder> _wanted = const {};
+
+  /// Moves of the experiment, one at a time.
+  final SerialQueue _builtInTurns = SerialQueue('torBuiltIn');
 
   final TorEngine? _embedded;
   final TorEngine? _externalEngine;
@@ -488,6 +525,7 @@ class TorService {
   }
 
   void _cancelSubs() {
+    AppPref.anyChange.removeListener(_prefsMoved);
     for (final sub in _engineSubs) {
       unawaited(sub.cancel());
     }
@@ -556,26 +594,41 @@ class TorService {
   Future<void> _switchTo({required bool external}) async {
     if (external == _externalActive) return;
     final from = _engine;
-    final holders = from.holders.toSet();
+    final holders = {...from.holders, ..._wanted};
+    final wasAvailable = isAvailable;
     _externalActive = external;
     LogTag.tor.debug(
         'Switched to the ${external ? 'external' : 'built-in'} tor');
-    _forward(_engine.status);
+    _forward(status);
     await from.syncHolders(const <TorHolder>[]);
     // An external tor left behind gets back whatever exit pin the app put
     // in it (TOR-026). Stopping it costs a probe on the way back; the
     // embedded one is never stopped (TOR-020).
     if (identical(from, _externalEngine)) await _externalRuntime?.stop();
-    if (!_engine.isAvailable) return;
+    if (isAvailable) await _takeOver(holders);
+    if (isAvailable != wasAvailable) _availability.add(null);
+  }
+
+  /// The engine now answering takes over: the last exit pin asked for, what
+  /// wants Tor, and its listener asked as on a resume, since an engine up
+  /// before it was left may be up on one that has since gone (a tor quit, a
+  /// suspension).
+  Future<void> _takeOver(Set<TorHolder> holders) async {
     final pin = _exitRequest;
     if (pin != null) {
       unawaited(_engine.setExitCountry(pin.$1, mayFetchGeoIp: pin.$2));
     }
     await _engine.syncHolders(holders);
-    // An engine that was up before it was left may be up on a listener that
-    // has since gone (a tor quit, a suspension): asked as on a resume.
     await _engine.revive();
   }
+
+  /// Each change of [isAvailable], once the engine answering holds what
+  /// wants Tor. Activation leaves exit pins alone while Tor is not
+  /// available, so the page settles its Tor sites' pins again on it
+  /// (TOR-014).
+  Stream<void> get availabilityChanges => _availability.stream;
+  final StreamController<void> _availability =
+      StreamController<void>.broadcast();
 
   /// Ask the external tor again after its address or its control port
   /// changed. Nothing to ask while nothing has used it: the next start
@@ -589,13 +642,45 @@ class TorService {
     await runtime.reconnect();
   }
 
-  /// Whether anything may offer or start Tor: this build has the runtime
-  /// (TOR-007), or the external tor is chosen (TOR-025). Every start path
-  /// below re-checks it, so the answer does not depend on the caller having
-  /// asked first.
-  bool get isAvailable => _engine.isAvailable;
+  /// Whether anything may start Tor or route through it: this build has the
+  /// runtime and offers it (TOR-007, TOR-027), or the external tor is chosen
+  /// (TOR-025). Every start path below re-checks it, so the answer does not
+  /// depend on the caller having asked first.
+  bool get isAvailable =>
+      _externalActive ? _engine.isAvailable : _builtInLive;
 
-  TorStatus get status => _engine.status;
+  /// Whether the proxy pickers offer `TOR`: it is [isAvailable], or this
+  /// platform offers a built-in Tor and lacks only a tor to start, which a
+  /// site set to it then says (TOR-027).
+  bool get offered => isAvailable || (!_externalActive && builtInOffered);
+
+  /// Follow the Built-in Tor experiment as it moves (TOR-027): what wants
+  /// Tor is held once it is offered, and let go when it is not, with
+  /// `stopped` published so every Tor-bound site rebinds and blocks. tor is
+  /// left running, as a release always leaves it (TOR-020).
+  Future<void> builtInChoiceChanged() {
+    final live = _builtInLive;
+    if (live == _builtInAsked) return Future<void>.value();
+    _builtInAsked = live;
+    return _builtInTurns.run(() async {
+      LogTag.tor.debug(live
+          ? 'The built-in Tor is offered'
+          : 'The built-in Tor is no longer offered');
+      if (_externalActive) return;
+      if (live) {
+        _forward(_engine.status);
+        await _takeOver(_wanted);
+      } else {
+        _forward(const TorStopped());
+        await _engine.syncHolders(const <TorHolder>[]);
+      }
+      _availability.add(null);
+    });
+  }
+
+  void _prefsMoved() => unawaited(builtInChoiceChanged());
+
+  TorStatus get status => isAvailable ? _engine.status : const TorStopped();
 
   /// What holds the runtime up.
   Set<TorHolder> get holders => _engine.holders;
@@ -603,7 +688,7 @@ class TorService {
 
   /// `host:port` of the live SOCKS5 listener, or null when not up.
   String? get socksEndpoint {
-    final s = _engine.status;
+    final s = status;
     return s is TorUp ? '${s.host}:${s.port}' : null;
   }
 
@@ -632,8 +717,9 @@ class TorService {
   }
 
   Future<void> syncHolders(Iterable<TorHolder> holders) async {
+    _wanted = holders.toSet();
     if (!isAvailable) return;
-    await _engine.syncHolders(holders);
+    await _engine.syncHolders(_wanted);
   }
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();

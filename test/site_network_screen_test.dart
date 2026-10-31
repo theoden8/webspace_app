@@ -4,13 +4,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_network.dart';
+import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
+import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
+import 'helpers/fake_tor_runtime.dart';
 import 'helpers/mock_secure_storage.dart';
 
 SiteNetworkValues _values({
@@ -204,6 +209,35 @@ void main() {
     expect(reported?.proxyType, ProxyType.TOR);
     expect(reported?.torExitCountry, isNull);
     expect(find.text('Any country'), findsOneWidget);
+  });
+
+  testWidgets('TOR-027 the Built-in Tor experiment puts TOR in the picker '
+      'without a relaunch, even with no tor here', (tester) async {
+    DeveloperModeService.instance.debugSet(on: true);
+    TorService.overrideEngine(
+      TorEngine(runtime: FakeTorRuntime(isAvailable: false), sessionSecret: 's'),
+      builtInOffered: () =>
+          TorService.builtInOfferedNow(platform: TargetPlatform.linux),
+    );
+    addTearDown(() async {
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.linuxTor, on: false);
+      DeveloperModeService.instance.debugSet(on: false);
+      await TorService.reset();
+    });
+
+    Future<Finder> options() async {
+      await _pump(tester, values: _values());
+      await tester.tap(_proxyDropdown);
+      await tester.pumpAndSettle();
+      return find.text('TOR');
+    }
+
+    expect(await options(), findsNothing);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.linuxTor, on: true);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(await options(), findsWidgets);
   });
 
   testWidgets('WebRTC policy reports the whole value', (tester) async {
