@@ -477,6 +477,106 @@ void main() {
     );
   });
 
+  group('a relay that stops answering (PROXY-032)', () {
+    final a = RouterIdentity.ofSite(SiteId('a'));
+    const unreachable = 'net::ERR_PROXY_CONNECTION_FAILED';
+    late FakeOverride override;
+
+    Future<void> start() async {
+      override = FakeOverride();
+      final port = await service.activate(
+        perSiteProxies: {a: proxy(ProxyType.HTTP, address: '10.0.0.1:8080')},
+        override: override,
+      );
+      expect(port, 43210);
+    }
+
+    test('is bound again, its routes and the rule with it (PROXY-032)',
+        () async {
+      await start();
+      final credential = service.credentialFor(a);
+      relay.serves = false;
+      relay.nextPort = 43211;
+
+      expect(await service.recover(), RelayRecovery.rebound);
+
+      expect(service.isActive, isTrue);
+      expect(service.port, 43211);
+      expect(relay.stopCalls, 1,
+          reason: 'a wedged listener is still open, so it is closed first');
+      expect(override.steps.last, 'bind ${FakeRelay.boundHost}:43211');
+      expect(service.credentialFor(a), credential,
+          reason: 'the same run: the realm and every credential stay');
+      expect(relay.resolve(credential!)!['host'], '10.0.0.1',
+          reason: 'the new listener carries every route');
+    });
+
+    test('that still answers gets its rule back and no reload (PROXY-032)',
+        () async {
+      await start();
+      var reloads = 0;
+
+      await service.loadFailed(unreachable, reload: () async => reloads++);
+
+      expect(relay.startCalls, 1, reason: 'a relay that answers stays');
+      expect(override.steps, [
+        'bind ${FakeRelay.boundHost}:43210',
+        'bind ${FakeRelay.boundHost}:43210',
+      ]);
+      expect(reloads, 0,
+          reason: 'a load that keeps failing past a relay that answers would '
+              'otherwise reload forever');
+    });
+
+    test('is recovered once for every site that lost it at once (PROXY-032)',
+        () async {
+      await start();
+      relay.serves = false;
+
+      final both = await Future.wait([service.recover(), service.recover()]);
+
+      expect(both, [RelayRecovery.rebound, RelayRecovery.rebound]);
+      expect(relay.startCalls, 2, reason: 'the launch, then one rebind');
+    });
+
+    test('that cannot be bound again takes the router down for the run, the '
+        'rule left on it (PROXY-032)', () async {
+      await start();
+      relay.serves = false;
+      relay.canBind = false;
+
+      expect(await service.recover(), RelayRecovery.lost);
+
+      expect(service.isActive, isFalse);
+      expect(service.failed, isTrue);
+      expect(service.relayDown, isTrue,
+          reason: 'a proxied site shows the block');
+      expect(override.steps, isNot(contains('clear')),
+          reason: 'a proxied site already loaded would go out direct');
+    });
+
+    test('is asked about only for a proxy nothing answers, and only a rebind '
+        'reloads (PROXY-032)', () async {
+      await start();
+      var reloads = 0;
+
+      await service.loadFailed('net::ERR_TUNNEL_CONNECTION_FAILED',
+          reload: () async => reloads++);
+      await service.loadFailed('net::ERR_NAME_NOT_RESOLVED',
+          reload: () async => reloads++);
+      expect(relay.servingCalls, 0);
+
+      relay.serves = false;
+      await service.loadFailed(unreachable, reload: () async => reloads++);
+      expect(reloads, 1);
+    });
+
+    test('is nothing to recover while no router runs (PROXY-032)', () async {
+      expect(await service.recover(), RelayRecovery.none);
+      expect(relay.servingCalls, 0);
+    });
+  });
+
   group('attribution self-test (PROXY-015)', () {
     /// A device that behaves: each container presents its own credential,
     /// so every nonce comes back stamped with its own identity.

@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS ಪ್ರಾಕ್ಸಿ ಇನ್ನೂ ಇದನ್ನು ಬಳಸಲು ಸಾಧ್ಯವಿಲ್ಲ",
   "appSettingsExperimentalNetworkInterface": "ಪ್ರತಿ ಸೈಟ್‌ಗೆ ನೆಟ್‌ವರ್ಕ್ ಇಂಟರ್‌ಫೇಸ್",
   "appSettingsExperimentalNetworkInterfaceHint": "ಪ್ರತಿ ಸೈಟ್ ತನ್ನ ನೆಟ್‌ವರ್ಕ್ ಪರದೆಯಲ್ಲಿ ತನ್ನ ಟ್ರಾಫಿಕ್ ಹೊರಹೋಗುವ ನೆಟ್‌ವರ್ಕ್ ಇಂಟರ್‌ಫೇಸ್ ಅನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಬಿಡುತ್ತದೆ, ಉದಾಹರಣೆಗೆ ಹಲವು VPN ಗಳಲ್ಲಿ ಒಂದರ ಸುರಂಗ. ಇಂಟರ್‌ಫೇಸ್ ಸ್ಥಗಿತವಾಗಿರುವ ಸೈಟ್ ಬೇರೆ ಸಂಪರ್ಕ ಬಳಸುವ ಬದಲು ಏನನ್ನೂ ಲೋಡ್ ಮಾಡುವುದಿಲ್ಲ.",
+  "appSettingsExperimentalServiceWorkers": "ಬ್ಲಾಕರ್‌ಗಳ ಮೂಲಕ ಸರ್ವೀಸ್ ವರ್ಕರ್‌ಗಳು",
+  "appSettingsExperimentalServiceWorkersHint": "ಪ್ರತಿ ಸೈಟ್‌ಗೆ ತನ್ನದೇ ಕಂಟೇನರ್ ಇರುವಲ್ಲಿ, ಸೈಟ್‌ನ ಸರ್ವೀಸ್ ವರ್ಕರ್‌ಗಳು (ಕೆಲವು ಸೈಟ್‌ಗಳು ಆಫ್‌ಲೈನ್ ಪುಟಗಳು, ಕ್ಯಾಶಿಂಗ್ ಮತ್ತು ಅಪ್‌ಡೇಟ್‌ಗಳಿಗೆ ಬಳಸುವ ಹಿನ್ನೆಲೆ ಸ್ಕ್ರಿಪ್ಟ್‌ಗಳು) ಆ ಸೈಟ್‌ನ DNS ನಿರ್ಬಂಧಪಟ್ಟಿ, ಫಿಲ್ಟರ್ ಪಟ್ಟಿಗಳು ಮತ್ತು LocalCDN ಮೂಲಕ ಲೋಡ್ ಆಗುತ್ತವೆ ಮತ್ತು ನೆಟ್‌ವರ್ಕ್ ತಲುಪಬಹುದು. ಅಪ್ಲಿಕೇಶನ್ ಮುಂದಿನ ಬಾರಿ ಪ್ರಾರಂಭವಾದಾಗ ಜಾರಿಗೆ ಬರುತ್ತದೆ.",
   "appSettingsExtensions": "ವಿಸ್ತರಣೆಗಳು",
   "appSettingsExtensionsNone": "ಯಾವುದನ್ನೂ ಆಮದು ಮಾಡಿಲ್ಲ",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ವಿಸ್ತರಣೆ} other{{count} ವಿಸ್ತರಣೆಗಳು}}",

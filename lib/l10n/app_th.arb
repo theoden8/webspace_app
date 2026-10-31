@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "พร็อกซี HTTPS ยังใช้อินเทอร์เฟซไม่ได้",
   "appSettingsExperimentalNetworkInterface": "อินเทอร์เฟซเครือข่ายสำหรับแต่ละเว็บไซต์",
   "appSettingsExperimentalNetworkInterfaceHint": "ให้แต่ละเว็บไซต์เลือกอินเทอร์เฟซเครือข่ายที่ทราฟฟิกออกไปได้ในหน้าจอเครือข่ายของตน เช่น อุโมงค์ของ VPN หนึ่งจากหลายตัว เว็บไซต์ที่อินเทอร์เฟซใช้งานไม่ได้จะไม่โหลดอะไรเลยแทนที่จะใช้การเชื่อมต่ออื่น",
+  "appSettingsExperimentalServiceWorkers": "Service worker ผ่านตัวบล็อก",
+  "appSettingsExperimentalServiceWorkersHint": "เมื่อแต่ละเว็บไซต์มีคอนเทนเนอร์ของตัวเอง service worker ของเว็บไซต์ (สคริปต์เบื้องหลังที่บางเว็บไซต์ใช้สำหรับหน้าออฟไลน์ การแคช และการอัปเดต) จะโหลดผ่านบัญชีบล็อก DNS รายการตัวกรอง และ LocalCDN ของเว็บไซต์นั้น และเข้าถึงเครือข่ายได้ มีผลเมื่อแอปเริ่มทำงานครั้งถัดไป",
   "appSettingsExtensions": "ส่วนขยาย",
   "appSettingsExtensionsNone": "ไม่มีที่นำเข้า",
   "appSettingsExtensionsCount": "{count, plural, other{ส่วนขยาย {count} รายการ}}",

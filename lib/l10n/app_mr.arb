@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS प्रॉक्सी अजून याचा वापर करू शकत नाही",
   "appSettingsExperimentalNetworkInterface": "प्रत्येक साइटसाठी नेटवर्क इंटरफेस",
   "appSettingsExperimentalNetworkInterfaceHint": "प्रत्येक साइटला तिच्या नेटवर्क स्क्रीनवर तो नेटवर्क इंटरफेस निवडू देतो ज्यातून तिचा ट्रॅफिक बाहेर जातो, जसे अनेकांपैकी एका VPN चा बोगदा. ज्या साइटचा इंटरफेस बंद आहे ती दुसरे कनेक्शन वापरण्याऐवजी काहीही लोड करत नाही.",
+  "appSettingsExperimentalServiceWorkers": "ब्लॉकरमार्फत सर्व्हिस वर्कर",
+  "appSettingsExperimentalServiceWorkersHint": "जिथे प्रत्येक साइटचा स्वतःचा कंटेनर असतो, तिथे साइटचे सर्व्हिस वर्कर (काही साइट ऑफलाइन पेज, कॅशिंग आणि अपडेटसाठी वापरतात त्या पार्श्वभूमीतील स्क्रिप्ट) त्या साइटच्या DNS अवरोधसूची, गाळणी सूची आणि LocalCDN मार्फत लोड होतात आणि नेटवर्कपर्यंत पोहोचू शकतात. अॅप पुढच्या वेळी सुरू झाल्यावर लागू होते.",
   "appSettingsExtensions": "विस्तार",
   "appSettingsExtensionsNone": "काहीही आयात केलेले नाही",
   "appSettingsExtensionsCount": "{count, plural, one{{count} विस्तार} other{{count} विस्तार}}",

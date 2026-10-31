@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS પ્રોક્સી હજી તેનો ઉપયોગ કરી શકતી નથી",
   "appSettingsExperimentalNetworkInterface": "દરેક સાઇટ માટે નેટવર્ક ઇન્ટરફેસ",
   "appSettingsExperimentalNetworkInterfaceHint": "દરેક સાઇટને તેની નેટવર્ક સ્ક્રીન પર તે નેટવર્ક ઇન્ટરફેસ પસંદ કરવા દે છે જેના દ્વારા તેનો ટ્રાફિક બહાર જાય છે, જેમ કે ઘણામાંથી એક VPN ની ટનલ. જે સાઇટનું ઇન્ટરફેસ બંધ હોય તે બીજું જોડાણ વાપરવાને બદલે કંઈ લોડ કરતી નથી.",
+  "appSettingsExperimentalServiceWorkers": "બ્લોકર દ્વારા સર્વિસ વર્કર",
+  "appSettingsExperimentalServiceWorkersHint": "જ્યાં દરેક સાઇટનું પોતાનું કન્ટેનર હોય છે, ત્યાં સાઇટના સર્વિસ વર્કર (કેટલીક સાઇટ ઑફલાઇન પૃષ્ઠો, કૅશિંગ અને અપડેટ માટે વાપરે છે તે બૅકગ્રાઉન્ડ સ્ક્રિપ્ટ) તે સાઇટની DNS બ્લોકલિસ્ટ, ફિલ્ટર સૂચિઓ અને LocalCDN દ્વારા લોડ થાય છે અને નેટવર્ક સુધી પહોંચી શકે છે. એપ આગલી વખતે શરૂ થાય ત્યારે લાગુ થાય છે.",
   "appSettingsExtensions": "એક્સ્ટેન્શન્સ",
   "appSettingsExtensionsNone": "કોઈ આયાત કરેલ નથી",
   "appSettingsExtensionsCount": "{count, plural, one{{count} એક્સ્ટેન્શન} other{{count} એક્સ્ટેન્શન્સ}}",

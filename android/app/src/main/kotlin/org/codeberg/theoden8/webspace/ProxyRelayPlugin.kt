@@ -122,6 +122,12 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                     result.success(true)
                 }
                 "isRunning" -> result.success(relay.isRunning())
+                // A round trip to the listener, so off the main thread; the
+                // answer goes back on it, where a result must be sent.
+                "serving" -> Thread({
+                    val serving = relay.serving()
+                    mainHandler.post { result.success(serving) }
+                }, "proxy-relay-serving").apply { isDaemon = true }.start()
                 else -> result.notImplemented()
             }
         }

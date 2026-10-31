@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS proxy ga još ne može koristiti",
   "appSettingsExperimentalNetworkInterface": "Mrežno sučelje po stranici",
   "appSettingsExperimentalNetworkInterfaceHint": "Omogućuje svakoj stranici da na svom zaslonu Mreža odabere mrežno sučelje kroz koje njezin promet izlazi, poput tunela jednog od nekoliko VPN-ova. Stranica čije sučelje ne radi ne učitava ništa umjesto da koristi drugu vezu.",
+  "appSettingsExperimentalServiceWorkers": "Service workeri kroz blokatore",
+  "appSettingsExperimentalServiceWorkersHint": "Gdje svaka stranica ima vlastiti spremnik, service workeri stranice (pozadinske skripte koje neke stranice koriste za izvanmrežne stranice, predmemoriju i ažuriranja) učitavaju se kroz DNS popis blokiranja, popise filtara i LocalCDN te stranice i mogu pristupiti mreži. Stupa na snagu pri sljedećem pokretanju aplikacije.",
   "appSettingsExtensions": "Proširenja",
   "appSettingsExtensionsNone": "Nijedno nije uvezeno",
   "appSettingsExtensionsCount": "{count, plural, one{{count} proširenje} few{{count} proširenja} other{{count} proširenja}}",

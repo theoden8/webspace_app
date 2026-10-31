@@ -41,22 +41,31 @@ enum NavigationFrame { top, sub, unverified }
 
 /// The declared site and the domain its initial HTTP navigation resolves to.
 /// Only the first document may establish a canonical domain; later redirects
-/// are judged by the usual gesture and outbound-link rules.
+/// are judged by the usual gesture and outbound-link rules. A sign-in tab
+/// also holds every identity provider's sign-in host, [signInHosts], which a
+/// sign-in redirects through on its way back (NESTED-016).
 class NavigationBoundary {
   final String _homeDomain;
   final String _initialUrl;
+  final bool Function(String url)? _signInHosts;
   String _resolvedDomain;
   bool _awaitingDocument;
 
-  NavigationBoundary({required String homeUrl, required String initialUrl})
-    : _homeDomain = getNormalizedDomain(homeUrl),
-      _initialUrl = initialUrl,
-      _resolvedDomain = getNormalizedDomain(initialUrl),
-      _awaitingDocument = Host.ofWebUrl(initialUrl) != null;
+  NavigationBoundary({
+    required String homeUrl,
+    required String initialUrl,
+    bool Function(String url)? signInHosts,
+  })  : _homeDomain = getNormalizedDomain(homeUrl),
+        _initialUrl = initialUrl,
+        _signInHosts = signInHosts,
+        _resolvedDomain = getNormalizedDomain(initialUrl),
+        _awaitingDocument = Host.ofWebUrl(initialUrl) != null;
 
   bool contains(String url) {
     final domain = getNormalizedDomain(url);
-    return domain == _homeDomain || domain == _resolvedDomain;
+    return domain == _homeDomain ||
+        domain == _resolvedDomain ||
+        (_signInHosts?.call(url) ?? false);
   }
 
   /// Android vouches for server redirects through [isRedirect]. WebKit has
@@ -265,17 +274,22 @@ enum NavigationStep {
 /// optional update descriptor the caller applies after the call.
 class NavigationDecisionEngine {
   /// The step [decision] leads to. [returnsToOwner] is whether the URL is in
-  /// the owner's domain while the slot runs a hosted or foreign tab.
+  /// the owner's domain while the slot runs a hosted or foreign tab;
+  /// [signInReturn], whether a sign-in tab's hop lands back in the site it
+  /// signs in to, where the provider sends it with no tap (NESTED-016).
   static NavigationStep stepFor(
     NavigationDecision decision, {
     required bool returnsToOwner,
+    bool signInReturn = false,
   }) =>
       switch (decision) {
         NavigationDecision.allow => NavigationStep.loadHere,
+        NavigationDecision.blockSilent when signInReturn =>
+          NavigationStep.returnToOwner,
         NavigationDecision.blockSilent ||
         NavigationDecision.blockSuppressed =>
           NavigationStep.drop,
-        _ when returnsToOwner => NavigationStep.returnToOwner,
+        _ when returnsToOwner || signInReturn => NavigationStep.returnToOwner,
         _ => NavigationStep.route,
       };
 

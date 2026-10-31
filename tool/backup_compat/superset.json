@@ -249,6 +249,7 @@
     "experimentalDesktopTray": true,
     "experimentalLinuxTor": true,
     "experimentalNetworkInterface": true,
+    "experimentalServiceWorkers": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,
     "experimentalExternalTor": true,

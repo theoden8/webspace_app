@@ -8,10 +8,12 @@ import 'package:webspace/services/local_proxy_relay_api_web.dart'
     if (dart.library.io) 'package:webspace/services/local_proxy_relay_api.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/proxy_leg_failure.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/router_attribution.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// The process-wide WebView proxy rule as router mode drives it (Android).
 abstract interface class ProxyRouterOverride {
@@ -81,6 +83,13 @@ class ProxyRouterService {
   /// This run's checks; null when no probe was supplied (tests only).
   RouterAttribution? _attribution;
 
+  /// The rule the start pointed at the relay, pointed again by [recover].
+  ProxyRouterOverride? _override;
+
+  /// One recovery per router run at a time: every site that loses the relay
+  /// at once shares it (PROXY-032).
+  final _recoveries = SingleFlight<ProxyRouterState, RelayRecovery>();
+
   /// The table last asked for, which a late failed check reinstalls less
   /// the identities it failed.
   Map<RouterIdentity, UserProxySettings> _table = const {};
@@ -95,6 +104,7 @@ class ProxyRouterService {
   void resetForTest() {
     _attribution?.end();
     _attribution = null;
+    _override = null;
     _table = const {};
     _routed = const {};
     _state = null;
@@ -313,6 +323,7 @@ class ProxyRouterService {
     if (override != null && !await override.bind(endpoint.host, port: port)) {
       return _fail('the proxy override did not apply', override: null);
     }
+    _override = override;
     // PROXY-015. Everything above proves the app WANTS per-site routing;
     // only the proof shows this device DELIVERS it. The launch waits for two
     // identities checked one after the other, the launched site's first;
@@ -453,6 +464,7 @@ class ProxyRouterService {
         'router mode never stands down once its checks pass (BUG-037)');
     _attribution?.end();
     _attribution = null;
+    _override = null;
     _table = const {};
     _routed = const {};
     _state = null;
@@ -461,4 +473,95 @@ class ProxyRouterService {
     await override?.clear();
     await _relay.stop();
   }
+
+  /// A main-frame load failed with [description]. Under the router every
+  /// request goes to the one relay, so a proxy nothing answers is the relay:
+  /// [recover] it, and [reload] once it is bound anew. A relay that still
+  /// answers gets its rule back but no reload, so a load that keeps failing
+  /// cannot loop (PROXY-032).
+  Future<void> loadFailed(String description,
+      {required Future<void>? Function() reload}) async {
+    if (ProxyLegFailure.of(description) != ProxyLegFailure.unreachable) return;
+    if (await recover() == RelayRecovery.rebound) await reload();
+  }
+
+  /// A webview could not reach the relay (PROXY-032): bind it again if it
+  /// stopped answering, its routes and the rule with it; if it still
+  /// answers, point the rule at it again, since a rule moved off it fails the
+  /// same way. Nothing to do while no router runs or one is starting.
+  Future<RelayRecovery> recover() async {
+    final state = _state;
+    if (!isActive || isStarting || state == null) return RelayRecovery.none;
+    return _recoveries.run(state, call: () => _recover(state));
+  }
+
+  Future<RelayRecovery> _recover(ProxyRouterState state) async {
+    final override = _override;
+    final (host, port) = (_host!, _port!);
+    if (await _relay.serving()) {
+      LogTag.proxy.warning('A webview could not reach the relay, which '
+          'answers; pointing the rule at it again (PROXY-032)');
+      if (override == null || !await override.bind(host, port: port)) {
+        return RelayRecovery.none;
+      }
+      return RelayRecovery.repointed;
+    }
+    LogTag.proxy.error('The relay stopped answering on $host:$port; binding '
+        'it again (PROXY-032)', sensitive: true);
+    // Stopped first: a listener whose accept is wedged is still open, and a
+    // start for the same realm would hand its endpoint back unchanged.
+    await _relay.stop();
+    final endpoint = await _relay.startRouter(state.realm);
+    if (endpoint == null) {
+      return _lose('the relay did not bind '
+          '(${_relay.lastError ?? 'no reason reported'})');
+    }
+    _host = endpoint.host;
+    _port = endpoint.port;
+    if (!await _installRoutes(_table)) {
+      return _lose('the relay rejected the route table');
+    }
+    if (override != null &&
+        !await override.bind(endpoint.host, port: endpoint.port)) {
+      return _lose('the proxy override did not apply');
+    }
+    LogTag.proxy.info('Relay bound again on ${endpoint.host}:${endpoint.port}',
+        sensitive: true);
+    return RelayRecovery.rebound;
+  }
+
+  /// The relay could not be bound again: the router is down for the run, and
+  /// a proxied site shows the block (PROXY-032). The rule stays on the dead
+  /// endpoint, where it leaks nothing; taking it off would send a proxied
+  /// site already loaded out direct (BUG-037).
+  RelayRecovery _lose(String why) {
+    LogTag.proxy.error('Router mode lost: $why; proxied sites fail closed '
+        'for this run (PROXY-032)');
+    _failed = true;
+    _attribution?.end();
+    _attribution = null;
+    _override = null;
+    _routed = const {};
+    _state = null;
+    _host = null;
+    _port = null;
+    return RelayRecovery.lost;
+  }
+}
+
+/// What [ProxyRouterService.recover] did for a webview that could not reach
+/// the relay (PROXY-032).
+enum RelayRecovery {
+  /// No router runs, one is starting, or the rule could not be pointed again.
+  none,
+
+  /// The relay still answers; the rule was pointed at it again.
+  repointed,
+
+  /// The relay had stopped answering and is bound again on a new endpoint,
+  /// its routes and the rule with it.
+  rebound,
+
+  /// The relay could not be bound again: the router is down for the run.
+  lost,
 }

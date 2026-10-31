@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Proxy HTTPS ho zatiaľ nemôže použiť",
   "appSettingsExperimentalNetworkInterface": "Sieťové rozhranie pre každú stránku",
   "appSettingsExperimentalNetworkInterfaceHint": "Umožní každej stránke vybrať na jej obrazovke Sieť sieťové rozhranie, ktorým odchádza jej prevádzka, napríklad tunel jednej z viacerých VPN. Stránka, ktorej rozhranie nefunguje, nenačíta nič namiesto použitia iného pripojenia.",
+  "appSettingsExperimentalServiceWorkers": "Service workery cez blokátory",
+  "appSettingsExperimentalServiceWorkersHint": "Kde má každá stránka vlastný kontajner, service workery stránky (skripty na pozadí, ktoré niektoré stránky používajú na offline stránky, vyrovnávaciu pamäť a aktualizácie) sa načítavajú cez zoznam blokovaných DNS, zoznamy filtrov a LocalCDN danej stránky a môžu pristupovať k sieti. Prejaví sa pri najbližšom spustení aplikácie.",
   "appSettingsExtensions": "Rozšírenia",
   "appSettingsExtensionsNone": "Žiadne importované",
   "appSettingsExtensionsCount": "{count, plural, one{{count} rozšírenie} few{{count} rozšírenia} many{{count} rozšírenia} other{{count} rozšírení}}",

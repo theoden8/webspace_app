@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Un servidor intermediari HTTPS encara no la pot fer servir",
   "appSettingsExperimentalNetworkInterface": "Interfície de xarxa per lloc",
   "appSettingsExperimentalNetworkInterfaceHint": "Permet que cada lloc triï a la seva pantalla Xarxa la interfície de xarxa per la qual surt el seu trànsit, com ara el túnel d'una VPN d'entre diverses. Un lloc amb la interfície inactiva no carrega res en lloc de fer servir una altra connexió.",
+  "appSettingsExperimentalServiceWorkers": "Service workers a través dels bloquejadors",
+  "appSettingsExperimentalServiceWorkersHint": "On cada lloc té el seu propi contenidor, els service workers d'un lloc (els scripts en segon pla que alguns llocs fan servir per a pàgines fora de línia, memòria cau i actualitzacions) es carreguen a través de la llista de bloqueig DNS, les llistes de filtres i el LocalCDN d'aquell lloc, i poden accedir a la xarxa. Té efecte el proper cop que s'iniciï l'aplicació.",
   "appSettingsExtensions": "Extensions",
   "appSettingsExtensionsNone": "Cap importada",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensió} many{{count} d'extensions} other{{count} extensions}}",

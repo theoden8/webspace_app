@@ -212,8 +212,15 @@ void main() {
       expect(body('Future<void> _ownerRun(', src: tabs),
           contains('await _gate.idle();'),
           reason: 'an owner URL waits for the move, never lands beside it');
-      expect(body('Future<void> openTypedAddress(', src: links),
+      expect(body('Future<void> _loadInActiveTab(', src: links),
           contains('await _tabs.runWhenIdle('));
+      for (final signature in [
+        'Future<void> openTypedAddress(',
+        'Future<void> returnToOwner(',
+      ]) {
+        expect(body(signature, src: links), contains('await _loadInActiveTab('),
+            reason: '$signature loads through the one gated funnel');
+      }
       expect(body('Future<void> _dismissKeyboard('), contains('.timeout('),
           reason: 'a stuck page must not keep the list from opening');
       expect(body('Future<void> _showTabsSheet('), contains('_isShowingTabsSheet'));

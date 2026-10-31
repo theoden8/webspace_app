@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Ein HTTPS-Proxy kann noch keine nutzen",
   "appSettingsExperimentalNetworkInterface": "Netzwerkschnittstelle pro Website",
   "appSettingsExperimentalNetworkInterfaceHint": "Lässt jede Website auf ihrem Netzwerk-Bildschirm die Netzwerkschnittstelle wählen, über die ihr Verkehr das Gerät verlässt, etwa den Tunnel eines von mehreren VPNs. Eine Website, deren Schnittstelle nicht verfügbar ist, lädt nichts, statt eine andere Verbindung zu nutzen.",
+  "appSettingsExperimentalServiceWorkers": "Service Worker über die Blocker",
+  "appSettingsExperimentalServiceWorkersHint": "Wo jede Website ihren eigenen Container hat, laden die Service Worker einer Website (Hintergrundskripte, die manche Websites für Offline-Seiten, Zwischenspeicherung und Aktualisierungen nutzen) über die DNS-Sperrliste, die Filterlisten und LocalCDN dieser Website und dürfen das Netzwerk erreichen. Wirkt ab dem nächsten App-Start.",
   "appSettingsExtensions": "Erweiterungen",
   "appSettingsExtensionsNone": "Keine importiert",
   "appSettingsExtensionsCount": "{count, plural, one{{count} Erweiterung} other{{count} Erweiterungen}}",

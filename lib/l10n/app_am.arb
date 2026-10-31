@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "የHTTPS ተኪ እስካሁን ሊጠቀምበት አይችልም",
   "appSettingsExperimentalNetworkInterface": "የአውታረ መረብ በይነገጽ በየጣቢያው",
   "appSettingsExperimentalNetworkInterfaceHint": "እያንዳንዱ ጣቢያ በአውታረ መረብ ማያው ላይ ትራፊኩ የሚወጣበትን የአውታረ መረብ በይነገጽ እንዲመርጥ ያስችላል፣ ለምሳሌ ከብዙ VPNዎች የአንዱን ዋሻ። በይነገጹ የጠፋበት ጣቢያ ሌላ ግንኙነት ከመጠቀም ይልቅ ምንም አይጭንም።",
+  "appSettingsExperimentalServiceWorkers": "Service workers በአጋጆች በኩል",
+  "appSettingsExperimentalServiceWorkersHint": "እያንዳንዱ ድረ-ገጽ የራሱ ኮንቴይነር ባለበት፣ የአንድ ድረ-ገጽ service workers (አንዳንድ ድረ-ገጾች ከመስመር ውጭ ለሆኑ ገጾች፣ ለማከማቻ እና ለዝማኔዎች የሚጠቀሙባቸው የጀርባ ስክሪፕቶች) በዚያ ድረ-ገጽ የ DNS እገዳ ዝርዝር፣ የማጣሪያ ዝርዝሮች እና LocalCDN በኩል ይጫናሉ፣ አውታረ መረቡንም ሊደርሱ ይችላሉ። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
   "appSettingsExtensions": "ቅጥያዎች",
   "appSettingsExtensionsNone": "ምንም አልመጣም",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ቅጥያ} other{{count} ቅጥያዎች}}",

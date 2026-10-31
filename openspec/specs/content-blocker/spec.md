@@ -1148,6 +1148,41 @@ unreadable one blocks nothing and reads as not configured.
 
 Tests: `test/filter_list_preparser_test.dart` ("a download whose list changed while it fetched"), `test/file_store_test.dart`, `test/content_blocker_service_test.dart` ("an entry a wrong type would break reads as absent, not a throw").
 
+### Requirement: CB-022 - A Site's Service Workers Through Its Blockers (Experimental, Android)
+
+A service worker's requests reach the service worker controller of the
+WebView profile it runs in, never a webview's client, so the interceptor each
+site webview runs never sees them. Where each site has its own container (a
+WebView profile, `MULTI_PROFILE`), the Service workers through blockers
+switch in App settings > Developer > Experimental (DEVTOOLS-011), read once at
+launch, SHALL give each site's profile a service worker client that is the
+interceptor of that site's webview, with that profile's service workers let
+onto the network. A worker's request then meets the site's own DNS level,
+filter lists and LocalCDN, as a request of its pages does, counts in the
+site's report, and follows a later change of those settings. The client SHALL
+be in place before the network opens. A webview in the default profile is
+left to the app-wide block made at launch.
+
+With the switch off, no profile's service workers are changed. Either way,
+each attach SHALL log whether the profile's service workers had the network,
+which tells whether the app-wide block at launch reaches a site's container.
+
+#### Scenario: A worker's tracker request is blocked at the site's level
+
+**Given** the switch is on, and a site at a DNS level that names `tracker.example`
+**When** the site's service worker fetches `https://cdn.tracker.example/x`
+**Then** the request is blocked and counted as a DNS block for that site
+**And** a request to a host the level does not name goes out
+
+#### Scenario: The switch off leaves the profile alone
+
+**Given** the switch is off
+**When** a site's webview attaches
+**Then** its profile's service worker client and network setting are as they were
+**And** the log says whether its service workers had the network
+
+Tests: `android/app/src/test/kotlin/org/codeberg/theoden8/webspace/ServiceWorkerBlockersTest.kt`.
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker

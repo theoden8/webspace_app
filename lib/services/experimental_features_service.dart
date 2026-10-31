@@ -34,7 +34,12 @@ enum ExperimentalFeature {
   /// A site's traffic bound to a network interface it names, refused when
   /// that interface is down (network-interface NETIF-013). New, so off by
   /// default.
-  networkInterface(AppPref.experimentalNetworkInterface);
+  networkInterface(AppPref.experimentalNetworkInterface),
+
+  /// A site's service workers through its own blockers on Android, where
+  /// each site has a container (CB-022). Read once at launch. New, so off by
+  /// default.
+  serviceWorkers(AppPref.experimentalServiceWorkers);
 
   const ExperimentalFeature(this.pref);
 

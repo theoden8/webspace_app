@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Proksi HTTPS belum boleh menggunakannya",
   "appSettingsExperimentalNetworkInterface": "Antara muka rangkaian bagi setiap laman",
   "appSettingsExperimentalNetworkInterfaceHint": "Membenarkan setiap laman memilih pada skrin Rangkaiannya antara muka rangkaian yang dilalui trafiknya keluar, seperti terowong salah satu daripada beberapa VPN. Laman yang antara mukanya terputus tidak memuatkan apa-apa dan tidak menggunakan sambungan lain.",
+  "appSettingsExperimentalServiceWorkers": "Service worker melalui penyekat",
+  "appSettingsExperimentalServiceWorkersHint": "Apabila setiap tapak mempunyai bekasnya sendiri, service worker sesuatu tapak (skrip latar yang digunakan oleh sesetengah tapak untuk halaman luar talian, cache dan kemas kini) dimuatkan melalui Senarai Sekat DNS, senarai penapis dan LocalCDN tapak tersebut, dan boleh mencapai rangkaian. Berkuat kuasa pada kali seterusnya aplikasi dimulakan.",
   "appSettingsExtensions": "Sambungan",
   "appSettingsExtensionsNone": "Tiada yang diimport",
   "appSettingsExtensionsCount": "{count, plural, other{{count} sambungan}}",

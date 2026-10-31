@@ -922,7 +922,8 @@ system's.
 Every site's traffic waits on the relay's listener while router mode runs,
 so the listener SHALL outlive a failed accept: an accept that fails while
 it is bound (descriptors exhausted, say) is retried with a backoff, and the
-loop ends only when the relay is stopped.
+loop ends only when the relay is stopped. A relay that stops answering
+anyway is bound again (PROXY-032).
 
 For the same reason a connection SHALL cost the relay no more than it
 must. An established tunnel SHALL hold no thread of its own: one splice
@@ -1904,6 +1905,65 @@ so no intermediate `host:port` is sent a request.
 - **WHEN** the user opens it again
 - **THEN** no request is sent
 - **AND** tapping a row's check button sends one
+
+### Requirement: PROXY-032 - A relay that stops answering is bound again
+
+Every site's traffic waits on the router's relay (PROXY-013), so a relay
+that stops answering SHALL be noticed and bound again, rather than leaving
+every site failing until the app is restarted. A main-frame load that fails
+with `ERR_PROXY_CONNECTION_FAILED` while the router runs SHALL ask whether
+the relay still serves. Android files that error under
+`PROXY_AUTHENTICATION`, so its name in the description is what identifies it.
+
+The relay serves when a request sent to its endpoint is answered. A listener
+whose accept loop is wedged still completes the TCP handshake from its
+backlog, so an open socket proves nothing. The check SHALL reach no
+upstream: its request line is malformed and is answered `400` before any
+route is read.
+
+- A relay that does not answer SHALL be stopped and bound again for the
+  same run: the same realm and credentials on a new endpoint, the route
+  table installed there and the process-wide rule pointed at it. The load
+  that failed is then issued again. The PROXY-015 proof is not redone: it
+  is of each profile's credential, not of the endpoint.
+- A relay that answers SHALL have the rule pointed at it again, since a rule
+  moved off it fails the same way. The load SHALL NOT be issued again, so a
+  load that keeps failing cannot loop.
+- Every site that loses the relay at once SHALL share one recovery.
+- A relay that cannot be bound again SHALL take the router down for the run,
+  and a proxied site shows the block (LEAK-010). The rule stays on the dead
+  endpoint, where it leaks nothing; taking it off would send a proxied site
+  that is already loaded out direct (BUG-037).
+
+The relay SHALL log the end of its accept loop, whatever closed the
+listener, and the app SHALL log a call the relay's channel refuses rather
+than drop it. A relay that stops answering then says when. Lineage:
+[BUG-042](../../../docs/bugs/042-router-relay-stops-answering.md).
+
+#### Scenario: A relay that stopped answering is bound again
+
+- **GIVEN** router mode runs with the relay on `127.63.9.212:43210`
+- **AND** the relay's listener stops answering while the app is in the
+  background
+- **WHEN** a site's main-frame load fails with `ERR_PROXY_CONNECTION_FAILED`
+- **THEN** the relay is stopped and bound again on a new port, with every
+  route and the same credentials
+- **AND** the process-wide rule names the new port
+- **AND** the failed load is issued again and reaches the relay
+
+#### Scenario: A relay that answers is not reloaded into a loop
+
+- **GIVEN** router mode runs and the relay answers its check
+- **WHEN** a main-frame load fails with `ERR_PROXY_CONNECTION_FAILED`
+- **THEN** the rule is pointed at the relay again
+- **AND** the load is not issued again
+
+#### Scenario: A relay that cannot be bound again fails closed
+
+- **GIVEN** the relay stopped answering and will not bind again
+- **WHEN** a main-frame load fails with `ERR_PROXY_CONNECTION_FAILED`
+- **THEN** router mode is down for the run and a proxied site shows the block
+- **AND** the rule is not taken off the relay
 
 ## Data Model
 

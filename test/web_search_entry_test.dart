@@ -267,9 +267,11 @@ void main() {
       expect(
           body,
           contains('if (NavigationDecisionEngine.stepFor(decision,\n'
-              '              returnsToOwner: returnsToOwner(url)) ==\n'
+              '              returnsToOwner: !signInTab && returnsToOwner(url),\n'
+              '              signInReturn: signInReturn) ==\n'
               '          NavigationStep.returnToOwner) {'),
-          reason: 'every way out, on the tap and the redirect path, asks first');
+          reason: 'every way out, on the tap and the redirect path, asks first; '
+              'a sign-in tab returns by its own rule (NESTED-016)');
       expect(
           tabs,
           contains(

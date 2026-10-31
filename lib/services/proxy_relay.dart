@@ -25,6 +25,11 @@ abstract interface class ProxyRelayApi {
   Future<Map<String, String>> probeResults();
   Future<void> clearProbeResults();
 
+  /// Whether the relay still answers on the endpoint it bound: a request
+  /// sent there gets a reply. False when it never started or was stopped
+  /// (PROXY-032).
+  Future<bool> serving();
+
   Future<void> stop();
 }
 
@@ -156,7 +161,8 @@ class ProxyRelay implements ProxyRelayApi {
         'routes': routes,
       });
       return ok ?? false;
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      _refused(e, method: 'setRoutes');
       return false;
     }
   }
@@ -167,7 +173,8 @@ class ProxyRelay implements ProxyRelayApi {
     try {
       final raw = await _channel.invokeMapMethod<String, String>('probeResults');
       return raw ?? const {};
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      _refused(e, method: 'probeResults');
       return const {};
     }
   }
@@ -177,8 +184,19 @@ class ProxyRelay implements ProxyRelayApi {
     if (!hostIsAndroid) return;
     try {
       await _channel.invokeMethod('clearProbeResults');
-    } on PlatformException {
-      // Channel unavailable; the next activation re-reads anyway.
+    } on PlatformException catch (e) {
+      _refused(e, method: 'clearProbeResults');
+    }
+  }
+
+  @override
+  Future<bool> serving() async {
+    if (!hostIsAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('serving') ?? false;
+    } on PlatformException catch (e) {
+      _refused(e, method: 'serving');
+      return false;
     }
   }
 
@@ -188,8 +206,15 @@ class ProxyRelay implements ProxyRelayApi {
     if (!hostIsAndroid) return;
     try {
       await _channel.invokeMethod('stop');
-    } on PlatformException {
-      // Already stopped / channel unavailable.
+    } on PlatformException catch (e) {
+      _refused(e, method: 'stop');
     }
+  }
+
+  /// A call the plugin refused: kept as [lastError] and logged, so a relay
+  /// that stops answering its channel is not silent about it (PROXY-032).
+  void _refused(PlatformException e, {required String method}) {
+    _lastError = '$method: ${e.code}: ${e.message}';
+    LogTag.proxyRelay.warning('relay refused $method: ${e.code}: ${e.message}');
   }
 }

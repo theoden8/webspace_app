@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS прокси все още не може да използва такъв",
   "appSettingsExperimentalNetworkInterface": "Мрежов интерфейс за всеки сайт",
   "appSettingsExperimentalNetworkInterfaceHint": "Позволява на всеки сайт да избере от екрана си Мрежа мрежовия интерфейс, през който излиза трафикът му, например тунела на един VPN от няколко. Сайт, чийто интерфейс не работи, не зарежда нищо, вместо да използва друга връзка.",
+  "appSettingsExperimentalServiceWorkers": "Service workers през блокерите",
+  "appSettingsExperimentalServiceWorkersHint": "Когато всеки сайт има собствен контейнер, service workers на сайта (фоновите скриптове, които някои сайтове използват за офлайн страници, кеширане и актуализации) се зареждат през DNS списъка за блокиране, списъците с филтри и LocalCDN на този сайт и могат да достигат мрежата. Влиза в сила при следващото стартиране на приложението.",
   "appSettingsExtensions": "Разширения",
   "appSettingsExtensionsNone": "Няма импортирани",
   "appSettingsExtensionsCount": "{count, plural, one{{count} разширение} other{{count} разширения}}",

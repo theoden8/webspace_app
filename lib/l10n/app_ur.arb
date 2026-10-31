@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS پراکسی ابھی اسے استعمال نہیں کر سکتی",
   "appSettingsExperimentalNetworkInterface": "ہر سائٹ کے لیے نیٹ ورک انٹرفیس",
   "appSettingsExperimentalNetworkInterfaceHint": "ہر سائٹ کو اپنی نیٹ ورک اسکرین پر وہ نیٹ ورک انٹرفیس چننے دیتا ہے جس سے اس کا ٹریفک باہر جاتا ہے، جیسے کئی میں سے ایک VPN کی سرنگ۔ جس سائٹ کا انٹرفیس بند ہو وہ دوسرا کنکشن استعمال کرنے کے بجائے کچھ بھی لوڈ نہیں کرتی۔",
+  "appSettingsExperimentalServiceWorkers": "بلاکرز کے ذریعے سروس ورکرز",
+  "appSettingsExperimentalServiceWorkersHint": "جہاں ہر سائٹ کا اپنا کنٹینر ہو، وہاں کسی سائٹ کے سروس ورکرز (پس منظر کی وہ اسکرپٹس جو کچھ سائٹیں آف لائن صفحات، کیشنگ اور اپ ڈیٹس کے لیے استعمال کرتی ہیں) اس سائٹ کی DNS بلاک لسٹ، فلٹر فہرستوں اور LocalCDN کے ذریعے لوڈ ہوتے ہیں اور نیٹ ورک تک پہنچ سکتے ہیں۔ اگلی بار ایپ شروع ہونے پر نافذ ہوتا ہے۔",
   "appSettingsExtensions": "ایکسٹینشنز",
   "appSettingsExtensionsNone": "کوئی درآمد نہیں ہوئی",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ایکسٹینشن} other{{count} ایکسٹینشنز}}",

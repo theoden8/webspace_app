@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS proxy batek ezin du oraindik erabili",
   "appSettingsExperimentalNetworkInterface": "Sare-interfazea gune bakoitzeko",
   "appSettingsExperimentalNetworkInterfaceHint": "Gune bakoitzari bere Sarea pantailan bere trafikoa irteten den sare-interfazea aukeratzen uzten dio, adibidez hainbat VPNren arteko baten tunela. Interfazea erorita duen guneak ez du ezer kargatzen beste konexio bat erabili beharrean.",
+  "appSettingsExperimentalServiceWorkers": "Service worker-ak blokeatzaileen bidez",
+  "appSettingsExperimentalServiceWorkersHint": "Gune bakoitzak bere edukiontzia duenean, gune baten service worker-ak (gune batzuek lineaz kanpoko orrietarako, cacherako eta eguneratzeetarako erabiltzen dituzten atzeko planoko scriptak) gune horren DNS bloke-zerrendaren, iragazki-zerrenden eta LocalCDN-aren bidez kargatzen dira, eta sarera irits daitezke. Aplikazioa hurrengo aldiz abiarazten denean hartuko du eragina.",
   "appSettingsExtensions": "Luzapenak",
   "appSettingsExtensionsNone": "Bat ere ez inportatuta",
   "appSettingsExtensionsCount": "{count, plural, one{{count} luzapen} other{{count} luzapen}}",

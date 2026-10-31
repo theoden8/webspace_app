@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Un proxy HTTPS aún no puede usar una",
   "appSettingsExperimentalNetworkInterface": "Interfaz de red por sitio",
   "appSettingsExperimentalNetworkInterfaceHint": "Permite que cada sitio elija en su pantalla Red la interfaz de red por la que sale su tráfico, como el túnel de una VPN entre varias. Un sitio cuya interfaz esté caída no carga nada en lugar de usar otra conexión.",
+  "appSettingsExperimentalServiceWorkers": "Service workers a través de los bloqueadores",
+  "appSettingsExperimentalServiceWorkersHint": "Donde cada sitio tiene su propio contenedor, los service workers de un sitio (los scripts en segundo plano que algunos sitios usan para páginas sin conexión, caché y actualizaciones) cargan a través de la lista de bloqueo DNS, las listas de filtros y el LocalCDN de ese sitio, y pueden acceder a la red. Se aplica la próxima vez que se inicie la aplicación.",
   "appSettingsExtensions": "Extensiones",
   "appSettingsExtensionsNone": "Ninguna importada",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensión} many{{count} de extensiones} other{{count} extensiones}}",

@@ -548,6 +548,7 @@ The features are:
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | The built-in Tor on Linux, a tor the app starts (`tor-proxy` TOR-027) | Built-in Tor | off | `TorService.builtInOffered`, read once at launch; Linux only |
 | Linux: a site's traffic bound to a network interface it names (`network-interface` NETIF-013) | Network interface per site | off | `EgressRelay.state`, read each time a site's route resolves and when a Network screen is built |
+| A site's service workers through its own blockers (`content-blocker` CB-022) | Service workers through blockers | off | `NativeIntercept.routeServiceWorkers`, read once at launch; Android only |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
@@ -578,7 +579,7 @@ Sign-in popups (`nested-url-blocking` NESTED-014) were in the group under the Si
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Alternative design and Texture page rendering, off
+- **THEN** the Experimental group lists Alternative design, Texture page rendering and Service workers through blockers, off
 
 #### Scenario: A platform without the router
 

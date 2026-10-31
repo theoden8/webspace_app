@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/proxy_leg_failure.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview.dart';
 
@@ -203,8 +204,12 @@ abstract final class WebViewTls {
   }
 
   /// Whether [error] indicates the OS rejected the server certificate.
-  /// Used by the iOS/macOS post-failure branch in `onReceivedError`.
-  static bool isSslError(inapp.WebResourceErrorType type) {
+  /// Used by the post-failure branch in `onReceivedError`. A tunnel the proxy
+  /// did not open lands in Android's `FAILED_SSL_HANDSHAKE` bucket too, but no
+  /// certificate was ever presented, so it is not one (TLS-011).
+  static bool isSslError(inapp.WebResourceError error) {
+    if (ProxyLegFailure.of(error.description) != null) return false;
+    final type = error.type;
     return type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_UNTRUSTED ||
         type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_HAS_UNKNOWN_ROOT ||
         type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_HAS_BAD_DATE ||

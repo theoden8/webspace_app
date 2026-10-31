@@ -5631,6 +5631,14 @@
   "@appSettingsExperimentalNetworkInterfaceHint": {
     "description": "Explanation behind the hint button of the Network interface per site experiment switch in App Settings > Developer > Experimental."
   },
+  "appSettingsExperimentalServiceWorkers": "Service workers through blockers",
+  "@appSettingsExperimentalServiceWorkers": {
+    "description": "Title of an Experimental switch in App settings > Developer, on Android only. A service worker is a script a website leaves running in the background, separate from its pages; blockers are the app's DNS blocklist, filter lists and LocalCDN."
+  },
+  "appSettingsExperimentalServiceWorkersHint": "Where each site has its own container, a site's service workers (the background scripts some sites use for offline pages, caching and updates) load through that site's DNS blocklist, filter lists and LocalCDN, and may reach the network. Takes effect the next time the app starts.",
+  "@appSettingsExperimentalServiceWorkersHint": {
+    "description": "Explanation behind the hint button of the Service workers through blockers switch in App settings > Developer > Experimental, on Android. A container keeps one site's cookies and storage apart from the others'. DNS blocklist, filter lists and LocalCDN are names of the app's own blocking settings; translate them as the app's other strings do."
+  },
   "appSettingsExtensions": "Extensions",
   "@appSettingsExtensions": {
     "description": "Title of the App Settings row, and of the screen it opens, that lists the browser extensions (add-ons) imported on this device. Also the title of the per-site screen choosing which of them run on a site."

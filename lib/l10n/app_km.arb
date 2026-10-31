@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Proxy HTTPS មិនទាន់អាចប្រើវាបានទេ",
   "appSettingsExperimentalNetworkInterface": "ចំណុចប្រទាក់បណ្តាញសម្រាប់គេហទំព័រនីមួយៗ",
   "appSettingsExperimentalNetworkInterfaceHint": "អនុញ្ញាតឱ្យគេហទំព័រនីមួយៗជ្រើសរើសនៅលើអេក្រង់បណ្តាញរបស់វានូវចំណុចប្រទាក់បណ្តាញដែលចរាចរណ៍របស់វាចេញតាម ដូចជាផ្លូវរូងរបស់ VPN មួយក្នុងចំណោមច្រើន។ គេហទំព័រដែលចំណុចប្រទាក់មិនដំណើរការ មិនផ្ទុកអ្វីទាំងអស់ ជាជាងប្រើការតភ្ជាប់ផ្សេង។",
+  "appSettingsExperimentalServiceWorkers": "Service worker តាមរយៈកម្មវិធីទប់ស្កាត់",
+  "appSettingsExperimentalServiceWorkersHint": "នៅកន្លែងដែលគេហទំព័រនីមួយៗមានកុងតឺន័រផ្ទាល់ខ្លួន service worker របស់គេហទំព័រ (ស្គ្រីបផ្ទៃខាងក្រោយដែលគេហទំព័រខ្លះប្រើសម្រាប់ទំព័រក្រៅបណ្ដាញ ឃ្លាំងសម្ងាត់ និងការធ្វើបច្ចុប្បន្នភាព) ផ្ទុកតាមរយៈបញ្ជីទប់ស្កាត់ DNS បញ្ជីតម្រង និង LocalCDN របស់គេហទំព័រនោះ ហើយអាចចូលដល់បណ្ដាញបាន។ មានប្រសិទ្ធភាពនៅពេលកម្មវិធីចាប់ផ្ដើមលើកក្រោយ។",
   "appSettingsExtensions": "កម្មវិធីបន្ថែម",
   "appSettingsExtensionsNone": "មិនទាន់នាំចូលទេ",
   "appSettingsExtensionsCount": "{count, plural, other{កម្មវិធីបន្ថែម {count}}}",

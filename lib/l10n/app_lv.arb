@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS starpniekserveris to vēl nevar izmantot",
   "appSettingsExperimentalNetworkInterface": "Tīkla saskarne katrai vietnei",
   "appSettingsExperimentalNetworkInterfaceHint": "Ļauj katrai vietnei savā ekrānā Tīkls izvēlēties tīkla saskarni, pa kuru iziet tās datplūsma, piemēram, viena no vairākiem VPN tuneli. Vietne, kuras saskarne nedarbojas, neko neielādē, nevis izmanto citu savienojumu.",
+  "appSettingsExperimentalServiceWorkers": "Service worker caur bloķētājiem",
+  "appSettingsExperimentalServiceWorkersHint": "Ja katrai vietnei ir savs konteiners, vietnes service worker (fona skripti, ko dažas vietnes izmanto bezsaistes lapām, kešatmiņai un atjauninājumiem) ielādējas caur šīs vietnes DNS bloķēšanas sarakstu, filtru sarakstiem un LocalCDN un var piekļūt tīklam. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
   "appSettingsExtensions": "Paplašinājumi",
   "appSettingsExtensionsNone": "Nav importēts neviens",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} paplašinājumu} one{{count} paplašinājums} other{{count} paplašinājumi}}",

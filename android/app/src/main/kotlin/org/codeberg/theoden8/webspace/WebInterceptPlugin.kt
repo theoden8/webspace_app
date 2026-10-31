@@ -48,6 +48,8 @@ class WebInterceptPlugin(
     private val blockEvents = SiteEventInbox<BlockEvent>(wakeDart("blockEventsReady"))
     private val cdnEvents = SiteEventInbox<CdnEvent>(wakeDart("cdnEventsReady"))
 
+    private val serviceWorkers = ServiceWorkerBlockers { tag, message -> log(tag, message) }
+
     init {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -148,6 +150,10 @@ class WebInterceptPlugin(
                     }
                 }
                 "attachToWebViews" -> result.success(refreshAttached())
+                "setServiceWorkersThroughBlockers" -> {
+                    serviceWorkers.enabled = call.argument<Boolean>("on") == true
+                    result.success(null)
+                }
                 "attachToView" -> {
                     // Dart holds the view's first load until this replies, so
                     // its first document's sub-resources meet the site's
@@ -223,6 +229,9 @@ class WebInterceptPlugin(
             existing.abpEnabled = contentBlockFor(siteId)
         } else {
             attachInterceptor(webView, siteId)
+        }
+        (webView.contentBlockerHandler as? FastSubresourceInterceptor)?.let {
+            serviceWorkers.attach(ProfileWorkers.of(webView), it, siteId)
         }
         return true
     }
@@ -496,7 +505,12 @@ class FastSubresourceInterceptor(
     override fun checkUrl(
         webView: InAppWebView,
         request: WebResourceRequestExt
-    ): WebResourceResponse? {
+    ): WebResourceResponse? = check(request)
+
+    /// [checkUrl]'s answer for [request], whoever made it: a page of the
+    /// site's webview, or one of the site's service workers, whose requests
+    /// reach no webview (`ServiceWorkerBlockers`).
+    fun check(request: WebResourceRequestExt): WebResourceResponse? {
         // Normalize once, at the funnel: the engine, the LocalCDN patterns
         // and the DNS set all have to see the same hostname, and only the
         // DNS side goes through extractHost.

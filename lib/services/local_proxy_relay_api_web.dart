@@ -31,5 +31,8 @@ class LocalProxyRelayApi implements ProxyRelayApi {
   Future<void> clearProbeResults() async {}
 
   @override
+  Future<bool> serving() async => false;
+
+  @override
   Future<void> stop() async {}
 }

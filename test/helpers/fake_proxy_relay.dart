@@ -27,13 +27,29 @@ class FakeRelay implements ProxyRelayApi {
   /// When set, `startRouter` answers once it completes.
   Future<void>? bindsAfter;
 
+  /// The port the next bind lands on; a fresh listener gets a fresh one.
+  int nextPort = 43210;
+
+  /// False once the listener stops answering, as a relay whose socket was
+  /// closed under it, or whose accept is wedged, stops (PROXY-032). A bind
+  /// makes a new listener, which answers.
+  bool serves = true;
+  int servingCalls = 0;
+
   @override
   Future<({String host, int port})?> startRouter(String realm) async {
     startCalls++;
     await bindsAfter;
     if (!canBind) return null;
     startedRealm = realm;
-    return (host: boundHost, port: 43210);
+    serves = true;
+    return (host: boundHost, port: nextPort);
+  }
+
+  @override
+  Future<bool> serving() async {
+    servingCalls++;
+    return serves && startedRealm != null;
   }
 
   @override

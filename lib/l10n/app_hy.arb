@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS պրոքսին դեռ չի կարող այն օգտագործել",
   "appSettingsExperimentalNetworkInterface": "Ցանցային ինտերֆեյս յուրաքանչյուր կայքի համար",
   "appSettingsExperimentalNetworkInterfaceHint": "Թույլ է տալիս յուրաքանչյուր կայքին իր Ցանց էկրանին ընտրել այն ցանցային ինտերֆեյսը, որով դուրս է գալիս նրա երթևեկը, օրինակ՝ մի քանի VPN-ներից մեկի թունելը։ Կայքը, որի ինտերֆեյսն անջատված է, ոչինչ չի բեռնում՝ այլ կապ օգտագործելու փոխարեն։",
+  "appSettingsExperimentalServiceWorkers": "Service worker-ները արգելափակիչների միջոցով",
+  "appSettingsExperimentalServiceWorkersHint": "Որտեղ յուրաքանչյուր կայք ունի իր սեփական կոնտեյները, կայքի service worker-ները (ֆոնային սկրիպտներ, որոնք որոշ կայքեր օգտագործում են անցանց էջերի, քեշավորման և թարմացումների համար) բեռնվում են այդ կայքի DNS արգելացուցակի, զտիչների ցանկերի և LocalCDN-ի միջոցով և կարող են հասնել ցանցին։ Ուժի մեջ է մտնում հավելվածի հաջորդ գործարկման ժամանակ։",
   "appSettingsExtensions": "Ընդլայնումներ",
   "appSettingsExtensionsNone": "Ոչինչ ներմուծված չէ",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ընդլայնում} other{{count} ընդլայնում}}",

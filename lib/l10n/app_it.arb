@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Un proxy HTTPS non può ancora usarne una",
   "appSettingsExperimentalNetworkInterface": "Interfaccia di rete per sito",
   "appSettingsExperimentalNetworkInterfaceHint": "Consente a ogni sito di scegliere nella sua schermata Rete l'interfaccia di rete da cui esce il suo traffico, come il tunnel di una VPN tra più di una. Un sito con l'interfaccia inattiva non carica nulla invece di usare un'altra connessione.",
+  "appSettingsExperimentalServiceWorkers": "Service worker tramite i blocchi",
+  "appSettingsExperimentalServiceWorkersHint": "Dove ogni sito ha il proprio container, i service worker di un sito (gli script in background che alcuni siti usano per pagine offline, cache e aggiornamenti) si caricano tramite la blocklist DNS, le liste di filtri e il LocalCDN di quel sito, e possono raggiungere la rete. Ha effetto dal prossimo avvio dell'app.",
   "appSettingsExtensions": "Estensioni",
   "appSettingsExtensionsNone": "Nessuna importata",
   "appSettingsExtensionsCount": "{count, plural, one{{count} estensione} many{{count} di estensioni} other{{count} estensioni}}",

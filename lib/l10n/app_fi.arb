@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS-välityspalvelin ei voi vielä käyttää sitä",
   "appSettingsExperimentalNetworkInterface": "Verkkoliitäntä sivustokohtaisesti",
   "appSettingsExperimentalNetworkInterfaceHint": "Antaa jokaisen sivuston valita Verkko-näkymässään verkkoliitännän, jonka kautta sen liikenne lähtee, kuten yhden useista VPN-tunneleista. Sivusto, jonka liitäntä ei ole käytössä, ei lataa mitään sen sijaan, että käyttäisi toista yhteyttä.",
+  "appSettingsExperimentalServiceWorkers": "Service workerit estojen kautta",
+  "appSettingsExperimentalServiceWorkersHint": "Kun jokaisella sivustolla on oma säiliönsä, sivuston service workerit (taustaskriptit, joita jotkin sivustot käyttävät offline-sivuihin, välimuistiin ja päivityksiin) latautuvat kyseisen sivuston DNS-estolistan, suodatinlistojen ja LocalCDN:n kautta ja voivat käyttää verkkoa. Tulee voimaan, kun sovellus seuraavan kerran käynnistyy.",
   "appSettingsExtensions": "Laajennukset",
   "appSettingsExtensionsNone": "Yhtään ei ole tuotu",
   "appSettingsExtensionsCount": "{count, plural, one{{count} laajennus} other{{count} laajennusta}}",

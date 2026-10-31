@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS ప్రాక్సీ ఇంకా దీన్ని ఉపయోగించలేదు",
   "appSettingsExperimentalNetworkInterface": "ప్రతి సైట్‌కు నెట్‌వర్క్ ఇంటర్‌ఫేస్",
   "appSettingsExperimentalNetworkInterfaceHint": "ప్రతి సైట్ తన నెట్‌వర్క్ స్క్రీన్‌లో తన ట్రాఫిక్ బయటకు వెళ్లే నెట్‌వర్క్ ఇంటర్‌ఫేస్‌ను ఎంచుకోవడానికి అనుమతిస్తుంది, ఉదాహరణకు అనేక VPNలలో ఒకదాని సొరంగం. ఇంటర్‌ఫేస్ పనిచేయని సైట్ వేరే కనెక్షన్‌ను ఉపయోగించకుండా ఏమీ లోడ్ చేయదు.",
+  "appSettingsExperimentalServiceWorkers": "బ్లాకర్ల ద్వారా సర్వీస్ వర్కర్లు",
+  "appSettingsExperimentalServiceWorkersHint": "ప్రతి సైట్‌కు సొంత కంటైనర్ ఉన్న చోట, సైట్ యొక్క సర్వీస్ వర్కర్లు (కొన్ని సైట్‌లు ఆఫ్‌లైన్ పేజీలు, కాషింగ్ మరియు అప్‌డేట్‌ల కోసం వాడే నేపథ్య స్క్రిప్ట్‌లు) ఆ సైట్ DNS బ్లాక్‌లిస్ట్, వడపోత జాబితాలు మరియు LocalCDN ద్వారా లోడ్ అవుతాయి, నెట్‌వర్క్‌ను చేరుకోగలవు. తదుపరిసారి యాప్ ప్రారంభమైనప్పుడు అమలులోకి వస్తుంది.",
   "appSettingsExtensions": "ఎక్స్‌టెన్షన్‌లు",
   "appSettingsExtensionsNone": "ఏవీ దిగుమతి కాలేదు",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ఎక్స్‌టెన్షన్} other{{count} ఎక్స్‌టెన్షన్‌లు}}",
