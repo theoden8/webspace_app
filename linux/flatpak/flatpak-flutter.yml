@@ -118,12 +118,18 @@ modules:
         x86_64:
           env:
             BUNDLE: build/linux/x64/release/bundle
+            # The archive below, which linux/tor_bundle.cmake cannot download
+            # in a build with no network.
+            WEBSPACE_TOR_BUNDLE: /run/build/webspace_app/flatpak-sources/tor-expert-bundle-linux-x86_64-15.0.26.tar.gz
         aarch64:
           env:
             BUNDLE: build/linux/arm64/release/bundle
       env:
         PUB_CACHE: /run/build/webspace_app/.pub-cache
         WEBSPACE_UBO_SOURCE: /run/build/webspace_app/flatpak-sources/ubo
+        # rust-toolchain.toml's channel. Set here, it overrides that file,
+        # whose Android targets rustup would otherwise download.
+        RUSTUP_TOOLCHAIN: 1.94.1
     build-commands:
       - WEBSPACE_APPLICATION_ID="$FLATPAK_ID" flutter build linux --release --no-pub
       - bash scripts/verify_adblock_shipped.sh linux
@@ -151,3 +157,14 @@ modules:
         commit: a0de43aba933bc7bd79a32a2f2b6b87bf2ca5f18
         disable-submodules: true
         dest: flatpak-sources/ubo
+      # The Tor Expert Bundle linux/tor_bundle.cmake pins (TOR-027). The Tor
+      # Project publishes none for arm64 Linux.
+      - type: file
+        url: https://dist.torproject.org/torbrowser/15.0.26/tor-expert-bundle-linux-x86_64-15.0.26.tar.gz
+        sha256: 19cf18726eecb362e0f21d27afa9ea9efe5da928bfdfbb1ceb5fe54519e87f4a
+        dest: flatpak-sources
+        only-arches:
+          - x86_64
+    modules:
+      # flatpak-flutter generates the toolchain this names, rust-toolchain.toml's.
+      - generated/modules/rustup-1.94.1.json
