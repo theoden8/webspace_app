@@ -44,6 +44,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# snapcraft pack --destructive-mode works in the project directory.
+/parts/
+/stage/
+/prime/
+/*.snap
+
 # Symbolication related
 app.*.symbols
 
