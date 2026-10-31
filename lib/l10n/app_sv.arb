@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Låter varje webbplats välja på sin Nätverk-skärm vilket nätverksgränssnitt trafiken lämnar enheten genom, till exempel tunneln för ett av flera VPN. En webbplats vars gränssnitt är nere läser inte in något i stället för att använda en annan anslutning.",
   "appSettingsExperimentalServiceWorkers": "Service workers genom blockeringarna",
   "appSettingsExperimentalServiceWorkersHint": "Där varje webbplats har en egen container läses en webbplats service workers (bakgrundsskript som vissa webbplatser använder för offlinesidor, cachning och uppdateringar) in genom webbplatsens DNS-blockeringslista, filterlistor och LocalCDN, och de kan nå nätverket. Börjar gälla nästa gång appen startar.",
+  "appSettingsExperimentalTapGestures": "Tryck som länkgester",
+  "appSettingsExperimentalTapGesturesHint": "iOS rapporterar bara att du bad om en sida när du trycker på en länk eller skickar ett formulär. En knapp som lämnar webbplatsen från ett skript, som många Sign in with Google-knappar gör, ser ut som att sidan går av sig själv, och appen stoppar den. Med detta på räknas ett tryck på sidan under de följande 10 sekunderna, så sidan det leder till öppnas som en länk skulle.",
   "appSettingsExtensions": "Tillägg",
   "appSettingsExtensionsNone": "Inga importerade",
   "appSettingsExtensionsCount": "{count, plural, one{{count} tillägg} other{{count} tillägg}}",

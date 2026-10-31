@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Memungkinkan setiap situs memilih di layar Jaringan miliknya antarmuka jaringan tempat lalu lintasnya keluar, seperti terowongan salah satu dari beberapa VPN. Situs yang antarmukanya mati tidak memuat apa pun alih-alih memakai koneksi lain.",
   "appSettingsExperimentalServiceWorkers": "Service worker melalui pemblokir",
   "appSettingsExperimentalServiceWorkersHint": "Jika setiap situs memiliki kontainernya sendiri, service worker suatu situs (skrip latar belakang yang digunakan beberapa situs untuk halaman offline, cache, dan pembaruan) dimuat melalui Daftar Blokir DNS, daftar filter, dan LocalCDN situs tersebut, serta dapat menjangkau jaringan. Berlaku saat aplikasi dimulai berikutnya.",
+  "appSettingsExperimentalTapGestures": "Ketukan sebagai gerakan tautan",
+  "appSettingsExperimentalTapGesturesHint": "iOS hanya melaporkan bahwa Anda meminta sebuah halaman saat Anda mengetuk tautan atau mengirim formulir. Tombol yang meninggalkan situs dari skrip, seperti yang dilakukan banyak tombol Sign in with Google, terlihat seperti halaman pergi dengan sendirinya, dan aplikasi menghentikannya. Dengan ini aktif, ketukan pada halaman dihitung selama 10 detik berikutnya, sehingga halaman yang dituju terbuka seperti tautan.",
   "appSettingsExtensions": "Ekstensi",
   "appSettingsExtensionsNone": "Belum ada yang diimpor",
   "appSettingsExtensionsCount": "{count, plural, other{{count} ekstensi}}",

@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Antaa jokaisen sivuston valita Verkko-näkymässään verkkoliitännän, jonka kautta sen liikenne lähtee, kuten yhden useista VPN-tunneleista. Sivusto, jonka liitäntä ei ole käytössä, ei lataa mitään sen sijaan, että käyttäisi toista yhteyttä.",
   "appSettingsExperimentalServiceWorkers": "Service workerit estojen kautta",
   "appSettingsExperimentalServiceWorkersHint": "Kun jokaisella sivustolla on oma säiliönsä, sivuston service workerit (taustaskriptit, joita jotkin sivustot käyttävät offline-sivuihin, välimuistiin ja päivityksiin) latautuvat kyseisen sivuston DNS-estolistan, suodatinlistojen ja LocalCDN:n kautta ja voivat käyttää verkkoa. Tulee voimaan, kun sovellus seuraavan kerran käynnistyy.",
+  "appSettingsExperimentalTapGestures": "Napautukset linkkieleinä",
+  "appSettingsExperimentalTapGesturesHint": "iOS ilmoittaa sinun pyytäneen sivua vain, kun napautat linkkiä tai lähetät lomakkeen. Painike, joka poistuu sivustolta komentosarjan kautta, kuten monet Sign in with Google -painikkeet, näyttää sivulta, joka lähtee itsestään, ja sovellus pysäyttää sen. Kun tämä on päällä, sivun napautus lasketaan seuraavat 10 sekuntia, joten sivu, jolle se vie, avautuu kuten linkki avautuisi.",
   "appSettingsExtensions": "Laajennukset",
   "appSettingsExtensionsNone": "Yhtään ei ole tuotu",
   "appSettingsExtensionsCount": "{count, plural, one{{count} laajennus} other{{count} laajennusta}}",

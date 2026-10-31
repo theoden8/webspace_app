@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Leidžia kiekvienai svetainei savo ekrane Tinklas pasirinkti tinklo sąsają, per kurią išeina jos srautas, pavyzdžiui, vieno iš kelių VPN tunelį. Svetainė, kurios sąsaja neveikia, nieko neįkelia, užuot naudojusi kitą ryšį.",
   "appSettingsExperimentalServiceWorkers": "Service worker per blokatorius",
   "appSettingsExperimentalServiceWorkersHint": "Kai kiekviena svetainė turi savo konteinerį, svetainės service worker (foniniai scenarijai, kuriuos kai kurios svetainės naudoja neprisijungus rodomiems puslapiams, talpyklai ir atnaujinimams) įkeliami per tos svetainės DNS blokavimo sąrašą, filtrų sąrašus ir LocalCDN ir gali pasiekti tinklą. Įsigalioja kitą kartą paleidus programą.",
+  "appSettingsExperimentalTapGestures": "Bakstelėjimai kaip nuorodos gestai",
+  "appSettingsExperimentalTapGesturesHint": "iOS praneša, kad paprašėte puslapio, tik kai bakstelite nuorodą arba siunčiate formą. Mygtukas, kuris palieka svetainę per scenarijų, kaip daro daug Sign in with Google mygtukų, atrodo lyg puslapis išeitų pats, ir programa jį sustabdo. Kai tai įjungta, bakstelėjimas puslapyje galioja kitas 10 sekundžių, todėl puslapis, į kurį jis veda, atsidaro kaip nuoroda.",
   "appSettingsExtensions": "Plėtiniai",
   "appSettingsExtensionsNone": "Neimportuota nė vieno",
   "appSettingsExtensionsCount": "{count, plural, one{{count} plėtinys} few{{count} plėtiniai} many{{count} plėtinio} other{{count} plėtinių}}",

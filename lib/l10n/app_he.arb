@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "מאפשר לכל אתר לבחור במסך הרשת שלו את ממשק הרשת שדרכו התעבורה שלו יוצאת, כמו המנהרה של VPN אחד מתוך כמה. אתר שהממשק שלו מושבת לא טוען דבר במקום להשתמש בחיבור אחר.",
   "appSettingsExperimentalServiceWorkers": "Service workers דרך החוסמים",
   "appSettingsExperimentalServiceWorkersHint": "כאשר לכל אתר יש מכל משלו, ה-service workers של אתר (הסקריפטים ברקע שאתרים מסוימים משתמשים בהם לדפים לא מקוונים, לשמירה במטמון ולעדכונים) נטענים דרך רשימת החסימה של DNS, רשימות הסינון ו-LocalCDN של אותו אתר, ויכולים להגיע לרשת. נכנס לתוקף בהפעלה הבאה של האפליקציה.",
+  "appSettingsExperimentalTapGestures": "הקשות כמחוות קישור",
+  "appSettingsExperimentalTapGesturesHint": "iOS מדווח שביקשת דף רק כשאתה מקיש על קישור או שולח טופס. כפתור שעוזב את האתר מתוך סקריפט, כמו כפתורי Sign in with Google רבים, נראה כמו דף שעוזב מעצמו, והאפליקציה עוצרת אותו. כשאפשרות זו פועלת, הקשה על הדף נחשבת במשך 10 השניות הבאות, כך שהדף שאליו היא מובילה נפתח כמו קישור.",
   "appSettingsExtensions": "תוספים",
   "appSettingsExtensionsNone": "אף תוסף לא יובא",
   "appSettingsExtensionsCount": "{count, plural, one{{count} תוסף} two{{count} תוספים} other{{count} תוספים}}",

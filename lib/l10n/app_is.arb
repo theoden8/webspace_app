@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Leyfir hverju vefsvæði að velja á Netkerfi-skjánum sínum netviðmótið sem umferð þess fer út um, til dæmis göng eins af nokkrum VPN. Vefsvæði sem er með viðmótið niðri hleður engu í stað þess að nota aðra tengingu.",
   "appSettingsExperimentalServiceWorkers": "Service workers í gegnum lokanir",
   "appSettingsExperimentalServiceWorkersHint": "Þar sem hver vefur hefur sinn eigin gám hlaðast service workers vefs (bakgrunnsskriftur sem sumir vefir nota fyrir síður án nettengingar, skyndiminni og uppfærslur) í gegnum DNS-bannlista, síunarlista og LocalCDN þess vefs og geta náð til netsins. Tekur gildi næst þegar forritið er ræst.",
+  "appSettingsExperimentalTapGestures": "Snertingar sem tenglabendingar",
+  "appSettingsExperimentalTapGesturesHint": "iOS tilkynnir aðeins að þú hafir beðið um síðu þegar þú ýtir á tengil eða sendir eyðublað. Hnappur sem yfirgefur vefinn úr skriftu, eins og margir Sign in with Google-hnappar gera, lítur út eins og síðan fari sjálf, og forritið stöðvar hann. Þegar kveikt er á þessu gildir snerting á síðunni næstu 10 sekúndur, svo síðan sem hún leiðir á opnast eins og tengill myndi gera.",
   "appSettingsExtensions": "Viðbætur",
   "appSettingsExtensionsNone": "Engin flutt inn",
   "appSettingsExtensionsCount": "{count, plural, one{{count} viðbót} other{{count} viðbætur}}",

@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Permet que cada lloc triï a la seva pantalla Xarxa la interfície de xarxa per la qual surt el seu trànsit, com ara el túnel d'una VPN d'entre diverses. Un lloc amb la interfície inactiva no carrega res en lloc de fer servir una altra connexió.",
   "appSettingsExperimentalServiceWorkers": "Service workers a través dels bloquejadors",
   "appSettingsExperimentalServiceWorkersHint": "On cada lloc té el seu propi contenidor, els service workers d'un lloc (els scripts en segon pla que alguns llocs fan servir per a pàgines fora de línia, memòria cau i actualitzacions) es carreguen a través de la llista de bloqueig DNS, les llistes de filtres i el LocalCDN d'aquell lloc, i poden accedir a la xarxa. Té efecte el proper cop que s'iniciï l'aplicació.",
+  "appSettingsExperimentalTapGestures": "Tocs com a gestos d'enllaç",
+  "appSettingsExperimentalTapGesturesHint": "L'iOS informa que heu demanat una pàgina només quan toqueu un enllaç o envieu un formulari. Un botó que surt del lloc des d'un script, com fan molts botons Sign in with Google, sembla la pàgina marxant tota sola, i l'aplicació l'atura. Amb això activat, un toc a la pàgina compta durant els 10 segons següents, de manera que la pàgina on porta s'obre com ho faria un enllaç.",
   "appSettingsExtensions": "Extensions",
   "appSettingsExtensionsNone": "Cap importada",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensió} many{{count} d'extensions} other{{count} extensions}}",

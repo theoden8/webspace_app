@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Pozwala każdej witrynie wybrać na ekranie Sieć interfejs sieciowy, którym wychodzi jej ruch, na przykład tunel jednego z kilku VPN. Witryna, której interfejs nie działa, nic nie wczytuje, zamiast użyć innego połączenia.",
   "appSettingsExperimentalServiceWorkers": "Service workery przez blokery",
   "appSettingsExperimentalServiceWorkersHint": "Tam, gdzie każda witryna ma własny kontener, service workery witryny (skrypty działające w tle, których niektóre witryny używają do stron offline, pamięci podręcznej i aktualizacji) ładują się przez listę blokowania DNS, listy filtrów i LocalCDN tej witryny i mogą łączyć się z siecią. Zacznie obowiązywać przy następnym uruchomieniu aplikacji.",
+  "appSettingsExperimentalTapGestures": "Stuknięcia jako gesty linku",
+  "appSettingsExperimentalTapGesturesHint": "iOS zgłasza, że poprosiłeś o stronę, tylko gdy stukniesz link lub wyślesz formularz. Przycisk, który opuszcza witrynę ze skryptu, jak wiele przycisków Sign in with Google, wygląda jak strona odchodząca sama, więc aplikacja go zatrzymuje. Gdy to jest włączone, stuknięcie strony liczy się przez kolejne 10 sekund, więc strona, do której prowadzi, otwiera się jak link.",
   "appSettingsExtensions": "Rozszerzenia",
   "appSettingsExtensionsNone": "Brak zaimportowanych",
   "appSettingsExtensionsCount": "{count, plural, one{{count} rozszerzenie} few{{count} rozszerzenia} many{{count} rozszerzeń} other{{count} rozszerzenia}}",

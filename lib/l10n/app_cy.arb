@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Yn gadael i bob gwefan ddewis ar ei sgrin Rhwydwaith y rhyngwyneb rhwydwaith y mae ei thraffig yn gadael drwyddo, fel twnnel un VPN ymhlith sawl un. Nid yw gwefan y mae ei rhyngwyneb i lawr yn llwytho dim yn hytrach na defnyddio cysylltiad arall.",
   "appSettingsExperimentalServiceWorkers": "Gweithwyr gwasanaeth drwy atalwyr",
   "appSettingsExperimentalServiceWorkersHint": "Lle mae gan bob gwefan ei chynhwysydd ei hun, mae gweithwyr gwasanaeth gwefan (y sgriptiau cefndir y mae rhai gwefannau yn eu defnyddio ar gyfer tudalennau all-lein, storio a diweddariadau) yn llwytho drwy Restr Rwystro DNS, rhestrau hidlo a LocalCDN y wefan honno, a gallant gyrraedd y rhwydwaith. Daw i rym y tro nesaf y bydd yr ap yn cychwyn.",
+  "appSettingsExperimentalTapGestures": "Tapiau fel ystumiau dolen",
+  "appSettingsExperimentalTapGesturesHint": "Mae iOS yn adrodd eich bod wedi gofyn am dudalen dim ond pan fyddwch yn tapio dolen neu'n anfon ffurflen. Mae botwm sy'n gadael y wefan o sgript, fel y mae llawer o fotymau Sign in with Google yn ei wneud, yn edrych fel y dudalen yn gadael ar ei phen ei hun, ac mae'r ap yn ei atal. Gyda hwn ymlaen, mae tap ar y dudalen yn cyfrif am y 10 eiliad nesaf, felly mae'r dudalen y mae'n arwain ati yn agor fel y byddai dolen.",
   "appSettingsExtensions": "Estyniadau",
   "appSettingsExtensionsNone": "Dim wedi'u mewnforio",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} estyniad} one{{count} estyniad} two{{count} estyniad} few{{count} estyniad} many{{count} estyniad} other{{count} estyniad}}",

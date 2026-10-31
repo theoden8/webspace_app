@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Permet à chaque site de choisir sur son écran Réseau l'interface réseau par laquelle son trafic sort, comme le tunnel d'un VPN parmi plusieurs. Un site dont l'interface est hors service ne charge rien au lieu d'utiliser une autre connexion.",
   "appSettingsExperimentalServiceWorkers": "Service workers via les bloqueurs",
   "appSettingsExperimentalServiceWorkersHint": "Lorsque chaque site a son propre conteneur, les service workers d'un site (les scripts d'arrière-plan que certains sites utilisent pour les pages hors ligne, la mise en cache et les mises à jour) se chargent via la liste de blocage DNS, les listes de filtres et le LocalCDN de ce site, et peuvent accéder au réseau. Prend effet au prochain démarrage de l'application.",
+  "appSettingsExperimentalTapGestures": "Les touchers comme gestes de lien",
+  "appSettingsExperimentalTapGesturesHint": "iOS ne signale que vous avez demandé une page que lorsque vous touchez un lien ou envoyez un formulaire. Un bouton qui quitte le site depuis un script, comme le font beaucoup de boutons Sign in with Google, passe pour la page qui part d'elle-même, et l'app l'arrête. Avec ceci activé, un toucher sur la page compte pendant les 10 secondes suivantes, si bien que la page vers laquelle il mène s'ouvre comme le ferait un lien.",
   "appSettingsExtensions": "Extensions",
   "appSettingsExtensionsNone": "Aucune importée",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extension} many{{count} d'extensions} other{{count} extensions}}",

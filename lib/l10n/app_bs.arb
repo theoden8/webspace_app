@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Omogućava svakoj stranici da na svom ekranu Mreža izabere mrežni interfejs kroz koji njen promet izlazi, poput tunela jednog od nekoliko VPN-ova. Stranica čiji je interfejs isključen ne učitava ništa umjesto da koristi drugu vezu.",
   "appSettingsExperimentalServiceWorkers": "Service workeri kroz blokatore",
   "appSettingsExperimentalServiceWorkersHint": "Gdje svaka stranica ima vlastiti kontejner, service workeri stranice (pozadinske skripte koje neke stranice koriste za stranice van mreže, keširanje i ažuriranja) učitavaju se kroz DNS listu blokiranja, liste filtera i LocalCDN te stranice i mogu pristupiti mreži. Stupa na snagu pri sljedećem pokretanju aplikacije.",
+  "appSettingsExperimentalTapGestures": "Dodiri kao geste veze",
+  "appSettingsExperimentalTapGesturesHint": "iOS javlja da ste tražili stranicu samo kada dodirnete vezu ili pošaljete obrazac. Dugme koje napušta stranicu iz skripte, kao mnoga dugmad Sign in with Google, izgleda kao da stranica odlazi sama, pa ga aplikacija zaustavlja. Kada je ovo uključeno, dodir na stranici vrijedi narednih 10 sekundi, pa se stranica do koje vodi otvara kao veza.",
   "appSettingsExtensions": "Proširenja",
   "appSettingsExtensionsNone": "Ništa nije uvezeno",
   "appSettingsExtensionsCount": "{count, plural, one{{count} proširenje} few{{count} proširenja} other{{count} proširenja}}",

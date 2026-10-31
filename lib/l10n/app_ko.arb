@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "각 사이트가 네트워크 화면에서 트래픽이 나가는 네트워크 인터페이스(여러 VPN 중 하나의 터널 등)를 고를 수 있게 합니다. 인터페이스가 꺼진 사이트는 다른 연결을 쓰는 대신 아무것도 불러오지 않습니다.",
   "appSettingsExperimentalServiceWorkers": "차단기를 거치는 서비스 워커",
   "appSettingsExperimentalServiceWorkersHint": "사이트마다 자체 컨테이너가 있는 경우, 사이트의 서비스 워커(일부 사이트가 오프라인 페이지, 캐싱, 업데이트에 사용하는 백그라운드 스크립트)는 해당 사이트의 DNS 차단 목록, 필터 목록, LocalCDN을 거쳐 로드되며 네트워크에 접근할 수 있습니다. 다음에 앱을 시작할 때 적용됩니다.",
+  "appSettingsExperimentalTapGestures": "탭을 링크 동작으로 인정",
+  "appSettingsExperimentalTapGesturesHint": "iOS는 링크를 탭하거나 양식을 보낼 때만 페이지를 요청했다고 알립니다. 많은 Sign in with Google 버튼처럼 스크립트로 사이트를 떠나는 버튼은 페이지가 스스로 떠나는 것처럼 보여 앱이 막습니다. 이 옵션을 켜면 페이지를 탭한 뒤 10초 동안 그 탭이 인정되어, 이어지는 페이지가 링크처럼 열립니다.",
   "appSettingsExtensions": "확장 프로그램",
   "appSettingsExtensionsNone": "가져온 항목 없음",
   "appSettingsExtensionsCount": "{count, plural, other{확장 프로그램 {count}개}}",

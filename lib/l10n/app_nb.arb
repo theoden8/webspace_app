@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Lar hvert nettsted velge på Nettverk-skjermen sin hvilket nettverksgrensesnitt trafikken går ut gjennom, for eksempel tunnelen til ett av flere VPN. Et nettsted med grensesnittet nede laster ingenting i stedet for å bruke en annen tilkobling.",
   "appSettingsExperimentalServiceWorkers": "Service workers gjennom blokkeringer",
   "appSettingsExperimentalServiceWorkersHint": "Der hvert nettsted har sin egen container, lastes et nettsteds service workers (bakgrunnsskriptene noen nettsteder bruker til frakoblede sider, hurtigbuffer og oppdateringer) gjennom nettstedets DNS-blokkeringsliste, filterlister og LocalCDN, og de kan nå nettverket. Trer i kraft neste gang appen starter.",
+  "appSettingsExperimentalTapGestures": "Trykk som lenkebevegelser",
+  "appSettingsExperimentalTapGesturesHint": "iOS melder bare at du ba om en side når du trykker på en lenke eller sender et skjema. En knapp som forlater nettstedet fra et skript, slik mange Sign in with Google-knapper gjør, ser ut som at siden går av seg selv, og appen stopper den. Med dette på teller et trykk på siden de neste 10 sekundene, så siden det fører til åpnes slik en lenke ville.",
   "appSettingsExtensions": "Utvidelser",
   "appSettingsExtensionsNone": "Ingen importert",
   "appSettingsExtensionsCount": "{count, plural, one{{count} utvidelse} other{{count} utvidelser}}",

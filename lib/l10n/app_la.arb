@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Sinit quemque situm in sua pagina Rete eligere interfaciem retis per quam commeatus eius exit, ut cuniculum unius e pluribus VPN. Situs cuius interfacies deficit nihil onerat potius quam alia conexione utatur.",
   "appSettingsExperimentalServiceWorkers": "Operarii ministerii per impedimenta",
   "appSettingsExperimentalServiceWorkersHint": "Ubi quisque situs suum continens habet, operarii ministerii situs (scripta in recessu quibus quidam situs ad paginas sine conexu, ad memoriam celerem et ad renovationes utuntur) per indicem impediendorum DNS, indices percolationis et LocalCDN eius situs onerantur, et ad rete pervenire possunt. Valebit proximo applicationis initio.",
+  "appSettingsExperimentalTapGestures": "Tactus ut gestus nexuum",
+  "appSettingsExperimentalTapGesturesHint": "iOS te paginam petivisse nuntiat solum cum nexum tangis aut formulam mittis. Globulus qui situm per scriptum relinquit, ut multi globuli Sign in with Google faciunt, videtur pagina sua sponte abiens, et applicatio eum sistit. Hoc accenso, tactus paginae per proxima 10 secunda valet, ita ut pagina ad quam ducit aperiatur sicut nexus.",
   "appSettingsExtensions": "Extensiones",
   "appSettingsExtensionsNone": "Nulla importata",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensio} other{{count} extensiones}}",

@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "يتيح لكل موقع أن يختار من شاشة الشبكة الخاصة به واجهة الشبكة التي تخرج منها حركة مروره، مثل نفق إحدى شبكات VPN من بين عدة شبكات. الموقع الذي تتعطل واجهته لا يحمّل شيئًا بدلًا من استخدام اتصال آخر.",
   "appSettingsExperimentalServiceWorkers": "عمّال الخدمة عبر أدوات الحجب",
   "appSettingsExperimentalServiceWorkersHint": "حيث يكون لكل موقع حاويته الخاصة، تُحمَّل عمّال الخدمة (service workers) الخاصة بالموقع، وهي نصوص تعمل في الخلفية تستخدمها بعض المواقع للصفحات دون اتصال والتخزين المؤقت والتحديثات، عبر قائمة حجب DNS وقوائم التصفية وLocalCDN الخاصة بذلك الموقع، ويمكنها الوصول إلى الشبكة. يسري مفعولها عند التشغيل التالي للتطبيق.",
+  "appSettingsExperimentalTapGestures": "النقرات كإيماءات روابط",
+  "appSettingsExperimentalTapGesturesHint": "لا يُبلغ iOS أنك طلبت صفحة إلا عندما تنقر رابطًا أو ترسل نموذجًا. الزر الذي يغادر الموقع من خلال برنامج نصي، كما تفعل كثير من أزرار Sign in with Google، يبدو كأن الصفحة تغادر من تلقاء نفسها، فيوقفه التطبيق. عند تشغيل هذا الخيار، تُحتسب النقرة على الصفحة لمدة 10 ثوانٍ تالية، فتُفتح الصفحة التي تقود إليها كما يُفتح الرابط.",
   "appSettingsExtensions": "الإضافات",
   "appSettingsExtensionsNone": "لم يُستورد شيء",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} إضافة} one{{count} إضافة} two{{count} إضافتان} few{{count} إضافات} many{{count} إضافةً} other{{count} إضافة}}",

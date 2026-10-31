@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Her sitenin Ağ ekranında trafiğinin çıktığı ağ arayüzünü, örneğin birkaç VPN'den birinin tünelini seçmesine izin verir. Arayüzü kapalı olan bir site başka bir bağlantı kullanmak yerine hiçbir şey yüklemez.",
   "appSettingsExperimentalServiceWorkers": "Engelleyiciler üzerinden service worker'lar",
   "appSettingsExperimentalServiceWorkersHint": "Her sitenin kendi kapsayıcısı olduğunda, bir sitenin service worker'ları (bazı sitelerin çevrimdışı sayfalar, önbellekleme ve güncellemeler için kullandığı arka plan betikleri) o sitenin DNS Engelleme Listesi, süzgeç listeleri ve LocalCDN üzerinden yüklenir ve ağa erişebilir. Uygulama bir sonraki başlatıldığında geçerli olur.",
+  "appSettingsExperimentalTapGestures": "Dokunmaları bağlantı hareketi say",
+  "appSettingsExperimentalTapGesturesHint": "iOS, bir sayfa istediğinizi yalnızca bir bağlantıya dokunduğunuzda veya bir form gönderdiğinizde bildirir. Birçok Sign in with Google düğmesinin yaptığı gibi siteden bir komut dosyasıyla ayrılan düğme, sayfa kendiliğinden gidiyormuş gibi görünür ve uygulama onu durdurur. Bu açıkken sayfaya dokunma sonraki 10 saniye boyunca sayılır, böylece götürdüğü sayfa bir bağlantı gibi açılır.",
   "appSettingsExtensions": "Uzantılar",
   "appSettingsExtensionsNone": "İçe aktarılan yok",
   "appSettingsExtensionsCount": "{count, plural, one{{count} uzantı} other{{count} uzantı}}",

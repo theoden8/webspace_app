@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Umožní každej stránke vybrať na jej obrazovke Sieť sieťové rozhranie, ktorým odchádza jej prevádzka, napríklad tunel jednej z viacerých VPN. Stránka, ktorej rozhranie nefunguje, nenačíta nič namiesto použitia iného pripojenia.",
   "appSettingsExperimentalServiceWorkers": "Service workery cez blokátory",
   "appSettingsExperimentalServiceWorkersHint": "Kde má každá stránka vlastný kontajner, service workery stránky (skripty na pozadí, ktoré niektoré stránky používajú na offline stránky, vyrovnávaciu pamäť a aktualizácie) sa načítavajú cez zoznam blokovaných DNS, zoznamy filtrov a LocalCDN danej stránky a môžu pristupovať k sieti. Prejaví sa pri najbližšom spustení aplikácie.",
+  "appSettingsExperimentalTapGestures": "Ťuknutia ako gestá odkazu",
+  "appSettingsExperimentalTapGesturesHint": "iOS hlási, že ste požiadali o stránku, len keď ťuknete na odkaz alebo odošlete formulár. Tlačidlo, ktoré opúšťa web zo skriptu, ako to robí mnoho tlačidiel Sign in with Google, vyzerá, akoby stránka odchádzala sama, a aplikácia ho zastaví. Keď je táto možnosť zapnutá, ťuknutie na stránku platí ďalších 10 sekúnd, takže stránka, na ktorú vedie, sa otvorí ako odkaz.",
   "appSettingsExtensions": "Rozšírenia",
   "appSettingsExtensionsNone": "Žiadne importované",
   "appSettingsExtensionsCount": "{count, plural, one{{count} rozšírenie} few{{count} rozšírenia} many{{count} rozšírenia} other{{count} rozšírení}}",

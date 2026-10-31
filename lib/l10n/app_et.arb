@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Laseb igal saidil valida oma Võrk-ekraanil võrguliidese, mille kaudu tema liiklus seadmest lahkub, näiteks ühe mitmest VPN-i tunnelist. Sait, mille liides ei tööta, ei laadi midagi, selle asemel et kasutada teist ühendust.",
   "appSettingsExperimentalServiceWorkers": "Service workerid läbi blokeerijate",
   "appSettingsExperimentalServiceWorkersHint": "Kus igal saidil on oma konteiner, laadivad saidi service workerid (taustaskriptid, mida mõned saidid kasutavad võrguühenduseta lehtede, vahemälu ja uuenduste jaoks) läbi selle saidi DNS blokeerimisloendi, filtriloendite ja LocalCDN-i ning võivad jõuda võrku. Jõustub rakenduse järgmisel käivitusel.",
+  "appSettingsExperimentalTapGestures": "Puudutused lingižestidena",
+  "appSettingsExperimentalTapGesturesHint": "iOS teatab, et küsisite lehte, ainult siis, kui puudutate linki või saadate vormi. Nupp, mis lahkub saidilt skripti kaudu, nagu paljud Sign in with Google nupud, näib nagu leht lahkuks ise, ja rakendus peatab selle. Kui see on sees, loeb lehe puudutus järgmised 10 sekundit, nii et leht, kuhu see viib, avaneb nagu lingi puhul.",
   "appSettingsExtensions": "Laiendused",
   "appSettingsExtensionsNone": "Ühtegi pole imporditud",
   "appSettingsExtensionsCount": "{count, plural, one{{count} laiendus} other{{count} laiendust}}",

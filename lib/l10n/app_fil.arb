@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Hinahayaan ang bawat site na pumili sa Network screen nito ng network interface na dinaraanan palabas ng trapiko nito, gaya ng tunnel ng isa sa ilang VPN. Walang nilo-load ang site na naka-down ang interface sa halip na gumamit ng ibang koneksyon.",
   "appSettingsExperimentalServiceWorkers": "Mga service worker sa pamamagitan ng mga blocker",
   "appSettingsExperimentalServiceWorkersHint": "Kung saan may sariling container ang bawat site, naglo-load ang mga service worker ng isang site (ang mga background script na ginagamit ng ilang site para sa mga offline na pahina, pag-cache at mga update) sa pamamagitan ng DNS Blocklist, mga listahan ng filter at LocalCDN ng site na iyon, at maaari silang umabot sa network. Magkakabisa ito sa susunod na pagbukas ng app.",
+  "appSettingsExperimentalTapGestures": "Mga tap bilang galaw ng link",
+  "appSettingsExperimentalTapGesturesHint": "Iniuulat lang ng iOS na humingi ka ng pahina kapag nag-tap ka ng link o nagpadala ng form. Ang button na umaalis sa site mula sa script, gaya ng ginagawa ng maraming Sign in with Google button, ay mukhang pahinang kusang umaalis, at pinipigilan ito ng app. Kapag naka-on ito, binibilang ang tap sa pahina sa susunod na 10 segundo, kaya bumubukas ang pahinang pinupuntahan nito gaya ng isang link.",
   "appSettingsExtensions": "Mga Extension",
   "appSettingsExtensionsNone": "Walang na-import",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extension} other{{count} na extension}}",

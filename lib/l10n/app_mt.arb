@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Tħalli lil kull sit jagħżel fuq l-iskrin tan-Netwerk tiegħu l-interfaċċja tan-netwerk li minnha joħroġ it-traffiku tiegħu, bħall-mina ta' VPN wieħed minn diversi. Sit li l-interfaċċja tiegħu tkun mitfija ma jtella' xejn minflok juża konnessjoni oħra.",
   "appSettingsExperimentalServiceWorkers": "Service workers permezz tal-imblokkaturi",
   "appSettingsExperimentalServiceWorkersHint": "Fejn kull sit għandu l-container tiegħu, is-service workers ta' sit (l-iskripts fl-isfond li xi siti jużaw għal paġni offline, caching u aġġornamenti) jitgħabbew permezz tal-Lista mblukkata DNS, il-listi ta' filtri u l-LocalCDN ta' dak is-sit, u jistgħu jilħqu n-netwerk. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
+  "appSettingsExperimentalTapGestures": "Il-mess bħala ġesti ta' link",
+  "appSettingsExperimentalTapGesturesHint": "L-iOS jirrapporta li tlabt paġna biss meta tmiss link jew tibgħat formola. Buttuna li titlaq is-sit minn script, bħalma jagħmlu ħafna buttuni Sign in with Google, tidher qisha l-paġna sejra waħedha, u l-app twaqqafha. B'dan mixgħul, mess fuq il-paġna jgħodd għall-10 sekondi li ġejjin, għalhekk il-paġna li twassal għaliha tinfetaħ bħal link.",
   "appSettingsExtensions": "Estensjonijiet",
   "appSettingsExtensionsNone": "L-ebda waħda importata",
   "appSettingsExtensionsCount": "{count, plural, one{{count} estensjoni} two{{count} estensjonijiet} few{{count} estensjonijiet} many{{count} estensjoni} other{{count} estensjoni}}",

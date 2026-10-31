@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Laat elke werf op sy Netwerk-skerm die netwerkkoppelvlak kies waardeur sy verkeer vertrek, soos een VPN se tonnel onder verskeie. 'n Werf waarvan die koppelvlak af is, laai niks in plaas daarvan om 'n ander verbinding te gebruik nie.",
   "appSettingsExperimentalServiceWorkers": "Service workers deur blokkeerders",
   "appSettingsExperimentalServiceWorkersHint": "Waar elke werf sy eie houer het, laai 'n werf se service workers (die agtergrondskripte wat sommige werwe vir aflyn bladsye, kasgeheue en opdaterings gebruik) deur daardie werf se DNS-blokkeerlys, filterlyste en LocalCDN, en hulle kan die netwerk bereik. Tree in werking die volgende keer dat die toepassing begin.",
+  "appSettingsExperimentalTapGestures": "Tikke as skakelgebare",
+  "appSettingsExperimentalTapGesturesHint": "iOS meld dat jy 'n bladsy gevra het slegs wanneer jy 'n skakel getik of 'n vorm gestuur het. 'n Knoppie wat die werf vanuit 'n skrip verlaat, soos baie Sign in with Google-knoppies doen, lyk asof die bladsy uit sy eie weggaan, en die app keer dit. Met dit aan tel 'n tik op die bladsy vir die volgende 10 sekondes, sodat die bladsy waarheen dit lei oopmaak soos 'n skakel sou.",
   "appSettingsExtensions": "Uitbreidings",
   "appSettingsExtensionsNone": "Geen ingevoer nie",
   "appSettingsExtensionsCount": "{count, plural, one{{count} uitbreiding} other{{count} uitbreidings}}",

@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Consente a ogni sito di scegliere nella sua schermata Rete l'interfaccia di rete da cui esce il suo traffico, come il tunnel di una VPN tra più di una. Un sito con l'interfaccia inattiva non carica nulla invece di usare un'altra connessione.",
   "appSettingsExperimentalServiceWorkers": "Service worker tramite i blocchi",
   "appSettingsExperimentalServiceWorkersHint": "Dove ogni sito ha il proprio container, i service worker di un sito (gli script in background che alcuni siti usano per pagine offline, cache e aggiornamenti) si caricano tramite la blocklist DNS, le liste di filtri e il LocalCDN di quel sito, e possono raggiungere la rete. Ha effetto dal prossimo avvio dell'app.",
+  "appSettingsExperimentalTapGestures": "Tocchi come gesti di link",
+  "appSettingsExperimentalTapGesturesHint": "iOS segnala che hai chiesto una pagina solo quando tocchi un link o invii un modulo. Un pulsante che lascia il sito da uno script, come fanno molti pulsanti Sign in with Google, sembra la pagina che se ne va da sola, e l'app lo ferma. Con questa opzione attiva, un tocco sulla pagina vale per i 10 secondi successivi, così la pagina a cui porta si apre come farebbe un link.",
   "appSettingsExtensions": "Estensioni",
   "appSettingsExtensionsNone": "Nessuna importata",
   "appSettingsExtensionsCount": "{count, plural, one{{count} estensione} many{{count} di estensioni} other{{count} estensioni}}",

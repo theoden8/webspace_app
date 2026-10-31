@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Ligeann sé do gach suíomh an comhéadan líonra a fhágann a thrácht tríd a roghnú ar a scáileán Líonra, mar thollán VPN amháin as roinnt. Ní lódálann suíomh a bhfuil a chomhéadan síos aon rud in ionad nasc eile a úsáid.",
   "appSettingsExperimentalServiceWorkers": "Oibrithe seirbhíse trí bhactóirí",
   "appSettingsExperimentalServiceWorkersHint": "Nuair atá a choimeádán féin ag gach suíomh, lódálann oibrithe seirbhíse suímh (na scripteanna cúlra a úsáideann roinnt suíomhanna le haghaidh leathanach as líne, taisce agus nuashonruithe) trí Liosta Bactha DNS, liostaí scagaire agus LocalCDN an tsuímh sin, agus is féidir leo an líonra a bhaint amach. Tagann sé i bhfeidhm an chéad uair eile a thosaíonn an aip.",
+  "appSettingsExperimentalTapGestures": "Tapanna mar ghothaí naisc",
+  "appSettingsExperimentalTapGesturesHint": "Ní thuairiscíonn iOS gur iarr tú leathanach ach nuair a thapálann tú nasc nó nuair a sheolann tú foirm. Breathnaíonn cnaipe a fhágann an suíomh ó script, mar a dhéanann go leor cnaipí Sign in with Google, mar an leathanach ag imeacht leis féin, agus stopann an aip é. Agus é seo ar siúl, áirítear tapáil ar an leathanach ar feadh na 10 soicind ina dhiaidh, mar sin osclaíonn an leathanach a dtreoraíonn sé chuige mar a d'osclódh nasc.",
   "appSettingsExtensions": "Eisínteachtaí",
   "appSettingsExtensionsNone": "Níl aon cheann iompórtáilte",
   "appSettingsExtensionsCount": "{count, plural, one{{count} eisínteacht} two{{count} eisínteacht} few{{count} eisínteacht} many{{count} eisínteacht} other{{count} eisínteacht}}",

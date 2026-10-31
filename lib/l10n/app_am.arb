@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "እያንዳንዱ ጣቢያ በአውታረ መረብ ማያው ላይ ትራፊኩ የሚወጣበትን የአውታረ መረብ በይነገጽ እንዲመርጥ ያስችላል፣ ለምሳሌ ከብዙ VPNዎች የአንዱን ዋሻ። በይነገጹ የጠፋበት ጣቢያ ሌላ ግንኙነት ከመጠቀም ይልቅ ምንም አይጭንም።",
   "appSettingsExperimentalServiceWorkers": "Service workers በአጋጆች በኩል",
   "appSettingsExperimentalServiceWorkersHint": "እያንዳንዱ ድረ-ገጽ የራሱ ኮንቴይነር ባለበት፣ የአንድ ድረ-ገጽ service workers (አንዳንድ ድረ-ገጾች ከመስመር ውጭ ለሆኑ ገጾች፣ ለማከማቻ እና ለዝማኔዎች የሚጠቀሙባቸው የጀርባ ስክሪፕቶች) በዚያ ድረ-ገጽ የ DNS እገዳ ዝርዝር፣ የማጣሪያ ዝርዝሮች እና LocalCDN በኩል ይጫናሉ፣ አውታረ መረቡንም ሊደርሱ ይችላሉ። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
+  "appSettingsExperimentalTapGestures": "መታ ማድረግ እንደ አገናኝ ምልክት",
+  "appSettingsExperimentalTapGesturesHint": "iOS ገጽ እንደጠየቁ የሚዘግበው አገናኝ ሲነኩ ወይም ቅጽ ሲልኩ ብቻ ነው። ብዙ የSign in with Google አዝራሮች እንደሚያደርጉት ከስክሪፕት ጣቢያውን የሚለቅ አዝራር ገጹ በራሱ እንደሚሄድ ይነበባል፣ እና መተግበሪያው ያቆመዋል። ይህ ሲበራ በገጹ ላይ መንካት ለሚቀጥሉት 10 ሰከንዶች ይቆጠራል፣ ስለዚህ የሚወስደው ገጽ እንደ አገናኝ ይከፈታል።",
   "appSettingsExtensions": "ቅጥያዎች",
   "appSettingsExtensionsNone": "ምንም አልመጣም",
   "appSettingsExtensionsCount": "{count, plural, one{{count} ቅጥያ} other{{count} ቅጥያዎች}}",

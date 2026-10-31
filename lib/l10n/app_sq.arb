@@ -1178,6 +1178,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "I lejon çdo siti të zgjedhë në ekranin e vet Rrjeti ndërfaqen e rrjetit përmes së cilës del trafiku i tij, si tunelin e një prej disa VPN-ve. Një sit me ndërfaqe të fikur nuk ngarkon asgjë në vend që të përdorë një lidhje tjetër.",
   "appSettingsExperimentalServiceWorkers": "Service workers përmes bllokuesve",
   "appSettingsExperimentalServiceWorkersHint": "Kur çdo sajt ka kontejnerin e vet, service workers e një sajti (skriptet në sfond që disa sajte përdorin për faqe jashtë linje, ruajtje në memorie dhe përditësime) ngarkohen përmes listës së bllokimit DNS, listave të filtrave dhe LocalCDN të atij sajti, dhe mund të arrijnë rrjetin. Hyn në fuqi herën tjetër që niset aplikacioni.",
+  "appSettingsExperimentalTapGestures": "Prekjet si gjeste lidhjeje",
+  "appSettingsExperimentalTapGesturesHint": "iOS njofton se kërkuat një faqe vetëm kur prekni një lidhje ose dërgoni një formular. Një buton që largohet nga sajti përmes një skripti, siç bëjnë shumë butona Sign in with Google, duket si faqja që largohet vetë, dhe aplikacioni e ndal. Me këtë aktiv, një prekje në faqe vlen për 10 sekondat e ardhshme, kështu që faqja ku të çon hapet si një lidhje.",
   "appSettingsExtensions": "Shtesat",
   "appSettingsExtensionsNone": "Asnjë e importuar",
   "appSettingsExtensionsCount": "{count, plural, one{{count} shtesë} other{{count} shtesa}}",
