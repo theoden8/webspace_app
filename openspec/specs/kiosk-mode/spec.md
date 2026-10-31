@@ -181,7 +181,9 @@ switch out of the site's Behaviour screen and out of its Behaviour summary,
 and SHALL run the site as no kiosk whatever it stores: its tabs follow its
 own choice (TAB-013) and its extensions are not locked (WEBEXT-016). The
 stored value is kept, written to backups and QR codes, and takes effect
-again on a device that takes shortcuts. The rule is
+again on a device that takes shortcuts: turning the site's tabs on leaves
+it as it is, and the review of a shared site's settings does not name it
+among what the code turns on. The rule is
 `resolveKiosk` in `lib/services/site_overrides.dart`, read through
 `WebViewModel.effectiveKioskMode` and the Behaviour screen's values.
 
@@ -198,6 +200,19 @@ again on a device that takes shortcuts. The rule is
 **When** the site follows the app's Tabs switch, which is on
 **Then** the site runs with tabs
 **And** its stored `kioskMode` is still `true`
+
+#### Scenario: Turning tabs on keeps a hidden kiosk
+
+**Given** a site stores `kioskMode = true` and tabs off, where no shortcut can be added
+**When** the user turns the site's tabs on
+**Then** the site runs with tabs
+**And** its stored `kioskMode` is still `true`
+
+#### Scenario: A shared code's review leaves out a kiosk that does nothing here
+
+**Given** the app runs where no shortcut can be added
+**When** the user opens a QR code that turns Kiosk mode on
+**Then** the review does not list "Kiosk mode" among what it turns on
 
 ---
 

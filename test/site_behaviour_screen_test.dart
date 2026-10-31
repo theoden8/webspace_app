@@ -438,6 +438,22 @@ void main() {
       expect(_switchTitled(tester, title: 'Full screen mode').value, isTrue);
     });
 
+    testWidgets('where no shortcut can be added, the tabs switch leaves a '
+        'stored kiosk alone (KIOSK-006)', (tester) async {
+      withoutShortcuts();
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(kioskMode: true, tabsEnabled: false),
+        onChanged: (v) => seen = v,
+      );
+      await _tapTabs(tester);
+      expect(seen!.tabsEnabled.stored, isTrue);
+      expect(seen!.kioskMode, isTrue,
+          reason: 'a TV hides the kiosk it keeps for a phone');
+      expect(_selectedTabs(tester), isTrue);
+    });
+
     testWidgets('kiosk shows tabs off and gives them back (BEHAV-005)', (tester) async {
       SiteBehaviourValues? seen;
       await _pump(

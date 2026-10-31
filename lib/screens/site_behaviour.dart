@@ -195,9 +195,12 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
     widget.onChanged(next);
   }
 
+  // Where no kiosk runs (KIOSK-006) the stored one is left for a device
+  // that runs it.
   void _setTabs(Scoped<bool> choice) => _update(_values.copyWith(
         tabsEnabled: choice,
-        kioskMode: choice.resolve(AppPref.tabsEnabled.value)
+        kioskMode: choice.resolve(AppPref.tabsEnabled.value) &&
+                _values.effectiveKioskMode
             ? false
             : _values.kioskMode,
       ));
