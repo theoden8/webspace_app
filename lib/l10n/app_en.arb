@@ -5577,14 +5577,6 @@
   "@appSettingsExperimentalExtensionSearchHint": {
     "description": "Explanation behind the hint button of the Extension search experiment switch. addons.mozilla.org is a website, WebKit is the browser engine and Web extensions is the name of another switch; keep those names as they are."
   },
-  "appSettingsExperimentalDesktopTray": "Tray icon",
-  "@appSettingsExperimentalDesktopTray": {
-    "description": "Title of the switch in App Settings > Developer > Experimental (macOS only) that shows the app's icon in the macOS menu bar while the app keeps running with its window closed."
-  },
-  "appSettingsExperimentalDesktopTrayHint": "While Keep running when closed is on, show WebSpace's icon in the menu bar. Its menu shows the window, opens a site with notifications on, or quits.",
-  "@appSettingsExperimentalDesktopTrayHint": {
-    "description": "Explanation behind the hint button of the Tray icon experiment switch, offered on macOS only, so the menu bar is the macOS menu bar. Keep running when closed is the name of another setting; WebSpace is the app's name; keep those as written."
-  },
   "appSettingsExperimentalLinuxTor": "Built-in Tor",
   "@appSettingsExperimentalLinuxTor": {
     "description": "Title of an Experimental switch in App settings > Developer, on Linux only, that lets sites use a Tor client the app starts itself, rather than only a Tor program already running on the computer. Tor is a product name; keep it."

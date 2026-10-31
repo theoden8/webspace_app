@@ -92,6 +92,14 @@ void main() {
             'every platform (DEVTOOLS-011)');
   });
 
+  test('The tray icon graduated: it has no switch (NOTIF-019)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalDesktopTray')),
+        reason: 'Keep running when closed alone shows the tray, on macOS as '
+            'on Linux (DEVTOOLS-011)');
+  });
+
   test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
       () {
     expect(

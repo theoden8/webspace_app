@@ -246,7 +246,6 @@
     "experimentalExtensionSearch": true,
     "webExtensionsCheckUpdates": true,
     "webExtensionsAutoUpdate": true,
-    "experimentalDesktopTray": true,
     "experimentalLinuxTor": true,
     "experimentalNetworkInterface": true,
     "experimentalServiceWorkers": true,
