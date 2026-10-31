@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Kjør nettleserutvidelser du importerer fra en fil (en .crx for Chrome, en .xpi for Firefox eller en .zip) på nettstedene du velger. WebKit kjører det den støtter av hver enkelt. En utvidelse kjører ikke på noe nettsted før du slår den på i innstillingene for det nettstedet, og der når den bare det nettstedet.",
   "appSettingsExperimentalExtensionSearch": "Utvidelsessøk",
   "appSettingsExperimentalExtensionSearchHint": "Legger til et søk på addons.mozilla.org på skjermen \"Utvidelser\", der hvert resultat er merket med hvor godt WebKit forventes å kjøre det. Tilbys bare i utgaver utenfor App Store, og bare mens \"Nettutvidelser\" er slått på.",
-  "appSettingsExperimentalDesktopTray": "Symbol i systemkurven",
-  "appSettingsExperimentalDesktopTrayHint": "Når \"Fortsett å kjøre etter lukking\" er slått på, vises symbolet for WebSpace i menylinjen. Menyen viser vinduet, åpner et nettsted med varsler slått på eller avslutter appen.",
   "appSettingsExperimentalLinuxTor": "Innebygd Tor",
   "appSettingsExperimentalLinuxTorHint": "Tilbyr Tor som et nettsteds mellomtjener gjennom en tor som appen starter selv: den som følger med denne versjonen, eller ellers tor installert på denne datamaskinen. Hvert nettsted får sine egne kretser. Trer i kraft neste gang appen starter.",
   "networkInterfaceTitle": "Nettverksgrensesnitt",

@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "파일에서 가져온 브라우저 확장 프로그램(Chrome .crx, Firefox .xpi 또는 .zip)을 선택한 사이트에서 실행합니다. WebKit은 각 확장 프로그램에서 지원하는 부분만 실행합니다. 확장 프로그램은 해당 사이트 설정에서 켜기 전까지 어느 사이트에서도 실행되지 않으며, 켠 사이트에만 접근합니다.",
   "appSettingsExperimentalExtensionSearch": "확장 프로그램 검색",
   "appSettingsExperimentalExtensionSearchHint": "\"확장 프로그램\" 화면에 addons.mozilla.org 검색을 추가하며, 각 결과에 WebKit에서 얼마나 잘 실행될 것으로 예상되는지 표시됩니다. App Store 외부에서 받은 빌드에서만, 그리고 \"웹 확장 프로그램\"이 켜져 있는 동안에만 제공됩니다.",
-  "appSettingsExperimentalDesktopTray": "시스템 트레이 아이콘",
-  "appSettingsExperimentalDesktopTrayHint": "\"닫아도 계속 실행\"이 켜져 있는 동안 메뉴 막대에 WebSpace 아이콘을 표시합니다. 아이콘의 메뉴로 창을 표시하거나, 알림을 켠 사이트를 열거나, 앱을 종료할 수 있습니다.",
   "appSettingsExperimentalLinuxTor": "내장 Tor",
   "appSettingsExperimentalLinuxTorHint": "앱이 직접 시작하는 tor를 통해 Tor를 사이트의 프록시로 제공합니다. 이 빌드에 포함된 tor를, 없으면 이 컴퓨터에 설치된 tor를 사용합니다. 사이트마다 자체 회로를 사용합니다. 다음에 앱을 시작할 때 적용됩니다.",
   "networkInterfaceTitle": "네트워크 인터페이스",

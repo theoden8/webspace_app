@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Bir dosyadan içe aktardığınız tarayıcı uzantılarını (Chrome .crx, Firefox .xpi veya .zip) seçtiğiniz sitelerde çalıştırır. WebKit her birinin desteklediği kısmını çalıştırır. Bir uzantı, o sitenin ayarlarında siz açana kadar hiçbir sitede çalışmaz ve orada yalnızca o siteye erişir.",
   "appSettingsExperimentalExtensionSearch": "Uzantı arama",
   "appSettingsExperimentalExtensionSearchHint": "\"Uzantılar\" ekranına addons.mozilla.org'da arama ekler; her sonuç, WebKit'in onu ne kadar iyi çalıştırmasının beklendiğini gösterir. Yalnızca App Store dışından gelen derlemelerde ve yalnızca \"Web uzantıları\" açıkken sunulur.",
-  "appSettingsExperimentalDesktopTray": "Sistem tepsisi simgesi",
-  "appSettingsExperimentalDesktopTrayHint": "\"Kapatıldığında çalışmaya devam et\" açıkken WebSpace simgesini menü çubuğunda gösterir. Simgenin menüsü pencereyi gösterir, bildirimleri açık bir siteyi açar veya uygulamadan çıkar.",
   "appSettingsExperimentalLinuxTor": "Yerleşik Tor",
   "appSettingsExperimentalLinuxTorHint": "Tor'u, uygulamanın kendisinin başlattığı bir tor üzerinden sitenin vekil sunucusu olarak sunar: bu sürümle gelen tor, yoksa bu bilgisayarda kurulu tor. Her site kendi devrelerini alır. Uygulama bir sonraki başlatıldığında geçerli olur.",
   "networkInterfaceTitle": "Ağ arayüzü",

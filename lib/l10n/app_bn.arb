@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "ফাইল থেকে ইম্পোর্ট করা ব্রাউজার এক্সটেনশন (Chrome-এর .crx, Firefox-এর .xpi বা একটি .zip) আপনার বেছে নেওয়া সাইটগুলিতে চালান। প্রতিটির যতটুকু WebKit সমর্থন করে, ততটুকুই চালায়। আপনি সেই সাইটের সেটিংসে চালু না করা পর্যন্ত কোনো এক্সটেনশন কোনো সাইটে চলে না, আর সেখানে এটি শুধু সেই সাইটেই পৌঁছায়।",
   "appSettingsExperimentalExtensionSearch": "এক্সটেনশন খোঁজা",
   "appSettingsExperimentalExtensionSearchHint": "\"এক্সটেনশন\" স্ক্রিনে addons.mozilla.org-এ খোঁজার সুবিধা যোগ করে, প্রতিটি ফলাফলে লেখা থাকে WebKit এটি কতটা ভালো চালাবে বলে আশা করা যায়। শুধু App Store-এর বাইরের বিল্ডে দেওয়া হয়, এবং শুধু যখন \"ওয়েব এক্সটেনশন\" চালু থাকে।",
-  "appSettingsExperimentalDesktopTray": "সিস্টেম ট্রে আইকন",
-  "appSettingsExperimentalDesktopTrayHint": "\"বন্ধ করলেও চালু থাকবে\" চালু থাকলে, মেনু বারে WebSpace-এর আইকন দেখায়। এর মেনু উইন্ডোটি দেখায়, বিজ্ঞপ্তি চালু থাকা কোনও সাইট খোলে বা অ্যাপ থেকে প্রস্থান করে।",
   "appSettingsExperimentalLinuxTor": "অন্তর্নির্মিত Tor",
   "appSettingsExperimentalLinuxTorHint": "অ্যাপ নিজে যে tor চালু করে তার মাধ্যমে সাইটের প্রক্সি হিসেবে Tor দেয়: এই বিল্ডের সঙ্গে থাকা tor, নয়তো এই কম্পিউটারে ইনস্টল করা tor। প্রতিটি সাইট নিজস্ব সার্কিট পায়। পরের বার অ্যাপ চালু হলে কার্যকর হয়।",
   "networkInterfaceTitle": "নেটওয়ার্ক ইন্টারফেস",

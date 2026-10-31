@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "તમે ફાઇલમાંથી આયાત કરો છો તે બ્રાઉઝર એક્સ્ટેન્શન્સ (Chromeની .crx, Firefoxની .xpi અથવા .zip) તમે પસંદ કરો તે સાઇટ્સ પર ચલાવે છે. WebKit દરેકમાંથી જે સપોર્ટ કરે છે તે ચલાવે છે. તમે તે સાઇટની સેટિંગ્સમાં ચાલુ ન કરો ત્યાં સુધી એક્સ્ટેન્શન કોઈ સાઇટ પર ચાલતું નથી, અને ત્યાં તે ફક્ત તે સાઇટ સુધી જ પહોંચે છે.",
   "appSettingsExperimentalExtensionSearch": "એક્સ્ટેન્શન શોધ",
   "appSettingsExperimentalExtensionSearchHint": "\"એક્સ્ટેન્શન્સ\" સ્ક્રીનમાં addons.mozilla.org પર શોધ ઉમેરે છે, અને દરેક પરિણામ પર લખેલું હોય છે કે WebKit તેને કેટલી સારી રીતે ચલાવે તેવી અપેક્ષા છે. ફક્ત App Store ની બહારના બિલ્ડમાં જ ઉપલબ્ધ, અને ફક્ત ત્યારે જ જ્યારે \"વેબ એક્સ્ટેન્શન્સ\" ચાલુ હોય.",
-  "appSettingsExperimentalDesktopTray": "સિસ્ટમ ટ્રે આઇકન",
-  "appSettingsExperimentalDesktopTrayHint": "\"બંધ કર્યા પછી પણ ચાલુ રહે\" ચાલુ હોય ત્યારે, મેનૂ બારમાં WebSpaceનું આઇકન બતાવે છે. તેનું મેનૂ વિન્ડો બતાવે છે, સૂચનાઓ ચાલુ હોય તેવી સાઇટ ખોલે છે અથવા ઍપમાંથી બહાર નીકળે છે.",
   "appSettingsExperimentalLinuxTor": "બિલ્ટ-ઇન Tor",
   "appSettingsExperimentalLinuxTorHint": "એપ પોતે શરૂ કરે તે tor દ્વારા સાઇટના પ્રોક્સી તરીકે Tor આપે છે: આ બિલ્ડ સાથે આવતું tor, નહીંતર આ કમ્પ્યુટર પર ઇન્સ્ટોલ થયેલું tor. દરેક સાઇટને પોતાના સર્કિટ મળે છે. એપ આગલી વખતે શરૂ થાય ત્યારે લાગુ થાય છે.",
   "networkInterfaceTitle": "નેટવર્ક ઇન્ટરફેસ",

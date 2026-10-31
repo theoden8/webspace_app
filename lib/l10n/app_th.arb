@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "เรียกใช้ส่วนขยายเบราว์เซอร์ที่คุณนำเข้าจากไฟล์ (Chrome .crx, Firefox .xpi หรือ .zip) บนเว็บไซต์ที่คุณเลือก WebKit จะเรียกใช้ส่วนที่รองรับของแต่ละรายการ ส่วนขยายจะไม่ทำงานบนเว็บไซต์ใดจนกว่าคุณจะเปิดในการตั้งค่าของเว็บไซต์นั้น และที่นั่นจะเข้าถึงได้เฉพาะเว็บไซต์นั้น",
   "appSettingsExperimentalExtensionSearch": "การค้นหาส่วนขยาย",
   "appSettingsExperimentalExtensionSearchHint": "เพิ่มการค้นหาใน addons.mozilla.org ลงในหน้าจอ \"ส่วนขยาย\" โดยแต่ละผลลัพธ์จะระบุว่าคาดว่า WebKit จะเรียกใช้ได้ดีเพียงใด มีให้เฉพาะในบิลด์ที่ไม่ได้มาจาก App Store และเฉพาะขณะที่เปิด \"ส่วนขยายเว็บ\" อยู่",
-  "appSettingsExperimentalDesktopTray": "ไอคอนในถาดระบบ",
-  "appSettingsExperimentalDesktopTrayHint": "ขณะที่เปิด \"ทำงานต่อเมื่อปิด\" อยู่ จะแสดงไอคอนของ WebSpace ในแถบเมนู เมนูของไอคอนจะแสดงหน้าต่าง เปิดเว็บไซต์ที่เปิดการแจ้งเตือนไว้ หรือออกจากแอป",
   "appSettingsExperimentalLinuxTor": "Tor ในตัว",
   "appSettingsExperimentalLinuxTorHint": "ให้ใช้ Tor เป็นพร็อกซีของเว็บไซต์ผ่าน tor ที่แอปเริ่มเอง คือ tor ที่มากับรุ่นนี้ หรือถ้าไม่มีก็ใช้ tor ที่ติดตั้งในคอมพิวเตอร์เครื่องนี้ แต่ละเว็บไซต์ได้วงจรของตัวเอง มีผลเมื่อแอปเริ่มทำงานครั้งถัดไป",
   "networkInterfaceTitle": "อินเทอร์เฟซเครือข่าย",
