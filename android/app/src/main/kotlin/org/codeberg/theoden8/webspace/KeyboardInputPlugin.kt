@@ -71,15 +71,24 @@ class KeyboardInputPlugin(private val activity: Activity, flutterEngine: Flutter
         channel.invokeMethod("attachedChanged", now)
     }
 
+    /**
+     * [keyCode] pressed and let go, inside Control's own press where
+     * [metaState] holds it, as a keyboard sends a chord.
+     */
     private fun typeKey(keyCode: Int, metaState: Int) {
         val down = SystemClock.uptimeMillis()
-        for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+        fun send(action: Int, code: Int, meta: Int) {
             activity.dispatchKeyEvent(
                 KeyEvent(
-                    down, SystemClock.uptimeMillis(), action, keyCode, 0, metaState,
+                    down, SystemClock.uptimeMillis(), action, code, 0, meta,
                     KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD,
                 )
             )
         }
+        val control = (metaState and KeyEvent.META_CTRL_ON) != 0
+        if (control) send(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_CTRL_LEFT, metaState)
+        send(KeyEvent.ACTION_DOWN, keyCode, metaState)
+        send(KeyEvent.ACTION_UP, keyCode, metaState)
+        if (control) send(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_CTRL_LEFT, 0)
     }
 }

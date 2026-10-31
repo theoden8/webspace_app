@@ -212,6 +212,8 @@ void main() {
       final keys = KeyboardShortcuts(screen)..start();
       addTearDown(keys.dispose);
       await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+      await tester.pumpAndSettle();
+      log('primary focus: ${FocusManager.instance.primaryFocus}');
 
       final met = await type(tester, keyCode: _keyT, metaState: _metaCtrl);
       expect(met?['viewFocused'], isTrue,
