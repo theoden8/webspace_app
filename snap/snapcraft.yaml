@@ -108,6 +108,10 @@ parts:
     # the user namespaces it needs, and snapd confines the processes itself.
     # Its Swift back-forward list is off: WebKit turns it on wherever CMake
     # finds a swiftc, as on a CI runner, and the flatpak's SDK has none.
+    # Precompiled headers are off: with them clang splits WebKit into
+    # subtargets, and the network process's compiles stop waiting for the
+    # WebKitDirectoryInputStreamData.h WebKit generates, a race a 4-job build
+    # loses.
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
@@ -127,6 +131,7 @@ parts:
         -DENABLE_SPEECH_SYNTHESIS=OFF \
         -DENABLE_BUBBLEWRAP_SANDBOX=OFF \
         -DENABLE_BACK_FORWARD_LIST_SWIFT=OFF \
+        -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON \
         -DENABLE_WPE_PLATFORM_DRM=OFF \
         -DUSE_LIBBACKTRACE=OFF \
         -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
