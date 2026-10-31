@@ -185,8 +185,7 @@ void main([List<String> args = const []]) async {
         '${WidgetsBinding.instance.lifecycleState?.name ?? 'state not reported yet'})',
   );
   // Before anything touches TorService.instance, which picks its tor from
-  // this on first use and on every runtimeChoiceChanged (TOR-025), and on
-  // first use reads the Built-in Tor experiment loaded above (TOR-027).
+  // this on first use and on every runtimeChoiceChanged (TOR-025).
   TorService.wantsExternal = () => ExternalTorSettings.chosen;
   // Before any site's webview: a site bound to an interface resolves to the
   // relay, or to no route while it is not up (NETIF-002).

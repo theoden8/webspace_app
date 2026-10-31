@@ -288,7 +288,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                 savedProxyId: _outboundProxy.savedProxyId,
                 gatewayId: _outboundProxy.gatewayId,
                 library: ProxyLibrary.data,
-                torAvailable: TorService.instance.isAvailable,
+                torAvailable: TorService.instance.offered,
                 torExternal: TorService.instance.isExternal,
                 onChanged: (choice) {
                   setState(() {

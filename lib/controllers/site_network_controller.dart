@@ -61,6 +61,7 @@ class SiteNetworkController {
 
   StreamSubscription<TrustedHostEntry>? _untrustSub;
   StreamSubscription<TorStatus>? _torStatusSub;
+  StreamSubscription<void>? _torAvailabilitySub;
   TorStatus _lastTorStatus = const TorStopped();
 
   void start() {
@@ -76,11 +77,18 @@ class SiteNetworkController {
     // to changes; a restart comes back on another loopback port.
     _lastTorStatus = TorService.instance.status;
     _torStatusSub = TorService.instance.statusStream.listen(_torStatusChanged);
+    // Tor that becomes available (the Built-in Tor experiment, the external
+    // tor chosen) finds Tor sites loaded with no pin in force and perhaps
+    // pins that disagree, which activation let be while Tor was blocked.
+    _torAvailabilitySub = TorService.instance.availabilityChanges.listen((_) {
+      if (_host.mounted) unawaited(syncTorHolders());
+    });
   }
 
   void dispose() {
     unawaited(_untrustSub?.cancel());
     unawaited(_torStatusSub?.cancel());
+    unawaited(_torAvailabilitySub?.cancel());
   }
 
   void _torStatusChanged(TorStatus s) {

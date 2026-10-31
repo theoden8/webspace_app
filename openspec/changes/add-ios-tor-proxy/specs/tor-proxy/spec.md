@@ -281,9 +281,11 @@ The embedded runtime SHALL operate on iOS and macOS, and on Linux the
 built-in Tor is a tor the app starts (TOR-027), offered while its experiment
 is on and where the build bundles one or the machine has one; nowhere else. Android, Linux and macOS
 can instead name a tor already running on the device (TOR-025). `TorService.isAvailable` SHALL be the platform check, or
-the external tor being chosen, and nothing more, and SHALL be
-the single reader both the per-site and app-global proxy-type dropdowns
-consult; with it false the `TOR` option SHALL be absent from both.
+the external tor being chosen, and nothing more. `TorService.offered`, which
+is `isAvailable` or a Linux build whose experiment is on and only lacks a tor
+(TOR-027), SHALL be the single reader both the per-site and app-global
+proxy-type dropdowns consult; with it false the `TOR` option SHALL be absent
+from both.
 Existing per-site SOCKS5 configuration (manual `host:port`, with or without
 credentials) SHALL remain available on every platform that supports proxies
 today, so Android users can still point at Orbot's SOCKS5 endpoint manually.
@@ -1914,13 +1916,19 @@ listeners (TOR-024). The runtime decides nothing the engine decides; it
 implements `TorRuntime` as the method channel does, so `TorEngine` and
 everything above it are the same on every platform.
 
-**Read at launch.** `TorService` decides once, as it is built
-(`builtInTorOffered`), whether this platform offers a built-in Tor, and on
-Linux builds the child-process runtime only then; the switch takes effect
-the next time the app starts, as Texture page rendering's does. With it off a
-Linux build is what it was before: Tor only through Tor (external)
-(TOR-025), no `TOR` in the proxy pickers otherwise, nothing that starts a
-tor, and the unavailable copy of every other platform without one.
+**Followed as it moves.** `TorService` reads the switch live
+(`builtInOfferedNow`, over `builtInTorOffered`) and follows every pref
+change, so turning it on, turning developer mode off, or an import applies
+without a relaunch: once it is on, every site set to `TOR` is held and starts
+tor; once it is off, they are let go and `stopped` is published, so each
+Tor-bound site rebinds and blocks, and what tor says no longer reaches the
+app. A tor already running is left running, as a release always leaves it
+(TOR-020). With it off a Linux build is what it was before: Tor only
+through Tor (external) (TOR-025), no `TOR` in the proxy pickers otherwise,
+nothing that starts a tor, and the unavailable copy of every other platform
+without one. With it on and no tor on the machine, `TOR` is still offered
+(`TorService.offered`), and a site set to it says to install tor rather than
+the option being missing with no reason given.
 
 **Where tor comes from.** The Linux build SHALL bundle tor, the libevent and
 OpenSSL it links, the lyrebird pluggable transport and their licence notices
@@ -1981,8 +1989,9 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 #### Scenario: A Linux build offers Tor
 
 - **GIVEN** the Linux bundle, on a machine with no tor installed, with
-  developer mode and the Built-in Tor experiment on, after a restart
-- **WHEN** the user opens a site's Network settings
+  developer mode on
+- **WHEN** the user turns the Built-in Tor experiment on, with no relaunch,
+  and opens a site's Network settings
 - **THEN** `TOR` is offered in the proxy-type dropdown
 - **AND** choosing it starts the bundled tor, which comes up on a loopback
   SOCKS port the per-site credentials isolate
@@ -1996,6 +2005,13 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 - **AND** a site set to `TOR` reads the unavailable copy it read before
   TOR-027
 
+#### Scenario: The experiment turned off while Tor is up
+
+- **GIVEN** a site set to `TOR`, its tor up
+- **WHEN** the user turns the experiment, or developer mode, off
+- **THEN** the site blocks at once, with no relaunch, and nothing it loads
+  goes out through tor or directly
+
 #### Scenario: A build without the bundled tor
 
 - **GIVEN** a Linux build made with `WEBSPACE_TOR_BUNDLE=none`, with the
@@ -2003,7 +2019,7 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 - **WHEN** the machine has a `tor` on `PATH` or in `/usr/sbin`
 - **THEN** that tor is the built-in Tor
 - **WHEN** it has none
-- **THEN** `TOR` is not offered, as on Android
+- **THEN** `TOR` is offered, and a site set to it says to install tor
 
 #### Scenario: A tor that rejects its configuration
 

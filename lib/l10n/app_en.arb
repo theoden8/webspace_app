@@ -5589,7 +5589,7 @@
   "@appSettingsExperimentalLinuxTor": {
     "description": "Title of an Experimental switch in App settings > Developer, on Linux only, that lets sites use a Tor client the app starts itself, rather than only a Tor program already running on the computer. Tor is a product name; keep it."
   },
-  "appSettingsExperimentalLinuxTorHint": "Offers Tor as a site's proxy through a tor the app starts itself: the one this build carries, or else the tor installed on this computer. Each site gets circuits of its own. Takes effect the next time the app starts.",
+  "appSettingsExperimentalLinuxTorHint": "Offers Tor as a site's proxy through a tor the app starts itself: the one this build carries, or else the tor installed on this computer. Each site gets circuits of its own.",
   "@appSettingsExperimentalLinuxTorHint": {
     "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental, on Linux. tor, in lower case, is the name of the program the app starts; Tor is the product name; keep both. A circuit is Tor's path through the network."
   },

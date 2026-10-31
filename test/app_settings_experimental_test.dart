@@ -170,14 +170,22 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       expect(title, findsNothing);
       return;
     }
+    final runtime = FakeTorRuntime();
+    TorService.overrideEngine(
+      TorEngine(runtime: runtime, sessionSecret: 's'),
+      builtInOffered: () =>
+          TorService.builtInOfferedNow(platform: TargetPlatform.linux),
+    );
+    expect(TorService.instance.offered, isFalse);
     final row = find.ancestor(of: title, matching: find.byType(SwitchListTile));
     expect(tester.widget<SwitchListTile>(row).value, isFalse);
     await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
     await tester.pumpAndSettle();
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(AppPref.experimentalLinuxTor.key), isTrue);
-    expect(TorService.instance.builtInOffered, isFalse,
-        reason: 'read at launch: the running TorService keeps its answer');
+    expect(TorService.instance.offered, isTrue,
+        reason: 'the running app offers TOR as the switch moves, no relaunch');
+    expect(TorService.instance.isAvailable, isTrue);
   });
 
   group('Tor in App settings (TOR-004, TOR-007)', () {
