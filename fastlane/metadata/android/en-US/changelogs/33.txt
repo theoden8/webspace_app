@@ -1,0 +1,13 @@
+✨ New Features:
+• Screen sharing
+• Address suggestions
+• Sign-in popups on Android
+
+🔧 Improvements:
+• Better TV navigation
+• Sites stay loaded after Back
+• Icons cached between launches
+
+🐛 Bug Fixes:
+• Ad blocking and microphone on Android
+• Tor and proxy reliability
