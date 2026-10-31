@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Recherche d'extensions",
   "appSettingsExperimentalExtensionSearchHint": "Ajoute à l'écran « Extensions » une recherche sur addons.mozilla.org, chaque résultat indiquant dans quelle mesure WebKit devrait l'exécuter. Proposé uniquement dans les versions distribuées hors de l'App Store, et seulement lorsque « Extensions web » est activé.",
   "appSettingsExperimentalLinuxTor": "Tor intégré",
-  "appSettingsExperimentalLinuxTorHint": "Propose Tor comme proxy d'un site via un tor que l'application lance elle-même : celui que contient cette version, sinon le tor installé sur cet ordinateur. Chaque site obtient ses propres circuits. Prend effet au prochain démarrage de l'application.",
+  "appSettingsExperimentalLinuxTorHint": "Propose Tor comme proxy d'un site via un tor que l'application lance elle-même : celui que contient cette version, sinon le tor installé sur cet ordinateur. Chaque site obtient ses propres circuits.",
   "networkInterfaceTitle": "Interface réseau",
   "networkInterfaceHint": "Envoie le trafic de ce site uniquement par une interface réseau, comme le tunnel d'un VPN, et par aucune autre. Tant que cette interface est hors service, le site ne charge rien au lieu d'utiliser une autre connexion. Les noms d'hôte sont résolus par les serveurs DNS propres à l'interface : le résolveur du système (systemd-resolved) doit donc les connaître. Un proxy défini plus haut est joint par l'interface. Les appels WebRTC ne l'utilisent pas.",
   "networkInterfaceSystem": "Routage du système",

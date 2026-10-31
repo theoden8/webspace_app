@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Leit að viðbótum",
   "appSettingsExperimentalExtensionSearchHint": "Bætir leit á addons.mozilla.org við skjáinn „Viðbætur“ og hver niðurstaða er merkt eftir því hversu vel WebKit er talið keyra hana. Aðeins í boði í útgáfum utan App Store og aðeins á meðan kveikt er á „Vefviðbætur“.",
   "appSettingsExperimentalLinuxTor": "Innbyggt Tor",
-  "appSettingsExperimentalLinuxTorHint": "Býður Tor sem milliþjón vefsvæðis í gegnum tor sem forritið ræsir sjálft: það sem fylgir þessari útgáfu, eða annars tor sem er uppsett á þessari tölvu. Hvert vefsvæði fær sínar eigin rásir. Tekur gildi næst þegar forritið er ræst.",
+  "appSettingsExperimentalLinuxTorHint": "Býður Tor sem milliþjón vefsvæðis í gegnum tor sem forritið ræsir sjálft: það sem fylgir þessari útgáfu, eða annars tor sem er uppsett á þessari tölvu. Hvert vefsvæði fær sínar eigin rásir.",
   "networkInterfaceTitle": "Netviðmót",
   "networkInterfaceHint": "Sendir umferð þessa vefsvæðis aðeins um eitt netviðmót, til dæmis göng VPN-tengingar, og ekkert annað. Á meðan það viðmót liggur niðri hleður vefsvæðið engu í stað þess að nota aðra tengingu. Hýsilheiti eru flett upp í gegnum eigin DNS-þjóna viðmótsins, svo nafnaþjónusta kerfisins (systemd-resolved) verður að þekkja þá. Milliþjónn sem stilltur er hér að ofan er sóttur um viðmótið. WebRTC-símtöl nota það ekki.",
   "networkInterfaceSystem": "Leiðaval kerfisins",

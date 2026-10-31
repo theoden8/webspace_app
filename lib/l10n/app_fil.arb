@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Paghahanap ng extension",
   "appSettingsExperimentalExtensionSearchHint": "Nagdaragdag ng paghahanap sa addons.mozilla.org sa screen na \"Mga Extension\", at may label ang bawat resulta kung gaano kahusay itong inaasahang patakbuhin ng WebKit. Inaalok lang sa mga build na mula sa labas ng App Store, at habang naka-on lang ang \"Mga web extension\".",
   "appSettingsExperimentalLinuxTor": "Built-in na Tor",
-  "appSettingsExperimentalLinuxTorHint": "Nag-aalok ng Tor bilang proxy ng site sa pamamagitan ng tor na ang app mismo ang nagsisimula: ang kasama ng build na ito, o kung wala, ang tor na naka-install sa computer na ito. Bawat site ay may sariling mga circuit. Magkakabisa ito sa susunod na pagbukas ng app.",
+  "appSettingsExperimentalLinuxTorHint": "Nag-aalok ng Tor bilang proxy ng site sa pamamagitan ng tor na ang app mismo ang nagsisimula: ang kasama ng build na ito, o kung wala, ang tor na naka-install sa computer na ito. Bawat site ay may sariling mga circuit.",
   "networkInterfaceTitle": "Interface ng network",
   "networkInterfaceHint": "Ipinapadala ang trapiko ng site na ito sa iisang network interface lamang, gaya ng tunnel ng isang VPN, at wala nang iba. Habang naka-down ang interface na iyon, walang nilo-load ang site sa halip na gumamit ng ibang koneksyon. Hinahanap ang mga pangalan ng host sa sariling mga DNS server ng interface, kaya dapat kilala ng resolver ng system (systemd-resolved) ang mga ito. Naaabot sa pamamagitan ng interface ang proxy na itinakda sa itaas. Hindi ito ginagamit ng mga tawag sa WebRTC.",
   "networkInterfaceSystem": "Routing ng system",

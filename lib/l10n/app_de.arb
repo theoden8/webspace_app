@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Erweiterungssuche",
   "appSettingsExperimentalExtensionSearchHint": "Fügt dem Bildschirm \"Erweiterungen\" eine Suche auf addons.mozilla.org hinzu; jedes Ergebnis zeigt, wie gut WebKit es voraussichtlich ausführt. Nur in Builds außerhalb des App Store verfügbar und nur, solange \"Web-Erweiterungen\" aktiviert ist.",
   "appSettingsExperimentalLinuxTor": "Eingebauter Tor",
-  "appSettingsExperimentalLinuxTorHint": "Bietet Tor als Proxy einer Website über einen tor an, den die App selbst startet: den, den dieser Build mitbringt, sonst den auf diesem Computer installierten tor. Jede Website bekommt eigene Kanäle. Wirkt ab dem nächsten App-Start.",
+  "appSettingsExperimentalLinuxTorHint": "Bietet Tor als Proxy einer Website über einen tor an, den die App selbst startet: den, den dieser Build mitbringt, sonst den auf diesem Computer installierten tor. Jede Website bekommt eigene Kanäle.",
   "networkInterfaceTitle": "Netzwerkschnittstelle",
   "networkInterfaceHint": "Leitet den Verkehr dieser Website nur über eine Netzwerkschnittstelle, etwa den Tunnel eines VPN, und über keine andere. Solange diese Schnittstelle nicht verfügbar ist, lädt die Website nichts, statt eine andere Verbindung zu nutzen. Hostnamen werden über die eigenen DNS-Server der Schnittstelle aufgelöst, daher muss der Systemresolver (systemd-resolved) sie kennen. Ein oben eingestellter Proxy wird über die Schnittstelle erreicht. WebRTC-Anrufe nutzen sie nicht.",
   "networkInterfaceSystem": "Systemrouting",

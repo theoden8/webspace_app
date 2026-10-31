@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Cuardach eisínteachtaí",
   "appSettingsExperimentalExtensionSearchHint": "Cuireann sé cuardach ar addons.mozilla.org leis an scáileán \"Eisínteachtaí\", agus léiríonn gach toradh cé chomh maith is atáthar ag súil go rithfidh WebKit í. Ar fáil i leaganacha ón taobh amuigh den App Store amháin, agus fad atá \"Eisínteachtaí gréasáin\" casta air amháin.",
   "appSettingsExperimentalLinuxTor": "Tor ionsuite",
-  "appSettingsExperimentalLinuxTorHint": "Cuireann sé Tor ar fáil mar sheachfhreastalaí suímh trí tor a thosaíonn an aip féin: an ceann atá sa leagan seo, nó murach sin an tor atá suiteáilte ar an ríomhaire seo. Faigheann gach suíomh a chiorcaid féin. Tagann sé i bhfeidhm an chéad uair eile a thosaíonn an aip.",
+  "appSettingsExperimentalLinuxTorHint": "Cuireann sé Tor ar fáil mar sheachfhreastalaí suímh trí tor a thosaíonn an aip féin: an ceann atá sa leagan seo, nó murach sin an tor atá suiteáilte ar an ríomhaire seo. Faigheann gach suíomh a chiorcaid féin.",
   "networkInterfaceTitle": "Comhéadan líonra",
   "networkInterfaceHint": "Seolann sé trácht an tsuímh seo trí chomhéadan líonra amháin, mar thollán VPN, agus trí cheann ar bith eile. Fad atá an comhéadan sin síos, ní lódálann an suíomh aon rud in ionad nasc eile a úsáid. Cuardaítear ainmneacha óstach trí fhreastalaithe DNS an chomhéadain féin, mar sin caithfidh réititheoir an chórais (systemd-resolved) eolas a bheith aige orthu. Sroichtear seachfhreastalaí a socraíodh thuas tríd an gcomhéadan. Ní úsáideann glaonna WebRTC é.",
   "networkInterfaceSystem": "Ródú an chórais",

@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Utvidelsessøk",
   "appSettingsExperimentalExtensionSearchHint": "Legger til et søk på addons.mozilla.org på skjermen \"Utvidelser\", der hvert resultat er merket med hvor godt WebKit forventes å kjøre det. Tilbys bare i utgaver utenfor App Store, og bare mens \"Nettutvidelser\" er slått på.",
   "appSettingsExperimentalLinuxTor": "Innebygd Tor",
-  "appSettingsExperimentalLinuxTorHint": "Tilbyr Tor som et nettsteds mellomtjener gjennom en tor som appen starter selv: den som følger med denne versjonen, eller ellers tor installert på denne datamaskinen. Hvert nettsted får sine egne kretser. Trer i kraft neste gang appen starter.",
+  "appSettingsExperimentalLinuxTorHint": "Tilbyr Tor som et nettsteds mellomtjener gjennom en tor som appen starter selv: den som følger med denne versjonen, eller ellers tor installert på denne datamaskinen. Hvert nettsted får sine egne kretser.",
   "networkInterfaceTitle": "Nettverksgrensesnitt",
   "networkInterfaceHint": "Sender trafikken til dette nettstedet ut gjennom bare ett nettverksgrensesnitt, for eksempel tunnelen til et VPN, og ingen andre. Mens grensesnittet er nede, laster nettstedet ingenting i stedet for å bruke en annen tilkobling. Vertsnavn slås opp via grensesnittets egne DNS-servere, så systemets navneoppslag (systemd-resolved) må kjenne dem. En proxy angitt ovenfor nås gjennom grensesnittet. WebRTC-samtaler bruker det ikke.",
   "networkInterfaceSystem": "Systemets ruting",

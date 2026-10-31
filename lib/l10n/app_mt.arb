@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Tfittxija ta' estensjonijiet",
   "appSettingsExperimentalExtensionSearchHint": "Iżżid tfittxija f'addons.mozilla.org mal-iskrin \"Estensjonijiet\", b'kull riżultat jindika kemm WebKit mistenni jħaddimha tajjeb. Disponibbli biss f'verżjonijiet minn barra l-App Store, u biss waqt li \"Estensjonijiet tal-web\" ikun mixgħul.",
   "appSettingsExperimentalLinuxTor": "Tor integrat",
-  "appSettingsExperimentalLinuxTorHint": "Joffri Tor bħala l-prokura ta' sit permezz ta' tor li l-app tibda hi stess: dak li ġej ma' din il-verżjoni, jew inkella t-tor installat fuq dan il-kompjuter. Kull sit jieħu ċ-ċirkwiti tiegħu. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
+  "appSettingsExperimentalLinuxTorHint": "Joffri Tor bħala l-prokura ta' sit permezz ta' tor li l-app tibda hi stess: dak li ġej ma' din il-verżjoni, jew inkella t-tor installat fuq dan il-kompjuter. Kull sit jieħu ċ-ċirkwiti tiegħu.",
   "networkInterfaceTitle": "Interfaċċja tan-netwerk",
   "networkInterfaceHint": "Tibgħat it-traffiku ta' dan is-sit minn interfaċċja waħda tan-netwerk biss, bħall-mina ta' VPN, u minn l-ebda oħra. Sakemm dik l-interfaċċja tkun mitfija, is-sit ma jtella' xejn minflok juża konnessjoni oħra. L-ismijiet tal-hosts jinfittxu permezz tas-servers DNS tal-interfaċċja stess, għalhekk ir-resolver tas-sistema (systemd-resolved) irid ikun jafhom. Il-proxy issettjat hawn fuq jintlaħaq permezz tal-interfaċċja. Is-sejħiet WebRTC ma jużawhiex.",
   "networkInterfaceSystem": "Rotot tas-sistema",

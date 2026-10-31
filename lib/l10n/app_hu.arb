@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Bővítménykeresés",
   "appSettingsExperimentalExtensionSearchHint": "Hozzáadja az addons.mozilla.org keresését a „Bővítmények” képernyőhöz, és minden találatnál jelzi, várhatóan mennyire jól futtatja a WebKit. Csak az App Store-on kívülről származó változatokban érhető el, és csak amíg a „Webes bővítmények” be van kapcsolva.",
   "appSettingsExperimentalLinuxTor": "Beépített Tor",
-  "appSettingsExperimentalLinuxTorHint": "A Tort kínálja egy oldal proxyjaként egy olyan toron keresztül, amelyet az alkalmazás maga indít: azon, amelyet ez a kiadás tartalmaz, vagy ha nincs ilyen, a számítógépre telepített toron. Minden oldal saját áramköröket kap. Az alkalmazás következő indításakor lép érvénybe.",
+  "appSettingsExperimentalLinuxTorHint": "A Tort kínálja egy oldal proxyjaként egy olyan toron keresztül, amelyet az alkalmazás maga indít: azon, amelyet ez a kiadás tartalmaz, vagy ha nincs ilyen, a számítógépre telepített toron. Minden oldal saját áramköröket kap.",
   "networkInterfaceTitle": "Hálózati csatoló",
   "networkInterfaceHint": "A webhely forgalmát csak egy hálózati csatolón keresztül küldi, például egy VPN alagútján, és semmilyen máson. Amíg ez a csatoló nem működik, a webhely nem tölt be semmit ahelyett, hogy másik kapcsolatot használna. A gépneveket a csatoló saját DNS-kiszolgálóin keresztül keresi meg, ezért a rendszer névfeloldójának (systemd-resolved) ismernie kell őket. A fent beállított proxy a csatolón keresztül érhető el. A WebRTC-hívások nem használják.",
   "networkInterfaceSystem": "Rendszerútválasztás",

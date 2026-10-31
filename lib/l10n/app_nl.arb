@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Zoeken naar extensies",
   "appSettingsExperimentalExtensionSearchHint": "Voegt aan het scherm \"Extensies\" een zoekfunctie voor addons.mozilla.org toe, met bij elk resultaat hoe goed WebKit het naar verwachting uitvoert. Alleen beschikbaar in builds van buiten de App Store, en alleen zolang \"Webextensies\" aan staat.",
   "appSettingsExperimentalLinuxTor": "Ingebouwde Tor",
-  "appSettingsExperimentalLinuxTorHint": "Biedt Tor aan als proxy van een site via een tor die de app zelf start: die van deze versie, of anders de tor die op deze computer is geïnstalleerd. Elke site krijgt eigen circuits. Gaat in bij de volgende start van de app.",
+  "appSettingsExperimentalLinuxTorHint": "Biedt Tor aan als proxy van een site via een tor die de app zelf start: die van deze versie, of anders de tor die op deze computer is geïnstalleerd. Elke site krijgt eigen circuits.",
   "networkInterfaceTitle": "Netwerkinterface",
   "networkInterfaceHint": "Stuurt het verkeer van deze site alleen via één netwerkinterface, zoals de tunnel van een VPN, en via geen andere. Zolang die interface uit is, laadt de site niets in plaats van een andere verbinding te gebruiken. Hostnamen worden opgezocht via de eigen DNS-servers van de interface, dus de systeemresolver (systemd-resolved) moet ze kennen. Een hierboven ingestelde proxy wordt via de interface bereikt. WebRTC-gesprekken gebruiken haar niet.",
   "networkInterfaceSystem": "Systeemroutering",

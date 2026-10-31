@@ -1164,7 +1164,7 @@
   "appSettingsExperimentalExtensionSearch": "Iskanje razširitev",
   "appSettingsExperimentalExtensionSearchHint": "Na zaslon \"Razširitve\" doda iskanje v addons.mozilla.org, pri vsakem rezultatu pa piše, kako dobro naj bi ga WebKit izvajal. Na voljo samo v različicah zunaj App Store in samo, ko je vklopljeno \"Spletne razširitve\".",
   "appSettingsExperimentalLinuxTor": "Vgrajeni Tor",
-  "appSettingsExperimentalLinuxTorHint": "Ponuja Tor kot posredniški strežnik strani prek tora, ki ga aplikacija zažene sama: tistega, ki je priložen tej različici, sicer tora, nameščenega v tem računalniku. Vsaka stran dobi svoje tokokroge. Začne veljati ob naslednjem zagonu aplikacije.",
+  "appSettingsExperimentalLinuxTorHint": "Ponuja Tor kot posredniški strežnik strani prek tora, ki ga aplikacija zažene sama: tistega, ki je priložen tej različici, sicer tora, nameščenega v tem računalniku. Vsaka stran dobi svoje tokokroge.",
   "networkInterfaceTitle": "Omrežni vmesnik",
   "networkInterfaceHint": "Promet tega spletnega mesta pošilja samo skozi en omrežni vmesnik, na primer tunel VPN, in skozi nobenega drugega. Dokler ta vmesnik ne deluje, spletno mesto ne naloži ničesar, namesto da bi uporabilo drugo povezavo. Imena gostiteljev se iščejo prek lastnih strežnikov DNS vmesnika, zato jih mora sistemski razreševalnik (systemd-resolved) poznati. Posredniški strežnik, nastavljen zgoraj, je dosežen skozi vmesnik. Klici WebRTC ga ne uporabljajo.",
   "networkInterfaceSystem": "Sistemsko usmerjanje",
