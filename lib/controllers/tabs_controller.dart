@@ -577,33 +577,16 @@ class TabsController {
 
   /// LIR-018: before an owner URL loads into [model]'s slot, the slot moves to
   /// a tab [model] runs itself: the nearest such ancestor, or a new root tab.
+  /// A site whose tabs are off moves the same way: the move keeps an owner
+  /// URL out of a tab another site runs, which is not one of the ways into
+  /// tabs a site without them is kept from.
   Future<void> bindOwnerRunTab(WebViewModel model) async {
     if (!model.runsHostedTab && !model.runsForeignTab) return;
-    if (enabledFor(model)) {
-      await _ownerRun(model);
-      return;
-    }
-    if (!_sites.loaded.contains(model)) {
-      model.bindOwnerRunTab();
-      return;
-    }
-    await _gate.runWhenIdle(() async {
-      var id = TabLifecycleEngine.ownerRunTab(model.tabs,
-          activeTabId: model.activeTabId, isForeign: model.isForeignTab);
-      if (id == null) {
-        final tab = SiteTab(url: model.initUrl);
-        WebViewModel.tabsCell.write(
-            at: model,
-            to: [...model.tabs, tab],
-            commit: const Commit.unmodeled(Unmodeled.ownerRunTab));
-        id = tab.id;
-      }
-      await switchActiveTab(model, targetTabId: id);
-    });
+    await _ownerRun(model);
   }
 
-  /// [bindOwnerRunTab] for a site with tabs: the [TabTable.tabInputs] owner-run
-  /// move, the tab the engine names [TabTable.tabFlow]'s landing (oLand), so a
+  /// [bindOwnerRunTab]'s move: the [TabTable.tabInputs] owner-run move, the
+  /// tab the engine names [TabTable.tabFlow]'s landing (oLand), so a
   /// live slot's back stack is captured and its webview rebuilt as [model]. An
   /// owner URL may not load before it (LIR-034), so it waits for a free gate
   /// and asks in the turn it finds one: the gate is held past a tab flow's

@@ -19,9 +19,9 @@ Map<ActivationStep, Set<ModelVar>> readsOutside(
 /// each with what lifts it. Only shrinks: an entry the footprint now names
 /// fails [expectReadsInFootprints].
 const owedReads = <ActivationStep, Set<ModelVar>>{
-  // A tab flow started by hand at its capture (switchActiveTab, after an
-  // Unmodeled write such as ownerRunTab on a site whose tabs are off) has no
-  // input whose arm prints what the capture records as it begins, so the
+  // A tab flow started by hand at its capture (switchActiveTab, after the
+  // input of an open tab or a new tab on a live slot) has no input whose
+  // arm prints what the capture records as it begins, so the
   // read lands on the reply. Lifted when those starts are inputs of
   // TabTable.tabInputs.
   ActivationStep.tabCaptureReply: {ModelVar.built},
