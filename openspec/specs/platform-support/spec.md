@@ -338,8 +338,9 @@ strict confinement, on the GNOME extension's runtime, and SHALL run as
 (PLATFORM-009): the Snap Store sets no naming rule that would move it, and its
 desktop entry and metainfo are the bundle's (PLATFORM-008).
 
-- **WebKit:** the snap builds libwpe and the WPE WebKit release CI's Linux
-  job tests the plugin against, for `/usr`. A release build of WebKit runs its helper
+- **WebKit:** the snap builds libwpe, and WebKit at 323622@main, the merge
+  that added `WebKitFrameInfo` (first released in 2.56), which the plugin
+  reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
   processes only from the directory it was configured with, so the snap's
   layout binds that directory, the injected bundle's and the inspector
   resources' to the snap's copies.

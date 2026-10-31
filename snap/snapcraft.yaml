@@ -74,13 +74,21 @@ parts:
       - -usr/include
       - -usr/lib/*/pkgconfig
 
-  # The release CI's Linux job builds and tests the plugin against, with the
-  # flatpak's options.
+  # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
+  # first released in 2.56), as the flatpak builds it; the plugin reads it
+  # through weak symbols. The checkout leaves out LayoutTests and JSTests, most
+  # of the tree and read by no build step, since the nil plugin copies the
+  # source into the build directory.
   wpewebkit:
     after: [libwpe]
     plugin: nil
-    source: https://wpewebkit.org/releases/wpewebkit-2.54.2.tar.xz
-    source-checksum: sha256/f3284e19e47fcb5ac8c63c2e1c113dbd65b2423eb8a545f5b345707829004f56
+    override-pull: |
+      [ -d .git ] || git init -q .
+      git remote add origin https://github.com/WebKit/WebKit.git \
+        || git remote set-url origin https://github.com/WebKit/WebKit.git
+      git sparse-checkout set --no-cone '/*' '!/LayoutTests/' '!/JSTests/'
+      git fetch --depth 1 --filter=blob:none origin c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
+      git -c advice.detachedHead=false checkout FETCH_HEAD
     build-environment:
       - CC: clang
       - CXX: clang++
@@ -126,6 +134,7 @@ parts:
     build-packages:
       - ccache
       - clang
+      - git
       - gperf
       - ninja-build
       - ruby
