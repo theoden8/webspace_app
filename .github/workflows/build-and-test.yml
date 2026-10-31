@@ -607,7 +607,10 @@ jobs:
 
   # The Android TV tier (NAV-016, HS-004): a remote's D-pad against a real
   # System WebView on a TV image, the one device class a remote drives. Its
-  # own job so the phone scenarios above keep their time budget.
+  # own job so the phone scenarios above keep their time budget. The Android
+  # desktop tier (NAV-019, INTEG-018) follows it here on a desktop image, a
+  # window with a header that a keyboard and a mouse drive, reusing the
+  # toolchain and the build.
   android-tv:
     name: Android TV
     runs-on: ubuntu-latest
@@ -644,6 +647,12 @@ jobs:
             adb wait-for-device
             adb shell settings put global hide_error_dialogs 1
             bash scripts/run_android_tv_tests.sh
+
+      # Its own boot, not the emulator runner's: the runner presses a key
+      # the moment the image says it booted, before this image's input
+      # service is up.
+      - name: Run Android desktop scenarios
+        run: bash scripts/android_desktop_emulator.sh bash scripts/run_android_desktop_tests.sh
 
   build-linux:
     name: Build Linux
@@ -854,6 +863,9 @@ jobs:
             # The Android TV tier (NAV-016) skips anywhere but a TV image;
             # the android-tv job runs it.
             [ "$(basename "$t")" = "remote_tv_test.dart" ] && continue
+            # The Android desktop tier (NAV-019) skips anywhere but a desktop
+            # image; the android-tv job runs it.
+            [ "$(basename "$t")" = "android_desktop_test.dart" ] && continue
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
             # PASSKEY-012 needs the emulator harness (credential provider,
             # relying party, sheet taps); the Android job owns it.
@@ -1293,6 +1305,9 @@ jobs:
             [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
             # The Android TV tier (NAV-016); the android-tv job runs it.
             [ "$(basename "$t")" = "remote_tv_test.dart" ] && continue
+            # The Android desktop tier (NAV-019) skips anywhere but a desktop
+            # image; the android-tv job runs it.
+            [ "$(basename "$t")" = "android_desktop_test.dart" ] && continue
             # Android-only WebView media-gate suite (CAM-010); runs in the
             # emulator job.
             [ "$(basename "$t")" = "camera_test.dart" ] && continue

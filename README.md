@@ -91,7 +91,7 @@ Without `cargo` on PATH the Flutter build still succeeds — the Rust step print
 | Platform | Status | Purpose |
 |----------|--------|---------|
 | iOS | ✅ Supported | Target |
-| Android | ✅ Supported | Target |
+| Android | ✅ Supported | Target: phones, tablets and desktop windows with a keyboard (NAV-019), Android TV (NAV-016) |
 | macOS | ✅ Supported | Target |
 | Linux | ✅ Supported | Development |
 

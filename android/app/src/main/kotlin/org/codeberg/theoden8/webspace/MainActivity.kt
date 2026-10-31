@@ -4,10 +4,12 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -29,6 +31,8 @@ class MainActivity: FlutterActivity() {
     private var screenSharePlugin: ScreenSharePlugin? = null
     private var passkeyPlugin: PasskeyPlugin? = null
     private var remoteInputPlugin: RemoteInputPlugin? = null
+    private var keyboardInputPlugin: KeyboardInputPlugin? = null
+    private var windowCaptionPlugin: WindowCaptionPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
 
@@ -88,6 +92,8 @@ class MainActivity: FlutterActivity() {
         screenSharePlugin = ScreenSharePlugin(this, flutterEngine)
         passkeyPlugin = PasskeyPlugin(this, flutterEngine)
         remoteInputPlugin = RemoteInputPlugin(this, flutterEngine)
+        keyboardInputPlugin = KeyboardInputPlugin(this, flutterEngine)
+        windowCaptionPlugin = WindowCaptionPlugin(this, flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -440,6 +446,24 @@ class MainActivity: FlutterActivity() {
             text
         } else {
             Regex("""https?://\S+""").find(text)?.value
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        keyboardInputPlugin?.onConfigurationChanged(newConfig)
+    }
+
+    /**
+     * A key goes only to a focused view, and in touch mode Android focuses
+     * none as the window takes focus, so a keyboard's shortcut was dropped
+     * until an arrow or Tab left touch mode (NAV-019). The window's focus
+     * gives the Flutter view focus when no view has it.
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && currentFocus == null) {
+            findViewById<View>(FlutterActivity.FLUTTER_VIEW_ID)?.requestFocus()
         }
     }
 

@@ -1,8 +1,45 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/keyboard_input.dart';
 
-/// What a desktop keyboard shortcut asks of the screen on top (NAV-014).
+/// Whose keys the shortcuts take, as the platform's browsers take them
+/// (NAV-014).
+enum KeyConvention {
+  /// Command where the others take Control.
+  mac,
+
+  /// Control, on Linux and Windows.
+  pc,
+
+  /// Control, as Chrome takes it with a keyboard attached (NAV-019).
+  android;
+
+  /// The host's, or null where the app takes no keys of its own: iOS and the
+  /// web.
+  static KeyConvention? get host {
+    if (hostIsMacOS) return mac;
+    if (hostIsAndroid) return android;
+    if (hostIsDesktop) return pc;
+    return null;
+  }
+
+  /// Whether a key leaves the app. Command-Q is the Mac menu's, which AppKit
+  /// runs before any view, and an Android app does not quit itself.
+  bool get quits => switch (this) {
+    pc => true,
+    mac || android => false,
+  };
+
+  /// Whether menus write a shortcut's key beside the item it runs: on
+  /// Android only while a keyboard is attached, which it may never be.
+  bool get writesKeys => switch (this) {
+    mac || pc => true,
+    android => KeyboardInput.attached.value,
+  };
+}
+
+/// What a keyboard shortcut asks of the screen on top (NAV-014).
 sealed class KeyboardShortcut {
   const KeyboardShortcut();
 
@@ -11,10 +48,10 @@ sealed class KeyboardShortcut {
   static KeyboardShortcut? of(
     KeyEvent event, {
     required HardwareKeyboard keyboard,
-    required bool mac,
+    required KeyConvention on,
     required bool editingText,
   }) {
-    for (final (key, shortcut) in keys(mac: mac)) {
+    for (final (key, shortcut) in keys(on: on)) {
       if (key.accepts(event, keyboard)) {
         return editingText && _movesCaret(key) ? null : shortcut;
       }
@@ -29,9 +66,11 @@ sealed class KeyboardShortcut {
       (key.trigger == LogicalKeyboardKey.arrowLeft ||
           key.trigger == LogicalKeyboardKey.arrowRight);
 
-  /// Every key a shortcut takes, Command on a Mac where elsewhere it is
-  /// Control, as the platform's browsers take them. A held key asks once.
-  static List<(SingleActivator, KeyboardShortcut)> keys({required bool mac}) {
+  /// Every key a shortcut takes [on] a platform. A held key asks once.
+  static List<(SingleActivator, KeyboardShortcut)> keys({
+    required KeyConvention on,
+  }) {
+    final mac = on == KeyConvention.mac;
     SingleActivator command(LogicalKeyboardKey key) =>
         SingleActivator(key, meta: mac, control: !mac, includeRepeats: false);
     SingleActivator plain(
@@ -76,16 +115,15 @@ sealed class KeyboardShortcut {
       for (final (place, digit) in _placeDigits.indexed)
         (command(digit), SiteAt(place)),
       (command(LogicalKeyboardKey.digit9), const LastSite()),
-      // Command-Q is the Mac menu's, which AppKit runs before any view.
-      if (!mac) (command(LogicalKeyboardKey.keyQ), const QuitApp()),
+      if (on.quits) (command(LogicalKeyboardKey.keyQ), const QuitApp()),
     ];
   }
 
   /// The first key that asks for a shortcut of type [T], the one a menu
   /// names beside it.
   static SingleActivator? keyFor<T extends KeyboardShortcut>({
-    required bool mac,
-  }) => keys(mac: mac).where((entry) => entry.$2 is T).firstOrNull?.$1;
+    required KeyConvention on,
+  }) => keys(on: on).where((entry) => entry.$2 is T).firstOrNull?.$1;
 
   static const _placeDigits = [
     LogicalKeyboardKey.digit1,
@@ -185,17 +223,19 @@ abstract interface class ShortcutScreen {
   bool answerShortcut(KeyboardShortcut shortcut);
 }
 
-/// The desktop keys for [ShortcutScreen]. A key reaches them before the
-/// focused widget: Linux's webview keeps every key it is given, so asked
-/// after it they would never run. A key the screen has nothing to do with now
-/// goes on to the focused widget, the page's own select all among them.
+/// The keys for [ShortcutScreen]. A key reaches them before the focused
+/// widget: Linux's webview keeps every key it is given, and so does a page on
+/// Android (NAV-019), so asked after it they would never run. A key the screen
+/// has nothing to do with now goes on to the focused widget, the page's own
+/// select all among them.
 final class KeyboardShortcuts {
-  KeyboardShortcuts(this._screen);
+  KeyboardShortcuts(this._screen) : _on = KeyConvention.host;
 
   final ShortcutScreen _screen;
+  final KeyConvention? _on;
 
   void start() {
-    if (hostIsDesktop) FocusManager.instance.addEarlyKeyEventHandler(_onKey);
+    if (_on != null) FocusManager.instance.addEarlyKeyEventHandler(_onKey);
   }
 
   void dispose() => FocusManager.instance.removeEarlyKeyEventHandler(_onKey);
@@ -209,10 +249,12 @@ final class KeyboardShortcuts {
       null;
 
   KeyEventResult _onKey(KeyEvent event) {
+    final on = _on;
+    if (on == null) return KeyEventResult.ignored;
     final shortcut = KeyboardShortcut.of(
       event,
       keyboard: HardwareKeyboard.instance,
-      mac: hostIsMacOS,
+      on: on,
       editingText: editingText,
     );
     if (shortcut == null || !_screen.onTop) return KeyEventResult.ignored;

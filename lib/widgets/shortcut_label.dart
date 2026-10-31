@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 
 /// The key for a [KeyboardShortcut] of type [T] as a menu writes it beside
-/// the item it runs, or null off the desktop (NAV-014).
+/// the item it runs, or null where none is written (NAV-014).
 String? shortcutLabel<T extends KeyboardShortcut>(MaterialLocalizations names) {
-  if (!hostIsDesktop) return null;
-  final key = KeyboardShortcut.keyFor<T>(mac: hostIsMacOS);
+  final on = KeyConvention.host;
+  if (on == null || !on.writesKeys) return null;
+  final key = KeyboardShortcut.keyFor<T>(on: on);
   if (key == null) return null;
-  return describeKey(key, names: names, mac: hostIsMacOS);
+  return describeKey(key, names: names, on: on);
 }
 
 /// [label] as the tooltip of a button that a [KeyboardShortcut] of type [T]
-/// also runs, its key on a line of its own on the desktop (NAV-014).
+/// also runs, its key on a line of its own where keys are written (NAV-014).
 String shortcutTooltip<T extends KeyboardShortcut>(
   String label, {
   required MaterialLocalizations names,
@@ -27,8 +27,9 @@ String shortcutTooltip<T extends KeyboardShortcut>(
 String describeKey(
   SingleActivator key, {
   required MaterialLocalizations names,
-  required bool mac,
+  required KeyConvention on,
 }) {
+  final mac = on == KeyConvention.mac;
   final trigger = key.trigger;
   final named = {
     LogicalKeyboardKey.arrowLeft: '←',

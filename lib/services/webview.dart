@@ -64,7 +64,7 @@ import 'package:webspace/services/webview_downloads.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/page_handlers.dart';
-import 'package:webspace/services/remote_focus.dart';
+import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/services/route_cover.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/page_js.dart';
@@ -530,7 +530,7 @@ class WebViewFactory {
     final httpAuth = httpAuthSessionFor(config);
     final textZoom = page.textZoom;
     final userScripts = page.userScripts;
-    final remote = RemoteFocus.install(into: userScripts);
+    final pageFocus = PageFocus.install(keys: PageKeys.host, into: userScripts);
     // Added here rather than in _buildPageScripts so a popup, which shares
     // that builder, never reports into the site's icon.
     final siteIcon = config.siteIcon;
@@ -902,7 +902,7 @@ class WebViewFactory {
           live: () => phases.live(view: controller.platform),
         );
         onControllerCreated(wrappedController);
-        remote?.attach(controller);
+        pageFocus?.attach(controller);
         shareView = ViewKey.of(controller);
         PageHandlers.registerPageHandlers(
           controller,
@@ -1903,7 +1903,7 @@ class WebViewFactory {
       child: webViewWidget,
     );
     return RouteCover.over(_applyLetterbox(config,
-        webView: _applyRefreshGate(config, webView: remote?.wrap(scoped) ?? scoped)));
+        webView: _applyRefreshGate(config, webView: pageFocus?.wrap(scoped) ?? scoped)));
   }
 
   /// Tells a live view when the blockers' data changes under it: a level's

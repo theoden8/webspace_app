@@ -15,8 +15,11 @@ import io.flutter.plugin.common.MethodChannel
 
 /**
  * Says whether a remote's D-pad, not a touchscreen, drives this device
- * (NAV-016): a TV, or any device without a touchscreen. Stateless; the
- * handler runs on the main looper (BUG-007: none-shared).
+ * (NAV-016): a TV, or any device with neither a touchscreen nor a pointer
+ * that stands in for one. A desktop's mouse is such a pointer
+ * (`FEATURE_FAKETOUCH`, which a touchscreen implies), and its keyboard is
+ * NAV-019's. Stateless; the handler runs on the main looper (BUG-007:
+ * none-shared).
  */
 class RemoteInputPlugin(private val activity: Activity, flutterEngine: FlutterEngine) {
     companion object {
@@ -61,7 +64,9 @@ class RemoteInputPlugin(private val activity: Activity, flutterEngine: FlutterEn
 
     private fun drivenByRemote(): Boolean {
         val uiMode = activity.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+        val packages = activity.packageManager
         return uiMode?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
-            !activity.packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)
+            !(packages.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN) ||
+                packages.hasSystemFeature(PackageManager.FEATURE_FAKETOUCH))
     }
 }

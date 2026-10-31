@@ -164,6 +164,27 @@ void main() {
       expect(find.byType(HomeShortcutsScreen), findsOneWidget);
     });
 
+    testWidgets('is absent while no tile is pinned, as on a TV whose '
+        'launcher takes none (HS-017, HS-004)', (tester) async {
+      final host = _FakeHost(const []);
+      await pumpLocalized(
+        tester,
+        home: AppBehaviourScreen(
+          onOpenLinkHandlingSettings: () {},
+          homeShortcuts: host,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Link handling'), 200);
+      await tester.pumpAndSettle();
+      expect(find.text('Home screen shortcuts'), findsNothing);
+
+      host.homeShortcuts.value = pinned();
+      await tester.pumpAndSettle();
+      expect(find.text('Home screen shortcuts'), findsOneWidget,
+          reason: 'a tile pinned from a site\'s menu brings the row');
+    });
+
     testWidgets('is absent where no platform lists its tiles', (tester) async {
       await pumpLocalized(
         tester,
