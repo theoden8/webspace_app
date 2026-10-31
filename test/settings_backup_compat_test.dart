@@ -165,6 +165,12 @@ const Map<String, String> _retiredKeys = {
       'the Experimental group; the app and each site have their own switch',
 };
 
+/// A key whose value is a map keyed by data, not by names a parser reads, and
+/// what keys it. Its entries are not field names, so the walk stops there.
+const Map<String, String> _keyedByData = {
+  'webExtensionChoices': 'WEBEXT-004: an extension id, each read as on or off',
+};
+
 /// Keys checked by hand below rather than by the generic oracle.
 const _specialKeys = {
   'siteId',
@@ -380,7 +386,7 @@ void main() {
               if (!_keysRead.contains(key) && !_renamedKeys.containsKey(key)) {
                 unread.add(where);
               }
-              walk(e.value, at: where);
+              if (!_keyedByData.containsKey(key)) walk(e.value, at: where);
             }
           }
         }

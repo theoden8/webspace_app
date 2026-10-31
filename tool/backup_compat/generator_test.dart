@@ -76,6 +76,7 @@ String _export({
           ]
         : null,
     'extraSections': null,
+    'webExtensions': null,
   };
   final unknown = params.difference(values.keys.toSet());
   if (unknown.isNotEmpty) {
