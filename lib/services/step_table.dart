@@ -767,12 +767,6 @@ enum Environment {
 
 /// The writes of the model's state that no step of a table takes yet.
 enum Unmodeled {
-  /// Link tabs that run as another site, and the slots that let go of
-  /// their webview for it, where the flips are not one site's own link
-  /// tabs, which the reroute step takes (LIR-024, LIR-034): several sites'
-  /// at once, as an import may, or a tab another site opened.
-  identityChange,
-
   /// A change to the set of sites no step takes: an add, an import, an
   /// archive's open, a site's edit (`SiteSetCommit.commit`). A delete and
   /// an archive's close land in their drop's step, and a move is the

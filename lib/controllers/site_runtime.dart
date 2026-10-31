@@ -8,6 +8,7 @@ import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
@@ -263,6 +264,16 @@ class SiteRuntime {
     }
     for (final m in before) {
       if (!models.contains(m)) m.disposeWebView(commit: commit);
+    }
+    // LIR-034: a tab follows a listed opener only, so one that left the list
+    // leaves the tabs it opened following nothing, in the commit that takes
+    // it; they keep the site they run as.
+    for (final m in models) {
+      for (final t in m.tabs) {
+        if (t.openerSiteId case final o? when byId(o) == null) {
+          SiteTab.openerCell.write(at: t, to: null, commit: commit);
+        }
+      }
     }
     final moved = before.length != models.length ||
         [

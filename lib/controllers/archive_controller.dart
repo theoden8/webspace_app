@@ -18,6 +18,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/settings_import_engine.dart';
@@ -648,6 +649,8 @@ final _closeDropPort = Port<SiteSetStage, CloseFlow>(
     ModelVar.version,
     ModelVar.built,
     ModelVar.hist,
+    ModelVar.opener,
+    ModelVar.link,
   },
   of: (w) => w._drop,
 );
@@ -783,6 +786,7 @@ final _closeDrop = Await<CloseFlow, ClosePlace>(
       ),
       _closeVersion.becomes(_closeVersion.value.plus(1)),
       ...webViewsGone(_archiveSites),
+      ...TabVars.openersGone(_archiveSites),
     ],
   ),
   decide: Ends(StepOutcome.none, next: _closeFrame),

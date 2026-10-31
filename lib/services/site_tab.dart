@@ -130,12 +130,12 @@ class SiteTab {
   /// by hand, a search's results, a link inside the page's own domain. Its
   /// routing switch decides the container: on, the tab runs as the site the
   /// link leads to; off, as the opener. May name the owner. With [homeUrl],
-  /// the model's `link`, written only through [openerCell].
+  /// the model's `opener`, written only through [openerCell].
   SiteId? get openerSiteId => _openerSiteId;
   SiteId? _openerSiteId;
 
   static final openerCell = SharedAt<SiteTab, SiteId?>(
-    ModelVar.link,
+    ModelVar.opener,
     read: (t) => t._openerSiteId,
     write: (t, {required to}) => t._openerSiteId = to,
   );

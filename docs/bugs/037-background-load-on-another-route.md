@@ -411,6 +411,22 @@ the override under the sites already loaded.
    one-rule path keeps every gap below on devices without per-site
    profiles; the emulator runs it only through a pinned binding
    (`integration_test/proxy_one_rule_test.dart`).
+23. **2026-10-31, branch `claude/route-switch-model`.** A link tab follows
+   its opener's switch, and the opener need not be its owner: a page a
+   hosted tab showed opens it. The model assumed the owner, so a flip of
+   such a tab, or of several owners' tabs at once, moved slots in a commit
+   no step took (`Unmodeled.identityChange`). The model now keeps each link
+   tab's opener (`opener`), and the reroute takes one owner's tabs a time,
+   each to its link's site or its opener as the switches it reads put it;
+   the reconcile runs that input owner by owner, and the unmodeled path and
+   its kind are gone. A site that leaves the list leaves the tabs it opened
+   following nothing in the commit that drops it, which the delete's and
+   the archive close's drop steps write. *Why:* the slot's identity move is
+   the write this bug is about, and that path was the one left outside the
+   model. *Partial:* a tab's link is read as the code computes it, which
+   depends on the site the tab runs as where several sites claim its
+   domain; a flip that changes that answer writes a link the reroute does
+   not declare, and no world has two such sites.
 
 ## Known open gaps
 
@@ -441,10 +457,9 @@ the override under the sites already loaded.
   activation's flows.
 - The model checks the route rule against the activation's flows only. A
   load outside the activation table (none known today) would not be seen.
-- A reroute whose link was opened by a site other than its owner, or one
-  that flips the tabs of several owners at once, is written outside a
-  step (`Unmodeled.identityChange`); only one owner's own links are a
-  step (attempt 16).
+- A link tab's link where several sites claim its domain depends on the
+  site it runs as, so a reroute can change it without declaring the write
+  (attempt 23); no world has two such sites.
 - A reroute that arrives while the tab gate is held waits in the code and
   is not taken by the model (`steps_uncovered.tsv`).
 - A settings change of a site's proxy or Tor exit is checked only by the

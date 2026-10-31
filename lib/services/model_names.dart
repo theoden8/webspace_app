@@ -123,8 +123,12 @@ enum ModelVar {
     type: r'host \in [Sites -> [TabIds -> Sites]]',
   ),
   link(
-    'link[s][t]: the site tab t of s runs as while s routes outbound links, 0 for a tab no link opened (SiteTab.followsOpener, LIR-034)',
+    'link[s][t]: the site tab t of s runs as while its opener routes outbound links, 0 for a tab no link opened (SiteTab.followsOpener, LIR-034)',
     type: r'link \in [Sites -> [TabIds -> Sites \cup {0}]]',
+  ),
+  opener(
+    'opener[s][t]: the site whose routing switch tab t of s follows, which it runs as while that switch is off, 0 for none (SiteTab.openerSiteId, LIR-034)',
+    type: r'opener \in [Sites -> [TabIds -> Sites \cup {0}]]',
   ),
   nested(
     'the site whose nested screen is up, 0 for none (SiteRuntime.nested)',
@@ -191,13 +195,18 @@ enum FlowField {
   rest('{}', range: r'SUBSET TabIds'),
   closing('{}', range: r'SUBSET TabIds'),
 
+  /// The openers whose routing switch a reroute read as on (LIR-034).
+  routed('{}', range: r'SUBSET Sites'),
+
   /// The site each of a close's or a reroute's tabs ran as when the flow
   /// began, whose key a removal takes once the tab no longer runs under it.
   ranAs('<<>>', range: r'[TabIds -> Sites] \cup {<<>>}'),
   copy('0', range: r'TabIds \cup {0}'),
 
-  /// The site a duplicate's copy runs as, its source's when the copy was
-  /// made, whose key its file takes.
+  /// What the tab a flow makes takes from where it began: the site a
+  /// duplicate's copy runs as, its source's when the copy was made, whose
+  /// key its file takes; or the site whose switch a child follows, which
+  /// its handler named at its input, `0` for none.
   copyAs('0', range: r'Sites \cup {0}'),
   label('0', range: r'TabIds \cup {0}'),
   wrote('FALSE', range: r'BOOLEAN'),

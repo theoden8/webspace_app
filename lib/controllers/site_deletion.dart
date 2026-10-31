@@ -9,6 +9,7 @@ import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -106,6 +107,8 @@ final _deleteDropPort = Port<SiteSetStage, DeleteFlow>(
     ModelVar.version,
     ModelVar.built,
     ModelVar.hist,
+    ModelVar.opener,
+    ModelVar.link,
   },
   of: (w) => w._drop,
 );
@@ -231,6 +234,7 @@ final _deleteDrop = Await<DeleteFlow, DeletePlace>(
         ),
       ),
       ...webViewGone(_deleteSite.value),
+      ...TabVars.openersGone(_deleteSite.value.asSet),
     ],
   ),
   decide: Ends(StepOutcome.none, next: _deleteFrame),

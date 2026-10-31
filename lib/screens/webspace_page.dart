@@ -1932,6 +1932,9 @@ class _PageHost
       _s._toastOpenedInNewTab(model, tabId: tabId);
 
   @override
+  Future<void> askAgain(Future<void> Function() input) => input();
+
+  @override
   List<DispatchableSite> tabHostsIn(WebViewModel owner,
           {required WebViewModel opener}) =>
       _s._links.tabHostsIn(owner, source: opener);
