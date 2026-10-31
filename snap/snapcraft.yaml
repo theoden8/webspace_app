@@ -106,6 +106,8 @@ parts:
     # around `craftctl default`, which sets the extension's environment again.
     # WebKit's bubblewrap sandbox is off: strict confinement grants none of
     # the user namespaces it needs, and snapd confines the processes itself.
+    # Its Swift back-forward list is off: WebKit turns it on wherever CMake
+    # finds a swiftc, as on a CI runner, and the flatpak's SDK has none.
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
@@ -124,6 +126,7 @@ parts:
         -DENABLE_WEBDRIVER=OFF \
         -DENABLE_SPEECH_SYNTHESIS=OFF \
         -DENABLE_BUBBLEWRAP_SANDBOX=OFF \
+        -DENABLE_BACK_FORWARD_LIST_SWIFT=OFF \
         -DENABLE_WPE_PLATFORM_DRM=OFF \
         -DUSE_LIBBACKTRACE=OFF \
         -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
