@@ -762,6 +762,17 @@ jobs:
           rm -rf /var/lib/apt/lists/*
           test/linux/screen_share/check.sh
 
+      # The egress relay a site bound to a network interface rides
+      # (NETIF-003): over two veth links, which this container's NET_ADMIN
+      # lets it make, a connection bound to one must leave by it, and the
+      # planted mistakes (a source-address bind among them) must be caught.
+      - name: Egress relay on a bound interface
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends iproute2 dbus-daemon dbus-bin
+          rm -rf /var/lib/apt/lists/*
+          test/linux/egress_relay/check.sh
+
       # Everything the integration step would otherwise fetch mid-suite,
       # fetched here while the runner still has a network. The egress
       # guard below cannot tell a toolchain download from an app leak, and

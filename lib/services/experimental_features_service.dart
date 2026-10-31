@@ -29,7 +29,12 @@ enum ExperimentalFeature {
 
   /// The built-in Tor on Linux, a tor the app starts itself (TOR-027). Read
   /// once at launch. New, so off by default.
-  linuxTor(AppPref.experimentalLinuxTor);
+  linuxTor(AppPref.experimentalLinuxTor),
+
+  /// A site's traffic bound to a network interface it names, refused when
+  /// that interface is down (network-interface NETIF-013). New, so off by
+  /// default.
+  networkInterface(AppPref.experimentalNetworkInterface);
 
   const ExperimentalFeature(this.pref);
 

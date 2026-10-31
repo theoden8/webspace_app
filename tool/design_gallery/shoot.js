@@ -47,6 +47,8 @@ const CARDS = [
   { id: 'site-behaviour', width: 400, height: 1000 },
   { id: 'site-network', width: 400, height: 1000 },
   { id: 'site-network-saved', width: 400, height: 900 },
+  { id: 'site-network-interface', width: 400, height: 640 },
+  { id: 'site-network-interface-gone', width: 400, height: 640 },
   { id: 'saved-proxies', width: 400, height: 1100 },
   { id: 'saved-proxy-edit', width: 400, height: 740 },
   { id: 'saved-credentials-edit', width: 400, height: 740 },

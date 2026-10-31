@@ -7,6 +7,8 @@
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/platform/host_platform.dart' show IOException;
+import 'package:webspace/services/egress_relay.dart';
+import 'package:webspace/services/egress_route_engine.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -37,6 +39,7 @@ extension type OutboundProxy._(UserProxySettings settings) {
             address: stored.address,
             username: site,
             torExitCountry: stored.torExitCountry,
+            leavesBy: stored.leavesBy,
           )
         : stored,
   );
@@ -75,17 +78,27 @@ extension type OutboundProxy._(UserProxySettings settings) {
   /// app's default proxy is not the same request as opting into per-site
   /// isolation, and conflating them would hand every uncustomized site a
   /// circuit of its own (PROXY-011).
-  ProxyRoute get resolved {
+  ///
+  /// The interface the settings name is applied last ([egressRoute]): the
+  /// route above, dialled over it by the egress relay, or no route at all
+  /// where it cannot be (network-interface NETIF-002, NETIF-005).
+  ProxyRoute get resolved => ProxyRoute._(egressRoute(
+        route: _proxy,
+        leavesBy: settings.leavesBy,
+        relay: EgressRelay.instance.state,
+      ));
+
+  UserProxySettings get _proxy {
     if (settings.type == ProxyType.DEFAULT) {
       final global = resolveLibraryProxy(GlobalOutboundProxy.current);
-      return ProxyRoute._(global.type == ProxyType.TOR
+      return global.type == ProxyType.TOR
           ? _torTagged(global, tag: TorTag.app)
-          : global);
+          : global;
     }
     if (settings.type == ProxyType.TOR) {
-      return ProxyRoute._(_torTagged(settings, tag: null));
+      return _torTagged(settings, tag: null);
     }
-    return ProxyRoute._(resolveLibraryProxy(settings));
+    return resolveLibraryProxy(settings);
   }
 }
 

@@ -30,6 +30,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -183,6 +184,9 @@ void main([List<String> args = const []]) async {
   // this on first use and on every runtimeChoiceChanged (TOR-025), and on
   // first use reads the Built-in Tor experiment loaded above (TOR-027).
   TorService.wantsExternal = () => ExternalTorSettings.chosen;
+  // Before any site's webview: a site bound to an interface resolves to the
+  // relay, or to no route while it is not up (NETIF-002).
+  await EgressRelay.instance.initialize();
   // A process runs one composition mode, so the Experimental switch applies
   // from the next launch (PAUSE-032).
   WebViewFactory.hybridComposition = !ExperimentalFeaturesService.instance

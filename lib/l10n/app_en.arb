@@ -5593,6 +5593,44 @@
   "@appSettingsExperimentalLinuxTorHint": {
     "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental, on Linux. tor, in lower case, is the name of the program the app starts; Tor is the product name; keep both. A circuit is Tor's path through the network."
   },
+  "networkInterfaceTitle": "Network interface",
+  "@networkInterfaceTitle": {
+    "description": "Title of the row on a site's Network screen that picks which network interface (for example a VPN's tunnel, such as wg0) the site's traffic leaves the device by."
+  },
+  "networkInterfaceHint": "Sends this site's traffic out through one network interface, such as a VPN's tunnel, and no other. While that interface is down the site loads nothing rather than use another connection. Host names are looked up through the interface's own DNS servers, so the system resolver (systemd-resolved) must know them. A proxy set above is reached through the interface. WebRTC calls do not use it.",
+  "@networkInterfaceHint": {
+    "description": "Explanation behind the hint button of the Network interface row on a site's Network screen. systemd-resolved is the name of a Linux system service; keep it as written. WebRTC is a web standard's name; keep it as written."
+  },
+  "networkInterfaceSystem": "System routing",
+  "@networkInterfaceSystem": {
+    "description": "Choice on the Network interface row meaning the site does not pick an interface: the operating system's routing decides, as for every other app."
+  },
+  "networkInterfaceNotConnected": "{name}, not connected",
+  "@networkInterfaceNotConnected": {
+    "description": "Label and status on the Network interface row for an interface the site picked that is missing or down right now, so the site loads nothing until it is back.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "wg0"
+      }
+    }
+  },
+  "networkInterfaceTorLock": "Tor makes its own connections",
+  "@networkInterfaceTorLock": {
+    "description": "Why the Network interface row is unavailable: the site goes through Tor, which opens its own connections, so they cannot be bound to an interface. Short status line."
+  },
+  "networkInterfaceHttpsLock": "An HTTPS proxy cannot use one yet",
+  "@networkInterfaceHttpsLock": {
+    "description": "Why the Network interface row is unavailable: the site's proxy is an HTTPS proxy, which the app cannot reach through a chosen network interface yet. Short status line."
+  },
+  "appSettingsExperimentalNetworkInterface": "Network interface per site",
+  "@appSettingsExperimentalNetworkInterface": {
+    "description": "Title of the switch in App Settings > Developer > Experimental that lets each site pick the network interface (such as a VPN's tunnel) its traffic leaves by."
+  },
+  "appSettingsExperimentalNetworkInterfaceHint": "Lets each site pick the network interface its traffic leaves by, such as one VPN's tunnel among several, on its Network screen. A site whose interface is down loads nothing instead of using another connection.",
+  "@appSettingsExperimentalNetworkInterfaceHint": {
+    "description": "Explanation behind the hint button of the Network interface per site experiment switch in App Settings > Developer > Experimental."
+  },
   "appSettingsExtensions": "Extensions",
   "@appSettingsExtensions": {
     "description": "Title of the App Settings row, and of the screen it opens, that lists the browser extensions (add-ons) imported on this device. Also the title of the per-site screen choosing which of them run on a site."

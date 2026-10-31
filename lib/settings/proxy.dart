@@ -1,3 +1,4 @@
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 
 /// Proxy transports a site (or the app) can be pointed at.
@@ -61,6 +62,11 @@ class UserProxySettings {
   /// any other pairing fails closed.
   CredentialsId? credentialsId;
 
+  /// The interface the traffic leaves by (network-interface NETIF-001). Here
+  /// for the reason [torExitCountry] is: every seam that takes the proxy
+  /// takes it, the nested webview's among them.
+  InterfaceChoice leavesBy;
+
   UserProxySettings({
     required this.type,
     this.address,
@@ -70,6 +76,7 @@ class UserProxySettings {
     this.savedProxyId,
     this.gatewayId,
     this.credentialsId,
+    this.leavesBy = const SystemRouting(),
   });
 
   /// Which route these settings name, for telling two apart (PROXY-008).
@@ -112,6 +119,7 @@ class UserProxySettings {
         if (savedProxyId != null) 'savedProxyId': savedProxyId,
         if (gatewayId != null) 'gatewayId': gatewayId,
         if (credentialsId != null) 'credentialsId': credentialsId,
+        'networkInterface': ?leavesBy.toJson(),
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) {
@@ -129,6 +137,7 @@ class UserProxySettings {
       savedProxyId: SavedProxyId.parse(json['savedProxyId']),
       gatewayId: GatewayId.parse(json['gatewayId']),
       credentialsId: CredentialsId.parse(json['credentialsId']),
+      leavesBy: InterfaceChoice.fromJson(json['networkInterface']),
     );
   }
 
@@ -159,7 +168,8 @@ class UserProxySettings {
         'exitCountry=${torExitCountry ?? '<any>'}'
         '${type == ProxyType.SAVED ? ' saved=${savedProxyId ?? '<none>'}' : ''}'
         '${type == ProxyType.GATEWAY ? ' gateway=${gatewayId ?? '<none>'}' : ''}'
-        '${credentialsId != null ? ' credentials=$credentialsId' : ''}';
+        '${credentialsId != null ? ' credentials=$credentialsId' : ''}'
+        '${leavesBy is SystemRouting ? '' : ' boundInterface=true'}';
   }
 
   bool get hasCredentials => username != null && username!.isNotEmpty && password != null && password!.isNotEmpty;

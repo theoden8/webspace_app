@@ -83,6 +83,9 @@ enum AppPref<T extends Object> {
   experimentalDesktopTray('experimentalDesktopTray', fallback: false),
   // TOR-027: the built-in Tor on Linux, read once at launch.
   experimentalLinuxTor('experimentalLinuxTor', fallback: false),
+  // NETIF-013: a site's traffic bound to a network interface, where the
+  // platform binds one.
+  experimentalNetworkInterface('experimentalNetworkInterface', fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
   externalTor('experimentalExternalTor', fallback: false),
