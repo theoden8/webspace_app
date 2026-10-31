@@ -937,7 +937,7 @@ abstract final class TabTable {
           ),
           Branch(
             StepOutcome.rebind,
-            when: _tab.value.eq(_active.at(_site.value)) & _live,
+            when: _closing.value.has(_active.at(_site.value)) & _live,
             pick: _nextSurvivor,
             tab: _nextSurvivor.it,
             then: [_tab.becomes(_nextSurvivor.it)],
@@ -955,7 +955,7 @@ abstract final class TabTable {
               _active.except(
                 _site.value,
                 to: Expr.choose(
-                  when: _tab.value.eq(_active.at(_site.value)),
+                  when: _closing.value.has(_active.at(_site.value)),
                   then: _nextSurvivor.it,
                   otherwise: _active.at(_site.value),
                 ),
